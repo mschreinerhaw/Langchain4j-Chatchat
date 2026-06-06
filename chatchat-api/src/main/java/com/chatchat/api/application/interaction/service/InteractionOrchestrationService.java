@@ -52,7 +52,7 @@ public class InteractionOrchestrationService {
         }
 
         String requestId = UUID.randomUUID().toString();
-        String conversationId = memoryService.ensureConversationId(request.getConversationId());
+        String conversationId = memoryService.ensureConversationId(request.getConversationId(), request.getUserId());
         int historyWindow = request.getHistoryWindow() == null ? DEFAULT_HISTORY_WINDOW : request.getHistoryWindow();
         long startedAt = System.currentTimeMillis();
 
@@ -88,4 +88,3 @@ public class InteractionOrchestrationService {
         return response;
     }
 }
-

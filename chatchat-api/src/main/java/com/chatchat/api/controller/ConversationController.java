@@ -1,7 +1,7 @@
 package com.chatchat.api.controller;
 
 import com.chatchat.api.conversation.Conversation;
-import com.chatchat.api.rag.RAGService;
+import com.chatchat.api.conversation.ConversationService;
 import com.chatchat.common.constants.AppConstants;
 import com.chatchat.common.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -9,12 +9,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
-import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.UUID;
 
 /**
  * REST API controller for conversation management
@@ -25,10 +20,7 @@ import java.util.UUID;
 @Tag(name = "Conversations", description = "Conversation management APIs")
 public class ConversationController {
 
-    private final RAGService ragService;
-
-    // In-memory conversation store
-    private final Map<String, Conversation> conversations = new HashMap<>();
+    private final ConversationService conversationService;
 
     /**
      * Create a new conversation
@@ -36,19 +28,7 @@ public class ConversationController {
     @PostMapping
     @Operation(summary = "Create a new conversation")
     public ApiResponse<Conversation> createConversation(@RequestBody CreateConversationRequest request) {
-        String conversationId = UUID.randomUUID().toString();
-
-        Conversation conversation = Conversation.builder()
-            .id(conversationId)
-            .userId(request.userId())
-            .title(request.title())
-            .createdAt(LocalDateTime.now())
-            .updatedAt(LocalDateTime.now())
-            .messages(new ArrayList<>())
-            .build();
-
-        conversations.put(conversationId, conversation);
-
+        Conversation conversation = conversationService.createConversation(request.userId(), request.title());
         return ApiResponse.success(conversation, "Conversation created successfully");
     }
 
@@ -58,13 +38,9 @@ public class ConversationController {
     @GetMapping("/{conversationId}")
     @Operation(summary = "Get conversation details")
     public ApiResponse<Conversation> getConversation(@PathVariable("conversationId") String conversationId) {
-        Conversation conversation = conversations.get(conversationId);
-
-        if (conversation == null) {
-            return ApiResponse.notFound("Conversation not found: " + conversationId);
-        }
-
-        return ApiResponse.success(conversation);
+        return conversationService.getConversation(conversationId)
+            .map(ApiResponse::success)
+            .orElseGet(() -> ApiResponse.notFound("Conversation not found: " + conversationId));
     }
 
     /**
@@ -73,11 +49,7 @@ public class ConversationController {
     @GetMapping("/user/{userId}")
     @Operation(summary = "List user conversations")
     public ApiResponse<List<Conversation>> listUserConversations(@PathVariable("userId") String userId) {
-        List<Conversation> userConversations = conversations.values().stream()
-            .filter(c -> c.getUserId().equals(userId))
-            .toList();
-
-        return ApiResponse.success(userConversations);
+        return ApiResponse.success(conversationService.listUserConversations(userId));
     }
 
     /**
@@ -86,7 +58,7 @@ public class ConversationController {
     @DeleteMapping("/{conversationId}")
     @Operation(summary = "Delete a conversation")
     public ApiResponse<Void> deleteConversation(@PathVariable("conversationId") String conversationId) {
-        conversations.remove(conversationId);
+        conversationService.deleteConversation(conversationId);
         return ApiResponse.success(null, "Conversation deleted successfully");
     }
 

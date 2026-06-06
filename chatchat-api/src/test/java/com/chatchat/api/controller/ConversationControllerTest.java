@@ -1,5 +1,6 @@
 package com.chatchat.api.controller;
 
+import com.chatchat.api.conversation.ConversationService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
@@ -27,6 +28,9 @@ public class ConversationControllerTest {
 
     @Autowired
     private ObjectMapper objectMapper;
+
+    @Autowired
+    private ConversationService conversationService;
 
     @Test
     public void testCreateConversation() throws Exception {
@@ -69,6 +73,34 @@ public class ConversationControllerTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.code").value(200))
             .andExpect(jsonPath("$.data.id").value(conversationId));
+    }
+
+    @Test
+    public void testGetConversationWithPersistedMessages() throws Exception {
+        String createRequestBody = objectMapper.writeValueAsString(
+            new ConversationController.CreateConversationRequest("user-003", "Message Store Test")
+        );
+
+        String createResponse = mockMvc.perform(post("/api/v1/conversations")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(createRequestBody))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+        JsonNode response = objectMapper.readTree(createResponse);
+        String conversationId = response.path("data").path("id").asText();
+
+        conversationService.appendMessage(conversationId, "user", "分析贵州茅台");
+        conversationService.appendMessage(conversationId, "assistant", "这是一个示例回答");
+
+        mockMvc.perform(get("/api/v1/conversations/" + conversationId))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.code").value(200))
+            .andExpect(jsonPath("$.data.messages[0].role").value("user"))
+            .andExpect(jsonPath("$.data.messages[0].content").value("分析贵州茅台"))
+            .andExpect(jsonPath("$.data.messages[1].role").value("assistant"));
     }
 
     @Test

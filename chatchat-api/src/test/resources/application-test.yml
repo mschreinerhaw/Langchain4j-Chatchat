@@ -25,3 +25,7 @@ logging:
     org.hibernate: WARN
     org.hibernate.SQL: WARN
 
+chatchat:
+  chat:
+    detail-store:
+      type: memory

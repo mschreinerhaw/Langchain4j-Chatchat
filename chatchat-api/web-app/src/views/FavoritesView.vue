@@ -1,7 +1,7 @@
 <template>
-  <section class="feature-view">
+  <section class="feature-view favorites-view">
     <header>
-      <p>我的收藏</p>
+      <p>{{ userId }} 收藏</p>
       <h1>重点标的与研究框架</h1>
     </header>
     <div class="library-list">
@@ -13,13 +13,4 @@
   </section>
 </template>
 
-<script>
-export default {
-  name: "FavoritesView",
-  data() {
-    return {
-      favorites: ["宁德时代", "光伏行业分析框架", "北向资金流向监控", "半导体产业链图谱"]
-    };
-  }
-};
-</script>
+<script src="../js/views/FavoritesView.js"></script>

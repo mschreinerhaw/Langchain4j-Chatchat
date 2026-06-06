@@ -18,23 +18,4 @@
   </section>
 </template>
 
-<script>
-export default {
-  name: "ResponseReferences",
-  props: {
-    sources: {
-      type: Array,
-      default: () => []
-    },
-    toolTraces: {
-      type: Array,
-      default: () => []
-    }
-  },
-  computed: {
-    hasDetails() {
-      return this.sources.length || this.toolTraces.length;
-    }
-  }
-};
-</script>
+<script src="../js/components/ResponseReferences.js"></script>

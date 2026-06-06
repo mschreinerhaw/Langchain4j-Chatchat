@@ -16,6 +16,7 @@ import lombok.NoArgsConstructor;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -28,6 +29,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Deque;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -143,10 +145,13 @@ public class DataQueryController {
     }
 
     @GetMapping("/history/{userId}")
-    @Operation(summary = "Get user history questions")
-    public ApiResponse<List<HistoryItem>> getHistory(@PathVariable("userId") String userId) {
+    @Operation(summary = "Search user history conversations")
+    public ApiResponse<List<HistoryItem>> getHistory(@PathVariable("userId") String userId,
+                                                     @RequestParam(value = "keyword", required = false) String keyword,
+                                                     @RequestParam(value = "status", required = false) String status,
+                                                     @RequestParam(value = "limit", required = false) Integer limit) {
         Deque<HistoryItem> deque = historyStore.getOrDefault(userId, new ConcurrentLinkedDeque<>());
-        return ApiResponse.success(new ArrayList<>(deque));
+        return ApiResponse.success(filterHistory(deque, keyword, status, limit));
     }
 
     @PostMapping("/history")
@@ -162,6 +167,7 @@ public class DataQueryController {
             ? UUID.randomUUID().toString()
             : request.getHistoryId().trim();
         List<ConversationMessage> messages = request.getMessages() == null ? List.of() : request.getMessages();
+        String status = resolveHistoryStatus(request.getStatus(), messages);
         deque.removeIf(item -> item.getId() != null && item.getId().equals(historyId));
         deque.addFirst(new HistoryItem(
             historyId,
@@ -171,12 +177,43 @@ public class DataQueryController {
             request.getSkillId(),
             request.getModelName(),
             request.getMode(),
-            messages
+            messages,
+            status
         ));
         while (deque.size() > 30) {
             deque.removeLast();
         }
         return ApiResponse.success(new ArrayList<>(deque), "History updated");
+    }
+
+    @PatchMapping("/history/{userId}/{historyId}/status")
+    @Operation(summary = "Update one history conversation status")
+    public ApiResponse<List<HistoryItem>> updateHistoryStatus(@PathVariable("userId") String userId,
+                                                              @PathVariable("historyId") String historyId,
+                                                              @RequestBody HistoryStatusRequest request) {
+        Deque<HistoryItem> deque = historyStore.get(userId);
+        if (deque == null || deque.isEmpty()) {
+            return ApiResponse.success(List.of(), "History not found");
+        }
+        String status = request == null ? null : request.getStatus();
+        if (status == null || status.isBlank()) {
+            return ApiResponse.badRequest("status is required");
+        }
+        long now = System.currentTimeMillis();
+        for (HistoryItem item : deque) {
+            if (historyId.equals(item.getId())) {
+                item.setStatus(status.trim());
+                item.setTimestamp(now);
+                if (request.getConversationId() != null && !request.getConversationId().isBlank()) {
+                    item.setConversationId(request.getConversationId().trim());
+                }
+                if (request.getMessages() != null) {
+                    item.setMessages(request.getMessages());
+                }
+                return ApiResponse.success(new ArrayList<>(deque), "History status updated");
+            }
+        }
+        return ApiResponse.success(new ArrayList<>(deque), "History not found");
     }
 
     @DeleteMapping("/history/{userId}/{historyId}")
@@ -256,6 +293,16 @@ public class DataQueryController {
         private String skillId;
         private String modelName;
         private String mode;
+        private String status;
+        private List<ConversationMessage> messages;
+    }
+
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    public static class HistoryStatusRequest {
+        private String status;
+        private String conversationId;
         private List<ConversationMessage> messages;
     }
 
@@ -271,6 +318,7 @@ public class DataQueryController {
         private String modelName;
         private String mode;
         private List<ConversationMessage> messages;
+        private String status;
     }
 
     @Data
@@ -281,6 +329,43 @@ public class DataQueryController {
         private String content;
         private Long timestamp;
         private List<Map<String, Object>> traces;
+    }
+
+    private String resolveHistoryStatus(String status, List<ConversationMessage> messages) {
+        if (status != null && !status.isBlank()) {
+            return status.trim();
+        }
+        if (messages == null || messages.isEmpty()) {
+            return "completed";
+        }
+        ConversationMessage lastMessage = messages.get(messages.size() - 1);
+        return "user".equalsIgnoreCase(lastMessage.getRole()) ? "pending" : "completed";
+    }
+
+    private List<HistoryItem> filterHistory(Deque<HistoryItem> deque, String keyword, String status, Integer limit) {
+        String normalizedKeyword = keyword == null ? "" : keyword.trim().toLowerCase(Locale.ROOT);
+        String normalizedStatus = status == null ? "" : status.trim().toLowerCase(Locale.ROOT);
+        int max = limit == null || limit <= 0 ? 30 : Math.min(limit, 100);
+
+        return deque.stream()
+            .filter(item -> normalizedStatus.isEmpty()
+                || normalizedStatus.equalsIgnoreCase(String.valueOf(item.getStatus())))
+            .filter(item -> normalizedKeyword.isEmpty() || matchesKeyword(item, normalizedKeyword))
+            .limit(max)
+            .toList();
+    }
+
+    private boolean matchesKeyword(HistoryItem item, String keyword) {
+        return containsIgnoreCase(item.getQuestion(), keyword)
+            || containsIgnoreCase(item.getConversationId(), keyword)
+            || containsIgnoreCase(item.getMode(), keyword)
+            || containsIgnoreCase(item.getStatus(), keyword)
+            || (item.getMessages() != null && item.getMessages().stream()
+                .anyMatch(message -> containsIgnoreCase(message.getContent(), keyword)));
+    }
+
+    private boolean containsIgnoreCase(String value, String keyword) {
+        return value != null && value.toLowerCase(Locale.ROOT).contains(keyword);
     }
 
     private SkillOption toSkillOption(SkillDefinition skill) {

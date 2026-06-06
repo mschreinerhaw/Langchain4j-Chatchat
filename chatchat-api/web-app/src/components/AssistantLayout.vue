@@ -1,10 +1,19 @@
 <template>
-  <div class="assistant-app">
+  <div class="assistant-app" :class="{ 'sidebar-collapsed': sidebarCollapsed }">
     <AssistantSidebar
       :active-view="activeView"
+      :active-conversation-id="activeConversationId"
+      :collapsed="sidebarCollapsed"
+      :history-error="historyError"
+      :history-loading="historyLoading"
       :nav-items="navItems"
       :recent-conversations="recentConversations"
+      :user-id="userId"
+      @delete-conversation="$emit('delete-conversation', $event)"
       @navigate="$emit('navigate', $event)"
+      @refresh-history="$emit('refresh-history')"
+      @select-conversation="$emit('select-conversation', $event)"
+      @toggle-sidebar="sidebarCollapsed = !sidebarCollapsed"
     />
 
     <main class="assistant-main">
@@ -19,28 +28,4 @@
   </div>
 </template>
 
-<script>
-import AssistantSidebar from "./AssistantSidebar.vue";
-
-export default {
-  name: "AssistantLayout",
-  components: {
-    AssistantSidebar
-  },
-  props: {
-    activeView: {
-      type: String,
-      required: true
-    },
-    navItems: {
-      type: Array,
-      default: () => []
-    },
-    recentConversations: {
-      type: Array,
-      default: () => []
-    }
-  },
-  emits: ["navigate"]
-};
-</script>
+<script src="../js/components/AssistantLayout.js"></script>

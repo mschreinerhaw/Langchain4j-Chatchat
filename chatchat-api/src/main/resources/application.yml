@@ -108,6 +108,10 @@ chatchat:
     streamingTimeout: 300
     maxMessageLength: 4096
     conversationHistorySize: 20
+    detail-store:
+      type: rocksdb
+      path: ${CHAT_DETAIL_STORE_PATH:./data/chat-rocksdb}
+      create-if-missing: true
 
 springdoc:
   api-docs:

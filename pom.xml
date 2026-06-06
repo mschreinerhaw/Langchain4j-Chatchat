@@ -17,6 +17,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <spring-boot.version>3.5.3</spring-boot.version>
         <langchain4j.version>1.14.1</langchain4j.version>
+        <rocksdb.version>10.10.1.1</rocksdb.version>
         <lombok.version>1.18.32</lombok.version>
         <chatchat.main-class>com.chatchat.api.ChatChatApplication</chatchat.main-class>
     </properties>

@@ -1,6 +1,6 @@
 <template>
   <section class="prompt-card">
-    <h2 v-if="showSuggestions">您可以这样提问</h2>
+    <h2 v-if="showSuggestions">可以这样提问</h2>
     <div v-if="showSuggestions" class="prompt-suggestions">
       <button
         v-for="suggestion in suggestions"
@@ -17,7 +17,7 @@
         v-model="draft"
         rows="4"
         :disabled="loading"
-        placeholder="请输入您的问题，或使用 @ 调用能力，Shift + Enter 换行"
+        placeholder="输入问题，或使用 @ 调用能力，Shift + Enter 换行"
         @keydown.enter.exact.prevent="send"
       ></textarea>
 
@@ -48,71 +48,4 @@
   </section>
 </template>
 
-<script>
-import { ChevronDown, Funnel, Globe, Send, Trash2, Upload } from "@lucide/vue";
-
-export default {
-  name: "PromptComposer",
-  components: {
-    ChevronDown,
-    Funnel,
-    Globe,
-    Send,
-    Trash2,
-    Upload
-  },
-  props: {
-    suggestions: {
-      type: Array,
-      default: () => []
-    },
-    modelValue: {
-      type: String,
-      default: ""
-    },
-    loading: {
-      type: Boolean,
-      default: false
-    },
-    showSuggestions: {
-      type: Boolean,
-      default: true
-    }
-  },
-  emits: ["clear", "pick", "send", "update:modelValue", "upload"],
-  data() {
-    return {
-      draft: this.modelValue,
-      deepThinking: true,
-      webSearch: false
-    };
-  },
-  watch: {
-    modelValue(value) {
-      this.draft = value;
-    },
-    draft(value) {
-      this.$emit("update:modelValue", value);
-    }
-  },
-  methods: {
-    send() {
-      const value = this.draft.trim();
-      if (!value || this.loading) {
-        return;
-      }
-      this.$emit("send", {
-        query: value,
-        deepThinking: this.deepThinking,
-        webSearch: this.webSearch
-      });
-    },
-    toggleDeepThinking() {
-      this.deepThinking = !this.deepThinking;
-    },
-    toggleWebSearch() {
-      this.webSearch = !this.webSearch;
-    }
-  }
-};
-</script>
+<script src="../js/components/PromptComposer.js"></script>

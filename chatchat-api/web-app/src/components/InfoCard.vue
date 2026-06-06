@@ -1,27 +1,35 @@
 <template>
-  <section class="info-card">
+  <section class="info-card" :class="{ collapsed }">
     <header>
-      <h2>{{ title }}</h2>
-      <button v-if="action" type="button">{{ action }} <span></span></button>
+      <button
+        class="info-card-title"
+        type="button"
+        :disabled="!collapsible"
+        :aria-expanded="collapsible ? !collapsed : undefined"
+        @click="collapsible && toggleCollapsed()"
+      >
+        <span class="info-card-heading">{{ title }}</span>
+      </button>
+      <div class="info-card-actions">
+        <button v-if="action" class="info-card-link" type="button" @click="$emit('action')">
+          {{ action }} <span></span>
+        </button>
+        <button
+          v-if="collapsible"
+          class="info-card-collapse"
+          type="button"
+          :aria-label="collapsed ? '展开' : '收起'"
+          :title="collapsed ? '展开' : '收起'"
+          @click="toggleCollapsed"
+        >
+          <span></span>
+        </button>
+      </div>
     </header>
-    <div class="info-card-body">
+    <div v-show="!collapsed" class="info-card-body">
       <slot />
     </div>
   </section>
 </template>
 
-<script>
-export default {
-  name: "InfoCard",
-  props: {
-    title: {
-      type: String,
-      required: true
-    },
-    action: {
-      type: String,
-      default: ""
-    }
-  }
-};
-</script>
+<script src="../js/components/InfoCard.js"></script>

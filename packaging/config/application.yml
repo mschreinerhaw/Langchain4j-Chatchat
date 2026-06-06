@@ -1,0 +1,47 @@
+spring:
+  application:
+    name: chatchat
+  datasource:
+    url: ${CHAT_DATASOURCE_URL:jdbc:h2:file:./h2/chatchat;MODE=MySQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE;DB_CLOSE_DELAY=-1}
+    driver-class-name: ${CHAT_DATASOURCE_DRIVER:org.h2.Driver}
+    username: ${CHAT_DATASOURCE_USERNAME:sa}
+    password: ${CHAT_DATASOURCE_PASSWORD:}
+    hikari:
+      maximum-pool-size: 5
+      minimum-idle: 1
+      connection-timeout: 20000
+      idle-timeout: 300000
+      max-lifetime: 1200000
+  jpa:
+    hibernate:
+      ddl-auto: ${CHAT_JPA_DDL_AUTO:update}
+    show-sql: false
+    database-platform: ${CHAT_JPA_DIALECT:org.hibernate.dialect.H2Dialect}
+
+server:
+  port: 8080
+  servlet:
+    context-path: /
+  shutdown: graceful
+
+chatchat:
+  models:
+    defaultProvider: openai
+    defaultChatModel: qwen3.6-plus
+    defaultEmbeddingModel: qwen-flash-character
+    timeout: 30
+    openai:
+      apiKey: ${OPENAI_API_KEY:replace-with-your-key}
+      baseUrl: https://dashscope.aliyuncs.com/compatible-mode/v1
+      timeout: 30
+      maxRetries: 3
+
+logging:
+  level:
+    com.chatchat: INFO
+    org.springframework.web: INFO
+    org.hibernate: WARN
+  file:
+    name: logs/chatchat.log
+    max-size: 10MB
+    max-history: 30

@@ -1,0 +1,16 @@
+spring:
+  datasource:
+    url: ${CHAT_DATASOURCE_URL:jdbc:mysql://localhost:3306/chatchat?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true}
+    driver-class-name: ${CHAT_DATASOURCE_DRIVER:com.mysql.cj.jdbc.Driver}
+    username: ${CHAT_DATASOURCE_USERNAME:chatchat}
+    password: ${CHAT_DATASOURCE_PASSWORD:chatchat}
+    hikari:
+      maximum-pool-size: ${CHAT_DATASOURCE_POOL_MAX:20}
+      minimum-idle: ${CHAT_DATASOURCE_POOL_MIN:5}
+      connection-timeout: ${CHAT_DATASOURCE_CONNECTION_TIMEOUT:30000}
+      idle-timeout: ${CHAT_DATASOURCE_IDLE_TIMEOUT:600000}
+      max-lifetime: ${CHAT_DATASOURCE_MAX_LIFETIME:1800000}
+  jpa:
+    hibernate:
+      ddl-auto: ${CHAT_JPA_DDL_AUTO:update}
+    database-platform: ${CHAT_JPA_DIALECT:org.hibernate.dialect.MySQLDialect}

@@ -1,0 +1,71 @@
+spring:
+  application:
+    name: chatchat-mcp-server
+  datasource:
+    url: ${CHAT_MCP_DATASOURCE_URL:jdbc:h2:file:./data/h2/chatchat-mcp-server;MODE=MySQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE;DB_CLOSE_DELAY=-1}
+    driver-class-name: ${CHAT_MCP_DATASOURCE_DRIVER:org.h2.Driver}
+    username: ${CHAT_MCP_DATASOURCE_USERNAME:sa}
+    password: ${CHAT_MCP_DATASOURCE_PASSWORD:chatchat_mcp_h2_pwd}
+  h2:
+    console:
+      enabled: ${CHAT_MCP_H2_CONSOLE_ENABLED:false}
+      path: ${CHAT_MCP_H2_CONSOLE_PATH:/h2-console}
+      settings:
+        web-allow-others: ${CHAT_MCP_H2_CONSOLE_WEB_ALLOW_OTHERS:false}
+  jpa:
+    hibernate:
+      ddl-auto: ${CHAT_MCP_JPA_DDL_AUTO:update}
+    database-platform: ${CHAT_MCP_JPA_DIALECT:org.hibernate.dialect.H2Dialect}
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+
+server:
+  port: ${CHAT_MCP_SERVER_PORT:8090}
+  servlet:
+    context-path: /
+  shutdown: graceful
+
+chatchat:
+  mcp:
+    admin:
+      username: ${CHAT_MCP_ADMIN_USERNAME:admin}
+      password: ${CHAT_MCP_ADMIN_PASSWORD:admin123}
+      token-ttl-minutes: ${CHAT_MCP_ADMIN_TOKEN_TTL_MINUTES:480}
+    security:
+      require-mcp-token: ${CHAT_MCP_REQUIRE_TOKEN:false}
+    cache:
+      enabled: ${CHAT_MCP_CACHE_ENABLED:true}
+      path: ${CHAT_MCP_CACHE_PATH:./data/mcp-cache-rocksdb}
+      create-if-missing: true
+      cleanup-interval-ms: ${CHAT_MCP_CACHE_CLEANUP_INTERVAL_MS:60000}
+      cleanup-batch-size: ${CHAT_MCP_CACHE_CLEANUP_BATCH_SIZE:500}
+    server:
+      name: chatchat-langchain4j-mcp-server
+      version: 1.0.0-SNAPSHOT
+      endpoint: ${CHAT_MCP_SERVER_ENDPOINT:/mcp}
+      expose-agent-compatible-only: true
+      excluded-tool-names: []
+      instructions: "ChatChat standalone MCP server exposing LangChain4j-compatible tools."
+  tools:
+    web-search:
+      enabled: ${CHAT_TOOLS_WEB_SEARCH_ENABLED:true}
+      provider: ${CHAT_TOOLS_WEB_SEARCH_PROVIDER:duckduckgo_html}
+      endpoint: ${CHAT_TOOLS_WEB_SEARCH_ENDPOINT:https://duckduckgo.com/html/}
+      user-agent: ${CHAT_TOOLS_WEB_SEARCH_USER_AGENT:ChatChat-MCP-Server/1.0}
+      timeout-ms: ${CHAT_TOOLS_WEB_SEARCH_TIMEOUT_MS:10000}
+      max-results: ${CHAT_TOOLS_WEB_SEARCH_MAX_RESULTS:10}
+    database-query:
+      enabled: ${CHAT_TOOLS_DATABASE_QUERY_ENABLED:true}
+      default-max-rows: ${CHAT_TOOLS_DATABASE_QUERY_DEFAULT_MAX_ROWS:50}
+      max-rows: ${CHAT_TOOLS_DATABASE_QUERY_MAX_ROWS:500}
+      query-timeout-seconds: ${CHAT_TOOLS_DATABASE_QUERY_TIMEOUT_SECONDS:15}
+      driver-lib-path: ${CHAT_TOOLS_DATABASE_QUERY_DRIVER_LIB_PATH:./lib}
+
+logging:
+  level:
+    com.chatchat: INFO
+    io.modelcontextprotocol: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"

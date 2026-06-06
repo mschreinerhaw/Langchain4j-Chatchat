@@ -1,0 +1,265 @@
+:root {
+    --sidebar-bg: #172033;
+    --surface: #ffffff;
+    --surface-muted: #f5f7fb;
+    --line: #dce3ef;
+    --text-muted: #65738a;
+}
+
+body {
+    margin: 0;
+    background: var(--surface-muted);
+    color: #1d2738;
+}
+
+.login-shell {
+    min-height: 100vh;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+}
+
+.login-panel {
+    width: min(420px, 100%);
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 32px;
+    box-shadow: 0 18px 60px rgba(23, 32, 51, 0.12);
+}
+
+.login-panel h1,
+.topbar h1 {
+    font-size: 24px;
+    margin: 0 0 8px;
+}
+
+.login-panel p,
+.topbar p {
+    color: var(--text-muted);
+    margin: 0 0 24px;
+}
+
+.brand-mark {
+    width: 52px;
+    height: 52px;
+    display: grid;
+    place-items: center;
+    border-radius: 8px;
+    background: #0d6efd;
+    color: #fff;
+    font-weight: 700;
+    margin-bottom: 18px;
+}
+
+.stack > * + * {
+    margin-top: 10px;
+}
+
+.app-shell {
+    min-height: 100vh;
+    display: grid;
+    grid-template-columns: 248px minmax(0, 1fr);
+}
+
+.sidebar {
+    background: var(--sidebar-bg);
+    color: #fff;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.sidebar-title {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    min-height: 44px;
+}
+
+.sidebar-title small {
+    display: block;
+    color: rgba(255, 255, 255, 0.66);
+    font-size: 12px;
+}
+
+.brand-dot {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
+    background: #0d6efd;
+}
+
+.sidebar .nav-link {
+    color: rgba(255, 255, 255, 0.72);
+    border-radius: 6px;
+    text-align: left;
+}
+
+.sidebar .nav-link.active,
+.sidebar .nav-link:hover {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.1);
+}
+
+.workspace {
+    padding: 24px;
+    min-width: 0;
+}
+
+.topbar {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 20px;
+}
+
+.toolbar {
+    display: flex;
+    gap: 10px;
+}
+
+.content-grid {
+    display: grid;
+    grid-template-columns: minmax(280px, 380px) minmax(0, 1fr);
+    gap: 20px;
+}
+
+.panel {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 18px;
+}
+
+.panel-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.panel-head h2 {
+    font-size: 16px;
+    margin: 0;
+}
+
+.service-list {
+    display: grid;
+    gap: 10px;
+}
+
+.service-card {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 12px;
+    cursor: pointer;
+    background: #fff;
+}
+
+.service-card.active {
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.12);
+}
+
+.service-card h3 {
+    font-size: 15px;
+    margin: 0 0 6px;
+}
+
+.service-card p {
+    margin: 0 0 10px;
+    color: var(--text-muted);
+    font-size: 13px;
+}
+
+.service-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.codebox,
+.result-output {
+    font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+    font-size: 13px;
+}
+
+.microservice-box {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #f9fbff;
+    padding: 14px;
+}
+
+.form-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 18px;
+}
+
+.connection-list {
+    display: grid;
+    grid-template-columns: 140px minmax(0, 1fr);
+    gap: 12px 16px;
+    margin: 0;
+}
+
+.connection-list dt {
+    color: var(--text-muted);
+}
+
+.connection-list dd {
+    margin: 0;
+}
+
+.result-output {
+    white-space: pre-wrap;
+    word-break: break-word;
+    margin: 0;
+    min-height: 260px;
+}
+
+@media (max-width: 980px) {
+    .app-shell {
+        grid-template-columns: 1fr;
+    }
+
+    .sidebar {
+        position: sticky;
+        top: 0;
+        z-index: 20;
+        flex-direction: row;
+        align-items: center;
+    }
+
+    .sidebar .nav {
+        flex-direction: row;
+    }
+
+    .content-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 640px) {
+    .workspace {
+        padding: 16px;
+    }
+
+    .topbar {
+        display: block;
+    }
+
+    .toolbar {
+        margin-top: 14px;
+        flex-wrap: wrap;
+    }
+
+    .sidebar {
+        flex-wrap: wrap;
+    }
+}

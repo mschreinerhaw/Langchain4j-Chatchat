@@ -1,0 +1,316 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>ChatChat MCP Admin</title>
+    <link rel="stylesheet" href="../vendor/bootstrap/bootstrap.min.css">
+    <link rel="stylesheet" href="./css/admin.css">
+</head>
+<body>
+<main id="loginView" class="login-shell">
+    <section class="login-panel">
+        <div class="brand-mark">MCP</div>
+        <h1>ChatChat MCP Admin</h1>
+        <p>Sign in to manage API tools, MCP services, tokens, and audit logs.</p>
+        <form id="loginForm" class="stack">
+            <label class="form-label" for="username">Username</label>
+            <input id="username" class="form-control" autocomplete="username" value="admin" required>
+            <label class="form-label" for="password">Password</label>
+            <input id="password" class="form-control" type="password" autocomplete="current-password" required>
+            <button class="btn btn-primary w-100" type="submit">Sign in</button>
+            <div id="loginError" class="alert alert-danger d-none" role="alert"></div>
+        </form>
+    </section>
+</main>
+
+<main id="appView" class="app-shell d-none">
+    <aside class="sidebar">
+        <div class="sidebar-title">
+            <span class="brand-dot"></span>
+            <div>
+                <strong>ChatChat MCP</strong>
+                <small>Service Center</small>
+            </div>
+        </div>
+        <nav class="nav flex-column">
+            <button class="nav-link active" type="button" data-view="apiServices">API Services</button>
+            <button class="nav-link" type="button" data-view="mcpServices">MCP Services</button>
+            <button class="nav-link" type="button" data-view="auditLogs">Audit Logs</button>
+            <button class="nav-link" type="button" data-view="settings">Settings</button>
+        </nav>
+        <button id="logoutBtn" class="btn btn-outline-light btn-sm mt-auto" type="button">Sign out</button>
+    </aside>
+
+    <section class="workspace">
+        <header class="topbar">
+            <div>
+                <h1 id="pageTitle">API Services</h1>
+                <p id="pageSubtitle">Register standard HTTP APIs and expose them as MCP tools.</p>
+            </div>
+            <div class="toolbar">
+                <button id="refreshBtn" class="btn btn-outline-secondary" type="button">Refresh MCP</button>
+                <button id="newServiceBtn" class="btn btn-primary" type="button">New API</button>
+                <button id="newMcpServiceBtn" class="btn btn-primary d-none" type="button">New MCP Service</button>
+            </div>
+        </header>
+
+        <section id="apiServicesView" class="content-grid">
+            <div class="panel service-list-panel">
+                <div class="panel-head">
+                    <h2>Registered APIs</h2>
+                    <span id="serviceCount" class="badge text-bg-secondary">0</span>
+                </div>
+                <div id="serviceList" class="service-list"></div>
+            </div>
+
+            <div class="panel form-panel">
+                <div class="panel-head">
+                    <h2 id="formTitle">New API Service</h2>
+                    <div class="btn-group btn-group-sm" role="group">
+                        <button id="resetFormBtn" class="btn btn-outline-secondary" type="button">Clear</button>
+                    </div>
+                </div>
+                <form id="serviceForm" class="service-form">
+                    <input id="serviceId" type="hidden">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label" for="toolName">Tool name</label>
+                            <input id="toolName" class="form-control" placeholder="weather_api" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" for="title">Title</label>
+                            <input id="title" class="form-control" placeholder="Weather API" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label" for="method">Method</label>
+                            <select id="method" class="form-select">
+                                <option>GET</option>
+                                <option>POST</option>
+                                <option>PUT</option>
+                                <option>PATCH</option>
+                                <option>DELETE</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label" for="timeoutMs">Timeout ms</label>
+                            <input id="timeoutMs" class="form-control" type="number" min="1000" step="1000" value="20000">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label" for="enabled">Status</label>
+                            <select id="enabled" class="form-select">
+                                <option value="true">Enabled</option>
+                                <option value="false">Disabled</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label" for="cacheEnabled">Query cache</label>
+                            <select id="cacheEnabled" class="form-select">
+                                <option value="false">Disabled</option>
+                                <option value="true">Enabled</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label" for="cacheTtlSeconds">Cache TTL seconds</label>
+                            <input id="cacheTtlSeconds" class="form-control" type="number" min="1" step="1" value="300">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label" for="urlTemplate">URL template</label>
+                            <input id="urlTemplate" class="form-control" placeholder="https://api.example.com/weather?city={{city}}" required>
+                        </div>
+                        <div class="col-12">
+                            <div class="microservice-box">
+                                <div class="form-check form-switch mb-3">
+                                    <input id="microserviceMode" class="form-check-input" type="checkbox">
+                                    <label class="form-check-label" for="microserviceMode">Microservice request fields</label>
+                                </div>
+                                <div id="microserviceFields" class="row g-3 d-none">
+                                    <div class="col-md-6">
+                                        <label class="form-label" for="microSessionId">sessionId</label>
+                                        <input id="microSessionId" class="form-control" placeholder="efefb9ea8d00434dbf0a841e3d8dd12e">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label" for="microNamespace">namespace</label>
+                                        <input id="microNamespace" class="form-control" placeholder="livedata">
+                                    </div>
+                                    <div class="col-12">
+                                        <label class="form-label" for="microAmsToken">x-ams-token</label>
+                                        <input id="microAmsToken" class="form-control" placeholder="aaabfc8b3eebfdfdb9faf418c285048a">
+                                    </div>
+                                    <div class="col-12">
+                                        <label class="form-label" for="microDataJson">data JSON</label>
+                                        <textarea id="microDataJson" class="form-control codebox" rows="5" spellcheck="false">{
+  "etl_date": "",
+  "fund_code": ""
+}</textarea>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label" for="description">Description</label>
+                            <textarea id="description" class="form-control" rows="2" placeholder="Tell the model when to use this API"></textarea>
+                        </div>
+                        <div class="col-lg-6">
+                            <label class="form-label" for="headersJson">Headers JSON</label>
+                            <textarea id="headersJson" class="form-control codebox" rows="7" spellcheck="false">{}</textarea>
+                        </div>
+                        <div class="col-lg-6">
+                            <label class="form-label" for="inputSchemaJson">Input Schema JSON</label>
+                            <textarea id="inputSchemaJson" class="form-control codebox" rows="7" spellcheck="false">{
+  "type": "object",
+  "properties": {},
+  "required": [],
+  "additionalProperties": false
+}</textarea>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label" for="bodyTemplate">Body template</label>
+                            <textarea id="bodyTemplate" class="form-control codebox" rows="5" spellcheck="false" placeholder='{"city":"{{city}}"}'></textarea>
+                        </div>
+                    </div>
+                    <div class="form-actions">
+                        <button class="btn btn-primary" type="submit">Save API</button>
+                        <button id="testServiceBtn" class="btn btn-outline-primary" type="button">Test Call</button>
+                    </div>
+                </form>
+            </div>
+        </section>
+
+        <section id="mcpServicesView" class="content-grid d-none">
+            <div class="panel service-list-panel">
+                <div class="panel-head">
+                    <h2>MCP Registry</h2>
+                    <span id="mcpServiceCount" class="badge text-bg-secondary">0</span>
+                </div>
+                <div id="mcpServiceList" class="service-list"></div>
+            </div>
+
+            <div class="panel form-panel">
+                <div class="panel-head">
+                    <h2 id="mcpFormTitle">New MCP Service</h2>
+                    <button id="resetMcpFormBtn" class="btn btn-sm btn-outline-secondary" type="button">Clear</button>
+                </div>
+                <form id="mcpServiceForm" class="service-form">
+                    <input id="mcpServiceId" type="hidden">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label" for="mcpName">Service name</label>
+                            <input id="mcpName" class="form-control" placeholder="Wind Market Data" required>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label" for="mcpServiceType">Type</label>
+                            <input id="mcpServiceType" class="form-control" value="DATA">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label" for="mcpEnabled">Status</label>
+                            <select id="mcpEnabled" class="form-select">
+                                <option value="true">Enabled</option>
+                                <option value="false">Disabled</option>
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label" for="mcpEndpoint">Endpoint</label>
+                            <input id="mcpEndpoint" class="form-control" placeholder="http://localhost:8081/mcp" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" for="mcpPermissionGroup">Permission group</label>
+                            <input id="mcpPermissionGroup" class="form-control" value="default">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" for="mcpStatus">Runtime status</label>
+                            <select id="mcpStatus" class="form-select">
+                                <option>ACTIVE</option>
+                                <option>DISABLED</option>
+                                <option>OFFLINE</option>
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label" for="mcpServiceToken">Service token</label>
+                            <div class="input-group">
+                                <input id="mcpServiceToken" class="form-control codebox" placeholder="mcp_xxx">
+                                <button id="generateMcpTokenBtn" class="btn btn-outline-primary" type="button">Generate Token</button>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <div class="form-text">Use this token as <code>X-MCP-TOKEN</code> when connecting services or enforcing MCP invocation authentication.</div>
+                        </div>
+                    </div>
+                    <div class="form-actions">
+                        <button class="btn btn-primary" type="submit">Save MCP Service</button>
+                        <button id="regenSavedMcpTokenBtn" class="btn btn-outline-primary" type="button">Regenerate Saved Token</button>
+                    </div>
+                </form>
+            </div>
+        </section>
+
+        <section id="auditLogsView" class="panel d-none">
+            <div class="panel-head">
+                <h2>Recent Invocation Logs</h2>
+                <button id="reloadAuditBtn" class="btn btn-sm btn-outline-secondary" type="button">Reload</button>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-sm align-middle">
+                    <thead>
+                    <tr>
+                        <th>Time</th>
+                        <th>Target</th>
+                        <th>Status</th>
+                        <th>HTTP</th>
+                        <th>Duration</th>
+                        <th>Error</th>
+                    </tr>
+                    </thead>
+                    <tbody id="auditLogBody"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section id="settingsView" class="panel d-none">
+            <div class="panel-head">
+                <h2>Connection Info</h2>
+            </div>
+            <dl class="connection-list">
+                <dt>MCP Endpoint</dt>
+                <dd id="mcpEndpointText"></dd>
+                <dt>API registry</dt>
+                <dd>/api/v1/api-services</dd>
+                <dt>MCP registry</dt>
+                <dd>/api/v1/mcp-services</dd>
+                <dt>Audit logs</dt>
+                <dd>/api/v1/audit-logs</dd>
+                <dt>Template variables</dt>
+                <dd>Use <code>{{name}}</code> in URL, headers, and body templates.</dd>
+            </dl>
+        </section>
+    </section>
+</main>
+
+<div class="toast-container position-fixed top-0 end-0 p-3">
+    <div id="appToast" class="toast" role="status" aria-live="polite" aria-atomic="true">
+        <div class="toast-header">
+            <strong id="toastTitle" class="me-auto">Notice</strong>
+            <button type="button" class="btn-close" data-bs-dismiss="toast" aria-label="Close"></button>
+        </div>
+        <div id="toastBody" class="toast-body"></div>
+    </div>
+</div>
+
+<div class="modal fade" id="resultModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title fs-5">Result</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <pre id="resultOutput" class="result-output"></pre>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="../vendor/bootstrap/bootstrap.bundle.min.js"></script>
+<script type="module" src="./js/app.js"></script>
+</body>
+</html>

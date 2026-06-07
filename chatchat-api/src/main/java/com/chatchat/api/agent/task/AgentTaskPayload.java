@@ -1,0 +1,38 @@
+package com.chatchat.api.agent.task;
+
+import com.chatchat.api.application.interaction.model.InteractionRequest;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.util.ArrayList;
+
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class AgentTaskPayload {
+
+    private AgentTaskSubmitRequest request;
+
+    InteractionRequest toInteractionRequest() {
+        String skillId = firstText(request.getSkillId(), request.getAgentId());
+        return InteractionRequest.builder()
+            .conversationId(request.getSessionId())
+            .userId(firstText(request.getUserId(), "anonymous"))
+            .mode(firstText(request.getMode(), "agent_chat"))
+            .query(request.getQuery())
+            .systemPrompt(request.getSystemPrompt())
+            .modelName(request.getModelName())
+            .skillId(skillId)
+            .availableTools(request.getAvailableTools() == null ? new ArrayList<>() : request.getAvailableTools())
+            .toolInput(request.getToolInput())
+            .maxResults(request.getMaxResults())
+            .historyWindow(request.getHistoryWindow())
+            .stream(request.getStream())
+            .build();
+    }
+
+    private String firstText(String value, String fallback) {
+        return value == null || value.isBlank() ? fallback : value.trim();
+    }
+}

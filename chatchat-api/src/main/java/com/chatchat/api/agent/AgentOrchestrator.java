@@ -55,8 +55,11 @@ public class AgentOrchestrator {
                                              String skillId,
                                              String requestId,
                                              String conversationId,
-                                             String userId) {
+                                             String userId,
+                                             boolean requireBoundToolCall) {
         List<String> tools = availableTools == null ? List.of() : availableTools;
+        List<String> mandatoryTools = requireBoundToolCall ? resolveMandatoryToolCandidates(tools) : List.of();
+        boolean requireToolBeforeFinal = !mandatoryTools.isEmpty();
         List<String> documentIds = normalizeList(boundDocumentIds);
         List<String> documentTags = normalizeList(boundDocumentTags);
         ChatModel activeChatModel = resolveChatModel(modelName);
@@ -68,14 +71,31 @@ public class AgentOrchestrator {
         metadata.put("boundDocumentIds", documentIds);
         metadata.put("boundDocumentTags", documentTags);
         metadata.put("availableTools", tools);
+        metadata.put("mandatoryToolCall", requireToolBeforeFinal);
+        metadata.put("mandatoryTools", mandatoryTools);
 
         log.info("[{}] Agent orchestration started. tools={}", requestId, tools.size());
 
         for (int step = 1; step <= MAX_STEPS; step++) {
-            AgentDecision decision = decideNextAction(activeChatModel, query, systemPrompt, tools, observations, documentIds, documentTags);
+            AgentDecision decision = decideNextAction(
+                activeChatModel,
+                query,
+                systemPrompt,
+                tools,
+                observations,
+                documentIds,
+                documentTags,
+                mandatoryTools,
+                requireToolBeforeFinal && traces.isEmpty()
+            );
             metadata.put("steps", step);
 
             if (FINAL.equals(decision.action())) {
+                if (requireToolBeforeFinal && traces.isEmpty()) {
+                    observations.add("Planner final answer rejected: this MCP-bound agent must call one mandatory tool before final answer.");
+                    metadata.put("rejectedFinalBeforeTool", true);
+                    continue;
+                }
                 String answer = safeAnswer(activeChatModel, decision.answer(), query, observations, systemPrompt);
                 metadata.put("stopReason", "final_answer");
                 return new AgentExecutionResult(answer, traces, metadata);
@@ -94,40 +114,41 @@ public class AgentOrchestrator {
                 observations.add("Planner requested unavailable tool: " + decision.toolName());
                 continue;
             }
+            if (requireToolBeforeFinal && traces.isEmpty() && !mandatoryTools.contains(decision.toolName())) {
+                observations.add("Planner requested non-mandatory tool before MCP-bound evidence: " + decision.toolName());
+                continue;
+            }
 
             Map<String, Object> arguments = applyDocumentSearchDefaults(decision.toolName(), decision.arguments(), documentIds, documentTags);
-            ToolInput toolInput = ToolInput.builder()
-                .conversationId(conversationId)
-                .requestId(requestId)
-                .userId(userId)
-                .parameters(arguments)
-                .build();
+            ToolCallExecution execution = executeToolCall(
+                decision.toolName(),
+                arguments,
+                conversationId,
+                requestId,
+                userId
+            );
+            traces.add(execution.trace());
+            observations.add(execution.observation());
+        }
 
-            ToolMetadata toolMetadata = toolRegistry.getToolMetadata(decision.toolName());
-            long startedAt = System.currentTimeMillis();
-            ToolOutput output = toolRegistry.executeEnhancedTool(decision.toolName(), toolInput);
-            long finishedAt = System.currentTimeMillis();
-            String outputText = stringify(output.getData());
-            Long durationMs = output.getExecutionTimeMs() == null ? Math.max(0L, finishedAt - startedAt) : output.getExecutionTimeMs();
-            InteractionToolTrace trace = InteractionToolTrace.builder()
-                .toolName(decision.toolName())
-                .displayName(resolveDisplayName(decision.toolName(), toolMetadata))
-                .serviceId(resolveServiceId(toolMetadata))
-                .serviceName(resolveServiceName(toolMetadata))
-                .success(output.isSuccess())
-                .input(arguments)
-                .output(outputText)
-                .errorMessage(output.getErrorMessage())
-                .durationMs(durationMs)
-                .startedAt(startedAt)
-                .finishedAt(finishedAt)
-                .build();
-            traces.add(trace);
-
-            String observation = output.isSuccess()
-                ? "Tool " + decision.toolName() + " output: " + outputText
-                : "Tool " + decision.toolName() + " failed: " + output.getErrorMessage();
-            observations.add(observation);
+        if (requireToolBeforeFinal && traces.isEmpty()) {
+            String fallbackTool = mandatoryTools.get(0);
+            Map<String, Object> fallbackArguments = applyDocumentSearchDefaults(
+                fallbackTool,
+                defaultToolArguments(fallbackTool, query),
+                documentIds,
+                documentTags
+            );
+            ToolCallExecution execution = executeToolCall(
+                fallbackTool,
+                fallbackArguments,
+                conversationId,
+                requestId,
+                userId
+            );
+            traces.add(execution.trace());
+            observations.add("Mandatory fallback " + execution.observation());
+            metadata.put("mandatoryToolFallback", fallbackTool);
         }
 
         String finalAnswer = summarizeWithObservations(activeChatModel, query, systemPrompt, observations);
@@ -141,8 +162,19 @@ public class AgentOrchestrator {
                                            List<String> availableTools,
                                            List<String> observations,
                                            List<String> boundDocumentIds,
-                                           List<String> boundDocumentTags) {
-        String prompt = buildPlannerPrompt(query, systemPrompt, availableTools, observations, boundDocumentIds, boundDocumentTags);
+                                           List<String> boundDocumentTags,
+                                           List<String> mandatoryTools,
+                                           boolean requireToolBeforeFinal) {
+        String prompt = buildPlannerPrompt(
+            query,
+            systemPrompt,
+            availableTools,
+            observations,
+            boundDocumentIds,
+            boundDocumentTags,
+            mandatoryTools,
+            requireToolBeforeFinal
+        );
         String raw = activeChatModel.chat(prompt);
         AgentDecision decision = parseDecision(raw);
         if (decision == null) {
@@ -156,13 +188,22 @@ public class AgentOrchestrator {
                                       List<String> availableTools,
                                       List<String> observations,
                                       List<String> boundDocumentIds,
-                                      List<String> boundDocumentTags) {
+                                      List<String> boundDocumentTags,
+                                      List<String> mandatoryTools,
+                                      boolean requireToolBeforeFinal) {
         StringBuilder prompt = new StringBuilder();
         if (systemPrompt != null && !systemPrompt.isBlank()) {
             prompt.append("System instruction: ").append(systemPrompt).append("\n\n");
         }
         prompt.append("You are an agent planner.\n");
         prompt.append("Goal: solve the user query with zero or more tools.\n");
+        if (requireToolBeforeFinal) {
+            prompt.append("Mandatory MCP tool policy:\n");
+            prompt.append("- This agent is bound to external MCP tools. Your next response MUST be a tool action.\n");
+            prompt.append("- Do not return a final answer until at least one mandatory MCP tool has been called and observed.\n");
+            prompt.append("- Choose the most relevant tool from this mandatory set: ").append(mandatoryTools).append("\n");
+            prompt.append("- If the user request is analytical, portfolio-related, market-related, data-driven, or requires validation, use a mandatory tool first.\n\n");
+        }
         prompt.append("Respond with strict JSON only.\n");
         prompt.append("Schema:\n");
         prompt.append("{\"action\":\"final\",\"answer\":\"...\"}\n");
@@ -347,6 +388,90 @@ public class AgentOrchestrator {
         return values;
     }
 
+    private ToolCallExecution executeToolCall(String toolName,
+                                              Map<String, Object> arguments,
+                                              String conversationId,
+                                              String requestId,
+                                              String userId) {
+        Map<String, Object> safeArguments = new LinkedHashMap<>(arguments == null ? Map.of() : arguments);
+        ToolInput toolInput = ToolInput.builder()
+            .conversationId(conversationId)
+            .requestId(requestId)
+            .userId(userId)
+            .parameters(safeArguments)
+            .build();
+
+        ToolMetadata toolMetadata = toolRegistry.getToolMetadata(toolName);
+        long startedAt = System.currentTimeMillis();
+        ToolOutput output = toolRegistry.executeEnhancedTool(toolName, toolInput);
+        long finishedAt = System.currentTimeMillis();
+        String outputText = stringify(output.getData());
+        Long durationMs = output.getExecutionTimeMs() == null ? Math.max(0L, finishedAt - startedAt) : output.getExecutionTimeMs();
+        InteractionToolTrace trace = InteractionToolTrace.builder()
+            .toolName(toolName)
+            .displayName(resolveDisplayName(toolName, toolMetadata))
+            .serviceId(resolveServiceId(toolMetadata))
+            .serviceName(resolveServiceName(toolMetadata))
+            .success(output.isSuccess())
+            .input(safeArguments)
+            .output(outputText)
+            .errorMessage(output.getErrorMessage())
+            .durationMs(durationMs)
+            .startedAt(startedAt)
+            .finishedAt(finishedAt)
+            .build();
+
+        String observation = output.isSuccess()
+            ? "Tool " + toolName + " output: " + outputText
+            : "Tool " + toolName + " failed: " + output.getErrorMessage();
+        return new ToolCallExecution(trace, observation);
+    }
+
+    private Map<String, Object> defaultToolArguments(String toolName, String query) {
+        if (query == null || query.isBlank()) {
+            return Map.of();
+        }
+        if ("calculator".equals(toolName)) {
+            return Map.of("expression", query);
+        }
+        if ("web_search".equals(toolName)) {
+            return Map.of("query", query, "num_results", 5);
+        }
+        if (toolName != null && toolName.startsWith("mcp_")) {
+            return Map.of("query", query);
+        }
+        return Map.of("input", query);
+    }
+
+    private List<String> resolveMandatoryToolCandidates(List<String> tools) {
+        if (tools == null || tools.isEmpty()) {
+            return List.of();
+        }
+        List<String> mcpTools = tools.stream()
+            .filter(this::isMcpTool)
+            .toList();
+        return mcpTools;
+    }
+
+    private boolean isMcpTool(String toolName) {
+        if (toolName == null || toolName.isBlank()) {
+            return false;
+        }
+        ToolMetadata metadata = toolRegistry.getToolMetadata(toolName);
+        if (metadata != null) {
+            if (metadata.getCategories() != null && metadata.getCategories().stream().anyMatch("mcp"::equalsIgnoreCase)) {
+                return true;
+            }
+            if (metadata.getTags() != null && metadata.getTags().stream().anyMatch("mcp"::equalsIgnoreCase)) {
+                return true;
+            }
+            if (metadata.getAuthor() != null && metadata.getAuthor().trim().startsWith("MCP:")) {
+                return true;
+            }
+        }
+        return toolName.startsWith("mcp_");
+    }
+
     private List<String> normalizeList(List<String> values) {
         if (values == null || values.isEmpty()) {
             return List.of();
@@ -412,6 +537,12 @@ public class AgentOrchestrator {
         Map<String, Object> arguments,
         String answer,
         String reason
+    ) {
+    }
+
+    private record ToolCallExecution(
+        InteractionToolTrace trace,
+        String observation
     ) {
     }
 

@@ -1,6 +1,8 @@
 package com.chatchat.api.controller;
 
 import com.chatchat.agents.tool.ToolRegistry;
+import com.chatchat.api.conversation.Conversation;
+import com.chatchat.api.conversation.ConversationService;
 import com.chatchat.api.skills.SkillCatalogService;
 import com.chatchat.api.skills.SkillDefinition;
 import com.chatchat.api.skills.SkillRoutingSettings;
@@ -25,15 +27,13 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.Deque;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
-import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedDeque;
 
 /**
  * Frontend data API without demo seed data.
@@ -47,7 +47,7 @@ public class DataQueryController {
     private final SkillCatalogService skillCatalogService;
     private final ModelsConfig modelsConfig;
     private final ToolRegistry toolRegistry;
-    private final Map<String, Deque<HistoryItem>> historyStore = new ConcurrentHashMap<>();
+    private final ConversationService conversationService;
 
     @GetMapping("/skills")
     @Operation(summary = "List skill options")
@@ -179,8 +179,7 @@ public class DataQueryController {
                                                      @RequestParam(value = "keyword", required = false) String keyword,
                                                      @RequestParam(value = "status", required = false) String status,
                                                      @RequestParam(value = "limit", required = false) Integer limit) {
-        Deque<HistoryItem> deque = historyStore.getOrDefault(userId, new ConcurrentLinkedDeque<>());
-        return ApiResponse.success(filterHistory(deque, keyword, status, limit));
+        return ApiResponse.success(loadPersistentHistory(userId, keyword, status, limit));
     }
 
     @PostMapping("/history")
@@ -190,29 +189,26 @@ public class DataQueryController {
             return ApiResponse.badRequest("question is required");
         }
         String userId = request.getUserId() == null || request.getUserId().isBlank() ? "default-user" : request.getUserId();
-        Deque<HistoryItem> deque = historyStore.computeIfAbsent(userId, ignored -> new ConcurrentLinkedDeque<>());
-        long now = System.currentTimeMillis();
-        String historyId = request.getHistoryId() == null || request.getHistoryId().isBlank()
-            ? UUID.randomUUID().toString()
-            : request.getHistoryId().trim();
         List<ConversationMessage> messages = request.getMessages() == null ? List.of() : request.getMessages();
         String status = resolveHistoryStatus(request.getStatus(), messages);
-        deque.removeIf(item -> item.getId() != null && item.getId().equals(historyId));
-        deque.addFirst(new HistoryItem(
-            historyId,
+        String conversationId = firstNonBlank(request.getConversationId(), request.getHistoryId());
+        if (conversationId == null) {
+            return ApiResponse.badRequest("conversationId is required");
+        }
+        conversationService.updateConversationSummary(conversationId, userId, request.getQuestion(), status);
+        List<HistoryItem> history = loadPersistentHistory(userId, null, null, 30);
+        replaceCurrentHistorySnapshot(history, new HistoryItem(
+            conversationId,
             request.getQuestion(),
-            now,
-            request.getConversationId(),
+            System.currentTimeMillis(),
+            conversationId,
             request.getSkillId(),
             request.getModelName(),
             request.getMode(),
             messages,
             status
         ));
-        while (deque.size() > 30) {
-            deque.removeLast();
-        }
-        return ApiResponse.success(new ArrayList<>(deque), "History updated");
+        return ApiResponse.success(history, "History updated");
     }
 
     @PatchMapping("/history/{userId}/{historyId}/status")
@@ -220,50 +216,50 @@ public class DataQueryController {
     public ApiResponse<List<HistoryItem>> updateHistoryStatus(@PathVariable("userId") String userId,
                                                               @PathVariable("historyId") String historyId,
                                                               @RequestBody HistoryStatusRequest request) {
-        Deque<HistoryItem> deque = historyStore.get(userId);
-        if (deque == null || deque.isEmpty()) {
-            return ApiResponse.success(List.of(), "History not found");
-        }
         String status = request == null ? null : request.getStatus();
         if (status == null || status.isBlank()) {
             return ApiResponse.badRequest("status is required");
         }
-        long now = System.currentTimeMillis();
-        for (HistoryItem item : deque) {
-            if (historyId.equals(item.getId())) {
-                item.setStatus(status.trim());
-                item.setTimestamp(now);
-                if (request.getConversationId() != null && !request.getConversationId().isBlank()) {
-                    item.setConversationId(request.getConversationId().trim());
-                }
-                if (request.getMessages() != null) {
-                    item.setMessages(request.getMessages());
-                }
-                return ApiResponse.success(new ArrayList<>(deque), "History status updated");
-            }
+        String conversationId = firstNonBlank(request == null ? null : request.getConversationId(), historyId);
+        Conversation conversation = conversationService.getConversation(conversationId).orElse(null);
+        if (conversation == null) {
+            return ApiResponse.success(loadPersistentHistory(userId, null, null, 30), "History not found");
         }
-        return ApiResponse.success(new ArrayList<>(deque), "History not found");
+        conversationService.updateConversationSummary(conversationId, userId, conversation.getTitle(), status);
+        List<HistoryItem> history = loadPersistentHistory(userId, null, null, 30);
+        if (request != null && request.getMessages() != null) {
+            replaceCurrentHistorySnapshot(history, new HistoryItem(
+                conversationId,
+                conversation.getTitle(),
+                System.currentTimeMillis(),
+                conversationId,
+                null,
+                null,
+                null,
+                request.getMessages(),
+                status
+            ));
+        }
+        return ApiResponse.success(history, "History status updated");
     }
 
     @DeleteMapping("/history/{userId}/{historyId}")
     @Operation(summary = "Delete one history conversation by id")
     public ApiResponse<Void> deleteHistoryItem(@PathVariable("userId") String userId,
                                                @PathVariable("historyId") String historyId) {
-        Deque<HistoryItem> deque = historyStore.get(userId);
-        if (deque == null || deque.isEmpty()) {
+        if (conversationService.getConversation(historyId).isEmpty()) {
             return ApiResponse.success(null, "History not found");
         }
-        deque.removeIf(item -> item.getId() != null && item.getId().equals(historyId));
-        if (deque.isEmpty()) {
-            historyStore.remove(userId);
-        }
+        conversationService.deleteConversation(historyId);
         return ApiResponse.success(null, "History deleted");
     }
 
     @DeleteMapping("/history/{userId}")
     @Operation(summary = "Clear history by user")
     public ApiResponse<Void> clearHistory(@PathVariable("userId") String userId) {
-        historyStore.remove(userId);
+        conversationService.listUserConversations(userId).stream()
+            .map(Conversation::getId)
+            .forEach(conversationService::deleteConversation);
         return ApiResponse.success(null, "History cleared");
     }
 
@@ -382,17 +378,95 @@ public class DataQueryController {
         return "user".equalsIgnoreCase(lastMessage.getRole()) ? "pending" : "completed";
     }
 
-    private List<HistoryItem> filterHistory(Deque<HistoryItem> deque, String keyword, String status, Integer limit) {
+    private List<HistoryItem> loadPersistentHistory(String userId, String keyword, String status, Integer limit) {
+        List<HistoryItem> items = conversationService.listUserConversations(userId).stream()
+            .map(conversation -> conversationService.getConversation(conversation.getId()).orElse(conversation))
+            .map(this::toHistoryItem)
+            .toList();
+        return filterHistory(items, keyword, status, limit);
+    }
+
+    private HistoryItem toHistoryItem(Conversation conversation) {
+        List<ConversationMessage> messages = conversation.getMessages() == null
+            ? List.of()
+            : conversation.getMessages().stream()
+                .map(this::toConversationMessage)
+                .toList();
+        String question = firstUserMessage(messages);
+        if (question == null) {
+            question = conversation.getTitle();
+        }
+        return new HistoryItem(
+            conversation.getId(),
+            question,
+            toEpochMillis(conversation.getUpdatedAt()),
+            conversation.getId(),
+            null,
+            null,
+            "llm_chat",
+            messages,
+            conversation.getStatus() == null || conversation.getStatus().isBlank()
+                ? resolveHistoryStatus(null, messages)
+                : conversation.getStatus()
+        );
+    }
+
+    private ConversationMessage toConversationMessage(Conversation.Message message) {
+        return new ConversationMessage(
+            message.getId(),
+            message.getRole(),
+            message.getContent(),
+            toEpochMillis(message.getTimestamp()),
+            List.of(),
+            false,
+            "completed"
+        );
+    }
+
+    private String firstUserMessage(List<ConversationMessage> messages) {
+        return messages.stream()
+            .filter(message -> "user".equalsIgnoreCase(message.getRole()))
+            .map(ConversationMessage::getContent)
+            .filter(value -> value != null && !value.isBlank())
+            .findFirst()
+            .orElse(null);
+    }
+
+    private void replaceCurrentHistorySnapshot(List<HistoryItem> history, HistoryItem current) {
+        for (int index = 0; index < history.size(); index++) {
+            if (current.getId().equals(history.get(index).getId())) {
+                history.set(index, current);
+                return;
+            }
+        }
+        history.add(0, current);
+    }
+
+    private Long toEpochMillis(LocalDateTime value) {
+        return value == null ? System.currentTimeMillis() : value.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
+    }
+
+    private String firstNonBlank(String first, String second) {
+        if (first != null && !first.isBlank()) {
+            return first.trim();
+        }
+        if (second != null && !second.isBlank()) {
+            return second.trim();
+        }
+        return null;
+    }
+
+    private List<HistoryItem> filterHistory(List<HistoryItem> items, String keyword, String status, Integer limit) {
         String normalizedKeyword = keyword == null ? "" : keyword.trim().toLowerCase(Locale.ROOT);
         String normalizedStatus = status == null ? "" : status.trim().toLowerCase(Locale.ROOT);
         int max = limit == null || limit <= 0 ? 30 : Math.min(limit, 100);
 
-        return deque.stream()
+        return new ArrayList<>(items.stream()
             .filter(item -> normalizedStatus.isEmpty()
                 || normalizedStatus.equalsIgnoreCase(String.valueOf(item.getStatus())))
             .filter(item -> normalizedKeyword.isEmpty() || matchesKeyword(item, normalizedKeyword))
             .limit(max)
-            .toList();
+            .toList());
     }
 
     private boolean matchesKeyword(HistoryItem item, String keyword) {

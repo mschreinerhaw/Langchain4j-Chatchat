@@ -56,7 +56,8 @@ public class AgentChatModeHandler implements InteractionModeHandler {
             request.getSkillId(),
             context.requestId(),
             context.conversationId(),
-            request.getUserId()
+            request.getUserId(),
+            hasMcpBinding(skill)
         );
 
         return InteractionResponse.builder()
@@ -86,5 +87,22 @@ public class AgentChatModeHandler implements InteractionModeHandler {
             return request.getSystemPrompt();
         }
         return skill.systemPrompt();
+    }
+
+    private boolean hasMcpBinding(SkillDefinition skill) {
+        if (skill == null) {
+            return false;
+        }
+        if (skill.boundMcpServiceIds() != null && !skill.boundMcpServiceIds().isEmpty()) {
+            return true;
+        }
+        if (skill.boundMcpToolNames() != null && !skill.boundMcpToolNames().isEmpty()) {
+            return true;
+        }
+        return skill.toolConfigs() != null && skill.toolConfigs().stream()
+            .anyMatch(config -> config != null
+                && (config.enabled() == null || config.enabled())
+                && config.toolName() != null
+                && !config.toolName().isBlank());
     }
 }

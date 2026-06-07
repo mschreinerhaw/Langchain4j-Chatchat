@@ -34,6 +34,20 @@ export function sendInteractionMessageStream(payload, handlers = {}) {
   return fetchEventStream("/interactions/chat/stream", payload, handlers);
 }
 
+export function submitAgentTask(payload) {
+  return apiRequest("/agent/tasks", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
+export function pollAgentTaskResult(taskId, timeoutMs = 1200) {
+  const params = new URLSearchParams({
+    timeoutMs: String(timeoutMs)
+  });
+  return apiRequest(`/agent/tasks/${encodeURIComponent(taskId)}/result?${params.toString()}`);
+}
+
 export function fetchConversationHistory(userId, filters = {}) {
   const params = new URLSearchParams();
   if (filters.keyword) {

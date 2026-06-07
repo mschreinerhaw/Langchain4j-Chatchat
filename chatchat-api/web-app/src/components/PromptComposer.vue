@@ -1,7 +1,7 @@
 <template>
   <section class="prompt-card">
-    <h2 v-if="showSuggestions">可以这样提问</h2>
     <div v-if="showSuggestions" class="prompt-suggestions">
+      <span class="prompt-suggestions-label">快捷问题</span>
       <button
         v-for="suggestion in suggestions"
         :key="suggestion"
@@ -14,38 +14,46 @@
 
     <form class="composer-box" @submit.prevent="send">
       <textarea
+        ref="composerTextarea"
         v-model="draft"
-        rows="4"
+        rows="2"
         :disabled="loading"
         placeholder="输入问题，或使用 @ 调用能力，Shift + Enter 换行"
+        @input="adjustTextareaHeight"
         @keydown.enter.exact.prevent="send"
       ></textarea>
 
       <div class="composer-toolbar">
-        <label class="agent-picker" :class="{ active: selectedAgentId, loading: agentsLoading }">
-          <Bot class="tool-icon" :size="16" stroke-width="1.9" />
-          <span>{{ agentSelectLabel }}</span>
-          <select :value="selectedAgentId" :disabled="agentsLoading" @change="updateSelectedAgent">
-            <option v-for="agent in agentOptions" :key="agent.id || 'general'" :value="agent.id">
-              {{ agent.name }}{{ agent.documentWorkflow ? " · 文档工作流" : "" }}
-            </option>
-          </select>
-        </label>
-        <span v-if="documentWorkflowActive" class="workflow-badge">
-          <FileText :size="14" stroke-width="2" />
-          文档工作流
-        </span>
-        <button type="button" class="tool-button" :class="{ active: webSearch }" @click="toggleWebSearch">
-          <Globe class="tool-icon" :size="16" stroke-width="1.9" />
-          联网搜索
-        </button>
-        <button type="button" class="tool-button" @click="$emit('upload')">
-          <Upload class="tool-icon" :size="16" stroke-width="1.9" />
-          上传文件
-        </button>
+        <div class="composer-toolbar-group mode-group">
+          <span class="toolbar-group-label">当前模式</span>
+          <label class="agent-picker" :class="{ active: selectedAgentId, loading: agentsLoading }">
+            <Bot class="tool-icon" :size="16" stroke-width="1.9" />
+            <span>{{ agentSelectLabel }}</span>
+            <select :value="selectedAgentId" :disabled="agentsLoading" @change="updateSelectedAgent">
+              <option v-for="agent in agentOptions" :key="agent.id || 'general'" :value="agent.id">
+                {{ agent.name }}{{ agent.documentWorkflow ? " · 文档工作流" : "" }}
+              </option>
+            </select>
+          </label>
+        </div>
+        <div class="composer-toolbar-group tool-group">
+          <span class="toolbar-group-label">工具</span>
+          <span v-if="documentWorkflowActive" class="workflow-badge">
+            <FileText :size="14" stroke-width="2" />
+            文档工作流
+          </span>
+          <button type="button" class="tool-button" :class="{ active: webSearch }" @click="toggleWebSearch">
+            <Globe class="tool-icon" :size="16" stroke-width="1.9" />
+            联网搜索
+          </button>
+          <button type="button" class="tool-button" @click="$emit('upload')">
+            <Upload class="tool-icon" :size="16" stroke-width="1.9" />
+            上传文件
+          </button>
+        </div>
         <button type="button" class="tool-button clear" @click="$emit('clear')">
           <Trash2 class="tool-icon" :size="16" stroke-width="1.9" />
-          清空对话
+          新建对话
         </button>
       </div>
 

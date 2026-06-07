@@ -41,7 +41,7 @@
     <p v-else-if="skillTotal === 0" class="market-empty">没有匹配的能力，请换一个关键词。</p>
 
     <div v-else class="feature-grid">
-      <article v-for="skill in pagedSkills" :key="skill.value" class="feature-card">
+      <article v-for="skill in pagedSkills" :key="skill.value" class="feature-card market-agent-card">
         <div class="card-head">
           <div class="skill-identity">
             <span>{{ skillBadge(skill) }}</span>
@@ -50,7 +50,7 @@
               <small>{{ businessTypeLabel(skill) }}</small>
             </div>
           </div>
-          <span class="card-kind">{{ skill.builtin ? "内置" : "自定义" }}</span>
+          <span class="card-kind">已发布</span>
         </div>
         <p class="business-summary">{{ skill.description || "暂无业务说明，请在设置中补充这个能力的适用范围。" }}</p>
 
@@ -61,24 +61,25 @@
           </ul>
         </section>
 
-        <section v-if="quickQuestionPreview(skill).length" class="business-block">
-          <strong>推荐提问</strong>
-          <div class="quick-questions">
-            <span v-for="question in quickQuestionPreview(skill)" :key="`${skill.value}-${question}`">{{ question }}</span>
-          </div>
-        </section>
-
         <div v-if="skill.skillTags?.length" class="skill-tags">
           <span v-for="tag in skill.skillTags" :key="`${skill.value}-${tag}`">{{ tag }}</span>
         </div>
         <dl class="skill-meta">
           <div>
-            <dt>对话模式</dt>
+            <dt>模式</dt>
             <dd>{{ skill.defaultMode || "-" }}</dd>
           </div>
           <div>
-            <dt>后台工具</dt>
+            <dt>模型</dt>
+            <dd>{{ skill.modelName || "默认模型" }}</dd>
+          </div>
+          <div>
+            <dt>工具</dt>
             <dd>{{ toolCountLabel(skill) }}</dd>
+          </div>
+          <div>
+            <dt>服务</dt>
+            <dd>{{ serviceCountLabel(skill) }}</dd>
           </div>
         </dl>
       </article>

@@ -35,7 +35,7 @@ public class ConversationService {
         ChatSessionEntity session = new ChatSessionEntity();
         session.setTenantId(DEFAULT_TENANT_ID);
         session.setUserId(normalize(userId, DEFAULT_USER_ID));
-        session.setTitle(normalize(title, "New Conversation"));
+        session.setTitle(normalizeTitle(title));
         session.setStatus("active");
         return toConversation(sessionRepository.save(session), List.of());
     }
@@ -70,6 +70,20 @@ public class ConversationService {
         return sessionRepository.findByUserIdOrderByUpdatedAtDesc(userId).stream()
             .map(session -> toConversation(session, List.of()))
             .toList();
+    }
+
+    @Transactional
+    public Conversation updateConversationSummary(String conversationId, String userId, String title, String status) {
+        String normalizedConversationId = ensureConversationId(conversationId, userId);
+        ChatSessionEntity session = sessionRepository.findById(normalizedConversationId)
+            .orElseThrow(() -> new IllegalArgumentException("Conversation not found: " + normalizedConversationId));
+        if (title != null && !title.isBlank()) {
+            session.setTitle(normalizeTitle(title));
+        }
+        if (status != null && !status.isBlank()) {
+            session.setStatus(status.trim());
+        }
+        return toConversation(sessionRepository.save(session), listMessageDetails(normalizedConversationId));
     }
 
     @Transactional
@@ -141,6 +155,7 @@ public class ConversationService {
             .id(session.getSessionId())
             .userId(session.getUserId())
             .title(session.getTitle())
+            .status(session.getStatus())
             .createdAt(toLocalDateTime(session.getCreatedAt()))
             .updatedAt(toLocalDateTime(session.getUpdatedAt()))
             .messages(messages)
@@ -170,5 +185,10 @@ public class ConversationService {
             return fallback;
         }
         return value.trim();
+    }
+
+    private String normalizeTitle(String value) {
+        String normalized = normalize(value, "New Conversation");
+        return normalized.length() <= 256 ? normalized : normalized.substring(0, 256);
     }
 }

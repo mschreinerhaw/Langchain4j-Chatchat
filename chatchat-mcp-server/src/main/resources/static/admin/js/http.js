@@ -5,6 +5,7 @@ export async function apiFetch(url, options = {}) {
     if (!token) {
         throw new UnauthorizedError('请先登录');
     }
+
     const headers = new Headers(options.headers || {});
     headers.set('Authorization', `Bearer ${token}`);
     if (options.body && !headers.has('Content-Type')) {
@@ -15,10 +16,10 @@ export async function apiFetch(url, options = {}) {
     const payload = await parseJson(response);
     if (response.status === 401) {
         clearSession();
-        throw new UnauthorizedError(payload.message || '登录已过期');
+        throw new UnauthorizedError(payload.message || '登录已过期，请重新登录');
     }
     if (!response.ok || payload.code >= 400) {
-        throw new Error(payload.message || `请求失败: ${response.status}`);
+        throw new Error(payload.message || `请求失败：${response.status}`);
     }
     return payload.data;
 }

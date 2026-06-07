@@ -26,7 +26,6 @@ import org.springframework.transaction.annotation.EnableTransactionManagement;
     "com.chatchat.models",
     "com.chatchat.embeddings",
     "com.chatchat.agents",
-    "com.chatchat.tools",
     "com.chatchat.knowledgebase",
     "com.chatchat.integration"
 })

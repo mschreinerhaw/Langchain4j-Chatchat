@@ -51,11 +51,36 @@ public class DataQueryController {
 
     @GetMapping("/skills")
     @Operation(summary = "List skill options")
-    public ApiResponse<List<SkillOption>> getSkills() {
-        List<SkillOption> skills = skillCatalogService.list().stream()
+    public ApiResponse<SkillPage> getSkills(@RequestParam(value = "scope", required = false) String scope,
+                                            @RequestParam(value = "keyword", required = false) String keyword,
+                                            @RequestParam(value = "category", required = false) String category,
+                                            @RequestParam(value = "page", required = false) Integer page,
+                                            @RequestParam(value = "pageSize", required = false) Integer pageSize) {
+        int normalizedPage = normalizePage(page);
+        int normalizedPageSize = normalizePageSize(pageSize, 6, 100);
+        String normalizedKeyword = normalizeKeyword(keyword);
+        String normalizedCategory = normalizeKeyword(category);
+        List<SkillDefinition> baseSkills = skillCatalogService.list().stream()
+            .filter(skill -> "all".equalsIgnoreCase(scope) || "published".equalsIgnoreCase(skill.marketStatus()))
+            .filter(skill -> normalizedKeyword.isEmpty() || matchesSkillKeyword(skill, normalizedKeyword))
+            .toList();
+        List<SkillCategoryOption> categories = buildSkillCategories(baseSkills);
+        List<SkillOption> skills = baseSkills.stream()
+            .filter(skill -> normalizedCategory.isEmpty() || matchesSkillCategory(skill, normalizedCategory))
             .map(this::toSkillOption)
             .toList();
-        return ApiResponse.success(skills);
+        List<SkillOption> pagedSkills = skills.stream()
+            .skip(pageOffset(normalizedPage, normalizedPageSize))
+            .limit(normalizedPageSize)
+            .toList();
+        return ApiResponse.success(new SkillPage(
+            pagedSkills,
+            skills.size(),
+            normalizedPage,
+            normalizedPageSize,
+            totalPages(skills.size(), normalizedPageSize),
+            categories
+        ));
     }
 
     @PostMapping("/skills")
@@ -93,14 +118,18 @@ public class DataQueryController {
                 item.usageScenarios(),
                 item.skillTags(),
                 item.defaultMode(),
+                item.modelName(),
                 item.systemPrompt(),
                 item.firstUseGreeting(),
                 item.preferredToolPrefixes(),
                 item.boundMcpServiceIds(),
                 item.boundMcpToolNames(),
+                item.boundDocumentIds(),
+                item.boundDocumentTags(),
                 item.toolConfigs(),
                 item.routingSettings(),
                 item.quickQuestions(),
+                item.marketStatus(),
                 item.createdAt()
             ))
             .toList();
@@ -248,14 +277,18 @@ public class DataQueryController {
         private List<String> usageScenarios;
         private List<String> skillTags;
         private String defaultMode;
+        private String modelName;
         private String systemPrompt;
         private String firstUseGreeting;
         private List<String> preferredToolPrefixes;
         private List<String> boundMcpServiceIds;
         private List<String> boundMcpToolNames;
+        private List<String> boundDocumentIds;
+        private List<String> boundDocumentTags;
         private List<SkillToolConfig> toolConfigs;
         private SkillRoutingSettings routingSettings;
         private List<String> quickQuestions;
+        private String marketStatus;
     }
 
     public record ModelOption(String value, String label) {
@@ -270,14 +303,18 @@ public class DataQueryController {
         List<String> usageScenarios,
         List<String> skillTags,
         String defaultMode,
+        String modelName,
         String systemPrompt,
         String firstUseGreeting,
         List<String> preferredToolPrefixes,
         List<String> boundMcpServiceIds,
         List<String> boundMcpToolNames,
+        List<String> boundDocumentIds,
+        List<String> boundDocumentTags,
         List<SkillToolConfig> toolConfigs,
         SkillRoutingSettings routingSettings,
         List<String> quickQuestions,
+        String marketStatus,
         Long createdAt
     ) {
     }
@@ -325,10 +362,13 @@ public class DataQueryController {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class ConversationMessage {
+        private String id;
         private String role;
         private String content;
         private Long timestamp;
         private List<Map<String, Object>> traces;
+        private Boolean streaming;
+        private String status;
     }
 
     private String resolveHistoryStatus(String status, List<ConversationMessage> messages) {
@@ -368,6 +408,70 @@ public class DataQueryController {
         return value != null && value.toLowerCase(Locale.ROOT).contains(keyword);
     }
 
+    private boolean matchesSkillCategory(SkillDefinition skill, String category) {
+        return skill.skillTags() != null
+            && skill.skillTags().stream().anyMatch(tag -> containsIgnoreCase(tag, category));
+    }
+
+    private boolean matchesSkillKeyword(SkillDefinition skill, String keyword) {
+        return containsIgnoreCase(skill.id(), keyword)
+            || containsIgnoreCase(skill.label(), keyword)
+            || containsIgnoreCase(skill.description(), keyword)
+            || containsIgnoreCase(skill.defaultMode(), keyword)
+            || containsIgnoreCase(skill.modelName(), keyword)
+            || listContainsIgnoreCase(skill.usageScenarios(), keyword)
+            || listContainsIgnoreCase(skill.skillTags(), keyword)
+            || listContainsIgnoreCase(skill.quickQuestions(), keyword)
+            || listContainsIgnoreCase(skill.preferredToolPrefixes(), keyword)
+            || listContainsIgnoreCase(skill.boundMcpServiceIds(), keyword)
+            || listContainsIgnoreCase(skill.boundMcpToolNames(), keyword);
+    }
+
+    private boolean listContainsIgnoreCase(List<String> values, String keyword) {
+        return values != null && values.stream().anyMatch(value -> containsIgnoreCase(value, keyword));
+    }
+
+    private List<SkillCategoryOption> buildSkillCategories(List<SkillDefinition> skills) {
+        Map<String, Integer> counts = new java.util.TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+        for (SkillDefinition skill : skills) {
+            if (skill.skillTags() == null) {
+                continue;
+            }
+            for (String tag : skill.skillTags()) {
+                if (tag != null && !tag.isBlank()) {
+                    counts.merge(tag.trim(), 1, Integer::sum);
+                }
+            }
+        }
+        List<SkillCategoryOption> categories = new ArrayList<>();
+        categories.add(new SkillCategoryOption("all", "全部业务", skills.size()));
+        counts.forEach((tag, count) -> categories.add(new SkillCategoryOption(tag, tag, count)));
+        return categories;
+    }
+
+    private String normalizeKeyword(String value) {
+        return value == null || value.isBlank() || "all".equalsIgnoreCase(value.trim())
+            ? ""
+            : value.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private int normalizePage(Integer page) {
+        return page == null || page <= 0 ? 1 : page;
+    }
+
+    private int normalizePageSize(Integer pageSize, int defaultSize, int maxSize) {
+        int value = pageSize == null || pageSize <= 0 ? defaultSize : pageSize;
+        return Math.min(value, maxSize);
+    }
+
+    private long pageOffset(int page, int pageSize) {
+        return (long) Math.max(0, page - 1) * Math.max(1, pageSize);
+    }
+
+    private int totalPages(int total, int pageSize) {
+        return Math.max(1, (int) Math.ceil((double) Math.max(0, total) / Math.max(1, pageSize)));
+    }
+
     private SkillOption toSkillOption(SkillDefinition skill) {
         return new SkillOption(
             skill.id(),
@@ -376,14 +480,18 @@ public class DataQueryController {
             skill.usageScenarios(),
             skill.skillTags(),
             skill.defaultMode(),
+            skill.modelName(),
             skill.systemPrompt(),
             skill.firstUseGreeting(),
             skill.preferredToolPrefixes(),
             skill.boundMcpServiceIds(),
             skill.boundMcpToolNames(),
+            skill.boundDocumentIds(),
+            skill.boundDocumentTags(),
             skill.toolConfigs(),
             skill.routingSettings(),
             skill.quickQuestions(),
+            skill.marketStatus(),
             skillCatalogService.isBuiltinSkill(skill.id()),
             skillCatalogService.editableFields(skill.id())
         );
@@ -401,14 +509,18 @@ public class DataQueryController {
             request.getUsageScenarios(),
             request.getSkillTags(),
             request.getDefaultMode(),
+            request.getModelName(),
             request.getSystemPrompt(),
             request.getFirstUseGreeting(),
             request.getPreferredToolPrefixes(),
             request.getBoundMcpServiceIds(),
             request.getBoundMcpToolNames(),
+            request.getBoundDocumentIds(),
+            request.getBoundDocumentTags(),
             request.getToolConfigs(),
             request.getRoutingSettings(),
-            request.getQuickQuestions()
+            request.getQuickQuestions(),
+            request.getMarketStatus()
         );
     }
 
@@ -419,16 +531,37 @@ public class DataQueryController {
         List<String> usageScenarios,
         List<String> skillTags,
         String defaultMode,
+        String modelName,
         String systemPrompt,
         String firstUseGreeting,
         List<String> preferredToolPrefixes,
         List<String> boundMcpServiceIds,
         List<String> boundMcpToolNames,
+        List<String> boundDocumentIds,
+        List<String> boundDocumentTags,
         List<SkillToolConfig> toolConfigs,
         SkillRoutingSettings routingSettings,
         List<String> quickQuestions,
+        String marketStatus,
         boolean builtin,
         List<String> editableFields
+    ) {
+    }
+
+    public record SkillPage(
+        List<SkillOption> items,
+        int total,
+        int page,
+        int pageSize,
+        int totalPages,
+        List<SkillCategoryOption> categories
+    ) {
+    }
+
+    public record SkillCategoryOption(
+        String value,
+        String label,
+        int count
     ) {
     }
 }

@@ -12,13 +12,17 @@ public record SkillDefinition(
     List<String> usageScenarios,
     List<String> skillTags,
     String defaultMode,
+    String modelName,
     String systemPrompt,
     String firstUseGreeting,
     List<String> preferredToolPrefixes,
     List<String> boundMcpServiceIds,
     List<String> boundMcpToolNames,
+    List<String> boundDocumentIds,
+    List<String> boundDocumentTags,
     List<SkillToolConfig> toolConfigs,
     SkillRoutingSettings routingSettings,
-    List<String> quickQuestions
+    List<String> quickQuestions,
+    String marketStatus
 ) {
 }

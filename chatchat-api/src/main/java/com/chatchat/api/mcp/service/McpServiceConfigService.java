@@ -50,6 +50,45 @@ public class McpServiceConfigService {
     }
 
     @Transactional
+    public McpServiceConfig upsertImported(String id, McpServiceConfig draft, String source) {
+        if (id == null || id.isBlank()) {
+            throw new IllegalArgumentException("imported MCP service id is required");
+        }
+        McpServiceConfig current = repository.findById(id.trim()).orElse(null);
+        if (current == null) {
+            draft.setId(id.trim());
+            validate(draft);
+            McpServiceConfig saved = repository.save(draft);
+            snapshotVersion(saved, source == null || source.isBlank() ? "import" : "import_" + source.trim());
+            return saved;
+        }
+
+        current.setName(draft.getName());
+        current.setBaseUrl(draft.getBaseUrl());
+        current.setToolDiscoveryPath(draft.getToolDiscoveryPath());
+        current.setToolInvokePath(draft.getToolInvokePath());
+        current.setAuthToken(blankToNull(draft.getAuthToken()));
+        current.setCustomHeadersJson(blankToNull(draft.getCustomHeadersJson()));
+        current.setProtocol(defaultProtocol(draft.getProtocol()));
+        current.setStdioCommand(blankToNull(draft.getStdioCommand()));
+        current.setStdioArgsJson(blankToNull(draft.getStdioArgsJson()));
+        current.setStdioEnvJson(blankToNull(draft.getStdioEnvJson()));
+        current.setStdioWorkingDirectory(blankToNull(draft.getStdioWorkingDirectory()));
+        current.setProxyEnabled(draft.isProxyEnabled());
+        current.setProxyType(defaultProxyType(draft.getProxyType()));
+        current.setProxyHost(blankToNull(draft.getProxyHost()));
+        current.setProxyPort(normalizeProxyPort(draft.getProxyPort()));
+        current.setProxyUsername(blankToNull(draft.getProxyUsername()));
+        current.setProxyPassword(blankToNull(draft.getProxyPassword()));
+        current.setEnabled(draft.isEnabled());
+        current.setTimeoutMs(draft.getTimeoutMs() <= 0 ? 20000 : draft.getTimeoutMs());
+        validate(current);
+        McpServiceConfig saved = repository.save(current);
+        snapshotVersion(saved, source == null || source.isBlank() ? "import_update" : "import_" + source.trim());
+        return saved;
+    }
+
+    @Transactional
     public McpServiceConfig update(String id, McpServiceConfig draft) {
         McpServiceConfig current = getById(id);
         current.setName(draft.getName());

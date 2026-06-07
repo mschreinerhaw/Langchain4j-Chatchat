@@ -8,5 +8,9 @@ import java.util.List;
 public interface SysUserRoleRepository extends JpaRepository<SysUserRole, String> {
     List<SysUserRole> findByUserId(String userId);
 
+    List<SysUserRole> findByRoleId(String roleId);
+
     void deleteByUserId(String userId);
+
+    void deleteByRoleId(String roleId);
 }

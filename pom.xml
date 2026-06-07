@@ -30,6 +30,7 @@
         <module>chatchat-tools</module>
         <module>chatchat-knowledge-base</module>
         <module>chatchat-api</module>
+        <module>chatchat-mcp-server</module>
         <module>chatchat-integration</module>
     </modules>
 

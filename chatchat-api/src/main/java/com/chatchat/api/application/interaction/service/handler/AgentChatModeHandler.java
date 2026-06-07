@@ -9,6 +9,7 @@ import com.chatchat.api.application.interaction.model.InteractionResponse;
 import com.chatchat.api.application.interaction.service.InteractionModeHandler;
 import com.chatchat.api.mcp.service.McpToolRegistryBridge;
 import com.chatchat.api.skills.SkillCatalogService;
+import com.chatchat.api.skills.SkillDefinition;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -35,16 +36,23 @@ public class AgentChatModeHandler implements InteractionModeHandler {
 
     @Override
     public InteractionResponse handle(InteractionRequest request, InteractionContext context) {
+        SkillDefinition skill = skillCatalogService.resolve(request.getSkillId());
         List<String> tools = request.getAvailableTools();
         if (tools == null || tools.isEmpty()) {
             tools = discoverDefaultTools(request.getSkillId());
         }
-        String systemPrompt = resolveSystemPrompt(request);
+        String systemPrompt = resolveSystemPrompt(request, skill);
+        String modelName = skill.modelName() != null && !skill.modelName().isBlank()
+            ? skill.modelName()
+            : request.getModelName();
 
         AgentOrchestrator.AgentExecutionResult result = agentOrchestrator.executeAgent(
             request.getQuery(),
             tools,
             systemPrompt,
+            modelName,
+            skill.boundDocumentIds(),
+            skill.boundDocumentTags(),
             request.getSkillId(),
             context.requestId(),
             context.conversationId(),
@@ -57,6 +65,7 @@ public class AgentChatModeHandler implements InteractionModeHandler {
             .metadata(java.util.Map.of(
                 "availableTools", tools,
                 "skillId", request.getSkillId() == null ? "general" : request.getSkillId(),
+                "modelName", modelName,
                 "agent", result.metadata(),
                 "handler", "AgentChatModeHandler"
             ))
@@ -72,10 +81,10 @@ public class AgentChatModeHandler implements InteractionModeHandler {
         return skillCatalogService.resolveTools(skillId, toolRegistry.getAllToolNames(), mcpToolsByServiceId);
     }
 
-    private String resolveSystemPrompt(InteractionRequest request) {
+    private String resolveSystemPrompt(InteractionRequest request, SkillDefinition skill) {
         if (request.getSystemPrompt() != null && !request.getSystemPrompt().isBlank()) {
             return request.getSystemPrompt();
         }
-        return skillCatalogService.resolve(request.getSkillId()).systemPrompt();
+        return skill.systemPrompt();
     }
 }

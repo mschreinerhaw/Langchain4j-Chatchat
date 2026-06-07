@@ -22,11 +22,19 @@
       ></textarea>
 
       <div class="composer-toolbar">
-        <button type="button" class="tool-button" :class="{ active: deepThinking }" @click="toggleDeepThinking">
-          <Funnel class="tool-icon" :size="16" stroke-width="1.9" />
-          深度思考(R1)
-          <ChevronDown class="small-caret" :size="14" stroke-width="2" />
-        </button>
+        <label class="agent-picker" :class="{ active: selectedAgentId, loading: agentsLoading }">
+          <Bot class="tool-icon" :size="16" stroke-width="1.9" />
+          <span>{{ agentSelectLabel }}</span>
+          <select :value="selectedAgentId" :disabled="agentsLoading" @change="updateSelectedAgent">
+            <option v-for="agent in agentOptions" :key="agent.id || 'general'" :value="agent.id">
+              {{ agent.name }}{{ agent.documentWorkflow ? " · 文档工作流" : "" }}
+            </option>
+          </select>
+        </label>
+        <span v-if="documentWorkflowActive" class="workflow-badge">
+          <FileText :size="14" stroke-width="2" />
+          文档工作流
+        </span>
         <button type="button" class="tool-button" :class="{ active: webSearch }" @click="toggleWebSearch">
           <Globe class="tool-icon" :size="16" stroke-width="1.9" />
           联网搜索

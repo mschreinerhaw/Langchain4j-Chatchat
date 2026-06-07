@@ -51,6 +51,21 @@ public class ApiServiceConfigService {
     }
 
     @Transactional
+    public ApiServiceConfig upsertByToolName(ApiServiceConfig draft) {
+        return repository.findByToolNameIgnoreCase(draft.getToolName())
+            .map(existing -> update(existing.getId(), draft))
+            .orElseGet(() -> create(draft));
+    }
+
+    @Transactional(readOnly = true)
+    public boolean existsByToolName(String toolName) {
+        if (toolName == null || toolName.isBlank()) {
+            return false;
+        }
+        return repository.findByToolNameIgnoreCase(toolName.trim()).isPresent();
+    }
+
+    @Transactional
     public ApiServiceConfig update(String id, ApiServiceConfig draft) {
         ApiServiceConfig current = getById(id);
         current.setToolName(draft.getToolName());

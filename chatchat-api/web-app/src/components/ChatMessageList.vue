@@ -17,12 +17,18 @@
       </div>
     </article>
 
-    <article v-if="loading && !hasStreamingMessage" class="chat-message assistant">
+    <article v-if="loading && !hasStreamingMessage" class="chat-message assistant thinking-message">
       <div class="message-avatar">AI</div>
-      <div class="message-bubble loading-bubble">
-        <span></span>
-        <span></span>
-        <span></span>
+      <div class="message-bubble loading-bubble" aria-label="AI投资助手正在思考">
+        <span class="thinking-core" aria-hidden="true">
+          <i></i>
+          <i></i>
+          <i></i>
+        </span>
+        <span class="thinking-copy">
+          <strong>AI投资助手正在思考</strong>
+          <small>正在分析问题并组织回答</small>
+        </span>
       </div>
     </article>
   </section>

@@ -35,10 +35,6 @@
         </dependency>
         <dependency>
             <groupId>com.chatchat</groupId>
-            <artifactId>chatchat-tools</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.chatchat</groupId>
             <artifactId>chatchat-knowledge-base</artifactId>
         </dependency>
 
@@ -72,6 +68,21 @@
             <groupId>org.rocksdb</groupId>
             <artifactId>rocksdbjni</artifactId>
             <version>${rocksdb.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.pdfbox</groupId>
+            <artifactId>pdfbox</artifactId>
+            <version>3.0.1</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.poi</groupId>
+            <artifactId>poi-ooxml</artifactId>
+            <version>5.0.0</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.poi</groupId>
+            <artifactId>poi-scratchpad</artifactId>
+            <version>5.0.0</version>
         </dependency>
         <dependency>
             <groupId>org.postgresql</groupId>

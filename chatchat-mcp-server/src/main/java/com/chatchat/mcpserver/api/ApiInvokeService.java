@@ -2,9 +2,11 @@ package com.chatchat.mcpserver.api;
 
 import com.chatchat.mcpserver.audit.InvocationAuditService;
 import com.chatchat.mcpserver.cache.ApiResponseCacheService;
+import com.chatchat.mcpserver.livedata.LivedataSessionService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -34,60 +36,111 @@ public class ApiInvokeService {
     private final ObjectMapper objectMapper;
     private final InvocationAuditService auditService;
     private final ApiResponseCacheService cacheService;
+    private final ObjectProvider<LivedataSessionService> livedataSessionServiceProvider;
 
     public ApiInvokeResult invoke(ApiServiceConfig config, Map<String, Object> arguments) {
         long startedAt = System.currentTimeMillis();
-        Map<String, Object> args = arguments == null ? Map.of() : arguments;
-        Set<String> consumed = new LinkedHashSet<>();
+        Map<String, Object> auditArgs = arguments == null ? Map.of() : arguments;
         ApiInvokeResult result;
 
-        var cached = cacheService.get(config, args);
+        var cached = cacheService.get(config, auditArgs);
         if (cached.isPresent()) {
             result = cached.get();
-            auditService.recordApiCall(config, args, result, System.currentTimeMillis() - startedAt);
+            auditService.recordApiCall(config, auditArgs, result, System.currentTimeMillis() - startedAt);
             return result;
         }
 
         try {
-            String method = config.getMethod().toUpperCase(Locale.ROOT);
-            String url = renderUrl(config.getUrlTemplate(), args, consumed);
-            Map<String, String> headers = renderHeaders(config.getHeadersJson(), args, consumed);
-            String body = renderBody(config, args, consumed);
-
-            if (method.equals("GET") || method.equals("DELETE")) {
-                url = appendQueryParams(url, args, consumed);
-            }
-
-            HttpRequest.BodyPublisher publisher = hasRequestBody(method, body)
-                ? HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8)
-                : HttpRequest.BodyPublishers.noBody();
-
-            HttpRequest.Builder requestBuilder = HttpRequest.newBuilder()
-                .uri(URI.create(url))
-                .timeout(Duration.ofMillis(Math.max(1000, config.getTimeoutMs())))
-                .method(method, publisher);
-
-            headers.forEach(requestBuilder::header);
-            if (hasRequestBody(method, body) && !containsHeader(headers, "content-type")) {
-                requestBuilder.header("Content-Type", "application/json");
-            }
-
             HttpClient client = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofMillis(Math.max(1000, config.getTimeoutMs())))
                 .followRedirects(HttpClient.Redirect.NORMAL)
                 .build();
-
-            HttpResponse<String> response = client.send(requestBuilder.build(), HttpResponse.BodyHandlers.ofString());
-            Object parsedBody = parseBody(response.body());
-            boolean success = response.statusCode() >= 200 && response.statusCode() < 300;
-            result = new ApiInvokeResult(success, response.statusCode(), response.headers().map(), parsedBody,
-                response.body(), success ? null : "API returned HTTP " + response.statusCode());
+            Map<String, Object> renderArgs = enrichArguments(config, auditArgs, false);
+            HttpResponse<String> response = client.send(buildRequest(config, renderArgs), HttpResponse.BodyHandlers.ofString());
+            if (isAuthFailure(response) && usesLivedataSession(config)) {
+                renderArgs = enrichArguments(config, auditArgs, true);
+                response = client.send(buildRequest(config, renderArgs), HttpResponse.BodyHandlers.ofString());
+            }
+            result = toResult(response);
         } catch (Exception ex) {
             result = new ApiInvokeResult(false, 0, Map.of(), null, null, ex.getMessage());
         }
-        cacheService.put(config, args, result);
-        auditService.recordApiCall(config, args, result, System.currentTimeMillis() - startedAt);
+        cacheService.put(config, auditArgs, result);
+        auditService.recordApiCall(config, auditArgs, result, System.currentTimeMillis() - startedAt);
         return result;
+    }
+
+    private HttpRequest buildRequest(ApiServiceConfig config, Map<String, Object> args) throws IOException {
+        Set<String> consumed = new LinkedHashSet<>();
+        String method = config.getMethod().toUpperCase(Locale.ROOT);
+        String url = renderUrl(config.getUrlTemplate(), args, consumed);
+        Map<String, String> headers = renderHeaders(config.getHeadersJson(), args, consumed);
+        String body = renderBody(config, args, consumed);
+
+        if (method.equals("GET") || method.equals("DELETE")) {
+            url = appendQueryParams(url, args, consumed);
+        }
+
+        HttpRequest.BodyPublisher publisher = hasRequestBody(method, body)
+            ? HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8)
+            : HttpRequest.BodyPublishers.noBody();
+
+        HttpRequest.Builder requestBuilder = HttpRequest.newBuilder()
+            .uri(URI.create(url))
+            .timeout(Duration.ofMillis(Math.max(1000, config.getTimeoutMs())))
+            .method(method, publisher);
+
+        headers.forEach(requestBuilder::header);
+        if (hasRequestBody(method, body) && !containsHeader(headers, "content-type")) {
+            requestBuilder.header("Content-Type", "application/json");
+        }
+        return requestBuilder.build();
+    }
+
+    private Map<String, Object> enrichArguments(ApiServiceConfig config, Map<String, Object> args, boolean forceRefreshSession) {
+        if (!usesLivedataSession(config)) {
+            return args;
+        }
+        LivedataSessionService sessionService = livedataSessionServiceProvider.getIfAvailable();
+        if (sessionService == null) {
+            return args;
+        }
+        Map<String, Object> enriched = new LinkedHashMap<>(args);
+        String sessionId = forceRefreshSession ? sessionService.refreshSessionId() : sessionService.currentSessionId();
+        enriched.put(LivedataSessionService.SESSION_ARGUMENT, sessionId);
+        return enriched;
+    }
+
+    private boolean usesLivedataSession(ApiServiceConfig config) {
+        return config.getBodyTemplate() != null
+            && config.getBodyTemplate().contains("{{" + LivedataSessionService.SESSION_ARGUMENT + "}}");
+    }
+
+    private boolean isAuthFailure(HttpResponse<String> response) {
+        if (response.statusCode() == 401 || response.statusCode() == 403) {
+            return true;
+        }
+        String body = response.body();
+        if (body == null || body.isBlank()) {
+            return false;
+        }
+        try {
+            Object parsed = objectMapper.readValue(body, Object.class);
+            if (parsed instanceof Map<?, ?> map) {
+                Object code = map.get("code");
+                String codeText = code == null ? "" : String.valueOf(code);
+                return "401".equals(codeText) || "403".equals(codeText);
+            }
+        } catch (Exception ignored) {
+        }
+        return false;
+    }
+
+    private ApiInvokeResult toResult(HttpResponse<String> response) {
+        Object parsedBody = parseBody(response.body());
+        boolean success = response.statusCode() >= 200 && response.statusCode() < 300;
+        return new ApiInvokeResult(success, response.statusCode(), response.headers().map(), parsedBody,
+            response.body(), success ? null : "API returned HTTP " + response.statusCode());
     }
 
     private String renderUrl(String template, Map<String, Object> args, Set<String> consumed) {

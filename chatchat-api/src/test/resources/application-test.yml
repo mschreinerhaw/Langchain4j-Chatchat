@@ -26,6 +26,9 @@ logging:
     org.hibernate.SQL: WARN
 
 chatchat:
+  search:
+    store-path: ./target/test-search-rocksdb-${random.uuid}
+    file-path: ./target/test-search-files-${random.uuid}
   chat:
     detail-store:
       type: memory

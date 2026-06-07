@@ -49,6 +49,7 @@ public class AdminAuthFilter extends OncePerRequestFilter {
         }
         return path.startsWith("/api/v1/api-services")
             || path.startsWith("/api/v1/mcp-services")
+            || path.startsWith("/api/v1/database-query")
             || path.startsWith("/api/v1/audit-logs");
     }
 

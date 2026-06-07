@@ -1,7 +1,6 @@
 package com.chatchat.api.listener;
 
 import com.chatchat.api.mcp.service.McpToolRegistryBridge;
-import com.chatchat.tools.builtin.BuiltInToolsBootstrap;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
@@ -16,7 +15,6 @@ import org.springframework.stereotype.Component;
 @RequiredArgsConstructor
 public class ApplicationStartupListener {
 
-    private final BuiltInToolsBootstrap builtInToolsBootstrap;
     private final McpToolRegistryBridge mcpToolRegistryBridge;
 
     @EventListener(ApplicationReadyEvent.class)
@@ -26,10 +24,6 @@ public class ApplicationStartupListener {
         log.info("============================================");
 
         try {
-            log.info("Initializing built-in tools...");
-            builtInToolsBootstrap.initializeBuiltInTools();
-            log.info("Built-in tools initialized successfully");
-
             log.info("Refreshing MCP tools...");
             mcpToolRegistryBridge.refreshRegistry();
             log.info("MCP tools refreshed successfully");

@@ -1,8 +1,12 @@
 spring:
   application:
     name: chatchat
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 5MB
   datasource:
-    url: ${CHAT_DATASOURCE_URL:jdbc:h2:file:./h2/chatchat;MODE=MySQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE;DB_CLOSE_DELAY=-1}
+    url: ${CHAT_DATASOURCE_URL:jdbc:h2:file:./data/h2/chatchat;MODE=MySQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE;DB_CLOSE_DELAY=-1}
     driver-class-name: ${CHAT_DATASOURCE_DRIVER:org.h2.Driver}
     username: ${CHAT_DATASOURCE_USERNAME:sa}
     password: ${CHAT_DATASOURCE_PASSWORD:}
@@ -25,6 +29,20 @@ server:
   shutdown: graceful
 
 chatchat:
+  mcp:
+    center:
+      enabled: ${CHAT_MCP_CENTER_ENABLED:true}
+      base-url: ${CHAT_MCP_CENTER_BASE_URL:http://localhost:8090}
+      admin-username: ${CHAT_MCP_CENTER_ADMIN_USERNAME:admin}
+      admin-password: ${CHAT_MCP_CENTER_ADMIN_PASSWORD:admin123}
+      admin-login-path: ${CHAT_MCP_CENTER_ADMIN_LOGIN_PATH:/api/v1/admin/auth/login}
+      service-list-path: ${CHAT_MCP_CENTER_SERVICE_LIST_PATH:/api/v1/mcp-services}
+      mcp-endpoint: ${CHAT_MCP_CENTER_MCP_ENDPOINT:/mcp}
+      standalone-service-id: ${CHAT_MCP_CENTER_STANDALONE_SERVICE_ID:chatchat-mcp-server}
+      standalone-service-name: ${CHAT_MCP_CENTER_STANDALONE_SERVICE_NAME:ChatChat MCP Server}
+      invocation-token: ${CHAT_MCP_CENTER_INVOCATION_TOKEN:}
+      timeout-ms: ${CHAT_MCP_CENTER_TIMEOUT_MS:20000}
+      import-standalone-server: ${CHAT_MCP_CENTER_IMPORT_STANDALONE:true}
   models:
     defaultProvider: openai
     defaultChatModel: qwen3.6-plus
@@ -35,6 +53,15 @@ chatchat:
       baseUrl: https://dashscope.aliyuncs.com/compatible-mode/v1
       timeout: 30
       maxRetries: 3
+  search:
+    store-path: ${CHAT_SEARCH_STORE_PATH:./data/search-rocksdb}
+    file-path: ${CHAT_SEARCH_FILE_PATH:./data/search-files}
+    create-if-missing: true
+    embedding-enabled: ${CHAT_SEARCH_EMBEDDING_ENABLED:true}
+    max-upload-bytes: ${CHAT_SEARCH_MAX_UPLOAD_BYTES:5242880}
+    default-limit: 20
+    max-limit: 100
+    summary-length: 180
 
 logging:
   level:

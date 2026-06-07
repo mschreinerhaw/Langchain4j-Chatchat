@@ -39,6 +39,9 @@ public class SkillConfigEntity {
     @Column(length = 32, nullable = false)
     private String defaultMode = "agent_chat";
 
+    @Column(length = 128)
+    private String modelName;
+
     @Column(length = 16000)
     private String systemPrompt;
 
@@ -55,6 +58,12 @@ public class SkillConfigEntity {
     private String boundMcpToolNamesJson;
 
     @Column(length = 16000)
+    private String boundDocumentIdsJson;
+
+    @Column(length = 16000)
+    private String boundDocumentTagsJson;
+
+    @Column(length = 16000)
     private String toolConfigsJson;
 
     @Column(length = 4000)
@@ -62,6 +71,9 @@ public class SkillConfigEntity {
 
     @Column(length = 16000)
     private String quickQuestionsJson;
+
+    @Column(length = 32, nullable = false)
+    private String marketStatus = "draft";
 
     @Column(nullable = false)
     private Instant createdAt;
@@ -74,6 +86,9 @@ public class SkillConfigEntity {
         if (defaultMode == null || defaultMode.isBlank()) {
             defaultMode = "agent_chat";
         }
+        if (marketStatus == null || marketStatus.isBlank()) {
+            marketStatus = "draft";
+        }
         Instant now = Instant.now();
         if (createdAt == null) {
             createdAt = now;
@@ -85,6 +100,9 @@ public class SkillConfigEntity {
     public void onUpdate() {
         if (defaultMode == null || defaultMode.isBlank()) {
             defaultMode = "agent_chat";
+        }
+        if (marketStatus == null || marketStatus.isBlank()) {
+            marketStatus = "draft";
         }
         updatedAt = Instant.now();
     }

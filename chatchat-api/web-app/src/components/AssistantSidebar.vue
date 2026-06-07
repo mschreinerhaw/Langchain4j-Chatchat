@@ -1,11 +1,7 @@
 <template>
   <aside class="assistant-sidebar">
     <div class="brand-block">
-      <div class="brand-logo">AI</div>
-      <div class="brand-copy">
-        <strong>证券AI平台</strong>
-        <span>投研与业务助手</span>
-      </div>
+      <img class="brand-logo" :src="liveMuseLogo" alt="LiveMuse AI">
       <button
         class="sidebar-toggle"
         type="button"

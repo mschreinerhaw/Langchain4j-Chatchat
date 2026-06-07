@@ -5,6 +5,7 @@ import com.chatchat.api.enterprise.entity.McpToolAsset;
 import com.chatchat.api.enterprise.entity.McpToolPermission;
 import com.chatchat.api.enterprise.entity.SysAuditLog;
 import com.chatchat.api.enterprise.entity.SysOrg;
+import com.chatchat.api.enterprise.entity.SysPermission;
 import com.chatchat.api.enterprise.entity.SysRole;
 import com.chatchat.api.enterprise.entity.SysTenant;
 import com.chatchat.api.enterprise.entity.SysUser;
@@ -65,34 +66,24 @@ public class EnterpriseAdminController {
     @Operation(summary = "Enterprise portal menu")
     public ApiResponse<List<MenuGroup>> menus() {
         return ApiResponse.success(List.of(
-            new MenuGroup("home", "首页", List.of(new MenuItem("dashboard", "运营总览", "/index.html#enterprise"))),
-            new MenuGroup("ai", "AI能力中心", List.of(
-                new MenuItem("chat", "智能问答", "/index.html"),
+            new MenuGroup("workspace", "工作台", List.of(
+                new MenuItem("dashboard", "运营总览", "/index.html#enterprise"),
+                new MenuItem("chat", "智能问答", "/index.html#chat")
+            )),
+            new MenuGroup("capability", "能力中心", List.of(
                 new MenuItem("skills", "技能管理", "/index.html#skills"),
                 new MenuItem("models", "模型管理", "/index.html#enterprise"),
-                new MenuItem("sessions", "会话管理", "/index.html#chat")
-            )),
-            new MenuGroup("mcp", "MCP中心", List.of(
-                new MenuItem("mcp-services", "服务注册", "/index.html#mcp"),
-                new MenuItem("mcp-tools", "工具管理", "/index.html#enterprise"),
-                new MenuItem("tool-permissions", "工具授权", "/index.html#enterprise")
-            )),
-            new MenuGroup("data", "数据中心", List.of(
-                new MenuItem("data-sources", "数据源管理", "/index.html#enterprise"),
-                new MenuItem("knowledge", "知识库管理", "/index.html#chat"),
-                new MenuItem("data-permissions", "数据权限", "/index.html#enterprise")
+                new MenuItem("mcp-services", "MCP 服务", "/index.html#mcp")
             )),
             new MenuGroup("system", "系统管理", List.of(
                 new MenuItem("tenants", "租户管理", "/index.html#enterprise"),
                 new MenuItem("orgs", "组织管理", "/index.html#enterprise"),
                 new MenuItem("users", "用户管理", "/index.html#enterprise"),
-                new MenuItem("roles", "角色管理", "/index.html#enterprise")
+                new MenuItem("roles", "角色权限", "/index.html#enterprise")
             )),
             new MenuGroup("audit", "审计中心", List.of(
-                new MenuItem("login-logs", "登录日志", "/index.html#enterprise"),
                 new MenuItem("operation-logs", "操作日志", "/index.html#enterprise"),
-                new MenuItem("tool-call-logs", "工具调用日志", "/index.html#enterprise"),
-                new MenuItem("ai-logs", "AI问答日志", "/index.html#chat")
+                new MenuItem("tool-call-logs", "工具调用日志", "/index.html#enterprise")
             ))
         ));
     }
@@ -108,19 +99,19 @@ public class EnterpriseAdminController {
     }
 
     @PutMapping("/tenants/{id}")
-    public ApiResponse<SysTenant> updateTenant(@PathVariable String id, @RequestBody SysTenant input) {
+    public ApiResponse<SysTenant> updateTenant(@PathVariable("id") String id, @RequestBody SysTenant input) {
         input.setId(id);
         return ApiResponse.success(adminService.saveTenant(input), "tenant saved");
     }
 
     @DeleteMapping("/tenants/{id}")
-    public ApiResponse<Void> deleteTenant(@PathVariable String id) {
+    public ApiResponse<Void> deleteTenant(@PathVariable("id") String id) {
         adminService.delete("tenant", id);
         return ApiResponse.success(null, "tenant deleted");
     }
 
     @GetMapping("/orgs")
-    public ApiResponse<List<SysOrg>> listOrgs(@RequestParam(required = false) String tenantId) {
+    public ApiResponse<List<SysOrg>> listOrgs(@RequestParam(name = "tenantId", required = false) String tenantId) {
         List<SysOrg> data = tenantId == null || tenantId.isBlank()
             ? orgRepository.findAll()
             : orgRepository.findByTenantIdOrderBySortOrderAscOrgNameAsc(tenantId);
@@ -133,19 +124,19 @@ public class EnterpriseAdminController {
     }
 
     @PutMapping("/orgs/{id}")
-    public ApiResponse<SysOrg> updateOrg(@PathVariable String id, @RequestBody SysOrg input) {
+    public ApiResponse<SysOrg> updateOrg(@PathVariable("id") String id, @RequestBody SysOrg input) {
         input.setId(id);
         return ApiResponse.success(adminService.saveOrg(input), "org saved");
     }
 
     @DeleteMapping("/orgs/{id}")
-    public ApiResponse<Void> deleteOrg(@PathVariable String id) {
+    public ApiResponse<Void> deleteOrg(@PathVariable("id") String id) {
         adminService.delete("org", id);
         return ApiResponse.success(null, "org deleted");
     }
 
     @GetMapping("/roles")
-    public ApiResponse<List<SysRole>> listRoles(@RequestParam(required = false) String tenantId) {
+    public ApiResponse<List<SysRole>> listRoles(@RequestParam(name = "tenantId", required = false) String tenantId) {
         List<SysRole> data = tenantId == null || tenantId.isBlank()
             ? roleRepository.findAll()
             : roleRepository.findByTenantIdOrderByRoleNameAsc(tenantId);
@@ -158,19 +149,54 @@ public class EnterpriseAdminController {
     }
 
     @PutMapping("/roles/{id}")
-    public ApiResponse<SysRole> updateRole(@PathVariable String id, @RequestBody SysRole input) {
+    public ApiResponse<SysRole> updateRole(@PathVariable("id") String id, @RequestBody SysRole input) {
         input.setId(id);
         return ApiResponse.success(adminService.saveRole(input), "role saved");
     }
 
     @DeleteMapping("/roles/{id}")
-    public ApiResponse<Void> deleteRole(@PathVariable String id) {
+    public ApiResponse<Void> deleteRole(@PathVariable("id") String id) {
         adminService.delete("role", id);
         return ApiResponse.success(null, "role deleted");
     }
 
+    @GetMapping("/roles/{id}/authorization")
+    public ApiResponse<EnterpriseAdminService.RoleAuthorizationView> getRoleAuthorization(@PathVariable("id") String id) {
+        return ApiResponse.success(adminService.getRoleAuthorization(id));
+    }
+
+    @PutMapping("/roles/{id}/authorization")
+    public ApiResponse<EnterpriseAdminService.RoleAuthorizationView> saveRoleAuthorization(
+        @PathVariable("id") String id,
+        @RequestBody EnterpriseAdminService.RoleAuthorizationRequest request
+    ) {
+        return ApiResponse.success(adminService.saveRoleAuthorization(id, request), "role authorization saved");
+    }
+
+    @GetMapping("/permissions")
+    public ApiResponse<List<SysPermission>> listPermissions() {
+        return ApiResponse.success(adminService.listPermissions());
+    }
+
+    @PostMapping("/permissions")
+    public ApiResponse<SysPermission> createPermission(@RequestBody SysPermission input) {
+        return ApiResponse.success(adminService.savePermission(input), "permission saved");
+    }
+
+    @PutMapping("/permissions/{id}")
+    public ApiResponse<SysPermission> updatePermission(@PathVariable("id") String id, @RequestBody SysPermission input) {
+        input.setId(id);
+        return ApiResponse.success(adminService.savePermission(input), "permission saved");
+    }
+
+    @DeleteMapping("/permissions/{id}")
+    public ApiResponse<Void> deletePermission(@PathVariable("id") String id) {
+        adminService.delete("permission", id);
+        return ApiResponse.success(null, "permission deleted");
+    }
+
     @GetMapping("/users")
-    public ApiResponse<List<EnterpriseAdminService.UserView>> listUsers(@RequestParam(required = false) String tenantId) {
+    public ApiResponse<List<EnterpriseAdminService.UserView>> listUsers(@RequestParam(name = "tenantId", required = false) String tenantId) {
         return ApiResponse.success(adminService.listUserViews(tenantId));
     }
 
@@ -180,7 +206,7 @@ public class EnterpriseAdminController {
     }
 
     @PutMapping("/users/{id}")
-    public ApiResponse<EnterpriseAdminService.UserView> updateUser(@PathVariable String id,
+    public ApiResponse<EnterpriseAdminService.UserView> updateUser(@PathVariable("id") String id,
                                                                    @RequestBody UserUpsertRequest request) {
         SysUser user = request.user();
         user.setId(id);
@@ -188,13 +214,33 @@ public class EnterpriseAdminController {
     }
 
     @DeleteMapping("/users/{id}")
-    public ApiResponse<Void> deleteUser(@PathVariable String id) {
+    public ApiResponse<Void> deleteUser(@PathVariable("id") String id) {
         adminService.delete("user", id);
         return ApiResponse.success(null, "user deleted");
     }
 
+    @GetMapping("/external/orgs")
+    public ApiResponse<List<EnterpriseAdminService.ExternalOrgView>> listExternalOrgs() {
+        return ApiResponse.success(adminService.listExternalOrgs());
+    }
+
+    @GetMapping("/external/users")
+    public ApiResponse<List<EnterpriseAdminService.ExternalUserView>> listExternalUsers() {
+        return ApiResponse.success(adminService.listExternalUsers());
+    }
+
+    @PostMapping("/sync/orgs")
+    public ApiResponse<EnterpriseAdminService.SyncResult> syncOrgs(@RequestParam(name = "tenantId", required = false) String tenantId) {
+        return ApiResponse.success(adminService.syncExternalOrgs(tenantId), "external orgs synced");
+    }
+
+    @PostMapping("/sync/users")
+    public ApiResponse<EnterpriseAdminService.SyncResult> syncUsers(@RequestParam(name = "tenantId", required = false) String tenantId) {
+        return ApiResponse.success(adminService.syncExternalUsers(tenantId), "external users synced");
+    }
+
     @GetMapping("/mcp-tools")
-    public ApiResponse<List<McpToolAsset>> listMcpTools(@RequestParam(required = false) String serviceId) {
+    public ApiResponse<List<McpToolAsset>> listMcpTools(@RequestParam(name = "serviceId", required = false) String serviceId) {
         List<McpToolAsset> data = serviceId == null || serviceId.isBlank()
             ? toolAssetRepository.findAllByOrderByLocalToolNameAsc()
             : toolAssetRepository.findByServiceIdOrderByLocalToolNameAsc(serviceId);
@@ -207,7 +253,7 @@ public class EnterpriseAdminController {
     }
 
     @GetMapping("/tool-permissions")
-    public ApiResponse<List<McpToolPermission>> listToolPermissions(@RequestParam(required = false) String tenantId) {
+    public ApiResponse<List<McpToolPermission>> listToolPermissions(@RequestParam(name = "tenantId", required = false) String tenantId) {
         List<McpToolPermission> data = tenantId == null || tenantId.isBlank()
             ? toolPermissionRepository.findAll()
             : toolPermissionRepository.findByTenantIdOrderByUpdatedAtDesc(tenantId);
@@ -220,20 +266,20 @@ public class EnterpriseAdminController {
     }
 
     @PutMapping("/tool-permissions/{id}")
-    public ApiResponse<McpToolPermission> updateToolPermission(@PathVariable String id,
+    public ApiResponse<McpToolPermission> updateToolPermission(@PathVariable("id") String id,
                                                                @RequestBody McpToolPermission input) {
         input.setId(id);
         return ApiResponse.success(adminService.saveToolPermission(input), "tool permission saved");
     }
 
     @DeleteMapping("/tool-permissions/{id}")
-    public ApiResponse<Void> deleteToolPermission(@PathVariable String id) {
+    public ApiResponse<Void> deleteToolPermission(@PathVariable("id") String id) {
         adminService.delete("tool-permission", id);
         return ApiResponse.success(null, "tool permission deleted");
     }
 
     @GetMapping("/data-sources")
-    public ApiResponse<List<DataSourceConfig>> listDataSources(@RequestParam(required = false) String tenantId) {
+    public ApiResponse<List<DataSourceConfig>> listDataSources(@RequestParam(name = "tenantId", required = false) String tenantId) {
         List<DataSourceConfig> data = tenantId == null || tenantId.isBlank()
             ? dataSourceRepository.findAll()
             : dataSourceRepository.findByTenantIdOrderByNameAsc(tenantId);
@@ -246,20 +292,20 @@ public class EnterpriseAdminController {
     }
 
     @PutMapping("/data-sources/{id}")
-    public ApiResponse<DataSourceConfig> updateDataSource(@PathVariable String id,
+    public ApiResponse<DataSourceConfig> updateDataSource(@PathVariable("id") String id,
                                                           @RequestBody DataSourceConfig input) {
         input.setId(id);
         return ApiResponse.success(adminService.saveDataSource(input), "data source saved");
     }
 
     @DeleteMapping("/data-sources/{id}")
-    public ApiResponse<Void> deleteDataSource(@PathVariable String id) {
+    public ApiResponse<Void> deleteDataSource(@PathVariable("id") String id) {
         adminService.delete("data-source", id);
         return ApiResponse.success(null, "data source deleted");
     }
 
     @GetMapping("/audit-logs")
-    public ApiResponse<List<SysAuditLog>> listAuditLogs(@RequestParam(required = false) String tenantId) {
+    public ApiResponse<List<SysAuditLog>> listAuditLogs(@RequestParam(name = "tenantId", required = false) String tenantId) {
         List<SysAuditLog> data = tenantId == null || tenantId.isBlank()
             ? auditLogRepository.findTop100ByOrderByCreatedAtDesc()
             : auditLogRepository.findTop100ByTenantIdOrderByCreatedAtDesc(tenantId);

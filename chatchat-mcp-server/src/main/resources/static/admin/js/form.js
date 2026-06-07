@@ -51,10 +51,14 @@ export function toggleMicroserviceFields() {
 
 export function readTestArgs() {
     const schema = parseJsonField('inputSchemaJson', DEFAULT_SCHEMA);
+    return readTestArgsFromSchema(schema);
+}
+
+export function readTestArgsFromSchema(schema = DEFAULT_SCHEMA) {
     const args = {};
     const properties = schema.properties || {};
     for (const [name, definition] of Object.entries(properties)) {
-        const promptValue = window.prompt(`Input parameter ${name}`, definition.default ?? '');
+        const promptValue = window.prompt(`请输入参数 ${name}`, definition.default ?? '');
         if (promptValue !== null && promptValue !== '') {
             args[name] = coerceValue(promptValue, definition.type);
         }
@@ -123,7 +127,7 @@ function parseJsonField(id, fallback) {
     try {
         return JSON.parse(text);
     } catch (error) {
-        throw new Error(`${labelFor(id)} is not valid JSON`);
+        throw new Error(`${labelFor(id)} 不是合法 JSON`);
     }
 }
 
@@ -166,8 +170,8 @@ function setValue(id, nextValue) {
 
 function labelFor(id) {
     return {
-        headersJson: 'Headers JSON',
-        inputSchemaJson: 'Input Schema JSON',
-        microDataJson: 'data JSON'
+        headersJson: '请求头 JSON',
+        inputSchemaJson: '入参 Schema JSON',
+        microDataJson: 'data JSON 参数'
     }[id] || id;
 }

@@ -45,6 +45,9 @@ public class SkillConfigVersionEntity {
     @Column(length = 32, nullable = false)
     private String defaultMode = "agent_chat";
 
+    @Column(length = 128)
+    private String modelName;
+
     @Column(length = 16000)
     private String systemPrompt;
 
@@ -61,6 +64,12 @@ public class SkillConfigVersionEntity {
     private String boundMcpToolNamesJson;
 
     @Column(length = 16000)
+    private String boundDocumentIdsJson;
+
+    @Column(length = 16000)
+    private String boundDocumentTagsJson;
+
+    @Column(length = 16000)
     private String toolConfigsJson;
 
     @Column(length = 4000)
@@ -68,6 +77,9 @@ public class SkillConfigVersionEntity {
 
     @Column(length = 16000)
     private String quickQuestionsJson;
+
+    @Column(length = 32)
+    private String marketStatus;
 
     @Column(nullable = false)
     private Instant createdAt;

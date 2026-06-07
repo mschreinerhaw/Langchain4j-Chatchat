@@ -6,6 +6,15 @@ spring:
     url: ${CHAT_MCP_DATASOURCE_URL:jdbc:h2:file:./data/h2/chatchat-mcp-server;MODE=MySQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE;DB_CLOSE_DELAY=-1}
     username: ${CHAT_MCP_DATASOURCE_USERNAME:sa}
     password: ${CHAT_MCP_DATASOURCE_PASSWORD:chatchat_mcp_h2_pwd}
+    hikari:
+      pool-name: ${CHAT_MCP_HIKARI_POOL_NAME:ChatChatMcpHikariPool}
+      maximum-pool-size: ${CHAT_MCP_HIKARI_MAXIMUM_POOL_SIZE:10}
+      minimum-idle: ${CHAT_MCP_HIKARI_MINIMUM_IDLE:2}
+      connection-timeout: ${CHAT_MCP_HIKARI_CONNECTION_TIMEOUT:20000}
+      idle-timeout: ${CHAT_MCP_HIKARI_IDLE_TIMEOUT:300000}
+      max-lifetime: ${CHAT_MCP_HIKARI_MAX_LIFETIME:1200000}
+      auto-commit: ${CHAT_MCP_HIKARI_AUTO_COMMIT:true}
+      transaction-isolation: ${CHAT_MCP_HIKARI_TRANSACTION_ISOLATION:TRANSACTION_READ_COMMITTED}
 
 chatchat:
   mcp:
@@ -15,6 +24,13 @@ chatchat:
     cache:
       path: ${CHAT_MCP_CACHE_PATH:./data/mcp-cache-rocksdb}
   tools:
+    document-search:
+      enabled: ${CHAT_TOOLS_DOCUMENT_SEARCH_ENABLED:true}
+      api-base-url: ${CHAT_API_BASE_URL:http://localhost:8080}
+      search-path: ${CHAT_TOOLS_DOCUMENT_SEARCH_PATH:/api/v1/search}
+      timeout-ms: ${CHAT_TOOLS_DOCUMENT_SEARCH_TIMEOUT_MS:20000}
+      default-limit: ${CHAT_TOOLS_DOCUMENT_SEARCH_DEFAULT_LIMIT:5}
+      max-limit: ${CHAT_TOOLS_DOCUMENT_SEARCH_MAX_LIMIT:20}
     database-query:
       driver-lib-path: ${CHAT_TOOLS_DATABASE_QUERY_DRIVER_LIB_PATH:./lib}
       default-max-rows: ${CHAT_TOOLS_DATABASE_QUERY_DEFAULT_MAX_ROWS:50}

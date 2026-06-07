@@ -5,18 +5,28 @@ import com.chatchat.api.application.interaction.model.InteractionToolTrace;
 import com.chatchat.common.tool.ToolInput;
 import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolOutput;
+import com.chatchat.models.config.ModelsConfig;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import dev.langchain4j.http.client.HttpClientBuilder;
+import dev.langchain4j.http.client.jdk.JdkHttpClientBuilder;
 import dev.langchain4j.model.chat.ChatModel;
+import dev.langchain4j.model.openai.OpenAiChatModel;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.net.InetSocketAddress;
+import java.net.ProxySelector;
+import java.net.http.HttpClient;
+import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Agent orchestrator with tool planning and execution loop.
@@ -33,29 +43,40 @@ public class AgentOrchestrator {
     private final ChatModel chatModel;
     private final ToolRegistry toolRegistry;
     private final ObjectMapper objectMapper;
+    private final ModelsConfig modelsConfig;
+    private final Map<String, ChatModel> chatModelsByName = new ConcurrentHashMap<>();
 
     public AgentExecutionResult executeAgent(String query,
                                              List<String> availableTools,
                                              String systemPrompt,
+                                             String modelName,
+                                             List<String> boundDocumentIds,
+                                             List<String> boundDocumentTags,
                                              String skillId,
                                              String requestId,
                                              String conversationId,
                                              String userId) {
         List<String> tools = availableTools == null ? List.of() : availableTools;
+        List<String> documentIds = normalizeList(boundDocumentIds);
+        List<String> documentTags = normalizeList(boundDocumentTags);
+        ChatModel activeChatModel = resolveChatModel(modelName);
         List<InteractionToolTrace> traces = new ArrayList<>();
         List<String> observations = new ArrayList<>();
         Map<String, Object> metadata = new LinkedHashMap<>();
         metadata.put("skillId", skillId == null ? "general" : skillId);
+        metadata.put("modelName", normalizeModelName(modelName));
+        metadata.put("boundDocumentIds", documentIds);
+        metadata.put("boundDocumentTags", documentTags);
         metadata.put("availableTools", tools);
 
         log.info("[{}] Agent orchestration started. tools={}", requestId, tools.size());
 
         for (int step = 1; step <= MAX_STEPS; step++) {
-            AgentDecision decision = decideNextAction(query, systemPrompt, tools, observations);
+            AgentDecision decision = decideNextAction(activeChatModel, query, systemPrompt, tools, observations, documentIds, documentTags);
             metadata.put("steps", step);
 
             if (FINAL.equals(decision.action())) {
-                String answer = safeAnswer(decision.answer(), query, observations, systemPrompt);
+                String answer = safeAnswer(activeChatModel, decision.answer(), query, observations, systemPrompt);
                 metadata.put("stopReason", "final_answer");
                 return new AgentExecutionResult(answer, traces, metadata);
             }
@@ -74,11 +95,12 @@ public class AgentOrchestrator {
                 continue;
             }
 
+            Map<String, Object> arguments = applyDocumentSearchDefaults(decision.toolName(), decision.arguments(), documentIds, documentTags);
             ToolInput toolInput = ToolInput.builder()
                 .conversationId(conversationId)
                 .requestId(requestId)
                 .userId(userId)
-                .parameters(decision.arguments() == null ? Map.of() : decision.arguments())
+                .parameters(arguments)
                 .build();
 
             ToolMetadata toolMetadata = toolRegistry.getToolMetadata(decision.toolName());
@@ -93,7 +115,7 @@ public class AgentOrchestrator {
                 .serviceId(resolveServiceId(toolMetadata))
                 .serviceName(resolveServiceName(toolMetadata))
                 .success(output.isSuccess())
-                .input(decision.arguments())
+                .input(arguments)
                 .output(outputText)
                 .errorMessage(output.getErrorMessage())
                 .durationMs(durationMs)
@@ -108,17 +130,20 @@ public class AgentOrchestrator {
             observations.add(observation);
         }
 
-        String finalAnswer = summarizeWithObservations(query, systemPrompt, observations);
+        String finalAnswer = summarizeWithObservations(activeChatModel, query, systemPrompt, observations);
         metadata.put("stopReason", "max_steps_or_fallback");
         return new AgentExecutionResult(finalAnswer, traces, metadata);
     }
 
-    private AgentDecision decideNextAction(String query,
+    private AgentDecision decideNextAction(ChatModel activeChatModel,
+                                           String query,
                                            String systemPrompt,
                                            List<String> availableTools,
-                                           List<String> observations) {
-        String prompt = buildPlannerPrompt(query, systemPrompt, availableTools, observations);
-        String raw = chatModel.chat(prompt);
+                                           List<String> observations,
+                                           List<String> boundDocumentIds,
+                                           List<String> boundDocumentTags) {
+        String prompt = buildPlannerPrompt(query, systemPrompt, availableTools, observations, boundDocumentIds, boundDocumentTags);
+        String raw = activeChatModel.chat(prompt);
         AgentDecision decision = parseDecision(raw);
         if (decision == null) {
             return new AgentDecision(FINAL, null, Map.of(), raw, "non_json_response");
@@ -129,7 +154,9 @@ public class AgentOrchestrator {
     private String buildPlannerPrompt(String query,
                                       String systemPrompt,
                                       List<String> availableTools,
-                                      List<String> observations) {
+                                      List<String> observations,
+                                      List<String> boundDocumentIds,
+                                      List<String> boundDocumentTags) {
         StringBuilder prompt = new StringBuilder();
         if (systemPrompt != null && !systemPrompt.isBlank()) {
             prompt.append("System instruction: ").append(systemPrompt).append("\n\n");
@@ -142,6 +169,20 @@ public class AgentOrchestrator {
         prompt.append("or\n");
         prompt.append("{\"action\":\"tool\",\"toolName\":\"...\",\"arguments\":{...},\"reason\":\"...\"}\n\n");
         prompt.append("Available tools:\n").append(describeTools(availableTools)).append("\n");
+        if (!boundDocumentIds.isEmpty() || !boundDocumentTags.isEmpty()) {
+            prompt.append("Knowledge document search scope:\n");
+            if (!boundDocumentIds.isEmpty()) {
+                prompt.append("- document_ids: ").append(boundDocumentIds).append("\n");
+            }
+            if (!boundDocumentTags.isEmpty()) {
+                prompt.append("- tags: ").append(boundDocumentTags).append("\n");
+            }
+            prompt.append("Document workflow:\n");
+            prompt.append("1. If the user asks about research material, reports, files, or document-backed facts, call document_search first.\n");
+            prompt.append("2. Keep document_search within the configured document_ids/tags scope.\n");
+            prompt.append("3. Use retrieved evidence as the basis of the final answer; if evidence is insufficient, say what is missing.\n");
+            prompt.append("4. Do not invent facts beyond retrieved documents and tool observations.\n\n");
+        }
         if (!observations.isEmpty()) {
             prompt.append("Observations so far:\n");
             observations.forEach(ob -> prompt.append("- ").append(ob).append("\n"));
@@ -225,14 +266,14 @@ public class AgentOrchestrator {
         return text;
     }
 
-    private String safeAnswer(String answer, String query, List<String> observations, String systemPrompt) {
+    private String safeAnswer(ChatModel activeChatModel, String answer, String query, List<String> observations, String systemPrompt) {
         if (answer != null && !answer.isBlank()) {
             return answer;
         }
-        return summarizeWithObservations(query, systemPrompt, observations);
+        return summarizeWithObservations(activeChatModel, query, systemPrompt, observations);
     }
 
-    private String summarizeWithObservations(String query, String systemPrompt, List<String> observations) {
+    private String summarizeWithObservations(ChatModel activeChatModel, String query, String systemPrompt, List<String> observations) {
         StringBuilder prompt = new StringBuilder();
         if (systemPrompt != null && !systemPrompt.isBlank()) {
             prompt.append("System instruction: ").append(systemPrompt).append("\n\n");
@@ -244,7 +285,81 @@ public class AgentOrchestrator {
             observations.forEach(item -> prompt.append("- ").append(item).append("\n"));
         }
         prompt.append("\nUser question: ").append(query);
-        return chatModel.chat(prompt.toString());
+        return activeChatModel.chat(prompt.toString());
+    }
+
+    private ChatModel resolveChatModel(String modelName) {
+        String normalized = normalizeModelName(modelName);
+        if (normalized == null || normalized.equals(modelsConfig.getDefaultChatModel())) {
+            return chatModel;
+        }
+        if (!"openai".equalsIgnoreCase(modelsConfig.getDefaultProvider())) {
+            return chatModel;
+        }
+        return chatModelsByName.computeIfAbsent(normalized, this::buildOpenAiChatModel);
+    }
+
+    private ChatModel buildOpenAiChatModel(String modelName) {
+        OpenAiChatModel.OpenAiChatModelBuilder builder = OpenAiChatModel.builder()
+            .apiKey(modelsConfig.getOpenai().getApiKey())
+            .baseUrl(modelsConfig.getOpenai().getBaseUrl())
+            .modelName(modelName)
+            .timeout(Duration.ofSeconds(modelsConfig.getOpenai().getTimeout()))
+            .maxRetries(modelsConfig.getOpenai().getMaxRetries())
+            .logRequests(true)
+            .logResponses(true);
+        HttpClientBuilder httpClientBuilder = resolveOpenAiHttpClientBuilder();
+        if (httpClientBuilder != null) {
+            builder.httpClientBuilder(httpClientBuilder);
+        }
+        return builder.build();
+    }
+
+    private HttpClientBuilder resolveOpenAiHttpClientBuilder() {
+        ModelsConfig.ProxyConfig proxyConfig = modelsConfig.getOpenai().getProxy();
+        if (proxyConfig == null || !proxyConfig.isEnabled()
+            || proxyConfig.getHost() == null || proxyConfig.getHost().isBlank()
+            || proxyConfig.getPort() == null || proxyConfig.getPort() <= 0) {
+            return null;
+        }
+        if ("socks".equalsIgnoreCase(proxyConfig.getType())) {
+            return null;
+        }
+        HttpClient.Builder httpClientBuilder = HttpClient.newBuilder()
+            .proxy(ProxySelector.of(new InetSocketAddress(proxyConfig.getHost(), proxyConfig.getPort())));
+        return new JdkHttpClientBuilder().httpClientBuilder(httpClientBuilder);
+    }
+
+    private Map<String, Object> applyDocumentSearchDefaults(String toolName,
+                                                            Map<String, Object> arguments,
+                                                            List<String> boundDocumentIds,
+                                                            List<String> boundDocumentTags) {
+        Map<String, Object> values = new LinkedHashMap<>(arguments == null ? Collections.emptyMap() : arguments);
+        if (!"document_search".equals(toolName)) {
+            return values;
+        }
+        if (!boundDocumentIds.isEmpty() && !values.containsKey("document_ids")) {
+            values.put("document_ids", boundDocumentIds);
+        }
+        if (!boundDocumentTags.isEmpty() && !values.containsKey("tags")) {
+            values.put("tags", boundDocumentTags);
+        }
+        return values;
+    }
+
+    private List<String> normalizeList(List<String> values) {
+        if (values == null || values.isEmpty()) {
+            return List.of();
+        }
+        return values.stream()
+            .filter(value -> value != null && !value.isBlank())
+            .map(String::trim)
+            .distinct()
+            .toList();
+    }
+
+    private String normalizeModelName(String modelName) {
+        return modelName == null || modelName.isBlank() ? null : modelName.trim();
     }
 
     private String stringify(Object data) {

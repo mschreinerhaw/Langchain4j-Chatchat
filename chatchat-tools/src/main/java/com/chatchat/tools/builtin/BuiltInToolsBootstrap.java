@@ -5,11 +5,38 @@ import com.chatchat.common.tool.ToolInput;
 import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolOutput;
 import com.chatchat.common.tool.ToolParameter;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.jsoup.Jsoup;
+import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import org.springframework.core.env.Environment;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Component;
 
+import javax.sql.DataSource;
+import java.math.BigDecimal;
+import java.net.URI;
+import java.net.URLDecoder;
+import java.net.URLEncoder;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
+import java.sql.Date;
+import java.sql.Time;
+import java.sql.Timestamp;
+import java.time.Duration;
+import java.time.temporal.TemporalAccessor;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Base64;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.regex.Pattern;
 
 /**
@@ -26,6 +53,11 @@ import java.util.regex.Pattern;
 public class BuiltInToolsBootstrap {
 
     private final ToolRegistry toolRegistry;
+    private final WebSearchToolProperties webSearchProperties;
+    private final DatabaseToolProperties databaseToolProperties;
+    private final DynamicJdbcDriverLoader dynamicJdbcDriverLoader;
+    private final Environment environment;
+    private final ObjectMapper objectMapper;
 
     /**
      * Initialize all built-in tools during application startup
@@ -35,6 +67,8 @@ public class BuiltInToolsBootstrap {
 
         registerCalculatorTool();
         registerWebSearchTool();
+        registerDocumentSearchTool();
+        registerDatabaseQueryTool();
         registerFileSystemTool();
 
         log.info("Built-in tools initialized successfully");
@@ -115,9 +149,179 @@ public class BuiltInToolsBootstrap {
             .tags(Arrays.asList("search", "internet", "external"))
             .build();
 
-        WebSearchTool webSearchTool = new WebSearchTool();
+        WebSearchTool webSearchTool = new WebSearchTool(webSearchProperties);
         toolRegistry.registerTool("web_search", metadata, webSearchTool);
         log.info("Web Search tool registered");
+    }
+
+    /**
+     * Register document search tool backed by the ChatChat knowledge library API.
+     */
+    private void registerDocumentSearchTool() {
+        ToolMetadata metadata = ToolMetadata.builder()
+            .id("document_search")
+            .title("Knowledge Document Search")
+            .description("Search indexed knowledge-base documents with the platform retrieval API. " +
+                "Use this for internal research documents and pass document_ids or tags when the agent has a limited document scope.")
+            .version("1.0.0")
+            .author("ChatChat System")
+            .categories(Arrays.asList("search", "knowledge-base", "document"))
+            .outputType("json")
+            .returnDirect(false)
+            .timeoutMillis(environment.getProperty("chatchat.tools.document-search.timeout-ms", Long.class, 20000L))
+            .agentCompatible(true)
+            .parameters(Arrays.asList(
+                ToolParameter.builder()
+                    .name("query")
+                    .type("string")
+                    .description("Document search query.")
+                    .required(true)
+                    .minLength(1)
+                    .maxLength(1000)
+                    .build(),
+                ToolParameter.builder()
+                    .name("document_ids")
+                    .type("array")
+                    .description("Optional document IDs that the search is allowed to retrieve from.")
+                    .required(false)
+                    .metadata(Map.of("items", Map.of("type", "string")))
+                    .build(),
+                ToolParameter.builder()
+                    .name("tags")
+                    .type("array")
+                    .description("Optional document tags to filter by.")
+                    .required(false)
+                    .metadata(Map.of("items", Map.of("type", "string")))
+                    .build(),
+                ToolParameter.builder()
+                    .name("company")
+                    .type("string")
+                    .description("Optional company filter.")
+                    .required(false)
+                    .maxLength(200)
+                    .build(),
+                ToolParameter.builder()
+                    .name("industry")
+                    .type("string")
+                    .description("Optional industry filter.")
+                    .required(false)
+                    .maxLength(200)
+                    .build(),
+                ToolParameter.builder()
+                    .name("limit")
+                    .type("integer")
+                    .description("Maximum number of document snippets to return.")
+                    .required(false)
+                    .defaultValue(environment.getProperty("chatchat.tools.document-search.default-limit", Integer.class, 5))
+                    .minimum(1)
+                    .maximum(environment.getProperty("chatchat.tools.document-search.max-limit", Integer.class, 20))
+                    .build()
+            ))
+            .tags(Arrays.asList("search", "document", "knowledge-base", "agent"))
+            .metadata(Map.of("readOnly", true))
+            .build();
+
+        DocumentSearchTool documentSearchTool = new DocumentSearchTool(environment, objectMapper);
+        toolRegistry.registerTool("document_search", metadata, documentSearchTool);
+        log.info("Knowledge Document Search tool registered");
+    }
+
+    /**
+     * Register read-only database query tool with metadata
+     */
+    private void registerDatabaseQueryTool() {
+        ToolMetadata metadata = ToolMetadata.builder()
+            .id("database_query")
+            .title("Database Query")
+            .description("Execute read-only SQL against an external JDBC database. " +
+                "The application configuration database is not available to MCP queries. " +
+                "Only SELECT/WITH/SHOW/DESCRIBE/EXPLAIN style statements are allowed. " +
+                "External JDBC drivers are loaded from the configured lib directory.")
+            .version("1.0.0")
+            .author("ChatChat System")
+            .categories(Arrays.asList("database", "sql", "inspection"))
+            .outputType("json")
+            .returnDirect(false)
+            .timeoutMillis(databaseToolProperties.getQueryTimeoutSeconds() * 1000L)
+            .agentCompatible(true)
+            .parameters(Arrays.asList(
+                ToolParameter.builder()
+                    .name("sql")
+                    .type("string")
+                    .description("Read-only SQL statement. Named parameters are supported with :name syntax.")
+                    .required(true)
+                    .minLength(1)
+                    .maxLength(5000)
+                    .build(),
+                ToolParameter.builder()
+                    .name("params")
+                    .type("object")
+                    .description("Optional named SQL parameters, for example {\"serviceId\":\"abc\"}.")
+                    .required(false)
+                    .metadata(Map.of("additionalProperties", true))
+                    .build(),
+                ToolParameter.builder()
+                    .name("max_rows")
+                    .type("integer")
+                    .description("Maximum number of rows to return.")
+                    .required(false)
+                    .defaultValue(databaseToolProperties.getDefaultMaxRows())
+                    .minimum(1)
+                    .maximum(databaseToolProperties.getMaxRows())
+                    .build()
+                ,
+                ToolParameter.builder()
+                    .name("jdbc_url")
+                    .type("string")
+                    .description("Required external JDBC URL. The application configuration database cannot be queried.")
+                    .required(true)
+                    .maxLength(2000)
+                    .build(),
+                ToolParameter.builder()
+                    .name("driver_class")
+                    .type("string")
+                    .description("Optional JDBC driver class name. If omitted, drivers in lib are auto-discovered.")
+                    .required(false)
+                    .maxLength(500)
+                    .build(),
+                ToolParameter.builder()
+                    .name("username")
+                    .type("string")
+                    .description("Optional external database username.")
+                    .required(false)
+                    .maxLength(500)
+                    .build(),
+                ToolParameter.builder()
+                    .name("password")
+                    .type("string")
+                    .description("Optional external database password.")
+                    .required(false)
+                    .maxLength(1000)
+                    .build(),
+                ToolParameter.builder()
+                    .name("reload_drivers")
+                    .type("boolean")
+                    .description("Reload JDBC driver jars from lib before creating an external connection.")
+                    .required(false)
+                    .defaultValue(false)
+                    .build()
+            ))
+            .tags(Arrays.asList("database", "sql", "read-only", "agent"))
+            .metadata(Map.of(
+                "readOnly", true,
+                "driverLibPath", databaseToolProperties.getDriverLibPath(),
+                "blockedKeywords", databaseToolProperties.getBlockedKeywords()
+            ))
+            .build();
+
+        DatabaseQueryTool databaseQueryTool = new DatabaseQueryTool(
+            dynamicJdbcDriverLoader,
+            databaseToolProperties,
+            environment.getProperty("spring.datasource.url", ""),
+            objectMapper
+        );
+        toolRegistry.registerTool("database_query", metadata, databaseQueryTool);
+        log.info("Database Query tool registered");
     }
 
     /**
@@ -250,6 +454,12 @@ public class BuiltInToolsBootstrap {
      */
     private static class WebSearchTool implements ToolRegistry.EnhancedTool {
 
+        private final WebSearchToolProperties properties;
+
+        private WebSearchTool(WebSearchToolProperties properties) {
+            this.properties = properties;
+        }
+
         @Override
         public ToolMetadata getMetadata() {
             return null;
@@ -258,15 +468,21 @@ public class BuiltInToolsBootstrap {
         @Override
         public ToolOutput execute(ToolInput input) {
             try {
+                if (!properties.isEnabled()) {
+                    return ToolOutput.failure("web_search tool is disabled");
+                }
                 String query = input.getParameterAsString("query", "");
-                int numResults = Math.min(100,
-                    input.getParameterAsNumber("num_results").intValue());
+                Number requestedResults = input.getParameterAsNumber("num_results");
+                int numResults = requestedResults == null
+                    ? properties.getMaxResults()
+                    : requestedResults.intValue();
+                numResults = Math.max(1, Math.min(properties.getMaxResults(), numResults));
 
                 if (query.isEmpty()) {
                     return ToolOutput.failure("Search query is required");
                 }
 
-                String result = performWebSearch(query, numResults);
+                Map<String, Object> result = performWebSearch(query, numResults);
                 return ToolOutput.success(result, "Search completed successfully");
 
             } catch (Exception e) {
@@ -274,10 +490,465 @@ public class BuiltInToolsBootstrap {
             }
         }
 
-        private String performWebSearch(String query, int numResults) {
-            throw new UnsupportedOperationException(
-                "web_search has no provider configured. Configure an MCP search tool instead."
+        private Map<String, Object> performWebSearch(String query, int numResults) throws Exception {
+            String provider = properties.getProvider() == null
+                ? "duckduckgo_html"
+                : properties.getProvider().trim().toLowerCase(Locale.ROOT);
+
+            Document document = Jsoup.connect(properties.getEndpoint())
+                .userAgent(properties.getUserAgent())
+                .timeout(Math.max(1000, properties.getTimeoutMs()))
+                .data("q", query)
+                .get();
+
+            List<Map<String, Object>> results = switch (provider) {
+                case "duckduckgo_html" -> parseDuckDuckGoResults(document, numResults);
+                case "bing_html" -> parseBingResults(document, numResults);
+                default -> throw new IllegalArgumentException("Unsupported web search provider: " + properties.getProvider());
+            };
+
+            Map<String, Object> output = new LinkedHashMap<>();
+            output.put("query", query);
+            output.put("provider", properties.getProvider());
+            output.put("count", results.size());
+            output.put("results", results);
+            return output;
+        }
+
+        private List<Map<String, Object>> parseDuckDuckGoResults(Document document, int numResults) {
+            List<Map<String, Object>> results = new ArrayList<>();
+            for (Element block : document.select(".result, .web-result")) {
+                if (results.size() >= numResults) {
+                    break;
+                }
+                Element link = first(block.selectFirst("a.result__a"), block.selectFirst("a[href]"));
+                if (link == null) {
+                    continue;
+                }
+                String title = link.text();
+                String url = normalizeSearchUrl(link.attr("href"));
+                if (title == null || title.isBlank() || url == null || url.isBlank()) {
+                    continue;
+                }
+                Element snippetElement = first(
+                    block.selectFirst(".result__snippet"),
+                    block.selectFirst(".snippet"),
+                    block.selectFirst(".result__body")
+                );
+                Map<String, Object> item = new LinkedHashMap<>();
+                item.put("title", title);
+                item.put("url", url);
+                item.put("snippet", snippetElement == null ? "" : snippetElement.text());
+                results.add(item);
+            }
+
+            if (results.isEmpty()) {
+                for (Element link : document.select("a.result__a")) {
+                    if (results.size() >= numResults) {
+                        break;
+                    }
+                    String title = link.text();
+                    String url = normalizeSearchUrl(link.attr("href"));
+                    if (title == null || title.isBlank() || url == null || url.isBlank()) {
+                        continue;
+                    }
+                    Map<String, Object> item = new LinkedHashMap<>();
+                    item.put("title", title);
+                    item.put("url", url);
+                    item.put("snippet", "");
+                    results.add(item);
+                }
+            }
+            return results;
+        }
+
+        private List<Map<String, Object>> parseBingResults(Document document, int numResults) {
+            List<Map<String, Object>> results = new ArrayList<>();
+            for (Element block : document.select("li.b_algo")) {
+                if (results.size() >= numResults) {
+                    break;
+                }
+                Element link = block.selectFirst("h2 a[href]");
+                if (link == null) {
+                    continue;
+                }
+                String title = link.text();
+                String url = normalizeSearchUrl(link.attr("href"));
+                if (title == null || title.isBlank() || url == null || url.isBlank()) {
+                    continue;
+                }
+                Element snippetElement = first(block.selectFirst(".b_caption p"), block.selectFirst("p"));
+                Map<String, Object> item = new LinkedHashMap<>();
+                item.put("title", title);
+                item.put("url", url);
+                item.put("snippet", snippetElement == null ? "" : snippetElement.text());
+                results.add(item);
+            }
+            return results;
+        }
+
+        private Element first(Element... elements) {
+            for (Element element : elements) {
+                if (element != null) {
+                    return element;
+                }
+            }
+            return null;
+        }
+
+        private String normalizeSearchUrl(String href) {
+            if (href == null || href.isBlank()) {
+                return href;
+            }
+            String value = href.trim();
+            try {
+                if (value.startsWith("//")) {
+                    return "https:" + value;
+                }
+                if (value.startsWith("/l/?") || value.startsWith("https://duckduckgo.com/l/?")) {
+                    URI uri = value.startsWith("http")
+                        ? URI.create(value)
+                        : URI.create("https://duckduckgo.com" + value);
+                    String decoded = queryParam(uri.getRawQuery(), "uddg");
+                    if (decoded != null && !decoded.isBlank()) {
+                        return decoded;
+                    }
+                }
+                return value;
+            } catch (Exception ignored) {
+                return value;
+            }
+        }
+
+        private String queryParam(String rawQuery, String name) {
+            if (rawQuery == null || rawQuery.isBlank()) {
+                return null;
+            }
+            for (String part : rawQuery.split("&")) {
+                int equals = part.indexOf('=');
+                String key = equals < 0 ? part : part.substring(0, equals);
+                if (!name.equals(key)) {
+                    continue;
+                }
+                String value = equals < 0 ? "" : part.substring(equals + 1);
+                return URLDecoder.decode(value, StandardCharsets.UTF_8);
+            }
+            return null;
+        }
+    }
+
+    /**
+     * Knowledge document search tool implementation.
+     */
+    private static class DocumentSearchTool implements ToolRegistry.EnhancedTool {
+
+        private final Environment environment;
+        private final ObjectMapper objectMapper;
+        private final HttpClient httpClient;
+
+        private DocumentSearchTool(Environment environment, ObjectMapper objectMapper) {
+            this.environment = environment;
+            this.objectMapper = objectMapper;
+            int timeoutMs = environment.getProperty("chatchat.tools.document-search.timeout-ms", Integer.class, 20000);
+            this.httpClient = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofMillis(Math.max(1000, timeoutMs)))
+                .build();
+        }
+
+        @Override
+        public ToolMetadata getMetadata() {
+            return null;
+        }
+
+        @Override
+        @SuppressWarnings("unchecked")
+        public ToolOutput execute(ToolInput input) {
+            try {
+                if (!environment.getProperty("chatchat.tools.document-search.enabled", Boolean.class, true)) {
+                    return ToolOutput.failure("document_search tool is disabled");
+                }
+                String query = input.getParameterAsString("query", "");
+                if (query == null || query.isBlank()) {
+                    return ToolOutput.failure("query parameter is required");
+                }
+                int limit = resolveLimit(input);
+                URI uri = buildSearchUri(input, query.trim(), limit);
+                int timeoutMs = environment.getProperty("chatchat.tools.document-search.timeout-ms", Integer.class, 20000);
+                HttpRequest request = HttpRequest.newBuilder(uri)
+                    .timeout(Duration.ofMillis(Math.max(1000, timeoutMs)))
+                    .GET()
+                    .build();
+                HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+                if (response.statusCode() < 200 || response.statusCode() >= 300) {
+                    return ToolOutput.failure("document search API returned HTTP " + response.statusCode());
+                }
+                Map<String, Object> payload = objectMapper.readValue(response.body(), Map.class);
+                Object data = payload.containsKey("data") ? payload.get("data") : payload;
+                return ToolOutput.success(data, "Document search completed successfully");
+            } catch (Exception e) {
+                return ToolOutput.failure(e);
+            }
+        }
+
+        private URI buildSearchUri(ToolInput input, String query, int limit) {
+            String apiBaseUrl = environment.getProperty("chatchat.tools.document-search.api-base-url", "http://localhost:8080");
+            String searchPath = environment.getProperty("chatchat.tools.document-search.search-path", "/api/v1/search");
+            StringBuilder url = new StringBuilder(trimTrailingSlash(apiBaseUrl));
+            if (!searchPath.startsWith("/")) {
+                url.append('/');
+            }
+            url.append(searchPath);
+            List<String> params = new ArrayList<>();
+            addParam(params, "keyword", query);
+            addParam(params, "tag", joinValues(input.getParameter("tags")));
+            addParam(params, "docIds", joinValues(input.getParameter("document_ids")));
+            addParam(params, "company", input.getParameterAsString("company", ""));
+            addParam(params, "industry", input.getParameterAsString("industry", ""));
+            addParam(params, "limit", String.valueOf(limit));
+            if (!params.isEmpty()) {
+                url.append('?').append(String.join("&", params));
+            }
+            return URI.create(url.toString());
+        }
+
+        private int resolveLimit(ToolInput input) {
+            Number requested = input.getParameterAsNumber("limit");
+            int defaultLimit = environment.getProperty("chatchat.tools.document-search.default-limit", Integer.class, 5);
+            int maxLimit = environment.getProperty("chatchat.tools.document-search.max-limit", Integer.class, 20);
+            int value = requested == null ? defaultLimit : requested.intValue();
+            return Math.max(1, Math.min(Math.max(1, maxLimit), value));
+        }
+
+        private String joinValues(Object value) {
+            if (value == null) {
+                return "";
+            }
+            if (value instanceof Iterable<?> iterable) {
+                List<String> values = new ArrayList<>();
+                for (Object item : iterable) {
+                    if (item != null && !String.valueOf(item).isBlank()) {
+                        values.add(String.valueOf(item).trim());
+                    }
+                }
+                return String.join(",", values);
+            }
+            if (value.getClass().isArray()) {
+                Object[] values = (Object[]) value;
+                return Arrays.stream(values)
+                    .filter(item -> item != null && !String.valueOf(item).isBlank())
+                    .map(item -> String.valueOf(item).trim())
+                    .reduce((left, right) -> left + "," + right)
+                    .orElse("");
+            }
+            return String.valueOf(value).trim();
+        }
+
+        private void addParam(List<String> params, String name, String value) {
+            if (value == null || value.isBlank()) {
+                return;
+            }
+            params.add(encode(name) + "=" + encode(value.trim()));
+        }
+
+        private String encode(String value) {
+            return URLEncoder.encode(value, StandardCharsets.UTF_8);
+        }
+
+        private String trimTrailingSlash(String value) {
+            if (value == null || value.isBlank()) {
+                return "http://localhost:8080";
+            }
+            String text = value.trim();
+            while (text.endsWith("/")) {
+                text = text.substring(0, text.length() - 1);
+            }
+            return text;
+        }
+    }
+
+    /**
+     * Read-only database query tool implementation
+     */
+    private static class DatabaseQueryTool implements ToolRegistry.EnhancedTool {
+
+        private static final Pattern BLOCK_COMMENT = Pattern.compile("/\\*.*?\\*/", Pattern.DOTALL);
+        private static final Pattern LINE_COMMENT = Pattern.compile("(?m)--.*$");
+
+        private final DynamicJdbcDriverLoader dynamicJdbcDriverLoader;
+        private final DatabaseToolProperties properties;
+        private final String applicationJdbcUrl;
+        private final ObjectMapper objectMapper;
+
+        private DatabaseQueryTool(DynamicJdbcDriverLoader dynamicJdbcDriverLoader,
+                                  DatabaseToolProperties properties,
+                                  String applicationJdbcUrl,
+                                  ObjectMapper objectMapper) {
+            this.dynamicJdbcDriverLoader = dynamicJdbcDriverLoader;
+            this.properties = properties;
+            this.applicationJdbcUrl = applicationJdbcUrl;
+            this.objectMapper = objectMapper;
+        }
+
+        @Override
+        public ToolMetadata getMetadata() {
+            return null;
+        }
+
+        @Override
+        public ToolOutput execute(ToolInput input) {
+            try {
+                if (!properties.isEnabled()) {
+                    return ToolOutput.failure("database_query tool is disabled");
+                }
+                String sql = input.getParameterAsString("sql", "");
+                if (sql.isBlank()) {
+                    return ToolOutput.failure("sql parameter is required");
+                }
+                DataSource dataSource = resolveDataSource(input);
+                String safeSql = validateReadOnlySql(sql);
+                int maxRows = resolveMaxRows(input);
+                Map<String, Object> params = resolveParams(input);
+
+                JdbcTemplate jdbcTemplate = new JdbcTemplate(dataSource);
+                jdbcTemplate.setMaxRows(maxRows);
+                jdbcTemplate.setQueryTimeout(Math.max(1, properties.getQueryTimeoutSeconds()));
+                NamedParameterJdbcTemplate namedTemplate = new NamedParameterJdbcTemplate(jdbcTemplate);
+
+                List<Map<String, Object>> rows = namedTemplate.queryForList(safeSql, params)
+                    .stream()
+                    .map(this::normalizeRow)
+                    .toList();
+
+                Map<String, Object> result = new LinkedHashMap<>();
+                result.put("sql", safeSql);
+                result.put("dataSource", "external");
+                result.put("rowCount", rows.size());
+                result.put("maxRows", maxRows);
+                result.put("columns", rows.isEmpty() ? List.of() : new ArrayList<>(rows.get(0).keySet()));
+                result.put("rows", rows);
+                result.put("readOnly", true);
+                result.put("possiblyTruncated", rows.size() >= maxRows);
+
+                return ToolOutput.success(result, "Database query completed successfully");
+            } catch (Exception e) {
+                return ToolOutput.failure(e);
+            }
+        }
+
+        private DataSource resolveDataSource(ToolInput input) {
+            String jdbcUrl = input.getParameterAsString("jdbc_url", "");
+            if (jdbcUrl == null || jdbcUrl.isBlank()) {
+                throw new IllegalArgumentException("jdbc_url is required; querying the application configuration database is not allowed");
+            }
+            if (isApplicationJdbcUrl(jdbcUrl)) {
+                throw new IllegalArgumentException("querying the application configuration database is not allowed");
+            }
+            if (input.getParameterAsBoolean("reload_drivers", false)) {
+                dynamicJdbcDriverLoader.reloadDrivers();
+            }
+            return dynamicJdbcDriverLoader.createDataSource(
+                jdbcUrl.trim(),
+                input.getParameterAsString("username", ""),
+                input.getParameterAsString("password", ""),
+                input.getParameterAsString("driver_class", "")
             );
+        }
+
+        private boolean isApplicationJdbcUrl(String jdbcUrl) {
+            return applicationJdbcUrl != null
+                && !applicationJdbcUrl.isBlank()
+                && applicationJdbcUrl.trim().equalsIgnoreCase(jdbcUrl.trim());
+        }
+
+        private String validateReadOnlySql(String sql) {
+            String cleaned = LINE_COMMENT.matcher(BLOCK_COMMENT.matcher(sql).replaceAll(" ")).replaceAll(" ");
+            String normalized = cleaned.trim();
+            while (normalized.endsWith(";")) {
+                normalized = normalized.substring(0, normalized.length() - 1).trim();
+            }
+            if (normalized.contains(";")) {
+                throw new IllegalArgumentException("Only one SQL statement is allowed");
+            }
+            String lower = normalized.toLowerCase(Locale.ROOT);
+            boolean allowed = properties.getAllowedPrefixes().stream()
+                .map(prefix -> prefix.toLowerCase(Locale.ROOT))
+                .anyMatch(prefix -> lower.equals(prefix) || lower.startsWith(prefix + " "));
+            if (!allowed) {
+                throw new IllegalArgumentException("Only read-only SQL statements are allowed");
+            }
+            for (String keyword : properties.getBlockedKeywords()) {
+                Pattern keywordPattern = Pattern.compile("(?i)(^|\\W)" + Pattern.quote(keyword) + "(\\W|$)");
+                if (keywordPattern.matcher(lower).find()) {
+                    throw new IllegalArgumentException("Blocked SQL keyword detected: " + keyword);
+                }
+            }
+            return normalized;
+        }
+
+        private int resolveMaxRows(ToolInput input) {
+            Number requested = input.getParameterAsNumber("max_rows");
+            int value = requested == null ? properties.getDefaultMaxRows() : requested.intValue();
+            return Math.max(1, Math.min(properties.getMaxRows(), value));
+        }
+
+        @SuppressWarnings("unchecked")
+        private Map<String, Object> resolveParams(ToolInput input) throws Exception {
+            Object value = input.getParameter("params");
+            if (value == null) {
+                value = input.getParameter("parameters");
+            }
+            if (value == null) {
+                return Map.of();
+            }
+            if (value instanceof Map<?, ?> map) {
+                Map<String, Object> params = new LinkedHashMap<>();
+                for (Map.Entry<?, ?> entry : map.entrySet()) {
+                    params.put(String.valueOf(entry.getKey()), entry.getValue());
+                }
+                return params;
+            }
+            if (value instanceof String text && !text.isBlank()) {
+                return objectMapper.readValue(text, Map.class);
+            }
+            return Map.of();
+        }
+
+        private Map<String, Object> normalizeRow(Map<String, Object> row) {
+            Map<String, Object> normalized = new LinkedHashMap<>();
+            for (Map.Entry<String, Object> entry : row.entrySet()) {
+                normalized.put(entry.getKey(), normalizeValue(entry.getValue()));
+            }
+            return normalized;
+        }
+
+        private Object normalizeValue(Object value) {
+            if (value == null
+                || value instanceof String
+                || value instanceof Number
+                || value instanceof Boolean
+                || value instanceof BigDecimal) {
+                return value;
+            }
+            if (value instanceof byte[] bytes) {
+                return Map.of(
+                    "type", "binary",
+                    "bytes", bytes.length,
+                    "base64", Base64.getEncoder().encodeToString(bytes)
+                );
+            }
+            if (value instanceof Timestamp timestamp) {
+                return timestamp.toInstant().toString();
+            }
+            if (value instanceof Date date) {
+                return date.toLocalDate().toString();
+            }
+            if (value instanceof Time time) {
+                return time.toLocalTime().toString();
+            }
+            if (value instanceof TemporalAccessor) {
+                return value.toString();
+            }
+            return String.valueOf(value);
         }
     }
 

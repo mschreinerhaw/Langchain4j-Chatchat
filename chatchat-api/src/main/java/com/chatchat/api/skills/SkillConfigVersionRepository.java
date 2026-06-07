@@ -8,4 +8,3 @@ public interface SkillConfigVersionRepository extends JpaRepository<SkillConfigV
 
     List<SkillConfigVersionEntity> findTop30BySkillIdOrderByCreatedAtDesc(String skillId);
 }
-

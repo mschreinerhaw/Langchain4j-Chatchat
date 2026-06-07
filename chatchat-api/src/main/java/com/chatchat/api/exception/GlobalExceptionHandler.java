@@ -4,11 +4,13 @@ import com.chatchat.common.response.ApiResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.util.HashMap;
 import java.util.Map;
@@ -61,6 +63,32 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(
             ApiResponse.badRequest(ex.getMessage()),
             HttpStatus.BAD_REQUEST
+        );
+    }
+
+    @ExceptionHandler(MaxUploadSizeExceededException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMaxUploadSizeExceededException(
+            MaxUploadSizeExceededException ex,
+            WebRequest request) {
+
+        log.warn("Upload size exceeded: {}", ex.getMessage());
+
+        return new ResponseEntity<>(
+            ApiResponse.badRequest("file size exceeds 5MB limit"),
+            HttpStatus.BAD_REQUEST
+        );
+    }
+
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ApiResponse<Void>> handleNoResourceFoundException(
+            NoResourceFoundException ex,
+            WebRequest request) {
+
+        log.warn("No route or static resource found: {}", ex.getResourcePath());
+
+        return new ResponseEntity<>(
+            ApiResponse.notFound("No route or static resource found: " + ex.getResourcePath()),
+            HttpStatus.NOT_FOUND
         );
     }
 

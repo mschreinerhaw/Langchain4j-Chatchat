@@ -26,9 +26,12 @@
 
     <PromptComposer
       v-model="question"
+      v-model:selected-agent-id="selectedAgentId"
+      :agents="agents"
+      :agents-loading="agentsLoading"
       :suggestions="suggestions"
       :loading="loading"
-      :show-suggestions="!hasConversation"
+      :show-suggestions="!hasConversation && suggestions.length > 0"
       @pick="question = $event"
       @send="handleSend"
       @clear="clearChat"

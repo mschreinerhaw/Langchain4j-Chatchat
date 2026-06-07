@@ -1,13 +1,17 @@
 package com.chatchat.api.controller;
 
+import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.api.mcp.entity.McpServiceConfig;
 import com.chatchat.api.mcp.model.McpToolDefinition;
 import com.chatchat.api.mcp.model.McpToolInvokeResult;
+import com.chatchat.api.mcp.service.McpCenterSyncService;
 import com.chatchat.api.mcp.service.McpServiceConfigService;
 import com.chatchat.api.mcp.service.McpStdioProxyService;
 import com.chatchat.api.mcp.service.McpToolRegistryBridge;
 import com.chatchat.common.constants.AppConstants;
 import com.chatchat.common.response.ApiResponse;
+import com.chatchat.common.tool.ToolMetadata;
+import com.chatchat.common.tool.ToolParameter;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.annotations.Operation;
@@ -23,9 +27,13 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * MCP service config and tool management APIs.
@@ -39,6 +47,8 @@ public class McpServiceController {
     private final McpServiceConfigService configService;
     private final McpStdioProxyService stdioProxyService;
     private final McpToolRegistryBridge registryBridge;
+    private final McpCenterSyncService centerSyncService;
+    private final ToolRegistry toolRegistry;
     private final ObjectMapper objectMapper;
 
     @GetMapping("/services")
@@ -144,6 +154,39 @@ public class McpServiceController {
         return ApiResponse.success(registryBridge.listRegisteredTools());
     }
 
+    @GetMapping("/tool-cards")
+    @Operation(summary = "List registered backend and MCP tools as searchable cards")
+    public ApiResponse<ToolCardPage> listToolCards(@RequestParam(value = "keyword", required = false) String keyword,
+                                                   @RequestParam(value = "service", required = false) String service,
+                                                   @RequestParam(value = "sourceType", required = false) String sourceType,
+                                                   @RequestParam(value = "groupMode", required = false) String groupMode,
+                                                   @RequestParam(value = "page", required = false) Integer page,
+                                                   @RequestParam(value = "pageSize", required = false) Integer pageSize) {
+        List<ToolCardView> allTools = buildToolCards();
+        List<ToolCardView> sourceScopedTools = allTools.stream()
+            .filter(tool -> isAll(sourceType) || sourceType.equalsIgnoreCase(tool.sourceType()))
+            .toList();
+        List<ToolServiceOption> serviceOptions = buildToolServiceOptions(sourceScopedTools);
+        List<ToolCardView> filteredTools = sourceScopedTools.stream()
+            .filter(tool -> matchesToolFilters(tool, keyword, service))
+            .toList();
+        int normalizedPage = normalizePage(page);
+        int normalizedPageSize = normalizePageSize(pageSize, 6, 100);
+        List<ToolCardView> pagedTools = filteredTools.stream()
+            .skip(pageOffset(normalizedPage, normalizedPageSize))
+            .limit(normalizedPageSize)
+            .toList();
+        return ApiResponse.success(new ToolCardPage(
+            pagedTools,
+            filteredTools.size(),
+            normalizedPage,
+            normalizedPageSize,
+            totalPages(filteredTools.size(), normalizedPageSize),
+            filteredToolGroupCount(filteredTools, groupMode),
+            serviceOptions
+        ));
+    }
+
     @PostMapping("/refresh")
     @Operation(summary = "Refresh MCP tool registration")
     public ApiResponse<Map<String, Object>> refresh() {
@@ -151,6 +194,18 @@ public class McpServiceController {
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("registeredTools", registryBridge.listRegisteredTools().size());
         return ApiResponse.success(data, "MCP registry refreshed");
+    }
+
+    @GetMapping("/center/status")
+    @Operation(summary = "Get external MCP center integration status")
+    public ApiResponse<McpCenterSyncService.CenterStatus> centerStatus() {
+        return ApiResponse.success(centerSyncService.status());
+    }
+
+    @PostMapping("/center/sync")
+    @Operation(summary = "Sync services from external ChatChat MCP center")
+    public ApiResponse<McpCenterSyncService.SyncResult> syncCenter() {
+        return ApiResponse.success(centerSyncService.syncFromCenter(), "MCP center synced");
     }
 
     private McpServiceConfig fromRequest(McpServiceUpsertRequest request) {
@@ -175,6 +230,225 @@ public class McpServiceController {
         config.setProxyUsername(request.proxyUsername());
         config.setProxyPassword(request.proxyPassword());
         return config;
+    }
+
+    private List<ToolCardView> buildToolCards() {
+        Map<String, McpToolRegistryBridge.RegisteredMcpTool> mcpToolsByName = new LinkedHashMap<>();
+        for (McpToolRegistryBridge.RegisteredMcpTool tool : registryBridge.listRegisteredTools()) {
+            mcpToolsByName.put(tool.localToolName(), tool);
+        }
+
+        Set<String> names = new LinkedHashSet<>(toolRegistry.getAllToolNames());
+        names.addAll(mcpToolsByName.keySet());
+
+        return names.stream()
+            .filter(name -> name != null && !name.isBlank())
+            .map(name -> toToolCard(name, mcpToolsByName.get(name)))
+            .sorted(Comparator
+                .comparing(ToolCardView::sourceType)
+                .thenComparing(ToolCardView::localToolName))
+            .toList();
+    }
+
+    private List<ToolServiceOption> buildToolServiceOptions(List<ToolCardView> tools) {
+        Map<String, ToolServiceOptionBuilder> builders = new LinkedHashMap<>();
+        for (ToolCardView tool : tools) {
+            String key = firstNonBlank(tool.serviceId(), tool.serviceName(), "ungrouped");
+            ToolServiceOptionBuilder builder = builders.computeIfAbsent(key, ignored ->
+                new ToolServiceOptionBuilder(key, firstNonBlank(tool.serviceName(), tool.serviceId(), "未归属服务")));
+            builder.count += 1;
+        }
+        List<ToolServiceOption> options = new ArrayList<>();
+        options.add(new ToolServiceOption("all", "全部服务", tools.size()));
+        builders.values().stream()
+            .map(builder -> new ToolServiceOption(builder.value, builder.label, builder.count))
+            .sorted(Comparator.comparing(ToolServiceOption::label))
+            .forEach(options::add);
+        return options;
+    }
+
+    private boolean matchesToolFilters(ToolCardView tool, String keyword, String service) {
+        String normalizedKeyword = normalizeKeyword(keyword);
+        String normalizedService = normalizeKeyword(service);
+        String serviceKey = firstNonBlank(tool.serviceId(), tool.serviceName(), "ungrouped");
+        boolean serviceMatched = normalizedService.isEmpty() || serviceKey.equalsIgnoreCase(normalizedService);
+        boolean keywordMatched = normalizedKeyword.isEmpty() || toolSearchText(tool).contains(normalizedKeyword);
+        return serviceMatched && keywordMatched;
+    }
+
+    private String toolSearchText(ToolCardView tool) {
+        List<String> fields = new ArrayList<>();
+        fields.add(tool.localToolName());
+        fields.add(tool.displayName());
+        fields.add(tool.description());
+        fields.add(tool.serviceId());
+        fields.add(tool.serviceName());
+        fields.add(tool.remoteToolName());
+        fields.add(tool.outputType());
+        fields.addAll(tool.categories() == null ? List.of() : tool.categories());
+        fields.addAll(tool.tags() == null ? List.of() : tool.tags());
+        if (tool.parameters() != null) {
+            for (ToolParameterView parameter : tool.parameters()) {
+                fields.add(parameter.name());
+                fields.add(parameter.type());
+                fields.add(parameter.description());
+            }
+        }
+        return fields.stream()
+            .filter(value -> value != null && !value.isBlank())
+            .map(value -> value.toLowerCase(java.util.Locale.ROOT))
+            .reduce("", (left, right) -> left + " " + right);
+    }
+
+    private int filteredToolGroupCount(List<ToolCardView> tools, String groupMode) {
+        return (int) tools.stream()
+            .map(tool -> toolGroupKey(tool, groupMode))
+            .distinct()
+            .count();
+    }
+
+    private String toolGroupKey(ToolCardView tool, String groupMode) {
+        if ("category".equalsIgnoreCase(groupMode)) {
+            return "category:" + ((tool.categories() == null || tool.categories().isEmpty()) ? "未分类" : tool.categories().get(0));
+        }
+        if ("tag".equalsIgnoreCase(groupMode)) {
+            return "tag:" + ((tool.tags() == null || tool.tags().isEmpty()) ? "未打标签" : tool.tags().get(0));
+        }
+        return "service:" + firstNonBlank(tool.serviceId(), tool.serviceName(), "未归属服务");
+    }
+
+    private boolean isAll(String value) {
+        return value == null || value.isBlank() || "all".equalsIgnoreCase(value.trim());
+    }
+
+    private String normalizeKeyword(String value) {
+        return isAll(value) ? "" : value.trim().toLowerCase(java.util.Locale.ROOT);
+    }
+
+    private int normalizePage(Integer page) {
+        return page == null || page <= 0 ? 1 : page;
+    }
+
+    private int normalizePageSize(Integer pageSize, int defaultSize, int maxSize) {
+        int value = pageSize == null || pageSize <= 0 ? defaultSize : pageSize;
+        return Math.min(value, maxSize);
+    }
+
+    private long pageOffset(int page, int pageSize) {
+        return (long) Math.max(0, page - 1) * Math.max(1, pageSize);
+    }
+
+    private int totalPages(int total, int pageSize) {
+        return Math.max(1, (int) Math.ceil((double) Math.max(0, total) / Math.max(1, pageSize)));
+    }
+
+    private static final class ToolServiceOptionBuilder {
+        private final String value;
+        private final String label;
+        private int count;
+
+        private ToolServiceOptionBuilder(String value, String label) {
+            this.value = value;
+            this.label = label;
+        }
+    }
+
+    private ToolCardView toToolCard(String localToolName, McpToolRegistryBridge.RegisteredMcpTool mcpTool) {
+        ToolMetadata metadata = toolRegistry.getToolMetadata(localToolName);
+        ToolRegistry.Tool simpleTool = toolRegistry.getTool(localToolName);
+        String sourceType = mcpTool == null ? "backend" : "mcp";
+        String displayName = firstNonBlank(
+            metadata == null ? null : metadata.getTitle(),
+            mcpTool == null ? null : mcpTool.remoteToolName(),
+            simpleTool == null ? null : simpleTool.getName(),
+            localToolName
+        );
+        String description = firstNonBlank(
+            metadata == null ? null : metadata.getDescription(),
+            mcpTool == null ? null : mcpTool.description(),
+            simpleTool == null ? null : simpleTool.getDescription(),
+            "暂无工具说明"
+        );
+        List<String> categories = metadata == null ? List.of() : safeList(metadata.getCategories());
+        List<String> tags = metadata == null ? List.of() : safeList(metadata.getTags());
+        List<ToolParameterView> parameters = metadata == null || metadata.getParameters() == null
+            ? List.of()
+            : metadata.getParameters().stream().map(this::toParameterView).toList();
+        Map<String, Object> metadataMap = metadata == null || metadata.getMetadata() == null
+            ? Map.of()
+            : metadata.getMetadata();
+        Object inputSchema = metadataMap.get("inputSchema");
+        return new ToolCardView(
+            localToolName,
+            displayName,
+            description,
+            sourceType,
+            sourceTypeLabel(sourceType),
+            mcpTool == null ? null : mcpTool.serviceId(),
+            mcpTool == null ? null : mcpTool.serviceName(),
+            mcpTool == null ? null : mcpTool.remoteToolName(),
+            metadata == null ? null : metadata.getOutputType(),
+            metadata != null && metadata.isAgentCompatible(),
+            metadata != null && metadata.isRequiresAuth(),
+            metadata != null && metadata.isRateLimited(),
+            metadata == null ? null : metadata.getTimeoutMillis(),
+            parameters.size(),
+            categories,
+            tags,
+            parameters,
+            safeObjectMap(inputSchema)
+        );
+    }
+
+    private ToolParameterView toParameterView(ToolParameter parameter) {
+        return new ToolParameterView(
+            parameter.getName(),
+            parameter.getType(),
+            parameter.getDescription(),
+            parameter.isRequired()
+        );
+    }
+
+    private List<String> safeList(List<String> values) {
+        if (values == null || values.isEmpty()) {
+            return List.of();
+        }
+        List<String> normalized = new ArrayList<>();
+        for (String value : values) {
+            if (value != null && !value.isBlank() && !normalized.contains(value.trim())) {
+                normalized.add(value.trim());
+            }
+        }
+        return List.copyOf(normalized);
+    }
+
+    private Map<String, Object> safeObjectMap(Object value) {
+        if (!(value instanceof Map<?, ?> source) || source.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, Object> normalized = new LinkedHashMap<>();
+        for (Map.Entry<?, ?> entry : source.entrySet()) {
+            if (entry.getKey() != null) {
+                normalized.put(String.valueOf(entry.getKey()), entry.getValue());
+            }
+        }
+        return normalized;
+    }
+
+    private String sourceTypeLabel(String sourceType) {
+        return "mcp".equals(sourceType) ? "MCP工具" : "后端工具";
+    }
+
+    private String firstNonBlank(String... values) {
+        if (values == null) {
+            return null;
+        }
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value.trim();
+            }
+        }
+        return null;
     }
 
     private McpServiceView toView(McpServiceConfig config) {
@@ -287,6 +561,54 @@ public class McpServiceController {
         String toolInvokePath,
         Integer timeoutMs,
         Long createdAt
+    ) {
+    }
+
+    public record ToolCardView(
+        String localToolName,
+        String displayName,
+        String description,
+        String sourceType,
+        String sourceLabel,
+        String serviceId,
+        String serviceName,
+        String remoteToolName,
+        String outputType,
+        boolean agentCompatible,
+        boolean requiresAuth,
+        boolean rateLimited,
+        Long timeoutMillis,
+        int parameterCount,
+        List<String> categories,
+        List<String> tags,
+        List<ToolParameterView> parameters,
+        Map<String, Object> inputSchema
+    ) {
+    }
+
+    public record ToolCardPage(
+        List<ToolCardView> tools,
+        int total,
+        int page,
+        int pageSize,
+        int totalPages,
+        int filteredGroupCount,
+        List<ToolServiceOption> serviceOptions
+    ) {
+    }
+
+    public record ToolServiceOption(
+        String value,
+        String label,
+        int count
+    ) {
+    }
+
+    public record ToolParameterView(
+        String name,
+        String type,
+        String description,
+        boolean required
     ) {
     }
 }

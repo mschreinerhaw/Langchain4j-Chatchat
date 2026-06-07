@@ -1,5 +1,11 @@
 <template>
-  <div class="assistant-app" :class="{ 'sidebar-collapsed': sidebarCollapsed }">
+  <div
+    class="assistant-app"
+    :class="{
+      'sidebar-collapsed': sidebarCollapsed,
+      'assistant-right-collapsed': rightPanelCollapsed
+    }"
+  >
     <AssistantSidebar
       :active-view="activeView"
       :active-conversation-id="activeConversationId"
@@ -22,7 +28,11 @@
       </section>
 
       <aside class="assistant-right">
-        <slot name="right-panel" />
+        <slot
+          name="right-panel"
+          :collapsed="rightPanelCollapsed"
+          :toggle-collapsed="toggleRightPanel"
+        />
       </aside>
     </main>
   </div>

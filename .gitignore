@@ -4,6 +4,14 @@ target/
 !**/src/test/**/target/
 .kotlin
 
+### Runtime data ###
+/data/
+/h2/
+/logs/
+/chatchat-api/data/
+/chatchat-api/h2/
+/chatchat-api/logs/
+
 ### IntelliJ IDEA ###
 .idea/modules.xml
 .idea/jarRepositories.xml

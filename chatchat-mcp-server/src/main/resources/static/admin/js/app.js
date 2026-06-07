@@ -1,4 +1,5 @@
 import { MCP_ENDPOINT } from './config.js';
+import { loadLayout } from './layout.js';
 import { getToken, login, logout } from './auth.js';
 import { UnauthorizedError } from './http.js';
 import {
@@ -18,53 +19,117 @@ import {
     setMcpEnabled
 } from './mcpServices.js';
 import { listAuditLogs } from './auditLogs.js';
-import { fillServiceForm, readServiceForm, readTestArgs, toggleMicroserviceFields } from './form.js';
+import {
+    deleteDatabaseQuery,
+    listDatabaseQueries,
+    saveDatabaseQuery,
+    setDatabaseQueryEnabled,
+    testDatabaseQuery,
+    testSavedDatabaseQuery
+} from './databaseMcp.js';
+import { fillServiceForm, readServiceForm, readTestArgs, readTestArgsFromSchema, toggleMicroserviceFields } from './form.js';
 import {
     hideLoginError,
+    hideApiServiceModal,
+    hideDatabaseQueryModal,
+    hideMcpServiceModal,
+    initUi,
     notify,
+    renderDatabaseQueries,
+    renderDatabaseQueryPreview,
     renderAuditLogs,
     renderMcpServices,
     renderServices,
     showApp,
+    showApiServiceModal,
+    showDatabaseQueryModal,
     showLogin,
     showLoginError,
+    showMcpServiceModal,
     showResult,
     switchView
 } from './ui.js';
 
 let services = [];
 let selectedId = '';
+let serviceSearchTerm = '';
+let servicePage = 1;
 let mcpServices = [];
 let selectedMcpId = '';
+let mcpServiceSearchTerm = '';
+let mcpServicePage = 1;
+let databaseQueries = [];
+let selectedDatabaseQueryId = '';
+let databaseQuerySearchTerm = '';
+let databaseQueryPage = 1;
 
-document.addEventListener('DOMContentLoaded', () => {
-    document.getElementById('mcpEndpointText').textContent = MCP_ENDPOINT;
-    bindEvents();
-    if (getToken()) {
-        enterApp();
-    } else {
-        showLogin();
+const SERVICE_PAGE_SIZE = 12;
+
+document.addEventListener('DOMContentLoaded', async () => {
+    try {
+        await loadLayout();
+        initUi();
+        document.getElementById('mcpEndpointText').textContent = MCP_ENDPOINT;
+        bindEvents();
+        if (getToken()) {
+            await enterApp();
+        } else {
+            showLogin();
+        }
+    } catch (error) {
+        document.getElementById('adminRoot').innerHTML = `
+            <main class="login-shell">
+                <section class="login-panel">
+                    <h1>页面加载失败</h1>
+                    <p>${error.message || '管理台资源加载失败。'}</p>
+                </section>
+            </main>
+        `;
     }
 });
 
 function bindEvents() {
     document.getElementById('loginForm').addEventListener('submit', handleLogin);
+    const togglePasswordBtn = document.getElementById('togglePasswordBtn');
+    if (togglePasswordBtn) {
+        togglePasswordBtn.addEventListener('click', togglePasswordVisibility);
+    }
     document.getElementById('logoutBtn').addEventListener('click', handleLogout);
     document.getElementById('serviceForm').addEventListener('submit', handleSave);
-    document.getElementById('newServiceBtn').addEventListener('click', resetForm);
-    document.getElementById('resetFormBtn').addEventListener('click', resetForm);
+    document.getElementById('newServiceBtn').addEventListener('click', openNewService);
+    document.getElementById('resetFormBtn').addEventListener('click', () => resetForm());
+    document.getElementById('serviceSearchInput').addEventListener('input', handleServiceSearch);
+    document.getElementById('servicePrevPageBtn').addEventListener('click', () => changeServicePage(-1));
+    document.getElementById('serviceNextPageBtn').addEventListener('click', () => changeServicePage(1));
     document.getElementById('microserviceMode').addEventListener('change', toggleMicroserviceFields);
     document.getElementById('testServiceBtn').addEventListener('click', handleTest);
     document.getElementById('refreshBtn').addEventListener('click', handleRefresh);
     document.getElementById('mcpServiceForm').addEventListener('submit', handleMcpSave);
-    document.getElementById('newMcpServiceBtn').addEventListener('click', resetMcpForm);
+    document.getElementById('newMcpServiceBtn').addEventListener('click', openNewMcpService);
     document.getElementById('resetMcpFormBtn').addEventListener('click', resetMcpForm);
+    document.getElementById('mcpServiceSearchInput').addEventListener('input', handleMcpServiceSearch);
+    document.getElementById('mcpServicePrevPageBtn').addEventListener('click', () => changeMcpServicePage(-1));
+    document.getElementById('mcpServiceNextPageBtn').addEventListener('click', () => changeMcpServicePage(1));
     document.getElementById('generateMcpTokenBtn').addEventListener('click', handleGenerateMcpToken);
     document.getElementById('regenSavedMcpTokenBtn').addEventListener('click', handleRegenerateSavedMcpToken);
+    document.getElementById('databaseQueryForm').addEventListener('submit', handleDatabaseQueryTest);
+    document.getElementById('databaseQuerySaveBtn').addEventListener('click', handleDatabaseQuerySave);
+    document.getElementById('databaseQueryClearBtn').addEventListener('click', resetDatabaseQueryForm);
+    document.getElementById('newDatabaseQueryBtn').addEventListener('click', openNewDatabaseQuery);
+    document.getElementById('databaseQuerySearchInput').addEventListener('input', handleDatabaseQuerySearch);
+    document.getElementById('databaseQueryPrevPageBtn').addEventListener('click', () => changeDatabaseQueryPage(-1));
+    document.getElementById('databaseQueryNextPageBtn').addEventListener('click', () => changeDatabaseQueryPage(1));
     document.getElementById('reloadAuditBtn').addEventListener('click', loadAuditLogs);
-    document.querySelectorAll('.sidebar .nav-link').forEach(button => {
+    document.querySelectorAll('.sidebar [data-view]').forEach(button => {
         button.addEventListener('click', () => handleViewSwitch(button.dataset.view));
     });
+}
+
+function togglePasswordVisibility() {
+    const password = document.getElementById('password');
+    const nextType = password.type === 'password' ? 'text' : 'password';
+    password.type = nextType;
+    this.setAttribute('aria-label', nextType === 'password' ? '显示密码' : '隐藏密码');
 }
 
 async function handleLogin(event) {
@@ -97,6 +162,9 @@ async function handleViewSwitch(view) {
     switchView(view);
     if (view === 'apiServices') await loadServices();
     if (view === 'mcpServices') await loadMcpServices();
+    if (view === 'databaseMcp') {
+        await loadDatabaseQueries();
+    }
     if (view === 'auditLogs') await loadAuditLogs();
 }
 
@@ -104,30 +172,70 @@ async function loadServices() {
     try {
         services = await listServices();
         if (selectedId && !services.some(service => service.id === selectedId)) selectedId = '';
-        renderServices(services, selectedId, {
-            edit: selectService,
-            toggle: toggleService,
-            delete: removeService
-        });
+        renderApiServices();
     } catch (error) {
         handleError(error);
     }
 }
 
-function selectService(service) {
-    selectedId = service.id;
-    document.getElementById('formTitle').textContent = 'Edit API Service';
-    fillServiceForm(service);
-    renderServices(services, selectedId, {
+function renderApiServices() {
+    const filtered = filterServices();
+    servicePage = clampPage(servicePage, filtered.length, SERVICE_PAGE_SIZE);
+    const visible = paginate(filtered, servicePage, SERVICE_PAGE_SIZE);
+    renderServices(filtered, selectedId, {
         edit: selectService,
+        test: testServiceFromCard,
         toggle: toggleService,
         delete: removeService
+    }, {
+        totalCount: services.length,
+        filteredCount: filtered.length,
+        page: servicePage,
+        pageSize: SERVICE_PAGE_SIZE,
+        visible
     });
+}
+
+function filterServices() {
+    const keyword = serviceSearchTerm.trim().toLowerCase();
+    if (!keyword) {
+        return services;
+    }
+    return services.filter(service => [
+        service.toolName,
+        service.title,
+        service.description,
+        service.method,
+        service.urlTemplate
+    ].some(value => String(value || '').toLowerCase().includes(keyword)));
+}
+
+function handleServiceSearch(event) {
+    serviceSearchTerm = event.target.value;
+    servicePage = 1;
+    renderApiServices();
+}
+
+function openNewService() {
+    serviceSearchTerm = '';
+    servicePage = 1;
+    document.getElementById('serviceSearchInput').value = '';
+    renderApiServices();
+    resetForm();
+    showApiServiceModal();
+}
+
+function selectService(service) {
+    selectedId = service.id;
+    document.getElementById('formTitle').textContent = '编辑 API 服务';
+    fillServiceForm(service);
+    renderApiServices();
+    showApiServiceModal();
 }
 
 function resetForm() {
     selectedId = '';
-    document.getElementById('formTitle').textContent = 'New API Service';
+    document.getElementById('formTitle').textContent = '新增 API 服务';
     fillServiceForm(null);
 }
 
@@ -136,9 +244,11 @@ async function handleSave(event) {
     try {
         const saved = await saveService(readServiceForm());
         selectedId = saved.id;
-        notify('Saved', `${saved.toolName} has been published to MCP tools.`);
+        notify('保存成功', `${saved.toolName} 已发布为 MCP 工具。`);
         await loadServices();
-        selectService(saved);
+        selectedId = saved.id;
+        renderApiServices();
+        hideApiServiceModal();
     } catch (error) {
         handleError(error);
     }
@@ -147,22 +257,45 @@ async function handleSave(event) {
 async function handleTest() {
     const id = document.getElementById('serviceId').value;
     if (!id) {
-        notify('Cannot test', 'Save the API service first.');
+        notify('无法测试', '请先保存 API 服务。');
         return;
     }
     try {
         const result = await testService(id, readTestArgs());
-        showResult(result);
+        const service = services.find(item => item.id === id);
+        showResult(result, resultOptions(service));
         await loadAuditLogs(false);
     } catch (error) {
         handleError(error);
     }
 }
 
+async function testServiceFromCard(service) {
+    selectedId = service.id;
+    renderApiServices();
+    try {
+        const result = await testService(service.id, readTestArgsFromSchema(service.inputSchema));
+        showResult(result, resultOptions(service));
+        await loadAuditLogs(false);
+    } catch (error) {
+        handleError(error);
+    }
+}
+
+function resultOptions(service) {
+    if (!service) {
+        return {};
+    }
+    return {
+        title: `${service.title || service.toolName} 测试结果`,
+        subtitle: service.toolName
+    };
+}
+
 async function handleRefresh() {
     try {
         await refreshTools();
-        notify('Refreshed', 'MCP tool list has been refreshed.');
+        notify('刷新成功', 'MCP 工具列表已刷新。');
         await loadServices();
     } catch (error) {
         handleError(error);
@@ -172,7 +305,7 @@ async function handleRefresh() {
 async function toggleService(service) {
     try {
         await setEnabled(service.id, !service.enabled);
-        notify('Updated', `${service.toolName} is now ${service.enabled ? 'disabled' : 'enabled'}.`);
+        notify('更新成功', `${service.toolName} 已${service.enabled ? '停用' : '启用'}。`);
         await loadServices();
     } catch (error) {
         handleError(error);
@@ -180,11 +313,14 @@ async function toggleService(service) {
 }
 
 async function removeService(service) {
-    if (!window.confirm(`Delete ${service.toolName}?`)) return;
+    if (!window.confirm(`确定删除 ${service.toolName} 吗？`)) return;
     try {
         await deleteService(service.id);
-        notify('Deleted', `${service.toolName} has been removed.`);
-        resetForm();
+        notify('删除成功', `${service.toolName} 已删除。`);
+        if (selectedId === service.id) {
+            resetForm();
+            hideApiServiceModal();
+        }
         await loadServices();
     } catch (error) {
         handleError(error);
@@ -195,19 +331,61 @@ async function loadMcpServices() {
     try {
         mcpServices = await listMcpServices();
         if (selectedMcpId && !mcpServices.some(service => service.id === selectedMcpId)) selectedMcpId = '';
-        renderMcpServices(mcpServices, selectedMcpId, {
-            edit: selectMcpService,
-            toggle: toggleMcpService,
-            delete: removeMcpService
-        });
+        renderMcpServiceCards();
     } catch (error) {
         handleError(error);
     }
 }
 
+function renderMcpServiceCards() {
+    const filtered = filterMcpServices();
+    mcpServicePage = clampPage(mcpServicePage, filtered.length, SERVICE_PAGE_SIZE);
+    const visible = paginate(filtered, mcpServicePage, SERVICE_PAGE_SIZE);
+    renderMcpServices(filtered, selectedMcpId, {
+        edit: selectMcpService,
+        toggle: toggleMcpService,
+        delete: removeMcpService
+    }, {
+        totalCount: mcpServices.length,
+        filteredCount: filtered.length,
+        page: mcpServicePage,
+        pageSize: SERVICE_PAGE_SIZE,
+        visible
+    });
+}
+
+function filterMcpServices() {
+    const keyword = mcpServiceSearchTerm.trim().toLowerCase();
+    if (!keyword) {
+        return mcpServices;
+    }
+    return mcpServices.filter(service => [
+        service.name,
+        service.endpoint,
+        service.serviceType,
+        service.permissionGroup,
+        service.status
+    ].some(value => String(value || '').toLowerCase().includes(keyword)));
+}
+
+function handleMcpServiceSearch(event) {
+    mcpServiceSearchTerm = event.target.value;
+    mcpServicePage = 1;
+    renderMcpServiceCards();
+}
+
+function openNewMcpService() {
+    mcpServiceSearchTerm = '';
+    mcpServicePage = 1;
+    document.getElementById('mcpServiceSearchInput').value = '';
+    renderMcpServiceCards();
+    resetMcpForm();
+    showMcpServiceModal();
+}
+
 function selectMcpService(service) {
     selectedMcpId = service.id;
-    document.getElementById('mcpFormTitle').textContent = 'Edit MCP Service';
+    document.getElementById('mcpFormTitle').textContent = '编辑 MCP 服务';
     setValue('mcpServiceId', service.id);
     setValue('mcpName', service.name);
     setValue('mcpEndpoint', service.endpoint);
@@ -216,16 +394,13 @@ function selectMcpService(service) {
     setValue('mcpPermissionGroup', service.permissionGroup || 'default');
     setValue('mcpEnabled', String(service.enabled));
     setValue('mcpStatus', service.status || 'ACTIVE');
-    renderMcpServices(mcpServices, selectedMcpId, {
-        edit: selectMcpService,
-        toggle: toggleMcpService,
-        delete: removeMcpService
-    });
+    renderMcpServiceCards();
+    showMcpServiceModal();
 }
 
 function resetMcpForm() {
     selectedMcpId = '';
-    document.getElementById('mcpFormTitle').textContent = 'New MCP Service';
+    document.getElementById('mcpFormTitle').textContent = '新增 MCP 服务';
     setValue('mcpServiceId', '');
     setValue('mcpName', '');
     setValue('mcpEndpoint', '');
@@ -241,9 +416,11 @@ async function handleMcpSave(event) {
     try {
         const saved = await saveMcpService(readMcpForm());
         selectedMcpId = saved.id;
-        notify('Saved', `${saved.name} has been registered.`);
+        notify('保存成功', `${saved.name} 已注册。`);
         await loadMcpServices();
-        selectMcpService(saved);
+        selectedMcpId = saved.id;
+        renderMcpServiceCards();
+        hideMcpServiceModal();
     } catch (error) {
         handleError(error);
     }
@@ -253,7 +430,7 @@ async function handleGenerateMcpToken() {
     try {
         const result = await generateMcpToken();
         setValue('mcpServiceToken', result.token);
-        notify('Token generated', 'Copy this token into the service config.');
+        notify('Token 已生成', '请将该 Token 配置到接入服务中。');
     } catch (error) {
         handleError(error);
     }
@@ -262,13 +439,13 @@ async function handleGenerateMcpToken() {
 async function handleRegenerateSavedMcpToken() {
     const id = value('mcpServiceId');
     if (!id) {
-        notify('Cannot regenerate', 'Save the MCP service first.');
+        notify('无法重新生成', '请先保存 MCP 服务。');
         return;
     }
     try {
         const updated = await regenerateMcpToken(id);
         selectMcpService(updated);
-        notify('Token regenerated', `${updated.name} now has a new service token.`);
+        notify('Token 已重新生成', `${updated.name} 已使用新的服务 Token。`);
     } catch (error) {
         handleError(error);
     }
@@ -277,7 +454,7 @@ async function handleRegenerateSavedMcpToken() {
 async function toggleMcpService(service) {
     try {
         await setMcpEnabled(service.id, !service.enabled);
-        notify('Updated', `${service.name} is now ${service.enabled ? 'disabled' : 'enabled'}.`);
+        notify('更新成功', `${service.name} 已${service.enabled ? '停用' : '启用'}。`);
         await loadMcpServices();
     } catch (error) {
         handleError(error);
@@ -285,11 +462,14 @@ async function toggleMcpService(service) {
 }
 
 async function removeMcpService(service) {
-    if (!window.confirm(`Delete ${service.name}?`)) return;
+    if (!window.confirm(`确定删除 ${service.name} 吗？`)) return;
     try {
         await deleteMcpService(service.id);
-        notify('Deleted', `${service.name} has been removed.`);
-        resetMcpForm();
+        notify('删除成功', `${service.name} 已删除。`);
+        if (selectedMcpId === service.id) {
+            resetMcpForm();
+            hideMcpServiceModal();
+        }
         await loadMcpServices();
     } catch (error) {
         handleError(error);
@@ -313,7 +493,153 @@ async function loadAuditLogs(showNotice = true) {
     try {
         const logs = await listAuditLogs();
         renderAuditLogs(logs);
-        if (showNotice) notify('Loaded', 'Audit logs refreshed.');
+        if (showNotice) notify('加载成功', '审计日志已刷新。');
+    } catch (error) {
+        handleError(error);
+    }
+}
+
+async function loadDatabaseQueries() {
+    try {
+        databaseQueries = await listDatabaseQueries();
+        if (selectedDatabaseQueryId && !databaseQueries.some(query => query.id === selectedDatabaseQueryId)) {
+            selectedDatabaseQueryId = '';
+        }
+        renderDatabaseQueryCards();
+    } catch (error) {
+        handleError(error);
+    }
+}
+
+function renderDatabaseQueryCards() {
+    const filtered = filterDatabaseQueries();
+    databaseQueryPage = clampPage(databaseQueryPage, filtered.length, SERVICE_PAGE_SIZE);
+    const visible = paginate(filtered, databaseQueryPage, SERVICE_PAGE_SIZE);
+    renderDatabaseQueries(filtered, selectedDatabaseQueryId, {
+            edit: selectDatabaseQuery,
+            test: testDatabaseQueryFromCard,
+            toggle: toggleDatabaseQuery,
+            delete: removeDatabaseQuery
+    }, {
+        totalCount: databaseQueries.length,
+        filteredCount: filtered.length,
+        page: databaseQueryPage,
+        pageSize: SERVICE_PAGE_SIZE,
+        visible
+    });
+}
+
+function filterDatabaseQueries() {
+    const keyword = databaseQuerySearchTerm.trim().toLowerCase();
+    if (!keyword) {
+        return databaseQueries;
+    }
+    return databaseQueries.filter(query => [
+        query.toolName,
+        query.title,
+        query.description,
+        query.sqlTemplate,
+        query.jdbcUrl
+    ].some(value => String(value || '').toLowerCase().includes(keyword)));
+}
+
+function handleDatabaseQuerySearch(event) {
+    databaseQuerySearchTerm = event.target.value;
+    databaseQueryPage = 1;
+    renderDatabaseQueryCards();
+}
+
+function openNewDatabaseQuery() {
+    resetDatabaseQueryForm();
+    showDatabaseQueryModal();
+}
+
+function changeDatabaseQueryPage(delta) {
+    databaseQueryPage = clampPage(databaseQueryPage + delta, filterDatabaseQueries().length, SERVICE_PAGE_SIZE);
+    renderDatabaseQueryCards();
+}
+
+async function handleDatabaseQueryTest(event) {
+    event.preventDefault();
+    const button = document.getElementById('databaseQueryTestBtn');
+    const status = document.getElementById('databaseQueryStatus');
+    button.disabled = true;
+    status.textContent = '正在执行...';
+    try {
+        const output = await testDatabaseQuery(readDatabaseQueryForm());
+        renderDatabaseQueryOutput(output);
+        if (!output.success) {
+            notify('查询失败', output.errorMessage || '数据库查询执行失败。');
+        }
+    } catch (error) {
+        renderDatabaseQueryPreview({
+            success: false,
+            errorMessage: error.message || '数据库查询执行失败'
+        });
+        notify('查询失败', error.message || '数据库查询执行失败');
+    } finally {
+        button.disabled = false;
+        status.textContent = '';
+    }
+}
+
+async function handleDatabaseQuerySave() {
+    const form = document.getElementById('databaseQueryForm');
+    if (!form.reportValidity()) {
+        return;
+    }
+    try {
+        const saved = await saveDatabaseQuery(readDatabaseQueryRegistrationForm());
+        selectedDatabaseQueryId = saved.id;
+        notify('保存成功', `${saved.toolName} 已注册为 MCP 查询工具。`);
+        await loadDatabaseQueries();
+        fillDatabaseQueryForm(saved);
+        hideDatabaseQueryModal();
+    } catch (error) {
+        handleError(error);
+    }
+}
+
+function selectDatabaseQuery(query) {
+    selectedDatabaseQueryId = query.id;
+    fillDatabaseQueryForm(query);
+    renderDatabaseQueryCards();
+    showDatabaseQueryModal();
+}
+
+async function testDatabaseQueryFromCard(query) {
+    try {
+        const params = promptJsonObject('请输入查询参数 JSON', {});
+        if (params == null) return;
+        selectedDatabaseQueryId = query.id;
+        fillDatabaseQueryForm(query);
+        renderDatabaseQueryOutput(await testSavedDatabaseQuery(query.id, params));
+        renderDatabaseQueryCards();
+        showDatabaseQueryModal();
+    } catch (error) {
+        handleError(error);
+    }
+}
+
+async function toggleDatabaseQuery(query) {
+    try {
+        await setDatabaseQueryEnabled(query.id, !query.enabled);
+        notify('更新成功', `${query.toolName} 已${query.enabled ? '停用' : '启用'}。`);
+        await loadDatabaseQueries();
+    } catch (error) {
+        handleError(error);
+    }
+}
+
+async function removeDatabaseQuery(query) {
+    if (!window.confirm(`确定删除 ${query.toolName} 吗？`)) return;
+    try {
+        await deleteDatabaseQuery(query.id);
+        notify('删除成功', `${query.toolName} 已删除。`);
+        if (selectedDatabaseQueryId === query.id) {
+            resetDatabaseQueryForm();
+        }
+        await loadDatabaseQueries();
     } catch (error) {
         handleError(error);
     }
@@ -322,10 +648,10 @@ async function loadAuditLogs(showNotice = true) {
 function handleError(error) {
     if (error instanceof UnauthorizedError) {
         showLogin();
-        notify('Login required', error.message);
+        notify('需要登录', error.message);
         return;
     }
-    notify('Operation failed', error.message || 'Unknown error');
+    notify('操作失败', error.message || '未知错误');
 }
 
 function value(id) {
@@ -334,4 +660,220 @@ function value(id) {
 
 function setValue(id, nextValue) {
     document.getElementById(id).value = nextValue ?? '';
+}
+
+function readDatabaseQueryForm() {
+    return {
+        sql: value('databaseSqlInput'),
+        params: readJsonObject('databaseParamsJson'),
+        maxRows: Number(value('databaseMaxRowsInput') || 50),
+        jdbcUrl: value('databaseJdbcUrlInput'),
+        driverClass: value('databaseDriverClassInput'),
+        username: value('databaseUsernameInput'),
+        password: document.getElementById('databasePasswordInput').value,
+        reloadDrivers: document.getElementById('databaseReloadDrivers').checked
+    };
+}
+
+function readDatabaseQueryRegistrationForm() {
+    const id = value('databaseQueryId');
+    const current = databaseQueries.find(query => query.id === id);
+    return {
+        id,
+        toolName: value('databaseToolNameInput'),
+        title: value('databaseTitleInput'),
+        description: value('databaseDescriptionInput'),
+        sqlTemplate: value('databaseSqlInput'),
+        inputSchema: readJsonObject('databaseInputSchemaJson'),
+        maxRows: Number(value('databaseMaxRowsInput') || 50),
+        jdbcUrl: value('databaseJdbcUrlInput'),
+        driverClass: value('databaseDriverClassInput'),
+        username: value('databaseUsernameInput'),
+        password: document.getElementById('databasePasswordInput').value,
+        reloadDrivers: document.getElementById('databaseReloadDrivers').checked,
+        enabled: current?.enabled ?? true
+    };
+}
+
+function fillDatabaseQueryForm(query) {
+    selectedDatabaseQueryId = query?.id || '';
+    document.getElementById('databaseQueryFormTitle').textContent = query ? '编辑查询注册' : '新增查询注册';
+    setValue('databaseQueryId', query?.id || '');
+    setValue('databaseToolNameInput', query?.toolName || '');
+    setValue('databaseTitleInput', query?.title || '');
+    setValue('databaseDescriptionInput', query?.description || '');
+    setValue('databaseSqlInput', query?.sqlTemplate || '');
+    setValue('databaseParamsJson', '{}');
+    setValue('databaseMaxRowsInput', String(query?.maxRows || 50));
+    setValue('databaseInputSchemaJson', JSON.stringify(query?.inputSchema || {
+        type: 'object',
+        properties: {},
+        required: [],
+        additionalProperties: false
+    }, null, 2));
+    setValue('databaseJdbcUrlInput', query?.jdbcUrl || '');
+    setValue('databaseDriverClassInput', query?.driverClass || '');
+    setValue('databaseUsernameInput', query?.username || '');
+    document.getElementById('databasePasswordInput').value = query?.password || '';
+    document.getElementById('databaseReloadDrivers').checked = Boolean(query?.reloadDrivers);
+    renderDatabaseQueryPreview(null);
+}
+
+function resetDatabaseQueryForm() {
+    fillDatabaseQueryForm(null);
+}
+
+function renderDatabaseQueryOutput(output) {
+    renderDatabaseQueryPreview(output, {
+        pickField: addDatabasePreviewFieldParam,
+        pickFields: addDatabasePreviewFieldParams
+    });
+}
+
+function addDatabasePreviewFieldParam(field, sampleValue) {
+    try {
+        const result = appendDatabasePreviewParams([{ field, sampleValue }]);
+        notify('参数已添加', `${field} 已拾取为参数 ${result.names[0]}。`);
+    } catch (error) {
+        notify('参数添加失败', error.message || '请检查参数 JSON 与 Schema JSON。');
+    }
+}
+
+function addDatabasePreviewFieldParams(fields, sampleRow) {
+    try {
+        const result = appendDatabasePreviewParams(fields.map(field => ({
+            field,
+            sampleValue: sampleRow?.[field]
+        })));
+        notify('参数已添加', `已从查询结果提取 ${result.addedCount} 个列名参数。`);
+    } catch (error) {
+        notify('参数添加失败', error.message || '请检查参数 JSON 与 Schema JSON。');
+    }
+}
+
+function appendDatabasePreviewParams(items) {
+    const params = readJsonObject('databaseParamsJson');
+    const schema = normalizeInputSchema(readJsonObject('databaseInputSchemaJson'));
+    const names = [];
+    let addedCount = 0;
+
+    for (const item of items) {
+        const paramName = uniqueDatabaseParamName(normalizeDatabaseParamName(item.field), names);
+        const existed = Object.prototype.hasOwnProperty.call(params, paramName)
+            || Object.prototype.hasOwnProperty.call(schema.properties, paramName);
+        if (!Object.prototype.hasOwnProperty.call(params, paramName)) {
+            params[paramName] = item.sampleValue ?? '';
+        }
+        if (!schema.properties[paramName]) {
+            schema.properties[paramName] = {
+                type: inferJsonSchemaType(item.sampleValue),
+                description: item.field === paramName ? `预览字段 ${item.field}` : `预览字段 ${item.field}，参数名已转换`
+            };
+        }
+        if (!schema.required.includes(paramName)) {
+            schema.required.push(paramName);
+        }
+        names.push(paramName);
+        if (!existed) {
+            addedCount += 1;
+        }
+    }
+
+    setValue('databaseParamsJson', JSON.stringify(params, null, 2));
+    setValue('databaseInputSchemaJson', JSON.stringify(schema, null, 2));
+    return { names, addedCount };
+}
+
+function normalizeInputSchema(schema) {
+    schema.type = schema.type || 'object';
+    schema.properties = isPlainObject(schema.properties) ? schema.properties : {};
+    schema.required = Array.isArray(schema.required) ? schema.required : [];
+    schema.additionalProperties = false;
+    return schema;
+}
+
+function normalizeDatabaseParamName(field) {
+    const value = String(field || '').trim();
+    if (/^[A-Za-z_][A-Za-z0-9_]*$/.test(value)) {
+        return value;
+    }
+    const normalized = value.replace(/[^A-Za-z0-9_]/g, '_').replace(/_+/g, '_').replace(/^_+|_+$/g, '');
+    if (!normalized) {
+        return 'param';
+    }
+    return /^[A-Za-z_]/.test(normalized) ? normalized : `p_${normalized}`;
+}
+
+function uniqueDatabaseParamName(baseName, reservedNames) {
+    let name = baseName;
+    let index = 2;
+    while (reservedNames.includes(name)) {
+        name = `${baseName}_${index}`;
+        index += 1;
+    }
+    return name;
+}
+
+function inferJsonSchemaType(value) {
+    if (typeof value === 'boolean') {
+        return 'boolean';
+    }
+    if (typeof value === 'number') {
+        return Number.isInteger(value) ? 'integer' : 'number';
+    }
+    if (Array.isArray(value)) {
+        return 'array';
+    }
+    if (value && typeof value === 'object') {
+        return 'object';
+    }
+    return 'string';
+}
+
+function isPlainObject(value) {
+    return value && !Array.isArray(value) && typeof value === 'object';
+}
+
+function readJsonObject(id) {
+    const text = document.getElementById(id).value.trim();
+    if (!text) {
+        return {};
+    }
+    const value = JSON.parse(text);
+    if (!value || Array.isArray(value) || typeof value !== 'object') {
+        throw new Error('命名参数必须是 JSON 对象。');
+    }
+    return value;
+}
+
+function promptJsonObject(message, fallback) {
+    const text = window.prompt(message, JSON.stringify(fallback, null, 2));
+    if (text == null) {
+        return null;
+    }
+    const value = JSON.parse(text || '{}');
+    if (!value || Array.isArray(value) || typeof value !== 'object') {
+        throw new Error('查询参数必须是 JSON 对象。');
+    }
+    return value;
+}
+
+function changeServicePage(delta) {
+    servicePage = clampPage(servicePage + delta, filterServices().length, SERVICE_PAGE_SIZE);
+    renderApiServices();
+}
+
+function changeMcpServicePage(delta) {
+    mcpServicePage = clampPage(mcpServicePage + delta, filterMcpServices().length, SERVICE_PAGE_SIZE);
+    renderMcpServiceCards();
+}
+
+function paginate(items, page, pageSize) {
+    const start = (page - 1) * pageSize;
+    return items.slice(start, start + pageSize);
+}
+
+function clampPage(page, itemCount, pageSize) {
+    const pageCount = Math.max(1, Math.ceil(itemCount / pageSize));
+    return Math.min(Math.max(1, page), pageCount);
 }

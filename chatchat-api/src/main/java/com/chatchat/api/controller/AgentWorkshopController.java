@@ -1,16 +1,16 @@
 package com.chatchat.api.controller;
 
 import com.chatchat.agents.tool.ToolRegistry;
-import com.chatchat.api.mcp.service.McpToolRegistryBridge;
-import com.chatchat.api.search.LibraryDocumentItem;
-import com.chatchat.api.search.SearchService;
-import com.chatchat.api.skills.SkillCatalogService;
-import com.chatchat.api.skills.SkillDefinition;
-import com.chatchat.api.skills.SkillRoutingSettings;
-import com.chatchat.api.skills.SkillToolConfig;
+import com.chatchat.integration.mcp.service.McpToolRegistryBridge;
+import com.chatchat.knowledgebase.search.LibraryDocumentItem;
+import com.chatchat.knowledgebase.search.SearchService;
+import com.chatchat.chat.skills.SkillCatalogService;
+import com.chatchat.chat.skills.SkillDefinition;
+import com.chatchat.chat.skills.SkillRoutingSettings;
+import com.chatchat.chat.skills.SkillToolConfig;
 import com.chatchat.common.constants.AppConstants;
 import com.chatchat.common.response.ApiResponse;
-import com.chatchat.models.config.ModelsConfig;
+import com.chatchat.common.config.ModelsConfig;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.AllArgsConstructor;

@@ -1,0 +1,114 @@
+<section id="databaseMcpView" class="panel api-service-view d-none">
+    <div class="panel-head api-service-head">
+        <div>
+            <h2>已注册数据库查询</h2>
+            <div class="text-secondary small">共 <span id="databaseQueryTotalCount">0</span> 个查询，匹配 <span id="databaseQueryFilteredCount">0</span> 个，当前显示 <span id="databaseQueryCount">0</span> 个</div>
+        </div>
+        <div class="api-search">
+            <input id="databaseQuerySearchInput" class="form-control" type="search" placeholder="搜索工具名称、显示名称、描述或 SQL">
+        </div>
+    </div>
+    <div id="databaseQueryList" class="api-service-grid"></div>
+    <div class="service-pagination">
+        <div id="databaseQueryPageInfo" class="text-secondary small">第 1 / 1 页</div>
+        <div class="btn-group btn-group-sm" role="group" aria-label="数据库查询分页">
+            <button id="databaseQueryPrevPageBtn" class="btn btn-outline-secondary" type="button">上一页</button>
+            <button id="databaseQueryNextPageBtn" class="btn btn-outline-secondary" type="button">下一页</button>
+        </div>
+    </div>
+</section>
+
+<div class="modal fade" id="databaseQueryModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="databaseQueryFormTitle" class="modal-title fs-5">新增数据库查询</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="关闭"></button>
+            </div>
+            <div class="modal-body">
+                <form id="databaseQueryForm" class="database-query-form">
+                    <input id="databaseQueryId" type="hidden">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label" for="databaseToolNameInput">工具名称</label>
+                            <input id="databaseToolNameInput" class="form-control" placeholder="query_active_services" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" for="databaseTitleInput">显示名称</label>
+                            <input id="databaseTitleInput" class="form-control" placeholder="查询启用服务" required>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label" for="databaseDescriptionInput">工具描述</label>
+                            <textarea id="databaseDescriptionInput" class="form-control" rows="2" placeholder="说明模型应在什么场景下使用这个查询"></textarea>
+                        </div>
+                        <div class="col-12">
+                            <div class="microservice-box">
+                                <div class="fw-semibold mb-2">外部 JDBC 数据源</div>
+                                <div class="form-text mb-3">数据库查询 MCP 禁止访问本地配置库，必须填写外部 JDBC 连接。</div>
+                                <div id="databaseExternalFields" class="row g-3">
+                                    <div class="col-12">
+                                        <label class="form-label" for="databaseJdbcUrlInput">JDBC URL</label>
+                                        <input id="databaseJdbcUrlInput" class="form-control" placeholder="jdbc:mysql://127.0.0.1:3306/demo" required>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label" for="databaseDriverClassInput">Driver Class</label>
+                                        <input id="databaseDriverClassInput" class="form-control" placeholder="com.mysql.cj.jdbc.Driver">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label" for="databaseUsernameInput">用户名</label>
+                                        <input id="databaseUsernameInput" class="form-control" autocomplete="off">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label" for="databasePasswordInput">密码</label>
+                                        <input id="databasePasswordInput" class="form-control" type="password" autocomplete="new-password">
+                                    </div>
+                                    <div class="col-md-6 database-reload-wrap">
+                                        <label class="form-check">
+                                            <input id="databaseReloadDrivers" class="form-check-input" type="checkbox">
+                                            <span class="form-check-label">执行前重新加载驱动</span>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label" for="databaseSqlInput">SQL 模板</label>
+                            <textarea id="databaseSqlInput" class="form-control codebox" rows="6" spellcheck="false" placeholder="select id, name from your_table where status = :status" required></textarea>
+                            <div class="form-text">仅允许只读 SQL。命名参数使用 <code>:name</code>，测试参数从下方 JSON 读取。</div>
+                        </div>
+                        <div class="col-lg-8">
+                            <label class="form-label" for="databaseParamsJson">测试参数 JSON</label>
+                            <textarea id="databaseParamsJson" class="form-control codebox" rows="5" spellcheck="false">{}</textarea>
+                        </div>
+                        <div class="col-lg-4">
+                            <label class="form-label" for="databaseMaxRowsInput">最大行数</label>
+                            <input id="databaseMaxRowsInput" class="form-control" type="number" min="1" max="500" value="50">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label" for="databaseInputSchemaJson">入参 Schema JSON</label>
+                            <textarea id="databaseInputSchemaJson" class="form-control codebox" rows="6" spellcheck="false">{
+  "type": "object",
+  "properties": {},
+  "required": [],
+  "additionalProperties": false
+}</textarea>
+                        </div>
+                    </div>
+                </form>
+
+                <section class="result-section mt-4">
+                    <div class="result-section-head">
+                        <h3 class="fs-6 m-0">预览结果</h3>
+                        <span id="databaseQueryStatus" class="text-secondary small"></span>
+                    </div>
+                    <div id="databaseQueryResult" class="database-query-result text-secondary small">填写只读 SQL 后点击测试调用。</div>
+                </section>
+            </div>
+            <div class="modal-footer">
+                <button id="databaseQueryClearBtn" class="btn btn-outline-secondary" type="button">清空</button>
+                <button id="databaseQueryTestBtn" class="btn btn-outline-primary" type="submit" form="databaseQueryForm">测试调用</button>
+                <button id="databaseQuerySaveBtn" class="btn btn-primary" type="button">保存查询</button>
+            </div>
+        </div>
+    </div>
+</div>

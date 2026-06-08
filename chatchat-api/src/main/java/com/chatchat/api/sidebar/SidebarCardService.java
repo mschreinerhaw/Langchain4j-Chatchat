@@ -1,10 +1,10 @@
 package com.chatchat.api.sidebar;
 
-import com.chatchat.api.mcp.entity.McpServiceConfig;
-import com.chatchat.api.mcp.service.McpServiceConfigService;
-import com.chatchat.api.mcp.service.McpToolRegistryBridge;
-import com.chatchat.api.skills.SkillCatalogService;
-import com.chatchat.api.skills.SkillDefinition;
+import com.chatchat.integration.mcp.entity.McpServiceConfig;
+import com.chatchat.integration.mcp.service.McpServiceConfigService;
+import com.chatchat.integration.mcp.service.McpToolRegistryBridge;
+import com.chatchat.chat.skills.SkillCatalogService;
+import com.chatchat.chat.skills.SkillDefinition;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;

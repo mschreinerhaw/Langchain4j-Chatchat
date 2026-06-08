@@ -48,6 +48,13 @@
             <artifactId>hibernate-validator</artifactId>
         </dependency>
 
+        <!-- Configuration metadata -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-configuration-processor</artifactId>
+            <optional>true</optional>
+        </dependency>
+
         <!-- Lombok for reducing boilerplate -->
         <dependency>
             <groupId>org.projectlombok</groupId>

@@ -24,11 +24,11 @@
 
     <modules>
         <module>chatchat-common</module>
-        <module>chatchat-models</module>
-        <module>chatchat-embeddings</module>
         <module>chatchat-agents</module>
         <module>chatchat-tools</module>
         <module>chatchat-knowledge-base</module>
+        <module>chatchat-chat</module>
+        <module>chatchat-enterprise</module>
         <module>chatchat-api</module>
         <module>chatchat-mcp-server</module>
         <module>chatchat-integration</module>
@@ -62,16 +62,6 @@
             </dependency>
             <dependency>
                 <groupId>com.chatchat</groupId>
-                <artifactId>chatchat-models</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.chatchat</groupId>
-                <artifactId>chatchat-embeddings</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>com.chatchat</groupId>
                 <artifactId>chatchat-agents</artifactId>
                 <version>${project.version}</version>
             </dependency>
@@ -83,6 +73,21 @@
             <dependency>
                 <groupId>com.chatchat</groupId>
                 <artifactId>chatchat-knowledge-base</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.chatchat</groupId>
+                <artifactId>chatchat-chat</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.chatchat</groupId>
+                <artifactId>chatchat-integration</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.chatchat</groupId>
+                <artifactId>chatchat-enterprise</artifactId>
                 <version>${project.version}</version>
             </dependency>
         </dependencies>

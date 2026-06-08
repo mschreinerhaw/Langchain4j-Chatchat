@@ -1,9 +1,9 @@
 package com.chatchat.api.controller;
 
-import com.chatchat.api.application.interaction.model.InteractionMode;
-import com.chatchat.api.application.interaction.model.InteractionRequest;
-import com.chatchat.api.application.interaction.model.InteractionResponse;
-import com.chatchat.api.application.interaction.service.InteractionOrchestrationService;
+import com.chatchat.chat.interaction.model.InteractionMode;
+import com.chatchat.chat.interaction.model.InteractionRequest;
+import com.chatchat.chat.interaction.model.InteractionResponse;
+import com.chatchat.chat.interaction.service.InteractionOrchestrationService;
 import com.chatchat.common.constants.AppConstants;
 import com.chatchat.common.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;

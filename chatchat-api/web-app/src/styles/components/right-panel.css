@@ -1,0 +1,383 @@
+.right-panel {
+  display: grid;
+  align-content: start;
+}
+
+.right-panel-shell {
+  display: grid;
+  gap: 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.96);
+  box-shadow: var(--shadow);
+}
+
+.right-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 14px 16px 12px;
+}
+
+.right-panel-head > div {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.right-panel-head strong {
+  color: #202939;
+  font-size: 14px;
+}
+
+.right-panel-head span {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.right-panel-head button {
+  width: 30px;
+  height: 30px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border-radius: 7px;
+  background: transparent;
+  color: #435064;
+}
+
+.right-panel-head button:hover {
+  background: #f2f5fb;
+  color: var(--primary);
+}
+
+.right-panel.collapsed {
+  width: 64px;
+}
+
+.right-panel.collapsed .right-panel-head {
+  justify-content: center;
+  padding: 8px;
+  border-bottom: 1px solid var(--line);
+}
+
+.right-panel.collapsed .right-panel-head > div {
+  display: none;
+}
+
+.right-tool-rail {
+  display: grid;
+  gap: 6px;
+  padding: 8px;
+}
+
+.right-tool-rail button {
+  position: relative;
+  width: 44px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  background: transparent;
+  color: #344054;
+}
+
+.right-tool-rail button:hover {
+  background: var(--primary-soft);
+  color: var(--primary-strong);
+}
+
+.right-tool-rail button span {
+  position: absolute;
+  right: 5px;
+  top: 4px;
+  min-width: 16px;
+  height: 16px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: #eef5ff;
+  color: var(--primary-strong);
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.right-module {
+  display: grid;
+  gap: 10px;
+  padding: 14px 16px;
+  border-top: 1px solid var(--line);
+}
+
+.right-module header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.right-module-title {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: #202939;
+}
+
+.right-module-title svg {
+  flex: 0 0 auto;
+  color: #435064;
+}
+
+.right-module header strong {
+  color: #202939;
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.right-module header button {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 26px;
+  padding: 0 2px;
+  background: transparent;
+  color: #5f6d80;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.right-module header button::after {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-top: 1.5px solid currentColor;
+  border-right: 1.5px solid currentColor;
+  transform: rotate(45deg);
+}
+
+.right-module-body {
+  display: grid;
+  gap: 10px;
+}
+
+.holding-row,
+.risk-row,
+.report-item {
+  display: grid;
+  align-items: center;
+  gap: 10px;
+}
+
+.holding-row {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.risk-row,
+.report-item,
+.agent-row {
+  grid-template-columns: 36px minmax(0, 1fr);
+}
+
+.holding-row strong,
+.risk-row strong,
+.report-item strong,
+.simple-row strong,
+.task-row strong,
+.agent-row strong {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  color: #202939;
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.holding-row span,
+.risk-row time,
+.report-item time,
+.simple-row time,
+.task-row span,
+.agent-row time {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.holding-row em {
+  color: #168555;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 800;
+}
+
+.holding-row em.down {
+  color: var(--red);
+}
+
+.risk-level {
+  width: 34px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border-radius: 7px;
+  background: #fff7e8;
+  color: #b54708;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.risk-level.high {
+  background: #fff0f2;
+  color: var(--red);
+}
+
+.risk-level.low {
+  background: #ecfbf4;
+  color: var(--green);
+}
+
+.file-badge {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 7px;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.file-badge.blue {
+  background: #edf4ff;
+  color: var(--primary);
+}
+
+.file-badge.red {
+  background: #fff0f2;
+  color: var(--red);
+}
+
+.file-badge.green {
+  background: #ecfbf4;
+  color: var(--green);
+}
+
+.file-badge.amber {
+  background: #fff7e8;
+  color: var(--amber);
+}
+
+.simple-row {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 9px;
+}
+
+.favorite-star {
+  width: 14px;
+  height: 14px;
+  background: var(--amber);
+  clip-path: polygon(50% 0%, 62% 34%, 98% 34%, 69% 55%, 80% 90%, 50% 70%, 20% 90%, 31% 55%, 2% 34%, 38% 34%);
+}
+
+.task-row {
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.task-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--primary);
+}
+
+.task-dot.alt {
+  background: var(--green);
+}
+
+.task-dot.paused {
+  background: #8a94a6;
+}
+
+.task-row span {
+  margin-top: 0;
+  color: #1f73e8;
+  font-weight: 700;
+}
+
+.task-row .paused + strong + span {
+  color: #667085;
+}
+
+.agent-row {
+  display: grid;
+  align-items: center;
+  gap: 10px;
+}
+
+.agent-row > span {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  border-radius: 7px;
+  background: var(--primary-soft);
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.new-task {
+  justify-self: start;
+  margin-top: 4px;
+  background: transparent;
+  color: var(--primary);
+  font-weight: 700;
+}
+
+.new-task::before {
+  content: "+";
+  margin-right: 8px;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.right-panel-empty {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+@media (max-width: 1180px) {
+  .right-panel {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    align-items: start;
+  }
+
+  .right-panel.collapsed {
+    grid-template-columns: 1fr;
+  }
+
+  .right-panel-shell {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (max-width: 820px) {
+  .right-panel {
+    grid-template-columns: 1fr;
+    padding: 0 12px 18px;
+  }
+}

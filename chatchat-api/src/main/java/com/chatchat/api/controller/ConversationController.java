@@ -1,7 +1,7 @@
 package com.chatchat.api.controller;
 
-import com.chatchat.api.conversation.Conversation;
-import com.chatchat.api.conversation.ConversationService;
+import com.chatchat.chat.conversation.Conversation;
+import com.chatchat.chat.conversation.ConversationService;
 import com.chatchat.common.constants.AppConstants;
 import com.chatchat.common.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;

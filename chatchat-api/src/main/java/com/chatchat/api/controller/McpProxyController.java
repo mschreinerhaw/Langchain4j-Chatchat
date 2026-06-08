@@ -1,8 +1,8 @@
 package com.chatchat.api.controller;
 
-import com.chatchat.api.mcp.entity.McpServiceConfig;
-import com.chatchat.api.mcp.service.McpServiceConfigService;
-import com.chatchat.api.mcp.service.McpStdioProxyService;
+import com.chatchat.integration.mcp.entity.McpServiceConfig;
+import com.chatchat.integration.mcp.service.McpServiceConfigService;
+import com.chatchat.integration.mcp.service.McpStdioProxyService;
 import com.chatchat.common.constants.AppConstants;
 import com.chatchat.common.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;

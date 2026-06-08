@@ -1,15 +1,15 @@
 package com.chatchat.api.controller;
 
 import com.chatchat.agents.tool.ToolRegistry;
-import com.chatchat.api.conversation.Conversation;
-import com.chatchat.api.conversation.ConversationService;
-import com.chatchat.api.skills.SkillCatalogService;
-import com.chatchat.api.skills.SkillDefinition;
-import com.chatchat.api.skills.SkillRoutingSettings;
-import com.chatchat.api.skills.SkillToolConfig;
+import com.chatchat.chat.conversation.Conversation;
+import com.chatchat.chat.conversation.ConversationService;
+import com.chatchat.chat.skills.SkillCatalogService;
+import com.chatchat.chat.skills.SkillDefinition;
+import com.chatchat.chat.skills.SkillRoutingSettings;
+import com.chatchat.chat.skills.SkillToolConfig;
 import com.chatchat.common.constants.AppConstants;
 import com.chatchat.common.response.ApiResponse;
-import com.chatchat.models.config.ModelsConfig;
+import com.chatchat.common.config.ModelsConfig;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.AllArgsConstructor;

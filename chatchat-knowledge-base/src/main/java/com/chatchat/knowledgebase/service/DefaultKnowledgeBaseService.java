@@ -1,7 +1,7 @@
 package com.chatchat.knowledgebase.service;
 
-import com.chatchat.embeddings.service.EmbeddingService;
-import com.chatchat.embeddings.store.VectorStore;
+import com.chatchat.knowledgebase.embedding.service.EmbeddingService;
+import com.chatchat.knowledgebase.embedding.store.VectorStore;
 import dev.langchain4j.data.document.Document;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;

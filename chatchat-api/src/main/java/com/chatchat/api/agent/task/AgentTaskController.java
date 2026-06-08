@@ -1,5 +1,9 @@
 package com.chatchat.api.agent.task;
 
+import com.chatchat.chat.task.AgentEvent;
+import com.chatchat.chat.task.AgentTaskResponse;
+import com.chatchat.chat.task.AgentTaskService;
+import com.chatchat.chat.task.AgentTaskSubmitRequest;
 import com.chatchat.common.constants.AppConstants;
 import com.chatchat.common.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;

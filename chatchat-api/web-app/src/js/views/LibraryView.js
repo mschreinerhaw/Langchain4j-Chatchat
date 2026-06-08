@@ -1,0 +1,323 @@
+import { nextTick } from "vue";
+import MarkdownIt from "markdown-it";
+import * as pdfjsLib from "pdfjs-dist";
+import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
+import { renderAsync } from "docx-preview";
+import * as XLSX from "xlsx";
+import "../../styles/pages/library.css";
+import {
+  createResearchCategory,
+  fetchResearchLibrary,
+  getSearchDocument
+} from "../../services/api.js";
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
+
+const markdown = new MarkdownIt({
+  html: false,
+  linkify: true,
+  breaks: true
+});
+
+const MESSAGE_TEXT = {
+  library_empty: "资料库暂无文档，请先在 AI 搜索页上传资料。",
+  title_not_found: "没有找到这个标题的资料。",
+  no_documents: "当前分类暂无资料。",
+  ok: ""
+};
+
+export default {
+  name: "LibraryView",
+  emits: ["navigate"],
+  data() {
+    return {
+      titleKeyword: "",
+      newCategoryName: "",
+      activeCategory: "all",
+      categories: [],
+      documents: [],
+      total: 0,
+      documentCount: 0,
+      page: 1,
+      pageSize: 6,
+      pageCount: 1,
+      titleExists: false,
+      exactTitleDocId: "",
+      message: "",
+      loading: false,
+      creatingCategory: false,
+      error: "",
+      categoryDialogOpen: false,
+      viewerOpen: false,
+      viewerLoading: false,
+      viewerError: "",
+      viewerDocument: null,
+      viewerHtml: "",
+      viewerMode: "text"
+    };
+  },
+  computed: {
+    viewerType() {
+      return this.viewerDocument?.documentType || this.inferDocumentType(this.viewerDocument?.fileName);
+    },
+    viewerFileUrl() {
+      return this.viewerDocument?.docId
+        ? `/api/v1/search/documents/${encodeURIComponent(this.viewerDocument.docId)}/file`
+        : "";
+    },
+    pagedDocuments() {
+      return this.documents;
+    },
+    pageStart() {
+      if (!this.documents.length) {
+        return 0;
+      }
+      return (Math.min(Math.max(1, this.page), this.pageCount) - 1) * this.pageSize + 1;
+    },
+    pageEnd() {
+      return Math.min(this.page * this.pageSize, this.total);
+    },
+    pageButtons() {
+      const total = this.pageCount;
+      const current = Math.min(Math.max(1, this.page), total);
+      const start = Math.max(1, Math.min(current - 2, total - 4));
+      const end = Math.min(total, start + 4);
+      return Array.from({ length: end - start + 1 }, (_, index) => start + index);
+    }
+  },
+  watch: {
+    titleKeyword() {
+      this.page = 1;
+    },
+    documents() {
+      this.clampPage();
+    }
+  },
+  activated() {
+    this.loadLibrary();
+  },
+  mounted() {
+    this.loadLibrary();
+  },
+  methods: {
+    async loadLibrary() {
+      this.loading = true;
+      this.error = "";
+      try {
+        const payload = await fetchResearchLibrary({
+          category: this.activeCategory,
+          title: this.titleKeyword.trim(),
+          page: this.page,
+          pageSize: this.pageSize
+        });
+        this.categories = payload?.categories || [];
+        this.documents = payload?.documents || [];
+        this.total = payload?.total || 0;
+        this.page = payload?.page || this.page;
+        this.pageSize = payload?.pageSize || this.pageSize;
+        this.pageCount = payload?.totalPages || 1;
+        this.documentCount = payload?.documentCount || 0;
+        this.titleExists = Boolean(payload?.titleExists);
+        this.exactTitleDocId = payload?.exactTitleDocId || "";
+        this.message = MESSAGE_TEXT[payload?.message] || "";
+        this.clampPage();
+      } catch (error) {
+        this.error = error.message || "加载资料库失败";
+      } finally {
+        this.loading = false;
+      }
+    },
+    async selectCategory(category) {
+      this.activeCategory = category;
+      this.page = 1;
+      await this.loadLibrary();
+    },
+    async searchByTitle() {
+      this.page = 1;
+      await this.loadLibrary();
+      const title = this.titleKeyword.trim();
+      if (title) {
+        this.message = this.titleExists ? "资料已存在。" : "资料不存在。";
+      }
+    },
+    async createCategory() {
+      const name = this.newCategoryName.trim();
+      if (!name) {
+        this.message = "请输入分类名称。";
+        this.categoryDialogOpen = true;
+        await nextTick();
+        this.$refs.categoryNameInput?.focus();
+        return;
+      }
+      this.creatingCategory = true;
+      this.error = "";
+      try {
+        await createResearchCategory(name);
+        this.newCategoryName = "";
+        this.categoryDialogOpen = false;
+        this.message = "分类已创建。";
+        await this.loadLibrary();
+      } catch (error) {
+        this.error = error.message || "创建分类失败";
+      } finally {
+        this.creatingCategory = false;
+      }
+    },
+    async openCategoryDialog() {
+      this.categoryDialogOpen = true;
+      this.message = "";
+      this.error = "";
+      await nextTick();
+      this.$refs.categoryNameInput?.focus();
+    },
+    closeCategoryDialog() {
+      if (this.creatingCategory) {
+        return;
+      }
+      this.categoryDialogOpen = false;
+      this.newCategoryName = "";
+    },
+    async openDocument(docId) {
+      this.viewerOpen = true;
+      this.viewerLoading = true;
+      this.viewerError = "";
+      this.viewerDocument = null;
+      this.viewerHtml = "";
+      this.viewerMode = "text";
+      try {
+        this.viewerDocument = await getSearchDocument(docId);
+        await nextTick();
+        await this.renderDocument();
+      } catch (error) {
+        this.viewerError = error.message || "加载文档失败";
+      } finally {
+        this.viewerLoading = false;
+      }
+    },
+    async renderDocument() {
+      const type = this.viewerType;
+      if (type === "pdf") {
+        this.viewerMode = "pdf";
+        await this.renderPdf();
+        return;
+      }
+      if (type === "word") {
+        this.viewerMode = "word";
+        try {
+          await this.renderWord();
+        } catch (error) {
+          this.viewerMode = "text";
+        }
+        return;
+      }
+      if (type === "excel") {
+        this.viewerMode = "html";
+        try {
+          await this.renderExcel();
+        } catch (error) {
+          this.viewerMode = "text";
+        }
+        return;
+      }
+      if (type === "markdown") {
+        this.viewerMode = "html";
+        this.viewerHtml = markdown.render(this.viewerDocument?.content || "");
+        return;
+      }
+      this.viewerMode = "text";
+    },
+    async renderPdf() {
+      const container = this.$refs.pdfViewer;
+      if (!container || !this.viewerFileUrl) {
+        return;
+      }
+      container.innerHTML = "";
+      const pdf = await pdfjsLib.getDocument(this.viewerFileUrl).promise;
+      const pageCount = Math.min(pdf.numPages, 20);
+      for (let pageNumber = 1; pageNumber <= pageCount; pageNumber++) {
+        const page = await pdf.getPage(pageNumber);
+        const viewport = page.getViewport({ scale: 1.25 });
+        const canvas = document.createElement("canvas");
+        const context = canvas.getContext("2d");
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        container.appendChild(canvas);
+        await page.render({ canvasContext: context, viewport }).promise;
+      }
+    },
+    async renderWord() {
+      const container = this.$refs.wordViewer;
+      if (!container || !this.viewerFileUrl) {
+        return;
+      }
+      container.innerHTML = "";
+      const blob = await fetch(this.viewerFileUrl).then((response) => response.blob());
+      await renderAsync(blob, container, null, {
+        className: "docx-rendered",
+        inWrapper: false
+      });
+    },
+    async renderExcel() {
+      const buffer = await fetch(this.viewerFileUrl).then((response) => response.arrayBuffer());
+      const workbook = XLSX.read(buffer, { type: "array" });
+      const firstSheet = workbook.SheetNames[0];
+      this.viewerHtml = firstSheet ? XLSX.utils.sheet_to_html(workbook.Sheets[firstSheet]) : "";
+    },
+    closeDocument() {
+      this.viewerOpen = false;
+      this.viewerDocument = null;
+      this.viewerError = "";
+      this.viewerHtml = "";
+    },
+    backToSearch() {
+      this.$emit("navigate", "search");
+    },
+    goPage(page) {
+      this.page = Math.min(Math.max(1, Number(page) || 1), this.pageCount);
+      this.loadLibrary();
+    },
+    clampPage() {
+      if (this.page > this.pageCount) {
+        this.page = this.pageCount;
+      }
+      if (this.page < 1) {
+        this.page = 1;
+      }
+    },
+    categoryLabel(name) {
+      if (name === "all") {
+        return "全部资料";
+      }
+      if (name === "uncategorized") {
+        return "未分类";
+      }
+      return name;
+    },
+    inferDocumentType(fileName = "") {
+      const extension = fileName.includes(".") ? fileName.split(".").pop().toLowerCase() : "";
+      if (extension === "pdf") {
+        return "pdf";
+      }
+      if (["doc", "docx"].includes(extension)) {
+        return "word";
+      }
+      if (["xls", "xlsx", "csv"].includes(extension)) {
+        return "excel";
+      }
+      if (extension === "md") {
+        return "markdown";
+      }
+      return "text";
+    },
+    documentTypeLabel(type) {
+      const labels = {
+        pdf: "PDF",
+        word: "Word",
+        excel: "Excel",
+        markdown: "Markdown",
+        text: "Text"
+      };
+      return labels[type] || "Text";
+    }
+  }
+};

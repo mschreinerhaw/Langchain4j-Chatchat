@@ -1,0 +1,484 @@
+<template>
+  <section class="feature-view skill-hub-view agent-workshop-view">
+    <header class="agent-workshop-header">
+      <div>
+        <p>Agent工坊</p>
+        <h1>配置可复用的业务智能体</h1>
+      </div>
+    </header>
+
+    <section class="agent-summary">
+      <article>
+        <span>Agent总数</span>
+        <strong>{{ summary.agentCount || 0 }}</strong>
+      </article>
+      <article>
+        <span>自定义</span>
+        <strong>{{ summary.customCount || 0 }}</strong>
+      </article>
+      <article>
+        <span>已发布</span>
+        <strong>{{ summary.publishedCount || 0 }}</strong>
+      </article>
+      <article>
+        <span>未上架</span>
+        <strong>{{ summary.unpublishedCount || 0 }}</strong>
+      </article>
+      <article>
+        <span>可用工具</span>
+        <strong>{{ summary.availableToolCount || 0 }}</strong>
+      </article>
+      <article>
+        <span>MCP工具</span>
+        <strong>{{ summary.registeredMcpToolCount || 0 }}</strong>
+      </article>
+    </section>
+
+    <section class="agent-list-controls">
+      <header>
+        <div>
+          <strong>Agent列表</strong>
+          <span>{{ agentTotal }} / {{ summary.agentCount || 0 }} 个</span>
+        </div>
+        <div class="agent-light-actions">
+          <button type="button" class="light-button primary-light" @click="openCreateDialog">新增Agent</button>
+          <button type="button" class="light-button" @click="openImportDialog">批量导入</button>
+          <button type="button" class="light-button" :disabled="filteredAgents.length === 0" @click="exportAgentsAsJson">
+            导出JSON
+          </button>
+          <button type="button" class="light-button" :disabled="filteredAgents.length === 0" @click="exportAgentsAsTable">
+            导出表格
+          </button>
+          <button type="button" class="light-button" :disabled="loading" @click="loadWorkshop">
+            {{ loading ? "刷新中" : "刷新" }}
+          </button>
+        </div>
+      </header>
+
+      <div class="agent-list-filters">
+        <label class="agent-search-field">
+          <span>检索Agent</span>
+          <input v-model.trim="searchQuery" type="search" placeholder="名称、场景、标签或工具">
+        </label>
+        <label>
+          <span>分类</span>
+          <select v-model="agentCategoryFilter">
+            <option v-for="option in agentCategoryOptions" :key="option.value" :value="option.value">
+              {{ option.label }}
+            </option>
+          </select>
+        </label>
+        <label>
+          <span>状态</span>
+          <select v-model="agentStatusFilter">
+            <option v-for="option in agentStatusOptions" :key="option.value" :value="option.value">
+              {{ option.label }}
+            </option>
+          </select>
+        </label>
+        <label>
+          <span>模型</span>
+          <select v-model="agentModelFilter">
+            <option v-for="option in agentModelOptions" :key="option.value" :value="option.value">
+              {{ option.label }}
+            </option>
+          </select>
+        </label>
+        <button v-if="hasActiveAgentFilters" type="button" class="light-button" @click="resetAgentFilters">
+          重置筛选
+        </button>
+      </div>
+    </section>
+
+    <p v-if="error" class="agent-error">{{ error }}</p>
+    <p v-else-if="loading && agents.length === 0" class="agent-empty">正在加载后端Agent配置...</p>
+    <p v-else-if="(summary.agentCount || 0) === 0" class="agent-empty">暂无Agent配置，请先新增一个。</p>
+    <p v-else-if="agentTotal === 0" class="agent-empty">没有匹配的Agent，请换一个关键词。</p>
+
+    <div v-else class="feature-grid">
+      <article v-for="agent in paginatedAgents" :key="agent.id" class="feature-card agent-card">
+        <div class="agent-card-head">
+          <span>{{ agent.shortName || agentBadge(agent) }}</span>
+          <div>
+            <h2>{{ agent.name }}</h2>
+            <small>{{ agent.status }}</small>
+          </div>
+          <strong :class="{ off: agent.marketStatus !== 'published' }">{{ agent.marketStatusLabel || "未发布" }}</strong>
+        </div>
+        <p>{{ agent.description || "暂无业务描述。" }}</p>
+
+        <section v-if="previewList(agent.usageScenarios, 3).length" class="agent-block">
+          <strong>业务场景</strong>
+          <ul>
+            <li v-for="scenario in previewList(agent.usageScenarios, 3)" :key="`${agent.id}-${scenario}`">
+              {{ scenario }}
+            </li>
+          </ul>
+        </section>
+
+        <div v-if="agent.skillTags?.length" class="agent-tags">
+          <span v-for="tag in agent.skillTags" :key="`${agent.id}-${tag}`">{{ tag }}</span>
+        </div>
+
+        <dl class="agent-meta">
+          <div>
+            <dt>模式</dt>
+            <dd>{{ agent.defaultMode || "-" }}</dd>
+          </div>
+          <div>
+            <dt>模型</dt>
+            <dd>{{ agent.modelName || defaultModelName() || "默认模型" }}</dd>
+          </div>
+          <div>
+            <dt>工具</dt>
+            <dd>{{ toolCountLabel(agent) }}</dd>
+          </div>
+          <div>
+            <dt>服务</dt>
+            <dd>{{ agent.boundServiceCount || 0 }} 个</dd>
+          </div>
+        </dl>
+
+        <div v-if="previewList(agent.resolvedToolNames, 4).length" class="agent-tool-list">
+          <span v-for="tool in previewList(agent.resolvedToolNames, 4)" :key="`${agent.id}-${tool}`">{{ tool }}</span>
+        </div>
+
+        <div class="agent-card-actions">
+          <button type="button" class="secondary-button" @click="openEditDialog(agent)">设置</button>
+          <button
+            v-if="agent.marketStatus !== 'published'"
+            type="button"
+            class="primary-button"
+            :disabled="saving"
+            @click="publishAgent(agent)"
+          >
+            发布能力
+          </button>
+          <button
+            v-else
+            type="button"
+            class="secondary-button"
+            :disabled="saving"
+            @click="recallAgent(agent)"
+          >
+            回收能力
+          </button>
+          <button
+            v-if="!agent.builtin"
+            type="button"
+            class="danger-button"
+            :disabled="saving"
+            @click="removeAgent(agent)"
+          >
+            删除
+          </button>
+        </div>
+      </article>
+    </div>
+
+    <nav v-if="agentTotal > agentPageSize" class="agent-pagination" aria-label="Agent分页">
+      <span>第 {{ agentPage }} / {{ totalAgentPages }} 页，每页 {{ agentPageSize }} 个</span>
+      <div>
+        <button type="button" class="light-button" :disabled="agentPage <= 1" @click="goAgentPage(agentPage - 1)">
+          上一页
+        </button>
+        <button
+          v-for="page in agentPageButtons"
+          :key="page"
+          type="button"
+          class="light-button"
+          :class="{ active: page === agentPage }"
+          @click="goAgentPage(page)"
+        >
+          {{ page }}
+        </button>
+        <button type="button" class="light-button" :disabled="agentPage >= totalAgentPages" @click="goAgentPage(agentPage + 1)">
+          下一页
+        </button>
+      </div>
+    </nav>
+
+    <div v-if="dialogOpen" class="agent-dialog-backdrop" @click.self="closeDialog">
+      <form class="agent-dialog" @submit.prevent="saveAgent">
+        <header>
+          <div>
+            <p>{{ dialogMode === "create" ? "新增Agent" : "Agent设置" }}</p>
+            <h2>{{ dialogMode === "create" ? "创建业务智能体" : form.name || form.id }}</h2>
+          </div>
+          <button type="button" class="dialog-close" :disabled="saving" @click="closeDialog">×</button>
+        </header>
+
+        <div class="dialog-body">
+          <label>
+            <span>Agent ID</span>
+            <input
+              v-model.trim="form.id"
+              :disabled="dialogMode === 'edit'"
+              pattern="[a-z0-9_-]{2,64}"
+              placeholder="industry_research"
+              required
+            >
+          </label>
+          <label>
+            <span>Agent名称</span>
+            <input v-model.trim="form.name" placeholder="行业研究助手" required>
+          </label>
+          <label>
+            <span>默认模式</span>
+            <select v-model="form.defaultMode">
+              <option value="agent_chat">agent_chat</option>
+              <option value="llm_chat">llm_chat</option>
+              <option value="knowledge_chat">knowledge_chat</option>
+            </select>
+          </label>
+          <label>
+            <span>绑定模型</span>
+            <select v-model="form.modelName">
+              <option v-if="!models.length" value="">默认模型</option>
+              <option v-for="model in models" :key="model.value" :value="model.value">
+                {{ model.label || model.value }}
+              </option>
+            </select>
+          </label>
+          <label>
+            <span>标签</span>
+            <input v-model="form.skillTags" placeholder="投研, 风控, 财报">
+          </label>
+          <label class="wide-field">
+            <span>业务描述</span>
+            <textarea v-model.trim="form.description" rows="2"></textarea>
+          </label>
+          <label class="wide-field">
+            <span>业务场景</span>
+            <textarea v-model="form.usageScenarios" rows="3" placeholder="每行一个场景"></textarea>
+          </label>
+          <label class="wide-field">
+            <span>系统提示词</span>
+            <textarea v-model.trim="form.systemPrompt" rows="5"></textarea>
+          </label>
+          <label class="wide-field">
+            <span>首次问候</span>
+            <textarea v-model.trim="form.firstUseGreeting" rows="2"></textarea>
+          </label>
+          <label class="wide-field">
+            <span>快捷问题</span>
+            <textarea v-model="form.quickQuestions" rows="3" placeholder="每行一个问题"></textarea>
+          </label>
+          <section class="agent-tool-picker wide-field">
+            <div class="agent-tool-picker-head">
+              <div>
+                <strong>已注册MCP工具</strong>
+                <span>{{ mcpToolResultLabel }}</span>
+              </div>
+              <button
+                v-if="registeredMcpTools.length"
+                type="button"
+                class="secondary-button compact-button"
+                @click="clearSelectedTools"
+              >
+                清空
+              </button>
+            </div>
+            <div v-if="registeredMcpTools.length" class="agent-tool-searchbar">
+              <label>
+                <span>检索工具</span>
+                <input
+                  v-model.trim="toolSearchQuery"
+                  type="search"
+                  placeholder="搜索名称、服务、描述、参数、分类或标签"
+                >
+              </label>
+              <label>
+                <span>分组方式</span>
+                <select v-model="toolGroupMode">
+                  <option v-for="option in mcpToolGroupOptions" :key="option.value" :value="option.value">
+                    {{ option.label }}
+                  </option>
+                </select>
+              </label>
+              <strong>{{ mcpToolGroupSummary }}</strong>
+            </div>
+            <div v-if="registeredMcpTools.length && filteredMcpTools.length" class="agent-tool-group-list">
+              <section v-for="group in mcpToolGroups" :key="group.key" class="agent-tool-group">
+                <header>
+                  <div>
+                    <strong>{{ group.label }}</strong>
+                    <span>{{ group.selectedCount }} / {{ group.tools.length }} 已选 · {{ group.subtitle }}</span>
+                  </div>
+                  <button type="button" class="secondary-button compact-button" @click="toggleToolGroup(group)">
+                    {{ isToolGroupFullySelected(group) ? "取消本组" : "选择本组" }}
+                  </button>
+                </header>
+                <div class="agent-tool-checklist">
+                  <label
+                    v-for="tool in group.tools"
+                    :key="tool.localToolName"
+                    class="agent-tool-check"
+                    :class="{ active: selectedToolNames.includes(tool.localToolName) }"
+                    :title="tool.localToolName"
+                  >
+                    <input
+                      type="checkbox"
+                      :checked="selectedToolNames.includes(tool.localToolName)"
+                      @change="toggleTool(tool.localToolName)"
+                    >
+                    <span>
+                      <strong>{{ tool.displayName || tool.remoteToolName || tool.localToolName }}</strong>
+                      <small>{{ tool.serviceName || tool.serviceId || "未归属服务" }}</small>
+                      <em>{{ tool.localToolName }}</em>
+                    </span>
+                  </label>
+                </div>
+              </section>
+            </div>
+            <p v-else-if="registeredMcpTools.length" class="agent-tool-empty">没有匹配的MCP工具，请换一个关键词或分组方式。</p>
+            <p v-else class="agent-tool-empty">请先在 MCP 中心完成服务接入和工具注册。</p>
+          </section>
+
+          <section class="agent-document-picker wide-field">
+            <div class="agent-tool-picker-head">
+              <div>
+                <strong>知识库文档</strong>
+                <span>{{ documents.length ? `已勾选 ${selectedDocumentIds.length} / ${documents.length}` : "暂无可绑定文档" }}</span>
+              </div>
+              <button
+                v-if="documents.length"
+                type="button"
+                class="secondary-button compact-button"
+                @click="clearSelectedDocuments"
+              >
+                清空
+              </button>
+            </div>
+            <div v-if="documents.length" class="agent-document-checklist">
+              <label
+                v-for="document in visibleDocuments"
+                :key="document.docId"
+                class="agent-document-check"
+                :class="{ active: selectedDocumentIds.includes(document.docId) }"
+                :title="document.title"
+              >
+                <input
+                  type="checkbox"
+                  :checked="selectedDocumentIds.includes(document.docId)"
+                  @change="toggleDocument(document.docId)"
+                >
+                <span>
+                  <strong>{{ document.title }}</strong>
+                  <small>{{ document.source }} {{ document.date }}</small>
+                  <em>{{ document.docId }}</em>
+                </span>
+              </label>
+            </div>
+            <p v-else class="agent-tool-empty">请先在知识库上传或创建可检索文档。</p>
+          </section>
+
+          <label class="wide-field">
+            <span>文档标签范围</span>
+            <input v-model="form.boundDocumentTags" placeholder="可选，多个标签用逗号或换行分隔">
+          </label>
+
+          <section class="routing-settings wide-field">
+            <label class="checkbox-row">
+              <input v-model="form.routingSettings.smartSelectionEnabled" type="checkbox">
+              <span>启用智能工具选择</span>
+            </label>
+            <label class="checkbox-row">
+              <input v-model="form.routingSettings.limitParallelCalls" type="checkbox">
+              <span>限制并行调用</span>
+            </label>
+            <label>
+              <span>最大并行数</span>
+              <input v-model.number="form.routingSettings.maxParallelCalls" type="number" min="1" max="10">
+            </label>
+          </section>
+        </div>
+
+        <p v-if="dialogError" class="agent-error">{{ dialogError }}</p>
+
+        <footer>
+          <button type="button" class="secondary-button" :disabled="saving" @click="closeDialog">取消</button>
+          <button type="submit" class="primary-button" :disabled="saving">
+            {{ saving ? "保存中" : "保存" }}
+          </button>
+        </footer>
+      </form>
+    </div>
+
+    <div v-if="importDialogOpen" class="agent-dialog-backdrop" @click.self="closeImportDialog">
+      <form class="agent-dialog agent-import-dialog" @submit.prevent="importAgents">
+        <header>
+          <div>
+            <p>批量导入</p>
+            <h2>导入 Agent 配置</h2>
+          </div>
+          <button type="button" class="dialog-close" :disabled="importing" @click="closeImportDialog">×</button>
+        </header>
+
+        <div class="dialog-body agent-import-body">
+          <section class="wide-field agent-import-tools">
+            <label class="agent-file-button">
+              <input type="file" accept=".json,.csv,.tsv,.xlsx,.xls" @change="handleImportFile">
+              <span>{{ importFileName || "选择 JSON / 表格文件" }}</span>
+            </label>
+            <button type="button" class="secondary-button" :disabled="!importText.trim()" @click="refreshImportPreview">
+              解析预览
+            </button>
+            <label class="checkbox-row">
+              <input v-model="importOverwriteExisting" type="checkbox">
+              <span>覆盖已有自定义 Agent</span>
+            </label>
+          </section>
+
+          <label class="wide-field">
+            <span>粘贴 JSON、CSV 或 TSV 内容</span>
+            <textarea
+              v-model="importText"
+              rows="9"
+              placeholder="支持 agentId/id、agentName/name、model/modelName、tags、businessScenarios、quickQuestions 等字段别名"
+              @blur="importText.trim() && refreshImportPreview()"
+            ></textarea>
+          </label>
+
+          <section class="wide-field agent-import-preview">
+            <div class="agent-tool-picker-head">
+              <div>
+                <strong>导入预览</strong>
+                <span>{{ importPreviewLabel }}</span>
+              </div>
+              <strong v-if="importItems.length">{{ importItems.length }} 个</strong>
+            </div>
+            <div v-if="importItems.length" class="agent-import-list">
+              <article v-for="agent in previewList(importItems, 8)" :key="agent.id">
+                <strong>{{ agent.name }}</strong>
+                <span>{{ agent.id }}</span>
+                <em>{{ agent.skillTags.join(" / ") || "未设置标签" }}</em>
+              </article>
+            </div>
+            <p v-if="importItems.length > 8" class="agent-tool-empty">仅展示前 8 个，确认导入时会处理全部 Agent。</p>
+          </section>
+
+          <section v-if="importResults.length" class="wide-field agent-import-results">
+            <strong>导入结果</strong>
+            <div>
+              <span v-for="result in importResults" :key="`${result.id}-${result.status}`">
+                {{ result.name || result.id }}：{{ result.status }}
+              </span>
+            </div>
+          </section>
+        </div>
+
+        <p v-if="importError" class="agent-error">{{ importError }}</p>
+
+        <footer>
+          <button type="button" class="secondary-button" :disabled="importing" @click="closeImportDialog">关闭</button>
+          <button type="submit" class="primary-button" :disabled="importing || importItems.length === 0">
+            {{ importing ? "导入中" : "确认导入" }}
+          </button>
+        </footer>
+      </form>
+    </div>
+  </section>
+</template>
+
+<script src="../js/views/AgentWorkshopView.js"></script>

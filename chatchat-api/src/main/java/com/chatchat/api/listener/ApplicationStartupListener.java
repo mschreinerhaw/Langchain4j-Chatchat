@@ -1,6 +1,6 @@
 package com.chatchat.api.listener;
 
-import com.chatchat.api.mcp.service.McpToolRegistryBridge;
+import com.chatchat.integration.mcp.service.McpToolRegistryBridge;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.event.ApplicationReadyEvent;

@@ -23,19 +23,23 @@
         </dependency>
         <dependency>
             <groupId>com.chatchat</groupId>
-            <artifactId>chatchat-models</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.chatchat</groupId>
-            <artifactId>chatchat-embeddings</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.chatchat</groupId>
             <artifactId>chatchat-agents</artifactId>
         </dependency>
         <dependency>
             <groupId>com.chatchat</groupId>
             <artifactId>chatchat-knowledge-base</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.chatchat</groupId>
+            <artifactId>chatchat-integration</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.chatchat</groupId>
+            <artifactId>chatchat-enterprise</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>com.chatchat</groupId>
+            <artifactId>chatchat-chat</artifactId>
         </dependency>
 
         <!-- Spring Boot Web -->
@@ -63,26 +67,6 @@
         <dependency>
             <groupId>org.hibernate.orm</groupId>
             <artifactId>hibernate-community-dialects</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.rocksdb</groupId>
-            <artifactId>rocksdbjni</artifactId>
-            <version>${rocksdb.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.pdfbox</groupId>
-            <artifactId>pdfbox</artifactId>
-            <version>3.0.1</version>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.poi</groupId>
-            <artifactId>poi-ooxml</artifactId>
-            <version>5.0.0</version>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.poi</groupId>
-            <artifactId>poi-scratchpad</artifactId>
-            <version>5.0.0</version>
         </dependency>
         <dependency>
             <groupId>org.postgresql</groupId>
@@ -120,13 +104,12 @@
             <version>2.19.2</version>
         </dependency>
         <dependency>
-            <groupId>io.modelcontextprotocol.sdk</groupId>
-            <artifactId>mcp</artifactId>
-            <version>1.1.1</version>
+            <groupId>dev.langchain4j</groupId>
+            <artifactId>langchain4j-http-client-jdk</artifactId>
         </dependency>
         <dependency>
             <groupId>dev.langchain4j</groupId>
-            <artifactId>langchain4j-http-client-jdk</artifactId>
+            <artifactId>langchain4j-open-ai</artifactId>
         </dependency>
 
         <!-- UUID generation -->

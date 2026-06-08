@@ -1,6 +1,6 @@
 package com.chatchat.api.controller;
 
-import com.chatchat.api.conversation.ConversationService;
+import com.chatchat.chat.conversation.ConversationService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;

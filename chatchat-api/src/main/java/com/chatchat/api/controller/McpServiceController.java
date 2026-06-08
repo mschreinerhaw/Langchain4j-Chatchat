@@ -1,13 +1,13 @@
 package com.chatchat.api.controller;
 
 import com.chatchat.agents.tool.ToolRegistry;
-import com.chatchat.api.mcp.entity.McpServiceConfig;
-import com.chatchat.api.mcp.model.McpToolDefinition;
-import com.chatchat.api.mcp.model.McpToolInvokeResult;
-import com.chatchat.api.mcp.service.McpCenterSyncService;
-import com.chatchat.api.mcp.service.McpServiceConfigService;
-import com.chatchat.api.mcp.service.McpStdioProxyService;
-import com.chatchat.api.mcp.service.McpToolRegistryBridge;
+import com.chatchat.integration.mcp.entity.McpServiceConfig;
+import com.chatchat.integration.mcp.model.McpToolDefinition;
+import com.chatchat.integration.mcp.model.McpToolInvokeResult;
+import com.chatchat.integration.mcp.service.McpCenterSyncService;
+import com.chatchat.integration.mcp.service.McpServiceConfigService;
+import com.chatchat.integration.mcp.service.McpStdioProxyService;
+import com.chatchat.integration.mcp.service.McpToolRegistryBridge;
 import com.chatchat.common.constants.AppConstants;
 import com.chatchat.common.response.ApiResponse;
 import com.chatchat.common.tool.ToolMetadata;

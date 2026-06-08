@@ -1,0 +1,21 @@
+<section id="auditLogsView" class="panel d-none">
+    <div class="panel-head">
+        <h2>最近调用日志</h2>
+        <button id="reloadAuditBtn" class="btn btn-sm btn-outline-secondary" type="button">重新加载</button>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-sm align-middle">
+            <thead>
+            <tr>
+                <th>时间</th>
+                <th>目标</th>
+                <th>状态</th>
+                <th>HTTP</th>
+                <th>耗时</th>
+                <th>错误</th>
+            </tr>
+            </thead>
+            <tbody id="auditLogBody"></tbody>
+        </table>
+    </div>
+</section>

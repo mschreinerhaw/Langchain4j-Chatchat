@@ -1,6 +1,6 @@
 package com.chatchat.api.controller;
 
-import com.chatchat.api.rag.RAGService;
+import com.chatchat.knowledgebase.rag.RAGService;
 import com.chatchat.common.response.ApiResponse;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.langchain4j.data.document.Document;

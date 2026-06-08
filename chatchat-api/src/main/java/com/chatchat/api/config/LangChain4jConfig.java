@@ -1,6 +1,6 @@
 package com.chatchat.api.config;
 
-import com.chatchat.models.config.ModelsConfig;
+import com.chatchat.common.config.ModelsConfig;
 import dev.langchain4j.http.client.HttpClientBuilder;
 import dev.langchain4j.http.client.jdk.JdkHttpClientBuilder;
 import dev.langchain4j.model.chat.ChatModel;

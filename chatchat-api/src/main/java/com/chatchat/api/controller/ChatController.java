@@ -1,6 +1,6 @@
 package com.chatchat.api.controller;
 
-import com.chatchat.api.rag.RAGService;
+import com.chatchat.knowledgebase.rag.RAGService;
 import com.chatchat.common.constants.AppConstants;
 import com.chatchat.common.response.ApiResponse;
 import com.chatchat.knowledgebase.service.KnowledgeBaseService;

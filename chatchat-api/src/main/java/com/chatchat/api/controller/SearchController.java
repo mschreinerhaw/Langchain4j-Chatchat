@@ -1,12 +1,12 @@
 package com.chatchat.api.controller;
 
-import com.chatchat.api.search.SearchDocument;
-import com.chatchat.api.search.DocumentFileResource;
-import com.chatchat.api.search.LibraryCategory;
-import com.chatchat.api.search.LibraryPage;
-import com.chatchat.api.search.SearchPage;
-import com.chatchat.api.search.SearchService;
-import com.chatchat.api.search.TitleExistsResult;
+import com.chatchat.knowledgebase.search.SearchDocument;
+import com.chatchat.knowledgebase.search.DocumentFileResource;
+import com.chatchat.knowledgebase.search.LibraryCategory;
+import com.chatchat.knowledgebase.search.LibraryPage;
+import com.chatchat.knowledgebase.search.SearchPage;
+import com.chatchat.knowledgebase.search.SearchService;
+import com.chatchat.knowledgebase.search.TitleExistsResult;
 import com.chatchat.common.constants.AppConstants;
 import com.chatchat.common.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;

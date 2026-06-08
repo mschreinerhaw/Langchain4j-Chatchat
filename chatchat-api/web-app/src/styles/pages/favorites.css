@@ -1,0 +1,21 @@
+.favorites-view .library-list {
+  display: grid;
+  gap: 12px;
+}
+
+.favorites-view .library-list article {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 16px 18px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 10px 28px rgba(30, 58, 112, 0.06);
+}
+
+.favorites-view .library-list span {
+  color: var(--muted);
+  font-size: 13px;
+}

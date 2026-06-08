@@ -21,15 +21,19 @@
             <groupId>com.chatchat</groupId>
             <artifactId>chatchat-common</artifactId>
         </dependency>
-        <dependency>
-            <groupId>com.chatchat</groupId>
-            <artifactId>chatchat-models</artifactId>
-        </dependency>
 
         <!-- LangChain4j core and agents -->
         <dependency>
             <groupId>dev.langchain4j</groupId>
             <artifactId>langchain4j-core</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>dev.langchain4j</groupId>
+            <artifactId>langchain4j-open-ai</artifactId>
+        </dependency>
+        <dependency>
+            <groupId>dev.langchain4j</groupId>
+            <artifactId>langchain4j-http-client-jdk</artifactId>
         </dependency>
 
         <!-- Spring Boot -->

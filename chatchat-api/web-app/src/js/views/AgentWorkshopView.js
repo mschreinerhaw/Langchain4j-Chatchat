@@ -1,0 +1,967 @@
+import {
+  createWorkshopAgent,
+  deleteWorkshopAgent,
+  fetchAgentWorkshop,
+  publishWorkshopAgent,
+  recallWorkshopAgent,
+  updateWorkshopAgent
+} from "../../services/api.js";
+import * as XLSX from "xlsx";
+import "../../styles/pages/skill-hub.css";
+
+function uniqueList(values) {
+  return [...new Set(values.map((value) => String(value || "").trim()).filter(Boolean))];
+}
+
+function parseList(value) {
+  if (Array.isArray(value)) {
+    return uniqueList(value);
+  }
+  return uniqueList(String(value || "").split(/[\n,，]/));
+}
+
+function joinList(values) {
+  return Array.isArray(values) ? values.join("\n") : "";
+}
+
+function normalizeFieldKey(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_\-:/\\（）()【】[\].]/g, "");
+}
+
+function fieldValue(row, aliases) {
+  if (!row || typeof row !== "object") {
+    return "";
+  }
+  for (const alias of aliases) {
+    if (Object.prototype.hasOwnProperty.call(row, alias)) {
+      return row[alias];
+    }
+  }
+  const normalized = new Map(
+    Object.entries(row).map(([key, value]) => [normalizeFieldKey(key), value])
+  );
+  for (const alias of aliases) {
+    const value = normalized.get(normalizeFieldKey(alias));
+    if (value !== undefined) {
+      return value;
+    }
+  }
+  return "";
+}
+
+function textValue(value) {
+  if (value === null || value === undefined) {
+    return "";
+  }
+  if (typeof value === "object") {
+    return JSON.stringify(value);
+  }
+  return String(value).trim();
+}
+
+function listValue(value) {
+  if (Array.isArray(value)) {
+    return uniqueList(value);
+  }
+  const raw = textValue(value);
+  if (!raw) {
+    return [];
+  }
+  if ((raw.startsWith("[") && raw.endsWith("]")) || (raw.startsWith("{") && raw.endsWith("}"))) {
+    try {
+      const parsed = JSON.parse(raw);
+      return Array.isArray(parsed) ? uniqueList(parsed) : uniqueList(Object.values(parsed));
+    } catch (error) {
+      // Fall through to delimiter parsing.
+    }
+  }
+  return uniqueList(raw.split(/[\n,，;；、|]/));
+}
+
+function normalizeAgentId(value) {
+  return textValue(value)
+    .toLowerCase()
+    .replace(/\s+/g, "_")
+    .replace(/[^a-z0-9_-]/g, "");
+}
+
+function defaultRoutingSettings() {
+  return {
+    smartSelectionEnabled: true,
+    limitParallelCalls: true,
+    maxParallelCalls: 3
+  };
+}
+
+function emptyForm() {
+  return {
+    id: "",
+    name: "",
+    description: "",
+    usageScenarios: "",
+    skillTags: "",
+    defaultMode: "",
+    modelName: "",
+    systemPrompt: "",
+    firstUseGreeting: "",
+    preferredToolPrefixes: "",
+    boundMcpServiceIds: "",
+    boundMcpToolNames: "",
+    boundDocumentIds: "",
+    boundDocumentTags: "",
+    toolConfigs: [],
+    routingSettings: defaultRoutingSettings(),
+    quickQuestions: "",
+    marketStatus: "draft"
+  };
+}
+
+export default {
+  name: "AgentWorkshopView",
+  data() {
+    return {
+      summary: {},
+      agents: [],
+      agentCategories: [],
+      agentTotal: 0,
+      agentPageCount: 1,
+      availableTools: [],
+      registeredMcpTools: [],
+      models: [],
+      documents: [],
+      loading: false,
+      saving: false,
+      dialogOpen: false,
+      dialogMode: "create",
+      activeAgent: null,
+      form: emptyForm(),
+      importDialogOpen: false,
+      importText: "",
+      importFileName: "",
+      importItems: [],
+      importResults: [],
+      importing: false,
+      importOverwriteExisting: true,
+      searchQuery: "",
+      agentCategoryFilter: "all",
+      agentStatusFilter: "all",
+      agentModelFilter: "all",
+      agentPage: 1,
+      agentPageSize: 5,
+      toolSearchQuery: "",
+      toolGroupMode: "service",
+      error: "",
+      dialogError: "",
+      importError: ""
+    };
+  },
+  computed: {
+    filteredAgents() {
+      return this.agents;
+    },
+    agentCategoryOptions() {
+      const tags = uniqueList(this.agentCategories)
+        .sort((left, right) => left.localeCompare(right, "zh-CN"));
+      return [
+        { value: "all", label: "全部分类" },
+        ...tags.map((tag) => ({ value: tag, label: tag }))
+      ];
+    },
+    agentStatusOptions() {
+      return [
+        { value: "all", label: "全部状态" },
+        { value: "published", label: "已发布" },
+        { value: "unpublished", label: "未发布" },
+        { value: "custom", label: "自定义" },
+        { value: "builtin", label: "内置" }
+      ];
+    },
+    agentModelOptions() {
+      const models = uniqueList([
+        ...this.models.map((model) => model?.value),
+        ...this.agents.map((agent) => agent?.modelName || this.defaultModelName())
+      ]).sort((left, right) => left.localeCompare(right));
+      return [
+        { value: "all", label: "全部模型" },
+        ...models.map((model) => ({ value: model, label: model }))
+      ];
+    },
+    hasActiveAgentFilters() {
+      return this.agentCategoryFilter !== "all"
+        || this.agentStatusFilter !== "all"
+        || this.agentModelFilter !== "all";
+    },
+    totalAgentPages() {
+      return this.agentPageCount;
+    },
+    paginatedAgents() {
+      return this.agents;
+    },
+    agentPageButtons() {
+      const total = this.totalAgentPages;
+      const current = Math.min(Math.max(1, this.agentPage), total);
+      const start = Math.max(1, Math.min(current - 2, total - 4));
+      const end = Math.min(total, start + 4);
+      return Array.from({ length: end - start + 1 }, (_, index) => start + index);
+    },
+    selectedToolNames() {
+      return parseList(this.form.boundMcpToolNames);
+    },
+    selectedDocumentIds() {
+      return parseList(this.form.boundDocumentIds);
+    },
+    normalizedMcpTools() {
+      return this.registeredMcpTools
+        .filter((tool) => tool?.localToolName)
+        .map((tool) => ({
+          ...tool,
+          localToolName: String(tool.localToolName),
+          serviceName: tool.serviceName || "",
+          serviceId: tool.serviceId || "",
+          displayName: tool.displayName || "",
+          remoteToolName: tool.remoteToolName || "",
+          description: tool.description || "",
+          outputType: tool.outputType || "",
+          categories: Array.isArray(tool.categories) ? tool.categories.filter(Boolean) : [],
+          tags: Array.isArray(tool.tags) ? tool.tags.filter(Boolean) : [],
+          parameters: Array.isArray(tool.parameters) ? tool.parameters : []
+        }));
+    },
+    filteredMcpTools() {
+      const keyword = this.toolSearchQuery.trim().toLowerCase();
+      if (!keyword) {
+        return this.normalizedMcpTools;
+      }
+      return this.normalizedMcpTools.filter((tool) => this.toolSearchText(tool).includes(keyword));
+    },
+    mcpToolGroups() {
+      const selected = new Set(this.selectedToolNames);
+      const groups = new Map();
+      this.filteredMcpTools.forEach((tool) => {
+        const group = this.resolveToolGroup(tool);
+        if (!groups.has(group.key)) {
+          groups.set(group.key, {
+            ...group,
+            tools: []
+          });
+        }
+        groups.get(group.key).tools.push(tool);
+      });
+      return [...groups.values()]
+        .map((group) => ({
+          ...group,
+          selectedCount: group.tools.filter((tool) => selected.has(tool.localToolName)).length,
+          tools: this.sortMcpTools(group.tools, selected)
+        }))
+        .sort((left, right) => {
+          const leftSelected = left.selectedCount > 0 ? 0 : 1;
+          const rightSelected = right.selectedCount > 0 ? 0 : 1;
+          if (leftSelected !== rightSelected) {
+            return leftSelected - rightSelected;
+          }
+          return left.label.localeCompare(right.label);
+        });
+    },
+    visibleMcpTools() {
+      return this.mcpToolGroups.flatMap((group) => group.tools);
+    },
+    toolGroupModeLabel() {
+      if (this.toolGroupMode === "category") {
+        return "分类";
+      }
+      if (this.toolGroupMode === "tag") {
+        return "标签";
+      }
+      return "服务";
+    },
+    mcpToolResultLabel() {
+      if (!this.registeredMcpTools.length) {
+        return "后端暂无已注册工具";
+      }
+      const filteredCount = this.filteredMcpTools.length;
+      const totalCount = this.normalizedMcpTools.length;
+      return `已勾选 ${this.selectedToolNames.length} / ${totalCount}，当前 ${filteredCount} 个`;
+    },
+    mcpToolGroupSummary() {
+      if (!this.filteredMcpTools.length) {
+        return this.toolSearchQuery ? "没有匹配工具" : "暂无工具";
+      }
+      return `${this.mcpToolGroups.length} 个${this.toolGroupModeLabel}分组`;
+    },
+    mcpToolGroupOptions() {
+      return [
+        { value: "service", label: "按服务" },
+        { value: "category", label: "按分类" },
+        { value: "tag", label: "按标签" }
+      ];
+    },
+    visibleDocuments() {
+      const selected = new Set(this.selectedDocumentIds);
+      return this.documents
+        .filter((document) => document?.docId)
+        .map((document) => ({
+          ...document,
+          docId: String(document.docId),
+          title: document.title || document.docId,
+          source: document.source || "knowledge",
+          category: document.category || "",
+          date: document.date || "",
+          tags: Array.isArray(document.tags) ? document.tags : []
+        }))
+        .sort((left, right) => {
+          const leftSelected = selected.has(left.docId) ? 0 : 1;
+          const rightSelected = selected.has(right.docId) ? 0 : 1;
+          if (leftSelected !== rightSelected) {
+            return leftSelected - rightSelected;
+          }
+          return left.title.localeCompare(right.title);
+        });
+    },
+    importPreviewLabel() {
+      if (this.importItems.length) {
+        return `已解析 ${this.importItems.length} 个 Agent`;
+      }
+      return "支持 JSON、CSV、TSV、XLSX，字段名可使用中英文或业务别名";
+    }
+  },
+  watch: {
+    searchQuery() {
+      this.agentPage = 1;
+      this.loadWorkshop();
+    },
+    agentCategoryFilter() {
+      this.agentPage = 1;
+      this.loadWorkshop();
+    },
+    agentStatusFilter() {
+      this.agentPage = 1;
+      this.loadWorkshop();
+    },
+    agentModelFilter() {
+      this.agentPage = 1;
+      this.loadWorkshop();
+    }
+  },
+  mounted() {
+    this.loadWorkshop();
+  },
+  methods: {
+    async loadWorkshop() {
+      this.loading = true;
+      this.error = "";
+      try {
+        const payload = await fetchAgentWorkshop({
+          keyword: this.searchQuery.trim(),
+          category: this.agentCategoryFilter,
+          status: this.agentStatusFilter,
+          model: this.agentModelFilter,
+          page: this.agentPage,
+          pageSize: this.agentPageSize
+        });
+        this.summary = payload?.summary || {};
+        this.agents = Array.isArray(payload?.agents) ? payload.agents : [];
+        this.agentCategories = Array.isArray(payload?.agentCategories) ? payload.agentCategories : [];
+        this.agentTotal = payload?.page?.total ?? this.agents.length;
+        this.agentPage = payload?.page?.page || this.agentPage;
+        this.agentPageSize = payload?.page?.pageSize || this.agentPageSize;
+        this.agentPageCount = payload?.page?.totalPages || 1;
+        this.availableTools = Array.isArray(payload?.availableTools) ? payload.availableTools : [];
+        this.registeredMcpTools = Array.isArray(payload?.registeredMcpTools) ? payload.registeredMcpTools : [];
+        this.models = Array.isArray(payload?.models) ? payload.models : [];
+        this.documents = Array.isArray(payload?.documents) ? payload.documents : [];
+        this.normalizeAgentFilters();
+      } catch (error) {
+        this.error = error.message || "Agent工坊加载失败";
+      } finally {
+        this.loading = false;
+      }
+    },
+    sortMcpTools(tools, selected) {
+      return tools.sort((left, right) => {
+        const leftSelected = selected.has(left.localToolName) ? 0 : 1;
+        const rightSelected = selected.has(right.localToolName) ? 0 : 1;
+        if (leftSelected !== rightSelected) {
+          return leftSelected - rightSelected;
+        }
+        return left.localToolName.localeCompare(right.localToolName);
+      });
+    },
+    resolveToolGroup(tool) {
+      if (this.toolGroupMode === "category") {
+        const category = tool.categories[0] || "未分类";
+        return {
+          key: `category:${category}`,
+          label: category,
+          subtitle: "分类"
+        };
+      }
+      if (this.toolGroupMode === "tag") {
+        const tag = tool.tags[0] || "未打标签";
+        return {
+          key: `tag:${tag}`,
+          label: tag,
+          subtitle: "标签"
+        };
+      }
+      const serviceName = tool.serviceName || tool.serviceId || "未归属服务";
+      return {
+        key: `service:${tool.serviceId || serviceName}`,
+        label: serviceName,
+        subtitle: tool.serviceId && tool.serviceName ? tool.serviceId : "服务"
+      };
+    },
+    toolSearchText(tool) {
+      const fields = [
+        tool?.localToolName,
+        tool?.displayName,
+        tool?.remoteToolName,
+        tool?.description,
+        tool?.serviceId,
+        tool?.serviceName,
+        tool?.outputType,
+        ...(tool?.categories || []),
+        ...(tool?.tags || []),
+        ...(tool?.parameters || []).flatMap((parameter) => [
+          parameter?.name,
+          parameter?.type,
+          parameter?.description
+        ])
+      ];
+      return fields.map((field) => String(field || "").toLowerCase()).join(" ");
+    },
+    agentBadge(agent) {
+      return String(agent?.name || agent?.id || "A").slice(0, 1).toUpperCase();
+    },
+    previewList(values, limit) {
+      return Array.isArray(values) ? values.slice(0, limit) : [];
+    },
+    toolCountLabel(agent) {
+      if (!agent?.resolvedToolCount) {
+        return "0 个";
+      }
+      return `${agent.resolvedToolCount} 个`;
+    },
+    agentSearchText(agent) {
+      const fields = [
+        agent?.id,
+        agent?.name,
+        agent?.description,
+        agent?.status,
+        agent?.marketStatus,
+        agent?.marketStatusLabel,
+        agent?.defaultMode,
+        agent?.modelName,
+        ...(agent?.usageScenarios || []),
+        ...(agent?.skillTags || []),
+        ...(agent?.quickQuestions || []),
+        ...(agent?.preferredToolPrefixes || []),
+        ...(agent?.boundMcpServiceIds || []),
+        ...(agent?.boundMcpToolNames || []),
+        ...(agent?.boundDocumentIds || []),
+        ...(agent?.boundDocumentTags || []),
+        ...(agent?.resolvedToolNames || [])
+      ];
+      return fields.map((field) => String(field || "").toLowerCase()).join(" ");
+    },
+    openCreateDialog() {
+      this.dialogMode = "create";
+      this.activeAgent = null;
+      this.form = {
+        ...emptyForm(),
+        modelName: this.defaultModelName()
+      };
+      this.dialogError = "";
+      this.dialogOpen = true;
+    },
+    resetAgentFilters() {
+      this.agentCategoryFilter = "all";
+      this.agentStatusFilter = "all";
+      this.agentModelFilter = "all";
+      this.agentPage = 1;
+    },
+    normalizeAgentFilters() {
+      if (!this.agentCategoryOptions.some((option) => option.value === this.agentCategoryFilter)) {
+        this.agentCategoryFilter = "all";
+      }
+      if (!this.agentModelOptions.some((option) => option.value === this.agentModelFilter)) {
+        this.agentModelFilter = "all";
+      }
+      this.clampAgentPage();
+    },
+    clampAgentPage() {
+      if (this.agentPage > this.totalAgentPages) {
+        this.agentPage = this.totalAgentPages;
+      }
+      if (this.agentPage < 1) {
+        this.agentPage = 1;
+      }
+    },
+    goAgentPage(page) {
+      this.agentPage = Math.min(Math.max(1, Number(page) || 1), this.totalAgentPages);
+      this.loadWorkshop();
+    },
+    openImportDialog() {
+      this.importDialogOpen = true;
+      this.importText = "";
+      this.importFileName = "";
+      this.importItems = [];
+      this.importResults = [];
+      this.importError = "";
+      this.importOverwriteExisting = true;
+    },
+    closeImportDialog() {
+      if (this.importing) {
+        return;
+      }
+      this.importDialogOpen = false;
+      this.importText = "";
+      this.importFileName = "";
+      this.importItems = [];
+      this.importResults = [];
+      this.importError = "";
+    },
+    openEditDialog(agent) {
+      this.dialogMode = "edit";
+      this.activeAgent = agent;
+      this.form = this.agentToForm(agent);
+      this.dialogError = "";
+      this.dialogOpen = true;
+    },
+    closeDialog() {
+      if (this.saving) {
+        return;
+      }
+      this.dialogOpen = false;
+      this.dialogError = "";
+      this.activeAgent = null;
+      this.form = emptyForm();
+    },
+    agentToForm(agent) {
+      return {
+        id: agent?.id || "",
+        name: agent?.name || "",
+        description: agent?.description || "",
+        usageScenarios: joinList(agent?.usageScenarios),
+        skillTags: joinList(agent?.skillTags),
+        defaultMode: agent?.defaultMode || "",
+        modelName: agent?.modelName || this.defaultModelName(),
+        systemPrompt: agent?.systemPrompt || "",
+        firstUseGreeting: agent?.firstUseGreeting || "",
+        preferredToolPrefixes: joinList(agent?.preferredToolPrefixes),
+        boundMcpServiceIds: joinList(agent?.boundMcpServiceIds),
+        boundMcpToolNames: joinList(agent?.boundMcpToolNames),
+        boundDocumentIds: joinList(agent?.boundDocumentIds),
+        boundDocumentTags: joinList(agent?.boundDocumentTags),
+        toolConfigs: Array.isArray(agent?.toolConfigs) ? agent.toolConfigs : [],
+        routingSettings: {
+          ...defaultRoutingSettings(),
+          ...(agent?.routingSettings || {})
+        },
+        quickQuestions: joinList(agent?.quickQuestions),
+        marketStatus: agent?.marketStatus || "draft"
+      };
+    },
+    formToPayload() {
+      const registeredToolNames = new Set(this.registeredMcpTools.map((tool) => tool?.localToolName).filter(Boolean));
+      const selectedToolNames = parseList(this.form.boundMcpToolNames)
+        .filter((toolName) => registeredToolNames.has(toolName));
+      const availableDocumentIds = new Set(this.documents.map((document) => document?.docId).filter(Boolean));
+      const selectedDocumentIds = parseList(this.form.boundDocumentIds)
+        .filter((docId) => availableDocumentIds.has(docId));
+      const maxParallelCalls = Number(this.form.routingSettings.maxParallelCalls) || 3;
+      return {
+        id: this.form.id,
+        name: this.form.name,
+        description: this.form.description,
+        usageScenarios: parseList(this.form.usageScenarios),
+        skillTags: parseList(this.form.skillTags),
+        defaultMode: this.form.defaultMode,
+        modelName: this.form.modelName || this.defaultModelName(),
+        systemPrompt: this.form.systemPrompt,
+        firstUseGreeting: this.form.firstUseGreeting,
+        preferredToolPrefixes: [],
+        boundMcpServiceIds: [],
+        boundMcpToolNames: selectedToolNames,
+        boundDocumentIds: selectedDocumentIds,
+        boundDocumentTags: parseList(this.form.boundDocumentTags),
+        toolConfigs: this.buildToolConfigs(selectedToolNames),
+        routingSettings: {
+          smartSelectionEnabled: !!this.form.routingSettings.smartSelectionEnabled,
+          limitParallelCalls: !!this.form.routingSettings.limitParallelCalls,
+          maxParallelCalls: Math.max(1, Math.min(10, maxParallelCalls))
+        },
+        quickQuestions: parseList(this.form.quickQuestions),
+        marketStatus: this.form.marketStatus || "draft"
+      };
+    },
+    normalizeImportedAgent(row, index) {
+      const id = normalizeAgentId(fieldValue(row, [
+        "id", "agentId", "agent_id", "Agent ID", "AgentID", "智能体ID", "Agent编号", "编号"
+      ]));
+      const name = textValue(fieldValue(row, [
+        "name", "agentName", "agent_name", "label", "Agent名称", "名称", "智能体名称"
+      ]));
+      const defaultMode = textValue(fieldValue(row, [
+        "defaultMode", "mode", "默认模式", "模式"
+      ]));
+      const modelName = textValue(fieldValue(row, [
+        "modelName", "model", "模型", "使用模型", "绑定模型"
+      ]));
+      const payload = {
+        id,
+        name,
+        description: textValue(fieldValue(row, [
+          "description", "businessDescription", "desc", "业务描述", "描述"
+        ])),
+        usageScenarios: listValue(fieldValue(row, [
+          "usageScenarios", "businessScenarios", "scenarios", "业务场景", "使用场景", "场景"
+        ])),
+        skillTags: listValue(fieldValue(row, [
+          "skillTags", "tags", "tag", "标签", "分类标签"
+        ])),
+        defaultMode: defaultMode && defaultMode !== "default" ? defaultMode : "agent_chat",
+        modelName: modelName && modelName !== "default" ? modelName : this.defaultModelName(),
+        systemPrompt: textValue(fieldValue(row, [
+          "systemPrompt", "prompt", "system", "系统提示词", "提示词"
+        ])),
+        firstUseGreeting: textValue(fieldValue(row, [
+          "firstUseGreeting", "welcomeMessage", "welcome", "greeting", "首次问候", "欢迎语"
+        ])),
+        preferredToolPrefixes: listValue(fieldValue(row, [
+          "preferredToolPrefixes", "toolPrefixes", "工具前缀"
+        ])),
+        boundMcpServiceIds: listValue(fieldValue(row, [
+          "boundMcpServiceIds", "mcpServiceIds", "serviceIds", "MCP服务", "绑定服务"
+        ])),
+        boundMcpToolNames: listValue(fieldValue(row, [
+          "boundMcpToolNames", "mcpTools", "tools", "toolNames", "MCP工具", "绑定工具", "工具"
+        ])),
+        boundDocumentIds: listValue(fieldValue(row, [
+          "boundDocumentIds", "documentIds", "docIds", "绑定文档", "文档ID"
+        ])),
+        boundDocumentTags: listValue(fieldValue(row, [
+          "boundDocumentTags", "documentTags", "docTags", "文档标签", "知识库标签"
+        ])),
+        toolConfigs: Array.isArray(row?.toolConfigs) ? row.toolConfigs : [],
+        routingSettings: {
+          ...defaultRoutingSettings(),
+          ...(row?.routingSettings && typeof row.routingSettings === "object" ? row.routingSettings : {})
+        },
+        quickQuestions: listValue(fieldValue(row, [
+          "quickQuestions", "questions", "quickPrompts", "快捷问题", "推荐问题", "示例问题"
+        ])),
+        marketStatus: textValue(fieldValue(row, [
+          "marketStatus", "status", "发布状态", "状态"
+        ])) || "draft"
+      };
+      if (!payload.id || !/^[a-z0-9_-]{2,64}$/.test(payload.id)) {
+        throw new Error(`第 ${index + 1} 行缺少有效 Agent ID，ID 需为 2-64 位小写字母、数字、下划线或短横线。`);
+      }
+      if (!payload.name) {
+        throw new Error(`第 ${index + 1} 行缺少 Agent 名称。`);
+      }
+      return payload;
+    },
+    normalizeImportRows(rows) {
+      return rows
+        .filter((row) => row && typeof row === "object" && Object.values(row).some((value) => textValue(value)))
+        .map((row, index) => this.normalizeImportedAgent(row, index));
+    },
+    parseImportTextContent(text) {
+      const content = String(text || "").trim();
+      if (!content) {
+        return [];
+      }
+      if (content.startsWith("[") || content.startsWith("{")) {
+        const parsed = JSON.parse(content);
+        const rows = Array.isArray(parsed) ? parsed : (Array.isArray(parsed.agents) ? parsed.agents : [parsed]);
+        return this.normalizeImportRows(rows);
+      }
+      const workbook = XLSX.read(content, { type: "string", raw: false });
+      const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+      return this.normalizeImportRows(XLSX.utils.sheet_to_json(firstSheet, { defval: "" }));
+    },
+    async handleImportFile(event) {
+      const file = event.target.files?.[0];
+      event.target.value = "";
+      if (!file) {
+        return;
+      }
+      this.importError = "";
+      this.importResults = [];
+      this.importFileName = file.name;
+      try {
+        const lowerName = file.name.toLowerCase();
+        if (lowerName.endsWith(".xlsx") || lowerName.endsWith(".xls")) {
+          const buffer = await file.arrayBuffer();
+          const workbook = XLSX.read(buffer, { type: "array", raw: false });
+          const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+          this.importItems = this.normalizeImportRows(XLSX.utils.sheet_to_json(firstSheet, { defval: "" }));
+          this.importText = "";
+          return;
+        }
+        this.importText = await file.text();
+        this.refreshImportPreview();
+      } catch (error) {
+        this.importItems = [];
+        this.importError = error.message || "文件解析失败";
+      }
+    },
+    refreshImportPreview() {
+      this.importError = "";
+      this.importResults = [];
+      try {
+        this.importItems = this.parseImportTextContent(this.importText);
+        if (!this.importItems.length) {
+          this.importError = "没有解析到可导入的 Agent。";
+        }
+      } catch (error) {
+        this.importItems = [];
+        this.importError = error.message || "导入内容解析失败";
+      }
+    },
+    async importAgents() {
+      this.importError = "";
+      if (!this.importItems.length) {
+        this.refreshImportPreview();
+      }
+      if (!this.importItems.length) {
+        return;
+      }
+      this.importing = true;
+      this.importResults = [];
+      const existingById = new Map(this.agents.map((agent) => [agent.id, agent]));
+      try {
+        for (const agent of this.importItems) {
+          try {
+            const existing = existingById.get(agent.id);
+            if (existing?.builtin) {
+              this.importResults.push({ id: agent.id, name: agent.name, status: "跳过内置Agent" });
+              continue;
+            }
+            if (existing && !this.importOverwriteExisting) {
+              this.importResults.push({ id: agent.id, name: agent.name, status: "已存在，已跳过" });
+              continue;
+            }
+            if (existing) {
+              await updateWorkshopAgent(agent.id, agent);
+              this.importResults.push({ id: agent.id, name: agent.name, status: "已覆盖" });
+            } else {
+              await createWorkshopAgent(agent);
+              existingById.set(agent.id, agent);
+              this.importResults.push({ id: agent.id, name: agent.name, status: "已新增" });
+            }
+          } catch (error) {
+            this.importResults.push({
+              id: agent.id,
+              name: agent.name,
+              status: error.message || "导入失败"
+            });
+          }
+        }
+        await this.loadWorkshop();
+      } catch (error) {
+        this.importError = error.message || "批量导入失败";
+      } finally {
+        this.importing = false;
+      }
+    },
+    exportAgentRows() {
+      return this.filteredAgents.map((agent) => ({
+        agentId: agent.id,
+        agentName: agent.name,
+        mode: agent.defaultMode || "agent_chat",
+        model: agent.modelName || this.defaultModelName() || "default",
+        tags: agent.skillTags || [],
+        businessDescription: agent.description || "",
+        businessScenarios: agent.usageScenarios || [],
+        systemPrompt: agent.systemPrompt || "",
+        welcomeMessage: agent.firstUseGreeting || "",
+        quickQuestions: agent.quickQuestions || [],
+        boundMcpToolNames: agent.boundMcpToolNames || [],
+        boundDocumentIds: agent.boundDocumentIds || [],
+        boundDocumentTags: agent.boundDocumentTags || [],
+        marketStatus: agent.marketStatus || "draft"
+      }));
+    },
+    exportAgentsAsJson() {
+      this.downloadFile(
+        "agent-workshop-export.json",
+        JSON.stringify(this.exportAgentRows(), null, 2),
+        "application/json;charset=utf-8"
+      );
+    },
+    exportAgentsAsTable() {
+      const rows = this.exportAgentRows().map((agent) => ({
+        ...agent,
+        tags: joinList(agent.tags),
+        businessScenarios: joinList(agent.businessScenarios),
+        quickQuestions: joinList(agent.quickQuestions),
+        boundMcpToolNames: joinList(agent.boundMcpToolNames),
+        boundDocumentIds: joinList(agent.boundDocumentIds),
+        boundDocumentTags: joinList(agent.boundDocumentTags)
+      }));
+      const workbook = XLSX.utils.book_new();
+      const worksheet = XLSX.utils.json_to_sheet(rows);
+      XLSX.utils.book_append_sheet(workbook, worksheet, "Agents");
+      XLSX.writeFile(workbook, "agent-workshop-export.xlsx");
+    },
+    downloadFile(fileName, content, mimeType) {
+      const blob = new Blob([content], { type: mimeType });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = fileName;
+      link.click();
+      URL.revokeObjectURL(url);
+    },
+    buildToolConfigs(selectedToolNames) {
+      const existingConfigs = Array.isArray(this.form.toolConfigs) ? this.form.toolConfigs : [];
+      const selected = new Set(selectedToolNames);
+      const byName = new Map(existingConfigs.filter((config) => config?.toolName).map((config) => [config.toolName, config]));
+      return selectedToolNames.map((toolName) => {
+        const existing = byName.get(toolName) || {};
+        const registered = this.registeredMcpTools.find((tool) => tool?.localToolName === toolName) || {};
+        return {
+          ...existing,
+          toolName,
+          displayName: existing.displayName || registered.remoteToolName || toolName,
+          serviceId: existing.serviceId || registered.serviceId || "",
+          description: existing.description || registered.description || "",
+          callWeight: existing.callWeight ?? 5,
+          enabled: selected.has(toolName)
+        };
+      });
+    },
+    async saveAgent() {
+      this.dialogError = "";
+      if (!this.form.id || !/^[a-z0-9_-]{2,64}$/.test(this.form.id)) {
+        this.dialogError = "Agent ID 仅支持小写字母、数字、下划线和短横线，长度 2-64。";
+        return;
+      }
+      if (!this.form.name) {
+        this.dialogError = "请填写Agent名称。";
+        return;
+      }
+
+      this.saving = true;
+      try {
+        const payload = this.formToPayload();
+        this.dialogMode === "create"
+          ? await createWorkshopAgent(payload)
+          : await updateWorkshopAgent(this.activeAgent.id, payload);
+        this.closeAfterSave();
+        await this.loadWorkshop();
+      } catch (error) {
+        this.dialogError = error.message || "Agent保存失败";
+      } finally {
+        this.saving = false;
+      }
+    },
+    closeAfterSave() {
+      this.dialogOpen = false;
+      this.dialogError = "";
+      this.activeAgent = null;
+      this.form = emptyForm();
+    },
+    async removeAgent(agent) {
+      if (!agent?.id || agent.builtin) {
+        return;
+      }
+      if (!window.confirm(`确认删除Agent「${agent.name || agent.id}」？`)) {
+        return;
+      }
+      this.saving = true;
+      this.error = "";
+      try {
+        await deleteWorkshopAgent(agent.id);
+        await this.loadWorkshop();
+      } catch (error) {
+        this.error = error.message || "Agent删除失败";
+      } finally {
+        this.saving = false;
+      }
+    },
+    async publishAgent(agent) {
+      if (!agent?.id || agent.marketStatus === "published") {
+        return;
+      }
+      this.saving = true;
+      this.error = "";
+      try {
+        await publishWorkshopAgent(agent.id);
+        await this.loadWorkshop();
+      } catch (error) {
+        this.error = error.message || "能力发布失败";
+      } finally {
+        this.saving = false;
+      }
+    },
+    async recallAgent(agent) {
+      if (!agent?.id || agent.marketStatus !== "published") {
+        return;
+      }
+      if (!window.confirm(`确认从能力广场回收「${agent.name || agent.id}」？`)) {
+        return;
+      }
+      this.saving = true;
+      this.error = "";
+      try {
+        await recallWorkshopAgent(agent.id);
+        await this.loadWorkshop();
+      } catch (error) {
+        this.error = error.message || "能力回收失败";
+      } finally {
+        this.saving = false;
+      }
+    },
+    toggleTool(toolName) {
+      const selected = new Set(this.selectedToolNames);
+      if (selected.has(toolName)) {
+        selected.delete(toolName);
+      } else {
+        selected.add(toolName);
+      }
+      this.form.boundMcpToolNames = [...selected].sort().join("\n");
+    },
+    clearSelectedTools() {
+      this.form.boundMcpToolNames = "";
+    },
+    isToolGroupFullySelected(group) {
+      return group?.tools?.length && group.tools.every((tool) => this.selectedToolNames.includes(tool.localToolName));
+    },
+    toggleToolGroup(group) {
+      if (!group?.tools?.length) {
+        return;
+      }
+      const selected = new Set(this.selectedToolNames);
+      const allSelected = group.tools.every((tool) => selected.has(tool.localToolName));
+      group.tools.forEach((tool) => {
+        if (allSelected) {
+          selected.delete(tool.localToolName);
+        } else {
+          selected.add(tool.localToolName);
+        }
+      });
+      this.form.boundMcpToolNames = [...selected].sort().join("\n");
+    },
+    toggleDocument(docId) {
+      const selected = new Set(this.selectedDocumentIds);
+      if (selected.has(docId)) {
+        selected.delete(docId);
+      } else {
+        selected.add(docId);
+      }
+      this.form.boundDocumentIds = [...selected].sort().join("\n");
+    },
+    clearSelectedDocuments() {
+      this.form.boundDocumentIds = "";
+    },
+    defaultModelName() {
+      return this.models.find((model) => model?.value)?.value || "";
+    }
+  }
+};

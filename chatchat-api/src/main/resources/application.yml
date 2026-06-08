@@ -162,7 +162,7 @@ springdoc:
     enabled: true
   swagger-ui:
     path: /swagger-ui.html
-    enabled: true
+    enabled: false
     display-request-duration: true
     try-it-out-enabled: true
   show-actuator: false

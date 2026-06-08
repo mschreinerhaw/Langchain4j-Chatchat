@@ -89,12 +89,13 @@ Controller
 - `/api/v1/enterprise`：企业组织、角色、权限、数据源、审计等管理。
 - `/api/v1/health`、`/api/v1/status`：健康检查。
 
-OpenAPI 默认地址：
+OpenAPI 文档接口默认地址：
 
 ```text
-http://localhost:8080/swagger-ui.html
 http://localhost:8080/api-docs
 ```
+
+Swagger UI 页面默认禁用，`http://localhost:8080/swagger-ui.html` 不对外开放。
 
 ## MCP Server
 
@@ -417,6 +418,5 @@ mvn -pl chatchat-mcp-server -am spring-boot:run
 | 服务 | 端口 | 入口 |
 | --- | --- | --- |
 | ChatChat 主应用 | `8080` | `http://localhost:8080` |
-| Swagger UI | `8080` | `http://localhost:8080/swagger-ui.html` |
 | MCP Server | `8090` | `http://localhost:8090/admin` |
 | MCP Endpoint | `8090` | `http://localhost:8090/mcp` |

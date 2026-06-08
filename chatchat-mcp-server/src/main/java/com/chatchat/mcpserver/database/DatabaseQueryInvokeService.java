@@ -4,6 +4,7 @@ import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.tool.ToolInput;
 import com.chatchat.common.tool.ToolOutput;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.LinkedHashMap;
@@ -12,6 +13,7 @@ import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class DatabaseQueryInvokeService {
 
     private static final String TOOL_NAME = "database_query";
@@ -19,11 +21,20 @@ public class DatabaseQueryInvokeService {
     private final ToolRegistry toolRegistry;
 
     public ToolOutput invoke(DatabaseQueryConfig config, Map<String, Object> arguments) {
+        log.info("Database query invoke started databaseQueryId={} tool={} argKeys={}",
+            config.getId(),
+            config.getToolName(),
+            argumentKeys(arguments));
         return invoke(toParameters(config, arguments == null ? Map.of() : arguments));
     }
 
     public ToolOutput invoke(Map<String, Object> parameters) {
+        long startedAt = System.currentTimeMillis();
         if (!toolRegistry.hasTool(TOOL_NAME)) {
+            log.warn("Database query invoke failed tool={} durationMs={} error={}",
+                TOOL_NAME,
+                Math.max(0L, System.currentTimeMillis() - startedAt),
+                "database_query tool is not registered");
             return ToolOutput.failure("database_query tool is not registered");
         }
         ToolInput input = ToolInput.builder()
@@ -31,7 +42,17 @@ public class DatabaseQueryInvokeService {
             .userId("admin")
             .parameters(parameters)
             .build();
-        return toolRegistry.executeEnhancedTool(TOOL_NAME, input);
+        ToolOutput output = toolRegistry.executeEnhancedTool(TOOL_NAME, input);
+        long durationMs = Math.max(0L, System.currentTimeMillis() - startedAt);
+        if (output.isSuccess()) {
+            log.info("Database query invoke succeeded tool={} durationMs={}", TOOL_NAME, durationMs);
+        } else {
+            log.warn("Database query invoke failed tool={} durationMs={} error={}",
+                TOOL_NAME,
+                durationMs,
+                output.getErrorMessage());
+        }
+        return output;
     }
 
     private Map<String, Object> toParameters(DatabaseQueryConfig config, Map<String, Object> arguments) {
@@ -51,5 +72,15 @@ public class DatabaseQueryInvokeService {
         if (value != null && !value.isBlank()) {
             parameters.put(key, value.trim());
         }
+    }
+
+    private java.util.List<String> argumentKeys(Map<String, Object> arguments) {
+        if (arguments == null || arguments.isEmpty()) {
+            return java.util.List.of();
+        }
+        return arguments.keySet().stream()
+            .filter(key -> key != null && !key.isBlank())
+            .sorted()
+            .toList();
     }
 }

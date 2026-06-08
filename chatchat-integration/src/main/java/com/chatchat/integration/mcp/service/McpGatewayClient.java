@@ -551,8 +551,26 @@ public class McpGatewayClient {
             return new McpToolInvokeResult(false, null, stringValue(map.get("message")), String.valueOf(map.get("error")));
         }
 
-        Object data = map.containsKey("data") ? map.get("data") : map.getOrDefault("result", map);
+        Object data = firstPresent(
+            map.get("structuredContent"),
+            map.get("structured_content"),
+            map.get("data"),
+            map.get("result"),
+            map
+        );
         return new McpToolInvokeResult(true, data, stringValue(map.get("message")), null);
+    }
+
+    private Object firstPresent(Object... values) {
+        if (values == null) {
+            return null;
+        }
+        for (Object value : values) {
+            if (value != null) {
+                return value;
+            }
+        }
+        return null;
     }
 
     private String buildUrl(String baseUrl, String path) {

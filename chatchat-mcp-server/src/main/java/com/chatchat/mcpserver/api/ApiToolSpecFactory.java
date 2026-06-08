@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.modelcontextprotocol.server.McpServerFeatures;
 import io.modelcontextprotocol.spec.McpSchema;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.util.LinkedHashMap;
@@ -13,6 +14,7 @@ import java.util.Map;
 
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class ApiToolSpecFactory {
 
     private final ApiInvokeService invokeService;
@@ -29,7 +31,13 @@ public class ApiToolSpecFactory {
 
         return McpServerFeatures.SyncToolSpecification.builder()
             .tool(tool)
-            .callHandler((exchange, request) -> toCallToolResult(invokeService.invoke(config, request.arguments())))
+            .callHandler((exchange, request) -> {
+                log.info("MCP external API tool call received tool={} apiServiceId={} argKeys={}",
+                    config.getToolName(),
+                    config.getId(),
+                    argumentKeys(request.arguments()));
+                return toCallToolResult(invokeService.invoke(config, request.arguments()));
+            })
             .build();
     }
 
@@ -98,5 +106,15 @@ public class ApiToolSpecFactory {
         } catch (Exception ex) {
             return String.valueOf(body);
         }
+    }
+
+    private List<String> argumentKeys(Map<String, Object> arguments) {
+        if (arguments == null || arguments.isEmpty()) {
+            return List.of();
+        }
+        return arguments.keySet().stream()
+            .filter(key -> key != null && !key.isBlank())
+            .sorted()
+            .toList();
     }
 }

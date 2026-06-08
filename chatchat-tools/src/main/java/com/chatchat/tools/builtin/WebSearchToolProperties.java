@@ -20,4 +20,14 @@ public class WebSearchToolProperties {
     private int timeoutMs = 10000;
 
     private int maxResults = 10;
+
+    private boolean fetchPages = true;
+
+    private int maxPagesToFetch = 3;
+
+    private int pageExcerptChars = 2500;
+
+    private int pageMaxBytes = 1048576;
+
+    private boolean fallbackEnabled = true;
 }

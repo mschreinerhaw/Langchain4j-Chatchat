@@ -229,7 +229,7 @@ export default {
         skillId: this.selectedAgentId || undefined,
         modelName: this.selectedAgent?.modelName || undefined,
         query,
-        maxResults: 5,
+        maxResults: 10,
         historyWindow: 8,
         stream: true,
         availableTools: !this.selectedAgentId && payload?.webSearch ? ["web_search"] : [],

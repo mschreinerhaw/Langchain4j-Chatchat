@@ -42,7 +42,14 @@
             <FileText :size="14" stroke-width="2" />
             文档工作流
           </span>
-          <button type="button" class="tool-button" :class="{ active: webSearch }" @click="toggleWebSearch">
+          <button
+            type="button"
+            class="tool-button"
+            :class="{ active: webSearch, disabled: !webSearchAvailable }"
+            :disabled="!webSearchAvailable"
+            :title="webSearchAvailable ? '联网搜索' : '当前 Agent 未勾选 web_search'"
+            @click="toggleWebSearch"
+          >
             <Globe class="tool-icon" :size="16" stroke-width="1.9" />
             联网搜索
           </button>

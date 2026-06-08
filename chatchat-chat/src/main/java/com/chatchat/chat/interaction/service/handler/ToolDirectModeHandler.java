@@ -23,6 +23,8 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class ToolDirectModeHandler implements InteractionModeHandler {
 
+    private static final int WEB_SEARCH_REFERENCE_LIMIT = 10;
+
     private final ToolRegistry toolRegistry;
 
     @Override
@@ -96,7 +98,7 @@ public class ToolDirectModeHandler implements InteractionModeHandler {
         }
         if ("web_search".equals(toolName)) {
             params.put("query", query);
-            params.put("num_results", 5);
+            params.put("num_results", WEB_SEARCH_REFERENCE_LIMIT);
             return;
         }
         params.put("input", query);

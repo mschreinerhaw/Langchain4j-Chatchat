@@ -75,6 +75,9 @@ export default {
     },
     documentWorkflowActive() {
       return !!this.selectedAgent?.documentWorkflow;
+    },
+    webSearchAvailable() {
+      return this.isWebSearchAgent(this.selectedAgent);
     }
   },
   watch: {
@@ -85,6 +88,11 @@ export default {
     draft(value) {
       this.$emit("update:modelValue", value);
       this.$nextTick(this.adjustTextareaHeight);
+    },
+    selectedAgentId() {
+      if (!this.webSearchAvailable) {
+        this.webSearch = false;
+      }
     }
   },
   mounted() {
@@ -101,10 +109,14 @@ export default {
         agentId: this.selectedAgentId,
         agentName: this.selectedAgent?.name || "",
         documentWorkflow: this.documentWorkflowActive,
-        webSearch: this.webSearch
+        webSearch: this.webSearch && this.webSearchAvailable
       });
     },
     toggleWebSearch() {
+      if (!this.webSearchAvailable) {
+        this.webSearch = false;
+        return;
+      }
       this.webSearch = !this.webSearch;
     },
     updateSelectedAgent(event) {
@@ -132,6 +144,22 @@ export default {
         || (agent?.boundDocumentIds || []).length > 0
         || (agent?.boundDocumentTags || []).length > 0
         || toolNames.includes("document_search");
+    },
+    isWebSearchAgent(agent) {
+      if (!agent?.id) {
+        return false;
+      }
+      const toolNames = [
+        ...(agent?.boundMcpToolNames || []),
+        ...(agent?.toolConfigs || [])
+          .filter((config) => config && config.enabled !== false)
+          .map((config) => config?.toolName)
+      ];
+      return toolNames.some((toolName) => this.isWebSearchToolName(toolName));
+    },
+    isWebSearchToolName(toolName) {
+      const value = String(toolName || "").toLowerCase();
+      return value === "web_search" || value.endsWith("_web_search");
     }
   }
 };

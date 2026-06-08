@@ -6,6 +6,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.modelcontextprotocol.server.McpServerFeatures;
 import io.modelcontextprotocol.spec.McpSchema;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.util.LinkedHashMap;
@@ -14,6 +15,7 @@ import java.util.Map;
 
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class DatabaseQueryToolSpecFactory {
 
     private final DatabaseQueryInvokeService invokeService;
@@ -30,7 +32,13 @@ public class DatabaseQueryToolSpecFactory {
 
         return McpServerFeatures.SyncToolSpecification.builder()
             .tool(tool)
-            .callHandler((exchange, request) -> toCallToolResult(invokeService.invoke(config, request.arguments())))
+            .callHandler((exchange, request) -> {
+                log.info("MCP database query tool call received tool={} databaseQueryId={} argKeys={}",
+                    config.getToolName(),
+                    config.getId(),
+                    argumentKeys(request.arguments()));
+                return toCallToolResult(invokeService.invoke(config, request.arguments()));
+            })
             .build();
     }
 
@@ -95,5 +103,15 @@ public class DatabaseQueryToolSpecFactory {
             }
         }
         return String.valueOf(data);
+    }
+
+    private List<String> argumentKeys(Map<String, Object> arguments) {
+        if (arguments == null || arguments.isEmpty()) {
+            return List.of();
+        }
+        return arguments.keySet().stream()
+            .filter(key -> key != null && !key.isBlank())
+            .sorted()
+            .toList();
     }
 }

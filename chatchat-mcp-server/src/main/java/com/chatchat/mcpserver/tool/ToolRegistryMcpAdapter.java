@@ -11,6 +11,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import io.modelcontextprotocol.server.McpServerFeatures;
 import io.modelcontextprotocol.spec.McpSchema;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -21,6 +22,7 @@ import java.util.Map;
 
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class ToolRegistryMcpAdapter {
 
     private final ObjectMapper objectMapper;
@@ -75,6 +77,8 @@ public class ToolRegistryMcpAdapter {
     ) {
         Map<String, Object> arguments = applyDefaults(metadata, request.arguments());
         ToolOutput output;
+        long startedAt = System.currentTimeMillis();
+        log.info("MCP built-in tool call started tool={} argKeys={}", toolName, argumentKeys(arguments));
 
         ToolRegistry.EnhancedTool enhancedTool = toolRegistry.getEnhancedTool(toolName);
         try {
@@ -93,8 +97,22 @@ public class ToolRegistryMcpAdapter {
             }
         } catch (Throwable throwable) {
             output = ToolOutput.failure(throwable.getClass().getSimpleName() + ": " + throwable.getMessage());
+            log.warn("MCP built-in tool call threw tool={} durationMs={} error={}",
+                toolName,
+                Math.max(0L, System.currentTimeMillis() - startedAt),
+                throwable.getMessage(),
+                throwable);
         }
 
+        long durationMs = Math.max(0L, System.currentTimeMillis() - startedAt);
+        if (output != null && output.isSuccess()) {
+            log.info("MCP built-in tool call succeeded tool={} durationMs={}", toolName, durationMs);
+        } else {
+            log.warn("MCP built-in tool call failed tool={} durationMs={} error={}",
+                toolName,
+                durationMs,
+                errorText(output));
+        }
         return toCallToolResult(output);
     }
 
@@ -253,6 +271,16 @@ public class ToolRegistryMcpAdapter {
         } catch (JsonProcessingException e) {
             return String.valueOf(value);
         }
+    }
+
+    private List<String> argumentKeys(Map<String, Object> arguments) {
+        if (arguments == null || arguments.isEmpty()) {
+            return List.of();
+        }
+        return arguments.keySet().stream()
+            .filter(key -> key != null && !key.isBlank())
+            .sorted()
+            .toList();
     }
 
     private String normalizeType(String type) {

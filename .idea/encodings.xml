@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="Encoding">
+    <file url="file://$PROJECT_DIR$/chatchat-agents/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/chatchat-agents/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/chatchat-api/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/chatchat-api/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/chatchat-chat/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/chatchat-chat/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/chatchat-common/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/chatchat-common/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/chatchat-embeddings/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/chatchat-embeddings/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/chatchat-enterprise/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/chatchat-enterprise/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/chatchat-integration/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/chatchat-integration/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/chatchat-knowledge-base/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/chatchat-knowledge-base/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/chatchat-mcp-server/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/chatchat-mcp-server/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/chatchat-models/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/chatchat-models/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/chatchat-tools/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/chatchat-tools/src/main/resources" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/src/main/java" charset="UTF-8" />
+    <file url="file://$PROJECT_DIR$/src/main/resources" charset="UTF-8" />
+  </component>
+</project>

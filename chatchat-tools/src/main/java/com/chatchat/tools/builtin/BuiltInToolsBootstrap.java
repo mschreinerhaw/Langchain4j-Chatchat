@@ -210,7 +210,7 @@ public class BuiltInToolsBootstrap {
                 ToolParameter.builder()
                     .name("limit")
                     .type("integer")
-                    .description("Maximum number of document snippets to return.")
+                    .description("Maximum number of documents to return.")
                     .required(false)
                     .defaultValue(environment.getProperty("chatchat.tools.document-search.default-limit", Integer.class, 5))
                     .minimum(1)
@@ -483,7 +483,7 @@ public class BuiltInToolsBootstrap {
                 }
 
                 Map<String, Object> result = performWebSearch(query, numResults);
-                return ToolOutput.success(result, "Search completed successfully");
+                return ToolOutput.success(result, buildSearchMessage(result));
 
             } catch (Exception e) {
                 return ToolOutput.failure(e);
@@ -495,24 +495,234 @@ public class BuiltInToolsBootstrap {
                 ? "duckduckgo_html"
                 : properties.getProvider().trim().toLowerCase(Locale.ROOT);
 
-            Document document = Jsoup.connect(properties.getEndpoint())
+            List<SearchAttempt> attempts = buildSearchAttempts(provider, properties.getEndpoint());
+            List<String> errors = new ArrayList<>();
+            for (SearchAttempt attempt : attempts) {
+                try {
+                    return performWebSearchAttempt(attempt.provider(), attempt.endpoint(), query, numResults, errors);
+                } catch (Exception ex) {
+                    errors.add(attempt.provider() + ": " + ex.getMessage());
+                }
+            }
+            throw new IllegalStateException("All web search providers failed: " + String.join("; ", errors));
+        }
+
+        private Map<String, Object> performWebSearchAttempt(String provider,
+                                                            String endpoint,
+                                                            String query,
+                                                            int numResults,
+                                                            List<String> previousErrors) throws Exception {
+            Document document = Jsoup.connect(endpoint)
                 .userAgent(properties.getUserAgent())
                 .timeout(Math.max(1000, properties.getTimeoutMs()))
                 .data("q", query)
                 .get();
 
-            List<Map<String, Object>> results = switch (provider) {
-                case "duckduckgo_html" -> parseDuckDuckGoResults(document, numResults);
-                case "bing_html" -> parseBingResults(document, numResults);
+            int referenceLimit = Math.max(0, Math.min(10, properties.getMaxResults()));
+            int fetchLimit = Math.max(numResults, referenceLimit);
+
+            List<Map<String, Object>> fetchedResults = switch (provider) {
+                case "duckduckgo_html" -> parseDuckDuckGoResults(document, fetchLimit);
+                case "bing_html" -> parseBingResults(document, fetchLimit);
                 default -> throw new IllegalArgumentException("Unsupported web search provider: " + properties.getProvider());
             };
+            List<Map<String, Object>> results = fetchedResults.size() <= numResults
+                ? fetchedResults
+                : new ArrayList<>(fetchedResults.subList(0, numResults));
+            List<String> referenceUrls = fetchedResults.stream()
+                .map(item -> item.get("url"))
+                .filter(String.class::isInstance)
+                .map(String.class::cast)
+                .filter(url -> !url.isBlank())
+                .distinct()
+                .limit(referenceLimit)
+                .toList();
+            List<Map<String, Object>> pageExcerpts = fetchPageExcerpts(results, query);
 
             Map<String, Object> output = new LinkedHashMap<>();
             output.put("query", query);
-            output.put("provider", properties.getProvider());
+            output.put("provider", provider);
+            output.put("configuredProvider", properties.getProvider());
+            output.put("fallbackUsed", previousErrors != null && !previousErrors.isEmpty());
+            output.put("providerErrors", previousErrors == null ? List.of() : previousErrors);
             output.put("count", results.size());
+            output.put("reference_url_count", referenceUrls.size());
+            output.put("reference_urls", referenceUrls);
+            output.put("page_fetch_enabled", properties.isFetchPages());
+            output.put("page_excerpt_count", pageExcerpts.size());
+            output.put("contentMode", pageExcerpts.isEmpty() ? "search_snippets_only" : "page_enriched");
+            output.put("pageExcerpts", pageExcerpts);
+            output.put("evidenceSnippets", pageExcerpts);
             output.put("results", results);
             return output;
+        }
+
+        private List<SearchAttempt> buildSearchAttempts(String provider, String endpoint) {
+            List<SearchAttempt> attempts = new ArrayList<>();
+            attempts.add(new SearchAttempt(provider, endpoint));
+            if (!properties.isFallbackEnabled()) {
+                return attempts;
+            }
+            if (!"bing_html".equals(provider)) {
+                attempts.add(new SearchAttempt("bing_html", "https://www.bing.com/search"));
+            }
+            if (!"duckduckgo_html".equals(provider)) {
+                attempts.add(new SearchAttempt("duckduckgo_html", "https://duckduckgo.com/html/"));
+            }
+            return attempts;
+        }
+
+        private String buildSearchMessage(Map<String, Object> result) {
+            Object referenceUrlsValue = result.get("reference_urls");
+            if (!(referenceUrlsValue instanceof List<?> referenceUrls) || referenceUrls.isEmpty()) {
+                return "Search completed successfully, but no reference URLs were found.";
+            }
+            StringBuilder message = new StringBuilder("Search completed successfully.\nTop 10 reference URLs:\n");
+            int rank = 1;
+            for (Object referenceUrl : referenceUrls) {
+                if (referenceUrl instanceof String url && !url.isBlank()) {
+                    message.append(rank++).append(". ").append(url).append('\n');
+                }
+            }
+            Object pageExcerptCount = result.get("page_excerpt_count");
+            if (pageExcerptCount instanceof Number count && count.intValue() > 0) {
+                message.append("\nFetched page excerpts: ").append(count.intValue());
+            }
+            return message.toString().trim();
+        }
+
+        private List<Map<String, Object>> fetchPageExcerpts(List<Map<String, Object>> results, String query) {
+            if (!properties.isFetchPages() || results == null || results.isEmpty()) {
+                return List.of();
+            }
+            int limit = Math.max(0, Math.min(properties.getMaxPagesToFetch(), results.size()));
+            if (limit <= 0) {
+                return List.of();
+            }
+
+            List<Map<String, Object>> excerpts = new ArrayList<>();
+            for (Map<String, Object> result : results) {
+                if (excerpts.size() >= limit) {
+                    break;
+                }
+                String url = stringValue(result.get("url"));
+                if (!isFetchablePageUrl(url)) {
+                    result.put("pageFetched", false);
+                    result.put("pageFetchError", "unsupported url");
+                    continue;
+                }
+                try {
+                    org.jsoup.Connection.Response response = Jsoup.connect(url)
+                        .userAgent(properties.getUserAgent())
+                        .timeout(Math.max(1000, properties.getTimeoutMs()))
+                        .maxBodySize(Math.max(1024, properties.getPageMaxBytes()))
+                        .ignoreHttpErrors(true)
+                        .execute();
+                    int statusCode = response.statusCode();
+                    if (statusCode < 200 || statusCode >= 300) {
+                        result.put("pageFetched", false);
+                        result.put("pageFetchError", "HTTP " + statusCode);
+                        continue;
+                    }
+                    Document page = response.parse();
+
+                    String pageText = extractReadableText(page);
+                    if (pageText.isBlank()) {
+                        result.put("pageFetched", true);
+                        result.put("pageContentAvailable", false);
+                        continue;
+                    }
+                    String excerpt = buildTextExcerpt(pageText, query, properties.getPageExcerptChars());
+                    result.put("pageFetched", true);
+                    result.put("pageContentAvailable", true);
+                    result.put("pageContentLength", pageText.length());
+                    result.put("pageContentTruncated", pageText.length() > excerpt.length());
+                    result.put("pageExcerpt", excerpt);
+
+                    Map<String, Object> evidence = new LinkedHashMap<>();
+                    evidence.put("rank", result.get("rank"));
+                    evidence.put("title", firstNonBlank(stringValue(result.get("title")), page.title()));
+                    evidence.put("url", url);
+                    evidence.put("excerpt", excerpt);
+                    excerpts.add(evidence);
+                } catch (Exception ex) {
+                    result.put("pageFetched", false);
+                    result.put("pageFetchError", ex.getMessage());
+                }
+            }
+            return excerpts;
+        }
+
+        private boolean isFetchablePageUrl(String url) {
+            if (url == null || url.isBlank()) {
+                return false;
+            }
+            String value = url.toLowerCase(Locale.ROOT);
+            if (!value.startsWith("http://") && !value.startsWith("https://")) {
+                return false;
+            }
+            return !(value.endsWith(".pdf")
+                || value.endsWith(".doc")
+                || value.endsWith(".docx")
+                || value.endsWith(".xls")
+                || value.endsWith(".xlsx")
+                || value.endsWith(".zip")
+                || value.endsWith(".rar")
+                || value.endsWith(".7z"));
+        }
+
+        private String extractReadableText(Document page) {
+            page.select("script,style,noscript,svg,canvas,iframe,header,footer,nav,aside,form").remove();
+            Element main = first(
+                page.selectFirst("main"),
+                page.selectFirst("article"),
+                page.selectFirst("[role=main]"),
+                page.body()
+            );
+            return main == null ? "" : main.text().replaceAll("\\s+", " ").trim();
+        }
+
+        private String buildTextExcerpt(String text, String query, int maxChars) {
+            String normalized = text == null ? "" : text.replaceAll("\\s+", " ").trim();
+            int limit = Math.max(500, Math.min(8000, maxChars));
+            if (normalized.length() <= limit) {
+                return normalized;
+            }
+            int start = bestExcerptStart(normalized, query, limit);
+            int end = Math.min(normalized.length(), start + limit);
+            String excerpt = normalized.substring(start, end).trim();
+            if (start > 0) {
+                excerpt = "..." + excerpt;
+            }
+            if (end < normalized.length()) {
+                excerpt = excerpt + "...";
+            }
+            return excerpt;
+        }
+
+        private int bestExcerptStart(String text, String query, int maxChars) {
+            String lowerText = text.toLowerCase(Locale.ROOT);
+            for (String term : queryTerms(query)) {
+                int index = lowerText.indexOf(term.toLowerCase(Locale.ROOT));
+                if (index >= 0) {
+                    return Math.max(0, index - maxChars / 4);
+                }
+            }
+            return 0;
+        }
+
+        private List<String> queryTerms(String query) {
+            if (query == null || query.isBlank()) {
+                return List.of();
+            }
+            List<String> terms = new ArrayList<>();
+            for (String term : query.trim().split("[\\s,，。；;:：/\\\\]+")) {
+                if (term.length() >= 2) {
+                    terms.add(term);
+                }
+            }
+            terms.sort((left, right) -> Integer.compare(right.length(), left.length()));
+            return terms;
         }
 
         private List<Map<String, Object>> parseDuckDuckGoResults(Document document, int numResults) {
@@ -536,6 +746,7 @@ public class BuiltInToolsBootstrap {
                     block.selectFirst(".result__body")
                 );
                 Map<String, Object> item = new LinkedHashMap<>();
+                item.put("rank", results.size() + 1);
                 item.put("title", title);
                 item.put("url", url);
                 item.put("snippet", snippetElement == null ? "" : snippetElement.text());
@@ -553,6 +764,7 @@ public class BuiltInToolsBootstrap {
                         continue;
                     }
                     Map<String, Object> item = new LinkedHashMap<>();
+                    item.put("rank", results.size() + 1);
                     item.put("title", title);
                     item.put("url", url);
                     item.put("snippet", "");
@@ -579,6 +791,7 @@ public class BuiltInToolsBootstrap {
                 }
                 Element snippetElement = first(block.selectFirst(".b_caption p"), block.selectFirst("p"));
                 Map<String, Object> item = new LinkedHashMap<>();
+                item.put("rank", results.size() + 1);
                 item.put("title", title);
                 item.put("url", url);
                 item.put("snippet", snippetElement == null ? "" : snippetElement.text());
@@ -635,6 +848,17 @@ public class BuiltInToolsBootstrap {
             }
             return null;
         }
+
+        private String stringValue(Object value) {
+            return value == null ? null : String.valueOf(value);
+        }
+
+        private String firstNonBlank(String first, String second) {
+            return first == null || first.isBlank() ? second : first;
+        }
+
+        private record SearchAttempt(String provider, String endpoint) {
+        }
     }
 
     /**
@@ -684,10 +908,160 @@ public class BuiltInToolsBootstrap {
                 }
                 Map<String, Object> payload = objectMapper.readValue(response.body(), Map.class);
                 Object data = payload.containsKey("data") ? payload.get("data") : payload;
+                enrichWithDocumentContent(data, query.trim());
                 return ToolOutput.success(data, "Document search completed successfully");
             } catch (Exception e) {
                 return ToolOutput.failure(e);
             }
+        }
+
+        @SuppressWarnings("unchecked")
+        private void enrichWithDocumentContent(Object data, String query) {
+            if (!(data instanceof Map<?, ?> rawData)) {
+                return;
+            }
+            Map<String, Object> page = (Map<String, Object>) rawData;
+            Object resultsValue = page.get("results");
+            if (!(resultsValue instanceof List<?> results) || results.isEmpty()) {
+                page.put("contentMode", "no_results");
+                return;
+            }
+
+            int excerptChars = resolveExcerptChars();
+            List<Map<String, Object>> evidenceSnippets = new ArrayList<>();
+            for (Object item : results) {
+                if (!(item instanceof Map<?, ?> rawResult)) {
+                    continue;
+                }
+                Map<String, Object> result = (Map<String, Object>) rawResult;
+                enrichOneResult(result, query, excerptChars, evidenceSnippets);
+            }
+            page.put("contentMode", evidenceSnippets.isEmpty() ? "search_summary_only" : "detail_enriched");
+            page.put("evidenceSnippets", evidenceSnippets);
+        }
+
+        @SuppressWarnings("unchecked")
+        private void enrichOneResult(Map<String, Object> result,
+                                     String query,
+                                     int excerptChars,
+                                     List<Map<String, Object>> evidenceSnippets) {
+            URI detailUri = buildDetailUri(result);
+            if (detailUri == null) {
+                result.put("detailFetched", false);
+                result.put("detailFetchError", "missing docId/detailPath");
+                return;
+            }
+            try {
+                int timeoutMs = environment.getProperty("chatchat.tools.document-search.timeout-ms", Integer.class, 20000);
+                HttpRequest detailRequest = HttpRequest.newBuilder(detailUri)
+                    .timeout(Duration.ofMillis(Math.max(1000, timeoutMs)))
+                    .GET()
+                    .build();
+                HttpResponse<String> detailResponse = httpClient.send(detailRequest, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+                if (detailResponse.statusCode() < 200 || detailResponse.statusCode() >= 300) {
+                    result.put("detailFetched", false);
+                    result.put("detailFetchError", "document detail API returned HTTP " + detailResponse.statusCode());
+                    return;
+                }
+                Map<String, Object> payload = objectMapper.readValue(detailResponse.body(), Map.class);
+                Object detailValue = payload.containsKey("data") ? payload.get("data") : payload;
+                if (!(detailValue instanceof Map<?, ?> detail)) {
+                    result.put("detailFetched", false);
+                    result.put("detailFetchError", "document detail API returned unexpected payload");
+                    return;
+                }
+
+                String content = stringValue(detail.get("content"));
+                if (content == null || content.isBlank()) {
+                    result.put("detailFetched", true);
+                    result.put("contentAvailable", false);
+                    return;
+                }
+                String excerpt = buildContentExcerpt(content, query, excerptChars);
+                result.put("detailFetched", true);
+                result.put("contentAvailable", true);
+                result.put("contentLength", content.length());
+                result.put("contentTruncated", content.replaceAll("\\s+", " ").trim().length() > excerptChars);
+                result.put("contentExcerpt", excerpt);
+                Map<String, Object> evidence = new LinkedHashMap<>();
+                evidence.put("docId", firstNonBlank(stringValue(result.get("docId")), stringValue(detail.get("docId"))));
+                evidence.put("title", firstNonBlank(stringValue(result.get("title")), stringValue(detail.get("title"))));
+                evidence.put("excerpt", excerpt);
+                evidenceSnippets.add(evidence);
+            } catch (Exception ex) {
+                result.put("detailFetched", false);
+                result.put("detailFetchError", ex.getMessage());
+            }
+        }
+
+        private URI buildDetailUri(Map<String, Object> result) {
+            String apiBaseUrl = environment.getProperty("chatchat.tools.document-search.api-base-url", "http://localhost:8080");
+            String detailPath = stringValue(result.get("detailPath"));
+            if (detailPath == null || detailPath.isBlank()) {
+                String docId = stringValue(result.get("docId"));
+                if (docId == null || docId.isBlank()) {
+                    return null;
+                }
+                detailPath = "/api/v1/search/documents/" + encodePathSegment(docId.trim());
+            }
+            if (detailPath.startsWith("http://") || detailPath.startsWith("https://")) {
+                return URI.create(detailPath);
+            }
+            StringBuilder url = new StringBuilder(trimTrailingSlash(apiBaseUrl));
+            if (!detailPath.startsWith("/")) {
+                url.append('/');
+            }
+            url.append(detailPath);
+            return URI.create(url.toString());
+        }
+
+        private int resolveExcerptChars() {
+            int defaultChars = environment.getProperty("chatchat.tools.document-search.default-excerpt-chars", Integer.class, 3000);
+            int maxChars = environment.getProperty("chatchat.tools.document-search.max-excerpt-chars", Integer.class, 8000);
+            return Math.max(500, Math.min(Math.max(500, maxChars), defaultChars));
+        }
+
+        private String buildContentExcerpt(String content, String query, int maxChars) {
+            String normalized = content == null ? "" : content.replaceAll("\\s+", " ").trim();
+            if (normalized.length() <= maxChars) {
+                return normalized;
+            }
+
+            int start = bestExcerptStart(normalized, query, maxChars);
+            int end = Math.min(normalized.length(), start + maxChars);
+            String excerpt = normalized.substring(start, end).trim();
+            if (start > 0) {
+                excerpt = "..." + excerpt;
+            }
+            if (end < normalized.length()) {
+                excerpt = excerpt + "...";
+            }
+            return excerpt;
+        }
+
+        private int bestExcerptStart(String content, String query, int maxChars) {
+            String lowerContent = content.toLowerCase(Locale.ROOT);
+            for (String term : queryTerms(query)) {
+                int index = lowerContent.indexOf(term.toLowerCase(Locale.ROOT));
+                if (index >= 0) {
+                    return Math.max(0, index - maxChars / 4);
+                }
+            }
+            return 0;
+        }
+
+        private List<String> queryTerms(String query) {
+            if (query == null || query.isBlank()) {
+                return List.of();
+            }
+            List<String> terms = new ArrayList<>();
+            for (String term : query.trim().split("[\\s,，。；;:：/\\\\]+")) {
+                if (term.length() >= 2) {
+                    terms.add(term);
+                }
+            }
+            terms.sort((left, right) -> Integer.compare(right.length(), left.length()));
+            return terms;
         }
 
         private URI buildSearchUri(ToolInput input, String query, int limit) {
@@ -754,6 +1128,10 @@ public class BuiltInToolsBootstrap {
             return URLEncoder.encode(value, StandardCharsets.UTF_8);
         }
 
+        private String encodePathSegment(String value) {
+            return URLEncoder.encode(value, StandardCharsets.UTF_8).replace("+", "%20");
+        }
+
         private String trimTrailingSlash(String value) {
             if (value == null || value.isBlank()) {
                 return "http://localhost:8080";
@@ -763,6 +1141,14 @@ public class BuiltInToolsBootstrap {
                 text = text.substring(0, text.length() - 1);
             }
             return text;
+        }
+
+        private String stringValue(Object value) {
+            return value == null ? null : String.valueOf(value);
+        }
+
+        private String firstNonBlank(String first, String second) {
+            return first == null || first.isBlank() ? second : first;
         }
     }
 

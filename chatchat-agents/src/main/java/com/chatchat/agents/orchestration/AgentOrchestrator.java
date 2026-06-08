@@ -37,8 +37,11 @@ import java.util.concurrent.ConcurrentHashMap;
 public class AgentOrchestrator {
 
     private static final int MAX_STEPS = 3;
+    private static final int WEB_SEARCH_REFERENCE_LIMIT = 10;
     private static final String FINAL = "final";
     private static final String TOOL = "tool";
+    private static final String REVIEW_ACCEPTED = "accepted";
+    private static final String REVIEW_REVISED = "revised";
 
     private final ChatModel chatModel;
     private final ToolRegistry toolRegistry;
@@ -56,9 +59,11 @@ public class AgentOrchestrator {
                                              String requestId,
                                              String conversationId,
                                              String userId,
+                                             int webSearchResultLimit,
+                                             List<String> requiredToolNames,
                                              boolean requireBoundToolCall) {
         List<String> tools = availableTools == null ? List.of() : availableTools;
-        List<String> mandatoryTools = requireBoundToolCall ? resolveMandatoryToolCandidates(tools) : List.of();
+        List<String> mandatoryTools = resolveMandatoryToolCandidates(tools, requiredToolNames, requireBoundToolCall);
         boolean requireToolBeforeFinal = !mandatoryTools.isEmpty();
         List<String> documentIds = normalizeList(boundDocumentIds);
         List<String> documentTags = normalizeList(boundDocumentTags);
@@ -71,8 +76,10 @@ public class AgentOrchestrator {
         metadata.put("boundDocumentIds", documentIds);
         metadata.put("boundDocumentTags", documentTags);
         metadata.put("availableTools", tools);
+        metadata.put("webSearchResultLimit", webSearchResultLimit);
         metadata.put("mandatoryToolCall", requireToolBeforeFinal);
         metadata.put("mandatoryTools", mandatoryTools);
+        metadata.put("requiredToolNames", normalizeList(requiredToolNames));
 
         log.info("[{}] Agent orchestration started. tools={}", requestId, tools.size());
 
@@ -97,8 +104,10 @@ public class AgentOrchestrator {
                     continue;
                 }
                 String answer = safeAnswer(activeChatModel, decision.answer(), query, observations, systemPrompt);
+                AnswerReview review = reviewAndReviseAnswer(activeChatModel, query, systemPrompt, observations, answer);
+                recordAnswerReview(metadata, review);
                 metadata.put("stopReason", "final_answer");
-                return new AgentExecutionResult(answer, traces, metadata);
+                return new AgentExecutionResult(review.answer(), traces, metadata);
             }
 
             if (!TOOL.equals(decision.action())) {
@@ -119,7 +128,14 @@ public class AgentOrchestrator {
                 continue;
             }
 
-            Map<String, Object> arguments = applyDocumentSearchDefaults(decision.toolName(), decision.arguments(), documentIds, documentTags);
+            Map<String, Object> arguments = applyToolDefaults(
+                decision.toolName(),
+                decision.arguments(),
+                documentIds,
+                documentTags,
+                query,
+                webSearchResultLimit
+            );
             ToolCallExecution execution = executeToolCall(
                 decision.toolName(),
                 arguments,
@@ -135,7 +151,7 @@ public class AgentOrchestrator {
             String fallbackTool = mandatoryTools.get(0);
             Map<String, Object> fallbackArguments = applyDocumentSearchDefaults(
                 fallbackTool,
-                defaultToolArguments(fallbackTool, query),
+                defaultToolArguments(fallbackTool, query, webSearchResultLimit),
                 documentIds,
                 documentTags
             );
@@ -152,8 +168,10 @@ public class AgentOrchestrator {
         }
 
         String finalAnswer = summarizeWithObservations(activeChatModel, query, systemPrompt, observations);
+        AnswerReview review = reviewAndReviseAnswer(activeChatModel, query, systemPrompt, observations, finalAnswer);
+        recordAnswerReview(metadata, review);
         metadata.put("stopReason", "max_steps_or_fallback");
-        return new AgentExecutionResult(finalAnswer, traces, metadata);
+        return new AgentExecutionResult(review.answer(), traces, metadata);
     }
 
     private AgentDecision decideNextAction(ChatModel activeChatModel,
@@ -320,6 +338,7 @@ public class AgentOrchestrator {
             prompt.append("System instruction: ").append(systemPrompt).append("\n\n");
         }
         prompt.append("Use the observations below and answer the user question in Chinese.\n");
+        prompt.append("If any tool observation reports failure, explicitly state that this source was unavailable and do not treat it as evidence.\n");
         if (observations.isEmpty()) {
             prompt.append("No external tool observation is available.\n");
         } else {
@@ -327,6 +346,70 @@ public class AgentOrchestrator {
         }
         prompt.append("\nUser question: ").append(query);
         return activeChatModel.chat(prompt.toString());
+    }
+
+    private AnswerReview reviewAndReviseAnswer(ChatModel activeChatModel,
+                                               String query,
+                                               String systemPrompt,
+                                               List<String> observations,
+                                               String answer) {
+        if (answer == null || answer.isBlank()) {
+            return new AnswerReview(REVIEW_REVISED, "", "Empty answer generated");
+        }
+
+        String raw = activeChatModel.chat(buildAnswerReviewPrompt(query, systemPrompt, observations, answer));
+        try {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> payload = objectMapper.readValue(extractJson(raw), Map.class);
+            boolean accepted = booleanValue(payload.get("accepted"));
+            String feedback = stringValue(payload.get("feedback"));
+            String revisedAnswer = stringValue(payload.get("revisedAnswer"));
+            if (accepted) {
+                return new AnswerReview(REVIEW_ACCEPTED, answer, feedback);
+            }
+            if (revisedAnswer != null && !revisedAnswer.isBlank()) {
+                return new AnswerReview(REVIEW_REVISED, revisedAnswer, feedback);
+            }
+            return new AnswerReview(REVIEW_ACCEPTED, answer, firstNonBlank(feedback, "Review rejected without revised answer"));
+        } catch (Exception ex) {
+            log.debug("Failed to parse answer review: {}", raw, ex);
+            return new AnswerReview(REVIEW_ACCEPTED, answer, "Answer review unavailable");
+        }
+    }
+
+    private String buildAnswerReviewPrompt(String query,
+                                           String systemPrompt,
+                                           List<String> observations,
+                                           String answer) {
+        StringBuilder prompt = new StringBuilder();
+        prompt.append("You are the final answer quality reviewer for an enterprise AI assistant.\n");
+        prompt.append("Decide whether the candidate answer satisfies the user's actual formal request.\n");
+        prompt.append("Reject answers that only point to documents/tools, summarize where information may be, or avoid giving the concrete requested result.\n");
+        prompt.append("A good answer must directly address the user request, use the available observations as evidence, and clearly state missing evidence when the observations are insufficient.\n");
+        prompt.append("Do not invent facts that are absent from the observations.\n");
+        prompt.append("If an observation says a tool failed, the answer must not claim that the failed tool provided supporting evidence.\n");
+        prompt.append("If the user's request is in Chinese, the revised answer must be in Chinese.\n\n");
+        if (systemPrompt != null && !systemPrompt.isBlank()) {
+            prompt.append("System instruction:\n").append(systemPrompt).append("\n\n");
+        }
+        prompt.append("User request:\n").append(query).append("\n\n");
+        prompt.append("Available observations:\n");
+        if (observations == null || observations.isEmpty()) {
+            prompt.append("- (none)\n");
+        } else {
+            observations.forEach(item -> prompt.append("- ").append(item).append("\n"));
+        }
+        prompt.append("\nCandidate answer:\n").append(answer).append("\n\n");
+        prompt.append("Respond with strict JSON only:\n");
+        prompt.append("{\"accepted\":true|false,\"feedback\":\"brief reason\",\"revisedAnswer\":\"if rejected, provide the improved final answer; otherwise empty string\"}");
+        return prompt.toString();
+    }
+
+    private void recordAnswerReview(Map<String, Object> metadata, AnswerReview review) {
+        metadata.put("answerReviewStatus", review.status());
+        if (review.feedback() != null && !review.feedback().isBlank()) {
+            metadata.put("answerReviewFeedback", review.feedback());
+        }
     }
 
     private ChatModel resolveChatModel(String modelName) {
@@ -388,6 +471,28 @@ public class AgentOrchestrator {
         return values;
     }
 
+    private Map<String, Object> applyToolDefaults(String toolName,
+                                                  Map<String, Object> arguments,
+                                                  List<String> boundDocumentIds,
+                                                  List<String> boundDocumentTags,
+                                                  String query,
+                                                  int webSearchResultLimit) {
+        Map<String, Object> values = applyDocumentSearchDefaults(toolName, arguments, boundDocumentIds, boundDocumentTags);
+        if ("document_search".equals(toolName) && !values.containsKey("query") && query != null && !query.isBlank()) {
+            values.put("query", query);
+        }
+        if (!"web_search".equals(toolName)) {
+            return values;
+        }
+        if (!values.containsKey("query") && query != null && !query.isBlank()) {
+            values.put("query", query);
+        }
+        if (!values.containsKey("num_results")) {
+            values.put("num_results", Math.max(1, Math.min(WEB_SEARCH_REFERENCE_LIMIT, webSearchResultLimit)));
+        }
+        return values;
+    }
+
     private ToolCallExecution executeToolCall(String toolName,
                                               Map<String, Object> arguments,
                                               String conversationId,
@@ -423,11 +528,20 @@ public class AgentOrchestrator {
 
         String observation = output.isSuccess()
             ? "Tool " + toolName + " output: " + outputText
-            : "Tool " + toolName + " failed: " + output.getErrorMessage();
+            : buildToolFailureObservation(toolName, output);
         return new ToolCallExecution(trace, observation);
     }
 
-    private Map<String, Object> defaultToolArguments(String toolName, String query) {
+    private String buildToolFailureObservation(String toolName, ToolOutput output) {
+        String error = firstNonBlank(output.getErrorMessage(), output.getExceptionType());
+        if (error == null || error.isBlank()) {
+            error = "unknown error";
+        }
+        return "Tool " + toolName + " failed. Error: " + error
+            + ". Evidence from this tool is unavailable; the final answer must explicitly mention this limitation and must not claim successful verification from this tool.";
+    }
+
+    private Map<String, Object> defaultToolArguments(String toolName, String query, int webSearchResultLimit) {
         if (query == null || query.isBlank()) {
             return Map.of();
         }
@@ -435,7 +549,7 @@ public class AgentOrchestrator {
             return Map.of("expression", query);
         }
         if ("web_search".equals(toolName)) {
-            return Map.of("query", query, "num_results", 5);
+            return Map.of("query", query, "num_results", Math.max(1, Math.min(WEB_SEARCH_REFERENCE_LIMIT, webSearchResultLimit)));
         }
         if (toolName != null && toolName.startsWith("mcp_")) {
             return Map.of("query", query);
@@ -443,8 +557,19 @@ public class AgentOrchestrator {
         return Map.of("input", query);
     }
 
-    private List<String> resolveMandatoryToolCandidates(List<String> tools) {
+    private List<String> resolveMandatoryToolCandidates(List<String> tools,
+                                                        List<String> requiredToolNames,
+                                                        boolean requireBoundToolCall) {
         if (tools == null || tools.isEmpty()) {
+            return List.of();
+        }
+        List<String> requiredTools = normalizeList(requiredToolNames).stream()
+            .filter(tools::contains)
+            .toList();
+        if (!requiredTools.isEmpty()) {
+            return requiredTools;
+        }
+        if (!requireBoundToolCall) {
             return List.of();
         }
         List<String> mcpTools = tools.stream()
@@ -505,6 +630,17 @@ public class AgentOrchestrator {
         return value == null ? null : String.valueOf(value);
     }
 
+    private boolean booleanValue(Object value) {
+        if (value instanceof Boolean bool) {
+            return bool;
+        }
+        return value != null && Boolean.parseBoolean(String.valueOf(value));
+    }
+
+    private String firstNonBlank(String first, String second) {
+        return first == null || first.isBlank() ? second : first;
+    }
+
     private String resolveDisplayName(String toolName, ToolMetadata metadata) {
         if (metadata != null && metadata.getTitle() != null && !metadata.getTitle().isBlank()) {
             return metadata.getTitle().trim();
@@ -543,6 +679,13 @@ public class AgentOrchestrator {
     private record ToolCallExecution(
         InteractionToolTrace trace,
         String observation
+    ) {
+    }
+
+    private record AnswerReview(
+        String status,
+        String answer,
+        String feedback
     ) {
     }
 

@@ -186,10 +186,30 @@ public class McpToolRegistryBridge {
             if (arguments.isEmpty() && input.getRawInput() != null && !input.getRawInput().isBlank()) {
                 arguments.put("query", input.getRawInput());
             }
+            long startedAt = System.currentTimeMillis();
+            log.info("MCP bridge tool call started localTool={} serviceId={} remoteTool={} requestId={} argKeys={}",
+                metadata.getId(),
+                serviceId,
+                remoteToolName,
+                input.getRequestId(),
+                argumentKeys(arguments));
             McpToolInvokeResult result = invoke(serviceId, remoteToolName, arguments);
             if (!result.success()) {
+                log.warn("MCP bridge tool call failed localTool={} serviceId={} remoteTool={} requestId={} durationMs={} error={}",
+                    metadata.getId(),
+                    serviceId,
+                    remoteToolName,
+                    input.getRequestId(),
+                    Math.max(0L, System.currentTimeMillis() - startedAt),
+                    result.errorMessage());
                 return ToolOutput.failure(result.errorMessage() == null ? "MCP tool call failed" : result.errorMessage());
             }
+            log.info("MCP bridge tool call succeeded localTool={} serviceId={} remoteTool={} requestId={} durationMs={}",
+                metadata.getId(),
+                serviceId,
+                remoteToolName,
+                input.getRequestId(),
+                Math.max(0L, System.currentTimeMillis() - startedAt));
             return ToolOutput.success(result.data(), result.message() == null ? "MCP call success" : result.message());
         }
     }
@@ -215,5 +235,15 @@ public class McpToolRegistryBridge {
         } catch (JsonProcessingException e) {
             return String.valueOf(object);
         }
+    }
+
+    private List<String> argumentKeys(Map<String, Object> arguments) {
+        if (arguments == null || arguments.isEmpty()) {
+            return List.of();
+        }
+        return arguments.keySet().stream()
+            .filter(key -> key != null && !key.isBlank())
+            .sorted()
+            .toList();
     }
 }

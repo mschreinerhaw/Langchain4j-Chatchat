@@ -105,6 +105,11 @@ chatchat:
       user-agent: ChatChat-MCP-Server/1.0
       timeout-ms: 10000
       max-results: 10
+      fetch-pages: true
+      max-pages-to-fetch: 3
+      page-excerpt-chars: 2500
+      page-max-bytes: 1048576
+      fallback-enabled: true
     database-query:
       enabled: true
       default-max-rows: 50

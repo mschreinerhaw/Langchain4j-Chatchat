@@ -1,13 +1,12 @@
 package com.chatchat.chat.interaction.service.handler;
 
-import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.agents.orchestration.AgentOrchestrator;
 import com.chatchat.chat.interaction.model.InteractionContext;
 import com.chatchat.chat.interaction.model.InteractionMode;
 import com.chatchat.chat.interaction.model.InteractionRequest;
 import com.chatchat.chat.interaction.model.InteractionResponse;
+import com.chatchat.chat.interaction.service.AgentToolPolicyResolver;
 import com.chatchat.chat.interaction.service.InteractionModeHandler;
-import com.chatchat.integration.mcp.service.McpToolRegistryBridge;
 import com.chatchat.chat.skills.SkillCatalogService;
 import com.chatchat.chat.skills.SkillDefinition;
 import lombok.RequiredArgsConstructor;
@@ -24,10 +23,11 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class AgentChatModeHandler implements InteractionModeHandler {
 
+    private static final int WEB_SEARCH_REFERENCE_LIMIT = 10;
+
     private final AgentOrchestrator agentOrchestrator;
-    private final ToolRegistry toolRegistry;
     private final SkillCatalogService skillCatalogService;
-    private final McpToolRegistryBridge mcpToolRegistryBridge;
+    private final AgentToolPolicyResolver toolPolicyResolver;
 
     @Override
     public InteractionMode mode() {
@@ -37,10 +37,7 @@ public class AgentChatModeHandler implements InteractionModeHandler {
     @Override
     public InteractionResponse handle(InteractionRequest request, InteractionContext context) {
         SkillDefinition skill = skillCatalogService.resolve(request.getSkillId());
-        List<String> tools = request.getAvailableTools();
-        if (tools == null || tools.isEmpty()) {
-            tools = discoverDefaultTools(request.getSkillId());
-        }
+        AgentToolPolicyResolver.ToolPolicy toolPolicy = toolPolicyResolver.resolve(request, skill);
         String systemPrompt = resolveSystemPrompt(request, skill);
         String modelName = skill.modelName() != null && !skill.modelName().isBlank()
             ? skill.modelName()
@@ -48,7 +45,7 @@ public class AgentChatModeHandler implements InteractionModeHandler {
 
         AgentOrchestrator.AgentExecutionResult result = agentOrchestrator.executeAgent(
             request.getQuery(),
-            tools,
+            toolPolicy.availableTools(),
             systemPrompt,
             modelName,
             skill.boundDocumentIds(),
@@ -57,29 +54,25 @@ public class AgentChatModeHandler implements InteractionModeHandler {
             context.requestId(),
             context.conversationId(),
             request.getUserId(),
-            hasMcpBinding(skill)
+            resolveWebSearchResultLimit(request.getMaxResults()),
+            toolPolicy.requiredTools(),
+            toolPolicy.hasMcpBinding()
         );
+
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("availableTools", toolPolicy.availableTools());
+        metadata.put("requiredTools", toolPolicy.requiredTools());
+        metadata.put("toolIntents", toolPolicy.activatedIntents());
+        metadata.put("skillId", request.getSkillId() == null ? "general" : request.getSkillId());
+        metadata.put("modelName", modelName);
+        metadata.put("agent", result.metadata());
+        metadata.put("handler", "AgentChatModeHandler");
 
         return InteractionResponse.builder()
             .answer(result.answer())
             .toolTraces(result.toolTraces())
-            .metadata(java.util.Map.of(
-                "availableTools", tools,
-                "skillId", request.getSkillId() == null ? "general" : request.getSkillId(),
-                "modelName", modelName,
-                "agent", result.metadata(),
-                "handler", "AgentChatModeHandler"
-            ))
+            .metadata(metadata)
             .build();
-    }
-
-    private List<String> discoverDefaultTools(String skillId) {
-        Map<String, List<String>> mcpToolsByServiceId = new LinkedHashMap<>();
-        mcpToolRegistryBridge.listRegisteredTools().forEach(tool ->
-            mcpToolsByServiceId.computeIfAbsent(tool.serviceId(), ignored -> new java.util.ArrayList<>())
-                .add(tool.localToolName())
-        );
-        return skillCatalogService.resolveTools(skillId, toolRegistry.getAllToolNames(), mcpToolsByServiceId);
     }
 
     private String resolveSystemPrompt(InteractionRequest request, SkillDefinition skill) {
@@ -89,20 +82,10 @@ public class AgentChatModeHandler implements InteractionModeHandler {
         return skill.systemPrompt();
     }
 
-    private boolean hasMcpBinding(SkillDefinition skill) {
-        if (skill == null) {
-            return false;
+    private int resolveWebSearchResultLimit(Integer maxResults) {
+        if (maxResults == null) {
+            return WEB_SEARCH_REFERENCE_LIMIT;
         }
-        if (skill.boundMcpServiceIds() != null && !skill.boundMcpServiceIds().isEmpty()) {
-            return true;
-        }
-        if (skill.boundMcpToolNames() != null && !skill.boundMcpToolNames().isEmpty()) {
-            return true;
-        }
-        return skill.toolConfigs() != null && skill.toolConfigs().stream()
-            .anyMatch(config -> config != null
-                && (config.enabled() == null || config.enabled())
-                && config.toolName() != null
-                && !config.toolName().isBlank());
+        return Math.max(1, Math.min(WEB_SEARCH_REFERENCE_LIMIT, maxResults));
     }
 }

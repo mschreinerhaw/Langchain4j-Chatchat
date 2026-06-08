@@ -6,6 +6,7 @@ import com.chatchat.mcpserver.livedata.LivedataSessionService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.stereotype.Service;
 
@@ -28,6 +29,7 @@ import java.util.regex.Pattern;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class ApiInvokeService {
 
     private static final Pattern DOUBLE_BRACE_TOKEN = Pattern.compile("\\{\\{\\s*([A-Za-z0-9_.-]+)\\s*}}");
@@ -42,11 +44,23 @@ public class ApiInvokeService {
         long startedAt = System.currentTimeMillis();
         Map<String, Object> auditArgs = arguments == null ? Map.of() : arguments;
         ApiInvokeResult result;
+        log.info("External API invoke started apiServiceId={} tool={} method={} urlTemplate={} argKeys={}",
+            config.getId(),
+            config.getToolName(),
+            config.getMethod(),
+            config.getUrlTemplate(),
+            argumentKeys(auditArgs));
 
         var cached = cacheService.get(config, auditArgs);
         if (cached.isPresent()) {
             result = cached.get();
             auditService.recordApiCall(config, auditArgs, result, System.currentTimeMillis() - startedAt);
+            log.info("External API invoke cache hit apiServiceId={} tool={} success={} statusCode={} durationMs={}",
+                config.getId(),
+                config.getToolName(),
+                result.success(),
+                result.statusCode(),
+                Math.max(0L, System.currentTimeMillis() - startedAt));
             return result;
         }
 
@@ -64,9 +78,30 @@ public class ApiInvokeService {
             result = toResult(response);
         } catch (Exception ex) {
             result = new ApiInvokeResult(false, 0, Map.of(), null, null, ex.getMessage());
+            log.warn("External API invoke threw apiServiceId={} tool={} durationMs={} error={}",
+                config.getId(),
+                config.getToolName(),
+                Math.max(0L, System.currentTimeMillis() - startedAt),
+                ex.getMessage(),
+                ex);
         }
         cacheService.put(config, auditArgs, result);
-        auditService.recordApiCall(config, auditArgs, result, System.currentTimeMillis() - startedAt);
+        long durationMs = Math.max(0L, System.currentTimeMillis() - startedAt);
+        auditService.recordApiCall(config, auditArgs, result, durationMs);
+        if (result.success()) {
+            log.info("External API invoke succeeded apiServiceId={} tool={} statusCode={} durationMs={}",
+                config.getId(),
+                config.getToolName(),
+                result.statusCode(),
+                durationMs);
+        } else {
+            log.warn("External API invoke failed apiServiceId={} tool={} statusCode={} durationMs={} error={}",
+                config.getId(),
+                config.getToolName(),
+                result.statusCode(),
+                durationMs,
+                result.errorMessage());
+        }
         return result;
     }
 
@@ -285,5 +320,15 @@ public class ApiInvokeService {
         } catch (Exception ignored) {
             return value;
         }
+    }
+
+    private List<String> argumentKeys(Map<String, Object> arguments) {
+        if (arguments == null || arguments.isEmpty()) {
+            return List.of();
+        }
+        return arguments.keySet().stream()
+            .filter(key -> key != null && !key.isBlank())
+            .sorted()
+            .toList();
     }
 }

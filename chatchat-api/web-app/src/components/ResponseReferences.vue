@@ -24,26 +24,57 @@
       <article v-for="trace in toolTraceRows" :key="trace.toolName + trace.startedAt" class="reference-row">
         <strong>{{ trace.displayName || trace.toolName || "工具调用" }}</strong>
         <p>{{ trace.success === false ? "调用失败" : "调用成功" }}</p>
-        <div v-if="trace.webPages.length" class="web-search-pages">
-          <span>查询网页</span>
-          <ol>
-            <li v-for="page in trace.webPages" :key="page.rank + page.url + page.title">
-              <a
-                v-if="page.url"
-                :href="page.url"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                {{ page.title }}
-              </a>
-              <strong v-else>{{ page.title }}</strong>
-              <small v-if="page.url">{{ page.url }}</small>
-              <p v-if="page.snippet">{{ page.snippet }}</p>
-            </li>
-          </ol>
-        </div>
+        <p v-if="trace.errorText" class="tool-error">{{ trace.errorText }}</p>
+        <button
+          v-if="trace.webPages.length"
+          type="button"
+          class="web-search-pages-trigger"
+          @click="openWebPagesDialog(trace)"
+        >
+          查询网页（{{ trace.webPages.length }}）
+        </button>
       </article>
     </details>
+
+    <div
+      v-if="webPagesDialog.open"
+      class="web-pages-modal-backdrop"
+      @click.self="closeWebPagesDialog"
+    >
+      <section
+        class="web-pages-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="web-pages-modal-title"
+      >
+        <header>
+          <h3 id="web-pages-modal-title">{{ webPagesDialog.title }}</h3>
+          <button
+            type="button"
+            class="web-pages-modal-close"
+            aria-label="关闭"
+            @click="closeWebPagesDialog"
+          >
+            ×
+          </button>
+        </header>
+        <ol class="web-pages-modal-list">
+          <li v-for="page in webPagesDialog.pages" :key="page.rank + page.url + page.title">
+            <a
+              v-if="page.url"
+              :href="page.url"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {{ page.title }}
+            </a>
+            <strong v-else>{{ page.title }}</strong>
+            <small v-if="page.url">{{ displayUrl(page.url) }}</small>
+            <p v-if="page.snippet">{{ page.snippet }}</p>
+          </li>
+        </ol>
+      </section>
+    </div>
   </section>
 </template>
 

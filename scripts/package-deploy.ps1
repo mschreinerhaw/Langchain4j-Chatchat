@@ -1,5 +1,6 @@
 param(
     [switch]$SkipBuild,
+    [switch]$SkipWebBuild,
     [string]$OutputDir = "dist"
 )
 
@@ -58,12 +59,31 @@ function Ensure-Java17 {
     Write-Host "Switched JAVA_HOME to $($env:JAVA_HOME)"
 }
 
-if (!(Test-Path $RootPomPath)) {
-    throw "Cannot find root pom.xml. Please run this script from the project workspace."
+function Assert-ChildPath {
+    param(
+        [Parameter(Mandatory = $true)][string]$Parent,
+        [Parameter(Mandatory = $true)][string]$Child
+    )
+
+    $ParentPath = [System.IO.Path]::GetFullPath($Parent).TrimEnd('\', '/') + [System.IO.Path]::DirectorySeparatorChar
+    $ChildPath = [System.IO.Path]::GetFullPath($Child).TrimEnd('\', '/') + [System.IO.Path]::DirectorySeparatorChar
+
+    if (-not $ChildPath.StartsWith($ParentPath, [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw "Refusing to operate outside expected directory. Parent=$ParentPath Child=$ChildPath"
+    }
 }
 
-if (!(Test-Path $LocalMavenRepo)) {
-    New-Item -Path $LocalMavenRepo -ItemType Directory -Force | Out-Null
+function Write-TextFile {
+    param(
+        [Parameter(Mandatory = $true)][string]$Path,
+        [Parameter(Mandatory = $true)][string]$Content
+    )
+
+    Set-Content -Path $Path -Value $Content -Encoding UTF8
+}
+
+if (!(Test-Path $RootPomPath)) {
+    throw "Cannot find root pom.xml. Please run this script from the project workspace."
 }
 
 if (!(Test-Path (Join-Path $TemplateDir "bin"))) {
@@ -72,6 +92,10 @@ if (!(Test-Path (Join-Path $TemplateDir "bin"))) {
 
 if (!(Test-Path (Join-Path $TemplateDir "config\application.yml"))) {
     throw "Missing packaging/config/application.yml template."
+}
+
+if (!(Test-Path $LocalMavenRepo)) {
+    New-Item -Path $LocalMavenRepo -ItemType Directory -Force | Out-Null
 }
 
 [xml]$RootPom = Get-Content $RootPomPath
@@ -84,12 +108,29 @@ $AppName = "chatchat"
 $PackageName = "$AppName-$Version"
 $DistRoot = Join-Path $ProjectRoot $OutputDir
 $StagingRoot = Join-Path $DistRoot $PackageName
-$ArchivePath = Join-Path $DistRoot "$PackageName.tar.gz"
+$TarGzPath = Join-Path $DistRoot "$PackageName.tar.gz"
+$ZipPath = Join-Path $DistRoot "$PackageName.zip"
 
 if (-not $SkipBuild) {
     Ensure-Java17
-    Write-Host "Running Maven build: mvn clean package -DskipTests -Dmaven.repo.local=$LocalMavenRepo"
-    & mvn clean package -DskipTests "-Dmaven.repo.local=$LocalMavenRepo"
+    $MavenArgs = @(
+        "-pl"
+        "chatchat-api"
+        "-am"
+        "-DskipTests"
+        "package"
+        "-Dmaven.repo.local=$LocalMavenRepo"
+    )
+    if ($SkipWebBuild) {
+        if (!(Test-Path (Join-Path $ProjectRoot "chatchat-api\web-app\dist\index.html"))) {
+            throw "SkipWebBuild requires existing chatchat-api/web-app/dist/index.html."
+        }
+        $MavenArgs += "-Dexec.skip=true"
+        Write-Host "SkipWebBuild enabled. Reusing existing chatchat-api/web-app/dist."
+    }
+
+    Write-Host "Running Maven build: mvn $($MavenArgs -join ' ')"
+    & mvn @MavenArgs
     if ($LASTEXITCODE -ne 0) {
         throw "Maven build failed."
     }
@@ -110,102 +151,136 @@ if ($null -eq $JarFile) {
     throw "Cannot find executable jar in $ApiTargetDir. Please run Maven build first."
 }
 
+New-Item -Path $DistRoot -ItemType Directory -Force | Out-Null
+Assert-ChildPath -Parent $DistRoot -Child $StagingRoot
+
 if (Test-Path $StagingRoot) {
     Remove-Item -LiteralPath $StagingRoot -Recurse -Force
 }
 
 New-Item -Path $StagingRoot -ItemType Directory -Force | Out-Null
-foreach ($Dir in @("bin", "config", "h2", "lib", "logs", "run")) {
+foreach ($Dir in @("bin", "config", "data", "logs", "run", "lib", "lib\app", "lib\drivers")) {
     New-Item -Path (Join-Path $StagingRoot $Dir) -ItemType Directory -Force | Out-Null
 }
 
 Copy-Item -Path (Join-Path $TemplateDir "bin\*") -Destination (Join-Path $StagingRoot "bin") -Recurse -Force
 Copy-Item -Path (Join-Path $TemplateDir "config\*") -Destination (Join-Path $StagingRoot "config") -Recurse -Force
-Copy-Item -Path $JarFile.FullName -Destination (Join-Path $StagingRoot "lib\$($JarFile.Name)") -Force
+Copy-Item -Path $JarFile.FullName -Destination (Join-Path $StagingRoot "lib\app\$AppName.jar") -Force
 
-# Extract runtime dependencies from Spring Boot fat jar: BOOT-INF/lib/*.jar
-Add-Type -AssemblyName System.IO.Compression.FileSystem
-$Zip = [System.IO.Compression.ZipFile]::OpenRead($JarFile.FullName)
-try {
-    $DependencyEntries = $Zip.Entries | Where-Object {
-        $_.FullName.StartsWith("BOOT-INF/lib/") -and $_.FullName.EndsWith(".jar")
-    }
+Write-TextFile -Path (Join-Path $StagingRoot "VERSION") -Content @"
+name=$AppName
+version=$Version
+buildTime=$(Get-Date -Format "yyyy-MM-ddTHH:mm:ssK")
+sourceJar=$($JarFile.Name)
+"@
 
-    foreach ($Entry in $DependencyEntries) {
-        $DependencyName = [System.IO.Path]::GetFileName($Entry.FullName)
-        if ([string]::IsNullOrWhiteSpace($DependencyName)) {
-            continue
-        }
-
-        $DependencyTarget = Join-Path $StagingRoot "lib\$DependencyName"
-        $EntryStream = $Entry.Open()
-        try {
-            $OutputStream = [System.IO.File]::Open($DependencyTarget, [System.IO.FileMode]::Create, [System.IO.FileAccess]::Write)
-            try {
-                $EntryStream.CopyTo($OutputStream)
-            } finally {
-                $OutputStream.Dispose()
-            }
-        } finally {
-            $EntryStream.Dispose()
-        }
-    }
-} finally {
-    $Zip.Dispose()
-}
-
-if ($DependencyEntries.Count -eq 0) {
-    Ensure-Java17
-    Write-Host "No BOOT-INF/lib entries found. Fallback to Maven dependency copy."
-    & mvn -pl chatchat-api -am dependency:copy-dependencies `
-        -DincludeScope=runtime `
-        "-DoutputDirectory=$(Join-Path $StagingRoot 'lib')" `
-        -DexcludeArtifactIds=chatchat-api `
-        "-Dmaven.repo.local=$LocalMavenRepo" `
-        -DskipTests
-    if ($LASTEXITCODE -ne 0) {
-        throw "Failed to copy runtime dependencies to lib."
-    }
-}
-
-$Readme = @"
-# ChatChat Deploy Package
+Write-TextFile -Path (Join-Path $StagingRoot "README.md") -Content @"
+# ChatChat Release Package
 
 ## Directory Layout
-- bin: startup and process scripts
-- config: externalized config files
-- lib: application jar and runtime dependencies
-- logs: runtime logs
-- run: pid file storage
+
+- `bin`: startup, stop, restart, and status scripts
+- `config`: externalized Spring Boot configuration
+- `data`: local H2, RocksDB, and uploaded file data
+- `logs`: application logs and console output
+- `run`: pid file storage
+- `lib/app`: executable application jar
+- `lib/drivers`: optional external JDBC driver jars
 
 ## Start
-1. cd into package root
-2. run: chmod +x bin/*.sh
-3. run: ./bin/start.sh
 
-## Stop
+Linux:
+
+```bash
+chmod +x bin/*.sh
+./bin/start.sh
+```
+
+Windows:
+
+```powershell
+.\bin\start.bat
+```
+
+## Stop And Status
+
+```bash
+./bin/status.sh
 ./bin/stop.sh
+./bin/restart.sh
+```
+
+```powershell
+.\bin\status.bat
+.\bin\stop.bat
+.\bin\restart.bat
+```
+
+## Production Notes
+
+- Configure `OPENAI_API_KEY` before enabling OpenAI-compatible model calls.
+- Use `config/application-mysql.yml` with `APP_ARGS=--spring.profiles.active=mysql` when deploying with MySQL.
+- Put external JDBC driver jars in `lib/drivers`.
+- Runtime JVM options can be passed with `JAVA_OPTS`; extra Spring Boot arguments can be passed with `APP_ARGS`.
 "@
-Set-Content -Path (Join-Path $StagingRoot "README.md") -Value $Readme -Encoding UTF8
+
+Write-TextFile -Path (Join-Path $StagingRoot "lib\drivers\README.md") -Content @"
+# JDBC drivers
+
+Put optional external JDBC driver jars in this directory.
+"@
+
+Write-TextFile -Path (Join-Path $StagingRoot "logs\README.md") -Content @"
+# logs directory
+
+Application logs, stdout, and stderr are written here at runtime.
+"@
+
+Write-TextFile -Path (Join-Path $StagingRoot "run\README.md") -Content @"
+# run directory
+
+The startup scripts store the pid file here.
+"@
+
+Write-TextFile -Path (Join-Path $StagingRoot "data\README.md") -Content @"
+# data directory
+
+Local H2, RocksDB, and uploaded file data are stored here by default.
+"@
+
+foreach ($ArchivePath in @($TarGzPath, $ZipPath, "$TarGzPath.sha256", "$ZipPath.sha256")) {
+    Assert-ChildPath -Parent $DistRoot -Child $ArchivePath
+    if (Test-Path $ArchivePath) {
+        Remove-Item -LiteralPath $ArchivePath -Force
+    }
+}
 
 $TarCommand = Get-Command tar -ErrorAction SilentlyContinue
-if ($null -eq $TarCommand) {
-    throw "tar command not found. Please install tar/bsdtar and rerun."
+if ($null -ne $TarCommand) {
+    Write-Host "Creating archive: $TarGzPath"
+    & tar -czf $TarGzPath -C $DistRoot $PackageName
+    if ($LASTEXITCODE -ne 0) {
+        throw "Failed to create tar.gz package."
+    }
+} else {
+    Write-Warning "tar command not found. Skipping tar.gz package."
 }
 
-if (Test-Path $ArchivePath) {
-    Remove-Item -LiteralPath $ArchivePath -Force
-}
+Write-Host "Creating archive: $ZipPath"
+Compress-Archive -Path $StagingRoot -DestinationPath $ZipPath -Force
 
-Write-Host "Creating archive: $ArchivePath"
-& tar -czf $ArchivePath -C $DistRoot $PackageName
-if ($LASTEXITCODE -ne 0) {
-    throw "Failed to create tar.gz package."
+foreach ($ArchivePath in @($TarGzPath, $ZipPath)) {
+    if (Test-Path $ArchivePath) {
+        $Hash = Get-FileHash -Algorithm SHA256 -Path $ArchivePath
+        Set-Content -Path "$ArchivePath.sha256" -Value "$($Hash.Hash.ToLowerInvariant())  $([System.IO.Path]::GetFileName($ArchivePath))" -Encoding ASCII
+    }
 }
 
 Write-Host ""
 Write-Host "Package created successfully."
 Write-Host "Staging folder: $StagingRoot"
-Write-Host "Archive: $ArchivePath"
-Write-Host "Included jar: $($JarFile.Name)"
-Write-Host "Runtime dependencies in lib: $($DependencyEntries.Count)"
+if (Test-Path $TarGzPath) {
+    Write-Host "Archive: $TarGzPath"
+}
+Write-Host "Archive: $ZipPath"
+Write-Host "Included jar: $($JarFile.Name) -> lib/app/$AppName.jar"

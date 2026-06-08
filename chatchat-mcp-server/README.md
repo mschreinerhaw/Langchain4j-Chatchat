@@ -57,12 +57,41 @@ Package layout:
 
 ```text
 bin/start.bat
+bin/start.ps1
 bin/start.sh
+bin/stop.bat
+bin/stop.ps1
+bin/stop.sh
+bin/restart.bat
+bin/restart.ps1
+bin/restart.sh
+bin/status.bat
+bin/status.ps1
+bin/status.sh
 config/application.yml
-lib/
-chatchat-mcp-server.jar
+logs/
+lib/app/chatchat-mcp-server.jar
+lib/drivers/
 ```
 
-Put external JDBC driver jars into `lib/`. The `database_query` tool can then query an external database by passing `jdbc_url`, `username`, `password`, and optionally `driver_class`.
+Start, stop, restart, and check status:
 
-If a jar is added after startup, call `database_query` once with `reload_drivers=true` to rescan `lib/`.
+```powershell
+.\bin\start.bat
+.\bin\status.bat
+.\bin\stop.bat
+.\bin\restart.bat
+```
+
+```bash
+./bin/start.sh
+./bin/status.sh
+./bin/stop.sh
+./bin/restart.sh
+```
+
+Runtime logs are written to `logs/`. Override JVM options with `JAVA_OPTS` and extra Spring Boot arguments with `APP_ARGS`.
+
+Put external JDBC driver jars into `lib/drivers/`. The `database_query` tool can then query an external database by passing `jdbc_url`, `username`, `password`, and optionally `driver_class`.
+
+If a jar is added after startup, call `database_query` once with `reload_drivers=true` to rescan `lib/drivers/`.

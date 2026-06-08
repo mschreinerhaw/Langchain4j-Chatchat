@@ -1,18 +1,25 @@
-# JDBC driver directory
+# lib directory
 
-Put external JDBC driver jars in this directory before starting the MCP server.
+The release package keeps runtime files under `lib`:
+
+```text
+lib/app/chatchat-mcp-server.jar
+lib/drivers/
+```
+
+Put external JDBC driver jars in `lib/drivers` before starting the MCP server.
 
 Examples:
 
 ```text
-lib/mysql-connector-j-8.x.x.jar
-lib/postgresql-42.x.x.jar
-lib/ojdbc11.jar
-lib/mssql-jdbc-12.x.x.jre11.jar
+lib/drivers/mysql-connector-j-8.x.x.jar
+lib/drivers/postgresql-42.x.x.jar
+lib/drivers/ojdbc11.jar
+lib/drivers/mssql-jdbc-12.x.x.jre11.jar
 ```
 
-The `database_query` tool scans `./lib` by default. Override the path with:
+The `database_query` tool scans `./lib/drivers` by default. Override the path with:
 
 ```text
-CHAT_TOOLS_DATABASE_QUERY_DRIVER_LIB_PATH=./lib
+CHAT_TOOLS_DATABASE_QUERY_DRIVER_LIB_PATH=./lib/drivers
 ```

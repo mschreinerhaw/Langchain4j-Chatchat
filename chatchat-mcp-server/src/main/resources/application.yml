@@ -110,11 +110,18 @@ chatchat:
       default-max-rows: 50
       max-rows: 500
       query-timeout-seconds: 15
-      driver-lib-path: ./lib
+      driver-lib-path: ./lib/drivers
 
 logging:
+  file:
+    name: ./logs/chatchat-mcp-server.log
   level:
     com.chatchat: INFO
     io.modelcontextprotocol: INFO
+  logback:
+    rollingpolicy:
+      max-file-size: 100MB
+      max-history: 30
+      total-size-cap: 3GB
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"

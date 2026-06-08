@@ -1,66 +1,48 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/usr/bin/env sh
+set -eu
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-APP_HOME="$(cd "$SCRIPT_DIR/.." && pwd)"
+APP_HOME="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
+APP_NAME="chatchat"
+APP_JAR="$APP_HOME/lib/app/$APP_NAME.jar"
+PID_FILE="$APP_HOME/run/$APP_NAME.pid"
+STDOUT_LOG="$APP_HOME/logs/$APP_NAME.out"
+CONFIG_DIR="$APP_HOME/config/"
 
-LIB_DIR="$APP_HOME/lib"
-CONFIG_DIR="$APP_HOME/config"
-CONFIG_FILE="$APP_HOME/config/application.yml"
-LOG_DIR="$APP_HOME/logs"
-RUN_DIR="$APP_HOME/run"
-PID_FILE="$RUN_DIR/chatchat.pid"
-CONSOLE_LOG="$LOG_DIR/console.out"
-
-JAVA_CMD="${JAVA_HOME:-}/bin/java"
-if [[ ! -x "$JAVA_CMD" ]]; then
+if [ -n "${JAVA_HOME:-}" ]; then
+  JAVA_CMD="$JAVA_HOME/bin/java"
+else
   JAVA_CMD="java"
 fi
 
-if [[ -f "$PID_FILE" ]]; then
+mkdir -p "$APP_HOME/logs" "$APP_HOME/run" "$APP_HOME/data" "$APP_HOME/lib/drivers"
+
+if [ -f "$PID_FILE" ]; then
   PID="$(cat "$PID_FILE")"
-  if kill -0 "$PID" >/dev/null 2>&1; then
-    echo "ChatChat is already running. PID=$PID"
+  if [ -n "$PID" ] && kill -0 "$PID" 2>/dev/null; then
+    echo "$APP_NAME is already running, pid=$PID"
     exit 0
   fi
   rm -f "$PID_FILE"
 fi
 
-mkdir -p "$LOG_DIR" "$RUN_DIR"
-
-JAR_FILE="$(ls "$LIB_DIR"/chatchat-api-*.jar 2>/dev/null | head -n 1 || true)"
-if [[ -z "$JAR_FILE" ]]; then
-  JAR_FILE="$(ls "$LIB_DIR"/*.jar 2>/dev/null | head -n 1 || true)"
-fi
-
-if [[ -z "$JAR_FILE" ]]; then
-  echo "No jar found in $LIB_DIR"
+if [ ! -f "$APP_JAR" ]; then
+  echo "Application jar not found: $APP_JAR" >&2
   exit 1
 fi
 
-if [[ ! -f "$CONFIG_FILE" ]]; then
-  echo "Missing config file: $CONFIG_FILE"
-  exit 1
-fi
+nohup "$JAVA_CMD" ${JAVA_OPTS:-} -jar "$APP_JAR" \
+  --spring.config.additional-location="optional:file:$CONFIG_DIR" \
+  ${APP_ARGS:-} >> "$STDOUT_LOG" 2>&1 &
 
-JAVA_OPTS="${JAVA_OPTS:--Xms512m -Xmx1024m}"
-APP_ARGS="${APP_ARGS:-}"
-
-echo "Starting ChatChat..."
-echo "JAVA_CMD=$JAVA_CMD"
-echo "JAR_FILE=$JAR_FILE"
-echo "CONFIG_DIR=$CONFIG_DIR"
-
-# shellcheck disable=SC2086
-nohup "$JAVA_CMD" $JAVA_OPTS -jar "$JAR_FILE" --spring.config.additional-location="optional:file:$CONFIG_DIR/" $APP_ARGS >>"$CONSOLE_LOG" 2>&1 &
-PID=$!
-echo "$PID" >"$PID_FILE"
+PID="$!"
+echo "$PID" > "$PID_FILE"
 
 sleep 1
-if kill -0 "$PID" >/dev/null 2>&1; then
-  echo "ChatChat started. PID=$PID"
-  echo "Logs: $CONSOLE_LOG"
+if kill -0 "$PID" 2>/dev/null; then
+  echo "$APP_NAME started, pid=$PID"
+  echo "stdout log: $STDOUT_LOG"
 else
-  echo "ChatChat failed to start. Check logs: $CONSOLE_LOG"
+  rm -f "$PID_FILE"
+  echo "$APP_NAME failed to start. Check $STDOUT_LOG" >&2
   exit 1
 fi

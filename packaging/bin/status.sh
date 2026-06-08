@@ -1,21 +1,20 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/usr/bin/env sh
+set -eu
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-APP_HOME="$(cd "$SCRIPT_DIR/.." && pwd)"
-RUN_DIR="$APP_HOME/run"
-PID_FILE="$RUN_DIR/chatchat.pid"
+APP_HOME="$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)"
+APP_NAME="chatchat"
+PID_FILE="$APP_HOME/run/$APP_NAME.pid"
 
-if [[ ! -f "$PID_FILE" ]]; then
-  echo "ChatChat is not running."
-  exit 1
+if [ ! -f "$PID_FILE" ]; then
+  echo "$APP_NAME is stopped"
+  exit 3
 fi
 
 PID="$(cat "$PID_FILE")"
-if kill -0 "$PID" >/dev/null 2>&1; then
-  echo "ChatChat is running. PID=$PID"
+if [ -n "$PID" ] && kill -0 "$PID" 2>/dev/null; then
+  echo "$APP_NAME is running, pid=$PID"
   exit 0
 fi
 
-echo "ChatChat is not running (stale pid file: $PID_FILE)."
+echo "$APP_NAME is stopped: stale pid file"
 exit 1

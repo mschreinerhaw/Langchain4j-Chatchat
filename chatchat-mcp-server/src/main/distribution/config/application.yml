@@ -1,82 +1,127 @@
-server:
-  port: ${CHAT_MCP_SERVER_PORT:8090}
-
 spring:
+  application:
+    name: chatchat-mcp-server
   datasource:
-    url: ${CHAT_MCP_DATASOURCE_URL:jdbc:h2:file:./data/h2/chatchat-mcp-server;MODE=MySQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE;DB_CLOSE_DELAY=-1}
-    username: ${CHAT_MCP_DATASOURCE_USERNAME:sa}
-    password: ${CHAT_MCP_DATASOURCE_PASSWORD:chatchat_mcp_h2_pwd}
+    url: jdbc:h2:file:./data/h2/chatchat-mcp-server;MODE=MySQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: chatchat_mcp_h2_pwd
     hikari:
-      pool-name: ${CHAT_MCP_HIKARI_POOL_NAME:ChatChatMcpHikariPool}
-      maximum-pool-size: ${CHAT_MCP_HIKARI_MAXIMUM_POOL_SIZE:10}
-      minimum-idle: ${CHAT_MCP_HIKARI_MINIMUM_IDLE:2}
-      connection-timeout: ${CHAT_MCP_HIKARI_CONNECTION_TIMEOUT:20000}
-      idle-timeout: ${CHAT_MCP_HIKARI_IDLE_TIMEOUT:300000}
-      max-lifetime: ${CHAT_MCP_HIKARI_MAX_LIFETIME:1200000}
-      auto-commit: ${CHAT_MCP_HIKARI_AUTO_COMMIT:true}
-      transaction-isolation: ${CHAT_MCP_HIKARI_TRANSACTION_ISOLATION:TRANSACTION_READ_COMMITTED}
+      pool-name: ChatChatMcpHikariPool
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 20000
+      idle-timeout: 300000
+      max-lifetime: 1200000
+      auto-commit: true
+      transaction-isolation: TRANSACTION_READ_COMMITTED
+  h2:
+    console:
+      enabled: false
+      path: /h2-console
+      settings:
+        web-allow-others: false
+  jpa:
+    hibernate:
+      ddl-auto: update
+    database-platform: org.hibernate.dialect.H2Dialect
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+        connection:
+          driver_class: org.h2.Driver
+          url: jdbc:h2:file:./data/h2/chatchat-mcp-server;MODE=MySQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE;DB_CLOSE_DELAY=-1
+          username: sa
+          pool_size: 10
+          autocommit: true
+          isolation: 2
+
+server:
+  port: 8090
+  servlet:
+    context-path: /
+  shutdown: graceful
 
 chatchat:
   mcp:
     admin:
-      username: ${CHAT_MCP_ADMIN_USERNAME:admin}
-      password: ${CHAT_MCP_ADMIN_PASSWORD:admin123}
+      username: admin
+      password: admin123
+      token-ttl-minutes: 480
+    security:
+      require-mcp-token: false
     cache:
-      path: ${CHAT_MCP_CACHE_PATH:./data/mcp-cache-rocksdb}
-    # Optional LiveData API auto-registration.
-    # Uncomment and configure these values only when the MCP server needs to
-    # read LiveData API definitions and publish them as MCP tools.
-    # livedata:
-    #   enabled: ${CHAT_MCP_LIVEDATA_ENABLED:false}
-    #   jdbc-url: ${CHAT_MCP_LIVEDATA_JDBC_URL:}
-    #   username: ${CHAT_MCP_LIVEDATA_USERNAME:}
-    #   password: ${CHAT_MCP_LIVEDATA_PASSWORD:}
-    #   driver-class: ${CHAT_MCP_LIVEDATA_DRIVER_CLASS:com.mysql.cj.jdbc.Driver}
-    #   table-name: ${CHAT_MCP_LIVEDATA_TABLE_NAME:ld_dataservice_api}
-    #   service-base-url: ${CHAT_MCP_LIVEDATA_SERVICE_BASE_URL:}
-    #   service-path-template: ${CHAT_MCP_LIVEDATA_SERVICE_PATH_TEMPLATE:/service/{serviceName}/call}
-    #   login-enabled: ${CHAT_MCP_LIVEDATA_LOGIN_ENABLED:true}
-    #   login-path: ${CHAT_MCP_LIVEDATA_LOGIN_PATH:/login}
-    #   login-id: ${CHAT_MCP_LIVEDATA_LOGIN_ID:}
-    #   login-pwd: ${CHAT_MCP_LIVEDATA_LOGIN_PWD:}
-    #   login-timeout-ms: ${CHAT_MCP_LIVEDATA_LOGIN_TIMEOUT_MS:10000}
-    #   session-ttl-seconds: ${CHAT_MCP_LIVEDATA_SESSION_TTL_SECONDS:1800}
-    #   ams-token: ${CHAT_MCP_LIVEDATA_AMS_TOKEN:}
-    #   default-namespace: ${CHAT_MCP_LIVEDATA_DEFAULT_NAMESPACE:livedata}
-    #   tool-name-prefix: ${CHAT_MCP_LIVEDATA_TOOL_NAME_PREFIX:livedata_}
-    #   published-state: ${CHAT_MCP_LIVEDATA_PUBLISHED_STATE:0}
-    #   max-apis: ${CHAT_MCP_LIVEDATA_MAX_APIS:1000}
-    #   timeout-ms: ${CHAT_MCP_LIVEDATA_TIMEOUT_MS:20000}
-    #   cache-enabled: ${CHAT_MCP_LIVEDATA_CACHE_ENABLED:false}
-    #   cache-ttl-seconds: ${CHAT_MCP_LIVEDATA_CACHE_TTL_SECONDS:300}
-    #   overwrite-existing: ${CHAT_MCP_LIVEDATA_OVERWRITE_EXISTING:true}
-    #   include-unpublished-as-disabled: ${CHAT_MCP_LIVEDATA_INCLUDE_UNPUBLISHED_AS_DISABLED:false}
-    #   expose-ams-token-parameter: ${CHAT_MCP_LIVEDATA_EXPOSE_AMS_TOKEN_PARAMETER:false}
+      enabled: true
+      path: ./data/mcp-cache-rocksdb
+      create-if-missing: true
+      cleanup-interval-ms: 60000
+      cleanup-batch-size: 500
+    server:
+      name: chatchat-langchain4j-mcp-server
+      version: 1.0.0-SNAPSHOT
+      endpoint: /mcp
+      expose-agent-compatible-only: true
+      excluded-tool-names: []
+      instructions: "ChatChat standalone MCP server exposing LangChain4j-compatible tools."
+    livedata:
+      enabled: true
+      jdbc-url: jdbc:mysql://192.168.195.223:3306/LiveDOP?characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai
+      username: root
+      password: liveData#12345
+      driver-class: com.mysql.cj.jdbc.Driver
+      table-name: ld_dataservice_api
+      service-base-url: http://192.168.195.223:5006
+      service-path-template: /service/{serviceName}/call
+      login-enabled: true
+      login-path: /login
+      login-id: console
+      login-pwd: 123456
+      login-timeout-ms: 10000
+      session-ttl-seconds: 1800
+      ams-token: aaabfc8b3eebfdfdb9faf418c285048a
+      default-namespace: livedata
+      tool-name-prefix: livedata_
+      published-state: 0
+      max-apis: 1000
+      timeout-ms: 20000
+      cache-enabled: false
+      cache-ttl-seconds: 300
+      overwrite-existing: true
+      include-unpublished-as-disabled: false
+      expose-ams-token-parameter: false
   tools:
     document-search:
-      enabled: ${CHAT_TOOLS_DOCUMENT_SEARCH_ENABLED:true}
-      api-base-url: ${CHAT_API_BASE_URL:http://localhost:8080}
-      search-path: ${CHAT_TOOLS_DOCUMENT_SEARCH_PATH:/api/v1/search}
-      timeout-ms: ${CHAT_TOOLS_DOCUMENT_SEARCH_TIMEOUT_MS:20000}
-      default-limit: ${CHAT_TOOLS_DOCUMENT_SEARCH_DEFAULT_LIMIT:5}
-      max-limit: ${CHAT_TOOLS_DOCUMENT_SEARCH_MAX_LIMIT:20}
-    database-query:
-      driver-lib-path: ${CHAT_TOOLS_DATABASE_QUERY_DRIVER_LIB_PATH:./lib/drivers}
-      default-max-rows: ${CHAT_TOOLS_DATABASE_QUERY_DEFAULT_MAX_ROWS:50}
-      max-rows: ${CHAT_TOOLS_DATABASE_QUERY_MAX_ROWS:500}
-      query-timeout-seconds: ${CHAT_TOOLS_DATABASE_QUERY_TIMEOUT_SECONDS:15}
+      enabled: true
+      api-base-url: http://localhost:8080
+      search-path: /api/v1/search
+      timeout-ms: 20000
+      default-limit: 5
+      max-limit: 20
     web-search:
-      provider: ${CHAT_TOOLS_WEB_SEARCH_PROVIDER:duckduckgo_html}
-      endpoint: ${CHAT_TOOLS_WEB_SEARCH_ENDPOINT:https://duckduckgo.com/html/}
+      enabled: true
+      provider: bing_html
+      endpoint: https://www.bing.com/search
+      user-agent: ChatChat-MCP-Server/1.0
+      timeout-ms: 10000
+      max-results: 10
+    database-query:
+      enabled: true
+      default-max-rows: 50
+      max-rows: 500
+      query-timeout-seconds: 15
+      driver-lib-path: ./lib/drivers
 
 logging:
   file:
-    name: ${CHAT_MCP_LOG_FILE:./logs/chatchat-mcp-server.log}
+    name: ./logs/chatchat-mcp-server.log
+  level:
+    com.chatchat: INFO
+    io.modelcontextprotocol: INFO
   logback:
     rollingpolicy:
-      max-file-size: ${CHAT_MCP_LOG_MAX_FILE_SIZE:100MB}
-      max-history: ${CHAT_MCP_LOG_MAX_HISTORY:30}
-      total-size-cap: ${CHAT_MCP_LOG_TOTAL_SIZE_CAP:3GB}
-  level:
-    com.chatchat: ${CHAT_MCP_LOG_LEVEL_CHATCHAT:INFO}
-    io.modelcontextprotocol: ${CHAT_MCP_LOG_LEVEL_MCP:INFO}
+      max-file-size: 100MB
+      max-history: 30
+      total-size-cap: 3GB
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"

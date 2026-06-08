@@ -26,7 +26,11 @@ public class LivedataApiAutoRegistrar {
         if (!properties.isEnabled()) {
             return;
         }
-        sync();
+        try {
+            sync();
+        } catch (Exception ex) {
+            log.warn("LiveData API auto registration failed: {}", ex.getMessage(), ex);
+        }
     }
 
     public void sync() {

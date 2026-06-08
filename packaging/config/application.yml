@@ -1,38 +1,38 @@
 spring:
   application:
     name: chatchat
-    version: ${CHAT_APP_VERSION:1.0.0-SNAPSHOT}
+    version: 1.0.0-SNAPSHOT
   servlet:
     multipart:
-      max-file-size: ${CHAT_MULTIPART_MAX_FILE_SIZE:5MB}
-      max-request-size: ${CHAT_MULTIPART_MAX_REQUEST_SIZE:5MB}
+      max-file-size: 5MB
+      max-request-size: 5MB
   datasource:
-    url: ${CHAT_DATASOURCE_URL:jdbc:h2:file:./data/h2/chatchat;MODE=MySQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE;DB_CLOSE_DELAY=-1}
-    driver-class-name: ${CHAT_DATASOURCE_DRIVER:org.h2.Driver}
-    username: ${CHAT_DATASOURCE_USERNAME:sa}
-    password: ${CHAT_DATASOURCE_PASSWORD:}
+    url: jdbc:h2:file:./data/h2/chatchat;MODE=MySQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
     hikari:
-      maximum-pool-size: ${CHAT_DATASOURCE_POOL_MAX:10}
-      minimum-idle: ${CHAT_DATASOURCE_POOL_MIN:2}
-      connection-timeout: ${CHAT_DATASOURCE_CONNECTION_TIMEOUT:30000}
-      idle-timeout: ${CHAT_DATASOURCE_IDLE_TIMEOUT:600000}
-      max-lifetime: ${CHAT_DATASOURCE_MAX_LIFETIME:1800000}
-      auto-commit: ${CHAT_HIKARI_AUTO_COMMIT:true}
-      transaction-isolation: ${CHAT_HIKARI_TRANSACTION_ISOLATION:TRANSACTION_READ_COMMITTED}
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 30000
+      idle-timeout: 600000
+      max-lifetime: 1800000
+      auto-commit: true
+      transaction-isolation: TRANSACTION_READ_COMMITTED
   h2:
     console:
-      enabled: ${CHAT_H2_CONSOLE_ENABLED:false}
-      path: ${CHAT_H2_CONSOLE_PATH:/h2-console}
+      enabled: false
+      path: /h2-console
       settings:
-        web-allow-others: ${CHAT_H2_CONSOLE_WEB_ALLOW_OTHERS:false}
+        web-allow-others: false
   jpa:
     hibernate:
-      ddl-auto: ${CHAT_JPA_DDL_AUTO:update}
-    show-sql: ${CHAT_JPA_SHOW_SQL:false}
-    database-platform: ${CHAT_JPA_DIALECT:org.hibernate.dialect.H2Dialect}
+      ddl-auto: update
+    show-sql: false
+    database-platform: org.hibernate.dialect.H2Dialect
     properties:
       hibernate:
-        format_sql: ${CHAT_HIBERNATE_FORMAT_SQL:false}
+        format_sql: false
   web:
     resources:
       static-locations: classpath:/static/
@@ -43,42 +43,42 @@ spring:
     add-mappings: false
 
 server:
-  port: ${CHAT_SERVER_PORT:8080}
+  port: 8080
   servlet:
-    context-path: ${CHAT_SERVER_CONTEXT_PATH:/}
+    context-path: /
   shutdown: graceful
   tomcat:
     threads:
-      max: ${CHAT_TOMCAT_THREADS_MAX:200}
-      min-spare: ${CHAT_TOMCAT_THREADS_MIN_SPARE:10}
-    max-connections: ${CHAT_TOMCAT_MAX_CONNECTIONS:500}
-    max-http-post-size: ${CHAT_TOMCAT_MAX_HTTP_POST_SIZE:10485760}
+      max: 200
+      min-spare: 10
+    max-connections: 500
+    max-http-post-size: 10485760
   error:
-    include-stacktrace: ${CHAT_ERROR_INCLUDE_STACKTRACE:never}
-    include-message: ${CHAT_ERROR_INCLUDE_MESSAGE:never}
+    include-stacktrace: never
+    include-message: never
 
 chatchat:
   mcp:
     center:
-      enabled: ${CHAT_MCP_CENTER_ENABLED:true}
-      base-url: ${CHAT_MCP_CENTER_BASE_URL:http://localhost:8090}
-      admin-username: ${CHAT_MCP_CENTER_ADMIN_USERNAME:admin}
-      admin-password: ${CHAT_MCP_CENTER_ADMIN_PASSWORD:admin123}
-      admin-login-path: ${CHAT_MCP_CENTER_ADMIN_LOGIN_PATH:/api/v1/admin/auth/login}
-      service-list-path: ${CHAT_MCP_CENTER_SERVICE_LIST_PATH:/api/v1/mcp-services}
-      mcp-endpoint: ${CHAT_MCP_CENTER_MCP_ENDPOINT:/mcp}
-      standalone-service-id: ${CHAT_MCP_CENTER_STANDALONE_SERVICE_ID:chatchat-mcp-server}
-      standalone-service-name: ${CHAT_MCP_CENTER_STANDALONE_SERVICE_NAME:ChatChat MCP Server}
-      invocation-token: ${CHAT_MCP_CENTER_INVOCATION_TOKEN:}
-      timeout-ms: ${CHAT_MCP_CENTER_TIMEOUT_MS:20000}
-      import-standalone-server: ${CHAT_MCP_CENTER_IMPORT_STANDALONE:true}
+      enabled: true
+      base-url: http://localhost:8090
+      admin-username: admin
+      admin-password: admin123
+      admin-login-path: /api/v1/admin/auth/login
+      service-list-path: /api/v1/mcp-services
+      mcp-endpoint: /mcp
+      standalone-service-id: chatchat-mcp-server
+      standalone-service-name: ChatChat MCP Server
+      invocation-token:
+      timeout-ms: 20000
+      import-standalone-server: true
     stdio-proxy:
-      enabled: ${CHAT_MCP_STDIO_PROXY_ENABLED:true}
-      max-sessions: ${CHAT_MCP_STDIO_PROXY_MAX_SESSIONS:32}
-      request-timeout-ms: ${CHAT_MCP_STDIO_PROXY_REQUEST_TIMEOUT_MS:20000}
-      startup-timeout-ms: ${CHAT_MCP_STDIO_PROXY_STARTUP_TIMEOUT_MS:15000}
-      idle-ttl-ms: ${CHAT_MCP_STDIO_PROXY_IDLE_TTL_MS:300000}
-      cleanup-interval-ms: ${CHAT_MCP_STDIO_PROXY_CLEANUP_INTERVAL_MS:30000}
+      enabled: true
+      max-sessions: 32
+      request-timeout-ms: 20000
+      startup-timeout-ms: 15000
+      idle-ttl-ms: 300000
+      cleanup-interval-ms: 30000
       command-allow-list:
         - npx
         - node
@@ -86,71 +86,71 @@ chatchat:
         - python
         - python3
   models:
-    defaultProvider: ${CHAT_MODELS_DEFAULT_PROVIDER:openai}
-    defaultChatModel: ${CHAT_MODELS_DEFAULT_CHAT_MODEL:qwen3.6-plus}
-    defaultEmbeddingModel: ${CHAT_MODELS_DEFAULT_EMBEDDING_MODEL:text-embedding-v4}
-    timeout: ${CHAT_MODELS_TIMEOUT:300}
+    defaultProvider: openai
+    defaultChatModel: qwen3.6-plus
+    defaultEmbeddingModel: text-embedding-v4
+    timeout: 300
     openai:
-      apiKey: ${OPENAI_API_KEY:replace-with-your-key}
-      baseUrl: ${OPENAI_BASE_URL:https://dashscope.aliyuncs.com/compatible-mode/v1}
-      timeout: ${OPENAI_TIMEOUT:300}
-      maxRetries: ${OPENAI_MAX_RETRIES:3}
+      apiKey: replace-with-your-key
+      baseUrl: https://dashscope.aliyuncs.com/compatible-mode/v1
+      timeout: 300
+      maxRetries: 3
       proxy:
-        enabled: ${OPENAI_PROXY_ENABLED:false}
-        host: ${OPENAI_PROXY_HOST:}
-        port: ${OPENAI_PROXY_PORT:0}
-        type: ${OPENAI_PROXY_TYPE:http}
+        enabled: false
+        host:
+        port: 0
+        type: http
     ollama:
-      baseUrl: ${OLLAMA_BASE_URL:http://localhost:11434}
-      timeout: ${OLLAMA_TIMEOUT:30}
+      baseUrl: http://localhost:11434
+      timeout: 30
     xinference:
-      baseUrl: ${XINFERENCE_BASE_URL:http://localhost:9997}
-      timeout: ${XINFERENCE_TIMEOUT:30}
+      baseUrl: http://localhost:9997
+      timeout: 30
   rag:
-    maxRetrievalResults: ${CHAT_RAG_MAX_RETRIEVAL_RESULTS:10}
-    defaultChunkSize: ${CHAT_RAG_DEFAULT_CHUNK_SIZE:1000}
-    defaultChunkOverlap: ${CHAT_RAG_DEFAULT_CHUNK_OVERLAP:100}
-    timeout: ${CHAT_RAG_TIMEOUT:60}
+    maxRetrievalResults: 10
+    defaultChunkSize: 1000
+    defaultChunkOverlap: 100
+    timeout: 60
   agent:
     task:
-      queue-capacity: ${CHAT_AGENT_TASK_QUEUE_CAPACITY:1000}
-      core-pool-size: ${CHAT_AGENT_TASK_CORE_POOL_SIZE:4}
-      max-pool-size: ${CHAT_AGENT_TASK_MAX_POOL_SIZE:16}
-      keep-alive-seconds: ${CHAT_AGENT_TASK_KEEP_ALIVE_SECONDS:60}
-      list-limit: ${CHAT_AGENT_TASK_LIST_LIMIT:50}
+      queue-capacity: 1000
+      core-pool-size: 4
+      max-pool-size: 16
+      keep-alive-seconds: 60
+      list-limit: 50
       event-store:
-        type: ${CHAT_AGENT_EVENT_STORE_TYPE:rocksdb}
-        path: ${CHAT_AGENT_EVENT_STORE_PATH:./data/agent-event-rocksdb}
-        create-if-missing: ${CHAT_AGENT_EVENT_STORE_CREATE_IF_MISSING:true}
+        type: rocksdb
+        path: ./data/agent-event-rocksdb
+        create-if-missing: true
   search:
-    store-path: ${CHAT_SEARCH_STORE_PATH:./data/search-rocksdb}
-    file-path: ${CHAT_SEARCH_FILE_PATH:./data/search-files}
-    create-if-missing: ${CHAT_SEARCH_CREATE_IF_MISSING:true}
-    embedding-enabled: ${CHAT_SEARCH_EMBEDDING_ENABLED:true}
-    max-upload-bytes: ${CHAT_SEARCH_MAX_UPLOAD_BYTES:5242880}
-    default-limit: ${CHAT_SEARCH_DEFAULT_LIMIT:20}
-    max-limit: ${CHAT_SEARCH_MAX_LIMIT:100}
-    summary-length: ${CHAT_SEARCH_SUMMARY_LENGTH:180}
+    store-path: ./data/search-rocksdb
+    file-path: ./data/search-files
+    create-if-missing: true
+    embedding-enabled: true
+    max-upload-bytes: 5242880
+    default-limit: 20
+    max-limit: 100
+    summary-length: 180
   chat:
-    defaultTimeout: ${CHAT_CHAT_DEFAULT_TIMEOUT:30}
-    streamingTimeout: ${CHAT_CHAT_STREAMING_TIMEOUT:300}
-    maxMessageLength: ${CHAT_CHAT_MAX_MESSAGE_LENGTH:4096}
-    conversationHistorySize: ${CHAT_CHAT_CONVERSATION_HISTORY_SIZE:20}
+    defaultTimeout: 30
+    streamingTimeout: 300
+    maxMessageLength: 4096
+    conversationHistorySize: 20
     detail-store:
-      type: ${CHAT_DETAIL_STORE_TYPE:rocksdb}
-      path: ${CHAT_DETAIL_STORE_PATH:./data/chat-rocksdb}
-      create-if-missing: ${CHAT_DETAIL_STORE_CREATE_IF_MISSING:true}
+      type: rocksdb
+      path: ./data/chat-rocksdb
+      create-if-missing: true
   tools:
     database-query:
-      driver-lib-path: ${CHAT_TOOLS_DATABASE_QUERY_DRIVER_LIB_PATH:./lib/drivers}
+      driver-lib-path: ./lib/drivers
 
 springdoc:
   api-docs:
-    path: ${CHAT_SPRINGDOC_API_DOCS_PATH:/api-docs}
-    enabled: ${CHAT_SPRINGDOC_API_DOCS_ENABLED:true}
+    path: /api-docs
+    enabled: true
   swagger-ui:
-    path: ${CHAT_SPRINGDOC_SWAGGER_UI_PATH:/swagger-ui.html}
-    enabled: ${CHAT_SPRINGDOC_SWAGGER_UI_ENABLED:true}
+    path: /swagger-ui.html
+    enabled: true
     display-request-duration: true
     try-it-out-enabled: true
   show-actuator: false
@@ -158,17 +158,17 @@ springdoc:
 
 logging:
   file:
-    name: ${CHAT_LOG_FILE:./logs/chatchat.log}
+    name: ./logs/chatchat.log
   logback:
     rollingpolicy:
-      max-file-size: ${CHAT_LOG_MAX_FILE_SIZE:100MB}
-      max-history: ${CHAT_LOG_MAX_HISTORY:30}
-      total-size-cap: ${CHAT_LOG_TOTAL_SIZE_CAP:3GB}
+      max-file-size: 100MB
+      max-history: 30
+      total-size-cap: 3GB
   level:
-    com.chatchat: ${CHAT_LOG_LEVEL_CHATCHAT:INFO}
-    org.springframework.web: ${CHAT_LOG_LEVEL_SPRING_WEB:INFO}
-    org.springframework.security: ${CHAT_LOG_LEVEL_SPRING_SECURITY:WARN}
-    org.hibernate: ${CHAT_LOG_LEVEL_HIBERNATE:WARN}
+    com.chatchat: INFO
+    org.springframework.web: INFO
+    org.springframework.security: WARN
+    org.hibernate: WARN
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
     file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
@@ -177,10 +177,10 @@ management:
   endpoints:
     web:
       exposure:
-        include: ${CHAT_MANAGEMENT_ENDPOINTS:health,metrics,info}
+        include: health,metrics,info
   endpoint:
     health:
-      show-details: ${CHAT_MANAGEMENT_HEALTH_SHOW_DETAILS:when-authorized}
+      show-details: when-authorized
   metrics:
     distribution:
       percentiles-histogram:

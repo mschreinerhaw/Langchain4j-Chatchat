@@ -9,4 +9,10 @@ public interface McpToolPermissionRepository extends JpaRepository<McpToolPermis
     List<McpToolPermission> findByTenantIdOrderByUpdatedAtDesc(String tenantId);
 
     List<McpToolPermission> findByTargetTypeAndTargetIdAndEnabledTrue(String targetType, String targetId);
+
+    List<McpToolPermission> findByTenantIdAndTargetTypeAndTargetIdAndEnabledTrueOrderByUpdatedAtDesc(
+        String tenantId,
+        String targetType,
+        String targetId
+    );
 }

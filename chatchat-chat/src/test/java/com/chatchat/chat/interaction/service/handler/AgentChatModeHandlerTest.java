@@ -59,6 +59,7 @@ class AgentChatModeHandlerTest {
         when(toolRegistry.hasTool("mcp_chatchat_mcp_server_web_search")).thenReturn(true);
         when(orchestrator.executeAgent(
             anyString(),
+            isNull(),
             anyList(),
             anyString(),
             isNull(),
@@ -94,6 +95,7 @@ class AgentChatModeHandlerTest {
         ArgumentCaptor<List<String>> requiredTools = ArgumentCaptor.forClass(List.class);
         verify(orchestrator).executeAgent(
             anyString(),
+            isNull(),
             availableTools.capture(),
             anyString(),
             isNull(),
@@ -145,6 +147,7 @@ class AgentChatModeHandlerTest {
         when(toolRegistry.hasTool("mcp_chatchat_mcp_server_web_search")).thenReturn(true);
         when(orchestrator.executeAgent(
             anyString(),
+            isNull(),
             anyList(),
             anyString(),
             isNull(),
@@ -180,6 +183,7 @@ class AgentChatModeHandlerTest {
         ArgumentCaptor<List<String>> requiredTools = ArgumentCaptor.forClass(List.class);
         verify(orchestrator).executeAgent(
             anyString(),
+            isNull(),
             availableTools.capture(),
             anyString(),
             isNull(),

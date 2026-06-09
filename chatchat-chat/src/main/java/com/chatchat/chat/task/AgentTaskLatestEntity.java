@@ -31,7 +31,7 @@ public class AgentTaskLatestEntity {
     private String taskId;
 
     @Column(name = "tenant_id", length = 64, nullable = false)
-    private String tenantId = "default";
+    private String tenantId;
 
     @Column(name = "user_id", length = 64, nullable = false)
     private String userId = "anonymous";
@@ -66,7 +66,7 @@ public class AgentTaskLatestEntity {
             taskId = UUID.randomUUID().toString();
         }
         if (tenantId == null || tenantId.isBlank()) {
-            tenantId = "default";
+            throw new IllegalStateException("Tenant ID cannot be empty");
         }
         if (userId == null || userId.isBlank()) {
             userId = "anonymous";

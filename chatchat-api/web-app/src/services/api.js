@@ -41,11 +41,67 @@ export function submitAgentTask(payload) {
   });
 }
 
-export function pollAgentTaskResult(taskId, timeoutMs = 1200) {
-  const params = new URLSearchParams({
-    timeoutMs: String(timeoutMs)
-  });
+export function pollAgentTaskResult(taskId, timeoutMs = 1200, tenantId = "") {
+  const params = new URLSearchParams();
+  params.set("timeoutMs", String(timeoutMs));
+  if (tenantId) {
+    params.set("tenantId", tenantId);
+  }
   return apiRequest(`/agent/tasks/${encodeURIComponent(taskId)}/result?${params.toString()}`);
+}
+
+export function fetchAgentRuntimeSummary(filters = {}) {
+  const params = new URLSearchParams();
+  if (filters.tenantId) {
+    params.set("tenantId", filters.tenantId);
+  }
+  if (filters.latestLimit) {
+    params.set("latestLimit", String(filters.latestLimit));
+  }
+  const query = params.toString();
+  return apiRequest(`/agent/tasks/runtime${query ? `?${query}` : ""}`);
+}
+
+export function fetchAgentRuntimeToolAudits(filters = {}) {
+  const params = new URLSearchParams();
+  if (filters.tenantId) {
+    params.set("tenantId", filters.tenantId);
+  }
+  if (filters.outcome) {
+    params.set("outcome", filters.outcome);
+  }
+  if (filters.limit) {
+    params.set("limit", String(filters.limit));
+  }
+  const query = params.toString();
+  return apiRequest(`/agent/tasks/runtime/tool-audits${query ? `?${query}` : ""}`);
+}
+
+export function fetchAgentTasks(filters = {}) {
+  const params = new URLSearchParams();
+  if (filters.tenantId) {
+    params.set("tenantId", filters.tenantId);
+  }
+  if (filters.sessionId) {
+    params.set("sessionId", filters.sessionId);
+  }
+  if (filters.page) {
+    params.set("page", String(filters.page));
+  }
+  if (filters.pageSize) {
+    params.set("pageSize", String(filters.pageSize));
+  }
+  const query = params.toString();
+  return apiRequest(`/agent/tasks${query ? `?${query}` : ""}`);
+}
+
+export function fetchAgentTaskEvents(taskId, limit = 50, tenantId = "") {
+  const params = new URLSearchParams();
+  params.set("limit", String(limit));
+  if (tenantId) {
+    params.set("tenantId", tenantId);
+  }
+  return apiRequest(`/agent/tasks/${encodeURIComponent(taskId)}/events?${params.toString()}`);
 }
 
 export function fetchConversationHistory(userId, filters = {}) {

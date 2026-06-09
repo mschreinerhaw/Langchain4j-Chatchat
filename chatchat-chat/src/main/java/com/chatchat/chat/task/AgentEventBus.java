@@ -62,6 +62,9 @@ public class AgentEventBus {
     }
 
     private String normalizeTenant(String tenantId) {
-        return tenantId == null || tenantId.isBlank() ? "default" : tenantId.trim();
+        if (tenantId == null || tenantId.isBlank()) {
+            throw new IllegalArgumentException("Tenant ID cannot be empty");
+        }
+        return tenantId.trim();
     }
 }

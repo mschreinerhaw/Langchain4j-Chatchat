@@ -7,6 +7,7 @@ import LibraryView from "../views/LibraryView.vue";
 import McpCenterView from "../views/McpCenterView.vue";
 import AgentWorkshopView from "../views/AgentWorkshopView.vue";
 import SystemManagementView from "../views/SystemManagementView.vue";
+import TasksView from "../views/TasksView.vue";
 import { deleteConversationHistory, fetchConversationHistory } from "../services/api";
 
 const USER_ID = "mx_48991534";
@@ -18,6 +19,7 @@ const views = {
   library: LibraryView,
   mcp: McpCenterView,
   agents: AgentWorkshopView,
+  tasks: TasksView,
   system: SystemManagementView
 };
 
@@ -29,7 +31,7 @@ export default {
   },
   data() {
     return {
-      activeView: "chat",
+      activeView: "tasks",
       userId: USER_ID,
       historyLoading: false,
       historyError: "",
@@ -55,8 +57,9 @@ export default {
         },
         {
           id: "platform",
-          label: "平台管理",
+          label: "运行平台",
           items: [
+            { id: "tasks", label: "运行控制台", icon: "tasks" },
             { id: "mcp", label: "MCP中心", icon: "mcp" },
             { id: "agents", label: "Agent工坊", icon: "agent" },
             { id: "system", label: "系统管理", icon: "gear" }

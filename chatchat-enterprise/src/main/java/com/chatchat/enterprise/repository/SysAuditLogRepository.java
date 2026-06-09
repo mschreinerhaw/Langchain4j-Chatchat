@@ -9,4 +9,8 @@ public interface SysAuditLogRepository extends JpaRepository<SysAuditLog, String
     List<SysAuditLog> findTop100ByOrderByCreatedAtDesc();
 
     List<SysAuditLog> findTop100ByTenantIdOrderByCreatedAtDesc(String tenantId);
+
+    List<SysAuditLog> findTop100ByModuleNameOrderByCreatedAtDesc(String moduleName);
+
+    List<SysAuditLog> findTop100ByTenantIdAndModuleNameOrderByCreatedAtDesc(String tenantId, String moduleName);
 }

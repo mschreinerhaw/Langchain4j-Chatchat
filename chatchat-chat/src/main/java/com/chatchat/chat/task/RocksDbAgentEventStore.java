@@ -65,7 +65,21 @@ public class RocksDbAgentEventStore implements AgentEventStore {
     @Override
     public List<AgentEvent> listByTask(String tenantId, String sessionId, String taskId, int limit) {
         ensureOpen();
-        String prefix = AgentEventKeyBuilder.sessionPrefix(tenantId, sessionId);
+        List<AgentEvent> events = taskId == null || taskId.isBlank()
+            ? readByPrefix(AgentEventKeyBuilder.sessionPrefix(tenantId, sessionId), null)
+            : readByTaskWithLegacyFallback(tenantId, sessionId, taskId);
+        return sort(events, limit);
+    }
+
+    private List<AgentEvent> readByTaskWithLegacyFallback(String tenantId, String sessionId, String taskId) {
+        List<AgentEvent> events = readByPrefix(AgentEventKeyBuilder.taskPrefix(tenantId, sessionId, taskId), taskId);
+        if (!events.isEmpty()) {
+            return events;
+        }
+        return readByPrefix(AgentEventKeyBuilder.sessionPrefix(tenantId, sessionId), taskId);
+    }
+
+    private List<AgentEvent> readByPrefix(String prefix, String taskId) {
         byte[] prefixBytes = bytes(prefix);
         List<AgentEvent> events = new ArrayList<>();
         try (RocksIterator iterator = db.newIterator()) {
@@ -75,11 +89,17 @@ public class RocksDbAgentEventStore implements AgentEventStore {
                     events.add(event);
                 }
             }
+            return events;
         } catch (IOException ex) {
             throw new IllegalStateException("Failed to read agent events", ex);
         }
+    }
+
+    private List<AgentEvent> sort(List<AgentEvent> events, int limit) {
         return events.stream()
-            .sorted(Comparator.comparingLong(AgentEvent::getCreateTime))
+            .sorted(Comparator
+                .comparing((AgentEvent event) -> event.getSequence() == null ? Long.MAX_VALUE : event.getSequence())
+                .thenComparingLong(AgentEvent::getCreateTime))
             .limit(Math.max(1, limit))
             .toList();
     }

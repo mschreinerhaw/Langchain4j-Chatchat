@@ -16,6 +16,7 @@ public class AgentTaskProperties {
     private int maxPoolSize = 16;
     private int keepAliveSeconds = 60;
     private int listLimit = 50;
+    private int recoveryBatchSize = 200;
     private EventStore eventStore = new EventStore();
 
     @Getter

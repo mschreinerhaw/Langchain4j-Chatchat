@@ -18,6 +18,7 @@ public class AgentTaskPayload {
         String skillId = firstText(request.getSkillId(), request.getAgentId());
         return InteractionRequest.builder()
             .conversationId(request.getSessionId())
+            .tenantId(request.getTenantId())
             .userId(firstText(request.getUserId(), "anonymous"))
             .mode(firstText(request.getMode(), "agent_chat"))
             .query(request.getQuery())
@@ -30,6 +31,10 @@ public class AgentTaskPayload {
             .historyWindow(request.getHistoryWindow())
             .stream(request.getStream())
             .build();
+    }
+
+    AgentTaskSubmitRequest toSubmitRequest() {
+        return request == null ? new AgentTaskSubmitRequest() : request;
     }
 
     private String firstText(String value, String fallback) {

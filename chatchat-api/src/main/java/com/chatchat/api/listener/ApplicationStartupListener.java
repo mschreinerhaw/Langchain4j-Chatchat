@@ -1,5 +1,6 @@
 package com.chatchat.api.listener;
 
+import com.chatchat.chat.task.AgentTaskService;
 import com.chatchat.integration.mcp.service.McpToolRegistryBridge;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -16,6 +17,7 @@ import org.springframework.stereotype.Component;
 public class ApplicationStartupListener {
 
     private final McpToolRegistryBridge mcpToolRegistryBridge;
+    private final AgentTaskService agentTaskService;
 
     @EventListener(ApplicationReadyEvent.class)
     public void onApplicationReady() {
@@ -27,6 +29,10 @@ public class ApplicationStartupListener {
             log.info("Refreshing MCP tools...");
             mcpToolRegistryBridge.refreshRegistry();
             log.info("MCP tools refreshed successfully");
+            int repairedTasks = agentTaskService.reconcileLatestStateFromEvents();
+            log.info("Reconciled {} Agent task snapshots from event store", repairedTasks);
+            int recoveredTasks = agentTaskService.recoverActiveTasks();
+            log.info("Recovered {} active Agent tasks", recoveredTasks);
 
             log.info("============================================");
             log.info("Application started successfully");

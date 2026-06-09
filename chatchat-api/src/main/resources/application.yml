@@ -144,6 +144,13 @@ chatchat:
     embedding-enabled: ${CHAT_SEARCH_EMBEDDING_ENABLED:true}
     max-upload-bytes: ${CHAT_SEARCH_MAX_UPLOAD_BYTES:5242880}
     default-limit: 20
+  tool-runtime:
+    enforce-allowed-tools: ${CHAT_TOOL_RUNTIME_ENFORCE_ALLOWED_TOOLS:true}
+    enforce-authentication: ${CHAT_TOOL_RUNTIME_ENFORCE_AUTHENTICATION:true}
+    default-max-calls-per-minute: ${CHAT_TOOL_RUNTIME_DEFAULT_MAX_CALLS_PER_MINUTE:0}
+    circuit-breaker-failure-threshold: ${CHAT_TOOL_RUNTIME_CIRCUIT_THRESHOLD:3}
+    circuit-breaker-open-seconds: ${CHAT_TOOL_RUNTIME_CIRCUIT_OPEN_SECONDS:60}
+    top-tool-limit: ${CHAT_TOOL_RUNTIME_TOP_TOOL_LIMIT:6}
     max-limit: 100
     summary-length: 180
   chat:

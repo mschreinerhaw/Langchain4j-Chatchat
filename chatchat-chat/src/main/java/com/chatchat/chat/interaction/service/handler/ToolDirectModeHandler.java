@@ -1,6 +1,8 @@
 package com.chatchat.chat.interaction.service.handler;
 
-import com.chatchat.agents.tool.ToolRegistry;
+import com.chatchat.agents.runtime.ToolRuntimeExecution;
+import com.chatchat.agents.runtime.ToolRuntimeRequest;
+import com.chatchat.agents.runtime.ToolRuntimeService;
 import com.chatchat.chat.interaction.model.InteractionContext;
 import com.chatchat.chat.interaction.model.InteractionMode;
 import com.chatchat.chat.interaction.model.InteractionRequest;
@@ -8,12 +10,11 @@ import com.chatchat.chat.interaction.model.InteractionResponse;
 import com.chatchat.common.interaction.InteractionToolTrace;
 import com.chatchat.chat.interaction.service.InteractionModeHandler;
 import com.chatchat.common.tool.ToolInput;
-import com.chatchat.common.tool.ToolMetadata;
-import com.chatchat.common.tool.ToolOutput;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -25,7 +26,7 @@ public class ToolDirectModeHandler implements InteractionModeHandler {
 
     private static final int WEB_SEARCH_REFERENCE_LIMIT = 10;
 
-    private final ToolRegistry toolRegistry;
+    private final ToolRuntimeService toolRuntimeService;
 
     @Override
     public InteractionMode mode() {
@@ -51,35 +52,29 @@ public class ToolDirectModeHandler implements InteractionModeHandler {
             .parameters(parameters)
             .build();
 
-        ToolMetadata toolMetadata = toolRegistry.getToolMetadata(request.getToolName());
-        long startedAt = System.currentTimeMillis();
-        ToolOutput output = toolRegistry.executeEnhancedTool(request.getToolName(), toolInput);
-        long finishedAt = System.currentTimeMillis();
+        ToolRuntimeExecution execution = toolRuntimeService.execute(ToolRuntimeRequest.builder()
+            .toolName(request.getToolName())
+            .runtimeMode("tool_direct")
+            .requestId(context.requestId())
+            .conversationId(context.conversationId())
+            .tenantId(request.getTenantId())
+            .userId(request.getUserId())
+            .allowedTools(request.getAvailableTools() == null ? List.of() : request.getAvailableTools())
+            .toolInput(toolInput)
+            .build());
+        InteractionToolTrace trace = execution.trace();
+        var output = execution.output();
         String answer = output.isSuccess()
             ? output.getDataAsString()
             : "Tool execution failed: " + output.getErrorMessage();
-        Long durationMs = output.getExecutionTimeMs() == null ? Math.max(0L, finishedAt - startedAt) : output.getExecutionTimeMs();
-
-        InteractionToolTrace trace = InteractionToolTrace.builder()
-            .toolName(request.getToolName())
-            .displayName(resolveDisplayName(request.getToolName(), toolMetadata))
-            .serviceId(resolveServiceId(toolMetadata))
-            .serviceName(resolveServiceName(toolMetadata))
-            .success(output.isSuccess())
-            .input(parameters)
-            .output(output.getDataAsString())
-            .errorMessage(output.getErrorMessage())
-            .durationMs(durationMs)
-            .startedAt(startedAt)
-            .finishedAt(finishedAt)
-            .build();
 
         return InteractionResponse.builder()
             .answer(answer == null ? "" : answer)
             .toolTraces(java.util.List.of(trace))
             .metadata(java.util.Map.of(
                 "handler", "ToolDirectModeHandler",
-                "executionTimeMs", output.getExecutionTimeMs() == null ? -1L : output.getExecutionTimeMs()
+                "executionTimeMs", output.getExecutionTimeMs() == null ? -1L : output.getExecutionTimeMs(),
+                "toolRuntimeOutcome", execution.outcome()
             ))
             .build();
     }
@@ -104,29 +99,4 @@ public class ToolDirectModeHandler implements InteractionModeHandler {
         params.put("input", query);
     }
 
-    private String resolveDisplayName(String toolName, ToolMetadata metadata) {
-        if (metadata != null && metadata.getTitle() != null && !metadata.getTitle().isBlank()) {
-            return metadata.getTitle().trim();
-        }
-        return toolName;
-    }
-
-    private String resolveServiceId(ToolMetadata metadata) {
-        if (metadata == null || metadata.getMetadata() == null) {
-            return null;
-        }
-        Object value = metadata.getMetadata().get("serviceId");
-        return value == null ? null : String.valueOf(value);
-    }
-
-    private String resolveServiceName(ToolMetadata metadata) {
-        if (metadata == null || metadata.getAuthor() == null || metadata.getAuthor().isBlank()) {
-            return null;
-        }
-        String author = metadata.getAuthor().trim();
-        if (author.startsWith("MCP:")) {
-            return author.substring(4).trim();
-        }
-        return author;
-    }
 }

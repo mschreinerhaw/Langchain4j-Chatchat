@@ -21,9 +21,15 @@ public class AgentEvent {
     private String userId;
     private String agentId;
     private String sessionId;
+    private String parentEventId;
+    private Long sequence;
+    private String toolName;
     private String type;
     private String status;
     private String payload;
+    private Long latencyMs;
+    private String errorCode;
+    private Integer retryCount;
 
     @Builder.Default
     private long createTime = System.currentTimeMillis();

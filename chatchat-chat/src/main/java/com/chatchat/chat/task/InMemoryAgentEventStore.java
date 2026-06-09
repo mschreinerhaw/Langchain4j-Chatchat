@@ -29,14 +29,17 @@ public class InMemoryAgentEventStore implements AgentEventStore {
             .filter(event -> same(tenantId, event.getTenantId()))
             .filter(event -> same(sessionId, event.getSessionId()))
             .filter(event -> taskId == null || taskId.equals(event.getTaskId()))
-            .sorted(Comparator.comparingLong(AgentEvent::getCreateTime))
+            .sorted(Comparator
+                .comparing((AgentEvent event) -> event.getSequence() == null ? Long.MAX_VALUE : event.getSequence())
+                .thenComparingLong(AgentEvent::getCreateTime))
             .limit(Math.max(1, limit))
             .toList();
     }
 
     private boolean same(String expected, String actual) {
-        String left = expected == null || expected.isBlank() ? "default" : expected;
-        String right = actual == null || actual.isBlank() ? "default" : actual;
-        return left.equals(right);
+        if (expected == null || expected.isBlank() || actual == null || actual.isBlank()) {
+            return false;
+        }
+        return expected.trim().equals(actual.trim());
     }
 }

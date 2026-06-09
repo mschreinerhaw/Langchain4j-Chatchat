@@ -88,10 +88,12 @@ function submitAgentTask(payload) {
   });
 }
 
-function pollAgentTaskResult(taskId, timeoutMs = 1200) {
-  const params = new URLSearchParams({
-    timeoutMs: String(timeoutMs)
-  });
+function pollAgentTaskResult(taskId, timeoutMs = 1200, tenantId = "") {
+  const params = new URLSearchParams();
+  params.set("timeoutMs", String(timeoutMs));
+  if (tenantId) {
+    params.set("tenantId", tenantId);
+  }
   return apiRequest(`/agent/tasks/${encodeURIComponent(taskId)}/result?${params.toString()}`);
 }
 
@@ -351,7 +353,7 @@ export default {
       }
 
       const task = await submitAgentTask({
-        tenantId: "default",
+        tenantId: this.userId,
         userId: requestPayload.userId,
         agentId: requestPayload.skillId || "general",
         sessionId: requestPayload.conversationId,
@@ -367,7 +369,7 @@ export default {
       });
       runContext.taskId = task?.taskId || "";
 
-      const event = await this.waitForAgentTaskResult(runContext.taskId);
+      const event = await this.waitForAgentTaskResult(runContext.taskId, this.userId);
       const eventPayload = parseJsonPayload(event?.payload);
       const eventType = String(event?.type || "").toUpperCase();
       const eventStatus = String(event?.status || "").toUpperCase();
@@ -399,13 +401,13 @@ export default {
       }
       this.emitActiveConversationSnapshot(query, "running", runContext);
     },
-    async waitForAgentTaskResult(taskId) {
+    async waitForAgentTaskResult(taskId, tenantId = "") {
       if (!taskId) {
         throw new Error("Agent task was not created");
       }
       const deadline = Date.now() + AGENT_TASK_MAX_WAIT_MS;
       while (Date.now() < deadline) {
-        const event = await pollAgentTaskResult(taskId, AGENT_TASK_POLL_TIMEOUT_MS);
+        const event = await pollAgentTaskResult(taskId, AGENT_TASK_POLL_TIMEOUT_MS, tenantId);
         const type = String(event?.type || "").toUpperCase();
         const status = String(event?.status || "").toUpperCase();
         if (type === "ANSWER" || type === "ERROR" || status === "SUCCESS" || status === "FAILED") {

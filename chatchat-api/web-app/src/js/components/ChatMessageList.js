@@ -1,5 +1,6 @@
 import MarkdownIt from "markdown-it";
 import ResponseReferences from "../../components/ResponseReferences.vue";
+import { extractWebSearchPagesFromTraces } from "../utils/webReferences.js";
 
 const markdown = new MarkdownIt({
   html: false,
@@ -70,8 +71,34 @@ export default {
     }
   },
   methods: {
-    renderMarkdown(content) {
-      return markdown.render(String(content ?? ""));
+    renderMarkdown(content, message = {}) {
+      return markdown.render(this.linkifyWebCitations(String(content ?? ""), message));
+    },
+    linkifyWebCitations(content, message = {}) {
+      const pages = extractWebSearchPagesFromTraces(message.traces || []);
+      if (!pages.length) {
+        return content;
+      }
+      return content.replace(
+        /【\s*(网页|来源|source)\s*(\d+)\s*】|[［\[]\s*(网页|来源|source)\s*(\d+)\s*[］\]]/gi,
+        (match, boxedPrefix, boxedNumber, bracketPrefix, bracketNumber) => {
+          const prefix = boxedPrefix || bracketPrefix || "网页";
+          const number = Number(boxedNumber || bracketNumber);
+          if (!Number.isInteger(number) || number < 1) {
+            return match;
+          }
+          const page = pages[number - 1];
+          if (!page?.url) {
+            return match;
+          }
+          const label = `${prefix}${number}`;
+          const title = this.escapeMarkdownTitle(page.title || page.url);
+          return `[${label}](<${page.url}> "${title}")`;
+        }
+      );
+    },
+    escapeMarkdownTitle(value) {
+      return String(value || "").replace(/"/g, "&quot;");
     },
     formatTime(value) {
       if (!value) {

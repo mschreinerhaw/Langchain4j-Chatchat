@@ -7,9 +7,12 @@ final class AgentEventKeyBuilder {
 
     static String build(AgentEvent event) {
         long timestamp = event.getCreateTime() <= 0 ? System.currentTimeMillis() : event.getCreateTime();
-        return "tenant:%s:session:%s:time:%013d:event:%s".formatted(
+        long sequence = event.getSequence() == null || event.getSequence() <= 0 ? 0L : event.getSequence();
+        return "tenant:%s:session:%s:task:%s:seq:%019d:time:%013d:event:%s".formatted(
             safe(event.getTenantId()),
             safe(event.getSessionId()),
+            safe(event.getTaskId()),
+            sequence,
             timestamp,
             safe(event.getEventId())
         );
@@ -19,9 +22,13 @@ final class AgentEventKeyBuilder {
         return "tenant:%s:session:%s:".formatted(safe(tenantId), safe(sessionId));
     }
 
+    static String taskPrefix(String tenantId, String sessionId, String taskId) {
+        return "tenant:%s:session:%s:task:%s:".formatted(safe(tenantId), safe(sessionId), safe(taskId));
+    }
+
     private static String safe(String value) {
         if (value == null || value.isBlank()) {
-            return "default";
+            throw new IllegalArgumentException("Agent event key component cannot be empty");
         }
         return value.trim().replace(':', '_');
     }

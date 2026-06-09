@@ -45,6 +45,7 @@ public class AgentChatModeHandler implements InteractionModeHandler {
 
         AgentOrchestrator.AgentExecutionResult result = agentOrchestrator.executeAgent(
             request.getQuery(),
+            request.getTenantId(),
             toolPolicy.availableTools(),
             systemPrompt,
             modelName,

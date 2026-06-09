@@ -1,7 +1,7 @@
 <template>
   <aside class="assistant-sidebar">
     <div class="brand-block">
-      <img class="brand-logo" :src="liveMuseLogo" alt="LiveMuse AI">
+      <img class="brand-logo" :src="agentRuntimeLogo" alt="Agent Runtime">
       <button
         class="sidebar-toggle"
         type="button"

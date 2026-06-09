@@ -17,7 +17,6 @@ import {
   Trash2,
   Wrench
 } from "@lucide/vue";
-import liveMuseLogo from "../../assets/livemuse-ai-logo.svg";
 
 export default {
   name: "AssistantSidebar",
@@ -68,7 +67,7 @@ export default {
   data() {
     return {
       collapsedGroups: {},
-      liveMuseLogo,
+      agentRuntimeLogo: "/agent-runtime-logo.svg",
       historyKeyword: "",
       showAllHistory: false
     };

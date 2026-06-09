@@ -1,8 +1,10 @@
 package com.chatchat.chat.task;
 
+import com.chatchat.agents.runtime.ToolRuntimeService;
 import com.chatchat.chat.interaction.model.InteractionRequest;
 import com.chatchat.chat.interaction.model.InteractionResponse;
 import com.chatchat.chat.interaction.service.InteractionOrchestrationService;
+import com.chatchat.common.interaction.InteractionToolTrace;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PreDestroy;
@@ -17,8 +19,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.Collection;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -30,12 +35,17 @@ import java.util.concurrent.atomic.AtomicBoolean;
 @RequiredArgsConstructor
 public class AgentTaskService {
 
+    private static final List<String> ACTIVE_STATUSES = List.of("PENDING", "RUNNING", "WAIT_TOOL", "WAIT_MODEL");
+    private static final List<String> TERMINAL_STATUSES = List.of("SUCCESS", "FAILED", "CANCELLED");
+    private static final int MAX_IDLE_POLLS = 3;
+
     private final AgentEventBus eventBus;
     private final AgentEventStore eventStore;
     private final AgentTaskLatestRepository latestRepository;
     private final InteractionOrchestrationService orchestrationService;
     private final ObjectMapper objectMapper;
     private final AgentTaskProperties properties;
+    private final ToolRuntimeService toolRuntimeService;
 
     @Qualifier("agentTaskExecutor")
     private final ThreadPoolTaskExecutor taskExecutor;
@@ -59,53 +69,82 @@ public class AgentTaskService {
         latest.setUpdateTime(Instant.now());
         latestRepository.save(latest);
 
-        AgentEvent question = AgentEvent.builder()
-            .taskId(taskId)
-            .tenantId(normalized.getTenantId())
-            .userId(normalized.getUserId())
-            .agentId(normalized.getAgentId())
-            .sessionId(normalized.getSessionId())
-            .type("QUESTION")
-            .status("PENDING")
-            .payload(writePayload(new AgentTaskPayload(normalized)))
-            .build();
-        eventStore.save(question);
-        startWorker(normalized.getTenantId());
-        eventBus.publish(question);
+        queueQuestion(latest, normalized);
         return AgentTaskResponse.from(latest);
     }
 
-    public Optional<AgentTaskResponse> get(String taskId) {
-        return latestRepository.findById(taskId).map(AgentTaskResponse::from);
+    public Optional<AgentTaskResponse> get(String tenantId, String taskId) {
+        return Optional.of(AgentTaskResponse.from(getTaskForTenant(tenantId, taskId)));
     }
 
     public List<AgentTaskResponse> list(String tenantId, String sessionId, int page, int pageSize) {
+        String normalizedTenant = requireTenant(tenantId);
         int normalizedPage = Math.max(0, page - 1);
         int normalizedSize = Math.max(1, Math.min(100, pageSize));
         PageRequest pageable = PageRequest.of(normalizedPage, normalizedSize);
-        if (tenantId != null && !tenantId.isBlank() && sessionId != null && !sessionId.isBlank()) {
-            return latestRepository.findByTenantIdAndSessionIdOrderByCreateTimeDesc(tenantId.trim(), sessionId.trim(), pageable)
+        if (sessionId != null && !sessionId.isBlank()) {
+            return latestRepository.findByTenantIdAndSessionIdOrderByCreateTimeDesc(normalizedTenant, sessionId.trim(), pageable)
                 .stream().map(AgentTaskResponse::from).toList();
         }
-        if (tenantId != null && !tenantId.isBlank()) {
-            return latestRepository.findByTenantIdOrderByCreateTimeDesc(tenantId.trim(), pageable)
-                .stream().map(AgentTaskResponse::from).toList();
-        }
-        return latestRepository.findAllByOrderByCreateTimeDesc(pageable).stream()
+        return latestRepository.findByTenantIdOrderByCreateTimeDesc(normalizedTenant, pageable).stream()
             .map(AgentTaskResponse::from)
             .toList();
     }
 
-    public List<AgentEvent> listEvents(String taskId, int limit) {
-        AgentTaskLatestEntity task = latestRepository.findById(taskId)
-            .orElseThrow(() -> new IllegalArgumentException("Task not found: " + taskId));
+    public List<AgentEvent> listEvents(String tenantId, String taskId, int limit) {
+        AgentTaskLatestEntity task = getTaskForTenant(tenantId, taskId);
         int normalizedLimit = limit <= 0 ? properties.getListLimit() : Math.min(limit, 500);
         return eventStore.listByTask(task.getTenantId(), task.getSessionId(), taskId, normalizedLimit);
     }
 
-    public Optional<AgentEvent> pollResult(String taskId, long timeoutMs) {
-        AgentTaskLatestEntity task = latestRepository.findById(taskId)
-            .orElseThrow(() -> new IllegalArgumentException("Task not found: " + taskId));
+    public AgentRuntimeSummary summarizeRuntime(String tenantId, int latestLimit) {
+        String normalizedTenant = requireTenant(tenantId);
+        Map<String, Long> statusCounts = new LinkedHashMap<>();
+        List<AgentTaskLatestRepository.StatusCount> statusRows = latestRepository.countByTenantIdGroupByStatus(normalizedTenant);
+        statusRows.forEach(row -> statusCounts.put(normalizeStatus(row.getStatus()), row.getTotal()));
+
+        long totalTasks = sum(statusCounts.values());
+        long pendingTasks = statusCounts.getOrDefault("PENDING", 0L);
+        long waitToolTasks = statusCounts.getOrDefault("WAIT_TOOL", 0L);
+        long waitModelTasks = statusCounts.getOrDefault("WAIT_MODEL", 0L);
+        long runningTasks = statusCounts.getOrDefault("RUNNING", 0L);
+        long waitingTasks = waitToolTasks + waitModelTasks;
+        long successTasks = statusCounts.getOrDefault("SUCCESS", 0L);
+        long failedTasks = statusCounts.getOrDefault("FAILED", 0L);
+        long cancelledTasks = statusCounts.getOrDefault("CANCELLED", 0L);
+        long activeTasks = pendingTasks + runningTasks + waitingTasks;
+        long queueDepth = pendingTasks + waitingTasks;
+        long tenantCount = totalTasks > 0 ? 1 : 0;
+        long activeWorkerCount = workerStates.values().stream().filter(AtomicBoolean::get).count();
+        int normalizedLimit = Math.max(1, Math.min(latestLimit <= 0 ? 10 : latestLimit, 50));
+
+        List<AgentRuntimeSummary.StatusMetric> statuses = statusCounts.entrySet().stream()
+            .map(entry -> new AgentRuntimeSummary.StatusMetric(entry.getKey(), entry.getValue()))
+            .toList();
+        List<AgentRuntimeSummary.TenantMetric> tenants = List.of(new AgentRuntimeSummary.TenantMetric(normalizedTenant, totalTasks));
+
+        return new AgentRuntimeSummary(
+            "Agent Runtime",
+            normalizedTenant,
+            totalTasks,
+            activeTasks,
+            pendingTasks,
+            waitingTasks,
+            successTasks,
+            failedTasks,
+            cancelledTasks,
+            tenantCount,
+            activeWorkerCount,
+            queueDepth,
+            toolRuntimeService.snapshot(),
+            statuses,
+            tenants,
+            list(normalizedTenant, null, 1, normalizedLimit)
+        );
+    }
+
+    public Optional<AgentEvent> pollResult(String tenantId, String taskId, long timeoutMs) {
+        AgentTaskLatestEntity task = getTaskForTenant(tenantId, taskId);
         try {
             long normalizedTimeout = Math.max(0, Math.min(timeoutMs, 5000));
             AgentEvent event = eventBus.pollResult(taskId, normalizedTimeout, TimeUnit.MILLISECONDS);
@@ -115,12 +154,74 @@ public class AgentTaskService {
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
         }
-        if (!"SUCCESS".equalsIgnoreCase(task.getStatus()) && !"FAILED".equalsIgnoreCase(task.getStatus())) {
+        if (!TERMINAL_STATUSES.contains(normalizeStatus(task.getStatus()))) {
             return Optional.empty();
         }
         return eventStore.listByTask(task.getTenantId(), task.getSessionId(), taskId, properties.getListLimit()).stream()
-            .filter(event -> "ANSWER".equalsIgnoreCase(event.getType()) || "ERROR".equalsIgnoreCase(event.getType()))
+            .filter(event -> "ANSWER".equalsIgnoreCase(event.getType())
+                || "ERROR".equalsIgnoreCase(event.getType())
+                || ("STATUS".equalsIgnoreCase(event.getType()) && "CANCELLED".equalsIgnoreCase(event.getStatus())))
             .reduce((previous, current) -> current);
+    }
+
+    public AgentTaskResponse cancel(String tenantId, String taskId) {
+        AgentTaskLatestEntity task = getTaskForTenant(tenantId, taskId);
+        String currentStatus = normalizeStatus(task.getStatus());
+        if (TERMINAL_STATUSES.contains(currentStatus)) {
+            return AgentTaskResponse.from(task);
+        }
+        updateLatest(task.getTaskId(), "CANCELLED", null, "Task cancelled by tenant request");
+        AgentEvent cancelledEvent = saveStatusEvent(task, "CANCELLED", Map.of("message", "Agent task cancelled"));
+        eventBus.publishResult(cancelledEvent);
+        return get(tenantId, taskId).orElseThrow(() -> new IllegalArgumentException("Task not found: " + taskId));
+    }
+
+    public AgentTaskResponse retry(String tenantId, String taskId) {
+        AgentTaskLatestEntity task = getTaskForTenant(tenantId, taskId);
+        String currentStatus = normalizeStatus(task.getStatus());
+        if (!List.of("FAILED", "CANCELLED").contains(currentStatus)) {
+            throw new IllegalArgumentException("Only FAILED or CANCELLED tasks can be retried");
+        }
+        AgentTaskPayload payload = loadQuestionPayload(task);
+        AgentTaskSubmitRequest retryRequest = payload.toSubmitRequest();
+        retryRequest.setTenantId(task.getTenantId());
+        retryRequest.setUserId(task.getUserId());
+        retryRequest.setAgentId(task.getAgentId());
+        retryRequest.setSessionId(task.getSessionId());
+        retryRequest.setQuery(task.getQuestion());
+        saveStatusEvent(task, "CANCELLED", Map.of("message", "Task retried and superseded"));
+        return submit(retryRequest);
+    }
+
+    public int reconcileLatestStateFromEvents() {
+        List<AgentTaskLatestEntity> tasks = latestRepository.findByStatusInOrderByCreateTimeAsc(ACTIVE_STATUSES);
+        if (tasks.isEmpty()) {
+            return 0;
+        }
+        int repaired = 0;
+        for (AgentTaskLatestEntity task : tasks.stream().limit(properties.getRecoveryBatchSize()).toList()) {
+            if (reconcileLatestTaskState(task)) {
+                repaired++;
+            }
+        }
+        return repaired;
+    }
+
+    public int recoverActiveTasks() {
+        List<AgentTaskLatestEntity> tasks = latestRepository.findByStatusInOrderByCreateTimeAsc(ACTIVE_STATUSES);
+        if (tasks.isEmpty()) {
+            return 0;
+        }
+        int recovered = 0;
+        for (AgentTaskLatestEntity task : tasks.stream().limit(properties.getRecoveryBatchSize()).toList()) {
+            AgentEvent questionEvent = loadQuestionEvent(task);
+            updateLatest(task.getTaskId(), "PENDING", null, null);
+            saveStatusEvent(task, "PENDING", Map.of("message", "Task recovered after runtime restart"));
+            startWorker(task.getTenantId());
+            eventBus.publish(questionEvent);
+            recovered++;
+        }
+        return recovered;
     }
 
     @PreDestroy
@@ -144,10 +245,19 @@ public class AgentTaskService {
 
     private void consumeTenantQueue(String tenantId, AtomicBoolean started) {
         log.info("Agent worker started for tenant={}", tenantId);
+        int idlePolls = 0;
         while (!stopping) {
             try {
                 AgentEvent event = eventBus.poll(tenantId, 1, TimeUnit.SECONDS);
-                if (event != null && "QUESTION".equalsIgnoreCase(event.getType())) {
+                if (event == null) {
+                    idlePolls++;
+                    if (idlePolls >= MAX_IDLE_POLLS) {
+                        break;
+                    }
+                    continue;
+                }
+                idlePolls = 0;
+                if ("QUESTION".equalsIgnoreCase(event.getType())) {
                     handleQuestion(event);
                 }
             } catch (InterruptedException ex) {
@@ -164,29 +274,222 @@ public class AgentTaskService {
     private void handleQuestion(AgentEvent question) {
         updateLatest(question.getTaskId(), "RUNNING", null, null);
         saveStatusEvent(question, "RUNNING", Map.of("message", "Agent task is running"));
+        updateLatest(question.getTaskId(), "WAIT_MODEL", null, null);
+        saveStatusEvent(question, "WAIT_MODEL", Map.of("message", "Agent task is waiting for model inference"));
+        long modelStartedAt = System.currentTimeMillis();
 
         try {
             AgentTaskPayload payload = objectMapper.readValue(question.getPayload(), AgentTaskPayload.class);
             InteractionRequest interactionRequest = payload.toInteractionRequest();
             InteractionResponse response = orchestrationService.chat(interactionRequest);
+            long modelFinishedAt = System.currentTimeMillis();
             String answer = response.getAnswer() == null ? "" : response.getAnswer();
+            if (isCancelled(question.getTaskId())) {
+                return;
+            }
+            updateLatest(question.getTaskId(), "RUNNING", null, null);
+            emitRuntimeEvents(question, response, modelStartedAt, modelFinishedAt);
 
             AgentEvent answerEvent = copyEvent(question, "ANSWER", "SUCCESS", writePayload(response));
+            answerEvent.setSequence(nextSequence(question));
+            answerEvent.setParentEventId(question.getEventId());
+            answerEvent.setLatencyMs(response.getLatencyMs());
+            answerEvent.setCreateTime(resolveAnswerTime(response, modelFinishedAt));
             eventStore.save(answerEvent);
+            Map<String, Object> completePayload = new LinkedHashMap<>();
+            completePayload.put("message", "Agent task completed");
+            completePayload.put("mode", response.getMode());
+            completePayload.put("handler", metadataValue(response.getMetadata(), "handler"));
+            completePayload.put("toolTraceCount", response.getToolTraces() == null ? 0 : response.getToolTraces().size());
+            AgentEvent completeEvent = copyEvent(question, "COMPLETE", "SUCCESS", writePayload(completePayload));
+            completeEvent.setSequence(nextSequence(question));
+            completeEvent.setParentEventId(answerEvent.getEventId());
+            completeEvent.setCreateTime(Math.max(answerEvent.getCreateTime(), System.currentTimeMillis()));
+            eventStore.save(completeEvent);
             updateLatest(question.getTaskId(), "SUCCESS", summarize(answer), null);
             eventBus.publishResult(answerEvent);
         } catch (Exception ex) {
+            if (isCancelled(question.getTaskId())) {
+                return;
+            }
             String message = ex.getMessage() == null ? ex.getClass().getSimpleName() : ex.getMessage();
             AgentEvent errorEvent = copyEvent(question, "ERROR", "FAILED", writePayload(Map.of("message", message)));
+            errorEvent.setSequence(nextSequence(question));
+            errorEvent.setParentEventId(question.getEventId());
+            errorEvent.setErrorCode(ex.getClass().getSimpleName());
             eventStore.save(errorEvent);
+            AgentEvent completeEvent = copyEvent(question, "COMPLETE", "FAILED", writePayload(Map.of(
+                "message", "Agent task failed",
+                "error", message
+            )));
+            completeEvent.setSequence(nextSequence(question));
+            completeEvent.setParentEventId(errorEvent.getEventId());
+            completeEvent.setErrorCode(ex.getClass().getSimpleName());
+            completeEvent.setCreateTime(Math.max(errorEvent.getCreateTime(), System.currentTimeMillis()));
+            eventStore.save(completeEvent);
             updateLatest(question.getTaskId(), "FAILED", null, message);
             eventBus.publishResult(errorEvent);
         }
     }
 
-    private void saveStatusEvent(AgentEvent source, String status, Map<String, Object> payload) {
+    private AgentEvent saveStatusEvent(AgentEvent source, String status, Map<String, Object> payload) {
         AgentEvent statusEvent = copyEvent(source, "STATUS", status, writePayload(payload));
+        statusEvent.setParentEventId(source.getEventId());
+        statusEvent.setSequence(nextSequence(source));
         eventStore.save(statusEvent);
+        return statusEvent;
+    }
+
+    private AgentEvent saveStatusEvent(AgentTaskLatestEntity source, String status, Map<String, Object> payload) {
+        AgentEvent statusEvent = AgentEvent.builder()
+            .taskId(source.getTaskId())
+            .tenantId(source.getTenantId())
+            .userId(source.getUserId())
+            .agentId(source.getAgentId())
+            .sessionId(source.getSessionId())
+            .type("STATUS")
+            .status(status)
+            .payload(writePayload(payload))
+            .build();
+        statusEvent.setSequence(nextSequence(source));
+        eventStore.save(statusEvent);
+        return statusEvent;
+    }
+
+    private void emitRuntimeEvents(AgentEvent question,
+                                   InteractionResponse response,
+                                   long modelStartedAt,
+                                   long modelFinishedAt) {
+        emitThinkEvent(question, response, modelStartedAt, modelFinishedAt);
+        emitPlannerEvents(question, response);
+        emitToolEvents(question, response);
+    }
+
+    private void emitThinkEvent(AgentEvent question,
+                                InteractionResponse response,
+                                long modelStartedAt,
+                                long modelFinishedAt) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("mode", response.getMode());
+        payload.put("handler", metadataValue(response.getMetadata(), "handler"));
+        payload.put("historyUsed", metadataValue(response.getMetadata(), "historyUsed"));
+        payload.put("latencyMs", response.getLatencyMs());
+        AgentEvent thinkEvent = copyEvent(question, "THINK", "RUNNING", writePayload(payload));
+        thinkEvent.setParentEventId(question.getEventId());
+        thinkEvent.setSequence(nextSequence(question));
+        thinkEvent.setLatencyMs(Math.max(0L, modelFinishedAt - modelStartedAt));
+        thinkEvent.setCreateTime(modelStartedAt);
+        eventStore.save(thinkEvent);
+    }
+
+    @SuppressWarnings("unchecked")
+    private void emitPlannerEvents(AgentEvent question, InteractionResponse response) {
+        List<Map<String, Object>> plannerSteps = plannerSteps(response);
+        for (Map<String, Object> step : plannerSteps) {
+            long plannedAt = longValue(step.get("plannedAt"), System.currentTimeMillis());
+            Map<String, Object> planPayload = new LinkedHashMap<>();
+            planPayload.put("step", step.get("step"));
+            planPayload.put("action", step.get("action"));
+            planPayload.put("toolName", step.get("toolName"));
+            planPayload.put("reason", step.get("reason"));
+            planPayload.put("answerPreview", step.get("answerPreview"));
+            planPayload.put("observationCount", step.get("observationCount"));
+
+            AgentEvent planEvent = copyEvent(question, "PLAN", "RUNNING", writePayload(planPayload));
+            planEvent.setParentEventId(question.getEventId());
+            planEvent.setSequence(nextSequence(question));
+            planEvent.setToolName(stringValue(step.get("toolName")));
+            planEvent.setCreateTime(plannedAt);
+            eventStore.save(planEvent);
+
+            String reason = stringValue(step.get("reason"));
+            String preview = stringValue(step.get("answerPreview"));
+            if ((reason != null && !reason.isBlank()) || (preview != null && !preview.isBlank())) {
+                Map<String, Object> thinkPayload = new LinkedHashMap<>();
+                thinkPayload.put("step", step.get("step"));
+                thinkPayload.put("reason", reason);
+                thinkPayload.put("answerPreview", preview);
+                thinkPayload.put("action", step.get("action"));
+                AgentEvent thinkEvent = copyEvent(question, "THINK", "RUNNING", writePayload(thinkPayload));
+                thinkEvent.setParentEventId(planEvent.getEventId());
+                thinkEvent.setSequence(nextSequence(question));
+                thinkEvent.setToolName(stringValue(step.get("toolName")));
+                thinkEvent.setCreateTime(plannedAt);
+                eventStore.save(thinkEvent);
+            }
+        }
+    }
+
+    private void emitToolEvents(AgentEvent question, InteractionResponse response) {
+        List<InteractionToolTrace> traces = response.getToolTraces() == null ? List.of() : response.getToolTraces();
+        for (InteractionToolTrace trace : traces) {
+            long startedAt = trace.getStartedAt() == null ? System.currentTimeMillis() : trace.getStartedAt();
+            long finishedAt = trace.getFinishedAt() == null ? startedAt : trace.getFinishedAt();
+
+            AgentEvent waitToolEvent = copyEvent(question, "STATUS", "WAIT_TOOL", writePayload(Map.of(
+                "message", "Agent task is waiting for tool execution",
+                "toolName", trace.getToolName()
+            )));
+            waitToolEvent.setParentEventId(question.getEventId());
+            waitToolEvent.setSequence(nextSequence(question));
+            waitToolEvent.setToolName(trace.getToolName());
+            waitToolEvent.setCreateTime(startedAt);
+            eventStore.save(waitToolEvent);
+
+            Map<String, Object> toolCallPayload = new LinkedHashMap<>();
+            toolCallPayload.put("toolName", trace.getToolName());
+            toolCallPayload.put("displayName", trace.getDisplayName());
+            toolCallPayload.put("serviceId", trace.getServiceId());
+            toolCallPayload.put("serviceName", trace.getServiceName());
+            toolCallPayload.put("input", trace.getInput());
+            toolCallPayload.put("runtime", trace.getRuntimeMetadata());
+            AgentEvent toolCallEvent = copyEvent(question, "TOOL_CALL", "WAIT_TOOL", writePayload(toolCallPayload));
+            toolCallEvent.setParentEventId(waitToolEvent.getEventId());
+            toolCallEvent.setSequence(nextSequence(question));
+            toolCallEvent.setToolName(trace.getToolName());
+            toolCallEvent.setCreateTime(startedAt);
+            eventStore.save(toolCallEvent);
+
+            Map<String, Object> toolResultPayload = new LinkedHashMap<>();
+            toolResultPayload.put("toolName", trace.getToolName());
+            toolResultPayload.put("success", trace.isSuccess());
+            toolResultPayload.put("output", trace.getOutput());
+            toolResultPayload.put("errorMessage", trace.getErrorMessage());
+            toolResultPayload.put("durationMs", trace.getDurationMs());
+            toolResultPayload.put("runtime", trace.getRuntimeMetadata());
+            AgentEvent toolResultEvent = copyEvent(
+                question,
+                "TOOL_RESULT",
+                trace.isSuccess() ? "RUNNING" : "FAILED",
+                writePayload(toolResultPayload)
+            );
+            toolResultEvent.setParentEventId(toolCallEvent.getEventId());
+            toolResultEvent.setSequence(nextSequence(question));
+            toolResultEvent.setToolName(trace.getToolName());
+            toolResultEvent.setLatencyMs(trace.getDurationMs());
+            toolResultEvent.setErrorCode(trace.isSuccess() ? null : "TOOL_EXECUTION_FAILED");
+            toolResultEvent.setCreateTime(finishedAt);
+            eventStore.save(toolResultEvent);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<Map<String, Object>> plannerSteps(InteractionResponse response) {
+        if (response == null || response.getMetadata() == null) {
+            return List.of();
+        }
+        Object direct = response.getMetadata().get("plannerSteps");
+        if (direct instanceof List<?> list) {
+            return list.stream().filter(Map.class::isInstance).map(item -> (Map<String, Object>) item).toList();
+        }
+        Object agent = response.getMetadata().get("agent");
+        if (agent instanceof Map<?, ?> agentMap) {
+            Object nested = agentMap.get("plannerSteps");
+            if (nested instanceof List<?> list) {
+                return list.stream().filter(Map.class::isInstance).map(item -> (Map<String, Object>) item).toList();
+            }
+        }
+        return List.of();
     }
 
     private AgentEvent copyEvent(AgentEvent source, String type, String status, String payload) {
@@ -217,8 +520,193 @@ public class AgentTaskService {
         });
     }
 
+    private void queueQuestion(AgentTaskLatestEntity latest, AgentTaskSubmitRequest request) {
+        queueQuestion(latest, request, true);
+    }
+
+    private void queueQuestion(AgentTaskLatestEntity latest, AgentTaskSubmitRequest request, boolean persistQuestionEvent) {
+        AgentEvent question = AgentEvent.builder()
+            .taskId(latest.getTaskId())
+            .tenantId(latest.getTenantId())
+            .userId(latest.getUserId())
+            .agentId(latest.getAgentId())
+            .sessionId(latest.getSessionId())
+            .type("QUESTION")
+            .status("PENDING")
+            .payload(writePayload(new AgentTaskPayload(request)))
+            .build();
+        question.setSequence(nextSequence(question));
+        if (persistQuestionEvent) {
+            eventStore.save(question);
+        }
+        startWorker(latest.getTenantId());
+        eventBus.publish(question);
+    }
+
+    private AgentTaskPayload loadQuestionPayload(AgentTaskLatestEntity task) {
+        return readPayload(loadQuestionEvent(task));
+    }
+
+    private AgentEvent loadQuestionEvent(AgentTaskLatestEntity task) {
+        return eventStore.findFirstByTaskAndType(task.getTenantId(), task.getSessionId(), task.getTaskId(), "QUESTION")
+            .orElseThrow(() -> new IllegalStateException("Question payload not found for task: " + task.getTaskId()));
+    }
+
+    private AgentTaskPayload readPayload(AgentEvent event) {
+        try {
+            return objectMapper.readValue(event.getPayload(), AgentTaskPayload.class);
+        } catch (JsonProcessingException ex) {
+            throw new IllegalStateException("Failed to deserialize agent task payload", ex);
+        }
+    }
+
+    private AgentTaskLatestEntity getTaskForTenant(String tenantId, String taskId) {
+        String normalizedTenant = requireTenant(tenantId);
+        AgentTaskLatestEntity task = latestRepository.findById(taskId)
+            .orElseThrow(() -> new IllegalArgumentException("Task not found: " + taskId));
+        if (!normalizedTenant.equals(task.getTenantId())) {
+            throw new IllegalArgumentException("Task not found for tenant: " + taskId);
+        }
+        return task;
+    }
+
+    private long nextSequence(AgentEvent event) {
+        return eventStore.nextSequence(event.getTenantId(), event.getSessionId(), event.getTaskId());
+    }
+
+    private long nextSequence(AgentTaskLatestEntity task) {
+        return eventStore.nextSequence(task.getTenantId(), task.getSessionId(), task.getTaskId());
+    }
+
+    private boolean reconcileLatestTaskState(AgentTaskLatestEntity task) {
+        List<AgentEvent> events = eventStore.listByTask(task.getTenantId(), task.getSessionId(), task.getTaskId(), Integer.MAX_VALUE);
+        if (events.isEmpty()) {
+            return false;
+        }
+        AgentEvent terminalEvent = findLatestTerminalEvent(events);
+        if (terminalEvent == null) {
+            return false;
+        }
+        String derivedStatus = normalizeStatus(terminalEvent.getStatus());
+        if (!TERMINAL_STATUSES.contains(derivedStatus)) {
+            return false;
+        }
+        if (Objects.equals(derivedStatus, normalizeStatus(task.getStatus()))) {
+            return false;
+        }
+
+        String answerSummary = null;
+        String errorMessage = null;
+        if ("SUCCESS".equals(derivedStatus)) {
+            answerSummary = findLatestEvent(events, "ANSWER")
+                .map(this::extractAnswerSummary)
+                .orElse(task.getAnswerSummary());
+            errorMessage = "";
+        } else if ("FAILED".equals(derivedStatus)) {
+            errorMessage = extractErrorMessage(terminalEvent);
+        } else if ("CANCELLED".equals(derivedStatus)) {
+            errorMessage = "Task cancelled";
+        }
+
+        updateLatest(task.getTaskId(), derivedStatus, answerSummary, errorMessage);
+        return true;
+    }
+
+    private AgentEvent findLatestTerminalEvent(List<AgentEvent> events) {
+        return events.stream()
+            .filter(event -> TERMINAL_STATUSES.contains(normalizeStatus(event.getStatus())))
+            .reduce((previous, current) -> current)
+            .orElse(null);
+    }
+
+    private Optional<AgentEvent> findLatestEvent(List<AgentEvent> events, String type) {
+        if (type == null || type.isBlank()) {
+            return Optional.empty();
+        }
+        return events.stream()
+            .filter(event -> type.equalsIgnoreCase(event.getType()))
+            .reduce((previous, current) -> current);
+    }
+
+    private String extractAnswerSummary(AgentEvent event) {
+        if (event == null || event.getPayload() == null || event.getPayload().isBlank()) {
+            return "";
+        }
+        try {
+            return summarize(objectMapper.readTree(event.getPayload()).path("answer").asText(""));
+        } catch (JsonProcessingException ex) {
+            throw new IllegalStateException("Failed to deserialize answer payload", ex);
+        }
+    }
+
+    private String extractErrorMessage(AgentEvent event) {
+        if (event == null) {
+            return "";
+        }
+        String payload = event.getPayload();
+        if (payload == null || payload.isBlank()) {
+            return firstText(event.getErrorCode(), "");
+        }
+        try {
+            String message = objectMapper.readTree(payload).path("message").asText("");
+            if (!message.isBlank()) {
+                return message;
+            }
+            return objectMapper.readTree(payload).path("error").asText(firstText(event.getErrorCode(), ""));
+        } catch (JsonProcessingException ex) {
+            throw new IllegalStateException("Failed to deserialize error payload", ex);
+        }
+    }
+
+    private long resolveAnswerTime(InteractionResponse response, long fallbackTime) {
+        if (response != null && response.getTimestamp() != null && response.getTimestamp() > 0) {
+            return response.getTimestamp();
+        }
+        return fallbackTime;
+    }
+
+    private Object metadataValue(Map<String, Object> metadata, String key) {
+        if (metadata == null || key == null || key.isBlank()) {
+            return null;
+        }
+        if (metadata.containsKey(key)) {
+            return metadata.get(key);
+        }
+        Object agent = metadata.get("agent");
+        if (agent instanceof Map<?, ?> agentMap) {
+            return agentMap.get(key);
+        }
+        return null;
+    }
+
+    private long longValue(Object value, long fallback) {
+        if (value instanceof Number number) {
+            return number.longValue();
+        }
+        if (value != null) {
+            try {
+                return Long.parseLong(String.valueOf(value));
+            } catch (NumberFormatException ignored) {
+                return fallback;
+            }
+        }
+        return fallback;
+    }
+
+    private String stringValue(Object value) {
+        return value == null ? null : String.valueOf(value);
+    }
+
+    private boolean isCancelled(String taskId) {
+        return latestRepository.findById(taskId)
+            .map(AgentTaskLatestEntity::getStatus)
+            .map(this::normalizeStatus)
+            .filter("CANCELLED"::equals)
+            .isPresent();
+    }
+
     private AgentTaskSubmitRequest normalize(AgentTaskSubmitRequest request) {
-        request.setTenantId(normalizeTenant(request.getTenantId()));
+        request.setTenantId(requireTenant(request.getTenantId()));
         request.setUserId(firstText(request.getUserId(), "anonymous"));
         request.setSessionId(firstText(request.getSessionId(), UUID.randomUUID().toString()));
         request.setMode(firstText(request.getMode(), "agent_chat"));
@@ -254,7 +742,22 @@ public class AgentTaskService {
     }
 
     private String normalizeTenant(String tenantId) {
-        return firstText(tenantId, "default");
+        return requireTenant(tenantId);
+    }
+
+    private String requireTenant(String tenantId) {
+        if (tenantId == null || tenantId.isBlank()) {
+            throw new IllegalArgumentException("Tenant ID cannot be empty");
+        }
+        return tenantId.trim();
+    }
+
+    private String normalizeStatus(String status) {
+        return firstText(status, "UNKNOWN").toUpperCase();
+    }
+
+    private long sum(Collection<Long> values) {
+        return values.stream().mapToLong(Long::longValue).sum();
     }
 
     private String firstText(String value, String fallback) {

@@ -20,7 +20,7 @@
             <span class="active">生成分析结论</span>
           </div>
         </div>
-        <div v-else class="message-markdown" v-html="renderMarkdown(message.content)"></div>
+        <div v-else class="message-markdown" v-html="renderMarkdown(message.content, message)"></div>
         <ResponseReferences
           v-if="message.role === 'assistant' && !message.streaming"
           :sources="message.sources || []"

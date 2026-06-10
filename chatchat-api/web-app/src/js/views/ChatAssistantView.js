@@ -5,7 +5,9 @@ import {
   fetchAgentWorkshop,
   saveConversationHistory,
   sendInteractionMessage,
-  sendInteractionMessageStream
+  sendInteractionMessageStream,
+  updateWorkshopAgent,
+  uploadSearchDocument
 } from "../../services/api";
 import "../../styles/pages/chat-assistant.css";
 
@@ -15,6 +17,7 @@ const EMPTY_RESPONSE = {
 };
 const AGENT_TASK_POLL_TIMEOUT_MS = 1200;
 const AGENT_TASK_MAX_WAIT_MS = 300000;
+const MAX_UPLOAD_SIZE = 5 * 1024 * 1024;
 
 function uid() {
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -65,6 +68,43 @@ function shouldFallbackToDirect(error) {
 
 function sleep(ms) {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+function todayString() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function inferDocumentType(fileName = "") {
+  const extension = fileName.includes(".") ? fileName.split(".").pop().toLowerCase() : "";
+  if (extension === "pdf") {
+    return "pdf";
+  }
+  if (["doc", "docx"].includes(extension)) {
+    return "word";
+  }
+  if (["xls", "xlsx", "csv"].includes(extension)) {
+    return "excel";
+  }
+  if (extension === "md") {
+    return "markdown";
+  }
+  return "text";
+}
+
+function defaultUploadForm() {
+  return {
+    file: null,
+    title: "",
+    source: "对话助手",
+    date: todayString(),
+    tags: "",
+    documentType: "auto",
+    enableForAgent: true
+  };
+}
+
+function uniqueList(values) {
+  return [...new Set(values.map((value) => String(value || "").trim()).filter(Boolean))];
 }
 
 function parseJsonPayload(value) {
@@ -130,7 +170,20 @@ export default {
       selectedAgentId: "",
       activeRunId: "",
       runningContexts: {},
-      restoredRunning: false
+      restoredRunning: false,
+      uploadDialogOpen: false,
+      uploadingDocument: false,
+      uploadError: "",
+      uploadNotice: "",
+      uploadForm: defaultUploadForm(),
+      documentTypeOptions: [
+        { value: "auto", label: "自动识别" },
+        { value: "pdf", label: "PDF" },
+        { value: "word", label: "Word" },
+        { value: "excel", label: "Excel" },
+        { value: "markdown", label: "Markdown" },
+        { value: "text", label: "文本" }
+      ]
     };
   },
   computed: {
@@ -159,7 +212,7 @@ export default {
       if (this.selectedAgent) {
         return `${this.selectedAgent.name}已就绪，可基于配置的业务场景开展分析。`;
       }
-      return "AI投资助手已就绪，可进行市场洞察与投资分析";
+      return "AI文档助手已就绪，可基于文档内容进行检索、分析并提供建议。";
     },
     heroQuickQuestions() {
       return Array.isArray(this.selectedAgent?.quickQuestions)
@@ -540,6 +593,7 @@ export default {
       this.conversationId = "";
       this.conversationStatus = "completed";
       this.errorMessage = "";
+      this.uploadNotice = "";
       this.lastResponse = { ...EMPTY_RESPONSE };
       this.restoredRunning = false;
       this.$emit("conversation-active", null);
@@ -564,7 +618,135 @@ export default {
       }
     },
     handleUpload() {
-      this.errorMessage = "文件上传接口尚未接入，当前仅支持文本对话。";
+      this.uploadError = "";
+      this.uploadNotice = "";
+      this.uploadForm = {
+        ...this.uploadForm,
+        date: this.uploadForm.date || todayString(),
+        enableForAgent: !!this.selectedAgentId
+      };
+      this.uploadDialogOpen = true;
+    },
+    closeUploadDialog() {
+      if (this.uploadingDocument) {
+        return;
+      }
+      this.uploadDialogOpen = false;
+      this.uploadError = "";
+    },
+    triggerUploadFilePicker() {
+      this.$refs.chatUploadFile?.click();
+    },
+    handleUploadFileChange(event) {
+      const file = event.target.files?.[0] || null;
+      this.uploadError = "";
+      if (file && file.size > MAX_UPLOAD_SIZE) {
+        this.uploadForm.file = null;
+        event.target.value = "";
+        this.uploadError = "文档文件不能超过 5MB";
+        return;
+      }
+      this.uploadForm.file = file;
+      if (file && !this.uploadForm.title) {
+        this.uploadForm.title = file.name.replace(/\.[^.]+$/, "");
+      }
+      if (file) {
+        this.uploadForm.documentType = inferDocumentType(file.name);
+      }
+    },
+    async uploadChatDocument() {
+      if (!this.uploadForm.file) {
+        this.uploadError = "请选择要上传的文档文件";
+        return;
+      }
+      this.uploadingDocument = true;
+      this.uploadError = "";
+      this.uploadNotice = "";
+      try {
+        const formData = new FormData();
+        formData.append("file", this.uploadForm.file);
+        formData.append("title", this.uploadForm.title);
+        formData.append("source", this.uploadForm.source);
+        formData.append("date", this.uploadForm.date);
+        formData.append("tags", this.uploadForm.tags);
+        formData.append("documentType", this.uploadForm.documentType);
+        const uploadedDocument = await uploadSearchDocument(formData);
+        const docId = this.extractUploadedDocId(uploadedDocument);
+        const shouldBindAgent = this.uploadForm.enableForAgent && this.selectedAgentId;
+        if (shouldBindAgent && docId) {
+          try {
+            await this.enableDocumentForSelectedAgent(docId);
+            this.uploadNotice = `文档已上传，并已启用到当前 Agent：${this.selectedAgent?.name || this.selectedAgentId}`;
+          } catch (bindError) {
+            this.uploadNotice = `文档已上传到文档库，但启用到当前 Agent 失败：${bindError.message || "绑定失败"}`;
+          }
+        } else {
+          this.uploadNotice = docId
+            ? "文档已上传到文档库。"
+            : "文档已上传，但未能识别返回的文档 ID。";
+        }
+        this.closeAfterUpload();
+      } catch (error) {
+        this.uploadError = error.message || "上传失败";
+      } finally {
+        this.uploadingDocument = false;
+      }
+    },
+    closeAfterUpload() {
+      this.uploadDialogOpen = false;
+      this.uploadError = "";
+      this.uploadForm = defaultUploadForm();
+      const input = this.$refs.chatUploadFile;
+      if (input) {
+        input.value = "";
+      }
+    },
+    extractUploadedDocId(document) {
+      return document?.docId || document?.id || document?.documentId || "";
+    },
+    async enableDocumentForSelectedAgent(docId) {
+      const agent = this.selectedAgent;
+      if (!agent?.id || !docId) {
+        return;
+      }
+      const nextDocumentIds = uniqueList([...(agent.boundDocumentIds || []), docId]);
+      const updatedAgent = await updateWorkshopAgent(agent.id, this.agentToUpdatePayload(agent, nextDocumentIds));
+      if (updatedAgent?.id) {
+        this.agents = this.agents.map((item) => (item.id === updatedAgent.id ? updatedAgent : item));
+      } else {
+        this.agents = this.agents.map((item) =>
+          item.id === agent.id
+            ? {
+                ...item,
+                boundDocumentIds: nextDocumentIds,
+                boundDocumentCount: nextDocumentIds.length
+              }
+            : item
+        );
+      }
+      await this.loadAgents();
+    },
+    agentToUpdatePayload(agent, boundDocumentIds) {
+      return {
+        id: agent.id,
+        name: agent.name,
+        description: agent.description || "",
+        usageScenarios: agent.usageScenarios || [],
+        skillTags: agent.skillTags || [],
+        defaultMode: agent.defaultMode || "agent_chat",
+        modelName: agent.modelName || "",
+        systemPrompt: agent.systemPrompt || "",
+        firstUseGreeting: agent.firstUseGreeting || "",
+        preferredToolPrefixes: agent.preferredToolPrefixes || [],
+        boundMcpServiceIds: agent.boundMcpServiceIds || [],
+        boundMcpToolNames: agent.boundMcpToolNames || [],
+        boundDocumentIds,
+        boundDocumentTags: agent.boundDocumentTags || [],
+        toolConfigs: agent.toolConfigs || [],
+        routingSettings: agent.routingSettings || {},
+        quickQuestions: agent.quickQuestions || [],
+        marketStatus: agent.marketStatus || "published"
+      };
     },
     emitActiveConversationSnapshot(question, status = this.conversationStatus, runContext = null) {
       const context = runContext || this.createRunContext(question);

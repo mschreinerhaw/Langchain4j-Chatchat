@@ -1,4 +1,4 @@
-import { displayUrl, extractWebSearchPages } from "../utils/webReferences.js";
+import { displayUrl, extractWebSearchPages, extractWebSearchPagesFromTraces } from "../utils/webReferences.js";
 
 export default {
   name: "ResponseReferences",
@@ -28,6 +28,9 @@ export default {
   computed: {
     hasDetails() {
       return this.sources.length || this.toolTraces.length;
+    },
+    webPageRows() {
+      return extractWebSearchPagesFromTraces(this.toolTraces);
     },
     toolTraceRows() {
       return this.toolTraces.map((trace) => ({

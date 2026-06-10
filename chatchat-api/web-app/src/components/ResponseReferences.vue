@@ -1,10 +1,10 @@
 <template>
   <section v-if="hasDetails" class="response-references" :class="{ compact }">
     <details v-if="sources.length" :open="compact">
-      <summary>数据来源</summary>
+      <summary>内部文档来源（{{ sources.length }}）</summary>
       <article v-for="source in sources" :key="source.rank + source.source" class="reference-row">
         <strong>
-          #{{ source.rank || "-" }}
+          <span class="reference-badge">文档 {{ source.rank || "-" }}</span>
           <a
             v-if="sourceUrl(source)"
             :href="sourceUrl(source)"
@@ -19,7 +19,27 @@
       </article>
     </details>
 
-    <details v-if="toolTraceRows.length" :open="compact">
+    <details v-if="webPageRows.length" :open="compact">
+      <summary>网络搜索网页（{{ webPageRows.length }}）</summary>
+      <article v-for="(page, index) in webPageRows" :key="page.rank + page.url + page.title" class="reference-row web-reference-row">
+        <strong>
+          <span class="reference-badge web">网页 {{ page.rank || index + 1 }}</span>
+          <a
+            v-if="page.url"
+            :href="page.url"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {{ page.title || page.url }}
+          </a>
+          <span v-else>{{ page.title || "网页" }}</span>
+        </strong>
+        <small v-if="page.url">{{ displayUrl(page.url) }}</small>
+        <p>{{ page.snippet || "暂无摘要" }}</p>
+      </article>
+    </details>
+
+    <details v-if="toolTraceRows.length" :open="compact && !webPageRows.length">
       <summary>调用工具</summary>
       <article v-for="trace in toolTraceRows" :key="trace.toolName + trace.startedAt" class="reference-row">
         <strong>{{ trace.displayName || trace.toolName || "工具调用" }}</strong>

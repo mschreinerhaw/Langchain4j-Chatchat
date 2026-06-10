@@ -10,7 +10,20 @@
       <div class="message-bubble">
         <div class="message-meta">
           <strong>{{ message.role === "user" ? displayUserId : assistantDisplayName }}</strong>
-          <time>{{ formatTime(message.timestamp) }}</time>
+          <div class="message-actions">
+            <time>{{ formatTime(message.timestamp) }}</time>
+            <button
+              v-if="message.role === 'assistant' && message.content"
+              type="button"
+              class="message-copy-button"
+              :title="copiedMessageId === message.id ? '已复制' : '复制回答'"
+              :aria-label="copiedMessageId === message.id ? '已复制回答' : '复制回答内容'"
+              @click="copyMessage(message)"
+            >
+              <Check v-if="copiedMessageId === message.id" :size="14" stroke-width="2.4" />
+              <Copy v-else :size="14" stroke-width="2.2" />
+            </button>
+          </div>
         </div>
         <div v-if="message.role === 'assistant' && message.streaming && !message.content" class="analysis-progress">
           <strong>正在分析{{ activeAgent?.name ? `：${activeAgent.name}` : "" }}</strong>

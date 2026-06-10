@@ -18,9 +18,13 @@ class SearchServiceTest {
     Path tempDir;
 
     private RocksDbSearchStore store;
+    private LuceneSearchStore luceneStore;
 
     @AfterEach
     void closeStore() {
+        if (luceneStore != null) {
+            luceneStore.close();
+        }
         if (store != null) {
             store.close();
         }
@@ -121,6 +125,114 @@ class SearchServiceTest {
         assertThat(oldKeyword.results()).isEmpty();
         assertThat(newKeyword.results()).hasSize(1);
         assertThat(newKeyword.results().get(0).docId()).isEqualTo(second.getDocId());
+        assertThat(newKeyword.results().get(0).summary()).contains("second version current");
+    }
+
+    @Test
+    void filtersWeakSingleTermMatchesForMultiTermQueries() {
+        SearchService service = newSearchService();
+        saveSemiconductorDocument(service);
+        service.createOrUpdate(SearchDocument.builder()
+            .docId("doc-weak")
+            .title("General Equipment Notes")
+            .content("Equipment maintenance checklist and order tracking.")
+            .source("operations")
+            .date("2024-06-06")
+            .tags(List.of("operations"))
+            .build());
+
+        SearchPage page = service.search("semiconductor equipment localization", null, null, null, 10);
+
+        assertThat(page.results()).extracting(SearchResult::docId)
+            .containsExactly("doc-001");
+        assertThat(page.results().get(0).scoreBreakdown().coverageRatio()).isGreaterThanOrEqualTo(0.6D);
+    }
+
+    @Test
+    void ranksTitleKeywordAndTagMatchesAbovePlainContentMatches() {
+        SearchService service = newSearchService();
+        service.createOrUpdate(SearchDocument.builder()
+            .docId("doc-content")
+            .title("Operations Weekly")
+            .content("Cloud database export issues appeared in the release notes.")
+            .source("ops")
+            .date("2024-06-08")
+            .tags(List.of("operations"))
+            .build());
+        service.createOrUpdate(SearchDocument.builder()
+            .docId("doc-field")
+            .title("Cloud Database Export")
+            .content("Troubleshooting guide for data sync jobs.")
+            .source("platform")
+            .date("2024-06-01")
+            .tags(List.of("cloud", "database"))
+            .keywords(List.of("cloud database export"))
+            .build());
+
+        SearchPage page = service.search("cloud database export", null, null, null, 10);
+
+        assertThat(page.results()).extracting(SearchResult::docId)
+            .containsExactly("doc-field", "doc-content");
+        assertThat(page.results().get(0).scoreBreakdown().titleScore()).isGreaterThan(0);
+        assertThat(page.results().get(0).scoreBreakdown().keywordScore()).isGreaterThan(0);
+    }
+
+    @Test
+    void ignoresGenericSearchWordsBeforeRankingDocuments() {
+        SearchService service = newSearchService();
+        service.createOrUpdate(SearchDocument.builder()
+            .docId("doc-generic")
+            .title("Document Report Summary")
+            .content("Please search this document report for related information and notes.")
+            .source("library")
+            .date("2024-06-07")
+            .tags(List.of("reports"))
+            .build());
+        service.createOrUpdate(SearchDocument.builder()
+            .docId("doc-specific")
+            .title("Cloud Database Export")
+            .content("Cloud database export troubleshooting and backup validation steps.")
+            .source("platform")
+            .date("2024-06-08")
+            .tags(List.of("cloud", "database"))
+            .build());
+
+        SearchPage page = service.search("please search document report cloud database export", null, null, null, 10);
+
+        assertThat(page.queryTokens()).containsExactly("cloud", "database", "export");
+        assertThat(page.results()).extracting(SearchResult::docId)
+            .containsExactly("doc-specific");
+    }
+
+    @Test
+    void returnsMultipleMatchedChunksFromLucene() {
+        SearchService service = newSearchService();
+        service.createOrUpdate(SearchDocument.builder()
+            .docId("doc-chunks")
+            .title("Release Investigation")
+            .content("""
+                # Alpha Incident
+                Alpha service latency increased after the first deployment window. The team reviewed gateway metrics, request queues, and cache pressure for the affected tenant. Engineers confirmed that retry pressure stayed localized to the alpha path.
+
+                # Gamma Follow Up
+                Gamma export retries recovered after queue throttling was adjusted. Operators compared export backlog, worker concurrency, and downstream database pressure before closing the incident. The gamma path remained stable after the mitigation.
+
+                # Notes
+                Routine operational details unrelated to the incident.
+                """)
+            .source("ops")
+            .date("2024-06-09")
+            .tags(List.of("release"))
+            .build());
+
+        SearchPage page = service.search("alpha gamma", null, null, null, 10);
+
+        assertThat(page.results()).hasSize(1);
+        SearchResult result = page.results().get(0);
+        assertThat(result.matchedChunks()).hasSizeGreaterThanOrEqualTo(2);
+        assertThat(result.matchedChunks()).extracting(SearchMatchedChunk::text)
+            .anySatisfy(text -> assertThat(text).contains("Alpha Incident"))
+            .anySatisfy(text -> assertThat(text).contains("Gamma Follow Up"));
     }
 
     private void saveSemiconductorDocument(SearchService service) {
@@ -142,12 +254,20 @@ class SearchServiceTest {
         SearchProperties properties = new SearchProperties();
         properties.setStorePath(tempDir.resolve("rocksdb").toString());
         properties.setFilePath(tempDir.resolve("files").toString());
+        properties.setLuceneIndexPath(tempDir.resolve("lucene").toString());
+        properties.setChunkSize(120);
+        properties.setChunkOverlap(0);
+        properties.setLuceneChunksPerDocument(3);
 
         store = new RocksDbSearchStore(properties, new ObjectMapper());
         store.open();
+        SearchTokenizer tokenizer = new SearchTokenizer();
+        luceneStore = new LuceneSearchStore(properties, tokenizer);
+        luceneStore.open();
         return new SearchService(
             store,
-            new SearchTokenizer(),
+            luceneStore,
+            tokenizer,
             new DocumentContentExtractor(),
             properties
         );

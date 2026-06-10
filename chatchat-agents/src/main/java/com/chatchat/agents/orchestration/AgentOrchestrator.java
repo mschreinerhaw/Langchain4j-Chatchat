@@ -41,6 +41,8 @@ public class AgentOrchestrator {
 
     private static final int MAX_STEPS = 3;
     private static final int WEB_SEARCH_REFERENCE_LIMIT = 10;
+    private static final String DOCUMENT_SEARCH_TOOL = "document_search";
+    private static final String WEB_SEARCH_TOOL = "web_search";
     private static final String FINAL = "final";
     private static final String TOOL = "tool";
     private static final String REVIEW_ACCEPTED = "accepted";
@@ -72,6 +74,13 @@ public class AgentOrchestrator {
         boolean requireToolBeforeFinal = !mandatoryTools.isEmpty();
         List<String> documentIds = normalizeList(boundDocumentIds);
         List<String> documentTags = normalizeList(boundDocumentTags);
+        String verificationWebSearchTool = resolveVerificationWebSearchTool(tools);
+        boolean requireDocumentWebVerification = shouldRequireDocumentWebVerification(
+            tools,
+            verificationWebSearchTool,
+            documentIds,
+            documentTags
+        );
         ChatModel activeChatModel = resolveChatModel(modelName);
         List<InteractionToolTrace> traces = new ArrayList<>();
         List<String> observations = new ArrayList<>();
@@ -86,6 +95,8 @@ public class AgentOrchestrator {
         metadata.put("mandatoryToolCall", requireToolBeforeFinal);
         metadata.put("mandatoryTools", mandatoryTools);
         metadata.put("requiredToolNames", normalizeList(requiredToolNames));
+        metadata.put("documentWebVerificationRequired", requireDocumentWebVerification);
+        metadata.put("verificationWebSearchTool", verificationWebSearchTool);
         metadata.put("plannerSteps", plannerSteps);
 
         log.info("[{}] Agent orchestration started. tools={}", requestId, tools.size());
@@ -101,7 +112,9 @@ public class AgentOrchestrator {
                 documentIds,
                 documentTags,
                 mandatoryTools,
-                requireToolBeforeFinal && traces.isEmpty()
+                requireToolBeforeFinal && traces.isEmpty(),
+                requireDocumentWebVerification,
+                verificationWebSearchTool
             );
             metadata.put("steps", step);
             Map<String, Object> plannerStep = new LinkedHashMap<>();
@@ -118,6 +131,12 @@ public class AgentOrchestrator {
                 if (requireToolBeforeFinal && traces.isEmpty()) {
                     observations.add("Planner final answer rejected: this MCP-bound agent must call one mandatory tool before final answer.");
                     metadata.put("rejectedFinalBeforeTool", true);
+                    continue;
+                }
+                if (requireDocumentWebVerification && missingDocumentWebVerification(traces, verificationWebSearchTool)) {
+                    observations.add("Planner final answer rejected: document-web verification requires both document_search and "
+                        + verificationWebSearchTool + " observations before final answer.");
+                    metadata.put("rejectedFinalBeforeVerification", true);
                     continue;
                 }
                 String answer = safeAnswer(activeChatModel, decision.answer(), query, observations, systemPrompt);
@@ -142,6 +161,13 @@ public class AgentOrchestrator {
             }
             if (requireToolBeforeFinal && traces.isEmpty() && !mandatoryTools.contains(decision.toolName())) {
                 observations.add("Planner requested non-mandatory tool before MCP-bound evidence: " + decision.toolName());
+                continue;
+            }
+            if (requireDocumentWebVerification
+                && !hasToolTrace(traces, DOCUMENT_SEARCH_TOOL)
+                && !DOCUMENT_SEARCH_TOOL.equals(decision.toolName())) {
+                observations.add("Planner requested " + decision.toolName()
+                    + " before document_search; document-web verification must start with document_search.");
                 continue;
             }
 
@@ -187,6 +213,23 @@ public class AgentOrchestrator {
             observations.add("Mandatory fallback " + execution.observation());
             metadata.put("mandatoryToolFallback", fallbackTool);
         }
+        if (requireDocumentWebVerification) {
+            runMissingDocumentWebVerification(
+                traces,
+                observations,
+                query,
+                conversationId,
+                requestId,
+                userId,
+                tenantId,
+                tools,
+                documentIds,
+                documentTags,
+                webSearchResultLimit,
+                verificationWebSearchTool,
+                metadata
+            );
+        }
 
         String finalAnswer = summarizeWithObservations(activeChatModel, query, systemPrompt, observations);
         AnswerReview review = reviewAndReviseAnswer(activeChatModel, query, systemPrompt, observations, finalAnswer);
@@ -203,7 +246,9 @@ public class AgentOrchestrator {
                                            List<String> boundDocumentIds,
                                            List<String> boundDocumentTags,
                                            List<String> mandatoryTools,
-                                           boolean requireToolBeforeFinal) {
+                                           boolean requireToolBeforeFinal,
+                                           boolean requireDocumentWebVerification,
+                                           String verificationWebSearchTool) {
         String prompt = buildPlannerPrompt(
             query,
             systemPrompt,
@@ -212,7 +257,9 @@ public class AgentOrchestrator {
             boundDocumentIds,
             boundDocumentTags,
             mandatoryTools,
-            requireToolBeforeFinal
+            requireToolBeforeFinal,
+            requireDocumentWebVerification,
+            verificationWebSearchTool
         );
         String raw = activeChatModel.chat(prompt);
         AgentDecision decision = parseDecision(raw);
@@ -229,7 +276,9 @@ public class AgentOrchestrator {
                                       List<String> boundDocumentIds,
                                       List<String> boundDocumentTags,
                                       List<String> mandatoryTools,
-                                      boolean requireToolBeforeFinal) {
+                                      boolean requireToolBeforeFinal,
+                                      boolean requireDocumentWebVerification,
+                                      String verificationWebSearchTool) {
         StringBuilder prompt = new StringBuilder();
         if (systemPrompt != null && !systemPrompt.isBlank()) {
             prompt.append("System instruction: ").append(systemPrompt).append("\n\n");
@@ -262,6 +311,16 @@ public class AgentOrchestrator {
             prompt.append("2. Keep document_search within the configured document_ids/tags scope.\n");
             prompt.append("3. Use retrieved evidence as the basis of the final answer; if evidence is insufficient, say what is missing.\n");
             prompt.append("4. Do not invent facts beyond retrieved documents and tool observations.\n\n");
+        }
+        if (requireDocumentWebVerification) {
+            prompt.append("Document-web verification workflow:\n");
+            prompt.append("1. Call document_search first to retrieve internal knowledge evidence.\n");
+            prompt.append("2. Then call ").append(verificationWebSearchTool).append(" to validate and supplement with public/web evidence.\n");
+            prompt.append("3. Do not return a final answer until both document_search and ")
+                .append(verificationWebSearchTool)
+                .append(" have been observed.\n");
+            prompt.append("4. In the final answer, separate internal document evidence from web verification evidence.\n");
+            prompt.append("5. If the two sources conflict, explicitly state the conflict and prefer internal documents for internal/business facts unless web evidence is newer and the answer calls for current public facts.\n\n");
         }
         if (!observations.isEmpty()) {
             prompt.append("Observations so far:\n");
@@ -363,6 +422,7 @@ public class AgentOrchestrator {
         }
         prompt.append("Use the observations below and answer the user question in Chinese.\n");
         prompt.append("If any tool observation reports failure, explicitly state that this source was unavailable and do not treat it as evidence.\n");
+        prompt.append("When both internal document and web search observations are available, separate internal document evidence from web verification evidence and explain conflicts instead of merging them silently.\n");
         prompt.append("If observations include web citation labels such as [网页1], append the matching label immediately after every sentence that relies on that web source.\n");
         prompt.append("Do not invent citations or cite URLs that are not listed in the observations.\n");
         if (observations.isEmpty()) {
@@ -413,6 +473,7 @@ public class AgentOrchestrator {
         prompt.append("Reject answers that only point to documents/tools, summarize where information may be, or avoid giving the concrete requested result.\n");
         prompt.append("A good answer must directly address the user request, use the available observations as evidence, and clearly state missing evidence when the observations are insufficient.\n");
         prompt.append("Do not invent facts that are absent from the observations.\n");
+        prompt.append("If both document_search and web_search observations are available, the answer must distinguish internal document evidence from web verification evidence and explicitly handle conflicts.\n");
         prompt.append("If an observation says a tool failed, the answer must not claim that the failed tool provided supporting evidence.\n");
         prompt.append("If observations include web citation labels such as [网页1], web-derived claims in the answer must keep the matching labels; reject and revise answers that omit those labels.\n");
         prompt.append("Do not remove citation markers that prove which web page supports a statement.\n");
@@ -594,6 +655,92 @@ public class AgentOrchestrator {
             + ". Evidence from this tool is unavailable; the final answer must explicitly mention this limitation and must not claim successful verification from this tool.";
     }
 
+    private boolean shouldRequireDocumentWebVerification(List<String> tools,
+                                                         String verificationWebSearchTool,
+                                                         List<String> documentIds,
+                                                         List<String> documentTags) {
+        return tools != null
+            && tools.contains(DOCUMENT_SEARCH_TOOL)
+            && verificationWebSearchTool != null
+            && (!documentIds.isEmpty() || !documentTags.isEmpty());
+    }
+
+    private String resolveVerificationWebSearchTool(List<String> tools) {
+        if (tools == null || tools.isEmpty()) {
+            return null;
+        }
+        if (tools.contains(WEB_SEARCH_TOOL)) {
+            return WEB_SEARCH_TOOL;
+        }
+        return tools.stream()
+            .filter(this::isWebSearchToolName)
+            .findFirst()
+            .orElse(null);
+    }
+
+    private boolean missingDocumentWebVerification(List<InteractionToolTrace> traces, String verificationWebSearchTool) {
+        return !hasToolTrace(traces, DOCUMENT_SEARCH_TOOL) || !hasToolTrace(traces, verificationWebSearchTool);
+    }
+
+    private boolean hasToolTrace(List<InteractionToolTrace> traces, String toolName) {
+        if (traces == null || traces.isEmpty() || toolName == null || toolName.isBlank()) {
+            return false;
+        }
+        return traces.stream()
+            .anyMatch(trace -> trace != null && toolName.equals(trace.getToolName()));
+    }
+
+    private void runMissingDocumentWebVerification(List<InteractionToolTrace> traces,
+                                                   List<String> observations,
+                                                   String query,
+                                                   String conversationId,
+                                                   String requestId,
+                                                   String userId,
+                                                   String tenantId,
+                                                   List<String> tools,
+                                                   List<String> documentIds,
+                                                   List<String> documentTags,
+                                                   int webSearchResultLimit,
+                                                   String verificationWebSearchTool,
+                                                   Map<String, Object> metadata) {
+        List<String> fallbackTools = new ArrayList<>();
+        if (!hasToolTrace(traces, DOCUMENT_SEARCH_TOOL)) {
+            fallbackTools.add(DOCUMENT_SEARCH_TOOL);
+        }
+        if (!hasToolTrace(traces, verificationWebSearchTool)) {
+            fallbackTools.add(verificationWebSearchTool);
+        }
+        if (fallbackTools.isEmpty()) {
+            return;
+        }
+
+        metadata.put("documentWebVerificationFallbackTools", fallbackTools);
+        for (String fallbackTool : fallbackTools) {
+            if (fallbackTool == null || !tools.contains(fallbackTool)) {
+                continue;
+            }
+            Map<String, Object> fallbackArguments = applyToolDefaults(
+                fallbackTool,
+                defaultToolArguments(fallbackTool, query, webSearchResultLimit),
+                documentIds,
+                documentTags,
+                query,
+                webSearchResultLimit
+            );
+            ToolCallExecution execution = executeToolCall(
+                fallbackTool,
+                fallbackArguments,
+                conversationId,
+                requestId,
+                userId,
+                tenantId,
+                tools
+            );
+            traces.add(execution.trace());
+            observations.add("Document-web verification fallback " + execution.observation());
+        }
+    }
+
     private Map<String, Object> defaultToolArguments(String toolName, String query, int webSearchResultLimit) {
         if (query == null || query.isBlank()) {
             return Map.of();
@@ -722,13 +869,7 @@ public class AgentOrchestrator {
         if (!requiredTools.isEmpty()) {
             return requiredTools;
         }
-        if (!requireBoundToolCall) {
-            return List.of();
-        }
-        List<String> mcpTools = tools.stream()
-            .filter(this::isMcpTool)
-            .toList();
-        return mcpTools;
+        return List.of();
     }
 
     private boolean isMcpTool(String toolName) {

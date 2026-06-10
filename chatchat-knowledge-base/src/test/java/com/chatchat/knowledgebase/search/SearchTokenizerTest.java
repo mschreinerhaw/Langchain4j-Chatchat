@@ -19,4 +19,9 @@ class SearchTokenizerTest {
         assertThat(tokenizer.splitFilter("半导体 AI服务器；政策"))
             .containsExactly("半导体", "ai服务器", "政策");
     }
+    @Test
+    void filtersGenericSearchTermsButKeepsDomainTerms() {
+        assertThat(tokenizer.searchTokens("please search document report cloud database export AI"))
+            .containsExactly("cloud", "database", "export", "ai");
+    }
 }

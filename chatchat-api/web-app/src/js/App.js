@@ -31,7 +31,7 @@ export default {
   },
   data() {
     return {
-      activeView: "tasks",
+      activeView: "search",
       userId: USER_ID,
       historyLoading: false,
       historyError: "",

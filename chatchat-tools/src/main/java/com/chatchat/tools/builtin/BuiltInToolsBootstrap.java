@@ -978,20 +978,60 @@ public class BuiltInToolsBootstrap {
                     return;
                 }
                 String excerpt = buildContentExcerpt(content, query, excerptChars);
+                List<Map<String, Object>> chunkEvidence = matchedChunkEvidence(result);
                 result.put("detailFetched", true);
                 result.put("contentAvailable", true);
                 result.put("contentLength", content.length());
-                result.put("contentTruncated", content.replaceAll("\\s+", " ").trim().length() > excerptChars);
-                result.put("contentExcerpt", excerpt);
-                Map<String, Object> evidence = new LinkedHashMap<>();
-                evidence.put("docId", firstNonBlank(stringValue(result.get("docId")), stringValue(detail.get("docId"))));
-                evidence.put("title", firstNonBlank(stringValue(result.get("title")), stringValue(detail.get("title"))));
-                evidence.put("excerpt", excerpt);
-                evidenceSnippets.add(evidence);
+                if (!chunkEvidence.isEmpty()) {
+                    String combined = chunkEvidence.stream()
+                        .map(item -> stringValue(item.get("excerpt")))
+                        .filter(text -> text != null && !text.isBlank())
+                        .reduce((left, right) -> left + "\n\n" + right)
+                        .orElse(excerpt);
+                    result.put("contentTruncated", true);
+                    result.put("contentExcerpt", combined);
+                    evidenceSnippets.addAll(chunkEvidence);
+                } else {
+                    result.put("contentTruncated", content.replaceAll("\\s+", " ").trim().length() > excerptChars);
+                    result.put("contentExcerpt", excerpt);
+                    Map<String, Object> evidence = new LinkedHashMap<>();
+                    evidence.put("docId", firstNonBlank(stringValue(result.get("docId")), stringValue(detail.get("docId"))));
+                    evidence.put("title", firstNonBlank(stringValue(result.get("title")), stringValue(detail.get("title"))));
+                    evidence.put("excerpt", excerpt);
+                    evidenceSnippets.add(evidence);
+                }
             } catch (Exception ex) {
                 result.put("detailFetched", false);
                 result.put("detailFetchError", ex.getMessage());
             }
+        }
+
+        @SuppressWarnings("unchecked")
+        private List<Map<String, Object>> matchedChunkEvidence(Map<String, Object> result) {
+            Object chunksValue = result.get("matchedChunks");
+            if (!(chunksValue instanceof List<?> chunks) || chunks.isEmpty()) {
+                return List.of();
+            }
+            List<Map<String, Object>> evidence = new ArrayList<>();
+            for (Object chunkValue : chunks) {
+                if (!(chunkValue instanceof Map<?, ?> rawChunk)) {
+                    continue;
+                }
+                Map<String, Object> chunk = (Map<String, Object>) rawChunk;
+                String text = stringValue(chunk.get("text"));
+                if (text == null || text.isBlank()) {
+                    continue;
+                }
+                Map<String, Object> item = new LinkedHashMap<>();
+                item.put("docId", stringValue(result.get("docId")));
+                item.put("title", stringValue(result.get("title")));
+                item.put("chunkId", stringValue(chunk.get("chunkId")));
+                item.put("chunkIndex", chunk.get("chunkIndex"));
+                item.put("score", chunk.get("score"));
+                item.put("excerpt", text);
+                evidence.add(item);
+            }
+            return evidence;
         }
 
         private URI buildDetailUri(Map<String, Object> result) {

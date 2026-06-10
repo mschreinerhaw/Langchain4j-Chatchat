@@ -18,4 +18,10 @@ public class SearchProperties {
     private int defaultLimit = 20;
     private int maxLimit = 100;
     private int summaryLength = 180;
+    private boolean luceneEnabled = true;
+    private String luceneIndexPath = "./data/search-lucene";
+    private int luceneMaxHits = 500;
+    private int luceneChunksPerDocument = 3;
+    private int chunkSize = 900;
+    private int chunkOverlap = 120;
 }

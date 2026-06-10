@@ -15,7 +15,9 @@ public record SearchResult(
     List<String> companies,
     List<String> industries,
     int score,
+    SearchScoreBreakdown scoreBreakdown,
     List<String> matchedKeywords,
+    List<SearchMatchedChunk> matchedChunks,
     String versionGroupId,
     int version,
     boolean latestVersion

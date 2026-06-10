@@ -57,13 +57,16 @@ public class AgentChatModeHandler implements InteractionModeHandler {
             request.getUserId(),
             resolveWebSearchResultLimit(request.getMaxResults()),
             toolPolicy.requiredTools(),
-            toolPolicy.hasMcpBinding()
+            toolPolicy.requireBoundToolCall()
         );
 
         Map<String, Object> metadata = new LinkedHashMap<>();
         metadata.put("availableTools", toolPolicy.availableTools());
         metadata.put("requiredTools", toolPolicy.requiredTools());
         metadata.put("toolIntents", toolPolicy.activatedIntents());
+        metadata.put("hasMcpBinding", toolPolicy.hasMcpBinding());
+        metadata.put("selectedCandidateTools", toolPolicy.selectedCandidateTools());
+        metadata.put("skippedToolReasons", toolPolicy.skippedToolReasons());
         metadata.put("skillId", request.getSkillId() == null ? "general" : request.getSkillId());
         metadata.put("modelName", modelName);
         metadata.put("agent", result.metadata());

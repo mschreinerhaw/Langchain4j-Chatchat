@@ -4,16 +4,19 @@ import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.chat.interaction.model.InteractionRequest;
 import com.chatchat.chat.skills.SkillCatalogService;
 import com.chatchat.chat.skills.SkillDefinition;
+import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.integration.mcp.service.McpToolRegistryBridge;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Resolves runtime tool policy before the agent loop starts.
@@ -21,6 +24,8 @@ import java.util.Map;
 @Component
 @RequiredArgsConstructor
 public class AgentToolPolicyResolver {
+
+    private static final int MAX_RELEVANT_MCP_TOOLS = 3;
 
     private static final List<ToolIntentSpec> MCP_TOOL_INTENTS = List.of(
         new ToolIntentSpec("webSearch", "web_search", "web_search", "_web_search")
@@ -42,12 +47,17 @@ public class AgentToolPolicyResolver {
             .map(ToolActivation::localToolName)
             .toList();
         availableTools = mergeRequestedTools(availableTools, requiredTools, requestedIntents);
+        ToolSelection selection = selectRelevantTools(request, availableTools, requiredTools);
+        boolean hasMcpBinding = hasMcpBinding(skill);
 
         return new ToolPolicy(
-            availableTools,
+            selection.availableTools(),
             requiredTools,
-            hasMcpBinding(skill),
-            activations.stream().map(ToolActivation::intentName).toList()
+            hasMcpBinding,
+            !requiredTools.isEmpty(),
+            activations.stream().map(ToolActivation::intentName).toList(),
+            selection.selectedCandidateTools(),
+            selection.skippedToolReasons()
         );
     }
 
@@ -155,6 +165,173 @@ public class AgentToolPolicyResolver {
         return value != null && Boolean.parseBoolean(String.valueOf(value));
     }
 
+    private ToolSelection selectRelevantTools(InteractionRequest request,
+                                              List<String> availableTools,
+                                              List<String> requiredTools) {
+        List<String> normalizedTools = normalizeToolNames(availableTools);
+        if (normalizedTools.isEmpty()) {
+            return new ToolSelection(List.of(), List.of(), Map.of());
+        }
+
+        LinkedHashSet<String> required = new LinkedHashSet<>(normalizeToolNames(requiredTools));
+        Set<String> registeredMcpToolNames = new LinkedHashSet<>();
+        mcpToolRegistryBridge.listRegisteredTools().forEach(tool -> registeredMcpToolNames.add(tool.localToolName()));
+
+        List<ScoredTool> scoredMcpTools = normalizedTools.stream()
+            .filter(toolName -> isMcpToolName(toolName, registeredMcpToolNames))
+            .filter(toolName -> !required.contains(toolName))
+            .map(toolName -> new ScoredTool(toolName, scoreToolForQuery(toolName, request == null ? null : request.getQuery())))
+            .filter(scored -> scored.score() > 0)
+            .sorted(Comparator
+                .comparingInt(ScoredTool::score)
+                .reversed()
+                .thenComparing(ScoredTool::toolName))
+            .toList();
+
+        boolean hasRelevantMcpSignal = !scoredMcpTools.isEmpty();
+        Set<String> selectedMcpTools = scoredMcpTools.stream()
+            .limit(MAX_RELEVANT_MCP_TOOLS)
+            .map(ScoredTool::toolName)
+            .collect(LinkedHashSet::new, LinkedHashSet::add, LinkedHashSet::addAll);
+
+        LinkedHashSet<String> ordered = new LinkedHashSet<>();
+        required.stream()
+            .filter(normalizedTools::contains)
+            .forEach(ordered::add);
+        selectedMcpTools.forEach(ordered::add);
+
+        for (String toolName : normalizedTools) {
+            if (ordered.contains(toolName)) {
+                continue;
+            }
+            if (hasRelevantMcpSignal && isMcpToolName(toolName, registeredMcpToolNames)) {
+                continue;
+            }
+            ordered.add(toolName);
+        }
+
+        Map<String, String> skipped = new LinkedHashMap<>();
+        if (hasRelevantMcpSignal) {
+            for (String toolName : normalizedTools) {
+                if (isMcpToolName(toolName, registeredMcpToolNames) && !ordered.contains(toolName)) {
+                    skipped.put(toolName, "not selected for this query; a more relevant MCP candidate was available");
+                }
+            }
+        }
+
+        List<String> selectedCandidates = new ArrayList<>(required);
+        selectedMcpTools.stream()
+            .filter(toolName -> !selectedCandidates.contains(toolName))
+            .forEach(selectedCandidates::add);
+        return new ToolSelection(new ArrayList<>(ordered), selectedCandidates, skipped);
+    }
+
+    private int scoreToolForQuery(String toolName, String query) {
+        List<String> terms = queryTerms(query);
+        if (terms.isEmpty()) {
+            return 0;
+        }
+        String searchable = searchableToolText(toolName);
+        if (searchable.isBlank()) {
+            return 0;
+        }
+        int score = 0;
+        String normalizedQuery = normalizeSearchText(query);
+        if (!normalizedQuery.isBlank() && searchable.contains(normalizedQuery)) {
+            score += 8;
+        }
+        for (String term : terms) {
+            if (searchable.contains(term)) {
+                score += term.length() >= 4 ? 3 : 2;
+            }
+        }
+        return score;
+    }
+
+    private String searchableToolText(String toolName) {
+        StringBuilder text = new StringBuilder();
+        appendSearchText(text, toolName);
+        ToolMetadata metadata = toolRegistry.getToolMetadata(toolName);
+        if (metadata != null) {
+            appendSearchText(text, metadata.getTitle());
+            appendSearchText(text, metadata.getDescription());
+            appendSearchText(text, metadata.getAuthor());
+            appendSearchText(text, metadata.getCategories());
+            appendSearchText(text, metadata.getTags());
+            if (metadata.getMetadata() != null) {
+                appendSearchText(text, metadata.getMetadata().get("remoteToolName"));
+                appendSearchText(text, metadata.getMetadata().get("serviceId"));
+            }
+        }
+        return normalizeSearchText(text.toString());
+    }
+
+    private void appendSearchText(StringBuilder text, Object value) {
+        if (value == null) {
+            return;
+        }
+        if (value instanceof Iterable<?> iterable) {
+            for (Object item : iterable) {
+                appendSearchText(text, item);
+            }
+            return;
+        }
+        text.append(' ').append(value);
+    }
+
+    private List<String> queryTerms(String query) {
+        String normalized = normalizeSearchText(query);
+        if (normalized.isBlank()) {
+            return List.of();
+        }
+        LinkedHashSet<String> terms = new LinkedHashSet<>();
+        for (String token : normalized.split("[^a-z0-9\\u4e00-\\u9fa5]+")) {
+            if (token.length() >= 2) {
+                terms.add(token);
+                if (containsCjk(token) && token.length() > 4) {
+                    for (int i = 0; i <= token.length() - 2; i++) {
+                        terms.add(token.substring(i, i + 2));
+                    }
+                }
+            }
+        }
+        return new ArrayList<>(terms);
+    }
+
+    private boolean containsCjk(String value) {
+        if (value == null) {
+            return false;
+        }
+        for (int i = 0; i < value.length(); i++) {
+            char ch = value.charAt(i);
+            if (ch >= '\u4e00' && ch <= '\u9fa5') {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private String normalizeSearchText(String value) {
+        return value == null ? "" : value.toLowerCase(Locale.ROOT).replaceAll("\\s+", " ").trim();
+    }
+
+    private List<String> normalizeToolNames(List<String> tools) {
+        if (tools == null || tools.isEmpty()) {
+            return List.of();
+        }
+        return tools.stream()
+            .filter(tool -> tool != null && !tool.isBlank())
+            .map(String::trim)
+            .distinct()
+            .toList();
+    }
+
+    private boolean isMcpToolName(String toolName, Set<String> registeredMcpToolNames) {
+        return toolName != null
+            && (toolName.startsWith("mcp_")
+            || (registeredMcpToolNames != null && registeredMcpToolNames.contains(toolName)));
+    }
+
     private boolean hasMcpBinding(SkillDefinition skill) {
         if (skill == null) {
             return false;
@@ -176,7 +353,10 @@ public class AgentToolPolicyResolver {
         List<String> availableTools,
         List<String> requiredTools,
         boolean hasMcpBinding,
-        List<String> activatedIntents
+        boolean requireBoundToolCall,
+        List<String> activatedIntents,
+        List<String> selectedCandidateTools,
+        Map<String, String> skippedToolReasons
     ) {
     }
 
@@ -192,6 +372,19 @@ public class AgentToolPolicyResolver {
         String intentName,
         String requestedToolName,
         String localToolName
+    ) {
+    }
+
+    private record ScoredTool(
+        String toolName,
+        int score
+    ) {
+    }
+
+    private record ToolSelection(
+        List<String> availableTools,
+        List<String> selectedCandidateTools,
+        Map<String, String> skippedToolReasons
     ) {
     }
 }

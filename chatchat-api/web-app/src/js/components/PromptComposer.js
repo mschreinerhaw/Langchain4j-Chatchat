@@ -147,7 +147,7 @@ export default {
     },
     isWebSearchAgent(agent) {
       if (!agent?.id) {
-        return false;
+        return true;
       }
       const toolNames = [
         ...(agent?.boundMcpToolNames || []),

@@ -2,6 +2,7 @@ package com.chatchat.knowledgebase.search;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import jakarta.annotation.PostConstruct;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -31,11 +32,35 @@ public class SearchService {
 
     private static final String ALL_CATEGORY = "all";
     private static final String UNCATEGORIZED = "uncategorized";
+    private static final int TITLE_PHRASE_SCORE = 45;
+    private static final int KEYWORD_PHRASE_SCORE = 36;
+    private static final int CONTENT_PHRASE_SCORE = 20;
+    private static final int TITLE_TERM_SCORE = 12;
+    private static final int KEYWORD_TERM_SCORE = 10;
+    private static final int TAG_TERM_SCORE = 14;
+    private static final int COMPANY_TERM_SCORE = 10;
+    private static final int INDUSTRY_TERM_SCORE = 10;
+    private static final int CONTENT_TERM_SCORE = 4;
+    private static final int SOURCE_TERM_SCORE = 2;
+    private static final int COVERAGE_SCORE = 20;
 
     private final RocksDbSearchStore store;
+    private final LuceneSearchStore luceneStore;
     private final SearchTokenizer tokenizer;
     private final DocumentContentExtractor contentExtractor;
     private final SearchProperties properties;
+
+    @PostConstruct
+    public void rebuildLuceneIndex() {
+        if (!luceneStore.isAvailable()) {
+            return;
+        }
+        try {
+            luceneStore.rebuildLatest(loadLatestDocuments());
+        } catch (Exception ex) {
+            log.warn("Failed to rebuild Lucene search index from RocksDB: {}", ex.getMessage(), ex);
+        }
+    }
 
     public SearchDocument createOrUpdate(SearchDocument request) {
         if (request == null) {
@@ -47,6 +72,7 @@ public class SearchService {
             .orElse(null);
         SearchIndexData indexData = buildIndexData(document);
         store.put(document, indexData, oldIndexData);
+        syncLuceneIndex(document);
         return document;
     }
 
@@ -130,7 +156,29 @@ public class SearchService {
         long startedAt = System.nanoTime();
         int pageSize = normalizeLimit(limit);
         int pageNumber = normalizePage(page);
-        List<String> queryTokens = tokenizer.tokenize(keyword);
+        List<String> queryTokens = tokenizer.searchTokens(keyword);
+        List<String> scopedDocumentIds = parseList(docIds);
+        if (hasKeyword(keyword)
+            && queryTokens.isEmpty()
+            && noFilters(tag, company, industry)
+            && scopedDocumentIds.isEmpty()) {
+            return emptySearchPage(keyword, pageSize, pageNumber, startedAt, "no_match");
+        }
+        List<String> significantTerms = significantQueryTerms(keyword, queryTokens);
+        SearchPage lucenePage = searchWithLucene(
+            keyword,
+            tag,
+            company,
+            industry,
+            docIds,
+            pageNumber,
+            pageSize,
+            queryTokens,
+            significantTerms
+        );
+        if (lucenePage != null) {
+            return lucenePage;
+        }
         Map<String, Integer> scores = new HashMap<>();
         Map<String, Set<String>> matchedKeywords = new HashMap<>();
         Set<String> candidates = null;
@@ -149,12 +197,12 @@ public class SearchService {
         candidates = applyFilter(candidates, tokenizer.splitFilter(tag), store::findByTag);
         candidates = applyFilter(candidates, tokenizer.splitFilter(company), store::findByCompany);
         candidates = applyFilter(candidates, tokenizer.splitFilter(industry), store::findByIndustry);
-        candidates = applyDocumentScope(candidates, parseList(docIds));
+        candidates = applyDocumentScope(candidates, scopedDocumentIds);
 
         if (candidates == null) {
             candidates = new LinkedHashSet<>(store.listDocumentIds(0));
         }
-        if (candidates.isEmpty() && !queryTokens.isEmpty() && noFilters(tag, company, industry) && parseList(docIds).isEmpty()) {
+        if (candidates.isEmpty() && !queryTokens.isEmpty() && noFilters(tag, company, industry) && scopedDocumentIds.isEmpty()) {
             candidates = new LinkedHashSet<>(store.listDocumentIds(0));
         }
 
@@ -162,8 +210,8 @@ public class SearchService {
             .map(store::get)
             .flatMap(Optional::stream)
             .filter(this::isLatestVersion)
-            .map(document -> toResult(document, queryTokens, scores, matchedKeywords))
-            .filter(result -> queryTokens.isEmpty() || result.score() > 0)
+            .map(document -> toResult(document, keyword, queryTokens, significantTerms, scores, matchedKeywords, null))
+            .filter(result -> queryTokens.isEmpty() || isRelevantResult(result, significantTerms))
             .sorted(resultComparator())
             .toList();
 
@@ -242,6 +290,81 @@ public class SearchService {
         }
         candidates.retainAll(scope);
         return candidates;
+    }
+
+    private SearchPage searchWithLucene(String keyword,
+                                        String tag,
+                                        String company,
+                                        String industry,
+                                        String docIds,
+                                        int pageNumber,
+                                        int pageSize,
+                                        List<String> queryTokens,
+                                        List<String> significantTerms) {
+        if (queryTokens.isEmpty() || !luceneStore.isAvailable()) {
+            return null;
+        }
+        try {
+            List<LuceneSearchHit> hits = luceneStore.search(keyword, properties.getLuceneMaxHits());
+            if (hits.isEmpty()) {
+                return null;
+            }
+            Map<String, List<LuceneSearchHit>> hitsByDocId = new HashMap<>();
+            Map<String, Integer> scores = new HashMap<>();
+            Set<String> candidates = new LinkedHashSet<>();
+            for (LuceneSearchHit hit : hits) {
+                candidates.add(hit.docId());
+                hitsByDocId.computeIfAbsent(hit.docId(), ignored -> new ArrayList<>()).add(hit);
+                scores.merge(hit.docId(), Math.max(1, Math.round(hit.score() * 10)), Math::max);
+            }
+            hitsByDocId.replaceAll((docId, docHits) -> docHits.stream()
+                .sorted(Comparator
+                    .comparingDouble(LuceneSearchHit::score)
+                    .reversed()
+                    .thenComparingInt(LuceneSearchHit::chunkIndex))
+                .limit(Math.max(1, properties.getLuceneChunksPerDocument()))
+                .toList());
+
+            candidates = applyFilter(candidates, tokenizer.splitFilter(tag), store::findByTag);
+            candidates = applyFilter(candidates, tokenizer.splitFilter(company), store::findByCompany);
+            candidates = applyFilter(candidates, tokenizer.splitFilter(industry), store::findByIndustry);
+            candidates = applyDocumentScope(candidates, parseList(docIds));
+
+            Map<String, Set<String>> matchedKeywords = new HashMap<>();
+            candidates.forEach(docId -> matchedKeywords.put(docId, new LinkedHashSet<>(queryTokens)));
+
+            List<SearchResult> allResults = candidates.stream()
+                .map(store::get)
+                .flatMap(Optional::stream)
+                .filter(this::isLatestVersion)
+                .map(document -> toResult(document, keyword, queryTokens, significantTerms, scores, matchedKeywords, hitsByDocId.get(document.getDocId())))
+                .filter(result -> isRelevantResult(result, significantTerms))
+                .sorted(resultComparator())
+                .toList();
+            List<SearchResult> results = allResults.stream()
+                .skip(pageOffset(pageNumber, pageSize))
+                .limit(pageSize)
+                .toList();
+            int documentCount = countLatestDocuments();
+            int totalPages = totalPages(allResults.size(), pageSize);
+            return new SearchPage(
+                keyword,
+                queryTokens,
+                results,
+                allResults.size(),
+                pageSize,
+                pageNumber,
+                pageSize,
+                totalPages,
+                pageNumber < totalPages,
+                0L,
+                documentCount,
+                buildSearchMessage(allResults.size(), documentCount, queryTokens)
+            );
+        } catch (Exception ex) {
+            log.warn("Lucene search failed, falling back to RocksDB keyword search: {}", ex.getMessage(), ex);
+            return null;
+        }
     }
 
     public LibraryCategory createCategory(String name) {
@@ -380,6 +503,7 @@ public class SearchService {
                 document.setLatestVersion(true);
             }
             store.put(document, buildIndexData(document), oldIndexData);
+            syncLuceneIndex(document);
         }
     }
 
@@ -413,6 +537,7 @@ public class SearchService {
             candidate.setLatestVersion(false);
             candidate.setVersionGroupId(versionGroupIdOf(latestDocument));
             store.put(candidate, buildIndexData(candidate), oldIndexData);
+            syncLuceneIndex(candidate);
         }
     }
 
@@ -505,6 +630,22 @@ public class SearchService {
         );
     }
 
+    private void syncLuceneIndex(SearchDocument document) {
+        if (!luceneStore.isAvailable() || document == null) {
+            return;
+        }
+        try {
+            if (isLatestVersion(document)) {
+                luceneStore.indexLatest(document);
+            } else {
+                luceneStore.deleteDocument(document.getDocId());
+            }
+        } catch (Exception ex) {
+            log.warn("Failed to synchronize Lucene index for document {}: {}",
+                document.getDocId(), ex.getMessage(), ex);
+        }
+    }
+
     private Set<String> applyFilter(Set<String> candidates,
                                     List<String> filterTerms,
                                     IndexLookup lookup) {
@@ -523,25 +664,27 @@ public class SearchService {
     }
 
     private SearchResult toResult(SearchDocument document,
+                                  String keyword,
                                   List<String> queryTokens,
+                                  List<String> significantTerms,
                                   Map<String, Integer> baseScores,
-                                  Map<String, Set<String>> matchedKeywords) {
+                                  Map<String, Set<String>> matchedKeywords,
+                                  List<LuceneSearchHit> luceneHits) {
         String docId = document.getDocId();
-        int score = baseScores.getOrDefault(docId, 0);
+        int baseScore = baseScores.getOrDefault(docId, 0);
         Set<String> matches = new LinkedHashSet<>(matchedKeywords.getOrDefault(docId, Set.of()));
 
-        for (String token : queryTokens) {
-            int extra = scoreDocument(document, token);
-            if (extra > 0) {
-                score += extra;
-                matches.add(token);
-            }
-        }
+        ScoredDocument scored = scoreDocument(document, keyword, significantTerms, queryTokens, baseScore);
+        matches.addAll(scored.matchedTerms());
+        LuceneSearchHit bestHit = firstHit(luceneHits);
+        List<SearchMatchedChunk> matchedChunks = toMatchedChunks(luceneHits);
 
         return new SearchResult(
             docId,
             document.getTitle(),
-            buildSummary(document.getContent(), matches),
+            buildSummary(bestHit == null || bestHit.chunkText() == null || bestHit.chunkText().isBlank()
+                ? document.getContent()
+                : bestHit.chunkText(), matches),
             document.getSource(),
             document.getDate(),
             document.getFileName(),
@@ -550,12 +693,32 @@ public class SearchService {
             document.getTags(),
             document.getCompanies(),
             document.getIndustries(),
-            score,
+            scored.totalScore(),
+            scored.breakdown(),
             new ArrayList<>(matches),
+            matchedChunks,
             versionGroupIdOf(document),
             versionOf(document),
             isLatestVersion(document)
         );
+    }
+
+    private LuceneSearchHit firstHit(List<LuceneSearchHit> hits) {
+        return hits == null || hits.isEmpty() ? null : hits.get(0);
+    }
+
+    private List<SearchMatchedChunk> toMatchedChunks(List<LuceneSearchHit> hits) {
+        if (hits == null || hits.isEmpty()) {
+            return List.of();
+        }
+        return hits.stream()
+            .map(hit -> new SearchMatchedChunk(
+                hit.chunkId(),
+                hit.chunkIndex(),
+                hit.chunkText(),
+                hit.score()
+            ))
+            .toList();
     }
 
     private LibraryDocumentItem toLibraryItem(SearchDocument document) {
@@ -650,23 +813,182 @@ public class SearchService {
         return normalizeCategory(document.getTags().get(0));
     }
 
-    private int scoreDocument(SearchDocument document, String token) {
-        String normalizedToken = token.toLowerCase(Locale.ROOT);
-        int score = 0;
-        if (contains(document.getTitle(), normalizedToken)) {
-            score += 8;
+    private ScoredDocument scoreDocument(SearchDocument document,
+                                         String keyword,
+                                         List<String> significantTerms,
+                                         List<String> queryTokens,
+                                         int baseTokenScore) {
+        List<String> scoringTerms = significantTerms == null || significantTerms.isEmpty()
+            ? queryTokens
+            : significantTerms;
+        String phrase = normalizeSearchText(keyword);
+        int titleScore = 0;
+        int keywordScore = 0;
+        int tagScore = 0;
+        int companyScore = 0;
+        int industryScore = 0;
+        int contentScore = 0;
+        int sourceScore = 0;
+        int phraseScore = 0;
+        int coveredTerms = 0;
+        Set<String> matchedTerms = new LinkedHashSet<>();
+
+        if (!phrase.isBlank()) {
+            if (containsNormalized(document.getTitle(), phrase)) {
+                phraseScore += TITLE_PHRASE_SCORE;
+                matchedTerms.add(phrase);
+            }
+            if (listContainsNormalized(document.getKeywords(), phrase)) {
+                phraseScore += KEYWORD_PHRASE_SCORE;
+                matchedTerms.add(phrase);
+            }
+            if (containsNormalized(document.getContent(), phrase)) {
+                phraseScore += CONTENT_PHRASE_SCORE;
+                matchedTerms.add(phrase);
+            }
         }
-        if (contains(document.getContent(), normalizedToken)) {
-            score += 3;
+
+        for (String term : scoringTerms) {
+            String normalizedTerm = normalizeSearchText(term);
+            if (normalizedTerm.isBlank()) {
+                continue;
+            }
+            boolean matched = false;
+            if (containsNormalized(document.getTitle(), normalizedTerm)) {
+                titleScore += TITLE_TERM_SCORE;
+                matched = true;
+            }
+            if (listContainsNormalized(document.getKeywords(), normalizedTerm)) {
+                keywordScore += KEYWORD_TERM_SCORE;
+                matched = true;
+            }
+            if (listContainsNormalized(document.getTags(), normalizedTerm)) {
+                tagScore += TAG_TERM_SCORE;
+                matched = true;
+            }
+            if (listContainsNormalized(document.getCompanies(), normalizedTerm)) {
+                companyScore += COMPANY_TERM_SCORE;
+                matched = true;
+            }
+            if (listContainsNormalized(document.getIndustries(), normalizedTerm)) {
+                industryScore += INDUSTRY_TERM_SCORE;
+                matched = true;
+            }
+            if (containsNormalized(document.getContent(), normalizedTerm)) {
+                contentScore += CONTENT_TERM_SCORE;
+                matched = true;
+            }
+            if (containsNormalized(document.getSource(), normalizedTerm)) {
+                sourceScore += SOURCE_TERM_SCORE;
+                matched = true;
+            }
+            if (matched) {
+                coveredTerms++;
+                matchedTerms.add(normalizedTerm);
+            }
         }
-        if (contains(document.getSource(), normalizedToken)) {
-            score += 1;
-        }
-        return score;
+
+        double coverageRatio = scoringTerms == null || scoringTerms.isEmpty()
+            ? 1.0D
+            : (double) coveredTerms / scoringTerms.size();
+        int coverageScore = (int) Math.round(coverageRatio * COVERAGE_SCORE);
+        int totalScore = baseTokenScore
+            + titleScore
+            + keywordScore
+            + tagScore
+            + companyScore
+            + industryScore
+            + contentScore
+            + sourceScore
+            + phraseScore
+            + coverageScore;
+        Map<String, Integer> fieldScores = new HashMap<>();
+        fieldScores.put("title", titleScore);
+        fieldScores.put("keywords", keywordScore);
+        fieldScores.put("tags", tagScore);
+        fieldScores.put("companies", companyScore);
+        fieldScores.put("industries", industryScore);
+        fieldScores.put("content", contentScore);
+        fieldScores.put("source", sourceScore);
+        fieldScores.put("phrase", phraseScore);
+        fieldScores.put("coverage", coverageScore);
+        fieldScores.put("baseToken", baseTokenScore);
+        SearchScoreBreakdown breakdown = new SearchScoreBreakdown(
+            baseTokenScore,
+            titleScore,
+            keywordScore,
+            tagScore,
+            companyScore,
+            industryScore,
+            contentScore,
+            sourceScore,
+            phraseScore,
+            coverageScore,
+            coverageRatio,
+            fieldScores
+        );
+        return new ScoredDocument(totalScore, matchedTerms, breakdown);
     }
 
     private int scoreForToken(String token) {
         return token.length() >= 3 ? 3 : 1;
+    }
+
+    private boolean isRelevantResult(SearchResult result, List<String> significantTerms) {
+        if (result == null || result.score() <= 0) {
+            return false;
+        }
+        SearchScoreBreakdown breakdown = result.scoreBreakdown();
+        if (breakdown == null || significantTerms == null || significantTerms.isEmpty()) {
+            return true;
+        }
+        if (breakdown.phraseScore() > 0) {
+            return true;
+        }
+        return breakdown.coverageRatio() >= minCoverageRatio(significantTerms.size());
+    }
+
+    private double minCoverageRatio(int termCount) {
+        if (termCount <= 1) {
+            return 1.0D;
+        }
+        if (termCount == 2) {
+            return 0.5D;
+        }
+        if (termCount <= 5) {
+            return 0.6D;
+        }
+        return 0.45D;
+    }
+
+    private List<String> significantQueryTerms(String keyword, List<String> queryTokens) {
+        if (queryTokens == null || queryTokens.isEmpty()) {
+            return List.of();
+        }
+        Set<String> terms = new LinkedHashSet<>();
+        queryTokens.stream()
+            .filter(token -> token != null && token.length() >= 2)
+            .forEach(terms::add);
+        return new ArrayList<>(terms);
+    }
+
+    private boolean containsNormalized(String value, String token) {
+        return token != null && !token.isBlank() && normalizeSearchText(value).contains(token);
+    }
+
+    private boolean listContainsNormalized(List<String> values, String token) {
+        if (values == null || values.isEmpty() || token == null || token.isBlank()) {
+            return false;
+        }
+        String normalizedToken = normalizeSearchText(token);
+        return values.stream()
+            .filter(value -> value != null && !value.isBlank())
+            .map(this::normalizeSearchText)
+            .anyMatch(value -> value.equals(normalizedToken) || value.contains(normalizedToken));
+    }
+
+    private String normalizeSearchText(String value) {
+        return value == null ? "" : value.toLowerCase(Locale.ROOT).replaceAll("\\s+", " ").trim();
     }
 
     private String buildSummary(String content, Set<String> matches) {
@@ -731,6 +1053,28 @@ public class SearchService {
 
     private int totalPages(int total, int pageSize) {
         return Math.max(1, (int) Math.ceil((double) Math.max(0, total) / Math.max(1, pageSize)));
+    }
+
+    private SearchPage emptySearchPage(String keyword, int pageSize, int pageNumber, long startedAt, String message) {
+        int documentCount = countLatestDocuments();
+        return new SearchPage(
+            keyword,
+            List.of(),
+            List.of(),
+            0,
+            pageSize,
+            pageNumber,
+            pageSize,
+            1,
+            false,
+            (System.nanoTime() - startedAt) / 1_000_000,
+            documentCount,
+            documentCount == 0 ? "library_empty" : message
+        );
+    }
+
+    private boolean hasKeyword(String keyword) {
+        return keyword != null && !keyword.isBlank();
     }
 
     private boolean noFilters(String tag, String company, String industry) {
@@ -879,5 +1223,12 @@ public class SearchService {
     @FunctionalInterface
     private interface IndexLookup {
         List<String> find(String term);
+    }
+
+    private record ScoredDocument(
+        int totalScore,
+        Set<String> matchedTerms,
+        SearchScoreBreakdown breakdown
+    ) {
     }
 }

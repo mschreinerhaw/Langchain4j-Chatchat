@@ -4,7 +4,7 @@
       <div class="right-panel-head">
         <div>
           <strong>业务侧栏</strong>
-          <span>持仓、风险、报告、任务与Agent</span>
+          <span>文档、任务与Agent</span>
         </div>
         <button
           type="button"
@@ -35,48 +35,8 @@
         <section class="right-module">
           <header>
             <span class="right-module-title">
-              <Briefcase :size="16" stroke-width="2" />
-              <strong>我的持仓</strong>
-            </span>
-            <button type="button">全部</button>
-          </header>
-          <div class="right-module-body">
-            <article v-for="holding in holdings" :key="holding.code" class="holding-row">
-              <div>
-                <strong>{{ holding.name }}</strong>
-                <span>{{ holding.code }}</span>
-              </div>
-              <em :class="{ down: holding.change < 0 }">{{ holding.changeLabel }}</em>
-            </article>
-            <p v-if="holdings.length === 0" class="right-panel-empty">暂无持仓数据</p>
-          </div>
-        </section>
-
-        <section class="right-module">
-          <header>
-            <span class="right-module-title">
-              <AlertTriangle :size="16" stroke-width="2" />
-              <strong>风险事件</strong>
-            </span>
-            <button type="button">全部</button>
-          </header>
-          <div class="right-module-body">
-            <article v-for="risk in riskEvents" :key="risk.title" class="risk-row">
-              <span class="risk-level" :class="risk.level">{{ risk.levelLabel }}</span>
-              <div>
-                <strong>{{ risk.title }}</strong>
-                <time>{{ risk.time }}</time>
-              </div>
-            </article>
-            <p v-if="riskEvents.length === 0" class="right-panel-empty">暂无风险事件</p>
-          </div>
-        </section>
-
-        <section class="right-module">
-          <header>
-            <span class="right-module-title">
               <FileText :size="16" stroke-width="2" />
-              <strong>最近报告</strong>
+              <strong>最近文档</strong>
             </span>
             <button type="button">全部</button>
           </header>
@@ -88,7 +48,7 @@
                 <time>{{ report.time }}</time>
               </div>
             </article>
-            <p v-if="reports.length === 0" class="right-panel-empty">暂无最近报告</p>
+            <p v-if="reports.length === 0" class="right-panel-empty">暂无最近文档</p>
           </div>
         </section>
 

@@ -1,10 +1,7 @@
 package com.chatchat.knowledgebase.search;
 
-import com.chatchat.knowledgebase.embedding.service.EmbeddingService;
-import dev.langchain4j.data.document.Document;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -39,7 +36,6 @@ public class SearchService {
     private final SearchTokenizer tokenizer;
     private final DocumentContentExtractor contentExtractor;
     private final SearchProperties properties;
-    private final ObjectProvider<EmbeddingService> embeddingServiceProvider;
 
     public SearchDocument createOrUpdate(SearchDocument request) {
         if (request == null) {
@@ -51,7 +47,6 @@ public class SearchService {
             .orElse(null);
         SearchIndexData indexData = buildIndexData(document);
         store.put(document, indexData, oldIndexData);
-        embedDocument(document);
         return document;
     }
 
@@ -76,7 +71,14 @@ public class SearchService {
             throw new IllegalArgumentException("unsupported file type: " + originalFileName);
         }
 
+        String resolvedTitle = isBlank(title) ? stripExtension(originalFileName) : title.trim();
+        normalizeExistingVersionFamily(resolvedTitle);
+        Optional<SearchDocument> latestDocument = findLatestByTitle(resolvedTitle);
         String docId = generateDocId();
+        String versionGroupId = latestDocument.map(this::versionGroupIdOf).orElse(docId);
+        int version = latestDocument
+            .map(document -> nextVersion(versionGroupId, resolvedTitle))
+            .orElse(1);
         Path savedFile = saveOriginalFile(file, docId, originalFileName);
         String extractedContent = contentExtractor.extract(savedFile, originalFileName);
         String content = !isBlank(extractedContent) ? extractedContent : nullToEmpty(fallbackContent);
@@ -86,7 +88,7 @@ public class SearchService {
 
         SearchDocument document = SearchDocument.builder()
             .docId(docId)
-            .title(isBlank(title) ? stripExtension(originalFileName) : title.trim())
+            .title(resolvedTitle)
             .content(content)
             .source(isBlank(source) ? "local_upload" : source.trim())
             .date(isBlank(date) ? LocalDate.now().toString() : date.trim())
@@ -100,9 +102,14 @@ public class SearchService {
             .fileSize(file.getSize())
             .uploadedAt(Instant.now().toEpochMilli())
             .updatedAt(Instant.now().toEpochMilli())
+            .versionGroupId(versionGroupId)
+            .version(version)
+            .latestVersion(true)
             .build();
 
-        return createOrUpdate(document);
+        SearchDocument saved = createOrUpdate(document);
+        markPreviousVersionsNotLatest(saved);
+        return saved;
     }
 
     public SearchPage search(String keyword, String tag, String company, String industry, Integer limit) {
@@ -154,6 +161,7 @@ public class SearchService {
         List<SearchResult> allResults = candidates.stream()
             .map(store::get)
             .flatMap(Optional::stream)
+            .filter(this::isLatestVersion)
             .map(document -> toResult(document, queryTokens, scores, matchedKeywords))
             .filter(result -> queryTokens.isEmpty() || result.score() > 0)
             .sorted(resultComparator())
@@ -164,7 +172,7 @@ public class SearchService {
             .limit(pageSize)
             .toList();
 
-        int documentCount = store.countDocuments();
+        int documentCount = countLatestDocuments();
         int totalPages = totalPages(allResults.size(), pageSize);
         return new SearchPage(
             keyword,
@@ -191,7 +199,7 @@ public class SearchService {
         int pageNumber = normalizePage(page);
         String normalizedCategory = normalizeCategory(category);
         String normalizedTitle = normalizeText(title);
-        List<SearchDocument> allDocuments = loadAllDocuments();
+        List<SearchDocument> allDocuments = loadLatestDocuments();
         List<LibraryCategory> categories = buildCategories(allDocuments);
 
         List<SearchDocument> matchedDocuments = allDocuments.stream()
@@ -250,7 +258,7 @@ public class SearchService {
         if (normalizedTitle.isEmpty()) {
             return new TitleExistsResult(title, false, null);
         }
-        return loadAllDocuments().stream()
+        return loadLatestDocuments().stream()
             .filter(document -> normalizeText(document.getTitle()).equals(normalizedTitle))
             .findFirst()
             .map(document -> new TitleExistsResult(title, true, document.getDocId()))
@@ -264,21 +272,31 @@ public class SearchService {
         return store.get(docId.trim());
     }
 
+    public List<SearchDocumentVersionItem> listVersions(String docId) {
+        Optional<SearchDocument> document = get(docId);
+        if (document.isEmpty()) {
+            return List.of();
+        }
+        return listVersionDocuments(document.get()).stream()
+            .map(this::toVersionItem)
+            .toList();
+    }
+
+    public Optional<SearchDocument> getVersion(String docId, Integer version) {
+        if (version == null || version <= 0) {
+            return Optional.empty();
+        }
+        return get(docId).flatMap(document -> listVersionDocuments(document).stream()
+            .filter(candidate -> versionOf(candidate) == version)
+            .findFirst());
+    }
+
+    public Optional<DocumentFileResource> getVersionFileResource(String docId, Integer version) {
+        return getVersion(docId, version).flatMap(this::fileResourceFor);
+    }
+
     public Optional<DocumentFileResource> getFileResource(String docId) {
-        return get(docId).flatMap(document -> {
-            if (isBlank(document.getFilePath())) {
-                return Optional.empty();
-            }
-            Path file = Path.of(document.getFilePath()).toAbsolutePath().normalize();
-            if (!Files.exists(file) || !Files.isRegularFile(file)) {
-                return Optional.empty();
-            }
-            return Optional.of(new DocumentFileResource(
-                new FileSystemResource(file),
-                document.getFileName(),
-                document.getDocumentType()
-            ));
-        });
+        return get(docId).flatMap(this::fileResourceFor);
     }
 
     private SearchDocument normalizeDocument(SearchDocument request) {
@@ -288,6 +306,16 @@ public class SearchService {
         }
         long now = Instant.now().toEpochMilli();
         String docId = isBlank(request.getDocId()) ? generateDocId() : request.getDocId().trim();
+        Optional<SearchDocument> existing = store.get(docId);
+        String versionGroupId = !isBlank(request.getVersionGroupId())
+            ? request.getVersionGroupId().trim()
+            : existing.map(this::versionGroupIdOf).orElse(docId);
+        int version = request.getVersion() == null || request.getVersion() <= 0
+            ? existing.map(this::versionOf).orElse(1)
+            : request.getVersion();
+        boolean latestVersion = request.getLatestVersion() != null
+            ? request.getLatestVersion()
+            : existing.map(this::isLatestVersion).orElse(true);
         return SearchDocument.builder()
             .docId(docId)
             .title(isBlank(request.getTitle()) ? "untitled_document" : request.getTitle().trim())
@@ -302,9 +330,161 @@ public class SearchService {
             .filePath(request.getFilePath())
             .documentType(resolveDocumentType(request.getDocumentType(), request.getFileName()))
             .fileSize(request.getFileSize())
-            .uploadedAt(request.getUploadedAt() == null ? now : request.getUploadedAt())
+            .uploadedAt(request.getUploadedAt() == null ? existing.map(SearchDocument::getUploadedAt).orElse(now) : request.getUploadedAt())
             .updatedAt(now)
+            .versionGroupId(versionGroupId)
+            .version(version)
+            .latestVersion(latestVersion)
             .build();
+    }
+
+    private Optional<SearchDocument> findLatestByTitle(String title) {
+        String normalizedTitle = normalizeText(title);
+        if (normalizedTitle.isEmpty()) {
+            return Optional.empty();
+        }
+        return loadLatestDocuments().stream()
+            .filter(document -> normalizeText(document.getTitle()).equals(normalizedTitle))
+            .max(Comparator
+                .comparingInt(this::versionOf)
+                .thenComparing(SearchDocument::getUpdatedAt, Comparator.nullsLast(Comparator.naturalOrder())));
+    }
+
+    private void normalizeExistingVersionFamily(String title) {
+        String normalizedTitle = normalizeText(title);
+        if (normalizedTitle.isEmpty()) {
+            return;
+        }
+        List<SearchDocument> documents = loadAllDocuments().stream()
+            .filter(document -> normalizeText(document.getTitle()).equals(normalizedTitle))
+            .sorted(Comparator
+                .comparing(SearchDocument::getUploadedAt, Comparator.nullsLast(Comparator.naturalOrder()))
+                .thenComparing(SearchDocument::getUpdatedAt, Comparator.nullsLast(Comparator.naturalOrder()))
+                .thenComparing(SearchDocument::getDocId, Comparator.nullsLast(Comparator.naturalOrder())))
+            .toList();
+        if (documents.isEmpty() || !needsVersionNormalization(documents)) {
+            return;
+        }
+        String versionGroupId = documents.stream()
+            .map(SearchDocument::getVersionGroupId)
+            .filter(value -> !isBlank(value))
+            .findFirst()
+            .orElse(documents.get(0).getDocId());
+
+        for (int index = 0; index < documents.size(); index++) {
+            SearchDocument document = documents.get(index);
+            SearchIndexData oldIndexData = buildIndexData(document);
+            document.setVersionGroupId(versionGroupId);
+            document.setVersion(index + 1);
+            if (document.getLatestVersion() == null) {
+                document.setLatestVersion(true);
+            }
+            store.put(document, buildIndexData(document), oldIndexData);
+        }
+    }
+
+    private boolean needsVersionNormalization(List<SearchDocument> documents) {
+        Set<Integer> versions = new LinkedHashSet<>();
+        for (SearchDocument document : documents) {
+            if (isBlank(document.getVersionGroupId())
+                || document.getVersion() == null
+                || document.getVersion() <= 0
+                || !versions.add(document.getVersion())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private int nextVersion(String versionGroupId, String title) {
+        return loadAllDocuments().stream()
+            .filter(document -> sameVersionFamily(document, versionGroupId, title))
+            .mapToInt(this::versionOf)
+            .max()
+            .orElse(0) + 1;
+    }
+
+    private void markPreviousVersionsNotLatest(SearchDocument latestDocument) {
+        for (SearchDocument candidate : listVersionDocuments(latestDocument)) {
+            if (candidate.getDocId().equals(latestDocument.getDocId()) || !isLatestVersion(candidate)) {
+                continue;
+            }
+            SearchIndexData oldIndexData = buildIndexData(candidate);
+            candidate.setLatestVersion(false);
+            candidate.setVersionGroupId(versionGroupIdOf(latestDocument));
+            store.put(candidate, buildIndexData(candidate), oldIndexData);
+        }
+    }
+
+    private List<SearchDocument> listVersionDocuments(SearchDocument document) {
+        String versionGroupId = versionGroupIdOf(document);
+        String title = document.getTitle();
+        return loadAllDocuments().stream()
+            .filter(candidate -> sameVersionFamily(candidate, versionGroupId, title))
+            .sorted(Comparator
+                .comparingInt(this::versionOf).reversed()
+                .thenComparing(SearchDocument::getUpdatedAt, Comparator.nullsLast(Comparator.reverseOrder())))
+            .toList();
+    }
+
+    private SearchDocumentVersionItem toVersionItem(SearchDocument document) {
+        return new SearchDocumentVersionItem(
+            document.getDocId(),
+            versionGroupIdOf(document),
+            versionOf(document),
+            isLatestVersion(document),
+            document.getTitle(),
+            document.getSource(),
+            document.getDate(),
+            document.getFileName(),
+            document.getDocumentType(),
+            document.getFileSize(),
+            document.getUploadedAt(),
+            document.getUpdatedAt(),
+            "/api/v1/search/documents/" + document.getDocId(),
+            "/api/v1/search/documents/" + document.getDocId() + "/file"
+        );
+    }
+
+    private Optional<DocumentFileResource> fileResourceFor(SearchDocument document) {
+        if (isBlank(document.getFilePath())) {
+            return Optional.empty();
+        }
+        Path file = Path.of(document.getFilePath()).toAbsolutePath().normalize();
+        if (!Files.exists(file) || !Files.isRegularFile(file)) {
+            return Optional.empty();
+        }
+        return Optional.of(new DocumentFileResource(
+            new FileSystemResource(file),
+            document.getFileName(),
+            document.getDocumentType()
+        ));
+    }
+
+    private boolean sameVersionFamily(SearchDocument document, String versionGroupId, String title) {
+        return versionGroupIdOf(document).equals(versionGroupId)
+            || (!isBlank(title) && normalizeText(document.getTitle()).equals(normalizeText(title)));
+    }
+
+    private String versionGroupIdOf(SearchDocument document) {
+        if (document == null) {
+            return "";
+        }
+        if (!isBlank(document.getVersionGroupId())) {
+            return document.getVersionGroupId().trim();
+        }
+        return document.getDocId();
+    }
+
+    private int versionOf(SearchDocument document) {
+        if (document == null || document.getVersion() == null || document.getVersion() <= 0) {
+            return 1;
+        }
+        return document.getVersion();
+    }
+
+    private boolean isLatestVersion(SearchDocument document) {
+        return document == null || !Boolean.FALSE.equals(document.getLatestVersion());
     }
 
     private SearchIndexData buildIndexData(SearchDocument document) {
@@ -371,7 +551,10 @@ public class SearchService {
             document.getCompanies(),
             document.getIndustries(),
             score,
-            new ArrayList<>(matches)
+            new ArrayList<>(matches),
+            versionGroupIdOf(document),
+            versionOf(document),
+            isLatestVersion(document)
         );
     }
 
@@ -389,7 +572,10 @@ public class SearchService {
             "/api/v1/search/documents/" + document.getDocId(),
             "/api/v1/search/documents/" + document.getDocId() + "/file",
             document.getUploadedAt(),
-            document.getUpdatedAt()
+            document.getUpdatedAt(),
+            versionGroupIdOf(document),
+            versionOf(document),
+            isLatestVersion(document)
         );
     }
 
@@ -398,6 +584,18 @@ public class SearchService {
             .map(store::get)
             .flatMap(Optional::stream)
             .toList();
+    }
+
+    private List<SearchDocument> loadLatestDocuments() {
+        return loadAllDocuments().stream()
+            .filter(this::isLatestVersion)
+            .toList();
+    }
+
+    private int countLatestDocuments() {
+        return (int) loadAllDocuments().stream()
+            .filter(this::isLatestVersion)
+            .count();
     }
 
     private List<LibraryCategory> buildCategories(List<SearchDocument> documents) {
@@ -501,21 +699,6 @@ public class SearchService {
             .comparing(SearchDocument::getDate, Comparator.nullsLast(Comparator.reverseOrder()))
             .thenComparing(SearchDocument::getUpdatedAt, Comparator.nullsLast(Comparator.reverseOrder()))
             .thenComparing(SearchDocument::getTitle, Comparator.nullsLast(Comparator.naturalOrder()));
-    }
-
-    private void embedDocument(SearchDocument document) {
-        if (!properties.isEmbeddingEnabled()) {
-            return;
-        }
-        EmbeddingService embeddingService = embeddingServiceProvider.getIfAvailable();
-        if (embeddingService == null) {
-            return;
-        }
-        try {
-            embeddingService.embedAndStore(List.of(Document.from(document.getContent())));
-        } catch (Exception ex) {
-            log.warn("Document {} was saved, but embedding failed: {}", document.getDocId(), ex.getMessage());
-        }
     }
 
     private Path saveOriginalFile(MultipartFile file, String docId, String originalFileName) {

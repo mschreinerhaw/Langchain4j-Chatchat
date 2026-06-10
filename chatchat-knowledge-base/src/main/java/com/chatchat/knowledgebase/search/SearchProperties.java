@@ -14,7 +14,6 @@ public class SearchProperties {
     private String storePath = "./data/search-rocksdb";
     private String filePath = "./data/search-files";
     private boolean createIfMissing = true;
-    private boolean embeddingEnabled = true;
     private long maxUploadBytes = 5 * 1024 * 1024;
     private int defaultLimit = 20;
     private int maxLimit = 100;

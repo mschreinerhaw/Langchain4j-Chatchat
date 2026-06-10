@@ -1,12 +1,12 @@
 package com.chatchat.knowledgebase.search;
 
-import com.chatchat.knowledgebase.embedding.service.EmbeddingService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
-import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.mock.web.MockMultipartFile;
 
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.List;
 
@@ -70,6 +70,59 @@ class SearchServiceTest {
         assertThat(exists.docId()).isEqualTo("doc-001");
     }
 
+    @Test
+    void uploadsSameTitleAsDocumentVersionsAndSearchesLatestOnly() {
+        SearchService service = newSearchService();
+
+        SearchDocument first = service.upload(
+            textFile("report-v1.txt", "first version unique notes"),
+            "Versioned Report",
+            "research",
+            "2024-06-01",
+            "reports",
+            null,
+            null,
+            null,
+            "text",
+            null
+        );
+        SearchDocument second = service.upload(
+            textFile("report-v2.txt", "second version current notes"),
+            "Versioned Report",
+            "research",
+            "2024-06-02",
+            "reports",
+            null,
+            null,
+            null,
+            "text",
+            null
+        );
+
+        assertThat(second.getVersionGroupId()).isEqualTo(first.getVersionGroupId());
+        assertThat(first.getVersion()).isEqualTo(1);
+        assertThat(second.getVersion()).isEqualTo(2);
+
+        LibraryPage library = service.listLibrary("all", null, 10);
+        assertThat(library.documentCount()).isEqualTo(1);
+        assertThat(library.documents()).hasSize(1);
+        assertThat(library.documents().get(0).docId()).isEqualTo(second.getDocId());
+        assertThat(library.documents().get(0).version()).isEqualTo(2);
+
+        List<SearchDocumentVersionItem> versions = service.listVersions(second.getDocId());
+        assertThat(versions).extracting(SearchDocumentVersionItem::version).containsExactly(2, 1);
+        assertThat(versions.get(0).latestVersion()).isTrue();
+        assertThat(versions.get(1).latestVersion()).isFalse();
+        assertThat(service.getVersion(second.getDocId(), 1)).get().extracting(SearchDocument::getContent)
+            .isEqualTo("first version unique notes");
+
+        SearchPage oldKeyword = service.search("first unique", null, null, null, 10);
+        SearchPage newKeyword = service.search("second current", null, null, null, 10);
+        assertThat(oldKeyword.results()).isEmpty();
+        assertThat(newKeyword.results()).hasSize(1);
+        assertThat(newKeyword.results().get(0).docId()).isEqualTo(second.getDocId());
+    }
+
     private void saveSemiconductorDocument(SearchService service) {
         service.createOrUpdate(SearchDocument.builder()
             .docId("doc-001")
@@ -81,11 +134,14 @@ class SearchServiceTest {
             .build());
     }
 
+    private MockMultipartFile textFile(String fileName, String content) {
+        return new MockMultipartFile("file", fileName, "text/plain", content.getBytes(StandardCharsets.UTF_8));
+    }
+
     private SearchService newSearchService() {
         SearchProperties properties = new SearchProperties();
         properties.setStorePath(tempDir.resolve("rocksdb").toString());
         properties.setFilePath(tempDir.resolve("files").toString());
-        properties.setEmbeddingEnabled(false);
 
         store = new RocksDbSearchStore(properties, new ObjectMapper());
         store.open();
@@ -93,27 +149,7 @@ class SearchServiceTest {
             store,
             new SearchTokenizer(),
             new DocumentContentExtractor(),
-            properties,
-            emptyEmbeddingProvider()
+            properties
         );
-    }
-
-    private ObjectProvider<EmbeddingService> emptyEmbeddingProvider() {
-        return new ObjectProvider<>() {
-            @Override
-            public EmbeddingService getObject(Object... args) {
-                return null;
-            }
-
-            @Override
-            public EmbeddingService getObject() {
-                return null;
-            }
-
-            @Override
-            public EmbeddingService getIfAvailable() {
-                return null;
-            }
-        };
     }
 }

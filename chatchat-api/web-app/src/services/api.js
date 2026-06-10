@@ -332,6 +332,14 @@ export function getSearchDocument(docId) {
   return apiRequest(`/search/documents/${encodeURIComponent(docId)}`);
 }
 
+export function getSearchDocumentVersions(docId) {
+  return apiRequest(`/search/documents/${encodeURIComponent(docId)}/versions`);
+}
+
+export function getSearchDocumentVersion(docId, version) {
+  return apiRequest(`/search/documents/${encodeURIComponent(docId)}/versions/${encodeURIComponent(version)}`);
+}
+
 export function fetchResearchLibrary(filters = {}) {
   const params = new URLSearchParams();
   if (filters.category) {

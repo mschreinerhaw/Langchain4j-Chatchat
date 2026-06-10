@@ -385,6 +385,38 @@
   font-size: 12px;
 }
 
+.library-view .viewer-versions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.library-view .viewer-versions button {
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.library-view .viewer-versions button.active {
+  border-color: rgba(37, 99, 235, 0.42);
+  background: rgba(37, 99, 235, 0.08);
+  color: var(--primary);
+}
+
+.library-view .viewer-versions strong {
+  color: #027a48;
+  font-size: 12px;
+}
+
 .library-view .viewer-text,
 .library-view .viewer-html,
 .library-view .viewer-word,

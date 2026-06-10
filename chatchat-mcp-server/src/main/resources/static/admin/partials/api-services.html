@@ -134,3 +134,52 @@
         </div>
     </div>
 </div>
+
+<div class="modal fade" id="livedataImportModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <h2 class="modal-title fs-5">导入 API</h2>
+                    <div class="text-secondary small">
+                        共 <span id="livedataApiTotalCount">0</span> 个 API，匹配 <span id="livedataApiFilteredCount">0</span> 个，已选择 <span id="livedataApiSelectedCount">0</span> 个
+                    </div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="关闭"></button>
+            </div>
+            <div class="modal-body">
+                <div class="livedata-import-toolbar">
+                    <input id="livedataApiSearchInput" class="form-control" type="search" placeholder="搜索 API 名称、工具名称、服务名或 namespace">
+                    <button id="reloadLivedataApisBtn" class="btn btn-outline-secondary" type="button">重新加载</button>
+                    <button id="selectAllLivedataApisBtn" class="btn btn-outline-primary" type="button">选择当前列表</button>
+                    <button id="clearLivedataSelectionBtn" class="btn btn-outline-secondary" type="button">清空选择</button>
+                </div>
+                <div class="form-check form-switch livedata-overwrite">
+                    <input id="overwriteLivedataExisting" class="form-check-input" type="checkbox">
+                    <label class="form-check-label" for="overwriteLivedataExisting">覆盖已注册的同名工具</label>
+                </div>
+                <div class="table-responsive livedata-import-table">
+                    <table class="table table-sm align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th class="livedata-check-col"></th>
+                                <th>API</th>
+                                <th>工具名称</th>
+                                <th>服务</th>
+                                <th>状态</th>
+                                <th>版本</th>
+                            </tr>
+                        </thead>
+                        <tbody id="livedataApiBody">
+                            <tr><td colspan="6" class="text-secondary">暂无 LiveData API。</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">取消</button>
+                <button id="registerLivedataApisBtn" class="btn btn-primary" type="button">注册选中 API</button>
+            </div>
+        </div>
+    </div>
+</div>

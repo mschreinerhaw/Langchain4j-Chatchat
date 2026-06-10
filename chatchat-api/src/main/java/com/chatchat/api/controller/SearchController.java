@@ -6,6 +6,7 @@ import com.chatchat.knowledgebase.search.LibraryCategory;
 import com.chatchat.knowledgebase.search.LibraryPage;
 import com.chatchat.knowledgebase.search.SearchPage;
 import com.chatchat.knowledgebase.search.SearchService;
+import com.chatchat.knowledgebase.search.SearchDocumentVersionItem;
 import com.chatchat.knowledgebase.search.TitleExistsResult;
 import com.chatchat.common.constants.AppConstants;
 import com.chatchat.common.response.ApiResponse;
@@ -27,6 +28,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 
 @RestController
 @RequiredArgsConstructor
@@ -82,10 +84,40 @@ public class SearchController {
             .orElseGet(() -> ApiResponse.notFound("document not found: " + docId));
     }
 
+    @GetMapping("/documents/{docId}/versions")
+    @Operation(summary = "List versions of one document")
+    public ApiResponse<List<SearchDocumentVersionItem>> listDocumentVersions(@PathVariable("docId") String docId) {
+        if (searchService.get(docId).isEmpty()) {
+            return ApiResponse.notFound("document not found: " + docId);
+        }
+        return ApiResponse.success(searchService.listVersions(docId));
+    }
+
+    @GetMapping("/documents/{docId}/versions/{version}")
+    @Operation(summary = "Get one document version detail")
+    public ApiResponse<SearchDocument> getDocumentVersion(@PathVariable("docId") String docId,
+                                                          @PathVariable("version") Integer version) {
+        return searchService.getVersion(docId, version)
+            .map(ApiResponse::success)
+            .orElseGet(() -> ApiResponse.notFound("document version not found: " + docId + " v" + version));
+    }
+
     @GetMapping("/documents/{docId}/file")
     @Operation(summary = "Get original uploaded document file")
     public ResponseEntity<Resource> getDocumentFile(@PathVariable("docId") String docId) {
         return searchService.getFileResource(docId)
+            .map(file -> ResponseEntity.ok()
+                .contentType(mediaTypeFor(file))
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename*=UTF-8''" + encodeFileName(file.fileName()))
+                .body(file.resource()))
+            .orElseGet(() -> ResponseEntity.notFound().build());
+    }
+
+    @GetMapping("/documents/{docId}/versions/{version}/file")
+    @Operation(summary = "Get original uploaded document file for one version")
+    public ResponseEntity<Resource> getDocumentVersionFile(@PathVariable("docId") String docId,
+                                                           @PathVariable("version") Integer version) {
+        return searchService.getVersionFileResource(docId, version)
             .map(file -> ResponseEntity.ok()
                 .contentType(mediaTypeFor(file))
                 .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename*=UTF-8''" + encodeFileName(file.fileName()))

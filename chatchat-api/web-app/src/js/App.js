@@ -44,7 +44,7 @@ export default {
           label: "工作台",
           items: [
             { id: "chat", label: "对话助手", icon: "chat" },
-            { id: "search", label: "AI搜索", icon: "search" }
+            { id: "search", label: "文档检索", icon: "search" }
           ]
         },
         {
@@ -52,7 +52,7 @@ export default {
           label: "能力中心",
           items: [
             { id: "market", label: "能力广场", icon: "grid" },
-            { id: "library", label: "投研中心", icon: "book" }
+            { id: "library", label: "文档中心", icon: "book" }
           ]
         },
         {

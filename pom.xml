@@ -9,7 +9,7 @@
     <packaging>pom</packaging>
     <version>1.0.0-SNAPSHOT</version>
     <name>LangChain4j ChatChat - Enterprise AI Application</name>
-    <description>Enterprise-grade RAG and Agent application based on LangChain4j</description>
+    <description>Enterprise-grade document search and Agent application based on LangChain4j</description>
 
     <properties>
         <maven.compiler.source>17</maven.compiler.source>

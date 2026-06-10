@@ -3,20 +3,13 @@ package com.chatchat.mcpserver.cache;
 import com.chatchat.mcpserver.api.ApiInvokeResult;
 import com.chatchat.mcpserver.api.ApiServiceConfig;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import jakarta.annotation.PostConstruct;
-import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.rocksdb.Options;
-import org.rocksdb.RocksDB;
 import org.rocksdb.RocksDBException;
-import org.rocksdb.RocksIterator;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -34,26 +27,8 @@ public class ApiResponseCacheService {
     private static final String KEY_PREFIX = "cache:";
 
     private final McpCacheProperties properties;
+    private final McpRocksDbStore rocksDbStore;
     private final ObjectMapper objectMapper;
-    private RocksDB rocksDB;
-    private Options options;
-
-    static {
-        RocksDB.loadLibrary();
-    }
-
-    @PostConstruct
-    public void initialize() throws Exception {
-        if (!properties.isEnabled()) {
-            log.info("MCP RocksDB cache is disabled");
-            return;
-        }
-        Path path = Path.of(properties.getPath()).toAbsolutePath().normalize();
-        Files.createDirectories(path);
-        options = new Options().setCreateIfMissing(properties.isCreateIfMissing());
-        rocksDB = RocksDB.open(options, path.toString());
-        log.info("MCP RocksDB cache opened at {}", path);
-    }
 
     public Optional<ApiInvokeResult> get(ApiServiceConfig config, Map<String, Object> arguments) {
         if (!isUsable(config)) {
@@ -61,14 +36,14 @@ public class ApiResponseCacheService {
         }
         String key = key(config, arguments);
         try {
-            byte[] raw = rocksDB.get(bytes(key));
+            byte[] raw = rocksDbStore.get(key);
             if (raw == null) {
                 return Optional.empty();
             }
             ApiResponseCacheEntry entry = objectMapper.readValue(raw, ApiResponseCacheEntry.class);
             long now = System.currentTimeMillis();
             if (entry.isExpired(now)) {
-                rocksDB.delete(bytes(key));
+                rocksDbStore.delete(key);
                 return Optional.empty();
             }
             return Optional.of(entry.result().withCacheHit(true));
@@ -86,7 +61,7 @@ public class ApiResponseCacheService {
         long expiresAt = now + Math.max(1, config.getCacheTtlSeconds()) * 1000L;
         ApiResponseCacheEntry entry = new ApiResponseCacheEntry(result.withCacheHit(false), now, expiresAt);
         try {
-            rocksDB.put(bytes(key(config, arguments)), objectMapper.writeValueAsBytes(entry));
+            rocksDbStore.put(key(config, arguments), objectMapper.writeValueAsBytes(entry));
         } catch (Exception ex) {
             log.warn("Failed to write MCP cache for {}: {}", config.getToolName(), ex.getMessage());
         }
@@ -94,29 +69,23 @@ public class ApiResponseCacheService {
 
     @Scheduled(fixedDelayString = "${chatchat.mcp.cache.cleanup-interval-ms:60000}")
     public void cleanupExpired() {
-        if (rocksDB == null) {
+        if (!rocksDbStore.isUsable()) {
             return;
         }
         long now = System.currentTimeMillis();
         int scanned = 0;
         int removed = 0;
-        try (RocksIterator iterator = rocksDB.newIterator()) {
-            iterator.seek(bytes(KEY_PREFIX));
-            while (iterator.isValid()
-                && startsWith(iterator.key(), KEY_PREFIX)
-                && scanned < Math.max(1, properties.getCleanupBatchSize())) {
+        try {
+            for (McpRocksDbStore.KeyValue entry : rocksDbStore.scan(KEY_PREFIX, Math.max(1, properties.getCleanupBatchSize()))) {
                 scanned += 1;
-                byte[] key = iterator.key().clone();
-                byte[] value = iterator.value().clone();
-                iterator.next();
                 try {
-                    ApiResponseCacheEntry entry = objectMapper.readValue(value, ApiResponseCacheEntry.class);
-                    if (entry.isExpired(now)) {
-                        rocksDB.delete(key);
+                    ApiResponseCacheEntry cacheEntry = objectMapper.readValue(entry.value(), ApiResponseCacheEntry.class);
+                    if (cacheEntry.isExpired(now)) {
+                        rocksDbStore.delete(entry.key());
                         removed += 1;
                     }
                 } catch (Exception ex) {
-                    rocksDB.delete(key);
+                    rocksDbStore.delete(entry.key());
                     removed += 1;
                 }
             }
@@ -128,19 +97,9 @@ public class ApiResponseCacheService {
         }
     }
 
-    @PreDestroy
-    public void close() {
-        if (rocksDB != null) {
-            rocksDB.close();
-        }
-        if (options != null) {
-            options.close();
-        }
-    }
-
     private boolean isUsable(ApiServiceConfig config) {
         return properties.isEnabled()
-            && rocksDB != null
+            && rocksDbStore.isUsable()
             && config != null
             && config.isCacheEnabled()
             && config.getCacheTtlSeconds() > 0;
@@ -183,11 +142,4 @@ public class ApiResponseCacheService {
         return value.replaceAll("[^A-Za-z0-9_.-]", "_");
     }
 
-    private boolean startsWith(byte[] key, String prefix) {
-        return new String(key, StandardCharsets.UTF_8).startsWith(prefix);
-    }
-
-    private byte[] bytes(String value) {
-        return value.getBytes(StandardCharsets.UTF_8);
-    }
 }

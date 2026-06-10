@@ -806,6 +806,48 @@ body {
     padding: 14px;
 }
 
+.livedata-import-toolbar {
+    display: grid;
+    grid-template-columns: minmax(220px, 1fr) auto auto auto;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+.livedata-overwrite {
+    margin-bottom: 12px;
+}
+
+.livedata-import-table {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    max-height: 58vh;
+    overflow: auto;
+}
+
+.livedata-import-table thead th {
+    position: sticky;
+    top: 0;
+    background: #f7f9fc;
+    z-index: 1;
+}
+
+.livedata-check-col {
+    width: 42px;
+}
+
+.livedata-api-title {
+    display: block;
+    font-weight: 700;
+}
+
+.livedata-api-desc {
+    max-width: 420px;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 .form-actions {
     display: flex;
     gap: 10px;
@@ -932,6 +974,10 @@ body {
         grid-template-columns: 1fr;
     }
 
+    .livedata-import-toolbar {
+        grid-template-columns: 1fr 1fr;
+    }
+
     .service-pagination {
         justify-content: space-between;
     }
@@ -1040,6 +1086,10 @@ body {
     .toolbar {
         margin-top: 14px;
         flex-wrap: wrap;
+    }
+
+    .livedata-import-toolbar {
+        grid-template-columns: 1fr;
     }
 
     .service-pagination {

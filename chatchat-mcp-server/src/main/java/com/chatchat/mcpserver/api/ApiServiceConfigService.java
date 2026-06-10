@@ -12,6 +12,7 @@ import java.net.URI;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.regex.Pattern;
 
@@ -42,6 +43,14 @@ public class ApiServiceConfigService {
     public ApiServiceConfig getById(String id) {
         return repository.findById(id)
             .orElseThrow(() -> new IllegalArgumentException("API service config not found: " + id));
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<ApiServiceConfig> findByToolName(String toolName) {
+        if (toolName == null || toolName.isBlank()) {
+            return Optional.empty();
+        }
+        return repository.findByToolNameIgnoreCase(toolName.trim());
     }
 
     @Transactional

@@ -26,11 +26,6 @@ public class ModelsConfig {
     private String defaultChatModel = "deepseek-v4-pro";
 
     /**
-     * Default embedding model name
-     */
-    private String defaultEmbeddingModel = "text-embedding-3-small";
-
-    /**
      * Candidate chat models for frontend selection.
      */
     private List<String> availableChatModels = new ArrayList<>(List.of("deepseek-v4-pro"));
@@ -39,16 +34,6 @@ public class ModelsConfig {
      * OpenAI API configuration
      */
     private OpenAIConfig openai = new OpenAIConfig();
-
-    /**
-     * Ollama configuration
-     */
-    private OllamaConfig ollama = new OllamaConfig();
-
-    /**
-     * Xinference configuration
-     */
-    private XinferenceConfig xinference = new XinferenceConfig();
 
     @Data
     public static class OpenAIConfig {
@@ -67,15 +52,4 @@ public class ModelsConfig {
         private String type = "http";
     }
 
-    @Data
-    public static class OllamaConfig {
-        private String baseUrl = "http://localhost:11434";
-        private int timeout = 30;
-    }
-
-    @Data
-    public static class XinferenceConfig {
-        private String baseUrl = "http://localhost:9997";
-        private int timeout = 30;
-    }
 }

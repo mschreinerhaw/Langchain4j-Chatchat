@@ -2,35 +2,66 @@ package com.chatchat.mcpserver.audit;
 
 import com.chatchat.mcpserver.api.ApiInvokeResult;
 import com.chatchat.mcpserver.api.ApiServiceConfig;
+import com.chatchat.mcpserver.cache.McpRocksDbStore;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
-import org.springframework.transaction.annotation.Transactional;
 
+import java.nio.charset.StandardCharsets;
+import java.time.Instant;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
+import java.util.UUID;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class InvocationAuditService {
 
-    private static final int MAX_SUMMARY_LENGTH = 4000;
+    private static final String DATA_KEY_PREFIX = "audit:data:";
+    private static final String INDEX_KEY_PREFIX = "audit:index:";
+    private static final int MAX_DETAIL_LENGTH = 200_000;
 
-    private final InvocationAuditLogRepository repository;
+    private final McpRocksDbStore rocksDbStore;
     private final ObjectMapper objectMapper;
 
-    @Transactional(readOnly = true)
     public List<InvocationAuditLog> listRecent() {
-        return repository.findTop100ByOrderByCreatedAtDesc();
+        List<InvocationAuditLog> logs = new ArrayList<>();
+        for (McpRocksDbStore.KeyValue entry : rocksDbStore.scan(INDEX_KEY_PREFIX, 100)) {
+            String id = new String(entry.value(), StandardCharsets.UTF_8);
+            findById(id).ifPresent(logs::add);
+        }
+        return logs;
     }
 
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    public Optional<InvocationAuditLog> findById(String id) {
+        if (id == null || id.isBlank() || !rocksDbStore.isUsable()) {
+            return Optional.empty();
+        }
+        try {
+            byte[] raw = rocksDbStore.get(DATA_KEY_PREFIX + id.trim());
+            if (raw == null) {
+                return Optional.empty();
+            }
+            return Optional.of(objectMapper.readValue(raw, InvocationAuditLog.class));
+        } catch (Exception ex) {
+            log.warn("Failed to read MCP invocation audit log {}: {}", id, ex.getMessage());
+            return Optional.empty();
+        }
+    }
+
     public void recordApiCall(ApiServiceConfig config, Map<String, Object> arguments,
                               ApiInvokeResult result, long durationMs) {
+        if (!rocksDbStore.isUsable()) {
+            return;
+        }
         InvocationAuditLog log = new InvocationAuditLog();
+        log.setId(UUID.randomUUID().toString());
         log.setTargetType("API_SERVICE");
         log.setTargetId(config.getId());
         log.setTargetName(config.getToolName());
@@ -46,7 +77,23 @@ public class InvocationAuditService {
         response.put("body", result.body());
         response.put("errorMessage", result.errorMessage());
         log.setResponseSummary(toJsonSummary(redact(response)));
-        repository.save(log);
+        log.setCreatedAt(Instant.now());
+        save(log);
+    }
+
+    private void save(InvocationAuditLog auditLog) {
+        try {
+            rocksDbStore.put(DATA_KEY_PREFIX + auditLog.getId(), objectMapper.writeValueAsBytes(auditLog));
+            rocksDbStore.put(indexKey(auditLog), auditLog.getId().getBytes(StandardCharsets.UTF_8));
+        } catch (Exception ex) {
+            log.warn("Failed to write MCP invocation audit log {}: {}", auditLog.getId(), ex.getMessage());
+        }
+    }
+
+    private String indexKey(InvocationAuditLog log) {
+        long createdAt = log.getCreatedAt() == null ? System.currentTimeMillis() : log.getCreatedAt().toEpochMilli();
+        long reverseTime = Long.MAX_VALUE - createdAt;
+        return INDEX_KEY_PREFIX + String.format("%019d", reverseTime) + ":" + log.getId();
     }
 
     private Object redact(Object value) {
@@ -80,7 +127,7 @@ public class InvocationAuditService {
 
     private String toJsonSummary(Object value) {
         try {
-            return limit(objectMapper.writeValueAsString(value));
+            return limit(objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(value));
         } catch (Exception ex) {
             return limit(String.valueOf(value));
         }
@@ -90,9 +137,10 @@ public class InvocationAuditService {
         if (value == null) {
             return null;
         }
-        if (value.length() <= MAX_SUMMARY_LENGTH) {
+        if (value.length() <= MAX_DETAIL_LENGTH) {
             return value;
         }
-        return value.substring(0, MAX_SUMMARY_LENGTH) + "...";
+        return value.substring(0, MAX_DETAIL_LENGTH) + "...";
     }
+
 }

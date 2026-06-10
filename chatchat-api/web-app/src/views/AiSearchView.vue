@@ -2,33 +2,33 @@
   <section class="feature-view ai-search-view search-workspace">
     <header>
       <p>
-        <a href="#" class="search-title-link" @click.prevent="goToLibrary">投研资料库</a>
+        <a href="#" class="search-title-link" @click.prevent="goToLibrary">文档中心</a>
       </p>
-      <h1>面向投研的信息检索</h1>
+      <h1>文档检索</h1>
     </header>
 
     <div class="search-panel">
       <input
         v-model="keyword"
-        placeholder="搜索公司、行业、公告或宏观事件"
+        placeholder="搜索文档标题、来源、标签或正文关键词"
         @keyup.enter="performSearch"
       >
       <button type="button" class="upload-trigger" @click="openUploadDialog">上传</button>
       <button type="button" :disabled="loading" @click="performSearch">
-        {{ loading ? "搜索中" : "搜索" }}
+        {{ loading ? "检索中" : "检索" }}
       </button>
     </div>
 
     <section v-if="searched || loading" class="inline-results">
-      <p v-if="loading" class="search-empty">正在检索资料库...</p>
+      <p v-if="loading" class="search-empty">正在检索文档库...</p>
       <p v-else-if="error" class="search-error">{{ error }}</p>
       <p v-else-if="results.length === 0" class="search-empty">
-        {{ resultMessage || "没有找到匹配资料。请先上传资料，或换一个关键词再搜索。" }}
+        {{ resultMessage || "没有找到匹配文档。请先上传文档，或换一个关键词再检索。" }}
       </p>
 
       <div v-else class="results-list">
         <p class="results-count">
-          找到 {{ resultTotal }} 条资料 · 当前显示 {{ pageStart }}-{{ pageEnd }} 条 · {{ searchTookMs }} ms
+          找到 {{ resultTotal }} 条文档 · 当前显示 {{ pageStart }}-{{ pageEnd }} 条 · {{ searchTookMs }} ms
           <span v-if="hasMoreResults"> · 已载入前 {{ results.length }} 条</span>
         </p>
         <article v-for="result in pagedResults" :key="result.docId" class="search-result-item">
@@ -40,7 +40,7 @@
           </div>
         </article>
 
-        <nav v-if="resultTotal > pageSize" class="search-pagination" aria-label="AI搜索结果分页">
+        <nav v-if="resultTotal > pageSize" class="search-pagination" aria-label="文档检索结果分页">
           <span>第 {{ page }} / {{ pageCount }} 页，每页 {{ pageSize }} 条</span>
           <div>
             <button type="button" :disabled="page <= 1" @click="goPage(page - 1)">上一页</button>
@@ -64,7 +64,7 @@
         <header>
           <div>
             <p>资料上传</p>
-            <h2>上传投研资料</h2>
+            <h2>上传文档</h2>
           </div>
           <button type="button" class="dialog-close" :disabled="uploading" @click="closeUploadDialog">×</button>
         </header>
@@ -80,8 +80,8 @@
           <span>{{ uploadForm.file?.name || "未选择文件，最大 5MB" }}</span>
         </div>
 
-        <input v-model="uploadForm.title" placeholder="资料标题">
-        <input v-model="uploadForm.source" placeholder="资料来源">
+        <input v-model="uploadForm.title" placeholder="文档标题">
+        <input v-model="uploadForm.source" placeholder="文档来源">
         <input v-model="uploadForm.date" type="date">
         <select v-model="uploadForm.documentType" class="document-type-select">
           <option v-for="option in documentTypeOptions" :key="option.value" :value="option.value">
@@ -95,7 +95,7 @@
         <footer>
           <button type="button" class="secondary-button" :disabled="uploading" @click="closeUploadDialog">取消</button>
           <button type="submit" class="primary-button" :disabled="uploading">
-            {{ uploading ? "上传中" : "上传资料" }}
+            {{ uploading ? "上传中" : "上传文档" }}
           </button>
         </footer>
       </form>

@@ -3,6 +3,7 @@ let resultModal;
 let apiServiceModal;
 let mcpServiceModal;
 let databaseQueryModal;
+let livedataImportModal;
 let latestResultText = '';
 
 export function initUi() {
@@ -11,6 +12,7 @@ export function initUi() {
     apiServiceModal = new bootstrap.Modal(document.getElementById('apiServiceModal'));
     mcpServiceModal = new bootstrap.Modal(document.getElementById('mcpServiceModal'));
     databaseQueryModal = new bootstrap.Modal(document.getElementById('databaseQueryModal'));
+    livedataImportModal = new bootstrap.Modal(document.getElementById('livedataImportModal'));
     document.getElementById('copyResultBtn').addEventListener('click', copyLatestResult);
 }
 
@@ -46,6 +48,14 @@ export function showApiServiceModal() {
 
 export function hideApiServiceModal() {
     apiServiceModal.hide();
+}
+
+export function showLivedataImportModal() {
+    livedataImportModal.show();
+}
+
+export function hideLivedataImportModal() {
+    livedataImportModal.hide();
 }
 
 export function showMcpServiceModal() {
@@ -326,7 +336,7 @@ function updatePagination(prefix, { totalCount, filteredCount, visibleCount, pag
     document.getElementById(`${prefix}NextPageBtn`).disabled = page >= pageCount;
 }
 
-export function renderAuditLogs(logs) {
+export function renderAuditLogs(logs, openDetail) {
     const body = document.getElementById('auditLogBody');
     body.innerHTML = '';
     if (!logs.length) {
@@ -346,7 +356,13 @@ export function renderAuditLogs(logs) {
             <td>${log.durationMs ?? '-'} ms</td>
             <td class="text-truncate" style="max-width: 260px;">${escapeHtml(log.errorMessage || '')}</td>
         `;
-        row.addEventListener('click', () => showResult(log));
+        row.addEventListener('click', () => {
+            if (typeof openDetail === 'function') {
+                openDetail(log);
+            } else {
+                showResult(log);
+            }
+        });
         body.appendChild(row);
     }
 }
@@ -419,10 +435,12 @@ export function switchView(name) {
         button.classList.toggle('active', button.dataset.view === name);
     });
     const newApi = document.getElementById('newServiceBtn');
+    const importLivedata = document.getElementById('importLivedataBtn');
     const newMcp = document.getElementById('newMcpServiceBtn');
     const newDatabaseQuery = document.getElementById('newDatabaseQueryBtn');
     const refresh = document.getElementById('refreshBtn');
     newApi.classList.toggle('d-none', name !== 'apiServices');
+    importLivedata.classList.toggle('d-none', name !== 'apiServices');
     newMcp.classList.toggle('d-none', name !== 'mcpServices');
     newDatabaseQuery.classList.toggle('d-none', name !== 'databaseMcp');
     refresh.classList.toggle('d-none', name === 'databaseMcp' || name === 'auditLogs' || name === 'settings');

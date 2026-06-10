@@ -4,9 +4,7 @@ import com.chatchat.common.config.ModelsConfig;
 import dev.langchain4j.http.client.HttpClientBuilder;
 import dev.langchain4j.http.client.jdk.JdkHttpClientBuilder;
 import dev.langchain4j.model.chat.ChatModel;
-import dev.langchain4j.model.embedding.EmbeddingModel;
 import dev.langchain4j.model.openai.OpenAiChatModel;
-import dev.langchain4j.model.openai.OpenAiEmbeddingModel;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -45,29 +43,6 @@ public class LangChain4jConfig {
             .maxRetries(modelsConfig.getOpenai().getMaxRetries())
             .logRequests(true)
             .logResponses(true);
-
-        HttpClientBuilder httpClientBuilder = resolveOpenAiHttpClientBuilder();
-        if (httpClientBuilder != null) {
-            builder.httpClientBuilder(httpClientBuilder);
-        }
-
-        return builder.build();
-    }
-
-    /**
-     * Configure OpenAI embedding model
-     */
-    @Bean
-    @ConditionalOnProperty(prefix = "chatchat.models", name = "defaultProvider", havingValue = "openai")
-    public EmbeddingModel embeddingModel() {
-        log.info("Initializing OpenAI Embedding Model");
-
-        OpenAiEmbeddingModel.OpenAiEmbeddingModelBuilder builder = OpenAiEmbeddingModel.builder()
-            .apiKey(modelsConfig.getOpenai().getApiKey())
-            .baseUrl(modelsConfig.getOpenai().getBaseUrl())
-            .modelName(modelsConfig.getDefaultEmbeddingModel())
-            .timeout(Duration.ofSeconds(modelsConfig.getOpenai().getTimeout()))
-            .maxRetries(modelsConfig.getOpenai().getMaxRetries());
 
         HttpClientBuilder httpClientBuilder = resolveOpenAiHttpClientBuilder();
         if (httpClientBuilder != null) {

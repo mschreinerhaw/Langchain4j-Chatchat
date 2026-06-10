@@ -69,7 +69,7 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
      * Generate AI response (placeholder - will be replaced with real LLM call)
      */
     private String generateResponse(String question) {
-        // This will be replaced with actual RAG + LLM logic
+        // This will be replaced with actual LLM/agent logic.
         if (question.contains("客户")) {
             return "根据当前数据，客户总数为852户，其中高净值客户142户，环比增长稳定。";
         } else if (question.contains("风险")) {

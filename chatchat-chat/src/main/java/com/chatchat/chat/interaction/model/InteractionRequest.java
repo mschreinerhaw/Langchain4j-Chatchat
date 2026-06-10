@@ -24,7 +24,6 @@ public class InteractionRequest {
     private String userId;
     private String mode;
     private String query;
-    private String knowledgeBaseId;
     private String systemPrompt;
     private String modelName;
     private String skillId;

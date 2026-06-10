@@ -4,7 +4,9 @@ import { getToken, login, logout } from './auth.js';
 import { UnauthorizedError } from './http.js';
 import {
     deleteService,
+    listLivedataApis,
     listServices,
+    registerLivedataApis,
     refreshTools,
     saveService,
     setEnabled,
@@ -18,7 +20,7 @@ import {
     saveMcpService,
     setMcpEnabled
 } from './mcpServices.js';
-import { listAuditLogs } from './auditLogs.js';
+import { getAuditLog, listAuditLogs } from './auditLogs.js';
 import {
     deleteDatabaseQuery,
     listDatabaseQueries,
@@ -32,6 +34,7 @@ import {
     hideLoginError,
     hideApiServiceModal,
     hideDatabaseQueryModal,
+    hideLivedataImportModal,
     hideMcpServiceModal,
     initUi,
     notify,
@@ -43,6 +46,7 @@ import {
     showApp,
     showApiServiceModal,
     showDatabaseQueryModal,
+    showLivedataImportModal,
     showLogin,
     showLoginError,
     showMcpServiceModal,
@@ -54,6 +58,9 @@ let services = [];
 let selectedId = '';
 let serviceSearchTerm = '';
 let servicePage = 1;
+let livedataApis = [];
+let livedataSearchTerm = '';
+let selectedLivedataApiIds = new Set();
 let mcpServices = [];
 let selectedMcpId = '';
 let mcpServiceSearchTerm = '';
@@ -101,6 +108,13 @@ function bindEvents() {
     document.getElementById('serviceSearchInput').addEventListener('input', handleServiceSearch);
     document.getElementById('servicePrevPageBtn').addEventListener('click', () => changeServicePage(-1));
     document.getElementById('serviceNextPageBtn').addEventListener('click', () => changeServicePage(1));
+    document.getElementById('importLivedataBtn').addEventListener('click', openLivedataImport);
+    document.getElementById('reloadLivedataApisBtn').addEventListener('click', reloadLivedataApis);
+    document.getElementById('selectAllLivedataApisBtn').addEventListener('click', selectVisibleLivedataApis);
+    document.getElementById('clearLivedataSelectionBtn').addEventListener('click', clearLivedataSelection);
+    document.getElementById('registerLivedataApisBtn').addEventListener('click', handleLivedataRegister);
+    document.getElementById('livedataApiSearchInput').addEventListener('input', handleLivedataSearch);
+    document.getElementById('livedataApiBody').addEventListener('change', handleLivedataSelectionChange);
     document.getElementById('microserviceMode').addEventListener('change', toggleMicroserviceFields);
     document.getElementById('testServiceBtn').addEventListener('click', handleTest);
     document.getElementById('refreshBtn').addEventListener('click', handleRefresh);
@@ -302,6 +316,156 @@ async function handleRefresh() {
     }
 }
 
+async function openLivedataImport() {
+    livedataSearchTerm = '';
+    selectedLivedataApiIds = new Set();
+    document.getElementById('livedataApiSearchInput').value = '';
+    document.getElementById('overwriteLivedataExisting').checked = false;
+    showLivedataImportModal();
+    await reloadLivedataApis();
+}
+
+async function reloadLivedataApis() {
+    const button = document.getElementById('reloadLivedataApisBtn');
+    button.disabled = true;
+    try {
+        livedataApis = await listLivedataApis();
+        selectedLivedataApiIds = new Set([...selectedLivedataApiIds].filter(id =>
+            livedataApis.some(api => api.id === id && api.canRegister)
+        ));
+        renderLivedataImport();
+    } catch (error) {
+        handleError(error);
+    } finally {
+        button.disabled = false;
+    }
+}
+
+function handleLivedataSearch(event) {
+    livedataSearchTerm = event.target.value;
+    renderLivedataImport();
+}
+
+function handleLivedataSelectionChange(event) {
+    if (event.target?.dataset?.livedataApiId == null) {
+        return;
+    }
+    const id = event.target.dataset.livedataApiId;
+    if (event.target.checked) {
+        selectedLivedataApiIds.add(id);
+    } else {
+        selectedLivedataApiIds.delete(id);
+    }
+    updateLivedataImportSummary(filterLivedataApis());
+}
+
+function selectVisibleLivedataApis() {
+    for (const api of filterLivedataApis()) {
+        if (api.canRegister) {
+            selectedLivedataApiIds.add(api.id);
+        }
+    }
+    renderLivedataImport();
+}
+
+function clearLivedataSelection() {
+    selectedLivedataApiIds.clear();
+    renderLivedataImport();
+}
+
+async function handleLivedataRegister() {
+    const ids = [...selectedLivedataApiIds];
+    if (!ids.length) {
+        notify('请选择 API', '勾选需要注册为 MCP 工具的 LiveData API。');
+        return;
+    }
+    const button = document.getElementById('registerLivedataApisBtn');
+    button.disabled = true;
+    try {
+        const result = await registerLivedataApis(ids, document.getElementById('overwriteLivedataExisting').checked);
+        notify('注册完成', `成功 ${result.registered} 个，跳过 ${result.skipped} 个，缺失 ${result.missing} 个。`);
+        selectedLivedataApiIds.clear();
+        await loadServices();
+        await reloadLivedataApis();
+        if (!result.errors?.length) {
+            hideLivedataImportModal();
+        }
+    } catch (error) {
+        handleError(error);
+    } finally {
+        button.disabled = false;
+    }
+}
+
+function renderLivedataImport() {
+    const filtered = filterLivedataApis();
+    const body = document.getElementById('livedataApiBody');
+    body.innerHTML = '';
+    updateLivedataImportSummary(filtered);
+
+    if (!filtered.length) {
+        body.innerHTML = '<tr><td colspan="6" class="text-secondary">暂无匹配的 LiveData API。</td></tr>';
+        return;
+    }
+
+    for (const api of filtered) {
+        const row = document.createElement('tr');
+        const disabled = !api.canRegister;
+        row.innerHTML = `
+            <td>
+                <input class="form-check-input" type="checkbox"
+                    data-livedata-api-id="${escapeHtml(api.id)}"
+                    ${selectedLivedataApiIds.has(api.id) ? 'checked' : ''}
+                    ${disabled ? 'disabled' : ''}>
+            </td>
+            <td>
+                <span class="livedata-api-title">${escapeHtml(api.apiName || api.apiId || api.title || '-')}</span>
+                <div class="small text-secondary">${escapeHtml(api.apiId || api.id || '')}</div>
+                <div class="livedata-api-desc">${escapeHtml(api.description || api.error || '')}</div>
+            </td>
+            <td>
+                <code>${escapeHtml(api.toolName || '-')}</code>
+                ${api.registered ? '<div><span class="badge text-bg-info">已注册</span></div>' : ''}
+            </td>
+            <td>
+                <div>${escapeHtml(api.serviceName || '-')}</div>
+                <div class="small text-secondary">${escapeHtml(api.methodName || api.namespace || '')}</div>
+            </td>
+            <td>
+                <span class="badge ${api.enabled ? 'text-bg-success' : 'text-bg-secondary'}">${api.enabled ? '启用' : '停用'}</span>
+                ${api.canRegister ? '' : '<span class="badge text-bg-danger ms-1">配置异常</span>'}
+            </td>
+            <td>${escapeHtml(api.releaseVersion || api.version || '-')}</td>
+        `;
+        body.appendChild(row);
+    }
+}
+
+function filterLivedataApis() {
+    const keyword = livedataSearchTerm.trim().toLowerCase();
+    if (!keyword) {
+        return livedataApis;
+    }
+    return livedataApis.filter(api => [
+        api.apiId,
+        api.apiName,
+        api.toolName,
+        api.title,
+        api.description,
+        api.namespace,
+        api.serviceName,
+        api.methodName,
+        api.urlTemplate
+    ].some(value => String(value || '').toLowerCase().includes(keyword)));
+}
+
+function updateLivedataImportSummary(filtered) {
+    document.getElementById('livedataApiTotalCount').textContent = livedataApis.length;
+    document.getElementById('livedataApiFilteredCount').textContent = filtered.length;
+    document.getElementById('livedataApiSelectedCount').textContent = selectedLivedataApiIds.size;
+    document.getElementById('registerLivedataApisBtn').disabled = selectedLivedataApiIds.size === 0;
+}
+
 async function toggleService(service) {
     try {
         await setEnabled(service.id, !service.enabled);
@@ -492,11 +656,27 @@ function readMcpForm() {
 async function loadAuditLogs(showNotice = true) {
     try {
         const logs = await listAuditLogs();
-        renderAuditLogs(logs);
+        renderAuditLogs(logs, openAuditLogDetail);
         if (showNotice) notify('加载成功', '审计日志已刷新。');
     } catch (error) {
         handleError(error);
     }
+}
+
+async function openAuditLogDetail(log) {
+    try {
+        const detail = await getAuditLog(log.id);
+        showResult(detail, {
+            title: `${detail.targetName || detail.targetId || '调用'} 审计明细`,
+            subtitle: `${detail.targetType || '-'} · ${formatAuditTime(detail.createdAt)}`
+        });
+    } catch (error) {
+        handleError(error);
+    }
+}
+
+function formatAuditTime(value) {
+    return value ? new Date(value).toLocaleString() : '-';
 }
 
 async function loadDatabaseQueries() {
@@ -856,6 +1036,15 @@ function promptJsonObject(message, fallback) {
         throw new Error('查询参数必须是 JSON 对象。');
     }
     return value;
+}
+
+function escapeHtml(value) {
+    return String(value ?? '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;')
+        .replaceAll('"', '&quot;')
+        .replaceAll("'", '&#039;');
 }
 
 function changeServicePage(delta) {

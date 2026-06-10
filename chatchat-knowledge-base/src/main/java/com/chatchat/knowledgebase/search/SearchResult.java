@@ -15,6 +15,9 @@ public record SearchResult(
     List<String> companies,
     List<String> industries,
     int score,
-    List<String> matchedKeywords
+    List<String> matchedKeywords,
+    String versionGroupId,
+    int version,
+    boolean latestVersion
 ) {
 }

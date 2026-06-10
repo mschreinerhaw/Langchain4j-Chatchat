@@ -13,7 +13,7 @@
 
     <artifactId>chatchat-knowledge-base</artifactId>
     <name>ChatChat Knowledge Base Module</name>
-    <description>Knowledge base management, document processing, RAG retrieval, and search strategies</description>
+    <description>Document processing, versioning, and keyword search strategies</description>
 
     <dependencies>
         <!-- Internal -->

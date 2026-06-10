@@ -15,6 +15,9 @@ public record LibraryDocumentItem(
     String detailPath,
     String filePath,
     Long uploadedAt,
-    Long updatedAt
+    Long updatedAt,
+    String versionGroupId,
+    int version,
+    boolean latestVersion
 ) {
 }

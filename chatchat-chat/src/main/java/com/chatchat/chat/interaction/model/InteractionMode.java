@@ -5,7 +5,6 @@ package com.chatchat.chat.interaction.model;
  */
 public enum InteractionMode {
     LLM_CHAT("llm_chat"),
-    KNOWLEDGE_BASE_CHAT("knowledge_base_chat"),
     AGENT_CHAT("agent_chat"),
     TOOL_DIRECT("tool_direct");
 

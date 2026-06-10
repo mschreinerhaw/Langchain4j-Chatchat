@@ -1,67 +1,32 @@
 package com.chatchat.mcpserver.audit;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.Id;
-import jakarta.persistence.Lob;
-import jakarta.persistence.PrePersist;
-import jakarta.persistence.Table;
-
 import java.time.Instant;
-import java.util.UUID;
 
-@Entity
-@Table(name = "mcp_invocation_audit_log")
 public class InvocationAuditLog {
 
-    @Id
-    @Column(length = 64)
     private String id;
 
-    @Column(nullable = false, length = 64)
     private String targetType;
 
-    @Column(length = 64)
     private String targetId;
 
-    @Column(length = 200)
     private String targetName;
 
-    @Column(length = 128)
     private String caller;
 
-    @Column(nullable = false)
     private boolean success;
 
-    @Column
     private Integer statusCode;
 
-    @Column
     private Long durationMs;
 
-    @Column(length = 1000)
     private String errorMessage;
 
-    @Lob
-    @Column
     private String requestSummary;
 
-    @Lob
-    @Column
     private String responseSummary;
 
-    @Column(nullable = false)
     private Instant createdAt;
-
-    @PrePersist
-    public void prePersist() {
-        if (id == null || id.isBlank()) {
-            id = UUID.randomUUID().toString();
-        }
-        if (createdAt == null) {
-            createdAt = Instant.now();
-        }
-    }
 
     public String getId() {
         return id;

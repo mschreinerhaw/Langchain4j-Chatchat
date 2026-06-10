@@ -88,7 +88,6 @@ chatchat:
   models:
     defaultProvider: openai
     defaultChatModel: qwen3.6-plus
-    defaultEmbeddingModel: text-embedding-v4
     timeout: 300
     openai:
       apiKey: replace-with-your-key
@@ -100,17 +99,6 @@ chatchat:
         host:
         port: 0
         type: http
-    ollama:
-      baseUrl: http://localhost:11434
-      timeout: 30
-    xinference:
-      baseUrl: http://localhost:9997
-      timeout: 30
-  rag:
-    maxRetrievalResults: 10
-    defaultChunkSize: 1000
-    defaultChunkOverlap: 100
-    timeout: 60
   agent:
     task:
       queue-capacity: 1000
@@ -126,7 +114,6 @@ chatchat:
     store-path: ./data/search-rocksdb
     file-path: ./data/search-files
     create-if-missing: true
-    embedding-enabled: true
     max-upload-bytes: 5242880
     default-limit: 20
     max-limit: 100

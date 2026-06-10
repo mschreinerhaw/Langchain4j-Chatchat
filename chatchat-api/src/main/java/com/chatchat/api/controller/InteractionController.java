@@ -101,7 +101,6 @@ public class InteractionController {
     private String describe(InteractionMode mode) {
         return switch (mode) {
             case LLM_CHAT -> "General LLM conversation with short-term memory";
-            case KNOWLEDGE_BASE_CHAT -> "RAG conversation against managed knowledge bases";
             case AGENT_CHAT -> "Agent loop with dynamic tool orchestration";
             case TOOL_DIRECT -> "Direct tool invocation without agent planning";
         };

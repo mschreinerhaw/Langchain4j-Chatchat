@@ -19,7 +19,7 @@ public class OpenAPIConfig {
             .info(new Info()
                 .title("ChatChat API")
                 .version("1.0.0")
-                .description("Enterprise-grade RAG and Agent AI Application powered by LangChain4j")
+                .description("Enterprise-grade document search and Agent AI application powered by LangChain4j")
                 .contact(new Contact()
                     .name("ChatChat Team")
                     .url("https://github.com/chatchat-space/Langchain-Chatchat"))

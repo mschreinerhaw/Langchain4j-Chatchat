@@ -8,7 +8,9 @@ import "../../styles/pages/library.css";
 import {
   createResearchCategory,
   fetchResearchLibrary,
-  getSearchDocument
+  getSearchDocument,
+  getSearchDocumentVersion,
+  getSearchDocumentVersions
 } from "../../services/api.js";
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
@@ -20,9 +22,9 @@ const markdown = new MarkdownIt({
 });
 
 const MESSAGE_TEXT = {
-  library_empty: "资料库暂无文档，请先在 AI 搜索页上传资料。",
-  title_not_found: "没有找到这个标题的资料。",
-  no_documents: "当前分类暂无资料。",
+  library_empty: "文档库暂无文档，请先在文档检索页上传文档。",
+  title_not_found: "没有找到这个标题的文档。",
+  no_documents: "当前分类暂无文档。",
   ok: ""
 };
 
@@ -52,6 +54,8 @@ export default {
       viewerLoading: false,
       viewerError: "",
       viewerDocument: null,
+      viewerVersions: [],
+      selectedVersion: null,
       viewerHtml: "",
       viewerMode: "text"
     };
@@ -61,8 +65,30 @@ export default {
       return this.viewerDocument?.documentType || this.inferDocumentType(this.viewerDocument?.fileName);
     },
     viewerFileUrl() {
-      return this.viewerDocument?.docId
-        ? `/api/v1/search/documents/${encodeURIComponent(this.viewerDocument.docId)}/file`
+      const docId = this.viewerDocument?.docId;
+      const version = this.selectedVersion || this.viewerDocument?.version;
+      if (!docId) {
+        return "";
+      }
+      return version
+        ? `/api/v1/search/documents/${encodeURIComponent(docId)}/versions/${encodeURIComponent(version)}/file`
+        : `/api/v1/search/documents/${encodeURIComponent(docId)}/file`;
+    },
+    hasMultipleVersions() {
+      return this.viewerVersions.length > 1;
+    },
+    selectedVersionLabel() {
+      return this.selectedVersion ? `v${this.selectedVersion}` : "v1";
+    },
+    latestVersionNumber() {
+      return this.viewerVersions.find((version) => version.latestVersion)?.version
+        || this.viewerVersions[0]?.version
+        || this.viewerDocument?.version
+        || 1;
+    },
+    viewerVersionSummary() {
+      return this.hasMultipleVersions
+        ? `${this.selectedVersionLabel} / 最新 v${this.latestVersionNumber}`
         : "";
     },
     pagedDocuments() {
@@ -122,7 +148,7 @@ export default {
         this.message = MESSAGE_TEXT[payload?.message] || "";
         this.clampPage();
       } catch (error) {
-        this.error = error.message || "加载资料库失败";
+        this.error = error.message || "加载文档库失败";
       } finally {
         this.loading = false;
       }
@@ -137,7 +163,7 @@ export default {
       await this.loadLibrary();
       const title = this.titleKeyword.trim();
       if (title) {
-        this.message = this.titleExists ? "资料已存在。" : "资料不存在。";
+        this.message = this.titleExists ? "文档已存在。" : "文档不存在。";
       }
     },
     async createCategory() {
@@ -182,14 +208,43 @@ export default {
       this.viewerLoading = true;
       this.viewerError = "";
       this.viewerDocument = null;
+      this.viewerVersions = [];
+      this.selectedVersion = null;
       this.viewerHtml = "";
       this.viewerMode = "text";
       try {
-        this.viewerDocument = await getSearchDocument(docId);
+        const document = await getSearchDocument(docId);
+        const versions = await getSearchDocumentVersions(docId);
+        this.viewerDocument = document;
+        this.viewerVersions = versions?.length ? versions : [this.versionItemFromDocument(document)];
+        this.selectedVersion = document?.version || this.viewerVersions.find((version) => version.latestVersion)?.version || 1;
+        this.viewerLoading = false;
         await nextTick();
         await this.renderDocument();
       } catch (error) {
         this.viewerError = error.message || "加载文档失败";
+        this.viewerLoading = false;
+      } finally {
+        this.viewerLoading = false;
+      }
+    },
+    async switchDocumentVersion(version) {
+      if (!version || version === this.selectedVersion || !this.viewerDocument?.docId) {
+        return;
+      }
+      this.viewerLoading = true;
+      this.viewerError = "";
+      this.viewerHtml = "";
+      this.viewerMode = "text";
+      try {
+        this.viewerDocument = await getSearchDocumentVersion(this.viewerDocument.docId, version);
+        this.selectedVersion = version;
+        this.viewerLoading = false;
+        await nextTick();
+        await this.renderDocument();
+      } catch (error) {
+        this.viewerError = error.message || "加载文档版本失败";
+        this.viewerLoading = false;
       } finally {
         this.viewerLoading = false;
       }
@@ -266,6 +321,8 @@ export default {
     closeDocument() {
       this.viewerOpen = false;
       this.viewerDocument = null;
+      this.viewerVersions = [];
+      this.selectedVersion = null;
       this.viewerError = "";
       this.viewerHtml = "";
     },
@@ -286,7 +343,7 @@ export default {
     },
     categoryLabel(name) {
       if (name === "all") {
-        return "全部资料";
+        return "全部文档";
       }
       if (name === "uncategorized") {
         return "未分类";
@@ -318,6 +375,27 @@ export default {
         text: "Text"
       };
       return labels[type] || "Text";
+    },
+    versionItemFromDocument(document) {
+      return {
+        docId: document?.docId,
+        versionGroupId: document?.versionGroupId || document?.docId,
+        version: document?.version || 1,
+        latestVersion: document?.latestVersion !== false,
+        title: document?.title,
+        source: document?.source,
+        date: document?.date,
+        fileName: document?.fileName,
+        documentType: document?.documentType,
+        uploadedAt: document?.uploadedAt,
+        updatedAt: document?.updatedAt
+      };
+    },
+    formatVersionTime(value) {
+      if (!value) {
+        return "";
+      }
+      return new Date(value).toLocaleString();
     }
   }
 };

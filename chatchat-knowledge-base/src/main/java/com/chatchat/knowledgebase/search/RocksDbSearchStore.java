@@ -61,7 +61,9 @@ public class RocksDbSearchStore {
             }
             db.put(bytes(DOC_PREFIX + document.getDocId()), objectMapper.writeValueAsBytes(document));
             db.put(bytes(META_PREFIX + document.getDocId()), objectMapper.writeValueAsBytes(toMetadata(document)));
-            putIndexEntries(document.getDocId(), indexData);
+            if (isLatestVersion(document)) {
+                putIndexEntries(document.getDocId(), indexData);
+            }
         } catch (IOException | RocksDBException ex) {
             throw new IllegalStateException("Failed to write search document", ex);
         }
@@ -204,8 +206,15 @@ public class RocksDbSearchStore {
             document.getFilePath(),
             document.getDocumentType(),
             document.getUploadedAt(),
-            document.getUpdatedAt()
+            document.getUpdatedAt(),
+            document.getVersionGroupId(),
+            document.getVersion(),
+            document.getLatestVersion()
         );
+    }
+
+    private boolean isLatestVersion(SearchDocument document) {
+        return !Boolean.FALSE.equals(document.getLatestVersion());
     }
 
     private boolean startsWith(byte[] value, String prefix) {
@@ -238,7 +247,10 @@ public class RocksDbSearchStore {
         String filePath,
         String documentType,
         Long uploadedAt,
-        Long updatedAt
+        Long updatedAt,
+        String versionGroupId,
+        Integer version,
+        Boolean latestVersion
     ) {
     }
 }

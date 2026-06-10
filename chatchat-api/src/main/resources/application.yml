@@ -93,7 +93,6 @@ chatchat:
   models:
     defaultProvider: openai
     defaultChatModel: qwen3.6-plus
-    defaultEmbeddingModel: text-embedding-v4
     availableChatModels:
       - qwen3.6-plus
       - deepseek-v4-pro
@@ -101,7 +100,6 @@ chatchat:
       - qwen3.6-35b-a3b
       - qwen-flash-character
       - qwen3.6-max-preview
-      - text-embedding-v4
 #    timeout: 300
     openai:
 #      apiKey: ${OPENAI_API_KEY:sk-7e959e47577547839a0da923f15098a4}
@@ -115,17 +113,6 @@ chatchat:
         host: ${OPENAI_PROXY_HOST:}
         port: ${OPENAI_PROXY_PORT:0}
         type: ${OPENAI_PROXY_TYPE:http}
-    ollama:
-      baseUrl: http://localhost:11434
-      timeout: 30
-    xinference:
-      baseUrl: http://localhost:9997
-      timeout: 30
-  rag:
-    maxRetrievalResults: 10
-    defaultChunkSize: 1000
-    defaultChunkOverlap: 100
-    timeout: 60
   agent:
     task:
       queue-capacity: ${CHAT_AGENT_TASK_QUEUE_CAPACITY:1000}
@@ -141,7 +128,6 @@ chatchat:
     store-path: ${CHAT_SEARCH_STORE_PATH:./data/search-rocksdb}
     file-path: ${CHAT_SEARCH_FILE_PATH:./data/search-files}
     create-if-missing: true
-    embedding-enabled: ${CHAT_SEARCH_EMBEDDING_ENABLED:true}
     max-upload-bytes: ${CHAT_SEARCH_MAX_UPLOAD_BYTES:5242880}
     default-limit: 20
   tool-runtime:

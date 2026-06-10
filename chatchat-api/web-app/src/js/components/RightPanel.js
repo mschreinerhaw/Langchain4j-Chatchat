@@ -1,7 +1,5 @@
 import {
-  AlertTriangle,
   Bot,
-  Briefcase,
   ClipboardList,
   FileText,
   PanelRightClose,
@@ -13,9 +11,7 @@ import "../../styles/components/right-panel.css";
 export default {
   name: "RightPanel",
   components: {
-    AlertTriangle,
     Bot,
-    Briefcase,
     ClipboardList,
     FileText,
     PanelRightClose,
@@ -40,20 +36,8 @@ export default {
     railItems() {
       return [
         {
-          id: "holdings",
-          label: "我的持仓",
-          icon: Briefcase,
-          count: this.holdings.length
-        },
-        {
-          id: "risks",
-          label: "风险事件",
-          icon: AlertTriangle,
-          count: this.riskEvents.length
-        },
-        {
           id: "reports",
-          label: "最近报告",
+          label: "最近文档",
           icon: FileText,
           count: this.reports.length
         },

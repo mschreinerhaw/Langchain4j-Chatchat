@@ -3,7 +3,6 @@
     <header class="market-header">
       <div>
         <p>能力广场</p>
-        <h1>面向业务人员的投研与经营能力</h1>
       </div>
     </header>
 

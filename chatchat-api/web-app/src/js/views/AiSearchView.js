@@ -3,9 +3,9 @@ import { searchDocuments, uploadSearchDocument } from "../../services/api.js";
 
 const MAX_UPLOAD_SIZE = 5 * 1024 * 1024;
 const MESSAGE_TEXT = {
-  library_empty: "资料库暂无文档，请先上传资料。",
-  no_match: "没有找到匹配资料，请换一个关键词。",
-  no_documents: "暂无可展示资料。",
+  library_empty: "文档库暂无文档，请先上传文档。",
+  no_match: "没有找到匹配文档，请换一个关键词。",
+  no_documents: "暂无可展示文档。",
   ok: ""
 };
 
@@ -34,7 +34,7 @@ function defaultUploadForm() {
   return {
     file: null,
     title: "",
-    source: "投研资料库",
+    source: "文档中心",
     date: todayString(),
     tags: "",
     documentType: "auto"
@@ -119,7 +119,7 @@ export default {
         this.hasMoreResults = Boolean(payload?.hasMore);
         this.clampPage();
       } catch (error) {
-        this.error = error.message || "搜索失败";
+        this.error = error.message || "检索失败";
         this.results = [];
         this.resultTotal = 0;
         this.pageCount = 1;
@@ -154,7 +154,7 @@ export default {
       if (file && file.size > MAX_UPLOAD_SIZE) {
         this.uploadForm.file = null;
         event.target.value = "";
-        this.uploadError = "资料文件不能超过 5MB";
+        this.uploadError = "文档文件不能超过 5MB";
         return;
       }
       this.uploadForm.file = file;
@@ -167,7 +167,7 @@ export default {
     },
     async uploadDocument() {
       if (!this.uploadForm.file) {
-        this.uploadError = "请选择要上传的资料文件";
+        this.uploadError = "请选择要上传的文档文件";
         return;
       }
       this.uploading = true;

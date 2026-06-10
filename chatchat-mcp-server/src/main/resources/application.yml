@@ -65,6 +65,7 @@ chatchat:
       excluded-tool-names: []
       instructions: "ChatChat standalone MCP server exposing LangChain4j-compatible tools."
     livedata:
+      # Enables the admin page to list and manually register LiveData APIs. Startup auto-sync is disabled.
       enabled: true
       jdbc-url: jdbc:mysql://192.168.195.223:3306/LiveDOP?characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai
       username: root
@@ -87,7 +88,7 @@ chatchat:
       timeout-ms: 20000
       cache-enabled: false
       cache-ttl-seconds: 300
-      overwrite-existing: true
+      overwrite-existing: false
       include-unpublished-as-disabled: false
       expose-ams-token-parameter: false
   tools:

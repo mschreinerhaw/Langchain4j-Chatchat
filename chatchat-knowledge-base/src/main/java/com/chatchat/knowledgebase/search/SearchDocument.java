@@ -33,4 +33,7 @@ public class SearchDocument {
     private Long fileSize;
     private Long uploadedAt;
     private Long updatedAt;
+    private String versionGroupId;
+    private Integer version;
+    private Boolean latestVersion;
 }

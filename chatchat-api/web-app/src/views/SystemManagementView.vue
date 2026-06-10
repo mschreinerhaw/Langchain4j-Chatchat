@@ -34,17 +34,17 @@
               <RefreshCw :size="14" />
               用户
             </button>
+            <button type="button" @click="openOrgModal()">
+              <Plus :size="14" />
+              新增组织
+            </button>
+            <button type="button" @click="openUserModal()">
+              <Plus :size="14" />
+              新增账户
+            </button>
             <button type="button" @click="openRoleModal()">
               <Plus :size="14" />
-              新增
-            </button>
-            <button type="button" :disabled="!selectedRoleId" @click="openRoleModal(selectedRole)">
-              <Pencil :size="14" />
-              编辑
-            </button>
-            <button type="button" :disabled="!selectedRoleId" @click="removeRole">
-              <Trash2 :size="14" />
-              删除
+              新增角色
             </button>
           </div>
         </div>
@@ -57,11 +57,11 @@
             <span>状态</span>
             <span>已配权限</span>
             <span>绑定用户</span>
+            <span>操作</span>
           </div>
-          <button
+          <div
             v-for="role in roles"
             :key="role.id"
-            type="button"
             class="role-record"
             :class="{ active: role.id === selectedRoleId }"
             @click="selectRole(role)"
@@ -77,13 +77,149 @@
             </span>
             <span>{{ role.id === selectedRoleId ? selectedPermissionIds.length : "-" }}</span>
             <span>{{ role.id === selectedRoleId ? selectedUserIds.length : "-" }}</span>
-          </button>
+            <span class="entity-row-actions">
+              <button type="button" class="icon-button" title="编辑角色" @click.stop="openRoleModal(role)">
+                <Pencil :size="15" />
+              </button>
+              <button type="button" class="icon-button" title="删除角色" @click.stop="removeRole(role)">
+                <Trash2 :size="15" />
+              </button>
+            </span>
+          </div>
         </div>
       </aside>
 
     </div>
 
     <Teleport to="body">
+      <div v-if="orgModalOpen" class="permission-modal-backdrop" @click.self="closeOrgModal">
+        <form class="entity-modal" @submit.prevent="saveOrgForm">
+          <div class="modal-head">
+            <div>
+              <p>组织档案</p>
+              <h2>{{ orgForm.id ? "编辑组织" : "新增组织" }}</h2>
+            </div>
+            <button type="button" class="icon-button" title="关闭" @click="closeOrgModal">
+              <X :size="18" />
+            </button>
+          </div>
+
+          <div class="entity-form modal-entity-form">
+            <label>
+              <span>组织名称</span>
+              <input v-model.trim="orgForm.orgName" type="text" />
+            </label>
+            <label>
+              <span>组织编码</span>
+              <input v-model.trim="orgForm.orgCode" type="text" />
+            </label>
+            <label>
+              <span>上级组织</span>
+              <select v-model="orgForm.parentId">
+                <option value="">无上级组织</option>
+                <option
+                  v-for="org in orgTree"
+                  :key="org.id"
+                  :value="org.id"
+                  :disabled="org.id === orgForm.id"
+                >
+                  {{ `${"　".repeat(org.level)}${org.orgName}` }}
+                </option>
+              </select>
+            </label>
+            <label>
+              <span>排序</span>
+              <input v-model.number="orgForm.sortOrder" type="number" min="0" />
+            </label>
+            <label>
+              <span>状态</span>
+              <select v-model="orgForm.status">
+                <option value="enabled">启用</option>
+                <option value="disabled">停用</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="modal-actions">
+            <button type="button" class="ghost-button" @click="closeOrgModal">取消</button>
+            <button type="submit" class="primary-button" :disabled="savingOrg">
+              <Save :size="16" />
+              <span>{{ orgForm.id ? "保存组织" : "新增组织" }}</span>
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <div v-if="userModalOpen" class="permission-modal-backdrop" @click.self="closeUserModal">
+        <form class="entity-modal" @submit.prevent="saveUserForm">
+          <div class="modal-head">
+            <div>
+              <p>账户档案</p>
+              <h2>{{ userForm.id ? "编辑账户" : "新增账户" }}</h2>
+            </div>
+            <button type="button" class="icon-button" title="关闭" @click="closeUserModal">
+              <X :size="18" />
+            </button>
+          </div>
+
+          <div class="entity-form modal-entity-form">
+            <label>
+              <span>账号</span>
+              <input v-model.trim="userForm.username" type="text" :disabled="!!userForm.id" />
+            </label>
+            <label>
+              <span>姓名</span>
+              <input v-model.trim="userForm.displayName" type="text" />
+            </label>
+            <label>
+              <span>密码</span>
+              <input v-model="userForm.password" type="password" :placeholder="userForm.id ? '留空不修改' : '默认 123456'" />
+            </label>
+            <label>
+              <span>所属组织</span>
+              <select v-model="userForm.orgId">
+                <option value="">未分配组织</option>
+                <option v-for="org in orgTree" :key="org.id" :value="org.id">
+                  {{ `${"　".repeat(org.level)}${org.orgName}` }}
+                </option>
+              </select>
+            </label>
+            <label>
+              <span>邮箱</span>
+              <input v-model.trim="userForm.email" type="email" />
+            </label>
+            <label>
+              <span>电话</span>
+              <input v-model.trim="userForm.phone" type="tel" />
+            </label>
+            <label>
+              <span>状态</span>
+              <select v-model="userForm.status">
+                <option value="enabled">启用</option>
+                <option value="disabled">停用</option>
+                <option value="locked">锁定</option>
+              </select>
+            </label>
+            <label class="full-span">
+              <span>角色</span>
+              <select v-model="userForm.roleIds" multiple size="4">
+                <option v-for="role in roles" :key="role.id" :value="role.id">
+                  {{ role.roleName }}
+                </option>
+              </select>
+            </label>
+          </div>
+
+          <div class="modal-actions">
+            <button type="button" class="ghost-button" @click="closeUserModal">取消</button>
+            <button type="submit" class="primary-button" :disabled="savingUser">
+              <Save :size="16" />
+              <span>{{ userForm.id ? "保存账户" : "新增账户" }}</span>
+            </button>
+          </div>
+        </form>
+      </div>
+
       <div v-if="roleModalOpen" class="permission-modal-backdrop" @click.self="closeRoleModal">
         <form class="role-modal" @submit.prevent="saveRoleForm">
           <div class="modal-head">

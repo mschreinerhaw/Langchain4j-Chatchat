@@ -70,8 +70,6 @@ public class AgentOrchestrator {
                                              List<String> requiredToolNames,
                                              boolean requireBoundToolCall) {
         List<String> tools = availableTools == null ? List.of() : availableTools;
-        List<String> mandatoryTools = resolveMandatoryToolCandidates(tools, requiredToolNames, requireBoundToolCall);
-        boolean requireToolBeforeFinal = !mandatoryTools.isEmpty();
         List<String> documentIds = normalizeList(boundDocumentIds);
         List<String> documentTags = normalizeList(boundDocumentTags);
         String verificationWebSearchTool = resolveVerificationWebSearchTool(tools);
@@ -81,6 +79,11 @@ public class AgentOrchestrator {
             documentIds,
             documentTags
         );
+        List<String> mandatoryTools = resolveMandatoryToolCandidates(tools, requiredToolNames, requireBoundToolCall);
+        if (requireDocumentWebVerification) {
+            mandatoryTools = withDocumentWebVerificationMandatoryTools(mandatoryTools, verificationWebSearchTool);
+        }
+        boolean requireToolBeforeFinal = !mandatoryTools.isEmpty();
         ChatModel activeChatModel = resolveChatModel(modelName);
         List<InteractionToolTrace> traces = new ArrayList<>();
         List<String> observations = new ArrayList<>();
@@ -286,9 +289,9 @@ public class AgentOrchestrator {
         prompt.append("You are an agent planner.\n");
         prompt.append("Goal: solve the user query with zero or more tools.\n");
         if (requireToolBeforeFinal) {
-            prompt.append("Mandatory MCP tool policy:\n");
-            prompt.append("- This agent is bound to external MCP tools. Your next response MUST be a tool action.\n");
-            prompt.append("- Do not return a final answer until at least one mandatory MCP tool has been called and observed.\n");
+            prompt.append("Mandatory tool policy:\n");
+            prompt.append("- This agent is bound to required runtime tools. Your next response MUST be a tool action.\n");
+            prompt.append("- Do not return a final answer until at least one mandatory tool has been called and observed.\n");
             prompt.append("- Choose the most relevant tool from this mandatory set: ").append(mandatoryTools).append("\n");
             prompt.append("- If the user request is analytical, portfolio-related, market-related, data-driven, or requires validation, use a mandatory tool first.\n\n");
         }
@@ -870,6 +873,17 @@ public class AgentOrchestrator {
             return requiredTools;
         }
         return List.of();
+    }
+
+    private List<String> withDocumentWebVerificationMandatoryTools(List<String> mandatoryTools,
+                                                                   String verificationWebSearchTool) {
+        LinkedHashMap<String, Boolean> ordered = new LinkedHashMap<>();
+        ordered.put(DOCUMENT_SEARCH_TOOL, Boolean.TRUE);
+        if (verificationWebSearchTool != null && !verificationWebSearchTool.isBlank()) {
+            ordered.put(verificationWebSearchTool, Boolean.TRUE);
+        }
+        normalizeList(mandatoryTools).forEach(toolName -> ordered.put(toolName, Boolean.TRUE));
+        return new ArrayList<>(ordered.keySet());
     }
 
     private boolean isMcpTool(String toolName) {

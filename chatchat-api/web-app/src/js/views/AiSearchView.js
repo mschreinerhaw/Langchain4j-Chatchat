@@ -34,7 +34,7 @@ function defaultUploadForm() {
   return {
     file: null,
     title: "",
-    source: "文档中心",
+    source: "文档库",
     date: todayString(),
     tags: "",
     documentType: "auto"

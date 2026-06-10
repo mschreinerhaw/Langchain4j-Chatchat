@@ -2,8 +2,7 @@
   <section class="feature-view skill-hub-view agent-workshop-view">
     <header class="agent-workshop-header">
       <div>
-        <p>Agent工坊</p>
-        <h1>配置可复用的业务智能体</h1>
+        <p>Agent管理</p>
       </div>
     </header>
 
@@ -332,7 +331,7 @@
               </section>
             </div>
             <p v-else-if="registeredMcpTools.length" class="agent-tool-empty">没有匹配的MCP工具，请换一个关键词或分组方式。</p>
-            <p v-else class="agent-tool-empty">请先在 MCP 中心完成服务接入和工具注册。</p>
+            <p v-else class="agent-tool-empty">请先在 MCP服务 完成服务接入和工具注册。</p>
           </section>
 
           <section class="agent-document-picker wide-field">
@@ -390,6 +389,10 @@
             <label>
               <span>最大并行数</span>
               <input v-model.number="form.routingSettings.maxParallelCalls" type="number" min="1" max="10">
+            </label>
+            <label>
+              <span>最大相关 MCP 工具数</span>
+              <input v-model.number="form.routingSettings.maxRelevantMcpTools" type="number" min="1" max="20">
             </label>
           </section>
         </div>

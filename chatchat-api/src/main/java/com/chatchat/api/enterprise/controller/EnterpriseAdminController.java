@@ -67,23 +67,18 @@ public class EnterpriseAdminController {
     public ApiResponse<List<MenuGroup>> menus() {
         return ApiResponse.success(List.of(
             new MenuGroup("workspace", "工作台", List.of(
-                new MenuItem("dashboard", "运营总览", "/index.html#enterprise"),
-                new MenuItem("chat", "智能问答", "/index.html#chat")
+                new MenuItem("chat", "智能对话", "/index.html#chat"),
+                new MenuItem("search", "文档检索", "/index.html#search")
             )),
-            new MenuGroup("capability", "能力中心", List.of(
-                new MenuItem("skills", "技能管理", "/index.html#skills"),
-                new MenuItem("models", "模型管理", "/index.html#enterprise"),
-                new MenuItem("mcp-services", "MCP 服务", "/index.html#mcp")
+            new MenuGroup("capability", "能力管理", List.of(
+                new MenuItem("market", "能力市场", "/index.html#market"),
+                new MenuItem("library", "文档库", "/index.html#library")
             )),
-            new MenuGroup("system", "系统管理", List.of(
-                new MenuItem("tenants", "租户管理", "/index.html#enterprise"),
-                new MenuItem("orgs", "组织管理", "/index.html#enterprise"),
-                new MenuItem("users", "用户管理", "/index.html#enterprise"),
-                new MenuItem("roles", "角色权限", "/index.html#enterprise")
-            )),
-            new MenuGroup("audit", "审计中心", List.of(
-                new MenuItem("operation-logs", "操作日志", "/index.html#enterprise"),
-                new MenuItem("tool-call-logs", "工具调用日志", "/index.html#enterprise")
+            new MenuGroup("platform", "平台管理", List.of(
+                new MenuItem("mcp", "MCP服务", "/index.html#mcp"),
+                new MenuItem("agents", "Agent管理", "/index.html#agents"),
+                new MenuItem("tasks", "运行监控", "/index.html#tasks"),
+                new MenuItem("system", "系统管理", "/index.html#system")
             ))
         ));
     }

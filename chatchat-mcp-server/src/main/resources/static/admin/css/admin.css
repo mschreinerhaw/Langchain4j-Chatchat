@@ -480,6 +480,15 @@ body {
     width: min(420px, 100%);
 }
 
+.bulk-toolbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    min-height: 34px;
+    margin: -4px 0 14px;
+}
+
 .api-service-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -507,15 +516,36 @@ body {
     background: #fff;
 }
 
+.service-card.selected {
+    border-color: #86b7fe;
+    box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.12);
+}
+
 .api-card {
     min-height: 188px;
     display: flex;
     flex-direction: column;
     cursor: default;
+    position: relative;
+}
+
+.service-card-check {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    display: grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    margin: 0;
+    border-radius: 6px;
+    background: #fff;
+    border: 1px solid var(--line);
 }
 
 .api-card-main {
     min-height: 70px;
+    padding-right: 30px;
 }
 
 .database-mcp-view {

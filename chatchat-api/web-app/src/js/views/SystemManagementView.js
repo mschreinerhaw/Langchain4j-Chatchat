@@ -11,8 +11,12 @@ import {
 } from "@lucide/vue";
 import "../../styles/pages/system-management.css";
 import {
+  createOrg,
   createRole,
+  createUser,
+  deleteOrg,
   deleteRole,
+  deleteUser,
   fetchEnterpriseSummary,
   fetchOrgs,
   fetchPermissions,
@@ -23,7 +27,9 @@ import {
   saveRoleAuthorization,
   syncEnterpriseOrgs,
   syncEnterpriseUsers,
-  updateRole
+  updateOrg,
+  updateRole,
+  updateUser
 } from "../../services/api";
 
 const blankRoleForm = () => ({
@@ -33,6 +39,27 @@ const blankRoleForm = () => ({
   roleType: "business",
   status: "enabled",
   description: ""
+});
+
+const blankOrgForm = () => ({
+  id: "",
+  parentId: "",
+  orgCode: "",
+  orgName: "",
+  sortOrder: 0,
+  status: "enabled"
+});
+
+const blankUserForm = () => ({
+  id: "",
+  orgId: "",
+  username: "",
+  displayName: "",
+  password: "",
+  email: "",
+  phone: "",
+  status: "enabled",
+  roleIds: []
 });
 
 export default {
@@ -51,8 +78,12 @@ export default {
   data() {
     return {
       loading: false,
+      savingOrg: false,
       savingRole: false,
+      savingUser: false,
+      orgModalOpen: false,
       roleModalOpen: false,
+      userModalOpen: false,
       error: "",
       message: "",
       summary: {},
@@ -74,7 +105,9 @@ export default {
       draftScopeOrgId: "",
       userPickerOpen: false,
       tempPickerUserIds: [],
-      roleForm: blankRoleForm()
+      orgForm: blankOrgForm(),
+      roleForm: blankRoleForm(),
+      userForm: blankUserForm()
     };
   },
   computed: {
@@ -85,6 +118,33 @@ export default {
         { label: "角色", value: this.summary.roleCount ?? this.roles.length },
         { label: "权限", value: this.summary.permissionCount ?? this.permissions.length }
       ];
+    },
+    orgTree() {
+      const children = new Map();
+      this.orgs.forEach((org) => {
+        const parent = org.parentId || "root";
+        if (!children.has(parent)) {
+          children.set(parent, []);
+        }
+        children.get(parent).push(org);
+      });
+      const result = [];
+      const walk = (parentId, level) => {
+        (children.get(parentId) || []).forEach((org) => {
+          result.push({ ...org, level });
+          walk(org.id, level + 1);
+        });
+      };
+      walk("root", 0);
+      return result.length ? result : this.orgs.map((org) => ({ ...org, level: 0 }));
+    },
+    orgUserCounts() {
+      return this.users.reduce((counts, user) => {
+        if (user.orgId) {
+          counts[user.orgId] = (counts[user.orgId] || 0) + 1;
+        }
+        return counts;
+      }, {});
     },
     permissionTree() {
       const children = new Map();
@@ -242,6 +302,173 @@ export default {
       this.roleForm = blankRoleForm();
       this.selectedRoleId = "";
     },
+    resetOrgForm() {
+      this.orgForm = blankOrgForm();
+    },
+    openOrgModal(org = null) {
+      if (org) {
+        this.editOrg(org);
+      } else {
+        this.resetOrgForm();
+      }
+      this.orgModalOpen = true;
+    },
+    closeOrgModal() {
+      this.orgModalOpen = false;
+      this.resetOrgForm();
+    },
+    editOrg(org) {
+      this.orgForm = {
+        id: org.id,
+        parentId: org.parentId || "",
+        orgCode: org.orgCode || "",
+        orgName: org.orgName || "",
+        sortOrder: org.sortOrder ?? 0,
+        status: org.status || "enabled"
+      };
+    },
+    async saveOrgForm() {
+      if (!this.orgForm.orgName || !this.orgForm.orgCode) {
+        this.setNotice("请填写组织名称和组织编码", true);
+        return;
+      }
+      this.savingOrg = true;
+      try {
+        const payload = {
+          tenantId: this.selectedTenantId,
+          parentId: this.orgForm.parentId || null,
+          orgCode: this.orgForm.orgCode,
+          orgName: this.orgForm.orgName,
+          sortOrder: Number(this.orgForm.sortOrder) || 0,
+          status: this.orgForm.status
+        };
+        const saved = this.orgForm.id
+          ? await updateOrg(this.orgForm.id, payload)
+          : await createOrg(payload);
+        this.setNotice(this.orgForm.id ? "组织已更新" : "组织已新增");
+        this.resetOrgForm();
+        this.orgModalOpen = false;
+        await this.loadTenantData(this.selectedRoleId);
+        if (saved?.id) {
+          this.userForm.orgId = saved.id;
+        }
+      } catch (error) {
+        this.setNotice(error.message || "组织保存失败", true);
+      } finally {
+        this.savingOrg = false;
+      }
+    },
+    async removeOrg(org) {
+      if (!org?.id) {
+        return;
+      }
+      const childCount = this.orgs.filter((item) => item.parentId === org.id).length;
+      const userCount = this.orgUserCounts[org.id] || 0;
+      const suffix = childCount || userCount
+        ? `，该组织下有 ${childCount} 个下级组织、${userCount} 个账户`
+        : "";
+      if (!window.confirm(`确认删除组织「${org.orgName}」${suffix}？`)) {
+        return;
+      }
+      this.savingOrg = true;
+      try {
+        await deleteOrg(org.id);
+        this.setNotice("组织已删除");
+        if (this.orgForm.id === org.id) {
+          this.resetOrgForm();
+        }
+        await this.loadTenantData(this.selectedRoleId);
+      } catch (error) {
+        this.setNotice(error.message || "组织删除失败", true);
+      } finally {
+        this.savingOrg = false;
+      }
+    },
+    resetUserForm() {
+      this.userForm = blankUserForm();
+    },
+    openUserModal(user = null) {
+      if (user) {
+        this.editUser(user);
+      } else {
+        this.resetUserForm();
+      }
+      this.userModalOpen = true;
+    },
+    closeUserModal() {
+      this.userModalOpen = false;
+      this.resetUserForm();
+    },
+    editUser(user) {
+      this.userForm = {
+        id: user.id,
+        orgId: user.orgId || "",
+        username: user.username || "",
+        displayName: user.displayName || "",
+        password: "",
+        email: user.email || "",
+        phone: user.phone || "",
+        status: user.status || "enabled",
+        roleIds: Array.isArray(user.roleIds) ? [...user.roleIds] : []
+      };
+    },
+    async saveUserForm() {
+      if (!this.userForm.username || !this.userForm.displayName) {
+        this.setNotice("请填写账号和姓名", true);
+        return;
+      }
+      this.savingUser = true;
+      try {
+        const user = {
+          tenantId: this.selectedTenantId,
+          orgId: this.userForm.orgId || null,
+          username: this.userForm.username,
+          displayName: this.userForm.displayName,
+          email: this.userForm.email,
+          phone: this.userForm.phone,
+          status: this.userForm.status
+        };
+        if (this.userForm.password) {
+          user.passwordHash = this.userForm.password;
+        }
+        const payload = {
+          user,
+          roleIds: this.userForm.roleIds
+        };
+        const saved = this.userForm.id
+          ? await updateUser(this.userForm.id, payload)
+          : await createUser(payload);
+        this.setNotice(this.userForm.id ? "账户已更新" : "账户已新增");
+        this.resetUserForm();
+        this.userModalOpen = false;
+        await this.loadTenantData(this.selectedRoleId);
+        if (saved?.id) {
+          this.editUser(saved);
+        }
+      } catch (error) {
+        this.setNotice(error.message || "账户保存失败", true);
+      } finally {
+        this.savingUser = false;
+      }
+    },
+    async removeUser(user) {
+      if (!user?.id || !window.confirm(`确认删除账户「${user.displayName || user.username}」？`)) {
+        return;
+      }
+      this.savingUser = true;
+      try {
+        await deleteUser(user.id);
+        this.setNotice("账户已删除");
+        if (this.userForm.id === user.id) {
+          this.resetUserForm();
+        }
+        await this.loadTenantData(this.selectedRoleId);
+      } catch (error) {
+        this.setNotice(error.message || "账户删除失败", true);
+      } finally {
+        this.savingUser = false;
+      }
+    },
     openRoleModal(role = null) {
       this.roleForm = role
         ? {
@@ -317,13 +544,15 @@ export default {
         this.savingRole = false;
       }
     },
-    async removeRole() {
-      if (!this.selectedRoleId || !window.confirm("确认删除当前角色？")) {
+    async removeRole(role = null) {
+      const roleId = role?.id || this.selectedRoleId;
+      const roleName = role?.roleName || this.selectedRole?.roleName || "当前角色";
+      if (!roleId || !window.confirm(`确认删除角色「${roleName}」？`)) {
         return;
       }
       this.savingRole = true;
       try {
-        await deleteRole(this.selectedRoleId);
+        await deleteRole(roleId);
         this.setNotice("角色已删除");
         await this.loadTenantData();
       } catch (error) {

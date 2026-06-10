@@ -65,6 +65,13 @@ public class DatabaseQueryAdminController {
         return ApiResponse.success(null, "Database query deleted");
     }
 
+    @PostMapping("/batch-delete")
+    public ApiResponse<Map<String, Object>> batchDelete(@RequestBody BatchDeleteRequest request) {
+        int deleted = configService.deleteAll(request.ids());
+        publisher.refresh();
+        return ApiResponse.success(Map.of("deleted", deleted), "Database queries deleted");
+    }
+
     @PostMapping("/{id}/enabled")
     public ApiResponse<DatabaseQueryView> setEnabled(@PathVariable("id") String id,
                                                      @RequestParam("enabled") boolean enabled) {
@@ -208,6 +215,9 @@ public class DatabaseQueryAdminController {
         Boolean reloadDrivers,
         Boolean enabled
     ) {
+    }
+
+    public record BatchDeleteRequest(List<String> ids) {
     }
 
     public record DatabaseQueryView(

@@ -3,7 +3,6 @@
     <header class="runtime-header">
       <div class="runtime-title">
         <p>Agent Runtime</p>
-        <h1>运行控制台</h1>
         <span>面向租户查看任务执行、事件链路与工具治理状态</span>
       </div>
       <div class="runtime-actions">

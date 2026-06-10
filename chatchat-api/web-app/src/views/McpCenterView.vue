@@ -2,8 +2,7 @@
   <section class="feature-view skill-hub-view mcp-center-view">
     <header class="mcp-header">
       <div>
-        <p>MCP 中心</p>
-        <h1>统一接入 ChatChat MCP Server</h1>
+        <p>MCP服务</p>
       </div>
     </header>
 
@@ -71,7 +70,7 @@
             <RefreshCw :size="17" />
             <span>{{ loading ? "刷新中" : "刷新" }}</span>
           </button>
-          <button type="button" class="primary-action" :disabled="syncing" title="从独立 MCP 中心同步" @click="syncCenter">
+          <button type="button" class="primary-action" :disabled="syncing" title="从独立 MCP服务同步" @click="syncCenter">
             <DownloadCloud :size="17" />
             <span>{{ syncing ? "同步中" : "同步中心" }}</span>
           </button>

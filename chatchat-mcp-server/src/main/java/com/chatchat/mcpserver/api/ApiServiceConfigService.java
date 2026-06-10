@@ -105,6 +105,24 @@ public class ApiServiceConfigService {
         repository.deleteById(id);
     }
 
+    @Transactional
+    public int deleteAll(List<String> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return 0;
+        }
+        List<String> normalizedIds = ids.stream()
+            .filter(id -> id != null && !id.isBlank())
+            .map(String::trim)
+            .distinct()
+            .toList();
+        if (normalizedIds.isEmpty()) {
+            return 0;
+        }
+        List<ApiServiceConfig> existing = repository.findAllById(normalizedIds);
+        repository.deleteAll(existing);
+        return existing.size();
+    }
+
     private void validate(ApiServiceConfig config, String currentId) {
         if (config.getToolName() == null || config.getToolName().isBlank()) {
             throw new IllegalArgumentException("toolName is required");

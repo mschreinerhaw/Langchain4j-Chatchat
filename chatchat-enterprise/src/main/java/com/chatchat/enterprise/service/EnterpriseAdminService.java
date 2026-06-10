@@ -50,7 +50,8 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class EnterpriseAdminService implements ApplicationRunner {
 
-    private static final String DEFAULT_TENANT_CODE = "guodu";
+    private static final String DEFAULT_TENANT_CODE = "default";
+    private static final String LEGACY_TENANT_CODE = "guodu";
 
     private final SysTenantRepository tenantRepository;
     private final SysOrgRepository orgRepository;
@@ -510,19 +511,12 @@ public class EnterpriseAdminService implements ApplicationRunner {
     }
 
     private void initializeDemoData() {
-        SysTenant tenant = tenantRepository.findByTenantCode(DEFAULT_TENANT_CODE).orElseGet(() -> {
-            SysTenant seed = new SysTenant();
-            seed.setTenantCode(DEFAULT_TENANT_CODE);
-            seed.setTenantName("国都证券");
-            seed.setContactName("平台管理员");
-            seed.setDescription("企业级智能问答助手平台默认租户");
-            return tenantRepository.save(seed);
-        });
+        SysTenant tenant = resolveDefaultTenant();
 
-        SysOrg root = ensureOrg(tenant.getId(), null, "guodu-root", "国都证券", 0);
-        SysOrg wealth = ensureOrg(tenant.getId(), root.getId(), "wealth", "财富管理部", 10);
-        ensureOrg(tenant.getId(), root.getId(), "fixed-income", "固收业务部", 20);
-        ensureOrg(tenant.getId(), root.getId(), "asset-management", "资管部", 30);
+        SysOrg root = ensureNeutralOrg(tenant.getId(), null, "guodu-root", "default-root", "默认组织", 0);
+        ensureNeutralOrg(tenant.getId(), root.getId(), "wealth", "operations", "运营部", 10);
+        ensureNeutralOrg(tenant.getId(), root.getId(), "fixed-income", "product", "产品部", 20);
+        ensureNeutralOrg(tenant.getId(), root.getId(), "asset-management", "knowledge", "知识管理部", 30);
         SysOrg it = ensureOrg(tenant.getId(), root.getId(), "it", "信息技术部", 40);
 
         SysRole superAdmin = ensureRole(tenant.getId(), "SUPER_ADMIN", "超级管理员", "platform");
@@ -544,6 +538,12 @@ public class EnterpriseAdminService implements ApplicationRunner {
             seed.setEmail("admin@example.com");
             return userRepository.save(seed);
         });
+        admin.setTenantId(tenant.getId());
+        admin.setOrgId(it.getId());
+        admin.setDisplayName("系统管理员");
+        admin.setEmail(defaultText(admin.getEmail(), "admin@example.com"));
+        admin.setStatus(defaultText(admin.getStatus(), "enabled"));
+        userRepository.save(admin);
         if (userRoleRepository.findByUserId(admin.getId()).isEmpty()) {
             SysUserRole userRole = new SysUserRole();
             userRole.setTenantId(tenant.getId());
@@ -567,7 +567,71 @@ public class EnterpriseAdminService implements ApplicationRunner {
             audit(tenant.getId(), admin.getId(), admin.getDisplayName(), "system", "initialize",
                 "enterprise_platform", tenant.getId(), "enterprise seed data initialized");
         }
-        wealth.getId();
+    }
+
+    private SysTenant resolveDefaultTenant() {
+        return tenantRepository.findByTenantCode(DEFAULT_TENANT_CODE)
+            .map(this::neutralizeDefaultTenant)
+            .orElseGet(() -> tenantRepository.findByTenantCode(LEGACY_TENANT_CODE)
+                .map(this::neutralizeDefaultTenant)
+                .orElseGet(() -> {
+                    SysTenant seed = new SysTenant();
+                    seed.setTenantCode(DEFAULT_TENANT_CODE);
+                    seed.setTenantName("默认租户");
+                    seed.setContactName("平台管理员");
+                    seed.setDescription("企业级智能问答助手平台默认租户");
+                    return tenantRepository.save(seed);
+                }));
+    }
+
+    private SysTenant neutralizeDefaultTenant(SysTenant tenant) {
+        tenant.setTenantCode(DEFAULT_TENANT_CODE);
+        tenant.setTenantName("默认租户");
+        tenant.setContactName(defaultText(tenant.getContactName(), "平台管理员"));
+        tenant.setDescription("企业级智能问答助手平台默认租户");
+        tenant.setStatus(defaultText(tenant.getStatus(), "enabled"));
+        return tenantRepository.save(tenant);
+    }
+
+    private SysOrg ensureNeutralOrg(String tenantId, String parentId, String legacyCode, String code, String name, int sortOrder) {
+        SysOrg current = orgRepository.findByTenantIdAndOrgCode(tenantId, code).orElse(null);
+        SysOrg legacy = orgRepository.findByTenantIdAndOrgCode(tenantId, legacyCode).orElse(null);
+        if (current != null) {
+            current.setParentId(parentId);
+            current.setOrgName(name);
+            current.setSortOrder(sortOrder);
+            current.setStatus(defaultText(current.getStatus(), "enabled"));
+            SysOrg saved = orgRepository.save(current);
+            if (legacy != null && !legacy.getId().equals(saved.getId())) {
+                migrateOrgReferences(tenantId, legacy.getId(), saved.getId());
+                orgRepository.deleteById(legacy.getId());
+            }
+            return saved;
+        }
+        if (legacy != null) {
+            legacy.setParentId(parentId);
+            legacy.setOrgCode(code);
+            legacy.setOrgName(name);
+            legacy.setSortOrder(sortOrder);
+            legacy.setStatus(defaultText(legacy.getStatus(), "enabled"));
+            return orgRepository.save(legacy);
+        }
+        return ensureOrg(tenantId, parentId, code, name, sortOrder);
+    }
+
+    private void migrateOrgReferences(String tenantId, String oldOrgId, String newOrgId) {
+        orgRepository.findByTenantIdOrderBySortOrderAscOrgNameAsc(tenantId).stream()
+            .filter(org -> oldOrgId.equals(org.getParentId()))
+            .forEach(org -> {
+                org.setParentId(newOrgId);
+                orgRepository.save(org);
+            });
+        userRepository.findByTenantIdOrderByUsernameAsc(tenantId).stream()
+            .filter(user -> oldOrgId.equals(user.getOrgId()))
+            .forEach(user -> {
+                user.setOrgId(newOrgId);
+                userRepository.save(user);
+            });
     }
 
     private SysOrg ensureOrg(String tenantId, String parentId, String code, String name, int sortOrder) {
@@ -596,15 +660,18 @@ public class EnterpriseAdminService implements ApplicationRunner {
     private List<SysPermission> ensureDefaultPermissions() {
         List<PermissionSeed> seeds = List.of(
             new PermissionSeed(null, "workspace", "工作台", "menu", "/index.html", null, "layout-dashboard", 10),
-            new PermissionSeed("workspace", "workspace:chat", "对话助手", "menu", "/index.html#chat", null, "message-circle", 11),
-            new PermissionSeed("workspace", "workspace:search", "AI 搜索", "menu", "/index.html#search", null, "search", 12),
-            new PermissionSeed(null, "capability", "能力中心", "menu", "/index.html#market", null, "grid-3x3", 20),
-            new PermissionSeed("capability", "capability:market", "能力广场", "menu", "/index.html#market", null, "store", 21),
-            new PermissionSeed("capability", "capability:library", "投研中心", "menu", "/index.html#library", null, "book-open", 22),
-            new PermissionSeed(null, "mcp", "MCP 中心", "menu", "/index.html#mcp", null, "plug", 30),
-            new PermissionSeed("mcp", "mcp:service:manage", "服务管理", "button", "/api/v1/mcp/**", "*", "server", 31),
-            new PermissionSeed("mcp", "mcp:tool:authorize", "工具授权", "button", "/api/v1/enterprise/tool-permissions", "*", "key-round", 32),
-            new PermissionSeed(null, "system", "系统管理", "menu", "/index.html#system", null, "settings", 40),
+            new PermissionSeed("workspace", "workspace:chat", "智能对话", "menu", "/index.html#chat", null, "message-circle", 11),
+            new PermissionSeed("workspace", "workspace:search", "文档检索", "menu", "/index.html#search", null, "search", 12),
+            new PermissionSeed(null, "capability", "能力管理", "menu", "/index.html#market", null, "grid-3x3", 20),
+            new PermissionSeed("capability", "capability:market", "能力市场", "menu", "/index.html#market", null, "store", 21),
+            new PermissionSeed("capability", "capability:library", "文档库", "menu", "/index.html#library", null, "book-open", 22),
+            new PermissionSeed(null, "platform", "平台管理", "menu", "/index.html#tasks", null, "boxes", 30),
+            new PermissionSeed("platform", "mcp", "MCP服务", "menu", "/index.html#mcp", null, "plug", 31),
+            new PermissionSeed("mcp", "mcp:service:manage", "服务管理", "button", "/api/v1/mcp/**", "*", "server", 32),
+            new PermissionSeed("mcp", "mcp:tool:authorize", "工具授权", "button", "/api/v1/enterprise/tool-permissions", "*", "key-round", 33),
+            new PermissionSeed("platform", "platform:agents", "Agent管理", "menu", "/index.html#agents", null, "bot", 34),
+            new PermissionSeed("platform", "platform:tasks", "运行监控", "menu", "/index.html#tasks", null, "clipboard-list", 35),
+            new PermissionSeed("platform", "system", "系统管理", "menu", "/index.html#system", null, "settings", 40),
             new PermissionSeed("system", "system:tenant", "租户管理", "menu", "/api/v1/enterprise/tenants", "*", "building", 41),
             new PermissionSeed("system", "system:org", "组织管理", "menu", "/api/v1/enterprise/orgs", "*", "building-2", 42),
             new PermissionSeed("system", "system:user", "用户管理", "menu", "/api/v1/enterprise/users", "*", "users", 43),

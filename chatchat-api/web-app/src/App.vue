@@ -1,5 +1,10 @@
 <template>
+  <LoginView
+    v-if="!authSession"
+    @login-success="handleLoginSuccess"
+  />
   <AssistantLayout
+    v-else
     :active-view="activeView"
     :active-conversation-id="activeHistoryId"
     :history-error="historyError"
@@ -11,6 +16,7 @@
     @delete-conversation="deleteConversation"
     @refresh-history="loadConversationHistory"
     @select-conversation="selectConversation"
+    @logout="handleLogout"
   >
     <KeepAlive>
       <component

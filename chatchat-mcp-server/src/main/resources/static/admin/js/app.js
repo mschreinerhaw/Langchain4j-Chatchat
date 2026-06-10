@@ -4,6 +4,7 @@ import { getToken, login, logout } from './auth.js';
 import { UnauthorizedError } from './http.js';
 import {
     deleteService,
+    deleteServices,
     listLivedataApis,
     listServices,
     registerLivedataApis,
@@ -23,6 +24,7 @@ import {
 import { getAuditLog, listAuditLogs } from './auditLogs.js';
 import {
     deleteDatabaseQuery,
+    deleteDatabaseQueries,
     listDatabaseQueries,
     saveDatabaseQuery,
     setDatabaseQueryEnabled,
@@ -56,6 +58,7 @@ import {
 
 let services = [];
 let selectedId = '';
+let selectedServiceIds = new Set();
 let serviceSearchTerm = '';
 let servicePage = 1;
 let livedataApis = [];
@@ -67,6 +70,7 @@ let mcpServiceSearchTerm = '';
 let mcpServicePage = 1;
 let databaseQueries = [];
 let selectedDatabaseQueryId = '';
+let selectedDatabaseQueryIds = new Set();
 let databaseQuerySearchTerm = '';
 let databaseQueryPage = 1;
 
@@ -108,6 +112,9 @@ function bindEvents() {
     document.getElementById('serviceSearchInput').addEventListener('input', handleServiceSearch);
     document.getElementById('servicePrevPageBtn').addEventListener('click', () => changeServicePage(-1));
     document.getElementById('serviceNextPageBtn').addEventListener('click', () => changeServicePage(1));
+    document.getElementById('serviceSelectVisibleBtn').addEventListener('click', selectVisibleServices);
+    document.getElementById('serviceClearSelectionBtn').addEventListener('click', clearServiceSelection);
+    document.getElementById('serviceBatchDeleteBtn').addEventListener('click', removeSelectedServices);
     document.getElementById('importLivedataBtn').addEventListener('click', openLivedataImport);
     document.getElementById('reloadLivedataApisBtn').addEventListener('click', reloadLivedataApis);
     document.getElementById('selectAllLivedataApisBtn').addEventListener('click', selectVisibleLivedataApis);
@@ -133,6 +140,9 @@ function bindEvents() {
     document.getElementById('databaseQuerySearchInput').addEventListener('input', handleDatabaseQuerySearch);
     document.getElementById('databaseQueryPrevPageBtn').addEventListener('click', () => changeDatabaseQueryPage(-1));
     document.getElementById('databaseQueryNextPageBtn').addEventListener('click', () => changeDatabaseQueryPage(1));
+    document.getElementById('databaseQuerySelectVisibleBtn').addEventListener('click', selectVisibleDatabaseQueries);
+    document.getElementById('databaseQueryClearSelectionBtn').addEventListener('click', clearDatabaseQuerySelection);
+    document.getElementById('databaseQueryBatchDeleteBtn').addEventListener('click', removeSelectedDatabaseQueries);
     document.getElementById('reloadAuditBtn').addEventListener('click', loadAuditLogs);
     document.querySelectorAll('.sidebar [data-view]').forEach(button => {
         button.addEventListener('click', () => handleViewSwitch(button.dataset.view));
@@ -186,6 +196,7 @@ async function loadServices() {
     try {
         services = await listServices();
         if (selectedId && !services.some(service => service.id === selectedId)) selectedId = '';
+        selectedServiceIds = new Set([...selectedServiceIds].filter(id => services.some(service => service.id === id)));
         renderApiServices();
     } catch (error) {
         handleError(error);
@@ -200,13 +211,15 @@ function renderApiServices() {
         edit: selectService,
         test: testServiceFromCard,
         toggle: toggleService,
-        delete: removeService
+        delete: removeService,
+        select: toggleServiceSelection
     }, {
         totalCount: services.length,
         filteredCount: filtered.length,
         page: servicePage,
         pageSize: SERVICE_PAGE_SIZE,
-        visible
+        visible,
+        selectedIds: selectedServiceIds
     });
 }
 
@@ -491,6 +504,48 @@ async function removeService(service) {
     }
 }
 
+function toggleServiceSelection(service, selected) {
+    if (selected) {
+        selectedServiceIds.add(service.id);
+    } else {
+        selectedServiceIds.delete(service.id);
+    }
+    renderApiServices();
+}
+
+function selectVisibleServices() {
+    for (const service of paginate(filterServices(), servicePage, SERVICE_PAGE_SIZE)) {
+        selectedServiceIds.add(service.id);
+    }
+    renderApiServices();
+}
+
+function clearServiceSelection() {
+    selectedServiceIds.clear();
+    renderApiServices();
+}
+
+async function removeSelectedServices() {
+    const ids = [...selectedServiceIds];
+    if (!ids.length) {
+        notify('未选择 API', '请先选择需要删除的 API。');
+        return;
+    }
+    if (!window.confirm(`确定删除选中的 ${ids.length} 个 API 吗？`)) return;
+    try {
+        const result = await deleteServices(ids);
+        selectedServiceIds.clear();
+        if (ids.includes(selectedId)) {
+            resetForm();
+            hideApiServiceModal();
+        }
+        notify('删除成功', `已删除 ${result.deleted ?? ids.length} 个 API。`);
+        await loadServices();
+    } catch (error) {
+        handleError(error);
+    }
+}
+
 async function loadMcpServices() {
     try {
         mcpServices = await listMcpServices();
@@ -685,6 +740,9 @@ async function loadDatabaseQueries() {
         if (selectedDatabaseQueryId && !databaseQueries.some(query => query.id === selectedDatabaseQueryId)) {
             selectedDatabaseQueryId = '';
         }
+        selectedDatabaseQueryIds = new Set([...selectedDatabaseQueryIds].filter(id =>
+            databaseQueries.some(query => query.id === id)
+        ));
         renderDatabaseQueryCards();
     } catch (error) {
         handleError(error);
@@ -699,13 +757,15 @@ function renderDatabaseQueryCards() {
             edit: selectDatabaseQuery,
             test: testDatabaseQueryFromCard,
             toggle: toggleDatabaseQuery,
-            delete: removeDatabaseQuery
+            delete: removeDatabaseQuery,
+            select: toggleDatabaseQuerySelection
     }, {
         totalCount: databaseQueries.length,
         filteredCount: filtered.length,
         page: databaseQueryPage,
         pageSize: SERVICE_PAGE_SIZE,
-        visible
+        visible,
+        selectedIds: selectedDatabaseQueryIds
     });
 }
 
@@ -819,6 +879,48 @@ async function removeDatabaseQuery(query) {
         if (selectedDatabaseQueryId === query.id) {
             resetDatabaseQueryForm();
         }
+        await loadDatabaseQueries();
+    } catch (error) {
+        handleError(error);
+    }
+}
+
+function toggleDatabaseQuerySelection(query, selected) {
+    if (selected) {
+        selectedDatabaseQueryIds.add(query.id);
+    } else {
+        selectedDatabaseQueryIds.delete(query.id);
+    }
+    renderDatabaseQueryCards();
+}
+
+function selectVisibleDatabaseQueries() {
+    for (const query of paginate(filterDatabaseQueries(), databaseQueryPage, SERVICE_PAGE_SIZE)) {
+        selectedDatabaseQueryIds.add(query.id);
+    }
+    renderDatabaseQueryCards();
+}
+
+function clearDatabaseQuerySelection() {
+    selectedDatabaseQueryIds.clear();
+    renderDatabaseQueryCards();
+}
+
+async function removeSelectedDatabaseQueries() {
+    const ids = [...selectedDatabaseQueryIds];
+    if (!ids.length) {
+        notify('未选择查询', '请先选择需要删除的数据查询。');
+        return;
+    }
+    if (!window.confirm(`确定删除选中的 ${ids.length} 个数据查询吗？`)) return;
+    try {
+        const result = await deleteDatabaseQueries(ids);
+        selectedDatabaseQueryIds.clear();
+        if (ids.includes(selectedDatabaseQueryId)) {
+            resetDatabaseQueryForm();
+            hideDatabaseQueryModal();
+        }
+        notify('删除成功', `已删除 ${result.deleted ?? ids.length} 个数据查询。`);
         await loadDatabaseQueries();
     } catch (error) {
         handleError(error);

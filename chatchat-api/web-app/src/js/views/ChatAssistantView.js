@@ -95,7 +95,7 @@ function defaultUploadForm() {
   return {
     file: null,
     title: "",
-    source: "对话助手",
+    source: "智能对话",
     date: todayString(),
     tags: "",
     documentType: "auto",

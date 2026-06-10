@@ -92,6 +92,24 @@ public class DatabaseQueryConfigService {
         repository.deleteById(id);
     }
 
+    @Transactional
+    public int deleteAll(List<String> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return 0;
+        }
+        List<String> normalizedIds = ids.stream()
+            .filter(id -> id != null && !id.isBlank())
+            .map(String::trim)
+            .distinct()
+            .toList();
+        if (normalizedIds.isEmpty()) {
+            return 0;
+        }
+        List<DatabaseQueryConfig> existing = repository.findAllById(normalizedIds);
+        repository.deleteAll(existing);
+        return existing.size();
+    }
+
     private void validate(DatabaseQueryConfig config, String currentId) {
         String toolName = normalizeRequired(config.getToolName(), "toolName");
         if (!TOOL_NAME_PATTERN.matcher(toolName).matches()) {

@@ -25,7 +25,10 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class AgentToolPolicyResolver {
 
-    private static final int MAX_RELEVANT_MCP_TOOLS = 3;
+    private static final int DEFAULT_MAX_RELEVANT_MCP_TOOLS = 3;
+    private static final int MAX_RELEVANT_MCP_TOOLS_LIMIT = 20;
+    private static final String DOCUMENT_WORKFLOW_INPUT = "documentWorkflow";
+    private static final String DOCUMENT_SEARCH_TOOL = "document_search";
 
     private static final List<ToolIntentSpec> MCP_TOOL_INTENTS = List.of(
         new ToolIntentSpec("webSearch", "web_search", "web_search", "_web_search")
@@ -40,14 +43,29 @@ public class AgentToolPolicyResolver {
         if (availableTools == null || availableTools.isEmpty()) {
             availableTools = discoverDefaultTools(request.getSkillId());
         }
+        availableTools = normalizeToolNames(availableTools);
+
+        boolean documentWorkflowRequested = isDocumentWorkflowRequested(request, skill);
+        if (documentWorkflowRequested) {
+            availableTools = withAvailableTool(availableTools, DOCUMENT_SEARCH_TOOL);
+        }
 
         List<ToolIntentSpec> requestedIntents = resolveRequestedIntents(request);
-        List<ToolActivation> activations = resolveToolActivations(requestedIntents, skill);
+        List<ToolActivation> activations = new ArrayList<>();
+        if (documentWorkflowRequested && isAvailableTool(availableTools, DOCUMENT_SEARCH_TOOL)) {
+            activations.add(new ToolActivation(
+                DOCUMENT_WORKFLOW_INPUT,
+                DOCUMENT_SEARCH_TOOL,
+                DOCUMENT_SEARCH_TOOL
+            ));
+        }
+        activations.addAll(resolveToolActivations(requestedIntents, skill));
         List<String> requiredTools = activations.stream()
             .map(ToolActivation::localToolName)
+            .distinct()
             .toList();
         availableTools = mergeRequestedTools(availableTools, requiredTools, requestedIntents);
-        ToolSelection selection = selectRelevantTools(request, availableTools, requiredTools);
+        ToolSelection selection = selectRelevantTools(request, skill, availableTools, requiredTools);
         boolean hasMcpBinding = hasMcpBinding(skill);
 
         return new ToolPolicy(
@@ -68,6 +86,32 @@ public class AgentToolPolicyResolver {
                 .add(tool.localToolName())
         );
         return skillCatalogService.resolveTools(skillId, toolRegistry.getAllToolNames(), mcpToolsByServiceId);
+    }
+
+    private boolean isDocumentWorkflowRequested(InteractionRequest request, SkillDefinition skill) {
+        return isIntentRequested(request, DOCUMENT_WORKFLOW_INPUT) || hasDocumentScope(skill);
+    }
+
+    private boolean hasDocumentScope(SkillDefinition skill) {
+        if (skill == null) {
+            return false;
+        }
+        return (skill.boundDocumentIds() != null && skill.boundDocumentIds().stream().anyMatch(this::hasText))
+            || (skill.boundDocumentTags() != null && skill.boundDocumentTags().stream().anyMatch(this::hasText));
+    }
+
+    private List<String> withAvailableTool(List<String> availableTools, String toolName) {
+        List<String> normalized = normalizeToolNames(availableTools);
+        if (!isAvailableTool(normalized, toolName) && toolRegistry.hasTool(toolName)) {
+            LinkedHashSet<String> tools = new LinkedHashSet<>(normalized);
+            tools.add(toolName);
+            return new ArrayList<>(tools);
+        }
+        return normalized;
+    }
+
+    private boolean isAvailableTool(List<String> availableTools, String toolName) {
+        return availableTools != null && availableTools.contains(toolName);
     }
 
     private List<ToolIntentSpec> resolveRequestedIntents(InteractionRequest request) {
@@ -166,6 +210,7 @@ public class AgentToolPolicyResolver {
     }
 
     private ToolSelection selectRelevantTools(InteractionRequest request,
+                                              SkillDefinition skill,
                                               List<String> availableTools,
                                               List<String> requiredTools) {
         List<String> normalizedTools = normalizeToolNames(availableTools);
@@ -189,8 +234,9 @@ public class AgentToolPolicyResolver {
             .toList();
 
         boolean hasRelevantMcpSignal = !scoredMcpTools.isEmpty();
+        int maxRelevantMcpTools = resolveMaxRelevantMcpTools(skill);
         Set<String> selectedMcpTools = scoredMcpTools.stream()
-            .limit(MAX_RELEVANT_MCP_TOOLS)
+            .limit(maxRelevantMcpTools)
             .map(ScoredTool::toolName)
             .collect(LinkedHashSet::new, LinkedHashSet::add, LinkedHashSet::addAll);
 
@@ -224,6 +270,13 @@ public class AgentToolPolicyResolver {
             .filter(toolName -> !selectedCandidates.contains(toolName))
             .forEach(selectedCandidates::add);
         return new ToolSelection(new ArrayList<>(ordered), selectedCandidates, skipped);
+    }
+
+    private int resolveMaxRelevantMcpTools(SkillDefinition skill) {
+        if (skill == null || skill.routingSettings() == null || skill.routingSettings().maxRelevantMcpTools() == null) {
+            return DEFAULT_MAX_RELEVANT_MCP_TOOLS;
+        }
+        return Math.max(1, Math.min(MAX_RELEVANT_MCP_TOOLS_LIMIT, skill.routingSettings().maxRelevantMcpTools()));
     }
 
     private int scoreToolForQuery(String toolName, String query) {
@@ -313,6 +366,10 @@ public class AgentToolPolicyResolver {
 
     private String normalizeSearchText(String value) {
         return value == null ? "" : value.toLowerCase(Locale.ROOT).replaceAll("\\s+", " ").trim();
+    }
+
+    private boolean hasText(String value) {
+        return value != null && !value.isBlank();
     }
 
     private List<String> normalizeToolNames(List<String> tools) {

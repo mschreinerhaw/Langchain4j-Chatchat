@@ -20,6 +20,7 @@
       @refresh-history="$emit('refresh-history')"
       @select-conversation="$emit('select-conversation', $event)"
       @toggle-sidebar="sidebarCollapsed = !sidebarCollapsed"
+      @logout="$emit('logout')"
     />
 
     <main class="assistant-main">

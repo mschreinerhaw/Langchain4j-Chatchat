@@ -1,10 +1,29 @@
 const API_BASE = "/api/v1";
+const AUTH_SESSION_KEY = "chatchat.auth.session";
+
+export function getStoredAuthSession() {
+  try {
+    return JSON.parse(localStorage.getItem(AUTH_SESSION_KEY) || "null");
+  } catch (error) {
+    return null;
+  }
+}
+
+export function storeAuthSession(session) {
+  localStorage.setItem(AUTH_SESSION_KEY, JSON.stringify(session));
+}
+
+export function clearAuthSession() {
+  localStorage.removeItem(AUTH_SESSION_KEY);
+}
 
 export async function apiRequest(path, options = {}) {
+  const session = getStoredAuthSession();
   const response = await fetch(`${API_BASE}${path}`, {
     ...options,
     headers: {
       "Content-Type": "application/json",
+      ...(session?.token ? { Authorization: `Bearer ${session.token}` } : {}),
       ...(options.headers || {})
     }
   });
@@ -377,6 +396,17 @@ export function fetchEnterpriseSummary() {
   return apiRequest("/enterprise/summary");
 }
 
+export async function loginEnterprise(payload) {
+  const session = await apiRequest("/enterprise/auth/login", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+  if (session?.token) {
+    storeAuthSession(session);
+  }
+  return session;
+}
+
 export function fetchTenants() {
   return apiRequest("/enterprise/tenants");
 }
@@ -388,6 +418,26 @@ export function fetchOrgs(tenantId = "") {
   }
   const query = params.toString();
   return apiRequest(`/enterprise/orgs${query ? `?${query}` : ""}`);
+}
+
+export function createOrg(payload) {
+  return apiRequest("/enterprise/orgs", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
+export function updateOrg(orgId, payload) {
+  return apiRequest(`/enterprise/orgs/${encodeURIComponent(orgId)}`, {
+    method: "PUT",
+    body: JSON.stringify(payload)
+  });
+}
+
+export function deleteOrg(orgId) {
+  return apiRequest(`/enterprise/orgs/${encodeURIComponent(orgId)}`, {
+    method: "DELETE"
+  });
 }
 
 export function fetchRoles(tenantId = "") {
@@ -426,6 +476,26 @@ export function fetchUsers(tenantId = "") {
   }
   const query = params.toString();
   return apiRequest(`/enterprise/users${query ? `?${query}` : ""}`);
+}
+
+export function createUser(payload) {
+  return apiRequest("/enterprise/users", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
+export function updateUser(userId, payload) {
+  return apiRequest(`/enterprise/users/${encodeURIComponent(userId)}`, {
+    method: "PUT",
+    body: JSON.stringify(payload)
+  });
+}
+
+export function deleteUser(userId) {
+  return apiRequest(`/enterprise/users/${encodeURIComponent(userId)}`, {
+    method: "DELETE"
+  });
 }
 
 export function fetchPermissions() {

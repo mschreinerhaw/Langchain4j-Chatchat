@@ -76,6 +76,7 @@ export function hideDatabaseQueryModal() {
 
 export function renderServices(services, selectedId, handlers, paging = {}) {
     const visibleServices = paging.visible || services;
+    const selectedIds = paging.selectedIds || new Set();
     updatePagination('service', {
         totalCount: paging.totalCount ?? services.length,
         filteredCount: paging.filteredCount ?? services.length,
@@ -83,6 +84,7 @@ export function renderServices(services, selectedId, handlers, paging = {}) {
         page: paging.page ?? 1,
         pageSize: paging.pageSize ?? visibleServices.length
     });
+    updateBulkSelection('service', selectedIds.size);
     const list = document.getElementById('serviceList');
     list.innerHTML = '';
     if (services.length === 0) {
@@ -91,8 +93,11 @@ export function renderServices(services, selectedId, handlers, paging = {}) {
     }
     for (const service of visibleServices) {
         const item = document.createElement('article');
-        item.className = `service-card api-card ${service.id === selectedId ? 'active' : ''}`;
+        item.className = `service-card api-card ${service.id === selectedId ? 'active' : ''} ${selectedIds.has(service.id) ? 'selected' : ''}`;
         item.innerHTML = `
+            <label class="service-card-check" aria-label="选择 ${escapeHtml(service.title || service.toolName)}">
+                <input class="form-check-input" type="checkbox" data-select-service="${escapeHtml(service.id)}" ${selectedIds.has(service.id) ? 'checked' : ''}>
+            </label>
             <div class="api-card-main">
                 <h3>${escapeHtml(service.title || service.toolName)}</h3>
                 <p>${escapeHtml(service.description || service.urlTemplate)}</p>
@@ -115,6 +120,10 @@ export function renderServices(services, selectedId, handlers, paging = {}) {
             </div>
         `;
         item.addEventListener('click', event => {
+            if (event.target?.dataset?.selectService != null) {
+                handlers.select?.(service, event.target.checked);
+                return;
+            }
             const action = event.target?.dataset?.action;
             if (!action) return;
             if (action === 'test') handlers.test(service);
@@ -228,6 +237,7 @@ export function renderDatabaseQueryPreview(output, handlers = {}) {
 
 export function renderDatabaseQueries(queries, selectedId, handlers, paging = {}) {
     const visibleQueries = paging.visible || queries;
+    const selectedIds = paging.selectedIds || new Set();
     updatePagination('databaseQuery', {
         totalCount: paging.totalCount ?? queries.length,
         filteredCount: paging.filteredCount ?? queries.length,
@@ -235,6 +245,7 @@ export function renderDatabaseQueries(queries, selectedId, handlers, paging = {}
         page: paging.page ?? 1,
         pageSize: paging.pageSize ?? visibleQueries.length
     });
+    updateBulkSelection('databaseQuery', selectedIds.size);
     const list = document.getElementById('databaseQueryList');
     list.innerHTML = '';
     if (!queries.length) {
@@ -243,8 +254,11 @@ export function renderDatabaseQueries(queries, selectedId, handlers, paging = {}
     }
     for (const query of visibleQueries) {
         const item = document.createElement('article');
-        item.className = `service-card api-card ${query.id === selectedId ? 'active' : ''}`;
+        item.className = `service-card api-card ${query.id === selectedId ? 'active' : ''} ${selectedIds.has(query.id) ? 'selected' : ''}`;
         item.innerHTML = `
+            <label class="service-card-check" aria-label="选择 ${escapeHtml(query.title || query.toolName)}">
+                <input class="form-check-input" type="checkbox" data-select-database-query="${escapeHtml(query.id)}" ${selectedIds.has(query.id) ? 'checked' : ''}>
+            </label>
             <div class="api-card-main">
                 <h3>${escapeHtml(query.title || query.toolName)}</h3>
                 <p>${escapeHtml(query.description || query.sqlTemplate || '')}</p>
@@ -262,6 +276,10 @@ export function renderDatabaseQueries(queries, selectedId, handlers, paging = {}
             </div>
         `;
         item.addEventListener('click', event => {
+            if (event.target?.dataset?.selectDatabaseQuery != null) {
+                handlers.select?.(query, event.target.checked);
+                return;
+            }
             const action = event.target?.dataset?.action;
             if (!action) return;
             if (action === 'test') handlers.test(query);
@@ -334,6 +352,21 @@ function updatePagination(prefix, { totalCount, filteredCount, visibleCount, pag
     document.getElementById(`${prefix}PageInfo`).textContent = `第 ${page} / ${pageCount} 页`;
     document.getElementById(`${prefix}PrevPageBtn`).disabled = page <= 1;
     document.getElementById(`${prefix}NextPageBtn`).disabled = page >= pageCount;
+}
+
+function updateBulkSelection(prefix, selectedCount) {
+    const count = document.getElementById(`${prefix}SelectedCount`);
+    const deleteButton = document.getElementById(`${prefix}BatchDeleteBtn`);
+    const clearButton = document.getElementById(`${prefix}ClearSelectionBtn`);
+    if (count) {
+        count.textContent = selectedCount;
+    }
+    if (deleteButton) {
+        deleteButton.disabled = selectedCount === 0;
+    }
+    if (clearButton) {
+        clearButton.disabled = selectedCount === 0;
+    }
 }
 
 export function renderAuditLogs(logs, openDetail) {

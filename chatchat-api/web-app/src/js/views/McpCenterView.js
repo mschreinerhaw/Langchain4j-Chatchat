@@ -170,7 +170,7 @@ export default {
           : `已同步 ${imported} 个服务`;
         await this.loadMcpCenter();
       } catch (error) {
-        this.error = error.message || "MCP 中心同步失败";
+        this.error = error.message || "MCP服务同步失败";
       } finally {
         this.syncing = false;
       }

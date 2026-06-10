@@ -56,6 +56,13 @@ public class ApiServiceController {
         return ApiResponse.success(null, "API service deleted");
     }
 
+    @PostMapping("/batch-delete")
+    public ApiResponse<Map<String, Object>> batchDelete(@RequestBody BatchDeleteRequest request) {
+        int deleted = configService.deleteAll(request.ids());
+        publisher.refresh();
+        return ApiResponse.success(Map.of("deleted", deleted), "API services deleted");
+    }
+
     @PostMapping("/{id}/enabled")
     public ApiResponse<ApiServiceView> setEnabled(@PathVariable("id") String id,
                                                   @RequestParam("enabled") boolean enabled) {
@@ -151,6 +158,9 @@ public class ApiServiceController {
         Boolean cacheEnabled,
         Integer cacheTtlSeconds
     ) {
+    }
+
+    public record BatchDeleteRequest(List<String> ids) {
     }
 
     public record ApiServiceView(

@@ -8,6 +8,14 @@
             <input id="databaseQuerySearchInput" class="form-control" type="search" placeholder="搜索工具名称、显示名称、描述或 SQL">
         </div>
     </div>
+    <div class="bulk-toolbar">
+        <div class="text-secondary small">已选择 <span id="databaseQuerySelectedCount">0</span> 个查询</div>
+        <div class="btn-group btn-group-sm" role="group" aria-label="Database query batch actions">
+            <button id="databaseQuerySelectVisibleBtn" class="btn btn-outline-secondary" type="button">选择当前页</button>
+            <button id="databaseQueryClearSelectionBtn" class="btn btn-outline-secondary" type="button">清空选择</button>
+            <button id="databaseQueryBatchDeleteBtn" class="btn btn-outline-danger" type="button" disabled>删除选中</button>
+        </div>
+    </div>
     <div id="databaseQueryList" class="api-service-grid"></div>
     <div class="service-pagination">
         <div id="databaseQueryPageInfo" class="text-secondary small">第 1 / 1 页</div>

@@ -4,6 +4,7 @@ import com.chatchat.agents.runtime.ToolRuntimeService;
 import com.chatchat.agents.runtime.ToolRuntimeProperties;
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.config.ModelsConfig;
+import com.chatchat.common.interaction.InteractionToolTrace;
 import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolOutput;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -144,6 +145,68 @@ class AgentOrchestratorTest {
             .contains("https://example.com/audit");
     }
 
+    @Test
+    void documentWebVerificationAllowsDocumentSearchBeforeMandatoryWebTool() {
+        String mcpWebSearch = "mcp_chatchat_mcp_server_web_search";
+        QueueChatModel chatModel = new QueueChatModel(
+            "{\"action\":\"tool\",\"toolName\":\"document_search\",\"arguments\":{\"query\":\"internal definition\"},\"reason\":\"Need internal evidence first\"}",
+            "{\"action\":\"tool\",\"toolName\":\"mcp_chatchat_mcp_server_web_search\",\"arguments\":{\"query\":\"internal definition\"},\"reason\":\"Validate public evidence\"}",
+            "{\"action\":\"final\",\"answer\":\"Use internal documents first, then public web verification.\"}",
+            "{\"accepted\":true,\"feedback\":\"The answer separates document and web evidence.\",\"revisedAnswer\":\"\"}"
+        );
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.getToolMetadata("document_search")).thenReturn(ToolMetadata.builder()
+            .id("document_search")
+            .title("Document Search")
+            .description("Search internal documents")
+            .build());
+        when(toolRegistry.getToolMetadata(mcpWebSearch)).thenReturn(ToolMetadata.builder()
+            .id(mcpWebSearch)
+            .title("MCP Web Search")
+            .description("Search web pages")
+            .build());
+        when(toolRegistry.executeEnhancedTool(eq("document_search"), any())).thenReturn(documentSearchOutput());
+        when(toolRegistry.executeEnhancedTool(eq(mcpWebSearch), any())).thenReturn(webSearchOutput());
+        ToolRuntimeService toolRuntimeService = new ToolRuntimeService(
+            toolRegistry,
+            new ObjectMapper(),
+            toolRuntimeProperties(),
+            List.of(),
+            List.of()
+        );
+        AgentOrchestrator orchestrator = new AgentOrchestrator(
+            chatModel,
+            toolRegistry,
+            toolRuntimeService,
+            new ObjectMapper(),
+            new ModelsConfig()
+        );
+
+        AgentOrchestrator.AgentExecutionResult result = orchestrator.executeAgent(
+            "What is the internal definition? Please verify online.",
+            "tenant-1",
+            List.of("document_search", mcpWebSearch),
+            "Use internal documents first.",
+            null,
+            List.of("doc-1"),
+            List.of(),
+            "research",
+            "req-doc-web-1",
+            "conv-doc-web-1",
+            "user-1",
+            10,
+            List.of(mcpWebSearch),
+            true
+        );
+
+        assertThat(result.toolTraces())
+            .extracting(InteractionToolTrace::getToolName)
+            .containsExactly("document_search", mcpWebSearch);
+        assertThat(result.metadata())
+            .containsEntry("documentWebVerificationRequired", true)
+            .containsEntry("mandatoryTools", List.of("document_search", mcpWebSearch));
+    }
+
     private AgentOrchestrator newOrchestrator(ChatModel chatModel) {
         return new AgentOrchestrator(
             chatModel,
@@ -168,6 +231,16 @@ class AgentOrchestratorTest {
             "title", "Audit trail for AI answers",
             "url", "https://example.com/audit",
             "snippet", "Shows how web citations prove which URL supports an answer."
+        )));
+        return ToolOutput.success(result);
+    }
+
+    private ToolOutput documentSearchOutput() {
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("results", List.of(Map.of(
+            "docId", "doc-1",
+            "title", "Internal Definition Handbook",
+            "snippet", "Internal definitions should be answered from enterprise documents first."
         )));
         return ToolOutput.success(result);
     }

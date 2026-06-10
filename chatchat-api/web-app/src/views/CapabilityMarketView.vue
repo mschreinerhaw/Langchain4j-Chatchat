@@ -2,7 +2,7 @@
   <section class="feature-view capability-market-view">
     <header class="market-header">
       <div>
-        <p>能力广场</p>
+        <p>能力市场</p>
       </div>
     </header>
 
@@ -36,7 +36,7 @@
 
     <p v-if="error" class="market-error">{{ error }}</p>
     <p v-else-if="loading && allSkillCount === 0" class="market-empty">正在加载后端能力配置...</p>
-    <p v-else-if="allSkillCount === 0" class="market-empty">暂无已发布能力，请先在 Agent工坊 发布能力。</p>
+    <p v-else-if="allSkillCount === 0" class="market-empty">暂无已发布能力，请先在 Agent管理 发布能力。</p>
     <p v-else-if="skillTotal === 0" class="market-empty">没有匹配的能力，请换一个关键词。</p>
 
     <div v-else class="feature-grid">

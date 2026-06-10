@@ -81,6 +81,38 @@ public class InvocationAuditService {
         save(log);
     }
 
+    public void recordMcpTransportRequest(String method, String uri, String queryString, String caller,
+                                          String userAgent, Integer statusCode, long durationMs,
+                                          String errorMessage) {
+        if (!rocksDbStore.isUsable()) {
+            return;
+        }
+        InvocationAuditLog log = new InvocationAuditLog();
+        log.setId(UUID.randomUUID().toString());
+        log.setTargetType("MCP_TRANSPORT");
+        log.setTargetId(uri);
+        log.setTargetName((method == null || method.isBlank() ? "MCP" : method.toUpperCase(Locale.ROOT)) + " " + uri);
+        log.setCaller(caller);
+        log.setSuccess(errorMessage == null && statusCode != null && statusCode < 400);
+        log.setStatusCode(statusCode);
+        log.setDurationMs(durationMs);
+        log.setErrorMessage(limit(errorMessage));
+        Map<String, Object> request = new LinkedHashMap<>();
+        request.put("method", method);
+        request.put("uri", uri);
+        request.put("queryString", redactQueryString(queryString));
+        request.put("remoteAddr", caller);
+        request.put("userAgent", userAgent);
+        log.setRequestSummary(toJsonSummary(redact(request)));
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("statusCode", statusCode);
+        response.put("durationMs", durationMs);
+        response.put("errorMessage", errorMessage);
+        log.setResponseSummary(toJsonSummary(redact(response)));
+        log.setCreatedAt(Instant.now());
+        save(log);
+    }
+
     private void save(InvocationAuditLog auditLog) {
         try {
             rocksDbStore.put(DATA_KEY_PREFIX + auditLog.getId(), objectMapper.writeValueAsBytes(auditLog));
@@ -123,6 +155,22 @@ public class InvocationAuditService {
             || normalized.contains("authorization")
             || normalized.contains("apikey")
             || normalized.contains("api_key");
+    }
+
+    private String redactQueryString(String queryString) {
+        if (queryString == null || queryString.isBlank()) {
+            return null;
+        }
+        String[] pairs = queryString.split("&");
+        for (int i = 0; i < pairs.length; i++) {
+            String pair = pairs[i];
+            int separator = pair.indexOf('=');
+            String key = separator >= 0 ? pair.substring(0, separator) : pair;
+            if (isSensitiveKey(key)) {
+                pairs[i] = key + "=***";
+            }
+        }
+        return String.join("&", pairs);
     }
 
     private String toJsonSummary(Object value) {

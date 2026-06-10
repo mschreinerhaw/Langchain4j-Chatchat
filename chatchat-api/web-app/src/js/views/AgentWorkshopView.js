@@ -92,7 +92,8 @@ function defaultRoutingSettings() {
   return {
     smartSelectionEnabled: true,
     limitParallelCalls: true,
-    maxParallelCalls: 3
+    maxParallelCalls: 3,
+    maxRelevantMcpTools: 3
   };
 }
 
@@ -374,7 +375,7 @@ export default {
         this.documents = Array.isArray(payload?.documents) ? payload.documents : [];
         this.normalizeAgentFilters();
       } catch (error) {
-        this.error = error.message || "Agent工坊加载失败";
+        this.error = error.message || "Agent管理加载失败";
       } finally {
         this.loading = false;
       }
@@ -572,6 +573,7 @@ export default {
       const selectedDocumentIds = parseList(this.form.boundDocumentIds)
         .filter((docId) => availableDocumentIds.has(docId));
       const maxParallelCalls = Number(this.form.routingSettings.maxParallelCalls) || 3;
+      const maxRelevantMcpTools = Number(this.form.routingSettings.maxRelevantMcpTools) || 3;
       return {
         id: this.form.id,
         name: this.form.name,
@@ -591,7 +593,8 @@ export default {
         routingSettings: {
           smartSelectionEnabled: !!this.form.routingSettings.smartSelectionEnabled,
           limitParallelCalls: !!this.form.routingSettings.limitParallelCalls,
-          maxParallelCalls: Math.max(1, Math.min(10, maxParallelCalls))
+          maxParallelCalls: Math.max(1, Math.min(10, maxParallelCalls)),
+          maxRelevantMcpTools: Math.max(1, Math.min(20, maxRelevantMcpTools))
         },
         quickQuestions: parseList(this.form.quickQuestions),
         marketStatus: this.form.marketStatus || "draft"
@@ -904,7 +907,7 @@ export default {
       if (!agent?.id || agent.marketStatus !== "published") {
         return;
       }
-      if (!window.confirm(`确认从能力广场回收「${agent.name || agent.id}」？`)) {
+      if (!window.confirm(`确认从能力市场回收「${agent.name || agent.id}」？`)) {
         return;
       }
       this.saving = true;

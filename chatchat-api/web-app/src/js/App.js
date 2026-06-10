@@ -1,5 +1,6 @@
 import AssistantLayout from "../components/AssistantLayout.vue";
 import RightPanel from "../components/RightPanel.vue";
+import LoginView from "../views/LoginView.vue";
 import ChatAssistantView from "../views/ChatAssistantView.vue";
 import CapabilityMarketView from "../views/CapabilityMarketView.vue";
 import AiSearchView from "../views/AiSearchView.vue";
@@ -8,7 +9,7 @@ import McpCenterView from "../views/McpCenterView.vue";
 import AgentWorkshopView from "../views/AgentWorkshopView.vue";
 import SystemManagementView from "../views/SystemManagementView.vue";
 import TasksView from "../views/TasksView.vue";
-import { deleteConversationHistory, fetchConversationHistory } from "../services/api";
+import { clearAuthSession, deleteConversationHistory, fetchConversationHistory, getStoredAuthSession } from "../services/api";
 
 const USER_ID = "mx_48991534";
 
@@ -27,12 +28,16 @@ export default {
   name: "App",
   components: {
     AssistantLayout,
+    LoginView,
     RightPanel
   },
   data() {
+    const authSession = getStoredAuthSession();
+    const sessionUser = authSession?.user || {};
     return {
+      authSession,
       activeView: "search",
-      userId: USER_ID,
+      userId: sessionUser.username || sessionUser.id || USER_ID,
       historyLoading: false,
       historyError: "",
       conversationHistory: [],
@@ -43,25 +48,25 @@ export default {
           id: "workspace",
           label: "工作台",
           items: [
-            { id: "chat", label: "对话助手", icon: "chat" },
+            { id: "chat", label: "智能对话", icon: "chat" },
             { id: "search", label: "文档检索", icon: "search" }
           ]
         },
         {
           id: "capability",
-          label: "能力中心",
+          label: "能力管理",
           items: [
-            { id: "market", label: "能力广场", icon: "grid" },
-            { id: "library", label: "文档中心", icon: "book" }
+            { id: "market", label: "能力市场", icon: "grid" },
+            { id: "library", label: "文档库", icon: "book" }
           ]
         },
         {
           id: "platform",
-          label: "运行平台",
+          label: "平台管理",
           items: [
-            { id: "tasks", label: "运行控制台", icon: "tasks" },
-            { id: "mcp", label: "MCP中心", icon: "mcp" },
-            { id: "agents", label: "Agent工坊", icon: "agent" },
+            { id: "mcp", label: "MCP服务", icon: "mcp" },
+            { id: "agents", label: "Agent管理", icon: "agent" },
+            { id: "tasks", label: "运行监控", icon: "tasks" },
             { id: "system", label: "系统管理", icon: "gear" }
           ]
         }
@@ -87,9 +92,25 @@ export default {
     }
   },
   mounted() {
-    this.loadConversationHistory();
+    if (this.authSession) {
+      this.loadConversationHistory();
+    }
   },
   methods: {
+    handleLoginSuccess(session) {
+      this.authSession = session;
+      const sessionUser = session?.user || {};
+      this.userId = sessionUser.username || sessionUser.id || USER_ID;
+      this.loadConversationHistory();
+    },
+    handleLogout() {
+      clearAuthSession();
+      this.authSession = null;
+      this.userId = USER_ID;
+      this.conversationHistory = [];
+      this.selectedConversation = null;
+      this.activeHistoryId = "";
+    },
     async loadConversationHistory(filters = {}) {
       this.historyLoading = true;
       this.historyError = "";

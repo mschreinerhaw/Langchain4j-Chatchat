@@ -4,9 +4,9 @@ import {
   Boxes,
   ChevronDown,
   ClipboardList,
-  Ellipsis,
   FileText,
   LayoutGrid,
+  LogOut,
   MessageCircle,
   MessageSquare,
   PanelLeftClose,
@@ -22,7 +22,7 @@ export default {
   name: "AssistantSidebar",
   components: {
     ChevronDown,
-    Ellipsis,
+    LogOut,
     MessageCircle,
     PanelLeftClose,
     PanelLeftOpen,
@@ -63,7 +63,7 @@ export default {
       default: ""
     }
   },
-  emits: ["delete-conversation", "navigate", "refresh-history", "select-conversation", "toggle-sidebar"],
+  emits: ["delete-conversation", "logout", "navigate", "refresh-history", "select-conversation", "toggle-sidebar"],
   data() {
     return {
       collapsedGroups: {},

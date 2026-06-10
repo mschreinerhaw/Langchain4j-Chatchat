@@ -21,6 +21,13 @@ export function deleteService(id) {
     return apiFetch(`${BASE_URL}/${encodeURIComponent(id)}`, { method: 'DELETE' });
 }
 
+export function deleteServices(ids) {
+    return apiFetch(`${BASE_URL}/batch-delete`, {
+        method: 'POST',
+        body: JSON.stringify({ ids })
+    });
+}
+
 export function setEnabled(id, enabled) {
     return apiFetch(`${BASE_URL}/${encodeURIComponent(id)}/enabled?enabled=${enabled}`, { method: 'POST' });
 }

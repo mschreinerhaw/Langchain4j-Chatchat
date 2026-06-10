@@ -33,6 +33,7 @@ chatchat:
   search:
     store-path: ./target/test-search-rocksdb-${random.uuid}
     file-path: ./target/test-search-files-${random.uuid}
+    lucene-index-path: ./target/test-search-lucene-${random.uuid}
   chat:
     detail-store:
       type: memory

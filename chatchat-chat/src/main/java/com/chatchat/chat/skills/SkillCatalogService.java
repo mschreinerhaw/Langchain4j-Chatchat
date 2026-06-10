@@ -472,7 +472,7 @@ public class SkillCatalogService {
     }
 
     private SkillRoutingSettings defaultRoutingSettings() {
-        return new SkillRoutingSettings(true, true, 3);
+        return new SkillRoutingSettings(true, true, 3, 3);
     }
 
     private String normalizeId(String id) {
@@ -560,7 +560,8 @@ public class SkillCatalogService {
         return new SkillRoutingSettings(
             settings.smartSelectionEnabled() == null || settings.smartSelectionEnabled(),
             settings.limitParallelCalls() != null && settings.limitParallelCalls(),
-            settings.maxParallelCalls() == null ? 3 : Math.max(1, Math.min(10, settings.maxParallelCalls()))
+            settings.maxParallelCalls() == null ? 3 : Math.max(1, Math.min(10, settings.maxParallelCalls())),
+            settings.maxRelevantMcpTools() == null ? 3 : Math.max(1, Math.min(20, settings.maxRelevantMcpTools()))
         );
     }
 

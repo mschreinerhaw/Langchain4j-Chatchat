@@ -4,7 +4,6 @@
       <p>
         <a href="#" class="library-title-link" @click.prevent="backToSearch">返回文档检索</a>
       </p>
-      <h1>文档中心</h1>
     </header>
 
     <section class="library-toolbar">

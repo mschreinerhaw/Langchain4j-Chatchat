@@ -20,6 +20,13 @@ export function deleteDatabaseQuery(id) {
     return apiFetch(`${BASE_URL}/${encodeURIComponent(id)}`, { method: 'DELETE' });
 }
 
+export function deleteDatabaseQueries(ids) {
+    return apiFetch(`${BASE_URL}/batch-delete`, {
+        method: 'POST',
+        body: JSON.stringify({ ids })
+    });
+}
+
 export function setDatabaseQueryEnabled(id, enabled) {
     return apiFetch(`${BASE_URL}/${encodeURIComponent(id)}/enabled?enabled=${enabled}`, { method: 'POST' });
 }

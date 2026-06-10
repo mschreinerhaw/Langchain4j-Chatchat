@@ -6,6 +6,7 @@ package com.chatchat.chat.skills;
 public record SkillRoutingSettings(
     Boolean smartSelectionEnabled,
     Boolean limitParallelCalls,
-    Integer maxParallelCalls
+    Integer maxParallelCalls,
+    Integer maxRelevantMcpTools
 ) {
 }

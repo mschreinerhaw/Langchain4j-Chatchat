@@ -203,7 +203,7 @@
                             <outputDirectory>${project.build.outputDirectory}/static</outputDirectory>
                             <resources>
                                 <resource>
-                                    <directory>${project.basedir}/web-app/dist</directory>
+                                    <directory>${project.basedir}/src/main/resources/static</directory>
                                     <filtering>false</filtering>
                                 </resource>
                             </resources>

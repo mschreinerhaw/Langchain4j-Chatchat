@@ -38,15 +38,6 @@
   font-size: 16px;
 }
 
-.system-actions {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.system-actions label,
 .scope-box label {
   display: grid;
   gap: 5px;
@@ -55,7 +46,6 @@
   font-weight: 700;
 }
 
-.system-actions select,
 .scope-box select,
 .role-form input,
 .role-form select,
@@ -74,7 +64,6 @@
   outline: 0;
 }
 
-.system-actions select,
 .scope-box select,
 .role-form input,
 .role-form select,
@@ -212,8 +201,8 @@
 .rbac-board {
   min-height: 0;
   display: grid;
-  grid-template-columns: 1fr;
-  grid-template-rows: minmax(0, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-rows: minmax(360px, auto);
   gap: 14px;
   overflow: auto;
   padding-right: 4px;
@@ -233,7 +222,141 @@
 }
 
 .role-panel {
+  grid-column: 1 / -1;
   grid-template-rows: auto minmax(0, 1fr);
+}
+
+.org-panel,
+.user-panel {
+  min-height: 520px;
+  grid-template-rows: auto auto minmax(0, 1fr);
+}
+
+.entity-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #edf0f6;
+  border-radius: 8px;
+  background: #fafcff;
+}
+
+.entity-form label {
+  display: grid;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.entity-form input,
+.entity-form select {
+  min-width: 0;
+  min-height: 36px;
+  padding: 0 10px;
+  border: 1px solid #dce2ec;
+  border-radius: 7px;
+  background: #fff;
+  color: #202939;
+  outline: 0;
+}
+
+.entity-form select[multiple] {
+  min-height: 94px;
+  padding: 7px 10px;
+}
+
+.entity-form .full-span,
+.entity-form-actions {
+  grid-column: 1 / -1;
+}
+
+.entity-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.entity-table {
+  min-height: 0;
+  overflow: auto;
+  border: 1px solid #edf0f6;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.entity-table-head,
+.entity-table-row {
+  align-items: center;
+  gap: 10px;
+  padding: 0 12px;
+}
+
+.entity-table-head {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  min-height: 38px;
+  border-bottom: 1px solid #edf0f6;
+  background: #f8fafd;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.entity-table-row {
+  min-height: 58px;
+  border-bottom: 1px solid #edf0f6;
+  color: #344054;
+  font-size: 13px;
+}
+
+.entity-table-row:last-child {
+  border-bottom: 0;
+}
+
+.entity-table-row:hover {
+  background: #fafcff;
+}
+
+.entity-table-row strong,
+.entity-table-row small {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.entity-table-row small {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.org-table-row {
+  min-width: 680px;
+  display: grid;
+  grid-template-columns: minmax(170px, 1.1fr) minmax(120px, 0.85fr) 62px 74px 86px;
+}
+
+.user-table-row {
+  min-width: 720px;
+  display: grid;
+  grid-template-columns: minmax(150px, 1fr) minmax(150px, 1fr) 58px 74px 86px;
+}
+
+.entity-row-actions {
+  display: inline-flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.entity-row-actions .icon-button {
+  width: 32px;
+  min-height: 32px;
+  height: 32px;
 }
 
 .assignment-panel {
@@ -285,9 +408,9 @@
 
 .role-record-head,
 .role-record {
-  min-width: 760px;
+  min-width: 850px;
   display: grid;
-  grid-template-columns: minmax(170px, 1.2fr) minmax(150px, 1fr) 90px 82px 92px 92px;
+  grid-template-columns: minmax(170px, 1.2fr) minmax(150px, 1fr) 90px 82px 92px 92px 86px;
   align-items: center;
   gap: 12px;
   padding: 0 14px;
@@ -308,6 +431,7 @@
   border-bottom: 1px solid #edf0f6;
   background: #fff;
   color: #344054;
+  cursor: pointer;
   text-align: left;
 }
 
@@ -536,6 +660,7 @@
 }
 
 .permission-modal,
+.entity-modal,
 .role-modal,
 .authorization-modal,
 .user-picker-modal {
@@ -553,6 +678,16 @@
 .role-modal {
   width: min(1080px, 100%);
   max-height: calc(100dvh - 32px);
+}
+
+.entity-modal {
+  width: min(720px, 100%);
+  max-height: calc(100dvh - 32px);
+}
+
+.modal-entity-form {
+  min-height: 0;
+  overflow: auto;
 }
 
 .authorization-modal {
@@ -1075,8 +1210,7 @@
     overflow: visible;
   }
 
-  .system-header,
-  .system-actions {
+  .system-header {
     align-items: stretch;
     flex-direction: column;
   }
@@ -1101,6 +1235,7 @@
   }
 
   .permission-modal,
+  .entity-modal,
   .role-modal,
   .authorization-modal,
   .user-picker-modal {

@@ -2,9 +2,8 @@
   <section class="feature-view ai-search-view search-workspace">
     <header>
       <p>
-        <a href="#" class="search-title-link" @click.prevent="goToLibrary">文档中心</a>
+        <a href="#" class="search-title-link" @click.prevent="goToLibrary">文档库</a>
       </p>
-      <h1>文档检索</h1>
     </header>
 
     <div class="search-panel">

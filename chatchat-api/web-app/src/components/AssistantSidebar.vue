@@ -106,11 +106,11 @@
         <strong>{{ displayUserId }}</strong>
         <span>用户ID</span>
       </div>
-      <button type="button" aria-label="消息" class="user-action">
+      <button type="button" aria-label="消息" title="消息" class="user-action">
         <MessageCircle :size="17" stroke-width="1.9" />
       </button>
-      <button type="button" aria-label="更多" class="user-more">
-        <Ellipsis :size="18" stroke-width="2" />
+      <button type="button" aria-label="退出登录" title="退出登录" class="user-more" @click="$emit('logout')">
+        <LogOut :size="17" stroke-width="2" />
       </button>
     </div>
   </aside>

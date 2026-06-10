@@ -213,7 +213,7 @@ export default {
           this.selectedEvents = [];
         }
       } catch (error) {
-        this.error = error.message || "加载运行控制台失败";
+        this.error = error.message || "加载运行监控失败";
       } finally {
         this.loading = false;
       }

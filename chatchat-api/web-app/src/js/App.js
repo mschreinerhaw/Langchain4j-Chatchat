@@ -12,6 +12,9 @@ import TasksView from "../views/TasksView.vue";
 import { clearAuthSession, deleteConversationHistory, fetchConversationHistory, getStoredAuthSession } from "../services/api";
 
 const USER_ID = "mx_48991534";
+const IDLE_LOGOUT_MS = 30 * 60 * 1000;
+const ACTIVITY_THROTTLE_MS = 1000;
+const ACTIVITY_EVENTS = ["click", "keydown", "mousemove", "mousedown", "scroll", "touchstart", "wheel"];
 
 const views = {
   chat: ChatAssistantView,
@@ -43,6 +46,8 @@ export default {
       conversationHistory: [],
       selectedConversation: null,
       activeHistoryId: "",
+      idleLogoutTimer: null,
+      lastActivityAt: Date.now(),
       navItems: [
         {
           id: "workspace",
@@ -94,22 +99,64 @@ export default {
   mounted() {
     if (this.authSession) {
       this.loadConversationHistory();
+      this.startIdleLogoutWatcher();
     }
+  },
+  beforeUnmount() {
+    this.stopIdleLogoutWatcher();
   },
   methods: {
     handleLoginSuccess(session) {
       this.authSession = session;
       const sessionUser = session?.user || {};
       this.userId = sessionUser.username || sessionUser.id || USER_ID;
+      this.startIdleLogoutWatcher();
       this.loadConversationHistory();
     },
     handleLogout() {
+      this.stopIdleLogoutWatcher();
       clearAuthSession();
       this.authSession = null;
       this.userId = USER_ID;
       this.conversationHistory = [];
       this.selectedConversation = null;
       this.activeHistoryId = "";
+    },
+    startIdleLogoutWatcher() {
+      this.stopIdleLogoutWatcher();
+      this.lastActivityAt = Date.now();
+      ACTIVITY_EVENTS.forEach((eventName) => {
+        window.addEventListener(eventName, this.handleUserActivity, { passive: true });
+      });
+      this.scheduleIdleLogout();
+    },
+    stopIdleLogoutWatcher() {
+      if (this.idleLogoutTimer) {
+        window.clearTimeout(this.idleLogoutTimer);
+        this.idleLogoutTimer = null;
+      }
+      ACTIVITY_EVENTS.forEach((eventName) => {
+        window.removeEventListener(eventName, this.handleUserActivity);
+      });
+    },
+    handleUserActivity() {
+      if (!this.authSession) {
+        return;
+      }
+      const now = Date.now();
+      if (now - this.lastActivityAt < ACTIVITY_THROTTLE_MS) {
+        return;
+      }
+      this.lastActivityAt = now;
+      this.scheduleIdleLogout();
+    },
+    scheduleIdleLogout() {
+      if (this.idleLogoutTimer) {
+        window.clearTimeout(this.idleLogoutTimer);
+      }
+      this.idleLogoutTimer = window.setTimeout(() => {
+        this.handleLogout();
+      }, IDLE_LOGOUT_MS);
     },
     async loadConversationHistory(filters = {}) {
       this.historyLoading = true;

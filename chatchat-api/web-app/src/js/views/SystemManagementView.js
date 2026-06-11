@@ -86,6 +86,7 @@ export default {
       userModalOpen: false,
       error: "",
       message: "",
+      activeManagementTab: "users",
       summary: {},
       tenants: [],
       orgs: [],
@@ -205,6 +206,12 @@ export default {
     },
     selectedRole() {
       return this.roles.find((role) => role.id === this.selectedRoleId) || null;
+    },
+    rolesById() {
+      return this.roles.reduce((result, role) => {
+        result[role.id] = role;
+        return result;
+      }, {});
     }
   },
   mounted() {
@@ -412,6 +419,9 @@ export default {
         roleIds: Array.isArray(user.roleIds) ? [...user.roleIds] : []
       };
     },
+    setUserRole(roleId) {
+      this.userForm.roleIds = roleId ? [roleId] : [];
+    },
     async saveUserForm() {
       if (!this.userForm.username || !this.userForm.displayName) {
         this.setNotice("请填写账号和姓名", true);
@@ -452,6 +462,10 @@ export default {
       }
     },
     async removeUser(user) {
+      if (this.isAdminUser(user)) {
+        this.setNotice("admin 用户禁止删除", true);
+        return;
+      }
       if (!user?.id || !window.confirm(`确认删除账户「${user.displayName || user.username}」？`)) {
         return;
       }
@@ -655,6 +669,14 @@ export default {
         locked: "锁定"
       };
       return labels[status] || status || "启用";
+    },
+    isAdminUser(user) {
+      return String(user?.username || "").toLowerCase() === "admin";
+    },
+    roleNamesForUser(user) {
+      return (Array.isArray(user?.roleIds) ? user.roleIds : [])
+        .map((roleId) => this.rolesById[roleId]?.roleName)
+        .filter(Boolean);
     },
     scopeTypeLabel(type) {
       const labels = {

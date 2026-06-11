@@ -70,6 +70,9 @@ public class SkillConfigEntity {
     private String routingSettingsJson;
 
     @Column(length = 16000)
+    private String workflowConfigJson;
+
+    @Column(length = 16000)
     private String quickQuestionsJson;
 
     @Column(length = 32, nullable = false)

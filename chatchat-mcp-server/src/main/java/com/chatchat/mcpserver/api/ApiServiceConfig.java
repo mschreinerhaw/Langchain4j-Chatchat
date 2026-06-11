@@ -46,6 +46,10 @@ public class ApiServiceConfig {
     @Column
     private String inputSchemaJson;
 
+    @Lob
+    @Column
+    private String governanceJson;
+
     @Column(nullable = false)
     private boolean enabled = true;
 
@@ -149,6 +153,14 @@ public class ApiServiceConfig {
 
     public void setInputSchemaJson(String inputSchemaJson) {
         this.inputSchemaJson = inputSchemaJson;
+    }
+
+    public String getGovernanceJson() {
+        return governanceJson;
+    }
+
+    public void setGovernanceJson(String governanceJson) {
+        this.governanceJson = governanceJson;
     }
 
     public boolean isEnabled() {

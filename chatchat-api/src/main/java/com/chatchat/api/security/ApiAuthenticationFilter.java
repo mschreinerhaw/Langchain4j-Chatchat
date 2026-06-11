@@ -1,5 +1,7 @@
-package com.chatchat.mcpserver.admin;
+package com.chatchat.api.security;
 
+import com.chatchat.common.response.ApiResponse;
+import com.chatchat.enterprise.service.EnterpriseAdminService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -13,18 +15,16 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
-import java.util.Map;
 
 @Component
 @RequiredArgsConstructor
-public class AdminAuthFilter extends OncePerRequestFilter {
+public class ApiAuthenticationFilter extends OncePerRequestFilter {
 
     private static final String API_PREFIX = "/api/v1/";
-    private static final String LOGIN_PATH = "/api/v1/admin/auth/login";
-    private static final String HEARTBEAT_PATH = "/api/v1/mcp-services/heartbeat";
+    private static final String LOGIN_PATH = "/api/v1/enterprise/auth/login";
     private static final String BEARER_PREFIX = "Bearer ";
 
-    private final AdminAuthService authService;
+    private final EnterpriseAdminService adminService;
     private final ObjectMapper objectMapper;
 
     @Override
@@ -32,33 +32,32 @@ public class AdminAuthFilter extends OncePerRequestFilter {
         String path = request.getRequestURI().substring(request.getContextPath().length());
         return "OPTIONS".equalsIgnoreCase(request.getMethod())
             || !path.startsWith(API_PREFIX)
-            || LOGIN_PATH.equals(path)
-            || HEARTBEAT_PATH.equals(path);
+            || LOGIN_PATH.equals(path);
     }
 
     @Override
-    protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
-        throws ServletException, IOException {
+    protected void doFilterInternal(HttpServletRequest request,
+                                    HttpServletResponse response,
+                                    FilterChain filterChain) throws ServletException, IOException {
         String token = resolveBearerToken(request.getHeader(HttpHeaders.AUTHORIZATION));
-        if (authService.isValid(token)) {
-            filterChain.doFilter(request, response);
+        if (!adminService.isTokenValid(token)) {
+            writeUnauthorized(response);
             return;
         }
-
-        response.setStatus(HttpStatus.UNAUTHORIZED.value());
-        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
-        response.setCharacterEncoding("UTF-8");
-        objectMapper.writeValue(response.getWriter(), Map.of(
-            "code", 401,
-            "message", "请先登录",
-            "timestamp", System.currentTimeMillis()
-        ));
+        filterChain.doFilter(request, response);
     }
 
     private String resolveBearerToken(String authorization) {
-        if (authorization == null || !authorization.regionMatches(true, 0, BEARER_PREFIX, 0, BEARER_PREFIX.length())) {
-            return null;
+        if (authorization == null || !authorization.startsWith(BEARER_PREFIX)) {
+            return "";
         }
         return authorization.substring(BEARER_PREFIX.length()).trim();
+    }
+
+    private void writeUnauthorized(HttpServletResponse response) throws IOException {
+        response.setStatus(HttpStatus.UNAUTHORIZED.value());
+        response.setContentType(MediaType.APPLICATION_JSON_VALUE);
+        response.setCharacterEncoding("UTF-8");
+        objectMapper.writeValue(response.getWriter(), ApiResponse.error(401, "请先登录"));
     }
 }

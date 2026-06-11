@@ -92,15 +92,40 @@ chatchat:
       include-unpublished-as-disabled: false
       expose-ams-token-parameter: false
   tools:
+    calculator:
+      risk-level: low
+      operation-type: read
+      timeout-ms: 5000
+      confirmation:
+        default: auto_execute
+      parameter-policy:
+        expression: auto_execute
     document-search:
       enabled: true
+      # Runtime/API retrieval service address. Set this when MCP Server and Runtime are deployed separately.
       api-base-url: http://localhost:8080
       search-path: /api/v1/search
+      detail-path-template: /api/v1/search/documents/{docId}
       timeout-ms: 20000
       default-limit: 5
       max-limit: 20
+      auth:
+        enabled: true
+        login-path: /api/v1/enterprise/auth/login
+        username: admin
+        password: 123456
+        bearer-token: ""
+      risk-level: medium
+      confirmation:
+        default: ask_before_execute
     web-search:
       enabled: true
+      risk-level: low
+      operation-type: read
+      confirmation:
+        default: auto_execute
+      parameter-policy:
+        query: auto_execute
       provider: bing_html
       endpoint: https://www.bing.com/search
       user-agent: ChatChat-MCP-Server/1.0
@@ -108,10 +133,27 @@ chatchat:
       max-results: 10
     database-query:
       enabled: true
+      risk-level: high
+      operation-type: read
+      user-visible: false
+      agent-compatible: false
+      confirmation:
+        default: ask_before_execute
+      parameter-policy:
+        jdbc-url: ask_before_execute
+        password: ask_before_execute
       default-max-rows: 50
       max-rows: 500
       query-timeout-seconds: 15
       driver-lib-path: ./lib/drivers
+    file-system:
+      risk-level: high
+      operation-type: read
+      timeout-ms: 10000
+      confirmation:
+        default: ask_before_execute
+      parameter-policy:
+        path: ask_before_execute
 
 logging:
   file:

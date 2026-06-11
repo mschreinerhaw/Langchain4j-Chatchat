@@ -13,7 +13,7 @@
           <div class="message-actions">
             <time>{{ formatTime(message.timestamp) }}</time>
             <button
-              v-if="message.role === 'assistant' && message.content"
+              v-if="message.content"
               type="button"
               class="message-copy-button"
               :title="copiedMessageId === message.id ? '已复制' : '复制回答'"
@@ -35,7 +35,7 @@
         </div>
         <div v-else class="message-markdown" v-html="renderMarkdown(message.content, message)"></div>
         <ResponseReferences
-          v-if="message.role === 'assistant' && !message.streaming"
+          v-if="message.role === 'assistant' && !message.streaming && message.status !== 'waiting'"
           :sources="message.sources || []"
           :tool-traces="message.traces || []"
           compact

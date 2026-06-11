@@ -85,7 +85,22 @@ public class AgentToolPolicyResolver {
             mcpToolsByServiceId.computeIfAbsent(tool.serviceId(), ignored -> new ArrayList<>())
                 .add(tool.localToolName())
         );
-        return skillCatalogService.resolveTools(skillId, toolRegistry.getAllToolNames(), mcpToolsByServiceId);
+        return skillCatalogService.resolveTools(skillId, agentVisibleToolNames(), mcpToolsByServiceId);
+    }
+
+    private List<String> agentVisibleToolNames() {
+        return toolRegistry.getAllToolNames().stream()
+            .filter(this::isAgentVisibleTool)
+            .sorted()
+            .toList();
+    }
+
+    private boolean isAgentVisibleTool(String toolName) {
+        if (toolName == null || toolName.isBlank()) {
+            return false;
+        }
+        ToolMetadata metadata = toolRegistry.getToolMetadata(toolName);
+        return metadata == null || (metadata.isAgentCompatible() && metadata.isUserVisible());
     }
 
     private boolean isDocumentWorkflowRequested(InteractionRequest request, SkillDefinition skill) {

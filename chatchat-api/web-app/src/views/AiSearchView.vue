@@ -31,8 +31,16 @@
           <span v-if="hasMoreResults"> · 已载入前 {{ results.length }} 条</span>
         </p>
         <article v-for="result in pagedResults" :key="result.docId" class="search-result-item">
-          <h3>{{ result.title }}</h3>
-          <div class="result-meta">{{ result.source }} · {{ result.date }}</div>
+          <div class="result-head">
+            <div>
+              <h3>{{ result.title }}</h3>
+              <div class="result-meta">{{ result.source }} · {{ result.date }}</div>
+            </div>
+            <div class="result-actions">
+              <button type="button" @click="openResult(result)">查看内容</button>
+              <button type="button" class="danger-action" @click="removeDocument(result)">删除</button>
+            </div>
+          </div>
           <p>{{ result.summary }}</p>
           <div v-if="result.matchedKeywords?.length" class="result-tags">
             <span v-for="term in result.matchedKeywords" :key="term">{{ term }}</span>
@@ -98,6 +106,35 @@
           </button>
         </footer>
       </form>
+    </div>
+
+    <div v-if="viewerOpen" class="search-viewer-backdrop" @click.self="closeViewer">
+      <section class="search-viewer">
+        <header>
+          <div>
+            <p>{{ viewerDocument?.source || viewerResult?.source }} · {{ viewerDocument?.date || viewerResult?.date }}</p>
+            <h2>{{ viewerDocument?.title || viewerResult?.title || "文档内容" }}</h2>
+          </div>
+          <button type="button" class="dialog-close" @click="closeViewer">×</button>
+        </header>
+
+        <p v-if="viewerLoading" class="search-empty">正在加载文档内容...</p>
+        <p v-else-if="viewerError" class="search-error">{{ viewerError }}</p>
+        <div v-else class="search-viewer-body">
+          <section v-if="viewerResult?.matchedChunks?.length" class="matched-chunks">
+            <h3>匹配内容</h3>
+            <article v-for="chunk in viewerResult.matchedChunks" :key="chunk.chunkId || chunk.chunkIndex">
+              <span>片段 {{ chunk.chunkIndex + 1 }}</span>
+              <p>{{ chunk.text }}</p>
+            </article>
+          </section>
+
+          <section class="document-content">
+            <h3>完整正文</h3>
+            <pre>{{ viewerDocument?.content || "暂无正文内容" }}</pre>
+          </section>
+        </div>
+      </section>
     </div>
   </section>
 </template>

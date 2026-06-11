@@ -53,6 +53,9 @@ public class EnterpriseToolRuntimeAuditSink implements ToolRuntimeAuditSink {
         detail.put("errorCode", record.errorCode());
         detail.put("errorMessage", record.output() == null ? null : record.output().getErrorMessage());
         detail.put("parameters", record.request().getToolInput() == null ? Map.of() : record.request().getToolInput().getParameters());
+        detail.put("policyResult", record.runtimeMetadata() == null ? null : record.runtimeMetadata().get("policyResult"));
+        detail.put("confirmation", record.runtimeMetadata() == null ? null : record.runtimeMetadata().get("confirmation"));
+        detail.put("resultSummary", resultSummary(record));
         detail.put("runtime", record.runtimeMetadata());
         try {
             String json = objectMapper.writeValueAsString(detail);
@@ -60,5 +63,13 @@ public class EnterpriseToolRuntimeAuditSink implements ToolRuntimeAuditSink {
         } catch (JsonProcessingException ex) {
             return "tool=" + record.request().getToolName() + ", outcome=" + record.outcome();
         }
+    }
+
+    private String resultSummary(ToolRuntimeAuditRecord record) {
+        if (record == null || record.trace() == null || record.trace().getOutput() == null) {
+            return "";
+        }
+        String output = record.trace().getOutput();
+        return output.length() <= 500 ? output : output.substring(0, 500);
     }
 }

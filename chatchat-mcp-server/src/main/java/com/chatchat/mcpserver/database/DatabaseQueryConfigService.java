@@ -63,6 +63,7 @@ public class DatabaseQueryConfigService {
         current.setDescription(draft.getDescription());
         current.setSqlTemplate(draft.getSqlTemplate());
         current.setInputSchemaJson(draft.getInputSchemaJson());
+        current.setGovernanceJson(draft.getGovernanceJson());
         current.setMaxRows(draft.getMaxRows());
         current.setJdbcUrl(draft.getJdbcUrl());
         current.setDriverClass(draft.getDriverClass());
@@ -131,6 +132,7 @@ public class DatabaseQueryConfigService {
         config.setDescription(blankToNull(config.getDescription()));
         config.setSqlTemplate(normalizeRequired(config.getSqlTemplate(), "sql"));
         config.setInputSchemaJson(normalizeJsonObject(config.getInputSchemaJson()));
+        config.setGovernanceJson(normalizeJsonObject(config.getGovernanceJson(), "governance"));
         config.setMaxRows(config.getMaxRows() <= 0 ? 50 : Math.min(500, config.getMaxRows()));
         String jdbcUrl = normalizeRequired(config.getJdbcUrl(), "jdbcUrl");
         if (isApplicationJdbcUrl(jdbcUrl)) {
@@ -143,6 +145,10 @@ public class DatabaseQueryConfigService {
     }
 
     private String normalizeJsonObject(String json) {
+        return normalizeJsonObject(json, "inputSchema");
+    }
+
+    private String normalizeJsonObject(String json, String fieldName) {
         String value = blankToNull(json);
         if (value == null) {
             return null;
@@ -151,7 +157,7 @@ public class DatabaseQueryConfigService {
             Map<String, Object> map = objectMapper.readValue(value, new TypeReference<>() {});
             return objectMapper.writeValueAsString(map);
         } catch (Exception ex) {
-            throw new IllegalArgumentException("inputSchema must be a valid JSON object");
+            throw new IllegalArgumentException(fieldName + " must be a valid JSON object");
         }
     }
 

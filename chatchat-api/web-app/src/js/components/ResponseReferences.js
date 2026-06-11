@@ -35,13 +35,30 @@ export default {
     toolTraceRows() {
       return this.toolTraces.map((trace) => ({
         ...trace,
+        confirmationRequired: this.isConfirmationRequired(trace),
+        statusText: this.traceStatusText(trace),
         errorText: this.traceErrorText(trace),
         webPages: extractWebSearchPages(trace)
       }));
     }
   },
   methods: {
+    isConfirmationRequired(trace) {
+      const runtime = trace?.runtimeMetadata || {};
+      const outcome = String(runtime.outcome || trace?.outcome || "").toLowerCase();
+      const errorCode = String(trace?.errorCode || trace?.exceptionType || "").toUpperCase();
+      return outcome === "confirmation_required" || errorCode === "MCP_CONFIRMATION_REQUIRED";
+    },
+    traceStatusText(trace) {
+      if (this.isConfirmationRequired(trace)) {
+        return "等待权限确认";
+      }
+      return trace?.success === false ? "调用失败" : "调用成功";
+    },
     traceErrorText(trace) {
+      if (this.isConfirmationRequired(trace)) {
+        return "";
+      }
       if (trace?.success !== false) {
         return "";
       }

@@ -2,6 +2,7 @@ package com.chatchat.mcpserver.api;
 
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.chatchat.mcpserver.tool.AgentRuntimeGovernanceFactory;
 import io.modelcontextprotocol.server.McpServerFeatures;
 import io.modelcontextprotocol.spec.McpSchema;
 import lombok.RequiredArgsConstructor;
@@ -19,6 +20,7 @@ public class ApiToolSpecFactory {
 
     private final ApiInvokeService invokeService;
     private final ObjectMapper objectMapper;
+    private final AgentRuntimeGovernanceFactory governanceFactory;
 
     public McpServerFeatures.SyncToolSpecification toToolSpecification(ApiServiceConfig config) {
         McpSchema.Tool tool = McpSchema.Tool.builder()
@@ -26,7 +28,7 @@ public class ApiToolSpecFactory {
             .title(config.getTitle())
             .description(config.getDescription() == null ? "External API service" : config.getDescription())
             .inputSchema(toInputSchema(config.getInputSchemaJson()))
-            .meta(Map.of("source", "external_api", "apiServiceId", config.getId()))
+            .meta(withLegacyId(governanceFactory.metaForApi(config), "apiServiceId", config.getId()))
             .build();
 
         return McpServerFeatures.SyncToolSpecification.builder()
@@ -116,5 +118,11 @@ public class ApiToolSpecFactory {
             .filter(key -> key != null && !key.isBlank())
             .sorted()
             .toList();
+    }
+
+    private Map<String, Object> withLegacyId(Map<String, Object> meta, String key, String value) {
+        Map<String, Object> values = new LinkedHashMap<>(meta == null ? Map.of() : meta);
+        values.put(key, value);
+        return values;
     }
 }

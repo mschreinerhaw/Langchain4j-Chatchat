@@ -10,6 +10,7 @@ import com.chatchat.chat.skills.SkillToolConfig;
 import com.chatchat.common.constants.AppConstants;
 import com.chatchat.common.response.ApiResponse;
 import com.chatchat.common.config.ModelsConfig;
+import com.chatchat.common.tool.ToolMetadata;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.AllArgsConstructor;
@@ -128,6 +129,7 @@ public class DataQueryController {
                 item.boundDocumentTags(),
                 item.toolConfigs(),
                 item.routingSettings(),
+                item.workflowConfig(),
                 item.quickQuestions(),
                 item.marketStatus(),
                 item.createdAt()
@@ -169,8 +171,19 @@ public class DataQueryController {
     @GetMapping("/tools")
     @Operation(summary = "List all available tool names")
     public ApiResponse<List<String>> getTools() {
-        List<String> tools = toolRegistry.getAllToolNames().stream().sorted(Comparator.naturalOrder()).toList();
+        List<String> tools = toolRegistry.getAllToolNames().stream()
+            .filter(this::isUserVisibleAgentTool)
+            .sorted(Comparator.naturalOrder())
+            .toList();
         return ApiResponse.success(tools);
+    }
+
+    private boolean isUserVisibleAgentTool(String toolName) {
+        if (toolName == null || toolName.isBlank()) {
+            return false;
+        }
+        ToolMetadata metadata = toolRegistry.getToolMetadata(toolName);
+        return metadata == null || (metadata.isAgentCompatible() && metadata.isUserVisible());
     }
 
     @GetMapping("/history/{userId}")
@@ -196,6 +209,7 @@ public class DataQueryController {
             return ApiResponse.badRequest("conversationId is required");
         }
         conversationService.updateConversationSummary(conversationId, userId, request.getQuestion(), status);
+        conversationService.replaceMessages(conversationId, userId, toConversationMessages(messages));
         List<HistoryItem> history = loadPersistentHistory(userId, null, null, 30);
         replaceCurrentHistorySnapshot(history, new HistoryItem(
             conversationId,
@@ -226,6 +240,9 @@ public class DataQueryController {
             return ApiResponse.success(loadPersistentHistory(userId, null, null, 30), "History not found");
         }
         conversationService.updateConversationSummary(conversationId, userId, conversation.getTitle(), status);
+        if (request != null && request.getMessages() != null) {
+            conversationService.replaceMessages(conversationId, userId, toConversationMessages(request.getMessages()));
+        }
         List<HistoryItem> history = loadPersistentHistory(userId, null, null, 30);
         if (request != null && request.getMessages() != null) {
             replaceCurrentHistorySnapshot(history, new HistoryItem(
@@ -283,6 +300,7 @@ public class DataQueryController {
         private List<String> boundDocumentTags;
         private List<SkillToolConfig> toolConfigs;
         private SkillRoutingSettings routingSettings;
+        private Map<String, Object> workflowConfig;
         private List<String> quickQuestions;
         private String marketStatus;
     }
@@ -309,6 +327,7 @@ public class DataQueryController {
         List<String> boundDocumentTags,
         List<SkillToolConfig> toolConfigs,
         SkillRoutingSettings routingSettings,
+        Map<String, Object> workflowConfig,
         List<String> quickQuestions,
         String marketStatus,
         Long createdAt
@@ -362,6 +381,7 @@ public class DataQueryController {
         private String role;
         private String content;
         private Long timestamp;
+        private List<Map<String, Object>> sources;
         private List<Map<String, Object>> traces;
         private Boolean streaming;
         private String status;
@@ -417,10 +437,28 @@ public class DataQueryController {
             message.getRole(),
             message.getContent(),
             toEpochMillis(message.getTimestamp()),
-            List.of(),
+            safeMaps(message.getSources()),
+            safeMaps(message.getTraces()),
             false,
             "completed"
         );
+    }
+
+    private List<Conversation.Message> toConversationMessages(List<ConversationMessage> messages) {
+        if (messages == null || messages.isEmpty()) {
+            return List.of();
+        }
+        return messages.stream()
+            .filter(message -> message != null && message.getRole() != null && !message.getRole().isBlank())
+            .map(message -> Conversation.Message.builder()
+                .id(message.getId())
+                .role(message.getRole())
+                .content(message.getContent())
+                .timestamp(fromEpochMillis(message.getTimestamp()))
+                .sources(safeMaps(message.getSources()))
+                .traces(safeMaps(message.getTraces()))
+                .build())
+            .toList();
     }
 
     private String firstUserMessage(List<ConversationMessage> messages) {
@@ -444,6 +482,23 @@ public class DataQueryController {
 
     private Long toEpochMillis(LocalDateTime value) {
         return value == null ? System.currentTimeMillis() : value.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
+    }
+
+    private LocalDateTime fromEpochMillis(Long value) {
+        if (value == null || value <= 0) {
+            return null;
+        }
+        return LocalDateTime.ofInstant(java.time.Instant.ofEpochMilli(value), ZoneId.systemDefault());
+    }
+
+    private List<Map<String, Object>> safeMaps(List<Map<String, Object>> values) {
+        if (values == null || values.isEmpty()) {
+            return List.of();
+        }
+        return values.stream()
+            .filter(value -> value != null && !value.isEmpty())
+            .map(value -> (Map<String, Object>) new java.util.LinkedHashMap<>(value))
+            .toList();
     }
 
     private String firstNonBlank(String first, String second) {
@@ -564,6 +619,7 @@ public class DataQueryController {
             skill.boundDocumentTags(),
             skill.toolConfigs(),
             skill.routingSettings(),
+            skill.workflowConfig(),
             skill.quickQuestions(),
             skill.marketStatus(),
             skillCatalogService.isBuiltinSkill(skill.id()),
@@ -593,6 +649,7 @@ public class DataQueryController {
             request.getBoundDocumentTags(),
             request.getToolConfigs(),
             request.getRoutingSettings(),
+            request.getWorkflowConfig(),
             request.getQuickQuestions(),
             request.getMarketStatus()
         );
@@ -615,6 +672,7 @@ public class DataQueryController {
         List<String> boundDocumentTags,
         List<SkillToolConfig> toolConfigs,
         SkillRoutingSettings routingSettings,
+        Map<String, Object> workflowConfig,
         List<String> quickQuestions,
         String marketStatus,
         boolean builtin,

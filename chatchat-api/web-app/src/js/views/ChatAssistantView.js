@@ -34,6 +34,26 @@ function normalizeStatus(value, messages = []) {
   return lastMessage?.role === "user" ? "pending" : "completed";
 }
 
+function isConfirmationTrace(trace) {
+  const runtime = trace?.runtimeMetadata || {};
+  const outcome = String(runtime.outcome || trace?.outcome || "").toLowerCase();
+  const errorCode = String(trace?.errorCode || trace?.exceptionType || "").toUpperCase();
+  return outcome === "confirmation_required" || errorCode === "MCP_CONFIRMATION_REQUIRED";
+}
+
+function isWaitingConfirmationMessage(message, conversationStatus = "") {
+  if (message?.status === "waiting") {
+    return true;
+  }
+  if (message?.role !== "assistant") {
+    return false;
+  }
+  const content = String(message?.content || "");
+  const traces = Array.isArray(message?.traces) ? message.traces : [];
+  return (conversationStatus === "pending" && content.includes("等待权限确认"))
+    || traces.some(isConfirmationTrace);
+}
+
 function normalizeMessages(messages, status = "") {
   if (!Array.isArray(messages)) {
     return [];
@@ -46,16 +66,21 @@ function normalizeMessages(messages, status = "") {
       }
       return !!message.content || !!message.streaming || (allowEmptyAssistant && message.role === "assistant");
     })
-    .map((message) => ({
-      id: message.id || uid(),
-      role: message.role,
-      content: message.content || "",
-      timestamp: message.timestamp || Date.now(),
-      sources: Array.isArray(message.sources) ? message.sources : [],
-      traces: Array.isArray(message.traces) ? message.traces : [],
-      streaming: !!message.streaming || message.status === "streaming" || message.status === "running",
-      status: message.status || (message.streaming ? "streaming" : "completed")
-    }));
+    .map((message) => {
+      const waitingConfirmation = isWaitingConfirmationMessage(message, status);
+      const streaming = !waitingConfirmation
+        && (!!message.streaming || message.status === "streaming" || message.status === "running");
+      return {
+        id: message.id || uid(),
+        role: message.role,
+        content: message.content || "",
+        timestamp: message.timestamp || Date.now(),
+        sources: waitingConfirmation ? [] : (Array.isArray(message.sources) ? message.sources : []),
+        traces: waitingConfirmation ? [] : (Array.isArray(message.traces) ? message.traces : []),
+        streaming,
+        status: waitingConfirmation ? "waiting" : (message.status || (streaming ? "streaming" : "completed"))
+      };
+    });
 }
 
 function isRunningStatus(status) {
@@ -137,6 +162,17 @@ function pollAgentTaskResult(taskId, timeoutMs = 1200, tenantId = "") {
   return apiRequest(`/agent/tasks/${encodeURIComponent(taskId)}/result?${params.toString()}`);
 }
 
+function cancelAgentTask(taskId, tenantId = "") {
+  const params = new URLSearchParams();
+  if (tenantId) {
+    params.set("tenantId", tenantId);
+  }
+  const query = params.toString();
+  return apiRequest(`/agent/tasks/${encodeURIComponent(taskId)}/cancel${query ? `?${query}` : ""}`, {
+    method: "POST"
+  });
+}
+
 export default {
   name: "ChatAssistantView",
   components: {
@@ -175,6 +211,10 @@ export default {
       uploadingDocument: false,
       uploadError: "",
       uploadNotice: "",
+      pendingMcpConfirmation: null,
+      pendingMcpRequest: null,
+      pendingMcpTaskId: "",
+      confirmationRemember: "",
       uploadForm: defaultUploadForm(),
       documentTypeOptions: [
         { value: "auto", label: "自动识别" },
@@ -232,6 +272,12 @@ export default {
     },
     composerBusy() {
       return this.loading || isRunningStatus(this.conversationStatus);
+    },
+    activeRunContext() {
+      return this.runningContexts[this.historyId] || null;
+    },
+    canKillActiveRun() {
+      return this.loading || !!this.activeRunContext?.taskId || !!this.pendingMcpTaskId;
     }
   },
   mounted() {
@@ -296,7 +342,25 @@ export default {
       };
 
       try {
-        await this.requestAssistantAnswer(query, requestPayload, runContext);
+        const answerState = await this.requestAssistantAnswer(query, requestPayload, runContext);
+        if (answerState?.waitingConfirmation) {
+          runContext.status = "pending";
+          if (this.isActiveRun(runContext)) {
+            this.conversationStatus = "pending";
+          }
+          this.emitActiveConversationSnapshot(query, "pending", runContext);
+          await this.saveHistory(query, "pending", runContext);
+          return;
+        }
+        if (answerState?.cancelled) {
+          runContext.status = "cancelled";
+          if (this.isActiveRun(runContext)) {
+            this.conversationStatus = "cancelled";
+          }
+          this.emitActiveConversationSnapshot(query, "cancelled", runContext);
+          await this.saveHistory(query, "cancelled", runContext);
+          return;
+        }
         runContext.status = "completed";
         if (this.isActiveRun(runContext)) {
           this.conversationStatus = "completed";
@@ -313,7 +377,9 @@ export default {
         this.emitActiveConversationSnapshot(query, "failed", runContext);
         await this.saveHistory(query, "failed", runContext);
       } finally {
-        delete this.runningContexts[runContext.historyId];
+        if (!this.pendingMcpConfirmation) {
+          delete this.runningContexts[runContext.historyId];
+        }
         if (this.isActiveRun(runContext)) {
           this.loading = false;
           this.activeRunId = "";
@@ -394,12 +460,14 @@ export default {
       }
     },
     async requestAssistantAnswer(query, requestPayload, runContext) {
-      const assistantMessage = this.createAssistantMessage({
+      const assistantMessage = this.reuseWaitingAssistantMessage(runContext) || this.createAssistantMessage({
         content: "",
         streaming: true,
         status: "streaming"
       });
-      runContext.messages.push(assistantMessage);
+      if (!runContext.messages.some((message) => message.id === assistantMessage.id)) {
+        runContext.messages.push(assistantMessage);
+      }
       if (this.isActiveRun(runContext)) {
         this.messages = runContext.messages;
         this.scrollMessages();
@@ -407,6 +475,7 @@ export default {
 
       const task = await submitAgentTask({
         tenantId: this.userId,
+        resumeTaskId: requestPayload.resumeTaskId || "",
         userId: requestPayload.userId,
         agentId: requestPayload.skillId || "general",
         sessionId: requestPayload.conversationId,
@@ -427,6 +496,37 @@ export default {
       const eventType = String(event?.type || "").toUpperCase();
       const eventStatus = String(event?.status || "").toUpperCase();
 
+      if (eventType === "NEEDS_CONFIRMATION" || eventStatus === "WAIT_CONFIRMATION") {
+        const response = eventPayload || {};
+        this.applyResponseMetadata(response, runContext);
+        this.captureMcpConfirmation(response, query, requestPayload, runContext.taskId);
+        assistantMessage.content = "已完成执行计划，等待权限确认后继续。";
+        assistantMessage.timestamp = response.timestamp || event?.createTime || Date.now();
+        assistantMessage.latencyMs = response.latencyMs;
+        assistantMessage.sources = runContext.lastResponse.sources;
+        assistantMessage.traces = [];
+        assistantMessage.streaming = false;
+        assistantMessage.status = "waiting";
+        if (this.isActiveRun(runContext)) {
+          this.messages = runContext.messages;
+          this.scrollMessages();
+        }
+        this.emitActiveConversationSnapshot(query, "pending", runContext);
+        return { waitingConfirmation: true };
+      }
+
+      if (eventStatus === "CANCELLED") {
+        const message = eventPayload.message || "Agent task cancelled";
+        assistantMessage.content = message;
+        assistantMessage.streaming = false;
+        assistantMessage.status = "cancelled";
+        if (this.isActiveRun(runContext)) {
+          this.messages = runContext.messages;
+          this.scrollMessages();
+        }
+        return { cancelled: true };
+      }
+
       if (eventType === "ERROR" || eventStatus === "FAILED") {
         const message = eventPayload.message || "Agent task failed";
         assistantMessage.content = message;
@@ -441,6 +541,7 @@ export default {
 
       const response = eventPayload || {};
       this.applyResponseMetadata(response, runContext);
+      this.captureMcpConfirmation(response, query, requestPayload);
       assistantMessage.content = response.answer || "No response generated";
       assistantMessage.timestamp = response.timestamp || event?.createTime || Date.now();
       assistantMessage.latencyMs = response.latencyMs;
@@ -463,7 +564,15 @@ export default {
         const event = await pollAgentTaskResult(taskId, AGENT_TASK_POLL_TIMEOUT_MS, tenantId);
         const type = String(event?.type || "").toUpperCase();
         const status = String(event?.status || "").toUpperCase();
-        if (type === "ANSWER" || type === "ERROR" || status === "SUCCESS" || status === "FAILED") {
+        if (
+          type === "ANSWER"
+          || type === "ERROR"
+          || type === "NEEDS_CONFIRMATION"
+          || status === "SUCCESS"
+          || status === "FAILED"
+          || status === "CANCELLED"
+          || status === "WAIT_CONFIRMATION"
+        ) {
           return event;
         }
         await sleep(300);
@@ -473,6 +582,7 @@ export default {
     appendDirectAssistantMessage(response, runContext = null) {
       const targetContext = runContext || this.createRunContext("");
       this.applyResponseMetadata(response, targetContext);
+      this.captureMcpConfirmation(response, targetContext.question || "", null, targetContext.taskId || "");
       targetContext.messages.push(
         this.createAssistantMessage({
           content: response?.answer || "服务端没有返回内容。",
@@ -502,6 +612,21 @@ export default {
         status: "completed",
         ...overrides
       };
+    },
+    reuseWaitingAssistantMessage(runContext) {
+      const message = [...(runContext?.messages || [])].reverse()
+        .find((item) => item?.role === "assistant" && item.status === "waiting");
+      if (!message) {
+        return null;
+      }
+      message.content = "";
+      message.streaming = true;
+      message.status = "streaming";
+      message.sources = [];
+      message.traces = [];
+      message.latencyMs = undefined;
+      message.timestamp = Date.now();
+      return message;
     },
     createRunContext(question) {
       return {
@@ -595,6 +720,10 @@ export default {
       this.errorMessage = "";
       this.uploadNotice = "";
       this.lastResponse = { ...EMPTY_RESPONSE };
+      this.pendingMcpConfirmation = null;
+      this.pendingMcpRequest = null;
+      this.pendingMcpTaskId = "";
+      this.confirmationRemember = "";
       this.restoredRunning = false;
       this.$emit("conversation-active", null);
     },
@@ -858,6 +987,177 @@ export default {
           panel.scrollTop = panel.scrollHeight;
         }
       });
+    },
+    captureMcpConfirmation(response = {}, query = "", requestPayload = null, taskId = "") {
+      const confirmation = this.findMcpConfirmation(response);
+      if (!confirmation?.token) {
+        return;
+      }
+      this.pendingMcpConfirmation = confirmation;
+      this.pendingMcpRequest = {
+        query,
+        requestPayload: requestPayload ? JSON.parse(JSON.stringify(requestPayload)) : null,
+        taskId
+      };
+      this.pendingMcpTaskId = taskId || "";
+      this.confirmationRemember = "";
+    },
+    findMcpConfirmation(response = {}) {
+      const traces = Array.isArray(response.toolTraces) ? response.toolTraces : [];
+      for (const trace of traces) {
+        const runtime = trace?.runtimeMetadata || {};
+        if (runtime.outcome === "confirmation_required" && runtime.confirmation) {
+          return runtime.confirmation;
+        }
+      }
+      const agentSteps = response?.metadata?.agent?.plannerSteps || response?.metadata?.plannerSteps || [];
+      for (const step of Array.isArray(agentSteps) ? agentSteps : []) {
+        const confirmation = step?.runtime?.confirmation || step?.confirmation;
+        if (confirmation?.token) {
+          return confirmation;
+        }
+      }
+      return null;
+    },
+    formatConfirmationParameters(parameters = {}) {
+      try {
+        return JSON.stringify(parameters || {}, null, 2);
+      } catch (error) {
+        return String(parameters || "");
+      }
+    },
+    cancelMcpConfirmation() {
+      this.pendingMcpConfirmation = null;
+      this.pendingMcpRequest = null;
+      this.pendingMcpTaskId = "";
+      this.confirmationRemember = "";
+    },
+    async denyMcpConfirmation() {
+      const taskId = this.pendingMcpTaskId || this.pendingMcpRequest?.taskId || "";
+      if (taskId) {
+        try {
+          await cancelAgentTask(taskId, this.userId);
+        } catch (error) {
+          this.errorMessage = error.message || "取消任务失败";
+        }
+      }
+      this.cancelMcpConfirmation();
+    },
+    async confirmMcpExecution() {
+      if (!this.pendingMcpConfirmation?.token || !this.pendingMcpRequest?.requestPayload || this.loading) {
+        return;
+      }
+      const query = this.pendingMcpRequest.query;
+      const requestPayload = JSON.parse(JSON.stringify(this.pendingMcpRequest.requestPayload));
+      requestPayload.resumeTaskId = this.pendingMcpTaskId || this.pendingMcpRequest.taskId || "";
+      requestPayload.toolInput = {
+        ...(requestPayload.toolInput || {}),
+        mcpConfirmation: {
+          token: this.pendingMcpConfirmation.token,
+          approved: true,
+          decision: this.confirmationRemember === "tool_deny" ? "deny" : "allow_once",
+          remember: this.confirmationRemember || undefined
+        }
+      };
+      this.pendingMcpConfirmation = null;
+      this.pendingMcpRequest = null;
+      this.pendingMcpTaskId = "";
+      this.confirmationRemember = "";
+
+      const runContext = this.createRunContext(query);
+      runContext.messages = this.messages;
+      this.runningContexts[runContext.historyId] = runContext;
+      this.loading = true;
+      this.activeRunId = runContext.runId;
+      this.conversationStatus = "running";
+      try {
+        const answerState = await this.requestAssistantAnswer(query, requestPayload, runContext);
+        if (answerState?.waitingConfirmation) {
+          runContext.status = "pending";
+          if (this.isActiveRun(runContext)) {
+            this.conversationStatus = "pending";
+          }
+          this.emitActiveConversationSnapshot(query, "pending", runContext);
+          await this.saveHistory(query, "pending", runContext);
+          return;
+        }
+        if (answerState?.cancelled) {
+          runContext.status = "cancelled";
+          if (this.isActiveRun(runContext)) {
+            this.conversationStatus = "cancelled";
+          }
+          this.emitActiveConversationSnapshot(query, "cancelled", runContext);
+          await this.saveHistory(query, "cancelled", runContext);
+          return;
+        }
+        runContext.status = "completed";
+        if (this.isActiveRun(runContext)) {
+          this.conversationStatus = "completed";
+        }
+        this.emitActiveConversationSnapshot(query, "completed", runContext);
+        await this.saveHistory(query, "completed", runContext);
+      } catch (error) {
+        runContext.status = "failed";
+        if (this.isActiveRun(runContext)) {
+          this.errorMessage = error.message || "MCP confirmation execution failed";
+          this.conversationStatus = "failed";
+        }
+      } finally {
+        if (!this.pendingMcpConfirmation) {
+          delete this.runningContexts[runContext.historyId];
+        }
+        if (this.isActiveRun(runContext)) {
+          this.loading = false;
+          this.activeRunId = "";
+          this.scrollMessages();
+        }
+      }
+    },
+    async killActiveRun() {
+      const runContext = this.activeRunContext;
+      const taskId = runContext?.taskId || this.pendingMcpTaskId || this.pendingMcpRequest?.taskId || "";
+      if (!taskId) {
+        this.loading = false;
+        this.activeRunId = "";
+        this.conversationStatus = "cancelled";
+        this.cancelMcpConfirmation();
+        return;
+      }
+      try {
+        await cancelAgentTask(taskId, this.userId);
+        const targetContext = runContext || this.createRunContext(this.pendingMcpRequest?.query || "");
+        const lastAssistantMessage = [...targetContext.messages].reverse()
+          .find((message) => message.role === "assistant" && (message.streaming || message.status === "waiting"));
+        if (lastAssistantMessage) {
+          lastAssistantMessage.streaming = false;
+          lastAssistantMessage.status = "cancelled";
+          lastAssistantMessage.content = lastAssistantMessage.content || "当前会话已停止。";
+        } else {
+          targetContext.messages.push(this.createAssistantMessage({
+            content: "当前会话已停止。",
+            streaming: false,
+            status: "cancelled"
+          }));
+        }
+        targetContext.status = "cancelled";
+        if (this.isActiveRun(targetContext) || !runContext || targetContext.historyId === this.historyId) {
+          this.messages = targetContext.messages;
+          this.conversationStatus = "cancelled";
+          this.errorMessage = "";
+        }
+        this.emitActiveConversationSnapshot(targetContext.question || "", "cancelled", targetContext);
+        await this.saveHistory(targetContext.question || "", "cancelled", targetContext);
+      } catch (error) {
+        this.errorMessage = error.message || "停止任务失败";
+      } finally {
+        if (runContext) {
+          delete this.runningContexts[runContext.historyId];
+        }
+        this.cancelMcpConfirmation();
+        this.loading = false;
+        this.activeRunId = "";
+        this.scrollMessages();
+      }
     }
   }
 };

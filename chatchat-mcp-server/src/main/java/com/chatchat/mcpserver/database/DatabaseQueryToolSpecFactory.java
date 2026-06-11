@@ -1,6 +1,7 @@
 package com.chatchat.mcpserver.database;
 
 import com.chatchat.common.tool.ToolOutput;
+import com.chatchat.mcpserver.tool.AgentRuntimeGovernanceFactory;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.modelcontextprotocol.server.McpServerFeatures;
@@ -20,6 +21,7 @@ public class DatabaseQueryToolSpecFactory {
 
     private final DatabaseQueryInvokeService invokeService;
     private final ObjectMapper objectMapper;
+    private final AgentRuntimeGovernanceFactory governanceFactory;
 
     public McpServerFeatures.SyncToolSpecification toToolSpecification(DatabaseQueryConfig config) {
         McpSchema.Tool tool = McpSchema.Tool.builder()
@@ -27,7 +29,7 @@ public class DatabaseQueryToolSpecFactory {
             .title(config.getTitle())
             .description(config.getDescription() == null ? "Read-only database query" : config.getDescription())
             .inputSchema(toInputSchema(config.getInputSchemaJson()))
-            .meta(Map.of("source", "database_query_config", "databaseQueryId", config.getId()))
+            .meta(withLegacyId(governanceFactory.metaForDatabaseQuery(config), "databaseQueryId", config.getId()))
             .build();
 
         return McpServerFeatures.SyncToolSpecification.builder()
@@ -113,5 +115,11 @@ public class DatabaseQueryToolSpecFactory {
             .filter(key -> key != null && !key.isBlank())
             .sorted()
             .toList();
+    }
+
+    private Map<String, Object> withLegacyId(Map<String, Object> meta, String key, String value) {
+        Map<String, Object> values = new LinkedHashMap<>(meta == null ? Map.of() : meta);
+        values.put(key, value);
+        return values;
     }
 }

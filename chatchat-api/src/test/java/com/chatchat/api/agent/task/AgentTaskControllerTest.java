@@ -15,6 +15,7 @@ import com.chatchat.enterprise.repository.SysAuditLogRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -32,7 +33,9 @@ import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.hasItem;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.reset;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -139,6 +142,108 @@ class AgentTaskControllerTest {
             .andExpect(jsonPath("$.data.totalTasks").value(greaterThanOrEqualTo(1)))
             .andExpect(jsonPath("$.data.successTasks").value(greaterThanOrEqualTo(1)))
             .andExpect(jsonPath("$.data.latestTasks.length()").value(greaterThanOrEqualTo(1)));
+    }
+
+    @Test
+    void confirmationResumeContinuesWaitingWorkerWithoutNewQuestionEvent() throws Exception {
+        reset(orchestrationService);
+        when(orchestrationService.chat(any())).thenReturn(
+            InteractionResponse.builder()
+                .conversationId("session-confirm-001")
+                .requestId("request-confirm-001")
+                .mode("agent_chat")
+                .answer("waiting confirmation")
+                .toolTraces(List.of(InteractionToolTrace.builder()
+                    .toolName("document_search")
+                    .displayName("Document Search")
+                    .success(false)
+                    .runtimeMetadata(Map.of(
+                        "outcome", "confirmation_required",
+                        "confirmation", Map.of(
+                            "token", "token-confirm-001",
+                            "toolName", "document_search"
+                        )
+                    ))
+                    .build()))
+                .metadata(Map.of("confirmationRequired", true))
+                .build(),
+            InteractionResponse.builder()
+                .conversationId("session-confirm-001")
+                .requestId("request-confirm-002")
+                .mode("agent_chat")
+                .answer("confirmed answer")
+                .metadata(Map.of("source", "mock"))
+                .build()
+        );
+
+        String requestBody = objectMapper.writeValueAsString(Map.of(
+            "tenantId", "tenant-confirm-001",
+            "userId", "user-confirm-001",
+            "agentId", "general",
+            "sessionId", "session-confirm-001",
+            "query", "needs confirmation"
+        ));
+
+        String submitResponse = mockMvc.perform(post("/api/v1/agent/tasks")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(requestBody))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.code").value(200))
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+        String taskId = objectMapper.readTree(submitResponse).path("data").path("taskId").asText();
+        mockMvc.perform(get("/api/v1/agent/tasks/" + taskId + "/result")
+                .param("tenantId", "tenant-confirm-001")
+                .param("timeoutMs", "3000"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.code").value(200))
+            .andExpect(jsonPath("$.data.type").value("NEEDS_CONFIRMATION"))
+            .andExpect(jsonPath("$.data.status").value("WAIT_CONFIRMATION"));
+
+        String confirmationBody = objectMapper.writeValueAsString(Map.of(
+            "tenantId", "tenant-confirm-001",
+            "userId", "user-confirm-001",
+            "agentId", "general",
+            "sessionId", "session-confirm-001",
+            "resumeTaskId", taskId,
+            "query", "needs confirmation",
+            "toolInput", Map.of(
+                "mcpConfirmation", Map.of(
+                    "token", "token-confirm-001",
+                    "approved", true,
+                    "decision", "allow_once"
+                )
+            )
+        ));
+
+        mockMvc.perform(post("/api/v1/agent/tasks")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(confirmationBody))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.code").value(200))
+            .andExpect(jsonPath("$.data.taskId").value(taskId));
+
+        JsonNode finalTask = waitForTaskStatus("tenant-confirm-001", taskId, "SUCCESS");
+        org.assertj.core.api.Assertions.assertThat(finalTask.path("data").path("answerSummary").asText())
+            .contains("confirmed answer");
+
+        List<AgentEvent> events = eventStore.listByTask("tenant-confirm-001", "session-confirm-001", taskId, 100);
+        org.assertj.core.api.Assertions.assertThat(events.stream()
+                .filter(event -> "QUESTION".equalsIgnoreCase(event.getType()))
+                .count())
+            .isEqualTo(1);
+        org.assertj.core.api.Assertions.assertThat(events.stream()
+                .filter(event -> "CONFIRMATION".equalsIgnoreCase(event.getType()))
+                .count())
+            .isEqualTo(1);
+
+        ArgumentCaptor<com.chatchat.chat.interaction.model.InteractionRequest> requestCaptor =
+            ArgumentCaptor.forClass(com.chatchat.chat.interaction.model.InteractionRequest.class);
+        verify(orchestrationService, times(2)).chat(requestCaptor.capture());
+        org.assertj.core.api.Assertions.assertThat(requestCaptor.getAllValues().get(1).getToolInput())
+            .containsKey("mcpConfirmation");
     }
 
     @Test

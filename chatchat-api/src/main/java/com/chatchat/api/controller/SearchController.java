@@ -17,6 +17,7 @@ import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -100,6 +101,15 @@ public class SearchController {
         return searchService.getVersion(docId, version)
             .map(ApiResponse::success)
             .orElseGet(() -> ApiResponse.notFound("document version not found: " + docId + " v" + version));
+    }
+
+    @DeleteMapping("/documents/{docId}")
+    @Operation(summary = "Delete one uploaded document")
+    public ApiResponse<Void> deleteDocument(@PathVariable("docId") String docId) {
+        if (!searchService.deleteDocument(docId)) {
+            return ApiResponse.notFound("document not found: " + docId);
+        }
+        return ApiResponse.success(null, "document deleted");
     }
 
     @GetMapping("/documents/{docId}/file")

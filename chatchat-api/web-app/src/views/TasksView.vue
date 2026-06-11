@@ -76,6 +76,17 @@
           <span class="task-tenant">{{ task.tenantId || "default" }}</span>
           <strong :class="statusClass(task.status)">{{ task.status || "UNKNOWN" }}</strong>
           <time>{{ formatTime(task.updateTime || task.createTime) }}</time>
+          <span
+            v-if="isActiveTask(task)"
+            class="task-kill-action"
+            role="button"
+            tabindex="0"
+            @click.stop="killTask(task)"
+            @keydown.enter.stop.prevent="killTask(task)"
+          >
+            <XCircle :size="14" stroke-width="2.2" />
+            {{ isCancellingTask(task) ? "Killing" : "Kill" }}
+          </span>
         </button>
         <p v-if="!loading && filteredTasks.length === 0" class="runtime-empty">没有匹配的任务实例</p>
       </div>

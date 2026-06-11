@@ -17,6 +17,7 @@ public class AgentTaskProperties {
     private int keepAliveSeconds = 60;
     private int listLimit = 50;
     private int recoveryBatchSize = 200;
+    private int confirmationWaitSeconds = 1800;
     private EventStore eventStore = new EventStore();
 
     @Getter

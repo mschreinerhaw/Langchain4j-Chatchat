@@ -2,7 +2,7 @@
   height: 100%;
   min-height: 0;
   display: grid;
-  grid-template-rows: auto auto auto minmax(0, 1fr);
+  grid-template-rows: auto auto auto auto minmax(0, 1fr);
   gap: 14px;
   padding: clamp(14px, 2vw, 24px);
   overflow: hidden;
@@ -198,6 +198,36 @@
   font-size: 13px;
 }
 
+.system-tabs {
+  display: inline-flex;
+  width: max-content;
+  max-width: 100%;
+  gap: 6px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.system-tabs button {
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 0 13px;
+  border-radius: 7px;
+  background: transparent;
+  color: #5b6678;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.system-tabs button.active {
+  background: var(--primary);
+  color: #fff;
+}
+
 .rbac-board {
   min-height: 0;
   display: grid;
@@ -226,10 +256,19 @@
   grid-template-rows: auto minmax(0, 1fr);
 }
 
+.system-tab-panel {
+  grid-column: 1 / -1;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
 .org-panel,
 .user-panel {
   min-height: 520px;
   grid-template-rows: auto auto minmax(0, 1fr);
+}
+
+.user-panel.system-tab-panel {
+  grid-template-rows: auto minmax(0, 1fr);
 }
 
 .entity-form {
@@ -342,9 +381,13 @@
 }
 
 .user-table-row {
-  min-width: 720px;
+  min-width: 820px;
   display: grid;
-  grid-template-columns: minmax(150px, 1fr) minmax(150px, 1fr) 58px 74px 86px;
+  grid-template-columns: minmax(170px, 1fr) minmax(160px, 0.9fr) minmax(180px, 1.1fr) 74px 86px;
+}
+
+.admin-user-row {
+  background: #fafcff;
 }
 
 .entity-row-actions {

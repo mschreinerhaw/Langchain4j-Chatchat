@@ -14,6 +14,7 @@ import {
   XCircle
 } from "@lucide/vue";
 import {
+  cancelAgentTask,
   fetchAgentRuntimeSummary,
   fetchAgentRuntimeToolAudits,
   fetchAgentTaskEvents
@@ -59,7 +60,8 @@ export default {
       summary: null,
       recentToolAudits: [],
       selectedTask: null,
-      selectedEvents: []
+      selectedEvents: [],
+      cancellingTaskIds: {}
     };
   },
   computed: {
@@ -253,6 +255,37 @@ export default {
       const task = this.tasks.find((item) => item.taskId === taskId);
       if (task) {
         this.selectTask(task);
+      }
+    },
+    isActiveTask(task) {
+      const normalized = String(task?.status || "").toUpperCase();
+      return ["PENDING", "RUNNING", "WAIT_TOOL", "WAIT_MODEL", "WAIT_CONFIRMATION"].includes(normalized);
+    },
+    isCancellingTask(task) {
+      return !!this.cancellingTaskIds[task?.taskId];
+    },
+    async killTask(task) {
+      if (!task?.taskId || !this.isActiveTask(task) || this.isCancellingTask(task)) {
+        return;
+      }
+      this.cancellingTaskIds = {
+        ...this.cancellingTaskIds,
+        [task.taskId]: true
+      };
+      try {
+        await cancelAgentTask(task.taskId, task.tenantId || this.tenantId);
+        await this.loadRuntime();
+        if (this.selectedTask?.taskId === task.taskId) {
+          const refreshed = this.tasks.find((item) => item.taskId === task.taskId);
+          this.selectedTask = refreshed || this.selectedTask;
+          await this.reloadEvents();
+        }
+      } catch (error) {
+        this.error = error.message || "停止任务失败";
+      } finally {
+        const next = { ...this.cancellingTaskIds };
+        delete next[task.taskId];
+        this.cancellingTaskIds = next;
       }
     },
     shortId(value) {

@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="176" height="56" viewBox="0 0 176 56" role="img" aria-labelledby="title desc">
+  <title id="title">Agent Runtime</title>
+  <desc id="desc">Agent Runtime brand wordmark</desc>
+  <rect width="176" height="56" rx="8" fill="none"/>
+  <g transform="translate(0 8)">
+    <rect x="1" y="1" width="38" height="38" rx="10" fill="#101828"/>
+    <path d="M13 14h14v4H13zM13 23h10v4H13zM27 23h4v4h-4z" fill="#ffffff"/>
+    <path d="M10 10h20a8 8 0 0 1 8 8v20" fill="none" stroke="#2dd4bf" stroke-width="3" stroke-linecap="round"/>
+  </g>
+  <g font-family="Inter, Arial, Helvetica, sans-serif" font-weight="850" letter-spacing="0">
+    <text x="48" y="26" fill="#101828" font-size="22">Agent</text>
+    <text x="48" y="45" fill="#147a73" font-size="18">Runtime</text>
+  </g>
+</svg>

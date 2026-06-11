@@ -1,4 +1,4 @@
-import { Bot, FileText, Globe, Send, Trash2, Upload } from "@lucide/vue";
+import { Bot, FileText, Globe, Send, Trash2, Upload, XCircle } from "@lucide/vue";
 
 export default {
   name: "PromptComposer",
@@ -8,7 +8,8 @@ export default {
     Globe,
     Send,
     Trash2,
-    Upload
+    Upload,
+    XCircle
   },
   props: {
     suggestions: {
@@ -38,9 +39,13 @@ export default {
     showSuggestions: {
       type: Boolean,
       default: true
+    },
+    stopAvailable: {
+      type: Boolean,
+      default: false
     }
   },
-  emits: ["clear", "pick", "send", "update:modelValue", "update:selectedAgentId", "upload"],
+  emits: ["clear", "pick", "send", "stop", "update:modelValue", "update:selectedAgentId", "upload"],
   data() {
     return {
       draft: this.modelValue,
@@ -78,6 +83,12 @@ export default {
     },
     webSearchAvailable() {
       return this.isWebSearchAgent(this.selectedAgent);
+    },
+    primaryButtonDisabled() {
+      return this.loading ? !this.stopAvailable : !this.draft.trim();
+    },
+    primaryButtonLabel() {
+      return this.loading && this.stopAvailable ? "停止当前任务" : "发送问题";
     }
   },
   watch: {
@@ -99,6 +110,15 @@ export default {
     this.adjustTextareaHeight();
   },
   methods: {
+    handlePrimaryAction() {
+      if (this.loading) {
+        if (this.stopAvailable) {
+          this.$emit("stop");
+        }
+        return;
+      }
+      this.send();
+    },
     send() {
       const value = this.draft.trim();
       if (!value || this.loading) {

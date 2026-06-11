@@ -7,72 +7,139 @@ import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolOutput;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Deque;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class ToolRuntimeService {
 
     private final ToolRegistry toolRegistry;
     private final ObjectMapper objectMapper;
     private final ToolRuntimeProperties properties;
+    private final McpPolicyProperties mcpPolicyProperties;
+    private final McpWorkflowProperties mcpWorkflowProperties;
     private final List<ToolRuntimePolicyProvider> policyProviders;
     private final List<ToolRuntimeAuditSink> auditSinks;
 
     private final Map<String, Deque<Long>> rateWindows = new ConcurrentHashMap<>();
     private final Map<String, CircuitState> circuitStates = new ConcurrentHashMap<>();
     private final Map<String, ToolCounters> counters = new ConcurrentHashMap<>();
+    private final Map<String, ToolRuntimeAction> userToolPolicyOverrides = new ConcurrentHashMap<>();
+    private final Map<String, WorkflowState> workflowStates = new ConcurrentHashMap<>();
+
+    @Autowired
+    public ToolRuntimeService(ToolRegistry toolRegistry,
+                              ObjectMapper objectMapper,
+                              ToolRuntimeProperties properties,
+                              McpPolicyProperties mcpPolicyProperties,
+                              McpWorkflowProperties mcpWorkflowProperties,
+                              List<ToolRuntimePolicyProvider> policyProviders,
+                              List<ToolRuntimeAuditSink> auditSinks) {
+        this.toolRegistry = toolRegistry;
+        this.objectMapper = objectMapper;
+        this.properties = properties;
+        this.mcpPolicyProperties = mcpPolicyProperties;
+        this.mcpWorkflowProperties = mcpWorkflowProperties;
+        this.policyProviders = policyProviders == null ? List.of() : policyProviders;
+        this.auditSinks = auditSinks == null ? List.of() : auditSinks;
+    }
+
+    public ToolRuntimeService(ToolRegistry toolRegistry,
+                              ObjectMapper objectMapper,
+                              ToolRuntimeProperties properties,
+                              McpPolicyProperties mcpPolicyProperties,
+                              List<ToolRuntimePolicyProvider> policyProviders,
+                              List<ToolRuntimeAuditSink> auditSinks) {
+        this(toolRegistry, objectMapper, properties, mcpPolicyProperties, new McpWorkflowProperties(), policyProviders, auditSinks);
+    }
+
+    public ToolRuntimeService(ToolRegistry toolRegistry,
+                              ObjectMapper objectMapper,
+                              ToolRuntimeProperties properties,
+                              List<ToolRuntimePolicyProvider> policyProviders,
+                              List<ToolRuntimeAuditSink> auditSinks) {
+        this(toolRegistry, objectMapper, properties, new McpPolicyProperties(), new McpWorkflowProperties(), policyProviders, auditSinks);
+    }
 
     public ToolRuntimeExecution execute(ToolRuntimeRequest request) {
         String toolName = normalizeText(request == null ? null : request.getToolName());
         if (toolName == null) {
-            return deniedExecution("unknown", request, null, "Tool name is required", "INVALID_REQUEST");
+            return deniedExecution("unknown", request, null, "Tool name is required", "INVALID_REQUEST", null, null);
         }
 
         ToolMetadata metadata = toolRegistry.getToolMetadata(toolName);
         ToolInput toolInput = request.getToolInput() == null ? new ToolInput() : request.getToolInput();
         ToolRuntimePolicy policy = resolvePolicy(request, metadata);
+        ToolExecutionPlan executionPlan = buildExecutionPlan(toolName, request, metadata, toolInput);
+        ToolPolicyDecision policyDecision = decideMcpPolicy(toolName, request, metadata, toolInput, policy, executionPlan);
+        WorkflowDecision workflowDecision = decideWorkflow(toolName, request, toolInput, executionPlan);
+        policyDecision = applyWorkflowDecision(policyDecision, workflowDecision);
 
         if (isDeniedByPolicy(toolName, request)) {
             return deniedExecution(toolName, request, metadata,
                 "Tool is not allowed in the current runtime policy: " + toolName,
-                "TOOL_PERMISSION_DENIED");
+                "TOOL_PERMISSION_DENIED",
+                executionPlan,
+                policyDecision);
         }
         if (isDeniedByResolvedPolicy(policy)) {
             return deniedExecution(toolName, request, metadata,
                 firstText(policy.reason(), "Tool denied by tenant runtime policy: " + toolName),
-                "TOOL_TENANT_POLICY_DENIED");
+                "TOOL_TENANT_POLICY_DENIED",
+                executionPlan,
+                policyDecision);
+        }
+        if (policyDecision.action() == ToolRuntimeAction.DENY) {
+            return deniedExecution(toolName, request, metadata,
+                firstText(policyDecision.reason(), "MCP policy denied tool execution: " + toolName),
+                workflowDenied(policyDecision) ? "MCP_WORKFLOW_DENIED" : "MCP_POLICY_DENIED",
+                executionPlan,
+                policyDecision);
+        }
+        if (policyDecision.action() == ToolRuntimeAction.ASK_BEFORE_EXECUTE && !isConfirmed(request, policyDecision)) {
+            return confirmationRequiredExecution(toolName, request, metadata, executionPlan, policyDecision);
         }
         if (requiresAuthentication(metadata, policy) && normalizeText(toolInput.getUserId()) == null) {
             return deniedExecution(toolName, request, metadata,
                 "Tool requires an authenticated user: " + toolName,
-                "TOOL_AUTH_REQUIRED");
+                "TOOL_AUTH_REQUIRED",
+                executionPlan,
+                policyDecision);
         }
         if (isCircuitOpen(toolName, policy)) {
             return rejectedExecution(toolName, request, metadata,
                 "Tool circuit is open: " + toolName,
                 "TOOL_CIRCUIT_OPEN",
-                "circuit_open");
+                "circuit_open",
+                executionPlan,
+                policyDecision);
         }
         if (isRateLimited(toolName, metadata, toolInput.getUserId(), policy)) {
             return rejectedExecution(toolName, request, metadata,
                 "Tool rate limit exceeded: " + toolName,
                 "TOOL_RATE_LIMITED",
-                "rate_limited");
+                "rate_limited",
+                executionPlan,
+                policyDecision);
         }
 
         ToolCounters toolCounters = counters.computeIfAbsent(toolName, ignored -> new ToolCounters());
@@ -81,10 +148,12 @@ public class ToolRuntimeService {
 
         long startedAt = System.currentTimeMillis();
         try {
+            rememberUserToolPolicy(request, policyDecision);
             ToolOutput output = toolRegistry.executeEnhancedTool(toolName, toolInput);
             if (output.getMetadata() == null) {
                 output.setMetadata(new LinkedHashMap<>());
             }
+            output.setData(processResultData(output.getData(), metadata));
             long finishedAt = System.currentTimeMillis();
             long durationMs = output.getExecutionTimeMs() == null
                 ? Math.max(0L, finishedAt - startedAt)
@@ -96,9 +165,11 @@ public class ToolRuntimeService {
             if (output.isSuccess()) {
                 resetCircuit(toolName);
                 toolCounters.successCalls.incrementAndGet();
+                rememberWorkflowSuccess(toolName, request, executionPlan, workflowDecision);
             } else {
                 updateCircuitOnFailure(toolName, policy);
                 toolCounters.failedCalls.incrementAndGet();
+                rememberWorkflowFailure(toolName, request, executionPlan, workflowDecision);
             }
             toolCounters.totalDurationMs.addAndGet(durationMs);
             toolCounters.lastDurationMs.set(durationMs);
@@ -107,7 +178,9 @@ public class ToolRuntimeService {
                 request,
                 metadata,
                 output.isSuccess() ? "success" : "failed",
-                null
+                null,
+                executionPlan,
+                policyDecision
             );
             InteractionToolTrace trace = buildTrace(toolName, metadata, toolInput, output, startedAt, finishedAt, runtimeMetadata);
             logAudit(toolName, request, output.isSuccess() ? "success" : "failed", durationMs, output.getErrorMessage());
@@ -193,11 +266,13 @@ public class ToolRuntimeService {
                                                  ToolRuntimeRequest request,
                                                  ToolMetadata metadata,
                                                  String message,
-                                                 String errorCode) {
+                                                 String errorCode,
+                                                 ToolExecutionPlan executionPlan,
+                                                 ToolPolicyDecision policyDecision) {
         ToolCounters toolCounters = counters.computeIfAbsent(toolName, ignored -> new ToolCounters());
         toolCounters.totalCalls.incrementAndGet();
         toolCounters.deniedCalls.incrementAndGet();
-        Map<String, Object> runtimeMetadata = runtimeMetadata(request, metadata, "denied", errorCode);
+        Map<String, Object> runtimeMetadata = runtimeMetadata(request, metadata, "denied", errorCode, executionPlan, policyDecision);
         ToolOutput output = ToolOutput.failure(message);
         output.setExceptionType(errorCode);
         output.getMetadata().putAll(runtimeMetadata);
@@ -213,7 +288,9 @@ public class ToolRuntimeService {
                                                    ToolMetadata metadata,
                                                    String message,
                                                    String errorCode,
-                                                   String outcome) {
+                                                   String outcome,
+                                                   ToolExecutionPlan executionPlan,
+                                                   ToolPolicyDecision policyDecision) {
         ToolCounters toolCounters = counters.computeIfAbsent(toolName, ignored -> new ToolCounters());
         toolCounters.totalCalls.incrementAndGet();
         if ("rate_limited".equals(outcome)) {
@@ -222,7 +299,7 @@ public class ToolRuntimeService {
         if ("circuit_open".equals(outcome)) {
             toolCounters.circuitOpenRejects.incrementAndGet();
         }
-        Map<String, Object> runtimeMetadata = runtimeMetadata(request, metadata, outcome, errorCode);
+        Map<String, Object> runtimeMetadata = runtimeMetadata(request, metadata, outcome, errorCode, executionPlan, policyDecision);
         ToolOutput output = ToolOutput.failure(message);
         output.setExceptionType(errorCode);
         output.getMetadata().putAll(runtimeMetadata);
@@ -231,6 +308,34 @@ public class ToolRuntimeService {
         logAudit(toolName, request, outcome, 0L, message);
         publishAuditRecord(request, metadata, output, trace, outcome, errorCode, 0L, runtimeMetadata);
         return new ToolRuntimeExecution(output, metadata, trace, outcome, runtimeMetadata);
+    }
+
+    private ToolRuntimeExecution confirmationRequiredExecution(String toolName,
+                                                               ToolRuntimeRequest request,
+                                                               ToolMetadata metadata,
+                                                               ToolExecutionPlan executionPlan,
+                                                               ToolPolicyDecision policyDecision) {
+        ToolCounters toolCounters = counters.computeIfAbsent(toolName, ignored -> new ToolCounters());
+        toolCounters.totalCalls.incrementAndGet();
+        Map<String, Object> runtimeMetadata = runtimeMetadata(
+            request,
+            metadata,
+            "confirmation_required",
+            "MCP_CONFIRMATION_REQUIRED",
+            executionPlan,
+            policyDecision
+        );
+        ToolOutput output = ToolOutput.failure("MCP tool execution requires user confirmation: " + toolName);
+        output.setExceptionType("MCP_CONFIRMATION_REQUIRED");
+        output.setData(Map.of("confirmationRequired", runtimeMetadata.get("confirmation")));
+        output.getMetadata().putAll(runtimeMetadata);
+        long now = System.currentTimeMillis();
+        InteractionToolTrace trace = buildTrace(toolName, metadata, request == null ? new ToolInput() : request.getToolInput(),
+            output, now, now, runtimeMetadata);
+        logAudit(toolName, request, "confirmation_required", 0L, output.getErrorMessage());
+        publishAuditRecord(request, metadata, output, trace, "confirmation_required",
+            "MCP_CONFIRMATION_REQUIRED", 0L, runtimeMetadata);
+        return new ToolRuntimeExecution(output, metadata, trace, "confirmation_required", runtimeMetadata);
     }
 
     private boolean isDeniedByPolicy(String toolName, ToolRuntimeRequest request) {
@@ -328,7 +433,9 @@ public class ToolRuntimeService {
     private Map<String, Object> runtimeMetadata(ToolRuntimeRequest request,
                                                 ToolMetadata metadata,
                                                 String outcome,
-                                                String errorCode) {
+                                                String errorCode,
+                                                ToolExecutionPlan executionPlan,
+                                                ToolPolicyDecision policyDecision) {
         Map<String, Object> values = new LinkedHashMap<>();
         values.put("runtimeMode", normalizeMode(request));
         values.put("requestId", request == null ? null : request.getRequestId());
@@ -338,6 +445,18 @@ public class ToolRuntimeService {
         values.put("errorCode", errorCode);
         values.put("serviceId", resolveServiceId(metadata));
         values.put("serviceName", resolveServiceName(metadata));
+        values.put("executionPlan", executionPlan == null ? null : executionPlan.toMap());
+        if (policyDecision != null) {
+            values.put("policyResult", policyDecision.action().code());
+            values.put("policyReason", policyDecision.reason());
+            values.put("riskLevel", policyDecision.riskLevel());
+            values.put("operationType", policyDecision.operationType());
+            values.put("dataScope", policyDecision.dataScope());
+            values.put("matchedPolicyRules", policyDecision.matchedRules());
+            if (policyDecision.action() == ToolRuntimeAction.ASK_BEFORE_EXECUTE) {
+                values.put("confirmation", buildConfirmationPayload(request, metadata, executionPlan, policyDecision));
+            }
+        }
         return values;
     }
 
@@ -370,6 +489,7 @@ public class ToolRuntimeService {
         return ToolRuntimePolicy.builder()
             .allowed(override.allowed() != null ? override.allowed() : base.allowed())
             .reason(firstText(override.reason(), base.reason()))
+            .executionAction(override.executionAction() != null ? override.executionAction() : base.executionAction())
             .maxCallsPerMinute(override.maxCallsPerMinute() != null ? override.maxCallsPerMinute() : base.maxCallsPerMinute())
             .requiresAuthentication(override.requiresAuthentication() != null ? override.requiresAuthentication() : base.requiresAuthentication())
             .circuitBreakerFailureThreshold(override.circuitBreakerFailureThreshold() != null
@@ -384,6 +504,1085 @@ public class ToolRuntimeService {
 
     private boolean isDeniedByResolvedPolicy(ToolRuntimePolicy policy) {
         return policy != null && Boolean.FALSE.equals(policy.allowed());
+    }
+
+    private ToolExecutionPlan buildExecutionPlan(String toolName,
+                                                 ToolRuntimeRequest request,
+                                                 ToolMetadata metadata,
+                                                 ToolInput toolInput) {
+        Map<String, Object> plan = asMap(request == null || request.getAttributes() == null
+            ? null
+            : request.getAttributes().get("executionPlan"));
+        Map<String, Object> parameters = toolInput == null || toolInput.getParameters() == null
+            ? Map.of()
+            : new LinkedHashMap<>(toolInput.getParameters());
+        return ToolExecutionPlan.builder()
+            .workflow(firstText(
+                firstText(stringValue(plan.get("workflow")), stringValue(plan.get("workflow_id"))),
+                stringValue(plan.get("workflowId"))
+            ))
+            .intent(firstText(stringValue(plan.get("intent")), stringValue(plan.get("reason"))))
+            .tool(firstText(stringValue(plan.get("tool")), toolName))
+            .operationType(firstText(
+                firstText(stringValue(plan.get("operation_type")), stringValue(plan.get("operationType"))),
+                metadata == null ? "read" : firstText(metadata.getOperationType(), "read")
+            ))
+            .riskLevel(firstText(
+                firstText(stringValue(plan.get("risk_level")), stringValue(plan.get("riskLevel"))),
+                metadata == null ? "low" : firstText(metadata.getRiskLevel(), "low")
+            ))
+            .parameters(parameters)
+            .reason(firstText(stringValue(plan.get("reason")), "Runtime planned MCP tool invocation"))
+            .build();
+    }
+
+    private ToolPolicyDecision decideMcpPolicy(String toolName,
+                                               ToolRuntimeRequest request,
+                                               ToolMetadata metadata,
+                                               ToolInput toolInput,
+                                               ToolRuntimePolicy policy,
+                                               ToolExecutionPlan executionPlan) {
+        String riskLevel = normalizePolicyKey(firstText(executionPlan.riskLevel(), metadata == null ? "low" : metadata.getRiskLevel()));
+        String operationType = firstText(executionPlan.operationType(), metadata == null ? "read" : metadata.getOperationType());
+        String dataScope = inferDataScope(toolInput == null ? Map.of() : toolInput.getParameters());
+        if (mcpPolicyProperties == null || !mcpPolicyProperties.isEnabled() || !isMcpGovernedTool(toolName, metadata)) {
+            return new ToolPolicyDecision(ToolRuntimeAction.AUTO_EXECUTE, "MCP policy not applicable",
+                riskLevel, operationType, dataScope, List.of(), confirmationToken(request, executionPlan));
+        }
+
+        List<String> matchedRules = new ArrayList<>();
+        ToolRuntimeAction riskAction = ToolRuntimeAction.from(
+            valueForKey(mcpPolicyProperties.getRiskPolicy(), riskLevel),
+            defaultActionForRisk(riskLevel)
+        );
+        matchedRules.add("risk_policy." + riskLevel + "=" + riskAction.code());
+
+        ToolRuntimeAction action = riskAction;
+        Object confirmationDefault = metadata == null || metadata.getConfirmation() == null
+            ? null
+            : metadata.getConfirmation().get("default");
+        ToolRuntimeAction metadataAction = ToolRuntimeAction.from(confirmationDefault, null);
+        if (metadataAction != null) {
+            action = metadataAction;
+            matchedRules.add("tool_metadata.confirmation.default=" + metadataAction.code());
+        }
+        if (policy != null && policy.executionAction() != null) {
+            action = policy.executionAction();
+            matchedRules.add("runtime_policy_provider=" + action.code());
+        }
+
+        ToolRuntimeAction toolAction = actionForTool(toolName, metadata);
+        if (toolAction != null) {
+            action = toolAction;
+            matchedRules.add("tool_policy." + toolName + "=" + toolAction.code());
+        }
+
+        ParameterDecision parameterDecision = decideParameterPolicy(toolName, metadata, toolInput);
+        matchedRules.addAll(parameterDecision.matchedRules());
+        if (parameterDecision.action() == ToolRuntimeAction.DENY) {
+            action = ToolRuntimeAction.DENY;
+        } else if (parameterDecision.action() != null && action != ToolRuntimeAction.DENY) {
+            action = parameterDecision.action();
+        }
+        if ("forbidden".equals(riskLevel)) {
+            action = ToolRuntimeAction.DENY;
+        }
+        ToolRuntimeAction userOverride = userToolPolicyOverrides.get(userPolicyKey(request, toolName));
+        if (userOverride != null) {
+            if (userOverride == ToolRuntimeAction.DENY || action != ToolRuntimeAction.DENY) {
+                action = userOverride;
+                matchedRules.add("user_tool_policy=" + userOverride.code());
+            } else {
+                matchedRules.add("user_tool_policy_ignored_by_deny=" + userOverride.code());
+            }
+        }
+
+        return new ToolPolicyDecision(action, "MCP policy resolved action " + action.code(),
+            riskLevel, operationType, dataScope, matchedRules, confirmationToken(request, executionPlan));
+    }
+
+    private boolean isMcpGovernedTool(String toolName, ToolMetadata metadata) {
+        if (toolName != null && toolName.startsWith("mcp_")) {
+            return true;
+        }
+        if (metadata == null) {
+            return false;
+        }
+        if (metadata.getAuthor() != null && metadata.getAuthor().trim().startsWith("MCP:")) {
+            return true;
+        }
+        if (metadata.getCategories() != null && metadata.getCategories().stream().anyMatch("mcp"::equalsIgnoreCase)) {
+            return true;
+        }
+        if (metadata.getTags() != null && metadata.getTags().stream().anyMatch("mcp"::equalsIgnoreCase)) {
+            return true;
+        }
+        return metadata.getRiskLevel() != null && !"low".equalsIgnoreCase(metadata.getRiskLevel());
+    }
+
+    private boolean workflowDenied(ToolPolicyDecision policyDecision) {
+        return policyDecision != null
+            && policyDecision.matchedRules() != null
+            && policyDecision.matchedRules().stream().anyMatch(rule -> rule != null && rule.startsWith("workflow."));
+    }
+
+    private ToolRuntimeAction actionForTool(String toolName, ToolMetadata metadata) {
+        if (mcpPolicyProperties == null || mcpPolicyProperties.getToolPolicy() == null) {
+            return null;
+        }
+        for (String candidate : toolPolicyKeys(toolName, metadata)) {
+            String configured = valueForKey(mcpPolicyProperties.getToolPolicy(), candidate);
+            ToolRuntimeAction action = ToolRuntimeAction.from(configured, null);
+            if (action != null) {
+                return action;
+            }
+        }
+        return null;
+    }
+
+    private ParameterDecision decideParameterPolicy(String toolName, ToolMetadata metadata, ToolInput toolInput) {
+        if (mcpPolicyProperties == null || mcpPolicyProperties.getParameterPolicy() == null) {
+            return new ParameterDecision(null, List.of());
+        }
+        Map<String, Object> parameters = toolInput == null || toolInput.getParameters() == null
+            ? Map.of()
+            : toolInput.getParameters();
+        List<String> matched = new ArrayList<>();
+        ToolRuntimeAction action = null;
+        for (String candidate : toolPolicyKeys(toolName, metadata)) {
+            Map<String, String> rules = valueForNestedKey(mcpPolicyProperties.getParameterPolicy(), candidate);
+            if (rules == null || rules.isEmpty()) {
+                continue;
+            }
+            for (Map.Entry<String, String> entry : rules.entrySet()) {
+                if (!parameterRuleMatches(entry.getKey(), parameters)) {
+                    continue;
+                }
+                ToolRuntimeAction ruleAction = ToolRuntimeAction.from(entry.getValue(), null);
+                if (ruleAction == null) {
+                    continue;
+                }
+                matched.add("parameter_policy." + candidate + "." + entry.getKey() + "=" + ruleAction.code());
+                if (ruleAction == ToolRuntimeAction.DENY) {
+                    return new ParameterDecision(ruleAction, matched);
+                }
+                action = ruleAction;
+            }
+        }
+        return new ParameterDecision(action, matched);
+    }
+
+    private boolean parameterRuleMatches(String rule, Map<String, Object> parameters) {
+        String normalized = normalizePolicyKey(rule);
+        return switch (normalized) {
+            case "recipient_count_gt_10" -> recipientCount(parameters) > 10;
+            case "external_domain" -> hasExternalDomain(parameters);
+            case "contains_delete" -> containsWord(parameters, "delete");
+            case "contains_update" -> containsWord(parameters, "update");
+            case "contains_drop" -> containsWord(parameters, "drop");
+            case "customer_detail" -> isCustomerDetail(parameters);
+            case "branch_summary" -> isBranchSummary(parameters);
+            default -> truthy(parameters.get(rule)) || truthy(parameters.get(normalized));
+        };
+    }
+
+    private WorkflowDecision decideWorkflow(String toolName,
+                                            ToolRuntimeRequest request,
+                                            ToolInput toolInput,
+                                            ToolExecutionPlan executionPlan) {
+        if (mcpWorkflowProperties == null || !mcpWorkflowProperties.isEnabled()) {
+            return WorkflowDecision.notApplicable();
+        }
+        Map<String, Object> agentWorkflowConfig = agentWorkflowConfig(request);
+        McpWorkflowProperties.WorkflowSpec agentWorkflow = workflowFromAgentConfig(agentWorkflowConfig, toolName, executionPlan);
+        String workflowName = agentWorkflow == null
+            ? resolveWorkflowName(toolName, request, executionPlan)
+            : firstText(agentWorkflowName(agentWorkflowConfig, executionPlan), "agent_workflow");
+        McpWorkflowProperties.WorkflowSpec workflow = agentWorkflow == null && workflowName != null
+            ? mcpWorkflowProperties.getWorkflows().get(workflowName)
+            : agentWorkflow;
+        McpWorkflowProperties.ToolDependencySpec globalDependency = firstDependency(
+            dependencyFromAgentConfig(agentWorkflowConfig, toolName),
+            dependencyForTool(toolName)
+        );
+        if (workflow == null && globalDependency == null) {
+            return WorkflowDecision.notApplicable();
+        }
+
+        String stateKey = workflowStateKey(request, workflowName);
+        WorkflowState state = workflowStates.computeIfAbsent(stateKey, ignored -> new WorkflowState());
+        Set<String> completed = completedTools(request, state);
+        List<String> matchedRules = new ArrayList<>();
+        matchedRules.add("workflow." + firstText(workflowName, "global") + ".active");
+
+        McpWorkflowProperties.ExecutionStrategy strategy = workflow == null
+            ? new McpWorkflowProperties.ExecutionStrategy()
+            : workflow.getExecutionStrategy();
+        int maxSteps = strategy == null ? 0 : strategy.getMaxSteps();
+        if (maxSteps > 0 && state.attemptedSteps.get() + 1 > maxSteps) {
+            return new WorkflowDecision(true, workflowName, stateKey, ToolRuntimeAction.DENY,
+                "MCP workflow exceeded max_steps=" + maxSteps, matchedRules);
+        }
+        if (strategy != null && strategy.isStopOnError() && state.failed.get()) {
+            return new WorkflowDecision(true, workflowName, stateKey, ToolRuntimeAction.DENY,
+                "MCP workflow is stopped because a previous required step failed", matchedRules);
+        }
+
+        List<String> dependencies = new ArrayList<>();
+        if (globalDependency != null && globalDependency.getDependsOn() != null) {
+            dependencies.addAll(globalDependency.getDependsOn());
+            matchedRules.add("tool_dependencies." + toolName + "=" + globalDependency.getDependsOn());
+        }
+
+        McpWorkflowProperties.WorkflowStep currentStep = workflow == null ? null : workflowStep(workflow, toolName);
+        if (workflow != null) {
+            if (currentStep == null) {
+                return new WorkflowDecision(true, workflowName, stateKey, ToolRuntimeAction.DENY,
+                    "Tool " + toolName + " is not part of MCP workflow " + workflowName, matchedRules);
+            }
+            if (currentStep.getDependsOn() != null) {
+                dependencies.addAll(currentStep.getDependsOn());
+            }
+            WorkflowDecision sequenceDecision = validateWorkflowSequence(
+                workflowName,
+                workflow,
+                currentStep,
+                toolName,
+                completed,
+                strategy,
+                matchedRules,
+                stateKey
+            );
+            if (sequenceDecision.action() == ToolRuntimeAction.DENY) {
+                return sequenceDecision;
+            }
+            if (currentStep.getCondition() != null && !currentStep.getCondition().isBlank()) {
+                Map<String, Object> context = workflowContext(request, toolInput);
+                if (!conditionMatches(currentStep.getCondition(), context)) {
+                    matchedRules.add("workflow." + workflowName + "." + toolName + ".condition=false");
+                    return new WorkflowDecision(true, workflowName, stateKey, ToolRuntimeAction.DENY,
+                        "MCP workflow condition is not satisfied for " + toolName + ": " + currentStep.getCondition(),
+                        matchedRules);
+                }
+                matchedRules.add("workflow." + workflowName + "." + toolName + ".condition=true");
+            }
+        }
+
+        List<String> missing = dependencies.stream()
+            .filter(value -> value != null && !value.isBlank())
+            .filter(dependency -> !containsTool(completed, dependency))
+            .distinct()
+            .toList();
+        if (!missing.isEmpty()) {
+            return new WorkflowDecision(true, workflowName, stateKey, ToolRuntimeAction.DENY,
+                "MCP workflow dependency not completed before " + toolName + ": " + missing,
+                matchedRules);
+        }
+
+        ToolRuntimeAction action = currentStep == null
+            ? null
+            : ToolRuntimeAction.from(currentStep.getConfirmation(), null);
+        if (action != null) {
+            matchedRules.add("workflow." + workflowName + "." + toolName + ".confirmation=" + action.code());
+        }
+        return new WorkflowDecision(true, workflowName, stateKey, action,
+            "MCP workflow resolved action " + (action == null ? "inherit_policy" : action.code()),
+            matchedRules);
+    }
+
+    private WorkflowDecision validateWorkflowSequence(String workflowName,
+                                                      McpWorkflowProperties.WorkflowSpec workflow,
+                                                      McpWorkflowProperties.WorkflowStep currentStep,
+                                                      String toolName,
+                                                      Set<String> completed,
+                                                      McpWorkflowProperties.ExecutionStrategy strategy,
+                                                      List<String> matchedRules,
+                                                      String stateKey) {
+        if (workflow == null || workflow.getSteps() == null || currentStep == null) {
+            return WorkflowDecision.allowed(workflowName, stateKey, matchedRules);
+        }
+        String mode = strategy == null ? "sequential" : firstText(strategy.getMode(), "sequential");
+        boolean sequential = "sequential".equalsIgnoreCase(mode) || (!"hybrid".equalsIgnoreCase(mode)
+            && !Boolean.TRUE.equals(strategy == null ? false : strategy.isAllowParallel()));
+        if (!sequential || parallelStep(workflow, toolName)) {
+            return WorkflowDecision.allowed(workflowName, stateKey, matchedRules);
+        }
+        int currentOrder = stepOrder(currentStep);
+        List<String> missingRequired = workflow.getSteps().stream()
+            .filter(step -> step != null && step.getTool() != null && !step.getTool().isBlank())
+            .filter(McpWorkflowProperties.WorkflowStep::isRequired)
+            .filter(step -> stepOrder(step) < currentOrder)
+            .map(McpWorkflowProperties.WorkflowStep::getTool)
+            .filter(requiredTool -> !containsTool(completed, requiredTool))
+            .distinct()
+            .toList();
+        if (!missingRequired.isEmpty()) {
+            matchedRules.add("workflow." + workflowName + ".sequential=true");
+            return new WorkflowDecision(true, workflowName, stateKey, ToolRuntimeAction.DENY,
+                "MCP workflow required previous steps before " + toolName + ": " + missingRequired,
+                matchedRules);
+        }
+        matchedRules.add("workflow." + workflowName + ".sequential=true");
+        return WorkflowDecision.allowed(workflowName, stateKey, matchedRules);
+    }
+
+    private ToolPolicyDecision applyWorkflowDecision(ToolPolicyDecision base, WorkflowDecision workflowDecision) {
+        if (workflowDecision == null || !workflowDecision.applicable()) {
+            return base;
+        }
+        List<String> matchedRules = new ArrayList<>(base.matchedRules());
+        matchedRules.addAll(workflowDecision.matchedRules());
+        ToolRuntimeAction action = base.action();
+        String reason = base.reason();
+        if (workflowDecision.action() == ToolRuntimeAction.DENY) {
+            action = ToolRuntimeAction.DENY;
+            reason = workflowDecision.reason();
+        } else if (workflowDecision.action() == ToolRuntimeAction.ASK_BEFORE_EXECUTE
+            && action != ToolRuntimeAction.DENY) {
+            action = ToolRuntimeAction.ASK_BEFORE_EXECUTE;
+            reason = workflowDecision.reason();
+        }
+        return new ToolPolicyDecision(action, reason, base.riskLevel(), base.operationType(),
+            base.dataScope(), matchedRules, base.confirmationToken());
+    }
+
+    private void rememberWorkflowSuccess(String toolName,
+                                         ToolRuntimeRequest request,
+                                         ToolExecutionPlan executionPlan,
+                                         WorkflowDecision workflowDecision) {
+        rememberWorkflowAttempt(toolName, request, executionPlan, workflowDecision, true);
+    }
+
+    private void rememberWorkflowFailure(String toolName,
+                                         ToolRuntimeRequest request,
+                                         ToolExecutionPlan executionPlan,
+                                         WorkflowDecision workflowDecision) {
+        rememberWorkflowAttempt(toolName, request, executionPlan, workflowDecision, false);
+    }
+
+    private void rememberWorkflowAttempt(String toolName,
+                                         ToolRuntimeRequest request,
+                                         ToolExecutionPlan executionPlan,
+                                         WorkflowDecision workflowDecision,
+                                         boolean success) {
+        if (workflowDecision == null || !workflowDecision.applicable()) {
+            return;
+        }
+        String stateKey = firstText(workflowDecision.stateKey(), workflowStateKey(request,
+            firstText(workflowDecision.workflowName(), executionPlan == null ? null : executionPlan.workflow())));
+        WorkflowState state = workflowStates.computeIfAbsent(stateKey, ignored -> new WorkflowState());
+        state.attemptedSteps.incrementAndGet();
+        if (success) {
+            state.completedTools.add(toolName);
+            state.failed.set(false);
+        } else {
+            state.failed.set(true);
+        }
+    }
+
+    private boolean isConfirmed(ToolRuntimeRequest request, ToolPolicyDecision policyDecision) {
+        Map<String, Object> confirmation = confirmationFromRequest(request);
+        if (confirmation.isEmpty()) {
+            return false;
+        }
+        String decision = stringValue(firstPresent(confirmation.get("decision"), confirmation.get("action")));
+        boolean approved = Boolean.TRUE.equals(confirmation.get("approved"))
+            || "allow_once".equalsIgnoreCase(firstText(decision, ""))
+            || "confirm_execute".equalsIgnoreCase(firstText(decision, ""))
+            || "tool_auto_execute".equalsIgnoreCase(firstText(decision, ""));
+        if (!approved) {
+            return false;
+        }
+        String token = stringValue(confirmation.get("token"));
+        return policyDecision != null && policyDecision.confirmationToken().equals(token);
+    }
+
+    private void rememberUserToolPolicy(ToolRuntimeRequest request, ToolPolicyDecision policyDecision) {
+        Map<String, Object> confirmation = confirmationFromRequest(request);
+        String remember = stringValue(confirmation.get("remember"));
+        if (remember == null || remember.isBlank() || request == null || policyDecision == null) {
+            return;
+        }
+        ToolRuntimeAction action = switch (remember.trim().toLowerCase(Locale.ROOT)) {
+            case "tool_auto_execute", "auto_execute" -> ToolRuntimeAction.AUTO_EXECUTE;
+            case "tool_deny", "deny" -> ToolRuntimeAction.DENY;
+            case "tool_always_confirm", "ask_before_execute" -> ToolRuntimeAction.ASK_BEFORE_EXECUTE;
+            default -> null;
+        };
+        if (action != null) {
+            userToolPolicyOverrides.put(userPolicyKey(request, request.getToolName()), action);
+        }
+    }
+
+    private Map<String, Object> buildConfirmationPayload(ToolRuntimeRequest request,
+                                                         ToolMetadata metadata,
+                                                         ToolExecutionPlan executionPlan,
+                                                         ToolPolicyDecision policyDecision) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("purpose", executionPlan == null ? null : executionPlan.reason());
+        payload.put("toolName", request == null ? null : request.getToolName());
+        payload.put("displayName", resolveDisplayName(request == null ? null : request.getToolName(), metadata));
+        payload.put("riskLevel", policyDecision.riskLevel());
+        payload.put("parameters", executionPlan == null ? Map.of() : executionPlan.parameters());
+        payload.put("dataScope", policyDecision.dataScope());
+        payload.put("operationType", policyDecision.operationType());
+        payload.put("token", policyDecision.confirmationToken());
+        payload.put("choices", List.of(
+            "allow_once",
+            "similar_auto_execute",
+            "tool_auto_execute",
+            "tool_always_confirm",
+            "tool_deny"
+        ));
+        return payload;
+    }
+
+    private Object processResultData(Object data, ToolMetadata metadata) {
+        Set<String> fields = new HashSet<>();
+        if (isMcpGovernedTool(metadata == null ? null : metadata.getId(), metadata)) {
+            fields.addAll(List.of("phone", "id_card", "account_no"));
+        }
+        Map<String, Object> outputPolicy = metadata == null ? null : metadata.getOutputPolicy();
+        Object configured = outputPolicy == null ? null : firstPresent(outputPolicy.get("mask_fields"), outputPolicy.get("maskFields"));
+        if (configured instanceof List<?> list) {
+            list.stream()
+                .map(this::stringValue)
+                .filter(value -> value != null && !value.isBlank())
+                .map(value -> value.trim().toLowerCase(Locale.ROOT))
+                .forEach(fields::add);
+        }
+        if (fields.isEmpty()) {
+            return data;
+        }
+        return maskValue(data, fields);
+    }
+
+    @SuppressWarnings("unchecked")
+    private Object maskValue(Object value, Set<String> fields) {
+        if (value instanceof Map<?, ?> map) {
+            Map<String, Object> masked = new LinkedHashMap<>();
+            for (Map.Entry<?, ?> entry : map.entrySet()) {
+                String key = String.valueOf(entry.getKey());
+                if (fields.contains(key.toLowerCase(Locale.ROOT))) {
+                    masked.put(key, "******");
+                } else {
+                    masked.put(key, maskValue(entry.getValue(), fields));
+                }
+            }
+            return masked;
+        }
+        if (value instanceof List<?> list) {
+            return list.stream().map(item -> maskValue(item, fields)).toList();
+        }
+        return value;
+    }
+
+    private List<String> toolPolicyKeys(String toolName, ToolMetadata metadata) {
+        List<String> keys = new ArrayList<>();
+        if (toolName != null && !toolName.isBlank()) {
+            keys.add(toolName);
+            String semanticKey = normalizeToolSemanticKey(toolName);
+            if (!semanticKey.isBlank()) {
+                keys.add(semanticKey);
+            }
+        }
+        if (metadata != null && metadata.getId() != null && !metadata.getId().isBlank()) {
+            keys.add(metadata.getId());
+        }
+        if (metadata != null && metadata.getMetadata() != null) {
+            Object remoteToolName = metadata.getMetadata().get("remoteToolName");
+            if (remoteToolName != null && !String.valueOf(remoteToolName).isBlank()) {
+                keys.add(String.valueOf(remoteToolName));
+            }
+        }
+        return keys.stream().distinct().toList();
+    }
+
+    private String resolveWorkflowName(String toolName, ToolRuntimeRequest request, ToolExecutionPlan executionPlan) {
+        String explicit = firstText(
+            executionPlan == null ? null : executionPlan.workflow(),
+            stringValue(request == null || request.getAttributes() == null ? null : firstPresent(
+                request.getAttributes().get("workflow"),
+                request.getAttributes().get("workflowId"),
+                request.getAttributes().get("workflow_id")
+            ))
+        );
+        if (explicit != null && mcpWorkflowProperties.getWorkflows().containsKey(explicit)) {
+            return explicit;
+        }
+        if (mcpWorkflowProperties.getWorkflows() == null || mcpWorkflowProperties.getWorkflows().isEmpty()) {
+            return null;
+        }
+        for (Map.Entry<String, McpWorkflowProperties.WorkflowSpec> entry : mcpWorkflowProperties.getWorkflows().entrySet()) {
+            McpWorkflowProperties.WorkflowSpec workflow = entry.getValue();
+            if (workflow == null || workflow.getSteps() == null) {
+                continue;
+            }
+            boolean matched = workflow.getSteps().stream()
+                .anyMatch(step -> step != null && sameTool(step.getTool(), toolName));
+            if (matched) {
+                return entry.getKey();
+            }
+        }
+        return null;
+    }
+
+    private Map<String, Object> agentWorkflowConfig(ToolRuntimeRequest request) {
+        Map<String, Object> workflow = asMap(request == null || request.getAttributes() == null
+            ? null
+            : request.getAttributes().get("mcpWorkflow"));
+        if (workflow.isEmpty()) {
+            return Map.of();
+        }
+        Object enabled = workflow.get("enabled");
+        if (enabled instanceof Boolean bool && !bool) {
+            return Map.of();
+        }
+        return workflow;
+    }
+
+    private String agentWorkflowName(Map<String, Object> config, ToolExecutionPlan executionPlan) {
+        return firstText(
+            executionPlan == null ? null : executionPlan.workflow(),
+            stringValue(firstPresent(
+                config.get("workflow"),
+                config.get("workflowId"),
+                config.get("workflow_id"),
+                config.get("id"),
+                config.get("name")
+            ))
+        );
+    }
+
+    private McpWorkflowProperties.WorkflowSpec workflowFromAgentConfig(Map<String, Object> config,
+                                                                       String toolName,
+                                                                       ToolExecutionPlan executionPlan) {
+        if (config == null || config.isEmpty()) {
+            return null;
+        }
+        McpWorkflowProperties.WorkflowSpec workflow = new McpWorkflowProperties.WorkflowSpec();
+        workflow.setExecutionStrategy(executionStrategyFromMap(asMap(firstPresent(
+            config.get("executionStrategy"),
+            config.get("execution_strategy")
+        ))));
+        workflow.setParallelSteps(stringList(firstPresent(config.get("parallelSteps"), config.get("parallel_steps"))));
+        workflow.setSteps(workflowStepsFromList(config.get("steps")));
+        String explicitName = agentWorkflowName(config, executionPlan);
+        boolean explicitMatched = explicitName != null && sameTool(explicitName, executionPlan == null ? null : executionPlan.workflow());
+        boolean toolMatched = workflow.getSteps() != null
+            && workflow.getSteps().stream().anyMatch(step -> step != null && sameTool(step.getTool(), toolName));
+        if (!toolMatched && !explicitMatched) {
+            return null;
+        }
+        return workflow;
+    }
+
+    private McpWorkflowProperties.ExecutionStrategy executionStrategyFromMap(Map<String, Object> values) {
+        McpWorkflowProperties.ExecutionStrategy strategy = new McpWorkflowProperties.ExecutionStrategy();
+        if (values == null || values.isEmpty()) {
+            return strategy;
+        }
+        String mode = stringValue(values.get("mode"));
+        if (mode != null && !mode.isBlank()) {
+            strategy.setMode(mode.trim());
+        }
+        Boolean stopOnError = booleanValue(firstPresent(values.get("stopOnError"), values.get("stop_on_error")));
+        if (stopOnError != null) {
+            strategy.setStopOnError(stopOnError);
+        }
+        Integer maxSteps = integerValue(firstPresent(values.get("maxSteps"), values.get("max_steps")));
+        if (maxSteps != null) {
+            strategy.setMaxSteps(Math.max(0, maxSteps));
+        }
+        Boolean allowParallel = booleanValue(firstPresent(values.get("allowParallel"), values.get("allow_parallel")));
+        if (allowParallel != null) {
+            strategy.setAllowParallel(allowParallel);
+        }
+        return strategy;
+    }
+
+    private List<McpWorkflowProperties.WorkflowStep> workflowStepsFromList(Object value) {
+        if (!(value instanceof List<?> list)) {
+            return List.of();
+        }
+        List<McpWorkflowProperties.WorkflowStep> steps = new ArrayList<>();
+        int index = 1;
+        for (Object item : list) {
+            Map<String, Object> rawStep = asMap(item);
+            String tool = stringValue(firstPresent(rawStep.get("tool"), rawStep.get("toolName")));
+            if (tool == null || tool.isBlank()) {
+                continue;
+            }
+            McpWorkflowProperties.WorkflowStep step = new McpWorkflowProperties.WorkflowStep();
+            step.setStep(firstInteger(firstPresent(rawStep.get("step"), rawStep.get("order")), index));
+            step.setTool(tool.trim());
+            Boolean required = booleanValue(rawStep.get("required"));
+            step.setRequired(required == null || required);
+            step.setCondition(stringValue(rawStep.get("condition")));
+            step.setConfirmation(stringValue(rawStep.get("confirmation")));
+            step.setDependsOn(stringList(firstPresent(rawStep.get("dependsOn"), rawStep.get("depends_on"))));
+            steps.add(step);
+            index++;
+        }
+        return steps;
+    }
+
+    private McpWorkflowProperties.ToolDependencySpec dependencyFromAgentConfig(Map<String, Object> config, String toolName) {
+        if (config == null || config.isEmpty() || toolName == null) {
+            return null;
+        }
+        Map<String, Object> dependencies = asMap(firstPresent(config.get("toolDependencies"), config.get("tool_dependencies")));
+        if (dependencies.isEmpty()) {
+            return null;
+        }
+        String normalized = normalizePolicyKey(toolName);
+        for (Map.Entry<String, Object> entry : dependencies.entrySet()) {
+            if (!sameTool(entry.getKey(), toolName) && !normalizePolicyKey(entry.getKey()).equals(normalized)) {
+                continue;
+            }
+            List<String> dependsOn = entry.getValue() instanceof Map<?, ?> dependencyMap
+                ? stringList(firstPresent(dependencyMap.get("dependsOn"), dependencyMap.get("depends_on")))
+                : stringList(entry.getValue());
+            if (dependsOn.isEmpty()) {
+                return null;
+            }
+            McpWorkflowProperties.ToolDependencySpec spec = new McpWorkflowProperties.ToolDependencySpec();
+            spec.setDependsOn(dependsOn);
+            return spec;
+        }
+        return null;
+    }
+
+    private McpWorkflowProperties.ToolDependencySpec firstDependency(McpWorkflowProperties.ToolDependencySpec first,
+                                                                     McpWorkflowProperties.ToolDependencySpec second) {
+        if (first != null && first.getDependsOn() != null && !first.getDependsOn().isEmpty()) {
+            return first;
+        }
+        return second;
+    }
+
+    private McpWorkflowProperties.ToolDependencySpec dependencyForTool(String toolName) {
+        if (mcpWorkflowProperties == null || mcpWorkflowProperties.getToolDependencies() == null || toolName == null) {
+            return null;
+        }
+        for (Map.Entry<String, McpWorkflowProperties.ToolDependencySpec> entry : mcpWorkflowProperties.getToolDependencies().entrySet()) {
+            if (sameTool(entry.getKey(), toolName)) {
+                return entry.getValue();
+            }
+        }
+        return null;
+    }
+
+    private McpWorkflowProperties.WorkflowStep workflowStep(McpWorkflowProperties.WorkflowSpec workflow, String toolName) {
+        if (workflow == null || workflow.getSteps() == null) {
+            return null;
+        }
+        return workflow.getSteps().stream()
+            .filter(step -> step != null && sameTool(step.getTool(), toolName))
+            .findFirst()
+            .orElse(null);
+    }
+
+    private boolean parallelStep(McpWorkflowProperties.WorkflowSpec workflow, String toolName) {
+        return workflow != null
+            && workflow.getParallelSteps() != null
+            && workflow.getParallelSteps().stream().anyMatch(stepTool -> sameTool(stepTool, toolName));
+    }
+
+    private int stepOrder(McpWorkflowProperties.WorkflowStep step) {
+        return step == null || step.getStep() == null ? Integer.MAX_VALUE : step.getStep();
+    }
+
+    private boolean sameTool(String configuredTool, String actualTool) {
+        return normalizeToolSemanticKey(configuredTool).equals(normalizeToolSemanticKey(actualTool));
+    }
+
+    private boolean containsTool(Set<String> tools, String expectedTool) {
+        if (tools == null || expectedTool == null) {
+            return false;
+        }
+        return tools.stream().anyMatch(tool -> sameTool(tool, expectedTool));
+    }
+
+    private String normalizeToolSemanticKey(String toolName) {
+        String normalized = normalizePolicyKey(toolName);
+        if (normalized.contains("document_search")) {
+            return "document_search";
+        }
+        if (normalized.contains("web_search")) {
+            return "web_search";
+        }
+        return normalized;
+    }
+
+    private Set<String> completedTools(ToolRuntimeRequest request, WorkflowState state) {
+        Set<String> completed = new HashSet<>(state == null ? Set.of() : state.completedTools);
+        Object configured = request == null || request.getAttributes() == null
+            ? null
+            : firstPresent(request.getAttributes().get("workflowCompletedTools"), request.getAttributes().get("completedTools"));
+        if (configured instanceof List<?> list) {
+            list.stream().map(this::stringValue).filter(value -> value != null && !value.isBlank()).forEach(completed::add);
+        } else if (configured instanceof String text && !text.isBlank()) {
+            for (String item : text.split("[,;]")) {
+                if (!item.isBlank()) {
+                    completed.add(item.trim());
+                }
+            }
+        }
+        return completed;
+    }
+
+    private String workflowStateKey(ToolRuntimeRequest request, String workflowName) {
+        String tenant = normalizeText(request == null ? null : request.getTenantId());
+        String user = normalizeText(request == null ? null : request.getUserId());
+        String conversation = normalizeText(request == null ? null : request.getConversationId());
+        String requestId = normalizeText(request == null ? null : request.getRequestId());
+        String scope = firstText(conversation, firstText(requestId, "adhoc"));
+        return firstText(tenant, "default") + "::" + firstText(user, "anonymous")
+            + "::" + scope + "::" + firstText(workflowName, "global");
+    }
+
+    private Map<String, Object> workflowContext(ToolRuntimeRequest request, ToolInput toolInput) {
+        Map<String, Object> context = new LinkedHashMap<>();
+        if (request != null && request.getAttributes() != null) {
+            context.putAll(asMap(firstPresent(request.getAttributes().get("workflowContext"), request.getAttributes().get("workflowVariables"))));
+        }
+        if (toolInput != null && toolInput.getParameters() != null) {
+            context.putAll(toolInput.getParameters());
+        }
+        return context;
+    }
+
+    private boolean conditionMatches(String condition, Map<String, Object> context) {
+        if (condition == null || condition.isBlank()) {
+            return true;
+        }
+        String expression = condition.trim();
+        String[] operators = {">=", "<=", "==", "!=", ">", "<"};
+        for (String operator : operators) {
+            int index = expression.indexOf(operator);
+            if (index <= 0) {
+                continue;
+            }
+            String left = expression.substring(0, index).trim();
+            String right = expression.substring(index + operator.length()).trim();
+            Object leftValue = context == null ? null : context.get(left);
+            if (leftValue == null) {
+                leftValue = context == null ? null : context.get(normalizePolicyKey(left));
+            }
+            return compareCondition(leftValue, operator, right);
+        }
+        Object value = context == null ? null : context.get(expression);
+        return truthy(value);
+    }
+
+    private boolean compareCondition(Object leftValue, String operator, String rightText) {
+        if (leftValue == null) {
+            return false;
+        }
+        Double leftNumber = numberValue(leftValue);
+        Double rightNumber = numberValue(unquote(rightText));
+        if (leftNumber != null && rightNumber != null) {
+            return switch (operator) {
+                case ">=" -> leftNumber >= rightNumber;
+                case "<=" -> leftNumber <= rightNumber;
+                case ">" -> leftNumber > rightNumber;
+                case "<" -> leftNumber < rightNumber;
+                case "==" -> Double.compare(leftNumber, rightNumber) == 0;
+                case "!=" -> Double.compare(leftNumber, rightNumber) != 0;
+                default -> false;
+            };
+        }
+        String left = String.valueOf(leftValue);
+        String right = unquote(rightText);
+        return switch (operator) {
+            case "==" -> left.equalsIgnoreCase(right);
+            case "!=" -> !left.equalsIgnoreCase(right);
+            default -> false;
+        };
+    }
+
+    private Double numberValue(Object value) {
+        if (value instanceof Number number) {
+            return number.doubleValue();
+        }
+        try {
+            return value == null ? null : Double.parseDouble(String.valueOf(value).trim());
+        } catch (NumberFormatException ignored) {
+            return null;
+        }
+    }
+
+    private String unquote(String value) {
+        if (value == null) {
+            return "";
+        }
+        String text = value.trim();
+        if ((text.startsWith("\"") && text.endsWith("\"")) || (text.startsWith("'") && text.endsWith("'"))) {
+            return text.substring(1, text.length() - 1);
+        }
+        return text;
+    }
+
+    private ToolRuntimeAction defaultActionForRisk(String riskLevel) {
+        return switch (normalizePolicyKey(riskLevel)) {
+            case "forbidden" -> ToolRuntimeAction.DENY;
+            case "medium", "high" -> ToolRuntimeAction.ASK_BEFORE_EXECUTE;
+            default -> ToolRuntimeAction.AUTO_EXECUTE;
+        };
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> confirmationFromRequest(ToolRuntimeRequest request) {
+        if (request == null) {
+            return Map.of();
+        }
+        Object value = request.getAttributes() == null ? null : request.getAttributes().get("mcpConfirmation");
+        if (!(value instanceof Map<?, ?>) && request.getToolInput() != null && request.getToolInput().getContext() != null) {
+            value = request.getToolInput().getContext().get("mcpConfirmation");
+        }
+        if (!(value instanceof Map<?, ?> map)) {
+            return Map.of();
+        }
+        return (Map<String, Object>) map;
+    }
+
+    private String confirmationToken(ToolRuntimeRequest request, ToolExecutionPlan executionPlan) {
+        Map<String, Object> values = new LinkedHashMap<>();
+        values.put("tenantId", request == null ? null : request.getTenantId());
+        values.put("userId", request == null ? null : request.getUserId());
+        values.put("conversationId", request == null ? null : request.getConversationId());
+        values.put("toolName", request == null ? null : request.getToolName());
+        values.put("plan", executionPlan == null ? null : executionPlan.toMap());
+        return sha256(stringify(values)).substring(0, 32);
+    }
+
+    private String sha256(String value) {
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            byte[] bytes = digest.digest((value == null ? "" : value).getBytes(StandardCharsets.UTF_8));
+            StringBuilder hex = new StringBuilder();
+            for (byte b : bytes) {
+                hex.append(String.format("%02x", b));
+            }
+            return hex.toString();
+        } catch (Exception ex) {
+            return Integer.toHexString(String.valueOf(value).hashCode());
+        }
+    }
+
+    private String userPolicyKey(ToolRuntimeRequest request, String toolName) {
+        String tenant = normalizeText(request == null ? null : request.getTenantId());
+        String user = normalizeText(request == null ? null : request.getUserId());
+        return firstText(tenant, "default") + "::" + firstText(user, "anonymous") + "::" + firstText(toolName, "unknown");
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> asMap(Object value) {
+        if (!(value instanceof Map<?, ?> map)) {
+            return Map.of();
+        }
+        return (Map<String, Object>) map;
+    }
+
+    private List<String> stringList(Object value) {
+        if (value instanceof List<?> list) {
+            return list.stream()
+                .map(this::stringValue)
+                .filter(text -> text != null && !text.isBlank())
+                .map(String::trim)
+                .distinct()
+                .toList();
+        }
+        if (value instanceof String text && !text.isBlank()) {
+            List<String> values = new ArrayList<>();
+            for (String item : text.split("[,;\\n]")) {
+                if (!item.isBlank()) {
+                    values.add(item.trim());
+                }
+            }
+            return values.stream().distinct().toList();
+        }
+        return List.of();
+    }
+
+    private Boolean booleanValue(Object value) {
+        if (value instanceof Boolean bool) {
+            return bool;
+        }
+        if (value == null) {
+            return null;
+        }
+        String text = String.valueOf(value).trim();
+        if ("true".equalsIgnoreCase(text) || "yes".equalsIgnoreCase(text) || "1".equals(text)) {
+            return true;
+        }
+        if ("false".equalsIgnoreCase(text) || "no".equalsIgnoreCase(text) || "0".equals(text)) {
+            return false;
+        }
+        return null;
+    }
+
+    private Integer integerValue(Object value) {
+        if (value instanceof Number number) {
+            return number.intValue();
+        }
+        try {
+            return value == null ? null : Integer.parseInt(String.valueOf(value).trim());
+        } catch (NumberFormatException ignored) {
+            return null;
+        }
+    }
+
+    private int firstInteger(Object value, int fallback) {
+        Integer parsed = integerValue(value);
+        return parsed == null ? fallback : parsed;
+    }
+
+    private String valueForKey(Map<String, String> values, String key) {
+        if (values == null || key == null) {
+            return null;
+        }
+        String normalizedKey = normalizePolicyKey(key);
+        for (Map.Entry<String, String> entry : values.entrySet()) {
+            if (normalizePolicyKey(entry.getKey()).equals(normalizedKey)) {
+                return entry.getValue();
+            }
+        }
+        return null;
+    }
+
+    private Map<String, String> valueForNestedKey(Map<String, Map<String, String>> values, String key) {
+        if (values == null || key == null) {
+            return null;
+        }
+        String normalizedKey = normalizePolicyKey(key);
+        for (Map.Entry<String, Map<String, String>> entry : values.entrySet()) {
+            if (normalizePolicyKey(entry.getKey()).equals(normalizedKey)) {
+                return entry.getValue();
+            }
+        }
+        return null;
+    }
+
+    private String normalizePolicyKey(String value) {
+        if (value == null || value.isBlank()) {
+            return "";
+        }
+        return value.trim().toLowerCase(Locale.ROOT).replace('-', '_');
+    }
+
+    private Object firstPresent(Object... values) {
+        if (values == null) {
+            return null;
+        }
+        for (Object value : values) {
+            if (value != null) {
+                return value;
+            }
+        }
+        return null;
+    }
+
+    private int recipientCount(Map<String, Object> parameters) {
+        Object count = firstPresent(parameters.get("recipient_count"), parameters.get("recipientCount"), parameters.get("count"));
+        if (count instanceof Number number) {
+            return number.intValue();
+        }
+        Object recipients = firstPresent(parameters.get("recipients"), parameters.get("to"));
+        if (recipients instanceof List<?> list) {
+            return list.size();
+        }
+        if (recipients instanceof String text && !text.isBlank()) {
+            return text.split("[,;]").length;
+        }
+        try {
+            return count == null ? 0 : Integer.parseInt(String.valueOf(count));
+        } catch (NumberFormatException ignored) {
+            return 0;
+        }
+    }
+
+    private boolean hasExternalDomain(Map<String, Object> parameters) {
+        List<String> recipients = new ArrayList<>();
+        Object value = firstPresent(parameters.get("recipients"), parameters.get("recipient"), parameters.get("to"), parameters.get("email"));
+        if (value instanceof List<?> list) {
+            list.forEach(item -> recipients.add(String.valueOf(item)));
+        } else if (value != null) {
+            for (String item : String.valueOf(value).split("[,;]")) {
+                recipients.add(item);
+            }
+        }
+        return recipients.stream()
+            .map(String::trim)
+            .filter(text -> text.contains("@"))
+            .map(text -> text.substring(text.indexOf('@') + 1).toLowerCase(Locale.ROOT))
+            .anyMatch(domain -> !domain.endsWith(".local") && !domain.endsWith(".internal") && !domain.contains("chatchat"));
+    }
+
+    private boolean containsWord(Map<String, Object> parameters, String word) {
+        String text = String.join(" ",
+            stringValue(parameters.get("sql")),
+            stringValue(parameters.get("query")),
+            stringValue(parameters.get("input")),
+            stringValue(parameters.get("statement"))
+        ).toLowerCase(Locale.ROOT);
+        return text.matches(".*\\b" + word.toLowerCase(Locale.ROOT) + "\\b.*");
+    }
+
+    private boolean isCustomerDetail(Map<String, Object> parameters) {
+        if (truthy(parameters.get("customer_detail")) || truthy(parameters.get("customerDetail"))) {
+            return true;
+        }
+        if (parameters.containsKey("customer_id") || parameters.containsKey("customerId")) {
+            return true;
+        }
+        String scope = String.join(" ",
+            stringValue(parameters.get("scope")),
+            stringValue(parameters.get("data_scope")),
+            stringValue(parameters.get("dataScope")),
+            stringValue(parameters.get("level"))
+        ).toLowerCase(Locale.ROOT);
+        return scope.contains("customer") || scope.contains("detail");
+    }
+
+    private boolean isBranchSummary(Map<String, Object> parameters) {
+        String scope = String.join(" ",
+            stringValue(parameters.get("scope")),
+            stringValue(parameters.get("data_scope")),
+            stringValue(parameters.get("dataScope")),
+            stringValue(parameters.get("level"))
+        ).toLowerCase(Locale.ROOT);
+        return (scope.contains("branch") || parameters.containsKey("branch_id") || parameters.containsKey("branchId"))
+            && !isCustomerDetail(parameters);
+    }
+
+    private String inferDataScope(Map<String, Object> parameters) {
+        if (parameters == null || parameters.isEmpty()) {
+            return "unknown";
+        }
+        if (isCustomerDetail(parameters)) {
+            return "customer_detail";
+        }
+        if (isBranchSummary(parameters)) {
+            return "branch_summary";
+        }
+        String scope = firstText(stringValue(parameters.get("data_scope")), stringValue(parameters.get("scope")));
+        return firstText(scope, "unknown");
+    }
+
+    private boolean truthy(Object value) {
+        if (value instanceof Boolean bool) {
+            return bool;
+        }
+        if (value instanceof Number number) {
+            return number.intValue() != 0;
+        }
+        if (value == null) {
+            return false;
+        }
+        String text = String.valueOf(value).trim();
+        return "true".equalsIgnoreCase(text) || "yes".equalsIgnoreCase(text) || "1".equals(text);
     }
 
     private int threshold(ToolRuntimePolicy policy) {
@@ -459,6 +1658,10 @@ public class ToolRuntimeService {
         }
     }
 
+    private String stringValue(Object value) {
+        return value == null ? "" : String.valueOf(value);
+    }
+
     private String resolveDisplayName(String toolName, ToolMetadata metadata) {
         if (metadata != null && metadata.getTitle() != null && !metadata.getTitle().isBlank()) {
             return metadata.getTitle().trim();
@@ -498,9 +1701,50 @@ public class ToolRuntimeService {
         return first == null || first.isBlank() ? second : first;
     }
 
+    private record ToolPolicyDecision(
+        ToolRuntimeAction action,
+        String reason,
+        String riskLevel,
+        String operationType,
+        String dataScope,
+        List<String> matchedRules,
+        String confirmationToken
+    ) {
+    }
+
+    private record ParameterDecision(
+        ToolRuntimeAction action,
+        List<String> matchedRules
+    ) {
+    }
+
+    private record WorkflowDecision(
+        boolean applicable,
+        String workflowName,
+        String stateKey,
+        ToolRuntimeAction action,
+        String reason,
+        List<String> matchedRules
+    ) {
+        private static WorkflowDecision notApplicable() {
+            return new WorkflowDecision(false, null, null, null, null, List.of());
+        }
+
+        private static WorkflowDecision allowed(String workflowName, String stateKey, List<String> matchedRules) {
+            return new WorkflowDecision(true, workflowName, stateKey, null,
+                "MCP workflow allows tool execution", new ArrayList<>(matchedRules));
+        }
+    }
+
     private static final class CircuitState {
         private final AtomicInteger consecutiveFailures = new AtomicInteger();
         private final AtomicLong openedUntilMs = new AtomicLong();
+    }
+
+    private static final class WorkflowState {
+        private final Set<String> completedTools = ConcurrentHashMap.newKeySet();
+        private final AtomicInteger attemptedSteps = new AtomicInteger();
+        private final AtomicBoolean failed = new AtomicBoolean(false);
     }
 
     private static final class ToolCounters {

@@ -25,11 +25,14 @@ import java.net.http.HttpClient;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CancellationException;
+import java.util.function.BooleanSupplier;
 
 /**
  * Agent orchestrator with tool planning and execution loop.
@@ -69,19 +72,46 @@ public class AgentOrchestrator {
                                              int webSearchResultLimit,
                                              List<String> requiredToolNames,
                                              boolean requireBoundToolCall) {
+        return executeAgent(query, tenantId, availableTools, systemPrompt, modelName, boundDocumentIds,
+            boundDocumentTags, skillId, requestId, conversationId, userId, webSearchResultLimit,
+            requiredToolNames, requireBoundToolCall, Map.of());
+    }
+
+    public AgentExecutionResult executeAgent(String query,
+                                             String tenantId,
+                                             List<String> availableTools,
+                                             String systemPrompt,
+                                             String modelName,
+                                             List<String> boundDocumentIds,
+                                             List<String> boundDocumentTags,
+                                             String skillId,
+                                             String requestId,
+                                             String conversationId,
+                                             String userId,
+                                             int webSearchResultLimit,
+                                             List<String> requiredToolNames,
+                                             boolean requireBoundToolCall,
+                                             Map<String, Object> runtimeAttributes) {
         List<String> tools = availableTools == null ? List.of() : availableTools;
+        Map<String, Object> requestRuntimeAttributes = runtimeAttributes == null ? Map.of() : runtimeAttributes;
+        BooleanSupplier cancellationCheck = cancellationCheck(requestRuntimeAttributes);
         List<String> documentIds = normalizeList(boundDocumentIds);
         List<String> documentTags = normalizeList(boundDocumentTags);
+        String documentSearchTool = resolveDocumentSearchTool(tools);
         String verificationWebSearchTool = resolveVerificationWebSearchTool(tools);
         boolean requireDocumentWebVerification = shouldRequireDocumentWebVerification(
             tools,
+            documentSearchTool,
             verificationWebSearchTool,
             documentIds,
             documentTags
         );
-        List<String> mandatoryTools = resolveMandatoryToolCandidates(tools, requiredToolNames, requireBoundToolCall);
+        List<String> workflowMandatoryTools = resolveWorkflowMandatoryTools(tools, requestRuntimeAttributes);
+        List<String> mandatoryTools = workflowMandatoryTools.isEmpty()
+            ? resolveMandatoryToolCandidates(tools, requiredToolNames, requireBoundToolCall)
+            : workflowMandatoryTools;
         if (requireDocumentWebVerification) {
-            mandatoryTools = withDocumentWebVerificationMandatoryTools(mandatoryTools, verificationWebSearchTool);
+            mandatoryTools = withDocumentWebVerificationMandatoryTools(mandatoryTools, documentSearchTool, verificationWebSearchTool);
         }
         boolean requireToolBeforeFinal = !mandatoryTools.isEmpty();
         ChatModel activeChatModel = resolveChatModel(modelName);
@@ -97,14 +127,17 @@ public class AgentOrchestrator {
         metadata.put("webSearchResultLimit", webSearchResultLimit);
         metadata.put("mandatoryToolCall", requireToolBeforeFinal);
         metadata.put("mandatoryTools", mandatoryTools);
+        metadata.put("workflowMandatoryTools", workflowMandatoryTools);
         metadata.put("requiredToolNames", normalizeList(requiredToolNames));
         metadata.put("documentWebVerificationRequired", requireDocumentWebVerification);
+        metadata.put("documentSearchTool", documentSearchTool);
         metadata.put("verificationWebSearchTool", verificationWebSearchTool);
         metadata.put("plannerSteps", plannerSteps);
 
         log.info("[{}] Agent orchestration started. tools={}", requestId, tools.size());
 
         for (int step = 1; step <= MAX_STEPS; step++) {
+            checkCancelled(cancellationCheck);
             long plannedAt = System.currentTimeMillis();
             AgentDecision decision = decideNextAction(
                 activeChatModel,
@@ -117,33 +150,41 @@ public class AgentOrchestrator {
                 mandatoryTools,
                 requireToolBeforeFinal && traces.isEmpty(),
                 requireDocumentWebVerification,
+                documentSearchTool,
                 verificationWebSearchTool
             );
+            checkCancelled(cancellationCheck);
+            String plannedToolName = normalizeToolName(decision.toolName(), tools);
             metadata.put("steps", step);
             Map<String, Object> plannerStep = new LinkedHashMap<>();
             plannerStep.put("step", step);
             plannerStep.put("action", decision.action());
             plannerStep.put("toolName", stringValue(decision.toolName()));
+            plannerStep.put("resolvedToolName", plannedToolName);
             plannerStep.put("reason", stringValue(decision.reason()));
+            plannerStep.put("executionPlan", decision.executionPlan());
             plannerStep.put("answerPreview", preview(decision.answer()));
             plannerStep.put("plannedAt", plannedAt);
             plannerStep.put("observationCount", observations.size());
             plannerSteps.add(plannerStep);
 
             if (FINAL.equals(decision.action())) {
+                checkCancelled(cancellationCheck);
                 if (requireToolBeforeFinal && traces.isEmpty()) {
                     observations.add("Planner final answer rejected: this MCP-bound agent must call one mandatory tool before final answer.");
                     metadata.put("rejectedFinalBeforeTool", true);
                     continue;
                 }
-                if (requireDocumentWebVerification && missingDocumentWebVerification(traces, verificationWebSearchTool)) {
+                if (requireDocumentWebVerification && missingDocumentWebVerification(traces, documentSearchTool, verificationWebSearchTool)) {
                     observations.add("Planner final answer rejected: document-web verification requires both document_search and "
                         + verificationWebSearchTool + " observations before final answer.");
                     metadata.put("rejectedFinalBeforeVerification", true);
                     continue;
                 }
                 String answer = safeAnswer(activeChatModel, decision.answer(), query, observations, systemPrompt);
+                checkCancelled(cancellationCheck);
                 AnswerReview review = reviewAndReviseAnswer(activeChatModel, query, systemPrompt, observations, answer);
+                checkCancelled(cancellationCheck);
                 recordAnswerReview(metadata, review);
                 metadata.put("stopReason", "final_answer");
                 return new AgentExecutionResult(review.answer(), traces, metadata);
@@ -154,48 +195,58 @@ public class AgentOrchestrator {
                 break;
             }
 
-            if (decision.toolName() == null || decision.toolName().isBlank()) {
+            if (plannedToolName == null || plannedToolName.isBlank()) {
                 observations.add("Planner requested tool action without toolName.");
                 break;
             }
-            if (!tools.contains(decision.toolName())) {
+            if (!tools.contains(plannedToolName)) {
                 observations.add("Planner requested unavailable tool: " + decision.toolName());
                 continue;
             }
-            if (requireToolBeforeFinal && traces.isEmpty() && !mandatoryTools.contains(decision.toolName())) {
-                observations.add("Planner requested non-mandatory tool before MCP-bound evidence: " + decision.toolName());
+            if (requireToolBeforeFinal && traces.isEmpty() && !containsToolName(mandatoryTools, plannedToolName)) {
+                observations.add("Planner requested non-mandatory tool before MCP-bound evidence: " + plannedToolName);
                 continue;
             }
             if (requireDocumentWebVerification
-                && !hasToolTrace(traces, DOCUMENT_SEARCH_TOOL)
-                && !DOCUMENT_SEARCH_TOOL.equals(decision.toolName())) {
-                observations.add("Planner requested " + decision.toolName()
-                    + " before document_search; document-web verification must start with document_search.");
+                && !hasToolTrace(traces, documentSearchTool)
+                && !sameToolName(documentSearchTool, plannedToolName)) {
+                observations.add("Planner requested " + plannedToolName
+                    + " before " + documentSearchTool + "; document-web verification must start with " + documentSearchTool + ".");
                 continue;
             }
 
             Map<String, Object> arguments = applyToolDefaults(
-                decision.toolName(),
+                plannedToolName,
                 decision.arguments(),
                 documentIds,
                 documentTags,
                 query,
                 webSearchResultLimit
             );
+            checkCancelled(cancellationCheck);
             ToolCallExecution execution = executeToolCall(
-                decision.toolName(),
+                plannedToolName,
                 arguments,
                 conversationId,
                 requestId,
                 userId,
                 tenantId,
-                tools
+                tools,
+                decision.executionPlan(),
+                requestRuntimeAttributes
             );
             traces.add(execution.trace());
             observations.add(execution.observation());
+            if (isConfirmationRequired(execution)) {
+                metadata.put("stopReason", "confirmation_required");
+                metadata.put("confirmationRequired", true);
+                return new AgentExecutionResult("", traces, metadata);
+            }
+            checkCancelled(cancellationCheck);
         }
 
         if (requireToolBeforeFinal && traces.isEmpty()) {
+            checkCancelled(cancellationCheck);
             String fallbackTool = mandatoryTools.get(0);
             Map<String, Object> fallbackArguments = applyDocumentSearchDefaults(
                 fallbackTool,
@@ -210,13 +261,21 @@ public class AgentOrchestrator {
                 requestId,
                 userId,
                 tenantId,
-                tools
+                tools,
+                Map.of(),
+                requestRuntimeAttributes
             );
             traces.add(execution.trace());
             observations.add("Mandatory fallback " + execution.observation());
             metadata.put("mandatoryToolFallback", fallbackTool);
+            if (isConfirmationRequired(execution)) {
+                metadata.put("stopReason", "confirmation_required");
+                metadata.put("confirmationRequired", true);
+                return new AgentExecutionResult("", traces, metadata);
+            }
         }
         if (requireDocumentWebVerification) {
+            checkCancelled(cancellationCheck);
             runMissingDocumentWebVerification(
                 traces,
                 observations,
@@ -226,16 +285,24 @@ public class AgentOrchestrator {
                 userId,
                 tenantId,
                 tools,
+                documentSearchTool,
                 documentIds,
                 documentTags,
                 webSearchResultLimit,
                 verificationWebSearchTool,
-                metadata
+                metadata,
+                requestRuntimeAttributes
             );
+            if (Boolean.TRUE.equals(metadata.get("confirmationRequired"))) {
+                return new AgentExecutionResult("", traces, metadata);
+            }
         }
 
+        checkCancelled(cancellationCheck);
         String finalAnswer = summarizeWithObservations(activeChatModel, query, systemPrompt, observations);
+        checkCancelled(cancellationCheck);
         AnswerReview review = reviewAndReviseAnswer(activeChatModel, query, systemPrompt, observations, finalAnswer);
+        checkCancelled(cancellationCheck);
         recordAnswerReview(metadata, review);
         metadata.put("stopReason", "max_steps_or_fallback");
         return new AgentExecutionResult(review.answer(), traces, metadata);
@@ -251,6 +318,7 @@ public class AgentOrchestrator {
                                            List<String> mandatoryTools,
                                            boolean requireToolBeforeFinal,
                                            boolean requireDocumentWebVerification,
+                                           String documentSearchTool,
                                            String verificationWebSearchTool) {
         String prompt = buildPlannerPrompt(
             query,
@@ -262,12 +330,13 @@ public class AgentOrchestrator {
             mandatoryTools,
             requireToolBeforeFinal,
             requireDocumentWebVerification,
+            documentSearchTool,
             verificationWebSearchTool
         );
         String raw = activeChatModel.chat(prompt);
         AgentDecision decision = parseDecision(raw);
         if (decision == null) {
-            return new AgentDecision(FINAL, null, Map.of(), raw, "non_json_response");
+            return new AgentDecision(FINAL, null, Map.of(), raw, "non_json_response", Map.of());
         }
         return decision;
     }
@@ -281,6 +350,7 @@ public class AgentOrchestrator {
                                       List<String> mandatoryTools,
                                       boolean requireToolBeforeFinal,
                                       boolean requireDocumentWebVerification,
+                                      String documentSearchTool,
                                       String verificationWebSearchTool) {
         StringBuilder prompt = new StringBuilder();
         if (systemPrompt != null && !systemPrompt.isBlank()) {
@@ -292,14 +362,18 @@ public class AgentOrchestrator {
             prompt.append("Mandatory tool policy:\n");
             prompt.append("- This agent is bound to required runtime tools. Your next response MUST be a tool action.\n");
             prompt.append("- Do not return a final answer until at least one mandatory tool has been called and observed.\n");
-            prompt.append("- Choose the most relevant tool from this mandatory set: ").append(mandatoryTools).append("\n");
+            prompt.append("- Required tools are ordered by workflow or runtime policy: ").append(mandatoryTools).append("\n");
+            prompt.append("- If no required tool has been observed yet, call the first required tool in that ordered list.\n");
+            prompt.append("- Do not call a later required tool before earlier required tools have succeeded.\n");
             prompt.append("- If the user request is analytical, portfolio-related, market-related, data-driven, or requires validation, use a mandatory tool first.\n\n");
         }
         prompt.append("Respond with strict JSON only.\n");
         prompt.append("Schema:\n");
         prompt.append("{\"action\":\"final\",\"answer\":\"...\"}\n");
         prompt.append("or\n");
-        prompt.append("{\"action\":\"tool\",\"toolName\":\"...\",\"arguments\":{...},\"reason\":\"...\"}\n\n");
+        prompt.append("{\"action\":\"tool\",\"toolName\":\"...\",\"arguments\":{...},\"reason\":\"...\",");
+        prompt.append("\"executionPlan\":{\"workflow\":\"optional_workflow_name\",\"intent\":\"...\",\"tool\":\"...\",\"operation_type\":\"read|write|send|delete\",");
+        prompt.append("\"risk_level\":\"low|medium|high|forbidden\",\"parameters\":{...},\"reason\":\"...\"}}\n\n");
         prompt.append("Available tools:\n").append(describeTools(availableTools)).append("\n");
         if (!boundDocumentIds.isEmpty() || !boundDocumentTags.isEmpty()) {
             prompt.append("Knowledge document search scope:\n");
@@ -310,16 +384,19 @@ public class AgentOrchestrator {
                 prompt.append("- tags: ").append(boundDocumentTags).append("\n");
             }
             prompt.append("Document workflow:\n");
-            prompt.append("1. If the user asks about research material, reports, files, or document-backed facts, call document_search first.\n");
-            prompt.append("2. Keep document_search within the configured document_ids/tags scope.\n");
+            prompt.append("1. If the user asks about research material, reports, files, or document-backed facts, call ")
+                .append(firstNonBlank(documentSearchTool, DOCUMENT_SEARCH_TOOL))
+                .append(" first.\n");
+            prompt.append("2. Keep ").append(firstNonBlank(documentSearchTool, DOCUMENT_SEARCH_TOOL))
+                .append(" within the configured document_ids/tags scope.\n");
             prompt.append("3. Use retrieved evidence as the basis of the final answer; if evidence is insufficient, say what is missing.\n");
             prompt.append("4. Do not invent facts beyond retrieved documents and tool observations.\n\n");
         }
         if (requireDocumentWebVerification) {
             prompt.append("Document-web verification workflow:\n");
-            prompt.append("1. Call document_search first to retrieve internal knowledge evidence.\n");
+            prompt.append("1. Call ").append(documentSearchTool).append(" first to retrieve internal knowledge evidence.\n");
             prompt.append("2. Then call ").append(verificationWebSearchTool).append(" to validate and supplement with public/web evidence.\n");
-            prompt.append("3. Do not return a final answer until both document_search and ")
+            prompt.append("3. Do not return a final answer until both ").append(documentSearchTool).append(" and ")
                 .append(verificationWebSearchTool)
                 .append(" have been observed.\n");
             prompt.append("4. In the final answer, separate internal document evidence from web verification evidence.\n");
@@ -373,7 +450,7 @@ public class AgentOrchestrator {
             }
             action = action.toLowerCase(Locale.ROOT);
             if (FINAL.equals(action)) {
-                return new AgentDecision(FINAL, null, Map.of(), stringValue(payload.get("answer")), stringValue(payload.get("reason")));
+                return new AgentDecision(FINAL, null, Map.of(), stringValue(payload.get("answer")), stringValue(payload.get("reason")), Map.of());
             }
             if (!TOOL.equals(action)) {
                 return null;
@@ -385,7 +462,8 @@ public class AgentOrchestrator {
                 stringValue(payload.get("toolName")),
                 arguments,
                 null,
-                stringValue(payload.get("reason"))
+                stringValue(payload.get("reason")),
+                asMap(payload.get("executionPlan"))
             );
         } catch (Exception ex) {
             log.debug("Failed to parse planner decision: {}", raw, ex);
@@ -551,7 +629,7 @@ public class AgentOrchestrator {
                                                             List<String> boundDocumentIds,
                                                             List<String> boundDocumentTags) {
         Map<String, Object> values = new LinkedHashMap<>(arguments == null ? Collections.emptyMap() : arguments);
-        if (!"document_search".equals(toolName)) {
+        if (!isDocumentSearchToolName(toolName)) {
             return values;
         }
         if (!boundDocumentIds.isEmpty() && !values.containsKey("document_ids")) {
@@ -570,10 +648,10 @@ public class AgentOrchestrator {
                                                   String query,
                                                   int webSearchResultLimit) {
         Map<String, Object> values = applyDocumentSearchDefaults(toolName, arguments, boundDocumentIds, boundDocumentTags);
-        if ("document_search".equals(toolName) && !values.containsKey("query") && query != null && !query.isBlank()) {
+        if (isDocumentSearchToolName(toolName) && !values.containsKey("query") && query != null && !query.isBlank()) {
             values.put("query", query);
         }
-        if (!"web_search".equals(toolName)) {
+        if (!isWebSearchToolName(toolName)) {
             return values;
         }
         if (!values.containsKey("query") && query != null && !query.isBlank()) {
@@ -591,8 +669,12 @@ public class AgentOrchestrator {
                                               String requestId,
                                               String userId,
                                               String tenantId,
-                                              List<String> allowedTools) {
+                                              List<String> allowedTools,
+                                              Map<String, Object> plannerExecutionPlan,
+                                              Map<String, Object> runtimeAttributes) {
         Map<String, Object> safeArguments = new LinkedHashMap<>(arguments == null ? Map.of() : arguments);
+        Map<String, Object> attributes = new LinkedHashMap<>(runtimeAttributes == null ? Map.of() : runtimeAttributes);
+        attributes.put("executionPlan", buildRuntimeExecutionPlan(toolName, safeArguments, plannerExecutionPlan));
         ToolInput toolInput = ToolInput.builder()
             .conversationId(conversationId)
             .requestId(requestId)
@@ -609,6 +691,7 @@ public class AgentOrchestrator {
             .userId(userId)
             .allowedTools(allowedTools == null ? List.of() : allowedTools)
             .toolInput(toolInput)
+            .attributes(attributes)
             .build());
         ToolMetadata toolMetadata = execution.metadata();
         ToolOutput output = execution.output();
@@ -658,14 +741,49 @@ public class AgentOrchestrator {
             + ". Evidence from this tool is unavailable; the final answer must explicitly mention this limitation and must not claim successful verification from this tool.";
     }
 
+    private Map<String, Object> buildRuntimeExecutionPlan(String toolName,
+                                                          Map<String, Object> arguments,
+                                                          Map<String, Object> plannerExecutionPlan) {
+        Map<String, Object> plan = new LinkedHashMap<>(plannerExecutionPlan == null ? Map.of() : plannerExecutionPlan);
+        ToolMetadata metadata = toolRegistry.getToolMetadata(toolName);
+        plan.putIfAbsent("intent", firstNonBlank(stringValue(plan.get("intent")), "Use tool to satisfy the user request"));
+        plan.put("tool", firstNonBlank(stringValue(plan.get("tool")), toolName));
+        plan.put("operation_type", firstNonBlank(
+            firstNonBlank(stringValue(plan.get("operation_type")), stringValue(plan.get("operationType"))),
+            metadata == null ? "read" : firstNonBlank(metadata.getOperationType(), "read")
+        ));
+        plan.put("risk_level", firstNonBlank(
+            firstNonBlank(stringValue(plan.get("risk_level")), stringValue(plan.get("riskLevel"))),
+            metadata == null ? "low" : firstNonBlank(metadata.getRiskLevel(), "low")
+        ));
+        plan.put("parameters", arguments == null ? Map.of() : new LinkedHashMap<>(arguments));
+        plan.putIfAbsent("reason", firstNonBlank(stringValue(plan.get("reason")), "Planner selected " + toolName));
+        return plan;
+    }
+
     private boolean shouldRequireDocumentWebVerification(List<String> tools,
+                                                         String documentSearchTool,
                                                          String verificationWebSearchTool,
                                                          List<String> documentIds,
                                                          List<String> documentTags) {
         return tools != null
-            && tools.contains(DOCUMENT_SEARCH_TOOL)
+            && documentSearchTool != null
+            && tools.contains(documentSearchTool)
             && verificationWebSearchTool != null
             && (!documentIds.isEmpty() || !documentTags.isEmpty());
+    }
+
+    private String resolveDocumentSearchTool(List<String> tools) {
+        if (tools == null || tools.isEmpty()) {
+            return null;
+        }
+        if (tools.contains(DOCUMENT_SEARCH_TOOL)) {
+            return DOCUMENT_SEARCH_TOOL;
+        }
+        return tools.stream()
+            .filter(this::isDocumentSearchToolName)
+            .findFirst()
+            .orElse(null);
     }
 
     private String resolveVerificationWebSearchTool(List<String> tools) {
@@ -681,8 +799,10 @@ public class AgentOrchestrator {
             .orElse(null);
     }
 
-    private boolean missingDocumentWebVerification(List<InteractionToolTrace> traces, String verificationWebSearchTool) {
-        return !hasToolTrace(traces, DOCUMENT_SEARCH_TOOL) || !hasToolTrace(traces, verificationWebSearchTool);
+    private boolean missingDocumentWebVerification(List<InteractionToolTrace> traces,
+                                                   String documentSearchTool,
+                                                   String verificationWebSearchTool) {
+        return !hasToolTrace(traces, documentSearchTool) || !hasToolTrace(traces, verificationWebSearchTool);
     }
 
     private boolean hasToolTrace(List<InteractionToolTrace> traces, String toolName) {
@@ -690,7 +810,7 @@ public class AgentOrchestrator {
             return false;
         }
         return traces.stream()
-            .anyMatch(trace -> trace != null && toolName.equals(trace.getToolName()));
+            .anyMatch(trace -> trace != null && sameToolName(toolName, trace.getToolName()));
     }
 
     private void runMissingDocumentWebVerification(List<InteractionToolTrace> traces,
@@ -701,14 +821,16 @@ public class AgentOrchestrator {
                                                    String userId,
                                                    String tenantId,
                                                    List<String> tools,
+                                                   String documentSearchTool,
                                                    List<String> documentIds,
                                                    List<String> documentTags,
                                                    int webSearchResultLimit,
                                                    String verificationWebSearchTool,
-                                                   Map<String, Object> metadata) {
+                                                   Map<String, Object> metadata,
+                                                   Map<String, Object> runtimeAttributes) {
         List<String> fallbackTools = new ArrayList<>();
-        if (!hasToolTrace(traces, DOCUMENT_SEARCH_TOOL)) {
-            fallbackTools.add(DOCUMENT_SEARCH_TOOL);
+        if (!hasToolTrace(traces, documentSearchTool)) {
+            fallbackTools.add(documentSearchTool);
         }
         if (!hasToolTrace(traces, verificationWebSearchTool)) {
             fallbackTools.add(verificationWebSearchTool);
@@ -737,11 +859,40 @@ public class AgentOrchestrator {
                 requestId,
                 userId,
                 tenantId,
-                tools
+                tools,
+                Map.of(),
+                runtimeAttributes
             );
             traces.add(execution.trace());
             observations.add("Document-web verification fallback " + execution.observation());
+            if (isConfirmationRequired(execution)) {
+                metadata.put("stopReason", "confirmation_required");
+                metadata.put("confirmationRequired", true);
+                return;
+            }
         }
+    }
+
+    private BooleanSupplier cancellationCheck(Map<String, Object> runtimeAttributes) {
+        Object value = runtimeAttributes == null ? null : runtimeAttributes.get("__agentCancellation");
+        if (value instanceof BooleanSupplier supplier) {
+            return supplier;
+        }
+        return () -> Thread.currentThread().isInterrupted();
+    }
+
+    private void checkCancelled(BooleanSupplier cancellationCheck) {
+        if (Thread.currentThread().isInterrupted() || (cancellationCheck != null && cancellationCheck.getAsBoolean())) {
+            throw new CancellationException("Agent task cancelled");
+        }
+    }
+
+    private boolean isConfirmationRequired(ToolCallExecution execution) {
+        if (execution == null || execution.trace() == null || execution.trace().getRuntimeMetadata() == null) {
+            return false;
+        }
+        Object outcome = execution.trace().getRuntimeMetadata().get("outcome");
+        return "confirmation_required".equalsIgnoreCase(String.valueOf(outcome));
     }
 
     private Map<String, Object> defaultToolArguments(String toolName, String query, int webSearchResultLimit) {
@@ -751,10 +902,10 @@ public class AgentOrchestrator {
         if ("calculator".equals(toolName)) {
             return Map.of("expression", query);
         }
-        if ("web_search".equals(toolName)) {
+        if (isWebSearchToolName(toolName)) {
             return Map.of("query", query, "num_results", Math.max(1, Math.min(WEB_SEARCH_REFERENCE_LIMIT, webSearchResultLimit)));
         }
-        if (toolName != null && toolName.startsWith("mcp_")) {
+        if (toolName != null && (toolName.startsWith("mcp_") || isDocumentSearchToolName(toolName))) {
             return Map.of("query", query);
         }
         return Map.of("input", query);
@@ -852,12 +1003,62 @@ public class AgentOrchestrator {
         return toolName != null && toolName.toLowerCase(Locale.ROOT).contains("web_search");
     }
 
+    private boolean isDocumentSearchToolName(String toolName) {
+        return toolName != null && toolName.toLowerCase(Locale.ROOT).contains("document_search");
+    }
+
     private String shortText(String value) {
         if (value == null || value.isBlank()) {
             return null;
         }
         String normalized = value.replaceAll("\\s+", " ").trim();
         return normalized.length() <= 180 ? normalized : normalized.substring(0, 180);
+    }
+
+    private List<String> resolveWorkflowMandatoryTools(List<String> tools, Map<String, Object> runtimeAttributes) {
+        if (tools == null || tools.isEmpty() || runtimeAttributes == null || runtimeAttributes.isEmpty()) {
+            return List.of();
+        }
+        Map<String, Object> workflow = asMap(runtimeAttributes.get("mcpWorkflow"));
+        if (workflow.isEmpty()) {
+            return List.of();
+        }
+        Object enabled = workflow.get("enabled");
+        if (enabled instanceof Boolean bool && !bool) {
+            return List.of();
+        }
+        Object steps = workflow.get("steps");
+        if (!(steps instanceof List<?> list) || list.isEmpty()) {
+            return List.of();
+        }
+
+        List<WorkflowToolStep> requiredSteps = new ArrayList<>();
+        int index = 1;
+        for (Object item : list) {
+            Map<String, Object> step = asMap(item);
+            String tool = stringValue(firstObject(step, "tool", "toolName"));
+            if (tool == null || tool.isBlank()) {
+                index++;
+                continue;
+            }
+            Boolean required = booleanObject(step.get("required"));
+            if (Boolean.FALSE.equals(required)) {
+                index++;
+                continue;
+            }
+            String resolved = normalizeToolName(tool, tools);
+            if (resolved != null && tools.contains(resolved)) {
+                requiredSteps.add(new WorkflowToolStep(firstInteger(firstObject(step, "step", "order"), index), resolved));
+            }
+            index++;
+        }
+
+        LinkedHashMap<String, Boolean> ordered = new LinkedHashMap<>();
+        requiredSteps.stream()
+            .sorted(Comparator.comparingInt(WorkflowToolStep::order))
+            .map(WorkflowToolStep::toolName)
+            .forEach(tool -> ordered.put(tool, Boolean.TRUE));
+        return new ArrayList<>(ordered.keySet());
     }
 
     private List<String> resolveMandatoryToolCandidates(List<String> tools,
@@ -867,7 +1068,9 @@ public class AgentOrchestrator {
             return List.of();
         }
         List<String> requiredTools = normalizeList(requiredToolNames).stream()
+            .map(toolName -> normalizeToolName(toolName, tools))
             .filter(tools::contains)
+            .distinct()
             .toList();
         if (!requiredTools.isEmpty()) {
             return requiredTools;
@@ -876,14 +1079,83 @@ public class AgentOrchestrator {
     }
 
     private List<String> withDocumentWebVerificationMandatoryTools(List<String> mandatoryTools,
+                                                                   String documentSearchTool,
                                                                    String verificationWebSearchTool) {
         LinkedHashMap<String, Boolean> ordered = new LinkedHashMap<>();
-        ordered.put(DOCUMENT_SEARCH_TOOL, Boolean.TRUE);
+        if (documentSearchTool != null && !documentSearchTool.isBlank()) {
+            ordered.put(documentSearchTool, Boolean.TRUE);
+        }
         if (verificationWebSearchTool != null && !verificationWebSearchTool.isBlank()) {
             ordered.put(verificationWebSearchTool, Boolean.TRUE);
         }
         normalizeList(mandatoryTools).forEach(toolName -> ordered.put(toolName, Boolean.TRUE));
         return new ArrayList<>(ordered.keySet());
+    }
+
+    private String normalizeToolName(String toolName, List<String> availableTools) {
+        if (toolName == null || toolName.isBlank()) {
+            return null;
+        }
+        String trimmed = toolName.trim();
+        if (availableTools == null || availableTools.isEmpty()) {
+            return normalizeKnownToolAlias(trimmed);
+        }
+        if (availableTools.contains(trimmed)) {
+            return trimmed;
+        }
+        String aliased = normalizeKnownToolAlias(trimmed);
+        if (availableTools.contains(aliased)) {
+            return aliased;
+        }
+        if (DOCUMENT_SEARCH_TOOL.equals(aliased)) {
+            return resolveDocumentSearchTool(availableTools);
+        }
+        if (WEB_SEARCH_TOOL.equals(aliased)) {
+            return resolveVerificationWebSearchTool(availableTools);
+        }
+        return availableTools.stream()
+            .filter(available -> sameToolName(available, trimmed))
+            .findFirst()
+            .orElse(trimmed);
+    }
+
+    private String normalizeKnownToolAlias(String toolName) {
+        if (toolName == null || toolName.isBlank()) {
+            return null;
+        }
+        String normalized = toolName.trim();
+        String key = normalized.toLowerCase(Locale.ROOT);
+        if (DOCUMENT_SEARCH_TOOL.equals(key)) {
+            return DOCUMENT_SEARCH_TOOL;
+        }
+        if (WEB_SEARCH_TOOL.equals(key)) {
+            return WEB_SEARCH_TOOL;
+        }
+        return normalized;
+    }
+
+    private boolean containsToolName(List<String> tools, String toolName) {
+        return tools != null && tools.stream().anyMatch(candidate -> sameToolName(candidate, toolName));
+    }
+
+    private boolean sameToolName(String first, String second) {
+        String left = toolSemanticKey(first);
+        String right = toolSemanticKey(second);
+        return left != null && left.equals(right);
+    }
+
+    private String toolSemanticKey(String toolName) {
+        if (toolName == null || toolName.isBlank()) {
+            return null;
+        }
+        String normalized = toolName.trim().toLowerCase(Locale.ROOT);
+        if (normalized.contains(DOCUMENT_SEARCH_TOOL)) {
+            return DOCUMENT_SEARCH_TOOL;
+        }
+        if (normalized.contains(WEB_SEARCH_TOOL)) {
+            return WEB_SEARCH_TOOL;
+        }
+        return normalized;
     }
 
     private boolean isMcpTool(String toolName) {
@@ -952,6 +1224,43 @@ public class AgentOrchestrator {
         return value != null && Boolean.parseBoolean(String.valueOf(value));
     }
 
+    private Boolean booleanObject(Object value) {
+        if (value instanceof Boolean bool) {
+            return bool;
+        }
+        if (value == null) {
+            return null;
+        }
+        return Boolean.parseBoolean(String.valueOf(value));
+    }
+
+    private Object firstObject(Map<String, Object> values, String... keys) {
+        if (values == null || values.isEmpty() || keys == null) {
+            return null;
+        }
+        for (String key : keys) {
+            Object value = values.get(key);
+            if (value != null) {
+                return value;
+            }
+        }
+        return null;
+    }
+
+    private int firstInteger(Object value, int fallback) {
+        if (value instanceof Number number) {
+            return number.intValue();
+        }
+        if (value != null) {
+            try {
+                return Integer.parseInt(String.valueOf(value));
+            } catch (NumberFormatException ignored) {
+                return fallback;
+            }
+        }
+        return fallback;
+    }
+
     private String firstNonBlank(String first, String second) {
         return first == null || first.isBlank() ? second : first;
     }
@@ -987,7 +1296,8 @@ public class AgentOrchestrator {
         String toolName,
         Map<String, Object> arguments,
         String answer,
-        String reason
+        String reason,
+        Map<String, Object> executionPlan
     ) {
     }
 
@@ -1008,6 +1318,12 @@ public class AgentOrchestrator {
         String url,
         String title,
         String snippet
+    ) {
+    }
+
+    private record WorkflowToolStep(
+        int order,
+        String toolName
     ) {
     }
 

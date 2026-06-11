@@ -422,6 +422,35 @@ public class SearchService {
         return get(docId).flatMap(this::fileResourceFor);
     }
 
+    public boolean deleteDocument(String docId) {
+        Optional<SearchDocument> document = get(docId);
+        if (document.isEmpty()) {
+            return false;
+        }
+        SearchDocument target = document.get();
+        boolean wasLatest = isLatestVersion(target);
+        List<SearchDocument> family = listVersionDocuments(target);
+        store.delete(target, buildIndexData(target));
+        luceneStore.deleteDocument(target.getDocId());
+        deleteOriginalFile(target);
+
+        if (wasLatest) {
+            family.stream()
+                .filter(candidate -> !candidate.getDocId().equals(target.getDocId()))
+                .max(Comparator
+                    .comparingInt(this::versionOf)
+                    .thenComparing(SearchDocument::getUpdatedAt, Comparator.nullsLast(Comparator.naturalOrder())))
+                .ifPresent(previous -> {
+                    SearchIndexData oldIndexData = buildIndexData(previous);
+                    previous.setLatestVersion(true);
+                    previous.setUpdatedAt(Instant.now().toEpochMilli());
+                    store.put(previous, buildIndexData(previous), oldIndexData);
+                    syncLuceneIndex(previous);
+                });
+        }
+        return true;
+    }
+
     private SearchDocument normalizeDocument(SearchDocument request) {
         String content = request.getContent() == null ? "" : request.getContent().trim();
         if (content.isEmpty()) {
@@ -584,6 +613,18 @@ public class SearchService {
             document.getFileName(),
             document.getDocumentType()
         ));
+    }
+
+    private void deleteOriginalFile(SearchDocument document) {
+        if (document == null || isBlank(document.getFilePath())) {
+            return;
+        }
+        try {
+            Files.deleteIfExists(Path.of(document.getFilePath()).toAbsolutePath().normalize());
+        } catch (IOException ex) {
+            log.warn("Failed to delete uploaded file for document {}: {}",
+                document.getDocId(), ex.getMessage(), ex);
+        }
     }
 
     private boolean sameVersionFamily(SearchDocument document, String versionGroupId, String title) {

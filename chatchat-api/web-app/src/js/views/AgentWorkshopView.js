@@ -97,6 +97,22 @@ function defaultRoutingSettings() {
   };
 }
 
+function defaultWorkflowConfig() {
+  return {
+    enabled: true,
+    workflow: "",
+    executionStrategy: {
+      mode: "sequential",
+      stopOnError: true,
+      maxSteps: 6,
+      allowParallel: false
+    },
+    steps: [],
+    toolDependencies: {},
+    parallelSteps: []
+  };
+}
+
 function emptyForm() {
   return {
     id: "",
@@ -115,6 +131,7 @@ function emptyForm() {
     boundDocumentTags: "",
     toolConfigs: [],
     routingSettings: defaultRoutingSettings(),
+    workflowConfig: defaultWorkflowConfig(),
     quickQuestions: "",
     marketStatus: "draft"
   };
@@ -268,6 +285,12 @@ export default {
     },
     visibleMcpTools() {
       return this.mcpToolGroups.flatMap((group) => group.tools);
+    },
+    workflowSteps() {
+      return Array.isArray(this.form.workflowConfig?.steps) ? this.form.workflowConfig.steps : [];
+    },
+    workflowSelectedToolSet() {
+      return new Set(this.selectedToolNames);
     },
     toolGroupModeLabel() {
       if (this.toolGroupMode === "category") {
@@ -561,6 +584,7 @@ export default {
           ...defaultRoutingSettings(),
           ...(agent?.routingSettings || {})
         },
+        workflowConfig: this.normalizeWorkflowConfig(agent?.workflowConfig, parseList(agent?.boundMcpToolNames)),
         quickQuestions: joinList(agent?.quickQuestions),
         marketStatus: agent?.marketStatus || "draft"
       };
@@ -574,6 +598,8 @@ export default {
         .filter((docId) => availableDocumentIds.has(docId));
       const maxParallelCalls = Number(this.form.routingSettings.maxParallelCalls) || 3;
       const maxRelevantMcpTools = Number(this.form.routingSettings.maxRelevantMcpTools) || 3;
+      const workflowConfig = this.normalizeWorkflowConfig(this.form.workflowConfig, selectedToolNames);
+      this.form.workflowConfig = workflowConfig;
       return {
         id: this.form.id,
         name: this.form.name,
@@ -596,6 +622,7 @@ export default {
           maxParallelCalls: Math.max(1, Math.min(10, maxParallelCalls)),
           maxRelevantMcpTools: Math.max(1, Math.min(20, maxRelevantMcpTools))
         },
+        workflowConfig,
         quickQuestions: parseList(this.form.quickQuestions),
         marketStatus: this.form.marketStatus || "draft"
       };
@@ -653,6 +680,7 @@ export default {
           ...defaultRoutingSettings(),
           ...(row?.routingSettings && typeof row.routingSettings === "object" ? row.routingSettings : {})
         },
+        workflowConfig: defaultWorkflowConfig(),
         quickQuestions: listValue(fieldValue(row, [
           "quickQuestions", "questions", "quickPrompts", "快捷问题", "推荐问题", "示例问题"
         ])),
@@ -839,6 +867,81 @@ export default {
         };
       });
     },
+    normalizeWorkflowConfig(config, selectedToolNames = this.selectedToolNames) {
+      const selected = uniqueList(selectedToolNames);
+      const base = {
+        ...defaultWorkflowConfig(),
+        ...(config && typeof config === "object" ? config : {})
+      };
+      base.executionStrategy = {
+        ...defaultWorkflowConfig().executionStrategy,
+        ...(base.executionStrategy || {})
+      };
+      base.executionStrategy.maxSteps = Math.max(0, Math.min(50, Number(base.executionStrategy.maxSteps) || selected.length || 6));
+      const existingSteps = Array.isArray(base.steps) ? base.steps : [];
+      const byTool = new Map(existingSteps
+        .filter((step) => step?.tool || step?.toolName)
+        .map((step) => [String(step.tool || step.toolName), step]));
+      const selectedSet = new Set(selected);
+      const steps = selected.map((toolName, index) => {
+        const existing = byTool.get(toolName) || {};
+        return {
+          step: index + 1,
+          tool: toolName,
+          required: existing.required !== false,
+          condition: existing.condition || "",
+          confirmation: existing.confirmation || "",
+          dependsOn: uniqueList(Array.isArray(existing.dependsOn) ? existing.dependsOn : [])
+            .filter((dependency) => selectedSet.has(dependency) && dependency !== toolName)
+        };
+      });
+      const toolDependencies = {};
+      steps.forEach((step) => {
+        if (step.dependsOn.length) {
+          toolDependencies[step.tool] = { dependsOn: step.dependsOn };
+        }
+      });
+      const parallelSteps = uniqueList(base.parallelSteps || []).filter((toolName) => selectedSet.has(toolName));
+      return {
+        enabled: base.enabled !== false,
+        workflow: base.workflow || (this.form?.id ? `${this.form.id}_workflow` : "agent_workflow"),
+        executionStrategy: base.executionStrategy,
+        steps,
+        toolDependencies,
+        parallelSteps
+      };
+    },
+    syncWorkflowSteps(selectedToolNames = this.selectedToolNames) {
+      this.form.workflowConfig = this.normalizeWorkflowConfig(this.form.workflowConfig, selectedToolNames);
+    },
+    moveWorkflowStep(index, delta) {
+      const steps = [...this.workflowSteps];
+      const nextIndex = index + delta;
+      if (nextIndex < 0 || nextIndex >= steps.length) {
+        return;
+      }
+      const [step] = steps.splice(index, 1);
+      steps.splice(nextIndex, 0, step);
+      this.form.workflowConfig.steps = steps.map((item, order) => ({ ...item, step: order + 1 }));
+      this.form.boundMcpToolNames = this.form.workflowConfig.steps.map((item) => item.tool).join("\n");
+      this.syncWorkflowSteps();
+    },
+    workflowStepDependsOn(step, toolName) {
+      return Array.isArray(step?.dependsOn) && step.dependsOn.includes(toolName);
+    },
+    toggleWorkflowDependency(step, toolName) {
+      if (!step || !toolName || step.tool === toolName) {
+        return;
+      }
+      const dependencies = new Set(Array.isArray(step.dependsOn) ? step.dependsOn : []);
+      if (dependencies.has(toolName)) {
+        dependencies.delete(toolName);
+      } else {
+        dependencies.add(toolName);
+      }
+      step.dependsOn = [...dependencies].filter((dependency) => dependency !== step.tool);
+      this.syncWorkflowSteps();
+    },
     async saveAgent() {
       this.dialogError = "";
       if (!this.form.id || !/^[a-z0-9_-]{2,64}$/.test(this.form.id)) {
@@ -929,9 +1032,11 @@ export default {
         selected.add(toolName);
       }
       this.form.boundMcpToolNames = [...selected].sort().join("\n");
+      this.syncWorkflowSteps([...selected].sort());
     },
     clearSelectedTools() {
       this.form.boundMcpToolNames = "";
+      this.syncWorkflowSteps([]);
     },
     isToolGroupFullySelected(group) {
       return group?.tools?.length && group.tools.every((tool) => this.selectedToolNames.includes(tool.localToolName));
@@ -950,6 +1055,7 @@ export default {
         }
       });
       this.form.boundMcpToolNames = [...selected].sort().join("\n");
+      this.syncWorkflowSteps([...selected].sort());
     },
     toggleDocument(docId) {
       const selected = new Set(this.selectedDocumentIds);

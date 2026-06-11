@@ -18,7 +18,7 @@ export default {
       captchaCode: "",
       form: {
         username: "admin",
-        password: "admin",
+        password: "",
         captcha: "",
         rememberPassword: false
       }
@@ -36,7 +36,9 @@ export default {
           return;
         }
         this.form.username = remembered.username || this.form.username;
-        this.form.password = remembered.password || this.form.password;
+        this.form.password = remembered.username === "admin" && remembered.password === "admin"
+          ? ""
+          : remembered.password || this.form.password;
         this.form.rememberPassword = true;
       } catch (error) {
         localStorage.removeItem(REMEMBER_KEY);

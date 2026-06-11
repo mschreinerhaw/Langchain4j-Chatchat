@@ -101,6 +101,7 @@ public class DatabaseQueryAdminController {
         config.setDescription(request.description());
         config.setSqlTemplate(request.sqlTemplate());
         config.setInputSchemaJson(writeJson(request.inputSchema()));
+        config.setGovernanceJson(writeJson(request.governance()));
         config.setMaxRows(request.maxRows() == null ? 50 : request.maxRows());
         config.setJdbcUrl(request.jdbcUrl());
         config.setDriverClass(request.driverClass());
@@ -119,6 +120,7 @@ public class DatabaseQueryAdminController {
             config.getDescription(),
             config.getSqlTemplate(),
             readJsonMap(config.getInputSchemaJson()),
+            readJsonMap(config.getGovernanceJson()),
             config.getMaxRows(),
             config.getJdbcUrl(),
             config.getDriverClass(),
@@ -207,6 +209,7 @@ public class DatabaseQueryAdminController {
         String description,
         String sqlTemplate,
         Map<String, Object> inputSchema,
+        Map<String, Object> governance,
         Integer maxRows,
         String jdbcUrl,
         String driverClass,
@@ -227,6 +230,7 @@ public class DatabaseQueryAdminController {
         String description,
         String sqlTemplate,
         Map<String, Object> inputSchema,
+        Map<String, Object> governance,
         int maxRows,
         String jdbcUrl,
         String driverClass,

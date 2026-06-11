@@ -12,6 +12,7 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -114,11 +115,244 @@ class ToolRuntimeServiceTest {
         verify(toolRegistry, times(2)).executeEnhancedTool(any(), any());
     }
 
+    @Test
+    void requiresConfirmationBeforeMediumRiskMcpToolExecutes() {
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.getToolMetadata("mcp_customer_asset")).thenReturn(ToolMetadata.builder()
+            .id("mcp_customer_asset")
+            .title("Customer Asset")
+            .riskLevel("medium")
+            .operationType("read")
+            .categories(List.of("mcp"))
+            .build());
+        ToolRuntimeService service = new ToolRuntimeService(toolRegistry, new ObjectMapper(), properties(), List.of(), List.of());
+
+        ToolRuntimeExecution execution = service.execute(ToolRuntimeRequest.builder()
+            .toolName("mcp_customer_asset")
+            .runtimeMode("agent_chat")
+            .requestId("req-4")
+            .conversationId("conv-4")
+            .tenantId("tenant-1")
+            .userId("user-4")
+            .allowedTools(List.of("mcp_customer_asset"))
+            .toolInput(ToolInput.builder().userId("user-4").parameters(Map.of("customer_id", "c-001")).build())
+            .build());
+
+        assertThat(execution.output().isSuccess()).isFalse();
+        assertThat(execution.outcome()).isEqualTo("confirmation_required");
+        assertThat(execution.audit()).containsEntry("policyResult", "ask_before_execute");
+        assertThat(execution.audit()).containsKey("confirmation");
+        verify(toolRegistry, never()).executeEnhancedTool(any(), any());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void rememberedUserAllowOverridesAskToolAndParameterPolicies() {
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.getToolMetadata("document_search")).thenReturn(ToolMetadata.builder()
+            .id("document_search")
+            .title("Document Search")
+            .riskLevel("low")
+            .operationType("read")
+            .categories(List.of("mcp"))
+            .build());
+        when(toolRegistry.executeEnhancedTool(any(), any())).thenReturn(
+            ToolOutput.success("ok-1"),
+            ToolOutput.success("ok-2")
+        );
+
+        McpPolicyProperties mcpPolicy = new McpPolicyProperties();
+        mcpPolicy.setToolPolicy(Map.of("document_search", "ask_before_execute"));
+        mcpPolicy.setParameterPolicy(Map.of(
+            "document_search",
+            Map.of("document_ids", "ask_before_execute")
+        ));
+        ToolRuntimeService service = new ToolRuntimeService(
+            toolRegistry,
+            new ObjectMapper(),
+            properties(),
+            mcpPolicy,
+            List.of(),
+            List.of()
+        );
+
+        ToolRuntimeRequest firstRequest = documentSearchRequest(Map.of());
+        ToolRuntimeExecution first = service.execute(firstRequest);
+        Map<String, Object> confirmation = (Map<String, Object>) first.audit().get("confirmation");
+        String token = String.valueOf(confirmation.get("token"));
+
+        ToolRuntimeExecution confirmed = service.execute(documentSearchRequest(Map.of(
+            "mcpConfirmation",
+            Map.of(
+                "token", token,
+                "approved", true,
+                "remember", "tool_auto_execute"
+            )
+        )));
+        ToolRuntimeExecution remembered = service.execute(firstRequest);
+
+        assertThat(first.outcome()).isEqualTo("confirmation_required");
+        assertThat(confirmed.output().isSuccess()).isTrue();
+        assertThat(remembered.output().isSuccess()).isTrue();
+        assertThat(remembered.audit().get("matchedPolicyRules").toString()).contains("user_tool_policy=auto_execute");
+        verify(toolRegistry, times(2)).executeEnhancedTool(any(), any());
+    }
+
+    @Test
+    void workflowDeniesSkippedRequiredStepAndAllowsAfterDependencyCompletes() {
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.getToolMetadata("query_customer_basic_info")).thenReturn(ToolMetadata.builder()
+            .id("query_customer_basic_info")
+            .title("Basic Info")
+            .build());
+        when(toolRegistry.getToolMetadata("query_customer_asset_summary")).thenReturn(ToolMetadata.builder()
+            .id("query_customer_asset_summary")
+            .title("Asset Summary")
+            .build());
+        when(toolRegistry.executeEnhancedTool(any(), any())).thenReturn(ToolOutput.success("ok"));
+
+        McpWorkflowProperties workflowProperties = new McpWorkflowProperties();
+        McpWorkflowProperties.WorkflowSpec workflow = new McpWorkflowProperties.WorkflowSpec();
+        McpWorkflowProperties.WorkflowStep first = new McpWorkflowProperties.WorkflowStep();
+        first.setStep(1);
+        first.setTool("query_customer_basic_info");
+        first.setRequired(true);
+        McpWorkflowProperties.WorkflowStep second = new McpWorkflowProperties.WorkflowStep();
+        second.setStep(2);
+        second.setTool("query_customer_asset_summary");
+        second.setRequired(true);
+        workflow.setSteps(List.of(first, second));
+        workflowProperties.setWorkflows(Map.of("customer_asset_analysis", workflow));
+
+        ToolRuntimeService service = new ToolRuntimeService(
+            toolRegistry,
+            new ObjectMapper(),
+            properties(),
+            new McpPolicyProperties(),
+            workflowProperties,
+            List.of(),
+            List.of()
+        );
+
+        ToolRuntimeRequest skipped = workflowRequest("query_customer_asset_summary", Map.of());
+        ToolRuntimeExecution denied = service.execute(skipped);
+        assertThat(denied.output().isSuccess()).isFalse();
+        assertThat(denied.output().getErrorMessage()).contains("required previous steps");
+        verify(toolRegistry, never()).executeEnhancedTool(any(), any());
+
+        ToolRuntimeExecution firstExecution = service.execute(workflowRequest("query_customer_basic_info", Map.of()));
+        ToolRuntimeExecution secondExecution = service.execute(skipped);
+
+        assertThat(firstExecution.output().isSuccess()).isTrue();
+        assertThat(secondExecution.output().isSuccess()).isTrue();
+        verify(toolRegistry, times(2)).executeEnhancedTool(any(), any());
+    }
+
+    @Test
+    void agentWorkflowConfigDeniesSkippedStepWithoutGlobalWorkflow() {
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.getToolMetadata("query_customer_basic_info")).thenReturn(ToolMetadata.builder()
+            .id("query_customer_basic_info")
+            .title("Basic Info")
+            .build());
+        when(toolRegistry.getToolMetadata("query_customer_asset_summary")).thenReturn(ToolMetadata.builder()
+            .id("query_customer_asset_summary")
+            .title("Asset Summary")
+            .build());
+        when(toolRegistry.executeEnhancedTool(any(), any())).thenReturn(ToolOutput.success("ok"));
+
+        ToolRuntimeService service = new ToolRuntimeService(
+            toolRegistry,
+            new ObjectMapper(),
+            properties(),
+            new McpPolicyProperties(),
+            new McpWorkflowProperties(),
+            List.of(),
+            List.of()
+        );
+
+        Map<String, Object> workflowConfig = Map.of(
+            "enabled", true,
+            "workflow", "ops_agent_workflow",
+            "executionStrategy", Map.of("mode", "sequential", "stopOnError", true, "maxSteps", 4),
+            "steps", List.of(
+                Map.of("step", 1, "tool", "query_customer_basic_info", "required", true),
+                Map.of("step", 2, "tool", "query_customer_asset_summary", "required", true)
+            )
+        );
+
+        ToolRuntimeExecution denied = service.execute(agentWorkflowRequest(
+            "query_customer_asset_summary",
+            workflowConfig
+        ));
+        assertThat(denied.output().isSuccess()).isFalse();
+        assertThat(denied.output().getErrorMessage()).contains("required previous steps");
+
+        ToolRuntimeExecution firstExecution = service.execute(agentWorkflowRequest(
+            "query_customer_basic_info",
+            workflowConfig
+        ));
+        ToolRuntimeExecution secondExecution = service.execute(agentWorkflowRequest(
+            "query_customer_asset_summary",
+            workflowConfig
+        ));
+
+        assertThat(firstExecution.output().isSuccess()).isTrue();
+        assertThat(secondExecution.output().isSuccess()).isTrue();
+        assertThat(secondExecution.audit().get("matchedPolicyRules").toString()).contains("workflow.ops_agent_workflow.active");
+        verify(toolRegistry, times(2)).executeEnhancedTool(any(), any());
+    }
+
     private ToolRuntimeProperties properties() {
         ToolRuntimeProperties properties = new ToolRuntimeProperties();
         properties.setEnforceAllowedTools(true);
         properties.setCircuitBreakerFailureThreshold(3);
         properties.setCircuitBreakerOpenSeconds(30);
         return properties;
+    }
+
+    private ToolRuntimeRequest workflowRequest(String toolName, Map<String, Object> parameters) {
+        return ToolRuntimeRequest.builder()
+            .toolName(toolName)
+            .runtimeMode("agent_chat")
+            .requestId("req-workflow")
+            .conversationId("conv-workflow")
+            .tenantId("tenant-1")
+            .userId("user-workflow")
+            .allowedTools(List.of("query_customer_basic_info", "query_customer_asset_summary"))
+            .toolInput(ToolInput.builder().userId("user-workflow").parameters(parameters).build())
+            .attributes(Map.of("executionPlan", Map.of("workflow", "customer_asset_analysis")))
+            .build();
+    }
+
+    private ToolRuntimeRequest agentWorkflowRequest(String toolName, Map<String, Object> workflowConfig) {
+        return ToolRuntimeRequest.builder()
+            .toolName(toolName)
+            .runtimeMode("agent_chat")
+            .requestId("req-agent-workflow")
+            .conversationId("conv-agent-workflow")
+            .tenantId("tenant-1")
+            .userId("user-agent-workflow")
+            .allowedTools(List.of("query_customer_basic_info", "query_customer_asset_summary"))
+            .toolInput(ToolInput.builder().userId("user-agent-workflow").parameters(Map.of()).build())
+            .attributes(Map.of("mcpWorkflow", workflowConfig))
+            .build();
+    }
+
+    private ToolRuntimeRequest documentSearchRequest(Map<String, Object> attributes) {
+        return ToolRuntimeRequest.builder()
+            .toolName("document_search")
+            .runtimeMode("agent_chat")
+            .requestId("req-document-search")
+            .conversationId("conv-document-search")
+            .tenantId("tenant-1")
+            .userId("user-document-search")
+            .allowedTools(List.of("document_search"))
+            .toolInput(ToolInput.builder()
+                .userId("user-document-search")
+                .parameters(Map.of("query", "PushGateway Prometheus", "document_ids", List.of("doc-1")))
+                .build())
+            .attributes(attributes)
+            .build();
     }
 }

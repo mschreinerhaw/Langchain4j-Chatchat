@@ -334,6 +334,88 @@
             <p v-else class="agent-tool-empty">请先在 MCP服务 完成服务接入和工具注册。</p>
           </section>
 
+          <section v-if="selectedToolNames.length" class="agent-workflow-builder wide-field">
+            <div class="agent-tool-picker-head">
+              <div>
+                <strong>MCP 工具编排</strong>
+                <span>按当前 Agent 的勾选工具配置执行顺序、依赖和确认节点</span>
+              </div>
+              <label class="workflow-enable">
+                <input v-model="form.workflowConfig.enabled" type="checkbox">
+                <span>启用</span>
+              </label>
+            </div>
+            <div class="workflow-strategy">
+              <label>
+                <span>执行模式</span>
+                <select v-model="form.workflowConfig.executionStrategy.mode">
+                  <option value="sequential">顺序执行</option>
+                  <option value="hybrid">混合执行</option>
+                  <option value="parallel">并行优先</option>
+                </select>
+              </label>
+              <label>
+                <span>最大步骤</span>
+                <input v-model.number="form.workflowConfig.executionStrategy.maxSteps" type="number" min="0" max="50">
+              </label>
+              <label class="checkbox-row">
+                <input v-model="form.workflowConfig.executionStrategy.stopOnError" type="checkbox">
+                <span>失败后停止</span>
+              </label>
+              <label class="checkbox-row">
+                <input v-model="form.workflowConfig.executionStrategy.allowParallel" type="checkbox">
+                <span>允许并行</span>
+              </label>
+            </div>
+            <div class="workflow-step-list">
+              <article v-for="(step, index) in workflowSteps" :key="step.tool" class="workflow-step-row">
+                <div class="workflow-step-order">
+                  <strong>{{ index + 1 }}</strong>
+                  <div>
+                    <button type="button" :disabled="index === 0" title="上移" @click="moveWorkflowStep(index, -1)">↑</button>
+                    <button type="button" :disabled="index === workflowSteps.length - 1" title="下移" @click="moveWorkflowStep(index, 1)">↓</button>
+                  </div>
+                </div>
+                <div class="workflow-step-main">
+                  <header>
+                    <strong>{{ step.tool }}</strong>
+                    <label>
+                      <input v-model="step.required" type="checkbox">
+                      <span>必需</span>
+                    </label>
+                  </header>
+                  <div class="workflow-step-controls">
+                    <label>
+                      <span>确认策略</span>
+                      <select v-model="step.confirmation">
+                        <option value="">继承策略</option>
+                        <option value="auto_execute">自动执行</option>
+                        <option value="ask_before_execute">执行前确认</option>
+                        <option value="deny">禁止执行</option>
+                      </select>
+                    </label>
+                    <label>
+                      <span>条件表达式</span>
+                      <input v-model.trim="step.condition" placeholder="例如 asset_total &gt; 1000000">
+                    </label>
+                  </div>
+                  <div v-if="selectedToolNames.length > 1" class="workflow-dependencies">
+                    <span>前置依赖</span>
+                    <button
+                      v-for="toolName in selectedToolNames.filter((name) => name !== step.tool)"
+                      :key="`${step.tool}-${toolName}`"
+                      type="button"
+                      :class="{ active: workflowStepDependsOn(step, toolName) }"
+                      @click="toggleWorkflowDependency(step, toolName)"
+                    >
+                      {{ toolName }}
+                    </button>
+                  </div>
+                </div>
+              </article>
+            </div>
+          </section>
+
           <section class="agent-document-picker wide-field">
             <div class="agent-tool-picker-head">
               <div>

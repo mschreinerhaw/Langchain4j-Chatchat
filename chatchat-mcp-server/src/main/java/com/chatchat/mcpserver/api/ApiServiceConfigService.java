@@ -85,6 +85,7 @@ public class ApiServiceConfigService {
         current.setHeadersJson(draft.getHeadersJson());
         current.setBodyTemplate(draft.getBodyTemplate());
         current.setInputSchemaJson(draft.getInputSchemaJson());
+        current.setGovernanceJson(draft.getGovernanceJson());
         current.setEnabled(draft.isEnabled());
         current.setTimeoutMs(draft.getTimeoutMs());
         current.setCacheEnabled(draft.isCacheEnabled());
@@ -162,6 +163,7 @@ public class ApiServiceConfigService {
         config.setDescription(blankToNull(config.getDescription()));
         config.setHeadersJson(normalizeJsonObject(config.getHeadersJson(), "headers"));
         config.setInputSchemaJson(normalizeJsonObject(config.getInputSchemaJson(), "inputSchema"));
+        config.setGovernanceJson(normalizeJsonObject(config.getGovernanceJson(), "governance"));
         config.setBodyTemplate(blankToNull(config.getBodyTemplate()));
         if (config.getTimeoutMs() <= 0) {
             config.setTimeoutMs(20000);

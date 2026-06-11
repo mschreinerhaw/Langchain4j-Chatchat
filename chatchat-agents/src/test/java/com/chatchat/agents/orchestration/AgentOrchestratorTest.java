@@ -207,6 +207,82 @@ class AgentOrchestratorTest {
             .containsEntry("mandatoryTools", List.of("document_search", mcpWebSearch));
     }
 
+    @Test
+    void workflowConfigRequiredStepsDriveMandatoryToolsAndUseFullMcpToolNames() {
+        String mcpDocumentSearch = "mcp_chatchat_mcp_server_document_search";
+        String mcpWebSearch = "mcp_chatchat_mcp_server_web_search";
+        CapturingQueueChatModel chatModel = new CapturingQueueChatModel(
+            "{\"action\":\"tool\",\"toolName\":\"document_search\",\"arguments\":{\"query\":\"PushGateway Prometheus\"},\"reason\":\"Need internal evidence first\"}",
+            "{\"action\":\"tool\",\"toolName\":\"web_search\",\"arguments\":{\"query\":\"PushGateway Prometheus\"},\"reason\":\"Validate with web evidence\"}",
+            "{\"action\":\"final\",\"answer\":\"先查内部文档，再做联网验证。\"}",
+            "{\"accepted\":true,\"feedback\":\"The answer follows the workflow.\",\"revisedAnswer\":\"\"}"
+        );
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.getToolMetadata(mcpDocumentSearch)).thenReturn(ToolMetadata.builder()
+            .id(mcpDocumentSearch)
+            .title("MCP Document Search")
+            .description("Search internal documents")
+            .build());
+        when(toolRegistry.getToolMetadata(mcpWebSearch)).thenReturn(ToolMetadata.builder()
+            .id(mcpWebSearch)
+            .title("MCP Web Search")
+            .description("Search web pages")
+            .build());
+        when(toolRegistry.executeEnhancedTool(eq(mcpDocumentSearch), any())).thenReturn(documentSearchOutput());
+        when(toolRegistry.executeEnhancedTool(eq(mcpWebSearch), any())).thenReturn(webSearchOutput());
+        ToolRuntimeService toolRuntimeService = new ToolRuntimeService(
+            toolRegistry,
+            new ObjectMapper(),
+            toolRuntimeProperties(),
+            List.of(),
+            List.of()
+        );
+        AgentOrchestrator orchestrator = new AgentOrchestrator(
+            chatModel,
+            toolRegistry,
+            toolRuntimeService,
+            new ObjectMapper(),
+            new ModelsConfig()
+        );
+        Map<String, Object> workflowConfig = Map.of(
+            "enabled", true,
+            "executionStrategy", Map.of("mode", "sequential", "stopOnError", true),
+            "steps", List.of(
+                Map.of("step", 1, "tool", mcpDocumentSearch, "required", true),
+                Map.of("step", 2, "tool", mcpWebSearch, "required", true)
+            )
+        );
+
+        AgentOrchestrator.AgentExecutionResult result = orchestrator.executeAgent(
+            "PushGateway 与 Prometheus 指标集成?",
+            "tenant-1",
+            List.of(mcpWebSearch, mcpDocumentSearch),
+            "Use internal documents before web verification.",
+            null,
+            List.of("doc-1"),
+            List.of(),
+            "livedata_ops",
+            "req-workflow-doc-web",
+            "conv-workflow-doc-web",
+            "user-1",
+            10,
+            List.of(mcpWebSearch),
+            true,
+            Map.of("mcpWorkflow", workflowConfig)
+        );
+
+        assertThat(result.toolTraces())
+            .extracting(InteractionToolTrace::getToolName)
+            .containsExactly(mcpDocumentSearch, mcpWebSearch);
+        assertThat(result.metadata())
+            .containsEntry("workflowMandatoryTools", List.of(mcpDocumentSearch, mcpWebSearch))
+            .containsEntry("mandatoryTools", List.of(mcpDocumentSearch, mcpWebSearch));
+        assertThat(chatModel.messages().get(0))
+            .contains("Required tools are ordered by workflow or runtime policy: [" + mcpDocumentSearch + ", " + mcpWebSearch + "]")
+            .contains("Call " + mcpDocumentSearch + " first")
+            .contains("Then call " + mcpWebSearch);
+    }
+
     private AgentOrchestrator newOrchestrator(ChatModel chatModel) {
         return new AgentOrchestrator(
             chatModel,

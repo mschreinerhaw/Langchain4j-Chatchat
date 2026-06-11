@@ -7,8 +7,11 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -95,6 +98,32 @@ public class ConversationService {
     }
 
     @Transactional
+    public void replaceMessages(String conversationId, String userId, List<Conversation.Message> messages) {
+        String normalizedConversationId = ensureConversationId(conversationId, userId);
+        ChatSessionEntity session = sessionRepository.findById(normalizedConversationId)
+            .orElseThrow(() -> new IllegalArgumentException("Conversation not found: " + normalizedConversationId));
+
+        List<ChatMessageIndexEntity> existing = messageIndexRepository.findBySessionIdOrderByCreatedAtAsc(normalizedConversationId);
+        existing.forEach(index -> detailStore.delete(index.getRocksKey()));
+        messageIndexRepository.deleteBySessionId(normalizedConversationId);
+
+        Instant lastCreatedAt = session.getUpdatedAt() == null ? Instant.now() : session.getUpdatedAt();
+        List<Conversation.Message> snapshot = messages == null ? List.of() : messages;
+        for (int index = 0; index < snapshot.size(); index++) {
+            Conversation.Message message = snapshot.get(index);
+            if (message == null || message.getRole() == null || message.getRole().isBlank()) {
+                continue;
+            }
+            Instant createdAt = toInstant(message.getTimestamp(), index);
+            lastCreatedAt = createdAt;
+            saveMessageDetail(session, message, createdAt);
+        }
+
+        session.setUpdatedAt(lastCreatedAt);
+        sessionRepository.save(session);
+    }
+
+    @Transactional
     public Conversation.Message appendMessage(String conversationId, String role, String content) {
         if (content == null || content.isBlank()) {
             throw new IllegalArgumentException("Message content cannot be empty");
@@ -170,7 +199,39 @@ public class ConversationService {
             .timestamp(toLocalDateTime(detail.getCreatedAt()))
             .toolsUsed(detail.getToolsUsed())
             .sourceKnowledgeBase(detail.getSourceKnowledgeBase())
+            .sources(copyMaps(detail.getSources()))
+            .traces(copyMaps(detail.getTraces()))
             .build();
+    }
+
+    private void saveMessageDetail(ChatSessionEntity session, Conversation.Message message, Instant createdAt) {
+        String messageId = message.getId() == null || message.getId().isBlank()
+            ? UUID.randomUUID().toString()
+            : message.getId().trim();
+        ChatMessageDetail detail = ChatMessageDetail.builder()
+            .messageId(messageId)
+            .sessionId(session.getSessionId())
+            .tenantId(session.getTenantId())
+            .userId(session.getUserId())
+            .role(normalize(message.getRole(), "user"))
+            .content(message.getContent() == null ? "" : message.getContent())
+            .createdAt(createdAt)
+            .toolsUsed(message.getToolsUsed())
+            .sourceKnowledgeBase(message.getSourceKnowledgeBase())
+            .sources(copyMaps(message.getSources()))
+            .traces(copyMaps(message.getTraces()))
+            .build();
+        String rocksKey = detailStore.put(detail);
+
+        ChatMessageIndexEntity index = new ChatMessageIndexEntity();
+        index.setMessageId(messageId);
+        index.setSessionId(session.getSessionId());
+        index.setTenantId(session.getTenantId());
+        index.setUserId(session.getUserId());
+        index.setRole(detail.getRole());
+        index.setCreatedAt(createdAt);
+        index.setRocksKey(rocksKey);
+        messageIndexRepository.save(index);
     }
 
     private LocalDateTime toLocalDateTime(Instant instant) {
@@ -178,6 +239,26 @@ public class ConversationService {
             return null;
         }
         return LocalDateTime.ofInstant(instant, ZoneId.systemDefault());
+    }
+
+    private Instant toInstant(LocalDateTime value, int offset) {
+        if (value != null) {
+            return value.atZone(ZoneId.systemDefault()).toInstant();
+        }
+        return Instant.now().plusMillis(Math.max(0, offset));
+    }
+
+    private List<Map<String, Object>> copyMaps(List<Map<String, Object>> values) {
+        if (values == null || values.isEmpty()) {
+            return List.of();
+        }
+        List<Map<String, Object>> copy = new ArrayList<>();
+        for (Map<String, Object> value : values) {
+            if (value != null && !value.isEmpty()) {
+                copy.add(new LinkedHashMap<>(value));
+            }
+        }
+        return copy;
     }
 
     private String normalize(String value, String fallback) {

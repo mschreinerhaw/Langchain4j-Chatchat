@@ -56,6 +56,7 @@ public class InteractionController {
                     .data(Map.of("timestamp", System.currentTimeMillis())));
 
                 InteractionResponse response = orchestrationService.chat(request);
+                List<?> toolTraces = safeToolTraces(response);
                 emitter.send(SseEmitter.event()
                     .name("meta")
                     .data(Map.of(
@@ -65,7 +66,7 @@ public class InteractionController {
                         "timestamp", response.getTimestamp() == null ? System.currentTimeMillis() : response.getTimestamp(),
                         "latencyMs", response.getLatencyMs() == null ? 0 : response.getLatencyMs(),
                         "sources", response.getSources() == null ? List.of() : response.getSources(),
-                        "toolTraces", response.getToolTraces() == null ? List.of() : response.getToolTraces()
+                        "toolTraces", toolTraces
                     )));
 
                 for (String chunk : splitAnswer(response.getAnswer())) {
@@ -107,6 +108,13 @@ public class InteractionController {
     }
 
     public record ModeDefinition(String mode, String description) {
+    }
+
+    private List<?> safeToolTraces(InteractionResponse response) {
+        if (response == null || response.getToolTraces() == null) {
+            return List.of();
+        }
+        return response.getToolTraces();
     }
 
     private List<String> splitAnswer(String answer) {

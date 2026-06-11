@@ -519,10 +519,91 @@ public class McpGatewayClient {
             if (schema instanceof Map<?, ?> schemaMap) {
                 inputSchema = objectMapper.convertValue(schemaMap, new TypeReference<>() {});
             }
+            Map<String, Object> governance = governanceMap(map);
 
-            tools.add(new McpToolDefinition(name, description, inputSchema));
+            tools.add(new McpToolDefinition(
+                name,
+                description,
+                inputSchema,
+                firstText(governanceText(map, governance, "category", "tool_category"), null),
+                governanceText(map, governance, "risk_level", "riskLevel"),
+                governanceText(map, governance, "operation_type", "operationType"),
+                asBoolean(firstPresent(
+                    map.get("user_visible"),
+                    map.get("userVisible"),
+                    governance.get("user_visible"),
+                    governance.get("userVisible")
+                )),
+                firstMap(map, governance, "confirmation", "confirmation_policy"),
+                firstMap(map, governance, "permissions", "permission", "permission_policy"),
+                firstMap(map, governance, "input_policy", "inputPolicy"),
+                firstMap(map, governance, "output_policy", "outputPolicy")
+            ));
         }
         return tools;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> asMap(Object value) {
+        if (!(value instanceof Map<?, ?> map)) {
+            return Map.of();
+        }
+        return objectMapper.convertValue(map, new TypeReference<>() {});
+    }
+
+    private Map<String, Object> governanceMap(Map<?, ?> toolMap) {
+        Map<String, Object> direct = asMap(toolMap.get("governance"));
+        if (!direct.isEmpty()) {
+            return direct;
+        }
+        Map<String, Object> meta = asMap(firstPresent(toolMap.get("_meta"), toolMap.get("meta")));
+        return asMap(meta.get("governance"));
+    }
+
+    private String governanceText(Map<?, ?> toolMap, Map<String, Object> governance, String... keys) {
+        for (String key : keys) {
+            String value = stringValue(toolMap.get(key));
+            if (value != null && !value.isBlank()) {
+                return value;
+            }
+        }
+        for (String key : keys) {
+            String value = stringValue(governance.get(key));
+            if (value != null && !value.isBlank()) {
+                return value;
+            }
+        }
+        Map<String, Object> meta = asMap(firstPresent(toolMap.get("_meta"), toolMap.get("meta")));
+        for (String key : keys) {
+            String value = stringValue(meta.get(key));
+            if (value != null && !value.isBlank()) {
+                return value;
+            }
+        }
+        return null;
+    }
+
+    private Map<String, Object> firstMap(Map<?, ?> toolMap, Map<String, Object> governance, String... keys) {
+        for (String key : keys) {
+            Map<String, Object> value = asMap(toolMap.get(key));
+            if (!value.isEmpty()) {
+                return value;
+            }
+        }
+        for (String key : keys) {
+            Map<String, Object> value = asMap(governance.get(key));
+            if (!value.isEmpty()) {
+                return value;
+            }
+        }
+        Map<String, Object> meta = asMap(firstPresent(toolMap.get("_meta"), toolMap.get("meta")));
+        for (String key : keys) {
+            Map<String, Object> value = asMap(meta.get(key));
+            if (!value.isEmpty()) {
+                return value;
+            }
+        }
+        return Map.of();
     }
 
     @SuppressWarnings("unchecked")
@@ -656,6 +737,21 @@ public class McpGatewayClient {
 
     private String stringValue(Object value) {
         return value == null ? null : String.valueOf(value);
+    }
+
+    private String firstText(String value, String fallback) {
+        return value == null || value.isBlank() ? fallback : value.trim();
+    }
+
+    private Boolean asBoolean(Object value) {
+        if (value instanceof Boolean bool) {
+            return bool;
+        }
+        if (value == null) {
+            return null;
+        }
+        String text = String.valueOf(value).trim();
+        return text.isBlank() ? null : Boolean.parseBoolean(text);
     }
 
     private Integer asInteger(Object value) {

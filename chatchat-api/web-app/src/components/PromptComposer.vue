@@ -12,7 +12,7 @@
       </button>
     </div>
 
-    <form class="composer-box" @submit.prevent="send">
+    <form class="composer-box" @submit.prevent="handlePrimaryAction">
       <textarea
         ref="composerTextarea"
         v-model="draft"
@@ -64,8 +64,16 @@
         </button>
       </div>
 
-      <button class="send-button" type="submit" aria-label="发送问题" :disabled="loading || !draft.trim()">
-        <Send :size="18" stroke-width="2" />
+      <button
+        class="send-button"
+        :class="{ stopping: loading && stopAvailable }"
+        type="submit"
+        :aria-label="primaryButtonLabel"
+        :title="primaryButtonLabel"
+        :disabled="primaryButtonDisabled"
+      >
+        <XCircle v-if="loading && stopAvailable" :size="18" stroke-width="2.3" />
+        <Send v-else :size="18" stroke-width="2" />
       </button>
     </form>
   </section>

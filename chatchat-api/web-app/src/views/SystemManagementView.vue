@@ -3,7 +3,7 @@
     <header class="system-header">
       <div>
         <p>系统管理</p>
-        <h1>角色权限管理</h1>
+        <h1>用户与角色管理</h1>
       </div>
     </header>
 
@@ -18,12 +18,31 @@
       </article>
     </div>
 
+    <nav class="system-tabs" aria-label="系统管理模块">
+      <button
+        type="button"
+        :class="{ active: activeManagementTab === 'users' }"
+        @click="activeManagementTab = 'users'"
+      >
+        <Users :size="16" />
+        <span>用户管理</span>
+      </button>
+      <button
+        type="button"
+        :class="{ active: activeManagementTab === 'roles' }"
+        @click="activeManagementTab = 'roles'"
+      >
+        <ShieldCheck :size="16" />
+        <span>角色管理</span>
+      </button>
+    </nav>
+
     <div class="rbac-board">
-      <aside class="rbac-panel role-panel">
+      <aside v-if="activeManagementTab === 'users'" class="rbac-panel user-panel system-tab-panel">
         <div class="panel-head">
           <div>
-            <p>角色</p>
-            <h2>角色档案</h2>
+            <p>用户</p>
+            <h2>用户档案</h2>
           </div>
           <div class="mini-actions">
             <button type="button" title="同步组织" @click="syncOrgs" :disabled="loading">
@@ -34,13 +53,71 @@
               <RefreshCw :size="14" />
               用户
             </button>
-            <button type="button" @click="openOrgModal()">
-              <Plus :size="14" />
-              新增组织
-            </button>
             <button type="button" @click="openUserModal()">
               <Plus :size="14" />
               新增账户
+            </button>
+          </div>
+        </div>
+
+        <div class="entity-table">
+          <div class="entity-table-head user-table-row">
+            <span>用户信息</span>
+            <span>组织</span>
+            <span>角色</span>
+            <span>状态</span>
+            <span>操作</span>
+          </div>
+          <div
+            v-for="user in users"
+            :key="user.id"
+            class="entity-table-row user-table-row"
+            :class="{ 'admin-user-row': isAdminUser(user) }"
+          >
+            <span>
+              <strong>{{ user.displayName }}</strong>
+              <small>{{ user.username }}</small>
+            </span>
+            <span>{{ orgName(user.orgId) }}</span>
+            <span>
+              <small>{{ roleNamesForUser(user).join("、") || "未分配" }}</small>
+            </span>
+            <span>
+              <em :class="['status-pill', user.status]">{{ statusLabel(user.status) }}</em>
+            </span>
+            <span class="entity-row-actions">
+              <button type="button" class="icon-button" title="编辑账户" @click="openUserModal(user)">
+                <Pencil :size="15" />
+              </button>
+              <button
+                type="button"
+                class="icon-button"
+                :disabled="isAdminUser(user)"
+                :title="isAdminUser(user) ? 'admin 用户禁止删除' : '删除账户'"
+                @click="removeUser(user)"
+              >
+                <Trash2 :size="15" />
+              </button>
+            </span>
+          </div>
+          <div v-if="users.length === 0" class="empty-state">暂无用户</div>
+        </div>
+      </aside>
+
+      <aside v-else class="rbac-panel role-panel system-tab-panel">
+        <div class="panel-head">
+          <div>
+            <p>角色</p>
+            <h2>角色档案</h2>
+          </div>
+          <div class="mini-actions">
+            <button type="button" title="同步组织" @click="syncOrgs" :disabled="loading">
+              <RefreshCw :size="14" />
+              组织
+            </button>
+            <button type="button" @click="openOrgModal()">
+              <Plus :size="14" />
+              新增组织
             </button>
             <button type="button" @click="openRoleModal()">
               <Plus :size="14" />
@@ -202,7 +279,8 @@
             </label>
             <label class="full-span">
               <span>角色</span>
-              <select v-model="userForm.roleIds" multiple size="4">
+              <select :value="userForm.roleIds[0] || ''" @change="setUserRole($event.target.value)">
+                <option value="">未分配角色</option>
                 <option v-for="role in roles" :key="role.id" :value="role.id">
                   {{ role.roleName }}
                 </option>

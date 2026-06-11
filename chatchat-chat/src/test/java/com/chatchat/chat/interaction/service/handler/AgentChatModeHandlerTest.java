@@ -9,6 +9,7 @@ import com.chatchat.chat.interaction.service.AgentToolPolicyResolver;
 import com.chatchat.chat.skills.SkillCatalogService;
 import com.chatchat.chat.skills.SkillDefinition;
 import com.chatchat.chat.skills.SkillRoutingSettings;
+import com.chatchat.common.interaction.InteractionToolTrace;
 import com.chatchat.integration.mcp.service.McpToolRegistryBridge;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -73,7 +74,7 @@ class AgentChatModeHandlerTest {
             anyInt(),
             anyList(),
             anyBoolean()
-        )).thenReturn(new AgentOrchestrator.AgentExecutionResult("ok", List.of(), Map.of()));
+        )).thenReturn(agentResult("ok"));
 
         InteractionRequest request = InteractionRequest.builder()
             .mode("agent_chat")
@@ -161,7 +162,7 @@ class AgentChatModeHandlerTest {
             anyInt(),
             anyList(),
             anyBoolean()
-        )).thenReturn(new AgentOrchestrator.AgentExecutionResult("ok", List.of(), Map.of()));
+        )).thenReturn(agentResult("ok"));
 
         InteractionRequest request = InteractionRequest.builder()
             .mode("agent_chat")
@@ -248,7 +249,7 @@ class AgentChatModeHandlerTest {
             anyInt(),
             anyList(),
             anyBoolean()
-        )).thenReturn(new AgentOrchestrator.AgentExecutionResult("ok", List.of(), Map.of()));
+        )).thenReturn(agentResult("ok"));
 
         InteractionRequest request = InteractionRequest.builder()
             .mode("agent_chat")
@@ -327,7 +328,7 @@ class AgentChatModeHandlerTest {
             anyInt(),
             anyList(),
             anyBoolean()
-        )).thenReturn(new AgentOrchestrator.AgentExecutionResult("ok", List.of(), Map.of()));
+        )).thenReturn(agentResult("ok"));
 
         InteractionRequest request = InteractionRequest.builder()
             .mode("agent_chat")
@@ -418,8 +419,17 @@ class AgentChatModeHandlerTest {
             List.of(),
             List.of(),
             routingSettings,
+            Map.of(),
             List.of(),
             "published"
+        );
+    }
+
+    private AgentOrchestrator.AgentExecutionResult agentResult(String answer) {
+        return new AgentOrchestrator.AgentExecutionResult(
+            answer,
+            List.<InteractionToolTrace>of(),
+            Map.<String, Object>of()
         );
     }
 }

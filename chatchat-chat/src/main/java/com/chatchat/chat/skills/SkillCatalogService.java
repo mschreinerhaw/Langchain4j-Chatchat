@@ -14,6 +14,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -46,6 +47,7 @@ public class SkillCatalogService {
         "boundMcpToolNames",
         "toolConfigs",
         "routingSettings",
+        "workflowConfig",
         "quickQuestions"
     );
 
@@ -213,6 +215,7 @@ public class SkillCatalogService {
             normalizeList(draft.boundDocumentTags()),
             toolConfigs,
             normalizeRoutingSettings(draft.routingSettings()),
+            normalizeWorkflowConfig(draft.workflowConfig()),
             normalizeList(draft.quickQuestions()),
             marketStatus
         );
@@ -235,6 +238,7 @@ public class SkillCatalogService {
         entity.setBoundDocumentTagsJson(writeListJson(normalized.boundDocumentTags()));
         entity.setToolConfigsJson(writeToolConfigsJson(normalized.toolConfigs()));
         entity.setRoutingSettingsJson(writeRoutingSettingsJson(normalized.routingSettings()));
+        entity.setWorkflowConfigJson(writeWorkflowConfigJson(normalized.workflowConfig()));
         entity.setQuickQuestionsJson(writeListJson(normalized.quickQuestions()));
         entity.setMarketStatus(normalized.marketStatus());
 
@@ -281,6 +285,7 @@ public class SkillCatalogService {
         current.setBoundDocumentTagsJson(target.getBoundDocumentTagsJson());
         current.setToolConfigsJson(target.getToolConfigsJson());
         current.setRoutingSettingsJson(target.getRoutingSettingsJson());
+        current.setWorkflowConfigJson(target.getWorkflowConfigJson());
         current.setQuickQuestionsJson(target.getQuickQuestionsJson());
         current.setMarketStatus(normalizeMarketStatus(target.getMarketStatus()) == null
             ? defaultMarketStatus(id)
@@ -343,6 +348,7 @@ public class SkillCatalogService {
             readListJson(entity.getBoundDocumentTagsJson()),
             readToolConfigsJson(entity.getToolConfigsJson()),
             readRoutingSettingsJson(entity.getRoutingSettingsJson()),
+            readWorkflowConfigJson(entity.getWorkflowConfigJson()),
             readListJson(entity.getQuickQuestionsJson()),
             normalizeMarketStatus(entity.getMarketStatus()) == null
                 ? defaultMarketStatus(entity.getId())
@@ -370,6 +376,7 @@ public class SkillCatalogService {
             readListJson(entity.getBoundDocumentTagsJson()),
             readToolConfigsJson(entity.getToolConfigsJson()),
             readRoutingSettingsJson(entity.getRoutingSettingsJson()),
+            readWorkflowConfigJson(entity.getWorkflowConfigJson()),
             readListJson(entity.getQuickQuestionsJson()),
             normalizeMarketStatus(entity.getMarketStatus()) == null
                 ? defaultMarketStatus(entity.getSkillId())
@@ -400,6 +407,7 @@ public class SkillCatalogService {
         version.setBoundDocumentTagsJson(source.getBoundDocumentTagsJson());
         version.setToolConfigsJson(source.getToolConfigsJson());
         version.setRoutingSettingsJson(source.getRoutingSettingsJson());
+        version.setWorkflowConfigJson(source.getWorkflowConfigJson());
         version.setQuickQuestionsJson(source.getQuickQuestionsJson());
         version.setMarketStatus(source.getMarketStatus());
         versionRepository.save(version);
@@ -425,6 +433,7 @@ public class SkillCatalogService {
         ensureColumn("skill_config", "bound_document_tags_json", "varchar(16000)");
         ensureColumn("skill_config", "tool_configs_json", "varchar(16000)");
         ensureColumn("skill_config", "routing_settings_json", "varchar(4000)");
+        ensureColumn("skill_config", "workflow_config_json", "varchar(16000)");
         ensureColumn("skill_config", "quick_questions_json", "varchar(16000)");
 
         ensureColumn("skill_config_version", "market_status", "varchar(32)");
@@ -436,6 +445,7 @@ public class SkillCatalogService {
         ensureColumn("skill_config_version", "bound_document_tags_json", "varchar(16000)");
         ensureColumn("skill_config_version", "tool_configs_json", "varchar(16000)");
         ensureColumn("skill_config_version", "routing_settings_json", "varchar(4000)");
+        ensureColumn("skill_config_version", "workflow_config_json", "varchar(16000)");
         ensureColumn("skill_config_version", "quick_questions_json", "varchar(16000)");
     }
 
@@ -565,6 +575,50 @@ public class SkillCatalogService {
         );
     }
 
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> normalizeWorkflowConfig(Map<String, Object> config) {
+        if (config == null || config.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, Object> normalized = new LinkedHashMap<>();
+        Object enabled = config.get("enabled");
+        normalized.put("enabled", !(enabled instanceof Boolean bool) || bool);
+        putText(normalized, "workflow", firstObject(config, "workflow", "workflowId", "id", "name"));
+        Object strategy = firstObject(config, "executionStrategy", "execution_strategy");
+        if (strategy instanceof Map<?, ?> strategyMap) {
+            normalized.put("executionStrategy", new LinkedHashMap<>((Map<String, Object>) strategyMap));
+        }
+        Object steps = config.get("steps");
+        if (steps instanceof List<?> list) {
+            List<Map<String, Object>> normalizedSteps = new ArrayList<>();
+            int index = 1;
+            for (Object item : list) {
+                if (!(item instanceof Map<?, ?> rawStep)) {
+                    continue;
+                }
+                Map<String, Object> step = new LinkedHashMap<>((Map<String, Object>) rawStep);
+                Object tool = firstObject(step, "tool", "toolName");
+                if (tool == null || String.valueOf(tool).isBlank()) {
+                    continue;
+                }
+                step.put("tool", String.valueOf(tool).trim());
+                step.putIfAbsent("step", index);
+                normalizedSteps.add(step);
+                index++;
+            }
+            normalized.put("steps", normalizedSteps);
+        }
+        Object dependencies = firstObject(config, "toolDependencies", "tool_dependencies");
+        if (dependencies instanceof Map<?, ?> dependencyMap) {
+            normalized.put("toolDependencies", new LinkedHashMap<>((Map<String, Object>) dependencyMap));
+        }
+        Object parallelSteps = firstObject(config, "parallelSteps", "parallel_steps");
+        if (parallelSteps instanceof List<?> list) {
+            normalized.put("parallelSteps", list.stream().map(String::valueOf).filter(value -> !value.isBlank()).toList());
+        }
+        return normalized;
+    }
+
     private List<String> applyPrefixSelection(List<String> candidates, List<String> prefixes) {
         if (candidates == null || candidates.isEmpty()) {
             return List.of();
@@ -626,6 +680,18 @@ public class SkillCatalogService {
         }
     }
 
+    private String writeWorkflowConfigJson(Map<String, Object> workflowConfig) {
+        Map<String, Object> normalized = normalizeWorkflowConfig(workflowConfig);
+        if (normalized.isEmpty()) {
+            return null;
+        }
+        try {
+            return objectMapper.writeValueAsString(normalized);
+        } catch (JsonProcessingException e) {
+            throw new IllegalArgumentException("failed to serialize workflow config", e);
+        }
+    }
+
     private List<String> readListJson(String json) {
         if (json == null || json.isBlank()) {
             return List.of();
@@ -671,6 +737,38 @@ public class SkillCatalogService {
         }
     }
 
+    private Map<String, Object> readWorkflowConfigJson(String json) {
+        if (json == null || json.isBlank()) {
+            return Map.of();
+        }
+        try {
+            Map<String, Object> values = objectMapper.readValue(json, new TypeReference<Map<String, Object>>() {
+            });
+            return normalizeWorkflowConfig(values);
+        } catch (Exception ignored) {
+            return Map.of();
+        }
+    }
+
+    private Object firstObject(Map<String, Object> values, String... keys) {
+        if (values == null || keys == null) {
+            return null;
+        }
+        for (String key : keys) {
+            if (values.containsKey(key) && values.get(key) != null) {
+                return values.get(key);
+            }
+        }
+        return null;
+    }
+
+    private void putText(Map<String, Object> target, String key, Object value) {
+        String text = value == null ? null : String.valueOf(value).trim();
+        if (text != null && !text.isBlank()) {
+            target.put(key, text);
+        }
+    }
+
     public record SkillVersionSnapshot(
         String id,
         String skillId,
@@ -690,6 +788,7 @@ public class SkillCatalogService {
         List<String> boundDocumentTags,
         List<SkillToolConfig> toolConfigs,
         SkillRoutingSettings routingSettings,
+        Map<String, Object> workflowConfig,
         List<String> quickQuestions,
         String marketStatus,
         Long createdAt

@@ -40,8 +40,13 @@ public class ToolDirectModeHandler implements InteractionModeHandler {
         }
 
         Map<String, Object> parameters = new HashMap<>();
+        Map<String, Object> attributes = new HashMap<>();
         if (request.getToolInput() != null) {
             parameters.putAll(request.getToolInput());
+            Object confirmation = parameters.remove("mcpConfirmation");
+            if (confirmation instanceof Map<?, ?>) {
+                attributes.put("mcpConfirmation", confirmation);
+            }
         }
         bindQueryAsDefaultParameter(request.getToolName(), request.getQuery(), parameters);
 
@@ -61,6 +66,7 @@ public class ToolDirectModeHandler implements InteractionModeHandler {
             .userId(request.getUserId())
             .allowedTools(request.getAvailableTools() == null ? List.of() : request.getAvailableTools())
             .toolInput(toolInput)
+            .attributes(attributes)
             .build());
         InteractionToolTrace trace = execution.trace();
         var output = execution.output();

@@ -82,6 +82,22 @@ public class RocksDbSearchStore {
         }
     }
 
+    public void delete(SearchDocument document, SearchIndexData oldIndexData) {
+        ensureOpen();
+        if (document == null || document.getDocId() == null || document.getDocId().isBlank()) {
+            return;
+        }
+        try {
+            if (oldIndexData != null) {
+                deleteIndexEntries(document.getDocId(), oldIndexData);
+            }
+            db.delete(bytes(DOC_PREFIX + document.getDocId()));
+            db.delete(bytes(META_PREFIX + document.getDocId()));
+        } catch (RocksDBException ex) {
+            throw new IllegalStateException("Failed to delete search document", ex);
+        }
+    }
+
     public List<String> findByKeyword(String keyword) {
         return findByIndexPrefix(KEYWORD_INDEX_PREFIX + keyword + ":");
     }

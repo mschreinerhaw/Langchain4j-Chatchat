@@ -17,6 +17,7 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Component;
 
 import javax.sql.DataSource;
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.net.URI;
 import java.net.URLDecoder;
@@ -78,6 +79,10 @@ public class BuiltInToolsBootstrap {
      * Register enhanced calculator tool with metadata
      */
     private void registerCalculatorTool() {
+        String confirmationAction = environment.getProperty(
+            "chatchat.tools.calculator.confirmation.default",
+            "auto_execute"
+        );
         ToolMetadata metadata = ToolMetadata.builder()
             .id("calculator")
             .title("Calculator")
@@ -87,9 +92,30 @@ public class BuiltInToolsBootstrap {
             .version("1.0.0")
             .author("ChatChat System")
             .categories(Arrays.asList("math", "calculation"))
+            .category("utility_calculation")
+            .riskLevel(environment.getProperty("chatchat.tools.calculator.risk-level", "low"))
+            .operationType(environment.getProperty("chatchat.tools.calculator.operation-type", "read"))
+            .userVisible(true)
+            .confirmation(Map.of(
+                "default", confirmationAction,
+                "allow_user_override", true
+            ))
+            .permissions(Map.of("roles", List.of()))
+            .inputPolicy(Map.of(
+                "must_show_parameters", true,
+                "allow_auto_fill", true,
+                "sensitive_params", List.of(),
+                "parameter_rules", Map.of(
+                    "expression", Map.of("action", environment.getProperty(
+                        "chatchat.tools.calculator.parameter-policy.expression",
+                        "auto_execute"
+                    ))
+                )
+            ))
+            .outputPolicy(Map.of("mask_fields", List.of()))
             .outputType("number")
             .returnDirect(false)
-            .timeoutMillis(5000L)
+            .timeoutMillis(environment.getProperty("chatchat.tools.calculator.timeout-ms", Long.class, 5000L))
             .agentCompatible(true)
             .parameters(Arrays.asList(
                 ToolParameter.builder()
@@ -113,6 +139,10 @@ public class BuiltInToolsBootstrap {
      * Register web search tool with metadata
      */
     private void registerWebSearchTool() {
+        String confirmationAction = environment.getProperty(
+            "chatchat.tools.web-search.confirmation.default",
+            "auto_execute"
+        );
         ToolMetadata metadata = ToolMetadata.builder()
             .id("web_search")
             .title("Web Search")
@@ -121,6 +151,31 @@ public class BuiltInToolsBootstrap {
             .version("1.0.0")
             .author("ChatChat System")
             .categories(Arrays.asList("search", "internet"))
+            .category("public_web_search")
+            .riskLevel(environment.getProperty("chatchat.tools.web-search.risk-level", "low"))
+            .operationType(environment.getProperty("chatchat.tools.web-search.operation-type", "read"))
+            .userVisible(true)
+            .confirmation(Map.of(
+                "default", confirmationAction,
+                "allow_user_override", true
+            ))
+            .permissions(Map.of("roles", List.of()))
+            .inputPolicy(Map.of(
+                "must_show_parameters", true,
+                "allow_auto_fill", true,
+                "sensitive_params", List.of("query"),
+                "parameter_rules", Map.of(
+                    "query", Map.of("action", environment.getProperty(
+                        "chatchat.tools.web-search.parameter-policy.query",
+                        confirmationAction
+                    )),
+                    "num_results", Map.of("action", "auto_execute")
+                )
+            ))
+            .outputPolicy(Map.of(
+                "mask_fields", List.of(),
+                "max_rows_without_confirm", webSearchProperties.getMaxResults()
+            ))
             .outputType("json")
             .returnDirect(false)
             .timeoutMillis(30000L)
@@ -158,6 +213,12 @@ public class BuiltInToolsBootstrap {
      * Register document search tool backed by the ChatChat knowledge library API.
      */
     private void registerDocumentSearchTool() {
+        String apiBaseUrl = environment.getProperty("chatchat.tools.document-search.api-base-url", "http://localhost:8080");
+        String searchPath = environment.getProperty("chatchat.tools.document-search.search-path", "/api/v1/search");
+        String confirmationAction = environment.getProperty(
+            "chatchat.tools.document-search.confirmation.default",
+            "ask_before_execute"
+        );
         ToolMetadata metadata = ToolMetadata.builder()
             .id("document_search")
             .title("Knowledge Document Search")
@@ -166,6 +227,27 @@ public class BuiltInToolsBootstrap {
             .version("1.0.0")
             .author("ChatChat System")
             .categories(Arrays.asList("search", "knowledge-base", "document"))
+            .category("knowledge_document_search")
+            .riskLevel(environment.getProperty("chatchat.tools.document-search.risk-level", "medium"))
+            .operationType("read")
+            .userVisible(true)
+            .confirmation(Map.of(
+                "default", confirmationAction,
+                "allow_user_override", true
+            ))
+            .inputPolicy(Map.of(
+                "must_show_parameters", true,
+                "allow_auto_fill", true,
+                "sensitive_params", List.of("document_ids"),
+                "parameter_rules", Map.of(
+                    "document_ids", Map.of("action", "ask_before_execute"),
+                    "tags", Map.of("action", "auto_execute")
+                )
+            ))
+            .outputPolicy(Map.of(
+                "mask_fields", List.of(),
+                "max_rows_without_confirm", environment.getProperty("chatchat.tools.document-search.max-limit", Integer.class, 20)
+            ))
             .outputType("json")
             .returnDirect(false)
             .timeoutMillis(environment.getProperty("chatchat.tools.document-search.timeout-ms", Long.class, 20000L))
@@ -223,13 +305,17 @@ public class BuiltInToolsBootstrap {
 
         DocumentSearchTool documentSearchTool = new DocumentSearchTool(environment, objectMapper);
         toolRegistry.registerTool("document_search", metadata, documentSearchTool);
-        log.info("Knowledge Document Search tool registered");
+        log.info("Knowledge Document Search tool registered, target={}{}", apiBaseUrl, searchPath);
     }
 
     /**
      * Register read-only database query tool with metadata
      */
     private void registerDatabaseQueryTool() {
+        String confirmationAction = environment.getProperty(
+            "chatchat.tools.database-query.confirmation.default",
+            "ask_before_execute"
+        );
         ToolMetadata metadata = ToolMetadata.builder()
             .id("database_query")
             .title("Database Query")
@@ -240,10 +326,35 @@ public class BuiltInToolsBootstrap {
             .version("1.0.0")
             .author("ChatChat System")
             .categories(Arrays.asList("database", "sql", "inspection"))
+            .category("database_data_query")
+            .riskLevel(environment.getProperty("chatchat.tools.database-query.risk-level", "high"))
+            .operationType(environment.getProperty("chatchat.tools.database-query.operation-type", "read"))
+            .userVisible(environment.getProperty("chatchat.tools.database-query.user-visible", Boolean.class, false))
+            .confirmation(Map.of(
+                "default", confirmationAction,
+                "allow_user_override", true
+            ))
+            .permissions(Map.of("roles", List.of()))
+            .inputPolicy(Map.of(
+                "must_show_parameters", true,
+                "allow_auto_fill", false,
+                "sensitive_params", List.of("jdbc_url", "username", "password", "params"),
+                "parameter_rules", Map.of(
+                    "contains_delete", Map.of("action", "deny"),
+                    "contains_drop", Map.of("action", "deny"),
+                    "contains_update", Map.of("action", "ask_before_execute"),
+                    "jdbc_url", Map.of("action", "ask_before_execute"),
+                    "password", Map.of("action", "ask_before_execute")
+                )
+            ))
+            .outputPolicy(Map.of(
+                "mask_fields", List.of("password", "username", "jdbc_url", "phone", "id_card", "account_no"),
+                "max_rows_without_confirm", databaseToolProperties.getDefaultMaxRows()
+            ))
             .outputType("json")
             .returnDirect(false)
             .timeoutMillis(databaseToolProperties.getQueryTimeoutSeconds() * 1000L)
-            .agentCompatible(true)
+            .agentCompatible(environment.getProperty("chatchat.tools.database-query.agent-compatible", Boolean.class, false))
             .parameters(Arrays.asList(
                 ToolParameter.builder()
                     .name("sql")
@@ -309,6 +420,7 @@ public class BuiltInToolsBootstrap {
             .tags(Arrays.asList("database", "sql", "read-only", "agent"))
             .metadata(Map.of(
                 "readOnly", true,
+                "dataScope", "external_database",
                 "driverLibPath", databaseToolProperties.getDriverLibPath(),
                 "blockedKeywords", databaseToolProperties.getBlockedKeywords()
             ))
@@ -328,6 +440,10 @@ public class BuiltInToolsBootstrap {
      * Register file system tool with metadata
      */
     private void registerFileSystemTool() {
+        String confirmationAction = environment.getProperty(
+            "chatchat.tools.file-system.confirmation.default",
+            "ask_before_execute"
+        );
         ToolMetadata metadata = ToolMetadata.builder()
             .id("file_system")
             .title("File System Operations")
@@ -336,9 +452,30 @@ public class BuiltInToolsBootstrap {
             .version("1.0.0")
             .author("ChatChat System")
             .categories(Arrays.asList("file", "system"))
+            .category("local_file_system")
+            .riskLevel(environment.getProperty("chatchat.tools.file-system.risk-level", "high"))
+            .operationType(environment.getProperty("chatchat.tools.file-system.operation-type", "read"))
+            .userVisible(true)
+            .confirmation(Map.of(
+                "default", confirmationAction,
+                "allow_user_override", true
+            ))
+            .permissions(Map.of("roles", List.of()))
+            .inputPolicy(Map.of(
+                "must_show_parameters", true,
+                "allow_auto_fill", false,
+                "sensitive_params", List.of("path"),
+                "parameter_rules", Map.of(
+                    "path", Map.of("action", "ask_before_execute"),
+                    "operation", Map.of("action", "ask_before_execute")
+                )
+            ))
+            .outputPolicy(Map.of(
+                "mask_fields", List.of("password", "token", "secret", "api_key", "authorization")
+            ))
             .outputType("string")
             .returnDirect(false)
-            .timeoutMillis(10000L)
+            .timeoutMillis(environment.getProperty("chatchat.tools.file-system.timeout-ms", Long.class, 10000L))
             .requiresAuth(true)
             .agentCompatible(false)
             .parameters(Arrays.asList(
@@ -359,6 +496,7 @@ public class BuiltInToolsBootstrap {
             .tags(Arrays.asList("system", "file", "restricted"))
             .metadata(java.util.Map.of(
                 "security_level", "high",
+                "dataScope", "local_file_system",
                 "requires_review", true
             ))
             .build();
@@ -869,6 +1007,7 @@ public class BuiltInToolsBootstrap {
         private final Environment environment;
         private final ObjectMapper objectMapper;
         private final HttpClient httpClient;
+        private volatile String documentSearchToken;
 
         private DocumentSearchTool(Environment environment, ObjectMapper objectMapper) {
             this.environment = environment;
@@ -887,6 +1026,7 @@ public class BuiltInToolsBootstrap {
         @Override
         @SuppressWarnings("unchecked")
         public ToolOutput execute(ToolInput input) {
+            URI uri = null;
             try {
                 if (!environment.getProperty("chatchat.tools.document-search.enabled", Boolean.class, true)) {
                     return ToolOutput.failure("document_search tool is disabled");
@@ -896,22 +1036,19 @@ public class BuiltInToolsBootstrap {
                     return ToolOutput.failure("query parameter is required");
                 }
                 int limit = resolveLimit(input);
-                URI uri = buildSearchUri(input, query.trim(), limit);
+                uri = buildSearchUri(input, query.trim(), limit);
                 int timeoutMs = environment.getProperty("chatchat.tools.document-search.timeout-ms", Integer.class, 20000);
-                HttpRequest request = HttpRequest.newBuilder(uri)
-                    .timeout(Duration.ofMillis(Math.max(1000, timeoutMs)))
-                    .GET()
-                    .build();
-                HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+                HttpResponse<String> response = sendDocumentApiGet(uri, timeoutMs);
                 if (response.statusCode() < 200 || response.statusCode() >= 300) {
-                    return ToolOutput.failure("document search API returned HTTP " + response.statusCode());
+                    return ToolOutput.failure("document search API returned HTTP " + response.statusCode() + " from " + uri);
                 }
                 Map<String, Object> payload = objectMapper.readValue(response.body(), Map.class);
                 Object data = payload.containsKey("data") ? payload.get("data") : payload;
                 enrichWithDocumentContent(data, query.trim());
                 return ToolOutput.success(data, "Document search completed successfully");
             } catch (Exception e) {
-                return ToolOutput.failure(e);
+                String target = uri == null ? "" : " for " + uri;
+                return ToolOutput.failure("document search API call failed" + target + ": " + e.getMessage());
             }
         }
 
@@ -953,14 +1090,10 @@ public class BuiltInToolsBootstrap {
             }
             try {
                 int timeoutMs = environment.getProperty("chatchat.tools.document-search.timeout-ms", Integer.class, 20000);
-                HttpRequest detailRequest = HttpRequest.newBuilder(detailUri)
-                    .timeout(Duration.ofMillis(Math.max(1000, timeoutMs)))
-                    .GET()
-                    .build();
-                HttpResponse<String> detailResponse = httpClient.send(detailRequest, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+                HttpResponse<String> detailResponse = sendDocumentApiGet(detailUri, timeoutMs);
                 if (detailResponse.statusCode() < 200 || detailResponse.statusCode() >= 300) {
                     result.put("detailFetched", false);
-                    result.put("detailFetchError", "document detail API returned HTTP " + detailResponse.statusCode());
+                    result.put("detailFetchError", "document detail API returned HTTP " + detailResponse.statusCode() + " from " + detailUri);
                     return;
                 }
                 Map<String, Object> payload = objectMapper.readValue(detailResponse.body(), Map.class);
@@ -1002,8 +1135,116 @@ public class BuiltInToolsBootstrap {
                 }
             } catch (Exception ex) {
                 result.put("detailFetched", false);
-                result.put("detailFetchError", ex.getMessage());
+                result.put("detailFetchError", "document detail API call failed for " + detailUri + ": " + ex.getMessage());
             }
+        }
+
+        private HttpResponse<String> sendDocumentApiGet(URI uri, int timeoutMs) throws IOException, InterruptedException {
+            HttpResponse<String> response = httpClient.send(buildDocumentApiGet(uri, timeoutMs), HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            if (response.statusCode() == 401 && isDocumentSearchAuthEnabled() && configuredDocumentSearchToken().isBlank()) {
+                documentSearchToken = null;
+                response = httpClient.send(buildDocumentApiGet(uri, timeoutMs), HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            }
+            return response;
+        }
+
+        private HttpRequest buildDocumentApiGet(URI uri, int timeoutMs) throws IOException, InterruptedException {
+            HttpRequest.Builder builder = HttpRequest.newBuilder(uri)
+                .timeout(Duration.ofMillis(Math.max(1000, timeoutMs)))
+                .GET();
+            String token = resolveDocumentSearchToken();
+            if (token != null && !token.isBlank()) {
+                builder.header("Authorization", "Bearer " + token);
+            }
+            return builder.build();
+        }
+
+        private String resolveDocumentSearchToken() throws IOException, InterruptedException {
+            if (!isDocumentSearchAuthEnabled()) {
+                return "";
+            }
+            String configuredToken = configuredDocumentSearchToken();
+            if (!configuredToken.isBlank()) {
+                return configuredToken;
+            }
+            String cachedToken = documentSearchToken;
+            if (cachedToken != null && !cachedToken.isBlank()) {
+                return cachedToken;
+            }
+            synchronized (this) {
+                cachedToken = documentSearchToken;
+                if (cachedToken != null && !cachedToken.isBlank()) {
+                    return cachedToken;
+                }
+                documentSearchToken = loginForDocumentSearchToken();
+                return documentSearchToken;
+            }
+        }
+
+        private String loginForDocumentSearchToken() throws IOException, InterruptedException {
+            String username = environment.getProperty("chatchat.tools.document-search.auth.username", "admin");
+            String password = environment.getProperty("chatchat.tools.document-search.auth.password", "123456");
+            if (username == null || username.isBlank() || password == null || password.isBlank()) {
+                throw new IllegalStateException("document search auth username/password must be configured");
+            }
+            int timeoutMs = environment.getProperty("chatchat.tools.document-search.timeout-ms", Integer.class, 20000);
+            URI loginUri = buildDocumentSearchLoginUri();
+            String body = objectMapper.writeValueAsString(Map.of(
+                "username", username,
+                "password", password
+            ));
+            HttpRequest loginRequest = HttpRequest.newBuilder(loginUri)
+                .timeout(Duration.ofMillis(Math.max(1000, timeoutMs)))
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(body, StandardCharsets.UTF_8))
+                .build();
+            HttpResponse<String> loginResponse = httpClient.send(loginRequest, HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            if (loginResponse.statusCode() < 200 || loginResponse.statusCode() >= 300) {
+                throw new IllegalStateException("document search login API returned HTTP " + loginResponse.statusCode() + " from " + loginUri);
+            }
+            return extractLoginToken(loginResponse.body(), loginUri);
+        }
+
+        @SuppressWarnings("unchecked")
+        private String extractLoginToken(String body, URI loginUri) throws IOException {
+            Map<String, Object> payload = objectMapper.readValue(body, Map.class);
+            Object code = payload.get("code");
+            if (code instanceof Number number && number.intValue() >= 400) {
+                throw new IllegalStateException("document search login API returned code " + number.intValue() + " from " + loginUri);
+            }
+            Object data = payload.containsKey("data") ? payload.get("data") : payload;
+            if (!(data instanceof Map<?, ?> loginData)) {
+                throw new IllegalStateException("document search login API returned unexpected payload from " + loginUri);
+            }
+            String token = stringValue(loginData.get("token"));
+            if (token == null || token.isBlank()) {
+                throw new IllegalStateException("document search login API did not return token from " + loginUri);
+            }
+            return token.trim();
+        }
+
+        private URI buildDocumentSearchLoginUri() {
+            String loginPath = environment.getProperty(
+                "chatchat.tools.document-search.auth.login-path",
+                "/api/v1/enterprise/auth/login"
+            );
+            if (loginPath.startsWith("http://") || loginPath.startsWith("https://")) {
+                return URI.create(loginPath);
+            }
+            StringBuilder url = new StringBuilder(trimTrailingSlash(documentSearchApiBaseUrl()));
+            if (!loginPath.startsWith("/")) {
+                url.append('/');
+            }
+            url.append(loginPath);
+            return URI.create(url.toString());
+        }
+
+        private boolean isDocumentSearchAuthEnabled() {
+            return environment.getProperty("chatchat.tools.document-search.auth.enabled", Boolean.class, true);
+        }
+
+        private String configuredDocumentSearchToken() {
+            return environment.getProperty("chatchat.tools.document-search.auth.bearer-token", "").trim();
         }
 
         @SuppressWarnings("unchecked")
@@ -1035,14 +1276,21 @@ public class BuiltInToolsBootstrap {
         }
 
         private URI buildDetailUri(Map<String, Object> result) {
-            String apiBaseUrl = environment.getProperty("chatchat.tools.document-search.api-base-url", "http://localhost:8080");
+            String apiBaseUrl = documentSearchApiBaseUrl();
             String detailPath = stringValue(result.get("detailPath"));
             if (detailPath == null || detailPath.isBlank()) {
                 String docId = stringValue(result.get("docId"));
                 if (docId == null || docId.isBlank()) {
                     return null;
                 }
-                detailPath = "/api/v1/search/documents/" + encodePathSegment(docId.trim());
+                String template = environment.getProperty(
+                    "chatchat.tools.document-search.detail-path-template",
+                    "/api/v1/search/documents/{docId}"
+                );
+                String encodedDocId = encodePathSegment(docId.trim());
+                detailPath = template.contains("{docId}")
+                    ? template.replace("{docId}", encodedDocId)
+                    : trimTrailingSlash(template) + "/" + encodedDocId;
             }
             if (detailPath.startsWith("http://") || detailPath.startsWith("https://")) {
                 return URI.create(detailPath);
@@ -1105,7 +1353,7 @@ public class BuiltInToolsBootstrap {
         }
 
         private URI buildSearchUri(ToolInput input, String query, int limit) {
-            String apiBaseUrl = environment.getProperty("chatchat.tools.document-search.api-base-url", "http://localhost:8080");
+            String apiBaseUrl = documentSearchApiBaseUrl();
             String searchPath = environment.getProperty("chatchat.tools.document-search.search-path", "/api/v1/search");
             StringBuilder url = new StringBuilder(trimTrailingSlash(apiBaseUrl));
             if (!searchPath.startsWith("/")) {
@@ -1131,6 +1379,10 @@ public class BuiltInToolsBootstrap {
             int maxLimit = environment.getProperty("chatchat.tools.document-search.max-limit", Integer.class, 20);
             int value = requested == null ? defaultLimit : requested.intValue();
             return Math.max(1, Math.min(Math.max(1, maxLimit), value));
+        }
+
+        private String documentSearchApiBaseUrl() {
+            return environment.getProperty("chatchat.tools.document-search.api-base-url", "http://localhost:8080");
         }
 
         private String joinValues(Object value) {

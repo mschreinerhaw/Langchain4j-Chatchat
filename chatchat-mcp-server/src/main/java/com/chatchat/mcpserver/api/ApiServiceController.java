@@ -95,6 +95,7 @@ public class ApiServiceController {
         config.setHeadersJson(writeJson(request.headers()));
         config.setBodyTemplate(request.bodyTemplate());
         config.setInputSchemaJson(writeJson(request.inputSchema()));
+        config.setGovernanceJson(writeJson(request.governance()));
         config.setEnabled(request.enabled() == null || request.enabled());
         config.setTimeoutMs(request.timeoutMs() == null ? 20000 : request.timeoutMs());
         config.setCacheEnabled(request.cacheEnabled() != null && request.cacheEnabled());
@@ -113,6 +114,7 @@ public class ApiServiceController {
             readJsonMap(config.getHeadersJson()),
             config.getBodyTemplate(),
             readJsonMap(config.getInputSchemaJson()),
+            readJsonMap(config.getGovernanceJson()),
             config.isEnabled(),
             config.getTimeoutMs(),
             config.isCacheEnabled(),
@@ -153,6 +155,7 @@ public class ApiServiceController {
         Map<String, Object> headers,
         String bodyTemplate,
         Map<String, Object> inputSchema,
+        Map<String, Object> governance,
         Boolean enabled,
         Integer timeoutMs,
         Boolean cacheEnabled,
@@ -173,6 +176,7 @@ public class ApiServiceController {
         Map<String, Object> headers,
         String bodyTemplate,
         Map<String, Object> inputSchema,
+        Map<String, Object> governance,
         boolean enabled,
         int timeoutMs,
         boolean cacheEnabled,

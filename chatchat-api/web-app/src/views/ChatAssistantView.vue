@@ -22,9 +22,58 @@
       :user-id="userId"
       :active-agent="selectedAgent"
     />
-    <p v-if="statusNotice" class="chat-status-notice">{{ statusNotice }}</p>
-    <p v-if="uploadNotice" class="chat-status-notice">{{ uploadNotice }}</p>
-    <p v-if="errorMessage" class="chat-error">{{ errorMessage }}</p>
+      <p v-if="statusNotice" class="chat-status-notice">{{ statusNotice }}</p>
+      <p v-if="uploadNotice" class="chat-status-notice">{{ uploadNotice }}</p>
+      <p v-if="errorMessage" class="chat-error">{{ errorMessage }}</p>
+
+      <div v-if="pendingMcpConfirmation" class="mcp-confirm-backdrop" @click.self="cancelMcpConfirmation">
+        <section class="mcp-confirm-dialog" role="dialog" aria-modal="true" aria-label="MCP tool confirmation">
+          <header>
+            <div>
+              <p>MCP Policy Check</p>
+              <h2>Confirm tool execution</h2>
+            </div>
+            <button type="button" class="dialog-close" :disabled="loading" @click="cancelMcpConfirmation">x</button>
+          </header>
+          <dl>
+            <div>
+              <dt>Purpose</dt>
+              <dd>{{ pendingMcpConfirmation.purpose || "Tool execution requested by agent" }}</dd>
+            </div>
+            <div>
+              <dt>Tool</dt>
+              <dd>{{ pendingMcpConfirmation.displayName || pendingMcpConfirmation.toolName }}</dd>
+            </div>
+            <div>
+              <dt>Risk</dt>
+              <dd>{{ pendingMcpConfirmation.riskLevel || "unknown" }}</dd>
+            </div>
+            <div>
+              <dt>Data scope</dt>
+              <dd>{{ pendingMcpConfirmation.dataScope || "unknown" }}</dd>
+            </div>
+            <div>
+              <dt>Action</dt>
+              <dd>{{ pendingMcpConfirmation.operationType || "read" }}</dd>
+            </div>
+          </dl>
+          <pre>{{ formatConfirmationParameters(pendingMcpConfirmation.parameters) }}</pre>
+          <label>
+            <span>After confirmation</span>
+            <select v-model="confirmationRemember">
+              <option value="">Allow once</option>
+              <option value="tool_auto_execute">Always allow this tool</option>
+              <option value="tool_always_confirm">Always confirm this tool</option>
+              <option value="tool_deny">Deny this tool</option>
+            </select>
+          </label>
+          <footer>
+            <button type="button" class="secondary-button" :disabled="loading" @click="cancelMcpConfirmation">Cancel</button>
+            <button type="button" class="danger-button" :disabled="loading" @click="denyMcpConfirmation">Deny</button>
+            <button type="button" class="primary-button" :disabled="loading" @click="confirmMcpExecution">Confirm</button>
+          </footer>
+        </section>
+      </div>
 
     <div class="chat-input-dock">
       <PromptComposer
@@ -34,9 +83,11 @@
         :agents-loading="agentsLoading"
         :suggestions="activeSuggestions"
         :loading="composerBusy"
+        :stop-available="canKillActiveRun"
         :show-suggestions="!hasConversation && activeSuggestions.length > 0"
         @pick="question = $event"
         @send="handleSend"
+        @stop="killActiveRun"
         @clear="clearChat"
         @upload="handleUpload"
       />

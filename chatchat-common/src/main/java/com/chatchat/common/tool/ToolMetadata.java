@@ -53,6 +53,49 @@ public class ToolMetadata {
     private List<String> categories;
 
     /**
+     * Governance category for MCP runtime policy (e.g., finance_data_query).
+     */
+    private String category;
+
+    /**
+     * Tool risk level: low, medium, high, forbidden.
+     */
+    @Builder.Default
+    private String riskLevel = "low";
+
+    /**
+     * Operation type: read, write, send, delete, permission_change.
+     */
+    @Builder.Default
+    private String operationType = "read";
+
+    /**
+     * Whether this tool should be visible in user confirmation surfaces.
+     */
+    @Builder.Default
+    private boolean userVisible = true;
+
+    /**
+     * Confirmation policy hints, for example {"default":"ask_before_execute"}.
+     */
+    private Map<String, Object> confirmation;
+
+    /**
+     * Permission hints, for example {"roles":["analyst","manager"]}.
+     */
+    private Map<String, Object> permissions;
+
+    /**
+     * Input governance hints, for example {"must_show_parameters":true}.
+     */
+    private Map<String, Object> inputPolicy;
+
+    /**
+     * Output governance hints, for example {"mask_fields":["phone","id_card"]}.
+     */
+    private Map<String, Object> outputPolicy;
+
+    /**
      * List of parameter definitions
      */
     private List<ToolParameter> parameters;

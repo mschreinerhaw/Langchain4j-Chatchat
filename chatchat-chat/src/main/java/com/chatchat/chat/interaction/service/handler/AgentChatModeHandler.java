@@ -43,22 +43,41 @@ public class AgentChatModeHandler implements InteractionModeHandler {
             ? skill.modelName()
             : request.getModelName();
 
-        AgentOrchestrator.AgentExecutionResult result = agentOrchestrator.executeAgent(
-            request.getQuery(),
-            request.getTenantId(),
-            toolPolicy.availableTools(),
-            systemPrompt,
-            modelName,
-            skill.boundDocumentIds(),
-            skill.boundDocumentTags(),
-            request.getSkillId(),
-            context.requestId(),
-            context.conversationId(),
-            request.getUserId(),
-            resolveWebSearchResultLimit(request.getMaxResults()),
-            toolPolicy.requiredTools(),
-            toolPolicy.requireBoundToolCall()
-        );
+        Map<String, Object> runtimeAttributes = runtimeAttributes(request, skill);
+        AgentOrchestrator.AgentExecutionResult result = runtimeAttributes.isEmpty()
+            ? agentOrchestrator.executeAgent(
+                request.getQuery(),
+                request.getTenantId(),
+                toolPolicy.availableTools(),
+                systemPrompt,
+                modelName,
+                skill.boundDocumentIds(),
+                skill.boundDocumentTags(),
+                request.getSkillId(),
+                context.requestId(),
+                context.conversationId(),
+                request.getUserId(),
+                resolveWebSearchResultLimit(request.getMaxResults()),
+                toolPolicy.requiredTools(),
+                toolPolicy.requireBoundToolCall()
+            )
+            : agentOrchestrator.executeAgent(
+                request.getQuery(),
+                request.getTenantId(),
+                toolPolicy.availableTools(),
+                systemPrompt,
+                modelName,
+                skill.boundDocumentIds(),
+                skill.boundDocumentTags(),
+                request.getSkillId(),
+                context.requestId(),
+                context.conversationId(),
+                request.getUserId(),
+                resolveWebSearchResultLimit(request.getMaxResults()),
+                toolPolicy.requiredTools(),
+                toolPolicy.requireBoundToolCall(),
+                runtimeAttributes
+            );
 
         Map<String, Object> metadata = new LinkedHashMap<>();
         metadata.put("availableTools", toolPolicy.availableTools());
@@ -91,5 +110,23 @@ public class AgentChatModeHandler implements InteractionModeHandler {
             return WEB_SEARCH_REFERENCE_LIMIT;
         }
         return Math.max(1, Math.min(WEB_SEARCH_REFERENCE_LIMIT, maxResults));
+    }
+
+    private Map<String, Object> runtimeAttributes(InteractionRequest request, SkillDefinition skill) {
+        Map<String, Object> attributes = new LinkedHashMap<>();
+        if (request != null && request.getToolInput() != null && !request.getToolInput().isEmpty()) {
+            Object confirmation = request.getToolInput().get("mcpConfirmation");
+            if (confirmation instanceof Map<?, ?>) {
+                attributes.put("mcpConfirmation", confirmation);
+            }
+            Object cancellation = request.getToolInput().get("__agentCancellation");
+            if (cancellation != null) {
+                attributes.put("__agentCancellation", cancellation);
+            }
+        }
+        if (skill != null && skill.workflowConfig() != null && !skill.workflowConfig().isEmpty()) {
+            attributes.put("mcpWorkflow", skill.workflowConfig());
+        }
+        return attributes.isEmpty() ? Map.of() : attributes;
     }
 }

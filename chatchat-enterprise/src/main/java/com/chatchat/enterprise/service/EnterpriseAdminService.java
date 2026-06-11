@@ -44,6 +44,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 @Service
@@ -52,6 +54,7 @@ public class EnterpriseAdminService implements ApplicationRunner {
 
     private static final String DEFAULT_TENANT_CODE = "default";
     private static final String LEGACY_TENANT_CODE = "guodu";
+    private static final String DEFAULT_ADMIN_PASSWORD = "123456";
 
     private final SysTenantRepository tenantRepository;
     private final SysOrgRepository orgRepository;
@@ -68,6 +71,7 @@ public class EnterpriseAdminService implements ApplicationRunner {
     private final DataSourceConfigRepository dataSourceRepository;
     private final SysAuditLogRepository auditLogRepository;
     private final McpToolRegistryBridge registryBridge;
+    private final Map<String, String> activeTokens = new ConcurrentHashMap<>();
 
     @Override
     @Transactional
@@ -105,9 +109,25 @@ public class EnterpriseAdminService implements ApplicationRunner {
         user.setLastLoginAt(Instant.now());
         userRepository.save(user);
         audit(user.getTenantId(), user.getId(), user.getDisplayName(), "auth", "login", "sys_user", user.getId(), "login success");
-        String tokenSeed = user.getId() + ":" + user.getUsername() + ":" + System.currentTimeMillis();
-        return new AuthResult(Base64.getUrlEncoder().withoutPadding()
-            .encodeToString(tokenSeed.getBytes(StandardCharsets.UTF_8)), toUserView(user));
+        String tokenSeed = user.getId() + ":" + user.getUsername() + ":" + UUID.randomUUID();
+        String token = Base64.getUrlEncoder().withoutPadding()
+            .encodeToString(tokenSeed.getBytes(StandardCharsets.UTF_8));
+        activeTokens.put(token, user.getId());
+        return new AuthResult(token, toUserView(user));
+    }
+
+    @Transactional(readOnly = true)
+    public boolean isTokenValid(String token) {
+        if (token == null || token.isBlank()) {
+            return false;
+        }
+        String userId = activeTokens.get(token.trim());
+        if (userId == null || userId.isBlank()) {
+            return false;
+        }
+        return userRepository.findById(userId)
+            .filter(user -> "enabled".equalsIgnoreCase(user.getStatus()))
+            .isPresent();
     }
 
     @Transactional
@@ -472,6 +492,11 @@ public class EnterpriseAdminService implements ApplicationRunner {
                 permissionRepository.deleteById(id);
             }
             case "user" -> {
+                SysUser user = userRepository.findById(id)
+                    .orElseThrow(() -> new IllegalArgumentException("user not found"));
+                if ("admin".equalsIgnoreCase(user.getUsername())) {
+                    throw new IllegalArgumentException("admin user cannot be deleted");
+                }
                 userRoleRepository.deleteByUserId(id);
                 userRepository.deleteById(id);
             }
@@ -534,13 +559,16 @@ public class EnterpriseAdminService implements ApplicationRunner {
             seed.setOrgId(it.getId());
             seed.setUsername("admin");
             seed.setDisplayName("系统管理员");
-            seed.setPasswordHash("admin");
+            seed.setPasswordHash(DEFAULT_ADMIN_PASSWORD);
             seed.setEmail("admin@example.com");
             return userRepository.save(seed);
         });
         admin.setTenantId(tenant.getId());
         admin.setOrgId(it.getId());
         admin.setDisplayName("系统管理员");
+        if (admin.getPasswordHash() == null || admin.getPasswordHash().isBlank() || "admin".equals(admin.getPasswordHash())) {
+            admin.setPasswordHash(DEFAULT_ADMIN_PASSWORD);
+        }
         admin.setEmail(defaultText(admin.getEmail(), "admin@example.com"));
         admin.setStatus(defaultText(admin.getStatus(), "enabled"));
         userRepository.save(admin);

@@ -1,5 +1,10 @@
 import "../../styles/pages/ai-search.css";
-import { searchDocuments, uploadSearchDocument } from "../../services/api.js";
+import {
+  deleteSearchDocument,
+  getSearchDocument,
+  searchDocuments,
+  uploadSearchDocument
+} from "../../services/api.js";
 
 const MAX_UPLOAD_SIZE = 5 * 1024 * 1024;
 const MESSAGE_TEXT = {
@@ -59,6 +64,11 @@ export default {
       pageCount: 1,
       loading: false,
       uploading: false,
+      viewerOpen: false,
+      viewerLoading: false,
+      viewerError: "",
+      viewerDocument: null,
+      viewerResult: null,
       showUploadDialog: false,
       error: "",
       uploadError: "",
@@ -188,6 +198,53 @@ export default {
         this.uploadError = error.message || "上传失败";
       } finally {
         this.uploading = false;
+      }
+    },
+    async openResult(result) {
+      if (!result?.docId) {
+        return;
+      }
+      this.viewerOpen = true;
+      this.viewerLoading = true;
+      this.viewerError = "";
+      this.viewerDocument = null;
+      this.viewerResult = result;
+      try {
+        this.viewerDocument = await getSearchDocument(result.docId);
+      } catch (error) {
+        this.viewerError = error.message || "加载文档内容失败";
+      } finally {
+        this.viewerLoading = false;
+      }
+    },
+    closeViewer() {
+      this.viewerOpen = false;
+      this.viewerLoading = false;
+      this.viewerError = "";
+      this.viewerDocument = null;
+      this.viewerResult = null;
+    },
+    async removeDocument(result) {
+      const docId = result?.docId;
+      if (!docId) {
+        return;
+      }
+      const title = result.title || docId;
+      if (!window.confirm(`确认删除文档「${title}」？删除后不可恢复。`)) {
+        return;
+      }
+      this.loading = true;
+      this.error = "";
+      try {
+        await deleteSearchDocument(docId);
+        if (this.viewerDocument?.docId === docId) {
+          this.closeViewer();
+        }
+        await this.performSearch(false);
+      } catch (error) {
+        this.error = error.message || "删除文档失败";
+      } finally {
+        this.loading = false;
       }
     },
     resetUploadForm() {

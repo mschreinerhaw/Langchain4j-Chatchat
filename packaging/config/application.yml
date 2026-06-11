@@ -128,8 +128,146 @@ chatchat:
       path: ./data/chat-rocksdb
       create-if-missing: true
   tools:
+    calculator:
+      risk-level: low
+      operation-type: read
+      timeout-ms: 5000
+      confirmation:
+        default: auto_execute
+      parameter-policy:
+        expression: auto_execute
+    web-search:
+      risk-level: low
+      operation-type: read
+      confirmation:
+        default: auto_execute
+      parameter-policy:
+        query: auto_execute
+    document-search:
+      enabled: true
+      # Runtime/API retrieval service address. For the standalone MCP Server, point this to the Runtime/API host.
+      api-base-url: http://localhost:8080
+      search-path: /api/v1/search
+      detail-path-template: /api/v1/search/documents/{docId}
+      timeout-ms: 20000
+      default-limit: 5
+      max-limit: 20
+      auth:
+        enabled: true
+        login-path: /api/v1/enterprise/auth/login
+        username: admin
+        password: 123456
+        bearer-token: ""
+      risk-level: medium
+      confirmation:
+        default: ask_before_execute
     database-query:
+      risk-level: high
+      operation-type: read
+      user-visible: false
+      agent-compatible: false
+      confirmation:
+        default: ask_before_execute
+      parameter-policy:
+        jdbc-url: ask_before_execute
+        password: ask_before_execute
       driver-lib-path: ./lib/drivers
+    file-system:
+      risk-level: high
+      operation-type: read
+      timeout-ms: 10000
+      confirmation:
+        default: ask_before_execute
+      parameter-policy:
+        path: ask_before_execute
+
+mcp-policy:
+  enabled: true
+  risk-policy:
+    low: auto_execute
+    medium: ask_before_execute
+    high: ask_before_execute
+    forbidden: deny
+  tool-policy:
+    calculator: auto_execute
+    query_dictionary: auto_execute
+    web_search: auto_execute
+    document_search: ask_before_execute
+    database_query: ask_before_execute
+    file_system: ask_before_execute
+    send_email: ask_before_execute
+    delete_record: deny
+  parameter-policy:
+    send_email:
+      recipient_count_gt_10: ask_before_execute
+      external_domain: ask_before_execute
+    execute_sql:
+      contains_delete: deny
+      contains_update: ask_before_execute
+      contains_drop: deny
+    query_customer_asset:
+      customer_detail: ask_before_execute
+      branch_summary: auto_execute
+    calculator:
+      expression: auto_execute
+    web_search:
+      query: auto_execute
+    document_search:
+      document_ids: ask_before_execute
+      tags: auto_execute
+    database_query:
+      contains_delete: deny
+      contains_update: ask_before_execute
+      contains_drop: deny
+      jdbc_url: ask_before_execute
+      password: ask_before_execute
+    file_system:
+      operation: ask_before_execute
+      path: ask_before_execute
+
+mcp-workflow:
+  enabled: true
+  workflows:
+    customer_asset_analysis:
+      execution-strategy:
+        mode: sequential
+        stop-on-error: true
+        max-steps: 6
+        allow-parallel: false
+      steps:
+        - step: 1
+          tool: get_user_permission
+          required: true
+        - step: 2
+          tool: query_customer_basic_info
+          required: true
+        - step: 3
+          tool: query_customer_asset_summary
+          required: true
+          confirmation: ask_before_execute
+        - step: 4
+          tool: query_customer_position_detail
+          required: false
+          depends-on:
+            - query_customer_basic_info
+            - query_customer_asset_summary
+        - step: 5
+          tool: query_high_value_customer_profile
+          required: false
+          condition: asset_total > 1000000
+        - step: 6
+          tool: generate_analysis_report
+          required: true
+          depends-on:
+            - query_customer_asset_summary
+  tool-dependencies:
+    query_customer_position_detail:
+      depends-on:
+        - query_customer_basic_info
+        - query_customer_asset_summary
+    generate_analysis_report:
+      depends-on:
+        - query_customer_asset_summary
 
 springdoc:
   api-docs:

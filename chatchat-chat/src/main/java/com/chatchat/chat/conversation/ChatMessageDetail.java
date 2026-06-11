@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 
 @Data
 @Builder
@@ -25,4 +26,6 @@ public class ChatMessageDetail {
     private Instant createdAt;
     private List<String> toolsUsed;
     private String sourceKnowledgeBase;
+    private List<Map<String, Object>> sources;
+    private List<Map<String, Object>> traces;
 }

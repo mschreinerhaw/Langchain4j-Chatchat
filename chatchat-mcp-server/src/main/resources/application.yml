@@ -92,15 +92,40 @@ chatchat:
       include-unpublished-as-disabled: false
       expose-ams-token-parameter: false
   tools:
+    calculator:
+      risk-level: ${CHAT_CALCULATOR_RISK_LEVEL:low}
+      operation-type: ${CHAT_CALCULATOR_OPERATION_TYPE:read}
+      timeout-ms: ${CHAT_CALCULATOR_TIMEOUT_MS:5000}
+      confirmation:
+        default: ${CHAT_CALCULATOR_CONFIRMATION:auto_execute}
+      parameter-policy:
+        expression: ${CHAT_CALCULATOR_EXPRESSION_POLICY:auto_execute}
     document-search:
       enabled: true
-      api-base-url: http://localhost:8080
-      search-path: /api/v1/search
-      timeout-ms: 20000
-      default-limit: 5
-      max-limit: 20
+      # Runtime/API retrieval service address. Set this when MCP Server and Runtime are deployed separately.
+      api-base-url: ${CHAT_DOCUMENT_SEARCH_API_BASE_URL:${CHAT_RUNTIME_API_BASE_URL:http://localhost:8080}}
+      search-path: ${CHAT_DOCUMENT_SEARCH_PATH:/api/v1/search}
+      detail-path-template: ${CHAT_DOCUMENT_SEARCH_DETAIL_PATH_TEMPLATE:/api/v1/search/documents/{docId}}
+      timeout-ms: ${CHAT_DOCUMENT_SEARCH_TIMEOUT_MS:20000}
+      default-limit: ${CHAT_DOCUMENT_SEARCH_DEFAULT_LIMIT:5}
+      max-limit: ${CHAT_DOCUMENT_SEARCH_MAX_LIMIT:20}
+      auth:
+        enabled: ${CHAT_DOCUMENT_SEARCH_AUTH_ENABLED:true}
+        login-path: ${CHAT_DOCUMENT_SEARCH_AUTH_LOGIN_PATH:/api/v1/enterprise/auth/login}
+        username: ${CHAT_DOCUMENT_SEARCH_AUTH_USERNAME:admin}
+        password: ${CHAT_DOCUMENT_SEARCH_AUTH_PASSWORD:123456}
+        bearer-token: ${CHAT_DOCUMENT_SEARCH_AUTH_BEARER_TOKEN:}
+      risk-level: ${CHAT_DOCUMENT_SEARCH_RISK_LEVEL:medium}
+      confirmation:
+        default: ${CHAT_DOCUMENT_SEARCH_CONFIRMATION:ask_before_execute}
     web-search:
       enabled: true
+      risk-level: ${CHAT_WEB_SEARCH_RISK_LEVEL:low}
+      operation-type: ${CHAT_WEB_SEARCH_OPERATION_TYPE:read}
+      confirmation:
+        default: ${CHAT_WEB_SEARCH_CONFIRMATION:auto_execute}
+      parameter-policy:
+        query: ${CHAT_WEB_SEARCH_QUERY_POLICY:auto_execute}
       provider: bing_html
       endpoint: https://www.bing.com/search
       user-agent: ChatChat-MCP-Server/1.0
@@ -113,10 +138,27 @@ chatchat:
       fallback-enabled: true
     database-query:
       enabled: true
+      risk-level: ${CHAT_DATABASE_QUERY_RISK_LEVEL:high}
+      operation-type: ${CHAT_DATABASE_QUERY_OPERATION_TYPE:read}
+      user-visible: ${CHAT_DATABASE_QUERY_USER_VISIBLE:false}
+      agent-compatible: ${CHAT_DATABASE_QUERY_AGENT_COMPATIBLE:false}
+      confirmation:
+        default: ${CHAT_DATABASE_QUERY_CONFIRMATION:ask_before_execute}
+      parameter-policy:
+        jdbc-url: ${CHAT_DATABASE_QUERY_JDBC_URL_POLICY:ask_before_execute}
+        password: ${CHAT_DATABASE_QUERY_PASSWORD_POLICY:ask_before_execute}
       default-max-rows: 50
       max-rows: 500
       query-timeout-seconds: 15
       driver-lib-path: ./lib/drivers
+    file-system:
+      risk-level: ${CHAT_FILE_SYSTEM_RISK_LEVEL:high}
+      operation-type: ${CHAT_FILE_SYSTEM_OPERATION_TYPE:read}
+      timeout-ms: ${CHAT_FILE_SYSTEM_TIMEOUT_MS:10000}
+      confirmation:
+        default: ${CHAT_FILE_SYSTEM_CONFIRMATION:ask_before_execute}
+      parameter-policy:
+        path: ${CHAT_FILE_SYSTEM_PATH_POLICY:ask_before_execute}
 
 logging:
   file:

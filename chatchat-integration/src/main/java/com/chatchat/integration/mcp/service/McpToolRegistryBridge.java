@@ -105,6 +105,11 @@ public class McpToolRegistryBridge {
         }
         localName = candidate;
 
+        Map<String, Object> extraMetadata = new LinkedHashMap<>();
+        extraMetadata.put("serviceId", service.getId());
+        extraMetadata.put("remoteToolName", definition.name());
+        extraMetadata.put("inputSchema", definition.inputSchema() == null ? Map.of() : definition.inputSchema());
+
         ToolMetadata metadata = ToolMetadata.builder()
             .id(localName)
             .title(definition.name())
@@ -112,6 +117,14 @@ public class McpToolRegistryBridge {
             .version("1.0.0")
             .author("MCP:" + service.getName())
             .categories(List.of("mcp", "external"))
+            .category(firstText(definition.category(), "mcp_external"))
+            .riskLevel(firstText(definition.riskLevel(), "medium"))
+            .operationType(firstText(definition.operationType(), "read"))
+            .userVisible(definition.userVisible() == null || definition.userVisible())
+            .confirmation(emptyToNull(definition.confirmation()))
+            .permissions(emptyToNull(definition.permissions()))
+            .inputPolicy(emptyToNull(definition.inputPolicy()))
+            .outputPolicy(emptyToNull(definition.outputPolicy()))
             .outputType("json")
             .agentCompatible(true)
             .parameters(List.of(
@@ -123,11 +136,7 @@ public class McpToolRegistryBridge {
                     .build()
             ))
             .tags(List.of("mcp", sanitize(service.getName())))
-            .metadata(Map.of(
-                "serviceId", service.getId(),
-                "remoteToolName", definition.name(),
-                "inputSchema", definition.inputSchema() == null ? Map.of() : definition.inputSchema()
-            ))
+            .metadata(extraMetadata)
             .build();
 
         ToolRegistry.EnhancedTool tool = new McpEnhancedTool(service.getId(), definition.name(), metadata);
@@ -158,6 +167,14 @@ public class McpToolRegistryBridge {
             normalized = normalized.substring(0, normalized.length() - 1);
         }
         return normalized.isBlank() ? "tool" : normalized;
+    }
+
+    private String firstText(String value, String fallback) {
+        return value == null || value.isBlank() ? fallback : value.trim();
+    }
+
+    private Map<String, Object> emptyToNull(Map<String, Object> value) {
+        return value == null || value.isEmpty() ? null : value;
     }
 
     private class McpEnhancedTool implements ToolRegistry.EnhancedTool {

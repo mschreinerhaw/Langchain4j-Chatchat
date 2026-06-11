@@ -36,6 +36,10 @@ public class DatabaseQueryConfig {
     @Column
     private String inputSchemaJson;
 
+    @Lob
+    @Column
+    private String governanceJson;
+
     @Column(nullable = false)
     private int maxRows = 50;
 
@@ -90,6 +94,8 @@ public class DatabaseQueryConfig {
     public void setSqlTemplate(String sqlTemplate) { this.sqlTemplate = sqlTemplate; }
     public String getInputSchemaJson() { return inputSchemaJson; }
     public void setInputSchemaJson(String inputSchemaJson) { this.inputSchemaJson = inputSchemaJson; }
+    public String getGovernanceJson() { return governanceJson; }
+    public void setGovernanceJson(String governanceJson) { this.governanceJson = governanceJson; }
     public int getMaxRows() { return maxRows; }
     public void setMaxRows(int maxRows) { this.maxRows = maxRows; }
     public String getJdbcUrl() { return jdbcUrl; }

@@ -69,6 +69,17 @@ export function pollAgentTaskResult(taskId, timeoutMs = 1200, tenantId = "") {
   return apiRequest(`/agent/tasks/${encodeURIComponent(taskId)}/result?${params.toString()}`);
 }
 
+export function cancelAgentTask(taskId, tenantId = "") {
+  const params = new URLSearchParams();
+  if (tenantId) {
+    params.set("tenantId", tenantId);
+  }
+  const query = params.toString();
+  return apiRequest(`/agent/tasks/${encodeURIComponent(taskId)}/cancel${query ? `?${query}` : ""}`, {
+    method: "POST"
+  });
+}
+
 export function fetchAgentRuntimeSummary(filters = {}) {
   const params = new URLSearchParams();
   if (filters.tenantId) {
@@ -359,6 +370,43 @@ export function getSearchDocumentVersion(docId, version) {
   return apiRequest(`/search/documents/${encodeURIComponent(docId)}/versions/${encodeURIComponent(version)}`);
 }
 
+export function deleteSearchDocument(docId) {
+  return apiRequest(`/search/documents/${encodeURIComponent(docId)}`, {
+    method: "DELETE"
+  });
+}
+
+export async function fetchDocumentFile(fileUrl) {
+  const session = getStoredAuthSession();
+  const response = await fetch(fileUrl, {
+    headers: {
+      ...(session?.token ? { Authorization: `Bearer ${session.token}` } : {})
+    }
+  });
+
+  if (!response.ok) {
+    const errorPayload = await readJsonSafely(response);
+    throw new Error(errorPayload?.message || `文档文件下载失败：${response.status}`);
+  }
+
+  const contentType = response.headers.get("Content-Type") || "";
+  if (contentType.includes("application/json")) {
+    const errorPayload = await readJsonSafely(response);
+    throw new Error(errorPayload?.message || "文档文件返回格式异常");
+  }
+
+  const buffer = await response.arrayBuffer();
+  if (!buffer.byteLength) {
+    throw new Error("文档文件为空，无法预览");
+  }
+
+  return {
+    buffer,
+    contentType,
+    fileName: response.headers.get("Content-Disposition") || ""
+  };
+}
+
 export function fetchResearchLibrary(filters = {}) {
   const params = new URLSearchParams();
   if (filters.category) {
@@ -556,8 +604,12 @@ export function syncEnterpriseUsers(tenantId = "") {
 }
 
 export async function uploadSearchDocument(formData) {
+  const session = getStoredAuthSession();
   const response = await fetch(`${API_BASE}/search/documents/upload`, {
     method: "POST",
+    headers: {
+      ...(session?.token ? { Authorization: `Bearer ${session.token}` } : {})
+    },
     body: formData
   });
   const payload = await readJsonSafely(response);
@@ -568,10 +620,12 @@ export async function uploadSearchDocument(formData) {
 }
 
 async function fetchEventStream(path, payload, handlers) {
+  const session = getStoredAuthSession();
   const response = await fetch(`${API_BASE}${path}`, {
     method: "POST",
     headers: {
-      "Content-Type": "application/json"
+      "Content-Type": "application/json",
+      ...(session?.token ? { Authorization: `Bearer ${session.token}` } : {})
     },
     body: JSON.stringify(payload)
   });

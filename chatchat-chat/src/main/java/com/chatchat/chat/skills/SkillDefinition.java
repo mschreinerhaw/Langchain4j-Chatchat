@@ -1,6 +1,7 @@
 package com.chatchat.chat.skills;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * Skill definition used by interaction orchestration.
@@ -22,6 +23,7 @@ public record SkillDefinition(
     List<String> boundDocumentTags,
     List<SkillToolConfig> toolConfigs,
     SkillRoutingSettings routingSettings,
+    Map<String, Object> workflowConfig,
     List<String> quickQuestions,
     String marketStatus
 ) {

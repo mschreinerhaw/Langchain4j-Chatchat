@@ -11,6 +11,7 @@ import com.chatchat.chat.skills.SkillToolConfig;
 import com.chatchat.common.constants.AppConstants;
 import com.chatchat.common.response.ApiResponse;
 import com.chatchat.common.config.ModelsConfig;
+import com.chatchat.common.tool.ToolMetadata;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.AllArgsConstructor;
@@ -179,6 +180,7 @@ public class AgentWorkshopController {
             skill.boundDocumentTags(),
             skill.toolConfigs(),
             skill.routingSettings(),
+            skill.workflowConfig(),
             skill.quickQuestions(),
             skill.marketStatus(),
             marketStatusLabel(skill.marketStatus()),
@@ -295,9 +297,15 @@ public class AgentWorkshopController {
     private List<String> availableTools() {
         return toolRegistry.getAllToolNames().stream()
             .filter(name -> name != null && !name.isBlank())
+            .filter(this::isUserVisibleAgentTool)
             .distinct()
             .sorted(Comparator.naturalOrder())
             .toList();
+    }
+
+    private boolean isUserVisibleAgentTool(String toolName) {
+        ToolMetadata metadata = toolRegistry.getToolMetadata(toolName);
+        return metadata == null || (metadata.isAgentCompatible() && metadata.isUserVisible());
     }
 
     private Map<String, List<String>> mcpToolsByServiceId() {
@@ -334,6 +342,7 @@ public class AgentWorkshopController {
             request.getBoundDocumentTags(),
             request.getToolConfigs(),
             request.getRoutingSettings(),
+            request.getWorkflowConfig(),
             request.getQuickQuestions(),
             request.getMarketStatus()
         );
@@ -399,6 +408,7 @@ public class AgentWorkshopController {
         private List<String> boundDocumentTags;
         private List<SkillToolConfig> toolConfigs;
         private SkillRoutingSettings routingSettings;
+        private Map<String, Object> workflowConfig;
         private List<String> quickQuestions;
         private String marketStatus;
     }
@@ -426,15 +436,32 @@ public class AgentWorkshopController {
     public record ModelOption(String value, String label) {
     }
 
-    public record WorkshopSummary(
-        int agentCount,
-        int builtinCount,
-        int customCount,
-        int publishedCount,
-        int unpublishedCount,
-        int availableToolCount,
-        int registeredMcpToolCount
-    ) {
+    @Data
+    @NoArgsConstructor
+    public static class WorkshopSummary {
+        private int agentCount;
+        private int builtinCount;
+        private int customCount;
+        private int publishedCount;
+        private int unpublishedCount;
+        private int availableToolCount;
+        private int registeredMcpToolCount;
+
+        public WorkshopSummary(int agentCount,
+                               int builtinCount,
+                               int customCount,
+                               int publishedCount,
+                               int unpublishedCount,
+                               int availableToolCount,
+                               int registeredMcpToolCount) {
+            this.agentCount = agentCount;
+            this.builtinCount = builtinCount;
+            this.customCount = customCount;
+            this.publishedCount = publishedCount;
+            this.unpublishedCount = unpublishedCount;
+            this.availableToolCount = availableToolCount;
+            this.registeredMcpToolCount = registeredMcpToolCount;
+        }
     }
 
     public record AgentCard(
@@ -456,6 +483,7 @@ public class AgentWorkshopController {
         List<String> boundDocumentTags,
         List<SkillToolConfig> toolConfigs,
         SkillRoutingSettings routingSettings,
+        Map<String, Object> workflowConfig,
         List<String> quickQuestions,
         String marketStatus,
         String marketStatusLabel,

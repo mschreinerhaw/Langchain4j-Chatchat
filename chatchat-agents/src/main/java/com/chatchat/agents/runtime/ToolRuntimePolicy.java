@@ -8,6 +8,7 @@ import java.util.Map;
 public record ToolRuntimePolicy(
     Boolean allowed,
     String reason,
+    ToolRuntimeAction executionAction,
     Integer maxCallsPerMinute,
     Boolean requiresAuthentication,
     Integer circuitBreakerFailureThreshold,

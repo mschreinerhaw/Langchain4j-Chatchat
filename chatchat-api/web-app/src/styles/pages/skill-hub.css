@@ -361,7 +361,7 @@
   width: 100%;
   min-height: 54px;
   display: grid;
-  grid-template-columns: 92px minmax(240px, 1fr) minmax(120px, 160px) 120px 104px;
+  grid-template-columns: 92px minmax(220px, 1fr) minmax(110px, 150px) 112px 96px 82px;
   align-items: center;
   gap: 10px;
   border-color: #edf1f7;
@@ -449,6 +449,26 @@
 .audit-log-head span.circuitOpen {
   background: rgba(244, 166, 41, 0.16);
   color: #8a5a00;
+}
+
+.task-kill-action {
+  justify-self: end;
+  min-width: 72px;
+  min-height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  border: 1px solid rgba(239, 79, 95, 0.24);
+  border-radius: 7px;
+  background: rgba(239, 79, 95, 0.08);
+  color: #b42335;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.task-kill-action:hover {
+  background: rgba(239, 79, 95, 0.14);
 }
 
 .selected-task {
@@ -1393,6 +1413,156 @@
   font-size: 13px;
 }
 
+.agent-workshop-view .agent-workflow-builder {
+  display: grid;
+  gap: 12px;
+  border: 1px solid #dce2ec;
+  border-radius: 8px;
+  padding: 12px;
+  background: #fbfcff;
+}
+
+.agent-workshop-view .workflow-enable,
+.agent-workshop-view .workflow-strategy .checkbox-row,
+.agent-workshop-view .workflow-step-main header label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.agent-workshop-view .workflow-enable input,
+.agent-workshop-view .workflow-strategy .checkbox-row input,
+.agent-workshop-view .workflow-step-main header input {
+  width: 16px;
+  height: 16px;
+  padding: 0;
+}
+
+.agent-workshop-view .workflow-strategy {
+  display: grid;
+  grid-template-columns: minmax(160px, 1fr) 120px repeat(2, minmax(120px, auto));
+  align-items: end;
+  gap: 10px;
+}
+
+.agent-workshop-view .workflow-step-list {
+  display: grid;
+  gap: 10px;
+}
+
+.agent-workshop-view .workflow-step-row {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  gap: 10px;
+  border: 1px solid #dce2ec;
+  border-radius: 8px;
+  padding: 10px;
+  background: #fff;
+}
+
+.agent-workshop-view .workflow-step-order {
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  gap: 8px;
+}
+
+.agent-workshop-view .workflow-step-order strong {
+  display: grid;
+  width: 32px;
+  height: 32px;
+  place-items: center;
+  border-radius: 999px;
+  background: rgba(47, 124, 246, 0.12);
+  color: #2557b8;
+  font-size: 14px;
+}
+
+.agent-workshop-view .workflow-step-order div {
+  display: flex;
+  gap: 4px;
+}
+
+.agent-workshop-view .workflow-step-order button,
+.agent-workshop-view .workflow-dependencies button {
+  border: 1px solid #dce2ec;
+  border-radius: 7px;
+  background: #fff;
+  color: var(--text);
+  font-weight: 800;
+}
+
+.agent-workshop-view .workflow-step-order button {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+}
+
+.agent-workshop-view .workflow-step-order button:disabled {
+  opacity: 0.45;
+}
+
+.agent-workshop-view .workflow-step-main {
+  min-width: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.agent-workshop-view .workflow-step-main header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.agent-workshop-view .workflow-step-main header strong {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text);
+  font-size: 13px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-workshop-view .workflow-step-controls {
+  display: grid;
+  grid-template-columns: minmax(140px, 0.4fr) minmax(180px, 1fr);
+  gap: 10px;
+}
+
+.agent-workshop-view .workflow-dependencies {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 7px;
+}
+
+.agent-workshop-view .workflow-dependencies span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.agent-workshop-view .workflow-dependencies button {
+  max-width: 180px;
+  min-height: 28px;
+  overflow: hidden;
+  padding: 0 8px;
+  color: var(--muted);
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-workshop-view .workflow-dependencies button.active {
+  border-color: rgba(47, 124, 246, 0.42);
+  background: rgba(47, 124, 246, 0.08);
+  color: #2557b8;
+}
+
 .agent-workshop-view .routing-settings {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -2165,6 +2335,9 @@
   .agent-workshop-view .agent-import-list,
   .agent-workshop-view .agent-tool-searchbar,
   .agent-workshop-view .agent-tool-checklist,
+  .agent-workshop-view .workflow-strategy,
+  .agent-workshop-view .workflow-step-row,
+  .agent-workshop-view .workflow-step-controls,
   .agent-workshop-view .routing-settings {
     display: grid;
     grid-template-columns: 1fr;

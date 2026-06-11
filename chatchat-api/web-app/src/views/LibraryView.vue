@@ -59,7 +59,10 @@
             <p>{{ item.summary }}</p>
             <span>{{ item.source }} · {{ item.date }} · {{ categoryLabel(item.category) }} · v{{ item.version || 1 }}</span>
           </div>
-          <button type="button" @click="openDocument(item.docId)">查看</button>
+          <div class="library-document-actions">
+            <button type="button" @click="openDocument(item.docId)">查看</button>
+            <button type="button" class="danger-action" @click="removeDocument(item)">删除</button>
+          </div>
         </article>
 
         <p v-if="!loading && documents.length === 0" class="library-empty">

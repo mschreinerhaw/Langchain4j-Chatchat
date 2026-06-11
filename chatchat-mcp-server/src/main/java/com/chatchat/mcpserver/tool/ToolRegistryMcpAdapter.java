@@ -27,6 +27,7 @@ public class ToolRegistryMcpAdapter {
 
     private final ObjectMapper objectMapper;
     private final ChatChatMcpServerProperties properties;
+    private final AgentRuntimeGovernanceFactory governanceFactory;
 
     public List<McpServerFeatures.SyncToolSpecification> toToolSpecifications(ToolRegistry toolRegistry) {
         return toolRegistry.getAllToolNames().stream()
@@ -52,6 +53,7 @@ public class ToolRegistryMcpAdapter {
             .title(metadata == null ? name : metadata.getTitle())
             .description(description(toolRegistry, name, metadata))
             .inputSchema(toInputSchema(metadata))
+            .meta(governanceFactory.metaForToolMetadata("builtin_tool", name, metadata))
             .build();
 
         return List.of(McpServerFeatures.SyncToolSpecification.builder()

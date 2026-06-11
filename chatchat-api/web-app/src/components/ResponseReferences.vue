@@ -43,7 +43,7 @@
       <summary>调用工具</summary>
       <article v-for="trace in toolTraceRows" :key="trace.toolName + trace.startedAt" class="reference-row">
         <strong>{{ trace.displayName || trace.toolName || "工具调用" }}</strong>
-        <p>{{ trace.success === false ? "调用失败" : "调用成功" }}</p>
+        <p>{{ trace.statusText }}</p>
         <p v-if="trace.errorText" class="tool-error">{{ trace.errorText }}</p>
         <button
           v-if="trace.webPages.length"
@@ -75,7 +75,7 @@
             aria-label="关闭"
             @click="closeWebPagesDialog"
           >
-            ×
+            x
           </button>
         </header>
         <ol class="web-pages-modal-list">

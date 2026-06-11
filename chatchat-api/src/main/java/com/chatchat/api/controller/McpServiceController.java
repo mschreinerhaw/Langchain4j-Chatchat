@@ -243,11 +243,20 @@ public class McpServiceController {
 
         return names.stream()
             .filter(name -> name != null && !name.isBlank())
+            .filter(name -> isUserVisibleTool(name, mcpToolsByName.containsKey(name)))
             .map(name -> toToolCard(name, mcpToolsByName.get(name)))
             .sorted(Comparator
                 .comparing(ToolCardView::sourceType)
                 .thenComparing(ToolCardView::localToolName))
             .toList();
+    }
+
+    private boolean isUserVisibleTool(String localToolName, boolean registeredMcpTool) {
+        if (registeredMcpTool) {
+            return true;
+        }
+        ToolMetadata metadata = toolRegistry.getToolMetadata(localToolName);
+        return metadata == null || metadata.isUserVisible();
     }
 
     private List<ToolServiceOption> buildToolServiceOptions(List<ToolCardView> tools) {

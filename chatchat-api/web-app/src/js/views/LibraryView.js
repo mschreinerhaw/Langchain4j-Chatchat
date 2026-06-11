@@ -7,6 +7,8 @@ import * as XLSX from "xlsx";
 import "../../styles/pages/library.css";
 import {
   createResearchCategory,
+  deleteSearchDocument,
+  fetchDocumentFile,
   fetchResearchLibrary,
   getSearchDocument,
   getSearchDocumentVersion,
@@ -228,6 +230,30 @@ export default {
         this.viewerLoading = false;
       }
     },
+    async removeDocument(item) {
+      const docId = item?.docId;
+      if (!docId) {
+        return;
+      }
+      const title = item.title || docId;
+      if (!window.confirm(`确认删除文档「${title}」？删除后不可恢复。`)) {
+        return;
+      }
+      this.loading = true;
+      this.error = "";
+      try {
+        await deleteSearchDocument(docId);
+        this.message = "文档已删除。";
+        if (this.viewerDocument?.docId === docId) {
+          this.closeDocument();
+        }
+        await this.loadLibrary();
+      } catch (error) {
+        this.error = error.message || "删除文档失败";
+      } finally {
+        this.loading = false;
+      }
+    },
     async switchDocumentVersion(version) {
       if (!version || version === this.selectedVersion || !this.viewerDocument?.docId) {
         return;
@@ -262,6 +288,9 @@ export default {
           await this.renderWord();
         } catch (error) {
           this.viewerMode = "text";
+          if (!this.viewerDocument?.content) {
+            this.viewerError = error.message || "Word 文档预览失败";
+          }
         }
         return;
       }
@@ -287,7 +316,8 @@ export default {
         return;
       }
       container.innerHTML = "";
-      const pdf = await pdfjsLib.getDocument(this.viewerFileUrl).promise;
+      const { buffer } = await fetchDocumentFile(this.viewerFileUrl);
+      const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
       const pageCount = Math.min(pdf.numPages, 20);
       for (let pageNumber = 1; pageNumber <= pageCount; pageNumber++) {
         const page = await pdf.getPage(pageNumber);
@@ -306,14 +336,22 @@ export default {
         return;
       }
       container.innerHTML = "";
-      const blob = await fetch(this.viewerFileUrl).then((response) => response.blob());
-      await renderAsync(blob, container, null, {
+      const { buffer } = await fetchDocumentFile(this.viewerFileUrl);
+      if (!this.isZipDocument(buffer)) {
+        throw new Error("当前 Word 文件不是 docx 格式，无法直接预览");
+      }
+      await renderAsync(buffer, container, null, {
         className: "docx-rendered",
-        inWrapper: false
+        inWrapper: true,
+        ignoreFonts: true,
+        useBase64URL: true
       });
+      if (!container.textContent.trim()) {
+        throw new Error("Word 文档没有渲染出可见文字");
+      }
     },
     async renderExcel() {
-      const buffer = await fetch(this.viewerFileUrl).then((response) => response.arrayBuffer());
+      const { buffer } = await fetchDocumentFile(this.viewerFileUrl);
       const workbook = XLSX.read(buffer, { type: "array" });
       const firstSheet = workbook.SheetNames[0];
       this.viewerHtml = firstSheet ? XLSX.utils.sheet_to_html(workbook.Sheets[firstSheet]) : "";
@@ -365,6 +403,10 @@ export default {
         return "markdown";
       }
       return "text";
+    },
+    isZipDocument(buffer) {
+      const bytes = new Uint8Array(buffer, 0, Math.min(buffer.byteLength, 4));
+      return bytes[0] === 0x50 && bytes[1] === 0x4b;
     },
     documentTypeLabel(type) {
       const labels = {

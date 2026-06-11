@@ -137,7 +137,7 @@
 
 .library-view .library-document {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 56px;
+  grid-template-columns: minmax(0, 1fr) 120px;
   gap: 12px;
   align-items: start;
   padding: 16px 18px;
@@ -177,6 +177,21 @@
   font-size: 13px;
   font-weight: 700;
   background: #fff;
+}
+
+.library-view .library-document-actions {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+}
+
+.library-view .library-document button.danger-action {
+  color: #b42318;
+}
+
+.library-view .library-document button.danger-action:hover {
+  border-color: #fda29b;
+  background: #fff3f0;
 }
 
 .library-view .library-pagination {

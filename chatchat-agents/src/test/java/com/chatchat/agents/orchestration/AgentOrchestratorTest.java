@@ -283,6 +283,86 @@ class AgentOrchestratorTest {
             .contains("Then call " + mcpWebSearch);
     }
 
+    @Test
+    void workflowParallelRequiredToolsMustAllCompleteBeforeFinalAnswer() {
+        String documentSearch = "mcp_xxx_document_search";
+        String knowledgeSearch = "mcp_xxx_knowledge_search";
+        CapturingQueueChatModel chatModel = new CapturingQueueChatModel(
+            "{\"action\":\"tool\",\"toolName\":\"document_search\",\"arguments\":{\"query\":\"internal\"},\"reason\":\"Need document evidence\"}",
+            "{\"action\":\"final\",\"answer\":\"Too early.\"}",
+            "{\"action\":\"tool\",\"toolName\":\"mcp_xxx_knowledge_search\",\"arguments\":{\"query\":\"internal\"},\"reason\":\"Need second internal source\"}",
+            "Both internal tools have been observed.",
+            "{\"accepted\":true,\"feedback\":\"All required tools were observed.\",\"revisedAnswer\":\"\"}"
+        );
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.getToolMetadata(documentSearch)).thenReturn(ToolMetadata.builder()
+            .id(documentSearch)
+            .title("MCP Document Search")
+            .description("Search internal documents")
+            .build());
+        when(toolRegistry.getToolMetadata(knowledgeSearch)).thenReturn(ToolMetadata.builder()
+            .id(knowledgeSearch)
+            .title("MCP Knowledge Search")
+            .description("Search internal knowledge")
+            .build());
+        when(toolRegistry.executeEnhancedTool(eq(documentSearch), any())).thenReturn(documentSearchOutput());
+        when(toolRegistry.executeEnhancedTool(eq(knowledgeSearch), any())).thenReturn(documentSearchOutput());
+        ToolRuntimeService toolRuntimeService = new ToolRuntimeService(
+            toolRegistry,
+            new ObjectMapper(),
+            toolRuntimeProperties(),
+            List.of(),
+            List.of()
+        );
+        AgentOrchestrator orchestrator = new AgentOrchestrator(
+            chatModel,
+            toolRegistry,
+            toolRuntimeService,
+            new ObjectMapper(),
+            new ModelsConfig()
+        );
+        Map<String, Object> workflowConfig = Map.of(
+            "enabled", true,
+            "executionStrategy", Map.of("mode", "hybrid", "stopOnError", true),
+            "steps", List.of(
+                Map.of(
+                    "step", 1,
+                    "name", "internal_retrieval",
+                    "parallelSteps", List.of(documentSearch, knowledgeSearch),
+                    "required", true
+                )
+            )
+        );
+
+        AgentOrchestrator.AgentExecutionResult result = orchestrator.executeAgent(
+            "Summarize internal evidence.",
+            "tenant-1",
+            List.of(documentSearch, knowledgeSearch),
+            "Use all required internal tools.",
+            null,
+            List.of(),
+            List.of(),
+            "research",
+            "req-parallel-required",
+            "conv-parallel-required",
+            "user-1",
+            10,
+            List.of(),
+            true,
+            Map.of("mcpWorkflow", workflowConfig)
+        );
+
+        assertThat(result.answer()).isEqualTo("Both internal tools have been observed.");
+        assertThat(result.toolTraces())
+            .extracting(InteractionToolTrace::getToolName)
+            .containsExactly(documentSearch, knowledgeSearch);
+        assertThat(result.metadata())
+            .containsEntry("workflowMandatoryTools", List.of(documentSearch, knowledgeSearch))
+            .containsEntry("missingMandatoryTools", List.of(knowledgeSearch));
+        assertThat(chatModel.messages().get(2))
+            .contains("Missing: [" + knowledgeSearch + "]");
+    }
+
     private AgentOrchestrator newOrchestrator(ChatModel chatModel) {
         return new AgentOrchestrator(
             chatModel,

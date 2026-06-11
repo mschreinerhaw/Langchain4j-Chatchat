@@ -170,9 +170,12 @@ public class AgentOrchestrator {
 
             if (FINAL.equals(decision.action())) {
                 checkCancelled(cancellationCheck);
-                if (requireToolBeforeFinal && traces.isEmpty()) {
-                    observations.add("Planner final answer rejected: this MCP-bound agent must call one mandatory tool before final answer.");
+                List<String> missingMandatoryTools = missingMandatoryTools(mandatoryTools, traces);
+                if (requireToolBeforeFinal && !missingMandatoryTools.isEmpty()) {
+                    observations.add("Planner final answer rejected: this MCP-bound agent must observe all mandatory workflow tools before final answer. Missing: "
+                        + missingMandatoryTools);
                     metadata.put("rejectedFinalBeforeTool", true);
+                    metadata.put("missingMandatoryTools", missingMandatoryTools);
                     continue;
                 }
                 if (requireDocumentWebVerification && missingDocumentWebVerification(traces, documentSearchTool, verificationWebSearchTool)) {
@@ -361,10 +364,11 @@ public class AgentOrchestrator {
         if (requireToolBeforeFinal) {
             prompt.append("Mandatory tool policy:\n");
             prompt.append("- This agent is bound to required runtime tools. Your next response MUST be a tool action.\n");
-            prompt.append("- Do not return a final answer until at least one mandatory tool has been called and observed.\n");
+            prompt.append("- Do not return a final answer until all required tools have been called and observed.\n");
             prompt.append("- Required tools are ordered by workflow or runtime policy: ").append(mandatoryTools).append("\n");
             prompt.append("- If no required tool has been observed yet, call the first required tool in that ordered list.\n");
-            prompt.append("- Do not call a later required tool before earlier required tools have succeeded.\n");
+            prompt.append("- Do not call a tool from a later workflow stage before earlier required stages have succeeded.\n");
+            prompt.append("- Tools listed in the same workflow parallel stage may be called in any order.\n");
             prompt.append("- If the user request is analytical, portfolio-related, market-related, data-driven, or requires validation, use a mandatory tool first.\n\n");
         }
         prompt.append("Respond with strict JSON only.\n");
@@ -813,6 +817,12 @@ public class AgentOrchestrator {
             .anyMatch(trace -> trace != null && sameToolName(toolName, trace.getToolName()));
     }
 
+    private List<String> missingMandatoryTools(List<String> mandatoryTools, List<InteractionToolTrace> traces) {
+        return normalizeList(mandatoryTools).stream()
+            .filter(toolName -> !hasToolTrace(traces, toolName))
+            .toList();
+    }
+
     private void runMissingDocumentWebVerification(List<InteractionToolTrace> traces,
                                                    List<String> observations,
                                                    String query,
@@ -1037,7 +1047,12 @@ public class AgentOrchestrator {
         for (Object item : list) {
             Map<String, Object> step = asMap(item);
             String tool = stringValue(firstObject(step, "tool", "toolName"));
-            if (tool == null || tool.isBlank()) {
+            List<String> stepTools = new ArrayList<>();
+            if (tool != null && !tool.isBlank()) {
+                stepTools.add(tool);
+            }
+            stepTools.addAll(stringList(firstObject(step, "parallelSteps", "parallel_steps")));
+            if (stepTools.isEmpty()) {
                 index++;
                 continue;
             }
@@ -1046,9 +1061,11 @@ public class AgentOrchestrator {
                 index++;
                 continue;
             }
-            String resolved = normalizeToolName(tool, tools);
-            if (resolved != null && tools.contains(resolved)) {
-                requiredSteps.add(new WorkflowToolStep(firstInteger(firstObject(step, "step", "order"), index), resolved));
+            for (String stepTool : stepTools) {
+                String resolved = normalizeToolName(stepTool, tools);
+                if (resolved != null && tools.contains(resolved)) {
+                    requiredSteps.add(new WorkflowToolStep(firstInteger(firstObject(step, "step", "order"), index), resolved));
+                }
             }
             index++;
         }
@@ -1186,6 +1203,27 @@ public class AgentOrchestrator {
             .map(String::trim)
             .distinct()
             .toList();
+    }
+
+    private List<String> stringList(Object value) {
+        if (value instanceof List<?> list) {
+            return list.stream()
+                .map(this::stringValue)
+                .filter(text -> text != null && !text.isBlank())
+                .map(String::trim)
+                .distinct()
+                .toList();
+        }
+        if (value instanceof String text && !text.isBlank()) {
+            List<String> values = new ArrayList<>();
+            for (String item : text.split("[,;\\n]")) {
+                if (!item.isBlank()) {
+                    values.add(item.trim());
+                }
+            }
+            return values.stream().distinct().toList();
+        }
+        return List.of();
     }
 
     private String normalizeModelName(String modelName) {

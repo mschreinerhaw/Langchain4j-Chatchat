@@ -208,6 +208,155 @@ class AgentOrchestratorTest {
     }
 
     @Test
+    void resumesPendingToolExecutionAfterConfirmation() {
+        CapturingQueueChatModel chatModel = new CapturingQueueChatModel(
+            "{\"action\":\"final\",\"answer\":\"Use the confirmed document evidence.\"}",
+            "{\"accepted\":true,\"feedback\":\"The answer used the confirmed tool observation.\",\"revisedAnswer\":\"\"}"
+        );
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.getToolMetadata("document_search")).thenReturn(ToolMetadata.builder()
+            .id("document_search")
+            .title("Document Search")
+            .description("Search internal documents")
+            .build());
+        when(toolRegistry.executeEnhancedTool(eq("document_search"), any())).thenReturn(documentSearchOutput());
+        ToolRuntimeService toolRuntimeService = new ToolRuntimeService(
+            toolRegistry,
+            new ObjectMapper(),
+            toolRuntimeProperties(),
+            List.of(),
+            List.of()
+        );
+        AgentOrchestrator orchestrator = new AgentOrchestrator(
+            chatModel,
+            toolRegistry,
+            toolRuntimeService,
+            new ObjectMapper(),
+            new ModelsConfig()
+        );
+
+        AgentOrchestrator.AgentExecutionResult result = orchestrator.executeAgent(
+            "Continue after confirmation.",
+            "tenant-1",
+            List.of("document_search"),
+            "Use internal evidence.",
+            null,
+            List.of(),
+            List.of(),
+            "research",
+            "req-confirm-resume",
+            "conv-confirm-resume",
+            "user-1",
+            10,
+            List.of(),
+            false,
+            Map.of(
+                "mcpConfirmation", Map.of("approved", true),
+                "mcpPendingToolExecution", Map.of(
+                    "toolName", "document_search",
+                    "input", Map.of("query", "Kafka Connect 安全认证与启动"),
+                    "executionPlan", Map.of("reason", "Confirmed by user")
+                )
+            )
+        );
+
+        assertThat(result.toolTraces())
+            .extracting(InteractionToolTrace::getToolName)
+            .containsExactly("document_search");
+        assertThat(result.metadata())
+            .containsEntry("resumedPendingToolExecution", true)
+            .containsEntry("resumedPendingTool", "document_search");
+        assertThat(chatModel.messages().get(0))
+            .contains("Confirmed pending Tool document_search succeeded")
+            .contains("Document evidence snippets")
+            .contains("Internal Definition Handbook");
+    }
+
+    @Test
+    void pendingDocumentSearchCompletionAllowsNextWorkflowWebSearch() {
+        String documentSearch = "mcp_chatchat_mcp_server_document_search";
+        String webSearch = "mcp_chatchat_mcp_server_web_search";
+        CapturingQueueChatModel chatModel = new CapturingQueueChatModel(
+            "{\"action\":\"tool\",\"toolName\":\"mcp_chatchat_mcp_server_web_search\",\"arguments\":{\"query\":\"Kafka Connect SASL_PLAINTEXT startup\"},\"reason\":\"Verify with web evidence\",\"executionPlan\":{\"workflow\":\"document-web-verification\",\"intent\":\"verify\",\"tool\":\"mcp_chatchat_mcp_server_web_search\",\"operation_type\":\"read\",\"risk_level\":\"low\",\"parameters\":{\"query\":\"Kafka Connect SASL_PLAINTEXT startup\"}}}",
+            "{\"action\":\"final\",\"answer\":\"Document evidence and web evidence are both available.\"}",
+            "{\"accepted\":true,\"feedback\":\"The answer used both observations.\",\"revisedAnswer\":\"\"}"
+        );
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.getToolMetadata(documentSearch)).thenReturn(ToolMetadata.builder()
+            .id(documentSearch)
+            .title("MCP Document Search")
+            .description("Search internal documents")
+            .build());
+        when(toolRegistry.getToolMetadata(webSearch)).thenReturn(ToolMetadata.builder()
+            .id(webSearch)
+            .title("MCP Web Search")
+            .description("Search web pages")
+            .build());
+        when(toolRegistry.executeEnhancedTool(eq(documentSearch), any())).thenReturn(documentSearchOutput());
+        when(toolRegistry.executeEnhancedTool(eq(webSearch), any())).thenReturn(webSearchOutput());
+        ToolRuntimeService toolRuntimeService = new ToolRuntimeService(
+            toolRegistry,
+            new ObjectMapper(),
+            toolRuntimeProperties(),
+            List.of(),
+            List.of()
+        );
+        AgentOrchestrator orchestrator = new AgentOrchestrator(
+            chatModel,
+            toolRegistry,
+            toolRuntimeService,
+            new ObjectMapper(),
+            new ModelsConfig()
+        );
+        Map<String, Object> workflowConfig = Map.of(
+            "enabled", true,
+            "workflow", "document-web-verification",
+            "executionStrategy", Map.of("mode", "sequential", "stopOnError", true),
+            "steps", List.of(
+                Map.of("step", 1, "tool", documentSearch, "required", true, "confirmation", "auto_execute"),
+                Map.of("step", 2, "tool", webSearch, "required", true, "confirmation", "auto_execute")
+            )
+        );
+
+        AgentOrchestrator.AgentExecutionResult result = orchestrator.executeAgent(
+            "Kafka Connect 安全认证与启动",
+            "tenant-1",
+            List.of(documentSearch, webSearch),
+            "Use document evidence, then web verification.",
+            null,
+            List.of("doc-1"),
+            List.of(),
+            "livedata_ops",
+            "req-confirm-doc-web",
+            "conv-confirm-doc-web",
+            "user-1",
+            10,
+            List.of(webSearch),
+            true,
+            Map.of(
+                "mcpWorkflow", workflowConfig,
+                "mcpConfirmation", Map.of("approved", true),
+                "mcpPendingToolExecution", Map.of(
+                    "toolName", documentSearch,
+                    "input", Map.of("query", "Kafka Connect 安全认证与启动"),
+                    "executionPlan", Map.of("workflow", "document-web-verification", "reason", "Confirmed by user")
+                )
+            )
+        );
+
+        assertThat(result.toolTraces())
+            .extracting(InteractionToolTrace::getToolName)
+            .containsExactly(documentSearch, webSearch);
+        assertThat(result.toolTraces())
+            .allMatch(InteractionToolTrace::isSuccess);
+        assertThat(result.metadata())
+            .containsEntry("resumedPendingToolExecution", true);
+        assertThat(chatModel.messages().get(0))
+            .contains("Confirmed pending Tool " + documentSearch + " succeeded")
+            .contains("Document evidence snippets");
+    }
+
+    @Test
     void workflowConfigRequiredStepsDriveMandatoryToolsAndUseFullMcpToolNames() {
         String mcpDocumentSearch = "mcp_chatchat_mcp_server_document_search";
         String mcpWebSearch = "mcp_chatchat_mcp_server_web_search";

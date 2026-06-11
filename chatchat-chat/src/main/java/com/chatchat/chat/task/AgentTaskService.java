@@ -372,6 +372,7 @@ public class AgentTaskService {
                     if (confirmationRounds > MAX_CONFIRMATION_ROUNDS) {
                         throw new IllegalStateException("MCP confirmation loop exceeded " + MAX_CONFIRMATION_ROUNDS + " rounds");
                     }
+                    Map<String, Object> pendingToolExecution = pendingToolExecution(response);
                     AgentEvent confirmationEvent = copyEvent(question, "NEEDS_CONFIRMATION", "WAIT_CONFIRMATION", writePayload(response));
                     confirmationEvent.setSequence(nextSequence(question));
                     confirmationEvent.setParentEventId(question.getEventId());
@@ -382,7 +383,7 @@ public class AgentTaskService {
                     eventBus.publishResult(confirmationEvent);
 
                     AgentTaskSubmitRequest confirmationRequest = waitForMcpConfirmation(question);
-                    applyMcpConfirmation(interactionRequest, confirmationRequest);
+                    applyMcpConfirmation(interactionRequest, confirmationRequest, pendingToolExecution);
                     updateLatest(question.getTaskId(), "RUNNING", null, null);
                     saveStatusEvent(question, "RUNNING", Map.of("message", "Task resumed after MCP confirmation"));
                     continue;
@@ -492,7 +493,9 @@ public class AgentTaskService {
         throw new CancellationException("Agent task stopped while waiting for MCP confirmation");
     }
 
-    private void applyMcpConfirmation(InteractionRequest interactionRequest, AgentTaskSubmitRequest confirmationRequest) {
+    private void applyMcpConfirmation(InteractionRequest interactionRequest,
+                                      AgentTaskSubmitRequest confirmationRequest,
+                                      Map<String, Object> pendingToolExecution) {
         if (interactionRequest == null || confirmationRequest == null) {
             return;
         }
@@ -507,7 +510,39 @@ public class AgentTaskService {
             ? Map.of()
             : interactionRequest.getToolInput());
         toolInput.put("mcpConfirmation", confirmation);
+        if (pendingToolExecution != null && !pendingToolExecution.isEmpty()) {
+            toolInput.put("mcpPendingToolExecution", pendingToolExecution);
+        }
         interactionRequest.setToolInput(toolInput);
+    }
+
+    private Map<String, Object> pendingToolExecution(InteractionResponse response) {
+        if (response == null || response.getToolTraces() == null || response.getToolTraces().isEmpty()) {
+            return Map.of();
+        }
+        return response.getToolTraces().stream()
+            .filter(trace -> {
+                Map<String, Object> runtime = trace.getRuntimeMetadata();
+                Object outcome = runtime == null ? null : runtime.get("outcome");
+                return "confirmation_required".equalsIgnoreCase(String.valueOf(outcome));
+            })
+            .findFirst()
+            .map(trace -> {
+                Map<String, Object> pending = new LinkedHashMap<>();
+                pending.put("toolName", trace.getToolName());
+                pending.put("input", trace.getInput() == null ? Map.of() : trace.getInput());
+                Map<String, Object> runtime = trace.getRuntimeMetadata() == null ? Map.of() : trace.getRuntimeMetadata();
+                Object executionPlan = runtime.get("executionPlan");
+                if (executionPlan instanceof Map<?, ?>) {
+                    pending.put("executionPlan", executionPlan);
+                }
+                Object confirmation = runtime.get("confirmation");
+                if (confirmation instanceof Map<?, ?>) {
+                    pending.put("confirmation", confirmation);
+                }
+                return pending;
+            })
+            .orElse(Map.of());
     }
 
     private AgentEvent saveStatusEvent(AgentEvent source, String status, Map<String, Object> payload) {

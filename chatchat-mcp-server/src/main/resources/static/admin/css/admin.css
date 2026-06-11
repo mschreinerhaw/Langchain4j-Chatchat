@@ -489,6 +489,14 @@ body {
     margin: -4px 0 14px;
 }
 
+.audit-toolbar {
+    display: grid;
+    grid-template-columns: minmax(220px, 1fr) 150px 130px 130px auto auto;
+    gap: 10px;
+    align-items: center;
+    margin: -4px 0 14px;
+}
+
 .api-service-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -1008,6 +1016,10 @@ body {
         grid-template-columns: 1fr 1fr;
     }
 
+    .audit-toolbar {
+        grid-template-columns: minmax(220px, 1fr) 150px 130px;
+    }
+
     .service-pagination {
         justify-content: space-between;
     }
@@ -1119,6 +1131,10 @@ body {
     }
 
     .livedata-import-toolbar {
+        grid-template-columns: 1fr;
+    }
+
+    .audit-toolbar {
         grid-template-columns: 1fr;
     }
 

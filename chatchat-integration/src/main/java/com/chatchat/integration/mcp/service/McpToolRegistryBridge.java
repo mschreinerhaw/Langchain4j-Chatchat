@@ -5,6 +5,7 @@ import com.chatchat.integration.mcp.entity.McpServiceConfig;
 import com.chatchat.integration.mcp.model.McpToolDefinition;
 import com.chatchat.integration.mcp.model.McpToolInvokeResult;
 import com.chatchat.common.tool.ToolInput;
+import com.chatchat.common.tool.ToolLogSummarizer;
 import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolOutput;
 import com.chatchat.common.tool.ToolParameter;
@@ -109,6 +110,9 @@ public class McpToolRegistryBridge {
         extraMetadata.put("serviceId", service.getId());
         extraMetadata.put("remoteToolName", definition.name());
         extraMetadata.put("inputSchema", definition.inputSchema() == null ? Map.of() : definition.inputSchema());
+        if (definition.timeoutMillis() != null) {
+            extraMetadata.put("remoteTimeoutMs", definition.timeoutMillis());
+        }
 
         ToolMetadata metadata = ToolMetadata.builder()
             .id(localName)
@@ -126,6 +130,7 @@ public class McpToolRegistryBridge {
             .inputPolicy(emptyToNull(definition.inputPolicy()))
             .outputPolicy(emptyToNull(definition.outputPolicy()))
             .outputType("json")
+            .timeoutMillis(definition.timeoutMillis())
             .agentCompatible(true)
             .parameters(List.of(
                 ToolParameter.builder()
@@ -204,29 +209,38 @@ public class McpToolRegistryBridge {
                 arguments.put("query", input.getRawInput());
             }
             long startedAt = System.currentTimeMillis();
-            log.info("MCP bridge tool call started localTool={} serviceId={} remoteTool={} requestId={} argKeys={}",
+            log.info("MCP bridge tool call started localTool={} serviceId={} remoteTool={} requestId={} timeoutMs={} args={}",
                 metadata.getId(),
                 serviceId,
                 remoteToolName,
                 input.getRequestId(),
-                argumentKeys(arguments));
-            McpToolInvokeResult result = invoke(serviceId, remoteToolName, arguments);
+                metadata.getTimeoutMillis(),
+                ToolLogSummarizer.summarize(arguments));
+            McpToolInvokeResult result = gatewayClient.invokeTool(
+                configService.getById(serviceId),
+                remoteToolName,
+                arguments,
+                metadata.getTimeoutMillis()
+            );
             if (!result.success()) {
-                log.warn("MCP bridge tool call failed localTool={} serviceId={} remoteTool={} requestId={} durationMs={} error={}",
+                log.warn("MCP bridge tool call failed localTool={} serviceId={} remoteTool={} requestId={} durationMs={} error={} result={}",
                     metadata.getId(),
                     serviceId,
                     remoteToolName,
                     input.getRequestId(),
                     Math.max(0L, System.currentTimeMillis() - startedAt),
-                    result.errorMessage());
+                    result.errorMessage(),
+                    ToolLogSummarizer.summarize(result.data()));
                 return ToolOutput.failure(result.errorMessage() == null ? "MCP tool call failed" : result.errorMessage());
             }
-            log.info("MCP bridge tool call succeeded localTool={} serviceId={} remoteTool={} requestId={} durationMs={}",
+            log.info("MCP bridge tool call succeeded localTool={} serviceId={} remoteTool={} requestId={} durationMs={} message={} result={}",
                 metadata.getId(),
                 serviceId,
                 remoteToolName,
                 input.getRequestId(),
-                Math.max(0L, System.currentTimeMillis() - startedAt));
+                Math.max(0L, System.currentTimeMillis() - startedAt),
+                result.message(),
+                ToolLogSummarizer.summarize(result.data()));
             return ToolOutput.success(result.data(), result.message() == null ? "MCP call success" : result.message());
         }
     }

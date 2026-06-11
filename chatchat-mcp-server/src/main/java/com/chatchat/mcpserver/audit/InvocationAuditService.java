@@ -27,17 +27,47 @@ public class InvocationAuditService {
     private static final String DATA_KEY_PREFIX = "audit:data:";
     private static final String INDEX_KEY_PREFIX = "audit:index:";
     private static final int MAX_DETAIL_LENGTH = 200_000;
+    private static final int DEFAULT_PAGE_SIZE = 20;
+    private static final int MAX_PAGE_SIZE = 200;
 
     private final McpRocksDbStore rocksDbStore;
     private final ObjectMapper objectMapper;
 
     public List<InvocationAuditLog> listRecent() {
-        List<InvocationAuditLog> logs = new ArrayList<>();
-        for (McpRocksDbStore.KeyValue entry : rocksDbStore.scan(INDEX_KEY_PREFIX, 100)) {
-            String id = new String(entry.value(), StandardCharsets.UTF_8);
-            findById(id).ifPresent(logs::add);
+        return search(AuditLogSearchQuery.recent()).items();
+    }
+
+    public AuditLogPage search(AuditLogSearchQuery query) {
+        if (!rocksDbStore.isUsable()) {
+            return AuditLogPage.empty(normalizePage(query == null ? null : query.page()),
+                normalizePageSize(query == null ? null : query.pageSize()));
         }
-        return logs;
+
+        AuditLogSearchQuery normalized = normalize(query);
+        int offset = (normalized.page() - 1) * normalized.pageSize();
+        List<InvocationAuditLog> items = new ArrayList<>();
+        Counter totalCount = new Counter();
+        Counter filteredCount = new Counter();
+
+        rocksDbStore.scan(INDEX_KEY_PREFIX, Integer.MAX_VALUE, entry -> {
+            String id = new String(entry.value(), StandardCharsets.UTF_8);
+            Optional<InvocationAuditLog> optionalLog = findById(id);
+            if (optionalLog.isEmpty()) {
+                return;
+            }
+            totalCount.increment();
+            InvocationAuditLog log = optionalLog.get();
+            if (!matches(log, normalized)) {
+                return;
+            }
+            long matchedIndex = filteredCount.value();
+            filteredCount.increment();
+            if (matchedIndex >= offset && items.size() < normalized.pageSize()) {
+                items.add(log);
+            }
+        });
+
+        return new AuditLogPage(items, normalized.page(), normalized.pageSize(), totalCount.value(), filteredCount.value());
     }
 
     public Optional<InvocationAuditLog> findById(String id) {
@@ -164,6 +194,96 @@ public class InvocationAuditService {
         return null;
     }
 
+    private AuditLogSearchQuery normalize(AuditLogSearchQuery query) {
+        if (query == null) {
+            query = AuditLogSearchQuery.recent();
+        }
+        return new AuditLogSearchQuery(
+            normalizePage(query.page()),
+            normalizePageSize(query.pageSize()),
+            trimToNull(query.keyword()),
+            trimToNull(query.targetType()),
+            trimToNull(query.targetId()),
+            trimToNull(query.toolName()),
+            trimToNull(query.caller()),
+            query.success(),
+            query.statusCode(),
+            query.from(),
+            query.to()
+        );
+    }
+
+    private int normalizePage(Integer page) {
+        return page == null || page < 1 ? 1 : page;
+    }
+
+    private int normalizePageSize(Integer pageSize) {
+        if (pageSize == null || pageSize < 1) {
+            return DEFAULT_PAGE_SIZE;
+        }
+        return Math.min(pageSize, MAX_PAGE_SIZE);
+    }
+
+    private boolean matches(InvocationAuditLog log, AuditLogSearchQuery query) {
+        if (query.targetType() != null && !equalsIgnoreCase(log.getTargetType(), query.targetType())) {
+            return false;
+        }
+        if (query.targetId() != null && !containsIgnoreCase(log.getTargetId(), query.targetId())) {
+            return false;
+        }
+        if (query.toolName() != null && !containsIgnoreCase(log.getToolName(), query.toolName())) {
+            return false;
+        }
+        if (query.caller() != null && !containsIgnoreCase(log.getCaller(), query.caller())) {
+            return false;
+        }
+        if (query.success() != null && log.isSuccess() != query.success()) {
+            return false;
+        }
+        if (query.statusCode() != null && !query.statusCode().equals(log.getStatusCode())) {
+            return false;
+        }
+        long createdAt = log.getCreatedAt() == null ? 0 : log.getCreatedAt().toEpochMilli();
+        if (query.from() != null && createdAt < query.from()) {
+            return false;
+        }
+        if (query.to() != null && createdAt > query.to()) {
+            return false;
+        }
+        return query.keyword() == null || matchesKeyword(log, query.keyword());
+    }
+
+    private boolean matchesKeyword(InvocationAuditLog log, String keyword) {
+        return containsIgnoreCase(log.getId(), keyword)
+            || containsIgnoreCase(log.getTargetType(), keyword)
+            || containsIgnoreCase(log.getTargetId(), keyword)
+            || containsIgnoreCase(log.getTargetName(), keyword)
+            || containsIgnoreCase(log.getToolName(), keyword)
+            || containsIgnoreCase(log.getCaller(), keyword)
+            || containsIgnoreCase(log.getErrorMessage(), keyword)
+            || containsIgnoreCase(log.getRequestSummary(), keyword)
+            || containsIgnoreCase(log.getResponseSummary(), keyword)
+            || containsIgnoreCase(log.getStatusCode(), keyword);
+    }
+
+    private boolean containsIgnoreCase(Object value, String keyword) {
+        if (value == null || keyword == null) {
+            return false;
+        }
+        return String.valueOf(value).toLowerCase(Locale.ROOT).contains(keyword.toLowerCase(Locale.ROOT));
+    }
+
+    private boolean equalsIgnoreCase(String value, String expected) {
+        return value != null && expected != null && value.equalsIgnoreCase(expected);
+    }
+
+    private String trimToNull(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim();
+    }
+
     private String textValue(JsonNode node) {
         if (node == null || node.isNull() || !node.isValueNode()) {
             return null;
@@ -247,6 +367,48 @@ public class InvocationAuditService {
             return value;
         }
         return value.substring(0, MAX_DETAIL_LENGTH) + "...";
+    }
+
+    public record AuditLogSearchQuery(
+        Integer page,
+        Integer pageSize,
+        String keyword,
+        String targetType,
+        String targetId,
+        String toolName,
+        String caller,
+        Boolean success,
+        Integer statusCode,
+        Long from,
+        Long to
+    ) {
+        public static AuditLogSearchQuery recent() {
+            return new AuditLogSearchQuery(1, 100, null, null, null, null, null, null, null, null, null);
+        }
+    }
+
+    public record AuditLogPage(
+        List<InvocationAuditLog> items,
+        int page,
+        int pageSize,
+        long totalCount,
+        long filteredCount
+    ) {
+        public static AuditLogPage empty(int page, int pageSize) {
+            return new AuditLogPage(List.of(), page, pageSize, 0, 0);
+        }
+    }
+
+    private static class Counter {
+        private long value;
+
+        void increment() {
+            value++;
+        }
+
+        long value() {
+            return value;
+        }
     }
 
 }

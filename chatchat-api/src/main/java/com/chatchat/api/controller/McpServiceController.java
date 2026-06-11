@@ -156,12 +156,12 @@ public class McpServiceController {
 
     @GetMapping("/tool-cards")
     @Operation(summary = "List registered backend and MCP tools as searchable cards")
-    public ApiResponse<ToolCardPage> listToolCards(@RequestParam(value = "keyword", required = false) String keyword,
-                                                   @RequestParam(value = "service", required = false) String service,
-                                                   @RequestParam(value = "sourceType", required = false) String sourceType,
-                                                   @RequestParam(value = "groupMode", required = false) String groupMode,
-                                                   @RequestParam(value = "page", required = false) Integer page,
-                                                   @RequestParam(value = "pageSize", required = false) Integer pageSize) {
+    public ApiResponse<Map<String, Object>> listToolCards(@RequestParam(value = "keyword", required = false) String keyword,
+                                                          @RequestParam(value = "service", required = false) String service,
+                                                          @RequestParam(value = "sourceType", required = false) String sourceType,
+                                                          @RequestParam(value = "groupMode", required = false) String groupMode,
+                                                          @RequestParam(value = "page", required = false) Integer page,
+                                                          @RequestParam(value = "pageSize", required = false) Integer pageSize) {
         List<ToolCardView> allTools = buildToolCards();
         List<ToolCardView> sourceScopedTools = allTools.stream()
             .filter(tool -> isAll(sourceType) || sourceType.equalsIgnoreCase(tool.sourceType()))
@@ -176,15 +176,15 @@ public class McpServiceController {
             .skip(pageOffset(normalizedPage, normalizedPageSize))
             .limit(normalizedPageSize)
             .toList();
-        return ApiResponse.success(new ToolCardPage(
-            pagedTools,
-            filteredTools.size(),
-            normalizedPage,
-            normalizedPageSize,
-            totalPages(filteredTools.size(), normalizedPageSize),
-            filteredToolGroupCount(filteredTools, groupMode),
-            serviceOptions
-        ));
+        Map<String, Object> pageData = new LinkedHashMap<>();
+        pageData.put("tools", pagedTools);
+        pageData.put("total", filteredTools.size());
+        pageData.put("page", normalizedPage);
+        pageData.put("pageSize", normalizedPageSize);
+        pageData.put("totalPages", totalPages(filteredTools.size(), normalizedPageSize));
+        pageData.put("filteredGroupCount", filteredToolGroupCount(filteredTools, groupMode));
+        pageData.put("serviceOptions", serviceOptions);
+        return ApiResponse.success(pageData);
     }
 
     @PostMapping("/refresh")

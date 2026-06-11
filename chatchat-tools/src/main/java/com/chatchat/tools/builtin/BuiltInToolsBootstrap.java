@@ -178,7 +178,7 @@ public class BuiltInToolsBootstrap {
             ))
             .outputType("json")
             .returnDirect(false)
-            .timeoutMillis(30000L)
+            .timeoutMillis(webSearchTimeoutMillis())
             .isRateLimited(true)
             .maxCallsPerMinute(10)
             .agentCompatible(true)
@@ -207,6 +207,15 @@ public class BuiltInToolsBootstrap {
         WebSearchTool webSearchTool = new WebSearchTool(webSearchProperties);
         toolRegistry.registerTool("web_search", metadata, webSearchTool);
         log.info("Web Search tool registered");
+    }
+
+    private long webSearchTimeoutMillis() {
+        long perRequestTimeout = Math.max(1000L, webSearchProperties.getTimeoutMs());
+        int searchAttempts = webSearchProperties.isFallbackEnabled() ? 3 : 1;
+        int pageFetches = webSearchProperties.isFetchPages()
+            ? Math.max(0, webSearchProperties.getMaxPagesToFetch())
+            : 0;
+        return Math.max(30000L, perRequestTimeout * (searchAttempts + pageFetches + 1));
     }
 
     /**
@@ -637,9 +646,24 @@ public class BuiltInToolsBootstrap {
             List<String> errors = new ArrayList<>();
             for (SearchAttempt attempt : attempts) {
                 try {
-                    return performWebSearchAttempt(attempt.provider(), attempt.endpoint(), query, numResults, errors);
+                    long startedAt = System.currentTimeMillis();
+                    log.info("Web search provider attempt started provider={} endpoint={} query={} numResults={} fetchPages={} maxPagesToFetch={}",
+                        attempt.provider(),
+                        attempt.endpoint(),
+                        query,
+                        numResults,
+                        properties.isFetchPages(),
+                        properties.getMaxPagesToFetch());
+                    Map<String, Object> result = performWebSearchAttempt(attempt.provider(), attempt.endpoint(), query, numResults, errors);
+                    log.info("Web search provider attempt succeeded provider={} durationMs={} resultCount={} pageExcerptCount={}",
+                        attempt.provider(),
+                        Math.max(0L, System.currentTimeMillis() - startedAt),
+                        result.get("count"),
+                        result.get("page_excerpt_count"));
+                    return result;
                 } catch (Exception ex) {
                     errors.add(attempt.provider() + ": " + ex.getMessage());
+                    log.warn("Web search provider attempt failed provider={} error={}", attempt.provider(), ex.getMessage());
                 }
             }
             throw new IllegalStateException("All web search providers failed: " + String.join("; ", errors));
@@ -739,8 +763,9 @@ public class BuiltInToolsBootstrap {
             }
 
             List<Map<String, Object>> excerpts = new ArrayList<>();
+            int attempts = 0;
             for (Map<String, Object> result : results) {
-                if (excerpts.size() >= limit) {
+                if (attempts >= limit || excerpts.size() >= limit) {
                     break;
                 }
                 String url = stringValue(result.get("url"));
@@ -749,7 +774,14 @@ public class BuiltInToolsBootstrap {
                     result.put("pageFetchError", "unsupported url");
                     continue;
                 }
+                attempts++;
                 try {
+                    long startedAt = System.currentTimeMillis();
+                    log.info("Web search page fetch started attempt={}/{} rank={} url={}",
+                        attempts,
+                        limit,
+                        result.get("rank"),
+                        url);
                     org.jsoup.Connection.Response response = Jsoup.connect(url)
                         .userAgent(properties.getUserAgent())
                         .timeout(Math.max(1000, properties.getTimeoutMs()))
@@ -783,9 +815,22 @@ public class BuiltInToolsBootstrap {
                     evidence.put("url", url);
                     evidence.put("excerpt", excerpt);
                     excerpts.add(evidence);
+                    log.info("Web search page fetch succeeded attempt={}/{} rank={} statusCode={} durationMs={} excerptChars={}",
+                        attempts,
+                        limit,
+                        result.get("rank"),
+                        statusCode,
+                        Math.max(0L, System.currentTimeMillis() - startedAt),
+                        excerpt.length());
                 } catch (Exception ex) {
                     result.put("pageFetched", false);
                     result.put("pageFetchError", ex.getMessage());
+                    log.warn("Web search page fetch failed attempt={}/{} rank={} url={} error={}",
+                        attempts,
+                        limit,
+                        result.get("rank"),
+                        url,
+                        ex.getMessage());
                 }
             }
             return excerpts;

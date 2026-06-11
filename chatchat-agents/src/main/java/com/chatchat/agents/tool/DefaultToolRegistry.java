@@ -1,6 +1,7 @@
 package com.chatchat.agents.tool;
 
 import com.chatchat.common.tool.ToolInput;
+import com.chatchat.common.tool.ToolLogSummarizer;
 import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolOutput;
 import lombok.extern.slf4j.Slf4j;
@@ -105,7 +106,11 @@ public class DefaultToolRegistry implements ToolRegistry {
 
     @Override
     public ToolOutput executeEnhancedTool(String toolName, ToolInput toolInput) {
-        log.debug("Executing enhanced tool: {}", toolName);
+        log.info("Tool execution started tool={} requestId={} userId={} args={}",
+            toolName,
+            toolInput == null ? null : toolInput.getRequestId(),
+            toolInput == null ? null : toolInput.getUserId(),
+            ToolLogSummarizer.summarize(toolInput == null ? null : toolInput.getParameters()));
 
         EnhancedTool tool = getEnhancedTool(toolName);
         if (tool == null) {
@@ -118,7 +123,20 @@ public class DefaultToolRegistry implements ToolRegistry {
             ToolOutput output = tool.execute(toolInput);
             long executionTime = System.currentTimeMillis() - startTime;
             output.setExecutionTimeMs(executionTime);
-            log.debug("Tool {} executed successfully in {}ms", toolName, executionTime);
+            if (output.isSuccess()) {
+                log.info("Tool execution succeeded tool={} requestId={} durationMs={} result={}",
+                    toolName,
+                    toolInput == null ? null : toolInput.getRequestId(),
+                    executionTime,
+                    ToolLogSummarizer.summarize(output.getData()));
+            } else {
+                log.warn("Tool execution failed tool={} requestId={} durationMs={} error={} result={}",
+                    toolName,
+                    toolInput == null ? null : toolInput.getRequestId(),
+                    executionTime,
+                    output.getErrorMessage(),
+                    ToolLogSummarizer.summarize(output.getData()));
+            }
             return output;
         } catch (Exception e) {
             log.error("Error executing enhanced tool: {}", toolName, e);

@@ -6,6 +6,7 @@ import com.chatchat.chat.interaction.model.InteractionContext;
 import com.chatchat.chat.interaction.model.InteractionMode;
 import com.chatchat.chat.interaction.model.InteractionRequest;
 import com.chatchat.chat.interaction.service.AgentToolPolicyResolver;
+import com.chatchat.chat.interaction.service.ConversationMemoryService;
 import com.chatchat.chat.skills.SkillCatalogService;
 import com.chatchat.chat.skills.SkillDefinition;
 import com.chatchat.chat.skills.SkillRoutingSettings;
@@ -29,6 +30,87 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class AgentChatModeHandlerTest {
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void agentPromptIncludesConversationHistory() {
+        AgentOrchestrator orchestrator = mock(AgentOrchestrator.class);
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        SkillCatalogService skillCatalogService = mock(SkillCatalogService.class);
+        McpToolRegistryBridge mcpToolRegistryBridge = mock(McpToolRegistryBridge.class);
+        AgentToolPolicyResolver toolPolicyResolver = new AgentToolPolicyResolver(
+            toolRegistry,
+            skillCatalogService,
+            mcpToolRegistryBridge
+        );
+        AgentChatModeHandler handler = new AgentChatModeHandler(
+            orchestrator,
+            skillCatalogService,
+            toolPolicyResolver
+        );
+
+        when(skillCatalogService.resolve("ops")).thenReturn(skillWithoutWebSearch());
+        when(mcpToolRegistryBridge.listRegisteredTools()).thenReturn(List.of());
+        when(orchestrator.executeAgent(
+            anyString(),
+            isNull(),
+            anyList(),
+            anyString(),
+            isNull(),
+            anyList(),
+            anyList(),
+            anyString(),
+            anyString(),
+            anyString(),
+            anyString(),
+            anyInt(),
+            anyList(),
+            anyBoolean()
+        )).thenReturn(agentResult("ok"));
+
+        InteractionRequest request = InteractionRequest.builder()
+            .mode("agent_chat")
+            .skillId("ops")
+            .query("继续刚才的问题")
+            .userId("u1")
+            .build();
+        InteractionContext context = InteractionContext.builder()
+            .requestId("req")
+            .conversationId("conv")
+            .mode(InteractionMode.AGENT_CHAT)
+            .history(List.of(
+                new ConversationMemoryService.MessageSnapshot("user", "Kafka Connect 安全认证与启动", 1L),
+                new ConversationMemoryService.MessageSnapshot("assistant", "我已经找到启动和认证相关线索。", 2L)
+            ))
+            .build();
+
+        var response = handler.handle(request, context);
+
+        ArgumentCaptor<String> systemPrompt = ArgumentCaptor.forClass(String.class);
+        verify(orchestrator).executeAgent(
+            anyString(),
+            isNull(),
+            anyList(),
+            systemPrompt.capture(),
+            isNull(),
+            anyList(),
+            anyList(),
+            anyString(),
+            anyString(),
+            anyString(),
+            anyString(),
+            anyInt(),
+            anyList(),
+            anyBoolean()
+        );
+
+        assertThat(systemPrompt.getValue())
+            .contains("system")
+            .contains("Previous conversation transcript")
+            .contains("user: Kafka Connect 安全认证与启动")
+            .contains("assistant: 我已经找到启动和认证相关线索。");
+        assertThat(response.getMetadata()).containsEntry("historyUsed", 2);
+    }
 
     @Test
     @SuppressWarnings("unchecked")

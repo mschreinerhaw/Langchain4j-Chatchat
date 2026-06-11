@@ -2,6 +2,7 @@ package com.chatchat.mcpserver.database;
 
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.tool.ToolInput;
+import com.chatchat.common.tool.ToolLogSummarizer;
 import com.chatchat.common.tool.ToolOutput;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -21,10 +22,12 @@ public class DatabaseQueryInvokeService {
     private final ToolRegistry toolRegistry;
 
     public ToolOutput invoke(DatabaseQueryConfig config, Map<String, Object> arguments) {
-        log.info("Database query invoke started databaseQueryId={} tool={} argKeys={}",
+        log.info("Database query invoke started databaseQueryId={} tool={} maxRows={} sql={} args={}",
             config.getId(),
             config.getToolName(),
-            argumentKeys(arguments));
+            config.getMaxRows(),
+            config.getSqlTemplate(),
+            ToolLogSummarizer.summarize(arguments));
         return invoke(toParameters(config, arguments == null ? Map.of() : arguments));
     }
 
@@ -45,12 +48,16 @@ public class DatabaseQueryInvokeService {
         ToolOutput output = toolRegistry.executeEnhancedTool(TOOL_NAME, input);
         long durationMs = Math.max(0L, System.currentTimeMillis() - startedAt);
         if (output.isSuccess()) {
-            log.info("Database query invoke succeeded tool={} durationMs={}", TOOL_NAME, durationMs);
-        } else {
-            log.warn("Database query invoke failed tool={} durationMs={} error={}",
+            log.info("Database query invoke succeeded tool={} durationMs={} result={}",
                 TOOL_NAME,
                 durationMs,
-                output.getErrorMessage());
+                ToolLogSummarizer.summarize(output.getData()));
+        } else {
+            log.warn("Database query invoke failed tool={} durationMs={} error={} result={}",
+                TOOL_NAME,
+                durationMs,
+                output.getErrorMessage(),
+                ToolLogSummarizer.summarize(output.getData()));
         }
         return output;
     }

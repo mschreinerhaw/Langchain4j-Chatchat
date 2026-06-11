@@ -3,6 +3,7 @@ package com.chatchat.integration.mcp.service;
 import com.chatchat.integration.mcp.entity.McpServiceConfig;
 import com.chatchat.integration.mcp.model.McpToolDefinition;
 import com.chatchat.integration.mcp.model.McpToolInvokeResult;
+import com.chatchat.common.tool.ToolLogSummarizer;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.modelcontextprotocol.client.McpClient;
@@ -85,6 +86,11 @@ public class McpGatewayClient {
     }
 
     public McpToolInvokeResult invokeTool(McpServiceConfig config, String toolName, Map<String, Object> arguments) {
+        return invokeTool(config, toolName, arguments, null);
+    }
+
+    public McpToolInvokeResult invokeTool(McpServiceConfig config, String toolName, Map<String, Object> arguments,
+                                          Long timeoutOverrideMs) {
         if (isStdioProxyProtocol(config)) {
             return invokeToolViaStdioProxy(config, toolName, arguments);
         }
@@ -93,24 +99,59 @@ public class McpGatewayClient {
         if (kind == TransportKind.LEGACY_HTTP) {
             return invokeToolViaLegacyHttp(config, toolName, arguments);
         }
-        log.info("Using MCP SDK transport {} for service {} during invoke (protocol={})",
-            kind, config.getName(), config.getProtocol());
+        int requestTimeoutMs = effectiveTimeoutMs(config, timeoutOverrideMs);
+        log.info("MCP SDK invoke started serviceId={} service={} remoteTool={} transport={} protocol={} timeoutMs={} args={}",
+            config.getId(),
+            config.getName(),
+            toolName,
+            kind,
+            config.getProtocol(),
+            requestTimeoutMs,
+            ToolLogSummarizer.summarize(arguments));
 
         try {
-            McpSyncClient client = getOrCreateSdkClient(config, kind);
+            long startedAt = System.currentTimeMillis();
+            McpSyncClient client = getOrCreateSdkClient(config, kind, requestTimeoutMs);
             Object raw = client.callTool(new McpSchema.CallToolRequest(toolName,
                 arguments == null ? Map.of() : arguments));
             Map<String, Object> mapped = objectMapper.convertValue(raw, new TypeReference<>() {});
-            return normalizeInvokeResult(mapped);
+            McpToolInvokeResult result = normalizeInvokeResult(mapped);
+            if (result.success()) {
+                log.info("MCP SDK invoke succeeded serviceId={} service={} remoteTool={} durationMs={} result={}",
+                    config.getId(),
+                    config.getName(),
+                    toolName,
+                    Math.max(0L, System.currentTimeMillis() - startedAt),
+                    ToolLogSummarizer.summarize(result.data()));
+            } else {
+                log.warn("MCP SDK invoke returned error serviceId={} service={} remoteTool={} durationMs={} error={} result={}",
+                    config.getId(),
+                    config.getName(),
+                    toolName,
+                    Math.max(0L, System.currentTimeMillis() - startedAt),
+                    result.errorMessage(),
+                    ToolLogSummarizer.summarize(result.data()));
+            }
+            return result;
         } catch (Exception ex) {
-            log.warn("Failed to invoke MCP tool {} via SDK for {}: {}", toolName, config.getName(), ex.getMessage());
+            log.warn("MCP SDK invoke threw serviceId={} service={} remoteTool={} timeoutMs={} error={}",
+                config.getId(),
+                config.getName(),
+                toolName,
+                requestTimeoutMs,
+                ex.getMessage(),
+                ex);
             return new McpToolInvokeResult(false, null, null, ex.getMessage());
         }
     }
 
     private McpSyncClient getOrCreateSdkClient(McpServiceConfig config, TransportKind kind) {
-        String key = serviceKey(config);
-        String fingerprint = transportFingerprint(config, kind);
+        return getOrCreateSdkClient(config, kind, effectiveTimeoutMs(config, null));
+    }
+
+    private McpSyncClient getOrCreateSdkClient(McpServiceConfig config, TransportKind kind, int requestTimeoutMs) {
+        String key = serviceKey(config) + ":" + Math.max(1000, requestTimeoutMs);
+        String fingerprint = transportFingerprint(config, kind, requestTimeoutMs);
 
         ManagedSdkClient cached = sdkClientCache.get(key);
         if (cached != null && cached.fingerprint().equals(fingerprint)) {
@@ -128,7 +169,7 @@ public class McpGatewayClient {
 
             McpClientTransport transport = createSdkTransport(config, kind);
             McpSyncClient client = McpClient.sync(transport)
-                .requestTimeout(Duration.ofMillis(Math.max(1000, config.getTimeoutMs())))
+                .requestTimeout(Duration.ofMillis(Math.max(1000, requestTimeoutMs)))
                 .clientInfo(new McpSchema.Implementation("chatchat-mcp-client", "1.0.0"))
                 .build();
             client.initialize();
@@ -252,7 +293,7 @@ public class McpGatewayClient {
         return TransportKind.LEGACY_HTTP;
     }
 
-    private String transportFingerprint(McpServiceConfig config, TransportKind kind) {
+    private String transportFingerprint(McpServiceConfig config, TransportKind kind, int requestTimeoutMs) {
         return String.join("|",
             kind.name(),
             nullSafe(config.getBaseUrl()),
@@ -260,7 +301,7 @@ public class McpGatewayClient {
             nullSafe(config.getToolInvokePath()),
             nullSafe(config.getAuthToken()),
             nullSafe(config.getCustomHeadersJson()),
-            String.valueOf(config.getTimeoutMs()),
+            String.valueOf(Math.max(1000, requestTimeoutMs)),
             String.valueOf(config.isProxyEnabled()),
             nullSafe(config.getProxyType()),
             nullSafe(config.getProxyHost()),
@@ -445,6 +486,14 @@ public class McpGatewayClient {
         payload.put("input", arguments == null ? Map.of() : arguments);
 
         try {
+            log.info("MCP legacy HTTP invoke started serviceId={} service={} remoteTool={} url={} timeoutMs={} args={}",
+                config.getId(),
+                config.getName(),
+                toolName,
+                url,
+                config.getTimeoutMs(),
+                ToolLogSummarizer.summarize(arguments));
+            long startedAt = System.currentTimeMillis();
             Object raw = webClient.post()
                 .uri(url)
                 .headers(headers -> applyHeaders(headers, config))
@@ -454,7 +503,15 @@ public class McpGatewayClient {
                 .bodyToMono(Object.class)
                 .timeout(Duration.ofMillis(config.getTimeoutMs()))
                 .block();
-            return normalizeInvokeResult(raw);
+            McpToolInvokeResult result = normalizeInvokeResult(raw);
+            log.info("MCP legacy HTTP invoke completed serviceId={} service={} remoteTool={} success={} durationMs={} result={}",
+                config.getId(),
+                config.getName(),
+                toolName,
+                result.success(),
+                Math.max(0L, System.currentTimeMillis() - startedAt),
+                ToolLogSummarizer.summarize(result.data()));
+            return result;
         } catch (Exception ex) {
             log.warn("Failed to invoke MCP tool {} on {}: {}", toolName, url, ex.getMessage());
             return new McpToolInvokeResult(false, null, null, ex.getMessage());
@@ -537,7 +594,8 @@ public class McpGatewayClient {
                 firstMap(map, governance, "confirmation", "confirmation_policy"),
                 firstMap(map, governance, "permissions", "permission", "permission_policy"),
                 firstMap(map, governance, "input_policy", "inputPolicy"),
-                firstMap(map, governance, "output_policy", "outputPolicy")
+                firstMap(map, governance, "output_policy", "outputPolicy"),
+                firstLong(map, governance, "timeoutMillis", "timeout_ms", "timeoutMs")
             ));
         }
         return tools;
@@ -604,6 +662,29 @@ public class McpGatewayClient {
             }
         }
         return Map.of();
+    }
+
+    private Long firstLong(Map<?, ?> toolMap, Map<String, Object> governance, String... keys) {
+        Map<String, Object> meta = asMap(firstPresent(toolMap.get("_meta"), toolMap.get("meta")));
+        for (String key : keys) {
+            Long value = asLong(toolMap.get(key));
+            if (value != null) {
+                return value;
+            }
+        }
+        for (String key : keys) {
+            Long value = asLong(meta.get(key));
+            if (value != null) {
+                return value;
+            }
+        }
+        for (String key : keys) {
+            Long value = asLong(governance.get(key));
+            if (value != null) {
+                return value;
+            }
+        }
+        return null;
     }
 
     @SuppressWarnings("unchecked")
@@ -766,6 +847,26 @@ public class McpGatewayClient {
             }
         }
         return null;
+    }
+
+    private Long asLong(Object value) {
+        if (value instanceof Number number) {
+            return number.longValue();
+        }
+        if (value instanceof String text) {
+            try {
+                return Long.parseLong(text.trim());
+            } catch (NumberFormatException ignored) {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    private int effectiveTimeoutMs(McpServiceConfig config, Long timeoutOverrideMs) {
+        long serviceTimeout = config == null ? 20000L : config.getTimeoutMs();
+        long override = timeoutOverrideMs == null ? 0L : timeoutOverrideMs;
+        return (int) Math.min(Integer.MAX_VALUE, Math.max(1000L, Math.max(serviceTimeout, override)));
     }
 
     private void closeQuietly(McpSyncClient client, String key) {

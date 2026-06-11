@@ -15,6 +15,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
 
 @Slf4j
 @Component
@@ -71,14 +72,23 @@ public class McpRocksDbStore {
             return List.of();
         }
         List<KeyValue> entries = new ArrayList<>();
+        scan(prefix, limit, entries::add);
+        return entries;
+    }
+
+    public void scan(String prefix, int limit, Consumer<KeyValue> consumer) {
+        if (!isUsable() || limit <= 0 || consumer == null) {
+            return;
+        }
         try (RocksIterator iterator = rocksDB.newIterator()) {
             iterator.seek(bytes(prefix));
-            while (iterator.isValid() && startsWith(iterator.key(), prefix) && entries.size() < limit) {
-                entries.add(new KeyValue(iterator.key().clone(), iterator.value().clone()));
+            int count = 0;
+            while (iterator.isValid() && startsWith(iterator.key(), prefix) && count < limit) {
+                consumer.accept(new KeyValue(iterator.key().clone(), iterator.value().clone()));
+                count++;
                 iterator.next();
             }
         }
-        return entries;
     }
 
     @PreDestroy

@@ -3,6 +3,7 @@ package com.chatchat.mcpserver.api;
 import com.chatchat.mcpserver.audit.InvocationAuditService;
 import com.chatchat.mcpserver.cache.ApiResponseCacheService;
 import com.chatchat.mcpserver.livedata.LivedataSessionService;
+import com.chatchat.common.tool.ToolLogSummarizer;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -44,12 +45,12 @@ public class ApiInvokeService {
         long startedAt = System.currentTimeMillis();
         Map<String, Object> auditArgs = arguments == null ? Map.of() : arguments;
         ApiInvokeResult result;
-        log.info("External API invoke started apiServiceId={} tool={} method={} urlTemplate={} argKeys={}",
+        log.info("External API invoke started apiServiceId={} tool={} method={} urlTemplate={} args={}",
             config.getId(),
             config.getToolName(),
             config.getMethod(),
             config.getUrlTemplate(),
-            argumentKeys(auditArgs));
+            ToolLogSummarizer.summarize(auditArgs));
 
         var cached = cacheService.get(config, auditArgs);
         if (cached.isPresent()) {
@@ -70,12 +71,33 @@ public class ApiInvokeService {
                 .followRedirects(HttpClient.Redirect.NORMAL)
                 .build();
             Map<String, Object> renderArgs = enrichArguments(config, auditArgs, false);
-            HttpResponse<String> response = client.send(buildRequest(config, renderArgs), HttpResponse.BodyHandlers.ofString());
+            HttpRequest request = buildRequest(config, renderArgs);
+            log.info("External API HTTP request prepared apiServiceId={} tool={} method={} uri={} timeoutMs={} args={}",
+                config.getId(),
+                config.getToolName(),
+                request.method(),
+                safeUri(request.uri()),
+                config.getTimeoutMs(),
+                ToolLogSummarizer.summarize(renderArgs));
+            HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
             if (isAuthFailure(response) && usesLivedataSession(config)) {
                 renderArgs = enrichArguments(config, auditArgs, true);
-                response = client.send(buildRequest(config, renderArgs), HttpResponse.BodyHandlers.ofString());
+                request = buildRequest(config, renderArgs);
+                log.info("External API HTTP request retrying with refreshed session apiServiceId={} tool={} method={} uri={} timeoutMs={}",
+                    config.getId(),
+                    config.getToolName(),
+                    request.method(),
+                    safeUri(request.uri()),
+                    config.getTimeoutMs());
+                response = client.send(request, HttpResponse.BodyHandlers.ofString());
             }
             result = toResult(response);
+            log.info("External API HTTP response received apiServiceId={} tool={} statusCode={} bodyChars={} bodySummary={}",
+                config.getId(),
+                config.getToolName(),
+                response.statusCode(),
+                response.body() == null ? 0 : response.body().length(),
+                ToolLogSummarizer.summarize(result.body()));
         } catch (Exception ex) {
             result = new ApiInvokeResult(false, 0, Map.of(), null, null, ex.getMessage());
             log.warn("External API invoke threw apiServiceId={} tool={} durationMs={} error={}",
@@ -89,18 +111,20 @@ public class ApiInvokeService {
         long durationMs = Math.max(0L, System.currentTimeMillis() - startedAt);
         auditService.recordApiCall(config, auditArgs, result, durationMs);
         if (result.success()) {
-            log.info("External API invoke succeeded apiServiceId={} tool={} statusCode={} durationMs={}",
-                config.getId(),
-                config.getToolName(),
-                result.statusCode(),
-                durationMs);
-        } else {
-            log.warn("External API invoke failed apiServiceId={} tool={} statusCode={} durationMs={} error={}",
+            log.info("External API invoke succeeded apiServiceId={} tool={} statusCode={} durationMs={} result={}",
                 config.getId(),
                 config.getToolName(),
                 result.statusCode(),
                 durationMs,
-                result.errorMessage());
+                ToolLogSummarizer.summarize(result.body()));
+        } else {
+            log.warn("External API invoke failed apiServiceId={} tool={} statusCode={} durationMs={} error={} result={}",
+                config.getId(),
+                config.getToolName(),
+                result.statusCode(),
+                durationMs,
+                result.errorMessage(),
+                ToolLogSummarizer.summarize(result.body()));
         }
         return result;
     }
@@ -292,6 +316,34 @@ public class ApiInvokeService {
 
     private boolean containsHeader(Map<String, String> headers, String name) {
         return headers.keySet().stream().anyMatch(key -> key.equalsIgnoreCase(name));
+    }
+
+    private String safeUri(URI uri) {
+        if (uri == null) {
+            return null;
+        }
+        StringBuilder value = new StringBuilder();
+        value.append(uri.getScheme()).append("://").append(uri.getAuthority()).append(uri.getPath());
+        if (uri.getQuery() != null && !uri.getQuery().isBlank()) {
+            value.append("?").append(queryKeySummary(uri.getQuery()));
+        }
+        return value.toString();
+    }
+
+    private String queryKeySummary(String query) {
+        if (query == null || query.isBlank()) {
+            return "";
+        }
+        List<String> keys = java.util.Arrays.stream(query.split("&"))
+            .map(item -> {
+                int separator = item.indexOf('=');
+                return separator >= 0 ? item.substring(0, separator) : item;
+            })
+            .filter(key -> key != null && !key.isBlank())
+            .distinct()
+            .limit(20)
+            .toList();
+        return "queryKeys=" + keys;
     }
 
     private Object parseBody(String body) {

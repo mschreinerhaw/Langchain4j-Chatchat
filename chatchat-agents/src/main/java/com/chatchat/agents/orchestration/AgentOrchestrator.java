@@ -27,9 +27,11 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CancellationException;
 import java.util.function.BooleanSupplier;
@@ -136,6 +138,31 @@ public class AgentOrchestrator {
 
         log.info("[{}] Agent orchestration started. tools={}", requestId, tools.size());
 
+        Set<String> completedWorkflowTools = new LinkedHashSet<>();
+        ToolCallExecution pendingConfirmedExecution = executePendingConfirmedTool(
+            query,
+            conversationId,
+            requestId,
+            userId,
+            tenantId,
+            tools,
+            attributesWithCompletedTools(runtimeAttributes, completedWorkflowTools)
+        );
+        if (pendingConfirmedExecution != null) {
+            traces.add(pendingConfirmedExecution.trace());
+            observations.add("Confirmed pending " + pendingConfirmedExecution.observation());
+            rememberCompletedWorkflowTool(completedWorkflowTools, pendingConfirmedExecution);
+            metadata.put("resumedPendingToolExecution", true);
+            metadata.put("resumedPendingTool", pendingConfirmedExecution.trace() == null
+                ? null
+                : pendingConfirmedExecution.trace().getToolName());
+            if (isConfirmationRequired(pendingConfirmedExecution)) {
+                metadata.put("stopReason", "confirmation_required");
+                metadata.put("confirmationRequired", true);
+                return new AgentExecutionResult("", traces, metadata);
+            }
+        }
+
         for (int step = 1; step <= MAX_STEPS; step++) {
             checkCancelled(cancellationCheck);
             long plannedAt = System.currentTimeMillis();
@@ -236,7 +263,7 @@ public class AgentOrchestrator {
                 tenantId,
                 tools,
                 decision.executionPlan(),
-                requestRuntimeAttributes
+                attributesWithCompletedTools(requestRuntimeAttributes, completedWorkflowTools)
             );
             traces.add(execution.trace());
             observations.add(execution.observation());
@@ -245,6 +272,7 @@ public class AgentOrchestrator {
                 metadata.put("confirmationRequired", true);
                 return new AgentExecutionResult("", traces, metadata);
             }
+            rememberCompletedWorkflowTool(completedWorkflowTools, execution);
             checkCancelled(cancellationCheck);
         }
 
@@ -266,7 +294,7 @@ public class AgentOrchestrator {
                 tenantId,
                 tools,
                 Map.of(),
-                requestRuntimeAttributes
+                attributesWithCompletedTools(requestRuntimeAttributes, completedWorkflowTools)
             );
             traces.add(execution.trace());
             observations.add("Mandatory fallback " + execution.observation());
@@ -276,6 +304,7 @@ public class AgentOrchestrator {
                 metadata.put("confirmationRequired", true);
                 return new AgentExecutionResult("", traces, metadata);
             }
+            rememberCompletedWorkflowTool(completedWorkflowTools, execution);
         }
         if (requireDocumentWebVerification) {
             checkCancelled(cancellationCheck);
@@ -667,6 +696,89 @@ public class AgentOrchestrator {
         return values;
     }
 
+    private Map<String, Object> attributesWithCompletedTools(Map<String, Object> runtimeAttributes,
+                                                             Set<String> completedTools) {
+        Map<String, Object> attributes = new LinkedHashMap<>(runtimeAttributes == null ? Map.of() : runtimeAttributes);
+        Set<String> merged = new LinkedHashSet<>();
+        Object existing = attributes.get("workflowCompletedTools");
+        if (existing instanceof List<?> list) {
+            list.stream().map(this::stringValue).filter(value -> value != null && !value.isBlank()).forEach(merged::add);
+        } else if (existing instanceof String text && !text.isBlank()) {
+            for (String item : text.split("[,;]")) {
+                if (!item.isBlank()) {
+                    merged.add(item.trim());
+                }
+            }
+        }
+        if (completedTools != null) {
+            completedTools.stream().filter(value -> value != null && !value.isBlank()).forEach(merged::add);
+        }
+        if (!merged.isEmpty()) {
+            attributes.put("workflowCompletedTools", new ArrayList<>(merged));
+        }
+        return attributes;
+    }
+
+    private void rememberCompletedWorkflowTool(Set<String> completedTools, ToolCallExecution execution) {
+        if (completedTools == null || execution == null || execution.trace() == null) {
+            return;
+        }
+        if (execution.trace().isSuccess() && execution.trace().getToolName() != null && !execution.trace().getToolName().isBlank()) {
+            completedTools.add(execution.trace().getToolName());
+        }
+    }
+
+    private Set<String> completedToolsFromTraces(List<InteractionToolTrace> traces) {
+        Set<String> completed = new LinkedHashSet<>();
+        if (traces == null || traces.isEmpty()) {
+            return completed;
+        }
+        traces.stream()
+            .filter(trace -> trace != null && trace.isSuccess())
+            .map(InteractionToolTrace::getToolName)
+            .filter(tool -> tool != null && !tool.isBlank())
+            .forEach(completed::add);
+        return completed;
+    }
+
+    @SuppressWarnings("unchecked")
+    private ToolCallExecution executePendingConfirmedTool(String query,
+                                                          String conversationId,
+                                                          String requestId,
+                                                          String userId,
+                                                          String tenantId,
+                                                          List<String> tools,
+                                                          Map<String, Object> runtimeAttributes) {
+        if (runtimeAttributes == null || runtimeAttributes.isEmpty()) {
+            return null;
+        }
+        Map<String, Object> confirmation = asMap(runtimeAttributes.get("mcpConfirmation"));
+        if (confirmation.isEmpty()) {
+            return null;
+        }
+        Map<String, Object> pending = asMap(runtimeAttributes.get("mcpPendingToolExecution"));
+        if (pending.isEmpty()) {
+            return null;
+        }
+        String pendingToolName = normalizeToolName(stringValue(pending.get("toolName")), tools);
+        if (pendingToolName == null || pendingToolName.isBlank() || !tools.contains(pendingToolName)) {
+            return null;
+        }
+        Map<String, Object> arguments = asMap(pending.get("input"));
+        Map<String, Object> executionPlan = asMap(pending.get("executionPlan"));
+        return executeToolCall(
+            pendingToolName,
+            applyToolDefaults(pendingToolName, arguments, List.of(), List.of(), query, WEB_SEARCH_REFERENCE_LIMIT),
+            conversationId,
+            requestId,
+            userId,
+            tenantId,
+            tools,
+            executionPlan,
+            runtimeAttributes
+        );
+    }
+
     private ToolCallExecution executeToolCall(String toolName,
                                               Map<String, Object> arguments,
                                               String conversationId,
@@ -709,15 +821,52 @@ public class AgentOrchestrator {
     }
 
     private String buildToolSuccessObservation(String toolName, ToolOutput output, String outputText) {
+        Object data = output == null ? null : output.getData();
+        if (isDocumentSearchToolName(toolName)) {
+            return buildDocumentSearchObservation(toolName, output, data, outputText);
+        }
+
         StringBuilder observation = new StringBuilder("Tool ")
             .append(toolName)
-            .append(" output: ")
-            .append(outputText);
+            .append(" succeeded.");
         if (!isWebSearchToolName(toolName)) {
+            String message = output == null ? null : output.getMessage();
+            if (message != null && !message.isBlank()) {
+                observation.append(" Message: ").append(shortObservationText(message, 400));
+            }
+            String summary = shortObservationText(outputText, 600);
+            if (summary != null && !summary.isBlank()) {
+                observation.append(" Output summary: ").append(summary);
+            }
             return observation.toString();
         }
-        List<WebCitation> citations = extractWebCitations(output == null ? null : output.getData());
+
+        String message = output == null ? null : output.getMessage();
+        if (message != null && !message.isBlank()) {
+            observation.append(" Message: ").append(shortObservationText(message, 400));
+        }
+        Map<String, Object> root = asMap(data);
+        if (!root.isEmpty()) {
+            observation.append("\nWeb search summary: query=")
+                .append(firstNonBlank(stringValue(root.get("query")), "unknown"))
+                .append(", provider=")
+                .append(firstNonBlank(stringValue(root.get("provider")), stringValue(root.get("configuredProvider"))))
+                .append(", results=")
+                .append(firstNonBlank(stringValue(root.get("count")), "unknown"))
+                .append(", referenceUrls=")
+                .append(firstNonBlank(stringValue(root.get("reference_url_count")), "unknown"))
+                .append(", pageExcerpts=")
+                .append(firstNonBlank(stringValue(root.get("page_excerpt_count")), "unknown"))
+                .append(", contentMode=")
+                .append(firstNonBlank(stringValue(root.get("contentMode")), "unknown"))
+                .append('.');
+        }
+        List<WebCitation> citations = extractWebCitations(data);
         if (citations.isEmpty()) {
+            String summary = shortObservationText(outputText, 600);
+            if (summary != null && !summary.isBlank()) {
+                observation.append(" Output summary: ").append(summary);
+            }
             return observation.toString();
         }
         observation.append("\nWeb citation map. Use these labels in the final answer when relying on web search evidence:\n");
@@ -733,6 +882,58 @@ public class AgentOrchestrator {
             observation.append("\n");
         }
         observation.append("Citation rule: append the matching [网页N] label immediately after any sentence that uses facts from that page.");
+        return normalizeWebCitationLabels(observation.toString());
+    }
+
+    private String buildDocumentSearchObservation(String toolName, ToolOutput output, Object data, String outputText) {
+        StringBuilder observation = new StringBuilder("Tool ")
+            .append(toolName)
+            .append(" succeeded.");
+        String message = output == null ? null : output.getMessage();
+        if (message != null && !message.isBlank()) {
+            observation.append(" Message: ").append(shortObservationText(message, 400));
+        }
+
+        Map<String, Object> root = asMap(data);
+        if (!root.isEmpty()) {
+            List<Map<String, Object>> results = new ArrayList<>();
+            addCandidateList(results, root.get("results"));
+            addCandidateList(results, root.get("items"));
+            addCandidateList(results, root.get("records"));
+            observation.append("\nDocument search summary: total=")
+                .append(firstNonBlank(
+                    firstNonBlank(stringValue(root.get("total")), stringValue(root.get("totalCount"))),
+                    firstNonBlank(stringValue(root.get("count")), "unknown")
+                ))
+                .append(", returned=")
+                .append(results.size())
+                .append(", contentMode=")
+                .append(firstNonBlank(stringValue(root.get("contentMode")), "unknown"))
+                .append('.');
+        }
+
+        List<DocumentEvidence> evidence = extractDocumentEvidence(data);
+        if (evidence.isEmpty()) {
+            String summary = shortObservationText(outputText, 600);
+            if (summary != null && !summary.isBlank()) {
+                observation.append(" Output summary: ").append(summary);
+            }
+            return observation.toString();
+        }
+
+        observation.append("\nDocument evidence snippets:\n");
+        for (int i = 0; i < evidence.size(); i++) {
+            DocumentEvidence item = evidence.get(i);
+            observation.append("[\u6587\u6863").append(i + 1).append("] ")
+                .append(firstNonBlank(item.title(), "Untitled document"));
+            if (item.docId() != null && !item.docId().isBlank()) {
+                observation.append(" (docId=").append(item.docId()).append(")");
+            }
+            if (item.snippet() != null && !item.snippet().isBlank()) {
+                observation.append(" - ").append(item.snippet());
+            }
+            observation.append("\n");
+        }
         return observation.toString();
     }
 
@@ -871,10 +1072,11 @@ public class AgentOrchestrator {
                 tenantId,
                 tools,
                 Map.of(),
-                runtimeAttributes
+                attributesWithCompletedTools(runtimeAttributes, completedToolsFromTraces(traces))
             );
             traces.add(execution.trace());
             observations.add("Document-web verification fallback " + execution.observation());
+            runtimeAttributes = attributesWithCompletedTools(runtimeAttributes, completedToolsFromTraces(traces));
             if (isConfirmationRequired(execution)) {
                 metadata.put("stopReason", "confirmation_required");
                 metadata.put("confirmationRequired", true);
@@ -982,6 +1184,51 @@ public class AgentOrchestrator {
         return citations;
     }
 
+    private List<DocumentEvidence> extractDocumentEvidence(Object data) {
+        Map<String, Object> root = asMap(data);
+        if (root.isEmpty()) {
+            return List.of();
+        }
+
+        List<Map<String, Object>> candidates = new ArrayList<>();
+        addCandidateList(candidates, root.get("evidenceSnippets"));
+        addCandidateList(candidates, root.get("results"));
+        addCandidateList(candidates, root.get("items"));
+        addCandidateList(candidates, root.get("records"));
+
+        List<DocumentEvidence> evidence = new ArrayList<>();
+        Set<String> seen = new LinkedHashSet<>();
+        for (Map<String, Object> item : candidates) {
+            if (evidence.size() >= WEB_SEARCH_REFERENCE_LIMIT) {
+                break;
+            }
+            String docId = firstNonBlank(
+                firstNonBlank(stringValue(item.get("docId")), stringValue(item.get("documentId"))),
+                firstNonBlank(stringValue(item.get("id")), stringValue(item.get("fileId")))
+            );
+            String title = firstNonBlank(
+                firstNonBlank(stringValue(item.get("title")), stringValue(item.get("name"))),
+                firstNonBlank(stringValue(item.get("filename")), stringValue(item.get("source")))
+            );
+            String snippet = shortText(firstNonBlank(
+                stringValue(item.get("excerpt")),
+                firstNonBlank(
+                    stringValue(item.get("contentExcerpt")),
+                    firstNonBlank(stringValue(item.get("snippet")), stringValue(item.get("summary")))
+                )
+            ));
+            if ((title == null || title.isBlank()) && (snippet == null || snippet.isBlank())) {
+                continue;
+            }
+            String key = firstNonBlank(docId, "") + "|" + firstNonBlank(title, "") + "|" + firstNonBlank(snippet, "");
+            if (!seen.add(key)) {
+                continue;
+            }
+            evidence.add(new DocumentEvidence(docId, title, snippet));
+        }
+        return evidence;
+    }
+
     @SuppressWarnings("unchecked")
     private Map<String, Object> asMap(Object data) {
         if (data instanceof Map<?, ?> map) {
@@ -1023,6 +1270,22 @@ public class AgentOrchestrator {
         }
         String normalized = value.replaceAll("\\s+", " ").trim();
         return normalized.length() <= 180 ? normalized : normalized.substring(0, 180);
+    }
+
+    private String shortObservationText(String value, int maxChars) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        String normalized = value.replaceAll("\\s+", " ").trim();
+        int limit = Math.max(80, maxChars);
+        return normalized.length() <= limit ? normalized : normalized.substring(0, limit);
+    }
+
+    private String normalizeWebCitationLabels(String value) {
+        if (value == null || value.isBlank()) {
+            return value;
+        }
+        return value.replace("[\u7f03\u6226\u3009", "[\u7f51\u9875");
     }
 
     private List<String> resolveWorkflowMandatoryTools(List<String> tools, Map<String, Object> runtimeAttributes) {
@@ -1354,6 +1617,13 @@ public class AgentOrchestrator {
 
     private record WebCitation(
         String url,
+        String title,
+        String snippet
+    ) {
+    }
+
+    private record DocumentEvidence(
+        String docId,
         String title,
         String snippet
     ) {

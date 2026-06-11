@@ -13,9 +13,10 @@ public record McpToolDefinition(
     Map<String, Object> confirmation,
     Map<String, Object> permissions,
     Map<String, Object> inputPolicy,
-    Map<String, Object> outputPolicy
+    Map<String, Object> outputPolicy,
+    Long timeoutMillis
 ) {
     public McpToolDefinition(String name, String description, Map<String, Object> inputSchema) {
-        this(name, description, inputSchema, null, null, null, null, Map.of(), Map.of(), Map.of(), Map.of());
+        this(name, description, inputSchema, null, null, null, null, Map.of(), Map.of(), Map.of(), Map.of(), null);
     }
 }

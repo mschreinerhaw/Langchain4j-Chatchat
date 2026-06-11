@@ -22,6 +22,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -39,11 +40,11 @@ public class ToolRuntimeService {
     private final McpWorkflowProperties mcpWorkflowProperties;
     private final List<ToolRuntimePolicyProvider> policyProviders;
     private final List<ToolRuntimeAuditSink> auditSinks;
+    private final ToolRuntimeUserPolicyStore userPolicyStore;
 
     private final Map<String, Deque<Long>> rateWindows = new ConcurrentHashMap<>();
     private final Map<String, CircuitState> circuitStates = new ConcurrentHashMap<>();
     private final Map<String, ToolCounters> counters = new ConcurrentHashMap<>();
-    private final Map<String, ToolRuntimeAction> userToolPolicyOverrides = new ConcurrentHashMap<>();
     private final Map<String, WorkflowState> workflowStates = new ConcurrentHashMap<>();
 
     @Autowired
@@ -53,6 +54,7 @@ public class ToolRuntimeService {
                               McpPolicyProperties mcpPolicyProperties,
                               McpWorkflowProperties mcpWorkflowProperties,
                               List<ToolRuntimePolicyProvider> policyProviders,
+                              List<ToolRuntimeUserPolicyStore> userPolicyStores,
                               List<ToolRuntimeAuditSink> auditSinks) {
         this.toolRegistry = toolRegistry;
         this.objectMapper = objectMapper;
@@ -60,7 +62,29 @@ public class ToolRuntimeService {
         this.mcpPolicyProperties = mcpPolicyProperties;
         this.mcpWorkflowProperties = mcpWorkflowProperties;
         this.policyProviders = policyProviders == null ? List.of() : policyProviders;
+        this.userPolicyStore = userPolicyStores == null || userPolicyStores.isEmpty()
+            ? new InMemoryToolRuntimeUserPolicyStore()
+            : userPolicyStores.get(0);
         this.auditSinks = auditSinks == null ? List.of() : auditSinks;
+    }
+
+    public ToolRuntimeService(ToolRegistry toolRegistry,
+                              ObjectMapper objectMapper,
+                              ToolRuntimeProperties properties,
+                              McpPolicyProperties mcpPolicyProperties,
+                              McpWorkflowProperties mcpWorkflowProperties,
+                              List<ToolRuntimePolicyProvider> policyProviders,
+                              List<ToolRuntimeAuditSink> auditSinks) {
+        this(
+            toolRegistry,
+            objectMapper,
+            properties,
+            mcpPolicyProperties,
+            mcpWorkflowProperties,
+            policyProviders,
+            List.of(),
+            auditSinks
+        );
     }
 
     public ToolRuntimeService(ToolRegistry toolRegistry,
@@ -587,7 +611,13 @@ public class ToolRuntimeService {
         if ("forbidden".equals(riskLevel)) {
             action = ToolRuntimeAction.DENY;
         }
-        ToolRuntimeAction userOverride = userToolPolicyOverrides.get(userPolicyKey(request, toolName));
+        ToolRuntimeAction userOverride = userPolicyStore
+            .findAction(
+                normalizeText(request == null ? null : request.getTenantId()),
+                normalizeText(request == null ? null : request.getUserId()),
+                toolName
+            )
+            .orElse(null);
         if (userOverride != null) {
             if (userOverride == ToolRuntimeAction.DENY || action != ToolRuntimeAction.DENY) {
                 action = userOverride;
@@ -842,6 +872,10 @@ public class ToolRuntimeService {
             && action != ToolRuntimeAction.DENY) {
             action = ToolRuntimeAction.ASK_BEFORE_EXECUTE;
             reason = workflowDecision.reason();
+        } else if (workflowDecision.action() == ToolRuntimeAction.AUTO_EXECUTE
+            && action != ToolRuntimeAction.DENY) {
+            action = ToolRuntimeAction.AUTO_EXECUTE;
+            reason = workflowDecision.reason();
         }
         return new ToolPolicyDecision(action, reason, base.riskLevel(), base.operationType(),
             base.dataScope(), matchedRules, base.confirmationToken());
@@ -911,7 +945,12 @@ public class ToolRuntimeService {
             default -> null;
         };
         if (action != null) {
-            userToolPolicyOverrides.put(userPolicyKey(request, request.getToolName()), action);
+            userPolicyStore.saveAction(
+                normalizeText(request.getTenantId()),
+                normalizeText(request.getUserId()),
+                normalizeText(request.getToolName()),
+                action
+            );
         }
     }
 
@@ -1397,12 +1436,6 @@ public class ToolRuntimeService {
         }
     }
 
-    private String userPolicyKey(ToolRuntimeRequest request, String toolName) {
-        String tenant = normalizeText(request == null ? null : request.getTenantId());
-        String user = normalizeText(request == null ? null : request.getUserId());
-        return firstText(tenant, "default") + "::" + firstText(user, "anonymous") + "::" + firstText(toolName, "unknown");
-    }
-
     @SuppressWarnings("unchecked")
     private Map<String, Object> asMap(Object value) {
         if (!(value instanceof Map<?, ?> map)) {
@@ -1783,5 +1816,31 @@ public class ToolRuntimeService {
         private final AtomicLong totalDurationMs = new AtomicLong();
         private final AtomicLong lastDurationMs = new AtomicLong();
         private final AtomicLong activeCalls = new AtomicLong();
+    }
+
+    private static final class InMemoryToolRuntimeUserPolicyStore implements ToolRuntimeUserPolicyStore {
+
+        private final Map<String, ToolRuntimeAction> actions = new ConcurrentHashMap<>();
+
+        @Override
+        public Optional<ToolRuntimeAction> findAction(String tenantId, String userId, String toolName) {
+            return Optional.ofNullable(actions.get(key(tenantId, userId, toolName)));
+        }
+
+        @Override
+        public void saveAction(String tenantId, String userId, String toolName, ToolRuntimeAction action) {
+            if (action == null) {
+                return;
+            }
+            actions.put(key(tenantId, userId, toolName), action);
+        }
+
+        private String key(String tenantId, String userId, String toolName) {
+            return first(tenantId, "default") + "::" + first(userId, "anonymous") + "::" + first(toolName, "unknown");
+        }
+
+        private String first(String value, String fallback) {
+            return value == null || value.isBlank() ? fallback : value.trim();
+        }
     }
 }

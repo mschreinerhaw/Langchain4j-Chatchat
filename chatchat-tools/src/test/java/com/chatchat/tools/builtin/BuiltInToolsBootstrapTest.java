@@ -62,6 +62,7 @@ class BuiltInToolsBootstrapTest {
         assertThat(webSearch.getConfirmation()).containsEntry("default", "auto_execute");
         assertThat(webSearch.getInputPolicy()).containsEntry("must_show_parameters", true);
         assertThat(webSearch.getInputPolicy()).containsKey("sensitive_params");
+        assertThat(webSearch.getTimeoutMillis()).isGreaterThanOrEqualTo(60000L);
 
         ToolMetadata databaseQuery = registry.getToolMetadata("database_query");
         assertThat(databaseQuery.getCategory()).isEqualTo("database_data_query");

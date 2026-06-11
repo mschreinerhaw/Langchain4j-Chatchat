@@ -2,6 +2,7 @@ package com.chatchat.mcpserver.tool;
 
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.tool.ToolInput;
+import com.chatchat.common.tool.ToolLogSummarizer;
 import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolOutput;
 import com.chatchat.common.tool.ToolParameter;
@@ -80,7 +81,10 @@ public class ToolRegistryMcpAdapter {
         Map<String, Object> arguments = applyDefaults(metadata, request.arguments());
         ToolOutput output;
         long startedAt = System.currentTimeMillis();
-        log.info("MCP built-in tool call started tool={} argKeys={}", toolName, argumentKeys(arguments));
+        log.info("MCP server tool call started tool={} timeoutMs={} args={}",
+            toolName,
+            metadata == null ? null : metadata.getTimeoutMillis(),
+            ToolLogSummarizer.summarize(arguments));
 
         ToolRegistry.EnhancedTool enhancedTool = toolRegistry.getEnhancedTool(toolName);
         try {
@@ -108,12 +112,17 @@ public class ToolRegistryMcpAdapter {
 
         long durationMs = Math.max(0L, System.currentTimeMillis() - startedAt);
         if (output != null && output.isSuccess()) {
-            log.info("MCP built-in tool call succeeded tool={} durationMs={}", toolName, durationMs);
-        } else {
-            log.warn("MCP built-in tool call failed tool={} durationMs={} error={}",
+            log.info("MCP server tool call succeeded tool={} durationMs={} message={} result={}",
                 toolName,
                 durationMs,
-                errorText(output));
+                successText(output),
+                ToolLogSummarizer.summarize(output.getData()));
+        } else {
+            log.warn("MCP server tool call failed tool={} durationMs={} error={} result={}",
+                toolName,
+                durationMs,
+                errorText(output),
+                ToolLogSummarizer.summarize(output == null ? null : output.getData()));
         }
         return toCallToolResult(output);
     }

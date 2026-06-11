@@ -369,7 +369,14 @@ function updateBulkSelection(prefix, selectedCount) {
     }
 }
 
-export function renderAuditLogs(logs, openDetail) {
+export function renderAuditLogs(logs, openDetail, paging = {}) {
+    updatePagination('auditLog', {
+        totalCount: paging.totalCount ?? logs.length,
+        filteredCount: paging.filteredCount ?? logs.length,
+        visibleCount: logs.length,
+        page: paging.page ?? 1,
+        pageSize: paging.pageSize ?? Math.max(1, logs.length)
+    });
     const body = document.getElementById('auditLogBody');
     body.innerHTML = '';
     if (!logs.length) {

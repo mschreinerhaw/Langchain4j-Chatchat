@@ -70,7 +70,7 @@ chatchat:
       standalone-service-id: chatchat-mcp-server
       standalone-service-name: ChatChat MCP Server
       invocation-token:
-      timeout-ms: 20000
+      timeout-ms: 90000
       import-standalone-server: true
     stdio-proxy:
       enabled: true

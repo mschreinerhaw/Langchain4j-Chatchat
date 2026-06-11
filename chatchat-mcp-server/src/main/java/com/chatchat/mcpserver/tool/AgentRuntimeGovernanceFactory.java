@@ -36,7 +36,12 @@ public class AgentRuntimeGovernanceFactory {
             mergeInto(governance, "input_policy", metadata.getInputPolicy());
             mergeInto(governance, "output_policy", metadata.getOutputPolicy());
         }
-        return toMeta(source, sourceId, governance);
+        Map<String, Object> meta = toMeta(source, sourceId, governance);
+        if (metadata != null && metadata.getTimeoutMillis() != null) {
+            putAlias(meta, "timeoutMillis", metadata.getTimeoutMillis());
+            putAlias(meta, "timeout_ms", metadata.getTimeoutMillis());
+        }
+        return meta;
     }
 
     public Map<String, Object> metaForApi(ApiServiceConfig config) {

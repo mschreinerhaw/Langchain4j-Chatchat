@@ -304,6 +304,70 @@ class ToolRuntimeServiceTest {
     }
 
     @Test
+    void agentWorkflowAutoExecuteOverridesParameterConfirmation() {
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.getToolMetadata("document_search")).thenReturn(ToolMetadata.builder()
+            .id("document_search")
+            .title("Document Search")
+            .riskLevel("low")
+            .operationType("read")
+            .categories(List.of("mcp"))
+            .build());
+        when(toolRegistry.executeEnhancedTool(any(), any())).thenReturn(ToolOutput.success("ok"));
+
+        McpPolicyProperties mcpPolicy = new McpPolicyProperties();
+        mcpPolicy.setToolPolicy(Map.of("document_search", "ask_before_execute"));
+        mcpPolicy.setParameterPolicy(Map.of(
+            "document_search",
+            Map.of("document_ids", "ask_before_execute")
+        ));
+        ToolRuntimeService service = new ToolRuntimeService(
+            toolRegistry,
+            new ObjectMapper(),
+            properties(),
+            mcpPolicy,
+            new McpWorkflowProperties(),
+            List.of(),
+            List.of()
+        );
+
+        Map<String, Object> workflowConfig = Map.of(
+            "enabled", true,
+            "workflow", "live_data_workflow",
+            "executionStrategy", Map.of("mode", "sequential", "stopOnError", true, "maxSteps", 6),
+            "steps", List.of(
+                Map.of(
+                    "step", 1,
+                    "tool", "mcp_chatchat_mcp_server_document_search",
+                    "required", true,
+                    "confirmation", "auto_execute"
+                )
+            )
+        );
+
+        ToolRuntimeExecution execution = service.execute(ToolRuntimeRequest.builder()
+            .toolName("document_search")
+            .runtimeMode("agent_chat")
+            .requestId("req-agent-workflow-auto")
+            .conversationId("conv-agent-workflow-auto")
+            .tenantId("tenant-1")
+            .userId("user-agent-workflow")
+            .allowedTools(List.of("document_search"))
+            .toolInput(ToolInput.builder()
+                .userId("user-agent-workflow")
+                .parameters(Map.of("query", "Kafka Connect", "document_ids", List.of("doc-1")))
+                .build())
+            .attributes(Map.of("mcpWorkflow", workflowConfig))
+            .build());
+
+        assertThat(execution.output().isSuccess()).isTrue();
+        assertThat(execution.audit().get("matchedPolicyRules").toString())
+            .contains("tool_policy.document_search=ask_before_execute")
+            .contains("workflow.live_data_workflow.document_search.confirmation=auto_execute");
+        verify(toolRegistry, times(1)).executeEnhancedTool(any(), any());
+    }
+
+    @Test
     void hybridWorkflowAllowsParallelStageInAnyOrderBeforeNextStage() {
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         when(toolRegistry.getToolMetadata(any())).thenReturn(ToolMetadata.builder().title("Tool").build());

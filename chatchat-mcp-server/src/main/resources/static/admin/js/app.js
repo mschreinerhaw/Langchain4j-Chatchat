@@ -73,6 +73,11 @@ let selectedDatabaseQueryId = '';
 let selectedDatabaseQueryIds = new Set();
 let databaseQuerySearchTerm = '';
 let databaseQueryPage = 1;
+let auditLogKeyword = '';
+let auditLogTargetType = '';
+let auditLogSuccess = '';
+let auditLogPage = 1;
+let auditLogPageSize = 20;
 
 const SERVICE_PAGE_SIZE = 12;
 
@@ -144,6 +149,18 @@ function bindEvents() {
     document.getElementById('databaseQueryClearSelectionBtn').addEventListener('click', clearDatabaseQuerySelection);
     document.getElementById('databaseQueryBatchDeleteBtn').addEventListener('click', removeSelectedDatabaseQueries);
     document.getElementById('reloadAuditBtn').addEventListener('click', loadAuditLogs);
+    document.getElementById('auditLogSearchBtn').addEventListener('click', applyAuditLogFilters);
+    document.getElementById('auditLogResetBtn').addEventListener('click', resetAuditLogFilters);
+    document.getElementById('auditLogSearchInput').addEventListener('keydown', event => {
+        if (event.key === 'Enter') {
+            applyAuditLogFilters();
+        }
+    });
+    document.getElementById('auditLogTargetTypeSelect').addEventListener('change', applyAuditLogFilters);
+    document.getElementById('auditLogSuccessSelect').addEventListener('change', applyAuditLogFilters);
+    document.getElementById('auditLogPageSizeSelect').addEventListener('change', changeAuditLogPageSize);
+    document.getElementById('auditLogPrevPageBtn').addEventListener('click', () => changeAuditLogPage(-1));
+    document.getElementById('auditLogNextPageBtn').addEventListener('click', () => changeAuditLogPage(1));
     document.querySelectorAll('.sidebar [data-view]').forEach(button => {
         button.addEventListener('click', () => handleViewSwitch(button.dataset.view));
     });
@@ -710,12 +727,78 @@ function readMcpForm() {
 
 async function loadAuditLogs(showNotice = true) {
     try {
-        const logs = await listAuditLogs();
-        renderAuditLogs(logs, openAuditLogDetail);
+        const page = normalizeAuditLogPage(await listAuditLogs(currentAuditLogQuery()));
+        auditLogPage = page.page;
+        auditLogPageSize = page.pageSize;
+        renderAuditLogs(page.items, openAuditLogDetail, {
+            totalCount: page.totalCount,
+            filteredCount: page.filteredCount,
+            page: page.page,
+            pageSize: page.pageSize
+        });
         if (showNotice) notify('加载成功', '审计日志已刷新。');
     } catch (error) {
         handleError(error);
     }
+}
+
+function currentAuditLogQuery() {
+    return {
+        page: auditLogPage,
+        pageSize: auditLogPageSize,
+        keyword: auditLogKeyword,
+        targetType: auditLogTargetType,
+        success: auditLogSuccess
+    };
+}
+
+function normalizeAuditLogPage(value) {
+    if (Array.isArray(value)) {
+        return {
+            items: value,
+            page: 1,
+            pageSize: value.length || auditLogPageSize,
+            totalCount: value.length,
+            filteredCount: value.length
+        };
+    }
+    return {
+        items: value?.items || [],
+        page: value?.page || 1,
+        pageSize: value?.pageSize || auditLogPageSize,
+        totalCount: value?.totalCount || 0,
+        filteredCount: value?.filteredCount || 0
+    };
+}
+
+async function applyAuditLogFilters() {
+    auditLogKeyword = document.getElementById('auditLogSearchInput').value;
+    auditLogTargetType = document.getElementById('auditLogTargetTypeSelect').value;
+    auditLogSuccess = document.getElementById('auditLogSuccessSelect').value;
+    auditLogPage = 1;
+    await loadAuditLogs(false);
+}
+
+async function resetAuditLogFilters() {
+    auditLogKeyword = '';
+    auditLogTargetType = '';
+    auditLogSuccess = '';
+    auditLogPage = 1;
+    document.getElementById('auditLogSearchInput').value = '';
+    document.getElementById('auditLogTargetTypeSelect').value = '';
+    document.getElementById('auditLogSuccessSelect').value = '';
+    await loadAuditLogs(false);
+}
+
+async function changeAuditLogPageSize(event) {
+    auditLogPageSize = Number(event.target.value) || 20;
+    auditLogPage = 1;
+    await loadAuditLogs(false);
+}
+
+async function changeAuditLogPage(delta) {
+    auditLogPage = Math.max(1, auditLogPage + delta);
+    await loadAuditLogs(false);
 }
 
 async function openAuditLogDetail(log) {

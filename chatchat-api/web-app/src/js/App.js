@@ -15,6 +15,9 @@ const USER_ID = "mx_48991534";
 const IDLE_LOGOUT_MS = 30 * 60 * 1000;
 const ACTIVITY_THROTTLE_MS = 1000;
 const ACTIVITY_EVENTS = ["click", "keydown", "mousemove", "mousedown", "scroll", "touchstart", "wheel"];
+const DEFAULT_VIEW = "search";
+const LOGIN_ROUTE = "login";
+const REDIRECT_VIEW_KEY = "chatchat.auth.redirectView";
 
 const views = {
   chat: ChatAssistantView,
@@ -26,6 +29,18 @@ const views = {
   tasks: TasksView,
   system: SystemManagementView
 };
+
+function currentHashRoute() {
+  return decodeURIComponent(window.location.hash || "")
+    .replace(/^#\/?/, "")
+    .split("?")[0]
+    .trim();
+}
+
+function viewFromHash() {
+  const route = currentHashRoute();
+  return views[route] ? route : "";
+}
 
 export default {
   name: "App",
@@ -39,7 +54,7 @@ export default {
     const sessionUser = authSession?.user || {};
     return {
       authSession,
-      activeView: "search",
+      activeView: authSession ? (viewFromHash() || DEFAULT_VIEW) : DEFAULT_VIEW,
       userId: sessionUser.username || sessionUser.id || USER_ID,
       historyLoading: false,
       historyError: "",
@@ -97,12 +112,17 @@ export default {
     }
   },
   mounted() {
+    window.addEventListener("hashchange", this.handleHashChange);
     if (this.authSession) {
+      this.ensureAuthenticatedRoute();
       this.loadConversationHistory();
       this.startIdleLogoutWatcher();
+      return;
     }
+    this.redirectToLogin();
   },
   beforeUnmount() {
+    window.removeEventListener("hashchange", this.handleHashChange);
     this.stopIdleLogoutWatcher();
   },
   methods: {
@@ -110,6 +130,7 @@ export default {
       this.authSession = session;
       const sessionUser = session?.user || {};
       this.userId = sessionUser.username || sessionUser.id || USER_ID;
+      this.navigateToView(this.consumeRedirectView() || viewFromHash() || DEFAULT_VIEW);
       this.startIdleLogoutWatcher();
       this.loadConversationHistory();
     },
@@ -121,6 +142,51 @@ export default {
       this.conversationHistory = [];
       this.selectedConversation = null;
       this.activeHistoryId = "";
+      this.redirectToLogin();
+    },
+    handleHashChange() {
+      if (!this.authSession) {
+        this.redirectToLogin();
+        return;
+      }
+      const route = currentHashRoute();
+      if (route === LOGIN_ROUTE) {
+        this.navigateToView(DEFAULT_VIEW);
+        return;
+      }
+      const nextView = viewFromHash();
+      if (nextView) {
+        this.activeView = nextView;
+      }
+    },
+    ensureAuthenticatedRoute() {
+      const route = currentHashRoute();
+      if (route === LOGIN_ROUTE || !viewFromHash()) {
+        this.navigateToView(this.consumeRedirectView() || this.activeView || DEFAULT_VIEW);
+      }
+    },
+    redirectToLogin() {
+      const targetView = viewFromHash();
+      if (targetView) {
+        sessionStorage.setItem(REDIRECT_VIEW_KEY, targetView);
+      }
+      this.setHashRoute(LOGIN_ROUTE);
+    },
+    consumeRedirectView() {
+      const value = sessionStorage.getItem(REDIRECT_VIEW_KEY);
+      sessionStorage.removeItem(REDIRECT_VIEW_KEY);
+      return views[value] ? value : "";
+    },
+    navigateToView(view) {
+      const nextView = views[view] ? view : DEFAULT_VIEW;
+      this.activeView = nextView;
+      this.setHashRoute(nextView);
+    },
+    setHashRoute(route) {
+      const nextHash = `#/${route}`;
+      if (window.location.hash !== nextHash) {
+        window.location.hash = nextHash;
+      }
     },
     startIdleLogoutWatcher() {
       this.stopIdleLogoutWatcher();
@@ -174,13 +240,13 @@ export default {
       }
     },
     handleNavigate(view) {
-      this.activeView = view;
+      this.navigateToView(view);
     },
     selectConversation(conversation) {
       if (!conversation) {
         return;
       }
-      this.activeView = "chat";
+      this.navigateToView("chat");
       this.activeHistoryId = conversation.id || "";
       this.selectedConversation = {
         ...conversation,

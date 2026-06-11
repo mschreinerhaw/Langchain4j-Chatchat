@@ -3,6 +3,7 @@ package com.chatchat.mcpserver.audit;
 import com.chatchat.mcpserver.api.ApiInvokeResult;
 import com.chatchat.mcpserver.api.ApiServiceConfig;
 import com.chatchat.mcpserver.cache.McpRocksDbStore;
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -65,6 +66,7 @@ public class InvocationAuditService {
         log.setTargetType("API_SERVICE");
         log.setTargetId(config.getId());
         log.setTargetName(config.getToolName());
+        log.setToolName(config.getToolName());
         log.setCaller("mcp-tool");
         log.setSuccess(result.success());
         log.setStatusCode(result.statusCode());
@@ -83,15 +85,17 @@ public class InvocationAuditService {
 
     public void recordMcpTransportRequest(String method, String uri, String queryString, String caller,
                                           String userAgent, Integer statusCode, long durationMs,
-                                          String errorMessage) {
+                                          String errorMessage, String requestBody) {
         if (!rocksDbStore.isUsable()) {
             return;
         }
+        String toolName = extractToolName(requestBody);
         InvocationAuditLog log = new InvocationAuditLog();
         log.setId(UUID.randomUUID().toString());
         log.setTargetType("MCP_TRANSPORT");
         log.setTargetId(uri);
         log.setTargetName((method == null || method.isBlank() ? "MCP" : method.toUpperCase(Locale.ROOT)) + " " + uri);
+        log.setToolName(toolName);
         log.setCaller(caller);
         log.setSuccess(errorMessage == null && statusCode != null && statusCode < 400);
         log.setStatusCode(statusCode);
@@ -101,6 +105,7 @@ public class InvocationAuditService {
         request.put("method", method);
         request.put("uri", uri);
         request.put("queryString", redactQueryString(queryString));
+        request.put("toolName", toolName);
         request.put("remoteAddr", caller);
         request.put("userAgent", userAgent);
         log.setRequestSummary(toJsonSummary(redact(request)));
@@ -111,6 +116,59 @@ public class InvocationAuditService {
         log.setResponseSummary(toJsonSummary(redact(response)));
         log.setCreatedAt(Instant.now());
         save(log);
+    }
+
+    private String extractToolName(String requestBody) {
+        if (requestBody == null || requestBody.isBlank()) {
+            return null;
+        }
+        try {
+            JsonNode root = objectMapper.readTree(requestBody);
+            return extractToolName(root);
+        } catch (Exception ex) {
+            log.debug("Failed to parse MCP request body for tool name: {}", ex.getMessage());
+            return null;
+        }
+    }
+
+    private String extractToolName(JsonNode node) {
+        if (node == null || node.isNull() || node.isMissingNode()) {
+            return null;
+        }
+        if (node.isArray()) {
+            for (JsonNode item : node) {
+                String toolName = extractToolName(item);
+                if (toolName != null) {
+                    return toolName;
+                }
+            }
+            return null;
+        }
+        if (!"tools/call".equals(textValue(node.get("method")))) {
+            return null;
+        }
+        JsonNode params = node.get("params");
+        return firstNonBlank(
+            textValue(params == null ? null : params.get("name")),
+            textValue(params == null ? null : params.get("toolName")),
+            textValue(params == null ? null : params.get("tool_name"))
+        );
+    }
+
+    private String firstNonBlank(String... values) {
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value.trim();
+            }
+        }
+        return null;
+    }
+
+    private String textValue(JsonNode node) {
+        if (node == null || node.isNull() || !node.isValueNode()) {
+            return null;
+        }
+        return node.asText();
     }
 
     private void save(InvocationAuditLog auditLog) {

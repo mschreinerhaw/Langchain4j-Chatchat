@@ -12,6 +12,8 @@ public class InvocationAuditLog {
 
     private String targetName;
 
+    private String toolName;
+
     private String caller;
 
     private boolean success;
@@ -58,6 +60,14 @@ public class InvocationAuditLog {
 
     public void setTargetName(String targetName) {
         this.targetName = targetName;
+    }
+
+    public String getToolName() {
+        return toolName;
+    }
+
+    public void setToolName(String toolName) {
+        this.toolName = toolName;
     }
 
     public String getCaller() {

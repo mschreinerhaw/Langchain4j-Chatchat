@@ -373,7 +373,7 @@ export function renderAuditLogs(logs, openDetail) {
     const body = document.getElementById('auditLogBody');
     body.innerHTML = '';
     if (!logs.length) {
-        body.innerHTML = '<tr><td colspan="6" class="text-secondary">暂无审计日志。</td></tr>';
+        body.innerHTML = '<tr><td colspan="7" class="text-secondary">暂无审计日志。</td></tr>';
         return;
     }
     for (const log of logs) {
@@ -384,6 +384,7 @@ export function renderAuditLogs(logs, openDetail) {
                 <strong>${escapeHtml(log.targetName || '-')}</strong>
                 <div class="small text-secondary">${escapeHtml(log.targetType || '')}</div>
             </td>
+            <td><code>${escapeHtml(log.toolName || '-')}</code></td>
             <td><span class="badge ${log.success ? 'text-bg-success' : 'text-bg-danger'}">${log.success ? '成功' : '失败'}</span></td>
             <td>${log.statusCode ?? '-'}</td>
             <td>${log.durationMs ?? '-'} ms</td>

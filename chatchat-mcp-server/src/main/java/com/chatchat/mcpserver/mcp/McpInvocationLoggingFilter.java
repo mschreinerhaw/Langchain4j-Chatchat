@@ -9,8 +9,11 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
+import org.springframework.web.util.ContentCachingRequestWrapper;
 
 import java.io.IOException;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 
 /**
  * Logs inbound MCP transport requests so tool-call reachability is visible.
@@ -33,32 +36,33 @@ public class McpInvocationLoggingFilter extends OncePerRequestFilter {
         }
 
         long startedAt = System.currentTimeMillis();
+        ContentCachingRequestWrapper wrappedRequest = new ContentCachingRequestWrapper(request);
         try {
-            filterChain.doFilter(request, response);
+            filterChain.doFilter(wrappedRequest, response);
             long durationMs = Math.max(0L, System.currentTimeMillis() - startedAt);
             log.info("MCP transport request completed method={} uri={} status={} durationMs={} remote={}",
-                request.getMethod(),
+                wrappedRequest.getMethod(),
                 uri,
                 response.getStatus(),
                 durationMs,
-                request.getRemoteAddr());
-            recordAudit(request, response, durationMs, null);
+                wrappedRequest.getRemoteAddr());
+            recordAudit(wrappedRequest, response, durationMs, null);
         } catch (ServletException | IOException | RuntimeException ex) {
             long durationMs = Math.max(0L, System.currentTimeMillis() - startedAt);
             log.warn("MCP transport request failed method={} uri={} status={} durationMs={} remote={} error={}",
-                request.getMethod(),
+                wrappedRequest.getMethod(),
                 uri,
                 response.getStatus(),
                 durationMs,
-                request.getRemoteAddr(),
+                wrappedRequest.getRemoteAddr(),
                 ex.getMessage(),
                 ex);
-            recordAudit(request, response, durationMs, ex.getMessage());
+            recordAudit(wrappedRequest, response, durationMs, ex.getMessage());
             throw ex;
         }
     }
 
-    private void recordAudit(HttpServletRequest request, HttpServletResponse response, long durationMs, String errorMessage) {
+    private void recordAudit(ContentCachingRequestWrapper request, HttpServletResponse response, long durationMs, String errorMessage) {
         auditService.recordMcpTransportRequest(
             request.getMethod(),
             request.getRequestURI(),
@@ -67,7 +71,24 @@ public class McpInvocationLoggingFilter extends OncePerRequestFilter {
             request.getHeader("User-Agent"),
             response.getStatus(),
             durationMs,
-            errorMessage
+            errorMessage,
+            requestBody(request)
         );
+    }
+
+    private String requestBody(ContentCachingRequestWrapper request) {
+        byte[] content = request.getContentAsByteArray();
+        if (content.length == 0) {
+            return null;
+        }
+        try {
+            String encoding = request.getCharacterEncoding();
+            Charset charset = encoding == null || encoding.isBlank()
+                ? StandardCharsets.UTF_8
+                : Charset.forName(encoding);
+            return new String(content, charset);
+        } catch (Exception ex) {
+            return new String(content, StandardCharsets.UTF_8);
+        }
     }
 }

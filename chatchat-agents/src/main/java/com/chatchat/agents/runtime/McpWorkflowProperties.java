@@ -33,8 +33,10 @@ public class McpWorkflowProperties {
     @Getter
     @Setter
     public static class WorkflowStep {
+        private String name;
         private Integer step;
         private String tool;
+        private List<String> parallelSteps = new ArrayList<>();
         private boolean required = true;
         private String condition;
         private String confirmation;

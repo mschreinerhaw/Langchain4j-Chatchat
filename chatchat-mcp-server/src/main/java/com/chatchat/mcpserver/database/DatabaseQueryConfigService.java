@@ -30,11 +30,21 @@ public class DatabaseQueryConfigService {
     @Value("${spring.datasource.url:}")
     private String applicationJdbcUrl;
 
+    /**
+     * Lists the all.
+     *
+     * @return the all list
+     */
     @Transactional(readOnly = true)
     public List<DatabaseQueryConfig> listAll() {
         return repository.findAllByOrderByToolNameAsc();
     }
 
+    /**
+     * Lists the enabled.
+     *
+     * @return the enabled list
+     */
     @Transactional(readOnly = true)
     public List<DatabaseQueryConfig> listEnabled() {
         return repository.findByEnabledTrueOrderByToolNameAsc().stream()
@@ -43,18 +53,37 @@ public class DatabaseQueryConfigService {
             .toList();
     }
 
+    /**
+     * Returns the by id.
+     *
+     * @param id the id value
+     * @return the by id
+     */
     @Transactional(readOnly = true)
     public DatabaseQueryConfig getById(String id) {
         return repository.findById(id)
             .orElseThrow(() -> new IllegalArgumentException("Database query config not found: " + id));
     }
 
+    /**
+     * Creates the create.
+     *
+     * @param draft the draft value
+     * @return the created create
+     */
     @Transactional
     public DatabaseQueryConfig create(DatabaseQueryConfig draft) {
         validate(draft, null);
         return repository.save(draft);
     }
 
+    /**
+     * Updates the update.
+     *
+     * @param id the id value
+     * @param draft the draft value
+     * @return the updated update
+     */
     @Transactional
     public DatabaseQueryConfig update(String id, DatabaseQueryConfig draft) {
         DatabaseQueryConfig current = getById(id);
@@ -75,6 +104,13 @@ public class DatabaseQueryConfigService {
         return repository.save(current);
     }
 
+    /**
+     * Sets the enabled.
+     *
+     * @param id the id value
+     * @param enabled the enabled value
+     * @return the operation result
+     */
     @Transactional
     public DatabaseQueryConfig setEnabled(String id, boolean enabled) {
         DatabaseQueryConfig current = getById(id);
@@ -88,11 +124,22 @@ public class DatabaseQueryConfigService {
         return repository.save(current);
     }
 
+    /**
+     * Deletes the delete.
+     *
+     * @param id the id value
+     */
     @Transactional
     public void delete(String id) {
         repository.deleteById(id);
     }
 
+    /**
+     * Deletes the all.
+     *
+     * @param ids the ids value
+     * @return the operation result
+     */
     @Transactional
     public int deleteAll(List<String> ids) {
         if (ids == null || ids.isEmpty()) {
@@ -111,6 +158,12 @@ public class DatabaseQueryConfigService {
         return existing.size();
     }
 
+    /**
+     * Validates the validate.
+     *
+     * @param config the config value
+     * @param currentId the current id value
+     */
     private void validate(DatabaseQueryConfig config, String currentId) {
         String toolName = normalizeRequired(config.getToolName(), "toolName");
         if (!TOOL_NAME_PATTERN.matcher(toolName).matches()) {
@@ -144,10 +197,23 @@ public class DatabaseQueryConfigService {
         config.setPassword(blankToNull(config.getPassword()));
     }
 
+    /**
+     * Normalizes the json object.
+     *
+     * @param json the json value
+     * @return the operation result
+     */
     private String normalizeJsonObject(String json) {
         return normalizeJsonObject(json, "inputSchema");
     }
 
+    /**
+     * Normalizes the json object.
+     *
+     * @param json the json value
+     * @param fieldName the field name value
+     * @return the operation result
+     */
     private String normalizeJsonObject(String json, String fieldName) {
         String value = blankToNull(json);
         if (value == null) {
@@ -161,6 +227,13 @@ public class DatabaseQueryConfigService {
         }
     }
 
+    /**
+     * Normalizes the required.
+     *
+     * @param value the value value
+     * @param fieldName the field name value
+     * @return the operation result
+     */
     private String normalizeRequired(String value, String fieldName) {
         String normalized = blankToNull(value);
         if (normalized == null) {
@@ -169,10 +242,22 @@ public class DatabaseQueryConfigService {
         return normalized;
     }
 
+    /**
+     * Performs the blank to null operation.
+     *
+     * @param value the value value
+     * @return the operation result
+     */
     private String blankToNull(String value) {
         return value == null || value.isBlank() ? null : value.trim();
     }
 
+    /**
+     * Returns whether is application jdbc url.
+     *
+     * @param jdbcUrl the jdbc url value
+     * @return whether the condition is satisfied
+     */
     private boolean isApplicationJdbcUrl(String jdbcUrl) {
         return applicationJdbcUrl != null
             && !applicationJdbcUrl.isBlank()

@@ -33,10 +33,21 @@ public class InvocationAuditService {
     private final McpRocksDbStore rocksDbStore;
     private final ObjectMapper objectMapper;
 
+    /**
+     * Lists the recent.
+     *
+     * @return the recent list
+     */
     public List<InvocationAuditLog> listRecent() {
         return search(AuditLogSearchQuery.recent()).items();
     }
 
+    /**
+     * Searches the search.
+     *
+     * @param query the query value
+     * @return the operation result
+     */
     public AuditLogPage search(AuditLogSearchQuery query) {
         if (!rocksDbStore.isUsable()) {
             return AuditLogPage.empty(normalizePage(query == null ? null : query.page()),
@@ -70,6 +81,12 @@ public class InvocationAuditService {
         return new AuditLogPage(items, normalized.page(), normalized.pageSize(), totalCount.value(), filteredCount.value());
     }
 
+    /**
+     * Finds the by id.
+     *
+     * @param id the id value
+     * @return the matching by id
+     */
     public Optional<InvocationAuditLog> findById(String id) {
         if (id == null || id.isBlank() || !rocksDbStore.isUsable()) {
             return Optional.empty();
@@ -86,6 +103,14 @@ public class InvocationAuditService {
         }
     }
 
+    /**
+     * Performs the record api call operation.
+     *
+     * @param config the config value
+     * @param arguments the arguments value
+     * @param result the result value
+     * @param durationMs the duration ms value
+     */
     public void recordApiCall(ApiServiceConfig config, Map<String, Object> arguments,
                               ApiInvokeResult result, long durationMs) {
         if (!rocksDbStore.isUsable()) {
@@ -113,6 +138,19 @@ public class InvocationAuditService {
         save(log);
     }
 
+    /**
+     * Performs the record mcp transport request operation.
+     *
+     * @param method the method value
+     * @param uri the uri value
+     * @param queryString the query string value
+     * @param caller the caller value
+     * @param userAgent the user agent value
+     * @param statusCode the status code value
+     * @param durationMs the duration ms value
+     * @param errorMessage the error message value
+     * @param requestBody the request body value
+     */
     public void recordMcpTransportRequest(String method, String uri, String queryString, String caller,
                                           String userAgent, Integer statusCode, long durationMs,
                                           String errorMessage, String requestBody) {
@@ -148,6 +186,12 @@ public class InvocationAuditService {
         save(log);
     }
 
+    /**
+     * Performs the extract tool name operation.
+     *
+     * @param requestBody the request body value
+     * @return the operation result
+     */
     private String extractToolName(String requestBody) {
         if (requestBody == null || requestBody.isBlank()) {
             return null;
@@ -161,6 +205,12 @@ public class InvocationAuditService {
         }
     }
 
+    /**
+     * Performs the extract tool name operation.
+     *
+     * @param node the node value
+     * @return the operation result
+     */
     private String extractToolName(JsonNode node) {
         if (node == null || node.isNull() || node.isMissingNode()) {
             return null;
@@ -185,6 +235,12 @@ public class InvocationAuditService {
         );
     }
 
+    /**
+     * Performs the first non blank operation.
+     *
+     * @param values the values value
+     * @return the operation result
+     */
     private String firstNonBlank(String... values) {
         for (String value : values) {
             if (value != null && !value.isBlank()) {
@@ -194,6 +250,12 @@ public class InvocationAuditService {
         return null;
     }
 
+    /**
+     * Normalizes the normalize.
+     *
+     * @param query the query value
+     * @return the operation result
+     */
     private AuditLogSearchQuery normalize(AuditLogSearchQuery query) {
         if (query == null) {
             query = AuditLogSearchQuery.recent();
@@ -213,10 +275,22 @@ public class InvocationAuditService {
         );
     }
 
+    /**
+     * Normalizes the page.
+     *
+     * @param page the page value
+     * @return the operation result
+     */
     private int normalizePage(Integer page) {
         return page == null || page < 1 ? 1 : page;
     }
 
+    /**
+     * Normalizes the page size.
+     *
+     * @param pageSize the page size value
+     * @return the operation result
+     */
     private int normalizePageSize(Integer pageSize) {
         if (pageSize == null || pageSize < 1) {
             return DEFAULT_PAGE_SIZE;
@@ -224,6 +298,13 @@ public class InvocationAuditService {
         return Math.min(pageSize, MAX_PAGE_SIZE);
     }
 
+    /**
+     * Returns whether matches.
+     *
+     * @param log the log value
+     * @param query the query value
+     * @return whether the condition is satisfied
+     */
     private boolean matches(InvocationAuditLog log, AuditLogSearchQuery query) {
         if (query.targetType() != null && !equalsIgnoreCase(log.getTargetType(), query.targetType())) {
             return false;
@@ -253,6 +334,13 @@ public class InvocationAuditService {
         return query.keyword() == null || matchesKeyword(log, query.keyword());
     }
 
+    /**
+     * Returns whether matches keyword.
+     *
+     * @param log the log value
+     * @param keyword the keyword value
+     * @return whether the condition is satisfied
+     */
     private boolean matchesKeyword(InvocationAuditLog log, String keyword) {
         return containsIgnoreCase(log.getId(), keyword)
             || containsIgnoreCase(log.getTargetType(), keyword)
@@ -266,6 +354,13 @@ public class InvocationAuditService {
             || containsIgnoreCase(log.getStatusCode(), keyword);
     }
 
+    /**
+     * Returns whether contains ignore case.
+     *
+     * @param value the value value
+     * @param keyword the keyword value
+     * @return whether the condition is satisfied
+     */
     private boolean containsIgnoreCase(Object value, String keyword) {
         if (value == null || keyword == null) {
             return false;
@@ -273,10 +368,23 @@ public class InvocationAuditService {
         return String.valueOf(value).toLowerCase(Locale.ROOT).contains(keyword.toLowerCase(Locale.ROOT));
     }
 
+    /**
+     * Returns whether equals ignore case.
+     *
+     * @param value the value value
+     * @param expected the expected value
+     * @return whether the condition is satisfied
+     */
     private boolean equalsIgnoreCase(String value, String expected) {
         return value != null && expected != null && value.equalsIgnoreCase(expected);
     }
 
+    /**
+     * Performs the trim to null operation.
+     *
+     * @param value the value value
+     * @return the operation result
+     */
     private String trimToNull(String value) {
         if (value == null || value.isBlank()) {
             return null;
@@ -284,6 +392,12 @@ public class InvocationAuditService {
         return value.trim();
     }
 
+    /**
+     * Performs the text value operation.
+     *
+     * @param node the node value
+     * @return the operation result
+     */
     private String textValue(JsonNode node) {
         if (node == null || node.isNull() || !node.isValueNode()) {
             return null;
@@ -291,6 +405,11 @@ public class InvocationAuditService {
         return node.asText();
     }
 
+    /**
+     * Saves the save.
+     *
+     * @param auditLog the audit log value
+     */
     private void save(InvocationAuditLog auditLog) {
         try {
             rocksDbStore.put(DATA_KEY_PREFIX + auditLog.getId(), objectMapper.writeValueAsBytes(auditLog));
@@ -300,12 +419,24 @@ public class InvocationAuditService {
         }
     }
 
+    /**
+     * Performs the index key operation.
+     *
+     * @param log the log value
+     * @return the operation result
+     */
     private String indexKey(InvocationAuditLog log) {
         long createdAt = log.getCreatedAt() == null ? System.currentTimeMillis() : log.getCreatedAt().toEpochMilli();
         long reverseTime = Long.MAX_VALUE - createdAt;
         return INDEX_KEY_PREFIX + String.format("%019d", reverseTime) + ":" + log.getId();
     }
 
+    /**
+     * Performs the redact operation.
+     *
+     * @param value the value value
+     * @return the operation result
+     */
     private Object redact(Object value) {
         if (value instanceof Map<?, ?> map) {
             Map<String, Object> redacted = new LinkedHashMap<>();
@@ -325,6 +456,12 @@ public class InvocationAuditService {
         return value;
     }
 
+    /**
+     * Returns whether is sensitive key.
+     *
+     * @param key the key value
+     * @return whether the condition is satisfied
+     */
     private boolean isSensitiveKey(String key) {
         String normalized = key == null ? "" : key.toLowerCase(Locale.ROOT);
         return normalized.contains("token")
@@ -335,6 +472,12 @@ public class InvocationAuditService {
             || normalized.contains("api_key");
     }
 
+    /**
+     * Performs the redact query string operation.
+     *
+     * @param queryString the query string value
+     * @return the operation result
+     */
     private String redactQueryString(String queryString) {
         if (queryString == null || queryString.isBlank()) {
             return null;
@@ -351,6 +494,12 @@ public class InvocationAuditService {
         return String.join("&", pairs);
     }
 
+    /**
+     * Converts the value to json summary.
+     *
+     * @param value the value value
+     * @return the converted json summary
+     */
     private String toJsonSummary(Object value) {
         try {
             return limit(objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(value));
@@ -359,6 +508,12 @@ public class InvocationAuditService {
         }
     }
 
+    /**
+     * Performs the limit operation.
+     *
+     * @param value the value value
+     * @return the operation result
+     */
     private String limit(String value) {
         if (value == null) {
             return null;
@@ -382,6 +537,11 @@ public class InvocationAuditService {
         Long from,
         Long to
     ) {
+        /**
+         * Performs the recent operation.
+         *
+         * @return the operation result
+         */
         public static AuditLogSearchQuery recent() {
             return new AuditLogSearchQuery(1, 100, null, null, null, null, null, null, null, null, null);
         }
@@ -394,6 +554,13 @@ public class InvocationAuditService {
         long totalCount,
         long filteredCount
     ) {
+        /**
+         * Performs the empty operation.
+         *
+         * @param page the page value
+         * @param pageSize the page size value
+         * @return the operation result
+         */
         public static AuditLogPage empty(int page, int pageSize) {
             return new AuditLogPage(List.of(), page, pageSize, 0, 0);
         }
@@ -402,10 +569,18 @@ public class InvocationAuditService {
     private static class Counter {
         private long value;
 
+        /**
+         * Performs the increment operation.
+         */
         void increment() {
             value++;
         }
 
+        /**
+         * Performs the value operation.
+         *
+         * @return the operation result
+         */
         long value() {
             return value;
         }

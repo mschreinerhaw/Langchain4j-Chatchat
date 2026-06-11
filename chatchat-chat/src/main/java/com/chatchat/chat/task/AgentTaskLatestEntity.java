@@ -60,6 +60,9 @@ public class AgentTaskLatestEntity {
     @Column(name = "update_time", nullable = false)
     private Instant updateTime;
 
+    /**
+     * Performs the on create operation.
+     */
     @PrePersist
     public void onCreate() {
         if (taskId == null || taskId.isBlank()) {
@@ -84,6 +87,9 @@ public class AgentTaskLatestEntity {
         updateTime = now;
     }
 
+    /**
+     * Performs the on update operation.
+     */
     @PreUpdate
     public void onUpdate() {
         updateTime = Instant.now();

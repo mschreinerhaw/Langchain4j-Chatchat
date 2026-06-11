@@ -18,13 +18,29 @@ public final class ToolLogSummarizer {
     private static final int MAX_LIST_ITEMS = 8;
     private static final int MAX_STRING_CHARS = 320;
 
+    /**
+     * Creates a new ToolLogSummarizer instance.
+     */
     private ToolLogSummarizer() {
     }
 
+    /**
+     * Performs the summarize operation.
+     *
+     * @param value the value value
+     * @return the operation result
+     */
     public static Object summarize(Object value) {
         return summarize(value, DEFAULT_MAX_CHARS);
     }
 
+    /**
+     * Performs the summarize operation.
+     *
+     * @param value the value value
+     * @param maxChars the max chars value
+     * @return the operation result
+     */
     public static Object summarize(Object value, int maxChars) {
         Object summarized = summarizeValue(value, null, 0);
         String text = String.valueOf(summarized);
@@ -34,6 +50,14 @@ public final class ToolLogSummarizer {
         return text.substring(0, Math.max(0, maxChars)) + "...";
     }
 
+    /**
+     * Performs the summarize value operation.
+     *
+     * @param value the value value
+     * @param key the key value
+     * @param depth the depth value
+     * @return the operation result
+     */
     @SuppressWarnings("unchecked")
     private static Object summarizeValue(Object value, String key, int depth) {
         if (isSensitiveKey(key)) {
@@ -90,6 +114,12 @@ public final class ToolLogSummarizer {
         return limitString(String.valueOf(value));
     }
 
+    /**
+     * Performs the limit string operation.
+     *
+     * @param value the value value
+     * @return the operation result
+     */
     private static String limitString(String value) {
         if (value == null || value.length() <= MAX_STRING_CHARS) {
             return value;
@@ -97,6 +127,12 @@ public final class ToolLogSummarizer {
         return value.substring(0, MAX_STRING_CHARS) + "...";
     }
 
+    /**
+     * Performs the shape operation.
+     *
+     * @param value the value value
+     * @return the operation result
+     */
     private static String shape(Object value) {
         if (value instanceof Map<?, ?> map) {
             return "Map(size=" + map.size() + ")";
@@ -110,6 +146,12 @@ public final class ToolLogSummarizer {
         return value == null ? null : value.getClass().getSimpleName();
     }
 
+    /**
+     * Returns whether is sensitive key.
+     *
+     * @param key the key value
+     * @return whether the condition is satisfied
+     */
     private static boolean isSensitiveKey(String key) {
         if (key == null || key.isBlank()) {
             return false;

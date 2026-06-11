@@ -22,6 +22,12 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
     private final ObjectMapper objectMapper = new ObjectMapper();
     private final Map<String, WebSocketSession> sessions = new ConcurrentHashMap<>();
 
+    /**
+     * Performs the after connection established operation.
+     *
+     * @param session the session value
+     * @throws Exception if the operation fails
+     */
     @Override
     public void afterConnectionEstablished(WebSocketSession session) throws Exception {
         log.info("WebSocket connection established: {}", session.getId());
@@ -34,6 +40,13 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
         ));
     }
 
+    /**
+     * Handles the text message.
+     *
+     * @param session the session value
+     * @param message the message value
+     * @throws Exception if the operation fails
+     */
     @Override
     protected void handleTextMessage(WebSocketSession session, TextMessage message) throws Exception {
         try {
@@ -59,6 +72,13 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
         }
     }
 
+    /**
+     * Performs the after connection closed operation.
+     *
+     * @param session the session value
+     * @param status the status value
+     * @throws Exception if the operation fails
+     */
     @Override
     public void afterConnectionClosed(WebSocketSession session, CloseStatus status) throws Exception {
         log.info("WebSocket connection closed: {}", session.getId());
@@ -113,6 +133,11 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
         public String skill;
         public String model;
 
+        /**
+         * Returns the message.
+         *
+         * @return the message
+         */
         public String getMessage() {
             return message;
         }
@@ -128,6 +153,12 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
         public boolean complete; // Message is complete
         public long timestamp;
 
+        /**
+         * Creates a new ChatWebSocketHandler instance.
+         *
+         * @param type the type value
+         * @param content the content value
+         */
         public Message(String type, String content) {
             this.type = type;
             this.content = content;
@@ -136,11 +167,26 @@ public class ChatWebSocketHandler extends TextWebSocketHandler {
             this.complete = false;
         }
 
+        /**
+         * Creates a new ChatWebSocketHandler instance.
+         *
+         * @param type the type value
+         * @param content the content value
+         * @param streaming the streaming value
+         */
         public Message(String type, String content, boolean streaming) {
             this(type, content);
             this.streaming = streaming;
         }
 
+        /**
+         * Creates a new ChatWebSocketHandler instance.
+         *
+         * @param type the type value
+         * @param content the content value
+         * @param streaming the streaming value
+         * @param complete the complete value
+         */
         public Message(String type, String content, boolean streaming, boolean complete) {
             this(type, content, streaming);
             this.complete = complete;

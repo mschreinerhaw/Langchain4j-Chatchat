@@ -14,6 +14,12 @@ public class InMemoryChatMessageDetailStore implements ChatMessageDetailStore {
 
     private final Map<String, ChatMessageDetail> store = new ConcurrentHashMap<>();
 
+    /**
+     * Stores the put.
+     *
+     * @param detail the detail value
+     * @return the operation result
+     */
     @Override
     public String put(ChatMessageDetail detail) {
         Instant createdAt = detail.getCreatedAt() == null ? Instant.now() : detail.getCreatedAt();
@@ -28,11 +34,22 @@ public class InMemoryChatMessageDetailStore implements ChatMessageDetailStore {
         return key;
     }
 
+    /**
+     * Returns the get.
+     *
+     * @param key the key value
+     * @return the get
+     */
     @Override
     public Optional<ChatMessageDetail> get(String key) {
         return Optional.ofNullable(store.get(key));
     }
 
+    /**
+     * Deletes the delete.
+     *
+     * @param key the key value
+     */
     @Override
     public void delete(String key) {
         store.remove(key);

@@ -33,6 +33,13 @@ public class SidebarCardService {
     private final McpServiceConfigService mcpServiceConfigService;
     private final McpToolRegistryBridge mcpToolRegistryBridge;
 
+    /**
+     * Creates a new SidebarCardService instance.
+     *
+     * @param skillCatalogService the skill catalog service value
+     * @param mcpServiceConfigService the mcp service config service value
+     * @param mcpToolRegistryBridge the mcp tool registry bridge value
+     */
     public SidebarCardService(SkillCatalogService skillCatalogService,
                               McpServiceConfigService mcpServiceConfigService,
                               McpToolRegistryBridge mcpToolRegistryBridge) {
@@ -41,6 +48,13 @@ public class SidebarCardService {
         this.mcpToolRegistryBridge = mcpToolRegistryBridge;
     }
 
+    /**
+     * Builds the sidebar.
+     *
+     * @param skillId the skill id value
+     * @param conversationId the conversation id value
+     * @return the built sidebar
+     */
     public SidebarPayload buildSidebar(String skillId, String conversationId) {
         SkillDefinition skill = skillCatalogService.resolve(skillId);
         List<McpServiceConfig> enabledServices = mcpServiceConfigService.listEnabled();
@@ -56,11 +70,24 @@ public class SidebarCardService {
         );
     }
 
+    /**
+     * Performs the rotate recommendations operation.
+     *
+     * @param skillId the skill id value
+     * @param cursor the cursor value
+     * @return the operation result
+     */
     public List<RecommendationItem> rotateRecommendations(String skillId, int cursor) {
         SkillDefinition skill = skillCatalogService.resolve(skillId);
         return buildRecommendations(skill, Math.max(cursor, 0));
     }
 
+    /**
+     * Executes the action.
+     *
+     * @param request the request value
+     * @return the operation result
+     */
     public SidebarActionResult executeAction(SidebarActionRequest request) {
         String actionId = request == null || request.actionId() == null ? "" : request.actionId().trim().toLowerCase(Locale.ROOT);
         String requestId = UUID.randomUUID().toString();
@@ -130,6 +157,14 @@ public class SidebarCardService {
         };
     }
 
+    /**
+     * Builds the service usage.
+     *
+     * @param skill the skill value
+     * @param enabledServices the enabled services value
+     * @param registeredTools the registered tools value
+     * @return the built service usage
+     */
     private ServiceUsageCard buildServiceUsage(SkillDefinition skill,
                                                List<McpServiceConfig> enabledServices,
                                                List<McpToolRegistryBridge.RegisteredMcpTool> registeredTools) {
@@ -174,6 +209,13 @@ public class SidebarCardService {
         );
     }
 
+    /**
+     * Converts the value to usage item.
+     *
+     * @param service the service value
+     * @param tool the tool value
+     * @return the converted usage item
+     */
     private ServiceUsageItem toUsageItem(McpServiceConfig service,
                                          McpToolRegistryBridge.RegisteredMcpTool tool) {
         String key = tool != null ? tool.localToolName() : safe(service == null ? null : service.getId(), "service-preview");
@@ -196,6 +238,11 @@ public class SidebarCardService {
         );
     }
 
+    /**
+     * Performs the default usage items operation.
+     *
+     * @return the operation result
+     */
     private List<ServiceUsageItem> defaultUsageItems() {
         return List.of(
             new ServiceUsageItem(
@@ -221,6 +268,12 @@ public class SidebarCardService {
         );
     }
 
+    /**
+     * Builds the data sources.
+     *
+     * @param enabledServices the enabled services value
+     * @return the built data sources
+     */
     private DataSourceCard buildDataSources(List<McpServiceConfig> enabledServices) {
         List<DataSourceItem> items = enabledServices.stream()
             .sorted(Comparator.comparing(McpServiceConfig::getUpdatedAt, Comparator.nullsLast(Comparator.reverseOrder())))
@@ -253,6 +306,12 @@ public class SidebarCardService {
         );
     }
 
+    /**
+     * Builds the quick actions.
+     *
+     * @param skill the skill value
+     * @return the built quick actions
+     */
     private List<QuickActionItem> buildQuickActions(SkillDefinition skill) {
         List<QuickActionItem> items = new ArrayList<>();
         items.add(new QuickActionItem("view_detail_metrics", "查看详细指标", "doc"));
@@ -273,6 +332,13 @@ public class SidebarCardService {
         return items;
     }
 
+    /**
+     * Builds the recommendations.
+     *
+     * @param skill the skill value
+     * @param cursor the cursor value
+     * @return the built recommendations
+     */
     private List<RecommendationItem> buildRecommendations(SkillDefinition skill, int cursor) {
         List<RecommendationItem> pool = recommendationPool(skill);
         if (pool.size() <= 3) {
@@ -286,6 +352,12 @@ public class SidebarCardService {
         return rotated;
     }
 
+    /**
+     * Performs the recommendation pool operation.
+     *
+     * @param skill the skill value
+     * @return the operation result
+     */
     private List<RecommendationItem> recommendationPool(SkillDefinition skill) {
         String id = skill == null || skill.id() == null ? "general" : skill.id().trim().toLowerCase(Locale.ROOT);
         return switch (id) {
@@ -316,6 +388,13 @@ public class SidebarCardService {
         };
     }
 
+    /**
+     * Builds the permission info.
+     *
+     * @param skill the skill value
+     * @param enabledServices the enabled services value
+     * @return the built permission info
+     */
     private PermissionInfo buildPermissionInfo(SkillDefinition skill, List<McpServiceConfig> enabledServices) {
         int serviceCount = enabledServices.size();
         List<String> scopes = new ArrayList<>();
@@ -333,6 +412,13 @@ public class SidebarCardService {
         );
     }
 
+    /**
+     * Normalizes the usage title.
+     *
+     * @param rawTitle the raw title value
+     * @param fallbackServiceName the fallback service name value
+     * @return the operation result
+     */
     private String normalizeUsageTitle(String rawTitle, String fallbackServiceName) {
         String value = safe(rawTitle, fallbackServiceName);
         if (value.endsWith("服务") || value.endsWith("系统")) {
@@ -344,6 +430,12 @@ public class SidebarCardService {
         return value;
     }
 
+    /**
+     * Performs the icon type for operation.
+     *
+     * @param text the text value
+     * @return the operation result
+     */
     private String iconTypeFor(String text) {
         String value = safe(text, "").toLowerCase(Locale.ROOT);
         if (value.contains("风险")) {
@@ -361,18 +453,43 @@ public class SidebarCardService {
         return "data";
     }
 
+    /**
+     * Performs the format date time operation.
+     *
+     * @param instant the instant value
+     * @return the operation result
+     */
     private String formatDateTime(Instant instant) {
         return DATE_TIME_FORMATTER.format(instant.atZone(ZONE_ID));
     }
 
+    /**
+     * Performs the format time operation.
+     *
+     * @param instant the instant value
+     * @return the operation result
+     */
     private String formatTime(Instant instant) {
         return TIME_FORMATTER.format(instant.atZone(ZONE_ID));
     }
 
+    /**
+     * Performs the safe operation.
+     *
+     * @param value the value value
+     * @param fallback the fallback value
+     * @return the operation result
+     */
     private String safe(String value, String fallback) {
         return value == null || value.isBlank() ? fallback : value.trim();
     }
 
+    /**
+     * Performs the short id operation.
+     *
+     * @param value the value value
+     * @return the operation result
+     */
     private String shortId(String value) {
         return value == null || value.length() < 8 ? value : value.substring(0, 8).toUpperCase(Locale.ROOT);
     }

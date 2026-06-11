@@ -50,6 +50,17 @@ public class AgentWorkshopController {
     private final ModelsConfig modelsConfig;
     private final SearchService searchService;
 
+    /**
+     * Returns the workshop.
+     *
+     * @param keyword the keyword value
+     * @param category the category value
+     * @param status the status value
+     * @param model the model value
+     * @param page the page value
+     * @param pageSize the page size value
+     * @return the workshop
+     */
     @GetMapping
     @Operation(summary = "Get Agent workshop overview")
     public ApiResponse<WorkshopPayload> getWorkshop(@RequestParam(value = "keyword", required = false) String keyword,
@@ -103,12 +114,24 @@ public class AgentWorkshopController {
         ));
     }
 
+    /**
+     * Returns the agent.
+     *
+     * @param agentId the agent id value
+     * @return the agent
+     */
     @GetMapping("/{agentId}")
     @Operation(summary = "Get one Agent workshop configuration")
     public ApiResponse<AgentCard> getAgent(@PathVariable("agentId") String agentId) {
         return ApiResponse.success(toAgentCard(skillCatalogService.resolve(agentId), availableTools(), mcpToolsByServiceId()));
     }
 
+    /**
+     * Creates the agent.
+     *
+     * @param request the request value
+     * @return the created agent
+     */
     @PostMapping
     @Operation(summary = "Create one workshop Agent")
     public ApiResponse<AgentCard> createAgent(@RequestBody AgentUpsertRequest request) {
@@ -116,6 +139,13 @@ public class AgentWorkshopController {
         return ApiResponse.success(toAgentCard(saved, availableTools(), mcpToolsByServiceId()), "Agent created");
     }
 
+    /**
+     * Updates the agent.
+     *
+     * @param agentId the agent id value
+     * @param request the request value
+     * @return the updated agent
+     */
     @PutMapping("/{agentId}")
     @Operation(summary = "Update one workshop Agent")
     public ApiResponse<AgentCard> updateAgent(@PathVariable("agentId") String agentId,
@@ -124,6 +154,12 @@ public class AgentWorkshopController {
         return ApiResponse.success(toAgentCard(saved, availableTools(), mcpToolsByServiceId()), "Agent updated");
     }
 
+    /**
+     * Deletes the agent.
+     *
+     * @param agentId the agent id value
+     * @return the operation result
+     */
     @DeleteMapping("/{agentId}")
     @Operation(summary = "Delete one custom workshop Agent")
     public ApiResponse<Void> deleteAgent(@PathVariable("agentId") String agentId) {
@@ -131,6 +167,12 @@ public class AgentWorkshopController {
         return ApiResponse.success(null, deleted ? "Agent deleted" : "Agent not found");
     }
 
+    /**
+     * Publishes the agent.
+     *
+     * @param agentId the agent id value
+     * @return the operation result
+     */
     @PostMapping("/{agentId}/publish")
     @Operation(summary = "Publish one Agent to capability market")
     public ApiResponse<AgentCard> publishAgent(@PathVariable("agentId") String agentId) {
@@ -138,6 +180,12 @@ public class AgentWorkshopController {
         return ApiResponse.success(toAgentCard(saved, availableTools(), mcpToolsByServiceId()), "Agent published");
     }
 
+    /**
+     * Performs the recall agent operation.
+     *
+     * @param agentId the agent id value
+     * @return the operation result
+     */
     @PostMapping("/{agentId}/recall")
     @Operation(summary = "Recall one Agent from capability market")
     public ApiResponse<AgentCard> recallAgent(@PathVariable("agentId") String agentId) {
@@ -145,6 +193,14 @@ public class AgentWorkshopController {
         return ApiResponse.success(toAgentCard(saved, availableTools(), mcpToolsByServiceId()), "Agent recalled");
     }
 
+    /**
+     * Converts the value to agent card.
+     *
+     * @param skill the skill value
+     * @param availableTools the available tools value
+     * @param mcpToolsByServiceId the mcp tools by service id value
+     * @return the converted agent card
+     */
     private AgentCard toAgentCard(SkillDefinition skill,
                                   List<String> availableTools,
                                   Map<String, List<String>> mcpToolsByServiceId) {
@@ -193,6 +249,14 @@ public class AgentWorkshopController {
         );
     }
 
+    /**
+     * Resolves the status.
+     *
+     * @param skill the skill value
+     * @param resolvedTools the resolved tools value
+     * @param explicitlyBoundTools the explicitly bound tools value
+     * @return the resolved status
+     */
     private String resolveStatus(SkillDefinition skill, List<String> resolvedTools, LinkedHashSet<String> explicitlyBoundTools) {
         if (!"agent_chat".equalsIgnoreCase(skill.defaultMode())) {
             return "提示词助手";
@@ -206,6 +270,16 @@ public class AgentWorkshopController {
         return "自动匹配工具";
     }
 
+    /**
+     * Returns whether matches agent filters.
+     *
+     * @param agent the agent value
+     * @param keyword the keyword value
+     * @param category the category value
+     * @param status the status value
+     * @param model the model value
+     * @return whether the condition is satisfied
+     */
     private boolean matchesAgentFilters(AgentCard agent, String keyword, String category, String status, String model) {
         String normalizedKeyword = normalizeKeyword(keyword);
         String normalizedCategory = normalizeKeyword(category);
@@ -223,6 +297,12 @@ public class AgentWorkshopController {
         return keywordMatched && categoryMatched && statusMatched && modelMatched;
     }
 
+    /**
+     * Performs the agent search text operation.
+     *
+     * @param agent the agent value
+     * @return the operation result
+     */
     private String agentSearchText(AgentCard agent) {
         List<String> fields = new ArrayList<>();
         fields.add(agent.id());
@@ -248,43 +328,103 @@ public class AgentWorkshopController {
             .reduce("", (left, right) -> left + " " + right);
     }
 
+    /**
+     * Appends the all.
+     *
+     * @param target the target value
+     * @param values the values value
+     */
     private void appendAll(List<String> target, List<String> values) {
         if (values != null) {
             target.addAll(values);
         }
     }
 
+    /**
+     * Returns whether list contains ignore case.
+     *
+     * @param values the values value
+     * @param keyword the keyword value
+     * @return whether the condition is satisfied
+     */
     private boolean listContainsIgnoreCase(List<String> values, String keyword) {
         return values != null && values.stream().anyMatch(value -> containsIgnoreCase(value, keyword));
     }
 
+    /**
+     * Returns whether contains ignore case.
+     *
+     * @param value the value value
+     * @param keyword the keyword value
+     * @return whether the condition is satisfied
+     */
     private boolean containsIgnoreCase(String value, String keyword) {
         return value != null && value.toLowerCase(java.util.Locale.ROOT).contains(keyword);
     }
 
+    /**
+     * Normalizes the keyword.
+     *
+     * @param value the value value
+     * @return the operation result
+     */
     private String normalizeKeyword(String value) {
         return value == null || value.isBlank() || "all".equalsIgnoreCase(value.trim())
             ? ""
             : value.trim().toLowerCase(java.util.Locale.ROOT);
     }
 
+    /**
+     * Normalizes the page.
+     *
+     * @param page the page value
+     * @return the operation result
+     */
     private int normalizePage(Integer page) {
         return page == null || page <= 0 ? 1 : page;
     }
 
+    /**
+     * Normalizes the page size.
+     *
+     * @param pageSize the page size value
+     * @param defaultSize the default size value
+     * @param maxSize the max size value
+     * @return the operation result
+     */
     private int normalizePageSize(Integer pageSize, int defaultSize, int maxSize) {
         int value = pageSize == null || pageSize <= 0 ? defaultSize : pageSize;
         return Math.min(value, maxSize);
     }
 
+    /**
+     * Performs the page offset operation.
+     *
+     * @param page the page value
+     * @param pageSize the page size value
+     * @return the operation result
+     */
     private long pageOffset(int page, int pageSize) {
         return (long) Math.max(0, page - 1) * Math.max(1, pageSize);
     }
 
+    /**
+     * Converts the value to tal pages.
+     *
+     * @param total the total value
+     * @param pageSize the page size value
+     * @return the converted tal pages
+     */
     private int totalPages(int total, int pageSize) {
         return Math.max(1, (int) Math.ceil((double) Math.max(0, total) / Math.max(1, pageSize)));
     }
 
+    /**
+     * Performs the agent categories operation.
+     *
+     * @param agents the agents value
+     * @return the operation result
+     */
     private List<String> agentCategories(List<AgentCard> agents) {
         return agents.stream()
             .flatMap(agent -> agent.skillTags() == null ? java.util.stream.Stream.empty() : agent.skillTags().stream())
@@ -294,6 +434,11 @@ public class AgentWorkshopController {
             .toList();
     }
 
+    /**
+     * Performs the available tools operation.
+     *
+     * @return the operation result
+     */
     private List<String> availableTools() {
         return toolRegistry.getAllToolNames().stream()
             .filter(name -> name != null && !name.isBlank())
@@ -303,11 +448,22 @@ public class AgentWorkshopController {
             .toList();
     }
 
+    /**
+     * Returns whether is user visible agent tool.
+     *
+     * @param toolName the tool name value
+     * @return whether the condition is satisfied
+     */
     private boolean isUserVisibleAgentTool(String toolName) {
         ToolMetadata metadata = toolRegistry.getToolMetadata(toolName);
         return metadata == null || (metadata.isAgentCompatible() && metadata.isUserVisible());
     }
 
+    /**
+     * Performs the mcp tools by service id operation.
+     *
+     * @return the operation result
+     */
     private Map<String, List<String>> mcpToolsByServiceId() {
         Map<String, List<String>> toolsByService = new LinkedHashMap<>();
         for (McpToolRegistryBridge.RegisteredMcpTool tool : registryBridge.listRegisteredTools()) {
@@ -320,6 +476,13 @@ public class AgentWorkshopController {
         return toolsByService;
     }
 
+    /**
+     * Converts the value to skill definition.
+     *
+     * @param request the request value
+     * @param pathAgentId the path agent id value
+     * @return the converted skill definition
+     */
     private SkillDefinition toSkillDefinition(AgentUpsertRequest request, String pathAgentId) {
         if (request == null) {
             throw new IllegalArgumentException("agent payload is required");
@@ -348,6 +511,12 @@ public class AgentWorkshopController {
         );
     }
 
+    /**
+     * Resolves the bound model name.
+     *
+     * @param requestedModelName the requested model name value
+     * @return the resolved bound model name
+     */
     private String resolveBoundModelName(String requestedModelName) {
         if (requestedModelName != null
             && !requestedModelName.isBlank()
@@ -357,6 +526,11 @@ public class AgentWorkshopController {
         return modelsConfig.getDefaultChatModel();
     }
 
+    /**
+     * Performs the model options operation.
+     *
+     * @return the operation result
+     */
     private List<ModelOption> modelOptions() {
         List<String> candidates = new ArrayList<>(modelsConfig.getAvailableChatModels());
         if (modelsConfig.getDefaultChatModel() != null && !modelsConfig.getDefaultChatModel().isBlank()) {
@@ -369,6 +543,12 @@ public class AgentWorkshopController {
             .toList();
     }
 
+    /**
+     * Performs the market status label operation.
+     *
+     * @param marketStatus the market status value
+     * @return the operation result
+     */
     private String marketStatusLabel(String marketStatus) {
         if ("published".equalsIgnoreCase(marketStatus)) {
             return "已发布";
@@ -379,6 +559,13 @@ public class AgentWorkshopController {
         return "未发布";
     }
 
+    /**
+     * Performs the short name operation.
+     *
+     * @param label the label value
+     * @param fallback the fallback value
+     * @return the operation result
+     */
     private String shortName(String label, String fallback) {
         String source = label == null || label.isBlank() ? fallback : label.trim();
         if (source == null || source.isBlank()) {
@@ -447,6 +634,17 @@ public class AgentWorkshopController {
         private int availableToolCount;
         private int registeredMcpToolCount;
 
+        /**
+         * Creates a new AgentWorkshopController instance.
+         *
+         * @param agentCount the agent count value
+         * @param builtinCount the builtin count value
+         * @param customCount the custom count value
+         * @param publishedCount the published count value
+         * @param unpublishedCount the unpublished count value
+         * @param availableToolCount the available tool count value
+         * @param registeredMcpToolCount the registered mcp tool count value
+         */
         public WorkshopSummary(int agentCount,
                                int builtinCount,
                                int customCount,

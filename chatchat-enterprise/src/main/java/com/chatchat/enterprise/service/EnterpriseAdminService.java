@@ -73,12 +73,22 @@ public class EnterpriseAdminService implements ApplicationRunner {
     private final McpToolRegistryBridge registryBridge;
     private final Map<String, String> activeTokens = new ConcurrentHashMap<>();
 
+    /**
+     * Runs the configured startup logic.
+     *
+     * @param args the args value
+     */
     @Override
     @Transactional
     public void run(ApplicationArguments args) {
         initializeDemoData();
     }
 
+    /**
+     * Performs the summary operation.
+     *
+     * @return the operation result
+     */
     @Transactional(readOnly = true)
     public Map<String, Object> summary() {
         Map<String, Object> data = new LinkedHashMap<>();
@@ -95,6 +105,13 @@ public class EnterpriseAdminService implements ApplicationRunner {
         return data;
     }
 
+    /**
+     * Performs the login operation.
+     *
+     * @param username the username value
+     * @param password the password value
+     * @return the operation result
+     */
     @Transactional
     public AuthResult login(String username, String password) {
         SysUser user = userRepository.findByUsername(requireText(username, "username"))
@@ -116,6 +133,12 @@ public class EnterpriseAdminService implements ApplicationRunner {
         return new AuthResult(token, toUserView(user));
     }
 
+    /**
+     * Returns whether is token valid.
+     *
+     * @param token the token value
+     * @return whether the condition is satisfied
+     */
     @Transactional(readOnly = true)
     public boolean isTokenValid(String token) {
         if (token == null || token.isBlank()) {
@@ -130,6 +153,12 @@ public class EnterpriseAdminService implements ApplicationRunner {
             .isPresent();
     }
 
+    /**
+     * Saves the tenant.
+     *
+     * @param input the input value
+     * @return the saved tenant
+     */
     @Transactional
     public SysTenant saveTenant(SysTenant input) {
         SysTenant entity = input.getId() == null ? new SysTenant() :
@@ -146,6 +175,12 @@ public class EnterpriseAdminService implements ApplicationRunner {
         return saved;
     }
 
+    /**
+     * Saves the org.
+     *
+     * @param input the input value
+     * @return the saved org
+     */
     @Transactional
     public SysOrg saveOrg(SysOrg input) {
         SysOrg entity = input.getId() == null ? new SysOrg() :
@@ -162,6 +197,12 @@ public class EnterpriseAdminService implements ApplicationRunner {
         return saved;
     }
 
+    /**
+     * Saves the role.
+     *
+     * @param input the input value
+     * @return the saved role
+     */
     @Transactional
     public SysRole saveRole(SysRole input) {
         SysRole entity = input.getId() == null ? new SysRole() :
@@ -178,6 +219,12 @@ public class EnterpriseAdminService implements ApplicationRunner {
         return saved;
     }
 
+    /**
+     * Saves the permission.
+     *
+     * @param input the input value
+     * @return the saved permission
+     */
     @Transactional
     public SysPermission savePermission(SysPermission input) {
         SysPermission entity = input.getId() == null ? new SysPermission() :
@@ -197,6 +244,13 @@ public class EnterpriseAdminService implements ApplicationRunner {
         return saved;
     }
 
+    /**
+     * Saves the user.
+     *
+     * @param input the input value
+     * @param roleIds the role ids value
+     * @return the saved user
+     */
     @Transactional
     public UserView saveUser(SysUser input, List<String> roleIds) {
         SysUser entity = input.getId() == null ? new SysUser() :
@@ -225,11 +279,22 @@ public class EnterpriseAdminService implements ApplicationRunner {
         return toUserView(saved);
     }
 
+    /**
+     * Lists the permissions.
+     *
+     * @return the permissions list
+     */
     @Transactional(readOnly = true)
     public List<SysPermission> listPermissions() {
         return permissionRepository.findAllByOrderBySortOrderAscPermissionNameAsc();
     }
 
+    /**
+     * Returns the role authorization.
+     *
+     * @param roleId the role id value
+     * @return the role authorization
+     */
     @Transactional(readOnly = true)
     public RoleAuthorizationView getRoleAuthorization(String roleId) {
         SysRole role = roleRepository.findById(requireText(roleId, "roleId"))
@@ -248,6 +313,13 @@ public class EnterpriseAdminService implements ApplicationRunner {
         );
     }
 
+    /**
+     * Saves the role authorization.
+     *
+     * @param roleId the role id value
+     * @param request the request value
+     * @return the saved role authorization
+     */
     @Transactional
     public RoleAuthorizationView saveRoleAuthorization(String roleId, RoleAuthorizationRequest request) {
         SysRole role = roleRepository.findById(requireText(roleId, "roleId"))
@@ -306,6 +378,11 @@ public class EnterpriseAdminService implements ApplicationRunner {
         return getRoleAuthorization(role.getId());
     }
 
+    /**
+     * Lists the external orgs.
+     *
+     * @return the external orgs list
+     */
     @Transactional(readOnly = true)
     public List<ExternalOrgView> listExternalOrgs() {
         return externalOrgRepository.findAllByOrderByGradeAscOrgOrderAscNameAsc().stream()
@@ -321,6 +398,11 @@ public class EnterpriseAdminService implements ApplicationRunner {
             .toList();
     }
 
+    /**
+     * Lists the external users.
+     *
+     * @return the external users list
+     */
     @Transactional(readOnly = true)
     public List<ExternalUserView> listExternalUsers() {
         return externalUserRepository.findAllByOrderByUserIdAscNameAsc().stream()
@@ -336,6 +418,12 @@ public class EnterpriseAdminService implements ApplicationRunner {
             .toList();
     }
 
+    /**
+     * Synchronizes the external orgs.
+     *
+     * @param tenantId the tenant id value
+     * @return the operation result
+     */
     @Transactional
     public SyncResult syncExternalOrgs(String tenantId) {
         String resolvedTenantId = resolveTenantId(tenantId);
@@ -378,6 +466,12 @@ public class EnterpriseAdminService implements ApplicationRunner {
         return new SyncResult(externalOrgs.size(), created, updated);
     }
 
+    /**
+     * Synchronizes the external users.
+     *
+     * @param tenantId the tenant id value
+     * @return the operation result
+     */
     @Transactional
     public SyncResult syncExternalUsers(String tenantId) {
         String resolvedTenantId = resolveTenantId(tenantId);
@@ -417,6 +511,12 @@ public class EnterpriseAdminService implements ApplicationRunner {
         return new SyncResult(externalUsers.size(), created, updated);
     }
 
+    /**
+     * Saves the data source.
+     *
+     * @param input the input value
+     * @return the saved data source
+     */
     @Transactional
     public DataSourceConfig saveDataSource(DataSourceConfig input) {
         DataSourceConfig entity = input.getId() == null ? new DataSourceConfig() :
@@ -435,6 +535,11 @@ public class EnterpriseAdminService implements ApplicationRunner {
         return saved;
     }
 
+    /**
+     * Synchronizes the mcp tools.
+     *
+     * @return the operation result
+     */
     @Transactional
     public List<McpToolAsset> syncMcpTools() {
         registryBridge.refreshRegistry();
@@ -457,6 +562,12 @@ public class EnterpriseAdminService implements ApplicationRunner {
         return toolAssetRepository.findAllByOrderByLocalToolNameAsc();
     }
 
+    /**
+     * Saves the tool permission.
+     *
+     * @param input the input value
+     * @return the saved tool permission
+     */
     @Transactional
     public McpToolPermission saveToolPermission(McpToolPermission input) {
         McpToolPermission entity = input.getId() == null ? new McpToolPermission() :
@@ -476,6 +587,12 @@ public class EnterpriseAdminService implements ApplicationRunner {
         return saved;
     }
 
+    /**
+     * Deletes the delete.
+     *
+     * @param module the module value
+     * @param id the id value
+     */
     @Transactional
     public void delete(String module, String id) {
         switch (module) {
@@ -507,6 +624,12 @@ public class EnterpriseAdminService implements ApplicationRunner {
         audit(null, null, "system", module, "delete", module, id, "delete " + module);
     }
 
+    /**
+     * Lists the user views.
+     *
+     * @param tenantId the tenant id value
+     * @return the user views list
+     */
     @Transactional(readOnly = true)
     public List<UserView> listUserViews(String tenantId) {
         List<SysUser> users = tenantId == null || tenantId.isBlank()
@@ -515,6 +638,12 @@ public class EnterpriseAdminService implements ApplicationRunner {
         return users.stream().map(this::toUserView).toList();
     }
 
+    /**
+     * Converts the value to user view.
+     *
+     * @param user the user value
+     * @return the converted user view
+     */
     public UserView toUserView(SysUser user) {
         List<String> roleIds = userRoleRepository.findByUserId(user.getId()).stream()
             .map(SysUserRole::getRoleId)
@@ -535,6 +664,9 @@ public class EnterpriseAdminService implements ApplicationRunner {
         );
     }
 
+    /**
+     * Performs the initialize demo data operation.
+     */
     private void initializeDemoData() {
         SysTenant tenant = resolveDefaultTenant();
 
@@ -597,6 +729,11 @@ public class EnterpriseAdminService implements ApplicationRunner {
         }
     }
 
+    /**
+     * Resolves the default tenant.
+     *
+     * @return the resolved default tenant
+     */
     private SysTenant resolveDefaultTenant() {
         return tenantRepository.findByTenantCode(DEFAULT_TENANT_CODE)
             .map(this::neutralizeDefaultTenant)
@@ -612,6 +749,12 @@ public class EnterpriseAdminService implements ApplicationRunner {
                 }));
     }
 
+    /**
+     * Performs the neutralize default tenant operation.
+     *
+     * @param tenant the tenant value
+     * @return the operation result
+     */
     private SysTenant neutralizeDefaultTenant(SysTenant tenant) {
         tenant.setTenantCode(DEFAULT_TENANT_CODE);
         tenant.setTenantName("默认租户");
@@ -621,6 +764,17 @@ public class EnterpriseAdminService implements ApplicationRunner {
         return tenantRepository.save(tenant);
     }
 
+    /**
+     * Ensures the neutral org.
+     *
+     * @param tenantId the tenant id value
+     * @param parentId the parent id value
+     * @param legacyCode the legacy code value
+     * @param code the code value
+     * @param name the name value
+     * @param sortOrder the sort order value
+     * @return the operation result
+     */
     private SysOrg ensureNeutralOrg(String tenantId, String parentId, String legacyCode, String code, String name, int sortOrder) {
         SysOrg current = orgRepository.findByTenantIdAndOrgCode(tenantId, code).orElse(null);
         SysOrg legacy = orgRepository.findByTenantIdAndOrgCode(tenantId, legacyCode).orElse(null);
@@ -647,6 +801,13 @@ public class EnterpriseAdminService implements ApplicationRunner {
         return ensureOrg(tenantId, parentId, code, name, sortOrder);
     }
 
+    /**
+     * Performs the migrate org references operation.
+     *
+     * @param tenantId the tenant id value
+     * @param oldOrgId the old org id value
+     * @param newOrgId the new org id value
+     */
     private void migrateOrgReferences(String tenantId, String oldOrgId, String newOrgId) {
         orgRepository.findByTenantIdOrderBySortOrderAscOrgNameAsc(tenantId).stream()
             .filter(org -> oldOrgId.equals(org.getParentId()))
@@ -662,6 +823,16 @@ public class EnterpriseAdminService implements ApplicationRunner {
             });
     }
 
+    /**
+     * Ensures the org.
+     *
+     * @param tenantId the tenant id value
+     * @param parentId the parent id value
+     * @param code the code value
+     * @param name the name value
+     * @param sortOrder the sort order value
+     * @return the operation result
+     */
     private SysOrg ensureOrg(String tenantId, String parentId, String code, String name, int sortOrder) {
         return orgRepository.findByTenantIdAndOrgCode(tenantId, code).orElseGet(() -> {
             SysOrg org = new SysOrg();
@@ -674,6 +845,15 @@ public class EnterpriseAdminService implements ApplicationRunner {
         });
     }
 
+    /**
+     * Ensures the role.
+     *
+     * @param tenantId the tenant id value
+     * @param code the code value
+     * @param name the name value
+     * @param type the type value
+     * @return the operation result
+     */
     private SysRole ensureRole(String tenantId, String code, String name, String type) {
         return roleRepository.findByTenantIdAndRoleCode(tenantId, code).orElseGet(() -> {
             SysRole role = new SysRole();
@@ -685,6 +865,11 @@ public class EnterpriseAdminService implements ApplicationRunner {
         });
     }
 
+    /**
+     * Ensures the default permissions.
+     *
+     * @return the operation result
+     */
     private List<SysPermission> ensureDefaultPermissions() {
         List<PermissionSeed> seeds = List.of(
             new PermissionSeed(null, "workspace", "工作台", "menu", "/index.html", null, "layout-dashboard", 10),
@@ -728,6 +913,13 @@ public class EnterpriseAdminService implements ApplicationRunner {
         return permissionRepository.findAllByOrderBySortOrderAscPermissionNameAsc();
     }
 
+    /**
+     * Ensures the role permissions.
+     *
+     * @param tenantId the tenant id value
+     * @param roleId the role id value
+     * @param permissions the permissions value
+     */
     private void ensureRolePermissions(String tenantId, String roleId, List<SysPermission> permissions) {
         Set<String> exists = rolePermissionRepository.findByRoleId(roleId).stream()
             .map(SysRolePermission::getPermissionId)
@@ -744,6 +936,12 @@ public class EnterpriseAdminService implements ApplicationRunner {
         }
     }
 
+    /**
+     * Ensures the all org scope.
+     *
+     * @param tenantId the tenant id value
+     * @param roleId the role id value
+     */
     private void ensureAllOrgScope(String tenantId, String roleId) {
         boolean hasAllScope = roleOrgScopeRepository.findByRoleIdOrderByScopeTypeAscOrgIdAsc(roleId).stream()
             .anyMatch(scope -> "all".equalsIgnoreCase(scope.getScopeType()));
@@ -757,6 +955,18 @@ public class EnterpriseAdminService implements ApplicationRunner {
         roleOrgScopeRepository.save(scope);
     }
 
+    /**
+     * Performs the audit operation.
+     *
+     * @param tenantId the tenant id value
+     * @param actorId the actor id value
+     * @param actorName the actor name value
+     * @param module the module value
+     * @param action the action value
+     * @param resourceType the resource type value
+     * @param resourceId the resource id value
+     * @param detail the detail value
+     */
     private void audit(String tenantId, String actorId, String actorName, String module, String action,
                        String resourceType, String resourceId, String detail) {
         SysAuditLog log = new SysAuditLog();
@@ -771,6 +981,13 @@ public class EnterpriseAdminService implements ApplicationRunner {
         auditLogRepository.save(log);
     }
 
+    /**
+     * Performs the require text operation.
+     *
+     * @param value the value value
+     * @param field the field value
+     * @return the operation result
+     */
     private String requireText(String value, String field) {
         if (value == null || value.isBlank()) {
             throw new IllegalArgumentException(field + " is required");
@@ -778,14 +995,33 @@ public class EnterpriseAdminService implements ApplicationRunner {
         return value.trim();
     }
 
+    /**
+     * Performs the default text operation.
+     *
+     * @param value the value value
+     * @param fallback the fallback value
+     * @return the operation result
+     */
     private String defaultText(String value, String fallback) {
         return value == null || value.isBlank() ? fallback : value.trim();
     }
 
+    /**
+     * Performs the trim to null operation.
+     *
+     * @param value the value value
+     * @return the operation result
+     */
     private String trimToNull(String value) {
         return value == null || value.isBlank() ? null : value.trim();
     }
 
+    /**
+     * Performs the first text operation.
+     *
+     * @param values the values value
+     * @return the operation result
+     */
     private String firstText(String... values) {
         for (String value : values) {
             if (value != null && !value.isBlank()) {
@@ -795,10 +1031,22 @@ public class EnterpriseAdminService implements ApplicationRunner {
         return null;
     }
 
+    /**
+     * Performs the active status operation.
+     *
+     * @param status the status value
+     * @return the operation result
+     */
     private String activeStatus(Long status) {
         return status == null || status.longValue() == 1L ? "enabled" : "disabled";
     }
 
+    /**
+     * Converts the value to int.
+     *
+     * @param value the value value
+     * @return the converted int
+     */
     private int toInt(Long value) {
         if (value == null) {
             return 0;
@@ -812,6 +1060,12 @@ public class EnterpriseAdminService implements ApplicationRunner {
         return value.intValue();
     }
 
+    /**
+     * Resolves the tenant id.
+     *
+     * @param tenantId the tenant id value
+     * @return the resolved tenant id
+     */
     private String resolveTenantId(String tenantId) {
         if (tenantId != null && !tenantId.isBlank()) {
             return tenantRepository.findById(tenantId.trim())

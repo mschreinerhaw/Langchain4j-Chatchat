@@ -16,6 +16,13 @@ public record McpToolDefinition(
     Map<String, Object> outputPolicy,
     Long timeoutMillis
 ) {
+    /**
+     * Creates a new McpToolDefinition instance.
+     *
+     * @param name the name value
+     * @param description the description value
+     * @param inputSchema the input schema value
+     */
     public McpToolDefinition(String name, String description, Map<String, Object> inputSchema) {
         this(name, description, inputSchema, null, null, null, null, Map.of(), Map.of(), Map.of(), Map.of(), null);
     }

@@ -27,6 +27,11 @@ import org.springframework.transaction.annotation.EnableTransactionManagement;
 @ComponentScan(basePackages = "com.chatchat")
 public class ChatChatApplication {
 
+    /**
+     * Performs the main operation.
+     *
+     * @param args the args value
+     */
     public static void main(String[] args) {
         SpringApplication.run(ChatChatApplication.class, args);
     }

@@ -21,7 +21,7 @@ export function extractWebSearchPages(trace) {
   const pages = candidates
     .map((item, index) => ({
       rank: item.rank || item.position || index + 1,
-      title: item.title || item.name || item.source || item.url || item.link || "网页",
+      title: item.title || item.name || item.source || item.url || item.link || "引用",
       url: item.url || item.link || item.href || item.sourceUrl || "",
       snippet: shortSnippet(
         item.snippet
@@ -60,6 +60,53 @@ export function extractWebSearchPagesFromTraces(traces = []) {
   return uniquePages(traces.flatMap((trace) => extractWebSearchPages(trace)));
 }
 
+export function extractDocumentSearchPages(trace) {
+  if (!isDocumentSearchTrace(trace)) {
+    return [];
+  }
+  const output = parseTraceOutput(trace?.output);
+  const candidates = referenceContainers(output)
+    .flatMap((item) => [
+      item?.results,
+      item?.items,
+      item?.documents,
+      item?.records,
+      item?.pageExcerpts,
+      item?.evidenceSnippets
+    ])
+    .filter(Array.isArray)
+    .flat();
+  return uniqueDocumentPages(candidates
+    .map((item, index) => {
+      const docId = item.docId || item.documentId || item.id || item.fileId || "";
+      return {
+        rank: item.rank || item.position || index + 1,
+        docId,
+        title: item.title || item.name || item.filename || item.source || docId || "引用文档",
+        url: item.url || item.link || item.href || item.sourceUrl || item.detailPath || "",
+        snippet: shortSnippet(
+          item.excerpt
+            || item.contentExcerpt
+            || item.pageExcerpt
+            || item.snippet
+            || item.summary
+            || item.description
+            || item.content
+            || item.text
+        )
+      };
+    })
+    .filter((item) => item.docId || item.url || item.title || item.snippet))
+    .slice(0, 10);
+}
+
+export function extractDocumentSearchPagesFromTraces(traces = []) {
+  if (!Array.isArray(traces)) {
+    return [];
+  }
+  return uniqueDocumentPages(traces.flatMap((trace) => extractDocumentSearchPages(trace)));
+}
+
 export function displayUrl(url) {
   if (!url) {
     return "";
@@ -73,6 +120,10 @@ export function displayUrl(url) {
 }
 
 function webSearchContainers(output) {
+  return referenceContainers(output);
+}
+
+function referenceContainers(output) {
   const containers = [];
   const visit = (value, depth = 0) => {
     if (!value || typeof value !== "object" || depth > 3) {
@@ -103,6 +154,18 @@ function uniquePages(pages) {
   });
 }
 
+function uniqueDocumentPages(pages) {
+  const seen = new Set();
+  return pages.filter((page) => {
+    const key = page.docId || page.url || `${page.rank}:${page.title}:${page.snippet}`;
+    if (seen.has(key)) {
+      return false;
+    }
+    seen.add(key);
+    return true;
+  });
+}
+
 function shortSnippet(value) {
   const normalized = String(value || "").replace(/\s+/g, " ").trim();
   if (!normalized) {
@@ -114,6 +177,11 @@ function shortSnippet(value) {
 function isWebSearchTrace(trace) {
   const name = String(trace?.toolName || trace?.displayName || "").toLowerCase();
   return name.includes("web_search") || name.includes("web search") || name.includes("联网搜索");
+}
+
+function isDocumentSearchTrace(trace) {
+  const name = String(trace?.toolName || trace?.displayName || "").toLowerCase();
+  return name.includes("document_search") || name.includes("document search") || name.includes("文档检索");
 }
 
 function parseTraceOutput(output) {

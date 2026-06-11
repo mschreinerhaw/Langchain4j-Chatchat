@@ -52,6 +52,11 @@ public class LangChain4jConfig {
         return builder.build();
     }
 
+    /**
+     * Resolves the open ai http client builder.
+     *
+     * @return the resolved open ai http client builder
+     */
     private HttpClientBuilder resolveOpenAiHttpClientBuilder() {
         ModelsConfig.ProxyConfig proxyConfig = modelsConfig.getOpenai().getProxy();
         if (proxyConfig == null || !proxyConfig.isEnabled()) {

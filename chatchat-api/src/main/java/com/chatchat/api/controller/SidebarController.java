@@ -26,6 +26,13 @@ public class SidebarController {
 
     private final SidebarCardService sidebarCardService;
 
+    /**
+     * Returns the sidebar.
+     *
+     * @param skillId the skill id value
+     * @param conversationId the conversation id value
+     * @return the sidebar
+     */
     @GetMapping
     @Operation(summary = "Load right sidebar cards")
     public ApiResponse<SidebarCardService.SidebarPayload> getSidebar(@RequestParam(value = "skillId", required = false) String skillId,
@@ -33,6 +40,12 @@ public class SidebarController {
         return ApiResponse.success(sidebarCardService.buildSidebar(skillId, conversationId));
     }
 
+    /**
+     * Executes the action.
+     *
+     * @param request the request value
+     * @return the operation result
+     */
     @PostMapping("/actions/execute")
     @Operation(summary = "Execute one sidebar quick action")
     public ApiResponse<SidebarCardService.SidebarActionResult> executeAction(
@@ -41,6 +54,13 @@ public class SidebarController {
         return ApiResponse.success(sidebarCardService.executeAction(request));
     }
 
+    /**
+     * Performs the rotate recommendations operation.
+     *
+     * @param skillId the skill id value
+     * @param cursor the cursor value
+     * @return the operation result
+     */
     @PostMapping("/recommendations/rotate")
     @Operation(summary = "Rotate recommended services")
     public ApiResponse<List<SidebarCardService.RecommendationItem>> rotateRecommendations(

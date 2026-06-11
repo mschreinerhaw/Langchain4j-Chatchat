@@ -38,11 +38,22 @@ public class DatabaseQueryAdminController {
     @Value("${spring.datasource.url:}")
     private String applicationJdbcUrl;
 
+    /**
+     * Lists the list.
+     *
+     * @return the list list
+     */
     @GetMapping
     public ApiResponse<List<DatabaseQueryView>> list() {
         return ApiResponse.success(configService.listAll().stream().map(this::toView).toList());
     }
 
+    /**
+     * Creates the create.
+     *
+     * @param request the request value
+     * @return the created create
+     */
     @PostMapping
     public ApiResponse<DatabaseQueryView> create(@RequestBody DatabaseQueryUpsertRequest request) {
         DatabaseQueryConfig saved = configService.create(fromRequest(request));
@@ -50,6 +61,13 @@ public class DatabaseQueryAdminController {
         return ApiResponse.success(toView(saved), "Database query registered");
     }
 
+    /**
+     * Updates the update.
+     *
+     * @param id the id value
+     * @param request the request value
+     * @return the updated update
+     */
     @PutMapping("/{id}")
     public ApiResponse<DatabaseQueryView> update(@PathVariable("id") String id,
                                                  @RequestBody DatabaseQueryUpsertRequest request) {
@@ -58,6 +76,12 @@ public class DatabaseQueryAdminController {
         return ApiResponse.success(toView(saved), "Database query updated");
     }
 
+    /**
+     * Deletes the delete.
+     *
+     * @param id the id value
+     * @return the operation result
+     */
     @DeleteMapping("/{id}")
     public ApiResponse<Void> delete(@PathVariable("id") String id) {
         configService.delete(id);
@@ -65,6 +89,12 @@ public class DatabaseQueryAdminController {
         return ApiResponse.success(null, "Database query deleted");
     }
 
+    /**
+     * Performs the batch delete operation.
+     *
+     * @param request the request value
+     * @return the operation result
+     */
     @PostMapping("/batch-delete")
     public ApiResponse<Map<String, Object>> batchDelete(@RequestBody BatchDeleteRequest request) {
         int deleted = configService.deleteAll(request.ids());
@@ -72,6 +102,13 @@ public class DatabaseQueryAdminController {
         return ApiResponse.success(Map.of("deleted", deleted), "Database queries deleted");
     }
 
+    /**
+     * Sets the enabled.
+     *
+     * @param id the id value
+     * @param enabled the enabled value
+     * @return the operation result
+     */
     @PostMapping("/{id}/enabled")
     public ApiResponse<DatabaseQueryView> setEnabled(@PathVariable("id") String id,
                                                      @RequestParam("enabled") boolean enabled) {
@@ -80,12 +117,25 @@ public class DatabaseQueryAdminController {
         return ApiResponse.success(toView(saved), "Database query status updated");
     }
 
+    /**
+     * Performs the test saved operation.
+     *
+     * @param id the id value
+     * @param arguments the arguments value
+     * @return the operation result
+     */
     @PostMapping("/{id}/test")
     public ApiResponse<ToolOutput> testSaved(@PathVariable("id") String id,
                                              @RequestBody(required = false) Map<String, Object> arguments) {
         return ApiResponse.success(invokeService.invoke(configService.getById(id), arguments));
     }
 
+    /**
+     * Performs the test operation.
+     *
+     * @param request the request value
+     * @return the operation result
+     */
     @PostMapping("/test")
     public ApiResponse<ToolOutput> test(@RequestBody DatabaseQueryTestRequest request) {
         if (!toolRegistry.hasTool(TOOL_NAME)) {
@@ -94,6 +144,12 @@ public class DatabaseQueryAdminController {
         return ApiResponse.success(invokeService.invoke(toParameters(request)));
     }
 
+    /**
+     * Creates the value from request.
+     *
+     * @param request the request value
+     * @return the operation result
+     */
     private DatabaseQueryConfig fromRequest(DatabaseQueryUpsertRequest request) {
         DatabaseQueryConfig config = new DatabaseQueryConfig();
         config.setToolName(request.toolName());
@@ -112,6 +168,12 @@ public class DatabaseQueryAdminController {
         return config;
     }
 
+    /**
+     * Converts the value to view.
+     *
+     * @param config the config value
+     * @return the converted view
+     */
     private DatabaseQueryView toView(DatabaseQueryConfig config) {
         return new DatabaseQueryView(
             config.getId(),
@@ -133,6 +195,12 @@ public class DatabaseQueryAdminController {
         );
     }
 
+    /**
+     * Converts the value to parameters.
+     *
+     * @param request the request value
+     * @return the converted parameters
+     */
     private Map<String, Object> toParameters(DatabaseQueryTestRequest request) {
         Map<String, Object> parameters = new LinkedHashMap<>();
         parameters.put("sql", request.sql());
@@ -146,6 +214,12 @@ public class DatabaseQueryAdminController {
         return parameters;
     }
 
+    /**
+     * Writes the json.
+     *
+     * @param map the map value
+     * @return the operation result
+     */
     private String writeJson(Map<String, Object> map) {
         if (map == null || map.isEmpty()) {
             return null;
@@ -157,6 +231,12 @@ public class DatabaseQueryAdminController {
         }
     }
 
+    /**
+     * Reads the json map.
+     *
+     * @param json the json value
+     * @return the operation result
+     */
     private Map<String, Object> readJsonMap(String json) {
         if (json == null || json.isBlank()) {
             return Map.of();
@@ -168,12 +248,25 @@ public class DatabaseQueryAdminController {
         }
     }
 
+    /**
+     * Stores the if present.
+     *
+     * @param parameters the parameters value
+     * @param key the key value
+     * @param value the value value
+     */
     private void putIfPresent(Map<String, Object> parameters, String key, String value) {
         if (value != null && !value.isBlank()) {
             parameters.put(key, value.trim());
         }
     }
 
+    /**
+     * Performs the require jdbc url operation.
+     *
+     * @param value the value value
+     * @return the operation result
+     */
     private String requireJdbcUrl(String value) {
         if (value == null || value.isBlank()) {
             throw new IllegalArgumentException("jdbcUrl is required; local configuration database queries are forbidden");
@@ -185,6 +278,12 @@ public class DatabaseQueryAdminController {
         return jdbcUrl;
     }
 
+    /**
+     * Returns whether is application jdbc url.
+     *
+     * @param jdbcUrl the jdbc url value
+     * @return whether the condition is satisfied
+     */
     private boolean isApplicationJdbcUrl(String jdbcUrl) {
         return applicationJdbcUrl != null
             && !applicationJdbcUrl.isBlank()

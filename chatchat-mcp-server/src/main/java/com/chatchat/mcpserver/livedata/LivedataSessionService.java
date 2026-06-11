@@ -27,6 +27,11 @@ public class LivedataSessionService {
 
     private volatile SessionState sessionState;
 
+    /**
+     * Performs the current session id operation.
+     *
+     * @return the operation result
+     */
     public String currentSessionId() {
         if (!shouldLogin()) {
             throw loginConfigMissing();
@@ -45,6 +50,11 @@ public class LivedataSessionService {
         }
     }
 
+    /**
+     * Performs the refresh session id operation.
+     *
+     * @return the operation result
+     */
     public String refreshSessionId() {
         if (!shouldLogin()) {
             throw loginConfigMissing();
@@ -55,16 +65,31 @@ public class LivedataSessionService {
         }
     }
 
+    /**
+     * Returns whether should login.
+     *
+     * @return whether the condition is satisfied
+     */
     private boolean shouldLogin() {
         return properties.isLoginEnabled()
             && hasText(properties.getLoginId())
             && hasText(properties.getLoginPwd());
     }
 
+    /**
+     * Performs the login config missing operation.
+     *
+     * @return the operation result
+     */
     private IllegalStateException loginConfigMissing() {
         return new IllegalStateException("LiveData login is required. Configure chatchat.mcp.livedata.login-id and login-pwd.");
     }
 
+    /**
+     * Performs the login operation.
+     *
+     * @return the operation result
+     */
     private SessionState login() {
         try {
             String loginUrl = loginUrl();
@@ -98,6 +123,13 @@ public class LivedataSessionService {
         }
     }
 
+    /**
+     * Performs the extract session id operation.
+     *
+     * @param body the body value
+     * @return the operation result
+     * @throws Exception if the operation fails
+     */
     private String extractSessionId(String body) throws Exception {
         if (body == null || body.isBlank()) {
             return null;
@@ -114,6 +146,13 @@ public class LivedataSessionService {
         );
     }
 
+    /**
+     * Performs the first text operation.
+     *
+     * @param root the root value
+     * @param paths the paths value
+     * @return the operation result
+     */
     private String firstText(JsonNode root, String... paths) {
         for (String path : paths) {
             JsonNode value = root.at(path);
@@ -124,6 +163,11 @@ public class LivedataSessionService {
         return null;
     }
 
+    /**
+     * Performs the login url operation.
+     *
+     * @return the operation result
+     */
     private String loginUrl() {
         String baseUrl = properties.getServiceBaseUrl();
         if (!hasText(baseUrl)) {
@@ -136,6 +180,12 @@ public class LivedataSessionService {
         return baseUrl.trim().replaceAll("/+$", "") + path;
     }
 
+    /**
+     * Returns whether has text.
+     *
+     * @param value the value value
+     * @return whether the condition is satisfied
+     */
     private boolean hasText(String value) {
         return value != null && !value.isBlank();
     }

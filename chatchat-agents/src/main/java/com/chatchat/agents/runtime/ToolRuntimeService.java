@@ -47,6 +47,18 @@ public class ToolRuntimeService {
     private final Map<String, ToolCounters> counters = new ConcurrentHashMap<>();
     private final Map<String, WorkflowState> workflowStates = new ConcurrentHashMap<>();
 
+    /**
+     * Creates a new ToolRuntimeService instance.
+     *
+     * @param toolRegistry the tool registry value
+     * @param objectMapper the object mapper value
+     * @param properties the properties value
+     * @param mcpPolicyProperties the mcp policy properties value
+     * @param mcpWorkflowProperties the mcp workflow properties value
+     * @param policyProviders the policy providers value
+     * @param userPolicyStores the user policy stores value
+     * @param auditSinks the audit sinks value
+     */
     @Autowired
     public ToolRuntimeService(ToolRegistry toolRegistry,
                               ObjectMapper objectMapper,
@@ -68,6 +80,17 @@ public class ToolRuntimeService {
         this.auditSinks = auditSinks == null ? List.of() : auditSinks;
     }
 
+    /**
+     * Creates a new ToolRuntimeService instance.
+     *
+     * @param toolRegistry the tool registry value
+     * @param objectMapper the object mapper value
+     * @param properties the properties value
+     * @param mcpPolicyProperties the mcp policy properties value
+     * @param mcpWorkflowProperties the mcp workflow properties value
+     * @param policyProviders the policy providers value
+     * @param auditSinks the audit sinks value
+     */
     public ToolRuntimeService(ToolRegistry toolRegistry,
                               ObjectMapper objectMapper,
                               ToolRuntimeProperties properties,
@@ -87,6 +110,16 @@ public class ToolRuntimeService {
         );
     }
 
+    /**
+     * Creates a new ToolRuntimeService instance.
+     *
+     * @param toolRegistry the tool registry value
+     * @param objectMapper the object mapper value
+     * @param properties the properties value
+     * @param mcpPolicyProperties the mcp policy properties value
+     * @param policyProviders the policy providers value
+     * @param auditSinks the audit sinks value
+     */
     public ToolRuntimeService(ToolRegistry toolRegistry,
                               ObjectMapper objectMapper,
                               ToolRuntimeProperties properties,
@@ -96,6 +129,15 @@ public class ToolRuntimeService {
         this(toolRegistry, objectMapper, properties, mcpPolicyProperties, new McpWorkflowProperties(), policyProviders, auditSinks);
     }
 
+    /**
+     * Creates a new ToolRuntimeService instance.
+     *
+     * @param toolRegistry the tool registry value
+     * @param objectMapper the object mapper value
+     * @param properties the properties value
+     * @param policyProviders the policy providers value
+     * @param auditSinks the audit sinks value
+     */
     public ToolRuntimeService(ToolRegistry toolRegistry,
                               ObjectMapper objectMapper,
                               ToolRuntimeProperties properties,
@@ -104,6 +146,12 @@ public class ToolRuntimeService {
         this(toolRegistry, objectMapper, properties, new McpPolicyProperties(), new McpWorkflowProperties(), policyProviders, auditSinks);
     }
 
+    /**
+     * Executes the execute.
+     *
+     * @param request the request value
+     * @return the operation result
+     */
     public ToolRuntimeExecution execute(ToolRuntimeRequest request) {
         String toolName = normalizeText(request == null ? null : request.getToolName());
         if (toolName == null) {
@@ -215,6 +263,11 @@ public class ToolRuntimeService {
         }
     }
 
+    /**
+     * Performs the snapshot operation.
+     *
+     * @return the operation result
+     */
     public ToolRuntimeSnapshot snapshot() {
         List<ToolRuntimeSnapshot.ToolMetric> topTools = new ArrayList<>();
         long totalCalls = 0L;
@@ -282,10 +335,28 @@ public class ToolRuntimeService {
         );
     }
 
+    /**
+     * Performs the metadata operation.
+     *
+     * @param toolName the tool name value
+     * @return the operation result
+     */
     public ToolMetadata metadata(String toolName) {
         return toolRegistry.getToolMetadata(toolName);
     }
 
+    /**
+     * Performs the denied execution operation.
+     *
+     * @param toolName the tool name value
+     * @param request the request value
+     * @param metadata the metadata value
+     * @param message the message value
+     * @param errorCode the error code value
+     * @param executionPlan the execution plan value
+     * @param policyDecision the policy decision value
+     * @return the operation result
+     */
     private ToolRuntimeExecution deniedExecution(String toolName,
                                                  ToolRuntimeRequest request,
                                                  ToolMetadata metadata,
@@ -307,6 +378,19 @@ public class ToolRuntimeService {
         return new ToolRuntimeExecution(output, metadata, trace, "denied", runtimeMetadata);
     }
 
+    /**
+     * Performs the rejected execution operation.
+     *
+     * @param toolName the tool name value
+     * @param request the request value
+     * @param metadata the metadata value
+     * @param message the message value
+     * @param errorCode the error code value
+     * @param outcome the outcome value
+     * @param executionPlan the execution plan value
+     * @param policyDecision the policy decision value
+     * @return the operation result
+     */
     private ToolRuntimeExecution rejectedExecution(String toolName,
                                                    ToolRuntimeRequest request,
                                                    ToolMetadata metadata,
@@ -334,6 +418,16 @@ public class ToolRuntimeService {
         return new ToolRuntimeExecution(output, metadata, trace, outcome, runtimeMetadata);
     }
 
+    /**
+     * Performs the confirmation required execution operation.
+     *
+     * @param toolName the tool name value
+     * @param request the request value
+     * @param metadata the metadata value
+     * @param executionPlan the execution plan value
+     * @param policyDecision the policy decision value
+     * @return the operation result
+     */
     private ToolRuntimeExecution confirmationRequiredExecution(String toolName,
                                                                ToolRuntimeRequest request,
                                                                ToolMetadata metadata,
@@ -362,6 +456,13 @@ public class ToolRuntimeService {
         return new ToolRuntimeExecution(output, metadata, trace, "confirmation_required", runtimeMetadata);
     }
 
+    /**
+     * Returns whether is denied by policy.
+     *
+     * @param toolName the tool name value
+     * @param request the request value
+     * @return whether the condition is satisfied
+     */
     private boolean isDeniedByPolicy(String toolName, ToolRuntimeRequest request) {
         if (!properties.isEnforceAllowedTools() || request == null || request.getAllowedTools() == null || request.getAllowedTools().isEmpty()) {
             return false;
@@ -372,6 +473,13 @@ public class ToolRuntimeService {
             .noneMatch(toolName::equals);
     }
 
+    /**
+     * Returns whether requires authentication.
+     *
+     * @param metadata the metadata value
+     * @param policy the policy value
+     * @return whether the condition is satisfied
+     */
     private boolean requiresAuthentication(ToolMetadata metadata, ToolRuntimePolicy policy) {
         boolean requiresAuth = metadata != null && metadata.isRequiresAuth();
         if (policy != null && policy.requiresAuthentication() != null) {
@@ -380,6 +488,15 @@ public class ToolRuntimeService {
         return properties.isEnforceAuthentication() && requiresAuth;
     }
 
+    /**
+     * Returns whether is rate limited.
+     *
+     * @param toolName the tool name value
+     * @param metadata the metadata value
+     * @param userId the user id value
+     * @param policy the policy value
+     * @return whether the condition is satisfied
+     */
     private boolean isRateLimited(String toolName, ToolMetadata metadata, String userId, ToolRuntimePolicy policy) {
         int limit = metadata != null && metadata.isRateLimited() && metadata.getMaxCallsPerMinute() > 0
             ? metadata.getMaxCallsPerMinute()
@@ -407,6 +524,13 @@ public class ToolRuntimeService {
         }
     }
 
+    /**
+     * Returns whether is circuit open.
+     *
+     * @param toolName the tool name value
+     * @param policy the policy value
+     * @return whether the condition is satisfied
+     */
     private boolean isCircuitOpen(String toolName, ToolRuntimePolicy policy) {
         CircuitState state = circuitStates.computeIfAbsent(toolName, ignored -> new CircuitState());
         if (state.openedUntilMs.get() <= System.currentTimeMillis()) {
@@ -415,6 +539,12 @@ public class ToolRuntimeService {
         return threshold(policy) > 0;
     }
 
+    /**
+     * Updates the circuit on failure.
+     *
+     * @param toolName the tool name value
+     * @param policy the policy value
+     */
     private void updateCircuitOnFailure(String toolName, ToolRuntimePolicy policy) {
         CircuitState state = circuitStates.computeIfAbsent(toolName, ignored -> new CircuitState());
         int failures = state.consecutiveFailures.incrementAndGet();
@@ -424,12 +554,29 @@ public class ToolRuntimeService {
         }
     }
 
+    /**
+     * Performs the reset circuit operation.
+     *
+     * @param toolName the tool name value
+     */
     private void resetCircuit(String toolName) {
         CircuitState state = circuitStates.computeIfAbsent(toolName, ignored -> new CircuitState());
         state.consecutiveFailures.set(0);
         state.openedUntilMs.set(0L);
     }
 
+    /**
+     * Builds the trace.
+     *
+     * @param toolName the tool name value
+     * @param metadata the metadata value
+     * @param input the input value
+     * @param output the output value
+     * @param startedAt the started at value
+     * @param finishedAt the finished at value
+     * @param runtimeMetadata the runtime metadata value
+     * @return the built trace
+     */
     private InteractionToolTrace buildTrace(String toolName,
                                             ToolMetadata metadata,
                                             ToolInput input,
@@ -454,6 +601,17 @@ public class ToolRuntimeService {
             .build();
     }
 
+    /**
+     * Runs the configured startup logic.
+     *
+     * @param request the request value
+     * @param metadata the metadata value
+     * @param outcome the outcome value
+     * @param errorCode the error code value
+     * @param executionPlan the execution plan value
+     * @param policyDecision the policy decision value
+     * @return the operation result
+     */
     private Map<String, Object> runtimeMetadata(ToolRuntimeRequest request,
                                                 ToolMetadata metadata,
                                                 String outcome,
@@ -484,6 +642,13 @@ public class ToolRuntimeService {
         return values;
     }
 
+    /**
+     * Resolves the policy.
+     *
+     * @param request the request value
+     * @param metadata the metadata value
+     * @return the resolved policy
+     */
     private ToolRuntimePolicy resolvePolicy(ToolRuntimeRequest request, ToolMetadata metadata) {
         ToolRuntimePolicy merged = null;
         for (ToolRuntimePolicyProvider provider : policyProviders) {
@@ -499,6 +664,13 @@ public class ToolRuntimeService {
         return merged;
     }
 
+    /**
+     * Performs the merge policies operation.
+     *
+     * @param base the base value
+     * @param override the override value
+     * @return the operation result
+     */
     private ToolRuntimePolicy mergePolicies(ToolRuntimePolicy base, ToolRuntimePolicy override) {
         if (base == null) {
             return override;
@@ -526,10 +698,25 @@ public class ToolRuntimeService {
             .build();
     }
 
+    /**
+     * Returns whether is denied by resolved policy.
+     *
+     * @param policy the policy value
+     * @return whether the condition is satisfied
+     */
     private boolean isDeniedByResolvedPolicy(ToolRuntimePolicy policy) {
         return policy != null && Boolean.FALSE.equals(policy.allowed());
     }
 
+    /**
+     * Builds the execution plan.
+     *
+     * @param toolName the tool name value
+     * @param request the request value
+     * @param metadata the metadata value
+     * @param toolInput the tool input value
+     * @return the built execution plan
+     */
     private ToolExecutionPlan buildExecutionPlan(String toolName,
                                                  ToolRuntimeRequest request,
                                                  ToolMetadata metadata,
@@ -560,6 +747,17 @@ public class ToolRuntimeService {
             .build();
     }
 
+    /**
+     * Performs the decide mcp policy operation.
+     *
+     * @param toolName the tool name value
+     * @param request the request value
+     * @param metadata the metadata value
+     * @param toolInput the tool input value
+     * @param policy the policy value
+     * @param executionPlan the execution plan value
+     * @return the operation result
+     */
     private ToolPolicyDecision decideMcpPolicy(String toolName,
                                                ToolRuntimeRequest request,
                                                ToolMetadata metadata,
@@ -628,9 +826,23 @@ public class ToolRuntimeService {
         }
 
         return new ToolPolicyDecision(action, "MCP policy resolved action " + action.code(),
+            /**
+             * Performs the confirmation token operation.
+             *
+             * @param request the request value
+             * @param executionPlan the execution plan value
+             * @return the operation result
+             */
             riskLevel, operationType, dataScope, matchedRules, confirmationToken(request, executionPlan));
     }
 
+    /**
+     * Returns whether is mcp governed tool.
+     *
+     * @param toolName the tool name value
+     * @param metadata the metadata value
+     * @return whether the condition is satisfied
+     */
     private boolean isMcpGovernedTool(String toolName, ToolMetadata metadata) {
         if (toolName != null && toolName.startsWith("mcp_")) {
             return true;
@@ -650,12 +862,25 @@ public class ToolRuntimeService {
         return metadata.getRiskLevel() != null && !"low".equalsIgnoreCase(metadata.getRiskLevel());
     }
 
+    /**
+     * Returns whether workflow denied.
+     *
+     * @param policyDecision the policy decision value
+     * @return whether the condition is satisfied
+     */
     private boolean workflowDenied(ToolPolicyDecision policyDecision) {
         return policyDecision != null
             && policyDecision.matchedRules() != null
             && policyDecision.matchedRules().stream().anyMatch(rule -> rule != null && rule.startsWith("workflow."));
     }
 
+    /**
+     * Performs the action for tool operation.
+     *
+     * @param toolName the tool name value
+     * @param metadata the metadata value
+     * @return the operation result
+     */
     private ToolRuntimeAction actionForTool(String toolName, ToolMetadata metadata) {
         if (mcpPolicyProperties == null || mcpPolicyProperties.getToolPolicy() == null) {
             return null;
@@ -670,6 +895,14 @@ public class ToolRuntimeService {
         return null;
     }
 
+    /**
+     * Performs the decide parameter policy operation.
+     *
+     * @param toolName the tool name value
+     * @param metadata the metadata value
+     * @param toolInput the tool input value
+     * @return the operation result
+     */
     private ParameterDecision decideParameterPolicy(String toolName, ToolMetadata metadata, ToolInput toolInput) {
         if (mcpPolicyProperties == null || mcpPolicyProperties.getParameterPolicy() == null) {
             return new ParameterDecision(null, List.of());
@@ -702,6 +935,13 @@ public class ToolRuntimeService {
         return new ParameterDecision(action, matched);
     }
 
+    /**
+     * Returns whether parameter rule matches.
+     *
+     * @param rule the rule value
+     * @param parameters the parameters value
+     * @return whether the condition is satisfied
+     */
     private boolean parameterRuleMatches(String rule, Map<String, Object> parameters) {
         String normalized = normalizePolicyKey(rule);
         return switch (normalized) {
@@ -716,6 +956,15 @@ public class ToolRuntimeService {
         };
     }
 
+    /**
+     * Performs the decide workflow operation.
+     *
+     * @param toolName the tool name value
+     * @param request the request value
+     * @param toolInput the tool input value
+     * @param executionPlan the execution plan value
+     * @return the operation result
+     */
     private WorkflowDecision decideWorkflow(String toolName,
                                             ToolRuntimeRequest request,
                                             ToolInput toolInput,
@@ -820,6 +1069,19 @@ public class ToolRuntimeService {
             matchedRules);
     }
 
+    /**
+     * Validates the workflow sequence.
+     *
+     * @param workflowName the workflow name value
+     * @param workflow the workflow value
+     * @param currentStep the current step value
+     * @param toolName the tool name value
+     * @param completed the completed value
+     * @param strategy the strategy value
+     * @param matchedRules the matched rules value
+     * @param stateKey the state key value
+     * @return the operation result
+     */
     private WorkflowDecision validateWorkflowSequence(String workflowName,
                                                       McpWorkflowProperties.WorkflowSpec workflow,
                                                       McpWorkflowProperties.WorkflowStep currentStep,
@@ -857,6 +1119,13 @@ public class ToolRuntimeService {
         return WorkflowDecision.allowed(workflowName, stateKey, matchedRules);
     }
 
+    /**
+     * Performs the apply workflow decision operation.
+     *
+     * @param base the base value
+     * @param workflowDecision the workflow decision value
+     * @return the operation result
+     */
     private ToolPolicyDecision applyWorkflowDecision(ToolPolicyDecision base, WorkflowDecision workflowDecision) {
         if (workflowDecision == null || !workflowDecision.applicable()) {
             return base;
@@ -881,6 +1150,14 @@ public class ToolRuntimeService {
             base.dataScope(), matchedRules, base.confirmationToken());
     }
 
+    /**
+     * Performs the remember workflow success operation.
+     *
+     * @param toolName the tool name value
+     * @param request the request value
+     * @param executionPlan the execution plan value
+     * @param workflowDecision the workflow decision value
+     */
     private void rememberWorkflowSuccess(String toolName,
                                          ToolRuntimeRequest request,
                                          ToolExecutionPlan executionPlan,
@@ -888,6 +1165,14 @@ public class ToolRuntimeService {
         rememberWorkflowAttempt(toolName, request, executionPlan, workflowDecision, true);
     }
 
+    /**
+     * Performs the remember workflow failure operation.
+     *
+     * @param toolName the tool name value
+     * @param request the request value
+     * @param executionPlan the execution plan value
+     * @param workflowDecision the workflow decision value
+     */
     private void rememberWorkflowFailure(String toolName,
                                          ToolRuntimeRequest request,
                                          ToolExecutionPlan executionPlan,
@@ -895,6 +1180,15 @@ public class ToolRuntimeService {
         rememberWorkflowAttempt(toolName, request, executionPlan, workflowDecision, false);
     }
 
+    /**
+     * Performs the remember workflow attempt operation.
+     *
+     * @param toolName the tool name value
+     * @param request the request value
+     * @param executionPlan the execution plan value
+     * @param workflowDecision the workflow decision value
+     * @param success the success value
+     */
     private void rememberWorkflowAttempt(String toolName,
                                          ToolRuntimeRequest request,
                                          ToolExecutionPlan executionPlan,
@@ -915,6 +1209,13 @@ public class ToolRuntimeService {
         }
     }
 
+    /**
+     * Returns whether is confirmed.
+     *
+     * @param request the request value
+     * @param policyDecision the policy decision value
+     * @return whether the condition is satisfied
+     */
     private boolean isConfirmed(ToolRuntimeRequest request, ToolPolicyDecision policyDecision) {
         Map<String, Object> confirmation = confirmationFromRequest(request);
         if (confirmation.isEmpty()) {
@@ -932,6 +1233,12 @@ public class ToolRuntimeService {
         return policyDecision != null && policyDecision.confirmationToken().equals(token);
     }
 
+    /**
+     * Performs the remember user tool policy operation.
+     *
+     * @param request the request value
+     * @param policyDecision the policy decision value
+     */
     private void rememberUserToolPolicy(ToolRuntimeRequest request, ToolPolicyDecision policyDecision) {
         Map<String, Object> confirmation = confirmationFromRequest(request);
         String remember = stringValue(confirmation.get("remember"));
@@ -954,6 +1261,15 @@ public class ToolRuntimeService {
         }
     }
 
+    /**
+     * Builds the confirmation payload.
+     *
+     * @param request the request value
+     * @param metadata the metadata value
+     * @param executionPlan the execution plan value
+     * @param policyDecision the policy decision value
+     * @return the built confirmation payload
+     */
     private Map<String, Object> buildConfirmationPayload(ToolRuntimeRequest request,
                                                          ToolMetadata metadata,
                                                          ToolExecutionPlan executionPlan,
@@ -977,6 +1293,13 @@ public class ToolRuntimeService {
         return payload;
     }
 
+    /**
+     * Performs the process result data operation.
+     *
+     * @param data the data value
+     * @param metadata the metadata value
+     * @return the operation result
+     */
     private Object processResultData(Object data, ToolMetadata metadata) {
         Set<String> fields = new HashSet<>();
         if (isMcpGovernedTool(metadata == null ? null : metadata.getId(), metadata)) {
@@ -997,6 +1320,13 @@ public class ToolRuntimeService {
         return maskValue(data, fields);
     }
 
+    /**
+     * Performs the mask value operation.
+     *
+     * @param value the value value
+     * @param fields the fields value
+     * @return the operation result
+     */
     @SuppressWarnings("unchecked")
     private Object maskValue(Object value, Set<String> fields) {
         if (value instanceof Map<?, ?> map) {
@@ -1017,6 +1347,13 @@ public class ToolRuntimeService {
         return value;
     }
 
+    /**
+     * Converts the value to ol policy keys.
+     *
+     * @param toolName the tool name value
+     * @param metadata the metadata value
+     * @return the converted ol policy keys
+     */
     private List<String> toolPolicyKeys(String toolName, ToolMetadata metadata) {
         List<String> keys = new ArrayList<>();
         if (toolName != null && !toolName.isBlank()) {
@@ -1038,6 +1375,14 @@ public class ToolRuntimeService {
         return keys.stream().distinct().toList();
     }
 
+    /**
+     * Resolves the workflow name.
+     *
+     * @param toolName the tool name value
+     * @param request the request value
+     * @param executionPlan the execution plan value
+     * @return the resolved workflow name
+     */
     private String resolveWorkflowName(String toolName, ToolRuntimeRequest request, ToolExecutionPlan executionPlan) {
         String explicit = firstText(
             executionPlan == null ? null : executionPlan.workflow(),
@@ -1067,6 +1412,12 @@ public class ToolRuntimeService {
         return null;
     }
 
+    /**
+     * Performs the agent workflow config operation.
+     *
+     * @param request the request value
+     * @return the operation result
+     */
     private Map<String, Object> agentWorkflowConfig(ToolRuntimeRequest request) {
         Map<String, Object> workflow = asMap(request == null || request.getAttributes() == null
             ? null
@@ -1081,6 +1432,13 @@ public class ToolRuntimeService {
         return workflow;
     }
 
+    /**
+     * Performs the agent workflow name operation.
+     *
+     * @param config the config value
+     * @param executionPlan the execution plan value
+     * @return the operation result
+     */
     private String agentWorkflowName(Map<String, Object> config, ToolExecutionPlan executionPlan) {
         return firstText(
             executionPlan == null ? null : executionPlan.workflow(),
@@ -1094,6 +1452,14 @@ public class ToolRuntimeService {
         );
     }
 
+    /**
+     * Performs the workflow from agent config operation.
+     *
+     * @param config the config value
+     * @param toolName the tool name value
+     * @param executionPlan the execution plan value
+     * @return the operation result
+     */
     private McpWorkflowProperties.WorkflowSpec workflowFromAgentConfig(Map<String, Object> config,
                                                                        String toolName,
                                                                        ToolExecutionPlan executionPlan) {
@@ -1117,6 +1483,12 @@ public class ToolRuntimeService {
         return workflow;
     }
 
+    /**
+     * Performs the execution strategy from map operation.
+     *
+     * @param values the values value
+     * @return the operation result
+     */
     private McpWorkflowProperties.ExecutionStrategy executionStrategyFromMap(Map<String, Object> values) {
         McpWorkflowProperties.ExecutionStrategy strategy = new McpWorkflowProperties.ExecutionStrategy();
         if (values == null || values.isEmpty()) {
@@ -1141,6 +1513,12 @@ public class ToolRuntimeService {
         return strategy;
     }
 
+    /**
+     * Performs the workflow steps from list operation.
+     *
+     * @param value the value value
+     * @return the operation result
+     */
     private List<McpWorkflowProperties.WorkflowStep> workflowStepsFromList(Object value) {
         if (!(value instanceof List<?> list)) {
             return List.of();
@@ -1170,6 +1548,13 @@ public class ToolRuntimeService {
         return steps;
     }
 
+    /**
+     * Performs the dependency from agent config operation.
+     *
+     * @param config the config value
+     * @param toolName the tool name value
+     * @return the operation result
+     */
     private McpWorkflowProperties.ToolDependencySpec dependencyFromAgentConfig(Map<String, Object> config, String toolName) {
         if (config == null || config.isEmpty() || toolName == null) {
             return null;
@@ -1196,6 +1581,13 @@ public class ToolRuntimeService {
         return null;
     }
 
+    /**
+     * Performs the first dependency operation.
+     *
+     * @param first the first value
+     * @param second the second value
+     * @return the operation result
+     */
     private McpWorkflowProperties.ToolDependencySpec firstDependency(McpWorkflowProperties.ToolDependencySpec first,
                                                                      McpWorkflowProperties.ToolDependencySpec second) {
         if (first != null && first.getDependsOn() != null && !first.getDependsOn().isEmpty()) {
@@ -1204,6 +1596,12 @@ public class ToolRuntimeService {
         return second;
     }
 
+    /**
+     * Performs the dependency for tool operation.
+     *
+     * @param toolName the tool name value
+     * @return the operation result
+     */
     private McpWorkflowProperties.ToolDependencySpec dependencyForTool(String toolName) {
         if (mcpWorkflowProperties == null || mcpWorkflowProperties.getToolDependencies() == null || toolName == null) {
             return null;
@@ -1216,6 +1614,13 @@ public class ToolRuntimeService {
         return null;
     }
 
+    /**
+     * Performs the workflow step operation.
+     *
+     * @param workflow the workflow value
+     * @param toolName the tool name value
+     * @return the operation result
+     */
     private McpWorkflowProperties.WorkflowStep workflowStep(McpWorkflowProperties.WorkflowSpec workflow, String toolName) {
         if (workflow == null || workflow.getSteps() == null) {
             return null;
@@ -1226,22 +1631,48 @@ public class ToolRuntimeService {
             .orElse(null);
     }
 
+    /**
+     * Returns whether parallel step.
+     *
+     * @param workflow the workflow value
+     * @param toolName the tool name value
+     * @return whether the condition is satisfied
+     */
     private boolean parallelStep(McpWorkflowProperties.WorkflowSpec workflow, String toolName) {
         return workflow != null
             && workflow.getParallelSteps() != null
             && workflow.getParallelSteps().stream().anyMatch(stepTool -> sameTool(stepTool, toolName));
     }
 
+    /**
+     * Performs the step order operation.
+     *
+     * @param step the step value
+     * @return the operation result
+     */
     private int stepOrder(McpWorkflowProperties.WorkflowStep step) {
         return step == null || step.getStep() == null ? Integer.MAX_VALUE : step.getStep();
     }
 
+    /**
+     * Returns whether step contains tool.
+     *
+     * @param step the step value
+     * @param toolName the tool name value
+     * @return whether the condition is satisfied
+     */
     private boolean stepContainsTool(McpWorkflowProperties.WorkflowStep step, String toolName) {
         return step != null
             && (sameTool(step.getTool(), toolName)
             || (step.getParallelSteps() != null && step.getParallelSteps().stream().anyMatch(candidate -> sameTool(candidate, toolName))));
     }
 
+    /**
+     * Performs the step tools operation.
+     *
+     * @param step the step value
+     * @return the operation result
+     */
     private List<String> stepTools(McpWorkflowProperties.WorkflowStep step) {
         if (step == null) {
             return List.of();
@@ -1258,10 +1689,24 @@ public class ToolRuntimeService {
         return tools.stream().distinct().toList();
     }
 
+    /**
+     * Returns whether same tool.
+     *
+     * @param configuredTool the configured tool value
+     * @param actualTool the actual tool value
+     * @return whether the condition is satisfied
+     */
     private boolean sameTool(String configuredTool, String actualTool) {
         return normalizeToolSemanticKey(configuredTool).equals(normalizeToolSemanticKey(actualTool));
     }
 
+    /**
+     * Returns whether contains tool.
+     *
+     * @param tools the tools value
+     * @param expectedTool the expected tool value
+     * @return whether the condition is satisfied
+     */
     private boolean containsTool(Set<String> tools, String expectedTool) {
         if (tools == null || expectedTool == null) {
             return false;
@@ -1269,6 +1714,12 @@ public class ToolRuntimeService {
         return tools.stream().anyMatch(tool -> sameTool(tool, expectedTool));
     }
 
+    /**
+     * Normalizes the tool semantic key.
+     *
+     * @param toolName the tool name value
+     * @return the operation result
+     */
     private String normalizeToolSemanticKey(String toolName) {
         String normalized = normalizePolicyKey(toolName);
         if (normalized.contains("document_search")) {
@@ -1280,6 +1731,13 @@ public class ToolRuntimeService {
         return normalized;
     }
 
+    /**
+     * Performs the completed tools operation.
+     *
+     * @param request the request value
+     * @param state the state value
+     * @return the operation result
+     */
     private Set<String> completedTools(ToolRuntimeRequest request, WorkflowState state) {
         Set<String> completed = new HashSet<>(state == null ? Set.of() : state.completedTools);
         Object configured = request == null || request.getAttributes() == null
@@ -1297,6 +1755,13 @@ public class ToolRuntimeService {
         return completed;
     }
 
+    /**
+     * Performs the workflow state key operation.
+     *
+     * @param request the request value
+     * @param workflowName the workflow name value
+     * @return the operation result
+     */
     private String workflowStateKey(ToolRuntimeRequest request, String workflowName) {
         String tenant = normalizeText(request == null ? null : request.getTenantId());
         String user = normalizeText(request == null ? null : request.getUserId());
@@ -1307,6 +1772,13 @@ public class ToolRuntimeService {
             + "::" + scope + "::" + firstText(workflowName, "global");
     }
 
+    /**
+     * Performs the workflow context operation.
+     *
+     * @param request the request value
+     * @param toolInput the tool input value
+     * @return the operation result
+     */
     private Map<String, Object> workflowContext(ToolRuntimeRequest request, ToolInput toolInput) {
         Map<String, Object> context = new LinkedHashMap<>();
         if (request != null && request.getAttributes() != null) {
@@ -1318,6 +1790,13 @@ public class ToolRuntimeService {
         return context;
     }
 
+    /**
+     * Returns whether condition matches.
+     *
+     * @param condition the condition value
+     * @param context the context value
+     * @return whether the condition is satisfied
+     */
     private boolean conditionMatches(String condition, Map<String, Object> context) {
         if (condition == null || condition.isBlank()) {
             return true;
@@ -1341,6 +1820,14 @@ public class ToolRuntimeService {
         return truthy(value);
     }
 
+    /**
+     * Returns whether compare condition.
+     *
+     * @param leftValue the left value value
+     * @param operator the operator value
+     * @param rightText the right text value
+     * @return whether the condition is satisfied
+     */
     private boolean compareCondition(Object leftValue, String operator, String rightText) {
         if (leftValue == null) {
             return false;
@@ -1367,6 +1854,12 @@ public class ToolRuntimeService {
         };
     }
 
+    /**
+     * Performs the number value operation.
+     *
+     * @param value the value value
+     * @return the operation result
+     */
     private Double numberValue(Object value) {
         if (value instanceof Number number) {
             return number.doubleValue();
@@ -1378,6 +1871,12 @@ public class ToolRuntimeService {
         }
     }
 
+    /**
+     * Performs the unquote operation.
+     *
+     * @param value the value value
+     * @return the operation result
+     */
     private String unquote(String value) {
         if (value == null) {
             return "";
@@ -1389,6 +1888,12 @@ public class ToolRuntimeService {
         return text;
     }
 
+    /**
+     * Performs the default action for risk operation.
+     *
+     * @param riskLevel the risk level value
+     * @return the operation result
+     */
     private ToolRuntimeAction defaultActionForRisk(String riskLevel) {
         return switch (normalizePolicyKey(riskLevel)) {
             case "forbidden" -> ToolRuntimeAction.DENY;
@@ -1397,6 +1902,12 @@ public class ToolRuntimeService {
         };
     }
 
+    /**
+     * Performs the confirmation from request operation.
+     *
+     * @param request the request value
+     * @return the operation result
+     */
     @SuppressWarnings("unchecked")
     private Map<String, Object> confirmationFromRequest(ToolRuntimeRequest request) {
         if (request == null) {
@@ -1412,6 +1923,13 @@ public class ToolRuntimeService {
         return (Map<String, Object>) map;
     }
 
+    /**
+     * Performs the confirmation token operation.
+     *
+     * @param request the request value
+     * @param executionPlan the execution plan value
+     * @return the operation result
+     */
     private String confirmationToken(ToolRuntimeRequest request, ToolExecutionPlan executionPlan) {
         Map<String, Object> values = new LinkedHashMap<>();
         values.put("tenantId", request == null ? null : request.getTenantId());
@@ -1422,6 +1940,12 @@ public class ToolRuntimeService {
         return sha256(stringify(values)).substring(0, 32);
     }
 
+    /**
+     * Performs the sha256 operation.
+     *
+     * @param value the value value
+     * @return the operation result
+     */
     private String sha256(String value) {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
@@ -1436,6 +1960,12 @@ public class ToolRuntimeService {
         }
     }
 
+    /**
+     * Performs the as map operation.
+     *
+     * @param value the value value
+     * @return the operation result
+     */
     @SuppressWarnings("unchecked")
     private Map<String, Object> asMap(Object value) {
         if (!(value instanceof Map<?, ?> map)) {
@@ -1444,6 +1974,12 @@ public class ToolRuntimeService {
         return (Map<String, Object>) map;
     }
 
+    /**
+     * Performs the string list operation.
+     *
+     * @param value the value value
+     * @return the operation result
+     */
     private List<String> stringList(Object value) {
         if (value instanceof List<?> list) {
             return list.stream()
@@ -1465,6 +2001,12 @@ public class ToolRuntimeService {
         return List.of();
     }
 
+    /**
+     * Returns whether boolean value.
+     *
+     * @param value the value value
+     * @return whether the condition is satisfied
+     */
     private Boolean booleanValue(Object value) {
         if (value instanceof Boolean bool) {
             return bool;
@@ -1482,6 +2024,12 @@ public class ToolRuntimeService {
         return null;
     }
 
+    /**
+     * Performs the integer value operation.
+     *
+     * @param value the value value
+     * @return the operation result
+     */
     private Integer integerValue(Object value) {
         if (value instanceof Number number) {
             return number.intValue();
@@ -1493,11 +2041,25 @@ public class ToolRuntimeService {
         }
     }
 
+    /**
+     * Performs the first integer operation.
+     *
+     * @param value the value value
+     * @param fallback the fallback value
+     * @return the operation result
+     */
     private int firstInteger(Object value, int fallback) {
         Integer parsed = integerValue(value);
         return parsed == null ? fallback : parsed;
     }
 
+    /**
+     * Performs the value for key operation.
+     *
+     * @param values the values value
+     * @param key the key value
+     * @return the operation result
+     */
     private String valueForKey(Map<String, String> values, String key) {
         if (values == null || key == null) {
             return null;
@@ -1511,6 +2073,13 @@ public class ToolRuntimeService {
         return null;
     }
 
+    /**
+     * Performs the value for nested key operation.
+     *
+     * @param values the values value
+     * @param key the key value
+     * @return the operation result
+     */
     private Map<String, String> valueForNestedKey(Map<String, Map<String, String>> values, String key) {
         if (values == null || key == null) {
             return null;
@@ -1524,6 +2093,12 @@ public class ToolRuntimeService {
         return null;
     }
 
+    /**
+     * Normalizes the policy key.
+     *
+     * @param value the value value
+     * @return the operation result
+     */
     private String normalizePolicyKey(String value) {
         if (value == null || value.isBlank()) {
             return "";
@@ -1531,6 +2106,12 @@ public class ToolRuntimeService {
         return value.trim().toLowerCase(Locale.ROOT).replace('-', '_');
     }
 
+    /**
+     * Performs the first present operation.
+     *
+     * @param values the values value
+     * @return the operation result
+     */
     private Object firstPresent(Object... values) {
         if (values == null) {
             return null;
@@ -1543,6 +2124,12 @@ public class ToolRuntimeService {
         return null;
     }
 
+    /**
+     * Performs the recipient count operation.
+     *
+     * @param parameters the parameters value
+     * @return the operation result
+     */
     private int recipientCount(Map<String, Object> parameters) {
         Object count = firstPresent(parameters.get("recipient_count"), parameters.get("recipientCount"), parameters.get("count"));
         if (count instanceof Number number) {
@@ -1562,6 +2149,12 @@ public class ToolRuntimeService {
         }
     }
 
+    /**
+     * Returns whether has external domain.
+     *
+     * @param parameters the parameters value
+     * @return whether the condition is satisfied
+     */
     private boolean hasExternalDomain(Map<String, Object> parameters) {
         List<String> recipients = new ArrayList<>();
         Object value = firstPresent(parameters.get("recipients"), parameters.get("recipient"), parameters.get("to"), parameters.get("email"));
@@ -1579,6 +2172,13 @@ public class ToolRuntimeService {
             .anyMatch(domain -> !domain.endsWith(".local") && !domain.endsWith(".internal") && !domain.contains("chatchat"));
     }
 
+    /**
+     * Returns whether contains word.
+     *
+     * @param parameters the parameters value
+     * @param word the word value
+     * @return whether the condition is satisfied
+     */
     private boolean containsWord(Map<String, Object> parameters, String word) {
         String text = String.join(" ",
             stringValue(parameters.get("sql")),
@@ -1589,6 +2189,12 @@ public class ToolRuntimeService {
         return text.matches(".*\\b" + word.toLowerCase(Locale.ROOT) + "\\b.*");
     }
 
+    /**
+     * Returns whether is customer detail.
+     *
+     * @param parameters the parameters value
+     * @return whether the condition is satisfied
+     */
     private boolean isCustomerDetail(Map<String, Object> parameters) {
         if (truthy(parameters.get("customer_detail")) || truthy(parameters.get("customerDetail"))) {
             return true;
@@ -1605,6 +2211,12 @@ public class ToolRuntimeService {
         return scope.contains("customer") || scope.contains("detail");
     }
 
+    /**
+     * Returns whether is branch summary.
+     *
+     * @param parameters the parameters value
+     * @return whether the condition is satisfied
+     */
     private boolean isBranchSummary(Map<String, Object> parameters) {
         String scope = String.join(" ",
             stringValue(parameters.get("scope")),
@@ -1616,6 +2228,12 @@ public class ToolRuntimeService {
             && !isCustomerDetail(parameters);
     }
 
+    /**
+     * Performs the infer data scope operation.
+     *
+     * @param parameters the parameters value
+     * @return the operation result
+     */
     private String inferDataScope(Map<String, Object> parameters) {
         if (parameters == null || parameters.isEmpty()) {
             return "unknown";
@@ -1630,6 +2248,12 @@ public class ToolRuntimeService {
         return firstText(scope, "unknown");
     }
 
+    /**
+     * Returns whether truthy.
+     *
+     * @param value the value value
+     * @return whether the condition is satisfied
+     */
     private boolean truthy(Object value) {
         if (value instanceof Boolean bool) {
             return bool;
@@ -1644,6 +2268,12 @@ public class ToolRuntimeService {
         return "true".equalsIgnoreCase(text) || "yes".equalsIgnoreCase(text) || "1".equals(text);
     }
 
+    /**
+     * Performs the threshold operation.
+     *
+     * @param policy the policy value
+     * @return the operation result
+     */
     private int threshold(ToolRuntimePolicy policy) {
         if (policy != null && policy.circuitBreakerFailureThreshold() != null) {
             return Math.max(1, policy.circuitBreakerFailureThreshold());
@@ -1651,6 +2281,12 @@ public class ToolRuntimeService {
         return Math.max(1, properties.getCircuitBreakerFailureThreshold());
     }
 
+    /**
+     * Opens the seconds.
+     *
+     * @param policy the policy value
+     * @return the operation result
+     */
     private int openSeconds(ToolRuntimePolicy policy) {
         if (policy != null && policy.circuitBreakerOpenSeconds() != null) {
             return Math.max(1, policy.circuitBreakerOpenSeconds());
@@ -1658,6 +2294,18 @@ public class ToolRuntimeService {
         return Math.max(1, properties.getCircuitBreakerOpenSeconds());
     }
 
+    /**
+     * Publishes the audit record.
+     *
+     * @param request the request value
+     * @param metadata the metadata value
+     * @param output the output value
+     * @param trace the trace value
+     * @param outcome the outcome value
+     * @param errorCode the error code value
+     * @param durationMs the duration ms value
+     * @param runtimeMetadata the runtime metadata value
+     */
     private void publishAuditRecord(ToolRuntimeRequest request,
                                     ToolMetadata metadata,
                                     ToolOutput output,
@@ -1687,6 +2335,15 @@ public class ToolRuntimeService {
         }
     }
 
+    /**
+     * Performs the log audit operation.
+     *
+     * @param toolName the tool name value
+     * @param request the request value
+     * @param outcome the outcome value
+     * @param durationMs the duration ms value
+     * @param errorMessage the error message value
+     */
     private void logAudit(String toolName,
                           ToolRuntimeRequest request,
                           String outcome,
@@ -1703,6 +2360,12 @@ public class ToolRuntimeService {
             errorMessage);
     }
 
+    /**
+     * Performs the stringify operation.
+     *
+     * @param data the data value
+     * @return the operation result
+     */
     private String stringify(Object data) {
         if (data == null) {
             return null;
@@ -1717,10 +2380,23 @@ public class ToolRuntimeService {
         }
     }
 
+    /**
+     * Performs the string value operation.
+     *
+     * @param value the value value
+     * @return the operation result
+     */
     private String stringValue(Object value) {
         return value == null ? "" : String.valueOf(value);
     }
 
+    /**
+     * Resolves the display name.
+     *
+     * @param toolName the tool name value
+     * @param metadata the metadata value
+     * @return the resolved display name
+     */
     private String resolveDisplayName(String toolName, ToolMetadata metadata) {
         if (metadata != null && metadata.getTitle() != null && !metadata.getTitle().isBlank()) {
             return metadata.getTitle().trim();
@@ -1728,6 +2404,12 @@ public class ToolRuntimeService {
         return toolName;
     }
 
+    /**
+     * Resolves the service id.
+     *
+     * @param metadata the metadata value
+     * @return the resolved service id
+     */
     private String resolveServiceId(ToolMetadata metadata) {
         if (metadata == null || metadata.getMetadata() == null) {
             return null;
@@ -1736,6 +2418,12 @@ public class ToolRuntimeService {
         return value == null ? null : String.valueOf(value);
     }
 
+    /**
+     * Resolves the service name.
+     *
+     * @param metadata the metadata value
+     * @return the resolved service name
+     */
     private String resolveServiceName(ToolMetadata metadata) {
         if (metadata == null || metadata.getAuthor() == null || metadata.getAuthor().isBlank()) {
             return null;
@@ -1747,15 +2435,34 @@ public class ToolRuntimeService {
         return author;
     }
 
+    /**
+     * Normalizes the mode.
+     *
+     * @param request the request value
+     * @return the operation result
+     */
     private String normalizeMode(ToolRuntimeRequest request) {
         String value = request == null ? null : request.getRuntimeMode();
         return value == null || value.isBlank() ? "tool_runtime" : value.trim();
     }
 
+    /**
+     * Normalizes the text.
+     *
+     * @param value the value value
+     * @return the operation result
+     */
     private String normalizeText(String value) {
         return value == null || value.isBlank() ? null : value.trim();
     }
 
+    /**
+     * Performs the first text operation.
+     *
+     * @param first the first value
+     * @param second the second value
+     * @return the operation result
+     */
     private String firstText(String first, String second) {
         return first == null || first.isBlank() ? second : first;
     }
@@ -1785,10 +2492,23 @@ public class ToolRuntimeService {
         String reason,
         List<String> matchedRules
     ) {
+        /**
+         * Performs the not applicable operation.
+         *
+         * @return the operation result
+         */
         private static WorkflowDecision notApplicable() {
             return new WorkflowDecision(false, null, null, null, null, List.of());
         }
 
+        /**
+         * Performs the allowed operation.
+         *
+         * @param workflowName the workflow name value
+         * @param stateKey the state key value
+         * @param matchedRules the matched rules value
+         * @return the operation result
+         */
         private static WorkflowDecision allowed(String workflowName, String stateKey, List<String> matchedRules) {
             return new WorkflowDecision(true, workflowName, stateKey, null,
                 "MCP workflow allows tool execution", new ArrayList<>(matchedRules));
@@ -1822,11 +2542,27 @@ public class ToolRuntimeService {
 
         private final Map<String, ToolRuntimeAction> actions = new ConcurrentHashMap<>();
 
+        /**
+         * Finds the action.
+         *
+         * @param tenantId the tenant id value
+         * @param userId the user id value
+         * @param toolName the tool name value
+         * @return the matching action
+         */
         @Override
         public Optional<ToolRuntimeAction> findAction(String tenantId, String userId, String toolName) {
             return Optional.ofNullable(actions.get(key(tenantId, userId, toolName)));
         }
 
+        /**
+         * Saves the action.
+         *
+         * @param tenantId the tenant id value
+         * @param userId the user id value
+         * @param toolName the tool name value
+         * @param action the action value
+         */
         @Override
         public void saveAction(String tenantId, String userId, String toolName, ToolRuntimeAction action) {
             if (action == null) {
@@ -1835,10 +2571,25 @@ public class ToolRuntimeService {
             actions.put(key(tenantId, userId, toolName), action);
         }
 
+        /**
+         * Performs the key operation.
+         *
+         * @param tenantId the tenant id value
+         * @param userId the user id value
+         * @param toolName the tool name value
+         * @return the operation result
+         */
         private String key(String tenantId, String userId, String toolName) {
             return first(tenantId, "default") + "::" + first(userId, "anonymous") + "::" + first(toolName, "unknown");
         }
 
+        /**
+         * Performs the first operation.
+         *
+         * @param value the value value
+         * @param fallback the fallback value
+         * @return the operation result
+         */
         private String first(String value, String fallback) {
             return value == null || value.isBlank() ? fallback : value.trim();
         }

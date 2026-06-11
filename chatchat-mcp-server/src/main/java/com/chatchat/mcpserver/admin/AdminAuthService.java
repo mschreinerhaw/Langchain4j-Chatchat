@@ -17,6 +17,13 @@ public class AdminAuthService {
     private final SecureRandom secureRandom = new SecureRandom();
     private final Map<String, TokenSession> sessions = new ConcurrentHashMap<>();
 
+    /**
+     * Performs the login operation.
+     *
+     * @param username the username value
+     * @param password the password value
+     * @return the operation result
+     */
     public LoginResult login(String username, String password) {
         if (!constantTimeEquals(properties.getUsername(), username)
             || !constantTimeEquals(properties.getPassword(), password)) {
@@ -30,6 +37,12 @@ public class AdminAuthService {
         return new LoginResult(token, properties.getUsername(), expiresAt.toEpochMilli());
     }
 
+    /**
+     * Returns whether is valid.
+     *
+     * @param token the token value
+     * @return whether the condition is satisfied
+     */
     public boolean isValid(String token) {
         if (token == null || token.isBlank()) {
             return false;
@@ -45,18 +58,35 @@ public class AdminAuthService {
         return true;
     }
 
+    /**
+     * Performs the logout operation.
+     *
+     * @param token the token value
+     */
     public void logout(String token) {
         if (token != null && !token.isBlank()) {
             sessions.remove(token);
         }
     }
 
+    /**
+     * Performs the new token operation.
+     *
+     * @return the operation result
+     */
     private String newToken() {
         byte[] bytes = new byte[32];
         secureRandom.nextBytes(bytes);
         return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
     }
 
+    /**
+     * Returns whether constant time equals.
+     *
+     * @param expected the expected value
+     * @param actual the actual value
+     * @return whether the condition is satisfied
+     */
     private boolean constantTimeEquals(String expected, String actual) {
         if (expected == null || actual == null) {
             return false;

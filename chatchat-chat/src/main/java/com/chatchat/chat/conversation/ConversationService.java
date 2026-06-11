@@ -25,6 +25,13 @@ public class ConversationService {
     private final ChatMessageIndexRepository messageIndexRepository;
     private final ChatMessageDetailStore detailStore;
 
+    /**
+     * Creates a new ConversationService instance.
+     *
+     * @param sessionRepository the session repository value
+     * @param messageIndexRepository the message index repository value
+     * @param detailStore the detail store value
+     */
     public ConversationService(ChatSessionRepository sessionRepository,
                                ChatMessageIndexRepository messageIndexRepository,
                                ChatMessageDetailStore detailStore) {
@@ -33,6 +40,13 @@ public class ConversationService {
         this.detailStore = detailStore;
     }
 
+    /**
+     * Creates the conversation.
+     *
+     * @param userId the user id value
+     * @param title the title value
+     * @return the created conversation
+     */
     @Transactional
     public Conversation createConversation(String userId, String title) {
         ChatSessionEntity session = new ChatSessionEntity();
@@ -43,6 +57,13 @@ public class ConversationService {
         return toConversation(sessionRepository.save(session), List.of());
     }
 
+    /**
+     * Ensures the conversation id.
+     *
+     * @param conversationId the conversation id value
+     * @param userId the user id value
+     * @return the operation result
+     */
     @Transactional
     public String ensureConversationId(String conversationId, String userId) {
         if (conversationId == null || conversationId.isBlank()) {
@@ -62,12 +83,24 @@ public class ConversationService {
         return normalizedConversationId;
     }
 
+    /**
+     * Returns the conversation.
+     *
+     * @param conversationId the conversation id value
+     * @return the conversation
+     */
     @Transactional(readOnly = true)
     public Optional<Conversation> getConversation(String conversationId) {
         return sessionRepository.findById(conversationId)
             .map(session -> toConversation(session, listMessageDetails(conversationId)));
     }
 
+    /**
+     * Lists the user conversations.
+     *
+     * @param userId the user id value
+     * @return the user conversations list
+     */
     @Transactional(readOnly = true)
     public List<Conversation> listUserConversations(String userId) {
         return sessionRepository.findByUserIdOrderByUpdatedAtDesc(userId).stream()
@@ -75,6 +108,15 @@ public class ConversationService {
             .toList();
     }
 
+    /**
+     * Updates the conversation summary.
+     *
+     * @param conversationId the conversation id value
+     * @param userId the user id value
+     * @param title the title value
+     * @param status the status value
+     * @return the updated conversation summary
+     */
     @Transactional
     public Conversation updateConversationSummary(String conversationId, String userId, String title, String status) {
         String normalizedConversationId = ensureConversationId(conversationId, userId);
@@ -89,6 +131,11 @@ public class ConversationService {
         return toConversation(sessionRepository.save(session), listMessageDetails(normalizedConversationId));
     }
 
+    /**
+     * Deletes the conversation.
+     *
+     * @param conversationId the conversation id value
+     */
     @Transactional
     public void deleteConversation(String conversationId) {
         List<ChatMessageIndexEntity> indexes = messageIndexRepository.findBySessionIdOrderByCreatedAtAsc(conversationId);
@@ -97,6 +144,13 @@ public class ConversationService {
         sessionRepository.deleteById(conversationId);
     }
 
+    /**
+     * Performs the replace messages operation.
+     *
+     * @param conversationId the conversation id value
+     * @param userId the user id value
+     * @param messages the messages value
+     */
     @Transactional
     public void replaceMessages(String conversationId, String userId, List<Conversation.Message> messages) {
         String normalizedConversationId = ensureConversationId(conversationId, userId);
@@ -123,6 +177,14 @@ public class ConversationService {
         sessionRepository.save(session);
     }
 
+    /**
+     * Appends the message.
+     *
+     * @param conversationId the conversation id value
+     * @param role the role value
+     * @param content the content value
+     * @return the operation result
+     */
     @Transactional
     public Conversation.Message appendMessage(String conversationId, String role, String content) {
         if (content == null || content.isBlank()) {
@@ -158,6 +220,13 @@ public class ConversationService {
         return toMessage(detail);
     }
 
+    /**
+     * Performs the recent messages operation.
+     *
+     * @param conversationId the conversation id value
+     * @param limit the limit value
+     * @return the operation result
+     */
     @Transactional(readOnly = true)
     public List<Conversation.Message> recentMessages(String conversationId, int limit) {
         if (limit <= 0) {
@@ -171,6 +240,12 @@ public class ConversationService {
             .toList();
     }
 
+    /**
+     * Lists the message details.
+     *
+     * @param conversationId the conversation id value
+     * @return the message details list
+     */
     private List<Conversation.Message> listMessageDetails(String conversationId) {
         return messageIndexRepository.findBySessionIdOrderByCreatedAtAsc(conversationId).stream()
             .map(index -> detailStore.get(index.getRocksKey()).orElse(null))
@@ -179,6 +254,13 @@ public class ConversationService {
             .toList();
     }
 
+    /**
+     * Converts the value to conversation.
+     *
+     * @param session the session value
+     * @param messages the messages value
+     * @return the converted conversation
+     */
     private Conversation toConversation(ChatSessionEntity session, List<Conversation.Message> messages) {
         return Conversation.builder()
             .id(session.getSessionId())
@@ -191,6 +273,12 @@ public class ConversationService {
             .build();
     }
 
+    /**
+     * Converts the value to message.
+     *
+     * @param detail the detail value
+     * @return the converted message
+     */
     private Conversation.Message toMessage(ChatMessageDetail detail) {
         return Conversation.Message.builder()
             .id(detail.getMessageId())
@@ -204,6 +292,13 @@ public class ConversationService {
             .build();
     }
 
+    /**
+     * Saves the message detail.
+     *
+     * @param session the session value
+     * @param message the message value
+     * @param createdAt the created at value
+     */
     private void saveMessageDetail(ChatSessionEntity session, Conversation.Message message, Instant createdAt) {
         String messageId = message.getId() == null || message.getId().isBlank()
             ? UUID.randomUUID().toString()
@@ -234,6 +329,12 @@ public class ConversationService {
         messageIndexRepository.save(index);
     }
 
+    /**
+     * Converts the value to local date time.
+     *
+     * @param instant the instant value
+     * @return the converted local date time
+     */
     private LocalDateTime toLocalDateTime(Instant instant) {
         if (instant == null) {
             return null;
@@ -241,6 +342,13 @@ public class ConversationService {
         return LocalDateTime.ofInstant(instant, ZoneId.systemDefault());
     }
 
+    /**
+     * Converts the value to instant.
+     *
+     * @param value the value value
+     * @param offset the offset value
+     * @return the converted instant
+     */
     private Instant toInstant(LocalDateTime value, int offset) {
         if (value != null) {
             return value.atZone(ZoneId.systemDefault()).toInstant();
@@ -248,6 +356,12 @@ public class ConversationService {
         return Instant.now().plusMillis(Math.max(0, offset));
     }
 
+    /**
+     * Copies the maps.
+     *
+     * @param values the values value
+     * @return the operation result
+     */
     private List<Map<String, Object>> copyMaps(List<Map<String, Object>> values) {
         if (values == null || values.isEmpty()) {
             return List.of();
@@ -261,6 +375,13 @@ public class ConversationService {
         return copy;
     }
 
+    /**
+     * Normalizes the normalize.
+     *
+     * @param value the value value
+     * @param fallback the fallback value
+     * @return the operation result
+     */
     private String normalize(String value, String fallback) {
         if (value == null || value.isBlank()) {
             return fallback;
@@ -268,6 +389,12 @@ public class ConversationService {
         return value.trim();
     }
 
+    /**
+     * Normalizes the title.
+     *
+     * @param value the value value
+     * @return the operation result
+     */
     private String normalizeTitle(String value) {
         String normalized = normalize(value, "New Conversation");
         return normalized.length() <= 256 ? normalized : normalized.substring(0, 256);

@@ -78,8 +78,24 @@ public interface ToolRegistry {
      * Simple tool interface (backward compatible)
      */
     interface Tool {
+        /**
+         * Returns the name.
+         *
+         * @return the name
+         */
         String getName();
+        /**
+         * Returns the description.
+         *
+         * @return the description
+         */
         String getDescription();
+        /**
+         * Executes the execute.
+         *
+         * @param input the input value
+         * @return the operation result
+         */
         String execute(String input);
     }
 
@@ -87,7 +103,18 @@ public interface ToolRegistry {
      * Enhanced tool interface with structured I/O and metadata support
      */
     interface EnhancedTool {
+        /**
+         * Returns the metadata.
+         *
+         * @return the metadata
+         */
         ToolMetadata getMetadata();
+        /**
+         * Executes the execute.
+         *
+         * @param input the input value
+         * @return the operation result
+         */
         ToolOutput execute(ToolInput input);
     }
 }

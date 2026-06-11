@@ -59,6 +59,12 @@ public class AgentTaskService {
     private final Map<String, Thread> runningTaskThreads = new ConcurrentHashMap<>();
     private volatile boolean stopping;
 
+    /**
+     * Performs the submit operation.
+     *
+     * @param request the request value
+     * @return the operation result
+     */
     public AgentTaskResponse submit(AgentTaskSubmitRequest request) {
         validate(request);
         AgentTaskSubmitRequest normalized = normalize(request);
@@ -82,10 +88,26 @@ public class AgentTaskService {
         return AgentTaskResponse.from(latest);
     }
 
+    /**
+     * Returns the get.
+     *
+     * @param tenantId the tenant id value
+     * @param taskId the task id value
+     * @return the get
+     */
     public Optional<AgentTaskResponse> get(String tenantId, String taskId) {
         return Optional.of(AgentTaskResponse.from(getTaskForTenant(tenantId, taskId)));
     }
 
+    /**
+     * Lists the list.
+     *
+     * @param tenantId the tenant id value
+     * @param sessionId the session id value
+     * @param page the page value
+     * @param pageSize the page size value
+     * @return the list list
+     */
     public List<AgentTaskResponse> list(String tenantId, String sessionId, int page, int pageSize) {
         String normalizedTenant = requireTenant(tenantId);
         int normalizedPage = Math.max(0, page - 1);
@@ -100,12 +122,27 @@ public class AgentTaskService {
             .toList();
     }
 
+    /**
+     * Lists the events.
+     *
+     * @param tenantId the tenant id value
+     * @param taskId the task id value
+     * @param limit the limit value
+     * @return the events list
+     */
     public List<AgentEvent> listEvents(String tenantId, String taskId, int limit) {
         AgentTaskLatestEntity task = getTaskForTenant(tenantId, taskId);
         int normalizedLimit = limit <= 0 ? properties.getListLimit() : Math.min(limit, 500);
         return eventStore.listByTask(task.getTenantId(), task.getSessionId(), taskId, normalizedLimit);
     }
 
+    /**
+     * Performs the summarize runtime operation.
+     *
+     * @param tenantId the tenant id value
+     * @param latestLimit the latest limit value
+     * @return the operation result
+     */
     public AgentRuntimeSummary summarizeRuntime(String tenantId, int latestLimit) {
         String normalizedTenant = requireTenant(tenantId);
         Map<String, Long> statusCounts = new LinkedHashMap<>();
@@ -152,6 +189,14 @@ public class AgentTaskService {
         );
     }
 
+    /**
+     * Performs the poll result operation.
+     *
+     * @param tenantId the tenant id value
+     * @param taskId the task id value
+     * @param timeoutMs the timeout ms value
+     * @return the operation result
+     */
     public Optional<AgentEvent> pollResult(String tenantId, String taskId, long timeoutMs) {
         AgentTaskLatestEntity task = getTaskForTenant(tenantId, taskId);
         try {
@@ -181,6 +226,13 @@ public class AgentTaskService {
             .reduce((previous, current) -> current);
     }
 
+    /**
+     * Returns whether cancel.
+     *
+     * @param tenantId the tenant id value
+     * @param taskId the task id value
+     * @return whether the condition is satisfied
+     */
     public AgentTaskResponse cancel(String tenantId, String taskId) {
         AgentTaskLatestEntity task = getTaskForTenant(tenantId, taskId);
         String currentStatus = normalizeStatus(task.getStatus());
@@ -198,6 +250,13 @@ public class AgentTaskService {
         return get(tenantId, taskId).orElseThrow(() -> new IllegalArgumentException("Task not found: " + taskId));
     }
 
+    /**
+     * Performs the retry operation.
+     *
+     * @param tenantId the tenant id value
+     * @param taskId the task id value
+     * @return the operation result
+     */
     public AgentTaskResponse retry(String tenantId, String taskId) {
         AgentTaskLatestEntity task = getTaskForTenant(tenantId, taskId);
         String currentStatus = normalizeStatus(task.getStatus());
@@ -215,6 +274,14 @@ public class AgentTaskService {
         return submit(retryRequest);
     }
 
+    /**
+     * Performs the resume waiting task operation.
+     *
+     * @param tenantId the tenant id value
+     * @param taskId the task id value
+     * @param request the request value
+     * @return the operation result
+     */
     private AgentTaskResponse resumeWaitingTask(String tenantId, String taskId, AgentTaskSubmitRequest request) {
         AgentTaskLatestEntity task = getTaskForTenant(tenantId, taskId.trim());
         String currentStatus = normalizeStatus(task.getStatus());
@@ -260,6 +327,11 @@ public class AgentTaskService {
         return AgentTaskResponse.from(task);
     }
 
+    /**
+     * Performs the reconcile latest state from events operation.
+     *
+     * @return the operation result
+     */
     public int reconcileLatestStateFromEvents() {
         List<AgentTaskLatestEntity> tasks = latestRepository.findByStatusInOrderByCreateTimeAsc(RECOVERABLE_STATUSES);
         if (tasks.isEmpty()) {
@@ -274,6 +346,11 @@ public class AgentTaskService {
         return repaired;
     }
 
+    /**
+     * Performs the recover active tasks operation.
+     *
+     * @return the operation result
+     */
     public int recoverActiveTasks() {
         List<AgentTaskLatestEntity> tasks = latestRepository.findByStatusInOrderByCreateTimeAsc(ACTIVE_STATUSES);
         if (tasks.isEmpty()) {
@@ -291,16 +368,27 @@ public class AgentTaskService {
         return recovered;
     }
 
+    /**
+     * Performs the shutdown operation.
+     */
     @PreDestroy
     public void shutdown() {
         stopping = true;
     }
 
+    /**
+     * Performs the on context closed operation.
+     */
     @EventListener(ContextClosedEvent.class)
     public void onContextClosed() {
         stopping = true;
     }
 
+    /**
+     * Performs the start worker operation.
+     *
+     * @param tenantId the tenant id value
+     */
     private void startWorker(String tenantId) {
         String normalizedTenantId = normalizeTenant(tenantId);
         AtomicBoolean started = workerStates.computeIfAbsent(normalizedTenantId, ignored -> new AtomicBoolean(false));
@@ -310,6 +398,12 @@ public class AgentTaskService {
         taskExecutor.submit(() -> consumeTenantQueue(normalizedTenantId, started));
     }
 
+    /**
+     * Performs the consume tenant queue operation.
+     *
+     * @param tenantId the tenant id value
+     * @param started the started value
+     */
     private void consumeTenantQueue(String tenantId, AtomicBoolean started) {
         log.info("Agent worker started for tenant={}", tenantId);
         int idlePolls = 0;
@@ -338,6 +432,11 @@ public class AgentTaskService {
         log.info("Agent worker stopped for tenant={}", tenantId);
     }
 
+    /**
+     * Handles the question.
+     *
+     * @param question the question value
+     */
     private void handleQuestion(AgentEvent question) {
         if (isCancelled(question.getTaskId())) {
             return;
@@ -454,6 +553,12 @@ public class AgentTaskService {
         }
     }
 
+    /**
+     * Performs the attach cancellation check operation.
+     *
+     * @param request the request value
+     * @param taskId the task id value
+     */
     private void attachCancellationCheck(InteractionRequest request, String taskId) {
         if (request == null) {
             return;
@@ -465,6 +570,13 @@ public class AgentTaskService {
         request.setToolInput(toolInput);
     }
 
+    /**
+     * Performs the wait for mcp confirmation operation.
+     *
+     * @param question the question value
+     * @return the operation result
+     * @throws InterruptedException if the operation fails
+     */
     private AgentTaskSubmitRequest waitForMcpConfirmation(AgentEvent question) throws InterruptedException {
         long timeoutMs = Math.max(1L, properties.getConfirmationWaitSeconds()) * 1000L;
         long deadline = System.currentTimeMillis() + timeoutMs;
@@ -493,6 +605,13 @@ public class AgentTaskService {
         throw new CancellationException("Agent task stopped while waiting for MCP confirmation");
     }
 
+    /**
+     * Performs the apply mcp confirmation operation.
+     *
+     * @param interactionRequest the interaction request value
+     * @param confirmationRequest the confirmation request value
+     * @param pendingToolExecution the pending tool execution value
+     */
     private void applyMcpConfirmation(InteractionRequest interactionRequest,
                                       AgentTaskSubmitRequest confirmationRequest,
                                       Map<String, Object> pendingToolExecution) {
@@ -516,6 +635,12 @@ public class AgentTaskService {
         interactionRequest.setToolInput(toolInput);
     }
 
+    /**
+     * Performs the pending tool execution operation.
+     *
+     * @param response the response value
+     * @return the operation result
+     */
     private Map<String, Object> pendingToolExecution(InteractionResponse response) {
         if (response == null || response.getToolTraces() == null || response.getToolTraces().isEmpty()) {
             return Map.of();
@@ -545,6 +670,14 @@ public class AgentTaskService {
             .orElse(Map.of());
     }
 
+    /**
+     * Saves the status event.
+     *
+     * @param source the source value
+     * @param status the status value
+     * @param payload the payload value
+     * @return the saved status event
+     */
     private AgentEvent saveStatusEvent(AgentEvent source, String status, Map<String, Object> payload) {
         AgentEvent statusEvent = copyEvent(source, "STATUS", status, writePayload(payload));
         statusEvent.setParentEventId(source.getEventId());
@@ -553,6 +686,14 @@ public class AgentTaskService {
         return statusEvent;
     }
 
+    /**
+     * Saves the status event.
+     *
+     * @param source the source value
+     * @param status the status value
+     * @param payload the payload value
+     * @return the saved status event
+     */
     private AgentEvent saveStatusEvent(AgentTaskLatestEntity source, String status, Map<String, Object> payload) {
         AgentEvent statusEvent = AgentEvent.builder()
             .taskId(source.getTaskId())
@@ -569,6 +710,14 @@ public class AgentTaskService {
         return statusEvent;
     }
 
+    /**
+     * Performs the emit runtime events operation.
+     *
+     * @param question the question value
+     * @param response the response value
+     * @param modelStartedAt the model started at value
+     * @param modelFinishedAt the model finished at value
+     */
     private void emitRuntimeEvents(AgentEvent question,
                                    InteractionResponse response,
                                    long modelStartedAt,
@@ -578,6 +727,14 @@ public class AgentTaskService {
         emitToolEvents(question, response);
     }
 
+    /**
+     * Performs the emit think event operation.
+     *
+     * @param question the question value
+     * @param response the response value
+     * @param modelStartedAt the model started at value
+     * @param modelFinishedAt the model finished at value
+     */
     private void emitThinkEvent(AgentEvent question,
                                 InteractionResponse response,
                                 long modelStartedAt,
@@ -595,6 +752,12 @@ public class AgentTaskService {
         eventStore.save(thinkEvent);
     }
 
+    /**
+     * Performs the emit planner events operation.
+     *
+     * @param question the question value
+     * @param response the response value
+     */
     @SuppressWarnings("unchecked")
     private void emitPlannerEvents(AgentEvent question, InteractionResponse response) {
         List<Map<String, Object>> plannerSteps = plannerSteps(response);
@@ -633,6 +796,12 @@ public class AgentTaskService {
         }
     }
 
+    /**
+     * Performs the emit tool events operation.
+     *
+     * @param question the question value
+     * @param response the response value
+     */
     private void emitToolEvents(AgentEvent question, InteractionResponse response) {
         List<InteractionToolTrace> traces = response.getToolTraces() == null ? List.of() : response.getToolTraces();
         for (InteractionToolTrace trace : traces) {
@@ -686,6 +855,12 @@ public class AgentTaskService {
         }
     }
 
+    /**
+     * Performs the planner steps operation.
+     *
+     * @param response the response value
+     * @return the operation result
+     */
     @SuppressWarnings("unchecked")
     private List<Map<String, Object>> plannerSteps(InteractionResponse response) {
         if (response == null || response.getMetadata() == null) {
@@ -705,6 +880,15 @@ public class AgentTaskService {
         return List.of();
     }
 
+    /**
+     * Copies the event.
+     *
+     * @param source the source value
+     * @param type the type value
+     * @param status the status value
+     * @param payload the payload value
+     * @return the operation result
+     */
     private AgentEvent copyEvent(AgentEvent source, String type, String status, String payload) {
         return AgentEvent.builder()
             .taskId(source.getTaskId())
@@ -718,6 +902,14 @@ public class AgentTaskService {
             .build();
     }
 
+    /**
+     * Updates the latest.
+     *
+     * @param taskId the task id value
+     * @param status the status value
+     * @param answerSummary the answer summary value
+     * @param errorMessage the error message value
+     */
     @Transactional
     protected void updateLatest(String taskId, String status, String answerSummary, String errorMessage) {
         latestRepository.findById(taskId).ifPresent(entity -> {
@@ -733,10 +925,23 @@ public class AgentTaskService {
         });
     }
 
+    /**
+     * Performs the queue question operation.
+     *
+     * @param latest the latest value
+     * @param request the request value
+     */
     private void queueQuestion(AgentTaskLatestEntity latest, AgentTaskSubmitRequest request) {
         queueQuestion(latest, request, true);
     }
 
+    /**
+     * Performs the queue question operation.
+     *
+     * @param latest the latest value
+     * @param request the request value
+     * @param persistQuestionEvent the persist question event value
+     */
     private void queueQuestion(AgentTaskLatestEntity latest, AgentTaskSubmitRequest request, boolean persistQuestionEvent) {
         AgentEvent question = AgentEvent.builder()
             .taskId(latest.getTaskId())
@@ -756,15 +961,33 @@ public class AgentTaskService {
         eventBus.publish(question);
     }
 
+    /**
+     * Loads the question payload.
+     *
+     * @param task the task value
+     * @return the operation result
+     */
     private AgentTaskPayload loadQuestionPayload(AgentTaskLatestEntity task) {
         return readPayload(loadQuestionEvent(task));
     }
 
+    /**
+     * Loads the question event.
+     *
+     * @param task the task value
+     * @return the operation result
+     */
     private AgentEvent loadQuestionEvent(AgentTaskLatestEntity task) {
         return eventStore.findFirstByTaskAndType(task.getTenantId(), task.getSessionId(), task.getTaskId(), "QUESTION")
             .orElseThrow(() -> new IllegalStateException("Question payload not found for task: " + task.getTaskId()));
     }
 
+    /**
+     * Reads the payload.
+     *
+     * @param event the event value
+     * @return the operation result
+     */
     private AgentTaskPayload readPayload(AgentEvent event) {
         try {
             return objectMapper.readValue(event.getPayload(), AgentTaskPayload.class);
@@ -773,6 +996,13 @@ public class AgentTaskService {
         }
     }
 
+    /**
+     * Returns the task for tenant.
+     *
+     * @param tenantId the tenant id value
+     * @param taskId the task id value
+     * @return the task for tenant
+     */
     private AgentTaskLatestEntity getTaskForTenant(String tenantId, String taskId) {
         String normalizedTenant = requireTenant(tenantId);
         AgentTaskLatestEntity task = latestRepository.findById(taskId)
@@ -783,14 +1013,32 @@ public class AgentTaskService {
         return task;
     }
 
+    /**
+     * Performs the next sequence operation.
+     *
+     * @param event the event value
+     * @return the operation result
+     */
     private long nextSequence(AgentEvent event) {
         return eventStore.nextSequence(event.getTenantId(), event.getSessionId(), event.getTaskId());
     }
 
+    /**
+     * Performs the next sequence operation.
+     *
+     * @param task the task value
+     * @return the operation result
+     */
     private long nextSequence(AgentTaskLatestEntity task) {
         return eventStore.nextSequence(task.getTenantId(), task.getSessionId(), task.getTaskId());
     }
 
+    /**
+     * Returns whether reconcile latest task state.
+     *
+     * @param task the task value
+     * @return whether the condition is satisfied
+     */
     private boolean reconcileLatestTaskState(AgentTaskLatestEntity task) {
         List<AgentEvent> events = eventStore.listByTask(task.getTenantId(), task.getSessionId(), task.getTaskId(), Integer.MAX_VALUE);
         if (events.isEmpty()) {
@@ -825,6 +1073,12 @@ public class AgentTaskService {
         return true;
     }
 
+    /**
+     * Finds the latest terminal event.
+     *
+     * @param events the events value
+     * @return the matching latest terminal event
+     */
     private AgentEvent findLatestTerminalEvent(List<AgentEvent> events) {
         return events.stream()
             .filter(event -> TERMINAL_STATUSES.contains(normalizeStatus(event.getStatus())))
@@ -832,6 +1086,13 @@ public class AgentTaskService {
             .orElse(null);
     }
 
+    /**
+     * Finds the latest event.
+     *
+     * @param events the events value
+     * @param type the type value
+     * @return the matching latest event
+     */
     private Optional<AgentEvent> findLatestEvent(List<AgentEvent> events, String type) {
         if (type == null || type.isBlank()) {
             return Optional.empty();
@@ -841,6 +1102,12 @@ public class AgentTaskService {
             .reduce((previous, current) -> current);
     }
 
+    /**
+     * Performs the extract answer summary operation.
+     *
+     * @param event the event value
+     * @return the operation result
+     */
     private String extractAnswerSummary(AgentEvent event) {
         if (event == null || event.getPayload() == null || event.getPayload().isBlank()) {
             return "";
@@ -852,6 +1119,12 @@ public class AgentTaskService {
         }
     }
 
+    /**
+     * Performs the extract error message operation.
+     *
+     * @param event the event value
+     * @return the operation result
+     */
     private String extractErrorMessage(AgentEvent event) {
         if (event == null) {
             return "";
@@ -871,6 +1144,13 @@ public class AgentTaskService {
         }
     }
 
+    /**
+     * Resolves the answer time.
+     *
+     * @param response the response value
+     * @param fallbackTime the fallback time value
+     * @return the resolved answer time
+     */
     private long resolveAnswerTime(InteractionResponse response, long fallbackTime) {
         if (response != null && response.getTimestamp() != null && response.getTimestamp() > 0) {
             return response.getTimestamp();
@@ -878,6 +1158,13 @@ public class AgentTaskService {
         return fallbackTime;
     }
 
+    /**
+     * Performs the metadata value operation.
+     *
+     * @param metadata the metadata value
+     * @param key the key value
+     * @return the operation result
+     */
     private Object metadataValue(Map<String, Object> metadata, String key) {
         if (metadata == null || key == null || key.isBlank()) {
             return null;
@@ -892,6 +1179,13 @@ public class AgentTaskService {
         return null;
     }
 
+    /**
+     * Performs the long value operation.
+     *
+     * @param value the value value
+     * @param fallback the fallback value
+     * @return the operation result
+     */
     private long longValue(Object value, long fallback) {
         if (value instanceof Number number) {
             return number.longValue();
@@ -906,10 +1200,22 @@ public class AgentTaskService {
         return fallback;
     }
 
+    /**
+     * Performs the string value operation.
+     *
+     * @param value the value value
+     * @return the operation result
+     */
     private String stringValue(Object value) {
         return value == null ? null : String.valueOf(value);
     }
 
+    /**
+     * Returns whether is cancelled.
+     *
+     * @param taskId the task id value
+     * @return whether the condition is satisfied
+     */
     private boolean isCancelled(String taskId) {
         return cancellationRegistry.isCancelled(taskId) || latestRepository.findById(taskId)
             .map(AgentTaskLatestEntity::getStatus)
@@ -918,6 +1224,12 @@ public class AgentTaskService {
             .isPresent();
     }
 
+    /**
+     * Returns whether requires confirmation.
+     *
+     * @param response the response value
+     * @return whether the condition is satisfied
+     */
     private boolean requiresConfirmation(InteractionResponse response) {
         if (response == null) {
             return false;
@@ -933,6 +1245,12 @@ public class AgentTaskService {
         });
     }
 
+    /**
+     * Normalizes the normalize.
+     *
+     * @param request the request value
+     * @return the operation result
+     */
     private AgentTaskSubmitRequest normalize(AgentTaskSubmitRequest request) {
         request.setTenantId(requireTenant(request.getTenantId()));
         request.setUserId(firstText(request.getUserId(), "anonymous"));
@@ -944,6 +1262,11 @@ public class AgentTaskService {
         return request;
     }
 
+    /**
+     * Validates the validate.
+     *
+     * @param request the request value
+     */
     private void validate(AgentTaskSubmitRequest request) {
         if (request == null) {
             throw new IllegalArgumentException("Task request cannot be null");
@@ -953,6 +1276,12 @@ public class AgentTaskService {
         }
     }
 
+    /**
+     * Writes the payload.
+     *
+     * @param value the value value
+     * @return the operation result
+     */
     private String writePayload(Object value) {
         try {
             return objectMapper.writeValueAsString(value);
@@ -961,6 +1290,12 @@ public class AgentTaskService {
         }
     }
 
+    /**
+     * Performs the summarize operation.
+     *
+     * @param answer the answer value
+     * @return the operation result
+     */
     private String summarize(String answer) {
         if (answer == null || answer.isBlank()) {
             return "";
@@ -969,10 +1304,22 @@ public class AgentTaskService {
         return answer.length() <= maxLength ? answer : answer.substring(0, maxLength);
     }
 
+    /**
+     * Normalizes the tenant.
+     *
+     * @param tenantId the tenant id value
+     * @return the operation result
+     */
     private String normalizeTenant(String tenantId) {
         return requireTenant(tenantId);
     }
 
+    /**
+     * Performs the require tenant operation.
+     *
+     * @param tenantId the tenant id value
+     * @return the operation result
+     */
     private String requireTenant(String tenantId) {
         if (tenantId == null || tenantId.isBlank()) {
             throw new IllegalArgumentException("Tenant ID cannot be empty");
@@ -980,14 +1327,33 @@ public class AgentTaskService {
         return tenantId.trim();
     }
 
+    /**
+     * Normalizes the status.
+     *
+     * @param status the status value
+     * @return the operation result
+     */
     private String normalizeStatus(String status) {
         return firstText(status, "UNKNOWN").toUpperCase();
     }
 
+    /**
+     * Performs the sum operation.
+     *
+     * @param values the values value
+     * @return the operation result
+     */
     private long sum(Collection<Long> values) {
         return values.stream().mapToLong(Long::longValue).sum();
     }
 
+    /**
+     * Performs the first text operation.
+     *
+     * @param value the value value
+     * @param fallback the fallback value
+     * @return the operation result
+     */
     private String firstText(String value, String fallback) {
         return value == null || value.isBlank() ? fallback : value.trim();
     }

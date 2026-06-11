@@ -50,6 +50,9 @@ public class SearchService {
     private final DocumentContentExtractor contentExtractor;
     private final SearchProperties properties;
 
+    /**
+     * Performs the rebuild lucene index operation.
+     */
     @PostConstruct
     public void rebuildLuceneIndex() {
         if (!luceneStore.isAvailable()) {
@@ -62,6 +65,12 @@ public class SearchService {
         }
     }
 
+    /**
+     * Creates the or update.
+     *
+     * @param request the request value
+     * @return the created or update
+     */
     public SearchDocument createOrUpdate(SearchDocument request) {
         if (request == null) {
             throw new IllegalArgumentException("document payload is required");
@@ -76,6 +85,21 @@ public class SearchService {
         return document;
     }
 
+    /**
+     * Performs the upload operation.
+     *
+     * @param file the file value
+     * @param title the title value
+     * @param source the source value
+     * @param date the date value
+     * @param tags the tags value
+     * @param companies the companies value
+     * @param industries the industries value
+     * @param keywords the keywords value
+     * @param documentType the document type value
+     * @param fallbackContent the fallback content value
+     * @return the operation result
+     */
     public SearchDocument upload(MultipartFile file,
                                  String title,
                                  String source,
@@ -138,14 +162,47 @@ public class SearchService {
         return saved;
     }
 
+    /**
+     * Searches the search.
+     *
+     * @param keyword the keyword value
+     * @param tag the tag value
+     * @param company the company value
+     * @param industry the industry value
+     * @param limit the limit value
+     * @return the operation result
+     */
     public SearchPage search(String keyword, String tag, String company, String industry, Integer limit) {
         return search(keyword, tag, company, industry, null, null, limit);
     }
 
+    /**
+     * Searches the search.
+     *
+     * @param keyword the keyword value
+     * @param tag the tag value
+     * @param company the company value
+     * @param industry the industry value
+     * @param docIds the doc ids value
+     * @param limit the limit value
+     * @return the operation result
+     */
     public SearchPage search(String keyword, String tag, String company, String industry, String docIds, Integer limit) {
         return search(keyword, tag, company, industry, docIds, null, limit);
     }
 
+    /**
+     * Searches the search.
+     *
+     * @param keyword the keyword value
+     * @param tag the tag value
+     * @param company the company value
+     * @param industry the industry value
+     * @param docIds the doc ids value
+     * @param page the page value
+     * @param limit the limit value
+     * @return the operation result
+     */
     public SearchPage search(String keyword,
                              String tag,
                              String company,
@@ -238,10 +295,27 @@ public class SearchService {
         );
     }
 
+    /**
+     * Lists the library.
+     *
+     * @param category the category value
+     * @param title the title value
+     * @param limit the limit value
+     * @return the library list
+     */
     public LibraryPage listLibrary(String category, String title, Integer limit) {
         return listLibrary(category, title, null, limit);
     }
 
+    /**
+     * Lists the library.
+     *
+     * @param category the category value
+     * @param title the title value
+     * @param page the page value
+     * @param limit the limit value
+     * @return the library list
+     */
     public LibraryPage listLibrary(String category, String title, Integer page, Integer limit) {
         int pageSize = normalizeLimit(limit);
         int pageNumber = normalizePage(page);
@@ -280,6 +354,13 @@ public class SearchService {
         );
     }
 
+    /**
+     * Performs the apply document scope operation.
+     *
+     * @param candidates the candidates value
+     * @param docIds the doc ids value
+     * @return the operation result
+     */
     private Set<String> applyDocumentScope(Set<String> candidates, List<String> docIds) {
         if (docIds == null || docIds.isEmpty()) {
             return candidates;
@@ -292,6 +373,20 @@ public class SearchService {
         return candidates;
     }
 
+    /**
+     * Searches the with lucene.
+     *
+     * @param keyword the keyword value
+     * @param tag the tag value
+     * @param company the company value
+     * @param industry the industry value
+     * @param docIds the doc ids value
+     * @param pageNumber the page number value
+     * @param pageSize the page size value
+     * @param queryTokens the query tokens value
+     * @param significantTerms the significant terms value
+     * @return the operation result
+     */
     private SearchPage searchWithLucene(String keyword,
                                         String tag,
                                         String company,
@@ -367,6 +462,12 @@ public class SearchService {
         }
     }
 
+    /**
+     * Creates the category.
+     *
+     * @param name the name value
+     * @return the created category
+     */
     public LibraryCategory createCategory(String name) {
         String category = normalizeCategory(name);
         if (category.isEmpty() || ALL_CATEGORY.equals(category)) {
@@ -376,6 +477,12 @@ public class SearchService {
         return new LibraryCategory(category, countDocumentsByCategory(category));
     }
 
+    /**
+     * Performs the title exists operation.
+     *
+     * @param title the title value
+     * @return the operation result
+     */
     public TitleExistsResult titleExists(String title) {
         String normalizedTitle = normalizeText(title);
         if (normalizedTitle.isEmpty()) {
@@ -388,6 +495,12 @@ public class SearchService {
             .orElseGet(() -> new TitleExistsResult(title, false, null));
     }
 
+    /**
+     * Returns the get.
+     *
+     * @param docId the doc id value
+     * @return the get
+     */
     public Optional<SearchDocument> get(String docId) {
         if (isBlank(docId)) {
             return Optional.empty();
@@ -395,6 +508,12 @@ public class SearchService {
         return store.get(docId.trim());
     }
 
+    /**
+     * Lists the versions.
+     *
+     * @param docId the doc id value
+     * @return the versions list
+     */
     public List<SearchDocumentVersionItem> listVersions(String docId) {
         Optional<SearchDocument> document = get(docId);
         if (document.isEmpty()) {
@@ -405,6 +524,13 @@ public class SearchService {
             .toList();
     }
 
+    /**
+     * Returns the version.
+     *
+     * @param docId the doc id value
+     * @param version the version value
+     * @return the version
+     */
     public Optional<SearchDocument> getVersion(String docId, Integer version) {
         if (version == null || version <= 0) {
             return Optional.empty();
@@ -414,14 +540,33 @@ public class SearchService {
             .findFirst());
     }
 
+    /**
+     * Returns the version file resource.
+     *
+     * @param docId the doc id value
+     * @param version the version value
+     * @return the version file resource
+     */
     public Optional<DocumentFileResource> getVersionFileResource(String docId, Integer version) {
         return getVersion(docId, version).flatMap(this::fileResourceFor);
     }
 
+    /**
+     * Returns the file resource.
+     *
+     * @param docId the doc id value
+     * @return the file resource
+     */
     public Optional<DocumentFileResource> getFileResource(String docId) {
         return get(docId).flatMap(this::fileResourceFor);
     }
 
+    /**
+     * Returns whether delete document.
+     *
+     * @param docId the doc id value
+     * @return whether the condition is satisfied
+     */
     public boolean deleteDocument(String docId) {
         Optional<SearchDocument> document = get(docId);
         if (document.isEmpty()) {
@@ -451,6 +596,12 @@ public class SearchService {
         return true;
     }
 
+    /**
+     * Normalizes the document.
+     *
+     * @param request the request value
+     * @return the operation result
+     */
     private SearchDocument normalizeDocument(SearchDocument request) {
         String content = request.getContent() == null ? "" : request.getContent().trim();
         if (content.isEmpty()) {
@@ -490,6 +641,12 @@ public class SearchService {
             .build();
     }
 
+    /**
+     * Finds the latest by title.
+     *
+     * @param title the title value
+     * @return the matching latest by title
+     */
     private Optional<SearchDocument> findLatestByTitle(String title) {
         String normalizedTitle = normalizeText(title);
         if (normalizedTitle.isEmpty()) {
@@ -502,6 +659,11 @@ public class SearchService {
                 .thenComparing(SearchDocument::getUpdatedAt, Comparator.nullsLast(Comparator.naturalOrder())));
     }
 
+    /**
+     * Normalizes the existing version family.
+     *
+     * @param title the title value
+     */
     private void normalizeExistingVersionFamily(String title) {
         String normalizedTitle = normalizeText(title);
         if (normalizedTitle.isEmpty()) {
@@ -536,6 +698,12 @@ public class SearchService {
         }
     }
 
+    /**
+     * Returns whether needs version normalization.
+     *
+     * @param documents the documents value
+     * @return whether the condition is satisfied
+     */
     private boolean needsVersionNormalization(List<SearchDocument> documents) {
         Set<Integer> versions = new LinkedHashSet<>();
         for (SearchDocument document : documents) {
@@ -549,6 +717,13 @@ public class SearchService {
         return false;
     }
 
+    /**
+     * Performs the next version operation.
+     *
+     * @param versionGroupId the version group id value
+     * @param title the title value
+     * @return the operation result
+     */
     private int nextVersion(String versionGroupId, String title) {
         return loadAllDocuments().stream()
             .filter(document -> sameVersionFamily(document, versionGroupId, title))
@@ -557,6 +732,11 @@ public class SearchService {
             .orElse(0) + 1;
     }
 
+    /**
+     * Performs the mark previous versions not latest operation.
+     *
+     * @param latestDocument the latest document value
+     */
     private void markPreviousVersionsNotLatest(SearchDocument latestDocument) {
         for (SearchDocument candidate : listVersionDocuments(latestDocument)) {
             if (candidate.getDocId().equals(latestDocument.getDocId()) || !isLatestVersion(candidate)) {
@@ -570,6 +750,12 @@ public class SearchService {
         }
     }
 
+    /**
+     * Lists the version documents.
+     *
+     * @param document the document value
+     * @return the version documents list
+     */
     private List<SearchDocument> listVersionDocuments(SearchDocument document) {
         String versionGroupId = versionGroupIdOf(document);
         String title = document.getTitle();
@@ -581,6 +767,12 @@ public class SearchService {
             .toList();
     }
 
+    /**
+     * Converts the value to version item.
+     *
+     * @param document the document value
+     * @return the converted version item
+     */
     private SearchDocumentVersionItem toVersionItem(SearchDocument document) {
         return new SearchDocumentVersionItem(
             document.getDocId(),
@@ -600,6 +792,12 @@ public class SearchService {
         );
     }
 
+    /**
+     * Performs the file resource for operation.
+     *
+     * @param document the document value
+     * @return the operation result
+     */
     private Optional<DocumentFileResource> fileResourceFor(SearchDocument document) {
         if (isBlank(document.getFilePath())) {
             return Optional.empty();
@@ -615,6 +813,11 @@ public class SearchService {
         ));
     }
 
+    /**
+     * Deletes the original file.
+     *
+     * @param document the document value
+     */
     private void deleteOriginalFile(SearchDocument document) {
         if (document == null || isBlank(document.getFilePath())) {
             return;
@@ -627,11 +830,25 @@ public class SearchService {
         }
     }
 
+    /**
+     * Returns whether same version family.
+     *
+     * @param document the document value
+     * @param versionGroupId the version group id value
+     * @param title the title value
+     * @return whether the condition is satisfied
+     */
     private boolean sameVersionFamily(SearchDocument document, String versionGroupId, String title) {
         return versionGroupIdOf(document).equals(versionGroupId)
             || (!isBlank(title) && normalizeText(document.getTitle()).equals(normalizeText(title)));
     }
 
+    /**
+     * Performs the version group id of operation.
+     *
+     * @param document the document value
+     * @return the operation result
+     */
     private String versionGroupIdOf(SearchDocument document) {
         if (document == null) {
             return "";
@@ -642,6 +859,12 @@ public class SearchService {
         return document.getDocId();
     }
 
+    /**
+     * Performs the version of operation.
+     *
+     * @param document the document value
+     * @return the operation result
+     */
     private int versionOf(SearchDocument document) {
         if (document == null || document.getVersion() == null || document.getVersion() <= 0) {
             return 1;
@@ -649,10 +872,22 @@ public class SearchService {
         return document.getVersion();
     }
 
+    /**
+     * Returns whether is latest version.
+     *
+     * @param document the document value
+     * @return whether the condition is satisfied
+     */
     private boolean isLatestVersion(SearchDocument document) {
         return document == null || !Boolean.FALSE.equals(document.getLatestVersion());
     }
 
+    /**
+     * Builds the index data.
+     *
+     * @param document the document value
+     * @return the built index data
+     */
     private SearchIndexData buildIndexData(SearchDocument document) {
         Set<String> keywords = new LinkedHashSet<>();
         keywords.addAll(tokenizer.tokenize(document.getTitle()));
@@ -671,6 +906,11 @@ public class SearchService {
         );
     }
 
+    /**
+     * Synchronizes the lucene index.
+     *
+     * @param document the document value
+     */
     private void syncLuceneIndex(SearchDocument document) {
         if (!luceneStore.isAvailable() || document == null) {
             return;
@@ -687,6 +927,14 @@ public class SearchService {
         }
     }
 
+    /**
+     * Performs the apply filter operation.
+     *
+     * @param candidates the candidates value
+     * @param filterTerms the filter terms value
+     * @param lookup the lookup value
+     * @return the operation result
+     */
     private Set<String> applyFilter(Set<String> candidates,
                                     List<String> filterTerms,
                                     IndexLookup lookup) {
@@ -704,6 +952,18 @@ public class SearchService {
         return candidates;
     }
 
+    /**
+     * Converts the value to result.
+     *
+     * @param document the document value
+     * @param keyword the keyword value
+     * @param queryTokens the query tokens value
+     * @param significantTerms the significant terms value
+     * @param baseScores the base scores value
+     * @param matchedKeywords the matched keywords value
+     * @param luceneHits the lucene hits value
+     * @return the converted result
+     */
     private SearchResult toResult(SearchDocument document,
                                   String keyword,
                                   List<String> queryTokens,
@@ -744,10 +1004,22 @@ public class SearchService {
         );
     }
 
+    /**
+     * Performs the first hit operation.
+     *
+     * @param hits the hits value
+     * @return the operation result
+     */
     private LuceneSearchHit firstHit(List<LuceneSearchHit> hits) {
         return hits == null || hits.isEmpty() ? null : hits.get(0);
     }
 
+    /**
+     * Converts the value to matched chunks.
+     *
+     * @param hits the hits value
+     * @return the converted matched chunks
+     */
     private List<SearchMatchedChunk> toMatchedChunks(List<LuceneSearchHit> hits) {
         if (hits == null || hits.isEmpty()) {
             return List.of();
@@ -762,6 +1034,12 @@ public class SearchService {
             .toList();
     }
 
+    /**
+     * Converts the value to library item.
+     *
+     * @param document the document value
+     * @return the converted library item
+     */
     private LibraryDocumentItem toLibraryItem(SearchDocument document) {
         return new LibraryDocumentItem(
             document.getDocId(),
@@ -783,6 +1061,11 @@ public class SearchService {
         );
     }
 
+    /**
+     * Loads the all documents.
+     *
+     * @return the operation result
+     */
     private List<SearchDocument> loadAllDocuments() {
         return store.listDocumentIds(0).stream()
             .map(store::get)
@@ -790,18 +1073,34 @@ public class SearchService {
             .toList();
     }
 
+    /**
+     * Loads the latest documents.
+     *
+     * @return the operation result
+     */
     private List<SearchDocument> loadLatestDocuments() {
         return loadAllDocuments().stream()
             .filter(this::isLatestVersion)
             .toList();
     }
 
+    /**
+     * Performs the count latest documents operation.
+     *
+     * @return the operation result
+     */
     private int countLatestDocuments() {
         return (int) loadAllDocuments().stream()
             .filter(this::isLatestVersion)
             .count();
     }
 
+    /**
+     * Builds the categories.
+     *
+     * @param documents the documents value
+     * @return the built categories
+     */
     private List<LibraryCategory> buildCategories(List<SearchDocument> documents) {
         Map<String, Integer> counts = new HashMap<>();
         for (SearchDocument document : documents) {
@@ -830,12 +1129,25 @@ public class SearchService {
         return categories;
     }
 
+    /**
+     * Performs the count documents by category operation.
+     *
+     * @param category the category value
+     * @return the operation result
+     */
     private int countDocumentsByCategory(String category) {
         return (int) loadAllDocuments().stream()
             .filter(document -> matchesCategory(document, category))
             .count();
     }
 
+    /**
+     * Returns whether matches category.
+     *
+     * @param document the document value
+     * @param category the category value
+     * @return whether the condition is satisfied
+     */
     private boolean matchesCategory(SearchDocument document, String category) {
         if (category.isEmpty() || ALL_CATEGORY.equals(category)) {
             return true;
@@ -847,6 +1159,12 @@ public class SearchService {
             && document.getTags().stream().anyMatch(tag -> normalizeCategory(tag).equals(category));
     }
 
+    /**
+     * Resolves the primary category.
+     *
+     * @param document the document value
+     * @return the resolved primary category
+     */
     private String resolvePrimaryCategory(SearchDocument document) {
         if (document.getTags() == null || document.getTags().isEmpty()) {
             return UNCATEGORIZED;
@@ -854,6 +1172,16 @@ public class SearchService {
         return normalizeCategory(document.getTags().get(0));
     }
 
+    /**
+     * Performs the score document operation.
+     *
+     * @param document the document value
+     * @param keyword the keyword value
+     * @param significantTerms the significant terms value
+     * @param queryTokens the query tokens value
+     * @param baseTokenScore the base token score value
+     * @return the operation result
+     */
     private ScoredDocument scoreDocument(SearchDocument document,
                                          String keyword,
                                          List<String> significantTerms,
@@ -971,10 +1299,23 @@ public class SearchService {
         return new ScoredDocument(totalScore, matchedTerms, breakdown);
     }
 
+    /**
+     * Performs the score for token operation.
+     *
+     * @param token the token value
+     * @return the operation result
+     */
     private int scoreForToken(String token) {
         return token.length() >= 3 ? 3 : 1;
     }
 
+    /**
+     * Returns whether is relevant result.
+     *
+     * @param result the result value
+     * @param significantTerms the significant terms value
+     * @return whether the condition is satisfied
+     */
     private boolean isRelevantResult(SearchResult result, List<String> significantTerms) {
         if (result == null || result.score() <= 0) {
             return false;
@@ -989,6 +1330,12 @@ public class SearchService {
         return breakdown.coverageRatio() >= minCoverageRatio(significantTerms.size());
     }
 
+    /**
+     * Performs the min coverage ratio operation.
+     *
+     * @param termCount the term count value
+     * @return the operation result
+     */
     private double minCoverageRatio(int termCount) {
         if (termCount <= 1) {
             return 1.0D;
@@ -1002,6 +1349,13 @@ public class SearchService {
         return 0.45D;
     }
 
+    /**
+     * Performs the significant query terms operation.
+     *
+     * @param keyword the keyword value
+     * @param queryTokens the query tokens value
+     * @return the operation result
+     */
     private List<String> significantQueryTerms(String keyword, List<String> queryTokens) {
         if (queryTokens == null || queryTokens.isEmpty()) {
             return List.of();
@@ -1013,10 +1367,24 @@ public class SearchService {
         return new ArrayList<>(terms);
     }
 
+    /**
+     * Returns whether contains normalized.
+     *
+     * @param value the value value
+     * @param token the token value
+     * @return whether the condition is satisfied
+     */
     private boolean containsNormalized(String value, String token) {
         return token != null && !token.isBlank() && normalizeSearchText(value).contains(token);
     }
 
+    /**
+     * Returns whether list contains normalized.
+     *
+     * @param values the values value
+     * @param token the token value
+     * @return whether the condition is satisfied
+     */
     private boolean listContainsNormalized(List<String> values, String token) {
         if (values == null || values.isEmpty() || token == null || token.isBlank()) {
             return false;
@@ -1028,10 +1396,23 @@ public class SearchService {
             .anyMatch(value -> value.equals(normalizedToken) || value.contains(normalizedToken));
     }
 
+    /**
+     * Normalizes the search text.
+     *
+     * @param value the value value
+     * @return the operation result
+     */
     private String normalizeSearchText(String value) {
         return value == null ? "" : value.toLowerCase(Locale.ROOT).replaceAll("\\s+", " ").trim();
     }
 
+    /**
+     * Builds the summary.
+     *
+     * @param content the content value
+     * @param matches the matches value
+     * @return the built summary
+     */
     private String buildSummary(String content, Set<String> matches) {
         String text = content == null ? "" : content.replaceAll("\\s+", " ").trim();
         if (text.length() <= properties.getSummaryLength()) {
@@ -1050,6 +1431,11 @@ public class SearchService {
         return text.substring(0, properties.getSummaryLength()) + "...";
     }
 
+    /**
+     * Performs the result comparator operation.
+     *
+     * @return the operation result
+     */
     private Comparator<SearchResult> resultComparator() {
         return Comparator
             .comparingInt(SearchResult::score).reversed()
@@ -1057,6 +1443,11 @@ public class SearchService {
             .thenComparing(SearchResult::title, Comparator.nullsLast(Comparator.naturalOrder()));
     }
 
+    /**
+     * Performs the document comparator operation.
+     *
+     * @return the operation result
+     */
     private Comparator<SearchDocument> documentComparator() {
         return Comparator
             .comparing(SearchDocument::getDate, Comparator.nullsLast(Comparator.reverseOrder()))
@@ -1064,6 +1455,14 @@ public class SearchService {
             .thenComparing(SearchDocument::getTitle, Comparator.nullsLast(Comparator.naturalOrder()));
     }
 
+    /**
+     * Saves the original file.
+     *
+     * @param file the file value
+     * @param docId the doc id value
+     * @param originalFileName the original file name value
+     * @return the saved original file
+     */
     private Path saveOriginalFile(MultipartFile file, String docId, String originalFileName) {
         try {
             Path root = Path.of(properties.getFilePath()).toAbsolutePath().normalize();
@@ -1079,23 +1478,59 @@ public class SearchService {
         }
     }
 
+    /**
+     * Normalizes the limit.
+     *
+     * @param limit the limit value
+     * @return the operation result
+     */
     private int normalizeLimit(Integer limit) {
         int value = limit == null || limit <= 0 ? properties.getDefaultLimit() : limit;
         return Math.min(value, properties.getMaxLimit());
     }
 
+    /**
+     * Normalizes the page.
+     *
+     * @param page the page value
+     * @return the operation result
+     */
     private int normalizePage(Integer page) {
         return page == null || page <= 0 ? 1 : page;
     }
 
+    /**
+     * Performs the page offset operation.
+     *
+     * @param page the page value
+     * @param pageSize the page size value
+     * @return the operation result
+     */
     private long pageOffset(int page, int pageSize) {
         return (long) Math.max(0, page - 1) * Math.max(1, pageSize);
     }
 
+    /**
+     * Converts the value to tal pages.
+     *
+     * @param total the total value
+     * @param pageSize the page size value
+     * @return the converted tal pages
+     */
     private int totalPages(int total, int pageSize) {
         return Math.max(1, (int) Math.ceil((double) Math.max(0, total) / Math.max(1, pageSize)));
     }
 
+    /**
+     * Performs the empty search page operation.
+     *
+     * @param keyword the keyword value
+     * @param pageSize the page size value
+     * @param pageNumber the page number value
+     * @param startedAt the started at value
+     * @param message the message value
+     * @return the operation result
+     */
     private SearchPage emptySearchPage(String keyword, int pageSize, int pageNumber, long startedAt, String message) {
         int documentCount = countLatestDocuments();
         return new SearchPage(
@@ -1114,27 +1549,66 @@ public class SearchService {
         );
     }
 
+    /**
+     * Returns whether has keyword.
+     *
+     * @param keyword the keyword value
+     * @return whether the condition is satisfied
+     */
     private boolean hasKeyword(String keyword) {
         return keyword != null && !keyword.isBlank();
     }
 
+    /**
+     * Returns whether no filters.
+     *
+     * @param tag the tag value
+     * @param company the company value
+     * @param industry the industry value
+     * @return whether the condition is satisfied
+     */
     private boolean noFilters(String tag, String company, String industry) {
         return isBlank(tag) && isBlank(company) && isBlank(industry);
     }
 
+    /**
+     * Returns whether contains.
+     *
+     * @param value the value value
+     * @param token the token value
+     * @return whether the condition is satisfied
+     */
     private boolean contains(String value, String token) {
         return value != null && value.toLowerCase(Locale.ROOT).contains(token);
     }
 
+    /**
+     * Normalizes the text.
+     *
+     * @param value the value value
+     * @return the operation result
+     */
     private String normalizeText(String value) {
         return value == null ? "" : value.trim().toLowerCase(Locale.ROOT);
     }
 
+    /**
+     * Normalizes the category.
+     *
+     * @param value the value value
+     * @return the operation result
+     */
     private String normalizeCategory(String value) {
         String normalized = normalizeText(value);
         return normalized.isEmpty() ? ALL_CATEGORY : normalized;
     }
 
+    /**
+     * Performs the clean list operation.
+     *
+     * @param values the values value
+     * @return the operation result
+     */
     private List<String> cleanList(List<String> values) {
         if (values == null || values.isEmpty()) {
             return List.of();
@@ -1147,6 +1621,12 @@ public class SearchService {
             .toList();
     }
 
+    /**
+     * Parses the list.
+     *
+     * @param value the value value
+     * @return the parsed list
+     */
     private List<String> parseList(String value) {
         if (value == null || value.isBlank()) {
             return List.of();
@@ -1161,6 +1641,12 @@ public class SearchService {
         return cleanList(values);
     }
 
+    /**
+     * Performs the exact terms operation.
+     *
+     * @param values the values value
+     * @return the operation result
+     */
     private List<String> exactTerms(List<String> values) {
         if (values == null || values.isEmpty()) {
             return List.of();
@@ -1175,21 +1661,45 @@ public class SearchService {
         return new ArrayList<>(terms);
     }
 
+    /**
+     * Performs the generate doc id operation.
+     *
+     * @return the operation result
+     */
     private String generateDocId() {
         return LocalDate.now().format(DateTimeFormatter.BASIC_ISO_DATE)
             + "_" + UUID.randomUUID().toString().replace("-", "").substring(0, 8);
     }
 
+    /**
+     * Performs the safe file name operation.
+     *
+     * @param fileName the file name value
+     * @return the operation result
+     */
     private String safeFileName(String fileName) {
         String resolved = isBlank(fileName) ? "document.txt" : Path.of(fileName).getFileName().toString();
         return resolved.replaceAll("[\\\\/:*?\"<>|]", "_");
     }
 
+    /**
+     * Performs the strip extension operation.
+     *
+     * @param fileName the file name value
+     * @return the operation result
+     */
     private String stripExtension(String fileName) {
         int dot = fileName.lastIndexOf('.');
         return dot <= 0 ? fileName : fileName.substring(0, dot);
     }
 
+    /**
+     * Resolves the document type.
+     *
+     * @param requestedType the requested type value
+     * @param fileName the file name value
+     * @return the resolved document type
+     */
     private String resolveDocumentType(String requestedType, String fileName) {
         String normalized = normalizeText(requestedType);
         if (!normalized.isEmpty() && !"auto".equals(normalized)) {
@@ -1205,6 +1715,12 @@ public class SearchService {
         return inferDocumentType(fileName);
     }
 
+    /**
+     * Performs the infer document type operation.
+     *
+     * @param fileName the file name value
+     * @return the operation result
+     */
     private String inferDocumentType(String fileName) {
         String extension = extensionOf(fileName);
         return switch (extension) {
@@ -1216,6 +1732,12 @@ public class SearchService {
         };
     }
 
+    /**
+     * Performs the extension of operation.
+     *
+     * @param fileName the file name value
+     * @return the operation result
+     */
     private String extensionOf(String fileName) {
         if (fileName == null) {
             return "";
@@ -1227,14 +1749,34 @@ public class SearchService {
         return fileName.substring(dot + 1).toLowerCase(Locale.ROOT);
     }
 
+    /**
+     * Returns whether is blank.
+     *
+     * @param value the value value
+     * @return whether the condition is satisfied
+     */
     private boolean isBlank(String value) {
         return value == null || value.isBlank();
     }
 
+    /**
+     * Performs the null to empty operation.
+     *
+     * @param value the value value
+     * @return the operation result
+     */
     private String nullToEmpty(String value) {
         return value == null ? "" : value;
     }
 
+    /**
+     * Builds the search message.
+     *
+     * @param resultCount the result count value
+     * @param documentCount the document count value
+     * @param queryTokens the query tokens value
+     * @return the built search message
+     */
     private String buildSearchMessage(int resultCount, int documentCount, List<String> queryTokens) {
         if (documentCount == 0) {
             return "library_empty";
@@ -1248,6 +1790,14 @@ public class SearchService {
         return "ok";
     }
 
+    /**
+     * Builds the library message.
+     *
+     * @param resultCount the result count value
+     * @param documentCount the document count value
+     * @param title the title value
+     * @return the built library message
+     */
     private String buildLibraryMessage(int resultCount, int documentCount, String title) {
         if (documentCount == 0) {
             return "library_empty";
@@ -1263,6 +1813,12 @@ public class SearchService {
 
     @FunctionalInterface
     private interface IndexLookup {
+        /**
+         * Finds the find.
+         *
+         * @param term the term value
+         * @return the matching find
+         */
         List<String> find(String term);
     }
 

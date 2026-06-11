@@ -10,8 +10,20 @@ import com.chatchat.chat.interaction.model.InteractionResponse;
  */
 public interface InteractionModeHandler {
 
+    /**
+     * Performs the mode operation.
+     *
+     * @return the operation result
+     */
     InteractionMode mode();
 
+    /**
+     * Handles the handle.
+     *
+     * @param request the request value
+     * @param context the context value
+     * @return the operation result
+     */
     InteractionResponse handle(InteractionRequest request, InteractionContext context);
 }
 

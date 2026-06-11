@@ -17,11 +17,22 @@ public class LivedataApiController {
 
     private final LivedataApiRegistrationService registrationService;
 
+    /**
+     * Lists the list.
+     *
+     * @return the list list
+     */
     @GetMapping
     public ApiResponse<List<LivedataApiRegistrationService.LivedataApiCandidate>> list() {
         return ApiResponse.success(registrationService.listCandidates());
     }
 
+    /**
+     * Registers the register.
+     *
+     * @param request the request value
+     * @return the operation result
+     */
     @PostMapping("/register")
     public ApiResponse<LivedataApiRegistrationService.LivedataRegistrationResult> register(
         @RequestBody LivedataRegisterRequest request) {

@@ -30,10 +30,24 @@ public class DynamicJdbcDriverLoader {
     private final DatabaseToolProperties properties;
     private final AtomicReference<LoadedDrivers> loadedDrivers = new AtomicReference<>();
 
+    /**
+     * Creates a new DynamicJdbcDriverLoader instance.
+     *
+     * @param properties the properties value
+     */
     public DynamicJdbcDriverLoader(DatabaseToolProperties properties) {
         this.properties = properties;
     }
 
+    /**
+     * Creates the data source.
+     *
+     * @param jdbcUrl the jdbc url value
+     * @param username the username value
+     * @param password the password value
+     * @param driverClass the driver class value
+     * @return the created data source
+     */
     public DataSource createDataSource(String jdbcUrl, String username, String password, String driverClass) {
         if (jdbcUrl == null || jdbcUrl.isBlank()) {
             throw new IllegalArgumentException("jdbc_url is required when querying an external database");
@@ -49,6 +63,11 @@ public class DynamicJdbcDriverLoader {
         return new DriverBackedDataSource(driver, jdbcUrl, connectionProperties);
     }
 
+    /**
+     * Performs the reload drivers operation.
+     *
+     * @return the operation result
+     */
     public LoadedDriverSummary reloadDrivers() {
         LoadedDrivers current = loadedDrivers.getAndSet(null);
         if (current != null) {
@@ -60,6 +79,13 @@ public class DynamicJdbcDriverLoader {
             .toList());
     }
 
+    /**
+     * Resolves the driver.
+     *
+     * @param jdbcUrl the jdbc url value
+     * @param driverClass the driver class value
+     * @return the resolved driver
+     */
     private Driver resolveDriver(String jdbcUrl, String driverClass) {
         if (driverClass != null && !driverClass.isBlank()) {
             return loadDriverClass(driverClass.trim());
@@ -94,6 +120,12 @@ public class DynamicJdbcDriverLoader {
             + properties.getDriverLibPath() + " or pass driver_class.");
     }
 
+    /**
+     * Loads the driver class.
+     *
+     * @param driverClass the driver class value
+     * @return the operation result
+     */
     private Driver loadDriverClass(String driverClass) {
         LoadedDrivers loaded = loadDrivers();
         try {
@@ -108,6 +140,11 @@ public class DynamicJdbcDriverLoader {
         }
     }
 
+    /**
+     * Loads the drivers.
+     *
+     * @return the operation result
+     */
     private LoadedDrivers loadDrivers() {
         LoadedDrivers current = loadedDrivers.get();
         if (current != null) {
@@ -121,6 +158,11 @@ public class DynamicJdbcDriverLoader {
         return loadedDrivers.get();
     }
 
+    /**
+     * Performs the do load drivers operation.
+     *
+     * @return the operation result
+     */
     private LoadedDrivers doLoadDrivers() {
         Path libPath = Path.of(properties.getDriverLibPath()).toAbsolutePath().normalize();
         List<URL> urls = new ArrayList<>();
@@ -152,6 +194,11 @@ public class DynamicJdbcDriverLoader {
         return new LoadedDrivers(classLoader, drivers);
     }
 
+    /**
+     * Closes the quietly.
+     *
+     * @param classLoader the class loader value
+     */
     private void closeQuietly(URLClassLoader classLoader) {
         try {
             classLoader.close();
@@ -173,12 +220,25 @@ public class DynamicJdbcDriverLoader {
         private PrintWriter logWriter;
         private int loginTimeout;
 
+        /**
+         * Creates a new DynamicJdbcDriverLoader instance.
+         *
+         * @param driver the driver value
+         * @param jdbcUrl the jdbc url value
+         * @param connectionProperties the connection properties value
+         */
         private DriverBackedDataSource(Driver driver, String jdbcUrl, Properties connectionProperties) {
             this.driver = driver;
             this.jdbcUrl = jdbcUrl;
             this.connectionProperties = connectionProperties;
         }
 
+        /**
+         * Returns the connection.
+         *
+         * @return the connection
+         * @throws SQLException if the operation fails
+         */
         @Override
         public Connection getConnection() throws SQLException {
             Connection connection = driver.connect(jdbcUrl, copyProperties(connectionProperties));
@@ -188,6 +248,14 @@ public class DynamicJdbcDriverLoader {
             return connection;
         }
 
+        /**
+         * Returns the connection.
+         *
+         * @param username the username value
+         * @param password the password value
+         * @return the connection
+         * @throws SQLException if the operation fails
+         */
         @Override
         public Connection getConnection(String username, String password) throws SQLException {
             Properties properties = copyProperties(connectionProperties);
@@ -200,26 +268,52 @@ public class DynamicJdbcDriverLoader {
             return connection;
         }
 
+        /**
+         * Returns the log writer.
+         *
+         * @return the log writer
+         */
         @Override
         public PrintWriter getLogWriter() {
             return logWriter;
         }
 
+        /**
+         * Sets the log writer.
+         *
+         * @param out the out value
+         */
         @Override
         public void setLogWriter(PrintWriter out) {
             this.logWriter = out;
         }
 
+        /**
+         * Sets the login timeout.
+         *
+         * @param seconds the seconds value
+         */
         @Override
         public void setLoginTimeout(int seconds) {
             this.loginTimeout = seconds;
         }
 
+        /**
+         * Returns the login timeout.
+         *
+         * @return the login timeout
+         */
         @Override
         public int getLoginTimeout() {
             return loginTimeout;
         }
 
+        /**
+         * Returns the parent logger.
+         *
+         * @return the parent logger
+         * @throws SQLFeatureNotSupportedException if the operation fails
+         */
         @Override
         public Logger getParentLogger() throws SQLFeatureNotSupportedException {
             try {
@@ -229,6 +323,13 @@ public class DynamicJdbcDriverLoader {
             }
         }
 
+        /**
+         * Performs the unwrap operation.
+         *
+         * @param iface the iface value
+         * @return the operation result
+         * @throws SQLException if the operation fails
+         */
         @Override
         public <T> T unwrap(Class<T> iface) throws SQLException {
             if (iface.isInstance(this)) {
@@ -240,11 +341,23 @@ public class DynamicJdbcDriverLoader {
             throw new SQLException("Not a wrapper for " + iface.getName());
         }
 
+        /**
+         * Returns whether is wrapper for.
+         *
+         * @param iface the iface value
+         * @return whether the condition is satisfied
+         */
         @Override
         public boolean isWrapperFor(Class<?> iface) {
             return iface.isInstance(this) || iface.isInstance(driver);
         }
 
+        /**
+         * Copies the properties.
+         *
+         * @param source the source value
+         * @return the operation result
+         */
         private Properties copyProperties(Properties source) {
             Properties copy = new Properties();
             copy.putAll(source);

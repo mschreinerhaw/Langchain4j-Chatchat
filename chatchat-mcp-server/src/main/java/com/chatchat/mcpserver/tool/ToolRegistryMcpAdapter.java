@@ -30,6 +30,12 @@ public class ToolRegistryMcpAdapter {
     private final ChatChatMcpServerProperties properties;
     private final AgentRuntimeGovernanceFactory governanceFactory;
 
+    /**
+     * Converts the value to tool specifications.
+     *
+     * @param toolRegistry the tool registry value
+     * @return the converted tool specifications
+     */
     public List<McpServerFeatures.SyncToolSpecification> toToolSpecifications(ToolRegistry toolRegistry) {
         return toolRegistry.getAllToolNames().stream()
             .sorted(Comparator.naturalOrder())
@@ -38,6 +44,13 @@ public class ToolRegistryMcpAdapter {
             .toList();
     }
 
+    /**
+     * Converts the value to tool specification.
+     *
+     * @param toolRegistry the tool registry value
+     * @param name the name value
+     * @return the converted tool specification
+     */
     private List<McpServerFeatures.SyncToolSpecification> toToolSpecification(ToolRegistry toolRegistry, String name) {
         ToolMetadata metadata = toolRegistry.getToolMetadata(name);
         if (isExcluded(name)) {
@@ -63,6 +76,12 @@ public class ToolRegistryMcpAdapter {
             .build());
     }
 
+    /**
+     * Returns whether is excluded.
+     *
+     * @param name the name value
+     * @return whether the condition is satisfied
+     */
     private boolean isExcluded(String name) {
         if (name == null || properties.getExcludedToolNames() == null) {
             return false;
@@ -72,6 +91,15 @@ public class ToolRegistryMcpAdapter {
             .anyMatch(excluded -> excluded.equalsIgnoreCase(name));
     }
 
+    /**
+     * Performs the invoke tool operation.
+     *
+     * @param toolRegistry the tool registry value
+     * @param toolName the tool name value
+     * @param metadata the metadata value
+     * @param request the request value
+     * @return the operation result
+     */
     private McpSchema.CallToolResult invokeTool(
         ToolRegistry toolRegistry,
         String toolName,
@@ -127,6 +155,12 @@ public class ToolRegistryMcpAdapter {
         return toCallToolResult(output);
     }
 
+    /**
+     * Converts the value to input schema.
+     *
+     * @param metadata the metadata value
+     * @return the converted input schema
+     */
     private McpSchema.JsonSchema toInputSchema(ToolMetadata metadata) {
         if (metadata == null || metadata.getParameters() == null || metadata.getParameters().isEmpty()) {
             return new McpSchema.JsonSchema("object", Map.of(), List.of(), false, null, null);
@@ -148,6 +182,12 @@ public class ToolRegistryMcpAdapter {
         return new McpSchema.JsonSchema("object", schemaProperties, required, false, null, null);
     }
 
+    /**
+     * Converts the value to property schema.
+     *
+     * @param parameter the parameter value
+     * @return the converted property schema
+     */
     private Map<String, Object> toPropertySchema(ToolParameter parameter) {
         Map<String, Object> property = new LinkedHashMap<>();
         property.put("type", normalizeType(parameter.getType()));
@@ -169,6 +209,13 @@ public class ToolRegistryMcpAdapter {
         return property;
     }
 
+    /**
+     * Performs the apply defaults operation.
+     *
+     * @param metadata the metadata value
+     * @param arguments the arguments value
+     * @return the operation result
+     */
     private Map<String, Object> applyDefaults(ToolMetadata metadata, Map<String, Object> arguments) {
         Map<String, Object> normalized = new LinkedHashMap<>();
         if (arguments != null) {
@@ -188,6 +235,12 @@ public class ToolRegistryMcpAdapter {
         return normalized;
     }
 
+    /**
+     * Converts the value to call tool result.
+     *
+     * @param output the output value
+     * @return the converted call tool result
+     */
     private McpSchema.CallToolResult toCallToolResult(ToolOutput output) {
         boolean failed = output == null || !output.isSuccess();
         Object structuredContent = structuredContent(output, failed);
@@ -209,6 +262,13 @@ public class ToolRegistryMcpAdapter {
             .build();
     }
 
+    /**
+     * Performs the structured content operation.
+     *
+     * @param output the output value
+     * @param failed the failed value
+     * @return the operation result
+     */
     private Object structuredContent(ToolOutput output, boolean failed) {
         if (output != null && output.getData() != null) {
             return output.getData();
@@ -225,6 +285,14 @@ public class ToolRegistryMcpAdapter {
         return error;
     }
 
+    /**
+     * Performs the description operation.
+     *
+     * @param toolRegistry the tool registry value
+     * @param name the name value
+     * @param metadata the metadata value
+     * @return the operation result
+     */
     private String description(ToolRegistry toolRegistry, String name, ToolMetadata metadata) {
         if (metadata != null && metadata.getDescription() != null && !metadata.getDescription().isBlank()) {
             return metadata.getDescription();
@@ -236,6 +304,12 @@ public class ToolRegistryMcpAdapter {
         return "ChatChat tool: " + name;
     }
 
+    /**
+     * Performs the success text operation.
+     *
+     * @param output the output value
+     * @return the operation result
+     */
     private String successText(ToolOutput output) {
         if (output == null) {
             return "";
@@ -246,6 +320,12 @@ public class ToolRegistryMcpAdapter {
         return stringify(output.getData());
     }
 
+    /**
+     * Performs the error text operation.
+     *
+     * @param output the output value
+     * @return the operation result
+     */
     private String errorText(ToolOutput output) {
         if (output == null) {
             return "Tool execution failed";
@@ -259,6 +339,12 @@ public class ToolRegistryMcpAdapter {
         return "Tool execution failed";
     }
 
+    /**
+     * Performs the raw input operation.
+     *
+     * @param arguments the arguments value
+     * @return the operation result
+     */
     private String rawInput(Map<String, Object> arguments) {
         if (arguments == null || arguments.isEmpty()) {
             return "";
@@ -270,6 +356,12 @@ public class ToolRegistryMcpAdapter {
         return stringify(arguments);
     }
 
+    /**
+     * Performs the stringify operation.
+     *
+     * @param value the value value
+     * @return the operation result
+     */
     private String stringify(Object value) {
         if (value == null) {
             return "";
@@ -284,6 +376,12 @@ public class ToolRegistryMcpAdapter {
         }
     }
 
+    /**
+     * Performs the argument keys operation.
+     *
+     * @param arguments the arguments value
+     * @return the operation result
+     */
     private List<String> argumentKeys(Map<String, Object> arguments) {
         if (arguments == null || arguments.isEmpty()) {
             return List.of();
@@ -294,6 +392,12 @@ public class ToolRegistryMcpAdapter {
             .toList();
     }
 
+    /**
+     * Normalizes the type.
+     *
+     * @param type the type value
+     * @return the operation result
+     */
     private String normalizeType(String type) {
         if (type == null || type.isBlank()) {
             return "string";
@@ -308,6 +412,13 @@ public class ToolRegistryMcpAdapter {
         };
     }
 
+    /**
+     * Stores the if present.
+     *
+     * @param map the map value
+     * @param key the key value
+     * @param value the value value
+     */
     private void putIfPresent(Map<String, Object> map, String key, Object value) {
         if (value != null) {
             map.put(key, value);

@@ -56,12 +56,20 @@ public class SkillCatalogService {
     private final ObjectMapper objectMapper;
     private final JdbcTemplate jdbcTemplate;
 
+    /**
+     * Performs the initialize defaults operation.
+     */
     @PostConstruct
     @Transactional
     public void initializeDefaults() {
         ensureSkillSchemaCompatibility();
     }
 
+    /**
+     * Lists the list.
+     *
+     * @return the list list
+     */
     @Transactional(readOnly = true)
     public synchronized List<SkillDefinition> list() {
         return repository.findAll().stream()
@@ -70,6 +78,12 @@ public class SkillCatalogService {
             .toList();
     }
 
+    /**
+     * Resolves the resolve.
+     *
+     * @param skillId the skill id value
+     * @return the resolved resolve
+     */
     @Transactional(readOnly = true)
     public synchronized SkillDefinition resolve(String skillId) {
         if (skillId == null || skillId.isBlank()) {
@@ -81,21 +95,48 @@ public class SkillCatalogService {
             .orElseGet(this::findGeneralOrDefault);
     }
 
+    /**
+     * Returns whether is builtin skill.
+     *
+     * @param skillId the skill id value
+     * @return whether the condition is satisfied
+     */
     @Transactional(readOnly = true)
     public synchronized boolean isBuiltinSkill(String skillId) {
         return false;
     }
 
+    /**
+     * Performs the editable fields operation.
+     *
+     * @param skillId the skill id value
+     * @return the operation result
+     */
     @Transactional(readOnly = true)
     public synchronized List<String> editableFields(String skillId) {
         return CUSTOM_EDITABLE_FIELDS;
     }
 
+    /**
+     * Resolves the tools.
+     *
+     * @param skillId the skill id value
+     * @param allTools the all tools value
+     * @return the resolved tools
+     */
     @Transactional(readOnly = true)
     public synchronized List<String> resolveTools(String skillId, Collection<String> allTools) {
         return resolveTools(skillId, allTools, Map.of());
     }
 
+    /**
+     * Resolves the tools.
+     *
+     * @param skillId the skill id value
+     * @param allTools the all tools value
+     * @param mcpToolsByServiceId the mcp tools by service id value
+     * @return the resolved tools
+     */
     @Transactional(readOnly = true)
     public synchronized List<String> resolveTools(String skillId,
                                                   Collection<String> allTools,
@@ -163,6 +204,12 @@ public class SkillCatalogService {
         return withDocumentWorkflowTool(List.copyOf(selected), sortedAllTools, skill);
     }
 
+    /**
+     * Performs the upsert operation.
+     *
+     * @param draft the draft value
+     * @return the operation result
+     */
     @Transactional
     public synchronized SkillDefinition upsert(SkillDefinition draft) {
         if (draft == null) {
@@ -247,6 +294,12 @@ public class SkillCatalogService {
         return toDefinition(saved);
     }
 
+    /**
+     * Lists the versions.
+     *
+     * @param skillId the skill id value
+     * @return the versions list
+     */
     @Transactional(readOnly = true)
     public synchronized List<SkillVersionSnapshot> listVersions(String skillId) {
         String id = normalizeId(skillId);
@@ -255,6 +308,13 @@ public class SkillCatalogService {
             .toList();
     }
 
+    /**
+     * Performs the rollback to version operation.
+     *
+     * @param skillId the skill id value
+     * @param versionId the version id value
+     * @return the operation result
+     */
     @Transactional
     public synchronized SkillDefinition rollbackToVersion(String skillId, String versionId) {
         String id = normalizeId(skillId);
@@ -295,16 +355,36 @@ public class SkillCatalogService {
         return toDefinition(saved);
     }
 
+    /**
+     * Publishes the to market.
+     *
+     * @param skillId the skill id value
+     * @return the operation result
+     */
     @Transactional
     public synchronized SkillDefinition publishToMarket(String skillId) {
         return setMarketStatus(skillId, MARKET_STATUS_PUBLISHED, "publish");
     }
 
+    /**
+     * Performs the recall from market operation.
+     *
+     * @param skillId the skill id value
+     * @return the operation result
+     */
     @Transactional
     public synchronized SkillDefinition recallFromMarket(String skillId) {
         return setMarketStatus(skillId, MARKET_STATUS_RECALLED, "recall");
     }
 
+    /**
+     * Sets the market status.
+     *
+     * @param skillId the skill id value
+     * @param status the status value
+     * @param action the action value
+     * @return the operation result
+     */
     @Transactional
     public synchronized SkillDefinition setMarketStatus(String skillId, String status, String action) {
         String id = normalizeId(skillId);
@@ -320,6 +400,12 @@ public class SkillCatalogService {
         return toDefinition(saved);
     }
 
+    /**
+     * Returns whether delete.
+     *
+     * @param skillId the skill id value
+     * @return whether the condition is satisfied
+     */
     @Transactional
     public synchronized boolean delete(String skillId) {
         String id = normalizeId(skillId);
@@ -330,6 +416,12 @@ public class SkillCatalogService {
         return exists;
     }
 
+    /**
+     * Converts the value to definition.
+     *
+     * @param entity the entity value
+     * @return the converted definition
+     */
     private SkillDefinition toDefinition(SkillConfigEntity entity) {
         return new SkillDefinition(
             entity.getId(),
@@ -356,6 +448,12 @@ public class SkillCatalogService {
         );
     }
 
+    /**
+     * Converts the value to skill version snapshot.
+     *
+     * @param entity the entity value
+     * @return the converted skill version snapshot
+     */
     private SkillVersionSnapshot toSkillVersionSnapshot(SkillConfigVersionEntity entity) {
         return new SkillVersionSnapshot(
             entity.getId(),
@@ -385,6 +483,12 @@ public class SkillCatalogService {
         );
     }
 
+    /**
+     * Performs the snapshot version operation.
+     *
+     * @param source the source value
+     * @param action the action value
+     */
     private void snapshotVersion(SkillConfigEntity source, String action) {
         if (source == null || source.getId() == null || source.getId().isBlank()) {
             return;
@@ -413,6 +517,11 @@ public class SkillCatalogService {
         versionRepository.save(version);
     }
 
+    /**
+     * Finds the general or default.
+     *
+     * @return the matching general or default
+     */
     private SkillDefinition findGeneralOrDefault() {
         return repository.findById(DEFAULT_SKILL_ID)
             .map(this::toDefinition)
@@ -423,6 +532,9 @@ public class SkillCatalogService {
                 .orElseThrow(() -> new IllegalStateException("No skill is registered")));
     }
 
+    /**
+     * Ensures the skill schema compatibility.
+     */
     private void ensureSkillSchemaCompatibility() {
         ensureColumn("skill_config", "market_status", "varchar(32) default 'published'");
         ensureColumn("skill_config", "model_name", "varchar(128)");
@@ -449,6 +561,13 @@ public class SkillCatalogService {
         ensureColumn("skill_config_version", "quick_questions_json", "varchar(16000)");
     }
 
+    /**
+     * Ensures the column.
+     *
+     * @param tableName the table name value
+     * @param columnName the column name value
+     * @param definition the definition value
+     */
     private void ensureColumn(String tableName, String columnName, String definition) {
         if (!tableExists(tableName) || columnExists(tableName, columnName)) {
             return;
@@ -462,6 +581,12 @@ public class SkillCatalogService {
         }
     }
 
+    /**
+     * Returns whether table exists.
+     *
+     * @param tableName the table name value
+     * @return whether the condition is satisfied
+     */
     private boolean tableExists(String tableName) {
         Integer count = jdbcTemplate.queryForObject(
             "select count(*) from information_schema.tables where lower(table_name) = ?",
@@ -471,6 +596,13 @@ public class SkillCatalogService {
         return count != null && count > 0;
     }
 
+    /**
+     * Returns whether column exists.
+     *
+     * @param tableName the table name value
+     * @param columnName the column name value
+     * @return whether the condition is satisfied
+     */
     private boolean columnExists(String tableName, String columnName) {
         Integer count = jdbcTemplate.queryForObject(
             "select count(*) from information_schema.columns where lower(table_name) = ? and lower(column_name) = ?",
@@ -481,10 +613,21 @@ public class SkillCatalogService {
         return count != null && count > 0;
     }
 
+    /**
+     * Performs the default routing settings operation.
+     *
+     * @return the operation result
+     */
     private SkillRoutingSettings defaultRoutingSettings() {
         return new SkillRoutingSettings(true, true, 3, 3);
     }
 
+    /**
+     * Normalizes the id.
+     *
+     * @param id the id value
+     * @return the operation result
+     */
     private String normalizeId(String id) {
         if (id == null || id.isBlank()) {
             throw new IllegalArgumentException("skill id is required");
@@ -496,6 +639,12 @@ public class SkillCatalogService {
         return normalized;
     }
 
+    /**
+     * Normalizes the text.
+     *
+     * @param value the value value
+     * @return the operation result
+     */
     private String normalizeText(String value) {
         if (value == null || value.isBlank()) {
             return null;
@@ -503,6 +652,12 @@ public class SkillCatalogService {
         return value.trim();
     }
 
+    /**
+     * Normalizes the market status.
+     *
+     * @param value the value value
+     * @return the operation result
+     */
     private String normalizeMarketStatus(String value) {
         String status = normalizeText(value);
         if (status == null) {
@@ -517,10 +672,22 @@ public class SkillCatalogService {
         throw new IllegalArgumentException("market status must be draft, published or recalled");
     }
 
+    /**
+     * Performs the default market status operation.
+     *
+     * @param skillId the skill id value
+     * @return the operation result
+     */
     private String defaultMarketStatus(String skillId) {
         return MARKET_STATUS_DRAFT;
     }
 
+    /**
+     * Normalizes the list.
+     *
+     * @param input the input value
+     * @return the operation result
+     */
     private List<String> normalizeList(List<String> input) {
         if (input == null || input.isEmpty()) {
             return List.of();
@@ -535,6 +702,12 @@ public class SkillCatalogService {
         return List.copyOf(normalized);
     }
 
+    /**
+     * Normalizes the tool configs.
+     *
+     * @param input the input value
+     * @return the operation result
+     */
     private List<SkillToolConfig> normalizeToolConfigs(List<SkillToolConfig> input) {
         if (input == null || input.isEmpty()) {
             return List.of();
@@ -563,6 +736,12 @@ public class SkillCatalogService {
         return List.copyOf(normalized);
     }
 
+    /**
+     * Normalizes the routing settings.
+     *
+     * @param settings the settings value
+     * @return the operation result
+     */
     private SkillRoutingSettings normalizeRoutingSettings(SkillRoutingSettings settings) {
         if (settings == null) {
             return defaultRoutingSettings();
@@ -575,6 +754,12 @@ public class SkillCatalogService {
         );
     }
 
+    /**
+     * Normalizes the workflow config.
+     *
+     * @param config the config value
+     * @return the operation result
+     */
     @SuppressWarnings("unchecked")
     private Map<String, Object> normalizeWorkflowConfig(Map<String, Object> config) {
         if (config == null || config.isEmpty()) {
@@ -588,9 +773,20 @@ public class SkillCatalogService {
         if (strategy instanceof Map<?, ?> strategyMap) {
             normalized.put("executionStrategy", new LinkedHashMap<>((Map<String, Object>) strategyMap));
         }
+        Map<String, Object> configuredDependencies = new LinkedHashMap<>();
+        Object dependencies = firstObject(config, "toolDependencies", "tool_dependencies");
+        if (dependencies instanceof Map<?, ?> dependencyMap) {
+            dependencyMap.forEach((key, value) -> {
+                String toolName = normalizeText(String.valueOf(key));
+                if (toolName != null) {
+                    configuredDependencies.put(toolName, value);
+                }
+            });
+        }
         Object steps = config.get("steps");
         if (steps instanceof List<?> list) {
             List<Map<String, Object>> normalizedSteps = new ArrayList<>();
+            Map<String, Object> normalizedDependencies = new LinkedHashMap<>();
             int index = 1;
             for (Object item : list) {
                 if (!(item instanceof Map<?, ?> rawStep)) {
@@ -598,38 +794,70 @@ public class SkillCatalogService {
                 }
                 Map<String, Object> step = new LinkedHashMap<>((Map<String, Object>) rawStep);
                 Object tool = firstObject(step, "tool", "toolName");
+                String toolName = tool == null ? null : normalizeText(String.valueOf(tool));
                 Object parallelSteps = firstObject(step, "parallelSteps", "parallel_steps");
-                List<String> normalizedParallelSteps = parallelSteps instanceof List<?> parallelList
-                    ? parallelList.stream().map(String::valueOf).filter(value -> !value.isBlank()).toList()
-                    : List.of();
-                if ((tool == null || String.valueOf(tool).isBlank()) && normalizedParallelSteps.isEmpty()) {
+                List<String> normalizedParallelSteps = stringValues(parallelSteps);
+                if ((toolName == null || toolName.isBlank()) && normalizedParallelSteps.isEmpty()) {
                     continue;
                 }
-                if (tool != null && !String.valueOf(tool).isBlank()) {
-                    step.put("tool", String.valueOf(tool).trim());
+                if (toolName != null) {
+                    step.put("tool", toolName);
                 } else {
                     step.remove("tool");
                 }
                 if (!normalizedParallelSteps.isEmpty()) {
                     step.put("parallelSteps", normalizedParallelSteps);
                 }
+                List<String> dependsOn = stringValues(firstObject(step, "dependsOn", "depends_on", "dependencies", "requires", "after"));
+                if (dependsOn.isEmpty() && toolName != null) {
+                    Object configuredDependency = configuredDependencies.get(toolName);
+                    if (configuredDependency instanceof Map<?, ?> dependencySpec) {
+                        dependsOn = stringValues(firstObjectFromMap(dependencySpec, "dependsOn", "depends_on", "dependencies", "requires", "after"));
+                    } else {
+                        dependsOn = stringValues(configuredDependency);
+                    }
+                }
+                String currentToolName = toolName;
+                dependsOn = dependsOn.stream()
+                    .filter(dependency -> currentToolName == null || !dependency.equals(currentToolName))
+                    .distinct()
+                    .toList();
+                if (!dependsOn.isEmpty()) {
+                    step.put("dependsOn", dependsOn);
+                    if (toolName != null) {
+                        normalizedDependencies.put(toolName, Map.of("dependsOn", dependsOn));
+                    }
+                } else {
+                    step.remove("dependsOn");
+                    step.remove("depends_on");
+                    step.remove("dependencies");
+                    step.remove("requires");
+                    step.remove("after");
+                }
                 step.putIfAbsent("step", index);
                 normalizedSteps.add(step);
                 index++;
             }
             normalized.put("steps", normalizedSteps);
-        }
-        Object dependencies = firstObject(config, "toolDependencies", "tool_dependencies");
-        if (dependencies instanceof Map<?, ?> dependencyMap) {
-            normalized.put("toolDependencies", new LinkedHashMap<>((Map<String, Object>) dependencyMap));
+            if (!normalizedDependencies.isEmpty()) {
+                normalized.put("toolDependencies", normalizedDependencies);
+            }
         }
         Object parallelSteps = firstObject(config, "parallelSteps", "parallel_steps");
-        if (parallelSteps instanceof List<?> list) {
-            normalized.put("parallelSteps", list.stream().map(String::valueOf).filter(value -> !value.isBlank()).toList());
+        List<String> normalizedParallelSteps = stringValues(parallelSteps);
+        if (!normalizedParallelSteps.isEmpty()) {
+            normalized.put("parallelSteps", normalizedParallelSteps);
         }
         return normalized;
     }
 
+    /**
+     * Performs the apply prefix selection operation.
+     *
+     * @param candidates the candidates value
+     * @param prefixes the prefixes value
+     * @return the operation result
+     */
     private List<String> applyPrefixSelection(List<String> candidates, List<String> prefixes) {
         if (candidates == null || candidates.isEmpty()) {
             return List.of();
@@ -645,6 +873,14 @@ public class SkillCatalogService {
         return selected.isEmpty() ? candidates.stream().sorted().toList() : selected;
     }
 
+    /**
+     * Performs the with document workflow tool operation.
+     *
+     * @param selectedTools the selected tools value
+     * @param allTools the all tools value
+     * @param skill the skill value
+     * @return the operation result
+     */
     private List<String> withDocumentWorkflowTool(List<String> selectedTools,
                                                   List<String> allTools,
                                                   SkillDefinition skill) {
@@ -658,6 +894,12 @@ public class SkillCatalogService {
         return List.copyOf(selected);
     }
 
+    /**
+     * Writes the list json.
+     *
+     * @param list the list value
+     * @return the operation result
+     */
     private String writeListJson(List<String> list) {
         List<String> normalized = normalizeList(list);
         if (normalized.isEmpty()) {
@@ -670,6 +912,12 @@ public class SkillCatalogService {
         }
     }
 
+    /**
+     * Writes the tool configs json.
+     *
+     * @param toolConfigs the tool configs value
+     * @return the operation result
+     */
     private String writeToolConfigsJson(List<SkillToolConfig> toolConfigs) {
         List<SkillToolConfig> normalized = normalizeToolConfigs(toolConfigs);
         if (normalized.isEmpty()) {
@@ -682,6 +930,12 @@ public class SkillCatalogService {
         }
     }
 
+    /**
+     * Writes the routing settings json.
+     *
+     * @param routingSettings the routing settings value
+     * @return the operation result
+     */
     private String writeRoutingSettingsJson(SkillRoutingSettings routingSettings) {
         SkillRoutingSettings normalized = normalizeRoutingSettings(routingSettings);
         try {
@@ -691,6 +945,12 @@ public class SkillCatalogService {
         }
     }
 
+    /**
+     * Writes the workflow config json.
+     *
+     * @param workflowConfig the workflow config value
+     * @return the operation result
+     */
     private String writeWorkflowConfigJson(Map<String, Object> workflowConfig) {
         Map<String, Object> normalized = normalizeWorkflowConfig(workflowConfig);
         if (normalized.isEmpty()) {
@@ -703,6 +963,12 @@ public class SkillCatalogService {
         }
     }
 
+    /**
+     * Reads the list json.
+     *
+     * @param json the json value
+     * @return the operation result
+     */
     private List<String> readListJson(String json) {
         if (json == null || json.isBlank()) {
             return List.of();
@@ -724,6 +990,12 @@ public class SkillCatalogService {
         }
     }
 
+    /**
+     * Reads the tool configs json.
+     *
+     * @param json the json value
+     * @return the operation result
+     */
     private List<SkillToolConfig> readToolConfigsJson(String json) {
         if (json == null || json.isBlank()) {
             return List.of();
@@ -737,6 +1009,12 @@ public class SkillCatalogService {
         }
     }
 
+    /**
+     * Reads the routing settings json.
+     *
+     * @param json the json value
+     * @return the operation result
+     */
     private SkillRoutingSettings readRoutingSettingsJson(String json) {
         if (json == null || json.isBlank()) {
             return defaultRoutingSettings();
@@ -748,6 +1026,12 @@ public class SkillCatalogService {
         }
     }
 
+    /**
+     * Reads the workflow config json.
+     *
+     * @param json the json value
+     * @return the operation result
+     */
     private Map<String, Object> readWorkflowConfigJson(String json) {
         if (json == null || json.isBlank()) {
             return Map.of();
@@ -761,6 +1045,13 @@ public class SkillCatalogService {
         }
     }
 
+    /**
+     * Performs the first object operation.
+     *
+     * @param values the values value
+     * @param keys the keys value
+     * @return the operation result
+     */
     private Object firstObject(Map<String, Object> values, String... keys) {
         if (values == null || keys == null) {
             return null;
@@ -773,6 +1064,65 @@ public class SkillCatalogService {
         return null;
     }
 
+    /**
+     * Performs the first object from map operation.
+     *
+     * @param values the values value
+     * @param keys the keys value
+     * @return the operation result
+     */
+    private Object firstObjectFromMap(Map<?, ?> values, String... keys) {
+        if (values == null || keys == null) {
+            return null;
+        }
+        for (String key : keys) {
+            if (values.containsKey(key) && values.get(key) != null) {
+                return values.get(key);
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Performs the string values operation.
+     *
+     * @param value the value value
+     * @return the operation result
+     */
+    private List<String> stringValues(Object value) {
+        if (value == null) {
+            return List.of();
+        }
+        List<String> values = new ArrayList<>();
+        if (value instanceof List<?> list) {
+            for (Object item : list) {
+                String text = normalizeText(item == null ? null : String.valueOf(item));
+                if (text != null && !values.contains(text)) {
+                    values.add(text);
+                }
+            }
+            return List.copyOf(values);
+        }
+        String text = normalizeText(String.valueOf(value));
+        if (text == null) {
+            return List.of();
+        }
+        for (String item : text.split("[,;\\r\\n]")) {
+            String normalized = normalizeText(item);
+            if (normalized != null && !values.contains(normalized)) {
+                values.add(normalized);
+            }
+        }
+        return List.copyOf(values);
+    }
+
+    /**
+     * Stores the text.
+     *
+     * @param target the target value
+     * @param key the key value
+     * @param value the value value
+     */
     private void putText(Map<String, Object> target, String key, Object value) {
         String text = value == null ? null : String.valueOf(value).trim();
         if (text != null && !text.isBlank()) {

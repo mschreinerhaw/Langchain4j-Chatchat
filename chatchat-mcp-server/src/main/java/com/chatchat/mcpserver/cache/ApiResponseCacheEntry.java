@@ -7,6 +7,12 @@ public record ApiResponseCacheEntry(
     long createdAt,
     long expiresAt
 ) {
+    /**
+     * Returns whether is expired.
+     *
+     * @param now the now value
+     * @return whether the condition is satisfied
+     */
     public boolean isExpired(long now) {
         return expiresAt > 0 && expiresAt <= now;
     }

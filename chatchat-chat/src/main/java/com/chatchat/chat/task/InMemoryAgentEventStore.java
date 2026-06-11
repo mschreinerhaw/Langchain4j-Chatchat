@@ -14,6 +14,12 @@ public class InMemoryAgentEventStore implements AgentEventStore {
 
     private final Queue<AgentEvent> events = new ConcurrentLinkedQueue<>();
 
+    /**
+     * Saves the save.
+     *
+     * @param event the event value
+     * @return the saved save
+     */
     @Override
     public String save(AgentEvent event) {
         if (event.getCreateTime() <= 0) {
@@ -23,6 +29,15 @@ public class InMemoryAgentEventStore implements AgentEventStore {
         return AgentEventKeyBuilder.build(event);
     }
 
+    /**
+     * Lists the by task.
+     *
+     * @param tenantId the tenant id value
+     * @param sessionId the session id value
+     * @param taskId the task id value
+     * @param limit the limit value
+     * @return the by task list
+     */
     @Override
     public List<AgentEvent> listByTask(String tenantId, String sessionId, String taskId, int limit) {
         return events.stream()
@@ -36,6 +51,13 @@ public class InMemoryAgentEventStore implements AgentEventStore {
             .toList();
     }
 
+    /**
+     * Returns whether same.
+     *
+     * @param expected the expected value
+     * @param actual the actual value
+     * @return whether the condition is satisfied
+     */
     private boolean same(String expected, String actual) {
         if (expected == null || expected.isBlank() || actual == null || actual.isBlank()) {
             return false;

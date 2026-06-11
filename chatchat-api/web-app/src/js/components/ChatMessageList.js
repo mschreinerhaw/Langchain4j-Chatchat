@@ -1,7 +1,7 @@
 import MarkdownIt from "markdown-it";
 import { Check, Copy } from "@lucide/vue";
 import ResponseReferences from "../../components/ResponseReferences.vue";
-import { extractWebSearchPagesFromTraces } from "../utils/webReferences.js";
+import { extractDocumentSearchPagesFromTraces, extractWebSearchPagesFromTraces } from "../utils/webReferences.js";
 
 const markdown = new MarkdownIt({
   html: false,
@@ -110,7 +110,7 @@ export default {
       }
       const citationUrls = [];
       const nextContent = content.replace(
-        /【\s*(网页|来源|source)\s*(\d+)\s*】|[［\[]\s*(网页|来源|source)\s*(\d+)\s*[］\]]|(?:网页|来源|source)\s*(\d+)/gi,
+        /【\s*(引用|网页|来源|source)\s*(\d+)\s*】|[［\[]\s*(引用|网页|来源|source)\s*(\d+)\s*[］\]]|(?:引用|网页|来源|source)\s*(\d+)/gi,
         (...args) => {
           const match = args[0];
           const boxedPrefix = args[1];
@@ -128,7 +128,7 @@ export default {
             return match;
           }
 
-          const prefix = boxedPrefix || bracketPrefix || this.plainCitationPrefix(match) || "网页";
+          const prefix = boxedPrefix || bracketPrefix || this.plainCitationPrefix(match) || "引用";
           const normalizedNumber = Number(boxedNumber || bracketNumber || plainNumber);
           if (!Number.isInteger(normalizedNumber) || normalizedNumber < 1) {
             return match;
@@ -146,15 +146,15 @@ export default {
       return { content: nextContent, citationUrls };
     },
     plainCitationPrefix(value) {
-      const match = String(value || "").match(/^(网页|来源|source)/i);
+      const match = String(value || "").match(/^(引用|网页|来源|source)/i);
       return match?.[1] || "";
     },
     normalizeCitationPrefix(value) {
       const prefix = String(value || "").toLowerCase();
-      if (prefix === "source") {
-        return "网页";
+      if (prefix === "source" || prefix === "网页" || prefix === "来源") {
+        return "引用";
       }
-      return value || "网页";
+      return value || "引用";
     },
     escapeMarkdownTitle(value) {
       return String(value || "").replace(/"/g, "&quot;");
@@ -182,13 +182,17 @@ export default {
       const content = String(message.content || "").trim();
       const sections = content ? [content] : [];
       const sourceLines = this.copySourceLines(message.sources || []);
+      const documentLines = this.copyDocumentPageLines(extractDocumentSearchPagesFromTraces(message.traces || []));
       const pageLines = this.copyWebPageLines(extractWebSearchPagesFromTraces(message.traces || []));
 
       if (sourceLines.length) {
         sections.push(["内部文档来源", ...sourceLines].join("\n"));
       }
+      if (documentLines.length) {
+        sections.push(["引用文档", ...documentLines].join("\n"));
+      }
       if (pageLines.length) {
-        sections.push(["网络搜索网页", ...pageLines].join("\n"));
+        sections.push(["网络搜索引用", ...pageLines].join("\n"));
       }
       return sections.join("\n\n").trim();
     },
@@ -203,14 +207,26 @@ export default {
         })
         .filter(Boolean);
     },
+    copyDocumentPageLines(pages = []) {
+      return pages
+        .map((page, index) => {
+          const rank = page?.rank || index + 1;
+          const title = page?.title || page?.docId || "引用文档";
+          const docId = page?.docId || "";
+          const url = page?.url || "";
+          const snippet = page?.snippet || "";
+          return [`文档 ${rank}: ${title}`, docId, url, snippet].filter(Boolean).join(" - ");
+        })
+        .filter(Boolean);
+    },
     copyWebPageLines(pages = []) {
       return pages
         .map((page, index) => {
           const rank = page?.rank || index + 1;
-          const title = page?.title || page?.url || "网页";
+          const title = page?.title || page?.url || "引用";
           const url = page?.url || "";
           const snippet = page?.snippet || "";
-          return [`网页 ${rank}: ${title}`, url, snippet].filter(Boolean).join(" - ");
+          return [`引用 ${rank}: ${title}`, url, snippet].filter(Boolean).join(" - ");
         })
         .filter(Boolean);
     },

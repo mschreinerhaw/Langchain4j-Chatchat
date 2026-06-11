@@ -28,11 +28,23 @@ public class ToolDirectModeHandler implements InteractionModeHandler {
 
     private final ToolRuntimeService toolRuntimeService;
 
+    /**
+     * Performs the mode operation.
+     *
+     * @return the operation result
+     */
     @Override
     public InteractionMode mode() {
         return InteractionMode.TOOL_DIRECT;
     }
 
+    /**
+     * Handles the handle.
+     *
+     * @param request the request value
+     * @param context the context value
+     * @return the operation result
+     */
     @Override
     public InteractionResponse handle(InteractionRequest request, InteractionContext context) {
         if (request.getToolName() == null || request.getToolName().isBlank()) {
@@ -85,6 +97,13 @@ public class ToolDirectModeHandler implements InteractionModeHandler {
             .build();
     }
 
+    /**
+     * Performs the bind query as default parameter operation.
+     *
+     * @param toolName the tool name value
+     * @param query the query value
+     * @param params the params value
+     */
     private void bindQueryAsDefaultParameter(String toolName, String query, Map<String, Object> params) {
         if (query == null || query.isBlank() || !params.isEmpty()) {
             return;

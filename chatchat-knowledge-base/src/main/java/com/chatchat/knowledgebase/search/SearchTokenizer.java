@@ -28,16 +28,34 @@ class SearchTokenizer {
         "\u8fd9\u4e2a", "\u8fd9\u4e9b", "\u8fdb\u884c", "\u9700\u8981", "\u9879\u76ee"
     );
 
+    /**
+     * Converts the value to kenize.
+     *
+     * @param text the text value
+     * @return the converted kenize
+     */
     List<String> tokenize(String text) {
         return new ArrayList<>(new LinkedHashSet<>(tokenizeOccurrences(text)));
     }
 
+    /**
+     * Searches the tokens.
+     *
+     * @param text the text value
+     * @return the operation result
+     */
     List<String> searchTokens(String text) {
         return tokenize(text).stream()
             .filter(token -> !isSearchNoiseToken(token))
             .toList();
     }
 
+    /**
+     * Converts the value to kenize occurrences.
+     *
+     * @param text the text value
+     * @return the converted kenize occurrences
+     */
     List<String> tokenizeOccurrences(String text) {
         if (text == null || text.isBlank()) {
             return List.of();
@@ -67,6 +85,12 @@ class SearchTokenizer {
         return tokens;
     }
 
+    /**
+     * Normalizes the terms.
+     *
+     * @param values the values value
+     * @return the operation result
+     */
     List<String> normalizeTerms(List<String> values) {
         if (values == null || values.isEmpty()) {
             return List.of();
@@ -78,6 +102,12 @@ class SearchTokenizer {
         return new ArrayList<>(terms);
     }
 
+    /**
+     * Performs the split filter operation.
+     *
+     * @param value the value value
+     * @return the operation result
+     */
     List<String> splitFilter(String value) {
         if (value == null || value.isBlank()) {
             return List.of();
@@ -93,10 +123,22 @@ class SearchTokenizer {
         return new ArrayList<>(terms);
     }
 
+    /**
+     * Normalizes the exact term.
+     *
+     * @param value the value value
+     * @return the operation result
+     */
     String normalizeExactTerm(String value) {
         return value == null ? "" : value.trim().toLowerCase(Locale.ROOT);
     }
 
+    /**
+     * Returns whether is search noise token.
+     *
+     * @param token the token value
+     * @return whether the condition is satisfied
+     */
     boolean isSearchNoiseToken(String token) {
         if (token == null || token.isBlank()) {
             return true;
@@ -111,6 +153,13 @@ class SearchTokenizer {
         return normalized.length() <= 1;
     }
 
+    /**
+     * Performs the flush operation.
+     *
+     * @param buffer the buffer value
+     * @param mode the mode value
+     * @param tokens the tokens value
+     */
     private void flush(StringBuilder buffer, CharacterMode mode, List<String> tokens) {
         if (buffer.length() == 0) {
             return;
@@ -125,6 +174,12 @@ class SearchTokenizer {
         }
     }
 
+    /**
+     * Adds the cjk ngrams.
+     *
+     * @param token the token value
+     * @param tokens the tokens value
+     */
     private void addCjkNgrams(String token, List<String> tokens) {
         int length = token.length();
         for (int size = 2; size <= 4; size++) {
@@ -137,6 +192,12 @@ class SearchTokenizer {
         }
     }
 
+    /**
+     * Performs the mode of operation.
+     *
+     * @param ch the ch value
+     * @return the operation result
+     */
     private CharacterMode modeOf(char ch) {
         if (isCjk(ch)) {
             return CharacterMode.CJK;
@@ -147,6 +208,12 @@ class SearchTokenizer {
         return CharacterMode.OTHER;
     }
 
+    /**
+     * Returns whether is cjk.
+     *
+     * @param ch the ch value
+     * @return whether the condition is satisfied
+     */
     private boolean isCjk(char ch) {
         Character.UnicodeBlock block = Character.UnicodeBlock.of(ch);
         return Character.UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS.equals(block)

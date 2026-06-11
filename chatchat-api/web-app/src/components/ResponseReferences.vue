@@ -19,11 +19,36 @@
       </article>
     </details>
 
+    <details v-if="documentPageRows.length" :open="compact">
+      <summary>引用文档（{{ documentPageRows.length }}）</summary>
+      <article
+        v-for="(page, index) in documentPageRows"
+        :key="page.docId + page.url + page.title + index"
+        class="reference-row document-reference-row"
+      >
+        <strong>
+          <span class="reference-badge">文档 {{ page.rank || index + 1 }}</span>
+          <a
+            v-if="page.url"
+            :href="page.url"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {{ page.title || page.docId || "引用文档" }}
+          </a>
+          <span v-else>{{ page.title || page.docId || "引用文档" }}</span>
+        </strong>
+        <small v-if="page.docId">{{ page.docId }}</small>
+        <small v-else-if="page.url">{{ displayUrl(page.url) }}</small>
+        <p>{{ page.snippet || "暂无摘要" }}</p>
+      </article>
+    </details>
+
     <details v-if="webPageRows.length" :open="compact">
-      <summary>网络搜索网页（{{ webPageRows.length }}）</summary>
+      <summary>网络搜索引用（{{ webPageRows.length }}）</summary>
       <article v-for="(page, index) in webPageRows" :key="page.rank + page.url + page.title" class="reference-row web-reference-row">
         <strong>
-          <span class="reference-badge web">网页 {{ page.rank || index + 1 }}</span>
+          <span class="reference-badge web">引用 {{ page.rank || index + 1 }}</span>
           <a
             v-if="page.url"
             :href="page.url"
@@ -32,7 +57,7 @@
           >
             {{ page.title || page.url }}
           </a>
-          <span v-else>{{ page.title || "网页" }}</span>
+          <span v-else>{{ page.title || "引用" }}</span>
         </strong>
         <small v-if="page.url">{{ displayUrl(page.url) }}</small>
         <p>{{ page.snippet || "暂无摘要" }}</p>
@@ -45,14 +70,6 @@
         <strong>{{ trace.displayName || trace.toolName || "工具调用" }}</strong>
         <p>{{ trace.statusText }}</p>
         <p v-if="trace.errorText" class="tool-error">{{ trace.errorText }}</p>
-        <button
-          v-if="trace.webPages.length"
-          type="button"
-          class="web-search-pages-trigger"
-          @click="openWebPagesDialog(trace)"
-        >
-          查询网页（{{ trace.webPages.length }}）
-        </button>
       </article>
     </details>
 

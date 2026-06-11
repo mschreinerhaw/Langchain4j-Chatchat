@@ -62,6 +62,12 @@ public class McpGatewayClient {
     private final WebClient directWebClient = WebClient.builder().build();
     private final Map<String, ManagedSdkClient> sdkClientCache = new ConcurrentHashMap<>();
 
+    /**
+     * Performs the discover tools operation.
+     *
+     * @param config the config value
+     * @return the operation result
+     */
     public List<McpToolDefinition> discoverTools(McpServiceConfig config) {
         if (isStdioProxyProtocol(config)) {
             return discoverToolsViaStdioProxy(config);
@@ -85,10 +91,27 @@ public class McpGatewayClient {
         }
     }
 
+    /**
+     * Performs the invoke tool operation.
+     *
+     * @param config the config value
+     * @param toolName the tool name value
+     * @param arguments the arguments value
+     * @return the operation result
+     */
     public McpToolInvokeResult invokeTool(McpServiceConfig config, String toolName, Map<String, Object> arguments) {
         return invokeTool(config, toolName, arguments, null);
     }
 
+    /**
+     * Performs the invoke tool operation.
+     *
+     * @param config the config value
+     * @param toolName the tool name value
+     * @param arguments the arguments value
+     * @param timeoutOverrideMs the timeout override ms value
+     * @return the operation result
+     */
     public McpToolInvokeResult invokeTool(McpServiceConfig config, String toolName, Map<String, Object> arguments,
                                           Long timeoutOverrideMs) {
         if (isStdioProxyProtocol(config)) {
@@ -145,10 +168,25 @@ public class McpGatewayClient {
         }
     }
 
+    /**
+     * Returns the or create sdk client.
+     *
+     * @param config the config value
+     * @param kind the kind value
+     * @return the or create sdk client
+     */
     private McpSyncClient getOrCreateSdkClient(McpServiceConfig config, TransportKind kind) {
         return getOrCreateSdkClient(config, kind, effectiveTimeoutMs(config, null));
     }
 
+    /**
+     * Returns the or create sdk client.
+     *
+     * @param config the config value
+     * @param kind the kind value
+     * @param requestTimeoutMs the request timeout ms value
+     * @return the or create sdk client
+     */
     private McpSyncClient getOrCreateSdkClient(McpServiceConfig config, TransportKind kind, int requestTimeoutMs) {
         String key = serviceKey(config) + ":" + Math.max(1000, requestTimeoutMs);
         String fingerprint = transportFingerprint(config, kind, requestTimeoutMs);
@@ -179,6 +217,13 @@ public class McpGatewayClient {
         }
     }
 
+    /**
+     * Creates the sdk transport.
+     *
+     * @param config the config value
+     * @param kind the kind value
+     * @return the created sdk transport
+     */
     private McpClientTransport createSdkTransport(McpServiceConfig config, TransportKind kind) {
         EndpointParts endpoint = switch (kind) {
             case LEGACY_SSE -> endpointParts(resolveLegacySseEndpoint(config), DEFAULT_LEGACY_SSE_PATH);
@@ -208,6 +253,12 @@ public class McpGatewayClient {
             .build();
     }
 
+    /**
+     * Builds the http client builder.
+     *
+     * @param config the config value
+     * @return the built http client builder
+     */
     private java.net.http.HttpClient.Builder buildHttpClientBuilder(McpServiceConfig config) {
         java.net.http.HttpClient.Builder builder = java.net.http.HttpClient.newBuilder()
             .version(java.net.http.HttpClient.Version.HTTP_1_1);
@@ -235,6 +286,11 @@ public class McpGatewayClient {
             String username = config.getProxyUsername().trim();
             String password = config.getProxyPassword() == null ? "" : config.getProxyPassword();
             builder.authenticator(new java.net.Authenticator() {
+                /**
+                 * Returns the password authentication.
+                 *
+                 * @return the password authentication
+                 */
                 @Override
                 protected java.net.PasswordAuthentication getPasswordAuthentication() {
                     return new java.net.PasswordAuthentication(username, password.toCharArray());
@@ -245,6 +301,12 @@ public class McpGatewayClient {
         return builder;
     }
 
+    /**
+     * Builds the http request builder.
+     *
+     * @param config the config value
+     * @return the built http request builder
+     */
     private HttpRequest.Builder buildHttpRequestBuilder(McpServiceConfig config) {
         HttpRequest.Builder builder = HttpRequest.newBuilder();
 
@@ -261,6 +323,12 @@ public class McpGatewayClient {
         return builder;
     }
 
+    /**
+     * Reads the custom headers.
+     *
+     * @param config the config value
+     * @return the operation result
+     */
     private Map<String, String> readCustomHeaders(McpServiceConfig config) {
         if (config.getCustomHeadersJson() == null || config.getCustomHeadersJson().isBlank()) {
             return Map.of();
@@ -273,6 +341,12 @@ public class McpGatewayClient {
         }
     }
 
+    /**
+     * Resolves the transport kind.
+     *
+     * @param config the config value
+     * @return the resolved transport kind
+     */
     private TransportKind resolveTransportKind(McpServiceConfig config) {
         String protocol = normalizeProtocol(config.getProtocol());
         if (PROTOCOL_STDIO_PROXY.equals(protocol)) {
@@ -293,6 +367,14 @@ public class McpGatewayClient {
         return TransportKind.LEGACY_HTTP;
     }
 
+    /**
+     * Performs the transport fingerprint operation.
+     *
+     * @param config the config value
+     * @param kind the kind value
+     * @param requestTimeoutMs the request timeout ms value
+     * @return the operation result
+     */
     private String transportFingerprint(McpServiceConfig config, TransportKind kind, int requestTimeoutMs) {
         return String.join("|",
             kind.name(),
@@ -311,6 +393,12 @@ public class McpGatewayClient {
         );
     }
 
+    /**
+     * Resolves the legacy sse endpoint.
+     *
+     * @param config the config value
+     * @return the resolved legacy sse endpoint
+     */
     private String resolveLegacySseEndpoint(McpServiceConfig config) {
         String baseUrl = trim(config.getBaseUrl());
         String invokePath = trim(config.getToolInvokePath());
@@ -328,6 +416,12 @@ public class McpGatewayClient {
         return buildUrl(baseUrl, DEFAULT_LEGACY_SSE_PATH);
     }
 
+    /**
+     * Resolves the streamable endpoint.
+     *
+     * @param config the config value
+     * @return the resolved streamable endpoint
+     */
     private String resolveStreamableEndpoint(McpServiceConfig config) {
         String baseUrl = trim(config.getBaseUrl());
         String invokePath = trim(config.getToolInvokePath());
@@ -344,6 +438,13 @@ public class McpGatewayClient {
         return buildUrl(baseUrl, invokePath);
     }
 
+    /**
+     * Performs the endpoint parts operation.
+     *
+     * @param endpoint the endpoint value
+     * @param defaultPath the default path value
+     * @return the operation result
+     */
     private EndpointParts endpointParts(String endpoint, String defaultPath) {
         if (!isAbsoluteHttpUrl(endpoint)) {
             throw new IllegalArgumentException("MCP endpoint must be absolute URL: " + endpoint);
@@ -366,14 +467,33 @@ public class McpGatewayClient {
         return new EndpointParts(baseUrl, path);
     }
 
+    /**
+     * Returns whether looks like legacy sse endpoint.
+     *
+     * @param value the value value
+     * @return whether the condition is satisfied
+     */
     private boolean looksLikeLegacySseEndpoint(String value) {
         return pathEndsWith(value, "/sse");
     }
 
+    /**
+     * Returns whether looks like streamable endpoint.
+     *
+     * @param value the value value
+     * @return whether the condition is satisfied
+     */
     private boolean looksLikeStreamableEndpoint(String value) {
         return pathEndsWith(value, "/mcp");
     }
 
+    /**
+     * Returns whether path ends with.
+     *
+     * @param value the value value
+     * @param suffix the suffix value
+     * @return whether the condition is satisfied
+     */
     private boolean pathEndsWith(String value, String suffix) {
         if (value == null || value.isBlank()) {
             return false;
@@ -397,6 +517,12 @@ public class McpGatewayClient {
         return normalized.endsWith(suffix);
     }
 
+    /**
+     * Normalizes the protocol.
+     *
+     * @param protocol the protocol value
+     * @return the operation result
+     */
     private String normalizeProtocol(String protocol) {
         if (protocol == null || protocol.isBlank()) {
             return "";
@@ -414,6 +540,12 @@ public class McpGatewayClient {
         return normalized;
     }
 
+    /**
+     * Performs the service key operation.
+     *
+     * @param config the config value
+     * @return the operation result
+     */
     private String serviceKey(McpServiceConfig config) {
         if (config.getId() != null && !config.getId().isBlank()) {
             return config.getId();
@@ -424,10 +556,22 @@ public class McpGatewayClient {
         return config.getBaseUrl() == null ? "unknown" : config.getBaseUrl();
     }
 
+    /**
+     * Returns whether is stdio proxy protocol.
+     *
+     * @param config the config value
+     * @return whether the condition is satisfied
+     */
     private boolean isStdioProxyProtocol(McpServiceConfig config) {
         return PROTOCOL_STDIO_PROXY.equals(normalizeProtocol(config.getProtocol()));
     }
 
+    /**
+     * Performs the discover tools via stdio proxy operation.
+     *
+     * @param config the config value
+     * @return the operation result
+     */
     private List<McpToolDefinition> discoverToolsViaStdioProxy(McpServiceConfig config) {
         try {
             Object result = stdioProxyService.callForResult(config, "tools/list", Map.of());
@@ -442,6 +586,14 @@ public class McpGatewayClient {
         }
     }
 
+    /**
+     * Performs the invoke tool via stdio proxy operation.
+     *
+     * @param config the config value
+     * @param toolName the tool name value
+     * @param arguments the arguments value
+     * @return the operation result
+     */
     private McpToolInvokeResult invokeToolViaStdioProxy(McpServiceConfig config, String toolName,
                                                          Map<String, Object> arguments) {
         Map<String, Object> params = new LinkedHashMap<>();
@@ -457,6 +609,12 @@ public class McpGatewayClient {
         }
     }
 
+    /**
+     * Performs the discover tools via legacy http operation.
+     *
+     * @param config the config value
+     * @return the operation result
+     */
     private List<McpToolDefinition> discoverToolsViaLegacyHttp(McpServiceConfig config) {
         WebClient webClient = webClientFor(config);
         String url = buildUrl(config.getBaseUrl(), config.getToolDiscoveryPath());
@@ -475,6 +633,14 @@ public class McpGatewayClient {
         }
     }
 
+    /**
+     * Performs the invoke tool via legacy http operation.
+     *
+     * @param config the config value
+     * @param toolName the tool name value
+     * @param arguments the arguments value
+     * @return the operation result
+     */
     private McpToolInvokeResult invokeToolViaLegacyHttp(McpServiceConfig config, String toolName,
                                                          Map<String, Object> arguments) {
         WebClient webClient = webClientFor(config);
@@ -518,6 +684,12 @@ public class McpGatewayClient {
         }
     }
 
+    /**
+     * Normalizes the tools.
+     *
+     * @param raw the raw value
+     * @return the operation result
+     */
     @SuppressWarnings("unchecked")
     private List<McpToolDefinition> normalizeTools(Object raw) {
         Object source = raw;
@@ -601,6 +773,12 @@ public class McpGatewayClient {
         return tools;
     }
 
+    /**
+     * Performs the as map operation.
+     *
+     * @param value the value value
+     * @return the operation result
+     */
     @SuppressWarnings("unchecked")
     private Map<String, Object> asMap(Object value) {
         if (!(value instanceof Map<?, ?> map)) {
@@ -609,6 +787,12 @@ public class McpGatewayClient {
         return objectMapper.convertValue(map, new TypeReference<>() {});
     }
 
+    /**
+     * Performs the governance map operation.
+     *
+     * @param toolMap the tool map value
+     * @return the operation result
+     */
     private Map<String, Object> governanceMap(Map<?, ?> toolMap) {
         Map<String, Object> direct = asMap(toolMap.get("governance"));
         if (!direct.isEmpty()) {
@@ -618,6 +802,14 @@ public class McpGatewayClient {
         return asMap(meta.get("governance"));
     }
 
+    /**
+     * Performs the governance text operation.
+     *
+     * @param toolMap the tool map value
+     * @param governance the governance value
+     * @param keys the keys value
+     * @return the operation result
+     */
     private String governanceText(Map<?, ?> toolMap, Map<String, Object> governance, String... keys) {
         for (String key : keys) {
             String value = stringValue(toolMap.get(key));
@@ -641,6 +833,14 @@ public class McpGatewayClient {
         return null;
     }
 
+    /**
+     * Performs the first map operation.
+     *
+     * @param toolMap the tool map value
+     * @param governance the governance value
+     * @param keys the keys value
+     * @return the operation result
+     */
     private Map<String, Object> firstMap(Map<?, ?> toolMap, Map<String, Object> governance, String... keys) {
         for (String key : keys) {
             Map<String, Object> value = asMap(toolMap.get(key));
@@ -664,6 +864,14 @@ public class McpGatewayClient {
         return Map.of();
     }
 
+    /**
+     * Performs the first long operation.
+     *
+     * @param toolMap the tool map value
+     * @param governance the governance value
+     * @param keys the keys value
+     * @return the operation result
+     */
     private Long firstLong(Map<?, ?> toolMap, Map<String, Object> governance, String... keys) {
         Map<String, Object> meta = asMap(firstPresent(toolMap.get("_meta"), toolMap.get("meta")));
         for (String key : keys) {
@@ -687,6 +895,12 @@ public class McpGatewayClient {
         return null;
     }
 
+    /**
+     * Normalizes the invoke result.
+     *
+     * @param raw the raw value
+     * @return the operation result
+     */
     @SuppressWarnings("unchecked")
     private McpToolInvokeResult normalizeInvokeResult(Object raw) {
         if (!(raw instanceof Map<?, ?> rawMap)) {
@@ -723,6 +937,12 @@ public class McpGatewayClient {
         return new McpToolInvokeResult(true, data, stringValue(map.get("message")), null);
     }
 
+    /**
+     * Performs the first present operation.
+     *
+     * @param values the values value
+     * @return the operation result
+     */
     private Object firstPresent(Object... values) {
         if (values == null) {
             return null;
@@ -735,6 +955,13 @@ public class McpGatewayClient {
         return null;
     }
 
+    /**
+     * Builds the url.
+     *
+     * @param baseUrl the base url value
+     * @param path the path value
+     * @return the built url
+     */
     private String buildUrl(String baseUrl, String path) {
         String left = baseUrl == null ? "" : baseUrl.trim();
         String right = path == null ? "" : path.trim();
@@ -750,6 +977,12 @@ public class McpGatewayClient {
         return left + right;
     }
 
+    /**
+     * Performs the apply headers operation.
+     *
+     * @param headers the headers value
+     * @param config the config value
+     */
     private void applyHeaders(HttpHeaders headers, McpServiceConfig config) {
         headers.set(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE);
         if (config.getAuthToken() != null && !config.getAuthToken().isBlank()) {
@@ -764,6 +997,12 @@ public class McpGatewayClient {
         extra.forEach(headers::set);
     }
 
+    /**
+     * Performs the web client for operation.
+     *
+     * @param config the config value
+     * @return the operation result
+     */
     private WebClient webClientFor(McpServiceConfig config) {
         if (!config.isProxyEnabled()) {
             return directWebClient;
@@ -791,6 +1030,12 @@ public class McpGatewayClient {
             .build();
     }
 
+    /**
+     * Resolves the proxy type.
+     *
+     * @param proxyType the proxy type value
+     * @return the resolved proxy type
+     */
     private ProxyProvider.Proxy resolveProxyType(String proxyType) {
         String type = proxyType == null ? "http" : proxyType.trim().toLowerCase(Locale.ROOT);
         return switch (type) {
@@ -800,6 +1045,12 @@ public class McpGatewayClient {
         };
     }
 
+    /**
+     * Returns whether is absolute http url.
+     *
+     * @param value the value value
+     * @return whether the condition is satisfied
+     */
     private boolean isAbsoluteHttpUrl(String value) {
         if (value == null) {
             return false;
@@ -808,22 +1059,53 @@ public class McpGatewayClient {
         return lowered.startsWith("http://") || lowered.startsWith("https://");
     }
 
+    /**
+     * Performs the trim operation.
+     *
+     * @param value the value value
+     * @return the operation result
+     */
     private String trim(String value) {
         return value == null ? "" : value.trim();
     }
 
+    /**
+     * Performs the null safe operation.
+     *
+     * @param value the value value
+     * @return the operation result
+     */
     private String nullSafe(String value) {
         return value == null ? "" : value;
     }
 
+    /**
+     * Performs the string value operation.
+     *
+     * @param value the value value
+     * @return the operation result
+     */
     private String stringValue(Object value) {
         return value == null ? null : String.valueOf(value);
     }
 
+    /**
+     * Performs the first text operation.
+     *
+     * @param value the value value
+     * @param fallback the fallback value
+     * @return the operation result
+     */
     private String firstText(String value, String fallback) {
         return value == null || value.isBlank() ? fallback : value.trim();
     }
 
+    /**
+     * Returns whether as boolean.
+     *
+     * @param value the value value
+     * @return whether the condition is satisfied
+     */
     private Boolean asBoolean(Object value) {
         if (value instanceof Boolean bool) {
             return bool;
@@ -835,6 +1117,12 @@ public class McpGatewayClient {
         return text.isBlank() ? null : Boolean.parseBoolean(text);
     }
 
+    /**
+     * Performs the as integer operation.
+     *
+     * @param value the value value
+     * @return the operation result
+     */
     private Integer asInteger(Object value) {
         if (value instanceof Number number) {
             return number.intValue();
@@ -849,6 +1137,12 @@ public class McpGatewayClient {
         return null;
     }
 
+    /**
+     * Performs the as long operation.
+     *
+     * @param value the value value
+     * @return the operation result
+     */
     private Long asLong(Object value) {
         if (value instanceof Number number) {
             return number.longValue();
@@ -863,12 +1157,25 @@ public class McpGatewayClient {
         return null;
     }
 
+    /**
+     * Performs the effective timeout ms operation.
+     *
+     * @param config the config value
+     * @param timeoutOverrideMs the timeout override ms value
+     * @return the operation result
+     */
     private int effectiveTimeoutMs(McpServiceConfig config, Long timeoutOverrideMs) {
         long serviceTimeout = config == null ? 20000L : config.getTimeoutMs();
         long override = timeoutOverrideMs == null ? 0L : timeoutOverrideMs;
         return (int) Math.min(Integer.MAX_VALUE, Math.max(1000L, Math.max(serviceTimeout, override)));
     }
 
+    /**
+     * Closes the quietly.
+     *
+     * @param client the client value
+     * @param key the key value
+     */
     private void closeQuietly(McpSyncClient client, String key) {
         try {
             boolean closed = client.closeGracefully();

@@ -21,6 +21,13 @@ public class DatabaseQueryInvokeService {
 
     private final ToolRegistry toolRegistry;
 
+    /**
+     * Performs the invoke operation.
+     *
+     * @param config the config value
+     * @param arguments the arguments value
+     * @return the operation result
+     */
     public ToolOutput invoke(DatabaseQueryConfig config, Map<String, Object> arguments) {
         log.info("Database query invoke started databaseQueryId={} tool={} maxRows={} sql={} args={}",
             config.getId(),
@@ -31,6 +38,12 @@ public class DatabaseQueryInvokeService {
         return invoke(toParameters(config, arguments == null ? Map.of() : arguments));
     }
 
+    /**
+     * Performs the invoke operation.
+     *
+     * @param parameters the parameters value
+     * @return the operation result
+     */
     public ToolOutput invoke(Map<String, Object> parameters) {
         long startedAt = System.currentTimeMillis();
         if (!toolRegistry.hasTool(TOOL_NAME)) {
@@ -62,6 +75,13 @@ public class DatabaseQueryInvokeService {
         return output;
     }
 
+    /**
+     * Converts the value to parameters.
+     *
+     * @param config the config value
+     * @param arguments the arguments value
+     * @return the converted parameters
+     */
     private Map<String, Object> toParameters(DatabaseQueryConfig config, Map<String, Object> arguments) {
         Map<String, Object> parameters = new LinkedHashMap<>();
         parameters.put("sql", config.getSqlTemplate());
@@ -75,12 +95,25 @@ public class DatabaseQueryInvokeService {
         return parameters;
     }
 
+    /**
+     * Stores the if present.
+     *
+     * @param parameters the parameters value
+     * @param key the key value
+     * @param value the value value
+     */
     private void putIfPresent(Map<String, Object> parameters, String key, String value) {
         if (value != null && !value.isBlank()) {
             parameters.put(key, value.trim());
         }
     }
 
+    /**
+     * Performs the argument keys operation.
+     *
+     * @param arguments the arguments value
+     * @return the operation result
+     */
     private java.util.List<String> argumentKeys(Map<String, Object> arguments) {
         if (arguments == null || arguments.isEmpty()) {
             return java.util.List.of();

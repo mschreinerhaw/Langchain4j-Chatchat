@@ -40,6 +40,9 @@ public class RocksDbSearchStore {
     private Options options;
     private RocksDB db;
 
+    /**
+     * Opens the open.
+     */
     @PostConstruct
     public void open() {
         try {
@@ -53,6 +56,13 @@ public class RocksDbSearchStore {
         }
     }
 
+    /**
+     * Stores the put.
+     *
+     * @param document the document value
+     * @param indexData the index data value
+     * @param oldIndexData the old index data value
+     */
     public void put(SearchDocument document, SearchIndexData indexData, SearchIndexData oldIndexData) {
         ensureOpen();
         try {
@@ -69,6 +79,12 @@ public class RocksDbSearchStore {
         }
     }
 
+    /**
+     * Returns the get.
+     *
+     * @param docId the doc id value
+     * @return the get
+     */
     public Optional<SearchDocument> get(String docId) {
         ensureOpen();
         try {
@@ -82,6 +98,12 @@ public class RocksDbSearchStore {
         }
     }
 
+    /**
+     * Deletes the delete.
+     *
+     * @param document the document value
+     * @param oldIndexData the old index data value
+     */
     public void delete(SearchDocument document, SearchIndexData oldIndexData) {
         ensureOpen();
         if (document == null || document.getDocId() == null || document.getDocId().isBlank()) {
@@ -98,22 +120,52 @@ public class RocksDbSearchStore {
         }
     }
 
+    /**
+     * Finds the by keyword.
+     *
+     * @param keyword the keyword value
+     * @return the matching by keyword
+     */
     public List<String> findByKeyword(String keyword) {
         return findByIndexPrefix(KEYWORD_INDEX_PREFIX + keyword + ":");
     }
 
+    /**
+     * Finds the by tag.
+     *
+     * @param tag the tag value
+     * @return the matching by tag
+     */
     public List<String> findByTag(String tag) {
         return findByIndexPrefix(TAG_INDEX_PREFIX + tag + ":");
     }
 
+    /**
+     * Finds the by company.
+     *
+     * @param company the company value
+     * @return the matching by company
+     */
     public List<String> findByCompany(String company) {
         return findByIndexPrefix(COMPANY_INDEX_PREFIX + company + ":");
     }
 
+    /**
+     * Finds the by industry.
+     *
+     * @param industry the industry value
+     * @return the matching by industry
+     */
     public List<String> findByIndustry(String industry) {
         return findByIndexPrefix(INDUSTRY_INDEX_PREFIX + industry + ":");
     }
 
+    /**
+     * Lists the document ids.
+     *
+     * @param limit the limit value
+     * @return the document ids list
+     */
     public List<String> listDocumentIds(int limit) {
         ensureOpen();
         List<String> ids = new ArrayList<>();
@@ -129,6 +181,11 @@ public class RocksDbSearchStore {
         return ids;
     }
 
+    /**
+     * Performs the count documents operation.
+     *
+     * @return the operation result
+     */
     public int countDocuments() {
         ensureOpen();
         int count = 0;
@@ -141,6 +198,11 @@ public class RocksDbSearchStore {
         return count;
     }
 
+    /**
+     * Stores the category.
+     *
+     * @param name the name value
+     */
     public void putCategory(String name) {
         ensureOpen();
         try {
@@ -150,6 +212,11 @@ public class RocksDbSearchStore {
         }
     }
 
+    /**
+     * Lists the categories.
+     *
+     * @return the categories list
+     */
     public List<String> listCategories() {
         ensureOpen();
         List<String> categories = new ArrayList<>();
@@ -162,6 +229,9 @@ public class RocksDbSearchStore {
         return categories;
     }
 
+    /**
+     * Closes the close.
+     */
     @PreDestroy
     public void close() {
         if (db != null) {
@@ -172,6 +242,13 @@ public class RocksDbSearchStore {
         }
     }
 
+    /**
+     * Stores the index entries.
+     *
+     * @param docId the doc id value
+     * @param indexData the index data value
+     * @throws RocksDBException if the operation fails
+     */
     private void putIndexEntries(String docId, SearchIndexData indexData) throws RocksDBException {
         putIndexEntries(KEYWORD_INDEX_PREFIX, indexData.keywords(), docId);
         putIndexEntries(TAG_INDEX_PREFIX, indexData.tags(), docId);
@@ -179,6 +256,13 @@ public class RocksDbSearchStore {
         putIndexEntries(INDUSTRY_INDEX_PREFIX, indexData.industries(), docId);
     }
 
+    /**
+     * Deletes the index entries.
+     *
+     * @param docId the doc id value
+     * @param indexData the index data value
+     * @throws RocksDBException if the operation fails
+     */
     private void deleteIndexEntries(String docId, SearchIndexData indexData) throws RocksDBException {
         deleteIndexEntries(KEYWORD_INDEX_PREFIX, indexData.keywords(), docId);
         deleteIndexEntries(TAG_INDEX_PREFIX, indexData.tags(), docId);
@@ -186,18 +270,40 @@ public class RocksDbSearchStore {
         deleteIndexEntries(INDUSTRY_INDEX_PREFIX, indexData.industries(), docId);
     }
 
+    /**
+     * Stores the index entries.
+     *
+     * @param prefix the prefix value
+     * @param terms the terms value
+     * @param docId the doc id value
+     * @throws RocksDBException if the operation fails
+     */
     private void putIndexEntries(String prefix, List<String> terms, String docId) throws RocksDBException {
         for (String term : terms) {
             db.put(bytes(prefix + term + ":" + docId), EMPTY_VALUE);
         }
     }
 
+    /**
+     * Deletes the index entries.
+     *
+     * @param prefix the prefix value
+     * @param terms the terms value
+     * @param docId the doc id value
+     * @throws RocksDBException if the operation fails
+     */
     private void deleteIndexEntries(String prefix, List<String> terms, String docId) throws RocksDBException {
         for (String term : terms) {
             db.delete(bytes(prefix + term + ":" + docId));
         }
     }
 
+    /**
+     * Finds the by index prefix.
+     *
+     * @param prefix the prefix value
+     * @return the matching by index prefix
+     */
     private List<String> findByIndexPrefix(String prefix) {
         ensureOpen();
         Set<String> ids = new LinkedHashSet<>();
@@ -209,6 +315,12 @@ public class RocksDbSearchStore {
         return new ArrayList<>(ids);
     }
 
+    /**
+     * Converts the value to metadata.
+     *
+     * @param document the document value
+     * @return the converted metadata
+     */
     private SearchDocumentMetadata toMetadata(SearchDocument document) {
         return new SearchDocumentMetadata(
             document.getDocId(),
@@ -229,24 +341,52 @@ public class RocksDbSearchStore {
         );
     }
 
+    /**
+     * Returns whether is latest version.
+     *
+     * @param document the document value
+     * @return whether the condition is satisfied
+     */
     private boolean isLatestVersion(SearchDocument document) {
         return !Boolean.FALSE.equals(document.getLatestVersion());
     }
 
+    /**
+     * Returns whether starts with.
+     *
+     * @param value the value value
+     * @param prefix the prefix value
+     * @return whether the condition is satisfied
+     */
     private boolean startsWith(byte[] value, String prefix) {
         return string(value).startsWith(prefix);
     }
 
+    /**
+     * Ensures the open.
+     */
     private void ensureOpen() {
         if (db == null) {
             throw new IllegalStateException("RocksDB search store is not open");
         }
     }
 
+    /**
+     * Performs the bytes operation.
+     *
+     * @param value the value value
+     * @return the operation result
+     */
     private byte[] bytes(String value) {
         return value.getBytes(StandardCharsets.UTF_8);
     }
 
+    /**
+     * Performs the string operation.
+     *
+     * @param value the value value
+     * @return the operation result
+     */
     private String string(byte[] value) {
         return new String(value, StandardCharsets.UTF_8);
     }

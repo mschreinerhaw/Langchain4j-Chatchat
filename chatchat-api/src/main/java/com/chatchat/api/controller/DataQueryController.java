@@ -50,6 +50,16 @@ public class DataQueryController {
     private final ToolRegistry toolRegistry;
     private final ConversationService conversationService;
 
+    /**
+     * Returns the skills.
+     *
+     * @param scope the scope value
+     * @param keyword the keyword value
+     * @param category the category value
+     * @param page the page value
+     * @param pageSize the page size value
+     * @return the skills
+     */
     @GetMapping("/skills")
     @Operation(summary = "List skill options")
     public ApiResponse<SkillPage> getSkills(@RequestParam(value = "scope", required = false) String scope,
@@ -84,6 +94,12 @@ public class DataQueryController {
         ));
     }
 
+    /**
+     * Creates the skill.
+     *
+     * @param request the request value
+     * @return the created skill
+     */
     @PostMapping("/skills")
     @Operation(summary = "Create skill")
     public ApiResponse<SkillOption> createSkill(@RequestBody SkillUpsertRequest request) {
@@ -91,6 +107,13 @@ public class DataQueryController {
         return ApiResponse.success(toSkillOption(saved), "Skill created");
     }
 
+    /**
+     * Updates the skill.
+     *
+     * @param skillId the skill id value
+     * @param request the request value
+     * @return the updated skill
+     */
     @PutMapping("/skills/{skillId}")
     @Operation(summary = "Update skill")
     public ApiResponse<SkillOption> updateSkill(@PathVariable("skillId") String skillId,
@@ -99,6 +122,12 @@ public class DataQueryController {
         return ApiResponse.success(toSkillOption(saved), "Skill updated");
     }
 
+    /**
+     * Deletes the skill.
+     *
+     * @param skillId the skill id value
+     * @return the operation result
+     */
     @DeleteMapping("/skills/{skillId}")
     @Operation(summary = "Delete skill")
     public ApiResponse<Void> deleteSkill(@PathVariable("skillId") String skillId) {
@@ -106,6 +135,12 @@ public class DataQueryController {
         return ApiResponse.success(null, deleted ? "Skill deleted" : "Skill not found");
     }
 
+    /**
+     * Lists the skill versions.
+     *
+     * @param skillId the skill id value
+     * @return the skill versions list
+     */
     @GetMapping("/skills/{skillId}/versions")
     @Operation(summary = "List skill versions")
     public ApiResponse<List<SkillVersionItem>> listSkillVersions(@PathVariable("skillId") String skillId) {
@@ -138,6 +173,13 @@ public class DataQueryController {
         return ApiResponse.success(versions);
     }
 
+    /**
+     * Performs the rollback skill operation.
+     *
+     * @param skillId the skill id value
+     * @param versionId the version id value
+     * @return the operation result
+     */
     @PostMapping("/skills/{skillId}/rollback/{versionId}")
     @Operation(summary = "Rollback skill to one version")
     public ApiResponse<SkillOption> rollbackSkill(@PathVariable("skillId") String skillId,
@@ -146,6 +188,12 @@ public class DataQueryController {
         return ApiResponse.success(toSkillOption(saved), "Skill rolled back");
     }
 
+    /**
+     * Returns the quick questions.
+     *
+     * @param skillId the skill id value
+     * @return the quick questions
+     */
     @GetMapping("/quick-questions")
     @Operation(summary = "List quick questions by skill")
     public ApiResponse<List<String>> getQuickQuestions(@RequestParam(value = "skillId", required = false) String skillId) {
@@ -153,6 +201,11 @@ public class DataQueryController {
         return ApiResponse.success(skill.quickQuestions());
     }
 
+    /**
+     * Returns the models.
+     *
+     * @return the models
+     */
     @GetMapping("/models")
     @Operation(summary = "List selectable chat models")
     public ApiResponse<List<ModelOption>> getModels() {
@@ -168,6 +221,11 @@ public class DataQueryController {
         return ApiResponse.success(models);
     }
 
+    /**
+     * Returns the tools.
+     *
+     * @return the tools
+     */
     @GetMapping("/tools")
     @Operation(summary = "List all available tool names")
     public ApiResponse<List<String>> getTools() {
@@ -178,6 +236,12 @@ public class DataQueryController {
         return ApiResponse.success(tools);
     }
 
+    /**
+     * Returns whether is user visible agent tool.
+     *
+     * @param toolName the tool name value
+     * @return whether the condition is satisfied
+     */
     private boolean isUserVisibleAgentTool(String toolName) {
         if (toolName == null || toolName.isBlank()) {
             return false;
@@ -186,6 +250,15 @@ public class DataQueryController {
         return metadata == null || (metadata.isAgentCompatible() && metadata.isUserVisible());
     }
 
+    /**
+     * Returns the history.
+     *
+     * @param userId the user id value
+     * @param keyword the keyword value
+     * @param status the status value
+     * @param limit the limit value
+     * @return the history
+     */
     @GetMapping("/history/{userId}")
     @Operation(summary = "Search user history conversations")
     public ApiResponse<List<HistoryItem>> getHistory(@PathVariable("userId") String userId,
@@ -195,6 +268,12 @@ public class DataQueryController {
         return ApiResponse.success(loadPersistentHistory(userId, keyword, status, limit));
     }
 
+    /**
+     * Adds the history.
+     *
+     * @param request the request value
+     * @return the operation result
+     */
     @PostMapping("/history")
     @Operation(summary = "Save one history question")
     public ApiResponse<List<HistoryItem>> addHistory(@RequestBody HistoryRequest request) {
@@ -225,6 +304,14 @@ public class DataQueryController {
         return ApiResponse.success(history, "History updated");
     }
 
+    /**
+     * Updates the history status.
+     *
+     * @param userId the user id value
+     * @param historyId the history id value
+     * @param request the request value
+     * @return the updated history status
+     */
     @PatchMapping("/history/{userId}/{historyId}/status")
     @Operation(summary = "Update one history conversation status")
     public ApiResponse<List<HistoryItem>> updateHistoryStatus(@PathVariable("userId") String userId,
@@ -260,6 +347,13 @@ public class DataQueryController {
         return ApiResponse.success(history, "History status updated");
     }
 
+    /**
+     * Deletes the history item.
+     *
+     * @param userId the user id value
+     * @param historyId the history id value
+     * @return the operation result
+     */
     @DeleteMapping("/history/{userId}/{historyId}")
     @Operation(summary = "Delete one history conversation by id")
     public ApiResponse<Void> deleteHistoryItem(@PathVariable("userId") String userId,
@@ -271,6 +365,12 @@ public class DataQueryController {
         return ApiResponse.success(null, "History deleted");
     }
 
+    /**
+     * Performs the clear history operation.
+     *
+     * @param userId the user id value
+     * @return the operation result
+     */
     @DeleteMapping("/history/{userId}")
     @Operation(summary = "Clear history by user")
     public ApiResponse<Void> clearHistory(@PathVariable("userId") String userId) {
@@ -387,6 +487,13 @@ public class DataQueryController {
         private String status;
     }
 
+    /**
+     * Resolves the history status.
+     *
+     * @param status the status value
+     * @param messages the messages value
+     * @return the resolved history status
+     */
     private String resolveHistoryStatus(String status, List<ConversationMessage> messages) {
         if (status != null && !status.isBlank()) {
             return status.trim();
@@ -398,6 +505,15 @@ public class DataQueryController {
         return "user".equalsIgnoreCase(lastMessage.getRole()) ? "pending" : "completed";
     }
 
+    /**
+     * Loads the persistent history.
+     *
+     * @param userId the user id value
+     * @param keyword the keyword value
+     * @param status the status value
+     * @param limit the limit value
+     * @return the operation result
+     */
     private List<HistoryItem> loadPersistentHistory(String userId, String keyword, String status, Integer limit) {
         List<HistoryItem> items = conversationService.listUserConversations(userId).stream()
             .map(conversation -> conversationService.getConversation(conversation.getId()).orElse(conversation))
@@ -406,6 +522,12 @@ public class DataQueryController {
         return filterHistory(items, keyword, status, limit);
     }
 
+    /**
+     * Converts the value to history item.
+     *
+     * @param conversation the conversation value
+     * @return the converted history item
+     */
     private HistoryItem toHistoryItem(Conversation conversation) {
         List<ConversationMessage> messages = conversation.getMessages() == null
             ? List.of()
@@ -431,6 +553,12 @@ public class DataQueryController {
         );
     }
 
+    /**
+     * Converts the value to conversation message.
+     *
+     * @param message the message value
+     * @return the converted conversation message
+     */
     private ConversationMessage toConversationMessage(Conversation.Message message) {
         return new ConversationMessage(
             message.getId(),
@@ -444,6 +572,12 @@ public class DataQueryController {
         );
     }
 
+    /**
+     * Converts the value to conversation messages.
+     *
+     * @param messages the messages value
+     * @return the converted conversation messages
+     */
     private List<Conversation.Message> toConversationMessages(List<ConversationMessage> messages) {
         if (messages == null || messages.isEmpty()) {
             return List.of();
@@ -461,6 +595,12 @@ public class DataQueryController {
             .toList();
     }
 
+    /**
+     * Performs the first user message operation.
+     *
+     * @param messages the messages value
+     * @return the operation result
+     */
     private String firstUserMessage(List<ConversationMessage> messages) {
         return messages.stream()
             .filter(message -> "user".equalsIgnoreCase(message.getRole()))
@@ -470,6 +610,12 @@ public class DataQueryController {
             .orElse(null);
     }
 
+    /**
+     * Performs the replace current history snapshot operation.
+     *
+     * @param history the history value
+     * @param current the current value
+     */
     private void replaceCurrentHistorySnapshot(List<HistoryItem> history, HistoryItem current) {
         for (int index = 0; index < history.size(); index++) {
             if (current.getId().equals(history.get(index).getId())) {
@@ -480,10 +626,22 @@ public class DataQueryController {
         history.add(0, current);
     }
 
+    /**
+     * Converts the value to epoch millis.
+     *
+     * @param value the value value
+     * @return the converted epoch millis
+     */
     private Long toEpochMillis(LocalDateTime value) {
         return value == null ? System.currentTimeMillis() : value.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli();
     }
 
+    /**
+     * Creates the value from epoch millis.
+     *
+     * @param value the value value
+     * @return the operation result
+     */
     private LocalDateTime fromEpochMillis(Long value) {
         if (value == null || value <= 0) {
             return null;
@@ -491,6 +649,12 @@ public class DataQueryController {
         return LocalDateTime.ofInstant(java.time.Instant.ofEpochMilli(value), ZoneId.systemDefault());
     }
 
+    /**
+     * Performs the safe maps operation.
+     *
+     * @param values the values value
+     * @return the operation result
+     */
     private List<Map<String, Object>> safeMaps(List<Map<String, Object>> values) {
         if (values == null || values.isEmpty()) {
             return List.of();
@@ -501,6 +665,13 @@ public class DataQueryController {
             .toList();
     }
 
+    /**
+     * Performs the first non blank operation.
+     *
+     * @param first the first value
+     * @param second the second value
+     * @return the operation result
+     */
     private String firstNonBlank(String first, String second) {
         if (first != null && !first.isBlank()) {
             return first.trim();
@@ -511,6 +682,15 @@ public class DataQueryController {
         return null;
     }
 
+    /**
+     * Performs the filter history operation.
+     *
+     * @param items the items value
+     * @param keyword the keyword value
+     * @param status the status value
+     * @param limit the limit value
+     * @return the operation result
+     */
     private List<HistoryItem> filterHistory(List<HistoryItem> items, String keyword, String status, Integer limit) {
         String normalizedKeyword = keyword == null ? "" : keyword.trim().toLowerCase(Locale.ROOT);
         String normalizedStatus = status == null ? "" : status.trim().toLowerCase(Locale.ROOT);
@@ -524,6 +704,13 @@ public class DataQueryController {
             .toList());
     }
 
+    /**
+     * Returns whether matches keyword.
+     *
+     * @param item the item value
+     * @param keyword the keyword value
+     * @return whether the condition is satisfied
+     */
     private boolean matchesKeyword(HistoryItem item, String keyword) {
         return containsIgnoreCase(item.getQuestion(), keyword)
             || containsIgnoreCase(item.getConversationId(), keyword)
@@ -533,15 +720,36 @@ public class DataQueryController {
                 .anyMatch(message -> containsIgnoreCase(message.getContent(), keyword)));
     }
 
+    /**
+     * Returns whether contains ignore case.
+     *
+     * @param value the value value
+     * @param keyword the keyword value
+     * @return whether the condition is satisfied
+     */
     private boolean containsIgnoreCase(String value, String keyword) {
         return value != null && value.toLowerCase(Locale.ROOT).contains(keyword);
     }
 
+    /**
+     * Returns whether matches skill category.
+     *
+     * @param skill the skill value
+     * @param category the category value
+     * @return whether the condition is satisfied
+     */
     private boolean matchesSkillCategory(SkillDefinition skill, String category) {
         return skill.skillTags() != null
             && skill.skillTags().stream().anyMatch(tag -> containsIgnoreCase(tag, category));
     }
 
+    /**
+     * Returns whether matches skill keyword.
+     *
+     * @param skill the skill value
+     * @param keyword the keyword value
+     * @return whether the condition is satisfied
+     */
     private boolean matchesSkillKeyword(SkillDefinition skill, String keyword) {
         return containsIgnoreCase(skill.id(), keyword)
             || containsIgnoreCase(skill.label(), keyword)
@@ -556,10 +764,23 @@ public class DataQueryController {
             || listContainsIgnoreCase(skill.boundMcpToolNames(), keyword);
     }
 
+    /**
+     * Returns whether list contains ignore case.
+     *
+     * @param values the values value
+     * @param keyword the keyword value
+     * @return whether the condition is satisfied
+     */
     private boolean listContainsIgnoreCase(List<String> values, String keyword) {
         return values != null && values.stream().anyMatch(value -> containsIgnoreCase(value, keyword));
     }
 
+    /**
+     * Builds the skill categories.
+     *
+     * @param skills the skills value
+     * @return the built skill categories
+     */
     private List<SkillCategoryOption> buildSkillCategories(List<SkillDefinition> skills) {
         Map<String, Integer> counts = new java.util.TreeMap<>(String.CASE_INSENSITIVE_ORDER);
         for (SkillDefinition skill : skills) {
@@ -578,29 +799,69 @@ public class DataQueryController {
         return categories;
     }
 
+    /**
+     * Normalizes the keyword.
+     *
+     * @param value the value value
+     * @return the operation result
+     */
     private String normalizeKeyword(String value) {
         return value == null || value.isBlank() || "all".equalsIgnoreCase(value.trim())
             ? ""
             : value.trim().toLowerCase(Locale.ROOT);
     }
 
+    /**
+     * Normalizes the page.
+     *
+     * @param page the page value
+     * @return the operation result
+     */
     private int normalizePage(Integer page) {
         return page == null || page <= 0 ? 1 : page;
     }
 
+    /**
+     * Normalizes the page size.
+     *
+     * @param pageSize the page size value
+     * @param defaultSize the default size value
+     * @param maxSize the max size value
+     * @return the operation result
+     */
     private int normalizePageSize(Integer pageSize, int defaultSize, int maxSize) {
         int value = pageSize == null || pageSize <= 0 ? defaultSize : pageSize;
         return Math.min(value, maxSize);
     }
 
+    /**
+     * Performs the page offset operation.
+     *
+     * @param page the page value
+     * @param pageSize the page size value
+     * @return the operation result
+     */
     private long pageOffset(int page, int pageSize) {
         return (long) Math.max(0, page - 1) * Math.max(1, pageSize);
     }
 
+    /**
+     * Converts the value to tal pages.
+     *
+     * @param total the total value
+     * @param pageSize the page size value
+     * @return the converted tal pages
+     */
     private int totalPages(int total, int pageSize) {
         return Math.max(1, (int) Math.ceil((double) Math.max(0, total) / Math.max(1, pageSize)));
     }
 
+    /**
+     * Converts the value to skill option.
+     *
+     * @param skill the skill value
+     * @return the converted skill option
+     */
     private SkillOption toSkillOption(SkillDefinition skill) {
         return new SkillOption(
             skill.id(),
@@ -627,6 +888,13 @@ public class DataQueryController {
         );
     }
 
+    /**
+     * Converts the value to skill definition.
+     *
+     * @param request the request value
+     * @param pathSkillId the path skill id value
+     * @return the converted skill definition
+     */
     private SkillDefinition toSkillDefinition(SkillUpsertRequest request, String pathSkillId) {
         if (request == null) {
             throw new IllegalArgumentException("skill payload is required");

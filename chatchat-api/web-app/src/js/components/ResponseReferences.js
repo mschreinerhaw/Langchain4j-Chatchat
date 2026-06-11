@@ -1,4 +1,10 @@
-import { displayUrl, extractWebSearchPages, extractWebSearchPagesFromTraces } from "../utils/webReferences.js";
+import {
+  displayUrl,
+  extractDocumentSearchPages,
+  extractDocumentSearchPagesFromTraces,
+  extractWebSearchPages,
+  extractWebSearchPagesFromTraces
+} from "../utils/webReferences.js";
 
 export default {
   name: "ResponseReferences",
@@ -32,12 +38,16 @@ export default {
     webPageRows() {
       return extractWebSearchPagesFromTraces(this.toolTraces);
     },
+    documentPageRows() {
+      return extractDocumentSearchPagesFromTraces(this.toolTraces);
+    },
     toolTraceRows() {
       return this.toolTraces.map((trace) => ({
         ...trace,
         confirmationRequired: this.isConfirmationRequired(trace),
         statusText: this.traceStatusText(trace),
         errorText: this.traceErrorText(trace),
+        documentPages: extractDocumentSearchPages(trace),
         webPages: extractWebSearchPages(trace)
       }));
     }
@@ -75,7 +85,7 @@ export default {
     openWebPagesDialog(trace) {
       this.webPagesDialog = {
         open: true,
-        title: "\u67e5\u8be2\u7f51\u9875\u6765\u6e90",
+        title: "\u67e5\u8be2\u5f15\u7528\u6765\u6e90",
         pages: trace?.webPages || []
       };
     },

@@ -49,6 +49,9 @@ public class McpUserToolPolicyEntity {
     @Column(nullable = false)
     private Instant updatedAt;
 
+    /**
+     * Performs the on create operation.
+     */
     @PrePersist
     public void onCreate() {
         Instant now = Instant.now();
@@ -58,6 +61,9 @@ public class McpUserToolPolicyEntity {
         updatedAt = now;
     }
 
+    /**
+     * Performs the on update operation.
+     */
     @PreUpdate
     public void onUpdate() {
         updatedAt = Instant.now();

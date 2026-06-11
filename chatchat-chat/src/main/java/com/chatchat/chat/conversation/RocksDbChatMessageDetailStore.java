@@ -27,11 +27,20 @@ public class RocksDbChatMessageDetailStore implements ChatMessageDetailStore {
     private Options options;
     private RocksDB db;
 
+    /**
+     * Creates a new RocksDbChatMessageDetailStore instance.
+     *
+     * @param properties the properties value
+     * @param objectMapper the object mapper value
+     */
     public RocksDbChatMessageDetailStore(ChatDetailStoreProperties properties, ObjectMapper objectMapper) {
         this.properties = properties;
         this.objectMapper = objectMapper;
     }
 
+    /**
+     * Opens the open.
+     */
     @PostConstruct
     public void open() {
         try {
@@ -45,6 +54,12 @@ public class RocksDbChatMessageDetailStore implements ChatMessageDetailStore {
         }
     }
 
+    /**
+     * Stores the put.
+     *
+     * @param detail the detail value
+     * @return the operation result
+     */
     @Override
     public String put(ChatMessageDetail detail) {
         ensureOpen();
@@ -64,6 +79,12 @@ public class RocksDbChatMessageDetailStore implements ChatMessageDetailStore {
         }
     }
 
+    /**
+     * Returns the get.
+     *
+     * @param key the key value
+     * @return the get
+     */
     @Override
     public Optional<ChatMessageDetail> get(String key) {
         ensureOpen();
@@ -78,6 +99,11 @@ public class RocksDbChatMessageDetailStore implements ChatMessageDetailStore {
         }
     }
 
+    /**
+     * Deletes the delete.
+     *
+     * @param key the key value
+     */
     @Override
     public void delete(String key) {
         ensureOpen();
@@ -88,6 +114,9 @@ public class RocksDbChatMessageDetailStore implements ChatMessageDetailStore {
         }
     }
 
+    /**
+     * Closes the close.
+     */
     @PreDestroy
     public void close() {
         if (db != null) {
@@ -98,12 +127,21 @@ public class RocksDbChatMessageDetailStore implements ChatMessageDetailStore {
         }
     }
 
+    /**
+     * Ensures the open.
+     */
     private void ensureOpen() {
         if (db == null) {
             throw new IllegalStateException("RocksDB chat detail store is not open");
         }
     }
 
+    /**
+     * Performs the bytes operation.
+     *
+     * @param value the value value
+     * @return the operation result
+     */
     private byte[] bytes(String value) {
         return value.getBytes(StandardCharsets.UTF_8);
     }

@@ -30,6 +30,12 @@ public class InteractionOrchestrationService {
     private final Map<InteractionMode, InteractionModeHandler> handlers;
     private final ConversationMemoryService memoryService;
 
+    /**
+     * Creates a new InteractionOrchestrationService instance.
+     *
+     * @param modeHandlers the mode handlers value
+     * @param memoryService the memory service value
+     */
     public InteractionOrchestrationService(List<InteractionModeHandler> modeHandlers,
                                            ConversationMemoryService memoryService) {
         this.handlers = modeHandlers.stream()
@@ -37,6 +43,12 @@ public class InteractionOrchestrationService {
         this.memoryService = memoryService;
     }
 
+    /**
+     * Performs the chat operation.
+     *
+     * @param request the request value
+     * @return the operation result
+     */
     public InteractionResponse chat(InteractionRequest request) {
         if (request == null) {
             throw new IllegalArgumentException("Request cannot be null");

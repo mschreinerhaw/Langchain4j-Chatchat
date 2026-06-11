@@ -21,6 +21,11 @@ public class Conversation {
     private LocalDateTime updatedAt;
     private List<Message> messages;
 
+    /**
+     * Creates a new Conversation instance.
+     *
+     * @param builder the builder value
+     */
     private Conversation(ConversationBuilder builder) {
         this.id = builder.id;
         this.userId = builder.userId;
@@ -31,6 +36,11 @@ public class Conversation {
         this.messages = builder.messages;
     }
 
+    /**
+     * Builds the er.
+     *
+     * @return the built er
+     */
     public static ConversationBuilder builder() {
         return new ConversationBuilder();
     }
@@ -50,6 +60,16 @@ public class Conversation {
         private List<Map<String, Object>> sources;
         private List<Map<String, Object>> traces;
 
+        /**
+         * Creates a new Conversation instance.
+         *
+         * @param id the id value
+         * @param role the role value
+         * @param content the content value
+         * @param timestamp the timestamp value
+         * @param toolsUsed the tools used value
+         * @param sourceKnowledgeBase the source knowledge base value
+         */
         public Message(String id,
                        String role,
                        String content,
@@ -59,6 +79,18 @@ public class Conversation {
             this(id, role, content, timestamp, toolsUsed, sourceKnowledgeBase, List.of(), List.of());
         }
 
+        /**
+         * Creates a new Conversation instance.
+         *
+         * @param id the id value
+         * @param role the role value
+         * @param content the content value
+         * @param timestamp the timestamp value
+         * @param toolsUsed the tools used value
+         * @param sourceKnowledgeBase the source knowledge base value
+         * @param sources the sources value
+         * @param traces the traces value
+         */
         public Message(String id,
                        String role,
                        String content,
@@ -77,6 +109,11 @@ public class Conversation {
             this.traces = traces;
         }
 
+        /**
+         * Creates a new Conversation instance.
+         *
+         * @param builder the builder value
+         */
         private Message(MessageBuilder builder) {
             this.id = builder.id;
             this.role = builder.role;
@@ -88,6 +125,11 @@ public class Conversation {
             this.traces = builder.traces;
         }
 
+        /**
+         * Builds the er.
+         *
+         * @return the built er
+         */
         public static MessageBuilder builder() {
             return new MessageBuilder();
         }
@@ -102,41 +144,88 @@ public class Conversation {
         private LocalDateTime updatedAt;
         private List<Message> messages;
 
+        /**
+         * Performs the id operation.
+         *
+         * @param id the id value
+         * @return the operation result
+         */
         public ConversationBuilder id(String id) {
             this.id = id;
             return this;
         }
 
+        /**
+         * Performs the user id operation.
+         *
+         * @param userId the user id value
+         * @return the operation result
+         */
         public ConversationBuilder userId(String userId) {
             this.userId = userId;
             return this;
         }
 
+        /**
+         * Performs the title operation.
+         *
+         * @param title the title value
+         * @return the operation result
+         */
         public ConversationBuilder title(String title) {
             this.title = title;
             return this;
         }
 
+        /**
+         * Performs the status operation.
+         *
+         * @param status the status value
+         * @return the operation result
+         */
         public ConversationBuilder status(String status) {
             this.status = status;
             return this;
         }
 
+        /**
+         * Creates the d at.
+         *
+         * @param createdAt the created at value
+         * @return the created d at
+         */
         public ConversationBuilder createdAt(LocalDateTime createdAt) {
             this.createdAt = createdAt;
             return this;
         }
 
+        /**
+         * Updates the d at.
+         *
+         * @param updatedAt the updated at value
+         * @return the updated d at
+         */
         public ConversationBuilder updatedAt(LocalDateTime updatedAt) {
             this.updatedAt = updatedAt;
             return this;
         }
 
+        /**
+         * Performs the messages operation.
+         *
+         * @param messages the messages value
+         * @return the operation result
+         */
         public ConversationBuilder messages(List<Message> messages) {
             this.messages = messages;
             return this;
         }
 
+        /**
+         * Builds the build.
+         *
+         * @return the built build
+         */
         public Conversation build() {
             return new Conversation(this);
         }
@@ -152,46 +241,99 @@ public class Conversation {
         private List<Map<String, Object>> sources;
         private List<Map<String, Object>> traces;
 
+        /**
+         * Performs the id operation.
+         *
+         * @param id the id value
+         * @return the operation result
+         */
         public MessageBuilder id(String id) {
             this.id = id;
             return this;
         }
 
+        /**
+         * Performs the role operation.
+         *
+         * @param role the role value
+         * @return the operation result
+         */
         public MessageBuilder role(String role) {
             this.role = role;
             return this;
         }
 
+        /**
+         * Performs the content operation.
+         *
+         * @param content the content value
+         * @return the operation result
+         */
         public MessageBuilder content(String content) {
             this.content = content;
             return this;
         }
 
+        /**
+         * Performs the timestamp operation.
+         *
+         * @param timestamp the timestamp value
+         * @return the operation result
+         */
         public MessageBuilder timestamp(LocalDateTime timestamp) {
             this.timestamp = timestamp;
             return this;
         }
 
+        /**
+         * Converts the value to ols used.
+         *
+         * @param toolsUsed the tools used value
+         * @return the converted ols used
+         */
         public MessageBuilder toolsUsed(List<String> toolsUsed) {
             this.toolsUsed = toolsUsed;
             return this;
         }
 
+        /**
+         * Performs the source knowledge base operation.
+         *
+         * @param sourceKnowledgeBase the source knowledge base value
+         * @return the operation result
+         */
         public MessageBuilder sourceKnowledgeBase(String sourceKnowledgeBase) {
             this.sourceKnowledgeBase = sourceKnowledgeBase;
             return this;
         }
 
+        /**
+         * Performs the sources operation.
+         *
+         * @param sources the sources value
+         * @return the operation result
+         */
         public MessageBuilder sources(List<Map<String, Object>> sources) {
             this.sources = sources;
             return this;
         }
 
+        /**
+         * Performs the traces operation.
+         *
+         * @param traces the traces value
+         * @return the operation result
+         */
         public MessageBuilder traces(List<Map<String, Object>> traces) {
             this.traces = traces;
             return this;
         }
 
+        /**
+         * Builds the build.
+         *
+         * @return the built build
+         */
         public Message build() {
             return new Message(this);
         }

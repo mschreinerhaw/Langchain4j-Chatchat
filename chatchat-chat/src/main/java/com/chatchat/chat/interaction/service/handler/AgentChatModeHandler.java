@@ -10,6 +10,7 @@ import com.chatchat.chat.interaction.service.ConversationMemoryService;
 import com.chatchat.chat.interaction.service.InteractionModeHandler;
 import com.chatchat.chat.skills.SkillCatalogService;
 import com.chatchat.chat.skills.SkillDefinition;
+import com.chatchat.chat.skills.SkillToolConfig;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
@@ -31,11 +32,23 @@ public class AgentChatModeHandler implements InteractionModeHandler {
     private final SkillCatalogService skillCatalogService;
     private final AgentToolPolicyResolver toolPolicyResolver;
 
+    /**
+     * Performs the mode operation.
+     *
+     * @return the operation result
+     */
     @Override
     public InteractionMode mode() {
         return InteractionMode.AGENT_CHAT;
     }
 
+    /**
+     * Handles the handle.
+     *
+     * @param request the request value
+     * @param context the context value
+     * @return the operation result
+     */
     @Override
     public InteractionResponse handle(InteractionRequest request, InteractionContext context) {
         SkillDefinition skill = skillCatalogService.resolve(request.getSkillId());
@@ -101,6 +114,14 @@ public class AgentChatModeHandler implements InteractionModeHandler {
             .build();
     }
 
+    /**
+     * Resolves the system prompt.
+     *
+     * @param request the request value
+     * @param skill the skill value
+     * @param context the context value
+     * @return the resolved system prompt
+     */
     private String resolveSystemPrompt(InteractionRequest request, SkillDefinition skill, InteractionContext context) {
         String basePrompt;
         if (request.getSystemPrompt() != null && !request.getSystemPrompt().isBlank()) {
@@ -122,6 +143,12 @@ public class AgentChatModeHandler implements InteractionModeHandler {
         return builder.toString();
     }
 
+    /**
+     * Builds the conversation history.
+     *
+     * @param context the context value
+     * @return the built conversation history
+     */
     private String buildConversationHistory(InteractionContext context) {
         if (context == null || context.history() == null || context.history().isEmpty()) {
             return "";
@@ -132,11 +159,23 @@ public class AgentChatModeHandler implements InteractionModeHandler {
             .collect(Collectors.joining("\n"));
     }
 
+    /**
+     * Performs the format history message operation.
+     *
+     * @param message the message value
+     * @return the operation result
+     */
     private String formatHistoryMessage(ConversationMemoryService.MessageSnapshot message) {
         String role = message.role() == null || message.role().isBlank() ? "unknown" : message.role().trim();
         return role + ": " + message.content().trim();
     }
 
+    /**
+     * Resolves the web search result limit.
+     *
+     * @param maxResults the max results value
+     * @return the resolved web search result limit
+     */
     private int resolveWebSearchResultLimit(Integer maxResults) {
         if (maxResults == null) {
             return WEB_SEARCH_REFERENCE_LIMIT;
@@ -144,6 +183,13 @@ public class AgentChatModeHandler implements InteractionModeHandler {
         return Math.max(1, Math.min(WEB_SEARCH_REFERENCE_LIMIT, maxResults));
     }
 
+    /**
+     * Runs the configured startup logic.
+     *
+     * @param request the request value
+     * @param skill the skill value
+     * @return the operation result
+     */
     private Map<String, Object> runtimeAttributes(InteractionRequest request, SkillDefinition skill) {
         Map<String, Object> attributes = new LinkedHashMap<>();
         if (request != null && request.getToolInput() != null && !request.getToolInput().isEmpty()) {
@@ -163,6 +209,46 @@ public class AgentChatModeHandler implements InteractionModeHandler {
         if (skill != null && skill.workflowConfig() != null && !skill.workflowConfig().isEmpty()) {
             attributes.put("mcpWorkflow", skill.workflowConfig());
         }
+        List<Map<String, Object>> toolConfigs = toolConfigAttributes(skill);
+        if (!toolConfigs.isEmpty()) {
+            attributes.put("mcpToolConfigs", toolConfigs);
+        }
         return attributes.isEmpty() ? Map.of() : attributes;
+    }
+
+    /**
+     * Converts the value to ol config attributes.
+     *
+     * @param skill the skill value
+     * @return the converted ol config attributes
+     */
+    private List<Map<String, Object>> toolConfigAttributes(SkillDefinition skill) {
+        if (skill == null || skill.toolConfigs() == null || skill.toolConfigs().isEmpty()) {
+            return List.of();
+        }
+        return skill.toolConfigs().stream()
+            .filter(config -> config != null && config.toolName() != null && !config.toolName().isBlank())
+            .filter(config -> config.enabled() == null || config.enabled())
+            .map(this::toolConfigAttribute)
+            .toList();
+    }
+
+    /**
+     * Converts the value to ol config attribute.
+     *
+     * @param config the config value
+     * @return the converted ol config attribute
+     */
+    private Map<String, Object> toolConfigAttribute(SkillToolConfig config) {
+        Map<String, Object> values = new LinkedHashMap<>();
+        values.put("toolName", config.toolName());
+        values.put("displayName", config.displayName());
+        values.put("serviceId", config.serviceId());
+        values.put("description", config.description());
+        values.put("tags", config.tags());
+        values.put("permissionScope", config.permissionScope());
+        values.put("callWeight", config.callWeight());
+        values.put("enabled", config.enabled());
+        return values;
     }
 }

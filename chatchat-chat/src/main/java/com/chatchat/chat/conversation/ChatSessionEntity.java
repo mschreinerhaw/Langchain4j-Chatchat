@@ -48,6 +48,9 @@ public class ChatSessionEntity {
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
+    /**
+     * Performs the on create operation.
+     */
     @PrePersist
     public void onCreate() {
         if (sessionId == null || sessionId.isBlank()) {
@@ -72,6 +75,9 @@ public class ChatSessionEntity {
         updatedAt = now;
     }
 
+    /**
+     * Performs the on update operation.
+     */
     @PreUpdate
     public void onUpdate() {
         updatedAt = Instant.now();

@@ -17,11 +17,24 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class McpServerConfiguration {
 
+    /**
+     * Performs the mcp json mapper operation.
+     *
+     * @param objectMapper the object mapper value
+     * @return the operation result
+     */
     @Bean
     public McpJsonMapper mcpJsonMapper(ObjectMapper objectMapper) {
         return new JacksonMcpJsonMapper(objectMapper.copy());
     }
 
+    /**
+     * Performs the mcp transport provider operation.
+     *
+     * @param mcpJsonMapper the mcp json mapper value
+     * @param properties the properties value
+     * @return the operation result
+     */
     @Bean
     public HttpServletStreamableServerTransportProvider mcpTransportProvider(
         McpJsonMapper mcpJsonMapper,
@@ -33,6 +46,13 @@ public class McpServerConfiguration {
             .build();
     }
 
+    /**
+     * Performs the mcp servlet operation.
+     *
+     * @param transportProvider the transport provider value
+     * @param properties the properties value
+     * @return the operation result
+     */
     @Bean
     public ServletRegistrationBean<HttpServletStreamableServerTransportProvider> mcpServlet(
         HttpServletStreamableServerTransportProvider transportProvider,
@@ -46,6 +66,16 @@ public class McpServerConfiguration {
         return registration;
     }
 
+    /**
+     * Performs the mcp sync server operation.
+     *
+     * @param transportProvider the transport provider value
+     * @param builtInToolsBootstrap the built in tools bootstrap value
+     * @param toolRegistry the tool registry value
+     * @param toolRegistryMcpAdapter the tool registry mcp adapter value
+     * @param properties the properties value
+     * @return the operation result
+     */
     @Bean(destroyMethod = "close")
     public McpSyncServer mcpSyncServer(
         HttpServletStreamableServerTransportProvider transportProvider,
@@ -67,6 +97,12 @@ public class McpServerConfiguration {
             .build();
     }
 
+    /**
+     * Normalizes the endpoint.
+     *
+     * @param endpoint the endpoint value
+     * @return the operation result
+     */
     private String normalizeEndpoint(String endpoint) {
         if (endpoint == null || endpoint.isBlank()) {
             return "/mcp";

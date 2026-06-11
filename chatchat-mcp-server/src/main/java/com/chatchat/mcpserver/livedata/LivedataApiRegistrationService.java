@@ -23,6 +23,11 @@ public class LivedataApiRegistrationService {
     private final ApiServiceConfigService configService;
     private final ApiMcpToolPublisher publisher;
 
+    /**
+     * Lists the candidates.
+     *
+     * @return the candidates list
+     */
     public List<LivedataApiCandidate> listCandidates() {
         ensureEnabled();
         List<LivedataApiCandidate> candidates = new ArrayList<>();
@@ -32,6 +37,13 @@ public class LivedataApiRegistrationService {
         return candidates;
     }
 
+    /**
+     * Registers the register.
+     *
+     * @param ids the ids value
+     * @param overwriteExisting the overwrite existing value
+     * @return the operation result
+     */
     public LivedataRegistrationResult register(List<String> ids, Boolean overwriteExisting) {
         ensureEnabled();
         if (ids == null || ids.isEmpty()) {
@@ -77,6 +89,12 @@ public class LivedataApiRegistrationService {
         return new LivedataRegistrationResult(ids.size(), registered, skipped, missing, errors);
     }
 
+    /**
+     * Converts the value to candidate.
+     *
+     * @param definition the definition value
+     * @return the converted candidate
+     */
     private LivedataApiCandidate toCandidate(LivedataApiDefinition definition) {
         try {
             ApiServiceConfig config = mapper.toApiServiceConfig(definition);
@@ -125,12 +143,21 @@ public class LivedataApiRegistrationService {
         }
     }
 
+    /**
+     * Ensures the enabled.
+     */
     private void ensureEnabled() {
         if (!properties.isEnabled()) {
             throw new IllegalStateException("LiveData manual API registration is disabled");
         }
     }
 
+    /**
+     * Performs the source id operation.
+     *
+     * @param definition the definition value
+     * @return the operation result
+     */
     private String sourceId(LivedataApiDefinition definition) {
         String id = firstNonBlank(definition.id(), definition.apiId(), definition.serviceName(), definition.methodName());
         if (id != null) {
@@ -139,10 +166,22 @@ public class LivedataApiRegistrationService {
         return Integer.toHexString(definition.hashCode());
     }
 
+    /**
+     * Performs the display name operation.
+     *
+     * @param definition the definition value
+     * @return the operation result
+     */
     private String displayName(LivedataApiDefinition definition) {
         return firstNonBlank(definition.apiId(), definition.apiName(), definition.serviceName(), definition.id(), "-");
     }
 
+    /**
+     * Performs the first non blank operation.
+     *
+     * @param values the values value
+     * @return the operation result
+     */
     private String firstNonBlank(String... values) {
         for (String value : values) {
             if (value != null && !value.isBlank()) {

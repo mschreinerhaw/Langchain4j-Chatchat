@@ -8,6 +8,12 @@ import org.springframework.scheduling.concurrent.CustomizableThreadFactory;
 @Configuration
 public class AgentTaskExecutorConfig {
 
+    /**
+     * Performs the agent task executor operation.
+     *
+     * @param properties the properties value
+     * @return the operation result
+     */
     @Bean(name = "agentTaskExecutor")
     public ThreadPoolTaskExecutor agentTaskExecutor(AgentTaskProperties properties) {
         CustomizableThreadFactory threadFactory = new CustomizableThreadFactory("agent-task-");

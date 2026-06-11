@@ -27,6 +27,12 @@ public class ApiAuthenticationFilter extends OncePerRequestFilter {
     private final EnterpriseAdminService adminService;
     private final ObjectMapper objectMapper;
 
+    /**
+     * Returns whether should not filter.
+     *
+     * @param request the request value
+     * @return whether the condition is satisfied
+     */
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getRequestURI().substring(request.getContextPath().length());
@@ -35,6 +41,15 @@ public class ApiAuthenticationFilter extends OncePerRequestFilter {
             || LOGIN_PATH.equals(path);
     }
 
+    /**
+     * Performs the do filter internal operation.
+     *
+     * @param request the request value
+     * @param response the response value
+     * @param filterChain the filter chain value
+     * @throws ServletException if the operation fails
+     * @throws IOException if the operation fails
+     */
     @Override
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
@@ -47,6 +62,12 @@ public class ApiAuthenticationFilter extends OncePerRequestFilter {
         filterChain.doFilter(request, response);
     }
 
+    /**
+     * Resolves the bearer token.
+     *
+     * @param authorization the authorization value
+     * @return the resolved bearer token
+     */
     private String resolveBearerToken(String authorization) {
         if (authorization == null || !authorization.startsWith(BEARER_PREFIX)) {
             return "";
@@ -54,6 +75,12 @@ public class ApiAuthenticationFilter extends OncePerRequestFilter {
         return authorization.substring(BEARER_PREFIX.length()).trim();
     }
 
+    /**
+     * Writes the unauthorized.
+     *
+     * @param response the response value
+     * @throws IOException if the operation fails
+     */
     private void writeUnauthorized(HttpServletResponse response) throws IOException {
         response.setStatus(HttpStatus.UNAUTHORIZED.value());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);

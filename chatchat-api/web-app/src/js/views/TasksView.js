@@ -17,8 +17,10 @@ import {
   cancelAgentTask,
   fetchAgentRuntimeSummary,
   fetchAgentRuntimeToolAudits,
-  fetchAgentTaskEvents
+  fetchAgentTaskEvents,
+  updateConversationHistoryStatus
 } from "../../services/api";
+import { notifyAgentTaskCancelled } from "../utils/agentTaskEvents";
 
 export default {
   name: "TasksView",
@@ -273,7 +275,14 @@ export default {
         [task.taskId]: true
       };
       try {
-        await cancelAgentTask(task.taskId, task.tenantId || this.tenantId);
+        const cancelledTask = await cancelAgentTask(task.taskId, task.tenantId || this.tenantId);
+        const cancellation = {
+          ...task,
+          ...(cancelledTask || {}),
+          status: "CANCELLED"
+        };
+        notifyAgentTaskCancelled(cancellation);
+        await this.persistCancelledConversation(cancellation);
         await this.loadRuntime();
         if (this.selectedTask?.taskId === task.taskId) {
           const refreshed = this.tasks.find((item) => item.taskId === task.taskId);
@@ -286,6 +295,20 @@ export default {
         const next = { ...this.cancellingTaskIds };
         delete next[task.taskId];
         this.cancellingTaskIds = next;
+      }
+    },
+    async persistCancelledConversation(task) {
+      const historyId = task?.sessionId || task?.conversationId || "";
+      if (!historyId) {
+        return;
+      }
+      try {
+        await updateConversationHistoryStatus(task.userId || task.tenantId || this.tenantId, historyId, {
+          conversationId: historyId,
+          status: "cancelled"
+        });
+      } catch (error) {
+        // Runtime cancellation already succeeded; history status will refresh on the next save/load cycle.
       }
     },
     shortId(value) {

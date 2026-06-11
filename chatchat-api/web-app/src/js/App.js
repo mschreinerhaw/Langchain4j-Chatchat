@@ -10,6 +10,7 @@ import AgentWorkshopView from "../views/AgentWorkshopView.vue";
 import SystemManagementView from "../views/SystemManagementView.vue";
 import TasksView from "../views/TasksView.vue";
 import { clearAuthSession, deleteConversationHistory, fetchConversationHistory, getStoredAuthSession } from "../services/api";
+import { onAgentTaskCancelled } from "./utils/agentTaskEvents";
 
 const USER_ID = "mx_48991534";
 const IDLE_LOGOUT_MS = 30 * 60 * 1000;
@@ -62,6 +63,7 @@ export default {
       selectedConversation: null,
       activeHistoryId: "",
       idleLogoutTimer: null,
+      stopAgentTaskCancelledListener: null,
       lastActivityAt: Date.now(),
       navItems: [
         {
@@ -113,6 +115,7 @@ export default {
   },
   mounted() {
     window.addEventListener("hashchange", this.handleHashChange);
+    this.stopAgentTaskCancelledListener = onAgentTaskCancelled(this.handleAgentTaskCancelled);
     if (this.authSession) {
       this.ensureAuthenticatedRoute();
       this.loadConversationHistory();
@@ -123,6 +126,10 @@ export default {
   },
   beforeUnmount() {
     window.removeEventListener("hashchange", this.handleHashChange);
+    if (this.stopAgentTaskCancelledListener) {
+      this.stopAgentTaskCancelledListener();
+      this.stopAgentTaskCancelledListener = null;
+    }
     this.stopIdleLogoutWatcher();
   },
   methods: {
@@ -303,6 +310,40 @@ export default {
             }
           : item
       );
+    },
+    handleAgentTaskCancelled(task = {}) {
+      const sessionId = task.sessionId || task.conversationId || "";
+      if (!sessionId) {
+        return;
+      }
+      const applyCancelled = (item) =>
+        item && (item.id === sessionId || item.conversationId === sessionId)
+          ? {
+              ...item,
+              status: "cancelled",
+              messages: Array.isArray(item.messages)
+                ? item.messages.map((message) => ({
+                    ...message,
+                    streaming: false,
+                    status: message.streaming
+                      || message.status === "streaming"
+                      || message.status === "running"
+                      || message.status === "waiting"
+                      ? "cancelled"
+                      : message.status
+                  }))
+                : item.messages
+            }
+          : item;
+      this.conversationHistory = this.conversationHistory.map(applyCancelled);
+      if (this.selectedConversation && (
+        this.selectedConversation.id === sessionId || this.selectedConversation.conversationId === sessionId
+      )) {
+        this.selectedConversation = {
+          ...applyCancelled(this.selectedConversation),
+          selectedAt: Date.now()
+        };
+      }
     },
     upsertLocalConversation(conversation) {
       const nextItem = {

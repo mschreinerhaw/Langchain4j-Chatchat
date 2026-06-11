@@ -51,6 +51,11 @@ public class McpServiceController {
     private final ToolRegistry toolRegistry;
     private final ObjectMapper objectMapper;
 
+    /**
+     * Lists the services.
+     *
+     * @return the services list
+     */
     @GetMapping("/services")
     @Operation(summary = "List MCP service configurations")
     public ApiResponse<List<McpServiceView>> listServices() {
@@ -58,6 +63,12 @@ public class McpServiceController {
         return ApiResponse.success(data);
     }
 
+    /**
+     * Creates the service.
+     *
+     * @param request the request value
+     * @return the created service
+     */
     @PostMapping("/services")
     @Operation(summary = "Create MCP service configuration")
     public ApiResponse<McpServiceView> createService(@RequestBody McpServiceUpsertRequest request) {
@@ -68,6 +79,13 @@ public class McpServiceController {
         return ApiResponse.success(toView(saved), "MCP service created");
     }
 
+    /**
+     * Updates the service.
+     *
+     * @param serviceId the service id value
+     * @param request the request value
+     * @return the updated service
+     */
     @PutMapping("/services/{serviceId}")
     @Operation(summary = "Update MCP service configuration")
     public ApiResponse<McpServiceView> updateService(@PathVariable("serviceId") String serviceId,
@@ -78,6 +96,12 @@ public class McpServiceController {
         return ApiResponse.success(toView(saved), "MCP service updated");
     }
 
+    /**
+     * Deletes the service.
+     *
+     * @param serviceId the service id value
+     * @return the operation result
+     */
     @DeleteMapping("/services/{serviceId}")
     @Operation(summary = "Delete MCP service configuration")
     public ApiResponse<Void> deleteService(@PathVariable("serviceId") String serviceId) {
@@ -87,6 +111,12 @@ public class McpServiceController {
         return ApiResponse.success(null, "MCP service deleted");
     }
 
+    /**
+     * Lists the service versions.
+     *
+     * @param serviceId the service id value
+     * @return the service versions list
+     */
     @GetMapping("/services/{serviceId}/versions")
     @Operation(summary = "List MCP service setting versions")
     public ApiResponse<List<McpServiceVersionView>> listServiceVersions(@PathVariable("serviceId") String serviceId) {
@@ -108,6 +138,13 @@ public class McpServiceController {
         return ApiResponse.success(versions);
     }
 
+    /**
+     * Performs the rollback service operation.
+     *
+     * @param serviceId the service id value
+     * @param versionId the version id value
+     * @return the operation result
+     */
     @PostMapping("/services/{serviceId}/rollback/{versionId}")
     @Operation(summary = "Rollback MCP service settings to one version")
     public ApiResponse<McpServiceView> rollbackService(@PathVariable("serviceId") String serviceId,
@@ -118,6 +155,13 @@ public class McpServiceController {
         return ApiResponse.success(toView(saved), "MCP service rolled back");
     }
 
+    /**
+     * Sets the enabled.
+     *
+     * @param serviceId the service id value
+     * @param enabled the enabled value
+     * @return the operation result
+     */
     @PostMapping("/services/{serviceId}/enabled")
     @Operation(summary = "Enable or disable MCP service")
     public ApiResponse<McpServiceView> setEnabled(@PathVariable("serviceId") String serviceId,
@@ -130,12 +174,25 @@ public class McpServiceController {
         return ApiResponse.success(toView(updated), "MCP service status updated");
     }
 
+    /**
+     * Performs the discover tools operation.
+     *
+     * @param serviceId the service id value
+     * @return the operation result
+     */
     @GetMapping("/services/{serviceId}/discover")
     @Operation(summary = "Discover tools from one MCP service")
     public ApiResponse<List<McpToolDefinition>> discoverTools(@PathVariable("serviceId") String serviceId) {
         return ApiResponse.success(registryBridge.discoverTools(serviceId));
     }
 
+    /**
+     * Performs the invoke tool operation.
+     *
+     * @param serviceId the service id value
+     * @param request the request value
+     * @return the operation result
+     */
     @PostMapping("/services/{serviceId}/invoke")
     @Operation(summary = "Invoke a remote MCP tool for testing")
     public ApiResponse<McpToolInvokeResult> invokeTool(@PathVariable("serviceId") String serviceId,
@@ -148,12 +205,28 @@ public class McpServiceController {
         return ApiResponse.success(result);
     }
 
+    /**
+     * Lists the registered tools.
+     *
+     * @return the registered tools list
+     */
     @GetMapping("/tools")
     @Operation(summary = "List MCP tools registered into ToolRegistry")
     public ApiResponse<List<McpToolRegistryBridge.RegisteredMcpTool>> listRegisteredTools() {
         return ApiResponse.success(registryBridge.listRegisteredTools());
     }
 
+    /**
+     * Lists the tool cards.
+     *
+     * @param keyword the keyword value
+     * @param service the service value
+     * @param sourceType the source type value
+     * @param groupMode the group mode value
+     * @param page the page value
+     * @param pageSize the page size value
+     * @return the tool cards list
+     */
     @GetMapping("/tool-cards")
     @Operation(summary = "List registered backend and MCP tools as searchable cards")
     public ApiResponse<Map<String, Object>> listToolCards(@RequestParam(value = "keyword", required = false) String keyword,
@@ -187,6 +260,11 @@ public class McpServiceController {
         return ApiResponse.success(pageData);
     }
 
+    /**
+     * Performs the refresh operation.
+     *
+     * @return the operation result
+     */
     @PostMapping("/refresh")
     @Operation(summary = "Refresh MCP tool registration")
     public ApiResponse<Map<String, Object>> refresh() {
@@ -196,18 +274,34 @@ public class McpServiceController {
         return ApiResponse.success(data, "MCP registry refreshed");
     }
 
+    /**
+     * Performs the center status operation.
+     *
+     * @return the operation result
+     */
     @GetMapping("/center/status")
     @Operation(summary = "Get external MCP center integration status")
     public ApiResponse<McpCenterSyncService.CenterStatus> centerStatus() {
         return ApiResponse.success(centerSyncService.status());
     }
 
+    /**
+     * Synchronizes the center.
+     *
+     * @return the operation result
+     */
     @PostMapping("/center/sync")
     @Operation(summary = "Sync services from external ChatChat MCP center")
     public ApiResponse<McpCenterSyncService.SyncResult> syncCenter() {
         return ApiResponse.success(centerSyncService.syncFromCenter(), "MCP center synced");
     }
 
+    /**
+     * Creates the value from request.
+     *
+     * @param request the request value
+     * @return the operation result
+     */
     private McpServiceConfig fromRequest(McpServiceUpsertRequest request) {
         McpServiceConfig config = new McpServiceConfig();
         config.setName(request.name());
@@ -232,6 +326,11 @@ public class McpServiceController {
         return config;
     }
 
+    /**
+     * Builds the tool cards.
+     *
+     * @return the built tool cards
+     */
     private List<ToolCardView> buildToolCards() {
         Map<String, McpToolRegistryBridge.RegisteredMcpTool> mcpToolsByName = new LinkedHashMap<>();
         for (McpToolRegistryBridge.RegisteredMcpTool tool : registryBridge.listRegisteredTools()) {
@@ -251,6 +350,13 @@ public class McpServiceController {
             .toList();
     }
 
+    /**
+     * Returns whether is user visible tool.
+     *
+     * @param localToolName the local tool name value
+     * @param registeredMcpTool the registered mcp tool value
+     * @return whether the condition is satisfied
+     */
     private boolean isUserVisibleTool(String localToolName, boolean registeredMcpTool) {
         if (registeredMcpTool) {
             return true;
@@ -259,6 +365,12 @@ public class McpServiceController {
         return metadata == null || metadata.isUserVisible();
     }
 
+    /**
+     * Builds the tool service options.
+     *
+     * @param tools the tools value
+     * @return the built tool service options
+     */
     private List<ToolServiceOption> buildToolServiceOptions(List<ToolCardView> tools) {
         Map<String, ToolServiceOptionBuilder> builders = new LinkedHashMap<>();
         for (ToolCardView tool : tools) {
@@ -276,6 +388,14 @@ public class McpServiceController {
         return options;
     }
 
+    /**
+     * Returns whether matches tool filters.
+     *
+     * @param tool the tool value
+     * @param keyword the keyword value
+     * @param service the service value
+     * @return whether the condition is satisfied
+     */
     private boolean matchesToolFilters(ToolCardView tool, String keyword, String service) {
         String normalizedKeyword = normalizeKeyword(keyword);
         String normalizedService = normalizeKeyword(service);
@@ -285,6 +405,12 @@ public class McpServiceController {
         return serviceMatched && keywordMatched;
     }
 
+    /**
+     * Converts the value to ol search text.
+     *
+     * @param tool the tool value
+     * @return the converted ol search text
+     */
     private String toolSearchText(ToolCardView tool) {
         List<String> fields = new ArrayList<>();
         fields.add(tool.localToolName());
@@ -309,6 +435,13 @@ public class McpServiceController {
             .reduce("", (left, right) -> left + " " + right);
     }
 
+    /**
+     * Performs the filtered tool group count operation.
+     *
+     * @param tools the tools value
+     * @param groupMode the group mode value
+     * @return the operation result
+     */
     private int filteredToolGroupCount(List<ToolCardView> tools, String groupMode) {
         return (int) tools.stream()
             .map(tool -> toolGroupKey(tool, groupMode))
@@ -316,6 +449,13 @@ public class McpServiceController {
             .count();
     }
 
+    /**
+     * Converts the value to ol group key.
+     *
+     * @param tool the tool value
+     * @param groupMode the group mode value
+     * @return the converted ol group key
+     */
     private String toolGroupKey(ToolCardView tool, String groupMode) {
         if ("category".equalsIgnoreCase(groupMode)) {
             return "category:" + ((tool.categories() == null || tool.categories().isEmpty()) ? "未分类" : tool.categories().get(0));
@@ -326,27 +466,67 @@ public class McpServiceController {
         return "service:" + firstNonBlank(tool.serviceId(), tool.serviceName(), "未归属服务");
     }
 
+    /**
+     * Returns whether is all.
+     *
+     * @param value the value value
+     * @return whether the condition is satisfied
+     */
     private boolean isAll(String value) {
         return value == null || value.isBlank() || "all".equalsIgnoreCase(value.trim());
     }
 
+    /**
+     * Normalizes the keyword.
+     *
+     * @param value the value value
+     * @return the operation result
+     */
     private String normalizeKeyword(String value) {
         return isAll(value) ? "" : value.trim().toLowerCase(java.util.Locale.ROOT);
     }
 
+    /**
+     * Normalizes the page.
+     *
+     * @param page the page value
+     * @return the operation result
+     */
     private int normalizePage(Integer page) {
         return page == null || page <= 0 ? 1 : page;
     }
 
+    /**
+     * Normalizes the page size.
+     *
+     * @param pageSize the page size value
+     * @param defaultSize the default size value
+     * @param maxSize the max size value
+     * @return the operation result
+     */
     private int normalizePageSize(Integer pageSize, int defaultSize, int maxSize) {
         int value = pageSize == null || pageSize <= 0 ? defaultSize : pageSize;
         return Math.min(value, maxSize);
     }
 
+    /**
+     * Performs the page offset operation.
+     *
+     * @param page the page value
+     * @param pageSize the page size value
+     * @return the operation result
+     */
     private long pageOffset(int page, int pageSize) {
         return (long) Math.max(0, page - 1) * Math.max(1, pageSize);
     }
 
+    /**
+     * Converts the value to tal pages.
+     *
+     * @param total the total value
+     * @param pageSize the page size value
+     * @return the converted tal pages
+     */
     private int totalPages(int total, int pageSize) {
         return Math.max(1, (int) Math.ceil((double) Math.max(0, total) / Math.max(1, pageSize)));
     }
@@ -356,12 +536,25 @@ public class McpServiceController {
         private final String label;
         private int count;
 
+        /**
+         * Creates a new McpServiceController instance.
+         *
+         * @param value the value value
+         * @param label the label value
+         */
         private ToolServiceOptionBuilder(String value, String label) {
             this.value = value;
             this.label = label;
         }
     }
 
+    /**
+     * Converts the value to tool card.
+     *
+     * @param localToolName the local tool name value
+     * @param mcpTool the mcp tool value
+     * @return the converted tool card
+     */
     private ToolCardView toToolCard(String localToolName, McpToolRegistryBridge.RegisteredMcpTool mcpTool) {
         ToolMetadata metadata = toolRegistry.getToolMetadata(localToolName);
         ToolRegistry.Tool simpleTool = toolRegistry.getTool(localToolName);
@@ -409,6 +602,12 @@ public class McpServiceController {
         );
     }
 
+    /**
+     * Converts the value to parameter view.
+     *
+     * @param parameter the parameter value
+     * @return the converted parameter view
+     */
     private ToolParameterView toParameterView(ToolParameter parameter) {
         return new ToolParameterView(
             parameter.getName(),
@@ -418,6 +617,12 @@ public class McpServiceController {
         );
     }
 
+    /**
+     * Performs the safe list operation.
+     *
+     * @param values the values value
+     * @return the operation result
+     */
     private List<String> safeList(List<String> values) {
         if (values == null || values.isEmpty()) {
             return List.of();
@@ -431,6 +636,12 @@ public class McpServiceController {
         return List.copyOf(normalized);
     }
 
+    /**
+     * Performs the safe object map operation.
+     *
+     * @param value the value value
+     * @return the operation result
+     */
     private Map<String, Object> safeObjectMap(Object value) {
         if (!(value instanceof Map<?, ?> source) || source.isEmpty()) {
             return Map.of();
@@ -444,10 +655,22 @@ public class McpServiceController {
         return normalized;
     }
 
+    /**
+     * Performs the source type label operation.
+     *
+     * @param sourceType the source type value
+     * @return the operation result
+     */
     private String sourceTypeLabel(String sourceType) {
         return "mcp".equals(sourceType) ? "MCP工具" : "后端工具";
     }
 
+    /**
+     * Performs the first non blank operation.
+     *
+     * @param values the values value
+     * @return the operation result
+     */
     private String firstNonBlank(String... values) {
         if (values == null) {
             return null;
@@ -460,6 +683,12 @@ public class McpServiceController {
         return null;
     }
 
+    /**
+     * Converts the value to view.
+     *
+     * @param config the config value
+     * @return the converted view
+     */
     private McpServiceView toView(McpServiceConfig config) {
         return new McpServiceView(
             config.getId(),
@@ -485,6 +714,12 @@ public class McpServiceController {
         );
     }
 
+    /**
+     * Writes the headers json.
+     *
+     * @param headers the headers value
+     * @return the operation result
+     */
     private String writeHeadersJson(Map<String, String> headers) {
         if (headers == null || headers.isEmpty()) {
             return null;
@@ -496,6 +731,12 @@ public class McpServiceController {
         }
     }
 
+    /**
+     * Reads the headers.
+     *
+     * @param headersJson the headers json value
+     * @return the operation result
+     */
     private Map<String, String> readHeaders(String headersJson) {
         if (headersJson == null || headersJson.isBlank()) {
             return Map.of();

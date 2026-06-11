@@ -16,6 +16,14 @@ public class JpaToolRuntimeUserPolicyStore implements ToolRuntimeUserPolicyStore
 
     private final McpUserToolPolicyRepository repository;
 
+    /**
+     * Finds the action.
+     *
+     * @param tenantId the tenant id value
+     * @param userId the user id value
+     * @param toolName the tool name value
+     * @return the matching action
+     */
     @Override
     @Transactional(readOnly = true)
     public Optional<ToolRuntimeAction> findAction(String tenantId, String userId, String toolName) {
@@ -27,6 +35,14 @@ public class JpaToolRuntimeUserPolicyStore implements ToolRuntimeUserPolicyStore
             .map(action -> ToolRuntimeAction.from(action, null));
     }
 
+    /**
+     * Saves the action.
+     *
+     * @param tenantId the tenant id value
+     * @param userId the user id value
+     * @param toolName the tool name value
+     * @param action the action value
+     */
     @Override
     @Transactional
     public void saveAction(String tenantId, String userId, String toolName, ToolRuntimeAction action) {
@@ -47,11 +63,26 @@ public class JpaToolRuntimeUserPolicyStore implements ToolRuntimeUserPolicyStore
         repository.save(entity);
     }
 
+    /**
+     * Performs the id operation.
+     *
+     * @param tenantId the tenant id value
+     * @param userId the user id value
+     * @param toolName the tool name value
+     * @return the operation result
+     */
     private String id(String tenantId, String userId, String toolName) {
         String key = tenantId + "\u0000" + userId + "\u0000" + toolName;
         return UUID.nameUUIDFromBytes(key.getBytes(StandardCharsets.UTF_8)).toString();
     }
 
+    /**
+     * Normalizes the normalize.
+     *
+     * @param value the value value
+     * @param fallback the fallback value
+     * @return the operation result
+     */
     private String normalize(String value, String fallback) {
         return value == null || value.isBlank() ? fallback : value.trim();
     }

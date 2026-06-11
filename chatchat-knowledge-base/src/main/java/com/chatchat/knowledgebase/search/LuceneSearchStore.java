@@ -56,6 +56,9 @@ class LuceneSearchStore {
     private Analyzer analyzer;
     private IndexWriter writer;
 
+    /**
+     * Opens the open.
+     */
     @PostConstruct
     public void open() {
         if (!properties.isLuceneEnabled()) {
@@ -76,6 +79,11 @@ class LuceneSearchStore {
         }
     }
 
+    /**
+     * Performs the index latest operation.
+     *
+     * @param document the document value
+     */
     public synchronized void indexLatest(SearchDocument document) {
         if (!isAvailable() || document == null || document.getDocId() == null || document.getDocId().isBlank()) {
             return;
@@ -96,6 +104,11 @@ class LuceneSearchStore {
         }
     }
 
+    /**
+     * Deletes the document.
+     *
+     * @param docId the doc id value
+     */
     public synchronized void deleteDocument(String docId) {
         if (!isAvailable() || docId == null || docId.isBlank()) {
             return;
@@ -108,6 +121,11 @@ class LuceneSearchStore {
         }
     }
 
+    /**
+     * Performs the rebuild latest operation.
+     *
+     * @param documents the documents value
+     */
     public synchronized void rebuildLatest(List<SearchDocument> documents) {
         if (!isAvailable()) {
             return;
@@ -131,6 +149,13 @@ class LuceneSearchStore {
         }
     }
 
+    /**
+     * Searches the search.
+     *
+     * @param keyword the keyword value
+     * @param maxHits the max hits value
+     * @return the operation result
+     */
     public synchronized List<LuceneSearchHit> search(String keyword, int maxHits) {
         if (!isAvailable() || keyword == null || keyword.isBlank()) {
             return List.of();
@@ -169,10 +194,18 @@ class LuceneSearchStore {
         }
     }
 
+    /**
+     * Returns whether is available.
+     *
+     * @return whether the condition is satisfied
+     */
     public boolean isAvailable() {
         return properties.isLuceneEnabled() && writer != null;
     }
 
+    /**
+     * Closes the close.
+     */
     @PreDestroy
     public void close() {
         try {
@@ -194,6 +227,14 @@ class LuceneSearchStore {
         }
     }
 
+    /**
+     * Converts the value to lucene document.
+     *
+     * @param document the document value
+     * @param chunkText the chunk text value
+     * @param chunkIndex the chunk index value
+     * @return the converted lucene document
+     */
     private Document toLuceneDocument(SearchDocument document, String chunkText, int chunkIndex) {
         Document luceneDocument = new Document();
         String chunkId = document.getDocId() + "#" + chunkIndex;
@@ -211,6 +252,12 @@ class LuceneSearchStore {
         return luceneDocument;
     }
 
+    /**
+     * Builds the query.
+     *
+     * @param terms the terms value
+     * @return the built query
+     */
     private BooleanQuery buildQuery(List<String> terms) {
         BooleanQuery.Builder query = new BooleanQuery.Builder();
         for (String term : terms) {
@@ -228,6 +275,12 @@ class LuceneSearchStore {
         return query.build();
     }
 
+    /**
+     * Performs the minimum should match operation.
+     *
+     * @param termCount the term count value
+     * @return the operation result
+     */
     private int minimumShouldMatch(int termCount) {
         if (termCount <= 1) {
             return 1;
@@ -241,10 +294,25 @@ class LuceneSearchStore {
         return Math.max(2, (int) Math.ceil(termCount * 0.35D));
     }
 
+    /**
+     * Adds the term query.
+     *
+     * @param query the query value
+     * @param field the field value
+     * @param term the term value
+     * @param boost the boost value
+     */
     private void addTermQuery(BooleanQuery.Builder query, String field, String term, float boost) {
         query.add(new BoostQuery(new TermQuery(new Term(field, term)), boost), BooleanClause.Occur.SHOULD);
     }
 
+    /**
+     * Adds the token field.
+     *
+     * @param document the document value
+     * @param field the field value
+     * @param value the value value
+     */
     private void addTokenField(Document document, String field, String value) {
         String tokenText = tokenText(value);
         if (!tokenText.isBlank()) {
@@ -252,6 +320,13 @@ class LuceneSearchStore {
         }
     }
 
+    /**
+     * Adds the token field.
+     *
+     * @param document the document value
+     * @param field the field value
+     * @param values the values value
+     */
     private void addTokenField(Document document, String field, List<String> values) {
         String tokenText = tokenText(values);
         if (!tokenText.isBlank()) {
@@ -259,10 +334,22 @@ class LuceneSearchStore {
         }
     }
 
+    /**
+     * Converts the value to ken text.
+     *
+     * @param value the value value
+     * @return the converted ken text
+     */
     private String tokenText(String value) {
         return String.join(" ", tokenizer.tokenizeOccurrences(value));
     }
 
+    /**
+     * Converts the value to ken text.
+     *
+     * @param values the values value
+     * @return the converted ken text
+     */
     private String tokenText(List<String> values) {
         if (values == null || values.isEmpty()) {
             return "";
@@ -274,6 +361,12 @@ class LuceneSearchStore {
         return String.join(" ", tokens);
     }
 
+    /**
+     * Performs the chunks operation.
+     *
+     * @param content the content value
+     * @return the operation result
+     */
     private List<String> chunks(String content) {
         String normalized = content == null ? "" : content.replace("\r\n", "\n").replace('\r', '\n').trim();
         if (normalized.isBlank()) {
@@ -305,6 +398,12 @@ class LuceneSearchStore {
         return chunks.isEmpty() ? List.of(normalized.replaceAll("\\s+", " ").trim()) : chunks;
     }
 
+    /**
+     * Performs the paragraph blocks operation.
+     *
+     * @param content the content value
+     * @return the operation result
+     */
     private List<String> paragraphBlocks(String content) {
         List<String> blocks = new ArrayList<>();
         StringBuilder current = new StringBuilder();
@@ -332,12 +431,25 @@ class LuceneSearchStore {
         return blocks;
     }
 
+    /**
+     * Returns whether is heading.
+     *
+     * @param line the line value
+     * @return whether the condition is satisfied
+     */
     private boolean isHeading(String line) {
         return line.startsWith("#")
             || line.matches("^\\d+(\\.\\d+)*[\\u3001.\\)]\\s+.+")
             || line.matches("^[\\u4e00\\u4e8c\\u4e09\\u56db\\u4e94\\u516d\\u4e03\\u516b\\u4e5d\\u5341]+[\\u3001.]\\s*.+");
     }
 
+    /**
+     * Performs the flush block operation.
+     *
+     * @param blocks the blocks value
+     * @param current the current value
+     * @param heading the heading value
+     */
     private void flushBlock(List<String> blocks, StringBuilder current, String heading) {
         if (current.length() == 0) {
             return;
@@ -349,6 +461,12 @@ class LuceneSearchStore {
         current.setLength(0);
     }
 
+    /**
+     * Performs the flush chunk operation.
+     *
+     * @param chunks the chunks value
+     * @param current the current value
+     */
     private void flushChunk(List<String> chunks, StringBuilder current) {
         if (current.length() == 0) {
             return;
@@ -360,6 +478,14 @@ class LuceneSearchStore {
         current.setLength(0);
     }
 
+    /**
+     * Performs the split long block operation.
+     *
+     * @param text the text value
+     * @param chunkSize the chunk size value
+     * @param overlap the overlap value
+     * @return the operation result
+     */
     private List<String> splitLongBlock(String text, int chunkSize, int overlap) {
         List<String> chunks = new ArrayList<>();
         String heading = leadingHeading(text);
@@ -379,6 +505,12 @@ class LuceneSearchStore {
         return chunks;
     }
 
+    /**
+     * Performs the leading heading operation.
+     *
+     * @param text the text value
+     * @return the operation result
+     */
     private String leadingHeading(String text) {
         if (text == null || text.isBlank()) {
             return "";
@@ -391,6 +523,12 @@ class LuceneSearchStore {
         return isHeading(firstLine) ? firstLine : "";
     }
 
+    /**
+     * Performs the int value operation.
+     *
+     * @param value the value value
+     * @return the operation result
+     */
     private int intValue(String value) {
         if (value == null || value.isBlank()) {
             return 0;

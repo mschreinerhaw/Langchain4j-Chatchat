@@ -20,6 +20,15 @@ public class McpInvocationAuthFilter extends OncePerRequestFilter {
     private final McpServiceRegistryService registryService;
     private final ObjectMapper objectMapper;
 
+    /**
+     * Performs the do filter internal operation.
+     *
+     * @param request the request value
+     * @param response the response value
+     * @param filterChain the filter chain value
+     * @throws ServletException if the operation fails
+     * @throws IOException if the operation fails
+     */
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
         throws ServletException, IOException {

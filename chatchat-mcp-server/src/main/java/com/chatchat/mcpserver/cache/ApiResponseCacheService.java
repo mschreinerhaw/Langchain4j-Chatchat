@@ -30,6 +30,13 @@ public class ApiResponseCacheService {
     private final McpRocksDbStore rocksDbStore;
     private final ObjectMapper objectMapper;
 
+    /**
+     * Returns the get.
+     *
+     * @param config the config value
+     * @param arguments the arguments value
+     * @return the get
+     */
     public Optional<ApiInvokeResult> get(ApiServiceConfig config, Map<String, Object> arguments) {
         if (!isUsable(config)) {
             return Optional.empty();
@@ -53,6 +60,13 @@ public class ApiResponseCacheService {
         }
     }
 
+    /**
+     * Stores the put.
+     *
+     * @param config the config value
+     * @param arguments the arguments value
+     * @param result the result value
+     */
     public void put(ApiServiceConfig config, Map<String, Object> arguments, ApiInvokeResult result) {
         if (!isUsable(config) || result == null || !result.success()) {
             return;
@@ -67,6 +81,9 @@ public class ApiResponseCacheService {
         }
     }
 
+    /**
+     * Performs the cleanup expired operation.
+     */
     @Scheduled(fixedDelayString = "${chatchat.mcp.cache.cleanup-interval-ms:60000}")
     public void cleanupExpired() {
         if (!rocksDbStore.isUsable()) {
@@ -97,6 +114,12 @@ public class ApiResponseCacheService {
         }
     }
 
+    /**
+     * Returns whether is usable.
+     *
+     * @param config the config value
+     * @return whether the condition is satisfied
+     */
     private boolean isUsable(ApiServiceConfig config) {
         return properties.isEnabled()
             && rocksDbStore.isUsable()
@@ -105,6 +128,13 @@ public class ApiResponseCacheService {
             && config.getCacheTtlSeconds() > 0;
     }
 
+    /**
+     * Performs the key operation.
+     *
+     * @param config the config value
+     * @param arguments the arguments value
+     * @return the operation result
+     */
     private String key(ApiServiceConfig config, Map<String, Object> arguments) {
         try {
             Object canonical = normalize(arguments == null ? Map.of() : arguments);
@@ -117,6 +147,12 @@ public class ApiResponseCacheService {
         }
     }
 
+    /**
+     * Normalizes the normalize.
+     *
+     * @param value the value value
+     * @return the operation result
+     */
     private Object normalize(Object value) {
         if (value instanceof Map<?, ?> map) {
             Map<String, Object> sorted = new TreeMap<>(Comparator.naturalOrder());
@@ -135,6 +171,12 @@ public class ApiResponseCacheService {
         return value;
     }
 
+    /**
+     * Performs the sanitize operation.
+     *
+     * @param value the value value
+     * @return the operation result
+     */
     private String sanitize(String value) {
         if (value == null || value.isBlank()) {
             return "api";

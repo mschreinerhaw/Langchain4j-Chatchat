@@ -84,6 +84,9 @@ public class SkillConfigEntity {
     @Column(nullable = false)
     private Instant updatedAt;
 
+    /**
+     * Performs the on create operation.
+     */
     @PrePersist
     public void onCreate() {
         if (defaultMode == null || defaultMode.isBlank()) {
@@ -99,6 +102,9 @@ public class SkillConfigEntity {
         updatedAt = now;
     }
 
+    /**
+     * Performs the on update operation.
+     */
     @PreUpdate
     public void onUpdate() {
         if (defaultMode == null || defaultMode.isBlank()) {

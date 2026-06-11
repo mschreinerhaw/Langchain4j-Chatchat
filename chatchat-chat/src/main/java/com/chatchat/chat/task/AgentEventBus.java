@@ -18,11 +18,22 @@ public class AgentEventBus {
     private final Map<String, BlockingQueue<AgentEvent>> resultQueues = new ConcurrentHashMap<>();
     private final Map<String, BlockingQueue<AgentEvent>> confirmationQueues = new ConcurrentHashMap<>();
 
+    /**
+     * Creates a new AgentEventBus instance.
+     *
+     * @param properties the properties value
+     * @param eventPublisher the event publisher value
+     */
     public AgentEventBus(AgentTaskProperties properties, ApplicationEventPublisher eventPublisher) {
         this.properties = properties;
         this.eventPublisher = eventPublisher;
     }
 
+    /**
+     * Publishes the publish.
+     *
+     * @param event the event value
+     */
     public void publish(AgentEvent event) {
         boolean accepted = queueForTenant(event.getTenantId()).offer(event);
         if (!accepted) {
@@ -31,10 +42,24 @@ public class AgentEventBus {
         eventPublisher.publishEvent(event);
     }
 
+    /**
+     * Performs the poll operation.
+     *
+     * @param tenantId the tenant id value
+     * @param timeout the timeout value
+     * @param unit the unit value
+     * @return the operation result
+     * @throws InterruptedException if the operation fails
+     */
     public AgentEvent poll(String tenantId, long timeout, TimeUnit unit) throws InterruptedException {
         return queueForTenant(tenantId).poll(timeout, unit);
     }
 
+    /**
+     * Publishes the result.
+     *
+     * @param event the event value
+     */
     public void publishResult(AgentEvent event) {
         BlockingQueue<AgentEvent> queue = resultQueues.computeIfAbsent(
             event.getTaskId(),
@@ -46,6 +71,15 @@ public class AgentEventBus {
         eventPublisher.publishEvent(event);
     }
 
+    /**
+     * Performs the poll result operation.
+     *
+     * @param taskId the task id value
+     * @param timeout the timeout value
+     * @param unit the unit value
+     * @return the operation result
+     * @throws InterruptedException if the operation fails
+     */
     public AgentEvent pollResult(String taskId, long timeout, TimeUnit unit) throws InterruptedException {
         BlockingQueue<AgentEvent> queue = resultQueues.computeIfAbsent(
             taskId,
@@ -58,6 +92,11 @@ public class AgentEventBus {
         return event;
     }
 
+    /**
+     * Publishes the confirmation.
+     *
+     * @param event the event value
+     */
     public void publishConfirmation(AgentEvent event) {
         BlockingQueue<AgentEvent> queue = confirmationQueues.computeIfAbsent(
             event.getTaskId(),
@@ -69,6 +108,15 @@ public class AgentEventBus {
         eventPublisher.publishEvent(event);
     }
 
+    /**
+     * Performs the poll confirmation operation.
+     *
+     * @param taskId the task id value
+     * @param timeout the timeout value
+     * @param unit the unit value
+     * @return the operation result
+     * @throws InterruptedException if the operation fails
+     */
     public AgentEvent pollConfirmation(String taskId, long timeout, TimeUnit unit) throws InterruptedException {
         BlockingQueue<AgentEvent> queue = confirmationQueues.computeIfAbsent(
             taskId,
@@ -81,22 +129,44 @@ public class AgentEventBus {
         return event;
     }
 
+    /**
+     * Performs the clear results operation.
+     *
+     * @param taskId the task id value
+     */
     public void clearResults(String taskId) {
         if (taskId != null && !taskId.isBlank()) {
             resultQueues.remove(taskId);
         }
     }
 
+    /**
+     * Performs the clear confirmations operation.
+     *
+     * @param taskId the task id value
+     */
     public void clearConfirmations(String taskId) {
         if (taskId != null && !taskId.isBlank()) {
             confirmationQueues.remove(taskId);
         }
     }
 
+    /**
+     * Performs the queue for tenant operation.
+     *
+     * @param tenantId the tenant id value
+     * @return the operation result
+     */
     private BlockingQueue<AgentEvent> queueForTenant(String tenantId) {
         return tenantQueues.computeIfAbsent(normalizeTenant(tenantId), ignored -> new LinkedBlockingQueue<>(properties.getQueueCapacity()));
     }
 
+    /**
+     * Normalizes the tenant.
+     *
+     * @param tenantId the tenant id value
+     * @return the operation result
+     */
     private String normalizeTenant(String tenantId) {
         if (tenantId == null || tenantId.isBlank()) {
             throw new IllegalArgumentException("Tenant ID cannot be empty");

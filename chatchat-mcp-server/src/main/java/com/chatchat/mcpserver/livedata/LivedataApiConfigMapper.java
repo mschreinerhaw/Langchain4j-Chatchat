@@ -22,6 +22,12 @@ public class LivedataApiConfigMapper {
     private final ObjectMapper objectMapper;
     private final LivedataAutoRegistrationProperties properties;
 
+    /**
+     * Converts the value to api service config.
+     *
+     * @param definition the definition value
+     * @return the converted api service config
+     */
     public ApiServiceConfig toApiServiceConfig(LivedataApiDefinition definition) {
         List<ParamDefinition> params = parseParams(definition.params());
         String serviceName = resolveServiceName(definition);
@@ -43,6 +49,12 @@ public class LivedataApiConfigMapper {
         return config;
     }
 
+    /**
+     * Converts the value to tool name.
+     *
+     * @param definition the definition value
+     * @return the converted tool name
+     */
     private String toToolName(LivedataApiDefinition definition) {
         String raw = firstNonBlank(definition.apiId(), definition.methodName(), definition.id());
         String normalized = raw == null ? "api" : raw.trim()
@@ -57,6 +69,12 @@ public class LivedataApiConfigMapper {
         return toolName.length() <= 128 ? toolName : toolName.substring(0, 118) + "_" + Integer.toHexString(toolName.hashCode());
     }
 
+    /**
+     * Converts the value to description.
+     *
+     * @param definition the definition value
+     * @return the converted description
+     */
     private String toDescription(LivedataApiDefinition definition) {
         List<String> parts = new ArrayList<>();
         addIfPresent(parts, definition.description());
@@ -73,6 +91,14 @@ public class LivedataApiConfigMapper {
         return String.join("\n", parts);
     }
 
+    /**
+     * Converts the value to url template.
+     *
+     * @param definition the definition value
+     * @param serviceName the service name value
+     * @param namespace the namespace value
+     * @return the converted url template
+     */
     private String toUrlTemplate(LivedataApiDefinition definition, String serviceName, String namespace) {
         String baseUrl = trimTrailingSlash(properties.getServiceBaseUrl());
         String path = properties.getServicePathTemplate();
@@ -90,6 +116,13 @@ public class LivedataApiConfigMapper {
         return baseUrl + path;
     }
 
+    /**
+     * Converts the value to body template.
+     *
+     * @param params the params value
+     * @param namespace the namespace value
+     * @return the converted body template
+     */
     private String toBodyTemplate(List<ParamDefinition> params, String namespace) {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("sessionId", sessionIdTemplate());
@@ -106,10 +139,21 @@ public class LivedataApiConfigMapper {
         return writeJson(body);
     }
 
+    /**
+     * Performs the session id template operation.
+     *
+     * @return the operation result
+     */
     private String sessionIdTemplate() {
         return "{{" + LivedataSessionService.SESSION_ARGUMENT + "}}";
     }
 
+    /**
+     * Converts the value to input schema.
+     *
+     * @param params the params value
+     * @return the converted input schema
+     */
     private String toInputSchema(List<ParamDefinition> params) {
         Map<String, Object> schema = new LinkedHashMap<>();
         Map<String, Object> propertiesNode = new LinkedHashMap<>();
@@ -139,6 +183,12 @@ public class LivedataApiConfigMapper {
         return writeJson(schema);
     }
 
+    /**
+     * Parses the params.
+     *
+     * @param paramsJson the params json value
+     * @return the parsed params
+     */
     private List<ParamDefinition> parseParams(String paramsJson) {
         if (paramsJson == null || paramsJson.isBlank()) {
             return List.of();
@@ -159,6 +209,12 @@ public class LivedataApiConfigMapper {
         }
     }
 
+    /**
+     * Performs the extract param nodes operation.
+     *
+     * @param root the root value
+     * @return the operation result
+     */
     private List<JsonNode> extractParamNodes(JsonNode root) {
         if (root == null || root.isNull()) {
             return List.of();
@@ -188,12 +244,24 @@ public class LivedataApiConfigMapper {
         return List.of();
     }
 
+    /**
+     * Converts the value to list.
+     *
+     * @param array the array value
+     * @return the converted list
+     */
     private List<JsonNode> toList(JsonNode array) {
         List<JsonNode> list = new ArrayList<>();
         array.forEach(list::add);
         return list;
     }
 
+    /**
+     * Converts the value to param definition.
+     *
+     * @param node the node value
+     * @return the converted param definition
+     */
     private ParamDefinition toParamDefinition(JsonNode node) {
         if (!node.isObject()) {
             return null;
@@ -209,6 +277,12 @@ public class LivedataApiConfigMapper {
         return new ParamDefinition(name, type, description, required);
     }
 
+    /**
+     * Normalizes the param name.
+     *
+     * @param value the value value
+     * @return the operation result
+     */
     private String normalizeParamName(String value) {
         if (value == null || value.isBlank()) {
             return null;
@@ -217,6 +291,12 @@ public class LivedataApiConfigMapper {
         return normalized.isBlank() ? null : normalized;
     }
 
+    /**
+     * Normalizes the json type.
+     *
+     * @param value the value value
+     * @return the operation result
+     */
     private String normalizeJsonType(String value) {
         if (value == null) {
             return "string";
@@ -240,6 +320,12 @@ public class LivedataApiConfigMapper {
         return "string";
     }
 
+    /**
+     * Returns whether read required.
+     *
+     * @param node the node value
+     * @return whether the condition is satisfied
+     */
     private boolean readRequired(JsonNode node) {
         for (String field : List.of("required", "isRequired", "is_required", "must")) {
             JsonNode value = node.get(field);
@@ -251,6 +337,12 @@ public class LivedataApiConfigMapper {
         return nullable != null && !nullable.asBoolean(true);
     }
 
+    /**
+     * Resolves the service name.
+     *
+     * @param definition the definition value
+     * @return the resolved service name
+     */
     private String resolveServiceName(LivedataApiDefinition definition) {
         String serviceName = firstNonBlank(definition.serviceName(), definition.apiId());
         String methodName = firstNonBlank(definition.methodName(), "");
@@ -263,6 +355,13 @@ public class LivedataApiConfigMapper {
         return serviceName + "." + methodName;
     }
 
+    /**
+     * Reads the text.
+     *
+     * @param node the node value
+     * @param fields the fields value
+     * @return the operation result
+     */
     private String readText(JsonNode node, String... fields) {
         for (String field : fields) {
             JsonNode value = node.get(field);
@@ -273,6 +372,12 @@ public class LivedataApiConfigMapper {
         return null;
     }
 
+    /**
+     * Writes the json.
+     *
+     * @param value the value value
+     * @return the operation result
+     */
     private String writeJson(Object value) {
         try {
             return objectMapper.writeValueAsString(value);
@@ -281,10 +386,22 @@ public class LivedataApiConfigMapper {
         }
     }
 
+    /**
+     * Performs the safe url segment operation.
+     *
+     * @param value the value value
+     * @return the operation result
+     */
     private String safeUrlSegment(String value) {
         return value == null ? "" : value.trim();
     }
 
+    /**
+     * Performs the trim trailing slash operation.
+     *
+     * @param value the value value
+     * @return the operation result
+     */
     private String trimTrailingSlash(String value) {
         if (value == null || value.isBlank()) {
             throw new IllegalArgumentException("chatchat.mcp.livedata.service-base-url is required");
@@ -292,12 +409,24 @@ public class LivedataApiConfigMapper {
         return value.trim().replaceAll("/+$", "");
     }
 
+    /**
+     * Adds the if present.
+     *
+     * @param parts the parts value
+     * @param value the value value
+     */
     private void addIfPresent(List<String> parts, String value) {
         if (value != null && !value.isBlank()) {
             parts.add(value.trim());
         }
     }
 
+    /**
+     * Performs the first non blank operation.
+     *
+     * @param values the values value
+     * @return the operation result
+     */
     private String firstNonBlank(String... values) {
         for (String value : values) {
             if (value != null && !value.isBlank()) {

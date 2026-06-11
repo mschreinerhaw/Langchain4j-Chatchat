@@ -33,6 +33,11 @@ public class ToolParameterValidator {
         private boolean valid;
         private List<String> errors;
 
+        /**
+         * Performs the success operation.
+         *
+         * @return the operation result
+         */
         public static ValidationResult success() {
             return ValidationResult.builder()
                 .valid(true)
@@ -40,6 +45,12 @@ public class ToolParameterValidator {
                 .build();
         }
 
+        /**
+         * Performs the failure operation.
+         *
+         * @param errors the errors value
+         * @return the operation result
+         */
         public static ValidationResult failure(List<String> errors) {
             return ValidationResult.builder()
                 .valid(false)
@@ -47,6 +58,12 @@ public class ToolParameterValidator {
                 .build();
         }
 
+        /**
+         * Performs the failure operation.
+         *
+         * @param error the error value
+         * @return the operation result
+         */
         public static ValidationResult failure(String error) {
             return ValidationResult.builder()
                 .valid(false)
@@ -119,6 +136,13 @@ public class ToolParameterValidator {
         return errors.isEmpty() ? ValidationResult.success() : ValidationResult.failure(errors);
     }
 
+    /**
+     * Validates the string.
+     *
+     * @param paramDef the param def value
+     * @param value the value value
+     * @param errors the errors value
+     */
     private static void validateString(ToolParameter paramDef, String value, java.util.List<String> errors) {
         // Min length
         if (paramDef.getMinLength() != null && value.length() < paramDef.getMinLength()) {
@@ -141,6 +165,13 @@ public class ToolParameterValidator {
         }
     }
 
+    /**
+     * Validates the number.
+     *
+     * @param paramDef the param def value
+     * @param value the value value
+     * @param errors the errors value
+     */
     private static void validateNumber(ToolParameter paramDef, Object value, java.util.List<String> errors) {
         Number num;
         try {

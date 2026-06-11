@@ -42,6 +42,9 @@ public class McpToolRegistryBridge {
     private final Set<String> managedToolNames = ConcurrentHashMap.newKeySet();
     private final Map<String, RegisteredMcpTool> registeredTools = new ConcurrentHashMap<>();
 
+    /**
+     * Performs the initialize operation.
+     */
     @PostConstruct
     public void initialize() {
         try {
@@ -51,6 +54,9 @@ public class McpToolRegistryBridge {
         }
     }
 
+    /**
+     * Performs the refresh registry operation.
+     */
     public synchronized void refreshRegistry() {
         managedToolNames.forEach(toolRegistry::unregisterTool);
         managedToolNames.clear();
@@ -80,22 +86,47 @@ public class McpToolRegistryBridge {
         log.info("MCP tool registry refreshed, registered {} tools", managedToolNames.size());
     }
 
+    /**
+     * Lists the registered tools.
+     *
+     * @return the registered tools list
+     */
     public List<RegisteredMcpTool> listRegisteredTools() {
         return registeredTools.values().stream()
             .sorted(Comparator.comparing(RegisteredMcpTool::localToolName))
             .toList();
     }
 
+    /**
+     * Performs the discover tools operation.
+     *
+     * @param serviceId the service id value
+     * @return the operation result
+     */
     public List<McpToolDefinition> discoverTools(String serviceId) {
         McpServiceConfig config = configService.getById(serviceId);
         return gatewayClient.discoverTools(config);
     }
 
+    /**
+     * Performs the invoke operation.
+     *
+     * @param serviceId the service id value
+     * @param toolName the tool name value
+     * @param arguments the arguments value
+     * @return the operation result
+     */
     public McpToolInvokeResult invoke(String serviceId, String toolName, Map<String, Object> arguments) {
         McpServiceConfig config = configService.getById(serviceId);
         return gatewayClient.invokeTool(config, toolName, arguments);
     }
 
+    /**
+     * Registers the single tool.
+     *
+     * @param service the service value
+     * @param definition the definition value
+     */
     private void registerSingleTool(McpServiceConfig service, McpToolDefinition definition) {
         String localName = toLocalToolName(service.getName(), definition.name());
         String candidate = localName;
@@ -156,10 +187,23 @@ public class McpToolRegistryBridge {
         ));
     }
 
+    /**
+     * Converts the value to local tool name.
+     *
+     * @param serviceName the service name value
+     * @param toolName the tool name value
+     * @return the converted local tool name
+     */
     private String toLocalToolName(String serviceName, String toolName) {
         return "mcp_" + sanitize(serviceName) + "_" + sanitize(toolName);
     }
 
+    /**
+     * Performs the sanitize operation.
+     *
+     * @param value the value value
+     * @return the operation result
+     */
     private String sanitize(String value) {
         if (value == null || value.isBlank()) {
             return "tool";
@@ -174,10 +218,23 @@ public class McpToolRegistryBridge {
         return normalized.isBlank() ? "tool" : normalized;
     }
 
+    /**
+     * Performs the first text operation.
+     *
+     * @param value the value value
+     * @param fallback the fallback value
+     * @return the operation result
+     */
     private String firstText(String value, String fallback) {
         return value == null || value.isBlank() ? fallback : value.trim();
     }
 
+    /**
+     * Performs the empty to null operation.
+     *
+     * @param value the value value
+     * @return the operation result
+     */
     private Map<String, Object> emptyToNull(Map<String, Object> value) {
         return value == null || value.isEmpty() ? null : value;
     }
@@ -188,17 +245,35 @@ public class McpToolRegistryBridge {
         private final String remoteToolName;
         private final ToolMetadata metadata;
 
+        /**
+         * Creates a new McpToolRegistryBridge instance.
+         *
+         * @param serviceId the service id value
+         * @param remoteToolName the remote tool name value
+         * @param metadata the metadata value
+         */
         private McpEnhancedTool(String serviceId, String remoteToolName, ToolMetadata metadata) {
             this.serviceId = serviceId;
             this.remoteToolName = remoteToolName;
             this.metadata = metadata;
         }
 
+        /**
+         * Returns the metadata.
+         *
+         * @return the metadata
+         */
         @Override
         public ToolMetadata getMetadata() {
             return metadata;
         }
 
+        /**
+         * Executes the execute.
+         *
+         * @param input the input value
+         * @return the operation result
+         */
         @Override
         public ToolOutput execute(ToolInput input) {
             Map<String, Object> arguments = new LinkedHashMap<>();
@@ -254,6 +329,12 @@ public class McpToolRegistryBridge {
     ) {
     }
 
+    /**
+     * Performs the serialize object operation.
+     *
+     * @param object the object value
+     * @return the operation result
+     */
     public String serializeObject(Object object) {
         if (object == null) {
             return "";
@@ -268,6 +349,12 @@ public class McpToolRegistryBridge {
         }
     }
 
+    /**
+     * Performs the argument keys operation.
+     *
+     * @param arguments the arguments value
+     * @return the operation result
+     */
     private List<String> argumentKeys(Map<String, Object> arguments) {
         if (arguments == null || arguments.isEmpty()) {
             return List.of();

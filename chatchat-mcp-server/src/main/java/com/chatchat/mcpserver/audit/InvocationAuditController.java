@@ -19,6 +19,22 @@ public class InvocationAuditController {
 
     private final InvocationAuditService auditService;
 
+    /**
+     * Searches the search.
+     *
+     * @param page the page value
+     * @param pageSize the page size value
+     * @param keyword the keyword value
+     * @param targetType the target type value
+     * @param targetId the target id value
+     * @param toolName the tool name value
+     * @param caller the caller value
+     * @param success the success value
+     * @param statusCode the status code value
+     * @param from the from value
+     * @param to the to value
+     * @return the operation result
+     */
     @GetMapping
     public ApiResponse<AuditLogPageView> search(
         @RequestParam(value = "page", required = false) Integer page,
@@ -49,6 +65,12 @@ public class InvocationAuditController {
         return ApiResponse.success(toPageView(result));
     }
 
+    /**
+     * Performs the detail operation.
+     *
+     * @param id the id value
+     * @return the operation result
+     */
     @GetMapping("/{id}")
     public ApiResponse<AuditLogView> detail(@PathVariable("id") String id) {
         return ApiResponse.success(
@@ -56,6 +78,13 @@ public class InvocationAuditController {
         );
     }
 
+    /**
+     * Converts the value to view.
+     *
+     * @param log the log value
+     * @param includeDetails the include details value
+     * @return the converted view
+     */
     private AuditLogView toView(InvocationAuditLog log, boolean includeDetails) {
         return new AuditLogView(
             log.getId(),
@@ -74,6 +103,12 @@ public class InvocationAuditController {
         );
     }
 
+    /**
+     * Converts the value to page view.
+     *
+     * @param page the page value
+     * @return the converted page view
+     */
     private AuditLogPageView toPageView(AuditLogPage page) {
         int totalPages = Math.max(1, (int) Math.ceil(page.filteredCount() / (double) Math.max(1, page.pageSize())));
         return new AuditLogPageView(

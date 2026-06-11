@@ -16,6 +16,11 @@ public record ToolExecutionPlan(
     String reason
 ) {
 
+    /**
+     * Converts the value to map.
+     *
+     * @return the converted map
+     */
     public Map<String, Object> toMap() {
         Map<String, Object> values = new LinkedHashMap<>();
         values.put("workflow", workflow);

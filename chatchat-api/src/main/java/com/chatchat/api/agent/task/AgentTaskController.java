@@ -35,6 +35,12 @@ public class AgentTaskController {
     private final SysAuditLogRepository auditLogRepository;
     private final ObjectMapper objectMapper;
 
+    /**
+     * Performs the submit operation.
+     *
+     * @param request the request value
+     * @return the operation result
+     */
     @PostMapping
     @Operation(summary = "Submit one async Agent task")
     public ApiResponse<AgentTaskResponse> submit(@RequestBody AgentTaskSubmitRequest request) {
@@ -47,6 +53,13 @@ public class AgentTaskController {
         }
     }
 
+    /**
+     * Returns the get.
+     *
+     * @param tenantId the tenant id value
+     * @param taskId the task id value
+     * @return the get
+     */
     @GetMapping("/{taskId}")
     @Operation(summary = "Get latest Agent task status")
     public ApiResponse<AgentTaskResponse> get(@RequestParam("tenantId") String tenantId,
@@ -60,6 +73,15 @@ public class AgentTaskController {
         }
     }
 
+    /**
+     * Lists the list.
+     *
+     * @param tenantId the tenant id value
+     * @param sessionId the session id value
+     * @param page the page value
+     * @param pageSize the page size value
+     * @return the list list
+     */
     @GetMapping
     @Operation(summary = "List latest Agent tasks")
     public ApiResponse<List<AgentTaskResponse>> list(@RequestParam("tenantId") String tenantId,
@@ -73,6 +95,13 @@ public class AgentTaskController {
         }
     }
 
+    /**
+     * Runs the configured startup logic.
+     *
+     * @param tenantId the tenant id value
+     * @param latestLimit the latest limit value
+     * @return the operation result
+     */
     @GetMapping("/runtime")
     @Operation(summary = "Get Agent Runtime dashboard summary")
     public ApiResponse<AgentRuntimeSummary> runtime(@RequestParam("tenantId") String tenantId,
@@ -84,6 +113,14 @@ public class AgentTaskController {
         }
     }
 
+    /**
+     * Converts the value to ol audits.
+     *
+     * @param tenantId the tenant id value
+     * @param outcome the outcome value
+     * @param limit the limit value
+     * @return the converted ol audits
+     */
     @GetMapping("/runtime/tool-audits")
     @Operation(summary = "List recent tenant tool runtime audit logs")
     public ApiResponse<List<ToolAuditView>> toolAudits(@RequestParam("tenantId") String tenantId,
@@ -106,6 +143,14 @@ public class AgentTaskController {
         }
     }
 
+    /**
+     * Performs the events operation.
+     *
+     * @param tenantId the tenant id value
+     * @param taskId the task id value
+     * @param limit the limit value
+     * @return the operation result
+     */
     @GetMapping("/{taskId}/events")
     @Operation(summary = "List RocksDB Agent event history for one task")
     public ApiResponse<List<AgentEvent>> events(@RequestParam("tenantId") String tenantId,
@@ -118,6 +163,14 @@ public class AgentTaskController {
         }
     }
 
+    /**
+     * Performs the poll result operation.
+     *
+     * @param tenantId the tenant id value
+     * @param taskId the task id value
+     * @param timeoutMs the timeout ms value
+     * @return the operation result
+     */
     @GetMapping("/{taskId}/result")
     @Operation(summary = "Poll Agent task result queue")
     public ApiResponse<AgentEvent> pollResult(@RequestParam("tenantId") String tenantId,
@@ -130,6 +183,13 @@ public class AgentTaskController {
         }
     }
 
+    /**
+     * Returns whether cancel.
+     *
+     * @param tenantId the tenant id value
+     * @param taskId the task id value
+     * @return whether the condition is satisfied
+     */
     @PostMapping("/{taskId}/cancel")
     @Operation(summary = "Cancel one active Agent task")
     public ApiResponse<AgentTaskResponse> cancel(@RequestParam("tenantId") String tenantId,
@@ -143,6 +203,13 @@ public class AgentTaskController {
         }
     }
 
+    /**
+     * Performs the retry operation.
+     *
+     * @param tenantId the tenant id value
+     * @param taskId the task id value
+     * @return the operation result
+     */
     @PostMapping("/{taskId}/retry")
     @Operation(summary = "Retry one failed or cancelled Agent task")
     public ApiResponse<AgentTaskResponse> retry(@RequestParam("tenantId") String tenantId,
@@ -156,6 +223,12 @@ public class AgentTaskController {
         }
     }
 
+    /**
+     * Converts the value to tool audit view.
+     *
+     * @param log the log value
+     * @return the converted tool audit view
+     */
     private ToolAuditView toToolAuditView(SysAuditLog log) {
         JsonNode detail = readJson(log.getDetail());
         return new ToolAuditView(
@@ -176,6 +249,12 @@ public class AgentTaskController {
         );
     }
 
+    /**
+     * Reads the json.
+     *
+     * @param value the value value
+     * @return the operation result
+     */
     private JsonNode readJson(String value) {
         if (value == null || value.isBlank()) {
             return null;
@@ -187,6 +266,13 @@ public class AgentTaskController {
         }
     }
 
+    /**
+     * Performs the long value operation.
+     *
+     * @param node the node value
+     * @param field the field value
+     * @return the operation result
+     */
     private Long longValue(JsonNode node, String field) {
         if (node == null || field == null || field.isBlank()) {
             return null;
@@ -195,6 +281,13 @@ public class AgentTaskController {
         return value.isMissingNode() || value.isNull() ? null : value.asLong();
     }
 
+    /**
+     * Performs the text value operation.
+     *
+     * @param node the node value
+     * @param field the field value
+     * @return the operation result
+     */
     private String textValue(JsonNode node, String field) {
         if (node == null || field == null || field.isBlank()) {
             return null;
@@ -203,6 +296,12 @@ public class AgentTaskController {
         return value.isMissingNode() || value.isNull() ? null : normalizeText(value.asText());
     }
 
+    /**
+     * Performs the require tenant operation.
+     *
+     * @param tenantId the tenant id value
+     * @return the operation result
+     */
     private String requireTenant(String tenantId) {
         String value = normalizeText(tenantId);
         if (value == null) {
@@ -211,10 +310,23 @@ public class AgentTaskController {
         return value;
     }
 
+    /**
+     * Normalizes the text.
+     *
+     * @param value the value value
+     * @return the operation result
+     */
     private String normalizeText(String value) {
         return value == null || value.isBlank() ? null : value.trim();
     }
 
+    /**
+     * Performs the first text operation.
+     *
+     * @param primary the primary value
+     * @param fallback the fallback value
+     * @return the operation result
+     */
     private String firstText(String primary, String fallback) {
         return primary == null || primary.isBlank() ? fallback : primary;
     }

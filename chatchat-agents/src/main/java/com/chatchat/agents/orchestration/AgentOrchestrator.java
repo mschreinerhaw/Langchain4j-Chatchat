@@ -60,6 +60,25 @@ public class AgentOrchestrator {
     private final ModelsConfig modelsConfig;
     private final Map<String, ChatModel> chatModelsByName = new ConcurrentHashMap<>();
 
+    /**
+     * Executes the agent.
+     *
+     * @param query the query value
+     * @param tenantId the tenant id value
+     * @param availableTools the available tools value
+     * @param systemPrompt the system prompt value
+     * @param modelName the model name value
+     * @param boundDocumentIds the bound document ids value
+     * @param boundDocumentTags the bound document tags value
+     * @param skillId the skill id value
+     * @param requestId the request id value
+     * @param conversationId the conversation id value
+     * @param userId the user id value
+     * @param webSearchResultLimit the web search result limit value
+     * @param requiredToolNames the required tool names value
+     * @param requireBoundToolCall the require bound tool call value
+     * @return the operation result
+     */
     public AgentExecutionResult executeAgent(String query,
                                              String tenantId,
                                              List<String> availableTools,
@@ -79,6 +98,26 @@ public class AgentOrchestrator {
             requiredToolNames, requireBoundToolCall, Map.of());
     }
 
+    /**
+     * Executes the agent.
+     *
+     * @param query the query value
+     * @param tenantId the tenant id value
+     * @param availableTools the available tools value
+     * @param systemPrompt the system prompt value
+     * @param modelName the model name value
+     * @param boundDocumentIds the bound document ids value
+     * @param boundDocumentTags the bound document tags value
+     * @param skillId the skill id value
+     * @param requestId the request id value
+     * @param conversationId the conversation id value
+     * @param userId the user id value
+     * @param webSearchResultLimit the web search result limit value
+     * @param requiredToolNames the required tool names value
+     * @param requireBoundToolCall the require bound tool call value
+     * @param runtimeAttributes the runtime attributes value
+     * @return the operation result
+     */
     public AgentExecutionResult executeAgent(String query,
                                              String tenantId,
                                              List<String> availableTools,
@@ -178,7 +217,8 @@ public class AgentOrchestrator {
                 requireToolBeforeFinal && traces.isEmpty(),
                 requireDocumentWebVerification,
                 documentSearchTool,
-                verificationWebSearchTool
+                verificationWebSearchTool,
+                requestRuntimeAttributes
             );
             checkCancelled(cancellationCheck);
             String plannedToolName = normalizeToolName(decision.toolName(), tools);
@@ -340,6 +380,24 @@ public class AgentOrchestrator {
         return new AgentExecutionResult(review.answer(), traces, metadata);
     }
 
+    /**
+     * Performs the decide next action operation.
+     *
+     * @param activeChatModel the active chat model value
+     * @param query the query value
+     * @param systemPrompt the system prompt value
+     * @param availableTools the available tools value
+     * @param observations the observations value
+     * @param boundDocumentIds the bound document ids value
+     * @param boundDocumentTags the bound document tags value
+     * @param mandatoryTools the mandatory tools value
+     * @param requireToolBeforeFinal the require tool before final value
+     * @param requireDocumentWebVerification the require document web verification value
+     * @param documentSearchTool the document search tool value
+     * @param verificationWebSearchTool the verification web search tool value
+     * @param runtimeAttributes the runtime attributes value
+     * @return the operation result
+     */
     private AgentDecision decideNextAction(ChatModel activeChatModel,
                                            String query,
                                            String systemPrompt,
@@ -351,7 +409,8 @@ public class AgentOrchestrator {
                                            boolean requireToolBeforeFinal,
                                            boolean requireDocumentWebVerification,
                                            String documentSearchTool,
-                                           String verificationWebSearchTool) {
+                                           String verificationWebSearchTool,
+                                           Map<String, Object> runtimeAttributes) {
         String prompt = buildPlannerPrompt(
             query,
             systemPrompt,
@@ -363,7 +422,8 @@ public class AgentOrchestrator {
             requireToolBeforeFinal,
             requireDocumentWebVerification,
             documentSearchTool,
-            verificationWebSearchTool
+            verificationWebSearchTool,
+            runtimeAttributes
         );
         String raw = activeChatModel.chat(prompt);
         AgentDecision decision = parseDecision(raw);
@@ -373,6 +433,23 @@ public class AgentOrchestrator {
         return decision;
     }
 
+    /**
+     * Builds the planner prompt.
+     *
+     * @param query the query value
+     * @param systemPrompt the system prompt value
+     * @param availableTools the available tools value
+     * @param observations the observations value
+     * @param boundDocumentIds the bound document ids value
+     * @param boundDocumentTags the bound document tags value
+     * @param mandatoryTools the mandatory tools value
+     * @param requireToolBeforeFinal the require tool before final value
+     * @param requireDocumentWebVerification the require document web verification value
+     * @param documentSearchTool the document search tool value
+     * @param verificationWebSearchTool the verification web search tool value
+     * @param runtimeAttributes the runtime attributes value
+     * @return the built planner prompt
+     */
     private String buildPlannerPrompt(String query,
                                       String systemPrompt,
                                       List<String> availableTools,
@@ -383,7 +460,8 @@ public class AgentOrchestrator {
                                       boolean requireToolBeforeFinal,
                                       boolean requireDocumentWebVerification,
                                       String documentSearchTool,
-                                      String verificationWebSearchTool) {
+                                      String verificationWebSearchTool,
+                                      Map<String, Object> runtimeAttributes) {
         StringBuilder prompt = new StringBuilder();
         if (systemPrompt != null && !systemPrompt.isBlank()) {
             prompt.append("System instruction: ").append(systemPrompt).append("\n\n");
@@ -407,7 +485,7 @@ public class AgentOrchestrator {
         prompt.append("{\"action\":\"tool\",\"toolName\":\"...\",\"arguments\":{...},\"reason\":\"...\",");
         prompt.append("\"executionPlan\":{\"workflow\":\"optional_workflow_name\",\"intent\":\"...\",\"tool\":\"...\",\"operation_type\":\"read|write|send|delete\",");
         prompt.append("\"risk_level\":\"low|medium|high|forbidden\",\"parameters\":{...},\"reason\":\"...\"}}\n\n");
-        prompt.append("Available tools:\n").append(describeTools(availableTools)).append("\n");
+        prompt.append("Available tools:\n").append(describeTools(availableTools, runtimeAttributes)).append("\n");
         if (!boundDocumentIds.isEmpty() || !boundDocumentTags.isEmpty()) {
             prompt.append("Knowledge document search scope:\n");
             if (!boundDocumentIds.isEmpty()) {
@@ -447,28 +525,77 @@ public class AgentOrchestrator {
         return prompt.toString();
     }
 
-    private String describeTools(List<String> availableTools) {
+    /**
+     * Performs the describe tools operation.
+     *
+     * @param availableTools the available tools value
+     * @param runtimeAttributes the runtime attributes value
+     * @return the operation result
+     */
+    private String describeTools(List<String> availableTools, Map<String, Object> runtimeAttributes) {
         if (availableTools == null || availableTools.isEmpty()) {
             return "- (none)";
         }
         StringBuilder sb = new StringBuilder();
         for (String toolName : availableTools) {
             ToolMetadata metadata = toolRegistry.getToolMetadata(toolName);
+            String configuredDescription = configuredToolDescription(toolName, runtimeAttributes);
             if (metadata != null) {
                 sb.append("- ")
                     .append(toolName)
                     .append(": ")
-                    .append(metadata.getDescription())
+                    .append(firstNonBlank(configuredDescription, metadata.getDescription()))
                     .append("\n");
             } else {
                 ToolRegistry.Tool simpleTool = toolRegistry.getTool(toolName);
                 String description = simpleTool == null ? "No description available" : simpleTool.getDescription();
-                sb.append("- ").append(toolName).append(": ").append(description).append("\n");
+                sb.append("- ").append(toolName).append(": ")
+                    .append(firstNonBlank(configuredDescription, description))
+                    .append("\n");
             }
         }
         return sb.toString();
     }
 
+    /**
+     * Performs the configured tool description operation.
+     *
+     * @param toolName the tool name value
+     * @param runtimeAttributes the runtime attributes value
+     * @return the operation result
+     */
+    private String configuredToolDescription(String toolName, Map<String, Object> runtimeAttributes) {
+        if (toolName == null || toolName.isBlank() || runtimeAttributes == null || runtimeAttributes.isEmpty()) {
+            return null;
+        }
+        Object configs = runtimeAttributes.get("mcpToolConfigs");
+        if (!(configs instanceof List<?> list)) {
+            return null;
+        }
+        for (Object item : list) {
+            Map<String, Object> config = asMap(item);
+            if (config.isEmpty()) {
+                continue;
+            }
+            String configuredToolName = firstNonBlank(
+                stringValue(firstObject(config, "toolName", "tool")),
+                stringValue(firstObject(config, "name"))
+            );
+            if (!sameToolName(configuredToolName, toolName)) {
+                continue;
+            }
+            String description = stringValue(config.get("description"));
+            return description == null || description.isBlank() ? null : description.trim();
+        }
+        return null;
+    }
+
+    /**
+     * Parses the decision.
+     *
+     * @param raw the raw value
+     * @return the parsed decision
+     */
     @SuppressWarnings("unchecked")
     private AgentDecision parseDecision(String raw) {
         if (raw == null || raw.isBlank()) {
@@ -504,6 +631,12 @@ public class AgentOrchestrator {
         }
     }
 
+    /**
+     * Performs the extract json operation.
+     *
+     * @param raw the raw value
+     * @return the operation result
+     */
     private String extractJson(String raw) {
         String text = raw.trim();
         int blockStart = text.indexOf("```");
@@ -522,6 +655,16 @@ public class AgentOrchestrator {
         return text;
     }
 
+    /**
+     * Performs the safe answer operation.
+     *
+     * @param activeChatModel the active chat model value
+     * @param answer the answer value
+     * @param query the query value
+     * @param observations the observations value
+     * @param systemPrompt the system prompt value
+     * @return the operation result
+     */
     private String safeAnswer(ChatModel activeChatModel, String answer, String query, List<String> observations, String systemPrompt) {
         if (answer != null && !answer.isBlank()) {
             return answer;
@@ -529,6 +672,15 @@ public class AgentOrchestrator {
         return summarizeWithObservations(activeChatModel, query, systemPrompt, observations);
     }
 
+    /**
+     * Performs the summarize with observations operation.
+     *
+     * @param activeChatModel the active chat model value
+     * @param query the query value
+     * @param systemPrompt the system prompt value
+     * @param observations the observations value
+     * @return the operation result
+     */
     private String summarizeWithObservations(ChatModel activeChatModel, String query, String systemPrompt, List<String> observations) {
         StringBuilder prompt = new StringBuilder();
         if (systemPrompt != null && !systemPrompt.isBlank()) {
@@ -548,6 +700,16 @@ public class AgentOrchestrator {
         return activeChatModel.chat(prompt.toString());
     }
 
+    /**
+     * Performs the review and revise answer operation.
+     *
+     * @param activeChatModel the active chat model value
+     * @param query the query value
+     * @param systemPrompt the system prompt value
+     * @param observations the observations value
+     * @param answer the answer value
+     * @return the operation result
+     */
     private AnswerReview reviewAndReviseAnswer(ChatModel activeChatModel,
                                                String query,
                                                String systemPrompt,
@@ -577,6 +739,15 @@ public class AgentOrchestrator {
         }
     }
 
+    /**
+     * Builds the answer review prompt.
+     *
+     * @param query the query value
+     * @param systemPrompt the system prompt value
+     * @param observations the observations value
+     * @param answer the answer value
+     * @return the built answer review prompt
+     */
     private String buildAnswerReviewPrompt(String query,
                                            String systemPrompt,
                                            List<String> observations,
@@ -608,6 +779,12 @@ public class AgentOrchestrator {
         return prompt.toString();
     }
 
+    /**
+     * Performs the record answer review operation.
+     *
+     * @param metadata the metadata value
+     * @param review the review value
+     */
     private void recordAnswerReview(Map<String, Object> metadata, AnswerReview review) {
         metadata.put("answerReviewStatus", review.status());
         if (review.feedback() != null && !review.feedback().isBlank()) {
@@ -615,6 +792,12 @@ public class AgentOrchestrator {
         }
     }
 
+    /**
+     * Resolves the chat model.
+     *
+     * @param modelName the model name value
+     * @return the resolved chat model
+     */
     private ChatModel resolveChatModel(String modelName) {
         String normalized = normalizeModelName(modelName);
         if (normalized == null || normalized.equals(modelsConfig.getDefaultChatModel())) {
@@ -626,6 +809,12 @@ public class AgentOrchestrator {
         return chatModelsByName.computeIfAbsent(normalized, this::buildOpenAiChatModel);
     }
 
+    /**
+     * Builds the open ai chat model.
+     *
+     * @param modelName the model name value
+     * @return the built open ai chat model
+     */
     private ChatModel buildOpenAiChatModel(String modelName) {
         OpenAiChatModel.OpenAiChatModelBuilder builder = OpenAiChatModel.builder()
             .apiKey(modelsConfig.getOpenai().getApiKey())
@@ -642,6 +831,11 @@ public class AgentOrchestrator {
         return builder.build();
     }
 
+    /**
+     * Resolves the open ai http client builder.
+     *
+     * @return the resolved open ai http client builder
+     */
     private HttpClientBuilder resolveOpenAiHttpClientBuilder() {
         ModelsConfig.ProxyConfig proxyConfig = modelsConfig.getOpenai().getProxy();
         if (proxyConfig == null || !proxyConfig.isEnabled()
@@ -657,6 +851,15 @@ public class AgentOrchestrator {
         return new JdkHttpClientBuilder().httpClientBuilder(httpClientBuilder);
     }
 
+    /**
+     * Performs the apply document search defaults operation.
+     *
+     * @param toolName the tool name value
+     * @param arguments the arguments value
+     * @param boundDocumentIds the bound document ids value
+     * @param boundDocumentTags the bound document tags value
+     * @return the operation result
+     */
     private Map<String, Object> applyDocumentSearchDefaults(String toolName,
                                                             Map<String, Object> arguments,
                                                             List<String> boundDocumentIds,
@@ -674,6 +877,17 @@ public class AgentOrchestrator {
         return values;
     }
 
+    /**
+     * Performs the apply tool defaults operation.
+     *
+     * @param toolName the tool name value
+     * @param arguments the arguments value
+     * @param boundDocumentIds the bound document ids value
+     * @param boundDocumentTags the bound document tags value
+     * @param query the query value
+     * @param webSearchResultLimit the web search result limit value
+     * @return the operation result
+     */
     private Map<String, Object> applyToolDefaults(String toolName,
                                                   Map<String, Object> arguments,
                                                   List<String> boundDocumentIds,
@@ -696,6 +910,13 @@ public class AgentOrchestrator {
         return values;
     }
 
+    /**
+     * Performs the attributes with completed tools operation.
+     *
+     * @param runtimeAttributes the runtime attributes value
+     * @param completedTools the completed tools value
+     * @return the operation result
+     */
     private Map<String, Object> attributesWithCompletedTools(Map<String, Object> runtimeAttributes,
                                                              Set<String> completedTools) {
         Map<String, Object> attributes = new LinkedHashMap<>(runtimeAttributes == null ? Map.of() : runtimeAttributes);
@@ -719,6 +940,12 @@ public class AgentOrchestrator {
         return attributes;
     }
 
+    /**
+     * Performs the remember completed workflow tool operation.
+     *
+     * @param completedTools the completed tools value
+     * @param execution the execution value
+     */
     private void rememberCompletedWorkflowTool(Set<String> completedTools, ToolCallExecution execution) {
         if (completedTools == null || execution == null || execution.trace() == null) {
             return;
@@ -728,6 +955,12 @@ public class AgentOrchestrator {
         }
     }
 
+    /**
+     * Performs the completed tools from traces operation.
+     *
+     * @param traces the traces value
+     * @return the operation result
+     */
     private Set<String> completedToolsFromTraces(List<InteractionToolTrace> traces) {
         Set<String> completed = new LinkedHashSet<>();
         if (traces == null || traces.isEmpty()) {
@@ -741,6 +974,18 @@ public class AgentOrchestrator {
         return completed;
     }
 
+    /**
+     * Executes the pending confirmed tool.
+     *
+     * @param query the query value
+     * @param conversationId the conversation id value
+     * @param requestId the request id value
+     * @param userId the user id value
+     * @param tenantId the tenant id value
+     * @param tools the tools value
+     * @param runtimeAttributes the runtime attributes value
+     * @return the operation result
+     */
     @SuppressWarnings("unchecked")
     private ToolCallExecution executePendingConfirmedTool(String query,
                                                           String conversationId,
@@ -779,6 +1024,20 @@ public class AgentOrchestrator {
         );
     }
 
+    /**
+     * Executes the tool call.
+     *
+     * @param toolName the tool name value
+     * @param arguments the arguments value
+     * @param conversationId the conversation id value
+     * @param requestId the request id value
+     * @param userId the user id value
+     * @param tenantId the tenant id value
+     * @param allowedTools the allowed tools value
+     * @param plannerExecutionPlan the planner execution plan value
+     * @param runtimeAttributes the runtime attributes value
+     * @return the operation result
+     */
     private ToolCallExecution executeToolCall(String toolName,
                                               Map<String, Object> arguments,
                                               String conversationId,
@@ -820,6 +1079,14 @@ public class AgentOrchestrator {
         return new ToolCallExecution(trace, observation);
     }
 
+    /**
+     * Builds the tool success observation.
+     *
+     * @param toolName the tool name value
+     * @param output the output value
+     * @param outputText the output text value
+     * @return the built tool success observation
+     */
     private String buildToolSuccessObservation(String toolName, ToolOutput output, String outputText) {
         Object data = output == null ? null : output.getData();
         if (isDocumentSearchToolName(toolName)) {
@@ -885,6 +1152,15 @@ public class AgentOrchestrator {
         return normalizeWebCitationLabels(observation.toString());
     }
 
+    /**
+     * Builds the document search observation.
+     *
+     * @param toolName the tool name value
+     * @param output the output value
+     * @param data the data value
+     * @param outputText the output text value
+     * @return the built document search observation
+     */
     private String buildDocumentSearchObservation(String toolName, ToolOutput output, Object data, String outputText) {
         StringBuilder observation = new StringBuilder("Tool ")
             .append(toolName)
@@ -937,6 +1213,13 @@ public class AgentOrchestrator {
         return observation.toString();
     }
 
+    /**
+     * Builds the tool failure observation.
+     *
+     * @param toolName the tool name value
+     * @param output the output value
+     * @return the built tool failure observation
+     */
     private String buildToolFailureObservation(String toolName, ToolOutput output) {
         String error = firstNonBlank(output.getErrorMessage(), output.getExceptionType());
         if (error == null || error.isBlank()) {
@@ -946,6 +1229,14 @@ public class AgentOrchestrator {
             + ". Evidence from this tool is unavailable; the final answer must explicitly mention this limitation and must not claim successful verification from this tool.";
     }
 
+    /**
+     * Builds the runtime execution plan.
+     *
+     * @param toolName the tool name value
+     * @param arguments the arguments value
+     * @param plannerExecutionPlan the planner execution plan value
+     * @return the built runtime execution plan
+     */
     private Map<String, Object> buildRuntimeExecutionPlan(String toolName,
                                                           Map<String, Object> arguments,
                                                           Map<String, Object> plannerExecutionPlan) {
@@ -966,6 +1257,16 @@ public class AgentOrchestrator {
         return plan;
     }
 
+    /**
+     * Returns whether should require document web verification.
+     *
+     * @param tools the tools value
+     * @param documentSearchTool the document search tool value
+     * @param verificationWebSearchTool the verification web search tool value
+     * @param documentIds the document ids value
+     * @param documentTags the document tags value
+     * @return whether the condition is satisfied
+     */
     private boolean shouldRequireDocumentWebVerification(List<String> tools,
                                                          String documentSearchTool,
                                                          String verificationWebSearchTool,
@@ -978,6 +1279,12 @@ public class AgentOrchestrator {
             && (!documentIds.isEmpty() || !documentTags.isEmpty());
     }
 
+    /**
+     * Resolves the document search tool.
+     *
+     * @param tools the tools value
+     * @return the resolved document search tool
+     */
     private String resolveDocumentSearchTool(List<String> tools) {
         if (tools == null || tools.isEmpty()) {
             return null;
@@ -991,6 +1298,12 @@ public class AgentOrchestrator {
             .orElse(null);
     }
 
+    /**
+     * Resolves the verification web search tool.
+     *
+     * @param tools the tools value
+     * @return the resolved verification web search tool
+     */
     private String resolveVerificationWebSearchTool(List<String> tools) {
         if (tools == null || tools.isEmpty()) {
             return null;
@@ -1004,12 +1317,27 @@ public class AgentOrchestrator {
             .orElse(null);
     }
 
+    /**
+     * Returns whether missing document web verification.
+     *
+     * @param traces the traces value
+     * @param documentSearchTool the document search tool value
+     * @param verificationWebSearchTool the verification web search tool value
+     * @return whether the condition is satisfied
+     */
     private boolean missingDocumentWebVerification(List<InteractionToolTrace> traces,
                                                    String documentSearchTool,
                                                    String verificationWebSearchTool) {
         return !hasToolTrace(traces, documentSearchTool) || !hasToolTrace(traces, verificationWebSearchTool);
     }
 
+    /**
+     * Returns whether has tool trace.
+     *
+     * @param traces the traces value
+     * @param toolName the tool name value
+     * @return whether the condition is satisfied
+     */
     private boolean hasToolTrace(List<InteractionToolTrace> traces, String toolName) {
         if (traces == null || traces.isEmpty() || toolName == null || toolName.isBlank()) {
             return false;
@@ -1018,12 +1346,38 @@ public class AgentOrchestrator {
             .anyMatch(trace -> trace != null && sameToolName(toolName, trace.getToolName()));
     }
 
+    /**
+     * Performs the missing mandatory tools operation.
+     *
+     * @param mandatoryTools the mandatory tools value
+     * @param traces the traces value
+     * @return the operation result
+     */
     private List<String> missingMandatoryTools(List<String> mandatoryTools, List<InteractionToolTrace> traces) {
         return normalizeList(mandatoryTools).stream()
             .filter(toolName -> !hasToolTrace(traces, toolName))
             .toList();
     }
 
+    /**
+     * Runs the configured startup logic.
+     *
+     * @param traces the traces value
+     * @param observations the observations value
+     * @param query the query value
+     * @param conversationId the conversation id value
+     * @param requestId the request id value
+     * @param userId the user id value
+     * @param tenantId the tenant id value
+     * @param tools the tools value
+     * @param documentSearchTool the document search tool value
+     * @param documentIds the document ids value
+     * @param documentTags the document tags value
+     * @param webSearchResultLimit the web search result limit value
+     * @param verificationWebSearchTool the verification web search tool value
+     * @param metadata the metadata value
+     * @param runtimeAttributes the runtime attributes value
+     */
     private void runMissingDocumentWebVerification(List<InteractionToolTrace> traces,
                                                    List<String> observations,
                                                    String query,
@@ -1085,6 +1439,12 @@ public class AgentOrchestrator {
         }
     }
 
+    /**
+     * Returns whether cancellation check.
+     *
+     * @param runtimeAttributes the runtime attributes value
+     * @return whether the condition is satisfied
+     */
     private BooleanSupplier cancellationCheck(Map<String, Object> runtimeAttributes) {
         Object value = runtimeAttributes == null ? null : runtimeAttributes.get("__agentCancellation");
         if (value instanceof BooleanSupplier supplier) {
@@ -1093,12 +1453,23 @@ public class AgentOrchestrator {
         return () -> Thread.currentThread().isInterrupted();
     }
 
+    /**
+     * Performs the check cancelled operation.
+     *
+     * @param cancellationCheck the cancellation check value
+     */
     private void checkCancelled(BooleanSupplier cancellationCheck) {
         if (Thread.currentThread().isInterrupted() || (cancellationCheck != null && cancellationCheck.getAsBoolean())) {
             throw new CancellationException("Agent task cancelled");
         }
     }
 
+    /**
+     * Returns whether is confirmation required.
+     *
+     * @param execution the execution value
+     * @return whether the condition is satisfied
+     */
     private boolean isConfirmationRequired(ToolCallExecution execution) {
         if (execution == null || execution.trace() == null || execution.trace().getRuntimeMetadata() == null) {
             return false;
@@ -1107,6 +1478,14 @@ public class AgentOrchestrator {
         return "confirmation_required".equalsIgnoreCase(String.valueOf(outcome));
     }
 
+    /**
+     * Performs the default tool arguments operation.
+     *
+     * @param toolName the tool name value
+     * @param query the query value
+     * @param webSearchResultLimit the web search result limit value
+     * @return the operation result
+     */
     private Map<String, Object> defaultToolArguments(String toolName, String query, int webSearchResultLimit) {
         if (query == null || query.isBlank()) {
             return Map.of();
@@ -1123,6 +1502,12 @@ public class AgentOrchestrator {
         return Map.of("input", query);
     }
 
+    /**
+     * Performs the extract web citations operation.
+     *
+     * @param data the data value
+     * @return the operation result
+     */
     @SuppressWarnings("unchecked")
     private List<WebCitation> extractWebCitations(Object data) {
         Map<String, Object> root = asMap(data);
@@ -1184,6 +1569,12 @@ public class AgentOrchestrator {
         return citations;
     }
 
+    /**
+     * Performs the extract document evidence operation.
+     *
+     * @param data the data value
+     * @return the operation result
+     */
     private List<DocumentEvidence> extractDocumentEvidence(Object data) {
         Map<String, Object> root = asMap(data);
         if (root.isEmpty()) {
@@ -1229,6 +1620,12 @@ public class AgentOrchestrator {
         return evidence;
     }
 
+    /**
+     * Performs the as map operation.
+     *
+     * @param data the data value
+     * @return the operation result
+     */
     @SuppressWarnings("unchecked")
     private Map<String, Object> asMap(Object data) {
         if (data instanceof Map<?, ?> map) {
@@ -1244,6 +1641,12 @@ public class AgentOrchestrator {
         return Map.of();
     }
 
+    /**
+     * Adds the candidate list.
+     *
+     * @param candidates the candidates value
+     * @param value the value value
+     */
     @SuppressWarnings("unchecked")
     private void addCandidateList(List<Map<String, Object>> candidates, Object value) {
         if (!(value instanceof List<?> items)) {
@@ -1256,14 +1659,32 @@ public class AgentOrchestrator {
         }
     }
 
+    /**
+     * Returns whether is web search tool name.
+     *
+     * @param toolName the tool name value
+     * @return whether the condition is satisfied
+     */
     private boolean isWebSearchToolName(String toolName) {
         return toolName != null && toolName.toLowerCase(Locale.ROOT).contains("web_search");
     }
 
+    /**
+     * Returns whether is document search tool name.
+     *
+     * @param toolName the tool name value
+     * @return whether the condition is satisfied
+     */
     private boolean isDocumentSearchToolName(String toolName) {
         return toolName != null && toolName.toLowerCase(Locale.ROOT).contains("document_search");
     }
 
+    /**
+     * Performs the short text operation.
+     *
+     * @param value the value value
+     * @return the operation result
+     */
     private String shortText(String value) {
         if (value == null || value.isBlank()) {
             return null;
@@ -1272,6 +1693,13 @@ public class AgentOrchestrator {
         return normalized.length() <= 180 ? normalized : normalized.substring(0, 180);
     }
 
+    /**
+     * Performs the short observation text operation.
+     *
+     * @param value the value value
+     * @param maxChars the max chars value
+     * @return the operation result
+     */
     private String shortObservationText(String value, int maxChars) {
         if (value == null || value.isBlank()) {
             return null;
@@ -1281,6 +1709,12 @@ public class AgentOrchestrator {
         return normalized.length() <= limit ? normalized : normalized.substring(0, limit);
     }
 
+    /**
+     * Normalizes the web citation labels.
+     *
+     * @param value the value value
+     * @return the operation result
+     */
     private String normalizeWebCitationLabels(String value) {
         if (value == null || value.isBlank()) {
             return value;
@@ -1288,6 +1722,13 @@ public class AgentOrchestrator {
         return value.replace("[\u7f03\u6226\u3009", "[\u7f51\u9875");
     }
 
+    /**
+     * Resolves the workflow mandatory tools.
+     *
+     * @param tools the tools value
+     * @param runtimeAttributes the runtime attributes value
+     * @return the resolved workflow mandatory tools
+     */
     private List<String> resolveWorkflowMandatoryTools(List<String> tools, Map<String, Object> runtimeAttributes) {
         if (tools == null || tools.isEmpty() || runtimeAttributes == null || runtimeAttributes.isEmpty()) {
             return List.of();
@@ -1341,6 +1782,14 @@ public class AgentOrchestrator {
         return new ArrayList<>(ordered.keySet());
     }
 
+    /**
+     * Resolves the mandatory tool candidates.
+     *
+     * @param tools the tools value
+     * @param requiredToolNames the required tool names value
+     * @param requireBoundToolCall the require bound tool call value
+     * @return the resolved mandatory tool candidates
+     */
     private List<String> resolveMandatoryToolCandidates(List<String> tools,
                                                         List<String> requiredToolNames,
                                                         boolean requireBoundToolCall) {
@@ -1358,6 +1807,14 @@ public class AgentOrchestrator {
         return List.of();
     }
 
+    /**
+     * Performs the with document web verification mandatory tools operation.
+     *
+     * @param mandatoryTools the mandatory tools value
+     * @param documentSearchTool the document search tool value
+     * @param verificationWebSearchTool the verification web search tool value
+     * @return the operation result
+     */
     private List<String> withDocumentWebVerificationMandatoryTools(List<String> mandatoryTools,
                                                                    String documentSearchTool,
                                                                    String verificationWebSearchTool) {
@@ -1372,6 +1829,13 @@ public class AgentOrchestrator {
         return new ArrayList<>(ordered.keySet());
     }
 
+    /**
+     * Normalizes the tool name.
+     *
+     * @param toolName the tool name value
+     * @param availableTools the available tools value
+     * @return the operation result
+     */
     private String normalizeToolName(String toolName, List<String> availableTools) {
         if (toolName == null || toolName.isBlank()) {
             return null;
@@ -1399,6 +1863,12 @@ public class AgentOrchestrator {
             .orElse(trimmed);
     }
 
+    /**
+     * Normalizes the known tool alias.
+     *
+     * @param toolName the tool name value
+     * @return the operation result
+     */
     private String normalizeKnownToolAlias(String toolName) {
         if (toolName == null || toolName.isBlank()) {
             return null;
@@ -1414,16 +1884,36 @@ public class AgentOrchestrator {
         return normalized;
     }
 
+    /**
+     * Returns whether contains tool name.
+     *
+     * @param tools the tools value
+     * @param toolName the tool name value
+     * @return whether the condition is satisfied
+     */
     private boolean containsToolName(List<String> tools, String toolName) {
         return tools != null && tools.stream().anyMatch(candidate -> sameToolName(candidate, toolName));
     }
 
+    /**
+     * Returns whether same tool name.
+     *
+     * @param first the first value
+     * @param second the second value
+     * @return whether the condition is satisfied
+     */
     private boolean sameToolName(String first, String second) {
         String left = toolSemanticKey(first);
         String right = toolSemanticKey(second);
         return left != null && left.equals(right);
     }
 
+    /**
+     * Converts the value to ol semantic key.
+     *
+     * @param toolName the tool name value
+     * @return the converted ol semantic key
+     */
     private String toolSemanticKey(String toolName) {
         if (toolName == null || toolName.isBlank()) {
             return null;
@@ -1438,6 +1928,12 @@ public class AgentOrchestrator {
         return normalized;
     }
 
+    /**
+     * Returns whether is mcp tool.
+     *
+     * @param toolName the tool name value
+     * @return whether the condition is satisfied
+     */
     private boolean isMcpTool(String toolName) {
         if (toolName == null || toolName.isBlank()) {
             return false;
@@ -1457,6 +1953,12 @@ public class AgentOrchestrator {
         return toolName.startsWith("mcp_");
     }
 
+    /**
+     * Normalizes the list.
+     *
+     * @param values the values value
+     * @return the operation result
+     */
     private List<String> normalizeList(List<String> values) {
         if (values == null || values.isEmpty()) {
             return List.of();
@@ -1468,6 +1970,12 @@ public class AgentOrchestrator {
             .toList();
     }
 
+    /**
+     * Performs the string list operation.
+     *
+     * @param value the value value
+     * @return the operation result
+     */
     private List<String> stringList(Object value) {
         if (value instanceof List<?> list) {
             return list.stream()
@@ -1489,10 +1997,22 @@ public class AgentOrchestrator {
         return List.of();
     }
 
+    /**
+     * Normalizes the model name.
+     *
+     * @param modelName the model name value
+     * @return the operation result
+     */
     private String normalizeModelName(String modelName) {
         return modelName == null || modelName.isBlank() ? null : modelName.trim();
     }
 
+    /**
+     * Performs the stringify operation.
+     *
+     * @param data the data value
+     * @return the operation result
+     */
     private String stringify(Object data) {
         if (data == null) {
             return "";
@@ -1507,10 +2027,22 @@ public class AgentOrchestrator {
         }
     }
 
+    /**
+     * Performs the string value operation.
+     *
+     * @param value the value value
+     * @return the operation result
+     */
     private String stringValue(Object value) {
         return value == null ? null : String.valueOf(value);
     }
 
+    /**
+     * Performs the preview operation.
+     *
+     * @param value the value value
+     * @return the operation result
+     */
     private String preview(String value) {
         if (value == null || value.isBlank()) {
             return null;
@@ -1518,6 +2050,12 @@ public class AgentOrchestrator {
         return value.length() <= 180 ? value : value.substring(0, 180);
     }
 
+    /**
+     * Returns whether boolean value.
+     *
+     * @param value the value value
+     * @return whether the condition is satisfied
+     */
     private boolean booleanValue(Object value) {
         if (value instanceof Boolean bool) {
             return bool;
@@ -1525,6 +2063,12 @@ public class AgentOrchestrator {
         return value != null && Boolean.parseBoolean(String.valueOf(value));
     }
 
+    /**
+     * Returns whether boolean object.
+     *
+     * @param value the value value
+     * @return whether the condition is satisfied
+     */
     private Boolean booleanObject(Object value) {
         if (value instanceof Boolean bool) {
             return bool;
@@ -1535,6 +2079,13 @@ public class AgentOrchestrator {
         return Boolean.parseBoolean(String.valueOf(value));
     }
 
+    /**
+     * Performs the first object operation.
+     *
+     * @param values the values value
+     * @param keys the keys value
+     * @return the operation result
+     */
     private Object firstObject(Map<String, Object> values, String... keys) {
         if (values == null || values.isEmpty() || keys == null) {
             return null;
@@ -1548,6 +2099,13 @@ public class AgentOrchestrator {
         return null;
     }
 
+    /**
+     * Performs the first integer operation.
+     *
+     * @param value the value value
+     * @param fallback the fallback value
+     * @return the operation result
+     */
     private int firstInteger(Object value, int fallback) {
         if (value instanceof Number number) {
             return number.intValue();
@@ -1562,10 +2120,24 @@ public class AgentOrchestrator {
         return fallback;
     }
 
+    /**
+     * Performs the first non blank operation.
+     *
+     * @param first the first value
+     * @param second the second value
+     * @return the operation result
+     */
     private String firstNonBlank(String first, String second) {
         return first == null || first.isBlank() ? second : first;
     }
 
+    /**
+     * Resolves the display name.
+     *
+     * @param toolName the tool name value
+     * @param metadata the metadata value
+     * @return the resolved display name
+     */
     private String resolveDisplayName(String toolName, ToolMetadata metadata) {
         if (metadata != null && metadata.getTitle() != null && !metadata.getTitle().isBlank()) {
             return metadata.getTitle().trim();
@@ -1573,6 +2145,12 @@ public class AgentOrchestrator {
         return toolName;
     }
 
+    /**
+     * Resolves the service id.
+     *
+     * @param metadata the metadata value
+     * @return the resolved service id
+     */
     private String resolveServiceId(ToolMetadata metadata) {
         if (metadata == null || metadata.getMetadata() == null) {
             return null;
@@ -1581,6 +2159,12 @@ public class AgentOrchestrator {
         return value == null ? null : String.valueOf(value);
     }
 
+    /**
+     * Resolves the service name.
+     *
+     * @param metadata the metadata value
+     * @return the resolved service name
+     */
     private String resolveServiceName(ToolMetadata metadata) {
         if (metadata == null || metadata.getAuthor() == null || metadata.getAuthor().isBlank()) {
             return null;

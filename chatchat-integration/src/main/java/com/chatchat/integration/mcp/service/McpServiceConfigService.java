@@ -25,22 +25,44 @@ public class McpServiceConfigService {
     private final McpServiceConfigRepository repository;
     private final McpServiceConfigVersionRepository versionRepository;
 
+    /**
+     * Lists the all.
+     *
+     * @return the all list
+     */
     @Transactional(readOnly = true)
     public List<McpServiceConfig> listAll() {
         return repository.findAll().stream().sorted((a, b) -> a.getName().compareToIgnoreCase(b.getName())).toList();
     }
 
+    /**
+     * Lists the enabled.
+     *
+     * @return the enabled list
+     */
     @Transactional(readOnly = true)
     public List<McpServiceConfig> listEnabled() {
         return repository.findByEnabledTrueOrderByNameAsc();
     }
 
+    /**
+     * Returns the by id.
+     *
+     * @param id the id value
+     * @return the by id
+     */
     @Transactional(readOnly = true)
     public McpServiceConfig getById(String id) {
         return repository.findById(id)
             .orElseThrow(() -> new IllegalArgumentException("MCP service config not found: " + id));
     }
 
+    /**
+     * Creates the create.
+     *
+     * @param draft the draft value
+     * @return the created create
+     */
     @Transactional
     public McpServiceConfig create(McpServiceConfig draft) {
         validate(draft);
@@ -49,6 +71,14 @@ public class McpServiceConfigService {
         return saved;
     }
 
+    /**
+     * Performs the upsert imported operation.
+     *
+     * @param id the id value
+     * @param draft the draft value
+     * @param source the source value
+     * @return the operation result
+     */
     @Transactional
     public McpServiceConfig upsertImported(String id, McpServiceConfig draft, String source) {
         if (id == null || id.isBlank()) {
@@ -88,6 +118,13 @@ public class McpServiceConfigService {
         return saved;
     }
 
+    /**
+     * Updates the update.
+     *
+     * @param id the id value
+     * @param draft the draft value
+     * @return the updated update
+     */
     @Transactional
     public McpServiceConfig update(String id, McpServiceConfig draft) {
         McpServiceConfig current = getById(id);
@@ -116,6 +153,13 @@ public class McpServiceConfigService {
         return saved;
     }
 
+    /**
+     * Sets the enabled.
+     *
+     * @param id the id value
+     * @param enabled the enabled value
+     * @return the operation result
+     */
     @Transactional
     public McpServiceConfig setEnabled(String id, boolean enabled) {
         McpServiceConfig current = getById(id);
@@ -125,6 +169,11 @@ public class McpServiceConfigService {
         return saved;
     }
 
+    /**
+     * Deletes the delete.
+     *
+     * @param id the id value
+     */
     @Transactional
     public void delete(String id) {
         if (!repository.existsById(id)) {
@@ -133,6 +182,12 @@ public class McpServiceConfigService {
         repository.deleteById(id);
     }
 
+    /**
+     * Lists the versions.
+     *
+     * @param serviceId the service id value
+     * @return the versions list
+     */
     @Transactional(readOnly = true)
     public List<McpServiceVersionSnapshot> listVersions(String serviceId) {
         if (serviceId == null || serviceId.isBlank()) {
@@ -143,6 +198,13 @@ public class McpServiceConfigService {
             .toList();
     }
 
+    /**
+     * Performs the rollback to version operation.
+     *
+     * @param serviceId the service id value
+     * @param versionId the version id value
+     * @return the operation result
+     */
     @Transactional
     public McpServiceConfig rollbackToVersion(String serviceId, String versionId) {
         if (serviceId == null || serviceId.isBlank()) {
@@ -183,6 +245,11 @@ public class McpServiceConfigService {
         return saved;
     }
 
+    /**
+     * Validates the validate.
+     *
+     * @param config the config value
+     */
     private void validate(McpServiceConfig config) {
         if (config.getName() == null || config.getName().isBlank()) {
             throw new IllegalArgumentException("MCP service name is required");
@@ -224,6 +291,13 @@ public class McpServiceConfigService {
         }
     }
 
+    /**
+     * Performs the default path operation.
+     *
+     * @param value the value value
+     * @param fallback the fallback value
+     * @return the operation result
+     */
     private String defaultPath(String value, String fallback) {
         if (value == null || value.isBlank()) {
             return fallback;
@@ -235,11 +309,23 @@ public class McpServiceConfigService {
         return trimmed.startsWith("/") ? trimmed : "/" + trimmed;
     }
 
+    /**
+     * Returns whether is absolute http url.
+     *
+     * @param value the value value
+     * @return whether the condition is satisfied
+     */
     private boolean isAbsoluteHttpUrl(String value) {
         String lowered = value.toLowerCase();
         return lowered.startsWith("http://") || lowered.startsWith("https://");
     }
 
+    /**
+     * Performs the blank to null operation.
+     *
+     * @param value the value value
+     * @return the operation result
+     */
     private String blankToNull(String value) {
         if (value == null || value.isBlank()) {
             return null;
@@ -247,6 +333,12 @@ public class McpServiceConfigService {
         return value.trim();
     }
 
+    /**
+     * Performs the default protocol operation.
+     *
+     * @param value the value value
+     * @return the operation result
+     */
     private String defaultProtocol(String value) {
         String protocol = blankToNull(value);
         if (protocol == null) {
@@ -266,11 +358,23 @@ public class McpServiceConfigService {
         return normalized;
     }
 
+    /**
+     * Performs the default proxy type operation.
+     *
+     * @param value the value value
+     * @return the operation result
+     */
     private String defaultProxyType(String value) {
         String type = blankToNull(value);
         return type == null ? "http" : type.toLowerCase();
     }
 
+    /**
+     * Normalizes the proxy port.
+     *
+     * @param port the port value
+     * @return the operation result
+     */
     private Integer normalizeProxyPort(Integer port) {
         if (port == null) {
             return null;
@@ -281,6 +385,12 @@ public class McpServiceConfigService {
         return port;
     }
 
+    /**
+     * Performs the snapshot version operation.
+     *
+     * @param source the source value
+     * @param action the action value
+     */
     private void snapshotVersion(McpServiceConfig source, String action) {
         if (source == null || source.getId() == null || source.getId().isBlank()) {
             return;
@@ -310,6 +420,12 @@ public class McpServiceConfigService {
         versionRepository.save(version);
     }
 
+    /**
+     * Converts the value to version snapshot.
+     *
+     * @param entity the entity value
+     * @return the converted version snapshot
+     */
     private McpServiceVersionSnapshot toVersionSnapshot(McpServiceConfigVersion entity) {
         return new McpServiceVersionSnapshot(
             entity.getId(),

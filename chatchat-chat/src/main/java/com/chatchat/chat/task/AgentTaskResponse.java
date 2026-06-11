@@ -16,6 +16,12 @@ public record AgentTaskResponse(
     Instant updateTime
 ) {
 
+    /**
+     * Creates the value from from.
+     *
+     * @param entity the entity value
+     * @return the operation result
+     */
     static AgentTaskResponse from(AgentTaskLatestEntity entity) {
         return new AgentTaskResponse(
             entity.getTaskId(),

@@ -209,6 +209,11 @@ public class BuiltInToolsBootstrap {
         log.info("Web Search tool registered");
     }
 
+    /**
+     * Performs the web search timeout millis operation.
+     *
+     * @return the operation result
+     */
     private long webSearchTimeoutMillis() {
         long perRequestTimeout = Math.max(1000L, webSearchProperties.getTimeoutMs());
         int searchAttempts = webSearchProperties.isFallbackEnabled() ? 3 : 1;
@@ -523,12 +528,23 @@ public class BuiltInToolsBootstrap {
         private static final Pattern SAFE_EXPRESSION_PATTERN =
             Pattern.compile("^[0-9+\\-*/%().\\s]*$");
 
+        /**
+         * Returns the metadata.
+         *
+         * @return the metadata
+         */
         @Override
         public ToolMetadata getMetadata() {
             // Metadata is provided at registration time
             return null;
         }
 
+        /**
+         * Executes the execute.
+         *
+         * @param input the input value
+         * @return the operation result
+         */
         @Override
         public ToolOutput execute(ToolInput input) {
             try {
@@ -603,15 +619,31 @@ public class BuiltInToolsBootstrap {
 
         private final WebSearchToolProperties properties;
 
+        /**
+         * Creates a new BuiltInToolsBootstrap instance.
+         *
+         * @param properties the properties value
+         */
         private WebSearchTool(WebSearchToolProperties properties) {
             this.properties = properties;
         }
 
+        /**
+         * Returns the metadata.
+         *
+         * @return the metadata
+         */
         @Override
         public ToolMetadata getMetadata() {
             return null;
         }
 
+        /**
+         * Executes the execute.
+         *
+         * @param input the input value
+         * @return the operation result
+         */
         @Override
         public ToolOutput execute(ToolInput input) {
             try {
@@ -637,6 +669,14 @@ public class BuiltInToolsBootstrap {
             }
         }
 
+        /**
+         * Performs the perform web search operation.
+         *
+         * @param query the query value
+         * @param numResults the num results value
+         * @return the operation result
+         * @throws Exception if the operation fails
+         */
         private Map<String, Object> performWebSearch(String query, int numResults) throws Exception {
             String provider = properties.getProvider() == null
                 ? "duckduckgo_html"
@@ -669,6 +709,17 @@ public class BuiltInToolsBootstrap {
             throw new IllegalStateException("All web search providers failed: " + String.join("; ", errors));
         }
 
+        /**
+         * Performs the perform web search attempt operation.
+         *
+         * @param provider the provider value
+         * @param endpoint the endpoint value
+         * @param query the query value
+         * @param numResults the num results value
+         * @param previousErrors the previous errors value
+         * @return the operation result
+         * @throws Exception if the operation fails
+         */
         private Map<String, Object> performWebSearchAttempt(String provider,
                                                             String endpoint,
                                                             String query,
@@ -719,6 +770,13 @@ public class BuiltInToolsBootstrap {
             return output;
         }
 
+        /**
+         * Builds the search attempts.
+         *
+         * @param provider the provider value
+         * @param endpoint the endpoint value
+         * @return the built search attempts
+         */
         private List<SearchAttempt> buildSearchAttempts(String provider, String endpoint) {
             List<SearchAttempt> attempts = new ArrayList<>();
             attempts.add(new SearchAttempt(provider, endpoint));
@@ -734,6 +792,12 @@ public class BuiltInToolsBootstrap {
             return attempts;
         }
 
+        /**
+         * Builds the search message.
+         *
+         * @param result the result value
+         * @return the built search message
+         */
         private String buildSearchMessage(Map<String, Object> result) {
             Object referenceUrlsValue = result.get("reference_urls");
             if (!(referenceUrlsValue instanceof List<?> referenceUrls) || referenceUrls.isEmpty()) {
@@ -753,6 +817,13 @@ public class BuiltInToolsBootstrap {
             return message.toString().trim();
         }
 
+        /**
+         * Performs the fetch page excerpts operation.
+         *
+         * @param results the results value
+         * @param query the query value
+         * @return the operation result
+         */
         private List<Map<String, Object>> fetchPageExcerpts(List<Map<String, Object>> results, String query) {
             if (!properties.isFetchPages() || results == null || results.isEmpty()) {
                 return List.of();
@@ -836,6 +907,12 @@ public class BuiltInToolsBootstrap {
             return excerpts;
         }
 
+        /**
+         * Returns whether is fetchable page url.
+         *
+         * @param url the url value
+         * @return whether the condition is satisfied
+         */
         private boolean isFetchablePageUrl(String url) {
             if (url == null || url.isBlank()) {
                 return false;
@@ -854,6 +931,12 @@ public class BuiltInToolsBootstrap {
                 || value.endsWith(".7z"));
         }
 
+        /**
+         * Performs the extract readable text operation.
+         *
+         * @param page the page value
+         * @return the operation result
+         */
         private String extractReadableText(Document page) {
             page.select("script,style,noscript,svg,canvas,iframe,header,footer,nav,aside,form").remove();
             Element main = first(
@@ -865,6 +948,14 @@ public class BuiltInToolsBootstrap {
             return main == null ? "" : main.text().replaceAll("\\s+", " ").trim();
         }
 
+        /**
+         * Builds the text excerpt.
+         *
+         * @param text the text value
+         * @param query the query value
+         * @param maxChars the max chars value
+         * @return the built text excerpt
+         */
         private String buildTextExcerpt(String text, String query, int maxChars) {
             String normalized = text == null ? "" : text.replaceAll("\\s+", " ").trim();
             int limit = Math.max(500, Math.min(8000, maxChars));
@@ -883,6 +974,14 @@ public class BuiltInToolsBootstrap {
             return excerpt;
         }
 
+        /**
+         * Performs the best excerpt start operation.
+         *
+         * @param text the text value
+         * @param query the query value
+         * @param maxChars the max chars value
+         * @return the operation result
+         */
         private int bestExcerptStart(String text, String query, int maxChars) {
             String lowerText = text.toLowerCase(Locale.ROOT);
             for (String term : queryTerms(query)) {
@@ -894,6 +993,12 @@ public class BuiltInToolsBootstrap {
             return 0;
         }
 
+        /**
+         * Queries the terms.
+         *
+         * @param query the query value
+         * @return the operation result
+         */
         private List<String> queryTerms(String query) {
             if (query == null || query.isBlank()) {
                 return List.of();
@@ -908,6 +1013,13 @@ public class BuiltInToolsBootstrap {
             return terms;
         }
 
+        /**
+         * Parses the duck duck go results.
+         *
+         * @param document the document value
+         * @param numResults the num results value
+         * @return the parsed duck duck go results
+         */
         private List<Map<String, Object>> parseDuckDuckGoResults(Document document, int numResults) {
             List<Map<String, Object>> results = new ArrayList<>();
             for (Element block : document.select(".result, .web-result")) {
@@ -957,6 +1069,13 @@ public class BuiltInToolsBootstrap {
             return results;
         }
 
+        /**
+         * Parses the bing results.
+         *
+         * @param document the document value
+         * @param numResults the num results value
+         * @return the parsed bing results
+         */
         private List<Map<String, Object>> parseBingResults(Document document, int numResults) {
             List<Map<String, Object>> results = new ArrayList<>();
             for (Element block : document.select("li.b_algo")) {
@@ -983,6 +1102,12 @@ public class BuiltInToolsBootstrap {
             return results;
         }
 
+        /**
+         * Performs the first operation.
+         *
+         * @param elements the elements value
+         * @return the operation result
+         */
         private Element first(Element... elements) {
             for (Element element : elements) {
                 if (element != null) {
@@ -992,6 +1117,12 @@ public class BuiltInToolsBootstrap {
             return null;
         }
 
+        /**
+         * Normalizes the search url.
+         *
+         * @param href the href value
+         * @return the operation result
+         */
         private String normalizeSearchUrl(String href) {
             if (href == null || href.isBlank()) {
                 return href;
@@ -1016,6 +1147,13 @@ public class BuiltInToolsBootstrap {
             }
         }
 
+        /**
+         * Queries the param.
+         *
+         * @param rawQuery the raw query value
+         * @param name the name value
+         * @return the operation result
+         */
         private String queryParam(String rawQuery, String name) {
             if (rawQuery == null || rawQuery.isBlank()) {
                 return null;
@@ -1032,10 +1170,23 @@ public class BuiltInToolsBootstrap {
             return null;
         }
 
+        /**
+         * Performs the string value operation.
+         *
+         * @param value the value value
+         * @return the operation result
+         */
         private String stringValue(Object value) {
             return value == null ? null : String.valueOf(value);
         }
 
+        /**
+         * Performs the first non blank operation.
+         *
+         * @param first the first value
+         * @param second the second value
+         * @return the operation result
+         */
         private String firstNonBlank(String first, String second) {
             return first == null || first.isBlank() ? second : first;
         }
@@ -1054,6 +1205,12 @@ public class BuiltInToolsBootstrap {
         private final HttpClient httpClient;
         private volatile String documentSearchToken;
 
+        /**
+         * Creates a new BuiltInToolsBootstrap instance.
+         *
+         * @param environment the environment value
+         * @param objectMapper the object mapper value
+         */
         private DocumentSearchTool(Environment environment, ObjectMapper objectMapper) {
             this.environment = environment;
             this.objectMapper = objectMapper;
@@ -1063,11 +1220,22 @@ public class BuiltInToolsBootstrap {
                 .build();
         }
 
+        /**
+         * Returns the metadata.
+         *
+         * @return the metadata
+         */
         @Override
         public ToolMetadata getMetadata() {
             return null;
         }
 
+        /**
+         * Executes the execute.
+         *
+         * @param input the input value
+         * @return the operation result
+         */
         @Override
         @SuppressWarnings("unchecked")
         public ToolOutput execute(ToolInput input) {
@@ -1097,6 +1265,12 @@ public class BuiltInToolsBootstrap {
             }
         }
 
+        /**
+         * Performs the enrich with document content operation.
+         *
+         * @param data the data value
+         * @param query the query value
+         */
         @SuppressWarnings("unchecked")
         private void enrichWithDocumentContent(Object data, String query) {
             if (!(data instanceof Map<?, ?> rawData)) {
@@ -1122,6 +1296,14 @@ public class BuiltInToolsBootstrap {
             page.put("evidenceSnippets", evidenceSnippets);
         }
 
+        /**
+         * Performs the enrich one result operation.
+         *
+         * @param result the result value
+         * @param query the query value
+         * @param excerptChars the excerpt chars value
+         * @param evidenceSnippets the evidence snippets value
+         */
         @SuppressWarnings("unchecked")
         private void enrichOneResult(Map<String, Object> result,
                                      String query,
@@ -1184,6 +1366,15 @@ public class BuiltInToolsBootstrap {
             }
         }
 
+        /**
+         * Sends the document api get.
+         *
+         * @param uri the uri value
+         * @param timeoutMs the timeout ms value
+         * @return the operation result
+         * @throws IOException if the operation fails
+         * @throws InterruptedException if the operation fails
+         */
         private HttpResponse<String> sendDocumentApiGet(URI uri, int timeoutMs) throws IOException, InterruptedException {
             HttpResponse<String> response = httpClient.send(buildDocumentApiGet(uri, timeoutMs), HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
             if (response.statusCode() == 401 && isDocumentSearchAuthEnabled() && configuredDocumentSearchToken().isBlank()) {
@@ -1193,6 +1384,15 @@ public class BuiltInToolsBootstrap {
             return response;
         }
 
+        /**
+         * Builds the document api get.
+         *
+         * @param uri the uri value
+         * @param timeoutMs the timeout ms value
+         * @return the built document api get
+         * @throws IOException if the operation fails
+         * @throws InterruptedException if the operation fails
+         */
         private HttpRequest buildDocumentApiGet(URI uri, int timeoutMs) throws IOException, InterruptedException {
             HttpRequest.Builder builder = HttpRequest.newBuilder(uri)
                 .timeout(Duration.ofMillis(Math.max(1000, timeoutMs)))
@@ -1204,6 +1404,13 @@ public class BuiltInToolsBootstrap {
             return builder.build();
         }
 
+        /**
+         * Resolves the document search token.
+         *
+         * @return the resolved document search token
+         * @throws IOException if the operation fails
+         * @throws InterruptedException if the operation fails
+         */
         private String resolveDocumentSearchToken() throws IOException, InterruptedException {
             if (!isDocumentSearchAuthEnabled()) {
                 return "";
@@ -1226,6 +1433,13 @@ public class BuiltInToolsBootstrap {
             }
         }
 
+        /**
+         * Performs the login for document search token operation.
+         *
+         * @return the operation result
+         * @throws IOException if the operation fails
+         * @throws InterruptedException if the operation fails
+         */
         private String loginForDocumentSearchToken() throws IOException, InterruptedException {
             String username = environment.getProperty("chatchat.tools.document-search.auth.username", "admin");
             String password = environment.getProperty("chatchat.tools.document-search.auth.password", "123456");
@@ -1250,6 +1464,14 @@ public class BuiltInToolsBootstrap {
             return extractLoginToken(loginResponse.body(), loginUri);
         }
 
+        /**
+         * Performs the extract login token operation.
+         *
+         * @param body the body value
+         * @param loginUri the login uri value
+         * @return the operation result
+         * @throws IOException if the operation fails
+         */
         @SuppressWarnings("unchecked")
         private String extractLoginToken(String body, URI loginUri) throws IOException {
             Map<String, Object> payload = objectMapper.readValue(body, Map.class);
@@ -1268,6 +1490,11 @@ public class BuiltInToolsBootstrap {
             return token.trim();
         }
 
+        /**
+         * Builds the document search login uri.
+         *
+         * @return the built document search login uri
+         */
         private URI buildDocumentSearchLoginUri() {
             String loginPath = environment.getProperty(
                 "chatchat.tools.document-search.auth.login-path",
@@ -1284,14 +1511,30 @@ public class BuiltInToolsBootstrap {
             return URI.create(url.toString());
         }
 
+        /**
+         * Returns whether is document search auth enabled.
+         *
+         * @return whether the condition is satisfied
+         */
         private boolean isDocumentSearchAuthEnabled() {
             return environment.getProperty("chatchat.tools.document-search.auth.enabled", Boolean.class, true);
         }
 
+        /**
+         * Performs the configured document search token operation.
+         *
+         * @return the operation result
+         */
         private String configuredDocumentSearchToken() {
             return environment.getProperty("chatchat.tools.document-search.auth.bearer-token", "").trim();
         }
 
+        /**
+         * Performs the matched chunk evidence operation.
+         *
+         * @param result the result value
+         * @return the operation result
+         */
         @SuppressWarnings("unchecked")
         private List<Map<String, Object>> matchedChunkEvidence(Map<String, Object> result) {
             Object chunksValue = result.get("matchedChunks");
@@ -1320,6 +1563,12 @@ public class BuiltInToolsBootstrap {
             return evidence;
         }
 
+        /**
+         * Builds the detail uri.
+         *
+         * @param result the result value
+         * @return the built detail uri
+         */
         private URI buildDetailUri(Map<String, Object> result) {
             String apiBaseUrl = documentSearchApiBaseUrl();
             String detailPath = stringValue(result.get("detailPath"));
@@ -1348,12 +1597,25 @@ public class BuiltInToolsBootstrap {
             return URI.create(url.toString());
         }
 
+        /**
+         * Resolves the excerpt chars.
+         *
+         * @return the resolved excerpt chars
+         */
         private int resolveExcerptChars() {
             int defaultChars = environment.getProperty("chatchat.tools.document-search.default-excerpt-chars", Integer.class, 3000);
             int maxChars = environment.getProperty("chatchat.tools.document-search.max-excerpt-chars", Integer.class, 8000);
             return Math.max(500, Math.min(Math.max(500, maxChars), defaultChars));
         }
 
+        /**
+         * Builds the content excerpt.
+         *
+         * @param content the content value
+         * @param query the query value
+         * @param maxChars the max chars value
+         * @return the built content excerpt
+         */
         private String buildContentExcerpt(String content, String query, int maxChars) {
             String normalized = content == null ? "" : content.replaceAll("\\s+", " ").trim();
             if (normalized.length() <= maxChars) {
@@ -1372,6 +1634,14 @@ public class BuiltInToolsBootstrap {
             return excerpt;
         }
 
+        /**
+         * Performs the best excerpt start operation.
+         *
+         * @param content the content value
+         * @param query the query value
+         * @param maxChars the max chars value
+         * @return the operation result
+         */
         private int bestExcerptStart(String content, String query, int maxChars) {
             String lowerContent = content.toLowerCase(Locale.ROOT);
             for (String term : queryTerms(query)) {
@@ -1383,6 +1653,12 @@ public class BuiltInToolsBootstrap {
             return 0;
         }
 
+        /**
+         * Queries the terms.
+         *
+         * @param query the query value
+         * @return the operation result
+         */
         private List<String> queryTerms(String query) {
             if (query == null || query.isBlank()) {
                 return List.of();
@@ -1397,6 +1673,14 @@ public class BuiltInToolsBootstrap {
             return terms;
         }
 
+        /**
+         * Builds the search uri.
+         *
+         * @param input the input value
+         * @param query the query value
+         * @param limit the limit value
+         * @return the built search uri
+         */
         private URI buildSearchUri(ToolInput input, String query, int limit) {
             String apiBaseUrl = documentSearchApiBaseUrl();
             String searchPath = environment.getProperty("chatchat.tools.document-search.search-path", "/api/v1/search");
@@ -1418,6 +1702,12 @@ public class BuiltInToolsBootstrap {
             return URI.create(url.toString());
         }
 
+        /**
+         * Resolves the limit.
+         *
+         * @param input the input value
+         * @return the resolved limit
+         */
         private int resolveLimit(ToolInput input) {
             Number requested = input.getParameterAsNumber("limit");
             int defaultLimit = environment.getProperty("chatchat.tools.document-search.default-limit", Integer.class, 5);
@@ -1426,10 +1716,21 @@ public class BuiltInToolsBootstrap {
             return Math.max(1, Math.min(Math.max(1, maxLimit), value));
         }
 
+        /**
+         * Performs the document search api base url operation.
+         *
+         * @return the operation result
+         */
         private String documentSearchApiBaseUrl() {
             return environment.getProperty("chatchat.tools.document-search.api-base-url", "http://localhost:8080");
         }
 
+        /**
+         * Performs the join values operation.
+         *
+         * @param value the value value
+         * @return the operation result
+         */
         private String joinValues(Object value) {
             if (value == null) {
                 return "";
@@ -1454,6 +1755,13 @@ public class BuiltInToolsBootstrap {
             return String.valueOf(value).trim();
         }
 
+        /**
+         * Adds the param.
+         *
+         * @param params the params value
+         * @param name the name value
+         * @param value the value value
+         */
         private void addParam(List<String> params, String name, String value) {
             if (value == null || value.isBlank()) {
                 return;
@@ -1461,14 +1769,32 @@ public class BuiltInToolsBootstrap {
             params.add(encode(name) + "=" + encode(value.trim()));
         }
 
+        /**
+         * Performs the encode operation.
+         *
+         * @param value the value value
+         * @return the operation result
+         */
         private String encode(String value) {
             return URLEncoder.encode(value, StandardCharsets.UTF_8);
         }
 
+        /**
+         * Performs the encode path segment operation.
+         *
+         * @param value the value value
+         * @return the operation result
+         */
         private String encodePathSegment(String value) {
             return URLEncoder.encode(value, StandardCharsets.UTF_8).replace("+", "%20");
         }
 
+        /**
+         * Performs the trim trailing slash operation.
+         *
+         * @param value the value value
+         * @return the operation result
+         */
         private String trimTrailingSlash(String value) {
             if (value == null || value.isBlank()) {
                 return "http://localhost:8080";
@@ -1480,10 +1806,23 @@ public class BuiltInToolsBootstrap {
             return text;
         }
 
+        /**
+         * Performs the string value operation.
+         *
+         * @param value the value value
+         * @return the operation result
+         */
         private String stringValue(Object value) {
             return value == null ? null : String.valueOf(value);
         }
 
+        /**
+         * Performs the first non blank operation.
+         *
+         * @param first the first value
+         * @param second the second value
+         * @return the operation result
+         */
         private String firstNonBlank(String first, String second) {
             return first == null || first.isBlank() ? second : first;
         }
@@ -1502,6 +1841,14 @@ public class BuiltInToolsBootstrap {
         private final String applicationJdbcUrl;
         private final ObjectMapper objectMapper;
 
+        /**
+         * Creates a new BuiltInToolsBootstrap instance.
+         *
+         * @param dynamicJdbcDriverLoader the dynamic jdbc driver loader value
+         * @param properties the properties value
+         * @param applicationJdbcUrl the application jdbc url value
+         * @param objectMapper the object mapper value
+         */
         private DatabaseQueryTool(DynamicJdbcDriverLoader dynamicJdbcDriverLoader,
                                   DatabaseToolProperties properties,
                                   String applicationJdbcUrl,
@@ -1512,11 +1859,22 @@ public class BuiltInToolsBootstrap {
             this.objectMapper = objectMapper;
         }
 
+        /**
+         * Returns the metadata.
+         *
+         * @return the metadata
+         */
         @Override
         public ToolMetadata getMetadata() {
             return null;
         }
 
+        /**
+         * Executes the execute.
+         *
+         * @param input the input value
+         * @return the operation result
+         */
         @Override
         public ToolOutput execute(ToolInput input) {
             try {
@@ -1558,6 +1916,12 @@ public class BuiltInToolsBootstrap {
             }
         }
 
+        /**
+         * Resolves the data source.
+         *
+         * @param input the input value
+         * @return the resolved data source
+         */
         private DataSource resolveDataSource(ToolInput input) {
             String jdbcUrl = input.getParameterAsString("jdbc_url", "");
             if (jdbcUrl == null || jdbcUrl.isBlank()) {
@@ -1577,12 +1941,24 @@ public class BuiltInToolsBootstrap {
             );
         }
 
+        /**
+         * Returns whether is application jdbc url.
+         *
+         * @param jdbcUrl the jdbc url value
+         * @return whether the condition is satisfied
+         */
         private boolean isApplicationJdbcUrl(String jdbcUrl) {
             return applicationJdbcUrl != null
                 && !applicationJdbcUrl.isBlank()
                 && applicationJdbcUrl.trim().equalsIgnoreCase(jdbcUrl.trim());
         }
 
+        /**
+         * Validates the read only sql.
+         *
+         * @param sql the sql value
+         * @return the operation result
+         */
         private String validateReadOnlySql(String sql) {
             String cleaned = LINE_COMMENT.matcher(BLOCK_COMMENT.matcher(sql).replaceAll(" ")).replaceAll(" ");
             String normalized = cleaned.trim();
@@ -1608,12 +1984,25 @@ public class BuiltInToolsBootstrap {
             return normalized;
         }
 
+        /**
+         * Resolves the max rows.
+         *
+         * @param input the input value
+         * @return the resolved max rows
+         */
         private int resolveMaxRows(ToolInput input) {
             Number requested = input.getParameterAsNumber("max_rows");
             int value = requested == null ? properties.getDefaultMaxRows() : requested.intValue();
             return Math.max(1, Math.min(properties.getMaxRows(), value));
         }
 
+        /**
+         * Resolves the params.
+         *
+         * @param input the input value
+         * @return the resolved params
+         * @throws Exception if the operation fails
+         */
         @SuppressWarnings("unchecked")
         private Map<String, Object> resolveParams(ToolInput input) throws Exception {
             Object value = input.getParameter("params");
@@ -1636,6 +2025,12 @@ public class BuiltInToolsBootstrap {
             return Map.of();
         }
 
+        /**
+         * Normalizes the row.
+         *
+         * @param row the row value
+         * @return the operation result
+         */
         private Map<String, Object> normalizeRow(Map<String, Object> row) {
             Map<String, Object> normalized = new LinkedHashMap<>();
             for (Map.Entry<String, Object> entry : row.entrySet()) {
@@ -1644,6 +2039,12 @@ public class BuiltInToolsBootstrap {
             return normalized;
         }
 
+        /**
+         * Normalizes the value.
+         *
+         * @param value the value value
+         * @return the operation result
+         */
         private Object normalizeValue(Object value) {
             if (value == null
                 || value instanceof String
@@ -1680,11 +2081,22 @@ public class BuiltInToolsBootstrap {
      */
     private static class FileSystemTool implements ToolRegistry.EnhancedTool {
 
+        /**
+         * Returns the metadata.
+         *
+         * @return the metadata
+         */
         @Override
         public ToolMetadata getMetadata() {
             return null;
         }
 
+        /**
+         * Executes the execute.
+         *
+         * @param input the input value
+         * @return the operation result
+         */
         @Override
         public ToolOutput execute(ToolInput input) {
             try {
@@ -1752,10 +2164,21 @@ public class BuiltInToolsBootstrap {
         private final String expression;
         private int pos = 0;
 
+        /**
+         * Creates a new BuiltInToolsBootstrap instance.
+         *
+         * @param expression the expression value
+         */
         MathExpressionEvaluator(String expression) {
             this.expression = expression;
         }
 
+        /**
+         * Performs the evaluate operation.
+         *
+         * @return the operation result
+         * @throws Exception if the operation fails
+         */
         double evaluate() throws Exception {
             double result = parseExpression();
             if (pos != expression.length()) {
@@ -1764,6 +2187,12 @@ public class BuiltInToolsBootstrap {
             return result;
         }
 
+        /**
+         * Parses the expression.
+         *
+         * @return the parsed expression
+         * @throws Exception if the operation fails
+         */
         private double parseExpression() throws Exception {
             double result = parseTerm();
             while (pos < expression.length() &&
@@ -1775,6 +2204,12 @@ public class BuiltInToolsBootstrap {
             return result;
         }
 
+        /**
+         * Parses the term.
+         *
+         * @return the parsed term
+         * @throws Exception if the operation fails
+         */
         private double parseTerm() throws Exception {
             double result = parseFactor();
             while (pos < expression.length() &&
@@ -1795,6 +2230,12 @@ public class BuiltInToolsBootstrap {
             return result;
         }
 
+        /**
+         * Parses the factor.
+         *
+         * @return the parsed factor
+         * @throws Exception if the operation fails
+         */
         private double parseFactor() throws Exception {
             // Handle power operator (**)
             double result = parseUnary();
@@ -1807,6 +2248,12 @@ public class BuiltInToolsBootstrap {
             return result;
         }
 
+        /**
+         * Parses the unary.
+         *
+         * @return the parsed unary
+         * @throws Exception if the operation fails
+         */
         private double parseUnary() throws Exception {
             if (pos < expression.length() &&
                 (expression.charAt(pos) == '-' || expression.charAt(pos) == '+')) {
@@ -1817,6 +2264,12 @@ public class BuiltInToolsBootstrap {
             return parsePrimary();
         }
 
+        /**
+         * Parses the primary.
+         *
+         * @return the parsed primary
+         * @throws Exception if the operation fails
+         */
         private double parsePrimary() throws Exception {
             // Skip whitespace
             while (pos < expression.length() && Character.isWhitespace(expression.charAt(pos))) {

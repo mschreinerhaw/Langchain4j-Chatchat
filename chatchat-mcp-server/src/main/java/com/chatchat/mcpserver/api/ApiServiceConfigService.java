@@ -27,6 +27,11 @@ public class ApiServiceConfigService {
     private final ToolRegistry toolRegistry;
     private final ObjectMapper objectMapper;
 
+    /**
+     * Lists the all.
+     *
+     * @return the all list
+     */
     @Transactional(readOnly = true)
     public List<ApiServiceConfig> listAll() {
         return repository.findAll().stream()
@@ -34,17 +39,34 @@ public class ApiServiceConfigService {
             .toList();
     }
 
+    /**
+     * Lists the enabled.
+     *
+     * @return the enabled list
+     */
     @Transactional(readOnly = true)
     public List<ApiServiceConfig> listEnabled() {
         return repository.findByEnabledTrueOrderByToolNameAsc();
     }
 
+    /**
+     * Returns the by id.
+     *
+     * @param id the id value
+     * @return the by id
+     */
     @Transactional(readOnly = true)
     public ApiServiceConfig getById(String id) {
         return repository.findById(id)
             .orElseThrow(() -> new IllegalArgumentException("API service config not found: " + id));
     }
 
+    /**
+     * Finds the by tool name.
+     *
+     * @param toolName the tool name value
+     * @return the matching by tool name
+     */
     @Transactional(readOnly = true)
     public Optional<ApiServiceConfig> findByToolName(String toolName) {
         if (toolName == null || toolName.isBlank()) {
@@ -53,12 +75,24 @@ public class ApiServiceConfigService {
         return repository.findByToolNameIgnoreCase(toolName.trim());
     }
 
+    /**
+     * Creates the create.
+     *
+     * @param draft the draft value
+     * @return the created create
+     */
     @Transactional
     public ApiServiceConfig create(ApiServiceConfig draft) {
         validate(draft, null);
         return repository.save(draft);
     }
 
+    /**
+     * Performs the upsert by tool name operation.
+     *
+     * @param draft the draft value
+     * @return the operation result
+     */
     @Transactional
     public ApiServiceConfig upsertByToolName(ApiServiceConfig draft) {
         return repository.findByToolNameIgnoreCase(draft.getToolName())
@@ -66,6 +100,12 @@ public class ApiServiceConfigService {
             .orElseGet(() -> create(draft));
     }
 
+    /**
+     * Returns whether exists by tool name.
+     *
+     * @param toolName the tool name value
+     * @return whether the condition is satisfied
+     */
     @Transactional(readOnly = true)
     public boolean existsByToolName(String toolName) {
         if (toolName == null || toolName.isBlank()) {
@@ -74,6 +114,13 @@ public class ApiServiceConfigService {
         return repository.findByToolNameIgnoreCase(toolName.trim()).isPresent();
     }
 
+    /**
+     * Updates the update.
+     *
+     * @param id the id value
+     * @param draft the draft value
+     * @return the updated update
+     */
     @Transactional
     public ApiServiceConfig update(String id, ApiServiceConfig draft) {
         ApiServiceConfig current = getById(id);
@@ -94,6 +141,13 @@ public class ApiServiceConfigService {
         return repository.save(current);
     }
 
+    /**
+     * Sets the enabled.
+     *
+     * @param id the id value
+     * @param enabled the enabled value
+     * @return the operation result
+     */
     @Transactional
     public ApiServiceConfig setEnabled(String id, boolean enabled) {
         ApiServiceConfig current = getById(id);
@@ -101,11 +155,22 @@ public class ApiServiceConfigService {
         return repository.save(current);
     }
 
+    /**
+     * Deletes the delete.
+     *
+     * @param id the id value
+     */
     @Transactional
     public void delete(String id) {
         repository.deleteById(id);
     }
 
+    /**
+     * Deletes the all.
+     *
+     * @param ids the ids value
+     * @return the operation result
+     */
     @Transactional
     public int deleteAll(List<String> ids) {
         if (ids == null || ids.isEmpty()) {
@@ -124,6 +189,12 @@ public class ApiServiceConfigService {
         return existing.size();
     }
 
+    /**
+     * Validates the validate.
+     *
+     * @param config the config value
+     * @param currentId the current id value
+     */
     private void validate(ApiServiceConfig config, String currentId) {
         if (config.getToolName() == null || config.getToolName().isBlank()) {
             throw new IllegalArgumentException("toolName is required");
@@ -173,6 +244,11 @@ public class ApiServiceConfigService {
         }
     }
 
+    /**
+     * Validates the url template.
+     *
+     * @param urlTemplate the url template value
+     */
     private void validateUrlTemplate(String urlTemplate) {
         String preview = urlTemplate.replaceAll("\\{\\{[^}]+}}", "x").replaceAll("\\{[^}]+}", "x");
         try {
@@ -186,6 +262,13 @@ public class ApiServiceConfigService {
         }
     }
 
+    /**
+     * Normalizes the json object.
+     *
+     * @param json the json value
+     * @param fieldName the field name value
+     * @return the operation result
+     */
     private String normalizeJsonObject(String json, String fieldName) {
         String value = blankToNull(json);
         if (value == null) {
@@ -199,6 +282,12 @@ public class ApiServiceConfigService {
         }
     }
 
+    /**
+     * Performs the blank to null operation.
+     *
+     * @param value the value value
+     * @return the operation result
+     */
     private String blankToNull(String value) {
         if (value == null || value.isBlank()) {
             return null;

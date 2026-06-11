@@ -384,6 +384,15 @@
                       <span>必需</span>
                     </label>
                   </header>
+                  <details class="workflow-tool-description">
+                    <summary>工具说明</summary>
+                    <textarea
+                      :value="workflowToolDescription(step.tool)"
+                      rows="2"
+                      placeholder="说明模型何时调用、输入要求、输出如何使用"
+                      @input="setWorkflowToolDescription(step.tool, $event.target.value)"
+                    ></textarea>
+                  </details>
                   <div class="workflow-step-controls">
                     <label>
                       <span>确认策略</span>
@@ -401,15 +410,33 @@
                   </div>
                   <div v-if="selectedToolNames.length > 1" class="workflow-dependencies">
                     <span>前置依赖</span>
-                    <button
-                      v-for="toolName in selectedToolNames.filter((name) => name !== step.tool)"
-                      :key="`${step.tool}-${toolName}`"
-                      type="button"
-                      :class="{ active: workflowStepDependsOn(step, toolName) }"
-                      @click="toggleWorkflowDependency(step, toolName)"
-                    >
-                      {{ toolName }}
-                    </button>
+                    <div class="workflow-dependency-picker">
+                      <select
+                        value=""
+                        @change="addWorkflowDependency(step, $event.target.value); $event.target.value = ''"
+                      >
+                        <option value="">选择前置依赖</option>
+                        <option
+                          v-for="toolName in availableWorkflowDependencies(step)"
+                          :key="`${step.tool}-${toolName}`"
+                          :value="toolName"
+                        >
+                          {{ toolName }}
+                        </option>
+                      </select>
+                      <div v-if="workflowStepDependencies(step).length" class="workflow-dependency-tags">
+                        <button
+                          v-for="toolName in workflowStepDependencies(step)"
+                          :key="`${step.tool}-${toolName}-dependency`"
+                          type="button"
+                          title="移除前置依赖"
+                          @click="removeWorkflowDependency(step, toolName)"
+                        >
+                          <span>{{ toolName }}</span>
+                          <strong>x</strong>
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </article>

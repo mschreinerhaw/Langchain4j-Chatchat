@@ -10,6 +10,7 @@ import {
   uploadSearchDocument
 } from "../../services/api";
 import "../../styles/pages/chat-assistant.css";
+import { onAgentTaskCancelled } from "../utils/agentTaskEvents";
 
 const EMPTY_RESPONSE = {
   sources: [],
@@ -214,6 +215,7 @@ export default {
       pendingMcpConfirmation: null,
       pendingMcpRequest: null,
       pendingMcpTaskId: "",
+      stopAgentTaskCancelledListener: null,
       confirmationRemember: "",
       uploadForm: defaultUploadForm(),
       documentTypeOptions: [
@@ -282,6 +284,13 @@ export default {
   },
   mounted() {
     this.loadAgents();
+    this.stopAgentTaskCancelledListener = onAgentTaskCancelled(this.handleAgentTaskCancelled);
+  },
+  beforeUnmount() {
+    if (this.stopAgentTaskCancelledListener) {
+      this.stopAgentTaskCancelledListener();
+      this.stopAgentTaskCancelledListener = null;
+    }
   },
   watch: {
     selectedConversation(conversation) {
@@ -644,6 +653,77 @@ export default {
     },
     isActiveRun(context) {
       return !!context && this.activeRunId === context.runId && this.historyId === context.historyId;
+    },
+    findRunContextForTask(task = {}) {
+      const taskId = task?.taskId || "";
+      const sessionId = task?.sessionId || task?.conversationId || "";
+      return Object.values(this.runningContexts).find((context) =>
+        (taskId && context.taskId === taskId)
+        || (sessionId && (context.historyId === sessionId || context.conversationId === sessionId))
+      ) || null;
+    },
+    taskMatchesVisibleConversation(task = {}) {
+      const sessionId = task?.sessionId || task?.conversationId || "";
+      return !!sessionId && (sessionId === this.historyId || sessionId === this.conversationId);
+    },
+    lastUserQuestion(messages = this.messages) {
+      return [...messages].reverse().find((message) => message.role === "user")?.content || "";
+    },
+    markContextCancelled(context, message) {
+      const lastAssistantMessage = [...context.messages].reverse()
+        .find((item) => item.role === "assistant" && (item.streaming || item.status === "waiting" || item.status === "streaming"));
+      if (lastAssistantMessage) {
+        lastAssistantMessage.streaming = false;
+        lastAssistantMessage.status = "cancelled";
+        lastAssistantMessage.content = lastAssistantMessage.content || message;
+      } else {
+        context.messages.push(this.createAssistantMessage({
+          content: message,
+          streaming: false,
+          status: "cancelled"
+        }));
+      }
+      context.status = "cancelled";
+      context.question = context.question || this.lastUserQuestion(context.messages);
+    },
+    async handleAgentTaskCancelled(task = {}) {
+      const taskId = task?.taskId || "";
+      const sessionId = task?.sessionId || task?.conversationId || "";
+      const context = this.findRunContextForTask(task);
+      const previousHistoryId = context?.historyId || "";
+      const pendingMatches = taskId && (this.pendingMcpTaskId === taskId || this.pendingMcpRequest?.taskId === taskId);
+      if (!context && !pendingMatches && !this.taskMatchesVisibleConversation(task)) {
+        return;
+      }
+
+      const targetContext = context || this.createRunContext(this.pendingMcpRequest?.query || task.question || this.lastUserQuestion());
+      targetContext.taskId = taskId || targetContext.taskId || "";
+      targetContext.conversationId = sessionId || targetContext.conversationId || this.conversationId;
+      targetContext.historyId = sessionId || targetContext.historyId || this.historyId;
+      targetContext.question = targetContext.question || task.question || this.lastUserQuestion(targetContext.messages);
+
+      const activeBeforeCancel = this.isActiveRun(targetContext) || this.taskMatchesVisibleConversation(task);
+      this.markContextCancelled(targetContext, task.message || "Agent task cancelled");
+      if (activeBeforeCancel) {
+        this.messages = targetContext.messages;
+        this.conversationStatus = "cancelled";
+        this.errorMessage = "";
+      }
+      this.emitActiveConversationSnapshot(targetContext.question || task.question || "", "cancelled", targetContext);
+      await this.saveHistory(targetContext.question || task.question || "", "cancelled", targetContext);
+
+      if (previousHistoryId) {
+        delete this.runningContexts[previousHistoryId];
+      }
+      delete this.runningContexts[targetContext.historyId];
+      if (pendingMatches) {
+        this.cancelMcpConfirmation();
+      }
+      if (activeBeforeCancel) {
+        this.loading = false;
+        this.activeRunId = "";
+        this.scrollMessages();
+      }
     },
     serializeMessages(messages = []) {
       return messages.map((message) => ({

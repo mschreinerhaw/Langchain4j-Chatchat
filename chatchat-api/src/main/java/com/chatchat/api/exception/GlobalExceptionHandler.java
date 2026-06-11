@@ -66,6 +66,13 @@ public class GlobalExceptionHandler {
         );
     }
 
+    /**
+     * Handles the max upload size exceeded exception.
+     *
+     * @param ex the ex value
+     * @param request the request value
+     * @return the operation result
+     */
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     public ResponseEntity<ApiResponse<Void>> handleMaxUploadSizeExceededException(
             MaxUploadSizeExceededException ex,
@@ -79,6 +86,13 @@ public class GlobalExceptionHandler {
         );
     }
 
+    /**
+     * Handles the no resource found exception.
+     *
+     * @param ex the ex value
+     * @param request the request value
+     * @return the operation result
+     */
     @ExceptionHandler(NoResourceFoundException.class)
     public ResponseEntity<ApiResponse<Void>> handleNoResourceFoundException(
             NoResourceFoundException ex,

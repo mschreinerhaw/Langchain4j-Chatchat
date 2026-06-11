@@ -10,6 +10,11 @@ public class McpTokenGenerator {
     private static final char[] HEX = "0123456789abcdef".toCharArray();
     private final SecureRandom secureRandom = new SecureRandom();
 
+    /**
+     * Performs the generate operation.
+     *
+     * @return the operation result
+     */
     public String generate() {
         byte[] bytes = new byte[12];
         secureRandom.nextBytes(bytes);

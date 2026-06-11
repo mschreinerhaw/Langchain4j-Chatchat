@@ -21,12 +21,22 @@ import java.util.Map;
 @Tag(name = "Health", description = "Application health and status")
 public class HealthController {
 
+    /**
+     * Performs the health operation.
+     *
+     * @return the operation result
+     */
     @GetMapping("/health")
     @Operation(summary = "Get application health status")
     public ApiResponse<HealthStatus> health() {
         return ApiResponse.success(new HealthStatus("UP", "Application is running normally"));
     }
 
+    /**
+     * Performs the status operation.
+     *
+     * @return the operation result
+     */
     @GetMapping("/status")
     @Operation(summary = "Get detailed application status")
     public ApiResponse<Map<String, Object>> status() {

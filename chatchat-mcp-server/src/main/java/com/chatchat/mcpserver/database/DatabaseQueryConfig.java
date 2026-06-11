@@ -67,6 +67,9 @@ public class DatabaseQueryConfig {
     @Column(nullable = false)
     private Instant updatedAt;
 
+    /**
+     * Performs the pre persist operation.
+     */
     @PrePersist
     public void prePersist() {
         if (id == null || id.isBlank()) {
@@ -77,6 +80,9 @@ public class DatabaseQueryConfig {
         updatedAt = now;
     }
 
+    /**
+     * Performs the pre update operation.
+     */
     @PreUpdate
     public void preUpdate() {
         updatedAt = Instant.now();

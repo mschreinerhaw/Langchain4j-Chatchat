@@ -23,6 +23,12 @@ public class DefaultToolRegistry implements ToolRegistry {
     private final Map<String, EnhancedTool> enhancedTools = new ConcurrentHashMap<>();
     private final Map<String, ToolMetadata> toolMetadata = new ConcurrentHashMap<>();
 
+    /**
+     * Registers the tool.
+     *
+     * @param toolName the tool name value
+     * @param tool the tool value
+     */
     @Override
     public void registerTool(String toolName, Tool tool) {
         if (toolName == null || toolName.trim().isEmpty()) {
@@ -36,6 +42,13 @@ public class DefaultToolRegistry implements ToolRegistry {
         simpleTools.put(toolName, tool);
     }
 
+    /**
+     * Registers the tool.
+     *
+     * @param toolName the tool name value
+     * @param metadata the metadata value
+     * @param tool the tool value
+     */
     @Override
     public void registerTool(String toolName, ToolMetadata metadata, EnhancedTool tool) {
         if (toolName == null || toolName.trim().isEmpty()) {
@@ -53,21 +66,45 @@ public class DefaultToolRegistry implements ToolRegistry {
         toolMetadata.put(toolName, metadata);
     }
 
+    /**
+     * Returns the tool.
+     *
+     * @param toolName the tool name value
+     * @return the tool
+     */
     @Override
     public Tool getTool(String toolName) {
         return simpleTools.get(toolName);
     }
 
+    /**
+     * Returns the enhanced tool.
+     *
+     * @param toolName the tool name value
+     * @return the enhanced tool
+     */
     @Override
     public EnhancedTool getEnhancedTool(String toolName) {
         return enhancedTools.get(toolName);
     }
 
+    /**
+     * Returns the tool metadata.
+     *
+     * @param toolName the tool name value
+     * @return the tool metadata
+     */
     @Override
     public ToolMetadata getToolMetadata(String toolName) {
         return toolMetadata.get(toolName);
     }
 
+    /**
+     * Executes the tool.
+     *
+     * @param request the request value
+     * @return the operation result
+     */
     @Override
     public String executeTool(ToolExecutionRequest request) {
         log.debug("Executing tool (LangChain4j request): {}", request.name());
@@ -104,6 +141,13 @@ public class DefaultToolRegistry implements ToolRegistry {
         }
     }
 
+    /**
+     * Executes the enhanced tool.
+     *
+     * @param toolName the tool name value
+     * @param toolInput the tool input value
+     * @return the operation result
+     */
     @Override
     public ToolOutput executeEnhancedTool(String toolName, ToolInput toolInput) {
         log.info("Tool execution started tool={} requestId={} userId={} args={}",
@@ -144,21 +188,42 @@ public class DefaultToolRegistry implements ToolRegistry {
         }
     }
 
+    /**
+     * Returns the all tools.
+     *
+     * @return the all tools
+     */
     @Override
     public List<Tool> getAllTools() {
         return new ArrayList<>(simpleTools.values());
     }
 
+    /**
+     * Returns the all enhanced tools.
+     *
+     * @return the all enhanced tools
+     */
     @Override
     public List<EnhancedTool> getAllEnhancedTools() {
         return new ArrayList<>(enhancedTools.values());
     }
 
+    /**
+     * Returns whether has tool.
+     *
+     * @param toolName the tool name value
+     * @return whether the condition is satisfied
+     */
     @Override
     public boolean hasTool(String toolName) {
         return simpleTools.containsKey(toolName) || enhancedTools.containsKey(toolName);
     }
 
+    /**
+     * Returns the all tool names.
+     *
+     * @return the all tool names
+     */
     @Override
     public Set<String> getAllToolNames() {
         Set<String> names = new LinkedHashSet<>();
@@ -167,6 +232,11 @@ public class DefaultToolRegistry implements ToolRegistry {
         return names;
     }
 
+    /**
+     * Performs the unregister tool operation.
+     *
+     * @param toolName the tool name value
+     */
     @Override
     public void unregisterTool(String toolName) {
         log.info("Unregistering tool: {}", toolName);

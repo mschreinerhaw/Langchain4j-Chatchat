@@ -7,5 +7,10 @@ import java.util.List;
 
 public interface McpServiceConfigRepository extends JpaRepository<McpServiceConfig, String> {
 
+    /**
+     * Finds the by enabled true order by name asc.
+     *
+     * @return the matching by enabled true order by name asc
+     */
     List<McpServiceConfig> findByEnabledTrueOrderByNameAsc();
 }

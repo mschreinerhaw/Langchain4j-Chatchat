@@ -1486,8 +1486,7 @@
   gap: 4px;
 }
 
-.agent-workshop-view .workflow-step-order button,
-.agent-workshop-view .workflow-dependencies button {
+.agent-workshop-view .workflow-step-order button {
   border: 1px solid #dce2ec;
   border-radius: 7px;
   background: #fff;
@@ -1527,6 +1526,25 @@
   white-space: nowrap;
 }
 
+.agent-workshop-view .workflow-tool-description {
+  display: grid;
+  gap: 6px;
+}
+
+.agent-workshop-view .workflow-tool-description summary {
+  width: max-content;
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.agent-workshop-view .workflow-tool-description textarea {
+  width: 100%;
+  min-height: 58px;
+  resize: vertical;
+}
+
 .agent-workshop-view .workflow-step-controls {
   display: grid;
   grid-template-columns: minmax(140px, 0.4fr) minmax(180px, 1fr);
@@ -1534,9 +1552,9 @@
 }
 
 .agent-workshop-view .workflow-dependencies {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
+  display: grid;
+  grid-template-columns: auto minmax(220px, 420px);
+  align-items: start;
   gap: 7px;
 }
 
@@ -1546,21 +1564,47 @@
   font-weight: 800;
 }
 
-.agent-workshop-view .workflow-dependencies button {
-  max-width: 180px;
-  min-height: 28px;
-  overflow: hidden;
-  padding: 0 8px;
+.agent-workshop-view .workflow-dependency-picker {
+  display: grid;
+  gap: 7px;
+}
+
+.agent-workshop-view .workflow-dependency-picker select {
+  width: 100%;
+  padding: 6px 8px;
+  font-size: 12px;
+}
+
+.agent-workshop-view .workflow-dependency-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.agent-workshop-view .workflow-dependency-tags button {
+  display: inline-flex;
+  max-width: 100%;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--surface);
   color: var(--muted);
   font-size: 12px;
+  font-weight: 800;
+}
+
+.agent-workshop-view .workflow-dependency-tags button span {
+  min-width: 0;
+  overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.agent-workshop-view .workflow-dependencies button.active {
-  border-color: rgba(47, 124, 246, 0.42);
-  background: rgba(47, 124, 246, 0.08);
-  color: #2557b8;
+.agent-workshop-view .workflow-dependency-tags button strong {
+  color: var(--text);
+  font-size: 12px;
 }
 
 .agent-workshop-view .routing-settings {
@@ -2338,6 +2382,7 @@
   .agent-workshop-view .workflow-strategy,
   .agent-workshop-view .workflow-step-row,
   .agent-workshop-view .workflow-step-controls,
+  .agent-workshop-view .workflow-dependencies,
   .agent-workshop-view .routing-settings {
     display: grid;
     grid-template-columns: 1fr;

@@ -16,17 +16,34 @@ public class McpServiceRegistryService {
     private final McpServiceRegistrationRepository repository;
     private final McpTokenGenerator tokenGenerator;
 
+    /**
+     * Lists the all.
+     *
+     * @return the all list
+     */
     @Transactional(readOnly = true)
     public List<McpServiceRegistration> listAll() {
         return repository.findAllByOrderByNameAsc();
     }
 
+    /**
+     * Returns the by id.
+     *
+     * @param id the id value
+     * @return the by id
+     */
     @Transactional(readOnly = true)
     public McpServiceRegistration getById(String id) {
         return repository.findById(id)
             .orElseThrow(() -> new IllegalArgumentException("MCP service not found: " + id));
     }
 
+    /**
+     * Returns whether is valid token.
+     *
+     * @param token the token value
+     * @return whether the condition is satisfied
+     */
     @Transactional(readOnly = true)
     public boolean isValidToken(String token) {
         if (token == null || token.isBlank()) {
@@ -38,6 +55,12 @@ public class McpServiceRegistryService {
             .isPresent();
     }
 
+    /**
+     * Creates the create.
+     *
+     * @param draft the draft value
+     * @return the created create
+     */
     @Transactional
     public McpServiceRegistration create(McpServiceRegistration draft) {
         validate(draft);
@@ -47,6 +70,13 @@ public class McpServiceRegistryService {
         return repository.save(draft);
     }
 
+    /**
+     * Updates the update.
+     *
+     * @param id the id value
+     * @param draft the draft value
+     * @return the updated update
+     */
     @Transactional
     public McpServiceRegistration update(String id, McpServiceRegistration draft) {
         McpServiceRegistration current = getById(id);
@@ -61,6 +91,13 @@ public class McpServiceRegistryService {
         return repository.save(current);
     }
 
+    /**
+     * Sets the enabled.
+     *
+     * @param id the id value
+     * @param enabled the enabled value
+     * @return the operation result
+     */
     @Transactional
     public McpServiceRegistration setEnabled(String id, boolean enabled) {
         McpServiceRegistration current = getById(id);
@@ -69,6 +106,12 @@ public class McpServiceRegistryService {
         return repository.save(current);
     }
 
+    /**
+     * Performs the regenerate token operation.
+     *
+     * @param id the id value
+     * @return the operation result
+     */
     @Transactional
     public McpServiceRegistration regenerateToken(String id) {
         McpServiceRegistration current = getById(id);
@@ -76,6 +119,12 @@ public class McpServiceRegistryService {
         return repository.save(current);
     }
 
+    /**
+     * Performs the heartbeat operation.
+     *
+     * @param token the token value
+     * @return the operation result
+     */
     @Transactional
     public McpServiceRegistration heartbeat(String token) {
         McpServiceRegistration current = repository.findByServiceToken(token)
@@ -88,11 +137,21 @@ public class McpServiceRegistryService {
         return repository.save(current);
     }
 
+    /**
+     * Deletes the delete.
+     *
+     * @param id the id value
+     */
     @Transactional
     public void delete(String id) {
         repository.deleteById(id);
     }
 
+    /**
+     * Performs the generate unique token operation.
+     *
+     * @return the operation result
+     */
     public String generateUniqueToken() {
         String token;
         do {
@@ -101,6 +160,11 @@ public class McpServiceRegistryService {
         return token;
     }
 
+    /**
+     * Validates the validate.
+     *
+     * @param service the service value
+     */
     private void validate(McpServiceRegistration service) {
         if (service.getName() == null || service.getName().isBlank()) {
             throw new IllegalArgumentException("name is required");
@@ -118,6 +182,11 @@ public class McpServiceRegistryService {
             .toUpperCase(Locale.ROOT));
     }
 
+    /**
+     * Validates the endpoint.
+     *
+     * @param endpoint the endpoint value
+     */
     private void validateEndpoint(String endpoint) {
         try {
             URI uri = URI.create(endpoint);
@@ -130,6 +199,12 @@ public class McpServiceRegistryService {
         }
     }
 
+    /**
+     * Normalizes the token.
+     *
+     * @param token the token value
+     * @return the operation result
+     */
     private String normalizeToken(String token) {
         if (token == null || token.isBlank()) {
             return null;
@@ -137,6 +212,13 @@ public class McpServiceRegistryService {
         return token.trim();
     }
 
+    /**
+     * Performs the default text operation.
+     *
+     * @param value the value value
+     * @param fallback the fallback value
+     * @return the operation result
+     */
     private String defaultText(String value, String fallback) {
         if (value == null || value.isBlank()) {
             return fallback;

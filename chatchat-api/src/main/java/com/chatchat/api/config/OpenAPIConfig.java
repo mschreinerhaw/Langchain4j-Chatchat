@@ -13,6 +13,11 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class OpenAPIConfig {
 
+    /**
+     * Performs the custom open api operation.
+     *
+     * @return the operation result
+     */
     @Bean
     public OpenAPI customOpenAPI() {
         return new OpenAPI()

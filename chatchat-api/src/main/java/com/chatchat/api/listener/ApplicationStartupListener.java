@@ -19,6 +19,9 @@ public class ApplicationStartupListener {
     private final McpToolRegistryBridge mcpToolRegistryBridge;
     private final AgentTaskService agentTaskService;
 
+    /**
+     * Performs the on application ready operation.
+     */
     @EventListener(ApplicationReadyEvent.class)
     public void onApplicationReady() {
         log.info("============================================");

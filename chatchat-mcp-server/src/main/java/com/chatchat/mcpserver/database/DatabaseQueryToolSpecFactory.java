@@ -23,6 +23,12 @@ public class DatabaseQueryToolSpecFactory {
     private final ObjectMapper objectMapper;
     private final AgentRuntimeGovernanceFactory governanceFactory;
 
+    /**
+     * Converts the value to tool specification.
+     *
+     * @param config the config value
+     * @return the converted tool specification
+     */
     public McpServerFeatures.SyncToolSpecification toToolSpecification(DatabaseQueryConfig config) {
         McpSchema.Tool tool = McpSchema.Tool.builder()
             .name(config.getToolName())
@@ -44,6 +50,12 @@ public class DatabaseQueryToolSpecFactory {
             .build();
     }
 
+    /**
+     * Converts the value to input schema.
+     *
+     * @param schemaJson the schema json value
+     * @return the converted input schema
+     */
     private McpSchema.JsonSchema toInputSchema(String schemaJson) {
         if (schemaJson == null || schemaJson.isBlank()) {
             return new McpSchema.JsonSchema("object", Map.of(), List.of(), true, null, null);
@@ -62,6 +74,12 @@ public class DatabaseQueryToolSpecFactory {
         }
     }
 
+    /**
+     * Converts the value to call tool result.
+     *
+     * @param output the output value
+     * @return the converted call tool result
+     */
     private McpSchema.CallToolResult toCallToolResult(ToolOutput output) {
         Object structured = output.getData();
         String text = output.isSuccess()
@@ -74,6 +92,12 @@ public class DatabaseQueryToolSpecFactory {
             .build();
     }
 
+    /**
+     * Reads the map.
+     *
+     * @param value the value value
+     * @return the operation result
+     */
     @SuppressWarnings("unchecked")
     private Map<String, Object> readMap(Object value) {
         if (value instanceof Map<?, ?> map) {
@@ -82,6 +106,12 @@ public class DatabaseQueryToolSpecFactory {
         return Map.of();
     }
 
+    /**
+     * Reads the string list.
+     *
+     * @param value the value value
+     * @return the operation result
+     */
     private List<String> readStringList(Object value) {
         if (value instanceof List<?> list) {
             return list.stream().map(String::valueOf).toList();
@@ -89,6 +119,12 @@ public class DatabaseQueryToolSpecFactory {
         return List.of();
     }
 
+    /**
+     * Performs the summarize data operation.
+     *
+     * @param data the data value
+     * @return the operation result
+     */
     private String summarizeData(Object data) {
         if (data == null) {
             return "";
@@ -107,6 +143,12 @@ public class DatabaseQueryToolSpecFactory {
         return String.valueOf(data);
     }
 
+    /**
+     * Performs the argument keys operation.
+     *
+     * @param arguments the arguments value
+     * @return the operation result
+     */
     private List<String> argumentKeys(Map<String, Object> arguments) {
         if (arguments == null || arguments.isEmpty()) {
             return List.of();
@@ -117,6 +159,14 @@ public class DatabaseQueryToolSpecFactory {
             .toList();
     }
 
+    /**
+     * Performs the with legacy id operation.
+     *
+     * @param meta the meta value
+     * @param key the key value
+     * @param value the value value
+     * @return the operation result
+     */
     private Map<String, Object> withLegacyId(Map<String, Object> meta, String key, String value) {
         Map<String, Object> values = new LinkedHashMap<>(meta == null ? Map.of() : meta);
         values.put(key, value);

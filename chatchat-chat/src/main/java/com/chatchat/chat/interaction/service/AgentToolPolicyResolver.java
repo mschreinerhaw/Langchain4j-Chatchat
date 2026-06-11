@@ -38,6 +38,13 @@ public class AgentToolPolicyResolver {
     private final SkillCatalogService skillCatalogService;
     private final McpToolRegistryBridge mcpToolRegistryBridge;
 
+    /**
+     * Resolves the resolve.
+     *
+     * @param request the request value
+     * @param skill the skill value
+     * @return the resolved resolve
+     */
     public ToolPolicy resolve(InteractionRequest request, SkillDefinition skill) {
         List<String> availableTools = request.getAvailableTools();
         if (availableTools == null || availableTools.isEmpty()) {
@@ -79,6 +86,12 @@ public class AgentToolPolicyResolver {
         );
     }
 
+    /**
+     * Performs the discover default tools operation.
+     *
+     * @param skillId the skill id value
+     * @return the operation result
+     */
     private List<String> discoverDefaultTools(String skillId) {
         Map<String, List<String>> mcpToolsByServiceId = new LinkedHashMap<>();
         mcpToolRegistryBridge.listRegisteredTools().forEach(tool ->
@@ -88,6 +101,11 @@ public class AgentToolPolicyResolver {
         return skillCatalogService.resolveTools(skillId, agentVisibleToolNames(), mcpToolsByServiceId);
     }
 
+    /**
+     * Performs the agent visible tool names operation.
+     *
+     * @return the operation result
+     */
     private List<String> agentVisibleToolNames() {
         return toolRegistry.getAllToolNames().stream()
             .filter(this::isAgentVisibleTool)
@@ -95,6 +113,12 @@ public class AgentToolPolicyResolver {
             .toList();
     }
 
+    /**
+     * Returns whether is agent visible tool.
+     *
+     * @param toolName the tool name value
+     * @return whether the condition is satisfied
+     */
     private boolean isAgentVisibleTool(String toolName) {
         if (toolName == null || toolName.isBlank()) {
             return false;
@@ -103,10 +127,23 @@ public class AgentToolPolicyResolver {
         return metadata == null || (metadata.isAgentCompatible() && metadata.isUserVisible());
     }
 
+    /**
+     * Returns whether is document workflow requested.
+     *
+     * @param request the request value
+     * @param skill the skill value
+     * @return whether the condition is satisfied
+     */
     private boolean isDocumentWorkflowRequested(InteractionRequest request, SkillDefinition skill) {
         return isIntentRequested(request, DOCUMENT_WORKFLOW_INPUT) || hasDocumentScope(skill);
     }
 
+    /**
+     * Returns whether has document scope.
+     *
+     * @param skill the skill value
+     * @return whether the condition is satisfied
+     */
     private boolean hasDocumentScope(SkillDefinition skill) {
         if (skill == null) {
             return false;
@@ -115,6 +152,13 @@ public class AgentToolPolicyResolver {
             || (skill.boundDocumentTags() != null && skill.boundDocumentTags().stream().anyMatch(this::hasText));
     }
 
+    /**
+     * Performs the with available tool operation.
+     *
+     * @param availableTools the available tools value
+     * @param toolName the tool name value
+     * @return the operation result
+     */
     private List<String> withAvailableTool(List<String> availableTools, String toolName) {
         List<String> normalized = normalizeToolNames(availableTools);
         if (!isAvailableTool(normalized, toolName) && toolRegistry.hasTool(toolName)) {
@@ -125,16 +169,36 @@ public class AgentToolPolicyResolver {
         return normalized;
     }
 
+    /**
+     * Returns whether is available tool.
+     *
+     * @param availableTools the available tools value
+     * @param toolName the tool name value
+     * @return whether the condition is satisfied
+     */
     private boolean isAvailableTool(List<String> availableTools, String toolName) {
         return availableTools != null && availableTools.contains(toolName);
     }
 
+    /**
+     * Resolves the requested intents.
+     *
+     * @param request the request value
+     * @return the resolved requested intents
+     */
     private List<ToolIntentSpec> resolveRequestedIntents(InteractionRequest request) {
         return MCP_TOOL_INTENTS.stream()
             .filter(spec -> isIntentRequested(request, spec.inputKey()))
             .toList();
     }
 
+    /**
+     * Resolves the tool activations.
+     *
+     * @param requestedIntents the requested intents value
+     * @param skill the skill value
+     * @return the resolved tool activations
+     */
     private List<ToolActivation> resolveToolActivations(List<ToolIntentSpec> requestedIntents, SkillDefinition skill) {
         if (requestedIntents == null || requestedIntents.isEmpty()) {
             return List.of();
@@ -153,6 +217,12 @@ public class AgentToolPolicyResolver {
         return activations;
     }
 
+    /**
+     * Resolves the mcp tool.
+     *
+     * @param spec the spec value
+     * @return the resolved mcp tool
+     */
     private List<String> resolveMcpTool(ToolIntentSpec spec) {
         return mcpToolRegistryBridge.listRegisteredTools().stream()
             .filter(tool -> matchesMcpToolIntent(tool, spec))
@@ -162,6 +232,13 @@ public class AgentToolPolicyResolver {
             .toList();
     }
 
+    /**
+     * Returns whether matches mcp tool intent.
+     *
+     * @param tool the tool value
+     * @param spec the spec value
+     * @return whether the condition is satisfied
+     */
     private boolean matchesMcpToolIntent(McpToolRegistryBridge.RegisteredMcpTool tool, ToolIntentSpec spec) {
         if (tool == null || spec == null) {
             return false;
@@ -175,6 +252,13 @@ public class AgentToolPolicyResolver {
             && localToolName.toLowerCase(Locale.ROOT).endsWith(spec.localToolNameSuffix());
     }
 
+    /**
+     * Returns whether is tool enabled for skill.
+     *
+     * @param skill the skill value
+     * @param toolName the tool name value
+     * @return whether the condition is satisfied
+     */
     private boolean isToolEnabledForSkill(SkillDefinition skill, String toolName) {
         if (skill == null || toolName == null || toolName.isBlank()) {
             return false;
@@ -189,6 +273,14 @@ public class AgentToolPolicyResolver {
                 && toolName.equals(config.toolName()));
     }
 
+    /**
+     * Performs the merge requested tools operation.
+     *
+     * @param tools the tools value
+     * @param requiredTools the required tools value
+     * @param requestedIntents the requested intents value
+     * @return the operation result
+     */
     private List<String> mergeRequestedTools(List<String> tools,
                                              List<String> requiredTools,
                                              List<ToolIntentSpec> requestedIntents) {
@@ -213,6 +305,13 @@ public class AgentToolPolicyResolver {
         return new ArrayList<>(merged);
     }
 
+    /**
+     * Returns whether is intent requested.
+     *
+     * @param request the request value
+     * @param inputKey the input key value
+     * @return whether the condition is satisfied
+     */
     private boolean isIntentRequested(InteractionRequest request, String inputKey) {
         if (request == null || request.getToolInput() == null) {
             return false;
@@ -224,6 +323,15 @@ public class AgentToolPolicyResolver {
         return value != null && Boolean.parseBoolean(String.valueOf(value));
     }
 
+    /**
+     * Performs the select relevant tools operation.
+     *
+     * @param request the request value
+     * @param skill the skill value
+     * @param availableTools the available tools value
+     * @param requiredTools the required tools value
+     * @return the operation result
+     */
     private ToolSelection selectRelevantTools(InteractionRequest request,
                                               SkillDefinition skill,
                                               List<String> availableTools,
@@ -287,6 +395,12 @@ public class AgentToolPolicyResolver {
         return new ToolSelection(new ArrayList<>(ordered), selectedCandidates, skipped);
     }
 
+    /**
+     * Resolves the max relevant mcp tools.
+     *
+     * @param skill the skill value
+     * @return the resolved max relevant mcp tools
+     */
     private int resolveMaxRelevantMcpTools(SkillDefinition skill) {
         if (skill == null || skill.routingSettings() == null || skill.routingSettings().maxRelevantMcpTools() == null) {
             return DEFAULT_MAX_RELEVANT_MCP_TOOLS;
@@ -294,6 +408,13 @@ public class AgentToolPolicyResolver {
         return Math.max(1, Math.min(MAX_RELEVANT_MCP_TOOLS_LIMIT, skill.routingSettings().maxRelevantMcpTools()));
     }
 
+    /**
+     * Performs the score tool for query operation.
+     *
+     * @param toolName the tool name value
+     * @param query the query value
+     * @return the operation result
+     */
     private int scoreToolForQuery(String toolName, String query) {
         List<String> terms = queryTerms(query);
         if (terms.isEmpty()) {
@@ -316,6 +437,12 @@ public class AgentToolPolicyResolver {
         return score;
     }
 
+    /**
+     * Searches the able tool text.
+     *
+     * @param toolName the tool name value
+     * @return the operation result
+     */
     private String searchableToolText(String toolName) {
         StringBuilder text = new StringBuilder();
         appendSearchText(text, toolName);
@@ -334,6 +461,12 @@ public class AgentToolPolicyResolver {
         return normalizeSearchText(text.toString());
     }
 
+    /**
+     * Appends the search text.
+     *
+     * @param text the text value
+     * @param value the value value
+     */
     private void appendSearchText(StringBuilder text, Object value) {
         if (value == null) {
             return;
@@ -347,6 +480,12 @@ public class AgentToolPolicyResolver {
         text.append(' ').append(value);
     }
 
+    /**
+     * Queries the terms.
+     *
+     * @param query the query value
+     * @return the operation result
+     */
     private List<String> queryTerms(String query) {
         String normalized = normalizeSearchText(query);
         if (normalized.isBlank()) {
@@ -366,6 +505,12 @@ public class AgentToolPolicyResolver {
         return new ArrayList<>(terms);
     }
 
+    /**
+     * Returns whether contains cjk.
+     *
+     * @param value the value value
+     * @return whether the condition is satisfied
+     */
     private boolean containsCjk(String value) {
         if (value == null) {
             return false;
@@ -379,14 +524,32 @@ public class AgentToolPolicyResolver {
         return false;
     }
 
+    /**
+     * Normalizes the search text.
+     *
+     * @param value the value value
+     * @return the operation result
+     */
     private String normalizeSearchText(String value) {
         return value == null ? "" : value.toLowerCase(Locale.ROOT).replaceAll("\\s+", " ").trim();
     }
 
+    /**
+     * Returns whether has text.
+     *
+     * @param value the value value
+     * @return whether the condition is satisfied
+     */
     private boolean hasText(String value) {
         return value != null && !value.isBlank();
     }
 
+    /**
+     * Normalizes the tool names.
+     *
+     * @param tools the tools value
+     * @return the operation result
+     */
     private List<String> normalizeToolNames(List<String> tools) {
         if (tools == null || tools.isEmpty()) {
             return List.of();
@@ -398,12 +561,25 @@ public class AgentToolPolicyResolver {
             .toList();
     }
 
+    /**
+     * Returns whether is mcp tool name.
+     *
+     * @param toolName the tool name value
+     * @param registeredMcpToolNames the registered mcp tool names value
+     * @return whether the condition is satisfied
+     */
     private boolean isMcpToolName(String toolName, Set<String> registeredMcpToolNames) {
         return toolName != null
             && (toolName.startsWith("mcp_")
             || (registeredMcpToolNames != null && registeredMcpToolNames.contains(toolName)));
     }
 
+    /**
+     * Returns whether has mcp binding.
+     *
+     * @param skill the skill value
+     * @return whether the condition is satisfied
+     */
     private boolean hasMcpBinding(SkillDefinition skill) {
         if (skill == null) {
             return false;

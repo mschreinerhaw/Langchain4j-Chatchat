@@ -47,6 +47,9 @@ public class ChatMessageIndexEntity {
     @Column(name = "rocks_key", length = 512, nullable = false)
     private String rocksKey;
 
+    /**
+     * Performs the on create operation.
+     */
     @PrePersist
     public void onCreate() {
         if (messageId == null || messageId.isBlank()) {

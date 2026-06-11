@@ -14,6 +14,11 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @EnableScheduling
 public class ChatChatMcpServerApplication {
 
+    /**
+     * Performs the main operation.
+     *
+     * @param args the args value
+     */
     public static void main(String[] args) {
         SpringApplication.run(ChatChatMcpServerApplication.class, args);
     }

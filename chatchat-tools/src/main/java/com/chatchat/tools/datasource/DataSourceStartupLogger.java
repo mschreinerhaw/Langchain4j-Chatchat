@@ -23,6 +23,11 @@ public class DataSourceStartupLogger implements ApplicationRunner {
 
     private final ObjectProvider<DataSource> dataSourceProvider;
 
+    /**
+     * Runs the configured startup logic.
+     *
+     * @param args the args value
+     */
     @Override
     public void run(ApplicationArguments args) {
         DataSource dataSource = dataSourceProvider.getIfAvailable();
@@ -64,10 +69,22 @@ public class DataSourceStartupLogger implements ApplicationRunner {
         }
     }
 
+    /**
+     * Performs the safe operation.
+     *
+     * @param value the value value
+     * @return the operation result
+     */
     private String safe(String value) {
         return value == null || value.isBlank() ? "unknown" : value;
     }
 
+    /**
+     * Returns whether isolation name.
+     *
+     * @param isolation the isolation value
+     * @return whether the condition is satisfied
+     */
     private String isolationName(int isolation) {
         return switch (isolation) {
             case Connection.TRANSACTION_NONE -> "NONE";

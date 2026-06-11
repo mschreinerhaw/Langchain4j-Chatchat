@@ -27,6 +27,12 @@ public class AdminAuthFilter extends OncePerRequestFilter {
     private final AdminAuthService authService;
     private final ObjectMapper objectMapper;
 
+    /**
+     * Returns whether should not filter.
+     *
+     * @param request the request value
+     * @return whether the condition is satisfied
+     */
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String path = request.getRequestURI().substring(request.getContextPath().length());
@@ -36,6 +42,15 @@ public class AdminAuthFilter extends OncePerRequestFilter {
             || HEARTBEAT_PATH.equals(path);
     }
 
+    /**
+     * Performs the do filter internal operation.
+     *
+     * @param request the request value
+     * @param response the response value
+     * @param filterChain the filter chain value
+     * @throws ServletException if the operation fails
+     * @throws IOException if the operation fails
+     */
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain)
         throws ServletException, IOException {
@@ -55,6 +70,12 @@ public class AdminAuthFilter extends OncePerRequestFilter {
         ));
     }
 
+    /**
+     * Resolves the bearer token.
+     *
+     * @param authorization the authorization value
+     * @return the resolved bearer token
+     */
     private String resolveBearerToken(String authorization) {
         if (authorization == null || !authorization.regionMatches(true, 0, BEARER_PREFIX, 0, BEARER_PREFIX.length())) {
             return null;

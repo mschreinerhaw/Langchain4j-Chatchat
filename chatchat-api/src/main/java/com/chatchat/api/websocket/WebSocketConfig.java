@@ -19,6 +19,11 @@ public class WebSocketConfig implements WebSocketConfigurer {
 
     private final ChatWebSocketHandler chatWebSocketHandler;
 
+    /**
+     * Registers the web socket handlers.
+     *
+     * @param registry the registry value
+     */
     @Override
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
         log.info("Registering WebSocket handlers");

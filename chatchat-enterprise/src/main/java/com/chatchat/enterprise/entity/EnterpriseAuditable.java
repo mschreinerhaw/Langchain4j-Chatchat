@@ -26,6 +26,9 @@ public abstract class EnterpriseAuditable {
     @Column(nullable = false)
     protected Instant updatedAt;
 
+    /**
+     * Performs the on create operation.
+     */
     @PrePersist
     public void onCreate() {
         if (id == null || id.isBlank()) {
@@ -38,6 +41,9 @@ public abstract class EnterpriseAuditable {
         updatedAt = now;
     }
 
+    /**
+     * Performs the on update operation.
+     */
     @PreUpdate
     public void onUpdate() {
         updatedAt = Instant.now();

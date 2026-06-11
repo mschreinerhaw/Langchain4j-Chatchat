@@ -18,22 +18,46 @@ public class AdminAuthController {
 
     private final AdminAuthService authService;
 
+    /**
+     * Performs the login operation.
+     *
+     * @param request the request value
+     * @return the operation result
+     */
     @PostMapping("/login")
     public ApiResponse<AdminAuthService.LoginResult> login(@RequestBody LoginRequest request) {
         return ApiResponse.success(authService.login(request.username(), request.password()), "Login success");
     }
 
+    /**
+     * Performs the logout operation.
+     *
+     * @param request the request value
+     * @return the operation result
+     */
     @PostMapping("/logout")
     public ApiResponse<Map<String, Object>> logout(HttpServletRequest request) {
         authService.logout(resolveBearerToken(request));
         return ApiResponse.success(Map.of("loggedOut", true), "Logout success");
     }
 
+    /**
+     * Performs the me operation.
+     *
+     * @param request the request value
+     * @return the operation result
+     */
     @GetMapping("/me")
     public ApiResponse<Map<String, Object>> me(HttpServletRequest request) {
         return ApiResponse.success(Map.of("authenticated", authService.isValid(resolveBearerToken(request))));
     }
 
+    /**
+     * Resolves the bearer token.
+     *
+     * @param request the request value
+     * @return the resolved bearer token
+     */
     private String resolveBearerToken(HttpServletRequest request) {
         String authorization = request.getHeader("Authorization");
         if (authorization == null || authorization.isBlank()) {

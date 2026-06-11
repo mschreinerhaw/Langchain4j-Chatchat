@@ -21,11 +21,23 @@ public class LlmChatModeHandler implements InteractionModeHandler {
 
     private final ChatModel chatLanguageModel;
 
+    /**
+     * Performs the mode operation.
+     *
+     * @return the operation result
+     */
     @Override
     public InteractionMode mode() {
         return InteractionMode.LLM_CHAT;
     }
 
+    /**
+     * Handles the handle.
+     *
+     * @param request the request value
+     * @param context the context value
+     * @return the operation result
+     */
     @Override
     public InteractionResponse handle(InteractionRequest request, InteractionContext context) {
         String prompt = buildPrompt(request, context);
@@ -40,6 +52,13 @@ public class LlmChatModeHandler implements InteractionModeHandler {
             .build();
     }
 
+    /**
+     * Builds the prompt.
+     *
+     * @param request the request value
+     * @param context the context value
+     * @return the built prompt
+     */
     private String buildPrompt(InteractionRequest request, InteractionContext context) {
         StringBuilder builder = new StringBuilder();
         if (request.getSystemPrompt() != null && !request.getSystemPrompt().isBlank()) {

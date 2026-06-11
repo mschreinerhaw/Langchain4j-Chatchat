@@ -22,6 +22,14 @@ public class AgentRuntimeGovernanceFactory {
 
     private final ObjectMapper objectMapper;
 
+    /**
+     * Performs the meta for tool metadata operation.
+     *
+     * @param source the source value
+     * @param sourceId the source id value
+     * @param metadata the metadata value
+     * @return the operation result
+     */
     public Map<String, Object> metaForToolMetadata(String source, String sourceId, ToolMetadata metadata) {
         Map<String, Object> governance = defaultGovernance(
             firstText(metadata == null ? null : metadata.getCategory(), source),
@@ -44,6 +52,12 @@ public class AgentRuntimeGovernanceFactory {
         return meta;
     }
 
+    /**
+     * Performs the meta for api operation.
+     *
+     * @param config the config value
+     * @return the operation result
+     */
     public Map<String, Object> metaForApi(ApiServiceConfig config) {
         String operationType = operationTypeForMethod(config == null ? null : config.getMethod());
         String riskLevel = "read".equals(operationType) ? "medium" : "high";
@@ -58,6 +72,12 @@ public class AgentRuntimeGovernanceFactory {
         return toMeta("external_api", config == null ? null : config.getId(), governance);
     }
 
+    /**
+     * Performs the meta for database query operation.
+     *
+     * @param config the config value
+     * @return the operation result
+     */
     public Map<String, Object> metaForDatabaseQuery(DatabaseQueryConfig config) {
         Map<String, Object> governance = defaultGovernance(
             "database_query",
@@ -75,6 +95,14 @@ public class AgentRuntimeGovernanceFactory {
         return toMeta("database_query_config", config == null ? null : config.getId(), governance);
     }
 
+    /**
+     * Converts the value to meta.
+     *
+     * @param source the source value
+     * @param sourceId the source id value
+     * @param governance the governance value
+     * @return the converted meta
+     */
     public Map<String, Object> toMeta(String source, String sourceId, Map<String, Object> governance) {
         Map<String, Object> normalized = normalizeGovernance(governance);
         Map<String, Object> meta = new LinkedHashMap<>();
@@ -104,6 +132,16 @@ public class AgentRuntimeGovernanceFactory {
         return meta;
     }
 
+    /**
+     * Performs the default governance operation.
+     *
+     * @param category the category value
+     * @param operationType the operation type value
+     * @param riskLevel the risk level value
+     * @param dataScope the data scope value
+     * @param userVisible the user visible value
+     * @return the operation result
+     */
     private Map<String, Object> defaultGovernance(String category,
                                                   String operationType,
                                                   String riskLevel,
@@ -137,6 +175,12 @@ public class AgentRuntimeGovernanceFactory {
         return governance;
     }
 
+    /**
+     * Normalizes the governance.
+     *
+     * @param governance the governance value
+     * @return the operation result
+     */
     private Map<String, Object> normalizeGovernance(Map<String, Object> governance) {
         Map<String, Object> normalized = new LinkedHashMap<>(governance == null ? Map.of() : governance);
         alias(normalized, "risk_level", "riskLevel");
@@ -156,6 +200,12 @@ public class AgentRuntimeGovernanceFactory {
         return normalized;
     }
 
+    /**
+     * Performs the merge governance json operation.
+     *
+     * @param target the target value
+     * @param json the json value
+     */
     private void mergeGovernanceJson(Map<String, Object> target, String json) {
         if (json == null || json.isBlank()) {
             return;
@@ -168,6 +218,12 @@ public class AgentRuntimeGovernanceFactory {
         }
     }
 
+    /**
+     * Performs the deep merge operation.
+     *
+     * @param target the target value
+     * @param custom the custom value
+     */
     @SuppressWarnings("unchecked")
     private void deepMerge(Map<String, Object> target, Map<String, Object> custom) {
         if (custom == null || custom.isEmpty()) {
@@ -183,6 +239,13 @@ public class AgentRuntimeGovernanceFactory {
         }
     }
 
+    /**
+     * Performs the child map operation.
+     *
+     * @param root the root value
+     * @param key the key value
+     * @return the operation result
+     */
     @SuppressWarnings("unchecked")
     private Map<String, Object> childMap(Map<String, Object> root, String key) {
         Object value = root.get(key);
@@ -194,6 +257,13 @@ public class AgentRuntimeGovernanceFactory {
         return child;
     }
 
+    /**
+     * Performs the merge into operation.
+     *
+     * @param governance the governance value
+     * @param key the key value
+     * @param value the value value
+     */
     private void mergeInto(Map<String, Object> governance, String key, Map<String, Object> value) {
         if (value == null || value.isEmpty()) {
             return;
@@ -201,12 +271,25 @@ public class AgentRuntimeGovernanceFactory {
         deepMerge(childMap(governance, key), value);
     }
 
+    /**
+     * Performs the alias operation.
+     *
+     * @param map the map value
+     * @param canonical the canonical value
+     * @param alias the alias value
+     */
     private void alias(Map<String, Object> map, String canonical, String alias) {
         if (!map.containsKey(canonical) && map.containsKey(alias)) {
             map.put(canonical, map.get(alias));
         }
     }
 
+    /**
+     * Performs the operation type for method operation.
+     *
+     * @param method the method value
+     * @return the operation result
+     */
     private String operationTypeForMethod(String method) {
         String value = method == null ? "GET" : method.trim().toUpperCase(Locale.ROOT);
         return switch (value) {
@@ -218,6 +301,12 @@ public class AgentRuntimeGovernanceFactory {
         };
     }
 
+    /**
+     * Performs the default action for risk operation.
+     *
+     * @param riskLevel the risk level value
+     * @return the operation result
+     */
     private String defaultActionForRisk(String riskLevel) {
         return switch (normalizeRisk(riskLevel)) {
             case "forbidden" -> "deny";
@@ -226,6 +315,12 @@ public class AgentRuntimeGovernanceFactory {
         };
     }
 
+    /**
+     * Normalizes the risk.
+     *
+     * @param riskLevel the risk level value
+     * @return the operation result
+     */
     private String normalizeRisk(String riskLevel) {
         String value = riskLevel == null || riskLevel.isBlank() ? "low" : riskLevel.trim().toLowerCase(Locale.ROOT);
         return switch (value) {
@@ -234,14 +329,34 @@ public class AgentRuntimeGovernanceFactory {
         };
     }
 
+    /**
+     * Performs the first text operation.
+     *
+     * @param value the value value
+     * @param fallback the fallback value
+     * @return the operation result
+     */
     private String firstText(String value, String fallback) {
         return value == null || value.isBlank() ? fallback : value.trim();
     }
 
+    /**
+     * Performs the string value operation.
+     *
+     * @param value the value value
+     * @return the operation result
+     */
     private String stringValue(Object value) {
         return value == null ? null : String.valueOf(value);
     }
 
+    /**
+     * Stores the alias.
+     *
+     * @param meta the meta value
+     * @param key the key value
+     * @param value the value value
+     */
     private void putAlias(Map<String, Object> meta, String key, Object value) {
         if (value != null) {
             meta.put(key, value);

@@ -14,6 +14,11 @@ public class AgentTaskPayload {
 
     private AgentTaskSubmitRequest request;
 
+    /**
+     * Converts the value to interaction request.
+     *
+     * @return the converted interaction request
+     */
     InteractionRequest toInteractionRequest() {
         String skillId = firstText(request.getSkillId(), request.getAgentId());
         return InteractionRequest.builder()
@@ -33,10 +38,22 @@ public class AgentTaskPayload {
             .build();
     }
 
+    /**
+     * Converts the value to submit request.
+     *
+     * @return the converted submit request
+     */
     AgentTaskSubmitRequest toSubmitRequest() {
         return request == null ? new AgentTaskSubmitRequest() : request;
     }
 
+    /**
+     * Performs the first text operation.
+     *
+     * @param value the value value
+     * @param fallback the fallback value
+     * @return the operation result
+     */
     private String firstText(String value, String fallback) {
         return value == null || value.isBlank() ? fallback : value.trim();
     }

@@ -30,6 +30,11 @@ public class McpRocksDbStore {
         RocksDB.loadLibrary();
     }
 
+    /**
+     * Performs the initialize operation.
+     *
+     * @throws Exception if the operation fails
+     */
     @PostConstruct
     public void initialize() throws Exception {
         if (!properties.isEnabled()) {
@@ -43,30 +48,68 @@ public class McpRocksDbStore {
         log.info("MCP RocksDB store opened at {}", path);
     }
 
+    /**
+     * Returns whether is usable.
+     *
+     * @return whether the condition is satisfied
+     */
     public boolean isUsable() {
         return properties.isEnabled() && rocksDB != null;
     }
 
+    /**
+     * Returns the get.
+     *
+     * @param key the key value
+     * @return the get
+     * @throws RocksDBException if the operation fails
+     */
     public byte[] get(String key) throws RocksDBException {
         ensureUsable();
         return rocksDB.get(bytes(key));
     }
 
+    /**
+     * Stores the put.
+     *
+     * @param key the key value
+     * @param value the value value
+     * @throws RocksDBException if the operation fails
+     */
     public void put(String key, byte[] value) throws RocksDBException {
         ensureUsable();
         rocksDB.put(bytes(key), value);
     }
 
+    /**
+     * Deletes the delete.
+     *
+     * @param key the key value
+     * @throws RocksDBException if the operation fails
+     */
     public void delete(String key) throws RocksDBException {
         ensureUsable();
         rocksDB.delete(bytes(key));
     }
 
+    /**
+     * Deletes the delete.
+     *
+     * @param key the key value
+     * @throws RocksDBException if the operation fails
+     */
     public void delete(byte[] key) throws RocksDBException {
         ensureUsable();
         rocksDB.delete(key);
     }
 
+    /**
+     * Performs the scan operation.
+     *
+     * @param prefix the prefix value
+     * @param limit the limit value
+     * @return the operation result
+     */
     public List<KeyValue> scan(String prefix, int limit) {
         if (!isUsable()) {
             return List.of();
@@ -76,6 +119,13 @@ public class McpRocksDbStore {
         return entries;
     }
 
+    /**
+     * Performs the scan operation.
+     *
+     * @param prefix the prefix value
+     * @param limit the limit value
+     * @param consumer the consumer value
+     */
     public void scan(String prefix, int limit, Consumer<KeyValue> consumer) {
         if (!isUsable() || limit <= 0 || consumer == null) {
             return;
@@ -91,6 +141,9 @@ public class McpRocksDbStore {
         }
     }
 
+    /**
+     * Closes the close.
+     */
     @PreDestroy
     public void close() {
         if (rocksDB != null) {
@@ -101,16 +154,32 @@ public class McpRocksDbStore {
         }
     }
 
+    /**
+     * Ensures the usable.
+     */
     private void ensureUsable() {
         if (!isUsable()) {
             throw new IllegalStateException("MCP RocksDB store is not available");
         }
     }
 
+    /**
+     * Returns whether starts with.
+     *
+     * @param key the key value
+     * @param prefix the prefix value
+     * @return whether the condition is satisfied
+     */
     private boolean startsWith(byte[] key, String prefix) {
         return new String(key, StandardCharsets.UTF_8).startsWith(prefix);
     }
 
+    /**
+     * Performs the bytes operation.
+     *
+     * @param value the value value
+     * @return the operation result
+     */
     private byte[] bytes(String value) {
         return value.getBytes(StandardCharsets.UTF_8);
     }

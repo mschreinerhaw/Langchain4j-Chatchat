@@ -90,6 +90,9 @@ public class McpServiceConfigVersion {
     @Column(nullable = false)
     private Instant createdAt;
 
+    /**
+     * Performs the on create operation.
+     */
     @PrePersist
     public void onCreate() {
         if (id == null || id.isBlank()) {

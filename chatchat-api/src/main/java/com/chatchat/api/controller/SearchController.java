@@ -39,6 +39,19 @@ public class SearchController {
 
     private final SearchService searchService;
 
+    /**
+     * Searches the search.
+     *
+     * @param keyword the keyword value
+     * @param tag the tag value
+     * @param company the company value
+     * @param industry the industry value
+     * @param docIds the doc ids value
+     * @param page the page value
+     * @param pageSize the page size value
+     * @param limit the limit value
+     * @return the operation result
+     */
     @GetMapping
     @Operation(summary = "Search documents by keyword and filters")
     public ApiResponse<SearchPage> search(@RequestParam(value = "keyword", required = false) String keyword,
@@ -52,6 +65,16 @@ public class SearchController {
         return ApiResponse.success(searchService.search(keyword, tag, company, industry, docIds, page, pageSize == null ? limit : pageSize));
     }
 
+    /**
+     * Lists the library.
+     *
+     * @param category the category value
+     * @param title the title value
+     * @param page the page value
+     * @param pageSize the page size value
+     * @param limit the limit value
+     * @return the library list
+     */
     @GetMapping("/library")
     @Operation(summary = "List research library documents by category and title")
     public ApiResponse<LibraryPage> listLibrary(@RequestParam(value = "category", required = false) String category,
@@ -62,6 +85,12 @@ public class SearchController {
         return ApiResponse.success(searchService.listLibrary(category, title, page, pageSize == null ? limit : pageSize));
     }
 
+    /**
+     * Creates the category.
+     *
+     * @param request the request value
+     * @return the created category
+     */
     @PostMapping("/library/categories")
     @Operation(summary = "Create one user-defined research library category")
     public ApiResponse<LibraryCategory> createCategory(@RequestBody CategoryCreateRequest request) {
@@ -71,12 +100,24 @@ public class SearchController {
         return ApiResponse.success(searchService.createCategory(request.name()), "Category created");
     }
 
+    /**
+     * Performs the title exists operation.
+     *
+     * @param title the title value
+     * @return the operation result
+     */
     @GetMapping("/documents/title-exists")
     @Operation(summary = "Check whether one document title already exists")
     public ApiResponse<TitleExistsResult> titleExists(@RequestParam("title") String title) {
         return ApiResponse.success(searchService.titleExists(title));
     }
 
+    /**
+     * Returns the document.
+     *
+     * @param docId the doc id value
+     * @return the document
+     */
     @GetMapping("/documents/{docId}")
     @Operation(summary = "Get one document detail")
     public ApiResponse<SearchDocument> getDocument(@PathVariable("docId") String docId) {
@@ -85,6 +126,12 @@ public class SearchController {
             .orElseGet(() -> ApiResponse.notFound("document not found: " + docId));
     }
 
+    /**
+     * Lists the document versions.
+     *
+     * @param docId the doc id value
+     * @return the document versions list
+     */
     @GetMapping("/documents/{docId}/versions")
     @Operation(summary = "List versions of one document")
     public ApiResponse<List<SearchDocumentVersionItem>> listDocumentVersions(@PathVariable("docId") String docId) {
@@ -94,6 +141,13 @@ public class SearchController {
         return ApiResponse.success(searchService.listVersions(docId));
     }
 
+    /**
+     * Returns the document version.
+     *
+     * @param docId the doc id value
+     * @param version the version value
+     * @return the document version
+     */
     @GetMapping("/documents/{docId}/versions/{version}")
     @Operation(summary = "Get one document version detail")
     public ApiResponse<SearchDocument> getDocumentVersion(@PathVariable("docId") String docId,
@@ -103,6 +157,12 @@ public class SearchController {
             .orElseGet(() -> ApiResponse.notFound("document version not found: " + docId + " v" + version));
     }
 
+    /**
+     * Deletes the document.
+     *
+     * @param docId the doc id value
+     * @return the operation result
+     */
     @DeleteMapping("/documents/{docId}")
     @Operation(summary = "Delete one uploaded document")
     public ApiResponse<Void> deleteDocument(@PathVariable("docId") String docId) {
@@ -112,6 +172,12 @@ public class SearchController {
         return ApiResponse.success(null, "document deleted");
     }
 
+    /**
+     * Returns the document file.
+     *
+     * @param docId the doc id value
+     * @return the document file
+     */
     @GetMapping("/documents/{docId}/file")
     @Operation(summary = "Get original uploaded document file")
     public ResponseEntity<Resource> getDocumentFile(@PathVariable("docId") String docId) {
@@ -123,6 +189,13 @@ public class SearchController {
             .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
+    /**
+     * Returns the document version file.
+     *
+     * @param docId the doc id value
+     * @param version the version value
+     * @return the document version file
+     */
     @GetMapping("/documents/{docId}/versions/{version}/file")
     @Operation(summary = "Get original uploaded document file for one version")
     public ResponseEntity<Resource> getDocumentVersionFile(@PathVariable("docId") String docId,
@@ -135,12 +208,33 @@ public class SearchController {
             .orElseGet(() -> ResponseEntity.notFound().build());
     }
 
+    /**
+     * Saves the document.
+     *
+     * @param document the document value
+     * @return the saved document
+     */
     @PostMapping("/documents")
     @Operation(summary = "Create or update one searchable document")
     public ApiResponse<SearchDocument> saveDocument(@RequestBody SearchDocument document) {
         return ApiResponse.success(searchService.createOrUpdate(document), "Document indexed");
     }
 
+    /**
+     * Performs the upload document operation.
+     *
+     * @param file the file value
+     * @param title the title value
+     * @param source the source value
+     * @param date the date value
+     * @param tags the tags value
+     * @param companies the companies value
+     * @param industries the industries value
+     * @param keywords the keywords value
+     * @param documentType the document type value
+     * @param fallbackContent the fallback content value
+     * @return the operation result
+     */
     @PostMapping(value = "/documents/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Operation(summary = "Upload and index one local document")
     public ApiResponse<SearchDocument> uploadDocument(@RequestParam("file") MultipartFile file,
@@ -171,6 +265,12 @@ public class SearchController {
     public record CategoryCreateRequest(String name) {
     }
 
+    /**
+     * Performs the media type for operation.
+     *
+     * @param file the file value
+     * @return the operation result
+     */
     private MediaType mediaTypeFor(DocumentFileResource file) {
         String fileName = file.fileName() == null ? "" : file.fileName().toLowerCase();
         if ("pdf".equals(file.documentType()) || fileName.endsWith(".pdf")) {
@@ -188,6 +288,12 @@ public class SearchController {
         return MediaType.TEXT_PLAIN;
     }
 
+    /**
+     * Performs the encode file name operation.
+     *
+     * @param fileName the file name value
+     * @return the operation result
+     */
     private String encodeFileName(String fileName) {
         String safeName = fileName == null || fileName.isBlank() ? "document" : fileName;
         return URLEncoder.encode(safeName, StandardCharsets.UTF_8).replace("+", "%20");

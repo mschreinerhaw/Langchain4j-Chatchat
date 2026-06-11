@@ -849,19 +849,63 @@ export default {
       link.click();
       URL.revokeObjectURL(url);
     },
+    registeredMcpTool(toolName) {
+      return this.registeredMcpTools.find((tool) => tool?.localToolName === toolName) || {};
+    },
+    ensureToolConfig(toolName) {
+      if (!toolName) {
+        return null;
+      }
+      if (!Array.isArray(this.form.toolConfigs)) {
+        this.form.toolConfigs = [];
+      }
+      let config = this.form.toolConfigs.find((item) => item?.toolName === toolName);
+      if (config) {
+        return config;
+      }
+      const registered = this.registeredMcpTool(toolName);
+      config = {
+        toolName,
+        displayName: registered.remoteToolName || registered.displayName || toolName,
+        serviceId: registered.serviceId || "",
+        description: registered.description || "",
+        callWeight: 5,
+        enabled: true
+      };
+      this.form.toolConfigs.push(config);
+      return config;
+    },
+    workflowToolDescription(toolName) {
+      const existing = Array.isArray(this.form.toolConfigs)
+        ? this.form.toolConfigs.find((config) => config?.toolName === toolName)
+        : null;
+      if (existing && Object.prototype.hasOwnProperty.call(existing, "description")) {
+        return existing.description || "";
+      }
+      return this.registeredMcpTool(toolName).description || "";
+    },
+    setWorkflowToolDescription(toolName, value) {
+      const config = this.ensureToolConfig(toolName);
+      if (!config) {
+        return;
+      }
+      config.description = String(value || "");
+    },
     buildToolConfigs(selectedToolNames) {
       const existingConfigs = Array.isArray(this.form.toolConfigs) ? this.form.toolConfigs : [];
       const selected = new Set(selectedToolNames);
       const byName = new Map(existingConfigs.filter((config) => config?.toolName).map((config) => [config.toolName, config]));
       return selectedToolNames.map((toolName) => {
         const existing = byName.get(toolName) || {};
-        const registered = this.registeredMcpTools.find((tool) => tool?.localToolName === toolName) || {};
+        const registered = this.registeredMcpTool(toolName);
         return {
           ...existing,
           toolName,
-          displayName: existing.displayName || registered.remoteToolName || toolName,
+          displayName: existing.displayName || registered.remoteToolName || registered.displayName || toolName,
           serviceId: existing.serviceId || registered.serviceId || "",
-          description: existing.description || registered.description || "",
+          description: Object.prototype.hasOwnProperty.call(existing, "description")
+            ? (existing.description || "")
+            : (registered.description || ""),
           callWeight: existing.callWeight ?? 5,
           enabled: selected.has(toolName)
         };
@@ -926,20 +970,35 @@ export default {
       this.form.boundMcpToolNames = this.form.workflowConfig.steps.map((item) => item.tool).join("\n");
       this.syncWorkflowSteps();
     },
-    workflowStepDependsOn(step, toolName) {
-      return Array.isArray(step?.dependsOn) && step.dependsOn.includes(toolName);
+    workflowStepDependencies(step) {
+      return Array.isArray(step?.dependsOn) ? step.dependsOn : [];
     },
-    toggleWorkflowDependency(step, toolName) {
-      if (!step || !toolName || step.tool === toolName) {
+    availableWorkflowDependencies(step) {
+      const selected = new Set(this.workflowStepDependencies(step));
+      return this.selectedToolNames.filter((toolName) => toolName !== step?.tool && !selected.has(toolName));
+    },
+    addWorkflowDependency(step, toolName) {
+      if (!step || !toolName || toolName === step.tool) {
         return;
       }
-      const dependencies = new Set(Array.isArray(step.dependsOn) ? step.dependsOn : []);
-      if (dependencies.has(toolName)) {
-        dependencies.delete(toolName);
-      } else {
-        dependencies.add(toolName);
+      step.dependsOn = uniqueList([...this.workflowStepDependencies(step), toolName]);
+      this.syncWorkflowSteps();
+    },
+    removeWorkflowDependency(step, toolName) {
+      if (!step || !toolName) {
+        return;
       }
-      step.dependsOn = [...dependencies].filter((dependency) => dependency !== step.tool);
+      step.dependsOn = this.workflowStepDependencies(step).filter((value) => value !== toolName);
+      this.syncWorkflowSteps();
+    },
+    setWorkflowDependencies(step, selectedOptions) {
+      if (!step) {
+        return;
+      }
+      const values = Array.from(selectedOptions || [])
+        .map((option) => option.value)
+        .filter((toolName) => toolName && toolName !== step.tool);
+      step.dependsOn = uniqueList(values);
       this.syncWorkflowSteps();
     },
     async saveAgent() {

@@ -16,6 +16,11 @@ public class LivedataApiRepository {
     private final DynamicJdbcDriverLoader driverLoader;
     private final LivedataAutoRegistrationProperties properties;
 
+    /**
+     * Finds the apis.
+     *
+     * @return the matching apis
+     */
     public List<LivedataApiDefinition> findApis() {
         DataSource dataSource = driverLoader.createDataSource(
             properties.getJdbcUrl(),
@@ -37,6 +42,11 @@ public class LivedataApiRepository {
         return jdbcTemplate.query(sql, rowMapper());
     }
 
+    /**
+     * Performs the where clause operation.
+     *
+     * @return the operation result
+     */
     private String whereClause() {
         if (properties.isIncludeUnpublishedAsDisabled()) {
             return "";
@@ -44,6 +54,12 @@ public class LivedataApiRepository {
         return "where state = " + properties.getPublishedState();
     }
 
+    /**
+     * Performs the safe table name operation.
+     *
+     * @param tableName the table name value
+     * @return the operation result
+     */
     private String safeTableName(String tableName) {
         if (tableName == null || tableName.isBlank()) {
             return "ld_dataservice_api";
@@ -55,6 +71,11 @@ public class LivedataApiRepository {
         return trimmed;
     }
 
+    /**
+     * Performs the row mapper operation.
+     *
+     * @return the operation result
+     */
     private RowMapper<LivedataApiDefinition> rowMapper() {
         return (rs, rowNum) -> new LivedataApiDefinition(
             rs.getString("id"),
@@ -71,6 +92,12 @@ public class LivedataApiRepository {
         );
     }
 
+    /**
+     * Reads the integer.
+     *
+     * @param value the value value
+     * @return the operation result
+     */
     private Integer readInteger(Object value) {
         if (value instanceof Number number) {
             return number.intValue();

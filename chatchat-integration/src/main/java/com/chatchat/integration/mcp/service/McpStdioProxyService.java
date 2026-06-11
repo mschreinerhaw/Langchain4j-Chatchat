@@ -52,6 +52,14 @@ public class McpStdioProxyService {
     private final McpStdioProxyProperties properties;
     private final Map<String, Session> sessions = new ConcurrentHashMap<>();
 
+    /**
+     * Performs the call for result operation.
+     *
+     * @param config the config value
+     * @param method the method value
+     * @param params the params value
+     * @return the operation result
+     */
     public Object callForResult(McpServiceConfig config, String method, Map<String, Object> params) {
         Map<String, Object> response = execute(config, method, params, UUID.randomUUID().toString(), true);
         Object error = response.get("error");
@@ -63,6 +71,13 @@ public class McpStdioProxyService {
         return response.get("result");
     }
 
+    /**
+     * Performs the forward json rpc operation.
+     *
+     * @param config the config value
+     * @param request the request value
+     * @return the operation result
+     */
     public Map<String, Object> forwardJsonRpc(McpServiceConfig config, Map<String, Object> request) {
         String method = asText(request.get("method"));
         if (method == null || method.isBlank()) {
@@ -77,6 +92,11 @@ public class McpStdioProxyService {
         return execute(config, method, params, id, expectResponse);
     }
 
+    /**
+     * Closes the session.
+     *
+     * @param serviceId the service id value
+     */
     public void closeSession(String serviceId) {
         if (serviceId == null || serviceId.isBlank()) {
             return;
@@ -85,6 +105,9 @@ public class McpStdioProxyService {
         closeSession(removed);
     }
 
+    /**
+     * Performs the cleanup idle sessions operation.
+     */
     @Scheduled(fixedDelayString = "${chatchat.mcp.stdio-proxy.cleanup-interval-ms:30000}")
     public void cleanupIdleSessions() {
         if (!properties.isEnabled()) {
@@ -109,12 +132,25 @@ public class McpStdioProxyService {
         }
     }
 
+    /**
+     * Closes the all.
+     */
     @PreDestroy
     public void closeAll() {
         sessions.values().forEach(this::closeSession);
         sessions.clear();
     }
 
+    /**
+     * Executes the execute.
+     *
+     * @param config the config value
+     * @param method the method value
+     * @param params the params value
+     * @param id the id value
+     * @param expectResponse the expect response value
+     * @return the operation result
+     */
     private Map<String, Object> execute(McpServiceConfig config, String method, Map<String, Object> params,
                                         String id, boolean expectResponse) {
         if (!properties.isEnabled()) {
@@ -164,6 +200,12 @@ public class McpStdioProxyService {
         }
     }
 
+    /**
+     * Returns the or create session.
+     *
+     * @param config the config value
+     * @return the or create session
+     */
     private Session getOrCreateSession(McpServiceConfig config) {
         String key = sessionKey(config);
         String fingerprint = sessionFingerprint(config);
@@ -189,6 +231,14 @@ public class McpStdioProxyService {
         }
     }
 
+    /**
+     * Performs the start session operation.
+     *
+     * @param config the config value
+     * @param key the key value
+     * @param fingerprint the fingerprint value
+     * @return the operation result
+     */
     private Session startSession(McpServiceConfig config, String key, String fingerprint) {
         String command = trimToNull(config.getStdioCommand());
         if (command == null) {
@@ -231,6 +281,11 @@ public class McpStdioProxyService {
         }
     }
 
+    /**
+     * Performs the start stdout reader operation.
+     *
+     * @param session the session value
+     */
     private void startStdoutReader(Session session) {
         session.stdoutReader = new Thread(() -> {
             try (InputStream inputStream = session.process.getInputStream()) {
@@ -253,6 +308,11 @@ public class McpStdioProxyService {
         session.stdoutReader.start();
     }
 
+    /**
+     * Performs the start stderr reader operation.
+     *
+     * @param session the session value
+     */
     private void startStderrReader(Session session) {
         session.stderrReader = new Thread(() -> {
             try (BufferedReader reader = new BufferedReader(
@@ -271,6 +331,12 @@ public class McpStdioProxyService {
         session.stderrReader.start();
     }
 
+    /**
+     * Performs the initialize session operation.
+     *
+     * @param session the session value
+     * @throws IOException if the operation fails
+     */
     private void initializeSession(Session session) throws IOException {
         String initId = UUID.randomUUID().toString();
         Map<String, Object> initParams = new LinkedHashMap<>();
@@ -302,6 +368,14 @@ public class McpStdioProxyService {
         session.initialized = true;
     }
 
+    /**
+     * Performs the await response operation.
+     *
+     * @param session the session value
+     * @param requestId the request id value
+     * @param timeoutMs the timeout ms value
+     * @return the operation result
+     */
     private Map<String, Object> awaitResponse(Session session, String requestId, long timeoutMs) {
         long deadline = System.currentTimeMillis() + Math.max(1000L, timeoutMs);
         while (System.currentTimeMillis() < deadline) {
@@ -326,6 +400,13 @@ public class McpStdioProxyService {
         return null;
     }
 
+    /**
+     * Reads the frame.
+     *
+     * @param inputStream the input stream value
+     * @return the operation result
+     * @throws IOException if the operation fails
+     */
     private Map<String, Object> readFrame(InputStream inputStream) throws IOException {
         Map<String, String> headers = new LinkedHashMap<>();
         while (true) {
@@ -365,6 +446,13 @@ public class McpStdioProxyService {
         return objectMapper.readValue(body, new TypeReference<>() {});
     }
 
+    /**
+     * Reads the ascii line.
+     *
+     * @param inputStream the input stream value
+     * @return the operation result
+     * @throws IOException if the operation fails
+     */
     private String readAsciiLine(InputStream inputStream) throws IOException {
         ByteArrayOutputStream buffer = new ByteArrayOutputStream();
         int read;
@@ -384,6 +472,13 @@ public class McpStdioProxyService {
         return buffer.toString(StandardCharsets.US_ASCII);
     }
 
+    /**
+     * Writes the frame.
+     *
+     * @param outputStream the output stream value
+     * @param payload the payload value
+     * @throws IOException if the operation fails
+     */
     private void writeFrame(OutputStream outputStream, Map<String, Object> payload) throws IOException {
         byte[] body = objectMapper.writeValueAsBytes(payload);
         String header = "Content-Length: " + body.length + "\r\n\r\n";
@@ -392,6 +487,12 @@ public class McpStdioProxyService {
         outputStream.flush();
     }
 
+    /**
+     * Parses the args.
+     *
+     * @param argsJson the args json value
+     * @return the parsed args
+     */
     private List<String> parseArgs(String argsJson) {
         String text = trimToNull(argsJson);
         if (text == null) {
@@ -411,6 +512,12 @@ public class McpStdioProxyService {
         }
     }
 
+    /**
+     * Parses the env.
+     *
+     * @param envJson the env json value
+     * @return the parsed env
+     */
     private Map<String, String> parseEnv(String envJson) {
         String text = trimToNull(envJson);
         if (text == null) {
@@ -430,6 +537,11 @@ public class McpStdioProxyService {
         }
     }
 
+    /**
+     * Performs the assert command allowed operation.
+     *
+     * @param command the command value
+     */
     private void assertCommandAllowed(String command) {
         List<String> allowList = properties.getCommandAllowList();
         if (allowList == null || allowList.isEmpty()) {
@@ -446,6 +558,12 @@ public class McpStdioProxyService {
         }
     }
 
+    /**
+     * Returns whether is initialize method.
+     *
+     * @param method the method value
+     * @return whether the condition is satisfied
+     */
     private boolean isInitializeMethod(String method) {
         if (method == null) {
             return false;
@@ -453,6 +571,12 @@ public class McpStdioProxyService {
         return "initialize".equals(method) || "notifications/initialized".equals(method);
     }
 
+    /**
+     * Performs the session key operation.
+     *
+     * @param config the config value
+     * @return the operation result
+     */
     private String sessionKey(McpServiceConfig config) {
         if (config.getId() != null && !config.getId().isBlank()) {
             return config.getId();
@@ -463,6 +587,12 @@ public class McpStdioProxyService {
         return "mcp-stdio";
     }
 
+    /**
+     * Performs the session fingerprint operation.
+     *
+     * @param config the config value
+     * @return the operation result
+     */
     private String sessionFingerprint(McpServiceConfig config) {
         return String.join("|",
             trimToNull(config.getStdioCommand()) == null ? "" : trimToNull(config.getStdioCommand()),
@@ -472,12 +602,22 @@ public class McpStdioProxyService {
         );
     }
 
+    /**
+     * Closes the and remove.
+     *
+     * @param config the config value
+     */
     private void closeAndRemove(McpServiceConfig config) {
         String key = sessionKey(config);
         Session removed = sessions.remove(key);
         closeSession(removed);
     }
 
+    /**
+     * Closes the session.
+     *
+     * @param session the session value
+     */
     private void closeSession(Session session) {
         if (session == null) {
             return;
@@ -498,10 +638,22 @@ public class McpStdioProxyService {
         }
     }
 
+    /**
+     * Performs the as text operation.
+     *
+     * @param value the value value
+     * @return the operation result
+     */
     private String asText(Object value) {
         return value == null ? null : String.valueOf(value);
     }
 
+    /**
+     * Performs the trim to null operation.
+     *
+     * @param value the value value
+     * @return the operation result
+     */
     private String trimToNull(String value) {
         if (value == null) {
             return null;
@@ -510,6 +662,12 @@ public class McpStdioProxyService {
         return text.isEmpty() ? null : text;
     }
 
+    /**
+     * Performs the sanitize thread name operation.
+     *
+     * @param value the value value
+     * @return the operation result
+     */
     private String sanitizeThreadName(String value) {
         if (value == null || value.isBlank()) {
             return "default";
@@ -531,6 +689,14 @@ public class McpStdioProxyService {
         private volatile Thread stdoutReader;
         private volatile Thread stderrReader;
 
+        /**
+         * Creates a new McpStdioProxyService instance.
+         *
+         * @param key the key value
+         * @param fingerprint the fingerprint value
+         * @param process the process value
+         * @param stdin the stdin value
+         */
         private Session(String key, String fingerprint, Process process, OutputStream stdin) {
             this.key = key;
             this.fingerprint = fingerprint;

@@ -33,6 +33,15 @@ public class McpInvocationLoggingFilter extends OncePerRequestFilter {
     private final InvocationAuditService auditService;
     private final ObjectMapper objectMapper;
 
+    /**
+     * Performs the do filter internal operation.
+     *
+     * @param request the request value
+     * @param response the response value
+     * @param filterChain the filter chain value
+     * @throws ServletException if the operation fails
+     * @throws IOException if the operation fails
+     */
     @Override
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
@@ -74,6 +83,14 @@ public class McpInvocationLoggingFilter extends OncePerRequestFilter {
         }
     }
 
+    /**
+     * Performs the record audit operation.
+     *
+     * @param request the request value
+     * @param response the response value
+     * @param durationMs the duration ms value
+     * @param errorMessage the error message value
+     */
     private void recordAudit(ContentCachingRequestWrapper request, HttpServletResponse response, long durationMs, String errorMessage) {
         auditService.recordMcpTransportRequest(
             request.getMethod(),
@@ -88,6 +105,12 @@ public class McpInvocationLoggingFilter extends OncePerRequestFilter {
         );
     }
 
+    /**
+     * Performs the request body operation.
+     *
+     * @param request the request value
+     * @return the operation result
+     */
     private String requestBody(ContentCachingRequestWrapper request) {
         byte[] content = request.getContentAsByteArray();
         if (content.length == 0) {
@@ -104,6 +127,12 @@ public class McpInvocationLoggingFilter extends OncePerRequestFilter {
         }
     }
 
+    /**
+     * Performs the mcp request summary operation.
+     *
+     * @param requestBody the request body value
+     * @return the operation result
+     */
     private Object mcpRequestSummary(String requestBody) {
         if (requestBody == null || requestBody.isBlank()) {
             return Map.of();
@@ -123,6 +152,12 @@ public class McpInvocationLoggingFilter extends OncePerRequestFilter {
         }
     }
 
+    /**
+     * Performs the single request summary operation.
+     *
+     * @param node the node value
+     * @return the operation result
+     */
     private Map<String, Object> singleRequestSummary(JsonNode node) {
         Map<String, Object> summary = new LinkedHashMap<>();
         summary.put("id", text(node.get("id")));
@@ -138,6 +173,12 @@ public class McpInvocationLoggingFilter extends OncePerRequestFilter {
         return summary;
     }
 
+    /**
+     * Performs the first node operation.
+     *
+     * @param nodes the nodes value
+     * @return the operation result
+     */
     private JsonNode firstNode(JsonNode... nodes) {
         if (nodes == null) {
             return null;
@@ -150,11 +191,23 @@ public class McpInvocationLoggingFilter extends OncePerRequestFilter {
         return null;
     }
 
+    /**
+     * Performs the first text operation.
+     *
+     * @param nodes the nodes value
+     * @return the operation result
+     */
     private String firstText(JsonNode... nodes) {
         JsonNode node = firstNode(nodes);
         return text(node);
     }
 
+    /**
+     * Performs the text operation.
+     *
+     * @param node the node value
+     * @return the operation result
+     */
     private String text(JsonNode node) {
         if (node == null || node.isNull() || node.isMissingNode()) {
             return null;

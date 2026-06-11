@@ -29,6 +29,9 @@ public final class AppConstants {
     public static final int DEFAULT_TIMEOUT = 30;
     public static final int STREAMING_TIMEOUT = 300;
 
+    /**
+     * Creates a new AppConstants instance.
+     */
     private AppConstants() {
         throw new AssertionError("Cannot instantiate constants class");
     }

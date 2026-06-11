@@ -31,6 +31,13 @@ public class McpProxyController {
     private final McpServiceConfigService configService;
     private final McpStdioProxyService stdioProxyService;
 
+    /**
+     * Performs the forward operation.
+     *
+     * @param serviceId the service id value
+     * @param request the request value
+     * @return the operation result
+     */
     @PostMapping("/services/{serviceId}/rpc")
     @Operation(summary = "Forward one JSON-RPC request to local stdio MCP server")
     public ApiResponse<Map<String, Object>> forward(@PathVariable("serviceId") String serviceId,
@@ -43,6 +50,12 @@ public class McpProxyController {
         return ApiResponse.success(response);
     }
 
+    /**
+     * Closes the session.
+     *
+     * @param serviceId the service id value
+     * @return the operation result
+     */
     @PostMapping("/services/{serviceId}/close")
     @Operation(summary = "Close one stdio proxy session")
     public ApiResponse<Map<String, Object>> closeSession(@PathVariable("serviceId") String serviceId) {

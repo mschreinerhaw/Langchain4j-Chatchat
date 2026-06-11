@@ -26,6 +26,13 @@ import java.util.Locale;
 @Component
 public class DocumentContentExtractor {
 
+    /**
+     * Performs the extract operation.
+     *
+     * @param file the file value
+     * @param fileName the file name value
+     * @return the operation result
+     */
     public String extract(Path file, String fileName) {
         String extension = extensionOf(fileName);
         try {
@@ -43,6 +50,12 @@ public class DocumentContentExtractor {
         }
     }
 
+    /**
+     * Returns whether supports.
+     *
+     * @param fileName the file name value
+     * @return whether the condition is satisfied
+     */
     public boolean supports(String fileName) {
         return switch (extensionOf(fileName)) {
             case "txt", "md", "csv", "pdf", "docx", "doc", "xlsx", "xls" -> true;
@@ -50,12 +63,26 @@ public class DocumentContentExtractor {
         };
     }
 
+    /**
+     * Performs the extract pdf operation.
+     *
+     * @param file the file value
+     * @return the operation result
+     * @throws IOException if the operation fails
+     */
     private String extractPdf(Path file) throws IOException {
         try (PDDocument document = Loader.loadPDF(file.toFile())) {
             return new PDFTextStripper().getText(document);
         }
     }
 
+    /**
+     * Performs the extract docx operation.
+     *
+     * @param file the file value
+     * @return the operation result
+     * @throws IOException if the operation fails
+     */
     private String extractDocx(Path file) throws IOException {
         try (InputStream input = Files.newInputStream(file);
              XWPFDocument document = new XWPFDocument(input);
@@ -64,6 +91,13 @@ public class DocumentContentExtractor {
         }
     }
 
+    /**
+     * Performs the extract doc operation.
+     *
+     * @param file the file value
+     * @return the operation result
+     * @throws IOException if the operation fails
+     */
     private String extractDoc(Path file) throws IOException {
         try (InputStream input = Files.newInputStream(file);
              HWPFDocument document = new HWPFDocument(input);
@@ -72,6 +106,13 @@ public class DocumentContentExtractor {
         }
     }
 
+    /**
+     * Performs the extract workbook operation.
+     *
+     * @param file the file value
+     * @return the operation result
+     * @throws Exception if the operation fails
+     */
     private String extractWorkbook(Path file) throws Exception {
         StringBuilder text = new StringBuilder();
         DataFormatter formatter = new DataFormatter();
@@ -89,6 +130,12 @@ public class DocumentContentExtractor {
         return text.toString();
     }
 
+    /**
+     * Performs the extension of operation.
+     *
+     * @param fileName the file name value
+     * @return the operation result
+     */
     private String extensionOf(String fileName) {
         if (fileName == null) {
             return "";

@@ -19,6 +19,13 @@ public class EnterpriseToolRuntimePolicyProvider implements ToolRuntimePolicyPro
 
     private final McpToolPermissionRepository toolPermissionRepository;
 
+    /**
+     * Resolves the resolve.
+     *
+     * @param request the request value
+     * @param metadata the metadata value
+     * @return the resolved resolve
+     */
     @Override
     public ToolRuntimePolicy resolve(ToolRuntimeRequest request, ToolMetadata metadata) {
         String tenantId = normalize(request == null ? null : request.getTenantId());
@@ -70,6 +77,14 @@ public class EnterpriseToolRuntimePolicyProvider implements ToolRuntimePolicyPro
         return null;
     }
 
+    /**
+     * Returns whether tool matches.
+     *
+     * @param permission the permission value
+     * @param toolName the tool name value
+     * @param metadata the metadata value
+     * @return whether the condition is satisfied
+     */
     private boolean toolMatches(McpToolPermission permission, String toolName, ToolMetadata metadata) {
         String localToolName = normalize(permission.getLocalToolName());
         if (localToolName != null) {
@@ -82,6 +97,12 @@ public class EnterpriseToolRuntimePolicyProvider implements ToolRuntimePolicyPro
         return false;
     }
 
+    /**
+     * Normalizes the normalize.
+     *
+     * @param value the value value
+     * @return the operation result
+     */
     private String normalize(String value) {
         return value == null || value.isBlank() ? null : value.trim().toLowerCase(Locale.ROOT);
     }

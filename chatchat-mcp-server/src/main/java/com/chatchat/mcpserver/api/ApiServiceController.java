@@ -29,11 +29,22 @@ public class ApiServiceController {
     private final ApiInvokeService invokeService;
     private final ObjectMapper objectMapper;
 
+    /**
+     * Lists the list.
+     *
+     * @return the list list
+     */
     @GetMapping
     public ApiResponse<List<ApiServiceView>> list() {
         return ApiResponse.success(configService.listAll().stream().map(this::toView).toList());
     }
 
+    /**
+     * Creates the create.
+     *
+     * @param request the request value
+     * @return the created create
+     */
     @PostMapping
     public ApiResponse<ApiServiceView> create(@RequestBody ApiServiceUpsertRequest request) {
         ApiServiceConfig saved = configService.create(fromRequest(request));
@@ -41,6 +52,13 @@ public class ApiServiceController {
         return ApiResponse.success(toView(saved), "API service registered");
     }
 
+    /**
+     * Updates the update.
+     *
+     * @param id the id value
+     * @param request the request value
+     * @return the updated update
+     */
     @PutMapping("/{id}")
     public ApiResponse<ApiServiceView> update(@PathVariable("id") String id,
                                               @RequestBody ApiServiceUpsertRequest request) {
@@ -49,6 +67,12 @@ public class ApiServiceController {
         return ApiResponse.success(toView(saved), "API service updated");
     }
 
+    /**
+     * Deletes the delete.
+     *
+     * @param id the id value
+     * @return the operation result
+     */
     @DeleteMapping("/{id}")
     public ApiResponse<Void> delete(@PathVariable("id") String id) {
         configService.delete(id);
@@ -56,6 +80,12 @@ public class ApiServiceController {
         return ApiResponse.success(null, "API service deleted");
     }
 
+    /**
+     * Performs the batch delete operation.
+     *
+     * @param request the request value
+     * @return the operation result
+     */
     @PostMapping("/batch-delete")
     public ApiResponse<Map<String, Object>> batchDelete(@RequestBody BatchDeleteRequest request) {
         int deleted = configService.deleteAll(request.ids());
@@ -63,6 +93,13 @@ public class ApiServiceController {
         return ApiResponse.success(Map.of("deleted", deleted), "API services deleted");
     }
 
+    /**
+     * Sets the enabled.
+     *
+     * @param id the id value
+     * @param enabled the enabled value
+     * @return the operation result
+     */
     @PostMapping("/{id}/enabled")
     public ApiResponse<ApiServiceView> setEnabled(@PathVariable("id") String id,
                                                   @RequestParam("enabled") boolean enabled) {
@@ -71,12 +108,24 @@ public class ApiServiceController {
         return ApiResponse.success(toView(saved), "API service status updated");
     }
 
+    /**
+     * Performs the test operation.
+     *
+     * @param id the id value
+     * @param arguments the arguments value
+     * @return the operation result
+     */
     @PostMapping("/{id}/test")
     public ApiResponse<ApiInvokeResult> test(@PathVariable("id") String id,
                                              @RequestBody(required = false) Map<String, Object> arguments) {
         return ApiResponse.success(invokeService.invoke(configService.getById(id), arguments));
     }
 
+    /**
+     * Performs the refresh operation.
+     *
+     * @return the operation result
+     */
     @PostMapping("/refresh")
     public ApiResponse<Map<String, Object>> refresh() {
         publisher.refresh();
@@ -85,6 +134,12 @@ public class ApiServiceController {
         return ApiResponse.success(data, "API MCP tools refreshed");
     }
 
+    /**
+     * Creates the value from request.
+     *
+     * @param request the request value
+     * @return the operation result
+     */
     private ApiServiceConfig fromRequest(ApiServiceUpsertRequest request) {
         ApiServiceConfig config = new ApiServiceConfig();
         config.setToolName(request.toolName());
@@ -103,6 +158,12 @@ public class ApiServiceController {
         return config;
     }
 
+    /**
+     * Converts the value to view.
+     *
+     * @param config the config value
+     * @return the converted view
+     */
     private ApiServiceView toView(ApiServiceConfig config) {
         return new ApiServiceView(
             config.getId(),
@@ -124,6 +185,12 @@ public class ApiServiceController {
         );
     }
 
+    /**
+     * Writes the json.
+     *
+     * @param map the map value
+     * @return the operation result
+     */
     private String writeJson(Map<String, Object> map) {
         if (map == null || map.isEmpty()) {
             return null;
@@ -135,6 +202,12 @@ public class ApiServiceController {
         }
     }
 
+    /**
+     * Reads the json map.
+     *
+     * @param json the json value
+     * @return the operation result
+     */
     private Map<String, Object> readJsonMap(String json) {
         if (json == null || json.isBlank()) {
             return Map.of();

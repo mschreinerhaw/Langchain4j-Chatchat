@@ -31,6 +31,12 @@ public class InteractionController {
 
     private final InteractionOrchestrationService orchestrationService;
 
+    /**
+     * Performs the chat operation.
+     *
+     * @param request the request value
+     * @return the operation result
+     */
     @PostMapping("/chat")
     @Operation(summary = "Unified chat endpoint with mode-based orchestration")
     public ApiResponse<InteractionResponse> chat(@RequestBody InteractionRequest request) {
@@ -44,6 +50,12 @@ public class InteractionController {
         }
     }
 
+    /**
+     * Performs the stream chat operation.
+     *
+     * @param request the request value
+     * @return the operation result
+     */
     @PostMapping(value = "/chat/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     @Operation(summary = "Unified chat endpoint with SSE progressive response")
     public SseEmitter streamChat(@RequestBody InteractionRequest request) {
@@ -90,6 +102,11 @@ public class InteractionController {
         return emitter;
     }
 
+    /**
+     * Lists the modes.
+     *
+     * @return the modes list
+     */
     @GetMapping("/modes")
     @Operation(summary = "List supported interaction modes")
     public ApiResponse<List<ModeDefinition>> listModes() {
@@ -99,6 +116,12 @@ public class InteractionController {
         return ApiResponse.success(modes);
     }
 
+    /**
+     * Performs the describe operation.
+     *
+     * @param mode the mode value
+     * @return the operation result
+     */
     private String describe(InteractionMode mode) {
         return switch (mode) {
             case LLM_CHAT -> "General LLM conversation with short-term memory";
@@ -110,6 +133,12 @@ public class InteractionController {
     public record ModeDefinition(String mode, String description) {
     }
 
+    /**
+     * Performs the safe tool traces operation.
+     *
+     * @param response the response value
+     * @return the operation result
+     */
     private List<?> safeToolTraces(InteractionResponse response) {
         if (response == null || response.getToolTraces() == null) {
             return List.of();
@@ -117,6 +146,12 @@ public class InteractionController {
         return response.getToolTraces();
     }
 
+    /**
+     * Performs the split answer operation.
+     *
+     * @param answer the answer value
+     * @return the operation result
+     */
     private List<String> splitAnswer(String answer) {
         String value = answer == null || answer.isBlank() ? "No response generated" : answer;
         int chunkSize = 2;
@@ -129,6 +164,12 @@ public class InteractionController {
         return chunks;
     }
 
+    /**
+     * Sends the error event.
+     *
+     * @param emitter the emitter value
+     * @param message the message value
+     */
     private void sendErrorEvent(SseEmitter emitter, String message) {
         try {
             emitter.send(SseEmitter.event()
@@ -141,6 +182,12 @@ public class InteractionController {
         }
     }
 
+    /**
+     * Performs the null to empty operation.
+     *
+     * @param value the value value
+     * @return the operation result
+     */
     private String nullToEmpty(String value) {
         return value == null ? "" : value;
     }

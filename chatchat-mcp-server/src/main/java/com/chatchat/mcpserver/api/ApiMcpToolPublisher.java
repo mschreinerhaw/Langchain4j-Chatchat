@@ -22,12 +22,18 @@ public class ApiMcpToolPublisher {
     private final ApiToolSpecFactory toolSpecFactory;
     private final Set<String> managedToolNames = ConcurrentHashMap.newKeySet();
 
+    /**
+     * Performs the on application ready operation.
+     */
     @Order(Ordered.LOWEST_PRECEDENCE)
     @EventListener(ApplicationReadyEvent.class)
     public void onApplicationReady() {
         refresh();
     }
 
+    /**
+     * Performs the refresh operation.
+     */
     public synchronized void refresh() {
         managedToolNames.forEach(toolName -> {
             try {

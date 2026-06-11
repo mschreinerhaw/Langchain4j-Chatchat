@@ -598,10 +598,21 @@ public class SkillCatalogService {
                 }
                 Map<String, Object> step = new LinkedHashMap<>((Map<String, Object>) rawStep);
                 Object tool = firstObject(step, "tool", "toolName");
-                if (tool == null || String.valueOf(tool).isBlank()) {
+                Object parallelSteps = firstObject(step, "parallelSteps", "parallel_steps");
+                List<String> normalizedParallelSteps = parallelSteps instanceof List<?> parallelList
+                    ? parallelList.stream().map(String::valueOf).filter(value -> !value.isBlank()).toList()
+                    : List.of();
+                if ((tool == null || String.valueOf(tool).isBlank()) && normalizedParallelSteps.isEmpty()) {
                     continue;
                 }
-                step.put("tool", String.valueOf(tool).trim());
+                if (tool != null && !String.valueOf(tool).isBlank()) {
+                    step.put("tool", String.valueOf(tool).trim());
+                } else {
+                    step.remove("tool");
+                }
+                if (!normalizedParallelSteps.isEmpty()) {
+                    step.put("parallelSteps", normalizedParallelSteps);
+                }
                 step.putIfAbsent("step", index);
                 normalizedSteps.add(step);
                 index++;

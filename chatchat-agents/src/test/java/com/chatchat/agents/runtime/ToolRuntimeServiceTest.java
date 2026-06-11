@@ -303,6 +303,75 @@ class ToolRuntimeServiceTest {
         verify(toolRegistry, times(2)).executeEnhancedTool(any(), any());
     }
 
+    @Test
+    void hybridWorkflowAllowsParallelStageInAnyOrderBeforeNextStage() {
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.getToolMetadata(any())).thenReturn(ToolMetadata.builder().title("Tool").build());
+        when(toolRegistry.executeEnhancedTool(any(), any())).thenReturn(ToolOutput.success("ok"));
+
+        ToolRuntimeService service = new ToolRuntimeService(
+            toolRegistry,
+            new ObjectMapper(),
+            properties(),
+            new McpPolicyProperties(),
+            new McpWorkflowProperties(),
+            List.of(),
+            List.of()
+        );
+        Map<String, Object> workflowConfig = Map.of(
+            "enabled", true,
+            "workflow", "hybrid_research",
+            "executionStrategy", Map.of("mode", "hybrid", "stopOnError", true),
+            "steps", List.of(
+                Map.of(
+                    "step", 1,
+                    "name", "internal_retrieval",
+                    "parallelSteps", List.of("mcp_xxx_document_search", "mcp_xxx_knowledge_search"),
+                    "required", true
+                ),
+                Map.of("step", 2, "name", "external_verify", "tool", "mcp_xxx_web_search", "required", true)
+            )
+        );
+
+        ToolRuntimeExecution deniedWeb = service.execute(agentWorkflowRequest(
+            "mcp_xxx_web_search",
+            workflowConfig,
+            List.of("mcp_xxx_document_search", "mcp_xxx_knowledge_search", "mcp_xxx_web_search")
+        ));
+        assertThat(deniedWeb.output().isSuccess()).isFalse();
+        assertThat(deniedWeb.output().getErrorMessage())
+            .contains("mcp_xxx_document_search")
+            .contains("mcp_xxx_knowledge_search");
+
+        ToolRuntimeExecution knowledgeFirst = service.execute(agentWorkflowRequest(
+            "mcp_xxx_knowledge_search",
+            workflowConfig,
+            List.of("mcp_xxx_document_search", "mcp_xxx_knowledge_search", "mcp_xxx_web_search")
+        ));
+        ToolRuntimeExecution webStillDenied = service.execute(agentWorkflowRequest(
+            "mcp_xxx_web_search",
+            workflowConfig,
+            List.of("mcp_xxx_document_search", "mcp_xxx_knowledge_search", "mcp_xxx_web_search")
+        ));
+        ToolRuntimeExecution documentSecond = service.execute(agentWorkflowRequest(
+            "mcp_xxx_document_search",
+            workflowConfig,
+            List.of("mcp_xxx_document_search", "mcp_xxx_knowledge_search", "mcp_xxx_web_search")
+        ));
+        ToolRuntimeExecution webAllowed = service.execute(agentWorkflowRequest(
+            "mcp_xxx_web_search",
+            workflowConfig,
+            List.of("mcp_xxx_document_search", "mcp_xxx_knowledge_search", "mcp_xxx_web_search")
+        ));
+
+        assertThat(knowledgeFirst.output().isSuccess()).isTrue();
+        assertThat(webStillDenied.output().isSuccess()).isFalse();
+        assertThat(webStillDenied.output().getErrorMessage()).contains("mcp_xxx_document_search");
+        assertThat(documentSecond.output().isSuccess()).isTrue();
+        assertThat(webAllowed.output().isSuccess()).isTrue();
+        verify(toolRegistry, times(3)).executeEnhancedTool(any(), any());
+    }
+
     private ToolRuntimeProperties properties() {
         ToolRuntimeProperties properties = new ToolRuntimeProperties();
         properties.setEnforceAllowedTools(true);
@@ -326,6 +395,10 @@ class ToolRuntimeServiceTest {
     }
 
     private ToolRuntimeRequest agentWorkflowRequest(String toolName, Map<String, Object> workflowConfig) {
+        return agentWorkflowRequest(toolName, workflowConfig, List.of("query_customer_basic_info", "query_customer_asset_summary"));
+    }
+
+    private ToolRuntimeRequest agentWorkflowRequest(String toolName, Map<String, Object> workflowConfig, List<String> allowedTools) {
         return ToolRuntimeRequest.builder()
             .toolName(toolName)
             .runtimeMode("agent_chat")
@@ -333,7 +406,7 @@ class ToolRuntimeServiceTest {
             .conversationId("conv-agent-workflow")
             .tenantId("tenant-1")
             .userId("user-agent-workflow")
-            .allowedTools(List.of("query_customer_basic_info", "query_customer_asset_summary"))
+            .allowedTools(allowedTools)
             .toolInput(ToolInput.builder().userId("user-agent-workflow").parameters(Map.of()).build())
             .attributes(Map.of("mcpWorkflow", workflowConfig))
             .build();

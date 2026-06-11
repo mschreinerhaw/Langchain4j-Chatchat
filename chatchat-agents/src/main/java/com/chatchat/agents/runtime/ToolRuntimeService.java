@@ -802,17 +802,18 @@ public class ToolRuntimeService {
             return WorkflowDecision.allowed(workflowName, stateKey, matchedRules);
         }
         String mode = strategy == null ? "sequential" : firstText(strategy.getMode(), "sequential");
-        boolean sequential = "sequential".equalsIgnoreCase(mode) || (!"hybrid".equalsIgnoreCase(mode)
-            && !Boolean.TRUE.equals(strategy == null ? false : strategy.isAllowParallel()));
-        if (!sequential || parallelStep(workflow, toolName)) {
+        boolean orderedStages = "sequential".equalsIgnoreCase(mode)
+            || "hybrid".equalsIgnoreCase(mode)
+            || !Boolean.TRUE.equals(strategy == null ? false : strategy.isAllowParallel());
+        if (!orderedStages || parallelStep(workflow, toolName)) {
             return WorkflowDecision.allowed(workflowName, stateKey, matchedRules);
         }
         int currentOrder = stepOrder(currentStep);
         List<String> missingRequired = workflow.getSteps().stream()
-            .filter(step -> step != null && step.getTool() != null && !step.getTool().isBlank())
+            .filter(step -> step != null && !stepTools(step).isEmpty())
             .filter(McpWorkflowProperties.WorkflowStep::isRequired)
             .filter(step -> stepOrder(step) < currentOrder)
-            .map(McpWorkflowProperties.WorkflowStep::getTool)
+            .flatMap(step -> stepTools(step).stream())
             .filter(requiredTool -> !containsTool(completed, requiredTool))
             .distinct()
             .toList();
@@ -1070,7 +1071,7 @@ public class ToolRuntimeService {
         String explicitName = agentWorkflowName(config, executionPlan);
         boolean explicitMatched = explicitName != null && sameTool(explicitName, executionPlan == null ? null : executionPlan.workflow());
         boolean toolMatched = workflow.getSteps() != null
-            && workflow.getSteps().stream().anyMatch(step -> step != null && sameTool(step.getTool(), toolName));
+            && workflow.getSteps().stream().anyMatch(step -> stepContainsTool(step, toolName));
         if (!toolMatched && !explicitMatched) {
             return null;
         }
@@ -1110,12 +1111,15 @@ public class ToolRuntimeService {
         for (Object item : list) {
             Map<String, Object> rawStep = asMap(item);
             String tool = stringValue(firstPresent(rawStep.get("tool"), rawStep.get("toolName")));
-            if (tool == null || tool.isBlank()) {
+            List<String> parallelSteps = stringList(firstPresent(rawStep.get("parallelSteps"), rawStep.get("parallel_steps")));
+            if ((tool == null || tool.isBlank()) && parallelSteps.isEmpty()) {
                 continue;
             }
             McpWorkflowProperties.WorkflowStep step = new McpWorkflowProperties.WorkflowStep();
+            step.setName(stringValue(rawStep.get("name")));
             step.setStep(firstInteger(firstPresent(rawStep.get("step"), rawStep.get("order")), index));
-            step.setTool(tool.trim());
+            step.setTool(tool == null || tool.isBlank() ? null : tool.trim());
+            step.setParallelSteps(parallelSteps);
             Boolean required = booleanValue(rawStep.get("required"));
             step.setRequired(required == null || required);
             step.setCondition(stringValue(rawStep.get("condition")));
@@ -1178,7 +1182,7 @@ public class ToolRuntimeService {
             return null;
         }
         return workflow.getSteps().stream()
-            .filter(step -> step != null && sameTool(step.getTool(), toolName))
+            .filter(step -> stepContainsTool(step, toolName))
             .findFirst()
             .orElse(null);
     }
@@ -1191,6 +1195,28 @@ public class ToolRuntimeService {
 
     private int stepOrder(McpWorkflowProperties.WorkflowStep step) {
         return step == null || step.getStep() == null ? Integer.MAX_VALUE : step.getStep();
+    }
+
+    private boolean stepContainsTool(McpWorkflowProperties.WorkflowStep step, String toolName) {
+        return step != null
+            && (sameTool(step.getTool(), toolName)
+            || (step.getParallelSteps() != null && step.getParallelSteps().stream().anyMatch(candidate -> sameTool(candidate, toolName))));
+    }
+
+    private List<String> stepTools(McpWorkflowProperties.WorkflowStep step) {
+        if (step == null) {
+            return List.of();
+        }
+        List<String> tools = new ArrayList<>();
+        if (step.getTool() != null && !step.getTool().isBlank()) {
+            tools.add(step.getTool());
+        }
+        if (step.getParallelSteps() != null) {
+            step.getParallelSteps().stream()
+                .filter(tool -> tool != null && !tool.isBlank())
+                .forEach(tools::add);
+        }
+        return tools.stream().distinct().toList();
     }
 
     private boolean sameTool(String configuredTool, String actualTool) {

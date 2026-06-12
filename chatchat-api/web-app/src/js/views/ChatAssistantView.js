@@ -1,9 +1,11 @@
 import ChatMessageList from "../../components/ChatMessageList.vue";
 import PromptComposer from "../../components/PromptComposer.vue";
 import {
+  addUserFavorite,
   analyzeChatImage,
   apiRequest,
   fetchAgentWorkshop,
+  recordUserActivity,
   saveConversationHistory,
   sendInteractionMessage,
   sendInteractionMessageStream,
@@ -185,6 +187,17 @@ function cancelAgentTask(taskId, tenantId = "") {
   });
 }
 
+function killRuntimeTask(taskId, tenantId = "") {
+  const params = new URLSearchParams();
+  if (tenantId) {
+    params.set("tenantId", tenantId);
+  }
+  const query = params.toString();
+  return apiRequest(`/agent/tasks/runtime/tasks/${encodeURIComponent(taskId)}/kill${query ? `?${query}` : ""}`, {
+    method: "POST"
+  });
+}
+
 export default {
   name: "ChatAssistantView",
   components: {
@@ -199,6 +212,10 @@ export default {
     userId: {
       type: String,
       default: "mx_48991534"
+    },
+    pendingDraft: {
+      type: Object,
+      default: null
     }
   },
   emits: ["conversation-active", "history-saved"],
@@ -214,6 +231,7 @@ export default {
       lastResponse: { ...EMPTY_RESPONSE },
       suggestions: [],
       agents: [],
+      appliedDraftId: "",
       agentsLoading: false,
       selectedAgentId: "",
       activeRunId: "",
@@ -223,6 +241,8 @@ export default {
       uploadingDocument: false,
       uploadError: "",
       uploadNotice: "",
+      favoriteSaving: false,
+      favoriteNotice: "",
       imageDialogOpen: false,
       uploadingImage: false,
       imageUploadError: "",
@@ -232,6 +252,9 @@ export default {
       pendingMcpConfirmation: null,
       pendingMcpRequest: null,
       pendingMcpTaskId: "",
+      pendingMcpExpiredAt: "",
+      confirmationNow: Date.now(),
+      confirmationTimerId: null,
       stopAgentTaskCancelledListener: null,
       confirmationRemember: "",
       uploadForm: defaultUploadForm(),
@@ -266,6 +289,9 @@ export default {
         return "该历史会话上次请求失败，可继续输入或重新提问。";
       }
       return "";
+    },
+    currentConversationTitle() {
+      return this.lastUserQuestion() || this.selectedConversation?.question || this.selectedAgent?.name || "本轮会话";
     },
     selectedAgent() {
       return this.agents.find((agent) => agent.id === this.selectedAgentId) || null;
@@ -303,6 +329,18 @@ export default {
     },
     canKillActiveRun() {
       return this.loading || !!this.activeRunContext?.taskId || !!this.pendingMcpTaskId;
+    },
+    pendingMcpRemainingMs() {
+      if (!this.pendingMcpExpiredAt) {
+        return 0;
+      }
+      return Math.max(0, new Date(this.pendingMcpExpiredAt).getTime() - this.confirmationNow);
+    },
+    pendingMcpCountdownText() {
+      const totalSeconds = Math.ceil(this.pendingMcpRemainingMs / 1000);
+      const minutes = Math.floor(totalSeconds / 60);
+      const seconds = totalSeconds % 60;
+      return `${minutes}:${String(seconds).padStart(2, "0")}`;
     }
   },
   mounted() {
@@ -314,15 +352,54 @@ export default {
       this.stopAgentTaskCancelledListener();
       this.stopAgentTaskCancelledListener = null;
     }
+    this.clearConfirmationTimer();
   },
   watch: {
     selectedConversation(conversation) {
       if (conversation) {
         this.restoreConversation(conversation);
       }
+    },
+    pendingDraft: {
+      immediate: true,
+      handler(draft) {
+        this.applyPendingDraft(draft);
+      }
     }
   },
   methods: {
+    applyPendingDraft(draft) {
+      if (!draft || draft.id === this.appliedDraftId) {
+        return;
+      }
+      this.appliedDraftId = draft.id;
+      if (draft.agentId) {
+        this.selectedAgentId = draft.agentId;
+        if (draft.newSession && !this.loading) {
+          this.historyId = "";
+          this.conversationId = "";
+          this.messages = [];
+          this.conversationStatus = "completed";
+          this.lastResponse = { ...EMPTY_RESPONSE };
+        }
+        this.uploadNotice = draft.title
+          ? `已切换到 Agent：${draft.title}。`
+          : `已切换到 Agent：${draft.agentId}。`;
+        this.recordAgentUse(draft.agentId, draft.title || draft.agentId);
+      }
+      if (!draft.prompt) {
+        return;
+      }
+      this.question = draft.prompt;
+      if (!draft.agentId) {
+        this.uploadNotice = draft.title
+          ? `已从搜索结果《${draft.title}》生成提问草稿。`
+          : "已从搜索结果生成提问草稿。";
+      }
+      this.$nextTick(() => {
+        this.$refs.promptComposer?.focusComposer?.();
+      });
+    },
     async handleSend(payload) {
       const query = typeof payload === "string" ? payload.trim() : payload?.query?.trim();
       if (!query || this.loading) {
@@ -378,6 +455,9 @@ export default {
           imageAnalysisIds
         }
       };
+      if (this.selectedAgentId) {
+        this.recordAgentUse(this.selectedAgentId, this.selectedAgent?.name || this.selectedAgentId, query);
+      }
       if (imageAnalysisIds.length) {
         this.contextImageAnalyses = [];
         this.uploadNotice = `已加入 ${imageAnalysisIds.length} 张图片解析上下文，本次任务将使用这些内容。`;
@@ -427,6 +507,52 @@ export default {
           this.activeRunId = "";
           this.scrollMessages();
         }
+      }
+    },
+    async recordAgentUse(agentId, title, summary = "") {
+      if (!agentId) {
+        return;
+      }
+      try {
+        await recordUserActivity({
+          tenantId: this.userId,
+          userId: this.userId,
+          targetType: "AGENT",
+          targetId: agentId,
+          actionType: "USE",
+          title: title || agentId,
+          summary,
+          extra: {
+            conversationId: this.conversationId || "",
+            historyId: this.historyId || ""
+          }
+        });
+      } catch (error) {
+        // Shortcut memory is best-effort and should not block chat.
+      }
+    },
+    async favoriteCurrentSession() {
+      const targetId = this.conversationId || this.historyId;
+      if (!targetId || this.favoriteSaving) {
+        return;
+      }
+      this.favoriteSaving = true;
+      this.favoriteNotice = "";
+      this.errorMessage = "";
+      try {
+        await addUserFavorite({
+          tenantId: this.userId,
+          userId: this.userId,
+          targetType: "SESSION",
+          targetId,
+          title: this.currentConversationTitle,
+          category: "会话"
+        });
+        this.favoriteNotice = "本轮会话已收藏。";
+      } catch (error) {
+        this.errorMessage = error.message || "收藏本轮会话失败";
+      } finally {
+        this.favoriteSaving = false;
       }
     },
     async requestAssistantAnswerLegacy(query, requestPayload, runContext) {
@@ -833,6 +959,7 @@ export default {
       this.conversationStatus = "completed";
       this.errorMessage = "";
       this.uploadNotice = "";
+      this.favoriteNotice = "";
       this.contextImageAnalyses = [];
       this.pendingImageAnalysis = null;
       this.lastResponse = { ...EMPTY_RESPONSE };
@@ -1212,6 +1339,7 @@ export default {
       if (!confirmation?.token) {
         return;
       }
+      const expiredAt = this.resolveConfirmationExpiredAt(response, confirmation);
       this.pendingMcpConfirmation = confirmation;
       this.pendingMcpRequest = {
         query,
@@ -1219,7 +1347,9 @@ export default {
         taskId
       };
       this.pendingMcpTaskId = taskId || "";
+      this.pendingMcpExpiredAt = expiredAt;
       this.confirmationRemember = "";
+      this.startConfirmationTimer();
     },
     findMcpConfirmation(response = {}) {
       const traces = Array.isArray(response.toolTraces) ? response.toolTraces : [];
@@ -1238,6 +1368,30 @@ export default {
       }
       return null;
     },
+    resolveConfirmationExpiredAt(response = {}, confirmation = {}) {
+      const value = confirmation.expiredAt || response.expiredAt || response.confirmExpiredAt;
+      const timestamp = value ? new Date(value).getTime() : NaN;
+      if (Number.isFinite(timestamp) && timestamp > Date.now()) {
+        return new Date(timestamp).toISOString();
+      }
+      return new Date(Date.now() + 180000).toISOString();
+    },
+    startConfirmationTimer() {
+      this.clearConfirmationTimer();
+      this.confirmationNow = Date.now();
+      this.confirmationTimerId = window.setInterval(() => {
+        this.confirmationNow = Date.now();
+        if (this.pendingMcpConfirmation && this.pendingMcpRemainingMs <= 0) {
+          this.handleMcpConfirmationTimeout();
+        }
+      }, 1000);
+    },
+    clearConfirmationTimer() {
+      if (this.confirmationTimerId) {
+        window.clearInterval(this.confirmationTimerId);
+        this.confirmationTimerId = null;
+      }
+    },
     formatConfirmationParameters(parameters = {}) {
       try {
         return JSON.stringify(parameters || {}, null, 2);
@@ -1246,16 +1400,41 @@ export default {
       }
     },
     cancelMcpConfirmation() {
+      this.clearConfirmationTimer();
       this.pendingMcpConfirmation = null;
       this.pendingMcpRequest = null;
       this.pendingMcpTaskId = "";
+      this.pendingMcpExpiredAt = "";
       this.confirmationRemember = "";
+    },
+    async handleMcpConfirmationTimeout() {
+      const taskId = this.pendingMcpTaskId || this.pendingMcpRequest?.taskId || "";
+      if (!taskId || this.loading) {
+        this.cancelMcpConfirmation();
+        return;
+      }
+      try {
+        await killRuntimeTask(taskId, this.userId);
+        await this.handleAgentTaskCancelled({
+          taskId,
+          tenantId: this.userId,
+          message: "该操作超过 3 分钟未确认，任务已自动取消。",
+          status: "KILLED"
+        });
+      } catch (error) {
+        this.errorMessage = error.message || "确认超时取消任务失败";
+      } finally {
+        this.cancelMcpConfirmation();
+      }
     },
     async denyMcpConfirmation() {
       const taskId = this.pendingMcpTaskId || this.pendingMcpRequest?.taskId || "";
       if (taskId) {
         try {
-          await cancelAgentTask(taskId, this.userId);
+          await apiRequest(`/agent/tasks/runtime/tasks/${encodeURIComponent(taskId)}/reject?tenantId=${encodeURIComponent(this.userId)}`, {
+            method: "POST",
+            body: JSON.stringify({ userId: this.userId })
+          });
         } catch (error) {
           this.errorMessage = error.message || "取消任务失败";
         }
@@ -1281,6 +1460,8 @@ export default {
       this.pendingMcpConfirmation = null;
       this.pendingMcpRequest = null;
       this.pendingMcpTaskId = "";
+      this.pendingMcpExpiredAt = "";
+      this.clearConfirmationTimer();
       this.confirmationRemember = "";
 
       const runContext = this.createRunContext(query);
@@ -1343,7 +1524,7 @@ export default {
         return;
       }
       try {
-        await cancelAgentTask(taskId, this.userId);
+        await killRuntimeTask(taskId, this.userId);
         const targetContext = runContext || this.createRunContext(this.pendingMcpRequest?.query || "");
         const lastAssistantMessage = [...targetContext.messages].reverse()
           .find((message) => message.role === "assistant" && (message.streaming || message.status === "waiting"));

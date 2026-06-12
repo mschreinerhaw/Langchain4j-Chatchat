@@ -316,7 +316,13 @@ export default {
         this.experienceSummary = experiences;
         this.toolGovernance = governance;
         this.recentToolAudits = Array.isArray(audits) ? audits : [];
-        if (!this.selectedTask && this.tasks.length > 0) {
+        const pendingTaskId = sessionStorage.getItem("chatchat.runtime.selectedTaskId") || "";
+        const pendingTask = pendingTaskId ? this.tasks.find((task) => task.taskId === pendingTaskId) : null;
+        if (pendingTask) {
+          sessionStorage.removeItem("chatchat.runtime.selectedTaskId");
+          await this.selectTask(pendingTask);
+          this.activeTab = "events";
+        } else if (!this.selectedTask && this.tasks.length > 0) {
           await this.selectTask(this.tasks[0]);
         } else if (this.selectedTask && !this.tasks.some((task) => task.taskId === this.selectedTask.taskId)) {
           this.selectedTask = null;

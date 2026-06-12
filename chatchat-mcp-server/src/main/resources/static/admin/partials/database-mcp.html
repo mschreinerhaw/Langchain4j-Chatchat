@@ -50,13 +50,18 @@
                             <textarea id="databaseDescriptionInput" class="form-control" rows="2" placeholder="说明模型应在什么场景下使用这个查询"></textarea>
                         </div>
                         <div class="col-12">
+                            <label class="form-label" for="databaseDatasourceSelect">数据库资产</label>
+                            <select id="databaseDatasourceSelect" class="form-select"></select>
+                            <div class="form-text">推荐直接引用资产中心里的数据库资产。旧 JDBC 字段仅作为兼容兜底。</div>
+                        </div>
+                        <div class="col-12">
                             <div class="microservice-box">
-                                <div class="fw-semibold mb-2">外部 JDBC 数据源</div>
-                                <div class="form-text mb-3">数据库查询 MCP 禁止访问本地配置库，必须填写外部 JDBC 连接。</div>
+                                <div class="fw-semibold mb-2">兼容 JDBC 数据源</div>
+                                <div class="form-text mb-3">未选择数据库资产时才需要填写外部 JDBC 连接；禁止访问本地配置库。</div>
                                 <div id="databaseExternalFields" class="row g-3">
                                     <div class="col-12">
                                         <label class="form-label" for="databaseJdbcUrlInput">JDBC URL</label>
-                                        <input id="databaseJdbcUrlInput" class="form-control" placeholder="jdbc:mysql://127.0.0.1:3306/demo" required>
+                                        <input id="databaseJdbcUrlInput" class="form-control" placeholder="jdbc:mysql://127.0.0.1:3306/demo">
                                     </div>
                                     <div class="col-md-6">
                                         <label class="form-label" for="databaseDriverClassInput">Driver Class</label>

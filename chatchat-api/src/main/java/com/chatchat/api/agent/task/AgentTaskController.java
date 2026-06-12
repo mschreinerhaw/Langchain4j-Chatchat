@@ -12,6 +12,7 @@ import com.chatchat.chat.task.AgentRuntimeSummary;
 import com.chatchat.chat.task.AgentTaskResponse;
 import com.chatchat.chat.task.AgentTaskService;
 import com.chatchat.chat.task.AgentTaskSubmitRequest;
+import com.chatchat.chat.task.AgentTodoService;
 import com.chatchat.api.security.ApiAuthenticationFilter;
 import com.chatchat.common.constants.AppConstants;
 import com.chatchat.common.response.ApiResponse;
@@ -58,6 +59,7 @@ public class AgentTaskController {
     private final McpToolRegistryBridge mcpToolRegistryBridge;
     private final AgentLearningService learningService;
     private final EnterpriseAdminService enterpriseAdminService;
+    private final AgentTodoService todoService;
 
     /**
      * Performs the submit operation.
@@ -148,6 +150,31 @@ public class AgentTaskController {
         }
     }
 
+    @GetMapping("/runtime/todos")
+    @Operation(summary = "List Runtime todos that need human handling")
+    public ApiResponse<AgentTodoService.TodoTaskPayload> todos(@RequestParam("tenantId") String tenantId,
+                                                               @RequestParam(value = "userId", required = false) String userId,
+                                                               @RequestParam(value = "limit", defaultValue = "20") int limit) {
+        try {
+            return ApiResponse.success(todoService.listTodos(tenantId, userId, limit));
+        } catch (IllegalArgumentException e) {
+            return ApiResponse.badRequest(e.getMessage());
+        }
+    }
+
+    @PostMapping("/runtime/todos/{todoId}/actions")
+    @Operation(summary = "Resolve one Runtime todo")
+    public ApiResponse<AgentTodoService.TodoActionResult> todoAction(@PathVariable("todoId") String todoId,
+                                                                     @RequestBody AgentTodoService.TodoActionRequest request) {
+        try {
+            return ApiResponse.success(todoService.executeAction(todoId, request), "Runtime todo handled");
+        } catch (IllegalArgumentException e) {
+            return ApiResponse.badRequest(e.getMessage());
+        } catch (Exception e) {
+            return ApiResponse.internalError("Runtime todo action failed: " + e.getMessage());
+        }
+    }
+
     /**
      * Converts the value to ol audits.
      *
@@ -235,6 +262,53 @@ public class AgentTaskController {
             return ApiResponse.badRequest(e.getMessage());
         } catch (Exception e) {
             return ApiResponse.internalError("Agent task cancellation failed: " + e.getMessage());
+        }
+    }
+
+    @PostMapping("/runtime/tasks/{taskId}/confirm")
+    @Operation(summary = "Confirm one waiting Runtime task")
+    public ApiResponse<AgentTaskResponse> confirm(@RequestParam("tenantId") String tenantId,
+                                                  @PathVariable("taskId") String taskId,
+                                                  @RequestBody(required = false) AgentTaskSubmitRequest request) {
+        try {
+            return ApiResponse.success(taskService.confirm(tenantId, taskId, request), "Runtime task confirmed");
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ApiResponse.badRequest(e.getMessage());
+        } catch (Exception e) {
+            return ApiResponse.internalError("Runtime task confirmation failed: " + e.getMessage());
+        }
+    }
+
+    @PostMapping("/runtime/tasks/{taskId}/reject")
+    @Operation(summary = "Reject one waiting Runtime task")
+    public ApiResponse<AgentTaskResponse> reject(@RequestParam("tenantId") String tenantId,
+                                                 @PathVariable("taskId") String taskId,
+                                                 @RequestBody(required = false) Map<String, Object> request,
+                                                 HttpServletRequest servletRequest) {
+        try {
+            String userId = firstText(
+                request == null ? null : stringValue(request.get("userId")),
+                currentUsername(servletRequest),
+                currentUserId(servletRequest)
+            );
+            return ApiResponse.success(taskService.reject(tenantId, taskId, userId), "Runtime task rejected");
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            return ApiResponse.badRequest(e.getMessage());
+        } catch (Exception e) {
+            return ApiResponse.internalError("Runtime task rejection failed: " + e.getMessage());
+        }
+    }
+
+    @PostMapping("/runtime/tasks/{taskId}/kill")
+    @Operation(summary = "Kill one active Runtime task")
+    public ApiResponse<AgentTaskResponse> kill(@RequestParam("tenantId") String tenantId,
+                                               @PathVariable("taskId") String taskId) {
+        try {
+            return ApiResponse.success(taskService.kill(tenantId, taskId), "Runtime task killed");
+        } catch (IllegalArgumentException e) {
+            return ApiResponse.badRequest(e.getMessage());
+        } catch (Exception e) {
+            return ApiResponse.internalError("Runtime task kill failed: " + e.getMessage());
         }
     }
 
@@ -512,6 +586,10 @@ public class AgentTaskController {
      */
     private String normalizeText(String value) {
         return value == null || value.isBlank() ? null : value.trim();
+    }
+
+    private String stringValue(Object value) {
+        return value == null ? null : String.valueOf(value);
     }
 
     private String configuredRuntimeLevel(String toolName) {

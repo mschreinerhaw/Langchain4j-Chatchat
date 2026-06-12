@@ -25,6 +25,9 @@ public class DatabaseQueryConfig {
     @Column(nullable = false, length = 200)
     private String title;
 
+    @Column(length = 64)
+    private String datasourceId;
+
     @Column(length = 1000)
     private String description;
 
@@ -94,6 +97,8 @@ public class DatabaseQueryConfig {
     public void setToolName(String toolName) { this.toolName = toolName; }
     public String getTitle() { return title; }
     public void setTitle(String title) { this.title = title; }
+    public String getDatasourceId() { return datasourceId; }
+    public void setDatasourceId(String datasourceId) { this.datasourceId = datasourceId; }
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
     public String getSqlTemplate() { return sqlTemplate; }

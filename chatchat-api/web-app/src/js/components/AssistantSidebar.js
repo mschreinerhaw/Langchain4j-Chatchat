@@ -2,6 +2,7 @@ import {
   BookOpen,
   Bot,
   Boxes,
+  CalendarClock,
   ChevronDown,
   ClipboardList,
   FileText,
@@ -63,7 +64,14 @@ export default {
       default: ""
     }
   },
-  emits: ["delete-conversation", "logout", "navigate", "refresh-history", "select-conversation", "toggle-sidebar"],
+  emits: [
+    "delete-conversation",
+    "logout",
+    "navigate",
+    "refresh-history",
+    "select-conversation",
+    "toggle-sidebar"
+  ],
   data() {
     return {
       collapsedGroups: {},
@@ -115,6 +123,7 @@ export default {
       return {
         agent: Bot,
         book: BookOpen,
+        schedule: CalendarClock,
         chat: MessageSquare,
         file: FileText,
         gear: Settings,

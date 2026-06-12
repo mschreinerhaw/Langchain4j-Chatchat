@@ -107,6 +107,11 @@
   font-weight: 800;
 }
 
+.right-tool-rail button span.urgent {
+  background: #fff0f2;
+  color: #b42335;
+}
+
 .right-module {
   display: grid;
   gap: 10px;
@@ -132,6 +137,18 @@
 .right-module-title svg {
   flex: 0 0 auto;
   color: #435064;
+}
+
+.module-count {
+  min-width: 18px;
+  height: 18px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 999px;
+  background: #fff0f2;
+  color: #b42335;
+  font-size: 11px;
+  font-weight: 800;
 }
 
 .right-module header strong {
@@ -161,6 +178,41 @@
   transform: rotate(45deg);
 }
 
+.todo-module .todo-refresh {
+  width: 26px;
+  height: 26px;
+  justify-content: center;
+  padding: 0;
+  border-radius: 6px;
+}
+
+.todo-module .todo-refresh::after {
+  content: none;
+}
+
+.todo-module .todo-refresh:disabled {
+  cursor: default;
+  opacity: 0.62;
+}
+
+.todo-module .spinning {
+  animation: recent-spin 0.85s linear infinite;
+}
+
+.todo-module .todo-item {
+  margin-bottom: 0;
+}
+
+.todo-more-link {
+  justify-self: start;
+  margin-top: 0;
+}
+
+.right-panel .todo-detail-backdrop {
+  justify-content: flex-end;
+  padding: 88px calc(var(--right-panel-width) + 16px) 24px calc(var(--sidebar-width) + 16px);
+}
+
 .right-module-body {
   display: grid;
   gap: 10px;
@@ -182,6 +234,10 @@
 .report-item,
 .agent-row {
   grid-template-columns: 36px minmax(0, 1fr);
+}
+
+.shortcut-item {
+  padding: 2px 0;
 }
 
 .holding-row strong,
@@ -276,8 +332,8 @@
 
 .simple-row {
   display: grid;
-  grid-template-columns: 20px minmax(0, 1fr) auto;
-  align-items: center;
+  grid-template-columns: 20px minmax(0, 1fr);
+  align-items: start;
   gap: 9px;
 }
 
@@ -360,6 +416,36 @@
   line-height: 1.5;
 }
 
+.right-panel-error {
+  margin: 0;
+  padding: 10px 16px;
+  border-top: 1px solid var(--line);
+  color: #b42335;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.shortcut-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.shortcut-actions button {
+  min-height: 22px;
+  padding: 0;
+  background: transparent;
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.shortcut-actions button:hover {
+  color: var(--primary-strong);
+  text-decoration: underline;
+}
+
 @media (max-width: 1180px) {
   .right-panel {
     grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -372,6 +458,10 @@
 
   .right-panel-shell {
     grid-column: 1 / -1;
+  }
+
+  .right-panel .todo-detail-backdrop {
+    padding: 18px;
   }
 }
 

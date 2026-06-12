@@ -22,7 +22,17 @@
       :user-id="userId"
       :active-agent="selectedAgent"
     />
+      <div v-if="hasConversation" class="chat-session-actions">
+        <div>
+          <strong>{{ currentConversationTitle }}</strong>
+          <span>{{ selectedAgent?.name || "智能对话" }}</span>
+        </div>
+        <button type="button" :disabled="favoriteSaving" @click="favoriteCurrentSession">
+          {{ favoriteSaving ? "收藏中" : "收藏本轮会话" }}
+        </button>
+      </div>
       <p v-if="statusNotice" class="chat-status-notice">{{ statusNotice }}</p>
+      <p v-if="favoriteNotice" class="chat-status-notice">{{ favoriteNotice }}</p>
       <p v-if="uploadNotice" class="chat-status-notice">{{ uploadNotice }}</p>
       <p v-if="errorMessage" class="chat-error">{{ errorMessage }}</p>
 
@@ -35,6 +45,9 @@
             </div>
             <button type="button" class="dialog-close" :disabled="loading" @click="cancelMcpConfirmation">x</button>
           </header>
+          <p class="mcp-confirm-timeout">
+            该操作需要确认，3分钟内未确认将自动取消任务。剩余 {{ pendingMcpCountdownText }}
+          </p>
           <dl>
             <div>
               <dt>Purpose</dt>
@@ -77,6 +90,7 @@
 
     <div class="chat-input-dock">
       <PromptComposer
+        ref="promptComposer"
         v-model="question"
         v-model:selected-agent-id="selectedAgentId"
         :agents="agents"

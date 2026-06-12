@@ -3,6 +3,13 @@ package com.chatchat.mcpserver.audit;
 import com.chatchat.mcpserver.api.ApiInvokeResult;
 import com.chatchat.mcpserver.api.ApiServiceConfig;
 import com.chatchat.mcpserver.cache.McpRocksDbStore;
+import com.chatchat.mcpserver.notification.NotificationChannelConfig;
+import com.chatchat.mcpserver.notification.NotificationSendResult;
+import com.chatchat.mcpserver.ops.HttpRequestToolResult;
+import com.chatchat.mcpserver.ops.LinuxCommandResult;
+import com.chatchat.mcpserver.ops.SshHostConfig;
+import com.chatchat.mcpserver.sql.SqlDatasourceConfig;
+import com.chatchat.mcpserver.sql.SqlQueryResult;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -132,6 +139,137 @@ public class InvocationAuditService {
         response.put("statusCode", result.statusCode());
         response.put("cacheHit", result.cacheHit());
         response.put("body", result.body());
+        response.put("errorMessage", result.errorMessage());
+        log.setResponseSummary(toJsonSummary(redact(response)));
+        log.setCreatedAt(Instant.now());
+        save(log);
+    }
+
+    public void recordNotificationCall(NotificationChannelConfig config, Map<String, Object> arguments,
+                                       NotificationSendResult result, long durationMs) {
+        if (!rocksDbStore.isUsable()) {
+            return;
+        }
+        InvocationAuditLog log = new InvocationAuditLog();
+        log.setId(UUID.randomUUID().toString());
+        log.setTargetType("NOTIFICATION_TOOL");
+        log.setTargetId(config.getId());
+        log.setTargetName(config.getTitle());
+        log.setToolName(config.getToolName());
+        log.setCaller("mcp-tool");
+        log.setSuccess(result.success());
+        log.setStatusCode(result.statusCode());
+        log.setDurationMs(durationMs);
+        log.setErrorMessage(limit(result.errorMessage()));
+        Map<String, Object> request = new LinkedHashMap<>();
+        request.put("channel", config.getChannel());
+        request.put("deliveryMode", config.getDeliveryMode());
+        request.put("receiver", arguments == null ? null : arguments.get("receiver"));
+        request.put("title", arguments == null ? null : arguments.get("title"));
+        request.put("level", arguments == null ? null : arguments.get("level"));
+        request.put("sourceTaskId", arguments == null ? null : arguments.get("sourceTaskId"));
+        request.put("content", arguments == null ? null : arguments.get("content"));
+        log.setRequestSummary(toJsonSummary(redact(request)));
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("statusCode", result.statusCode());
+        response.put("attempts", result.attempts());
+        response.put("body", result.responseBody());
+        response.put("errorMessage", result.errorMessage());
+        log.setResponseSummary(toJsonSummary(redact(response)));
+        log.setCreatedAt(Instant.now());
+        save(log);
+    }
+
+    public void recordOpsHttpCall(Map<String, Object> arguments, HttpRequestToolResult result) {
+        if (!rocksDbStore.isUsable()) {
+            return;
+        }
+        InvocationAuditLog log = new InvocationAuditLog();
+        log.setId(UUID.randomUUID().toString());
+        log.setTargetType("OPS_HTTP_REQUEST");
+        log.setTargetId(result.url());
+        log.setTargetName(result.method() + " " + result.url());
+        log.setToolName("http_request");
+        log.setCaller("mcp-tool");
+        log.setSuccess(result.success());
+        log.setStatusCode(result.statusCode());
+        log.setDurationMs(result.durationMs());
+        log.setErrorMessage(limit(result.errorMessage()));
+        log.setRequestSummary(toJsonSummary(redact(arguments)));
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("statusCode", result.statusCode());
+        response.put("headers", result.headers());
+        response.put("body", result.body());
+        response.put("errorMessage", result.errorMessage());
+        log.setResponseSummary(toJsonSummary(redact(response)));
+        log.setCreatedAt(Instant.now());
+        save(log);
+    }
+
+    public void recordLinuxCommandCall(SshHostConfig host, LinuxCommandResult result) {
+        if (!rocksDbStore.isUsable()) {
+            return;
+        }
+        InvocationAuditLog log = new InvocationAuditLog();
+        log.setId(UUID.randomUUID().toString());
+        log.setTargetType("LINUX_COMMAND");
+        log.setTargetId(result.hostId());
+        log.setTargetName((host == null ? result.host() : host.getName()) + " / " + result.template());
+        log.setToolName(result.toolName() == null ? "linux_command_execute" : result.toolName());
+        log.setCaller("mcp-tool");
+        log.setSuccess(result.success());
+        log.setStatusCode(result.exitCode());
+        log.setDurationMs(result.durationMs());
+        log.setErrorMessage(limit(result.errorMessage()));
+        Map<String, Object> request = new LinkedHashMap<>();
+        request.put("hostId", result.hostId());
+        request.put("host", result.host());
+        request.put("environment", result.environment());
+        request.put("template", result.template());
+        request.put("command", result.command());
+        request.put("sourceTaskId", result.request() == null ? null : result.request().get("sourceTaskId"));
+        request.put("reason", result.request() == null ? null : result.request().get("reason"));
+        log.setRequestSummary(toJsonSummary(redact(request)));
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("exitCode", result.exitCode());
+        response.put("stdout", result.stdout());
+        response.put("stderr", result.stderr());
+        response.put("errorMessage", result.errorMessage());
+        log.setResponseSummary(toJsonSummary(redact(response)));
+        log.setCreatedAt(Instant.now());
+        save(log);
+    }
+
+    public void recordSqlQueryCall(SqlDatasourceConfig datasource, SqlQueryResult result) {
+        if (!rocksDbStore.isUsable()) {
+            return;
+        }
+        InvocationAuditLog log = new InvocationAuditLog();
+        log.setId(UUID.randomUUID().toString());
+        log.setTargetType("SQL_QUERY");
+        log.setTargetId(result.datasourceId());
+        log.setTargetName((datasource == null ? result.datasourceName() : datasource.getName()) + " / " + result.environment());
+        log.setToolName(result.toolName() == null ? "sql_query_execute" : result.toolName());
+        log.setCaller("mcp-tool");
+        log.setSuccess(result.success());
+        log.setStatusCode(result.success() ? 200 : 0);
+        log.setDurationMs(result.durationMs());
+        log.setErrorMessage(limit(result.errorMessage()));
+        Map<String, Object> request = new LinkedHashMap<>();
+        request.put("datasourceId", result.datasourceId());
+        request.put("datasourceName", result.datasourceName());
+        request.put("environment", result.environment());
+        request.put("sql", result.sql());
+        request.put("normalizedSql", result.normalizedSql());
+        request.put("timeoutSeconds", result.timeoutSeconds());
+        request.put("maxRows", result.maxRows());
+        request.put("purpose", result.purpose());
+        request.put("sourceTaskId", result.sourceTaskId());
+        log.setRequestSummary(toJsonSummary(redact(request)));
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("columns", result.columns());
+        response.put("rowCount", result.rowCount());
+        response.put("possiblyTruncated", result.possiblyTruncated());
         response.put("errorMessage", result.errorMessage());
         log.setResponseSummary(toJsonSummary(redact(response)));
         log.setCreatedAt(Instant.now());

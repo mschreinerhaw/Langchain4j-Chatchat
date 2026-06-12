@@ -3,6 +3,8 @@ package com.chatchat.mcpserver.database;
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.response.ApiResponse;
 import com.chatchat.common.tool.ToolOutput;
+import com.chatchat.mcpserver.sql.SqlDatasourceConfig;
+import com.chatchat.mcpserver.sql.SqlDatasourceConfigService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -34,6 +36,7 @@ public class DatabaseQueryAdminController {
     private final DatabaseQueryInvokeService invokeService;
     private final DatabaseQueryMcpToolPublisher publisher;
     private final ObjectMapper objectMapper;
+    private final SqlDatasourceConfigService datasourceConfigService;
 
     @Value("${spring.datasource.url:}")
     private String applicationJdbcUrl;
@@ -154,6 +157,7 @@ public class DatabaseQueryAdminController {
         DatabaseQueryConfig config = new DatabaseQueryConfig();
         config.setToolName(request.toolName());
         config.setTitle(request.title());
+        config.setDatasourceId(request.datasourceId());
         config.setDescription(request.description());
         config.setSqlTemplate(request.sqlTemplate());
         config.setInputSchemaJson(writeJson(request.inputSchema()));
@@ -179,6 +183,7 @@ public class DatabaseQueryAdminController {
             config.getId(),
             config.getToolName(),
             config.getTitle(),
+            config.getDatasourceId(),
             config.getDescription(),
             config.getSqlTemplate(),
             readJsonMap(config.getInputSchemaJson()),
@@ -206,11 +211,22 @@ public class DatabaseQueryAdminController {
         parameters.put("sql", request.sql());
         parameters.put("params", request.params() == null ? Map.of() : request.params());
         parameters.put("max_rows", request.maxRows());
-        parameters.put("jdbc_url", requireJdbcUrl(request.jdbcUrl()));
-        putIfPresent(parameters, "driver_class", request.driverClass());
-        putIfPresent(parameters, "username", request.username());
-        putIfPresent(parameters, "password", request.password());
-        parameters.put("reload_drivers", request.reloadDrivers() != null && request.reloadDrivers());
+        if (request.datasourceId() != null && !request.datasourceId().isBlank()) {
+            SqlDatasourceConfig datasource = datasourceConfigService.getEnabled(request.datasourceId());
+            parameters.put("jdbc_url", datasource.getJdbcUrl());
+            putIfPresent(parameters, "driver_class", datasource.getDriverClass());
+            putIfPresent(parameters, "username", datasource.getUsername());
+            putIfPresent(parameters, "password", datasource.getPassword());
+            parameters.put("datasource_id", datasource.getId());
+            parameters.put("datasource_name", datasource.getName());
+            parameters.put("reload_drivers", false);
+        } else {
+            parameters.put("jdbc_url", requireJdbcUrl(request.jdbcUrl()));
+            putIfPresent(parameters, "driver_class", request.driverClass());
+            putIfPresent(parameters, "username", request.username());
+            putIfPresent(parameters, "password", request.password());
+            parameters.put("reload_drivers", request.reloadDrivers() != null && request.reloadDrivers());
+        }
         return parameters;
     }
 
@@ -294,6 +310,7 @@ public class DatabaseQueryAdminController {
         String sql,
         Map<String, Object> params,
         Integer maxRows,
+        String datasourceId,
         String jdbcUrl,
         String driverClass,
         String username,
@@ -305,6 +322,7 @@ public class DatabaseQueryAdminController {
     public record DatabaseQueryUpsertRequest(
         String toolName,
         String title,
+        String datasourceId,
         String description,
         String sqlTemplate,
         Map<String, Object> inputSchema,
@@ -326,6 +344,7 @@ public class DatabaseQueryAdminController {
         String id,
         String toolName,
         String title,
+        String datasourceId,
         String description,
         String sqlTemplate,
         Map<String, Object> inputSchema,

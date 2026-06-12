@@ -80,6 +80,17 @@ export function cancelAgentTask(taskId, tenantId = "") {
   });
 }
 
+export function killRuntimeTask(taskId, tenantId = "") {
+  const params = new URLSearchParams();
+  if (tenantId) {
+    params.set("tenantId", tenantId);
+  }
+  const query = params.toString();
+  return apiRequest(`/agent/tasks/runtime/tasks/${encodeURIComponent(taskId)}/kill${query ? `?${query}` : ""}`, {
+    method: "POST"
+  });
+}
+
 export function submitAgentTaskFeedback(taskId, tenantId = "", payload = {}) {
   const params = new URLSearchParams();
   if (tenantId) {
@@ -102,6 +113,28 @@ export function fetchAgentRuntimeSummary(filters = {}) {
   }
   const query = params.toString();
   return apiRequest(`/agent/tasks/runtime${query ? `?${query}` : ""}`);
+}
+
+export function fetchAgentTodos(filters = {}) {
+  const params = new URLSearchParams();
+  if (filters.tenantId) {
+    params.set("tenantId", filters.tenantId);
+  }
+  if (filters.userId) {
+    params.set("userId", filters.userId);
+  }
+  if (filters.limit) {
+    params.set("limit", String(filters.limit));
+  }
+  const query = params.toString();
+  return apiRequest(`/agent/tasks/runtime/todos${query ? `?${query}` : ""}`);
+}
+
+export function actAgentTodo(todoId, payload = {}) {
+  return apiRequest(`/agent/tasks/runtime/todos/${encodeURIComponent(todoId)}/actions`, {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
 }
 
 export function fetchAgentRuntimeToolAudits(filters = {}) {
@@ -170,6 +203,86 @@ export function fetchAgentTasks(filters = {}) {
   return apiRequest(`/agent/tasks${query ? `?${query}` : ""}`);
 }
 
+export function fetchAgentSchedules(filters = {}) {
+  const params = new URLSearchParams();
+  if (filters.tenantId) {
+    params.set("tenantId", filters.tenantId);
+  }
+  if (filters.agentId) {
+    params.set("agentId", filters.agentId);
+  }
+  if (filters.page) {
+    params.set("page", String(filters.page));
+  }
+  if (filters.pageSize) {
+    params.set("pageSize", String(filters.pageSize));
+  }
+  const query = params.toString();
+  return apiRequest(`/agent/tasks/runtime/schedules${query ? `?${query}` : ""}`);
+}
+
+export function createAgentSchedule(payload) {
+  return apiRequest("/agent/tasks/runtime/schedules", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
+export function pauseAgentSchedule(scheduleId, tenantId = "") {
+  const params = new URLSearchParams();
+  if (tenantId) {
+    params.set("tenantId", tenantId);
+  }
+  return apiRequest(`/agent/tasks/runtime/schedules/${encodeURIComponent(scheduleId)}/pause?${params.toString()}`, {
+    method: "POST"
+  });
+}
+
+export function resumeAgentSchedule(scheduleId, tenantId = "") {
+  const params = new URLSearchParams();
+  if (tenantId) {
+    params.set("tenantId", tenantId);
+  }
+  return apiRequest(`/agent/tasks/runtime/schedules/${encodeURIComponent(scheduleId)}/resume?${params.toString()}`, {
+    method: "POST"
+  });
+}
+
+export function rerunAgentSchedule(scheduleId, tenantId = "") {
+  const params = new URLSearchParams();
+  if (tenantId) {
+    params.set("tenantId", tenantId);
+  }
+  return apiRequest(`/agent/tasks/runtime/schedules/${encodeURIComponent(scheduleId)}/rerun?${params.toString()}`, {
+    method: "POST"
+  });
+}
+
+export function deleteAgentSchedule(scheduleId, tenantId = "") {
+  const params = new URLSearchParams();
+  if (tenantId) {
+    params.set("tenantId", tenantId);
+  }
+  return apiRequest(`/agent/tasks/runtime/schedules/${encodeURIComponent(scheduleId)}?${params.toString()}`, {
+    method: "DELETE"
+  });
+}
+
+export function fetchAgentScheduleHistory(scheduleId, filters = {}) {
+  const params = new URLSearchParams();
+  if (filters.tenantId) {
+    params.set("tenantId", filters.tenantId);
+  }
+  if (filters.page) {
+    params.set("page", String(filters.page));
+  }
+  if (filters.pageSize) {
+    params.set("pageSize", String(filters.pageSize));
+  }
+  const query = params.toString();
+  return apiRequest(`/agent/tasks/runtime/schedules/${encodeURIComponent(scheduleId)}/history${query ? `?${query}` : ""}`);
+}
+
 export function fetchAgentTaskEvents(taskId, limit = 50, tenantId = "") {
   const params = new URLSearchParams();
   params.set("limit", String(limit));
@@ -210,6 +323,50 @@ export function updateConversationHistoryStatus(userId, historyId, payload) {
 
 export function deleteConversationHistory(userId, historyId) {
   return apiRequest(`/data/history/${encodeURIComponent(userId)}/${encodeURIComponent(historyId)}`, {
+    method: "DELETE"
+  });
+}
+
+export function fetchWorkbenchShortcuts(filters = {}) {
+  const params = new URLSearchParams();
+  if (filters.tenantId) {
+    params.set("tenantId", filters.tenantId);
+  }
+  if (filters.userId) {
+    params.set("userId", filters.userId);
+  }
+  if (filters.limit) {
+    params.set("limit", String(filters.limit));
+  }
+  if (filters.category) {
+    params.set("category", filters.category);
+  }
+  if (filters.targetType) {
+    params.set("targetType", filters.targetType);
+  }
+  if (filters.keyword) {
+    params.set("keyword", filters.keyword);
+  }
+  const query = params.toString();
+  return apiRequest(`/data/workbench${query ? `?${query}` : ""}`);
+}
+
+export function recordUserActivity(payload) {
+  return apiRequest("/data/workbench/activities", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
+export function addUserFavorite(payload) {
+  return apiRequest("/data/workbench/favorites", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
+export function removeUserFavorite(favoriteId) {
+  return apiRequest(`/data/workbench/favorites/${encodeURIComponent(favoriteId)}`, {
     method: "DELETE"
   });
 }

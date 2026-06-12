@@ -42,7 +42,13 @@ export default {
       default: ""
     }
   },
-  emits: ["delete-conversation", "logout", "navigate", "refresh-history", "select-conversation"],
+  emits: [
+    "delete-conversation",
+    "logout",
+    "navigate",
+    "refresh-history",
+    "select-conversation"
+  ],
   methods: {
     toggleRightPanel() {
       this.rightPanelCollapsed = !this.rightPanelCollapsed;

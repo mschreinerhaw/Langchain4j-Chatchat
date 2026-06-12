@@ -4,7 +4,9 @@ const PARTIALS = {
     topbar: '../partials/topbar.html',
     apiServices: '../partials/api-services.html',
     mcpServices: '../partials/mcp-services.html',
+    assetCenter: '../partials/asset-center.html',
     databaseMcp: '../partials/database-mcp.html',
+    notificationChannels: '../partials/notification-channels.html',
     auditLogs: '../partials/audit-logs.html',
     settings: '../partials/settings.html',
     feedback: '../partials/feedback.html'
@@ -21,7 +23,9 @@ export async function loadLayout() {
                 ${partials.topbar}
                 ${partials.apiServices}
                 ${partials.mcpServices}
+                ${partials.assetCenter}
                 ${partials.databaseMcp}
+                ${partials.notificationChannels}
                 ${partials.auditLogs}
                 ${partials.settings}
             </section>

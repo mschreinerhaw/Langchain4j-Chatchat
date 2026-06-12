@@ -2,6 +2,7 @@ package com.chatchat.mcpserver.database;
 
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.mcpserver.api.ApiServiceConfigRepository;
+import com.chatchat.mcpserver.sql.SqlDatasourceConfigService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -26,6 +27,7 @@ public class DatabaseQueryConfigService {
     private final ApiServiceConfigRepository apiServiceConfigRepository;
     private final ToolRegistry toolRegistry;
     private final ObjectMapper objectMapper;
+    private final SqlDatasourceConfigService datasourceConfigService;
 
     @Value("${spring.datasource.url:}")
     private String applicationJdbcUrl;
@@ -48,8 +50,7 @@ public class DatabaseQueryConfigService {
     @Transactional(readOnly = true)
     public List<DatabaseQueryConfig> listEnabled() {
         return repository.findByEnabledTrueOrderByToolNameAsc().stream()
-            .filter(config -> blankToNull(config.getJdbcUrl()) != null)
-            .filter(config -> !isApplicationJdbcUrl(config.getJdbcUrl()))
+            .filter(this::hasUsableDatasource)
             .toList();
     }
 
@@ -89,6 +90,7 @@ public class DatabaseQueryConfigService {
         DatabaseQueryConfig current = getById(id);
         current.setToolName(draft.getToolName());
         current.setTitle(draft.getTitle());
+        current.setDatasourceId(draft.getDatasourceId());
         current.setDescription(draft.getDescription());
         current.setSqlTemplate(draft.getSqlTemplate());
         current.setInputSchemaJson(draft.getInputSchemaJson());
@@ -114,11 +116,8 @@ public class DatabaseQueryConfigService {
     @Transactional
     public DatabaseQueryConfig setEnabled(String id, boolean enabled) {
         DatabaseQueryConfig current = getById(id);
-        if (enabled && blankToNull(current.getJdbcUrl()) == null) {
-            throw new IllegalArgumentException("jdbcUrl is required; local configuration database queries are forbidden");
-        }
-        if (enabled && isApplicationJdbcUrl(current.getJdbcUrl())) {
-            throw new IllegalArgumentException("local configuration database queries are forbidden");
+        if (enabled && !hasUsableDatasource(current)) {
+            throw new IllegalArgumentException("database query requires an enabled datasource asset or external jdbcUrl");
         }
         current.setEnabled(enabled);
         return repository.save(current);
@@ -182,16 +181,22 @@ public class DatabaseQueryConfigService {
             });
         config.setToolName(toolName);
         config.setTitle(blankToNull(config.getTitle()) == null ? toolName : config.getTitle().trim());
+        config.setDatasourceId(blankToNull(config.getDatasourceId()));
         config.setDescription(blankToNull(config.getDescription()));
         config.setSqlTemplate(normalizeRequired(config.getSqlTemplate(), "sql"));
         config.setInputSchemaJson(normalizeJsonObject(config.getInputSchemaJson()));
         config.setGovernanceJson(normalizeJsonObject(config.getGovernanceJson(), "governance"));
         config.setMaxRows(config.getMaxRows() <= 0 ? 50 : Math.min(500, config.getMaxRows()));
-        String jdbcUrl = normalizeRequired(config.getJdbcUrl(), "jdbcUrl");
-        if (isApplicationJdbcUrl(jdbcUrl)) {
-            throw new IllegalArgumentException("local configuration database queries are forbidden");
+        if (config.getDatasourceId() != null) {
+            datasourceConfigService.getEnabled(config.getDatasourceId());
+            config.setJdbcUrl(blankToNull(config.getJdbcUrl()));
+        } else {
+            String jdbcUrl = normalizeRequired(config.getJdbcUrl(), "jdbcUrl");
+            if (isApplicationJdbcUrl(jdbcUrl)) {
+                throw new IllegalArgumentException("local configuration database queries are forbidden");
+            }
+            config.setJdbcUrl(jdbcUrl);
         }
-        config.setJdbcUrl(jdbcUrl);
         config.setDriverClass(blankToNull(config.getDriverClass()));
         config.setUsername(blankToNull(config.getUsername()));
         config.setPassword(blankToNull(config.getPassword()));
@@ -262,5 +267,17 @@ public class DatabaseQueryConfigService {
         return applicationJdbcUrl != null
             && !applicationJdbcUrl.isBlank()
             && applicationJdbcUrl.trim().equalsIgnoreCase(jdbcUrl.trim());
+    }
+
+    private boolean hasUsableDatasource(DatabaseQueryConfig config) {
+        if (blankToNull(config.getDatasourceId()) != null) {
+            try {
+                datasourceConfigService.getEnabled(config.getDatasourceId());
+                return true;
+            } catch (Exception ignored) {
+                return false;
+            }
+        }
+        return blankToNull(config.getJdbcUrl()) != null && !isApplicationJdbcUrl(config.getJdbcUrl());
     }
 }

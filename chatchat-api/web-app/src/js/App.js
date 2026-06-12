@@ -5,18 +5,29 @@ import ChatAssistantView from "../views/ChatAssistantView.vue";
 import CapabilityMarketView from "../views/CapabilityMarketView.vue";
 import AiSearchView from "../views/AiSearchView.vue";
 import LibraryView from "../views/LibraryView.vue";
+import FavoritesView from "../views/FavoritesView.vue";
 import McpCenterView from "../views/McpCenterView.vue";
 import AgentWorkshopView from "../views/AgentWorkshopView.vue";
+import AgentScheduleView from "../views/AgentScheduleView.vue";
 import SystemManagementView from "../views/SystemManagementView.vue";
 import TasksView from "../views/TasksView.vue";
-import { clearAuthSession, deleteConversationHistory, fetchConversationHistory, getStoredAuthSession } from "../services/api";
-import { onAgentTaskCancelled } from "./utils/agentTaskEvents";
+import {
+  actAgentTodo,
+  clearAuthSession,
+  deleteConversationHistory,
+  fetchAgentTodos,
+  fetchConversationHistory,
+  getStoredAuthSession,
+  killRuntimeTask
+} from "../services/api";
+import { notifyAgentTaskCancelled, onAgentTaskCancelled } from "./utils/agentTaskEvents";
 
 const USER_ID = "mx_48991534";
 const IDLE_LOGOUT_MS = 30 * 60 * 1000;
 const ACTIVITY_THROTTLE_MS = 1000;
+const TODO_REFRESH_MS = 30000;
 const ACTIVITY_EVENTS = ["click", "keydown", "mousemove", "mousedown", "scroll", "touchstart", "wheel"];
-const DEFAULT_VIEW = "search";
+const DEFAULT_VIEW = "chat";
 const LOGIN_ROUTE = "login";
 const REDIRECT_VIEW_KEY = "chatchat.auth.redirectView";
 
@@ -24,9 +35,11 @@ const views = {
   chat: ChatAssistantView,
   search: AiSearchView,
   market: CapabilityMarketView,
+  favorites: FavoritesView,
   library: LibraryView,
   mcp: McpCenterView,
   agents: AgentWorkshopView,
+  schedules: AgentScheduleView,
   tasks: TasksView,
   system: SystemManagementView
 };
@@ -43,6 +56,10 @@ function viewFromHash() {
   return views[route] ? route : "";
 }
 
+function isAuthenticatedSession(session) {
+  return !!session?.token;
+}
+
 export default {
   name: "App",
   components: {
@@ -51,7 +68,8 @@ export default {
     RightPanel
   },
   data() {
-    const authSession = getStoredAuthSession();
+    const storedAuthSession = getStoredAuthSession();
+    const authSession = isAuthenticatedSession(storedAuthSession) ? storedAuthSession : null;
     const sessionUser = authSession?.user || {};
     return {
       authSession,
@@ -60,7 +78,15 @@ export default {
       historyLoading: false,
       historyError: "",
       conversationHistory: [],
+      todoLoading: false,
+      todoError: "",
+      runtimeTodos: [],
+      todoRefreshTimer: null,
+      todoKillTimer: null,
+      todoActionLoadingIds: {},
       selectedConversation: null,
+      pendingChatDraft: null,
+      pendingDocumentShortcut: null,
       activeHistoryId: "",
       idleLogoutTimer: null,
       stopAgentTaskCancelledListener: null,
@@ -88,6 +114,7 @@ export default {
           items: [
             { id: "mcp", label: "MCP服务", icon: "mcp" },
             { id: "agents", label: "Agent管理", icon: "agent" },
+            { id: "schedules", label: "Agent调度", icon: "schedule" },
             { id: "tasks", label: "运行监控", icon: "tasks" },
             { id: "system", label: "系统管理", icon: "gear" }
           ]
@@ -103,26 +130,37 @@ export default {
       return this.activeView === "chat"
         ? {
             userId: this.userId,
-            selectedConversation: this.selectedConversation
+            selectedConversation: this.selectedConversation,
+            pendingDraft: this.pendingChatDraft
           }
         : {
-            userId: this.userId
+            userId: this.userId,
+            pendingDocumentShortcut: this.activeView === "search" ? this.pendingDocumentShortcut : null
           };
     },
     recentConversations() {
       return this.conversationHistory;
     }
   },
+  watch: {
+    authSession(session) {
+      if (!isAuthenticatedSession(session)) {
+        this.handleUnauthenticated();
+      }
+    }
+  },
   mounted() {
     window.addEventListener("hashchange", this.handleHashChange);
     this.stopAgentTaskCancelledListener = onAgentTaskCancelled(this.handleAgentTaskCancelled);
-    if (this.authSession) {
+    if (isAuthenticatedSession(this.authSession)) {
       this.ensureAuthenticatedRoute();
       this.loadConversationHistory();
+      this.loadRuntimeTodos();
+      this.startTodoRefresh();
       this.startIdleLogoutWatcher();
       return;
     }
-    this.redirectToLogin();
+    this.handleUnauthenticated();
   },
   beforeUnmount() {
     window.removeEventListener("hashchange", this.handleHashChange);
@@ -131,29 +169,44 @@ export default {
       this.stopAgentTaskCancelledListener = null;
     }
     this.stopIdleLogoutWatcher();
+    this.stopTodoRefresh();
+    this.stopTodoTimeoutKill();
   },
   methods: {
     handleLoginSuccess(session) {
+      if (!isAuthenticatedSession(session)) {
+        this.handleUnauthenticated();
+        return;
+      }
       this.authSession = session;
       const sessionUser = session?.user || {};
       this.userId = sessionUser.username || sessionUser.id || USER_ID;
       this.navigateToView(this.consumeRedirectView() || viewFromHash() || DEFAULT_VIEW);
       this.startIdleLogoutWatcher();
       this.loadConversationHistory();
+      this.loadRuntimeTodos();
+      this.startTodoRefresh();
     },
     handleLogout() {
+      this.handleUnauthenticated();
+    },
+    handleUnauthenticated() {
       this.stopIdleLogoutWatcher();
+      this.stopTodoRefresh();
+      this.stopTodoTimeoutKill();
       clearAuthSession();
       this.authSession = null;
       this.userId = USER_ID;
       this.conversationHistory = [];
+      this.runtimeTodos = [];
+      this.todoActionLoadingIds = {};
       this.selectedConversation = null;
       this.activeHistoryId = "";
       this.redirectToLogin();
     },
     handleHashChange() {
-      if (!this.authSession) {
-        this.redirectToLogin();
+      if (!isAuthenticatedSession(this.authSession)) {
+        this.handleUnauthenticated();
         return;
       }
       const route = currentHashRoute();
@@ -212,6 +265,64 @@ export default {
         window.removeEventListener(eventName, this.handleUserActivity);
       });
     },
+    startTodoRefresh() {
+      this.stopTodoRefresh();
+      this.todoRefreshTimer = window.setInterval(() => {
+        this.loadRuntimeTodos({ silent: true });
+      }, TODO_REFRESH_MS);
+    },
+    stopTodoRefresh() {
+      if (this.todoRefreshTimer) {
+        window.clearInterval(this.todoRefreshTimer);
+        this.todoRefreshTimer = null;
+      }
+    },
+    scheduleTodoTimeoutKill() {
+      this.stopTodoTimeoutKill();
+      const confirmationTodos = this.runtimeTodos
+        .filter((todo) => todo?.todoType === "TOOL_CONFIRMATION" && todo.taskId && todo.expiredAt)
+        .map((todo) => ({
+          todo,
+          expiresAt: new Date(todo.expiredAt).getTime()
+        }))
+        .filter((item) => Number.isFinite(item.expiresAt));
+      if (confirmationTodos.length === 0) {
+        return;
+      }
+      const next = confirmationTodos.sort((left, right) => left.expiresAt - right.expiresAt)[0];
+      const delay = Math.max(0, next.expiresAt - Date.now());
+      this.todoKillTimer = window.setTimeout(() => {
+        this.killExpiredConfirmationTodos();
+      }, delay);
+    },
+    stopTodoTimeoutKill() {
+      if (this.todoKillTimer) {
+        window.clearTimeout(this.todoKillTimer);
+        this.todoKillTimer = null;
+      }
+    },
+    async killExpiredConfirmationTodos() {
+      const expiredTodos = this.runtimeTodos.filter((todo) => {
+        if (todo?.todoType !== "TOOL_CONFIRMATION" || !todo.taskId || !todo.expiredAt) {
+          return false;
+        }
+        return new Date(todo.expiredAt).getTime() <= Date.now();
+      });
+      for (const todo of expiredTodos) {
+        try {
+          const killedTask = await killRuntimeTask(todo.taskId, todo.tenantId || this.userId);
+          notifyAgentTaskCancelled({
+            ...(killedTask || {}),
+            taskId: todo.taskId,
+            tenantId: todo.tenantId || this.userId,
+            message: "该操作超过 3 分钟未确认，任务已自动取消。"
+          });
+        } catch (error) {
+          this.todoError = error.message || "确认超时取消任务失败";
+        }
+      }
+      await this.loadRuntimeTodos({ silent: true });
+    },
     handleUserActivity() {
       if (!this.authSession) {
         return;
@@ -246,8 +357,150 @@ export default {
         this.historyLoading = false;
       }
     },
+    async loadRuntimeTodos(options = {}) {
+      if (!this.authSession || !this.userId) {
+        return;
+      }
+      if (!options.silent) {
+        this.todoLoading = true;
+      }
+      this.todoError = "";
+      try {
+        const payload = await fetchAgentTodos({
+          tenantId: this.userId,
+          userId: this.userId,
+          limit: 20
+        });
+        this.runtimeTodos = Array.isArray(payload?.items) ? payload.items : [];
+        this.scheduleTodoTimeoutKill();
+      } catch (error) {
+        this.todoError = error.message || "待办任务加载失败";
+      } finally {
+        if (!options.silent) {
+          this.todoLoading = false;
+        }
+      }
+    },
+    async handleTodoAction({ todo, action, payload = {} } = {}) {
+      if (!todo?.id || !action || this.todoActionLoadingIds[todo.id]) {
+        return;
+      }
+      this.todoActionLoadingIds = {
+        ...this.todoActionLoadingIds,
+        [todo.id]: true
+      };
+      this.todoError = "";
+      try {
+        await actAgentTodo(todo.id, {
+          action,
+          userId: this.userId,
+          ...payload
+        });
+        this.runtimeTodos = this.runtimeTodos.filter((item) => item?.id !== todo.id);
+        this.scheduleTodoTimeoutKill();
+        await this.loadRuntimeTodos({ silent: true });
+        if (action === "reject" || action === "deny" || action === "terminate") {
+          await this.loadConversationHistory();
+        }
+      } catch (error) {
+        this.todoError = error.message || "待办任务处理失败";
+      } finally {
+        const next = { ...this.todoActionLoadingIds };
+        delete next[todo.id];
+        this.todoActionLoadingIds = next;
+      }
+    },
+    handleTodoDetail(todo) {
+      this.navigateToView("tasks");
+      if (todo?.taskId) {
+        sessionStorage.setItem("chatchat.runtime.selectedTaskId", todo.taskId);
+      }
+    },
     handleNavigate(view) {
       this.navigateToView(view);
+    },
+    handleAskAiFromSearch(payload) {
+      if (!payload?.prompt) {
+        return;
+      }
+      this.pendingChatDraft = {
+        ...payload,
+        id: payload.id || `${Date.now()}`
+      };
+      this.navigateToView("chat");
+    },
+    handleOpenDocumentShortcut(payload) {
+      if (!payload?.docId) {
+        return;
+      }
+      this.pendingDocumentShortcut = {
+        ...payload,
+        id: `${payload.docId}-${Date.now()}`
+      };
+      this.navigateToView("search");
+    },
+    async handleOpenFavoriteShortcut(item = {}) {
+      const type = String(item.targetType || "").toUpperCase();
+      if (type === "DOCUMENT") {
+        this.handleOpenDocumentShortcut({
+          docId: item.targetId,
+          title: item.title || "",
+          summary: item.summary || "",
+          source: "favorite"
+        });
+        return;
+      }
+      if (type === "SESSION") {
+        await this.openFavoriteConversation(item);
+        return;
+      }
+      if (type === "AGENT") {
+        this.handleSelectAgentShortcut({
+          agentId: item.targetId,
+          title: item.title || item.targetId
+        });
+        return;
+      }
+      if (type === "TASK") {
+        this.navigateToView("tasks");
+      }
+    },
+    async openFavoriteConversation(item = {}) {
+      const targetId = item.targetId || "";
+      if (!targetId) {
+        return;
+      }
+      let conversation = this.conversationHistory.find((history) =>
+        history.id === targetId || history.conversationId === targetId
+      );
+      if (!conversation) {
+        try {
+          const history = await fetchConversationHistory(this.userId, { limit: 100 });
+          if (Array.isArray(history)) {
+            this.conversationHistory = history;
+            conversation = history.find((entry) => entry.id === targetId || entry.conversationId === targetId);
+          }
+        } catch (error) {
+          this.historyError = error.message || "收藏会话加载失败";
+        }
+      }
+      if (conversation) {
+        this.selectConversation(conversation);
+      } else {
+        this.historyError = "没有找到这条收藏会话。";
+      }
+    },
+    handleSelectAgentShortcut(payload = {}) {
+      if (!payload.agentId) {
+        return;
+      }
+      this.pendingChatDraft = {
+        id: `agent-shortcut-${payload.agentId}-${Date.now()}`,
+        agentId: payload.agentId,
+        title: payload.title || payload.agentId,
+        newSession: !!payload.newSession
+      };
+      this.navigateToView("chat");
     },
     selectConversation(conversation) {
       if (!conversation) {

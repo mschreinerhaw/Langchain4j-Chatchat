@@ -146,9 +146,20 @@
   color: #b42318;
 }
 
+.ai-search-view .result-actions .ask-ai-action {
+  border-color: rgba(37, 99, 235, 0.28);
+  background: rgba(37, 99, 235, 0.08);
+  color: var(--primary);
+}
+
 .ai-search-view .result-actions button:hover {
   border-color: rgba(37, 99, 235, 0.35);
   background: rgba(37, 99, 235, 0.06);
+}
+
+.ai-search-view .result-actions .ask-ai-action:hover {
+  border-color: rgba(37, 99, 235, 0.48);
+  background: rgba(37, 99, 235, 0.13);
 }
 
 .ai-search-view .result-actions .danger-action:hover {

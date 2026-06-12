@@ -61,6 +61,9 @@
           </div>
           <div class="library-document-actions">
             <button type="button" @click="openDocument(item.docId)">查看</button>
+            <button type="button" :disabled="favoriteSavingIds[item.docId]" @click="favoriteDocument(item)">
+              {{ favoriteSavingIds[item.docId] ? "收藏中" : "收藏" }}
+            </button>
             <button type="button" class="danger-action" @click="removeDocument(item)">删除</button>
           </div>
         </article>

@@ -21,6 +21,16 @@ import {
     saveMcpService,
     setMcpEnabled
 } from './mcpServices.js';
+import {
+    listHttpAssets,
+    listSqlAssets,
+    listSshAssets,
+    refreshOpsTools,
+    refreshSqlTools,
+    saveHttpAsset,
+    saveSqlAsset,
+    saveSshAsset
+} from './assetCenter.js';
 import { getAuditLog, listAuditLogs } from './auditLogs.js';
 import {
     deleteDatabaseQuery,
@@ -31,6 +41,14 @@ import {
     testDatabaseQuery,
     testSavedDatabaseQuery
 } from './databaseMcp.js';
+import {
+    listNotificationChannels,
+    refreshNotificationTools,
+    saveNotificationChannel,
+    setNotificationEnabled,
+    setNotificationRuntimeAction,
+    testNotificationChannel
+} from './notificationChannels.js';
 import { fillServiceForm, readServiceForm, readTestArgs, readTestArgsFromSchema, toggleMicroserviceFields } from './form.js';
 import {
     hideLoginError,
@@ -38,8 +56,13 @@ import {
     hideDatabaseQueryModal,
     hideLivedataImportModal,
     hideMcpServiceModal,
+    hideNotificationChannelModal,
+    hideHttpAssetModal,
+    hideSqlAssetModal,
+    hideSshAssetModal,
     initUi,
     notify,
+    renderNotificationChannels,
     renderDatabaseQueries,
     renderDatabaseQueryPreview,
     renderAuditLogs,
@@ -52,6 +75,10 @@ import {
     showLogin,
     showLoginError,
     showMcpServiceModal,
+    showNotificationChannelModal,
+    showHttpAssetModal,
+    showSqlAssetModal,
+    showSshAssetModal,
     showResult,
     switchView
 } from './ui.js';
@@ -68,11 +95,34 @@ let mcpServices = [];
 let selectedMcpId = '';
 let mcpServiceSearchTerm = '';
 let mcpServicePage = 1;
+let sshAssets = [];
+let sqlAssets = [];
+let httpAssets = [];
+let selectedSshAssetId = '';
+let selectedSqlAssetId = '';
+let selectedHttpAssetId = '';
+let activeAssetTab = 'ssh';
+let sshAssetSearchTerm = '';
+let sshAssetEnvironmentFilter = '';
+let sshAssetStatusFilter = '';
+let sshAssetCategoryFilter = '';
+let sqlAssetSearchTerm = '';
+let sqlAssetEnvironmentFilter = '';
+let sqlAssetStatusFilter = '';
+let sqlAssetCategoryFilter = '';
+let httpAssetSearchTerm = '';
+let httpAssetEnvironmentFilter = '';
+let httpAssetStatusFilter = '';
+let httpAssetMethodFilter = '';
+let httpAssetCategoryFilter = '';
 let databaseQueries = [];
 let selectedDatabaseQueryId = '';
 let selectedDatabaseQueryIds = new Set();
 let databaseQuerySearchTerm = '';
 let databaseQueryPage = 1;
+let notificationChannels = [];
+let selectedNotificationChannelId = '';
+let notificationSearchTerm = '';
 let auditLogKeyword = '';
 let auditLogTargetType = '';
 let auditLogSuccess = '';
@@ -138,6 +188,30 @@ function bindEvents() {
     document.getElementById('mcpServiceNextPageBtn').addEventListener('click', () => changeMcpServicePage(1));
     document.getElementById('generateMcpTokenBtn').addEventListener('click', handleGenerateMcpToken);
     document.getElementById('regenSavedMcpTokenBtn').addEventListener('click', handleRegenerateSavedMcpToken);
+    document.getElementById('newSshAssetBtn').addEventListener('click', openNewSshAsset);
+    document.getElementById('newSqlAssetBtn').addEventListener('click', openNewSqlAsset);
+    bindOptional('newHttpAssetBtn', 'click', openNewHttpAsset);
+    document.getElementById('sshAssetForm').addEventListener('submit', handleSshAssetSave);
+    document.getElementById('sqlAssetForm').addEventListener('submit', handleSqlAssetSave);
+    bindOptional('httpAssetForm', 'submit', handleHttpAssetSave);
+    document.getElementById('refreshOpsAssetToolsBtn').addEventListener('click', handleOpsAssetRefresh);
+    document.getElementById('refreshSqlAssetToolsBtn').addEventListener('click', handleSqlAssetRefresh);
+    document.querySelectorAll('[data-asset-tab]').forEach(button => {
+        button.addEventListener('click', () => switchAssetTab(button.dataset.assetTab));
+    });
+    document.getElementById('sshAssetSearchInput').addEventListener('input', handleSshAssetFilter);
+    document.getElementById('sshAssetEnvironmentFilter').addEventListener('change', handleSshAssetFilter);
+    document.getElementById('sshAssetStatusFilter').addEventListener('change', handleSshAssetFilter);
+    document.getElementById('sshAssetCategoryFilter').addEventListener('change', handleSshAssetFilter);
+    document.getElementById('sqlAssetSearchInput').addEventListener('input', handleSqlAssetFilter);
+    document.getElementById('sqlAssetEnvironmentFilter').addEventListener('change', handleSqlAssetFilter);
+    document.getElementById('sqlAssetStatusFilter').addEventListener('change', handleSqlAssetFilter);
+    document.getElementById('sqlAssetCategoryFilter').addEventListener('change', handleSqlAssetFilter);
+    bindOptional('httpAssetSearchInput', 'input', handleHttpAssetFilter);
+    bindOptional('httpAssetEnvironmentFilter', 'change', handleHttpAssetFilter);
+    bindOptional('httpAssetStatusFilter', 'change', handleHttpAssetFilter);
+    bindOptional('httpAssetMethodFilter', 'change', handleHttpAssetFilter);
+    bindOptional('httpAssetCategoryFilter', 'change', handleHttpAssetFilter);
     document.getElementById('databaseQueryForm').addEventListener('submit', handleDatabaseQueryTest);
     document.getElementById('databaseQuerySaveBtn').addEventListener('click', handleDatabaseQuerySave);
     document.getElementById('databaseQueryClearBtn').addEventListener('click', resetDatabaseQueryForm);
@@ -148,6 +222,12 @@ function bindEvents() {
     document.getElementById('databaseQuerySelectVisibleBtn').addEventListener('click', selectVisibleDatabaseQueries);
     document.getElementById('databaseQueryClearSelectionBtn').addEventListener('click', clearDatabaseQuerySelection);
     document.getElementById('databaseQueryBatchDeleteBtn').addEventListener('click', removeSelectedDatabaseQueries);
+    document.getElementById('databaseDatasourceSelect').addEventListener('change', toggleDatabaseExternalFields);
+    document.getElementById('notificationSearchInput').addEventListener('input', handleNotificationSearch);
+    document.getElementById('refreshNotificationToolsBtn').addEventListener('click', handleNotificationRefresh);
+    document.getElementById('notificationChannelForm').addEventListener('submit', handleNotificationSave);
+    document.getElementById('notificationTestBtn').addEventListener('click', handleNotificationTest);
+    document.getElementById('notificationDeliveryMode').addEventListener('change', toggleNotificationDeliveryFields);
     document.getElementById('reloadAuditBtn').addEventListener('click', loadAuditLogs);
     document.getElementById('auditLogSearchBtn').addEventListener('click', applyAuditLogFilters);
     document.getElementById('auditLogResetBtn').addEventListener('click', resetAuditLogFilters);
@@ -164,6 +244,10 @@ function bindEvents() {
     document.querySelectorAll('.sidebar [data-view]').forEach(button => {
         button.addEventListener('click', () => handleViewSwitch(button.dataset.view));
     });
+}
+
+function bindOptional(id, event, handler) {
+    document.getElementById(id)?.addEventListener(event, handler);
 }
 
 function togglePasswordVisibility() {
@@ -203,9 +287,11 @@ async function handleViewSwitch(view) {
     switchView(view);
     if (view === 'apiServices') await loadServices();
     if (view === 'mcpServices') await loadMcpServices();
+    if (view === 'assetCenter') await loadAssets();
     if (view === 'databaseMcp') {
         await loadDatabaseQueries();
     }
+    if (view === 'notificationChannels') await loadNotificationChannels();
     if (view === 'auditLogs') await loadAuditLogs();
 }
 
@@ -819,10 +905,11 @@ function formatAuditTime(value) {
 
 async function loadDatabaseQueries() {
     try {
-        databaseQueries = await listDatabaseQueries();
+        [databaseQueries, sqlAssets] = await Promise.all([listDatabaseQueries(), listSqlAssets()]);
         if (selectedDatabaseQueryId && !databaseQueries.some(query => query.id === selectedDatabaseQueryId)) {
             selectedDatabaseQueryId = '';
         }
+        renderDatabaseDatasourceOptions();
         selectedDatabaseQueryIds = new Set([...selectedDatabaseQueryIds].filter(id =>
             databaseQueries.some(query => query.id === id)
         ));
@@ -1010,6 +1097,844 @@ async function removeSelectedDatabaseQueries() {
     }
 }
 
+async function loadAssets() {
+    try {
+        [sshAssets, sqlAssets, httpAssets] = await Promise.all([listSshAssets(), listSqlAssets(), listHttpAssets()]);
+        if (selectedSshAssetId && !sshAssets.some(asset => asset.id === selectedSshAssetId)) selectedSshAssetId = '';
+        if (selectedSqlAssetId && !sqlAssets.some(asset => asset.id === selectedSqlAssetId)) selectedSqlAssetId = '';
+        if (selectedHttpAssetId && !httpAssets.some(asset => asset.id === selectedHttpAssetId)) selectedHttpAssetId = '';
+        renderAssetCenter();
+    } catch (error) {
+        handleError(error);
+    }
+}
+
+function renderAssetCenter() {
+    renderAssetTabs();
+    renderSshAssets();
+    renderSqlAssets();
+    renderHttpAssets();
+}
+
+function renderAssetTabs() {
+    document.getElementById('sshAssetTabBtn').classList.toggle('active', activeAssetTab === 'ssh');
+    document.getElementById('sqlAssetTabBtn').classList.toggle('active', activeAssetTab === 'sql');
+    document.getElementById('httpAssetTabBtn')?.classList.toggle('active', activeAssetTab === 'http');
+    document.getElementById('sshAssetPane').classList.toggle('d-none', activeAssetTab !== 'ssh');
+    document.getElementById('sqlAssetPane').classList.toggle('d-none', activeAssetTab !== 'sql');
+    document.getElementById('httpAssetPane')?.classList.toggle('d-none', activeAssetTab !== 'http');
+}
+
+function switchAssetTab(tab) {
+    activeAssetTab = ['ssh', 'sql', 'http'].includes(tab) ? tab : 'ssh';
+    renderAssetCenter();
+}
+
+function handleSshAssetFilter() {
+    sshAssetSearchTerm = value('sshAssetSearchInput');
+    sshAssetEnvironmentFilter = value('sshAssetEnvironmentFilter');
+    sshAssetStatusFilter = value('sshAssetStatusFilter');
+    sshAssetCategoryFilter = value('sshAssetCategoryFilter');
+    renderSshAssets();
+}
+
+function handleSqlAssetFilter() {
+    sqlAssetSearchTerm = value('sqlAssetSearchInput');
+    sqlAssetEnvironmentFilter = value('sqlAssetEnvironmentFilter');
+    sqlAssetStatusFilter = value('sqlAssetStatusFilter');
+    sqlAssetCategoryFilter = value('sqlAssetCategoryFilter');
+    renderSqlAssets();
+}
+
+function handleHttpAssetFilter() {
+    if (!document.getElementById('httpAssetSearchInput')) {
+        return;
+    }
+    httpAssetSearchTerm = value('httpAssetSearchInput');
+    httpAssetEnvironmentFilter = value('httpAssetEnvironmentFilter');
+    httpAssetStatusFilter = value('httpAssetStatusFilter');
+    httpAssetMethodFilter = value('httpAssetMethodFilter');
+    httpAssetCategoryFilter = value('httpAssetCategoryFilter');
+    renderHttpAssets();
+}
+
+function renderSshAssets() {
+    document.getElementById('sshAssetCount').textContent = sshAssets.length;
+    const filteredAssets = filterSshAssets();
+    document.getElementById('sshAssetFilteredCount').textContent = filteredAssets.length;
+    const list = document.getElementById('sshAssetList');
+    list.innerHTML = '';
+    if (!filteredAssets.length) {
+        list.innerHTML = '<div class="api-empty text-secondary small">暂无匹配的服务器资产。</div>';
+        return;
+    }
+    for (const asset of filteredAssets) {
+        const item = document.createElement('article');
+        item.className = `service-card api-card ${asset.id === selectedSshAssetId ? 'active' : ''}`;
+        const category = classifySshAsset(asset);
+        item.innerHTML = `
+            <div class="api-card-main">
+                <h3>${escapeHtml(asset.title || asset.name || asset.toolName)}</h3>
+                <p>${escapeHtml(asset.description || asset.hostname || '')}</p>
+            </div>
+            <div class="service-meta">
+                <span class="badge text-bg-primary">${escapeHtml(asset.environment || 'DEV')}</span>
+                <span class="badge text-bg-info">${escapeHtml(formatAssetCategory(category))}</span>
+                <span class="badge ${asset.enabled ? 'text-bg-success' : 'text-bg-secondary'}">${asset.enabled ? '启用' : '停用'}</span>
+                <span class="badge text-bg-light">${escapeHtml(asset.toolName || '-')}</span>
+                <span class="badge text-bg-light">${escapeHtml(asset.hostname || '-')}:${escapeHtml(asset.port || 22)}</span>
+            </div>
+            <div class="btn-group btn-group-sm mt-3" role="group">
+                <button class="btn btn-outline-secondary" data-action="edit">编辑</button>
+            </div>
+        `;
+        item.querySelector('[data-action="edit"]').addEventListener('click', () => selectSshAsset(asset));
+        list.appendChild(item);
+    }
+}
+
+function renderSqlAssets() {
+    document.getElementById('sqlAssetCount').textContent = sqlAssets.length;
+    const filteredAssets = filterSqlAssets();
+    document.getElementById('sqlAssetFilteredCount').textContent = filteredAssets.length;
+    const list = document.getElementById('sqlAssetList');
+    list.innerHTML = '';
+    if (!filteredAssets.length) {
+        list.innerHTML = '<div class="api-empty text-secondary small">暂无匹配的数据库资产。</div>';
+        return;
+    }
+    for (const asset of filteredAssets) {
+        const item = document.createElement('article');
+        item.className = `service-card api-card ${asset.id === selectedSqlAssetId ? 'active' : ''}`;
+        const category = classifySqlAsset(asset);
+        item.innerHTML = `
+            <div class="api-card-main">
+                <h3>${escapeHtml(asset.title || asset.name || asset.toolName)}</h3>
+                <p>${escapeHtml(asset.description || asset.jdbcUrl || '')}</p>
+            </div>
+            <div class="service-meta">
+                <span class="badge text-bg-primary">${escapeHtml(asset.environment || 'DEV')}</span>
+                <span class="badge text-bg-info">${escapeHtml(formatAssetCategory(category))}</span>
+                <span class="badge ${asset.enabled ? 'text-bg-success' : 'text-bg-secondary'}">${asset.enabled ? '启用' : '停用'}</span>
+                <span class="badge text-bg-light">${escapeHtml(asset.toolName || '-')}</span>
+                <span class="badge text-bg-light">最多 ${escapeHtml(asset.defaultMaxRows || 1000)} 行</span>
+            </div>
+            <div class="btn-group btn-group-sm mt-3" role="group">
+                <button class="btn btn-outline-secondary" data-action="edit">编辑</button>
+            </div>
+        `;
+        item.querySelector('[data-action="edit"]').addEventListener('click', () => selectSqlAsset(asset));
+        list.appendChild(item);
+    }
+}
+
+function renderHttpAssets() {
+    const count = document.getElementById('httpAssetCount');
+    const filteredCount = document.getElementById('httpAssetFilteredCount');
+    const list = document.getElementById('httpAssetList');
+    if (!count || !filteredCount || !list) {
+        return;
+    }
+    count.textContent = httpAssets.length;
+    const filteredAssets = filterHttpAssets();
+    filteredCount.textContent = filteredAssets.length;
+    list.innerHTML = '';
+    if (!filteredAssets.length) {
+        list.innerHTML = '<div class="api-empty text-secondary small">暂无匹配的 HTTP 请求资产。</div>';
+        return;
+    }
+    for (const asset of filteredAssets) {
+        const item = document.createElement('article');
+        item.className = `service-card api-card ${asset.id === selectedHttpAssetId ? 'active' : ''}`;
+        item.innerHTML = `
+            <div class="api-card-main">
+                <h3>${escapeHtml(asset.title || asset.name || asset.toolName)}</h3>
+                <p>${escapeHtml(asset.description || asset.urlTemplate || '')}</p>
+            </div>
+            <div class="service-meta">
+                <span class="badge text-bg-primary">${escapeHtml(asset.environment || 'DEV')}</span>
+                <span class="badge text-bg-info">${escapeHtml(formatHttpCategory(asset.category))}</span>
+                <span class="badge ${asset.enabled ? 'text-bg-success' : 'text-bg-secondary'}">${asset.enabled ? '启用' : '停用'}</span>
+                <span class="badge text-bg-light">${escapeHtml(asset.method || 'GET')}</span>
+                <span class="badge text-bg-light">${escapeHtml(asset.toolName || '-')}</span>
+            </div>
+            <div class="btn-group btn-group-sm mt-3" role="group">
+                <button class="btn btn-outline-secondary" data-action="edit">编辑</button>
+            </div>
+        `;
+        item.querySelector('[data-action="edit"]').addEventListener('click', () => selectHttpAsset(asset));
+        list.appendChild(item);
+    }
+}
+
+function filterSshAssets() {
+    const keyword = sshAssetSearchTerm.trim().toLowerCase();
+    return sshAssets.filter(asset => {
+        if (sshAssetEnvironmentFilter && String(asset.environment || 'DEV').toUpperCase() !== sshAssetEnvironmentFilter.toUpperCase()) {
+            return false;
+        }
+        if (sshAssetStatusFilter === 'enabled' && !asset.enabled) {
+            return false;
+        }
+        if (sshAssetStatusFilter === 'disabled' && asset.enabled) {
+            return false;
+        }
+        if (sshAssetCategoryFilter && classifySshAsset(asset) !== sshAssetCategoryFilter) {
+            return false;
+        }
+        if (!keyword) {
+            return true;
+        }
+        return [
+            asset.name,
+            asset.toolName,
+            asset.title,
+            asset.description,
+            asset.hostname,
+            asset.username,
+            asset.environment,
+            asset.tags,
+            asset.allowedCommandsJson
+        ].some(value => String(value || '').toLowerCase().includes(keyword));
+    });
+}
+
+function filterSqlAssets() {
+    const keyword = sqlAssetSearchTerm.trim().toLowerCase();
+    return sqlAssets.filter(asset => {
+        if (sqlAssetEnvironmentFilter && String(asset.environment || 'DEV').toUpperCase() !== sqlAssetEnvironmentFilter.toUpperCase()) {
+            return false;
+        }
+        if (sqlAssetStatusFilter === 'enabled' && !asset.enabled) {
+            return false;
+        }
+        if (sqlAssetStatusFilter === 'disabled' && asset.enabled) {
+            return false;
+        }
+        if (sqlAssetCategoryFilter && classifySqlAsset(asset) !== sqlAssetCategoryFilter) {
+            return false;
+        }
+        if (!keyword) {
+            return true;
+        }
+        return [
+            asset.name,
+            asset.toolName,
+            asset.title,
+            asset.description,
+            asset.jdbcUrl,
+            asset.driverClass,
+            asset.username,
+            asset.environment,
+            asset.allowedTablesJson
+        ].some(value => String(value || '').toLowerCase().includes(keyword));
+    });
+}
+
+function filterHttpAssets() {
+    const keyword = httpAssetSearchTerm.trim().toLowerCase();
+    return httpAssets.filter(asset => {
+        if (httpAssetEnvironmentFilter && String(asset.environment || 'DEV').toUpperCase() !== httpAssetEnvironmentFilter.toUpperCase()) {
+            return false;
+        }
+        if (httpAssetStatusFilter === 'enabled' && !asset.enabled) {
+            return false;
+        }
+        if (httpAssetStatusFilter === 'disabled' && asset.enabled) {
+            return false;
+        }
+        if (httpAssetMethodFilter && String(asset.method || 'GET').toUpperCase() !== httpAssetMethodFilter.toUpperCase()) {
+            return false;
+        }
+        if (httpAssetCategoryFilter && String(asset.category || 'business_api') !== httpAssetCategoryFilter) {
+            return false;
+        }
+        if (!keyword) {
+            return true;
+        }
+        return [
+            asset.name,
+            asset.toolName,
+            asset.title,
+            asset.description,
+            asset.method,
+            asset.urlTemplate,
+            asset.environment,
+            asset.category,
+            asset.tags,
+            asset.headersJson
+        ].some(value => String(value || '').toLowerCase().includes(keyword));
+    });
+}
+
+function classifySshAsset(asset) {
+    const text = [
+        asset.name,
+        asset.toolName,
+        asset.title,
+        asset.description,
+        asset.hostname,
+        asset.tags,
+        asset.allowedCommandsJson
+    ].map(value => String(value || '').toLowerCase()).join(' ');
+    if (text.includes('goldendb')) return 'goldendb';
+    if (text.includes('inceptor')) return 'inceptor';
+    if (text.includes('hive')) return 'hive';
+    if (text.includes('nginx')) return 'nginx';
+    if (text.includes('k8s') || text.includes('kubernetes') || text.includes('kubectl')) return 'k8s';
+    if (text.includes('java') || text.includes('jps') || text.includes('jvm')) return 'java';
+    return 'other';
+}
+
+function classifySqlAsset(asset) {
+    const text = [
+        asset.name,
+        asset.toolName,
+        asset.title,
+        asset.description,
+        asset.jdbcUrl,
+        asset.driverClass
+    ].map(value => String(value || '').toLowerCase()).join(' ');
+    if (text.includes('goldendb')) return 'goldendb';
+    if (text.includes('inceptor')) return 'inceptor';
+    if (text.includes('jdbc:hive') || text.includes('hive')) return 'hive';
+    if (text.includes('jdbc:dm') || text.includes('dm.jdbc') || text.includes('dameng')) return 'dm';
+    if (text.includes('jdbc:mysql') || text.includes('mysql')) return 'mysql';
+    if (text.includes('jdbc:oracle') || text.includes('oracle')) return 'oracle';
+    if (text.includes('jdbc:postgresql') || text.includes('postgresql') || text.includes('postgres')) return 'postgresql';
+    return 'other';
+}
+
+function formatAssetCategory(category) {
+    const names = {
+        mysql: 'MySQL',
+        dm: '达梦 DM',
+        hive: 'Hive',
+        inceptor: 'Inceptor',
+        goldendb: 'GoldenDB',
+        nginx: 'Nginx',
+        java: 'Java',
+        k8s: 'K8S',
+        oracle: 'Oracle',
+        postgresql: 'PostgreSQL',
+        other: '其他'
+    };
+    return names[category] || '其他';
+}
+
+function formatHttpCategory(category) {
+    const names = {
+        business_api: '业务接口',
+        monitoring: '监控接口',
+        third_party: '第三方接口',
+        webhook: 'Webhook',
+        ops: '运维接口',
+        other: '其他'
+    };
+    return names[category] || '其他';
+}
+
+function openNewSshAsset() {
+    fillSshAssetForm(null);
+    showSshAssetModal();
+}
+
+function openNewSqlAsset() {
+    fillSqlAssetForm(null);
+    showSqlAssetModal();
+}
+
+function openNewHttpAsset() {
+    fillHttpAssetForm(null);
+    showHttpAssetModal();
+}
+
+function selectSshAsset(asset) {
+    selectedSshAssetId = asset.id;
+    fillSshAssetForm(asset);
+    renderSshAssets();
+    showSshAssetModal();
+}
+
+function selectSqlAsset(asset) {
+    selectedSqlAssetId = asset.id;
+    fillSqlAssetForm(asset);
+    renderSqlAssets();
+    showSqlAssetModal();
+}
+
+function selectHttpAsset(asset) {
+    selectedHttpAssetId = asset.id;
+    fillHttpAssetForm(asset);
+    renderHttpAssets();
+    showHttpAssetModal();
+}
+
+async function handleSshAssetSave(event) {
+    event.preventDefault();
+    try {
+        const saved = await saveSshAsset(readSshAssetForm());
+        selectedSshAssetId = saved.id;
+        notify('保存成功', `${saved.toolName} 已保存为服务器资产。`);
+        hideSshAssetModal();
+        await loadAssets();
+    } catch (error) {
+        handleError(error);
+    }
+}
+
+async function handleSqlAssetSave(event) {
+    event.preventDefault();
+    try {
+        const saved = await saveSqlAsset(readSqlAssetForm());
+        selectedSqlAssetId = saved.id;
+        notify('保存成功', `${saved.toolName} 已保存为数据库资产。`);
+        hideSqlAssetModal();
+        await loadAssets();
+    } catch (error) {
+        handleError(error);
+    }
+}
+
+async function handleHttpAssetSave(event) {
+    event.preventDefault();
+    try {
+        const saved = await saveHttpAsset(readHttpAssetForm());
+        selectedHttpAssetId = saved.id;
+        notify('保存成功', `${saved.toolName} 已保存为 HTTP 请求资产。`);
+        hideHttpAssetModal();
+        await loadAssets();
+    } catch (error) {
+        handleError(error);
+    }
+}
+
+async function handleOpsAssetRefresh() {
+    try {
+        await refreshOpsTools();
+        notify('刷新完成', 'SSH 与 HTTP 请求资产工具已重新发布。');
+    } catch (error) {
+        handleError(error);
+    }
+}
+
+async function handleSqlAssetRefresh() {
+    try {
+        await refreshSqlTools();
+        notify('刷新完成', '数据库资产工具已重新发布。');
+    } catch (error) {
+        handleError(error);
+    }
+}
+
+async function loadNotificationChannels() {
+    try {
+        notificationChannels = await listNotificationChannels();
+        if (selectedNotificationChannelId && !notificationChannels.some(channel => channel.id === selectedNotificationChannelId)) {
+            selectedNotificationChannelId = '';
+        }
+        renderNotificationChannelCards();
+    } catch (error) {
+        handleError(error);
+    }
+}
+
+function renderNotificationChannelCards() {
+    const filtered = filterNotificationChannels();
+    renderNotificationChannels(filtered, selectedNotificationChannelId, {
+        edit: selectNotificationChannel,
+        test: testNotificationFromCard,
+        toggle: toggleNotificationChannel,
+        policy: toggleNotificationRuntimeAction
+    }, {
+        totalCount: notificationChannels.length,
+        filteredCount: filtered.length
+    });
+}
+
+function filterNotificationChannels() {
+    const keyword = notificationSearchTerm.trim().toLowerCase();
+    if (!keyword) {
+        return notificationChannels;
+    }
+    return notificationChannels.filter(channel => [
+        channel.channel,
+        channel.toolName,
+        channel.title,
+        channel.description,
+        channel.endpointUrl,
+        channel.smtpHost,
+        channel.smtpFrom
+    ].some(value => String(value || '').toLowerCase().includes(keyword)));
+}
+
+function handleNotificationSearch(event) {
+    notificationSearchTerm = event.target.value;
+    renderNotificationChannelCards();
+}
+
+function selectNotificationChannel(channel) {
+    selectedNotificationChannelId = channel.id;
+    fillNotificationChannelForm(channel);
+    renderNotificationChannelCards();
+    showNotificationChannelModal();
+}
+
+async function toggleNotificationChannel(channel) {
+    try {
+        await setNotificationEnabled(channel.id, !channel.enabled);
+        notify('更新成功', `${channel.toolName} 已${channel.enabled ? '下线' : '启用'}。`);
+        await loadNotificationChannels();
+    } catch (error) {
+        handleError(error);
+    }
+}
+
+async function toggleNotificationRuntimeAction(channel) {
+    const nextAction = channel.runtimeAction === 'forbidden' ? 'confirm_required' : 'forbidden';
+    try {
+        await setNotificationRuntimeAction(channel.id, nextAction);
+        notify('策略已更新', `${channel.toolName} 已切换为 ${nextAction}。`);
+        await loadNotificationChannels();
+    } catch (error) {
+        handleError(error);
+    }
+}
+
+async function handleNotificationRefresh() {
+    try {
+        const result = await refreshNotificationTools();
+        notify('刷新完成', result.refreshed ? '通知 MCP 工具已重新发布。' : '通知 MCP 工具刷新完成。');
+        await loadNotificationChannels();
+    } catch (error) {
+        handleError(error);
+    }
+}
+
+async function handleNotificationSave(event) {
+    event.preventDefault();
+    const form = document.getElementById('notificationChannelForm');
+    if (!form.reportValidity()) {
+        return;
+    }
+    try {
+        const saved = await saveNotificationChannel(readNotificationChannelForm());
+        selectedNotificationChannelId = saved.id;
+        notify('保存成功', `${saved.toolName} 配置已生效。`);
+        await loadNotificationChannels();
+        fillNotificationChannelForm(saved);
+        hideNotificationChannelModal();
+    } catch (error) {
+        handleError(error);
+    }
+}
+
+async function handleNotificationTest() {
+    const id = value('notificationId');
+    if (!id) {
+        notify('无法测试', '请先选择通知渠道。');
+        return;
+    }
+    try {
+        const result = await testNotificationChannel(id, readJsonObject('notificationTestPayloadJson'));
+        showResult(result, {
+            title: `${value('notificationToolName')} 测试结果`,
+            subtitle: '通知发送结果会写入调用审计'
+        });
+    } catch (error) {
+        handleError(error);
+    }
+}
+
+async function testNotificationFromCard(channel) {
+    selectedNotificationChannelId = channel.id;
+    fillNotificationChannelForm(channel);
+    renderNotificationChannelCards();
+    showNotificationChannelModal();
+}
+
+function readNotificationChannelForm() {
+    return {
+        id: value('notificationId'),
+        channel: value('notificationChannel'),
+        toolName: value('notificationToolName'),
+        title: value('notificationTitle'),
+        description: value('notificationDescription'),
+        enabled: document.getElementById('notificationEnabled').value === 'true',
+        runtimeAction: value('notificationRuntimeAction'),
+        deliveryMode: value('notificationDeliveryMode'),
+        method: value('notificationMethod'),
+        endpointUrl: value('notificationEndpointUrl'),
+        headers: readJsonObject('notificationHeadersJson'),
+        bodyTemplate: document.getElementById('notificationBodyTemplate').value,
+        secret: document.getElementById('notificationSecret').value,
+        defaultReceiver: notificationDefaultReceiverValue(),
+        ccReceiver: value('notificationCcReceiver'),
+        smtpHost: value('notificationSmtpHost'),
+        smtpPort: Number(value('notificationSmtpPort') || 0),
+        smtpUsername: value('notificationSmtpUsername'),
+        smtpPassword: document.getElementById('notificationSmtpPassword').value,
+        smtpFrom: value('notificationSmtpFrom'),
+        smtpAuthEnabled: document.getElementById('notificationSmtpAuthEnabled').checked,
+        smtpStarttlsEnabled: document.getElementById('notificationSmtpStarttlsEnabled').checked,
+        smtpSslEnabled: document.getElementById('notificationSmtpSslEnabled').checked,
+        smtpSslTrust: value('notificationSmtpSslTrust'),
+        smsAccount: value('notificationSmsAccount'),
+        smsToken: document.getElementById('notificationSmsToken').value,
+        smsPlainPassword: document.getElementById('notificationSmsPlainPassword').value,
+        smsMd5Password: value('notificationSmsMd5Password'),
+        smsPasswordMd5: document.getElementById('notificationSmsPasswordMd5').checked,
+        smsReturnType: value('notificationSmsReturnType'),
+        smsExtendCode: value('notificationSmsExtendCode'),
+        timeoutMs: Number(value('notificationTimeoutMs') || 5000),
+        maxRetries: Number(value('notificationMaxRetries') || 0)
+    };
+}
+
+function fillNotificationChannelForm(channel) {
+    document.getElementById('notificationFormTitle').textContent = channel ? `配置 ${channel.toolName}` : '通知渠道配置';
+    setValue('notificationId', channel?.id || '');
+    setValue('notificationChannel', channel?.channel || '');
+    setValue('notificationToolName', channel?.toolName || '');
+    setValue('notificationTitle', channel?.title || '');
+    setValue('notificationDescription', channel?.description || '');
+    setValue('notificationEnabled', String(channel?.enabled ?? true));
+    setValue('notificationRuntimeAction', channel?.runtimeAction || 'confirm_required');
+    setValue('notificationDeliveryMode', channel?.deliveryMode || 'HTTP');
+    setValue('notificationMethod', channel?.method || 'POST');
+    setValue('notificationEndpointUrl', channel?.endpointUrl || '');
+    setValue('notificationHeadersJson', JSON.stringify(channel?.headers || { 'Content-Type': 'application/json' }, null, 2));
+    setValue('notificationBodyTemplate', channel?.bodyTemplate || '');
+    document.getElementById('notificationSecret').value = channel?.secret || '';
+    setValue('notificationDefaultReceiver', channel?.defaultReceiver || '');
+    setValue('notificationEmailDefaultReceiver', channel?.defaultReceiver || '');
+    setValue('notificationCcReceiver', channel?.ccReceiver || '');
+    setValue('notificationSmtpHost', channel?.smtpHost || '');
+    setValue('notificationSmtpPort', channel?.smtpPort ? String(channel.smtpPort) : '');
+    setValue('notificationSmtpUsername', channel?.smtpUsername || '');
+    document.getElementById('notificationSmtpPassword').value = channel?.smtpPassword || '';
+    setValue('notificationSmtpFrom', channel?.smtpFrom || '');
+    document.getElementById('notificationSmtpAuthEnabled').checked = channel?.smtpAuthEnabled ?? true;
+    document.getElementById('notificationSmtpStarttlsEnabled').checked = channel?.smtpStarttlsEnabled ?? true;
+    document.getElementById('notificationSmtpSslEnabled').checked = channel?.smtpSslEnabled ?? false;
+    setValue('notificationSmtpSslTrust', channel?.smtpSslTrust || '');
+    setValue('notificationSmsAccount', channel?.smsAccount || '');
+    document.getElementById('notificationSmsToken').value = channel?.smsToken || '';
+    document.getElementById('notificationSmsPlainPassword').value = channel?.smsPlainPassword || '';
+    setValue('notificationSmsMd5Password', channel?.smsMd5Password || '');
+    document.getElementById('notificationSmsPasswordMd5').checked = channel?.smsPasswordMd5 ?? true;
+    setValue('notificationSmsReturnType', channel?.smsReturnType || 'text');
+    setValue('notificationSmsExtendCode', channel?.smsExtendCode || '');
+    setValue('notificationTimeoutMs', String(channel?.timeoutMs || 5000));
+    setValue('notificationMaxRetries', String(channel?.maxRetries ?? 1));
+    setValue('notificationTestPayloadJson', JSON.stringify(channel?.defaultTestPayload || {
+        receiver: 'ops@example.com',
+        title: 'Agent 任务通知',
+        content: '这是一条测试通知。',
+        level: 'INFO',
+        sourceTaskId: 'manual-test'
+    }, null, 2));
+    toggleNotificationDeliveryFields();
+}
+
+function toggleNotificationDeliveryFields() {
+    const mode = value('notificationDeliveryMode') || 'HTTP';
+    const channel = value('notificationChannel');
+    document.querySelectorAll('.notification-http-field').forEach(node => {
+        node.classList.toggle('d-none', mode === 'SMTP');
+    });
+    document.querySelectorAll('.notification-smtp-field').forEach(node => {
+        node.classList.toggle('d-none', mode !== 'SMTP');
+    });
+    document.querySelectorAll('.notification-sms-field').forEach(node => {
+        node.classList.toggle('d-none', channel !== 'SMS');
+    });
+}
+
+function notificationDefaultReceiverValue() {
+    return value('notificationChannel') === 'SMS'
+        ? value('notificationDefaultReceiver')
+        : value('notificationEmailDefaultReceiver');
+}
+
+function readSshAssetForm() {
+    return {
+        id: value('sshAssetId'),
+        name: value('sshAssetName'),
+        toolName: value('sshAssetToolName'),
+        title: value('sshAssetTitle'),
+        description: value('sshAssetDescription'),
+        hostname: value('sshAssetHostname'),
+        port: Number(value('sshAssetPort') || 22),
+        username: value('sshAssetUsername'),
+        authType: value('sshAssetAuthType'),
+        password: document.getElementById('sshAssetPassword').value,
+        privateKey: document.getElementById('sshAssetPrivateKey').value,
+        passphrase: document.getElementById('sshAssetPassphrase').value,
+        hostKeyFingerprint: value('sshAssetHostKeyFingerprint'),
+        enabled: document.getElementById('sshAssetEnabled').value === 'true',
+        environment: value('sshAssetEnvironment'),
+        tags: value('sshAssetTags'),
+        allowedCommandsJson: stringifyJsonArray('sshAssetAllowedCommandsJson'),
+        connectTimeoutMs: Number(value('sshAssetConnectTimeoutMs') || 10000),
+        commandTimeoutMs: Number(value('sshAssetCommandTimeoutMs') || 30000)
+    };
+}
+
+function fillSshAssetForm(asset) {
+    document.getElementById('sshAssetFormTitle').textContent = asset ? `编辑 ${asset.toolName || asset.name}` : '新增服务器资产';
+    setValue('sshAssetId', asset?.id || '');
+    setValue('sshAssetName', asset?.name || '');
+    setValue('sshAssetToolName', asset?.toolName || '');
+    setValue('sshAssetTitle', asset?.title || '');
+    setValue('sshAssetDescription', asset?.description || '');
+    setValue('sshAssetHostname', asset?.hostname || '');
+    setValue('sshAssetPort', String(asset?.port || 22));
+    setValue('sshAssetUsername', asset?.username || '');
+    setValue('sshAssetAuthType', asset?.authType || 'PASSWORD');
+    document.getElementById('sshAssetPassword').value = asset?.password || '';
+    document.getElementById('sshAssetPrivateKey').value = asset?.privateKey || '';
+    document.getElementById('sshAssetPassphrase').value = asset?.passphrase || '';
+    setValue('sshAssetHostKeyFingerprint', asset?.hostKeyFingerprint || '');
+    setValue('sshAssetEnabled', String(asset?.enabled ?? false));
+    setValue('sshAssetEnvironment', asset?.environment || 'DEV');
+    setValue('sshAssetTags', asset?.tags || '');
+    setValue('sshAssetAllowedCommandsJson', prettyJsonArray(asset?.allowedCommandsJson));
+    setValue('sshAssetConnectTimeoutMs', String(asset?.connectTimeoutMs || 10000));
+    setValue('sshAssetCommandTimeoutMs', String(asset?.commandTimeoutMs || 30000));
+}
+
+function readSqlAssetForm() {
+    return {
+        id: value('sqlAssetId'),
+        name: value('sqlAssetName'),
+        toolName: value('sqlAssetToolName'),
+        title: value('sqlAssetTitle'),
+        description: value('sqlAssetDescription'),
+        jdbcUrl: value('sqlAssetJdbcUrl'),
+        driverClass: value('sqlAssetDriverClass'),
+        username: value('sqlAssetUsername'),
+        password: document.getElementById('sqlAssetPassword').value,
+        enabled: document.getElementById('sqlAssetEnabled').value === 'true',
+        environment: value('sqlAssetEnvironment'),
+        defaultTimeoutSeconds: Number(value('sqlAssetDefaultTimeoutSeconds') || 30),
+        defaultMaxRows: Number(value('sqlAssetDefaultMaxRows') || 1000),
+        allowedTablesJson: stringifyJsonArray('sqlAssetAllowedTablesJson'),
+        sensitiveTablesJson: stringifyJsonArray('sqlAssetSensitiveTablesJson'),
+        sensitiveFieldsJson: stringifyJsonArray('sqlAssetSensitiveFieldsJson')
+    };
+}
+
+function fillSqlAssetForm(asset) {
+    document.getElementById('sqlAssetFormTitle').textContent = asset ? `编辑 ${asset.toolName || asset.name}` : '新增数据库资产';
+    setValue('sqlAssetId', asset?.id || '');
+    setValue('sqlAssetName', asset?.name || '');
+    setValue('sqlAssetToolName', asset?.toolName || '');
+    setValue('sqlAssetTitle', asset?.title || '');
+    setValue('sqlAssetDescription', asset?.description || '');
+    setValue('sqlAssetJdbcUrl', asset?.jdbcUrl || '');
+    setValue('sqlAssetDriverClass', asset?.driverClass || '');
+    setValue('sqlAssetUsername', asset?.username || '');
+    document.getElementById('sqlAssetPassword').value = asset?.password || '';
+    setValue('sqlAssetEnabled', String(asset?.enabled ?? false));
+    setValue('sqlAssetEnvironment', asset?.environment || 'DEV');
+    setValue('sqlAssetDefaultTimeoutSeconds', String(asset?.defaultTimeoutSeconds || 30));
+    setValue('sqlAssetDefaultMaxRows', String(asset?.defaultMaxRows || 1000));
+    setValue('sqlAssetAllowedTablesJson', prettyJsonArray(asset?.allowedTablesJson));
+    setValue('sqlAssetSensitiveTablesJson', prettyJsonArray(asset?.sensitiveTablesJson));
+    setValue('sqlAssetSensitiveFieldsJson', prettyJsonArray(asset?.sensitiveFieldsJson));
+}
+
+function readHttpAssetForm() {
+    return {
+        id: value('httpAssetId'),
+        name: value('httpAssetName'),
+        toolName: value('httpAssetToolName'),
+        title: value('httpAssetTitle'),
+        description: value('httpAssetDescription'),
+        method: value('httpAssetMethod'),
+        urlTemplate: value('httpAssetUrlTemplate'),
+        headersJson: stringifyJsonObject('httpAssetHeadersJson'),
+        bodyTemplate: document.getElementById('httpAssetBodyTemplate').value.trim(),
+        inputSchemaJson: stringifyJsonObject('httpAssetInputSchemaJson'),
+        enabled: document.getElementById('httpAssetEnabled').value === 'true',
+        environment: value('httpAssetEnvironment'),
+        category: value('httpAssetCategory'),
+        tags: value('httpAssetTags'),
+        timeoutMs: Number(value('httpAssetTimeoutMs') || 10000)
+    };
+}
+
+function fillHttpAssetForm(asset) {
+    document.getElementById('httpAssetFormTitle').textContent = asset ? `编辑 ${asset.toolName || asset.name}` : '新增 HTTP 请求资产';
+    setValue('httpAssetId', asset?.id || '');
+    setValue('httpAssetName', asset?.name || '');
+    setValue('httpAssetToolName', asset?.toolName || '');
+    setValue('httpAssetTitle', asset?.title || '');
+    setValue('httpAssetDescription', asset?.description || '');
+    setValue('httpAssetMethod', asset?.method || 'GET');
+    setValue('httpAssetUrlTemplate', asset?.urlTemplate || '');
+    setValue('httpAssetHeadersJson', prettyJsonObject(asset?.headersJson, {}));
+    setValue('httpAssetBodyTemplate', asset?.bodyTemplate || '');
+    setValue('httpAssetInputSchemaJson', prettyJsonObject(asset?.inputSchemaJson, {
+        type: 'object',
+        properties: {},
+        required: [],
+        additionalProperties: true
+    }));
+    setValue('httpAssetEnabled', String(asset?.enabled ?? false));
+    setValue('httpAssetEnvironment', asset?.environment || 'DEV');
+    setValue('httpAssetCategory', asset?.category || 'business_api');
+    setValue('httpAssetTags', asset?.tags || '');
+    setValue('httpAssetTimeoutMs', String(asset?.timeoutMs || 10000));
+}
+
+function prettyJsonArray(value) {
+    if (!value) {
+        return '[]';
+    }
+    try {
+        return JSON.stringify(typeof value === 'string' ? JSON.parse(value) : value, null, 2);
+    } catch (error) {
+        return String(value);
+    }
+}
+
+function prettyJsonObject(value, fallback = {}) {
+    if (!value) {
+        return JSON.stringify(fallback, null, 2);
+    }
+    try {
+        return JSON.stringify(typeof value === 'string' ? JSON.parse(value) : value, null, 2);
+    } catch (error) {
+        return String(value);
+    }
+}
+
+function stringifyJsonObject(id) {
+    const text = document.getElementById(id).value.trim();
+    if (!text) {
+        return null;
+    }
+    const value = JSON.parse(text);
+    if (Array.isArray(value) || value === null || typeof value !== 'object') {
+        throw new Error('该字段必须是 JSON 对象。');
+    }
+    return JSON.stringify(value);
+}
+
+function stringifyJsonArray(id) {
+    const text = document.getElementById(id).value.trim();
+    if (!text) {
+        return null;
+    }
+    const value = JSON.parse(text);
+    if (!Array.isArray(value)) {
+        throw new Error('该字段必须是 JSON 数组。');
+    }
+    return JSON.stringify(value);
+}
+
 function handleError(error) {
     if (error instanceof UnauthorizedError) {
         showLogin();
@@ -1032,6 +1957,7 @@ function readDatabaseQueryForm() {
         sql: value('databaseSqlInput'),
         params: readJsonObject('databaseParamsJson'),
         maxRows: Number(value('databaseMaxRowsInput') || 50),
+        datasourceId: value('databaseDatasourceSelect'),
         jdbcUrl: value('databaseJdbcUrlInput'),
         driverClass: value('databaseDriverClassInput'),
         username: value('databaseUsernameInput'),
@@ -1047,6 +1973,7 @@ function readDatabaseQueryRegistrationForm() {
         id,
         toolName: value('databaseToolNameInput'),
         title: value('databaseTitleInput'),
+        datasourceId: value('databaseDatasourceSelect'),
         description: value('databaseDescriptionInput'),
         sqlTemplate: value('databaseSqlInput'),
         inputSchema: readJsonObject('databaseInputSchemaJson'),
@@ -1066,6 +1993,7 @@ function fillDatabaseQueryForm(query) {
     setValue('databaseQueryId', query?.id || '');
     setValue('databaseToolNameInput', query?.toolName || '');
     setValue('databaseTitleInput', query?.title || '');
+    renderDatabaseDatasourceOptions(query?.datasourceId || '');
     setValue('databaseDescriptionInput', query?.description || '');
     setValue('databaseSqlInput', query?.sqlTemplate || '');
     setValue('databaseParamsJson', '{}');
@@ -1081,7 +2009,30 @@ function fillDatabaseQueryForm(query) {
     setValue('databaseUsernameInput', query?.username || '');
     document.getElementById('databasePasswordInput').value = query?.password || '';
     document.getElementById('databaseReloadDrivers').checked = Boolean(query?.reloadDrivers);
+    toggleDatabaseExternalFields();
     renderDatabaseQueryPreview(null);
+}
+
+function renderDatabaseDatasourceOptions(selected = value('databaseDatasourceSelect')) {
+    const select = document.getElementById('databaseDatasourceSelect');
+    if (!select) {
+        return;
+    }
+    const enabledAssets = sqlAssets.filter(asset => asset.enabled);
+    select.innerHTML = [
+        '<option value="">不使用资产，手动填写 JDBC</option>',
+        ...enabledAssets.map(asset => `
+            <option value="${escapeHtml(asset.id)}" ${asset.id === selected ? 'selected' : ''}>
+                ${escapeHtml(asset.toolName || asset.name)} / ${escapeHtml(asset.environment || 'DEV')}
+            </option>
+        `)
+    ].join('');
+}
+
+function toggleDatabaseExternalFields() {
+    const useAsset = Boolean(value('databaseDatasourceSelect'));
+    document.getElementById('databaseExternalFields').classList.toggle('opacity-50', useAsset);
+    document.getElementById('databaseJdbcUrlInput').required = !useAsset;
 }
 
 function resetDatabaseQueryForm() {

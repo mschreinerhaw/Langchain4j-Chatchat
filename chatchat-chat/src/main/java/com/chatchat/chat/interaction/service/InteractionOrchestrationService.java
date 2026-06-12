@@ -6,6 +6,7 @@ import com.chatchat.chat.interaction.model.InteractionRequest;
 import com.chatchat.chat.interaction.model.InteractionResponse;
 import com.chatchat.chat.image.ImageUnderstandingService;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -38,6 +39,7 @@ public class InteractionOrchestrationService {
      * @param modeHandlers the mode handlers value
      * @param memoryService the memory service value
      */
+    @Autowired
     public InteractionOrchestrationService(List<InteractionModeHandler> modeHandlers,
                                            ConversationMemoryService memoryService,
                                            ImageUnderstandingService imageUnderstandingService) {

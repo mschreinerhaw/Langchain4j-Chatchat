@@ -37,9 +37,9 @@ import java.util.function.BooleanSupplier;
 @RequiredArgsConstructor
 public class AgentTaskService {
 
-    private static final List<String> ACTIVE_STATUSES = List.of("PENDING", "RUNNING", "WAIT_TOOL", "WAIT_MODEL", "WAIT_CONFIRMATION");
+    private static final List<String> ACTIVE_STATUSES = List.of("PENDING", "RUNNING", "WAIT_TOOL", "WAIT_MODEL", "WAIT_CONFIRMATION", "WAITING_CONFIRM");
     private static final List<String> RECOVERABLE_STATUSES = List.of("PENDING", "RUNNING", "WAIT_TOOL", "WAIT_MODEL");
-    private static final List<String> TERMINAL_STATUSES = List.of("SUCCESS", "FAILED", "CANCELLED");
+    private static final List<String> TERMINAL_STATUSES = List.of("SUCCESS", "FAILED", "CANCELLED", "REJECTED", "TIMEOUT_CANCELLED", "KILLED");
     private static final int MAX_IDLE_POLLS = 3;
     private static final int MAX_CONFIRMATION_ROUNDS = 20;
 
@@ -52,6 +52,7 @@ public class AgentTaskService {
     private final ToolRuntimeService toolRuntimeService;
     private final AgentTaskCancellationRegistry cancellationRegistry;
     private final AgentLearningService learningService;
+    private final TaskConfirmRepository taskConfirmRepository;
 
     @Qualifier("agentTaskExecutor")
     private final ThreadPoolTaskExecutor taskExecutor;
@@ -274,7 +275,7 @@ public class AgentTaskService {
         AgentTaskLatestEntity latestTask = latestRepository.findById(taskId).orElse(task);
         String latestStatus = normalizeStatus(latestTask.getStatus());
         if (!TERMINAL_STATUSES.contains(latestStatus)) {
-            if ("WAIT_CONFIRMATION".equals(latestStatus)) {
+            if ("WAIT_CONFIRMATION".equals(latestStatus) || "WAITING_CONFIRM".equals(latestStatus)) {
                 return eventStore.listByTask(latestTask.getTenantId(), latestTask.getSessionId(), taskId, properties.getListLimit()).stream()
                     .filter(event -> "NEEDS_CONFIRMATION".equalsIgnoreCase(event.getType())
                         || "WAIT_CONFIRMATION".equalsIgnoreCase(event.getStatus()))
@@ -285,7 +286,7 @@ public class AgentTaskService {
         return eventStore.listByTask(latestTask.getTenantId(), latestTask.getSessionId(), taskId, properties.getListLimit()).stream()
             .filter(event -> "ANSWER".equalsIgnoreCase(event.getType())
                 || "ERROR".equalsIgnoreCase(event.getType())
-                || ("STATUS".equalsIgnoreCase(event.getType()) && "CANCELLED".equalsIgnoreCase(event.getStatus())))
+                || ("STATUS".equalsIgnoreCase(event.getType()) && TERMINAL_STATUSES.contains(normalizeStatus(event.getStatus()))))
             .reduce((previous, current) -> current);
     }
 
@@ -297,20 +298,59 @@ public class AgentTaskService {
      * @return whether the condition is satisfied
      */
     public AgentTaskResponse cancel(String tenantId, String taskId) {
+        return stopTask(tenantId, taskId, "CANCELLED", "Task cancelled by tenant request", "Agent task cancelled");
+    }
+
+    public AgentTaskResponse kill(String tenantId, String taskId) {
+        return stopTask(tenantId, taskId, "KILLED", "Task killed by runtime request", "Agent task killed");
+    }
+
+    public AgentTaskResponse reject(String tenantId, String taskId, String userId) {
         AgentTaskLatestEntity task = getTaskForTenant(tenantId, taskId);
-        String currentStatus = normalizeStatus(task.getStatus());
-        if (TERMINAL_STATUSES.contains(currentStatus)) {
-            return AgentTaskResponse.from(task);
+        markLatestConfirmation(task.getTaskId(), "REJECTED", userId);
+        return stopTask(tenantId, taskId, "REJECTED", "MCP confirmation rejected", "Agent task rejected");
+    }
+
+    public AgentTaskResponse confirm(String tenantId, String taskId, AgentTaskSubmitRequest request) {
+        String normalizedTaskId = requireText(taskId, "Task ID cannot be empty");
+        AgentTaskLatestEntity task = getTaskForTenant(tenantId, normalizedTaskId);
+        validateConfirmationBeforeResume(normalizedTaskId, request == null ? null : request.getUserId());
+        if (request == null) {
+            request = new AgentTaskSubmitRequest();
         }
-        cancellationRegistry.cancelTask(taskId);
-        Thread runningThread = runningTaskThreads.get(taskId);
-        if (runningThread != null) {
-            runningThread.interrupt();
+        request.setTenantId(task.getTenantId());
+        request.setResumeTaskId(normalizedTaskId);
+        request.setUserId(firstText(request.getUserId(), task.getUserId()));
+        request.setAgentId(firstText(request.getAgentId(), task.getAgentId()));
+        request.setSessionId(firstText(request.getSessionId(), task.getSessionId()));
+        request.setQuery(firstText(request.getQuery(), task.getQuestion()));
+        return submit(request);
+    }
+
+    @Transactional
+    public int cancelExpiredConfirmations() {
+        List<TaskConfirmEntity> expiredConfirmations = taskConfirmRepository
+            .findByStatusAndExpiredAtBeforeOrderByExpiredAtAsc("WAITING_CONFIRM", Instant.now())
+            .stream()
+            .limit(properties.getRecoveryBatchSize())
+            .toList();
+        int cancelled = 0;
+        for (TaskConfirmEntity confirmation : expiredConfirmations) {
+            Optional<AgentTaskLatestEntity> task = latestRepository.findById(confirmation.getTaskId());
+            if (task.isEmpty()) {
+                markConfirmation(confirmation, "TIMEOUT_CANCELLED", null);
+                continue;
+            }
+            String currentStatus = normalizeStatus(task.get().getStatus());
+            if (!"WAIT_CONFIRMATION".equals(currentStatus) && !"WAITING_CONFIRM".equals(currentStatus)) {
+                markConfirmation(confirmation, terminalConfirmStatus(currentStatus), null);
+                continue;
+            }
+            markConfirmation(confirmation, "TIMEOUT_CANCELLED", null);
+            stopTask(task.get(), "TIMEOUT_CANCELLED", "MCP confirmation timed out", "Agent task timed out waiting for confirmation");
+            cancelled++;
         }
-        updateLatest(task.getTaskId(), "CANCELLED", null, "Task cancelled by tenant request");
-        AgentEvent cancelledEvent = saveStatusEvent(task, "CANCELLED", Map.of("message", "Agent task cancelled"));
-        eventBus.publishResult(cancelledEvent);
-        return get(tenantId, taskId).orElseThrow(() -> new IllegalArgumentException("Task not found: " + taskId));
+        return cancelled;
     }
 
     /**
@@ -387,9 +427,10 @@ public class AgentTaskService {
     private AgentTaskResponse resumeWaitingTask(String tenantId, String taskId, AgentTaskSubmitRequest request) {
         AgentTaskLatestEntity task = getTaskForTenant(tenantId, taskId.trim());
         String currentStatus = normalizeStatus(task.getStatus());
-        if (!"WAIT_CONFIRMATION".equals(currentStatus)) {
+        if (!"WAIT_CONFIRMATION".equals(currentStatus) && !"WAITING_CONFIRM".equals(currentStatus)) {
             throw new IllegalArgumentException("Only WAIT_CONFIRMATION tasks can be resumed");
         }
+        validateConfirmationBeforeResume(task.getTaskId(), request.getUserId());
         request.setTenantId(task.getTenantId());
         request.setSessionId(task.getSessionId());
         request.setResumeTaskId(task.getTaskId());
@@ -411,6 +452,7 @@ public class AgentTaskService {
         task.setAgentId(firstText(request.getAgentId(), task.getAgentId()));
         task.setQuestion(firstText(request.getQuery(), task.getQuestion()));
         latestRepository.save(task);
+        markLatestConfirmation(task.getTaskId(), "CONFIRMED", request.getUserId());
         eventBus.clearResults(task.getTaskId());
         saveStatusEvent(task, "RUNNING", Map.of("message", "MCP confirmation received"));
         AgentEvent confirmationEvent = AgentEvent.builder()
@@ -574,7 +616,13 @@ public class AgentTaskService {
                         throw new IllegalStateException("MCP confirmation loop exceeded " + MAX_CONFIRMATION_ROUNDS + " rounds");
                     }
                     Map<String, Object> pendingToolExecution = pendingToolExecution(response);
-                    AgentEvent confirmationEvent = copyEvent(question, "NEEDS_CONFIRMATION", "WAIT_CONFIRMATION", writePayload(response));
+                    TaskConfirmEntity confirmation = createPendingConfirmation(question, response, pendingToolExecution);
+                    AgentEvent confirmationEvent = copyEvent(
+                        question,
+                        "NEEDS_CONFIRMATION",
+                        "WAIT_CONFIRMATION",
+                        writePayload(confirmationResponsePayload(response, confirmation))
+                    );
                     confirmationEvent.setSequence(nextSequence(question));
                     confirmationEvent.setParentEventId(question.getEventId());
                     confirmationEvent.setLatencyMs(response.getLatencyMs());
@@ -583,7 +631,7 @@ public class AgentTaskService {
                     updateLatest(question.getTaskId(), "WAIT_CONFIRMATION", null, "Agent task is waiting for MCP confirmation");
                     eventBus.publishResult(confirmationEvent);
 
-                    AgentTaskSubmitRequest confirmationRequest = waitForMcpConfirmation(question);
+                    AgentTaskSubmitRequest confirmationRequest = waitForMcpConfirmation(question, confirmation.getExpiredAt());
                     applyMcpConfirmation(interactionRequest, confirmationRequest, pendingToolExecution);
                     updateLatest(question.getTaskId(), "RUNNING", null, null);
                     saveStatusEvent(question, "RUNNING", Map.of("message", "Task resumed after MCP confirmation"));
@@ -613,8 +661,9 @@ public class AgentTaskService {
             throw new CancellationException("Agent task stopped");
         } catch (CancellationException ex) {
             if (!isCancelled(question.getTaskId())) {
-                updateLatest(question.getTaskId(), "CANCELLED", null, firstText(ex.getMessage(), "Task cancelled"));
-                AgentEvent cancelledEvent = copyEvent(question, "STATUS", "CANCELLED", writePayload(Map.of(
+                String status = ex instanceof AgentTaskStoppedException stopped ? stopped.status : "CANCELLED";
+                updateLatest(question.getTaskId(), status, null, firstText(ex.getMessage(), "Task cancelled"));
+                AgentEvent cancelledEvent = copyEvent(question, "STATUS", status, writePayload(Map.of(
                     "message", firstText(ex.getMessage(), "Agent task cancelled")
                 )));
                 cancelledEvent.setSequence(nextSequence(question));
@@ -679,16 +728,20 @@ public class AgentTaskService {
      * @return the operation result
      * @throws InterruptedException if the operation fails
      */
-    private AgentTaskSubmitRequest waitForMcpConfirmation(AgentEvent question) throws InterruptedException {
+    private AgentTaskSubmitRequest waitForMcpConfirmation(AgentEvent question, Instant expiredAt) throws InterruptedException {
         long timeoutMs = Math.max(1L, properties.getConfirmationWaitSeconds()) * 1000L;
-        long deadline = System.currentTimeMillis() + timeoutMs;
+        long configuredDeadline = System.currentTimeMillis() + timeoutMs;
+        long persistedDeadline = expiredAt == null ? configuredDeadline : expiredAt.toEpochMilli();
+        long deadline = Math.min(configuredDeadline, persistedDeadline);
         while (!stopping) {
             if (isCancelled(question.getTaskId())) {
                 throw new CancellationException("Agent task cancelled while waiting for MCP confirmation");
             }
+            enforcePendingConfirmation(question.getTaskId());
             long remainingMs = deadline - System.currentTimeMillis();
             if (remainingMs <= 0) {
-                throw new IllegalStateException("MCP confirmation timed out for task: " + question.getTaskId());
+                markLatestConfirmation(question.getTaskId(), "TIMEOUT_CANCELLED", null);
+                throw new AgentTaskStoppedException("TIMEOUT_CANCELLED", "MCP confirmation timed out for task: " + question.getTaskId());
             }
             AgentEvent confirmationEvent = eventBus.pollConfirmation(
                 question.getTaskId(),
@@ -698,6 +751,7 @@ public class AgentTaskService {
             if (confirmationEvent == null) {
                 continue;
             }
+            enforcePendingConfirmation(question.getTaskId());
             try {
                 return objectMapper.readValue(confirmationEvent.getPayload(), AgentTaskSubmitRequest.class);
             } catch (JsonProcessingException ex) {
@@ -735,6 +789,150 @@ public class AgentTaskService {
             toolInput.put("mcpPendingToolExecution", pendingToolExecution);
         }
         interactionRequest.setToolInput(toolInput);
+    }
+
+    private TaskConfirmEntity createPendingConfirmation(AgentEvent question,
+                                                        InteractionResponse response,
+                                                        Map<String, Object> pendingToolExecution) {
+        taskConfirmRepository.findTopByTaskIdOrderByCreatedAtDesc(question.getTaskId())
+            .filter(confirm -> "WAITING_CONFIRM".equals(normalizeStatus(confirm.getStatus())))
+            .ifPresent(confirm -> markConfirmation(confirm, "EXPIRED", null));
+        TaskConfirmEntity confirmation = new TaskConfirmEntity();
+        confirmation.setTaskId(question.getTaskId());
+        confirmation.setToolName(truncate(resolveToolName(response, pendingToolExecution), 200));
+        confirmation.setConfirmMessage(truncate(resolveConfirmationMessage(response, pendingToolExecution), 2000));
+        confirmation.setStatus("WAITING_CONFIRM");
+        confirmation.setExpiredAt(Instant.now().plusSeconds(Math.max(1L, properties.getConfirmationWaitSeconds())));
+        return taskConfirmRepository.save(confirmation);
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> confirmationResponsePayload(InteractionResponse response, TaskConfirmEntity confirmation) {
+        Map<String, Object> payload = response == null
+            ? new LinkedHashMap<>()
+            : new LinkedHashMap<>(objectMapper.convertValue(response, Map.class));
+        payload.put("confirmId", confirmation.getId());
+        payload.put("confirmStatus", confirmation.getStatus());
+        payload.put("expiredAt", confirmation.getExpiredAt());
+        payload.put("confirmExpiredAt", confirmation.getExpiredAt());
+        payload.put("confirmMessage", confirmation.getConfirmMessage());
+        payload.put("toolName", confirmation.getToolName());
+        return payload;
+    }
+
+    private void validateConfirmationBeforeResume(String taskId, String userId) {
+        TaskConfirmEntity confirmation = taskConfirmRepository.findTopByTaskIdOrderByCreatedAtDesc(taskId)
+            .orElseThrow(() -> new IllegalStateException("Confirmation node not found for task: " + taskId));
+        String status = normalizeStatus(confirmation.getStatus());
+        if (!"WAITING_CONFIRM".equals(status)) {
+            throw new IllegalStateException("Confirmation node is not pending: " + status);
+        }
+        if (confirmation.getExpiredAt() != null && confirmation.getExpiredAt().isBefore(Instant.now())) {
+            markConfirmation(confirmation, "TIMEOUT_CANCELLED", userId);
+            throw new IllegalStateException("Confirmation node expired for task: " + taskId);
+        }
+    }
+
+    private void enforcePendingConfirmation(String taskId) {
+        Optional<TaskConfirmEntity> latestConfirmation = taskConfirmRepository.findTopByTaskIdOrderByCreatedAtDesc(taskId);
+        if (latestConfirmation.isEmpty()) {
+            return;
+        }
+        TaskConfirmEntity confirmation = latestConfirmation.get();
+        String status = normalizeStatus(confirmation.getStatus());
+        if ("WAITING_CONFIRM".equals(status)) {
+            if (confirmation.getExpiredAt() != null && confirmation.getExpiredAt().isBefore(Instant.now())) {
+                markConfirmation(confirmation, "TIMEOUT_CANCELLED", null);
+                throw new AgentTaskStoppedException("TIMEOUT_CANCELLED", "MCP confirmation timed out for task: " + taskId);
+            }
+            return;
+        }
+        if ("CONFIRMED".equals(status)) {
+            return;
+        }
+        throw new AgentTaskStoppedException(status, "MCP confirmation ended with status: " + status);
+    }
+
+    private void markLatestConfirmation(String taskId, String status, String userId) {
+        taskConfirmRepository.findTopByTaskIdOrderByCreatedAtDesc(taskId)
+            .ifPresent(confirmation -> markConfirmation(confirmation, status, userId));
+    }
+
+    private void markConfirmation(TaskConfirmEntity confirmation, String status, String userId) {
+        confirmation.setStatus(status);
+        confirmation.setConfirmedBy(firstText(userId, confirmation.getConfirmedBy()));
+        confirmation.setConfirmedAt(Instant.now());
+        taskConfirmRepository.save(confirmation);
+    }
+
+    private AgentTaskResponse stopTask(String tenantId,
+                                       String taskId,
+                                       String status,
+                                       String errorMessage,
+                                       String eventMessage) {
+        return stopTask(getTaskForTenant(tenantId, taskId), status, errorMessage, eventMessage);
+    }
+
+    private AgentTaskResponse stopTask(AgentTaskLatestEntity task,
+                                       String status,
+                                       String errorMessage,
+                                       String eventMessage) {
+        String currentStatus = normalizeStatus(task.getStatus());
+        if (TERMINAL_STATUSES.contains(currentStatus)) {
+            return AgentTaskResponse.from(task);
+        }
+        cancellationRegistry.cancelTask(task.getTaskId());
+        Thread runningThread = runningTaskThreads.get(task.getTaskId());
+        if (runningThread != null) {
+            runningThread.interrupt();
+        }
+        updateLatest(task.getTaskId(), status, null, errorMessage);
+        AgentEvent stoppedEvent = saveStatusEvent(task, status, Map.of("message", eventMessage));
+        eventBus.publishResult(stoppedEvent);
+        return get(task.getTenantId(), task.getTaskId())
+            .orElseThrow(() -> new IllegalArgumentException("Task not found: " + task.getTaskId()));
+    }
+
+    private String terminalConfirmStatus(String taskStatus) {
+        return switch (normalizeStatus(taskStatus)) {
+            case "SUCCESS" -> "CONFIRMED";
+            case "FAILED" -> "FAILED";
+            case "REJECTED" -> "REJECTED";
+            case "TIMEOUT_CANCELLED" -> "TIMEOUT_CANCELLED";
+            case "KILLED" -> "KILLED";
+            case "CANCELLED" -> "CANCELLED";
+            default -> "EXPIRED";
+        };
+    }
+
+    private String resolveToolName(InteractionResponse response, Map<String, Object> pendingToolExecution) {
+        Object pendingToolName = pendingToolExecution == null ? null : pendingToolExecution.get("toolName");
+        if (pendingToolName != null) {
+            return String.valueOf(pendingToolName);
+        }
+        return response == null || response.getToolTraces() == null || response.getToolTraces().isEmpty()
+            ? "unknown_tool"
+            : firstText(response.getToolTraces().get(0).getToolName(), "unknown_tool");
+    }
+
+    @SuppressWarnings("unchecked")
+    private String resolveConfirmationMessage(InteractionResponse response, Map<String, Object> pendingToolExecution) {
+        Object confirmation = pendingToolExecution == null ? null : pendingToolExecution.get("confirmation");
+        if (confirmation instanceof Map<?, ?> map) {
+            Object purpose = firstPresent(map.get("purpose"), map.get("message"));
+            if (purpose != null) {
+                return String.valueOf(purpose);
+            }
+        }
+        Object executionPlan = pendingToolExecution == null ? null : pendingToolExecution.get("executionPlan");
+        if (executionPlan instanceof Map<?, ?> map) {
+            Object purpose = firstPresent(map.get("purpose"), map.get("summary"));
+            if (purpose != null) {
+                return String.valueOf(purpose);
+            }
+        }
+        String answer = response == null ? null : response.getAnswer();
+        return firstText(answer, "Tool execution requires confirmation");
     }
 
     /**
@@ -1191,8 +1389,11 @@ public class AgentTaskService {
             errorMessage = "";
         } else if ("FAILED".equals(derivedStatus)) {
             errorMessage = extractErrorMessage(terminalEvent);
-        } else if ("CANCELLED".equals(derivedStatus)) {
-            errorMessage = "Task cancelled";
+        } else if (List.of("CANCELLED", "REJECTED", "TIMEOUT_CANCELLED", "KILLED").contains(derivedStatus)) {
+            errorMessage = extractErrorMessage(terminalEvent);
+            if (errorMessage == null || errorMessage.isBlank()) {
+                errorMessage = "Task " + derivedStatus.toLowerCase().replace('_', ' ');
+            }
         }
 
         updateLatest(task.getTaskId(), derivedStatus, answerSummary, errorMessage);
@@ -1415,7 +1616,7 @@ public class AgentTaskService {
         return cancellationRegistry.isCancelled(taskId) || latestRepository.findById(taskId)
             .map(AgentTaskLatestEntity::getStatus)
             .map(this::normalizeStatus)
-            .filter("CANCELLED"::equals)
+            .filter(TERMINAL_STATUSES::contains)
             .isPresent();
     }
 
@@ -1530,6 +1731,13 @@ public class AgentTaskService {
         return tenantId.trim();
     }
 
+    private String requireText(String value, String message) {
+        if (value == null || value.isBlank()) {
+            throw new IllegalArgumentException(message);
+        }
+        return value.trim();
+    }
+
     /**
      * Normalizes the status.
      *
@@ -1559,5 +1767,19 @@ public class AgentTaskService {
      */
     private String firstText(String value, String fallback) {
         return value == null || value.isBlank() ? fallback : value.trim();
+    }
+
+    private Object firstPresent(Object first, Object second) {
+        return first == null ? second : first;
+    }
+
+    private static class AgentTaskStoppedException extends CancellationException {
+
+        private final String status;
+
+        private AgentTaskStoppedException(String status, String message) {
+            super(message);
+            this.status = status;
+        }
     }
 }

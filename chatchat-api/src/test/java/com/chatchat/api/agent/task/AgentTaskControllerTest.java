@@ -4,6 +4,7 @@ import com.chatchat.chat.task.AgentEvent;
 import com.chatchat.chat.task.AgentEventStore;
 import com.chatchat.chat.interaction.model.InteractionResponse;
 import com.chatchat.chat.interaction.service.InteractionOrchestrationService;
+import com.chatchat.chat.task.AgentScheduledTaskService;
 import com.chatchat.chat.task.AgentTaskLatestEntity;
 import com.chatchat.chat.task.AgentTaskLatestRepository;
 import com.chatchat.chat.task.AgentTaskPayload;
@@ -56,6 +57,9 @@ class AgentTaskControllerTest {
 
     @Autowired
     private AgentTaskService agentTaskService;
+
+    @Autowired
+    private AgentScheduledTaskService scheduledTaskService;
 
     @Autowired
     private AgentTaskLatestRepository latestRepository;
@@ -483,6 +487,121 @@ class AgentTaskControllerTest {
     }
 
     @Test
+    void onceScheduleTriggersAgentTaskAndCompletes() throws Exception {
+        reset(orchestrationService);
+        when(orchestrationService.chat(any())).thenReturn(InteractionResponse.builder()
+            .conversationId("session-schedule-001")
+            .requestId("request-schedule-001")
+            .mode("agent_chat")
+            .answer("scheduled market brief")
+            .metadata(Map.of("source", "mock"))
+            .build());
+
+        String scheduleBody = objectMapper.writeValueAsString(Map.of(
+            "tenantId", "tenant-schedule-001",
+            "triggerType", "ONCE",
+            "delaySeconds", 0,
+            "maxRetries", 0,
+            "payload", Map.of(
+                "tenantId", "tenant-schedule-001",
+                "userId", "user-schedule-001",
+                "agentId", "market-agent",
+                "sessionId", "session-schedule-001",
+                "query", "generate today's market brief"
+            )
+        ));
+
+        String createResponse = mockMvc.perform(post("/api/v1/agent/tasks/runtime/schedules")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(scheduleBody))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.code").value(200))
+            .andExpect(jsonPath("$.data.taskId").exists())
+            .andExpect(jsonPath("$.data.status").value("ACTIVE"))
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+        String scheduledTaskId = objectMapper.readTree(createResponse).path("data").path("taskId").asText();
+        scheduledTaskService.scanDueTasks();
+        JsonNode runningSchedule = getSchedule("tenant-schedule-001", scheduledTaskId);
+        String agentTaskId = runningSchedule.path("data").path("lastTaskId").asText();
+        waitForTaskStatus("tenant-schedule-001", agentTaskId, "SUCCESS");
+        scheduledTaskService.scanDueTasks();
+
+        mockMvc.perform(get("/api/v1/agent/tasks/runtime/schedules/" + scheduledTaskId)
+                .param("tenantId", "tenant-schedule-001"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.code").value(200))
+            .andExpect(jsonPath("$.data.status").value("COMPLETED"))
+            .andExpect(jsonPath("$.data.lastTaskStatus").value("SUCCESS"));
+    }
+
+    @Test
+    void scheduledTaskRetriesFailedAgentRunOnce() throws Exception {
+        reset(orchestrationService);
+        when(orchestrationService.chat(any()))
+            .thenThrow(new IllegalStateException("temporary model failure"))
+            .thenReturn(InteractionResponse.builder()
+                .conversationId("session-schedule-retry-001")
+                .requestId("request-schedule-retry-002")
+                .mode("agent_chat")
+                .answer("retry succeeded")
+                .metadata(Map.of("source", "mock"))
+                .build());
+
+        String scheduleBody = objectMapper.writeValueAsString(Map.of(
+            "tenantId", "tenant-schedule-retry-001",
+            "triggerType", "ONCE",
+            "delaySeconds", 0,
+            "maxRetries", 1,
+            "retryDelaySeconds", 1,
+            "payload", Map.of(
+                "tenantId", "tenant-schedule-retry-001",
+                "userId", "user-schedule-retry-001",
+                "agentId", "ops-agent",
+                "sessionId", "session-schedule-retry-001",
+                "query", "run server inspection"
+            )
+        ));
+
+        String createResponse = mockMvc.perform(post("/api/v1/agent/tasks/runtime/schedules")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(scheduleBody))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+        String scheduledTaskId = objectMapper.readTree(createResponse).path("data").path("taskId").asText();
+        scheduledTaskService.scanDueTasks();
+        JsonNode firstRun = getSchedule("tenant-schedule-retry-001", scheduledTaskId);
+        waitForTaskStatus("tenant-schedule-retry-001", firstRun.path("data").path("lastTaskId").asText(), "FAILED");
+        scheduledTaskService.scanDueTasks();
+
+        JsonNode waitingRetry = getSchedule("tenant-schedule-retry-001", scheduledTaskId);
+        org.assertj.core.api.Assertions.assertThat(waitingRetry.path("data").path("status").asText()).isEqualTo("ACTIVE");
+        org.assertj.core.api.Assertions.assertThat(waitingRetry.path("data").path("retryCount").asInt()).isEqualTo(1);
+
+        Thread.sleep(1100);
+        scheduledTaskService.scanDueTasks();
+        JsonNode retryRun = getSchedule("tenant-schedule-retry-001", scheduledTaskId);
+        String retryTaskId = retryRun.path("data").path("lastTaskId").asText();
+        waitForTaskStatus("tenant-schedule-retry-001", retryTaskId, "SUCCESS");
+        scheduledTaskService.scanDueTasks();
+
+        mockMvc.perform(get("/api/v1/agent/tasks/runtime/schedules/" + scheduledTaskId)
+                .param("tenantId", "tenant-schedule-retry-001"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.code").value(200))
+            .andExpect(jsonPath("$.data.status").value("COMPLETED"))
+            .andExpect(jsonPath("$.data.lastTaskStatus").value("SUCCESS"))
+            .andExpect(jsonPath("$.data.retryCount").value(0));
+
+        verify(orchestrationService, times(2)).chat(any());
+    }
+
+    @Test
     void listToolRuntimeAuditsWithinTenantBoundary() throws Exception {
         SysAuditLog success = new SysAuditLog();
         success.setTenantId("tenant-007");
@@ -705,6 +824,16 @@ class AgentTaskControllerTest {
             Thread.sleep(100);
         }
         return lastResponse;
+    }
+
+    private JsonNode getSchedule(String tenantId, String scheduledTaskId) throws Exception {
+        String response = mockMvc.perform(get("/api/v1/agent/tasks/runtime/schedules/" + scheduledTaskId)
+                .param("tenantId", tenantId))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+        return objectMapper.readTree(response);
     }
 
     private String writeJson(Object value) {

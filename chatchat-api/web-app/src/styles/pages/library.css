@@ -179,6 +179,11 @@
   background: #fff;
 }
 
+.library-view .library-document button:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
 .library-view .library-document-actions {
   display: grid;
   grid-template-columns: 1fr;

@@ -248,6 +248,59 @@
   background: #fff;
 }
 
+.chat-session-actions {
+  width: min(860px, calc(100% - 28px));
+  max-width: 860px;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: #fff;
+  box-shadow: 0 8px 24px rgba(30, 58, 112, 0.05);
+}
+
+.chat-session-actions div {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.chat-session-actions strong {
+  overflow: hidden;
+  color: var(--text);
+  font-size: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat-session-actions span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.chat-session-actions button {
+  flex: 0 0 auto;
+  min-height: 32px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 0 12px;
+  background: #fff;
+  color: var(--primary);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.chat-session-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
 .message-meta {
   display: flex;
   align-items: center;
@@ -1413,6 +1466,16 @@
   text-transform: uppercase;
 }
 
+.mcp-confirm-timeout {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 6px;
+  background: rgba(245, 158, 11, 0.12);
+  color: #92400e;
+  font-size: 0.86rem;
+  line-height: 1.5;
+}
+
 .mcp-confirm-dialog h2 {
   margin: 0;
   color: #172033;
@@ -1621,6 +1684,7 @@
   }
 
   .message-panel,
+  .chat-session-actions,
   .response-references,
   .chat-error,
   .chat-status-notice,

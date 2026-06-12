@@ -2,6 +2,7 @@ import "../../styles/pages/ai-search.css";
 import {
   deleteSearchDocument,
   getSearchDocument,
+  recordUserActivity,
   searchDocuments,
   uploadSearchDocument
 } from "../../services/api.js";
@@ -48,7 +49,17 @@ function defaultUploadForm() {
 
 export default {
   name: "AiSearchView",
-  emits: ["navigate"],
+  props: {
+    pendingDocumentShortcut: {
+      type: Object,
+      default: null
+    },
+    userId: {
+      type: String,
+      default: "default-user"
+    }
+  },
+  emits: ["ask-ai", "navigate"],
   data() {
     return {
       keyword: "",
@@ -73,6 +84,7 @@ export default {
       error: "",
       uploadError: "",
       uploadForm: defaultUploadForm(),
+      appliedDocumentShortcutId: "",
       documentTypeOptions: [
         { value: "auto", label: "自动识别" },
         { value: "pdf", label: "PDF" },
@@ -104,6 +116,14 @@ export default {
       return Array.from({ length: end - start + 1 }, (_, index) => start + index);
     }
   },
+  watch: {
+    pendingDocumentShortcut: {
+      immediate: true,
+      handler(shortcut) {
+        this.applyDocumentShortcut(shortcut);
+      }
+    }
+  },
   methods: {
     async performSearch(resetPage = true) {
       this.loading = true;
@@ -128,6 +148,7 @@ export default {
         this.searchTookMs = payload?.tookMs || 0;
         this.hasMoreResults = Boolean(payload?.hasMore);
         this.clampPage();
+        this.recordSearchHits();
       } catch (error) {
         this.error = error.message || "检索失败";
         this.results = [];
@@ -190,7 +211,8 @@ export default {
         formData.append("date", this.uploadForm.date);
         formData.append("tags", this.uploadForm.tags);
         formData.append("documentType", this.uploadForm.documentType);
-        await uploadSearchDocument(formData);
+        const document = await uploadSearchDocument(formData);
+        this.recordDocumentActivity(document, "VIEW");
         this.showUploadDialog = false;
         this.resetUploadForm();
         this.$emit("navigate", "library");
@@ -211,6 +233,7 @@ export default {
       this.viewerResult = result;
       try {
         this.viewerDocument = await getSearchDocument(result.docId);
+        this.recordDocumentActivity(result, "VIEW");
       } catch (error) {
         this.viewerError = error.message || "加载文档内容失败";
       } finally {
@@ -223,6 +246,93 @@ export default {
       this.viewerError = "";
       this.viewerDocument = null;
       this.viewerResult = null;
+    },
+    askAiAboutResult(result) {
+      if (!result) {
+        return;
+      }
+      this.$emit("ask-ai", {
+        id: `${result.docId || result.id || Date.now()}-${Date.now()}`,
+        source: "search_result",
+        documentId: result.docId || result.documentId || "",
+        title: result.title || "",
+        snippet: result.summary || "",
+        sourceName: result.source || "",
+        date: result.date || "",
+        keyword: this.searchedKeyword || this.keyword || "",
+        prompt: this.buildAskAiPrompt(result)
+      });
+      this.recordDocumentActivity(result, "ASK");
+    },
+    applyDocumentShortcut(shortcut) {
+      if (!shortcut?.docId || shortcut.id === this.appliedDocumentShortcutId) {
+        return;
+      }
+      this.appliedDocumentShortcutId = shortcut.id;
+      this.openResult({
+        docId: shortcut.docId,
+        title: shortcut.title || shortcut.docId,
+        summary: shortcut.summary || "",
+        source: shortcut.source || "workbench"
+      });
+    },
+    recordSearchHits() {
+      this.results.slice(0, 5).forEach((result) => {
+        this.recordDocumentActivity(result, "SEARCH");
+      });
+    },
+    async recordDocumentActivity(result, actionType) {
+      const docId = result?.docId || result?.documentId;
+      if (!docId) {
+        return;
+      }
+      try {
+        await recordUserActivity({
+          tenantId: this.userId,
+          userId: this.userId,
+          targetType: "DOCUMENT",
+          targetId: docId,
+          actionType,
+          title: result.title || docId,
+          summary: result.summary || "",
+          extra: {
+            source: result.source || "",
+            date: result.date || "",
+            keyword: this.searchedKeyword || this.keyword || ""
+          }
+        });
+      } catch (error) {
+        // Activity logging is best-effort and should not interrupt document work.
+      }
+    },
+    buildAskAiPrompt(result) {
+      const chunks = Array.isArray(result?.matchedChunks)
+        ? result.matchedChunks
+            .map((chunk) => String(chunk?.text || "").trim())
+            .filter(Boolean)
+            .slice(0, 2)
+        : [];
+      const parts = [
+        `我想基于《${result?.title || "这条搜索结果"}》这条搜索结果继续提问：`,
+        "",
+        "搜索结果信息：",
+        `- 文档ID：${result?.docId || result?.documentId || "未知"}`,
+        `- 标题：${result?.title || "未知"}`,
+        `- 来源：${result?.source || "未知"}`,
+        `- 日期：${result?.date || "未知"}`,
+        `- 检索关键词：${this.searchedKeyword || this.keyword || "未指定"}`,
+        "",
+        "文档摘要：",
+        result?.summary || "暂无摘要"
+      ];
+      if (chunks.length) {
+        parts.push("", "命中片段：");
+        chunks.forEach((text, index) => {
+          parts.push(`${index + 1}. ${text}`);
+        });
+      }
+      parts.push("", "请帮我分析：");
+      return parts.join("\n");
     },
     async removeDocument(result) {
       const docId = result?.docId;

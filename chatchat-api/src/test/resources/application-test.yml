@@ -30,6 +30,7 @@ chatchat:
     learning:
       model-attribution-enabled: false
     task:
+      scheduler-scan-ms: 3600000
       event-store:
         type: memory
   search:

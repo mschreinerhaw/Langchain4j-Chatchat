@@ -6,6 +6,7 @@ import { renderAsync } from "docx-preview";
 import * as XLSX from "xlsx";
 import "../../styles/pages/library.css";
 import {
+  addUserFavorite,
   createResearchCategory,
   deleteSearchDocument,
   fetchDocumentFile,
@@ -32,6 +33,12 @@ const MESSAGE_TEXT = {
 
 export default {
   name: "LibraryView",
+  props: {
+    userId: {
+      type: String,
+      default: "default-user"
+    }
+  },
   emits: ["navigate"],
   data() {
     return {
@@ -50,6 +57,7 @@ export default {
       message: "",
       loading: false,
       creatingCategory: false,
+      favoriteSavingIds: {},
       error: "",
       categoryDialogOpen: false,
       viewerOpen: false,
@@ -254,6 +262,34 @@ export default {
         this.loading = false;
       }
     },
+    async favoriteDocument(item) {
+      const docId = item?.docId;
+      if (!docId || this.favoriteSavingIds[docId]) {
+        return;
+      }
+      this.favoriteSavingIds = {
+        ...this.favoriteSavingIds,
+        [docId]: true
+      };
+      this.error = "";
+      try {
+        await addUserFavorite({
+          tenantId: this.userId,
+          userId: this.userId,
+          targetType: "DOCUMENT",
+          targetId: docId,
+          title: item.title || docId,
+          category: this.favoriteCategoryForDocument(item)
+        });
+        this.message = "文档已收藏。";
+      } catch (error) {
+        this.error = error.message || "收藏文档失败";
+      } finally {
+        const next = { ...this.favoriteSavingIds };
+        delete next[docId];
+        this.favoriteSavingIds = next;
+      }
+    },
     async switchDocumentVersion(version) {
       if (!version || version === this.selectedVersion || !this.viewerDocument?.docId) {
         return;
@@ -387,6 +423,13 @@ export default {
         return "未分类";
       }
       return name;
+    },
+    favoriteCategoryForDocument(item) {
+      const category = item?.category;
+      if (!category || category === "all" || category === "uncategorized") {
+        return "文档";
+      }
+      return this.categoryLabel(category);
     },
     inferDocumentType(fileName = "") {
       const extension = fileName.includes(".") ? fileName.split(".").pop().toLowerCase() : "";

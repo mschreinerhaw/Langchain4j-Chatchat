@@ -2,7 +2,11 @@ let toast;
 let resultModal;
 let apiServiceModal;
 let mcpServiceModal;
+let sshAssetModal;
+let sqlAssetModal;
+let httpAssetModal;
 let databaseQueryModal;
+let notificationChannelModal;
 let livedataImportModal;
 let latestResultText = '';
 
@@ -11,7 +15,12 @@ export function initUi() {
     resultModal = new bootstrap.Modal(document.getElementById('resultModal'));
     apiServiceModal = new bootstrap.Modal(document.getElementById('apiServiceModal'));
     mcpServiceModal = new bootstrap.Modal(document.getElementById('mcpServiceModal'));
+    sshAssetModal = new bootstrap.Modal(document.getElementById('sshAssetModal'));
+    sqlAssetModal = new bootstrap.Modal(document.getElementById('sqlAssetModal'));
+    const httpAssetModalElement = document.getElementById('httpAssetModal');
+    httpAssetModal = httpAssetModalElement ? new bootstrap.Modal(httpAssetModalElement) : null;
     databaseQueryModal = new bootstrap.Modal(document.getElementById('databaseQueryModal'));
+    notificationChannelModal = new bootstrap.Modal(document.getElementById('notificationChannelModal'));
     livedataImportModal = new bootstrap.Modal(document.getElementById('livedataImportModal'));
     document.getElementById('copyResultBtn').addEventListener('click', copyLatestResult);
 }
@@ -66,12 +75,44 @@ export function hideMcpServiceModal() {
     mcpServiceModal.hide();
 }
 
+export function showSshAssetModal() {
+    sshAssetModal.show();
+}
+
+export function hideSshAssetModal() {
+    sshAssetModal.hide();
+}
+
+export function showSqlAssetModal() {
+    sqlAssetModal.show();
+}
+
+export function hideSqlAssetModal() {
+    sqlAssetModal.hide();
+}
+
+export function showHttpAssetModal() {
+    httpAssetModal?.show();
+}
+
+export function hideHttpAssetModal() {
+    httpAssetModal?.hide();
+}
+
 export function showDatabaseQueryModal() {
     databaseQueryModal.show();
 }
 
 export function hideDatabaseQueryModal() {
     databaseQueryModal.hide();
+}
+
+export function showNotificationChannelModal() {
+    notificationChannelModal.show();
+}
+
+export function hideNotificationChannelModal() {
+    notificationChannelModal.hide();
 }
 
 export function renderServices(services, selectedId, handlers, paging = {}) {
@@ -130,6 +171,55 @@ export function renderServices(services, selectedId, handlers, paging = {}) {
             if (action === 'edit') handlers.edit(service);
             if (action === 'toggle') handlers.toggle(service);
             if (action === 'delete') handlers.delete(service);
+        });
+        list.appendChild(item);
+    }
+}
+
+export function renderNotificationChannels(channels, selectedId, handlers, counts = {}) {
+    document.getElementById('notificationTotalCount').textContent = counts.totalCount ?? channels.length;
+    document.getElementById('notificationFilteredCount').textContent = counts.filteredCount ?? channels.length;
+    const list = document.getElementById('notificationChannelList');
+    list.innerHTML = '';
+    if (!channels.length) {
+        list.innerHTML = '<div class="api-empty text-secondary small">暂无匹配的通知渠道。</div>';
+        return;
+    }
+    for (const channel of channels) {
+        const item = document.createElement('article');
+        item.className = `service-card api-card ${channel.id === selectedId ? 'active' : ''}`;
+        const forbidden = channel.runtimeAction === 'forbidden';
+        item.innerHTML = `
+            <div class="api-card-main">
+                <h3>${escapeHtml(channel.title || channel.toolName)}</h3>
+                <p>${escapeHtml(channel.description || '')}</p>
+            </div>
+            <div class="service-meta">
+                <span class="badge text-bg-primary">${escapeHtml(channel.channel)}</span>
+                <span class="badge ${channel.enabled ? 'text-bg-success' : 'text-bg-secondary'}">${channel.enabled ? '启用' : '下线'}</span>
+                <span class="badge ${forbidden ? 'text-bg-danger' : 'text-bg-warning'}">${escapeHtml(channel.runtimeAction || 'confirm_required')}</span>
+                <span class="badge text-bg-light">${escapeHtml(channel.deliveryMode || 'HTTP')}</span>
+                <span class="badge text-bg-light">${escapeHtml(channel.toolName)}</span>
+            </div>
+            <div class="small text-secondary mt-2">
+                ${escapeHtml(channel.deliveryMode === 'SMTP' ? (channel.smtpFrom || channel.smtpHost || 'SMTP 未配置') : (channel.endpointUrl || 'Webhook 未配置'))}
+            </div>
+            <div class="btn-group btn-group-sm mt-3" role="group">
+                <button class="btn btn-outline-primary" data-action="test">测试</button>
+                <button class="btn btn-outline-secondary" data-action="edit">编辑</button>
+                <button class="btn btn-outline-secondary" data-action="toggle">${channel.enabled ? '下线' : '启用'}</button>
+                <button class="btn ${forbidden ? 'btn-outline-success' : 'btn-outline-danger'}" data-action="policy">
+                    ${forbidden ? '恢复确认' : '禁用调用'}
+                </button>
+            </div>
+        `;
+        item.addEventListener('click', event => {
+            const action = event.target?.dataset?.action;
+            if (!action) return;
+            if (action === 'test') handlers.test(channel);
+            if (action === 'edit') handlers.edit(channel);
+            if (action === 'toggle') handlers.toggle(channel);
+            if (action === 'policy') handlers.policy(channel);
         });
         list.appendChild(item);
     }
@@ -265,6 +355,7 @@ export function renderDatabaseQueries(queries, selectedId, handlers, paging = {}
             </div>
             <div class="service-meta">
                 <span class="badge ${query.enabled ? 'text-bg-success' : 'text-bg-secondary'}">${query.enabled ? '启用' : '停用'}</span>
+                <span class="badge ${query.datasourceId ? 'text-bg-info' : 'text-bg-light'}">${query.datasourceId ? '资产' : 'JDBC'}</span>
                 <span class="badge text-bg-light">${escapeHtml(query.toolName)}</span>
                 <span class="badge text-bg-light">最多 ${escapeHtml(query.maxRows || 50)} 行</span>
             </div>
@@ -468,7 +559,7 @@ function stringifyForDisplay(value) {
 }
 
 export function switchView(name) {
-    const viewIds = ['apiServicesView', 'mcpServicesView', 'databaseMcpView', 'auditLogsView', 'settingsView'];
+    const viewIds = ['apiServicesView', 'mcpServicesView', 'assetCenterView', 'databaseMcpView', 'notificationChannelsView', 'auditLogsView', 'settingsView'];
     for (const id of viewIds) {
         document.getElementById(id).classList.toggle('d-none', id !== `${name}View`);
     }
@@ -484,11 +575,13 @@ export function switchView(name) {
     importLivedata.classList.toggle('d-none', name !== 'apiServices');
     newMcp.classList.toggle('d-none', name !== 'mcpServices');
     newDatabaseQuery.classList.toggle('d-none', name !== 'databaseMcp');
-    refresh.classList.toggle('d-none', name === 'databaseMcp' || name === 'auditLogs' || name === 'settings');
+    refresh.classList.toggle('d-none', name === 'assetCenter' || name === 'databaseMcp' || name === 'notificationChannels' || name === 'auditLogs' || name === 'settings');
     const titles = {
         apiServices: ['API 服务', '注册标准 HTTP API，并将其发布为 MCP 工具。'],
         mcpServices: ['MCP 服务', '注册 MCP 服务、管理服务 Token，并查看心跳状态。'],
+        assetCenter: ['资产中心', '管理服务器和数据库资产，并自动发布为 MCP 工具。'],
         databaseMcp: ['数据库查询', '注册只读 SQL 查询，并将其发布为 MCP 工具。'],
+        notificationChannels: ['通知告警', '配置邮件、短信、企业微信和钉钉 MCP 通知工具。'],
         auditLogs: ['调用审计', '查看最近的 MCP 与 API 调用记录。'],
         settings: ['系统设置', '查看连接端点和注册接口路径。']
     };

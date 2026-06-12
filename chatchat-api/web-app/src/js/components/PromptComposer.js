@@ -155,6 +155,12 @@ export default {
       textarea.style.height = `${nextHeight}px`;
       textarea.style.overflowY = textarea.scrollHeight > maxHeight ? "auto" : "hidden";
     },
+    focusComposer() {
+      this.$nextTick(() => {
+        this.$refs.composerTextarea?.focus();
+        this.adjustTextareaHeight();
+      });
+    },
     isDocumentWorkflowAgent(agent) {
       const toolNames = [
         ...(agent?.resolvedToolNames || []),

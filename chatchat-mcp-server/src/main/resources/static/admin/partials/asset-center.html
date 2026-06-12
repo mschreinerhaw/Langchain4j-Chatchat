@@ -1,0 +1,278 @@
+<section id="assetCenterView" class="panel api-service-view d-none">
+    <div class="panel-head api-service-head">
+        <div>
+            <h2>资产中心</h2>
+            <div class="text-secondary small">服务器、数据库和 HTTP 请求资产会自动发布为 MCP Tool。</div>
+        </div>
+        <div class="btn-group btn-group-sm" role="group">
+            <button id="refreshOpsAssetToolsBtn" class="btn btn-outline-secondary" type="button">刷新运维/HTTP工具</button>
+            <button id="refreshSqlAssetToolsBtn" class="btn btn-outline-secondary" type="button">刷新数据库工具</button>
+        </div>
+    </div>
+
+    <ul class="nav nav-tabs mb-3" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button id="sshAssetTabBtn" class="nav-link active" type="button" data-asset-tab="ssh">服务器资产</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button id="sqlAssetTabBtn" class="nav-link" type="button" data-asset-tab="sql">数据库资产</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button id="httpAssetTabBtn" class="nav-link" type="button" data-asset-tab="http">HTTP 请求</button>
+        </li>
+    </ul>
+
+    <div id="sshAssetPane">
+        <div class="bulk-toolbar">
+            <div class="fw-semibold">服务器资产 <span class="text-secondary small">显示 <span id="sshAssetFilteredCount">0</span> / 共 <span id="sshAssetCount">0</span> 台</span></div>
+            <button id="newSshAssetBtn" class="btn btn-primary btn-sm" type="button">新增服务器</button>
+        </div>
+        <div class="row g-2 align-items-end mb-3">
+            <div class="col-md-5">
+                <label class="form-label small text-secondary" for="sshAssetSearchInput">检索</label>
+                <input id="sshAssetSearchInput" class="form-control" placeholder="名称、工具、Host、标签">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small text-secondary" for="sshAssetEnvironmentFilter">环境</label>
+                <select id="sshAssetEnvironmentFilter" class="form-select">
+                    <option value="">全部环境</option>
+                    <option>DEV</option>
+                    <option>TEST</option>
+                    <option>UAT</option>
+                    <option>PROD</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small text-secondary" for="sshAssetStatusFilter">状态</label>
+                <select id="sshAssetStatusFilter" class="form-select">
+                    <option value="">全部状态</option>
+                    <option value="enabled">启用</option>
+                    <option value="disabled">停用</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small text-secondary" for="sshAssetCategoryFilter">分类</label>
+                <select id="sshAssetCategoryFilter" class="form-select">
+                    <option value="">全部分类</option>
+                    <option value="hive">Hive</option>
+                    <option value="goldendb">GoldenDB</option>
+                    <option value="inceptor">Inceptor</option>
+                    <option value="nginx">Nginx</option>
+                    <option value="java">Java</option>
+                    <option value="k8s">K8S</option>
+                    <option value="other">其他</option>
+                </select>
+            </div>
+        </div>
+        <div id="sshAssetList" class="api-service-grid"></div>
+    </div>
+
+    <div id="sqlAssetPane" class="d-none">
+        <div class="bulk-toolbar">
+            <div class="fw-semibold">数据库资产 <span class="text-secondary small">显示 <span id="sqlAssetFilteredCount">0</span> / 共 <span id="sqlAssetCount">0</span> 个</span></div>
+            <button id="newSqlAssetBtn" class="btn btn-primary btn-sm" type="button">新增数据库</button>
+        </div>
+        <div class="row g-2 align-items-end mb-3">
+            <div class="col-md-5">
+                <label class="form-label small text-secondary" for="sqlAssetSearchInput">检索</label>
+                <input id="sqlAssetSearchInput" class="form-control" placeholder="名称、工具、JDBC、账号">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small text-secondary" for="sqlAssetEnvironmentFilter">环境</label>
+                <select id="sqlAssetEnvironmentFilter" class="form-select">
+                    <option value="">全部环境</option>
+                    <option>DEV</option>
+                    <option>TEST</option>
+                    <option>UAT</option>
+                    <option>PROD</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small text-secondary" for="sqlAssetStatusFilter">状态</label>
+                <select id="sqlAssetStatusFilter" class="form-select">
+                    <option value="">全部状态</option>
+                    <option value="enabled">启用</option>
+                    <option value="disabled">停用</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small text-secondary" for="sqlAssetCategoryFilter">分类</label>
+                <select id="sqlAssetCategoryFilter" class="form-select">
+                    <option value="">全部分类</option>
+                    <option value="mysql">MySQL</option>
+                    <option value="dm">达梦 DM</option>
+                    <option value="hive">Hive</option>
+                    <option value="inceptor">Inceptor</option>
+                    <option value="goldendb">GoldenDB</option>
+                    <option value="oracle">Oracle</option>
+                    <option value="postgresql">PostgreSQL</option>
+                    <option value="other">其他</option>
+                </select>
+            </div>
+        </div>
+        <div id="sqlAssetList" class="api-service-grid"></div>
+    </div>
+
+    <div id="httpAssetPane" class="d-none">
+        <div class="bulk-toolbar">
+            <div class="fw-semibold">HTTP 请求 <span class="text-secondary small">显示 <span id="httpAssetFilteredCount">0</span> / 共 <span id="httpAssetCount">0</span> 个</span></div>
+            <button id="newHttpAssetBtn" class="btn btn-primary btn-sm" type="button">新增请求</button>
+        </div>
+        <div class="row g-2 align-items-end mb-3">
+            <div class="col-md-4">
+                <label class="form-label small text-secondary" for="httpAssetSearchInput">检索</label>
+                <input id="httpAssetSearchInput" class="form-control" placeholder="名称、工具、URL、标签">
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small text-secondary" for="httpAssetEnvironmentFilter">环境</label>
+                <select id="httpAssetEnvironmentFilter" class="form-select">
+                    <option value="">全部环境</option>
+                    <option>DEV</option>
+                    <option>TEST</option>
+                    <option>UAT</option>
+                    <option>PROD</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small text-secondary" for="httpAssetStatusFilter">状态</label>
+                <select id="httpAssetStatusFilter" class="form-select">
+                    <option value="">全部状态</option>
+                    <option value="enabled">启用</option>
+                    <option value="disabled">停用</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small text-secondary" for="httpAssetMethodFilter">方法</label>
+                <select id="httpAssetMethodFilter" class="form-select">
+                    <option value="">全部方法</option>
+                    <option>GET</option>
+                    <option>POST</option>
+                    <option>PUT</option>
+                    <option>DELETE</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small text-secondary" for="httpAssetCategoryFilter">分类</label>
+                <select id="httpAssetCategoryFilter" class="form-select">
+                    <option value="">全部分类</option>
+                    <option value="business_api">业务接口</option>
+                    <option value="monitoring">监控接口</option>
+                    <option value="third_party">第三方接口</option>
+                    <option value="webhook">Webhook</option>
+                    <option value="ops">运维接口</option>
+                    <option value="other">其他</option>
+                </select>
+            </div>
+        </div>
+        <div id="httpAssetList" class="api-service-grid"></div>
+    </div>
+</section>
+
+<div class="modal fade" id="sshAssetModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="sshAssetFormTitle" class="modal-title fs-5">服务器资产</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="关闭"></button>
+            </div>
+            <div class="modal-body">
+                <form id="sshAssetForm" class="service-form">
+                    <input id="sshAssetId" type="hidden">
+                    <div class="row g-3">
+                        <div class="col-md-4"><label class="form-label" for="sshAssetName">资产名称</label><input id="sshAssetName" class="form-control" required></div>
+                        <div class="col-md-4"><label class="form-label" for="sshAssetToolName">工具名称</label><input id="sshAssetToolName" class="form-control" placeholder="ssh_hive01"></div>
+                        <div class="col-md-4"><label class="form-label" for="sshAssetTitle">显示名称</label><input id="sshAssetTitle" class="form-control"></div>
+                        <div class="col-12"><label class="form-label" for="sshAssetDescription">工具描述</label><textarea id="sshAssetDescription" class="form-control" rows="2"></textarea></div>
+                        <div class="col-md-5"><label class="form-label" for="sshAssetHostname">Host / IP</label><input id="sshAssetHostname" class="form-control" required></div>
+                        <div class="col-md-2"><label class="form-label" for="sshAssetPort">端口</label><input id="sshAssetPort" class="form-control" type="number" min="1" max="65535" value="22"></div>
+                        <div class="col-md-3"><label class="form-label" for="sshAssetUsername">用户名</label><input id="sshAssetUsername" class="form-control" required></div>
+                        <div class="col-md-2"><label class="form-label" for="sshAssetEnvironment">环境</label><select id="sshAssetEnvironment" class="form-select"><option>DEV</option><option>TEST</option><option>UAT</option><option>PROD</option></select></div>
+                        <div class="col-md-3"><label class="form-label" for="sshAssetAuthType">认证方式</label><select id="sshAssetAuthType" class="form-select"><option value="PASSWORD">密码</option><option value="PRIVATE_KEY">OpenSSH 私钥</option></select></div>
+                        <div class="col-md-3"><label class="form-label" for="sshAssetPassword">密码</label><input id="sshAssetPassword" class="form-control" type="password" autocomplete="new-password"></div>
+                        <div class="col-md-3"><label class="form-label" for="sshAssetPassphrase">私钥口令</label><input id="sshAssetPassphrase" class="form-control" type="password" autocomplete="new-password"></div>
+                        <div class="col-md-3"><label class="form-label" for="sshAssetEnabled">状态</label><select id="sshAssetEnabled" class="form-select"><option value="false">停用</option><option value="true">启用</option></select></div>
+                        <div class="col-12"><label class="form-label" for="sshAssetPrivateKey">OpenSSH 私钥</label><textarea id="sshAssetPrivateKey" class="form-control codebox" rows="5" spellcheck="false"></textarea></div>
+                        <div class="col-md-6"><label class="form-label" for="sshAssetHostKeyFingerprint">Host Key Fingerprint</label><input id="sshAssetHostKeyFingerprint" class="form-control" placeholder="PROD 建议必填"></div>
+                        <div class="col-md-3"><label class="form-label" for="sshAssetConnectTimeoutMs">连接超时 ms</label><input id="sshAssetConnectTimeoutMs" class="form-control" type="number" min="1000" value="10000"></div>
+                        <div class="col-md-3"><label class="form-label" for="sshAssetCommandTimeoutMs">命令超时 ms</label><input id="sshAssetCommandTimeoutMs" class="form-control" type="number" min="1000" value="30000"></div>
+                        <div class="col-md-6"><label class="form-label" for="sshAssetTags">标签</label><input id="sshAssetTags" class="form-control" placeholder="hive,prod"></div>
+                        <div class="col-md-6"><label class="form-label" for="sshAssetAllowedCommandsJson">允许命令模板 JSON</label><textarea id="sshAssetAllowedCommandsJson" class="form-control codebox" rows="4" spellcheck="false">[]</textarea></div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer"><button class="btn btn-primary" type="submit" form="sshAssetForm">保存服务器</button></div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="httpAssetModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="httpAssetFormTitle" class="modal-title fs-5">HTTP 请求资产</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="关闭"></button>
+            </div>
+            <div class="modal-body">
+                <form id="httpAssetForm" class="service-form">
+                    <input id="httpAssetId" type="hidden">
+                    <div class="row g-3">
+                        <div class="col-md-4"><label class="form-label" for="httpAssetName">资产名称</label><input id="httpAssetName" class="form-control" required></div>
+                        <div class="col-md-4"><label class="form-label" for="httpAssetToolName">工具名称</label><input id="httpAssetToolName" class="form-control" placeholder="http_query_monitor_status"></div>
+                        <div class="col-md-4"><label class="form-label" for="httpAssetTitle">显示名称</label><input id="httpAssetTitle" class="form-control"></div>
+                        <div class="col-12"><label class="form-label" for="httpAssetDescription">工具描述</label><textarea id="httpAssetDescription" class="form-control" rows="2"></textarea></div>
+                        <div class="col-md-2"><label class="form-label" for="httpAssetMethod">方法</label><select id="httpAssetMethod" class="form-select"><option>GET</option><option>POST</option><option>PUT</option><option>DELETE</option></select></div>
+                        <div class="col-md-10"><label class="form-label" for="httpAssetUrlTemplate">URL 模板</label><input id="httpAssetUrlTemplate" class="form-control" placeholder="https://api.example.com/status?name={{name}}" required></div>
+                        <div class="col-md-3"><label class="form-label" for="httpAssetEnvironment">环境</label><select id="httpAssetEnvironment" class="form-select"><option>DEV</option><option>TEST</option><option>UAT</option><option>PROD</option></select></div>
+                        <div class="col-md-3"><label class="form-label" for="httpAssetCategory">分类</label><select id="httpAssetCategory" class="form-select"><option value="business_api">业务接口</option><option value="monitoring">监控接口</option><option value="third_party">第三方接口</option><option value="webhook">Webhook</option><option value="ops">运维接口</option><option value="other">其他</option></select></div>
+                        <div class="col-md-2"><label class="form-label" for="httpAssetEnabled">状态</label><select id="httpAssetEnabled" class="form-select"><option value="false">停用</option><option value="true">启用</option></select></div>
+                        <div class="col-md-2"><label class="form-label" for="httpAssetTimeoutMs">超时 ms</label><input id="httpAssetTimeoutMs" class="form-control" type="number" min="1000" max="60000" value="10000"></div>
+                        <div class="col-md-2"><label class="form-label" for="httpAssetTags">标签</label><input id="httpAssetTags" class="form-control" placeholder="monitor,prod"></div>
+                        <div class="col-md-6"><label class="form-label" for="httpAssetHeadersJson">Headers JSON</label><textarea id="httpAssetHeadersJson" class="form-control codebox" rows="6" spellcheck="false">{}</textarea></div>
+                        <div class="col-md-6"><label class="form-label" for="httpAssetInputSchemaJson">入参 Schema JSON</label><textarea id="httpAssetInputSchemaJson" class="form-control codebox" rows="6" spellcheck="false">{
+  "type": "object",
+  "properties": {},
+  "required": [],
+  "additionalProperties": true
+}</textarea></div>
+                        <div class="col-12"><label class="form-label" for="httpAssetBodyTemplate">Body 模板</label><textarea id="httpAssetBodyTemplate" class="form-control codebox" rows="6" spellcheck="false" placeholder='{"name":"{{name}}"}'></textarea></div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer"><button class="btn btn-primary" type="submit" form="httpAssetForm">保存请求</button></div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="sqlAssetModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="sqlAssetFormTitle" class="modal-title fs-5">数据库资产</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="关闭"></button>
+            </div>
+            <div class="modal-body">
+                <form id="sqlAssetForm" class="service-form">
+                    <input id="sqlAssetId" type="hidden">
+                    <div class="row g-3">
+                        <div class="col-md-4"><label class="form-label" for="sqlAssetName">资产名称</label><input id="sqlAssetName" class="form-control" required></div>
+                        <div class="col-md-4"><label class="form-label" for="sqlAssetToolName">工具名称</label><input id="sqlAssetToolName" class="form-control" placeholder="db_query_mysql_metadata_prod"></div>
+                        <div class="col-md-4"><label class="form-label" for="sqlAssetTitle">显示名称</label><input id="sqlAssetTitle" class="form-control"></div>
+                        <div class="col-12"><label class="form-label" for="sqlAssetDescription">工具描述</label><textarea id="sqlAssetDescription" class="form-control" rows="2"></textarea></div>
+                        <div class="col-12"><label class="form-label" for="sqlAssetJdbcUrl">JDBC URL</label><input id="sqlAssetJdbcUrl" class="form-control" required></div>
+                        <div class="col-md-4"><label class="form-label" for="sqlAssetDriverClass">Driver Class</label><input id="sqlAssetDriverClass" class="form-control"></div>
+                        <div class="col-md-3"><label class="form-label" for="sqlAssetUsername">只读账号</label><input id="sqlAssetUsername" class="form-control"></div>
+                        <div class="col-md-3"><label class="form-label" for="sqlAssetPassword">密码</label><input id="sqlAssetPassword" class="form-control" type="password" autocomplete="new-password"></div>
+                        <div class="col-md-2"><label class="form-label" for="sqlAssetEnvironment">环境</label><select id="sqlAssetEnvironment" class="form-select"><option>DEV</option><option>TEST</option><option>UAT</option><option>PROD</option></select></div>
+                        <div class="col-md-3"><label class="form-label" for="sqlAssetEnabled">状态</label><select id="sqlAssetEnabled" class="form-select"><option value="false">停用</option><option value="true">启用</option></select></div>
+                        <div class="col-md-3"><label class="form-label" for="sqlAssetDefaultTimeoutSeconds">默认超时秒</label><input id="sqlAssetDefaultTimeoutSeconds" class="form-control" type="number" min="1" max="60" value="30"></div>
+                        <div class="col-md-3"><label class="form-label" for="sqlAssetDefaultMaxRows">默认最大行数</label><input id="sqlAssetDefaultMaxRows" class="form-control" type="number" min="1" max="5000" value="1000"></div>
+                        <div class="col-md-4"><label class="form-label" for="sqlAssetAllowedTablesJson">允许表 JSON</label><textarea id="sqlAssetAllowedTablesJson" class="form-control codebox" rows="5" spellcheck="false">[]</textarea></div>
+                        <div class="col-md-4"><label class="form-label" for="sqlAssetSensitiveTablesJson">敏感表 JSON</label><textarea id="sqlAssetSensitiveTablesJson" class="form-control codebox" rows="5" spellcheck="false">[]</textarea></div>
+                        <div class="col-md-4"><label class="form-label" for="sqlAssetSensitiveFieldsJson">敏感字段 JSON</label><textarea id="sqlAssetSensitiveFieldsJson" class="form-control codebox" rows="5" spellcheck="false">[]</textarea></div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer"><button class="btn btn-primary" type="submit" form="sqlAssetForm">保存数据库</button></div>
+        </div>
+    </div>
+</div>

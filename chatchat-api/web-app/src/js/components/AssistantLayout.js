@@ -29,6 +29,14 @@ export default {
       type: Boolean,
       default: false
     },
+    favoriteConversationIds: {
+      type: Array,
+      default: () => []
+    },
+    favoriteSavingIds: {
+      type: Object,
+      default: () => ({})
+    },
     navItems: {
       type: Array,
       default: () => []
@@ -44,6 +52,7 @@ export default {
   },
   emits: [
     "delete-conversation",
+    "favorite-conversation",
     "logout",
     "navigate",
     "refresh-history",

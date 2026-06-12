@@ -187,6 +187,15 @@ public class ConversationService {
      */
     @Transactional
     public Conversation.Message appendMessage(String conversationId, String role, String content) {
+        return appendMessage(conversationId, role, content, List.of(), List.of());
+    }
+
+    @Transactional
+    public Conversation.Message appendMessage(String conversationId,
+                                              String role,
+                                              String content,
+                                              List<Map<String, Object>> sources,
+                                              List<Map<String, Object>> traces) {
         if (content == null || content.isBlank()) {
             throw new IllegalArgumentException("Message content cannot be empty");
         }
@@ -202,6 +211,8 @@ public class ConversationService {
             .role(normalize(role, "user"))
             .content(content)
             .createdAt(createdAt)
+            .sources(copyMaps(sources))
+            .traces(copyMaps(traces))
             .build();
         String rocksKey = detailStore.put(detail);
 

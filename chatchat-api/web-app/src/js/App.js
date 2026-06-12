@@ -13,10 +13,12 @@ import SystemManagementView from "../views/SystemManagementView.vue";
 import TasksView from "../views/TasksView.vue";
 import {
   actAgentTodo,
+  addUserFavorite,
   clearAuthSession,
   deleteConversationHistory,
   fetchAgentTodos,
   fetchConversationHistory,
+  fetchWorkbenchShortcuts,
   getStoredAuthSession,
   killRuntimeTask
 } from "../services/api";
@@ -78,6 +80,8 @@ export default {
       historyLoading: false,
       historyError: "",
       conversationHistory: [],
+      favoriteConversationIds: [],
+      favoriteSavingIds: {},
       todoLoading: false,
       todoError: "",
       runtimeTodos: [],
@@ -155,6 +159,7 @@ export default {
     if (isAuthenticatedSession(this.authSession)) {
       this.ensureAuthenticatedRoute();
       this.loadConversationHistory();
+      this.loadFavoriteConversationIds();
       this.loadRuntimeTodos();
       this.startTodoRefresh();
       this.startIdleLogoutWatcher();
@@ -184,6 +189,7 @@ export default {
       this.navigateToView(this.consumeRedirectView() || viewFromHash() || DEFAULT_VIEW);
       this.startIdleLogoutWatcher();
       this.loadConversationHistory();
+      this.loadFavoriteConversationIds();
       this.loadRuntimeTodos();
       this.startTodoRefresh();
     },
@@ -198,6 +204,8 @@ export default {
       this.authSession = null;
       this.userId = USER_ID;
       this.conversationHistory = [];
+      this.favoriteConversationIds = [];
+      this.favoriteSavingIds = {};
       this.runtimeTodos = [];
       this.todoActionLoadingIds = {};
       this.selectedConversation = null;
@@ -355,6 +363,25 @@ export default {
         this.historyError = error.message || "历史会话加载失败";
       } finally {
         this.historyLoading = false;
+      }
+    },
+    async loadFavoriteConversationIds() {
+      if (!this.authSession || !this.userId) {
+        return;
+      }
+      try {
+        const payload = await fetchWorkbenchShortcuts({
+          tenantId: this.userId,
+          userId: this.userId,
+          targetType: "SESSION",
+          limit: 100
+        });
+        const favorites = Array.isArray(payload?.favorites) ? payload.favorites : [];
+        this.favoriteConversationIds = favorites
+          .map((favorite) => favorite?.targetId)
+          .filter(Boolean);
+      } catch (error) {
+        // Favorite badges are best-effort; history loading should stay quiet.
       }
     },
     async loadRuntimeTodos(options = {}) {
@@ -528,6 +555,34 @@ export default {
       } catch (error) {
         this.historyError = error.message || "历史会话删除失败";
         await this.loadConversationHistory();
+      }
+    },
+    async favoriteConversation(conversation) {
+      const targetId = conversation?.conversationId || conversation?.id || "";
+      if (!targetId || this.favoriteSavingIds[targetId] || this.favoriteConversationIds.includes(targetId)) {
+        return;
+      }
+      this.favoriteSavingIds = {
+        ...this.favoriteSavingIds,
+        [targetId]: true
+      };
+      this.historyError = "";
+      try {
+        await addUserFavorite({
+          tenantId: this.userId,
+          userId: this.userId,
+          targetType: "SESSION",
+          targetId,
+          title: conversation.question || "会话",
+          category: "会话"
+        });
+        this.favoriteConversationIds = [...this.favoriteConversationIds, targetId];
+      } catch (error) {
+        this.historyError = error.message || "收藏会话失败";
+      } finally {
+        const next = { ...this.favoriteSavingIds };
+        delete next[targetId];
+        this.favoriteSavingIds = next;
       }
     },
     handleConversationActive(conversation) {

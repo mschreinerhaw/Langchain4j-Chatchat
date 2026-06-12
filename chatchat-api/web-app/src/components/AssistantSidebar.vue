@@ -77,6 +77,18 @@
             {{ statusLabel(conversation) }}
           </span>
           <span
+            class="recent-favorite"
+            :class="{ active: isConversationFavorited(conversation), saving: isFavoriteSaving(conversation) }"
+            role="button"
+            tabindex="0"
+            :title="isConversationFavorited(conversation) ? '已收藏' : '收藏会话'"
+            :aria-label="isConversationFavorited(conversation) ? '已收藏会话' : '收藏会话'"
+            @click.stop="favoriteConversation(conversation)"
+            @keydown.enter.stop.prevent="favoriteConversation(conversation)"
+          >
+            <Star :size="13" stroke-width="2" :fill="isConversationFavorited(conversation) ? 'currentColor' : 'none'" />
+          </span>
+          <span
             class="recent-delete"
             role="button"
             tabindex="0"

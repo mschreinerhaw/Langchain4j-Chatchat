@@ -176,6 +176,25 @@ function shortSnippet(value) {
 
 function isWebSearchTrace(trace) {
   const name = String(trace?.toolName || trace?.displayName || "").toLowerCase();
+  const extendedName = String([
+    trace?.toolName,
+    trace?.displayName,
+    trace?.serviceName,
+    trace?.serviceId
+  ].filter(Boolean).join(" ")).toLowerCase();
+  if (
+    extendedName.includes("search_web")
+    || extendedName.includes("browser")
+    || extendedName.includes("serp")
+    || extendedName.includes("tavily")
+    || extendedName.includes("bing")
+    || extendedName.includes("google")
+    || extendedName.includes("网页")
+    || extendedName.includes("联网搜索")
+    || traceOutputHasWebPages(trace)
+  ) {
+    return true;
+  }
   return name.includes("web_search") || name.includes("web search") || name.includes("联网搜索");
 }
 
@@ -196,4 +215,21 @@ function parseTraceOutput(output) {
   } catch (error) {
     return {};
   }
+}
+
+function traceOutputHasWebPages(trace) {
+  const containers = referenceContainers(parseTraceOutput(trace?.output));
+  return containers.some((item) => [
+    item?.results,
+    item?.items,
+    item?.organic_results,
+    item?.webPages,
+    item?.pageExcerpts,
+    item?.evidenceSnippets
+  ].some((value) => Array.isArray(value) && value.some(hasWebUrl)));
+}
+
+function hasWebUrl(item) {
+  const value = item?.url || item?.link || item?.href || item?.sourceUrl;
+  return /^https?:\/\//i.test(String(value || ""));
 }

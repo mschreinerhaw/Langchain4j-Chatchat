@@ -527,7 +527,7 @@
   width: 100%;
   min-height: 30px;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto 20px;
+  grid-template-columns: minmax(0, 1fr) auto 20px 20px;
   align-items: center;
   gap: 6px;
   padding: 0 8px 0 10px;
@@ -539,6 +539,7 @@
   text-align: left;
 }
 
+.recent-favorite,
 .recent-delete {
   width: 20px;
   height: 20px;
@@ -546,6 +547,17 @@
   place-items: center;
   border-radius: 5px;
   color: #98a2b3;
+}
+
+.recent-favorite:hover,
+.recent-favorite.active {
+  background: rgba(245, 158, 11, 0.1);
+  color: #d97706;
+}
+
+.recent-favorite.saving {
+  cursor: wait;
+  opacity: 0.62;
 }
 
 .recent-delete:hover {

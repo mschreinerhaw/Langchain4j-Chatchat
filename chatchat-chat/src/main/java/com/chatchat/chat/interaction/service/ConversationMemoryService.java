@@ -2,9 +2,12 @@ package com.chatchat.chat.interaction.service;
 
 import com.chatchat.chat.conversation.Conversation;
 import com.chatchat.chat.conversation.ConversationService;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Map;
 
 /**
  * Persistent conversation memory facade to support interaction orchestration.
@@ -13,14 +16,16 @@ import java.util.List;
 public class ConversationMemoryService {
 
     private final ConversationService conversationService;
+    private final ObjectMapper objectMapper;
 
     /**
      * Creates a new ConversationMemoryService instance.
      *
      * @param conversationService the conversation service value
      */
-    public ConversationMemoryService(ConversationService conversationService) {
+    public ConversationMemoryService(ConversationService conversationService, ObjectMapper objectMapper) {
         this.conversationService = conversationService;
+        this.objectMapper = objectMapper;
     }
 
     /**
@@ -52,10 +57,22 @@ public class ConversationMemoryService {
      * @param content the content value
      */
     public void append(String conversationId, String role, String content) {
+        append(conversationId, role, content, List.of(), List.of());
+    }
+
+    public void append(String conversationId, String role, String content, Object sources, Object traces) {
         if (content == null || content.isBlank()) {
             return;
         }
-        conversationService.appendMessage(conversationId, role, content);
+        conversationService.appendMessage(conversationId, role, content, toMaps(sources), toMaps(traces));
+    }
+
+    private List<Map<String, Object>> toMaps(Object value) {
+        if (value == null) {
+            return List.of();
+        }
+        return objectMapper.convertValue(value, new TypeReference<List<Map<String, Object>>>() {
+        });
     }
 
     /**

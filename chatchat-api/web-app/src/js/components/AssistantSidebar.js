@@ -28,6 +28,7 @@ export default {
     PanelLeftClose,
     PanelLeftOpen,
     Search,
+    Star,
     Trash2
   },
   props: {
@@ -51,6 +52,14 @@ export default {
       type: Boolean,
       default: false
     },
+    favoriteConversationIds: {
+      type: Array,
+      default: () => []
+    },
+    favoriteSavingIds: {
+      type: Object,
+      default: () => ({})
+    },
     navItems: {
       type: Array,
       default: () => []
@@ -66,6 +75,7 @@ export default {
   },
   emits: [
     "delete-conversation",
+    "favorite-conversation",
     "logout",
     "navigate",
     "refresh-history",
@@ -156,6 +166,17 @@ export default {
     isConversationActive(conversation) {
       return conversation.id && conversation.id === this.activeConversationId;
     },
+    conversationFavoriteKey(conversation) {
+      return conversation.conversationId || conversation.id || "";
+    },
+    isConversationFavorited(conversation) {
+      const key = this.conversationFavoriteKey(conversation);
+      return !!key && this.favoriteConversationIds.includes(key);
+    },
+    isFavoriteSaving(conversation) {
+      const key = this.conversationFavoriteKey(conversation);
+      return !!key && !!this.favoriteSavingIds[key];
+    },
     isUnfinished(conversation) {
       const status = this.resolveStatus(conversation);
       return status === "running" || status === "pending";
@@ -183,6 +204,12 @@ export default {
     },
     selectConversation(conversation) {
       this.$emit("select-conversation", conversation);
+    },
+    favoriteConversation(conversation) {
+      if (this.isFavoriteSaving(conversation) || this.isConversationFavorited(conversation)) {
+        return;
+      }
+      this.$emit("favorite-conversation", conversation);
     },
     deleteConversation(conversation) {
       this.$emit("delete-conversation", conversation);

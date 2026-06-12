@@ -1,7 +1,6 @@
 import ChatMessageList from "../../components/ChatMessageList.vue";
 import PromptComposer from "../../components/PromptComposer.vue";
 import {
-  addUserFavorite,
   analyzeChatImage,
   apiRequest,
   fetchAgentWorkshop,
@@ -81,8 +80,8 @@ function normalizeMessages(messages, status = "") {
         role: message.role,
         content: message.content || "",
         timestamp: message.timestamp || Date.now(),
-        sources: waitingConfirmation ? [] : (Array.isArray(message.sources) ? message.sources : []),
-        traces: waitingConfirmation ? [] : (Array.isArray(message.traces) ? message.traces : []),
+        sources: waitingConfirmation ? [] : normalizeMessageSources(message),
+        traces: waitingConfirmation ? [] : normalizeMessageTraces(message),
         streaming,
         status: waitingConfirmation ? "waiting" : (message.status || (streaming ? "streaming" : "completed"))
       };
@@ -158,6 +157,54 @@ function parseJsonPayload(value) {
   } catch (error) {
     return { message: String(value) };
   }
+}
+
+function firstArray(...values) {
+  return values.find(Array.isArray) || [];
+}
+
+function normalizeMessageSources(message = {}) {
+  return firstArray(
+    message.sources,
+    message.references,
+    message.citations,
+    message.metadata?.sources,
+    message.extra?.sources
+  );
+}
+
+function normalizeMessageTraces(message = {}) {
+  return firstArray(
+    message.traces,
+    message.toolTraces,
+    message.tool_traces,
+    message.metadata?.toolTraces,
+    message.metadata?.traces,
+    message.extra?.toolTraces,
+    message.extra?.traces
+  );
+}
+
+function normalizeResponsePayload(response = {}) {
+  const payload = response?.data && typeof response.data === "object" ? response.data : response;
+  return {
+    ...payload,
+    sources: firstArray(
+      payload?.sources,
+      payload?.references,
+      payload?.citations,
+      payload?.metadata?.sources
+    ),
+    toolTraces: firstArray(
+      payload?.toolTraces,
+      payload?.traces,
+      payload?.tool_traces,
+      payload?.metadata?.toolTraces,
+      payload?.metadata?.traces,
+      payload?.metadata?.agent?.toolTraces,
+      payload?.metadata?.agent?.traces
+    )
+  };
 }
 
 function submitAgentTask(payload) {
@@ -241,8 +288,6 @@ export default {
       uploadingDocument: false,
       uploadError: "",
       uploadNotice: "",
-      favoriteSaving: false,
-      favoriteNotice: "",
       imageDialogOpen: false,
       uploadingImage: false,
       imageUploadError: "",
@@ -289,9 +334,6 @@ export default {
         return "该历史会话上次请求失败，可继续输入或重新提问。";
       }
       return "";
-    },
-    currentConversationTitle() {
-      return this.lastUserQuestion() || this.selectedConversation?.question || this.selectedAgent?.name || "本轮会话";
     },
     selectedAgent() {
       return this.agents.find((agent) => agent.id === this.selectedAgentId) || null;
@@ -529,30 +571,6 @@ export default {
         });
       } catch (error) {
         // Shortcut memory is best-effort and should not block chat.
-      }
-    },
-    async favoriteCurrentSession() {
-      const targetId = this.conversationId || this.historyId;
-      if (!targetId || this.favoriteSaving) {
-        return;
-      }
-      this.favoriteSaving = true;
-      this.favoriteNotice = "";
-      this.errorMessage = "";
-      try {
-        await addUserFavorite({
-          tenantId: this.userId,
-          userId: this.userId,
-          targetType: "SESSION",
-          targetId,
-          title: this.currentConversationTitle,
-          category: "会话"
-        });
-        this.favoriteNotice = "本轮会话已收藏。";
-      } catch (error) {
-        this.errorMessage = error.message || "收藏本轮会话失败";
-      } finally {
-        this.favoriteSaving = false;
       }
     },
     async requestAssistantAnswerLegacy(query, requestPayload, runContext) {
@@ -915,16 +933,17 @@ export default {
       ];
     },
     applyResponseMetadata(response = {}, runContext = null) {
+      const normalizedResponse = normalizeResponsePayload(response);
       const nextResponse = {
-        sources: Array.isArray(response.sources) ? response.sources : [],
-        toolTraces: Array.isArray(response.toolTraces) ? response.toolTraces : []
+        sources: normalizedResponse.sources,
+        toolTraces: normalizedResponse.toolTraces
       };
       if (runContext) {
         const previousHistoryId = runContext.historyId;
         const activeRun = this.isActiveRun(runContext);
-        runContext.conversationId = response.conversationId || runContext.conversationId;
-        if (response.conversationId && runContext.historyId !== response.conversationId) {
-          runContext.historyId = response.conversationId;
+        runContext.conversationId = normalizedResponse.conversationId || runContext.conversationId;
+        if (normalizedResponse.conversationId && runContext.historyId !== normalizedResponse.conversationId) {
+          runContext.historyId = normalizedResponse.conversationId;
           if (this.runningContexts[previousHistoryId] === runContext) {
             delete this.runningContexts[previousHistoryId];
             this.runningContexts[runContext.historyId] = runContext;
@@ -938,7 +957,7 @@ export default {
         }
         return;
       }
-      this.conversationId = response.conversationId || this.conversationId;
+      this.conversationId = normalizedResponse.conversationId || this.conversationId;
       this.historyId = this.conversationId || this.historyId;
       this.lastResponse = nextResponse;
     },
@@ -959,7 +978,6 @@ export default {
       this.conversationStatus = "completed";
       this.errorMessage = "";
       this.uploadNotice = "";
-      this.favoriteNotice = "";
       this.contextImageAnalyses = [];
       this.pendingImageAnalysis = null;
       this.lastResponse = { ...EMPTY_RESPONSE };
@@ -1352,7 +1370,8 @@ export default {
       this.startConfirmationTimer();
     },
     findMcpConfirmation(response = {}) {
-      const traces = Array.isArray(response.toolTraces) ? response.toolTraces : [];
+      const normalizedResponse = normalizeResponsePayload(response);
+      const traces = normalizedResponse.toolTraces;
       for (const trace of traces) {
         const runtime = trace?.runtimeMetadata || {};
         if (runtime.outcome === "confirmation_required" && runtime.confirmation) {

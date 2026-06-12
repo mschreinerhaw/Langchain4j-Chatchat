@@ -104,7 +104,7 @@ public class InteractionOrchestrationService {
         }
 
         if (response.getAnswer() != null && !response.getAnswer().isBlank()) {
-            memoryService.append(conversationId, "assistant", response.getAnswer());
+            memoryService.append(conversationId, "assistant", response.getAnswer(), response.getSources(), response.getToolTraces());
         }
 
         response.setConversationId(conversationId);

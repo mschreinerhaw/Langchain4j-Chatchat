@@ -191,6 +191,48 @@ chatchat:
       page-excerpt-chars: 2500
       page-max-bytes: 1048576
       fallback-enabled: true
+      browser:
+        enabled: true
+        accept-language: ${CHAT_WEB_SEARCH_ACCEPT_LANGUAGE:en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7}
+        referer: ${CHAT_WEB_SEARCH_REFERER:https://www.bing.com/}
+        tls-fingerprint-profile: ${CHAT_WEB_SEARCH_TLS_PROFILE:jdk-default}
+      proxy-pool:
+        enabled: ${CHAT_WEB_SEARCH_PROXY_ENABLED:false}
+        default-pool: ${CHAT_WEB_SEARCH_PROXY_DEFAULT_POOL:default}
+        proxies: []
+      retry:
+        max-attempts: ${CHAT_WEB_SEARCH_RETRY_MAX_ATTEMPTS:3}
+        backoff-ms: ${CHAT_WEB_SEARCH_RETRY_BACKOFF_MS:500}
+        retry-status-codes: [403, 408, 429, 500, 502, 503, 504]
+        retry-body-keywords:
+          - captcha
+          - verify you are human
+          - too many requests
+      rate-limit:
+        enabled: ${CHAT_WEB_SEARCH_RATE_LIMIT_ENABLED:true}
+        max-concurrency: ${CHAT_WEB_SEARCH_RATE_LIMIT_MAX_CONCURRENCY:5}
+        qps: ${CHAT_WEB_SEARCH_RATE_LIMIT_QPS:1.0}
+        daily-limit: ${CHAT_WEB_SEARCH_RATE_LIMIT_DAILY_LIMIT:1000}
+      cookie:
+        enabled: ${CHAT_WEB_SEARCH_COOKIE_ENABLED:true}
+        persist: ${CHAT_WEB_SEARCH_COOKIE_PERSIST:false}
+        store-path: ${CHAT_WEB_SEARCH_COOKIE_STORE_PATH:./data/web-search-cookies.json}
+        isolation: ${CHAT_WEB_SEARCH_COOKIE_ISOLATION:proxy_task}
+      allow-list:
+        enabled: ${CHAT_WEB_SEARCH_ALLOW_LIST_ENABLED:false}
+        domains:
+          - bing.com
+          - duckduckgo.com
+          - google.com
+          - news.google.com
+          - finance.yahoo.com
+          - reuters.com
+          - bloomberg.com
+          - localhost
+          - 127.0.0.1
+      audit:
+        enabled: ${CHAT_WEB_SEARCH_AUDIT_ENABLED:true}
+        include-in-result: ${CHAT_WEB_SEARCH_AUDIT_INCLUDE_IN_RESULT:true}
     database-query:
       enabled: true
       risk-level: ${CHAT_DATABASE_QUERY_RISK_LEVEL:high}

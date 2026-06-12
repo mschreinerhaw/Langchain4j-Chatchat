@@ -19,6 +19,8 @@ import org.springframework.stereotype.Component;
 import javax.sql.DataSource;
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.net.InetSocketAddress;
+import java.net.Proxy;
 import java.net.URI;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
@@ -26,18 +28,25 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.sql.Date;
 import java.sql.Time;
 import java.sql.Timestamp;
 import java.time.Duration;
+import java.time.LocalDate;
 import java.time.temporal.TemporalAccessor;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Pattern;
 
 /**
@@ -201,12 +210,47 @@ public class BuiltInToolsBootstrap {
                     .defaultValue(10)
                     .minimum(1)
                     .maximum(100)
+                    .build(),
+                ToolParameter.builder()
+                    .name("tenantId")
+                    .type("string")
+                    .description("Optional tenant identifier used for proxy and cookie isolation")
+                    .required(false)
+                    .maxLength(128)
+                    .build(),
+                ToolParameter.builder()
+                    .name("sourceTaskId")
+                    .type("string")
+                    .description("Optional task identifier used for proxy and cookie isolation")
+                    .required(false)
+                    .maxLength(128)
+                    .build(),
+                ToolParameter.builder()
+                    .name("agentId")
+                    .type("string")
+                    .description("Optional agent identifier used for audit and rate control")
+                    .required(false)
+                    .maxLength(128)
+                    .build(),
+                ToolParameter.builder()
+                    .name("proxyPool")
+                    .type("string")
+                    .description("Optional proxy pool name")
+                    .required(false)
+                    .maxLength(128)
+                    .build(),
+                ToolParameter.builder()
+                    .name("referer")
+                    .type("string")
+                    .description("Optional browser Referer header override")
+                    .required(false)
+                    .maxLength(500)
                     .build()
             ))
             .tags(Arrays.asList("search", "internet", "external"))
             .build();
 
-        WebSearchTool webSearchTool = new WebSearchTool(webSearchProperties);
+        WebSearchTool webSearchTool = new WebSearchTool(webSearchProperties, objectMapper);
         toolRegistry.registerTool("web_search", metadata, webSearchTool);
         log.info("Web Search tool registered");
     }
@@ -623,14 +667,28 @@ public class BuiltInToolsBootstrap {
     private static class WebSearchTool implements ToolRegistry.EnhancedTool {
 
         private final WebSearchToolProperties properties;
+        private final ObjectMapper objectMapper;
+        private final Semaphore rateSemaphore;
+        private final Object rateLock = new Object();
+        private final Object cookieLock = new Object();
+        private final Map<String, Map<String, String>> cookieJar = new HashMap<>();
+        private final Map<String, ProxyRuntimeState> proxyStates = new HashMap<>();
+        private final AtomicInteger proxyCursor = new AtomicInteger();
+        private final AtomicInteger dailyCalls = new AtomicInteger();
+        private volatile LocalDate dailyWindow = LocalDate.now();
+        private volatile long lastRequestAtMs;
 
         /**
          * Creates a new BuiltInToolsBootstrap instance.
          *
          * @param properties the properties value
+         * @param objectMapper the object mapper value
          */
-        private WebSearchTool(WebSearchToolProperties properties) {
+        private WebSearchTool(WebSearchToolProperties properties, ObjectMapper objectMapper) {
             this.properties = properties;
+            this.objectMapper = objectMapper;
+            this.rateSemaphore = new Semaphore(Math.max(1, properties.getRateLimit().getMaxConcurrency()), true);
+            loadCookies();
         }
 
         /**
@@ -666,7 +724,7 @@ public class BuiltInToolsBootstrap {
                     return ToolOutput.failure("Search query is required");
                 }
 
-                Map<String, Object> result = performWebSearch(query, numResults);
+                Map<String, Object> result = performWebSearch(input, query, numResults);
                 return ToolOutput.success(result, buildSearchMessage(result));
 
             } catch (Exception e) {
@@ -682,13 +740,15 @@ public class BuiltInToolsBootstrap {
          * @return the operation result
          * @throws Exception if the operation fails
          */
-        private Map<String, Object> performWebSearch(String query, int numResults) throws Exception {
+        private Map<String, Object> performWebSearch(ToolInput input, String query, int numResults) throws Exception {
             String provider = properties.getProvider() == null
                 ? "duckduckgo_html"
                 : properties.getProvider().trim().toLowerCase(Locale.ROOT);
 
+            WebSearchRequestContext context = requestContext(input, query);
             List<SearchAttempt> attempts = buildSearchAttempts(provider, properties.getEndpoint());
             List<String> errors = new ArrayList<>();
+            List<Map<String, Object>> networkAudit = new ArrayList<>();
             for (SearchAttempt attempt : attempts) {
                 try {
                     long startedAt = System.currentTimeMillis();
@@ -699,7 +759,8 @@ public class BuiltInToolsBootstrap {
                         numResults,
                         properties.isFetchPages(),
                         properties.getMaxPagesToFetch());
-                    Map<String, Object> result = performWebSearchAttempt(attempt.provider(), attempt.endpoint(), query, numResults, errors);
+                    Map<String, Object> result = performWebSearchAttempt(
+                        attempt.provider(), attempt.endpoint(), query, numResults, errors, context, networkAudit);
                     log.info("Web search provider attempt succeeded provider={} durationMs={} resultCount={} pageExcerptCount={}",
                         attempt.provider(),
                         Math.max(0L, System.currentTimeMillis() - startedAt),
@@ -729,12 +790,18 @@ public class BuiltInToolsBootstrap {
                                                             String endpoint,
                                                             String query,
                                                             int numResults,
-                                                            List<String> previousErrors) throws Exception {
-            Document document = Jsoup.connect(endpoint)
-                .userAgent(properties.getUserAgent())
-                .timeout(Math.max(1000, properties.getTimeoutMs()))
-                .data("q", query)
-                .get();
+                                                            List<String> previousErrors,
+                                                            WebSearchRequestContext context,
+                                                            List<Map<String, Object>> networkAudit) throws Exception {
+            HtmlResponse searchResponse = sendHtmlRequest(
+                endpoint,
+                Map.of("q", query),
+                query,
+                "search",
+                context,
+                networkAudit
+            );
+            Document document = searchResponse.document();
 
             int referenceLimit = Math.max(0, Math.min(10, properties.getMaxResults()));
             int fetchLimit = Math.max(numResults, referenceLimit);
@@ -755,7 +822,7 @@ public class BuiltInToolsBootstrap {
                 .distinct()
                 .limit(referenceLimit)
                 .toList();
-            List<Map<String, Object>> pageExcerpts = fetchPageExcerpts(results, query);
+            List<Map<String, Object>> pageExcerpts = fetchPageExcerpts(results, query, context, networkAudit);
 
             Map<String, Object> output = new LinkedHashMap<>();
             output.put("query", query);
@@ -769,6 +836,7 @@ public class BuiltInToolsBootstrap {
             output.put("page_fetch_enabled", properties.isFetchPages());
             output.put("page_excerpt_count", pageExcerpts.size());
             output.put("contentMode", pageExcerpts.isEmpty() ? "search_snippets_only" : "page_enriched");
+            output.put("web_search_audit", properties.getAudit().isIncludeInResult() ? networkAudit : List.of());
             output.put("pageExcerpts", pageExcerpts);
             output.put("evidenceSnippets", pageExcerpts);
             output.put("results", results);
@@ -829,7 +897,10 @@ public class BuiltInToolsBootstrap {
          * @param query the query value
          * @return the operation result
          */
-        private List<Map<String, Object>> fetchPageExcerpts(List<Map<String, Object>> results, String query) {
+        private List<Map<String, Object>> fetchPageExcerpts(List<Map<String, Object>> results,
+                                                            String query,
+                                                            WebSearchRequestContext context,
+                                                            List<Map<String, Object>> networkAudit) {
             if (!properties.isFetchPages() || results == null || results.isEmpty()) {
                 return List.of();
             }
@@ -850,6 +921,12 @@ public class BuiltInToolsBootstrap {
                     result.put("pageFetchError", "unsupported url");
                     continue;
                 }
+                if (!isAllowedUrl(url)) {
+                    result.put("pageFetched", false);
+                    result.put("pageFetchError", "domain not allowed");
+                    addAudit(networkAudit, query, url, "page", null, 0, 0, "BLOCKED", "domain not allowed");
+                    continue;
+                }
                 attempts++;
                 try {
                     long startedAt = System.currentTimeMillis();
@@ -858,19 +935,16 @@ public class BuiltInToolsBootstrap {
                         limit,
                         result.get("rank"),
                         url);
-                    org.jsoup.Connection.Response response = Jsoup.connect(url)
-                        .userAgent(properties.getUserAgent())
-                        .timeout(Math.max(1000, properties.getTimeoutMs()))
-                        .maxBodySize(Math.max(1024, properties.getPageMaxBytes()))
-                        .ignoreHttpErrors(true)
-                        .execute();
+                    HtmlResponse response = sendHtmlRequest(
+                        url,
+                        Map.of(),
+                        query,
+                        "page",
+                        context,
+                        networkAudit
+                    );
                     int statusCode = response.statusCode();
-                    if (statusCode < 200 || statusCode >= 300) {
-                        result.put("pageFetched", false);
-                        result.put("pageFetchError", "HTTP " + statusCode);
-                        continue;
-                    }
-                    Document page = response.parse();
+                    Document page = response.document();
 
                     String pageText = extractReadableText(page);
                     if (pageText.isBlank()) {
@@ -910,6 +984,439 @@ public class BuiltInToolsBootstrap {
                 }
             }
             return excerpts;
+        }
+
+        private HtmlResponse sendHtmlRequest(String url,
+                                             Map<String, String> queryParams,
+                                             String query,
+                                             String phase,
+                                             WebSearchRequestContext context,
+                                             List<Map<String, Object>> networkAudit) throws Exception {
+            if (!isAllowedUrl(url)) {
+                addAudit(networkAudit, query, url, phase, null, 0, 0, "BLOCKED", "domain not allowed");
+                throw new IllegalArgumentException("Web search target domain is not allowed: " + hostOf(url));
+            }
+            int maxAttempts = Math.max(1, properties.getRetry().getMaxAttempts());
+            Exception lastException = null;
+            for (int attempt = 1; attempt <= maxAttempts; attempt++) {
+                WebSearchToolProperties.ProxyConfig proxy = chooseProxy(context, attempt);
+                long startedAt = System.currentTimeMillis();
+                boolean rateAcquired = false;
+                try {
+                    rateAcquired = acquireRateSlot();
+                    org.jsoup.Connection connection = Jsoup.connect(url)
+                        .timeout(Math.max(1000, properties.getTimeoutMs()))
+                        .maxBodySize(Math.max(1024, properties.getPageMaxBytes()))
+                        .ignoreHttpErrors(true)
+                        .ignoreContentType(true)
+                        .followRedirects(true);
+                    if (queryParams != null && !queryParams.isEmpty()) {
+                        connection.data(queryParams);
+                    }
+                    applyBrowserHeaders(connection, url, phase, context, proxy);
+                    applyProxy(connection, proxy);
+                    String cookieKey = cookieKey(context, proxy);
+                    Map<String, String> cookies = readCookies(cookieKey);
+                    if (!cookies.isEmpty()) {
+                        connection.cookies(cookies);
+                    }
+
+                    org.jsoup.Connection.Response response = connection.execute();
+                    updateCookies(cookieKey, response.cookies());
+                    int statusCode = response.statusCode();
+                    String body = response.body();
+                    long durationMs = Math.max(0L, System.currentTimeMillis() - startedAt);
+                    addAudit(networkAudit, query, response.url().toString(), phase, proxyId(proxy), statusCode,
+                        durationMs, "OK", null);
+                    logWebSearchAudit(query, response.url().toString(), phase, proxy, statusCode, durationMs, null);
+                    if (shouldRetry(statusCode, body)) {
+                        markProxyFailure(proxy);
+                        if (attempt < maxAttempts) {
+                            sleepBackoff(attempt);
+                            continue;
+                        }
+                        throw new IOException("HTTP " + statusCode + " from " + hostOf(url));
+                    }
+                    markProxySuccess(proxy);
+                    return new HtmlResponse(statusCode, response.parse());
+                } catch (Exception ex) {
+                    lastException = ex;
+                    markProxyFailure(proxy);
+                    long durationMs = Math.max(0L, System.currentTimeMillis() - startedAt);
+                    addAudit(networkAudit, query, url, phase, proxyId(proxy), 0, durationMs, "FAILED", ex.getMessage());
+                    logWebSearchAudit(query, url, phase, proxy, 0, durationMs, ex.getMessage());
+                    if (attempt < maxAttempts) {
+                        sleepBackoff(attempt);
+                    }
+                } finally {
+                    if (rateAcquired) {
+                        rateSemaphore.release();
+                    }
+                }
+            }
+            throw lastException == null ? new IOException("web search request failed") : lastException;
+        }
+
+        private void applyBrowserHeaders(org.jsoup.Connection connection,
+                                         String url,
+                                         String phase,
+                                         WebSearchRequestContext context,
+                                         WebSearchToolProperties.ProxyConfig proxy) {
+            WebSearchToolProperties.BrowserProperties browser = properties.getBrowser();
+            String userAgent = selectUserAgent(context);
+            connection.userAgent(userAgent);
+            if (!browser.isEnabled()) {
+                return;
+            }
+            connection.header("Accept", browser.getAccept());
+            connection.header("Accept-Language", browser.getAcceptLanguage());
+            connection.header("Accept-Encoding", "gzip, deflate, br");
+            connection.header("Cache-Control", "no-cache");
+            connection.header("Pragma", "no-cache");
+            connection.header("Upgrade-Insecure-Requests", "1");
+            connection.header("DNT", "1");
+            connection.header("Sec-Fetch-Dest", "document");
+            connection.header("Sec-Fetch-Mode", "navigate");
+            connection.header("Sec-Fetch-Site", "search".equals(phase) ? "none" : "cross-site");
+            connection.header("Sec-Fetch-User", "?1");
+            connection.header("sec-ch-ua", browser.getSecChUa());
+            connection.header("sec-ch-ua-mobile", browser.getSecChUaMobile());
+            connection.header("sec-ch-ua-platform", browser.getSecChUaPlatform());
+            String referer = firstNonBlank(context.referer(), browser.getReferer());
+            if (referer != null && !referer.isBlank()) {
+                connection.referrer(referer);
+            }
+            browser.getHeaders().forEach(connection::header);
+            if (proxy != null && proxy.getUsername() != null && !proxy.getUsername().isBlank()) {
+                String token = Base64.getEncoder().encodeToString(
+                    (proxy.getUsername() + ":" + firstNonBlank(proxy.getPassword(), "")).getBytes(StandardCharsets.UTF_8));
+                connection.header("Proxy-Authorization", "Basic " + token);
+            }
+            connection.header("X-ChatChat-Search-Task", context.taskId() == null ? "" : context.taskId());
+            connection.header("X-ChatChat-TLS-Profile", firstNonBlank(browser.getTlsFingerprintProfile(), "jdk-default"));
+        }
+
+        private void applyProxy(org.jsoup.Connection connection, WebSearchToolProperties.ProxyConfig proxyConfig) {
+            Proxy proxy = toProxy(proxyConfig);
+            if (proxy != null) {
+                connection.proxy(proxy);
+            }
+        }
+
+        private Proxy toProxy(WebSearchToolProperties.ProxyConfig config) {
+            if (!properties.getProxyPool().isEnabled()
+                || config == null
+                || config.getHost() == null
+                || config.getHost().isBlank()
+                || config.getPort() <= 0) {
+                return null;
+            }
+            String type = config.getType() == null ? "HTTP" : config.getType().trim().toUpperCase(Locale.ROOT);
+            Proxy.Type proxyType = "SOCKS5".equals(type) || "SOCKS".equals(type) ? Proxy.Type.SOCKS : Proxy.Type.HTTP;
+            return new Proxy(proxyType, new InetSocketAddress(config.getHost().trim(), config.getPort()));
+        }
+
+        private WebSearchToolProperties.ProxyConfig chooseProxy(WebSearchRequestContext context, int attempt) {
+            if (!properties.getProxyPool().isEnabled() || properties.getProxyPool().getProxies().isEmpty()) {
+                return null;
+            }
+            List<WebSearchToolProperties.ProxyConfig> candidates = properties.getProxyPool().getProxies().stream()
+                .filter(proxy -> matchesProxyScope(proxy, context))
+                .toList();
+            if (candidates.isEmpty()) {
+                candidates = properties.getProxyPool().getProxies();
+            }
+            long now = System.currentTimeMillis();
+            int size = candidates.size();
+            int offset = Math.floorMod(proxyCursor.getAndIncrement() + Math.max(0, attempt - 1), size);
+            for (int index = 0; index < size; index++) {
+                WebSearchToolProperties.ProxyConfig candidate = candidates.get((offset + index) % size);
+                ProxyRuntimeState state = proxyState(candidate);
+                if (state.openUntilMs <= now) {
+                    state.requestCount.incrementAndGet();
+                    return candidate;
+                }
+            }
+            WebSearchToolProperties.ProxyConfig fallback = candidates.get(offset % size);
+            proxyState(fallback).requestCount.incrementAndGet();
+            return fallback;
+        }
+
+        private boolean matchesProxyScope(WebSearchToolProperties.ProxyConfig proxy, WebSearchRequestContext context) {
+            boolean tenantMatches = proxy.getTenantIds() == null
+                || proxy.getTenantIds().isEmpty()
+                || (context.tenantId() != null && proxy.getTenantIds().contains(context.tenantId()));
+            boolean taskMatches = proxy.getTaskIds() == null
+                || proxy.getTaskIds().isEmpty()
+                || (context.taskId() != null && proxy.getTaskIds().contains(context.taskId()));
+            String pool = firstNonBlank(context.proxyPool(), properties.getProxyPool().getDefaultPool());
+            boolean poolMatches = pool == null || pool.isBlank() || pool.equalsIgnoreCase(firstNonBlank(proxy.getPool(), "default"));
+            return tenantMatches && taskMatches && poolMatches;
+        }
+
+        private ProxyRuntimeState proxyState(WebSearchToolProperties.ProxyConfig proxy) {
+            String id = proxyId(proxy);
+            synchronized (proxyStates) {
+                return proxyStates.computeIfAbsent(id, ignored -> new ProxyRuntimeState());
+            }
+        }
+
+        private void markProxySuccess(WebSearchToolProperties.ProxyConfig proxy) {
+            if (proxy == null) {
+                return;
+            }
+            ProxyRuntimeState state = proxyState(proxy);
+            state.failureCount.set(0);
+            state.openUntilMs = 0L;
+        }
+
+        private void markProxyFailure(WebSearchToolProperties.ProxyConfig proxy) {
+            if (proxy == null) {
+                return;
+            }
+            ProxyRuntimeState state = proxyState(proxy);
+            int failures = state.failureCount.incrementAndGet();
+            if (failures >= 2) {
+                state.openUntilMs = System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(30);
+            }
+        }
+
+        private boolean acquireRateSlot() throws InterruptedException {
+            if (!properties.getRateLimit().isEnabled()) {
+                return false;
+            }
+            resetDailyWindowIfNeeded();
+            int dailyLimit = Math.max(1, properties.getRateLimit().getDailyLimit());
+            if (dailyCalls.incrementAndGet() > dailyLimit) {
+                throw new IllegalStateException("web_search daily call limit exceeded: " + dailyLimit);
+            }
+            rateSemaphore.acquire();
+            try {
+                double qps = Math.max(0.1d, properties.getRateLimit().getQps());
+                long minIntervalMs = Math.max(1L, Math.round(1000.0d / qps));
+                synchronized (rateLock) {
+                    long now = System.currentTimeMillis();
+                    long waitMs = lastRequestAtMs + minIntervalMs - now;
+                    if (waitMs > 0) {
+                        Thread.sleep(waitMs);
+                    }
+                    lastRequestAtMs = System.currentTimeMillis();
+                }
+                return true;
+            } catch (InterruptedException | RuntimeException ex) {
+                rateSemaphore.release();
+                throw ex;
+            }
+        }
+
+        private void resetDailyWindowIfNeeded() {
+            LocalDate today = LocalDate.now();
+            if (!today.equals(dailyWindow)) {
+                synchronized (rateLock) {
+                    if (!today.equals(dailyWindow)) {
+                        dailyWindow = today;
+                        dailyCalls.set(0);
+                    }
+                }
+            }
+        }
+
+        private boolean shouldRetry(int statusCode, String body) {
+            if (properties.getRetry().getRetryStatusCodes().contains(statusCode)) {
+                return true;
+            }
+            if (body == null || body.isBlank()) {
+                return false;
+            }
+            String lower = body.toLowerCase(Locale.ROOT);
+            return properties.getRetry().getRetryBodyKeywords().stream()
+                .filter(keyword -> keyword != null && !keyword.isBlank())
+                .map(keyword -> keyword.toLowerCase(Locale.ROOT))
+                .anyMatch(lower::contains);
+        }
+
+        private void sleepBackoff(int attempt) throws InterruptedException {
+            long backoffMs = Math.max(0L, properties.getRetry().getBackoffMs());
+            if (backoffMs > 0) {
+                Thread.sleep(backoffMs * Math.max(1, attempt));
+            }
+        }
+
+        private WebSearchRequestContext requestContext(ToolInput input, String query) {
+            Map<String, Object> parameters = input == null || input.getParameters() == null
+                ? Map.of()
+                : input.getParameters();
+            return new WebSearchRequestContext(
+                query,
+                firstNonBlank(stringValue(parameters.get("tenantId")), stringValue(parameters.get("tenant_id"))),
+                firstNonBlank(stringValue(parameters.get("sourceTaskId")), stringValue(parameters.get("taskId"))),
+                stringValue(parameters.get("agentId")),
+                stringValue(parameters.get("proxyPool")),
+                stringValue(parameters.get("referer"))
+            );
+        }
+
+        private String selectUserAgent(WebSearchRequestContext context) {
+            List<String> userAgents = properties.getBrowser().getUserAgents();
+            if (userAgents != null && !userAgents.isEmpty()) {
+                int index = Math.abs((context.query() + ":" + stringValue(context.taskId())).hashCode()) % userAgents.size();
+                return userAgents.get(index);
+            }
+            return firstNonBlank(properties.getUserAgent(), "Mozilla/5.0");
+        }
+
+        private String cookieKey(WebSearchRequestContext context, WebSearchToolProperties.ProxyConfig proxy) {
+            if (!properties.getCookie().isEnabled()) {
+                return "disabled";
+            }
+            String isolation = firstNonBlank(properties.getCookie().getIsolation(), "proxy_task").toLowerCase(Locale.ROOT);
+            List<String> parts = new ArrayList<>();
+            if (isolation.contains("proxy")) {
+                parts.add(proxyId(proxy));
+            }
+            if (isolation.contains("tenant")) {
+                parts.add(firstNonBlank(context.tenantId(), "tenant-default"));
+            }
+            if (isolation.contains("task")) {
+                parts.add(firstNonBlank(context.taskId(), "task-default"));
+            }
+            if (parts.isEmpty()) {
+                parts.add("global");
+            }
+            return String.join(":", parts);
+        }
+
+        private Map<String, String> readCookies(String key) {
+            if (!properties.getCookie().isEnabled()) {
+                return Map.of();
+            }
+            synchronized (cookieLock) {
+                return new LinkedHashMap<>(cookieJar.getOrDefault(key, Map.of()));
+            }
+        }
+
+        private void updateCookies(String key, Map<String, String> cookies) {
+            if (!properties.getCookie().isEnabled() || cookies == null || cookies.isEmpty()) {
+                return;
+            }
+            synchronized (cookieLock) {
+                Map<String, String> values = new LinkedHashMap<>(cookieJar.getOrDefault(key, Map.of()));
+                values.putAll(cookies);
+                cookieJar.put(key, values);
+                saveCookies();
+            }
+        }
+
+        @SuppressWarnings("unchecked")
+        private void loadCookies() {
+            if (!properties.getCookie().isEnabled() || !properties.getCookie().isPersist()) {
+                return;
+            }
+            try {
+                Path path = Path.of(properties.getCookie().getStorePath());
+                if (!Files.exists(path)) {
+                    return;
+                }
+                Map<String, Map<String, String>> loaded = objectMapper.readValue(path.toFile(), Map.class);
+                cookieJar.clear();
+                loaded.forEach((key, value) -> cookieJar.put(key, new LinkedHashMap<>(value)));
+            } catch (Exception ex) {
+                log.warn("Failed to load web_search cookies: {}", ex.getMessage());
+            }
+        }
+
+        private void saveCookies() {
+            if (!properties.getCookie().isPersist()) {
+                return;
+            }
+            try {
+                Path path = Path.of(properties.getCookie().getStorePath());
+                Path parent = path.getParent();
+                if (parent != null) {
+                    Files.createDirectories(parent);
+                }
+                objectMapper.writeValue(path.toFile(), cookieJar);
+            } catch (Exception ex) {
+                log.warn("Failed to persist web_search cookies: {}", ex.getMessage());
+            }
+        }
+
+        private boolean isAllowedUrl(String url) {
+            if (!properties.getAllowList().isEnabled()) {
+                return true;
+            }
+            String host = hostOf(url);
+            if (host == null || host.isBlank()) {
+                return false;
+            }
+            String normalizedHost = host.toLowerCase(Locale.ROOT);
+            return properties.getAllowList().getDomains().stream()
+                .filter(domain -> domain != null && !domain.isBlank())
+                .map(domain -> domain.trim().toLowerCase(Locale.ROOT))
+                .anyMatch(domain -> normalizedHost.equals(domain) || normalizedHost.endsWith("." + domain));
+        }
+
+        private String hostOf(String url) {
+            try {
+                return URI.create(url).getHost();
+            } catch (Exception ex) {
+                return null;
+            }
+        }
+
+        private String proxyId(WebSearchToolProperties.ProxyConfig proxy) {
+            if (proxy == null) {
+                return "direct";
+            }
+            if (proxy.getId() != null && !proxy.getId().isBlank()) {
+                return proxy.getId();
+            }
+            return firstNonBlank(proxy.getType(), "HTTP") + "://" + proxy.getHost() + ":" + proxy.getPort();
+        }
+
+        private void addAudit(List<Map<String, Object>> audit,
+                              String query,
+                              String url,
+                              String phase,
+                              String proxyId,
+                              int statusCode,
+                              long durationMs,
+                              String outcome,
+                              String errorMessage) {
+            if (!properties.getAudit().isEnabled() || audit == null) {
+                return;
+            }
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("time", java.time.Instant.now().toString());
+            item.put("keyword", query);
+            item.put("phase", phase);
+            item.put("targetDomain", hostOf(url));
+            item.put("proxyId", firstNonBlank(proxyId, "direct"));
+            item.put("statusCode", statusCode);
+            item.put("durationMs", durationMs);
+            item.put("outcome", outcome);
+            item.put("errorMessage", errorMessage);
+            audit.add(item);
+        }
+
+        private void logWebSearchAudit(String query,
+                                       String url,
+                                       String phase,
+                                       WebSearchToolProperties.ProxyConfig proxy,
+                                       int statusCode,
+                                       long durationMs,
+                                       String errorMessage) {
+            if (!properties.getAudit().isEnabled()) {
+                return;
+            }
+            log.info("Web search audit keyword={} phase={} domain={} proxyId={} statusCode={} durationMs={} error={}",
+                query,
+                phase,
+                hostOf(url),
+                proxyId(proxy),
+                statusCode,
+                durationMs,
+                errorMessage);
         }
 
         /**
@@ -1197,6 +1704,24 @@ public class BuiltInToolsBootstrap {
         }
 
         private record SearchAttempt(String provider, String endpoint) {
+        }
+
+        private record HtmlResponse(int statusCode, Document document) {
+        }
+
+        private record WebSearchRequestContext(String query,
+                                               String tenantId,
+                                               String taskId,
+                                               String agentId,
+                                               String proxyPool,
+                                               String referer) {
+        }
+
+        private static class ProxyRuntimeState {
+
+            private final AtomicInteger requestCount = new AtomicInteger();
+            private final AtomicInteger failureCount = new AtomicInteger();
+            private volatile long openUntilMs;
         }
     }
 

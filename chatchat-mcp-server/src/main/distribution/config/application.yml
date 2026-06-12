@@ -186,6 +186,53 @@ chatchat:
       user-agent: ChatChat-MCP-Server/1.0
       timeout-ms: 10000
       max-results: 10
+      fetch-pages: true
+      max-pages-to-fetch: 3
+      page-excerpt-chars: 2500
+      page-max-bytes: 1048576
+      fallback-enabled: true
+      browser:
+        enabled: true
+        accept-language: en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7
+        referer: https://www.bing.com/
+        tls-fingerprint-profile: jdk-default
+      proxy-pool:
+        enabled: false
+        default-pool: default
+        proxies: []
+      retry:
+        max-attempts: 3
+        backoff-ms: 500
+        retry-status-codes: [403, 408, 429, 500, 502, 503, 504]
+        retry-body-keywords:
+          - captcha
+          - verify you are human
+          - too many requests
+      rate-limit:
+        enabled: true
+        max-concurrency: 5
+        qps: 1.0
+        daily-limit: 1000
+      cookie:
+        enabled: true
+        persist: false
+        store-path: ./data/web-search-cookies.json
+        isolation: proxy_task
+      allow-list:
+        enabled: false
+        domains:
+          - bing.com
+          - duckduckgo.com
+          - google.com
+          - news.google.com
+          - finance.yahoo.com
+          - reuters.com
+          - bloomberg.com
+          - localhost
+          - 127.0.0.1
+      audit:
+        enabled: true
+        include-in-result: true
     database-query:
       enabled: true
       risk-level: high

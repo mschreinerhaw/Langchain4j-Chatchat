@@ -155,3 +155,42 @@ chatchat:
 ```
 
 `max-output-chars`, `retry-attempts`, `failure-threshold`, and `circuit-open-seconds` can be set on defaults, runtime levels, or a specific tool. Keep `retry-attempts` at `0` for SSH/SQL unless the command or query is known to be idempotent.
+
+## Web Search anti-blocking controls
+
+The built-in `web_search` tool supports browser-like request headers, proxy pools, IP rotation, retry-on-block, QPS/concurrency/day limits, isolated cookies, allow-list checks, and request audit logs.
+
+Example proxy pool:
+
+```yaml
+chatchat:
+  tools:
+    web-search:
+      proxy-pool:
+        enabled: true
+        default-pool: search
+        proxies:
+          - id: search-http-1
+            pool: search
+            type: HTTP
+            host: 10.0.0.10
+            port: 8080
+          - id: search-socks-1
+            pool: search
+            type: SOCKS5
+            host: 10.0.0.11
+            port: 1080
+      rate-limit:
+        max-concurrency: 5
+        qps: 1.0
+        daily-limit: 1000
+      cookie:
+        enabled: true
+        isolation: proxy_task
+        persist: true
+      allow-list:
+        enabled: true
+        domains: [bing.com, duckduckgo.com, reuters.com, bloomberg.com]
+```
+
+Each request logs keyword, phase, target domain, proxy id, status code, duration, and failure reason. When `audit.include-in-result` is true, the MCP response also includes `web_search_audit`.

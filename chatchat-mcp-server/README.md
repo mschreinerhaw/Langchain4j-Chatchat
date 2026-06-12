@@ -103,3 +103,55 @@ Runtime logs are written to `logs/`. Override JVM options with `JAVA_OPTS` and e
 Put external JDBC driver jars into `lib/drivers/`. The `database_query` tool can then query an external database by passing `jdbc_url`, `username`, `password`, and optionally `driver_class`.
 
 If a jar is added after startup, call `database_query` once with `reload_drivers=true` to rescan `lib/drivers/`.
+
+## Tool concurrency governance
+
+The MCP server enforces four concurrency layers before executing a tool:
+
+```text
+global MCP requests
+tool name
+tool asset/runtime level
+userId / agentId when provided in arguments
+```
+
+Default runtime limits are conservative for resource-heavy tools:
+
+```text
+SSH asset tools: 2 concurrent calls per tool/host
+SQL datasource tools: 5 concurrent calls per tool/datasource
+HTTP tools: 30 concurrent calls
+Notification tools: 10 concurrent calls
+```
+
+When a limit is reached, calls wait in the configured queue. If the queue is full the MCP call returns `BUSY`; if the wait or execution timeout is exceeded it returns `TIMEOUT`. Tool metadata also exposes `mcp_tool_limit` so Agent Runtime can see the server-side limits.
+
+Key settings live under `chatchat.mcp.server.concurrency`:
+
+```yaml
+chatchat:
+  mcp:
+    server:
+      concurrency:
+        enabled: true
+        global:
+          max-concurrency: 64
+          queue-size: 128
+          queue-timeout-seconds: 5
+        runtime-levels:
+          ssh:
+            max-concurrency: 2
+          sql:
+            max-concurrency: 5
+          http:
+            max-concurrency: 30
+          notification:
+            max-concurrency: 10
+        tools:
+          ssh_prod_host:
+            max-concurrency: 1
+            timeout-seconds: 20
+            queue-size: 16
+```
+
+`max-output-chars`, `retry-attempts`, `failure-threshold`, and `circuit-open-seconds` can be set on defaults, runtime levels, or a specific tool. Keep `retry-attempts` at `0` for SSH/SQL unless the command or query is known to be idempotent.

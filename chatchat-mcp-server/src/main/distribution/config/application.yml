@@ -64,6 +64,61 @@ chatchat:
       expose-agent-compatible-only: true
       excluded-tool-names: []
       instructions: "ChatChat standalone MCP server exposing LangChain4j-compatible tools."
+      concurrency:
+        enabled: true
+        global:
+          max-concurrency: 64
+          queue-size: 128
+          queue-timeout-seconds: 5
+          timeout-seconds: 30
+          runtime-level: global
+        defaults:
+          max-concurrency: 8
+          queue-size: 64
+          queue-timeout-seconds: 5
+          timeout-seconds: 30
+          runtime-level: tool
+          max-output-chars: 200000
+          retry-attempts: 0
+          failure-threshold: 5
+          circuit-open-seconds: 30
+        user:
+          max-concurrency: 8
+          queue-size: 64
+          queue-timeout-seconds: 5
+          timeout-seconds: 30
+          runtime-level: user
+        agent:
+          max-concurrency: 4
+          queue-size: 32
+          queue-timeout-seconds: 5
+          timeout-seconds: 30
+          runtime-level: agent
+        runtime-levels:
+          ssh:
+            max-concurrency: 2
+            queue-size: 32
+            queue-timeout-seconds: 10
+            timeout-seconds: 30
+            runtime-level: ssh
+          sql:
+            max-concurrency: 5
+            queue-size: 64
+            queue-timeout-seconds: 10
+            timeout-seconds: 30
+            runtime-level: sql
+          http:
+            max-concurrency: 30
+            queue-size: 256
+            queue-timeout-seconds: 5
+            timeout-seconds: 30
+            runtime-level: http
+          notification:
+            max-concurrency: 10
+            queue-size: 128
+            queue-timeout-seconds: 5
+            timeout-seconds: 30
+            runtime-level: notification
     livedata:
       # Enables the admin page to list and manually register LiveData APIs. Startup auto-sync is disabled.
       enabled: true

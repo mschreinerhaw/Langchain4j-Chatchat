@@ -64,6 +64,61 @@ chatchat:
       expose-agent-compatible-only: true
       excluded-tool-names: []
       instructions: "ChatChat standalone MCP server exposing LangChain4j-compatible tools."
+      concurrency:
+        enabled: ${CHAT_MCP_CONCURRENCY_ENABLED:true}
+        global:
+          max-concurrency: ${CHAT_MCP_GLOBAL_MAX_CONCURRENCY:64}
+          queue-size: ${CHAT_MCP_GLOBAL_QUEUE_SIZE:128}
+          queue-timeout-seconds: ${CHAT_MCP_GLOBAL_QUEUE_TIMEOUT_SECONDS:5}
+          timeout-seconds: ${CHAT_MCP_GLOBAL_TIMEOUT_SECONDS:30}
+          runtime-level: global
+        defaults:
+          max-concurrency: ${CHAT_MCP_TOOL_MAX_CONCURRENCY:8}
+          queue-size: ${CHAT_MCP_TOOL_QUEUE_SIZE:64}
+          queue-timeout-seconds: ${CHAT_MCP_TOOL_QUEUE_TIMEOUT_SECONDS:5}
+          timeout-seconds: ${CHAT_MCP_TOOL_TIMEOUT_SECONDS:30}
+          runtime-level: tool
+          max-output-chars: ${CHAT_MCP_TOOL_MAX_OUTPUT_CHARS:200000}
+          retry-attempts: ${CHAT_MCP_TOOL_RETRY_ATTEMPTS:0}
+          failure-threshold: ${CHAT_MCP_TOOL_FAILURE_THRESHOLD:5}
+          circuit-open-seconds: ${CHAT_MCP_TOOL_CIRCUIT_OPEN_SECONDS:30}
+        user:
+          max-concurrency: ${CHAT_MCP_USER_MAX_CONCURRENCY:8}
+          queue-size: ${CHAT_MCP_USER_QUEUE_SIZE:64}
+          queue-timeout-seconds: ${CHAT_MCP_USER_QUEUE_TIMEOUT_SECONDS:5}
+          timeout-seconds: ${CHAT_MCP_USER_TIMEOUT_SECONDS:30}
+          runtime-level: user
+        agent:
+          max-concurrency: ${CHAT_MCP_AGENT_MAX_CONCURRENCY:4}
+          queue-size: ${CHAT_MCP_AGENT_QUEUE_SIZE:32}
+          queue-timeout-seconds: ${CHAT_MCP_AGENT_QUEUE_TIMEOUT_SECONDS:5}
+          timeout-seconds: ${CHAT_MCP_AGENT_TIMEOUT_SECONDS:30}
+          runtime-level: agent
+        runtime-levels:
+          ssh:
+            max-concurrency: ${CHAT_MCP_SSH_MAX_CONCURRENCY:2}
+            queue-size: ${CHAT_MCP_SSH_QUEUE_SIZE:32}
+            queue-timeout-seconds: ${CHAT_MCP_SSH_QUEUE_TIMEOUT_SECONDS:10}
+            timeout-seconds: ${CHAT_MCP_SSH_TIMEOUT_SECONDS:30}
+            runtime-level: ssh
+          sql:
+            max-concurrency: ${CHAT_MCP_SQL_MAX_CONCURRENCY:5}
+            queue-size: ${CHAT_MCP_SQL_QUEUE_SIZE:64}
+            queue-timeout-seconds: ${CHAT_MCP_SQL_QUEUE_TIMEOUT_SECONDS:10}
+            timeout-seconds: ${CHAT_MCP_SQL_TIMEOUT_SECONDS:30}
+            runtime-level: sql
+          http:
+            max-concurrency: ${CHAT_MCP_HTTP_MAX_CONCURRENCY:30}
+            queue-size: ${CHAT_MCP_HTTP_QUEUE_SIZE:256}
+            queue-timeout-seconds: ${CHAT_MCP_HTTP_QUEUE_TIMEOUT_SECONDS:5}
+            timeout-seconds: ${CHAT_MCP_HTTP_TIMEOUT_SECONDS:30}
+            runtime-level: http
+          notification:
+            max-concurrency: ${CHAT_MCP_NOTIFICATION_MAX_CONCURRENCY:10}
+            queue-size: ${CHAT_MCP_NOTIFICATION_QUEUE_SIZE:128}
+            queue-timeout-seconds: ${CHAT_MCP_NOTIFICATION_QUEUE_TIMEOUT_SECONDS:5}
+            timeout-seconds: ${CHAT_MCP_NOTIFICATION_TIMEOUT_SECONDS:30}
+            runtime-level: notification
     livedata:
       # Enables the admin page to list and manually register LiveData APIs. Startup auto-sync is disabled.
       enabled: true

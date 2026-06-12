@@ -1,6 +1,7 @@
 package com.chatchat.mcpserver.notification;
 
 import com.chatchat.mcpserver.tool.AgentRuntimeGovernanceFactory;
+import com.chatchat.mcpserver.tool.McpToolConcurrencyManager;
 import io.modelcontextprotocol.server.McpServerFeatures;
 import io.modelcontextprotocol.spec.McpSchema;
 import lombok.RequiredArgsConstructor;
@@ -16,6 +17,7 @@ public class NotificationToolSpecFactory {
 
     private final NotificationSendService sendService;
     private final AgentRuntimeGovernanceFactory governanceFactory;
+    private final McpToolConcurrencyManager concurrencyManager;
 
     public McpServerFeatures.SyncToolSpecification toToolSpecification(NotificationChannelConfig config) {
         McpSchema.Tool tool = McpSchema.Tool.builder()
@@ -28,7 +30,11 @@ public class NotificationToolSpecFactory {
 
         return McpServerFeatures.SyncToolSpecification.builder()
             .tool(tool)
-            .callHandler((exchange, request) -> toCallToolResult(sendService.send(config, request.arguments())))
+            .callHandler((exchange, request) -> concurrencyManager.execute(
+                config.getToolName(),
+                "notification",
+                request.arguments(),
+                () -> toCallToolResult(sendService.send(config, request.arguments()))))
             .build();
     }
 
@@ -94,6 +100,7 @@ public class NotificationToolSpecFactory {
         meta.put("runtime_action", config.getRuntimeAction());
         meta.put("runtimeAction", config.getRuntimeAction());
         meta.put("notificationTool", true);
+        meta.put("mcp_tool_limit", concurrencyManager.limitMeta(config.getToolName(), "notification"));
         return meta;
     }
 

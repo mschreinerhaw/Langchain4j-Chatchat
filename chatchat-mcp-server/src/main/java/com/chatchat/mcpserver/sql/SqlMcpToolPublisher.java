@@ -1,6 +1,7 @@
 package com.chatchat.mcpserver.sql;
 
 import com.chatchat.mcpserver.tool.AgentRuntimeGovernanceFactory;
+import com.chatchat.mcpserver.tool.McpToolConcurrencyManager;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.modelcontextprotocol.server.McpServerFeatures;
 import io.modelcontextprotocol.server.McpSyncServer;
@@ -28,6 +29,7 @@ public class SqlMcpToolPublisher {
     private final SqlDatasourceConfigService datasourceConfigService;
     private final SqlQueryExecuteService executeService;
     private final AgentRuntimeGovernanceFactory governanceFactory;
+    private final McpToolConcurrencyManager concurrencyManager;
     private final ObjectMapper objectMapper;
     private final Set<String> managedToolNames = ConcurrentHashMap.newKeySet();
 
@@ -63,7 +65,11 @@ public class SqlMcpToolPublisher {
             .build();
         return McpServerFeatures.SyncToolSpecification.builder()
             .tool(tool)
-            .callHandler((exchange, request) -> toCallToolResult(executeService.execute(datasource, request.arguments())))
+            .callHandler((exchange, request) -> concurrencyManager.execute(
+                datasource.getToolName(),
+                "sql",
+                request.arguments(),
+                () -> toCallToolResult(executeService.execute(datasource, request.arguments()))))
             .build();
     }
 
@@ -100,6 +106,7 @@ public class SqlMcpToolPublisher {
         meta.put("environment", datasource.getEnvironment());
         meta.put("allowedStatements", List.of("SELECT", "SHOW", "DESCRIBE", "EXPLAIN"));
         meta.put("templateRegistrySupported", true);
+        meta.put("mcp_tool_limit", concurrencyManager.limitMeta(datasource.getToolName(), "sql"));
         return meta;
     }
 

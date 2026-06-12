@@ -3,6 +3,7 @@ package com.chatchat.mcpserver.api;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.chatchat.mcpserver.tool.AgentRuntimeGovernanceFactory;
+import com.chatchat.mcpserver.tool.McpToolConcurrencyManager;
 import io.modelcontextprotocol.server.McpServerFeatures;
 import io.modelcontextprotocol.spec.McpSchema;
 import lombok.RequiredArgsConstructor;
@@ -21,6 +22,7 @@ public class ApiToolSpecFactory {
     private final ApiInvokeService invokeService;
     private final ObjectMapper objectMapper;
     private final AgentRuntimeGovernanceFactory governanceFactory;
+    private final McpToolConcurrencyManager concurrencyManager;
 
     /**
      * Converts the value to tool specification.
@@ -34,18 +36,23 @@ public class ApiToolSpecFactory {
             .title(config.getTitle())
             .description(config.getDescription() == null ? "External API service" : config.getDescription())
             .inputSchema(toInputSchema(config.getInputSchemaJson()))
-            .meta(withLegacyId(governanceFactory.metaForApi(config), "apiServiceId", config.getId()))
+            .meta(withLimitMeta(withLegacyId(governanceFactory.metaForApi(config), "apiServiceId", config.getId()),
+                config.getToolName(), "http"))
             .build();
 
         return McpServerFeatures.SyncToolSpecification.builder()
             .tool(tool)
-            .callHandler((exchange, request) -> {
+            .callHandler((exchange, request) -> concurrencyManager.execute(
+                config.getToolName(),
+                "http",
+                request.arguments(),
+                () -> {
                 log.info("MCP external API tool call received tool={} apiServiceId={} argKeys={}",
                     config.getToolName(),
                     config.getId(),
                     argumentKeys(request.arguments()));
                 return toCallToolResult(invokeService.invoke(config, request.arguments()));
-            })
+            }))
             .build();
     }
 
@@ -174,6 +181,12 @@ public class ApiToolSpecFactory {
     private Map<String, Object> withLegacyId(Map<String, Object> meta, String key, String value) {
         Map<String, Object> values = new LinkedHashMap<>(meta == null ? Map.of() : meta);
         values.put(key, value);
+        return values;
+    }
+
+    private Map<String, Object> withLimitMeta(Map<String, Object> meta, String toolName, String runtimeLevel) {
+        Map<String, Object> values = new LinkedHashMap<>(meta == null ? Map.of() : meta);
+        values.put("mcp_tool_limit", concurrencyManager.limitMeta(toolName, runtimeLevel));
         return values;
     }
 }

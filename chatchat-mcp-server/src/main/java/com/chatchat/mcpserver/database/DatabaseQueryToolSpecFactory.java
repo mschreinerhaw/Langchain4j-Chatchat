@@ -2,6 +2,7 @@ package com.chatchat.mcpserver.database;
 
 import com.chatchat.common.tool.ToolOutput;
 import com.chatchat.mcpserver.tool.AgentRuntimeGovernanceFactory;
+import com.chatchat.mcpserver.tool.McpToolConcurrencyManager;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.modelcontextprotocol.server.McpServerFeatures;
@@ -22,6 +23,7 @@ public class DatabaseQueryToolSpecFactory {
     private final DatabaseQueryInvokeService invokeService;
     private final ObjectMapper objectMapper;
     private final AgentRuntimeGovernanceFactory governanceFactory;
+    private final McpToolConcurrencyManager concurrencyManager;
 
     /**
      * Converts the value to tool specification.
@@ -35,18 +37,23 @@ public class DatabaseQueryToolSpecFactory {
             .title(config.getTitle())
             .description(config.getDescription() == null ? "Read-only database query" : config.getDescription())
             .inputSchema(toInputSchema(config.getInputSchemaJson()))
-            .meta(withLegacyId(governanceFactory.metaForDatabaseQuery(config), "databaseQueryId", config.getId()))
+            .meta(withLimitMeta(withLegacyId(governanceFactory.metaForDatabaseQuery(config), "databaseQueryId", config.getId()),
+                config.getToolName(), "sql"))
             .build();
 
         return McpServerFeatures.SyncToolSpecification.builder()
             .tool(tool)
-            .callHandler((exchange, request) -> {
+            .callHandler((exchange, request) -> concurrencyManager.execute(
+                config.getToolName(),
+                "sql",
+                request.arguments(),
+                () -> {
                 log.info("MCP database query tool call received tool={} databaseQueryId={} argKeys={}",
                     config.getToolName(),
                     config.getId(),
                     argumentKeys(request.arguments()));
                 return toCallToolResult(invokeService.invoke(config, request.arguments()));
-            })
+            }))
             .build();
     }
 
@@ -170,6 +177,12 @@ public class DatabaseQueryToolSpecFactory {
     private Map<String, Object> withLegacyId(Map<String, Object> meta, String key, String value) {
         Map<String, Object> values = new LinkedHashMap<>(meta == null ? Map.of() : meta);
         values.put(key, value);
+        return values;
+    }
+
+    private Map<String, Object> withLimitMeta(Map<String, Object> meta, String toolName, String runtimeLevel) {
+        Map<String, Object> values = new LinkedHashMap<>(meta == null ? Map.of() : meta);
+        values.put("mcp_tool_limit", concurrencyManager.limitMeta(toolName, runtimeLevel));
         return values;
     }
 }

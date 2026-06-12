@@ -1,6 +1,7 @@
 package com.chatchat.mcpserver.ops;
 
 import com.chatchat.mcpserver.tool.AgentRuntimeGovernanceFactory;
+import com.chatchat.mcpserver.tool.McpToolConcurrencyManager;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.modelcontextprotocol.server.McpServerFeatures;
@@ -31,6 +32,7 @@ public class OpsMcpToolPublisher {
     private final HttpRequestToolService httpRequestToolService;
     private final LinuxCommandService linuxCommandService;
     private final AgentRuntimeGovernanceFactory governanceFactory;
+    private final McpToolConcurrencyManager concurrencyManager;
     private final ObjectMapper objectMapper;
     private final Set<String> managedSshToolNames = ConcurrentHashMap.newKeySet();
     private final Set<String> managedHttpToolNames = ConcurrentHashMap.newKeySet();
@@ -81,7 +83,11 @@ public class OpsMcpToolPublisher {
             .build();
         return McpServerFeatures.SyncToolSpecification.builder()
             .tool(tool)
-            .callHandler((exchange, request) -> toCallToolResult(httpRequestToolService.execute(endpoint, request.arguments())))
+            .callHandler((exchange, request) -> concurrencyManager.execute(
+                endpoint.getToolName(),
+                "http",
+                request.arguments(),
+                () -> toCallToolResult(httpRequestToolService.execute(endpoint, request.arguments()))))
             .build();
     }
 
@@ -102,7 +108,11 @@ public class OpsMcpToolPublisher {
             .build();
         return McpServerFeatures.SyncToolSpecification.builder()
             .tool(tool)
-            .callHandler((exchange, request) -> toCallToolResult(httpRequestToolService.execute(request.arguments())))
+            .callHandler((exchange, request) -> concurrencyManager.execute(
+                "http_request",
+                "http",
+                request.arguments(),
+                () -> toCallToolResult(httpRequestToolService.execute(request.arguments()))))
             .build();
     }
 
@@ -121,7 +131,11 @@ public class OpsMcpToolPublisher {
             .build();
         return McpServerFeatures.SyncToolSpecification.builder()
             .tool(tool)
-            .callHandler((exchange, request) -> toCallToolResult(linuxCommandService.execute(host, request.arguments())))
+            .callHandler((exchange, request) -> concurrencyManager.execute(
+                host.getToolName(),
+                "ssh",
+                request.arguments(),
+                () -> toCallToolResult(linuxCommandService.execute(host, request.arguments()))))
             .build();
     }
 
@@ -137,6 +151,7 @@ public class OpsMcpToolPublisher {
         Map<String, Object> meta = new LinkedHashMap<>(governanceFactory.toMeta("ops_builtin", "http_request", governance));
         meta.put("runtime_action", "readonly");
         meta.put("runtimeAction", "readonly");
+        meta.put("mcp_tool_limit", concurrencyManager.limitMeta("http_request", "http"));
         return meta;
     }
 
@@ -157,6 +172,7 @@ public class OpsMcpToolPublisher {
         meta.put("environment", endpoint.getEnvironment());
         meta.put("category", endpoint.getCategory());
         meta.put("method", endpoint.getMethod());
+        meta.put("mcp_tool_limit", concurrencyManager.limitMeta(endpoint.getToolName(), "http"));
         return meta;
     }
 
@@ -181,6 +197,7 @@ public class OpsMcpToolPublisher {
         meta.put("environment", host.getEnvironment());
         meta.put("templateRegistryRequired", true);
         meta.put("allowedCommands", allowedCommands(host));
+        meta.put("mcp_tool_limit", concurrencyManager.limitMeta(host.getToolName(), "ssh"));
         return meta;
     }
 

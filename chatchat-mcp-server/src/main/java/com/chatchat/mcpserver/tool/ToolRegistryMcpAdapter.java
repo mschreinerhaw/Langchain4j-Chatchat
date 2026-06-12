@@ -29,6 +29,7 @@ public class ToolRegistryMcpAdapter {
     private final ObjectMapper objectMapper;
     private final ChatChatMcpServerProperties properties;
     private final AgentRuntimeGovernanceFactory governanceFactory;
+    private final McpToolConcurrencyManager concurrencyManager;
 
     /**
      * Converts the value to tool specifications.
@@ -62,17 +63,22 @@ public class ToolRegistryMcpAdapter {
             return List.of();
         }
 
+        String runtimeLevel = runtimeLevelFor(name, metadata);
         McpSchema.Tool tool = McpSchema.Tool.builder()
             .name(name)
             .title(metadata == null ? name : metadata.getTitle())
             .description(description(toolRegistry, name, metadata))
             .inputSchema(toInputSchema(metadata))
-            .meta(governanceFactory.metaForToolMetadata("builtin_tool", name, metadata))
+            .meta(withLimitMeta(governanceFactory.metaForToolMetadata("builtin_tool", name, metadata), name, runtimeLevel))
             .build();
 
         return List.of(McpServerFeatures.SyncToolSpecification.builder()
             .tool(tool)
-            .callHandler((exchange, request) -> invokeTool(toolRegistry, name, metadata, request))
+            .callHandler((exchange, request) -> concurrencyManager.execute(
+                name,
+                runtimeLevel,
+                request.arguments(),
+                () -> invokeTool(toolRegistry, name, metadata, request)))
             .build());
     }
 
@@ -302,6 +308,28 @@ public class ToolRegistryMcpAdapter {
             return simpleTool.getDescription();
         }
         return "ChatChat tool: " + name;
+    }
+
+    private Map<String, Object> withLimitMeta(Map<String, Object> meta, String toolName, String runtimeLevel) {
+        Map<String, Object> values = new LinkedHashMap<>(meta == null ? Map.of() : meta);
+        values.put("mcp_tool_limit", concurrencyManager.limitMeta(toolName, runtimeLevel));
+        return values;
+    }
+
+    private String runtimeLevelFor(String name, ToolMetadata metadata) {
+        if (metadata != null && metadata.getCategory() != null) {
+            String category = metadata.getCategory().toLowerCase();
+            if (category.contains("http") || category.contains("api")) {
+                return "http";
+            }
+            if (category.contains("sql") || category.contains("database")) {
+                return "sql";
+            }
+            if (category.contains("notification")) {
+                return "notification";
+            }
+        }
+        return null;
     }
 
     /**

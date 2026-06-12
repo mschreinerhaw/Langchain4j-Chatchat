@@ -70,6 +70,11 @@ public class ToolMetadata {
     private String operationType = "read";
 
     /**
+     * Product runtime level: readonly, suggestion, confirm_required, forbidden.
+     */
+    private String runtimeLevel;
+
+    /**
      * Whether this tool should be visible in user confirmation surfaces.
      */
     @Builder.Default

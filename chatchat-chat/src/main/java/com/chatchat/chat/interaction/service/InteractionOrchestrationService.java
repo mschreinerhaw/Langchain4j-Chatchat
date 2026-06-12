@@ -4,6 +4,7 @@ import com.chatchat.chat.interaction.model.InteractionContext;
 import com.chatchat.chat.interaction.model.InteractionMode;
 import com.chatchat.chat.interaction.model.InteractionRequest;
 import com.chatchat.chat.interaction.model.InteractionResponse;
+import com.chatchat.chat.image.ImageUnderstandingService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
@@ -29,6 +30,22 @@ public class InteractionOrchestrationService {
     private static final int DEFAULT_HISTORY_WINDOW = 8;
     private final Map<InteractionMode, InteractionModeHandler> handlers;
     private final ConversationMemoryService memoryService;
+    private final ImageUnderstandingService imageUnderstandingService;
+
+    /**
+     * Creates a new InteractionOrchestrationService instance.
+     *
+     * @param modeHandlers the mode handlers value
+     * @param memoryService the memory service value
+     */
+    public InteractionOrchestrationService(List<InteractionModeHandler> modeHandlers,
+                                           ConversationMemoryService memoryService,
+                                           ImageUnderstandingService imageUnderstandingService) {
+        this.handlers = modeHandlers.stream()
+            .collect(Collectors.toMap(InteractionModeHandler::mode, Function.identity()));
+        this.memoryService = memoryService;
+        this.imageUnderstandingService = imageUnderstandingService;
+    }
 
     /**
      * Creates a new InteractionOrchestrationService instance.
@@ -38,9 +55,7 @@ public class InteractionOrchestrationService {
      */
     public InteractionOrchestrationService(List<InteractionModeHandler> modeHandlers,
                                            ConversationMemoryService memoryService) {
-        this.handlers = modeHandlers.stream()
-            .collect(Collectors.toMap(InteractionModeHandler::mode, Function.identity()));
-        this.memoryService = memoryService;
+        this(modeHandlers, memoryService, null);
     }
 
     /**
@@ -76,6 +91,7 @@ public class InteractionOrchestrationService {
             .history(memoryService.recent(conversationId, historyWindow))
             .build();
 
+        request.setQuery(appendImageContext(request.getQuery(), buildImageContext(request)));
         memoryService.append(conversationId, "user", request.getQuery());
         InteractionResponse response = handler.handle(request, context);
 
@@ -98,5 +114,23 @@ public class InteractionOrchestrationService {
         log.info("[{}] Interaction completed. mode={}, conversationId={}",
             requestId, mode.code(), conversationId);
         return response;
+    }
+
+    private String appendImageContext(String query, String imageContext) {
+        if (imageContext == null || imageContext.isBlank()) {
+            return query;
+        }
+        StringBuilder builder = new StringBuilder();
+        builder.append(query == null ? "" : query.trim());
+        builder.append("\n\n");
+        builder.append(imageContext);
+        return builder.toString();
+    }
+
+    private String buildImageContext(InteractionRequest request) {
+        if (imageUnderstandingService == null) {
+            return "";
+        }
+        return imageUnderstandingService.buildContext(request.getImageAnalysisIds());
     }
 }

@@ -51,6 +51,7 @@ public class AgentTaskService {
     private final AgentTaskProperties properties;
     private final ToolRuntimeService toolRuntimeService;
     private final AgentTaskCancellationRegistry cancellationRegistry;
+    private final AgentLearningService learningService;
 
     @Qualifier("agentTaskExecutor")
     private final ThreadPoolTaskExecutor taskExecutor;
@@ -190,6 +191,68 @@ public class AgentTaskService {
     }
 
     /**
+     * Summarizes product-discovery feedback and adoption signals.
+     *
+     * @param tenantId the tenant id value
+     * @param lowScoreLimit the low score task limit value
+     * @return the operation result
+     */
+    public AgentEffectAnalytics summarizeEffectAnalytics(String tenantId, int lowScoreLimit) {
+        String normalizedTenant = requireTenant(tenantId);
+        AgentTaskLatestRepository.DiscoveryAggregate aggregate =
+            latestRepository.summarizeDiscoveryByTenant(normalizedTenant);
+        long totalTasks = longValue(aggregate == null ? null : aggregate.getTotalTasks());
+        long successTasks = longValue(aggregate == null ? null : aggregate.getSuccessTasks());
+        long failedTasks = longValue(aggregate == null ? null : aggregate.getFailedTasks());
+        long cancelledTasks = longValue(aggregate == null ? null : aggregate.getCancelledTasks());
+        long feedbackTasks = longValue(aggregate == null ? null : aggregate.getFeedbackTasks());
+        long usefulTasks = longValue(aggregate == null ? null : aggregate.getUsefulTasks());
+        long adoptedTasks = longValue(aggregate == null ? null : aggregate.getAdoptedTasks());
+        long resolvedTasks = longValue(aggregate == null ? null : aggregate.getResolvedTasks());
+        int normalizedLimit = Math.max(1, Math.min(lowScoreLimit <= 0 ? 10 : lowScoreLimit, 50));
+
+        List<AgentEffectAnalytics.AgentMetric> agents = latestRepository
+            .summarizeDiscoveryByAgent(normalizedTenant, PageRequest.of(0, 12))
+            .stream()
+            .map(this::toAgentMetric)
+            .toList();
+        List<AgentEffectAnalytics.ReasonMetric> reasonMetrics = latestRepository
+            .countFeedbackReasonsByTenant(normalizedTenant)
+            .stream()
+            .map(row -> new AgentEffectAnalytics.ReasonMetric(
+                row.getReasonCategory(),
+                feedbackReasonLabel(row.getReasonCategory()),
+                row.getTotal(),
+                percentage(row.getTotal(), feedbackTasks)
+            ))
+            .toList();
+        List<AgentTaskResponse> lowScoreTasks = latestRepository
+            .findLowScoreFeedbackTasks(normalizedTenant, PageRequest.of(0, normalizedLimit))
+            .stream()
+            .map(AgentTaskResponse::from)
+            .toList();
+
+        return new AgentEffectAnalytics(
+            normalizedTenant,
+            totalTasks,
+            successTasks,
+            failedTasks,
+            cancelledTasks,
+            feedbackTasks,
+            usefulTasks,
+            adoptedTasks,
+            resolvedTasks,
+            percentage(usefulTasks, feedbackTasks),
+            percentage(adoptedTasks, feedbackTasks),
+            percentage(resolvedTasks, feedbackTasks),
+            percentage(failedTasks, totalTasks),
+            reasonMetrics,
+            agents,
+            lowScoreTasks
+        );
+    }
+
+    /**
      * Performs the poll result operation.
      *
      * @param tenantId the tenant id value
@@ -272,6 +335,45 @@ public class AgentTaskService {
         retryRequest.setQuery(task.getQuestion());
         saveStatusEvent(task, "CANCELLED", Map.of("message", "Task retried and superseded"));
         return submit(retryRequest);
+    }
+
+    /**
+     * Records user feedback for one completed Agent task.
+     *
+     * @param tenantId the tenant id value
+     * @param taskId the task id value
+     * @param request the feedback request value
+     * @return the updated task
+     */
+    @Transactional
+    public AgentTaskResponse recordFeedback(String tenantId, String taskId, AgentTaskFeedbackRequest request) {
+        AgentTaskLatestEntity task = getTaskForTenant(tenantId, taskId);
+        String currentStatus = normalizeStatus(task.getStatus());
+        if (!TERMINAL_STATUSES.contains(currentStatus)) {
+            throw new IllegalArgumentException("Only completed tasks can receive feedback");
+        }
+        if (request == null || (request.getUseful() == null
+            && request.getAdopted() == null
+            && request.getResolved() == null
+            && (request.getComment() == null || request.getComment().isBlank())
+            && (request.getReasonCategory() == null || request.getReasonCategory().isBlank()))) {
+            throw new IllegalArgumentException("Feedback cannot be empty");
+        }
+
+        task.setFeedbackUseful(request.getUseful());
+        task.setFeedbackAdopted(request.getAdopted());
+        task.setFeedbackResolved(request.getResolved());
+        task.setFeedbackComment(truncate(request.getComment(), 1000));
+        task.setFeedbackReasonCategory(normalizeFeedbackReason(request.getReasonCategory()));
+        task.setFeedbackTime(Instant.now());
+        AgentTaskLatestEntity saved = latestRepository.save(task);
+        saveFeedbackEvent(saved, firstText(request.getUserId(), saved.getUserId()));
+        try {
+            learningService.recordExperience(saved, request);
+        } catch (Exception ex) {
+            log.warn("Failed to record Agent experience for taskId={}: {}", saved.getTaskId(), ex.getMessage());
+        }
+        return AgentTaskResponse.from(saved);
     }
 
     /**
@@ -708,6 +810,30 @@ public class AgentTaskService {
         statusEvent.setSequence(nextSequence(source));
         eventStore.save(statusEvent);
         return statusEvent;
+    }
+
+    private AgentEvent saveFeedbackEvent(AgentTaskLatestEntity source, String userId) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("message", "Agent task feedback recorded");
+        payload.put("useful", source.getFeedbackUseful());
+        payload.put("adopted", source.getFeedbackAdopted());
+        payload.put("resolved", source.getFeedbackResolved());
+        payload.put("comment", source.getFeedbackComment());
+        payload.put("reasonCategory", source.getFeedbackReasonCategory());
+        payload.put("feedbackTime", source.getFeedbackTime());
+        AgentEvent feedbackEvent = AgentEvent.builder()
+            .taskId(source.getTaskId())
+            .tenantId(source.getTenantId())
+            .userId(firstText(userId, source.getUserId()))
+            .agentId(source.getAgentId())
+            .sessionId(source.getSessionId())
+            .type("FEEDBACK")
+            .status("RECORDED")
+            .payload(writePayload(payload))
+            .build();
+        feedbackEvent.setSequence(nextSequence(source));
+        eventStore.save(feedbackEvent);
+        return feedbackEvent;
     }
 
     /**
@@ -1200,6 +1326,75 @@ public class AgentTaskService {
         return fallback;
     }
 
+    private long longValue(Long value) {
+        return value == null ? 0L : value;
+    }
+
+    private double percentage(long numerator, long denominator) {
+        if (denominator <= 0) {
+            return 0D;
+        }
+        return Math.round(((double) numerator * 10000D) / (double) denominator) / 100D;
+    }
+
+    private AgentEffectAnalytics.AgentMetric toAgentMetric(AgentTaskLatestRepository.AgentDiscoveryAggregate aggregate) {
+        long totalTasks = longValue(aggregate.getTotalTasks());
+        long failedTasks = longValue(aggregate.getFailedTasks());
+        long feedbackTasks = longValue(aggregate.getFeedbackTasks());
+        long usefulTasks = longValue(aggregate.getUsefulTasks());
+        long adoptedTasks = longValue(aggregate.getAdoptedTasks());
+        long resolvedTasks = longValue(aggregate.getResolvedTasks());
+        return new AgentEffectAnalytics.AgentMetric(
+            firstText(aggregate.getAgentId(), "default-agent"),
+            totalTasks,
+            longValue(aggregate.getSuccessTasks()),
+            failedTasks,
+            feedbackTasks,
+            usefulTasks,
+            adoptedTasks,
+            resolvedTasks,
+            percentage(usefulTasks, feedbackTasks),
+            percentage(adoptedTasks, feedbackTasks),
+            percentage(resolvedTasks, feedbackTasks),
+            percentage(failedTasks, totalTasks)
+        );
+    }
+
+    private String normalizeFeedbackReason(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        String normalized = value.trim().toLowerCase().replace('-', '_');
+        return switch (normalized) {
+            case "answer_correct",
+                 "steps_clear",
+                 "tool_result_accurate",
+                 "environment_mismatch",
+                 "answer_incomplete",
+                 "tool_call_error",
+                 "knowledge_outdated",
+                 "other" -> normalized;
+            default -> "other";
+        };
+    }
+
+    private String feedbackReasonLabel(String value) {
+        String normalized = normalizeFeedbackReason(value);
+        if (normalized == null) {
+            return "其他";
+        }
+        return switch (normalized) {
+            case "answer_correct" -> "答案正确";
+            case "steps_clear" -> "步骤清晰";
+            case "tool_result_accurate" -> "工具结果准确";
+            case "environment_mismatch" -> "环境不匹配";
+            case "answer_incomplete" -> "回答不完整";
+            case "tool_call_error" -> "工具调用错误";
+            case "knowledge_outdated" -> "知识库内容过期";
+            default -> "其他";
+        };
+    }
+
     /**
      * Performs the string value operation.
      *
@@ -1302,6 +1497,14 @@ public class AgentTaskService {
         }
         int maxLength = 500;
         return answer.length() <= maxLength ? answer : answer.substring(0, maxLength);
+    }
+
+    private String truncate(String value, int maxLength) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        String normalized = value.trim();
+        return normalized.length() <= maxLength ? normalized : normalized.substring(0, maxLength);
     }
 
     /**

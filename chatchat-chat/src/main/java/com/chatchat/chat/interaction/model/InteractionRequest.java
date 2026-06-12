@@ -35,6 +35,9 @@ public class InteractionRequest {
     @Builder.Default
     private List<String> availableTools = new ArrayList<>();
 
+    @Builder.Default
+    private List<String> imageAnalysisIds = new ArrayList<>();
+
     private Integer maxResults;
     private Integer historyWindow;
     private Boolean stream;

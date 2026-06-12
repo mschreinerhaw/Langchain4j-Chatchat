@@ -155,6 +155,7 @@ public class McpToolRegistryBridge {
             .category(firstText(definition.category(), "mcp_external"))
             .riskLevel(firstText(definition.riskLevel(), "medium"))
             .operationType(firstText(definition.operationType(), "read"))
+            .runtimeLevel(definition.runtimeLevel())
             .userVisible(definition.userVisible() == null || definition.userVisible())
             .confirmation(emptyToNull(definition.confirmation()))
             .permissions(emptyToNull(definition.permissions()))

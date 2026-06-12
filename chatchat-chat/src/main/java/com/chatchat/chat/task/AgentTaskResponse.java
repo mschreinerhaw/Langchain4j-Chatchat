@@ -12,6 +12,12 @@ public record AgentTaskResponse(
     String question,
     String answerSummary,
     String errorMessage,
+    Boolean feedbackUseful,
+    Boolean feedbackAdopted,
+    Boolean feedbackResolved,
+    String feedbackComment,
+    String feedbackReasonCategory,
+    Instant feedbackTime,
     Instant createTime,
     Instant updateTime
 ) {
@@ -33,6 +39,12 @@ public record AgentTaskResponse(
             entity.getQuestion(),
             entity.getAnswerSummary(),
             entity.getErrorMessage(),
+            entity.getFeedbackUseful(),
+            entity.getFeedbackAdopted(),
+            entity.getFeedbackResolved(),
+            entity.getFeedbackComment(),
+            entity.getFeedbackReasonCategory(),
+            entity.getFeedbackTime(),
             entity.getCreateTime(),
             entity.getUpdateTime()
         );

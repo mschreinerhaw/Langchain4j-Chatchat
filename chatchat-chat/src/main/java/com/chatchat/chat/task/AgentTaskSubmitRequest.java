@@ -28,5 +28,6 @@ public class AgentTaskSubmitRequest {
     private Integer historyWindow;
     private Boolean stream;
     private List<String> availableTools = new ArrayList<>();
+    private List<String> imageAnalysisIds = new ArrayList<>();
     private Map<String, Object> toolInput = new HashMap<>();
 }

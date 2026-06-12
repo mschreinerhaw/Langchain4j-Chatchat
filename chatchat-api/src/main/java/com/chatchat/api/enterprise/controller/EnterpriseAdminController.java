@@ -19,6 +19,8 @@ import com.chatchat.enterprise.repository.SysTenantRepository;
 import com.chatchat.enterprise.service.EnterpriseAdminService;
 import com.chatchat.common.constants.AppConstants;
 import com.chatchat.common.response.ApiResponse;
+import com.chatchat.chat.skills.SkillCatalogService;
+import com.chatchat.chat.skills.SkillDefinition;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -49,6 +51,7 @@ public class EnterpriseAdminController {
     private final McpToolPermissionRepository toolPermissionRepository;
     private final DataSourceConfigRepository dataSourceRepository;
     private final SysAuditLogRepository auditLogRepository;
+    private final SkillCatalogService skillCatalogService;
 
     /**
      * Performs the login operation.
@@ -279,6 +282,19 @@ public class EnterpriseAdminController {
     @GetMapping("/permissions")
     public ApiResponse<List<SysPermission>> listPermissions() {
         return ApiResponse.success(adminService.listPermissions());
+    }
+
+    /**
+     * Lists the agent options for role binding.
+     *
+     * @return the agent options list
+     */
+    @GetMapping("/agent-options")
+    public ApiResponse<List<AgentOption>> listAgentOptions() {
+        List<AgentOption> options = skillCatalogService.list().stream()
+            .map(this::toAgentOption)
+            .toList();
+        return ApiResponse.success(options);
     }
 
     /**
@@ -558,5 +574,24 @@ public class EnterpriseAdminController {
     }
 
     public record MenuItem(String id, String title, String path) {
+    }
+
+    public record AgentOption(
+        String id,
+        String name,
+        String description,
+        String marketStatus,
+        List<String> skillTags
+    ) {
+    }
+
+    private AgentOption toAgentOption(SkillDefinition skill) {
+        return new AgentOption(
+            skill.id(),
+            skill.label(),
+            skill.description(),
+            skill.marketStatus(),
+            skill.skillTags()
+        );
     }
 }

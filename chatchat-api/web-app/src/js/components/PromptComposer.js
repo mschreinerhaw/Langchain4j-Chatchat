@@ -1,4 +1,4 @@
-import { Bot, FileText, Globe, Send, Trash2, Upload, XCircle } from "@lucide/vue";
+import { Bot, FileText, Globe, ImagePlus, Send, Trash2, Upload, XCircle } from "@lucide/vue";
 
 export default {
   name: "PromptComposer",
@@ -6,6 +6,7 @@ export default {
     Bot,
     FileText,
     Globe,
+    ImagePlus,
     Send,
     Trash2,
     Upload,
@@ -45,7 +46,7 @@ export default {
       default: false
     }
   },
-  emits: ["clear", "pick", "send", "stop", "update:modelValue", "update:selectedAgentId", "upload"],
+  emits: ["clear", "image-upload", "pick", "send", "stop", "update:modelValue", "update:selectedAgentId", "upload"],
   data() {
     return {
       draft: this.modelValue,

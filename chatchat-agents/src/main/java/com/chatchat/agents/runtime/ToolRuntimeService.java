@@ -631,6 +631,7 @@ public class ToolRuntimeService {
         if (policyDecision != null) {
             values.put("policyResult", policyDecision.action().code());
             values.put("policyReason", policyDecision.reason());
+            values.put("runtimeLevel", policyDecision.runtimeLevel());
             values.put("riskLevel", policyDecision.riskLevel());
             values.put("operationType", policyDecision.operationType());
             values.put("dataScope", policyDecision.dataScope());
@@ -686,6 +687,7 @@ public class ToolRuntimeService {
             .allowed(override.allowed() != null ? override.allowed() : base.allowed())
             .reason(firstText(override.reason(), base.reason()))
             .executionAction(override.executionAction() != null ? override.executionAction() : base.executionAction())
+            .runtimeLevel(firstText(override.runtimeLevel(), base.runtimeLevel()))
             .maxCallsPerMinute(override.maxCallsPerMinute() != null ? override.maxCallsPerMinute() : base.maxCallsPerMinute())
             .requiresAuthentication(override.requiresAuthentication() != null ? override.requiresAuthentication() : base.requiresAuthentication())
             .circuitBreakerFailureThreshold(override.circuitBreakerFailureThreshold() != null
@@ -766,10 +768,14 @@ public class ToolRuntimeService {
                                                ToolExecutionPlan executionPlan) {
         String riskLevel = normalizePolicyKey(firstText(executionPlan.riskLevel(), metadata == null ? "low" : metadata.getRiskLevel()));
         String operationType = firstText(executionPlan.operationType(), metadata == null ? "read" : metadata.getOperationType());
+        String runtimeLevel = resolveRuntimeLevel(toolName, request, metadata, policy, executionPlan);
         String dataScope = inferDataScope(toolInput == null ? Map.of() : toolInput.getParameters());
         if (mcpPolicyProperties == null || !mcpPolicyProperties.isEnabled() || !isMcpGovernedTool(toolName, metadata)) {
-            return new ToolPolicyDecision(ToolRuntimeAction.AUTO_EXECUTE, "MCP policy not applicable",
-                riskLevel, operationType, dataScope, List.of(), confirmationToken(request, executionPlan));
+            ToolRuntimeAction action = actionForRuntimeLevel(runtimeLevel);
+            return new ToolPolicyDecision(action, "Runtime level resolved action " + action.code(),
+                runtimeLevel, riskLevel, operationType, dataScope,
+                List.of("runtime_level." + runtimeLevel + "=" + action.code()),
+                confirmationToken(request, executionPlan));
         }
 
         List<String> matchedRules = new ArrayList<>();
@@ -792,6 +798,14 @@ public class ToolRuntimeService {
             action = policy.executionAction();
             matchedRules.add("runtime_policy_provider=" + action.code());
         }
+
+        ToolRuntimeAction levelAction = actionForRuntimeLevel(runtimeLevel);
+        if (levelAction == ToolRuntimeAction.DENY) {
+            action = ToolRuntimeAction.DENY;
+        } else if (levelAction == ToolRuntimeAction.ASK_BEFORE_EXECUTE && action != ToolRuntimeAction.DENY) {
+            action = ToolRuntimeAction.ASK_BEFORE_EXECUTE;
+        }
+        matchedRules.add("runtime_level." + runtimeLevel + "=" + levelAction.code());
 
         ToolRuntimeAction toolAction = actionForTool(toolName, metadata);
         if (toolAction != null) {
@@ -833,7 +847,82 @@ public class ToolRuntimeService {
              * @param executionPlan the execution plan value
              * @return the operation result
              */
-            riskLevel, operationType, dataScope, matchedRules, confirmationToken(request, executionPlan));
+            runtimeLevel, riskLevel, operationType, dataScope, matchedRules, confirmationToken(request, executionPlan));
+    }
+
+    private String resolveRuntimeLevel(String toolName,
+                                       ToolRuntimeRequest request,
+                                       ToolMetadata metadata,
+                                       ToolRuntimePolicy policy,
+                                       ToolExecutionPlan executionPlan) {
+        String value = null;
+        value = firstText(properties.getDefaultRuntimeLevel(), value);
+        value = firstText(levelFromOperationAndRisk(executionPlan), value);
+        value = firstText(metadata == null ? null : metadata.getRuntimeLevel(), value);
+        value = firstText(configuredRuntimeLevel(toolName, metadata), value);
+        value = firstText(policy == null ? null : policy.runtimeLevel(), value);
+        Map<String, Object> requestAttributes = request == null ? null : request.getAttributes();
+        if (requestAttributes != null) {
+            Map<String, Object> plan = asMap(requestAttributes.get("executionPlan"));
+            value = firstText(stringValue(firstPresent(
+                requestAttributes.get("runtimeLevel"),
+                requestAttributes.get("toolRuntimeLevel"),
+                plan.get("runtime_level"),
+                plan.get("runtimeLevel")
+            )), value);
+        }
+        return normalizeRuntimeLevel(value);
+    }
+
+    private String configuredRuntimeLevel(String toolName, ToolMetadata metadata) {
+        if (properties == null || properties.getLevelPolicy() == null || properties.getLevelPolicy().isEmpty()) {
+            return null;
+        }
+        for (String candidate : toolPolicyKeys(toolName, metadata)) {
+            String configured = valueForKey(properties.getLevelPolicy(), candidate);
+            if (configured != null && !configured.isBlank()) {
+                return configured;
+            }
+        }
+        return null;
+    }
+
+    private String levelFromOperationAndRisk(ToolExecutionPlan executionPlan) {
+        if (executionPlan == null) {
+            return null;
+        }
+        String risk = normalizePolicyKey(executionPlan.riskLevel());
+        if ("forbidden".equals(risk)) {
+            return "forbidden";
+        }
+        if ("high".equals(risk) || "medium".equals(risk)) {
+            return "confirm_required";
+        }
+        String operation = normalizePolicyKey(executionPlan.operationType());
+        if ("write".equals(operation) || "send".equals(operation) || "delete".equals(operation)
+            || "permission_change".equals(operation)) {
+            return "confirm_required";
+        }
+        return "readonly";
+    }
+
+    private ToolRuntimeAction actionForRuntimeLevel(String runtimeLevel) {
+        return switch (normalizeRuntimeLevel(runtimeLevel)) {
+            case "forbidden" -> ToolRuntimeAction.DENY;
+            case "confirm_required" -> ToolRuntimeAction.ASK_BEFORE_EXECUTE;
+            default -> ToolRuntimeAction.AUTO_EXECUTE;
+        };
+    }
+
+    private String normalizeRuntimeLevel(String runtimeLevel) {
+        String value = normalizePolicyKey(runtimeLevel);
+        return switch (value) {
+            case "readonly", "read_only", "read" -> "readonly";
+            case "suggestion", "suggest", "advice" -> "suggestion";
+            case "confirm_required", "confirmation_required", "ask_before_execute", "confirm" -> "confirm_required";
+            case "forbidden", "deny", "blocked" -> "forbidden";
+            default -> "readonly";
+        };
     }
 
     /**
@@ -1146,7 +1235,7 @@ public class ToolRuntimeService {
             action = ToolRuntimeAction.AUTO_EXECUTE;
             reason = workflowDecision.reason();
         }
-        return new ToolPolicyDecision(action, reason, base.riskLevel(), base.operationType(),
+        return new ToolPolicyDecision(action, reason, base.runtimeLevel(), base.riskLevel(), base.operationType(),
             base.dataScope(), matchedRules, base.confirmationToken());
     }
 
@@ -1278,6 +1367,7 @@ public class ToolRuntimeService {
         payload.put("purpose", executionPlan == null ? null : executionPlan.reason());
         payload.put("toolName", request == null ? null : request.getToolName());
         payload.put("displayName", resolveDisplayName(request == null ? null : request.getToolName(), metadata));
+        payload.put("runtimeLevel", policyDecision.runtimeLevel());
         payload.put("riskLevel", policyDecision.riskLevel());
         payload.put("parameters", executionPlan == null ? Map.of() : executionPlan.parameters());
         payload.put("dataScope", policyDecision.dataScope());
@@ -2470,6 +2560,7 @@ public class ToolRuntimeService {
     private record ToolPolicyDecision(
         ToolRuntimeAction action,
         String reason,
+        String runtimeLevel,
         String riskLevel,
         String operationType,
         String dataScope,

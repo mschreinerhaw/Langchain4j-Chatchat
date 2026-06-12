@@ -1,18 +1,30 @@
 package com.chatchat.api.agent.task;
 
+import com.chatchat.agents.runtime.ToolRuntimeProperties;
+import com.chatchat.agents.runtime.ToolRuntimeSnapshot;
+import com.chatchat.agents.tool.ToolRegistry;
+import com.chatchat.chat.task.AgentEffectAnalytics;
 import com.chatchat.chat.task.AgentEvent;
+import com.chatchat.chat.task.AgentExperienceSummary;
+import com.chatchat.chat.task.AgentLearningService;
+import com.chatchat.chat.task.AgentTaskFeedbackRequest;
 import com.chatchat.chat.task.AgentRuntimeSummary;
 import com.chatchat.chat.task.AgentTaskResponse;
 import com.chatchat.chat.task.AgentTaskService;
 import com.chatchat.chat.task.AgentTaskSubmitRequest;
+import com.chatchat.api.security.ApiAuthenticationFilter;
 import com.chatchat.common.constants.AppConstants;
 import com.chatchat.common.response.ApiResponse;
+import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.enterprise.entity.SysAuditLog;
 import com.chatchat.enterprise.repository.SysAuditLogRepository;
+import com.chatchat.enterprise.service.EnterpriseAdminService;
+import com.chatchat.integration.mcp.service.McpToolRegistryBridge;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -23,7 +35,14 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.time.Instant;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @RestController
 @RequiredArgsConstructor
@@ -34,6 +53,11 @@ public class AgentTaskController {
     private final AgentTaskService taskService;
     private final SysAuditLogRepository auditLogRepository;
     private final ObjectMapper objectMapper;
+    private final ToolRegistry toolRegistry;
+    private final ToolRuntimeProperties toolRuntimeProperties;
+    private final McpToolRegistryBridge mcpToolRegistryBridge;
+    private final AgentLearningService learningService;
+    private final EnterpriseAdminService enterpriseAdminService;
 
     /**
      * Performs the submit operation.
@@ -43,8 +67,19 @@ public class AgentTaskController {
      */
     @PostMapping
     @Operation(summary = "Submit one async Agent task")
-    public ApiResponse<AgentTaskResponse> submit(@RequestBody AgentTaskSubmitRequest request) {
+    public ApiResponse<AgentTaskResponse> submit(@RequestBody AgentTaskSubmitRequest request,
+                                                 HttpServletRequest servletRequest) {
         try {
+            String requestedAgentId = firstText(request.getSkillId(), request.getAgentId());
+            String currentUserId = currentUserId(servletRequest);
+            if (requestedAgentId != null
+                && currentUserId != null
+                && !enterpriseAdminService.canAccessAgent(currentUserId, requestedAgentId)) {
+                return ApiResponse.badRequest("Current role is not allowed to use this Agent");
+            }
+            if ((request.getUserId() == null || request.getUserId().isBlank()) && currentUsername(servletRequest) != null) {
+                request.setUserId(currentUsername(servletRequest));
+            }
             return ApiResponse.success(taskService.submit(request), "Agent task submitted");
         } catch (IllegalArgumentException e) {
             return ApiResponse.badRequest(e.getMessage());
@@ -223,6 +258,130 @@ public class AgentTaskController {
         }
     }
 
+    private String currentUserId(HttpServletRequest request) {
+        if (request == null) {
+            return null;
+        }
+        Object value = request.getAttribute(ApiAuthenticationFilter.CURRENT_USER_ID);
+        return value == null ? null : String.valueOf(value);
+    }
+
+    private String currentUsername(HttpServletRequest request) {
+        if (request == null) {
+            return null;
+        }
+        Object value = request.getAttribute(ApiAuthenticationFilter.CURRENT_USERNAME);
+        return value == null ? null : String.valueOf(value);
+    }
+
+    private String firstText(String... values) {
+        if (values == null) {
+            return null;
+        }
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value.trim();
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Performs the effect analytics operation.
+     *
+     * @param tenantId the tenant id value
+     * @param lowScoreLimit the low score limit value
+     * @return the operation result
+     */
+    @GetMapping("/runtime/effects")
+    @Operation(summary = "Get Agent effect analytics from user feedback")
+    public ApiResponse<AgentEffectAnalytics> effects(@RequestParam("tenantId") String tenantId,
+                                                     @RequestParam(value = "lowScoreLimit", defaultValue = "10") int lowScoreLimit) {
+        try {
+            return ApiResponse.success(taskService.summarizeEffectAnalytics(tenantId, lowScoreLimit));
+        } catch (IllegalArgumentException e) {
+            return ApiResponse.badRequest(e.getMessage());
+        }
+    }
+
+    /**
+     * Performs the experiences operation.
+     *
+     * @param tenantId the tenant id value
+     * @param limit the limit value
+     * @return the operation result
+     */
+    @GetMapping("/runtime/experiences")
+    @Operation(summary = "Get Agent Experience Store entries and scenario metrics")
+    public ApiResponse<AgentExperienceSummary> experiences(@RequestParam("tenantId") String tenantId,
+                                                           @RequestParam(value = "limit", defaultValue = "20") int limit) {
+        try {
+            return ApiResponse.success(learningService.summarize(tenantId, limit));
+        } catch (IllegalArgumentException e) {
+            return ApiResponse.badRequest(e.getMessage());
+        }
+    }
+
+    /**
+     * Performs the tool governance operation.
+     *
+     * @param tenantId the tenant id value
+     * @return the operation result
+     */
+    @GetMapping("/runtime/tool-governance")
+    @Operation(summary = "List tool governance levels and default runtime actions")
+    public ApiResponse<ToolGovernanceSummary> toolGovernance(@RequestParam("tenantId") String tenantId) {
+        try {
+            String normalizedTenant = requireTenant(tenantId);
+            Map<String, McpToolRegistryBridge.RegisteredMcpTool> mcpToolsByName = mcpToolRegistryBridge
+                .listRegisteredTools()
+                .stream()
+                .collect(Collectors.toMap(
+                    McpToolRegistryBridge.RegisteredMcpTool::localToolName,
+                    Function.identity(),
+                    (left, right) -> left,
+                    LinkedHashMap::new
+                ));
+            Map<String, ToolRuntimeSnapshot.ToolMetric> runtimeMetrics = taskService
+                .summarizeRuntime(normalizedTenant, 1)
+                .toolRuntime()
+                .topTools()
+                .stream()
+                .collect(Collectors.toMap(
+                    ToolRuntimeSnapshot.ToolMetric::toolName,
+                    Function.identity(),
+                    (left, right) -> left,
+                    LinkedHashMap::new
+                ));
+            Set<String> names = new LinkedHashSet<>(toolRegistry.getAllToolNames());
+            names.addAll(mcpToolsByName.keySet());
+            List<ToolGovernanceView> tools = names.stream()
+                .filter(name -> name != null && !name.isBlank())
+                .map(name -> toToolGovernanceView(name, mcpToolsByName.get(name), runtimeMetrics.get(name)))
+                .sorted(Comparator.comparing(ToolGovernanceView::runtimeLevel).thenComparing(ToolGovernanceView::toolName))
+                .toList();
+            Map<String, Long> levelCounts = tools.stream()
+                .collect(Collectors.groupingBy(ToolGovernanceView::runtimeLevel, LinkedHashMap::new, Collectors.counting()));
+            return ApiResponse.success(new ToolGovernanceSummary(normalizedTenant, tools.size(), levelCounts, tools));
+        } catch (IllegalArgumentException e) {
+            return ApiResponse.badRequest(e.getMessage());
+        }
+    }
+
+    @PostMapping("/{taskId}/feedback")
+    @Operation(summary = "Record product discovery feedback for one completed Agent task")
+    public ApiResponse<AgentTaskResponse> feedback(@RequestParam("tenantId") String tenantId,
+                                                   @PathVariable("taskId") String taskId,
+                                                   @RequestBody AgentTaskFeedbackRequest request) {
+        try {
+            return ApiResponse.success(taskService.recordFeedback(tenantId, taskId, request), "Agent task feedback recorded");
+        } catch (IllegalArgumentException e) {
+            return ApiResponse.badRequest(e.getMessage());
+        } catch (Exception e) {
+            return ApiResponse.internalError("Agent task feedback failed: " + e.getMessage());
+        }
+    }
+
     /**
      * Converts the value to tool audit view.
      *
@@ -246,6 +405,41 @@ public class AgentTaskController {
             longValue(detail, "durationMs"),
             textValue(detail, "errorCode"),
             textValue(detail, "errorMessage")
+        );
+    }
+
+    private ToolGovernanceView toToolGovernanceView(String toolName,
+                                                    McpToolRegistryBridge.RegisteredMcpTool mcpTool,
+                                                    ToolRuntimeSnapshot.ToolMetric metric) {
+        ToolMetadata metadata = toolRegistry.getToolMetadata(toolName);
+        ToolRegistry.Tool simpleTool = toolRegistry.getTool(toolName);
+        String runtimeLevel = normalizeRuntimeLevel(firstText(
+            configuredRuntimeLevel(toolName),
+            metadata == null ? null : metadata.getRuntimeLevel(),
+            toolRuntimeProperties.getDefaultRuntimeLevel()
+        ));
+        String sourceType = mcpTool == null ? "backend" : "mcp";
+        return new ToolGovernanceView(
+            toolName,
+            firstText(metadata == null ? null : metadata.getTitle(), simpleTool == null ? null : simpleTool.getName(), toolName),
+            sourceType,
+            mcpTool == null ? null : mcpTool.serviceId(),
+            mcpTool == null ? null : mcpTool.serviceName(),
+            runtimeLevel,
+            actionForRuntimeLevel(runtimeLevel),
+            "confirm_required".equals(runtimeLevel),
+            "forbidden".equals(runtimeLevel),
+            mcpTool != null,
+            metadata == null ? null : metadata.getRiskLevel(),
+            metadata == null ? null : metadata.getOperationType(),
+            metadata != null && metadata.isRequiresAuth(),
+            metadata != null && metadata.isRateLimited(),
+            metric == null ? 0L : metric.totalCalls(),
+            metric == null ? 0L : metric.successCalls(),
+            metric == null ? 0L : metric.failedCalls(),
+            metric == null ? 0L : metric.deniedCalls(),
+            metric == null ? 0L : metric.rateLimitedCalls(),
+            metric == null ? 0L : metric.circuitOpenRejects()
         );
     }
 
@@ -320,6 +514,33 @@ public class AgentTaskController {
         return value == null || value.isBlank() ? null : value.trim();
     }
 
+    private String configuredRuntimeLevel(String toolName) {
+        if (toolRuntimeProperties.getLevelPolicy() == null || toolName == null) {
+            return null;
+        }
+        return toolRuntimeProperties.getLevelPolicy().get(toolName);
+    }
+
+    private String normalizeRuntimeLevel(String value) {
+        String normalized = normalizeText(value);
+        if (normalized == null) {
+            return "readonly";
+        }
+        normalized = normalized.toLowerCase().replace('-', '_');
+        return switch (normalized) {
+            case "suggestion", "confirm_required", "forbidden" -> normalized;
+            default -> "readonly";
+        };
+    }
+
+    private String actionForRuntimeLevel(String runtimeLevel) {
+        return switch (normalizeRuntimeLevel(runtimeLevel)) {
+            case "forbidden" -> "deny";
+            case "confirm_required" -> "ask_before_execute";
+            default -> "auto_execute";
+        };
+    }
+
     /**
      * Performs the first text operation.
      *
@@ -329,6 +550,10 @@ public class AgentTaskController {
      */
     private String firstText(String primary, String fallback) {
         return primary == null || primary.isBlank() ? fallback : primary;
+    }
+
+    private String firstText(String first, String second, String third) {
+        return firstText(firstText(first, second), third);
     }
 
     public record ToolAuditView(
@@ -346,6 +571,38 @@ public class AgentTaskController {
         Long durationMs,
         String errorCode,
         String errorMessage
+    ) {
+    }
+
+    public record ToolGovernanceSummary(
+        String tenantId,
+        int totalTools,
+        Map<String, Long> levelCounts,
+        List<ToolGovernanceView> tools
+    ) {
+    }
+
+    public record ToolGovernanceView(
+        String toolName,
+        String displayName,
+        String sourceType,
+        String serviceId,
+        String serviceName,
+        String runtimeLevel,
+        String defaultAction,
+        boolean confirmationRequired,
+        boolean disabled,
+        boolean mcpSynchronized,
+        String riskLevel,
+        String operationType,
+        boolean requiresAuth,
+        boolean rateLimited,
+        long totalCalls,
+        long successCalls,
+        long failedCalls,
+        long deniedCalls,
+        long rateLimitedCalls,
+        long circuitOpenRejects
     ) {
     }
 }

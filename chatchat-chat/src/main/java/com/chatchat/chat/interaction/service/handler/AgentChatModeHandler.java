@@ -11,7 +11,8 @@ import com.chatchat.chat.interaction.service.InteractionModeHandler;
 import com.chatchat.chat.skills.SkillCatalogService;
 import com.chatchat.chat.skills.SkillDefinition;
 import com.chatchat.chat.skills.SkillToolConfig;
-import lombok.RequiredArgsConstructor;
+import com.chatchat.chat.task.AgentLearningService;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.LinkedHashMap;
@@ -23,7 +24,6 @@ import java.util.stream.Collectors;
  * Agent interaction handler with tool orchestration.
  */
 @Component
-@RequiredArgsConstructor
 public class AgentChatModeHandler implements InteractionModeHandler {
 
     private static final int WEB_SEARCH_REFERENCE_LIMIT = 10;
@@ -31,6 +31,27 @@ public class AgentChatModeHandler implements InteractionModeHandler {
     private final AgentOrchestrator agentOrchestrator;
     private final SkillCatalogService skillCatalogService;
     private final AgentToolPolicyResolver toolPolicyResolver;
+    private final AgentLearningService learningService;
+
+    @Autowired
+    public AgentChatModeHandler(AgentOrchestrator agentOrchestrator,
+                                SkillCatalogService skillCatalogService,
+                                AgentToolPolicyResolver toolPolicyResolver,
+                                AgentLearningService learningService) {
+        this.agentOrchestrator = agentOrchestrator;
+        this.skillCatalogService = skillCatalogService;
+        this.toolPolicyResolver = toolPolicyResolver;
+        this.learningService = learningService;
+    }
+
+    public AgentChatModeHandler(AgentOrchestrator agentOrchestrator,
+                                SkillCatalogService skillCatalogService,
+                                AgentToolPolicyResolver toolPolicyResolver) {
+        this.agentOrchestrator = agentOrchestrator;
+        this.skillCatalogService = skillCatalogService;
+        this.toolPolicyResolver = toolPolicyResolver;
+        this.learningService = null;
+    }
 
     /**
      * Performs the mode operation.
@@ -53,7 +74,13 @@ public class AgentChatModeHandler implements InteractionModeHandler {
     public InteractionResponse handle(InteractionRequest request, InteractionContext context) {
         SkillDefinition skill = skillCatalogService.resolve(request.getSkillId());
         AgentToolPolicyResolver.ToolPolicy toolPolicy = toolPolicyResolver.resolve(request, skill);
-        String systemPrompt = resolveSystemPrompt(request, skill, context);
+        String experienceContext = learningService == null ? "" : learningService.buildRuntimeExperienceContext(
+                request.getTenantId(),
+                skill == null ? request.getSkillId() : skill.id(),
+                request.getQuery(),
+                toolPolicy.availableTools()
+            );
+        String systemPrompt = appendExperienceContext(resolveSystemPrompt(request, skill, context), experienceContext);
         String modelName = skill.modelName() != null && !skill.modelName().isBlank()
             ? skill.modelName()
             : request.getModelName();
@@ -106,6 +133,7 @@ public class AgentChatModeHandler implements InteractionModeHandler {
         metadata.put("agent", result.metadata());
         metadata.put("handler", "AgentChatModeHandler");
         metadata.put("historyUsed", context.history() == null ? 0 : context.history().size());
+        metadata.put("experienceHintsUsed", !experienceContext.isBlank());
 
         return InteractionResponse.builder()
             .answer(result.answer())
@@ -157,6 +185,18 @@ public class AgentChatModeHandler implements InteractionModeHandler {
             .filter(message -> message != null && message.content() != null && !message.content().isBlank())
             .map(this::formatHistoryMessage)
             .collect(Collectors.joining("\n"));
+    }
+
+    private String appendExperienceContext(String systemPrompt, String experienceContext) {
+        if (experienceContext == null || experienceContext.isBlank()) {
+            return systemPrompt;
+        }
+        StringBuilder builder = new StringBuilder();
+        if (systemPrompt != null && !systemPrompt.isBlank()) {
+            builder.append(systemPrompt).append("\n\n");
+        }
+        builder.append(experienceContext);
+        return builder.toString();
     }
 
     /**

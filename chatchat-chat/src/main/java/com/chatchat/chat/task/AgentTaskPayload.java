@@ -31,6 +31,7 @@ public class AgentTaskPayload {
             .modelName(request.getModelName())
             .skillId(skillId)
             .availableTools(request.getAvailableTools() == null ? new ArrayList<>() : request.getAvailableTools())
+            .imageAnalysisIds(request.getImageAnalysisIds() == null ? new ArrayList<>() : request.getImageAnalysisIds())
             .toolInput(request.getToolInput())
             .maxResults(request.getMaxResults())
             .historyWindow(request.getHistoryWindow())

@@ -5,6 +5,7 @@ import com.chatchat.enterprise.entity.ExternalOrg;
 import com.chatchat.enterprise.entity.ExternalUser;
 import com.chatchat.enterprise.entity.McpToolAsset;
 import com.chatchat.enterprise.entity.McpToolPermission;
+import com.chatchat.enterprise.entity.RoleAgentBinding;
 import com.chatchat.enterprise.entity.SysAuditLog;
 import com.chatchat.enterprise.entity.SysOrg;
 import com.chatchat.enterprise.entity.SysPermission;
@@ -19,6 +20,7 @@ import com.chatchat.enterprise.repository.ExternalOrgRepository;
 import com.chatchat.enterprise.repository.ExternalUserRepository;
 import com.chatchat.enterprise.repository.McpToolAssetRepository;
 import com.chatchat.enterprise.repository.McpToolPermissionRepository;
+import com.chatchat.enterprise.repository.RoleAgentBindingRepository;
 import com.chatchat.enterprise.repository.SysAuditLogRepository;
 import com.chatchat.enterprise.repository.SysOrgRepository;
 import com.chatchat.enterprise.repository.SysPermissionRepository;
@@ -43,6 +45,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -64,6 +67,7 @@ public class EnterpriseAdminService implements ApplicationRunner {
     private final SysPermissionRepository permissionRepository;
     private final SysRolePermissionRepository rolePermissionRepository;
     private final SysRoleOrgScopeRepository roleOrgScopeRepository;
+    private final RoleAgentBindingRepository roleAgentBindingRepository;
     private final ExternalOrgRepository externalOrgRepository;
     private final ExternalUserRepository externalUserRepository;
     private final McpToolAssetRepository toolAssetRepository;
@@ -141,16 +145,27 @@ public class EnterpriseAdminService implements ApplicationRunner {
      */
     @Transactional(readOnly = true)
     public boolean isTokenValid(String token) {
+        return resolveUserByToken(token)
+            .filter(user -> "enabled".equalsIgnoreCase(user.getStatus()))
+            .isPresent();
+    }
+
+    /**
+     * Resolves the user by bearer token.
+     *
+     * @param token the token value
+     * @return the matching user
+     */
+    @Transactional(readOnly = true)
+    public Optional<SysUser> resolveUserByToken(String token) {
         if (token == null || token.isBlank()) {
-            return false;
+            return Optional.empty();
         }
         String userId = activeTokens.get(token.trim());
         if (userId == null || userId.isBlank()) {
-            return false;
+            return Optional.empty();
         }
-        return userRepository.findById(userId)
-            .filter(user -> "enabled".equalsIgnoreCase(user.getStatus()))
-            .isPresent();
+        return userRepository.findById(userId);
     }
 
     /**
@@ -305,11 +320,16 @@ public class EnterpriseAdminService implements ApplicationRunner {
         List<String> userIds = userRoleRepository.findByRoleId(role.getId()).stream()
             .map(SysUserRole::getUserId)
             .toList();
+        List<String> agentIds = roleAgentBindingRepository.findByRoleId(role.getId()).stream()
+            .map(RoleAgentBinding::getAgentId)
+            .distinct()
+            .toList();
         return new RoleAuthorizationView(
             role,
             permissionIds,
             roleOrgScopeRepository.findByRoleIdOrderByScopeTypeAscOrgIdAsc(role.getId()),
-            userIds
+            userIds,
+            agentIds
         );
     }
 
@@ -373,8 +393,26 @@ public class EnterpriseAdminService implements ApplicationRunner {
                 });
         }
 
+        roleAgentBindingRepository.deleteByRoleId(role.getId());
+        List<String> agentIds = request == null || request.agentIds() == null
+            ? List.of()
+            : request.agentIds();
+        agentIds.stream()
+            .filter(id -> id != null && !id.isBlank())
+            .map(id -> id.trim().toLowerCase())
+            .distinct()
+            .forEach(agentId -> {
+                RoleAgentBinding binding = new RoleAgentBinding();
+                binding.setTenantId(tenantId);
+                binding.setRoleId(role.getId());
+                binding.setAgentId(agentId);
+                roleAgentBindingRepository.save(binding);
+            });
+
         audit(tenantId, null, "system", "role", "authorize",
-            "sys_role", role.getId(), "permissions=" + permissionIds.size() + ", scopes=" + orgScopes.size());
+            "sys_role", role.getId(), "permissions=" + permissionIds.size()
+                + ", scopes=" + orgScopes.size()
+                + ", agents=" + agentIds.size());
         return getRoleAuthorization(role.getId());
     }
 
@@ -602,6 +640,7 @@ public class EnterpriseAdminService implements ApplicationRunner {
                 rolePermissionRepository.deleteByRoleId(id);
                 roleOrgScopeRepository.deleteByRoleId(id);
                 userRoleRepository.deleteByRoleId(id);
+                roleAgentBindingRepository.deleteByRoleId(id);
                 roleRepository.deleteById(id);
             }
             case "permission" -> {
@@ -662,6 +701,102 @@ public class EnterpriseAdminService implements ApplicationRunner {
             user.getCreatedAt(),
             user.getUpdatedAt()
         );
+    }
+
+    /**
+     * Returns whether the user has unrestricted agent access.
+     *
+     * @param userId the user id value
+     * @return whether the user has all agent permissions
+     */
+    @Transactional(readOnly = true)
+    public boolean hasAllAgentAccess(String userId) {
+        return resolveUser(userId)
+            .map(this::hasAllAgentAccess)
+            .orElse(false);
+    }
+
+    /**
+     * Returns whether can access agent.
+     *
+     * @param userId the user id value
+     * @param agentId the agent id value
+     * @return whether access is allowed
+     */
+    @Transactional(readOnly = true)
+    public boolean canAccessAgent(String userId, String agentId) {
+        String normalizedAgentId = normalizeAgentId(agentId);
+        if (normalizedAgentId == null) {
+            return true;
+        }
+        Optional<SysUser> user = resolveUser(userId);
+        if (user.isEmpty()) {
+            return false;
+        }
+        if (hasAllAgentAccess(user.get())) {
+            return true;
+        }
+        return accessibleAgentIdsForUserId(user.get().getId()).contains(normalizedAgentId);
+    }
+
+    /**
+     * Lists the accessible agent ids for a non-admin user.
+     *
+     * @param userId the user id value
+     * @return the accessible agent ids
+     */
+    @Transactional(readOnly = true)
+    public Set<String> accessibleAgentIds(String userId) {
+        return resolveUser(userId)
+            .map(user -> hasAllAgentAccess(user) ? Set.<String>of() : accessibleAgentIdsForUserId(user.getId()))
+            .orElse(Set.of());
+    }
+
+    private Optional<SysUser> resolveUser(String userIdOrUsername) {
+        if (userIdOrUsername == null || userIdOrUsername.isBlank()) {
+            return Optional.empty();
+        }
+        String value = userIdOrUsername.trim();
+        return userRepository.findById(value)
+            .or(() -> userRepository.findByUsername(value));
+    }
+
+    private boolean hasAllAgentAccess(SysUser user) {
+        if (user == null) {
+            return false;
+        }
+        if ("admin".equalsIgnoreCase(user.getUsername())) {
+            return true;
+        }
+        List<String> roleIds = userRoleRepository.findByUserId(user.getId()).stream()
+            .map(SysUserRole::getRoleId)
+            .toList();
+        if (roleIds.isEmpty()) {
+            return false;
+        }
+        return roleRepository.findAllById(roleIds).stream()
+            .anyMatch(role -> "SUPER_ADMIN".equalsIgnoreCase(role.getRoleCode()));
+    }
+
+    private Set<String> accessibleAgentIdsForUserId(String userId) {
+        List<String> roleIds = userRoleRepository.findByUserId(userId).stream()
+            .map(SysUserRole::getRoleId)
+            .toList();
+        if (roleIds.isEmpty()) {
+            return Set.of();
+        }
+        return roleAgentBindingRepository.findByRoleIdIn(roleIds).stream()
+            .map(RoleAgentBinding::getAgentId)
+            .map(this::normalizeAgentId)
+            .filter(Objects::nonNull)
+            .collect(Collectors.toCollection(java.util.LinkedHashSet::new));
+    }
+
+    private String normalizeAgentId(String agentId) {
+        if (agentId == null || agentId.isBlank()) {
+            return null;
+        }
+        return agentId.trim().toLowerCase();
     }
 
     /**
@@ -1086,7 +1221,8 @@ public class EnterpriseAdminService implements ApplicationRunner {
     public record RoleAuthorizationRequest(
         List<String> permissionIds,
         List<RoleOrgScopeInput> orgScopes,
-        List<String> userIds
+        List<String> userIds,
+        List<String> agentIds
     ) {
     }
 
@@ -1097,7 +1233,8 @@ public class EnterpriseAdminService implements ApplicationRunner {
         SysRole role,
         List<String> permissionIds,
         List<SysRoleOrgScope> orgScopes,
-        List<String> userIds
+        List<String> userIds,
+        List<String> agentIds
     ) {
     }
 

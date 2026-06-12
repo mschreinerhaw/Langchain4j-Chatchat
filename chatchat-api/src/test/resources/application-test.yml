@@ -27,6 +27,8 @@ logging:
 
 chatchat:
   agent:
+    learning:
+      model-attribution-enabled: false
     task:
       event-store:
         type: memory

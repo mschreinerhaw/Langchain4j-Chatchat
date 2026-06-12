@@ -15,9 +15,13 @@ import {
 } from "@lucide/vue";
 import {
   cancelAgentTask,
+  fetchAgentEffectAnalytics,
+  fetchAgentExperiences,
   fetchAgentRuntimeSummary,
   fetchAgentRuntimeToolAudits,
   fetchAgentTaskEvents,
+  fetchToolGovernance,
+  submitAgentTaskFeedback,
   updateConversationHistoryStatus
 } from "../../services/api";
 import { notifyAgentTaskCancelled } from "../utils/agentTaskEvents";
@@ -51,27 +55,55 @@ export default {
       error: "",
       tenantId: this.userId || "",
       activeTab: "tasks",
+      effectActiveTab: "agents",
       taskSearchQuery: "",
       statusFilter: "",
       eventSearchQuery: "",
       eventTypeFilter: "",
       toolSearchQuery: "",
       toolHealthFilter: "",
+      governanceSearchQuery: "",
+      governanceLevelFilter: "",
       auditSearchQuery: "",
       auditOutcomeFilter: "",
       summary: null,
+      effectAnalytics: null,
+      experienceSummary: null,
+      toolGovernance: null,
       recentToolAudits: [],
       selectedTask: null,
       selectedEvents: [],
-      cancellingTaskIds: {}
+      cancellingTaskIds: {},
+      feedbackSubmitting: false,
+      feedbackDraft: {
+        useful: false,
+        adopted: false,
+        resolved: false,
+        comment: "",
+        reasonCategory: ""
+      },
+      feedbackReasonOptions: [
+        { value: "", label: "选择原因" },
+        { value: "answer_correct", label: "答案正确" },
+        { value: "steps_clear", label: "步骤清晰" },
+        { value: "tool_result_accurate", label: "工具结果准确" },
+        { value: "environment_mismatch", label: "环境不匹配" },
+        { value: "answer_incomplete", label: "回答不完整" },
+        { value: "tool_call_error", label: "工具调用错误" },
+        { value: "knowledge_outdated", label: "知识库内容过期" },
+        { value: "other", label: "其他" }
+      ]
     };
   },
   computed: {
     tabs() {
       return [
         { key: "tasks", label: "任务", icon: Layers, count: this.tasks.length },
+        { key: "effects", label: "效果", icon: Activity, count: this.lowScoreTasks.length },
+        { key: "experiences", label: "经验", icon: GitBranch, count: this.experienceItems.length },
         { key: "events", label: "事件", icon: Database, count: this.filteredEvents.length },
         { key: "tools", label: "工具", icon: ShieldAlert, count: this.filteredTopTools.length },
+        { key: "governance", label: "治理", icon: ShieldCheck, count: this.filteredGovernanceTools.length },
         { key: "audits", label: "审计", icon: ShieldCheck, count: this.filteredAudits.length }
       ];
     },
@@ -80,6 +112,27 @@ export default {
     },
     topTools() {
       return Array.isArray(this.summary?.toolRuntime?.topTools) ? this.summary.toolRuntime.topTools : [];
+    },
+    lowScoreTasks() {
+      return Array.isArray(this.effectAnalytics?.lowScoreTasks) ? this.effectAnalytics.lowScoreTasks : [];
+    },
+    agentEffectRows() {
+      return Array.isArray(this.effectAnalytics?.agents) ? this.effectAnalytics.agents : [];
+    },
+    toolGovernanceTools() {
+      return Array.isArray(this.toolGovernance?.tools) ? this.toolGovernance.tools : [];
+    },
+    reasonMetrics() {
+      return Array.isArray(this.effectAnalytics?.reasonMetrics) ? this.effectAnalytics.reasonMetrics : [];
+    },
+    experienceItems() {
+      return Array.isArray(this.experienceSummary?.experiences) ? this.experienceSummary.experiences : [];
+    },
+    experienceIndexes() {
+      return Array.isArray(this.experienceSummary?.indexes) ? this.experienceSummary.indexes : [];
+    },
+    experienceScenarios() {
+      return Array.isArray(this.experienceSummary?.scenarios) ? this.experienceSummary.scenarios : [];
     },
     statusOptions() {
       const fromSummary = Array.isArray(this.summary?.statuses)
@@ -95,6 +148,9 @@ export default {
       return [
         ...new Set(this.recentToolAudits.map((item) => String(item.outcome || "").toLowerCase()).filter(Boolean))
       ];
+    },
+    governanceLevelOptions() {
+      return [...new Set(this.toolGovernanceTools.map((tool) => String(tool.runtimeLevel || "").toLowerCase()).filter(Boolean))];
     },
     metrics() {
       const summary = this.summary || {};
@@ -122,6 +178,17 @@ export default {
           value: (counts.rate_limited || 0) + (counts.circuit_open || 0),
           icon: ShieldAlert
         }
+      ];
+    },
+    effectMetrics() {
+      const analytics = this.effectAnalytics || {};
+      return [
+        { label: "反馈样本", value: analytics.feedbackTasks || 0, icon: Database },
+        { label: "有用率", value: this.formatPercent(analytics.usefulRate), icon: ShieldCheck },
+        { label: "采纳率", value: this.formatPercent(analytics.adoptedRate), icon: Activity },
+        { label: "解决率", value: this.formatPercent(analytics.resolvedRate), icon: GitBranch },
+        { label: "失败率", value: this.formatPercent(analytics.failedRate), icon: XCircle },
+        { label: "低评分", value: this.lowScoreTasks.length, icon: ShieldAlert }
       ];
     },
     filteredTasks() {
@@ -163,6 +230,27 @@ export default {
         return matchesHealth && matchesQuery;
       });
     },
+    filteredGovernanceTools() {
+      return this.toolGovernanceTools.filter((tool) => {
+        const level = String(tool.runtimeLevel || "").toLowerCase();
+        const matchesLevel = !this.governanceLevelFilter || level === this.governanceLevelFilter;
+        const matchesQuery = this.matchesQuery(
+          [
+            tool.toolName,
+            tool.displayName,
+            tool.sourceType,
+            tool.serviceId,
+            tool.serviceName,
+            tool.runtimeLevel,
+            tool.defaultAction,
+            tool.riskLevel,
+            tool.operationType
+          ],
+          this.governanceSearchQuery
+        );
+        return matchesLevel && matchesQuery;
+      });
+    },
     filteredAudits() {
       return this.recentToolAudits.filter((item) => {
         const matchesOutcome =
@@ -188,6 +276,10 @@ export default {
         description:
           this.selectedTask.answerSummary || this.selectedTask.errorMessage || this.selectedTask.question || ""
       };
+    },
+    canRecordFeedback() {
+      const normalized = String(this.selectedTask?.status || "").toUpperCase();
+      return ["SUCCESS", "FAILED", "CANCELLED"].includes(normalized);
     }
   },
   mounted() {
@@ -198,7 +290,7 @@ export default {
       this.loading = true;
       this.error = "";
       try {
-        const [summary, audits] = await Promise.all([
+        const [summary, audits, effects, experiences, governance] = await Promise.all([
           fetchAgentRuntimeSummary({
             tenantId: this.tenantId,
             latestLimit: 20
@@ -206,9 +298,23 @@ export default {
           fetchAgentRuntimeToolAudits({
             tenantId: this.tenantId,
             limit: 40
+          }),
+          fetchAgentEffectAnalytics({
+            tenantId: this.tenantId,
+            lowScoreLimit: 12
+          }),
+          fetchAgentExperiences({
+            tenantId: this.tenantId,
+            limit: 20
+          }),
+          fetchToolGovernance({
+            tenantId: this.tenantId
           })
         ]);
         this.summary = summary;
+        this.effectAnalytics = effects;
+        this.experienceSummary = experiences;
+        this.toolGovernance = governance;
         this.recentToolAudits = Array.isArray(audits) ? audits : [];
         if (!this.selectedTask && this.tasks.length > 0) {
           await this.selectTask(this.tasks[0]);
@@ -231,7 +337,17 @@ export default {
     },
     async selectTask(task) {
       this.selectedTask = task;
+      this.syncFeedbackDraft(task);
       await this.reloadEvents();
+    },
+    syncFeedbackDraft(task) {
+      this.feedbackDraft = {
+        useful: !!task?.feedbackUseful,
+        adopted: !!task?.feedbackAdopted,
+        resolved: !!task?.feedbackResolved,
+        comment: task?.feedbackComment || "",
+        reasonCategory: task?.feedbackReasonCategory || ""
+      };
     },
     async reloadEvents() {
       if (!this.selectedTask?.taskId) {
@@ -297,6 +413,35 @@ export default {
         this.cancellingTaskIds = next;
       }
     },
+    async saveTaskFeedback() {
+      if (!this.selectedTask?.taskId || !this.canRecordFeedback || this.feedbackSubmitting) {
+        return;
+      }
+      this.feedbackSubmitting = true;
+      this.error = "";
+      try {
+        const updated = await submitAgentTaskFeedback(this.selectedTask.taskId, this.selectedTask.tenantId || this.tenantId, {
+          tenantId: this.selectedTask.tenantId || this.tenantId,
+          userId: this.selectedTask.userId || this.userId,
+          useful: this.feedbackDraft.useful,
+          adopted: this.feedbackDraft.adopted,
+          resolved: this.feedbackDraft.resolved,
+          comment: this.feedbackDraft.comment,
+          reasonCategory: this.feedbackDraft.reasonCategory
+        });
+        this.selectedTask = {
+          ...this.selectedTask,
+          ...(updated || {})
+        };
+        this.syncFeedbackDraft(this.selectedTask);
+        await this.reloadEvents();
+        await this.loadRuntime();
+      } catch (error) {
+        this.error = error.message || "记录任务反馈失败";
+      } finally {
+        this.feedbackSubmitting = false;
+      }
+    },
     async persistCancelledConversation(task) {
       const historyId = task?.sessionId || task?.conversationId || "";
       if (!historyId) {
@@ -355,6 +500,34 @@ export default {
         return "-";
       }
       return `${value} ms`;
+    },
+    formatPercent(value) {
+      const number = Number(value || 0);
+      return `${number.toFixed(number % 1 === 0 ? 0 : 1)}%`;
+    },
+    formatRuntimeLevel(value) {
+      const normalized = String(value || "").toLowerCase();
+      return (
+        {
+          readonly: "只读",
+          suggestion: "建议型",
+          confirm_required: "需确认",
+          forbidden: "禁用"
+        }[normalized] || "只读"
+      );
+    },
+    formatRuntimeAction(value) {
+      const normalized = String(value || "").toLowerCase();
+      return (
+        {
+          auto_execute: "自动执行",
+          ask_before_execute: "执行前确认",
+          deny: "拒绝执行"
+        }[normalized] || "自动执行"
+      );
+    },
+    formatFeedbackReason(value) {
+      return this.feedbackReasonOptions.find((item) => item.value === value)?.label || "其他";
     },
     formatOutcome(value) {
       const normalized = String(value || "").toLowerCase();

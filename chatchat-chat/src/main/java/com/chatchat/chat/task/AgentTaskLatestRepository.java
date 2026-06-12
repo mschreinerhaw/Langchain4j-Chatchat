@@ -38,6 +38,22 @@ public interface AgentTaskLatestRepository extends JpaRepository<AgentTaskLatest
     List<AgentTaskLatestEntity> findByTenantIdAndSessionIdOrderByCreateTimeDesc(String tenantId, String sessionId, Pageable pageable);
 
     /**
+     * Finds low-score tasks with explicit user feedback.
+     *
+     * @param tenantId the tenant id value
+     * @param pageable the pageable value
+     * @return the matching low-score feedback tasks
+     */
+    @Query("""
+        select t from AgentTaskLatestEntity t
+        where t.tenantId = :tenantId
+          and t.feedbackTime is not null
+          and (t.feedbackUseful = false or t.feedbackAdopted = false or t.feedbackResolved = false)
+        order by t.feedbackTime desc
+        """)
+    List<AgentTaskLatestEntity> findLowScoreFeedbackTasks(@Param("tenantId") String tenantId, Pageable pageable);
+
+    /**
      * Finds the by status in order by create time asc.
      *
      * @param statuses the statuses value
@@ -98,6 +114,65 @@ public interface AgentTaskLatestRepository extends JpaRepository<AgentTaskLatest
     List<StatusCount> countByTenantIdGroupByStatus(@Param("tenantId") String tenantId);
 
     /**
+     * Summarizes product-discovery feedback for one tenant.
+     *
+     * @param tenantId the tenant id value
+     * @return the operation result
+     */
+    @Query("""
+        select count(t) as totalTasks,
+               sum(case when t.status = 'SUCCESS' then 1 else 0 end) as successTasks,
+               sum(case when t.status = 'FAILED' then 1 else 0 end) as failedTasks,
+               sum(case when t.status = 'CANCELLED' then 1 else 0 end) as cancelledTasks,
+               sum(case when t.feedbackTime is not null then 1 else 0 end) as feedbackTasks,
+               sum(case when t.feedbackUseful = true then 1 else 0 end) as usefulTasks,
+               sum(case when t.feedbackAdopted = true then 1 else 0 end) as adoptedTasks,
+               sum(case when t.feedbackResolved = true then 1 else 0 end) as resolvedTasks
+        from AgentTaskLatestEntity t
+        where t.tenantId = :tenantId
+        """)
+    DiscoveryAggregate summarizeDiscoveryByTenant(@Param("tenantId") String tenantId);
+
+    /**
+     * Summarizes product-discovery feedback grouped by Agent.
+     *
+     * @param tenantId the tenant id value
+     * @param pageable the pageable value
+     * @return the grouped Agent metrics
+     */
+    @Query("""
+        select coalesce(t.agentId, 'default-agent') as agentId,
+               count(t) as totalTasks,
+               sum(case when t.status = 'SUCCESS' then 1 else 0 end) as successTasks,
+               sum(case when t.status = 'FAILED' then 1 else 0 end) as failedTasks,
+               sum(case when t.feedbackTime is not null then 1 else 0 end) as feedbackTasks,
+               sum(case when t.feedbackUseful = true then 1 else 0 end) as usefulTasks,
+               sum(case when t.feedbackAdopted = true then 1 else 0 end) as adoptedTasks,
+               sum(case when t.feedbackResolved = true then 1 else 0 end) as resolvedTasks
+        from AgentTaskLatestEntity t
+        where t.tenantId = :tenantId
+        group by coalesce(t.agentId, 'default-agent')
+        order by count(t) desc
+        """)
+    List<AgentDiscoveryAggregate> summarizeDiscoveryByAgent(@Param("tenantId") String tenantId, Pageable pageable);
+
+    /**
+     * Counts feedback reason categories for one tenant.
+     *
+     * @param tenantId the tenant id value
+     * @return the reason category counts
+     */
+    @Query("""
+        select t.feedbackReasonCategory as reasonCategory, count(t) as total
+        from AgentTaskLatestEntity t
+        where t.tenantId = :tenantId
+          and t.feedbackReasonCategory is not null
+        group by t.feedbackReasonCategory
+        order by count(t) desc
+        """)
+    List<ReasonCategoryCount> countFeedbackReasonsByTenant(@Param("tenantId") String tenantId);
+
+    /**
      * Performs the count distinct tenants operation.
      *
      * @return the operation result
@@ -145,6 +220,51 @@ public interface AgentTaskLatestRepository extends JpaRepository<AgentTaskLatest
          *
          * @return the total
          */
+        long getTotal();
+    }
+
+    interface DiscoveryAggregate {
+
+        Long getTotalTasks();
+
+        Long getSuccessTasks();
+
+        Long getFailedTasks();
+
+        Long getCancelledTasks();
+
+        Long getFeedbackTasks();
+
+        Long getUsefulTasks();
+
+        Long getAdoptedTasks();
+
+        Long getResolvedTasks();
+    }
+
+    interface AgentDiscoveryAggregate {
+
+        String getAgentId();
+
+        Long getTotalTasks();
+
+        Long getSuccessTasks();
+
+        Long getFailedTasks();
+
+        Long getFeedbackTasks();
+
+        Long getUsefulTasks();
+
+        Long getAdoptedTasks();
+
+        Long getResolvedTasks();
+    }
+
+    interface ReasonCategoryCount {
+
+        String getReasonCategory();
+
         long getTotal();
     }
 }

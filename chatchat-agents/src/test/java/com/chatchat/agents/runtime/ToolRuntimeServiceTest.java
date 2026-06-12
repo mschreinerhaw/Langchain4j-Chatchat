@@ -146,6 +146,66 @@ class ToolRuntimeServiceTest {
     }
 
     @Test
+    void runtimeLevelForbiddenDeniesToolBeforeExecution() {
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.getToolMetadata("server_restart")).thenReturn(ToolMetadata.builder()
+            .id("server_restart")
+            .title("Server Restart")
+            .runtimeLevel("forbidden")
+            .riskLevel("high")
+            .operationType("write")
+            .build());
+        ToolRuntimeService service = new ToolRuntimeService(toolRegistry, new ObjectMapper(), properties(), List.of(), List.of());
+
+        ToolRuntimeExecution execution = service.execute(ToolRuntimeRequest.builder()
+            .toolName("server_restart")
+            .runtimeMode("agent_chat")
+            .requestId("req-forbidden")
+            .conversationId("conv-forbidden")
+            .tenantId("tenant-ops")
+            .userId("ops-user")
+            .allowedTools(List.of("server_restart"))
+            .toolInput(ToolInput.builder().userId("ops-user").parameters(Map.of("service", "nginx")).build())
+            .build());
+
+        assertThat(execution.output().isSuccess()).isFalse();
+        assertThat(execution.outcome()).isEqualTo("denied");
+        assertThat(execution.audit()).containsEntry("runtimeLevel", "forbidden");
+        assertThat(execution.audit().get("matchedPolicyRules").toString()).contains("runtime_level.forbidden=deny");
+        verify(toolRegistry, never()).executeEnhancedTool(any(), any());
+    }
+
+    @Test
+    void requestRuntimeLevelCanRequireConfirmationForReadonlyTool() {
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.getToolMetadata("log_search")).thenReturn(ToolMetadata.builder()
+            .id("log_search")
+            .title("Log Search")
+            .riskLevel("low")
+            .operationType("read")
+            .build());
+        ToolRuntimeService service = new ToolRuntimeService(toolRegistry, new ObjectMapper(), properties(), List.of(), List.of());
+
+        ToolRuntimeExecution execution = service.execute(ToolRuntimeRequest.builder()
+            .toolName("log_search")
+            .runtimeMode("agent_chat")
+            .requestId("req-confirm-level")
+            .conversationId("conv-confirm-level")
+            .tenantId("tenant-ops")
+            .userId("ops-user")
+            .allowedTools(List.of("log_search"))
+            .toolInput(ToolInput.builder().userId("ops-user").parameters(Map.of("query", "error")).build())
+            .attributes(Map.of("runtimeLevel", "confirm_required"))
+            .build());
+
+        assertThat(execution.output().isSuccess()).isFalse();
+        assertThat(execution.outcome()).isEqualTo("confirmation_required");
+        assertThat(execution.audit()).containsEntry("runtimeLevel", "confirm_required");
+        assertThat(execution.audit()).containsKey("confirmation");
+        verify(toolRegistry, never()).executeEnhancedTool(any(), any());
+    }
+
+    @Test
     @SuppressWarnings("unchecked")
     void rememberedUserAllowOverridesAskToolAndParameterPolicies() {
         ToolRegistry toolRegistry = mock(ToolRegistry.class);

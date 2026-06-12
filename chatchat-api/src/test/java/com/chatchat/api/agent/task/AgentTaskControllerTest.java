@@ -43,7 +43,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
-@AutoConfigureMockMvc
+@AutoConfigureMockMvc(addFilters = false)
 @ActiveProfiles("test")
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 class AgentTaskControllerTest {
@@ -142,6 +142,91 @@ class AgentTaskControllerTest {
             .andExpect(jsonPath("$.data.totalTasks").value(greaterThanOrEqualTo(1)))
             .andExpect(jsonPath("$.data.successTasks").value(greaterThanOrEqualTo(1)))
             .andExpect(jsonPath("$.data.latestTasks.length()").value(greaterThanOrEqualTo(1)));
+    }
+
+    @Test
+    void recordsFeedbackForCompletedTaskAndAppendsFeedbackEvent() throws Exception {
+        reset(orchestrationService);
+        when(orchestrationService.chat(any())).thenReturn(InteractionResponse.builder()
+            .conversationId("session-feedback-001")
+            .requestId("request-feedback-001")
+            .mode("agent_chat")
+            .answer("check the slow query index")
+            .metadata(Map.of("source", "mock"))
+            .build());
+
+        String requestBody = objectMapper.writeValueAsString(Map.of(
+            "tenantId", "tenant-feedback-001",
+            "userId", "user-feedback-001",
+            "agentId", "data-dev",
+            "sessionId", "session-feedback-001",
+            "query", "why is this SQL slow"
+        ));
+
+        String submitResponse = mockMvc.perform(post("/api/v1/agent/tasks")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(requestBody))
+            .andExpect(status().isOk())
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+        String taskId = objectMapper.readTree(submitResponse).path("data").path("taskId").asText();
+        waitForTaskStatus("tenant-feedback-001", taskId, "SUCCESS");
+
+        String feedbackBody = objectMapper.writeValueAsString(Map.of(
+            "tenantId", "tenant-feedback-001",
+            "userId", "user-feedback-001",
+            "useful", true,
+            "adopted", true,
+            "resolved", false,
+            "comment", "need one more index check",
+            "reasonCategory", "answer_incomplete"
+        ));
+
+        mockMvc.perform(post("/api/v1/agent/tasks/" + taskId + "/feedback")
+                .param("tenantId", "tenant-feedback-001")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(feedbackBody))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.code").value(200))
+            .andExpect(jsonPath("$.data.feedbackUseful").value(true))
+            .andExpect(jsonPath("$.data.feedbackAdopted").value(true))
+            .andExpect(jsonPath("$.data.feedbackResolved").value(false))
+            .andExpect(jsonPath("$.data.feedbackComment").value("need one more index check"))
+            .andExpect(jsonPath("$.data.feedbackReasonCategory").value("answer_incomplete"));
+
+        mockMvc.perform(get("/api/v1/agent/tasks/" + taskId + "/events")
+                .param("tenantId", "tenant-feedback-001"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.code").value(200))
+            .andExpect(jsonPath("$.data[*].type", hasItem("FEEDBACK")));
+
+        mockMvc.perform(get("/api/v1/agent/tasks/runtime/effects")
+                .param("tenantId", "tenant-feedback-001")
+                .param("lowScoreLimit", "5"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.code").value(200))
+            .andExpect(jsonPath("$.data.feedbackTasks").value(1))
+            .andExpect(jsonPath("$.data.usefulRate").value(100.0))
+            .andExpect(jsonPath("$.data.adoptedRate").value(100.0))
+            .andExpect(jsonPath("$.data.resolvedRate").value(0.0))
+            .andExpect(jsonPath("$.data.reasonMetrics[0].reasonCategory").value("answer_incomplete"))
+            .andExpect(jsonPath("$.data.reasonMetrics[0].label").value("回答不完整"))
+            .andExpect(jsonPath("$.data.lowScoreTasks[0].taskId").value(taskId));
+
+        mockMvc.perform(get("/api/v1/agent/tasks/runtime/experiences")
+                .param("tenantId", "tenant-feedback-001")
+                .param("limit", "5"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.code").value(200))
+            .andExpect(jsonPath("$.data.totalExperiences").value(1))
+            .andExpect(jsonPath("$.data.totalIndexes").value(1))
+            .andExpect(jsonPath("$.data.indexes[0].sampleCount").value(1))
+            .andExpect(jsonPath("$.data.indexes[0].successRate").value(org.hamcrest.Matchers.greaterThan(60.0)))
+            .andExpect(jsonPath("$.data.experiences[0].taskId").value(taskId))
+            .andExpect(jsonPath("$.data.experiences[0].attributionSource").value("rule"))
+            .andExpect(jsonPath("$.data.experiences[0].feedbackScore").value(65))
+            .andExpect(jsonPath("$.data.experiences[0].improvementSuggestions").isArray());
     }
 
     @Test
@@ -468,6 +553,14 @@ class AgentTaskControllerTest {
             .andExpect(jsonPath("$.data.length()").value(1))
             .andExpect(jsonPath("$.data[0].toolName").value("mcp_demo_blocked_tool"))
             .andExpect(jsonPath("$.data[0].errorCode").value("TOOL_TENANT_POLICY_DENIED"));
+
+        mockMvc.perform(get("/api/v1/agent/tasks/runtime/tool-governance")
+                .param("tenantId", "tenant-007"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.code").value(200))
+            .andExpect(jsonPath("$.data.tenantId").value("tenant-007"))
+            .andExpect(jsonPath("$.data.totalTools").exists())
+            .andExpect(jsonPath("$.data.tools").isArray());
     }
 
     @Test

@@ -17,6 +17,7 @@ import {
   deleteOrg,
   deleteRole,
   deleteUser,
+  fetchAgentOptions,
   fetchEnterpriseSummary,
   fetchOrgs,
   fetchPermissions,
@@ -93,14 +94,17 @@ export default {
       roles: [],
       users: [],
       permissions: [],
+      agentOptions: [],
       selectedTenantId: "",
       selectedRoleId: "",
       selectedPermissionIds: [],
+      selectedAgentIds: [],
       focusedPermissionId: "",
       selectedUserIds: [],
       scopeType: "org_and_children",
       scopeOrgId: "",
       draftPermissionIds: [],
+      draftAgentIds: [],
       draftUserIds: [],
       draftScopeType: "org_and_children",
       draftScopeOrgId: "",
@@ -197,6 +201,18 @@ export default {
       const selected = new Set(this.draftUserIds);
       return this.users.filter((user) => selected.has(user.id));
     },
+    selectedDraftAgents() {
+      const selected = new Set(this.draftAgentIds);
+      return this.agentOptions.filter((agent) => selected.has(agent.id));
+    },
+    draftAgentSummary() {
+      if (!this.draftAgentIds.length) {
+        return "未绑定 Agent";
+      }
+      const names = this.selectedDraftAgents.map((agent) => agent.name || agent.id).slice(0, 3);
+      const suffix = this.draftAgentIds.length > names.length ? ` 等 ${this.draftAgentIds.length} 个` : "";
+      return `${names.join("、")}${suffix}`;
+    },
     availableDraftUsers() {
       const selected = new Set(this.draftUserIds);
       return this.scopedUsers.filter((user) => !selected.has(user.id));
@@ -230,14 +246,16 @@ export default {
       this.loading = true;
       this.setNotice("");
       try {
-        const [summary, tenants, permissions] = await Promise.all([
+        const [summary, tenants, permissions, agentOptions] = await Promise.all([
           fetchEnterpriseSummary(),
           fetchTenants(),
-          fetchPermissions()
+          fetchPermissions(),
+          fetchAgentOptions()
         ]);
         this.summary = summary || {};
         this.tenants = Array.isArray(tenants) ? tenants : [];
         this.permissions = Array.isArray(permissions) ? permissions : [];
+        this.agentOptions = Array.isArray(agentOptions) ? agentOptions : [];
         this.selectedTenantId = this.tenants[0]?.id || "";
         await this.loadTenantData();
       } catch (error) {
@@ -267,6 +285,7 @@ export default {
         this.resetRoleForm();
         this.selectedRoleId = "";
         this.selectedPermissionIds = [];
+        this.selectedAgentIds = [];
         this.selectedUserIds = [];
       }
     },
@@ -297,6 +316,9 @@ export default {
           : [];
         this.selectedUserIds = Array.isArray(authorization?.userIds)
           ? [...authorization.userIds]
+          : [];
+        this.selectedAgentIds = Array.isArray(authorization?.agentIds)
+          ? [...authorization.agentIds]
           : [];
         const scope = Array.isArray(authorization?.orgScopes) ? authorization.orgScopes[0] : null;
         this.scopeType = scope?.scopeType || "org_and_children";
@@ -495,6 +517,7 @@ export default {
         }
         : blankRoleForm();
       this.draftPermissionIds = role ? [...this.selectedPermissionIds] : [];
+      this.draftAgentIds = role ? [...this.selectedAgentIds] : [];
       this.draftUserIds = role ? [...this.selectedUserIds] : [];
       this.draftScopeType = role ? this.scopeType || "org_and_children" : "org_and_children";
       this.draftScopeOrgId = role ? this.scopeOrgId || "" : "";
@@ -515,6 +538,7 @@ export default {
           }
         : blankRoleForm();
       this.draftPermissionIds = [];
+      this.draftAgentIds = [];
       this.draftUserIds = [];
       this.draftScopeType = this.scopeType || "org_and_children";
       this.draftScopeOrgId = this.scopeOrgId || "";
@@ -541,6 +565,7 @@ export default {
           : await createRole(payload);
         await saveRoleAuthorization(saved.id, {
           permissionIds: this.draftPermissionIds,
+          agentIds: this.draftAgentIds,
           orgScopes: [
             {
               scopeType: this.draftScopeType,
@@ -580,6 +605,12 @@ export default {
     },
     clearPermissions() {
       this.draftPermissionIds = [];
+    },
+    selectAllAgents() {
+      this.draftAgentIds = this.agentOptions.map((agent) => agent.id);
+    },
+    clearAgents() {
+      this.draftAgentIds = [];
     },
     addDraftUser(userId) {
       if (!userId || this.draftUserIds.includes(userId)) {

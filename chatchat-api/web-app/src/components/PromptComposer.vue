@@ -57,6 +57,10 @@
             <Upload class="tool-icon" :size="16" stroke-width="1.9" />
             上传文件
           </button>
+          <button type="button" class="tool-button" @click="$emit('image-upload')">
+            <ImagePlus class="tool-icon" :size="16" stroke-width="1.9" />
+            上传图片
+          </button>
         </div>
         <button type="button" class="tool-button clear" @click="$emit('clear')">
           <Trash2 class="tool-icon" :size="16" stroke-width="1.9" />

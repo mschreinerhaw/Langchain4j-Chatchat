@@ -80,6 +80,18 @@ export function cancelAgentTask(taskId, tenantId = "") {
   });
 }
 
+export function submitAgentTaskFeedback(taskId, tenantId = "", payload = {}) {
+  const params = new URLSearchParams();
+  if (tenantId) {
+    params.set("tenantId", tenantId);
+  }
+  const query = params.toString();
+  return apiRequest(`/agent/tasks/${encodeURIComponent(taskId)}/feedback${query ? `?${query}` : ""}`, {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
 export function fetchAgentRuntimeSummary(filters = {}) {
   const params = new URLSearchParams();
   if (filters.tenantId) {
@@ -105,6 +117,39 @@ export function fetchAgentRuntimeToolAudits(filters = {}) {
   }
   const query = params.toString();
   return apiRequest(`/agent/tasks/runtime/tool-audits${query ? `?${query}` : ""}`);
+}
+
+export function fetchAgentEffectAnalytics(filters = {}) {
+  const params = new URLSearchParams();
+  if (filters.tenantId) {
+    params.set("tenantId", filters.tenantId);
+  }
+  if (filters.lowScoreLimit) {
+    params.set("lowScoreLimit", String(filters.lowScoreLimit));
+  }
+  const query = params.toString();
+  return apiRequest(`/agent/tasks/runtime/effects${query ? `?${query}` : ""}`);
+}
+
+export function fetchAgentExperiences(filters = {}) {
+  const params = new URLSearchParams();
+  if (filters.tenantId) {
+    params.set("tenantId", filters.tenantId);
+  }
+  if (filters.limit) {
+    params.set("limit", String(filters.limit));
+  }
+  const query = params.toString();
+  return apiRequest(`/agent/tasks/runtime/experiences${query ? `?${query}` : ""}`);
+}
+
+export function fetchToolGovernance(filters = {}) {
+  const params = new URLSearchParams();
+  if (filters.tenantId) {
+    params.set("tenantId", filters.tenantId);
+  }
+  const query = params.toString();
+  return apiRequest(`/agent/tasks/runtime/tool-governance${query ? `?${query}` : ""}`);
 }
 
 export function fetchAgentTasks(filters = {}) {
@@ -550,6 +595,10 @@ export function fetchPermissions() {
   return apiRequest("/enterprise/permissions");
 }
 
+export function fetchAgentOptions() {
+  return apiRequest("/enterprise/agent-options");
+}
+
 export function createPermission(payload) {
   return apiRequest("/enterprise/permissions", {
     method: "POST",
@@ -617,6 +666,33 @@ export async function uploadSearchDocument(formData) {
     throw new Error(payload?.message || `请求失败：${response.status}`);
   }
   return unwrapApiPayload(payload);
+}
+
+export async function uploadChatImage(formData) {
+  const session = getStoredAuthSession();
+  const response = await fetch(`${API_BASE}/images/upload`, {
+    method: "POST",
+    headers: {
+      ...(session?.token ? { Authorization: `Bearer ${session.token}` } : {})
+    },
+    body: formData
+  });
+  const payload = await readJsonSafely(response);
+  if (!response.ok) {
+    throw new Error(payload?.message || `Request failed: ${response.status}`);
+  }
+  return unwrapApiPayload(payload);
+}
+
+export function analyzeChatImage(payload) {
+  return apiRequest("/images/analyze", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
+export function fetchImageAnalysis(analysisId) {
+  return apiRequest(`/images/analysis/${encodeURIComponent(analysisId)}`);
 }
 
 async function fetchEventStream(path, payload, handlers) {

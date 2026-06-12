@@ -95,6 +95,7 @@ public class BuiltInToolsBootstrap {
             .category("utility_calculation")
             .riskLevel(environment.getProperty("chatchat.tools.calculator.risk-level", "low"))
             .operationType(environment.getProperty("chatchat.tools.calculator.operation-type", "read"))
+            .runtimeLevel(environment.getProperty("chatchat.tools.calculator.runtime-level", "suggestion"))
             .userVisible(true)
             .confirmation(Map.of(
                 "default", confirmationAction,
@@ -154,6 +155,7 @@ public class BuiltInToolsBootstrap {
             .category("public_web_search")
             .riskLevel(environment.getProperty("chatchat.tools.web-search.risk-level", "low"))
             .operationType(environment.getProperty("chatchat.tools.web-search.operation-type", "read"))
+            .runtimeLevel(environment.getProperty("chatchat.tools.web-search.runtime-level", "readonly"))
             .userVisible(true)
             .confirmation(Map.of(
                 "default", confirmationAction,
@@ -244,6 +246,7 @@ public class BuiltInToolsBootstrap {
             .category("knowledge_document_search")
             .riskLevel(environment.getProperty("chatchat.tools.document-search.risk-level", "medium"))
             .operationType("read")
+            .runtimeLevel(environment.getProperty("chatchat.tools.document-search.runtime-level", "readonly"))
             .userVisible(true)
             .confirmation(Map.of(
                 "default", confirmationAction,
@@ -343,6 +346,7 @@ public class BuiltInToolsBootstrap {
             .category("database_data_query")
             .riskLevel(environment.getProperty("chatchat.tools.database-query.risk-level", "high"))
             .operationType(environment.getProperty("chatchat.tools.database-query.operation-type", "read"))
+            .runtimeLevel(environment.getProperty("chatchat.tools.database-query.runtime-level", "confirm_required"))
             .userVisible(environment.getProperty("chatchat.tools.database-query.user-visible", Boolean.class, false))
             .confirmation(Map.of(
                 "default", confirmationAction,
@@ -469,6 +473,7 @@ public class BuiltInToolsBootstrap {
             .category("local_file_system")
             .riskLevel(environment.getProperty("chatchat.tools.file-system.risk-level", "high"))
             .operationType(environment.getProperty("chatchat.tools.file-system.operation-type", "read"))
+            .runtimeLevel(environment.getProperty("chatchat.tools.file-system.runtime-level", "confirm_required"))
             .userVisible(true)
             .confirmation(Map.of(
                 "default", confirmationAction,

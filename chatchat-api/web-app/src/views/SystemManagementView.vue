@@ -133,6 +133,7 @@
             <span>类型</span>
             <span>状态</span>
             <span>已配权限</span>
+            <span>绑定Agent</span>
             <span>绑定用户</span>
             <span>操作</span>
           </div>
@@ -153,6 +154,7 @@
               <em :class="['status-pill', role.status]">{{ statusLabel(role.status) }}</em>
             </span>
             <span>{{ role.id === selectedRoleId ? selectedPermissionIds.length : "-" }}</span>
+            <span>{{ role.id === selectedRoleId ? selectedAgentIds.length : "-" }}</span>
             <span>{{ role.id === selectedRoleId ? selectedUserIds.length : "-" }}</span>
             <span class="entity-row-actions">
               <button type="button" class="icon-button" title="编辑角色" @click.stop="openRoleModal(role)">
@@ -377,6 +379,32 @@
                   </select>
                 </label>
               </div>
+            </section>
+
+            <section class="role-config-panel">
+              <div class="manage-list-head">
+                <strong>Agent绑定</strong>
+                <div class="mini-actions">
+                  <button type="button" @click="selectAllAgents">全选</button>
+                  <button type="button" @click="clearAgents">清空</button>
+                </div>
+              </div>
+              <details class="agent-bind-dropdown">
+                <summary>
+                  <span>{{ draftAgentSummary }}</span>
+                  <em>{{ draftAgentIds.length }} / {{ agentOptions.length }}</em>
+                </summary>
+                <div class="agent-bind-list">
+                  <label v-for="agent in agentOptions" :key="agent.id" class="agent-bind-option">
+                    <input v-model="draftAgentIds" type="checkbox" :value="agent.id" />
+                    <span>
+                      <strong>{{ agent.name || agent.id }}</strong>
+                      <small>{{ agent.id }} · {{ agent.marketStatus || "draft" }}</small>
+                    </span>
+                  </label>
+                  <div v-if="agentOptions.length === 0" class="empty-state">暂无可绑定Agent</div>
+                </div>
+              </details>
             </section>
 
             <section class="role-config-panel">

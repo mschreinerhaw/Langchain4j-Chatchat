@@ -41,11 +41,19 @@ For a fresh deployment, just set `CHAT_MCP_DATASOURCE_PASSWORD` before the first
 
 ## Release package
 
-Build the standalone release package:
+Build the standalone release package from the repository root:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\package-mcp-server.ps1
+```
+
+Or run Maven directly from the repository root:
 
 ```powershell
 mvn -pl chatchat-mcp-server -am -DskipTests package
 ```
+
+Keep `-am` in the Maven command so Maven rebuilds `chatchat-common`, `chatchat-agents`, and `chatchat-tools` with the MCP server. Omitting it can package an older local `chatchat-common` snapshot and cause runtime `ClassNotFoundException` errors.
 
 The package is generated at:
 

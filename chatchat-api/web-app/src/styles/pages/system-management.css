@@ -453,7 +453,7 @@
 .role-record {
   min-width: 850px;
   display: grid;
-  grid-template-columns: minmax(170px, 1.2fr) minmax(150px, 1fr) 90px 82px 92px 92px 86px;
+  grid-template-columns: minmax(170px, 1.2fr) minmax(150px, 1fr) 90px 82px 92px 92px 92px 86px;
   align-items: center;
   gap: 12px;
   padding: 0 14px;
@@ -746,10 +746,11 @@
   min-height: 0;
   display: grid;
   grid-template-columns: minmax(360px, 0.95fr) minmax(390px, 1.05fr);
-  grid-template-rows: auto auto minmax(170px, 0.85fr);
+  grid-template-rows: auto auto auto minmax(170px, 0.85fr);
   grid-template-areas:
     "permissions info"
     "permissions scope"
+    "permissions agents"
     "permissions users";
   gap: 14px;
   overflow: hidden;
@@ -779,20 +780,118 @@
 }
 
 .role-config-panel:nth-child(3) {
+  grid-area: agents;
+  grid-template-rows: auto auto;
+}
+
+.role-config-panel:nth-child(4) {
   grid-area: permissions;
   min-height: 0;
 }
 
-.role-config-panel:nth-child(4) {
+.role-config-panel:nth-child(5) {
   grid-area: users;
   min-height: 170px;
   grid-template-rows: auto auto minmax(0, 1fr);
 }
 
-.role-config-panel:nth-child(3) .auth-check-list,
-.role-config-panel:nth-child(4) .auth-check-list {
+.role-config-panel:nth-child(4) .auth-check-list,
+.role-config-panel:nth-child(5) .auth-check-list {
   min-height: 0;
   overflow: auto;
+}
+
+.agent-bind-dropdown {
+  position: relative;
+}
+
+.agent-bind-dropdown summary {
+  min-height: 38px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 0 11px;
+  border: 1px solid #dce2ec;
+  border-radius: 7px;
+  background: #fff;
+  color: #344054;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 800;
+  list-style: none;
+}
+
+.agent-bind-dropdown summary::-webkit-details-marker {
+  display: none;
+}
+
+.agent-bind-dropdown summary span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-bind-dropdown summary em {
+  color: var(--muted);
+  font-style: normal;
+  font-size: 12px;
+}
+
+.agent-bind-list {
+  max-height: 210px;
+  overflow: auto;
+  display: grid;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 8px;
+  border: 1px solid #edf0f6;
+  border-radius: 8px;
+  background: #fafcff;
+}
+
+.agent-bind-option {
+  min-height: 44px;
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  align-items: center;
+  gap: 9px;
+  padding: 7px 9px;
+  border: 1px solid #edf0f6;
+  border-radius: 7px;
+  background: #fff;
+  color: #344054;
+}
+
+.agent-bind-option:hover {
+  border-color: #bdd2ff;
+  background: #f1f6ff;
+}
+
+.agent-bind-option input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--primary);
+}
+
+.agent-bind-option strong,
+.agent-bind-option small {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-bind-option strong {
+  font-size: 13px;
+}
+
+.agent-bind-option small {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 12px;
 }
 
 .user-bind-table {
@@ -1273,6 +1372,7 @@
     grid-template-areas:
       "info"
       "scope"
+      "agents"
       "permissions"
       "users";
   }

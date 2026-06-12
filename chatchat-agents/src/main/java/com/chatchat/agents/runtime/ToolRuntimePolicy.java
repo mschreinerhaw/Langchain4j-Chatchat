@@ -9,6 +9,7 @@ public record ToolRuntimePolicy(
     Boolean allowed,
     String reason,
     ToolRuntimeAction executionAction,
+    String runtimeLevel,
     Integer maxCallsPerMinute,
     Boolean requiresAuthentication,
     Integer circuitBreakerFailureThreshold,

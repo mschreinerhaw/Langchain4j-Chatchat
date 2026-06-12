@@ -757,6 +757,7 @@ public class McpGatewayClient {
                 firstText(governanceText(map, governance, "category", "tool_category"), null),
                 governanceText(map, governance, "risk_level", "riskLevel"),
                 governanceText(map, governance, "operation_type", "operationType"),
+                governanceText(map, governance, "runtime_level", "runtimeLevel"),
                 asBoolean(firstPresent(
                     map.get("user_visible"),
                     map.get("userVisible"),

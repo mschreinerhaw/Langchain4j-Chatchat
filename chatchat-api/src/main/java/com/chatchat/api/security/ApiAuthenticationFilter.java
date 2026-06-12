@@ -1,6 +1,7 @@
 package com.chatchat.api.security;
 
 import com.chatchat.common.response.ApiResponse;
+import com.chatchat.enterprise.entity.SysUser;
 import com.chatchat.enterprise.service.EnterpriseAdminService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.FilterChain;
@@ -19,6 +20,10 @@ import java.io.IOException;
 @Component
 @RequiredArgsConstructor
 public class ApiAuthenticationFilter extends OncePerRequestFilter {
+
+    public static final String CURRENT_USER_ID = "chatchat.currentUserId";
+    public static final String CURRENT_USERNAME = "chatchat.currentUsername";
+    public static final String CURRENT_TENANT_ID = "chatchat.currentTenantId";
 
     private static final String API_PREFIX = "/api/v1/";
     private static final String LOGIN_PATH = "/api/v1/enterprise/auth/login";
@@ -55,10 +60,16 @@ public class ApiAuthenticationFilter extends OncePerRequestFilter {
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
         String token = resolveBearerToken(request.getHeader(HttpHeaders.AUTHORIZATION));
-        if (!adminService.isTokenValid(token)) {
+        SysUser user = adminService.resolveUserByToken(token)
+            .filter(candidate -> "enabled".equalsIgnoreCase(candidate.getStatus()))
+            .orElse(null);
+        if (user == null) {
             writeUnauthorized(response);
             return;
         }
+        request.setAttribute(CURRENT_USER_ID, user.getId());
+        request.setAttribute(CURRENT_USERNAME, user.getUsername());
+        request.setAttribute(CURRENT_TENANT_ID, user.getTenantId());
         filterChain.doFilter(request, response);
     }
 

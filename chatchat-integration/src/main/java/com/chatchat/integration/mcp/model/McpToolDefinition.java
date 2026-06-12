@@ -9,6 +9,7 @@ public record McpToolDefinition(
     String category,
     String riskLevel,
     String operationType,
+    String runtimeLevel,
     Boolean userVisible,
     Map<String, Object> confirmation,
     Map<String, Object> permissions,
@@ -24,6 +25,6 @@ public record McpToolDefinition(
      * @param inputSchema the input schema value
      */
     public McpToolDefinition(String name, String description, Map<String, Object> inputSchema) {
-        this(name, description, inputSchema, null, null, null, null, Map.of(), Map.of(), Map.of(), Map.of(), null);
+        this(name, description, inputSchema, null, null, null, null, null, Map.of(), Map.of(), Map.of(), Map.of(), null);
     }
 }

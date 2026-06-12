@@ -54,6 +54,24 @@ public class AgentTaskLatestEntity {
     @Column(name = "error_message", length = 4000)
     private String errorMessage;
 
+    @Column(name = "feedback_useful")
+    private Boolean feedbackUseful;
+
+    @Column(name = "feedback_adopted")
+    private Boolean feedbackAdopted;
+
+    @Column(name = "feedback_resolved")
+    private Boolean feedbackResolved;
+
+    @Column(name = "feedback_comment", length = 1000)
+    private String feedbackComment;
+
+    @Column(name = "feedback_reason_category", length = 64)
+    private String feedbackReasonCategory;
+
+    @Column(name = "feedback_time")
+    private Instant feedbackTime;
+
     @Column(name = "create_time", nullable = false)
     private Instant createTime;
 

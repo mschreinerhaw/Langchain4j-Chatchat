@@ -1,12 +1,14 @@
 import ChatMessageList from "../../components/ChatMessageList.vue";
 import PromptComposer from "../../components/PromptComposer.vue";
 import {
+  analyzeChatImage,
   apiRequest,
   fetchAgentWorkshop,
   saveConversationHistory,
   sendInteractionMessage,
   sendInteractionMessageStream,
   updateWorkshopAgent,
+  uploadChatImage,
   uploadSearchDocument
 } from "../../services/api";
 import "../../styles/pages/chat-assistant.css";
@@ -19,6 +21,7 @@ const EMPTY_RESPONSE = {
 const AGENT_TASK_POLL_TIMEOUT_MS = 1200;
 const AGENT_TASK_MAX_WAIT_MS = 300000;
 const MAX_UPLOAD_SIZE = 5 * 1024 * 1024;
+const MAX_IMAGE_UPLOAD_SIZE = 10 * 1024 * 1024;
 
 function uid() {
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -129,6 +132,14 @@ function defaultUploadForm() {
   };
 }
 
+function defaultImageForm() {
+  return {
+    file: null,
+    mode: "auto",
+    question: ""
+  };
+}
+
 function uniqueList(values) {
   return [...new Set(values.map((value) => String(value || "").trim()).filter(Boolean))];
 }
@@ -212,12 +223,24 @@ export default {
       uploadingDocument: false,
       uploadError: "",
       uploadNotice: "",
+      imageDialogOpen: false,
+      uploadingImage: false,
+      imageUploadError: "",
+      imageForm: defaultImageForm(),
+      pendingImageAnalysis: null,
+      contextImageAnalyses: [],
       pendingMcpConfirmation: null,
       pendingMcpRequest: null,
       pendingMcpTaskId: "",
       stopAgentTaskCancelledListener: null,
       confirmationRemember: "",
       uploadForm: defaultUploadForm(),
+      imageModeOptions: [
+        { value: "auto", label: "自动识别" },
+        { value: "screenshot", label: "截图理解" },
+        { value: "document", label: "表格/文档图片" },
+        { value: "chart", label: "图表分析" }
+      ],
       documentTypeOptions: [
         { value: "auto", label: "自动识别" },
         { value: "pdf", label: "PDF" },
@@ -305,6 +328,10 @@ export default {
       if (!query || this.loading) {
         return;
       }
+      const attachedImageAnalyses = [...this.contextImageAnalyses];
+      const imageAnalysisIds = attachedImageAnalyses
+        .map((item) => item?.id)
+        .filter(Boolean);
 
       if (!this.historyId) {
         this.historyId = uid();
@@ -342,13 +369,19 @@ export default {
         maxResults: 10,
         historyWindow: 8,
         stream: true,
+        imageAnalysisIds,
         availableTools: !this.selectedAgentId && payload?.webSearch ? ["web_search"] : [],
         toolInput: {
           agentName: payload?.agentName || "",
           documentWorkflow: !!payload?.documentWorkflow,
-          webSearch: !!payload?.webSearch
+          webSearch: !!payload?.webSearch,
+          imageAnalysisIds
         }
       };
+      if (imageAnalysisIds.length) {
+        this.contextImageAnalyses = [];
+        this.uploadNotice = `已加入 ${imageAnalysisIds.length} 张图片解析上下文，本次任务将使用这些内容。`;
+      }
 
       try {
         const answerState = await this.requestAssistantAnswer(query, requestPayload, runContext);
@@ -496,6 +529,7 @@ export default {
         historyWindow: requestPayload.historyWindow,
         stream: false,
         availableTools: requestPayload.availableTools || [],
+        imageAnalysisIds: requestPayload.imageAnalysisIds || [],
         toolInput: requestPayload.toolInput || {}
       });
       runContext.taskId = task?.taskId || "";
@@ -799,6 +833,8 @@ export default {
       this.conversationStatus = "completed";
       this.errorMessage = "";
       this.uploadNotice = "";
+      this.contextImageAnalyses = [];
+      this.pendingImageAnalysis = null;
       this.lastResponse = { ...EMPTY_RESPONSE };
       this.pendingMcpConfirmation = null;
       this.pendingMcpRequest = null;
@@ -835,6 +871,109 @@ export default {
         enableForAgent: !!this.selectedAgentId
       };
       this.uploadDialogOpen = true;
+    },
+    openImageDialog() {
+      this.imageUploadError = "";
+      this.pendingImageAnalysis = null;
+      this.imageForm = {
+        ...defaultImageForm(),
+        question: this.question || ""
+      };
+      this.imageDialogOpen = true;
+    },
+    closeImageDialog() {
+      if (this.uploadingImage) {
+        return;
+      }
+      this.imageDialogOpen = false;
+      this.imageUploadError = "";
+      this.pendingImageAnalysis = null;
+      this.resetImagePicker();
+    },
+    triggerImageFilePicker() {
+      this.$refs.chatImageFile?.click();
+    },
+    handleImageFileChange(event) {
+      const file = event.target.files?.[0] || null;
+      this.imageUploadError = "";
+      this.pendingImageAnalysis = null;
+      if (file && file.size > MAX_IMAGE_UPLOAD_SIZE) {
+        this.imageForm.file = null;
+        event.target.value = "";
+        this.imageUploadError = "图片文件不能超过 10MB";
+        return;
+      }
+      if (file && !String(file.type || "").startsWith("image/")) {
+        this.imageForm.file = null;
+        event.target.value = "";
+        this.imageUploadError = "仅支持 png、jpg、jpeg、webp、gif 图片";
+        return;
+      }
+      this.imageForm.file = file;
+    },
+    async uploadAndAnalyzeImage() {
+      if (!this.imageForm.file) {
+        this.imageUploadError = "请选择要解析的图片";
+        return;
+      }
+      this.uploadingImage = true;
+      this.imageUploadError = "";
+      this.pendingImageAnalysis = null;
+      try {
+        const formData = new FormData();
+        formData.append("file", this.imageForm.file);
+        formData.append("tenantId", this.userId);
+        const asset = await uploadChatImage(formData);
+        const analysis = await analyzeChatImage({
+          fileId: asset?.fileId,
+          question: this.imageForm.question || this.question || "",
+          mode: this.imageForm.mode || "auto",
+          tenantId: this.userId
+        });
+        this.pendingImageAnalysis = analysis;
+      } catch (error) {
+        this.imageUploadError = error.message || "图片解析失败";
+      } finally {
+        this.uploadingImage = false;
+      }
+    },
+    confirmImageContext() {
+      if (!this.pendingImageAnalysis?.id) {
+        return;
+      }
+      const exists = this.contextImageAnalyses.some((item) => item.id === this.pendingImageAnalysis.id);
+      if (!exists) {
+        this.contextImageAnalyses.push(this.pendingImageAnalysis);
+      }
+      this.uploadNotice = "图片解析已加入上下文，将随下一次提问进入 Planner。";
+      this.imageDialogOpen = false;
+      this.imageUploadError = "";
+      this.pendingImageAnalysis = null;
+      this.imageForm = defaultImageForm();
+      this.resetImagePicker();
+    },
+    removeImageContext(analysisId) {
+      this.contextImageAnalyses = this.contextImageAnalyses.filter((item) => item.id !== analysisId);
+    },
+    resetImagePicker() {
+      const input = this.$refs.chatImageFile;
+      if (input) {
+        input.value = "";
+      }
+    },
+    formatImageType(value) {
+      const labels = {
+        screenshot: "截图理解",
+        document: "表格/文档图片",
+        chart: "图表分析"
+      };
+      return labels[value] || value || "未知类型";
+    },
+    formatConfidence(value) {
+      if (typeof value !== "number") {
+        return "未知";
+      }
+      return `${Math.round(value * 100)}%`;
     },
     closeUploadDialog() {
       if (this.uploadingDocument) {

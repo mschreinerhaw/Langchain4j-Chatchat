@@ -12,8 +12,11 @@ import com.chatchat.common.constants.AppConstants;
 import com.chatchat.common.response.ApiResponse;
 import com.chatchat.common.config.ModelsConfig;
 import com.chatchat.common.tool.ToolMetadata;
+import com.chatchat.api.security.ApiAuthenticationFilter;
+import com.chatchat.enterprise.service.EnterpriseAdminService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -49,6 +52,7 @@ public class AgentWorkshopController {
     private final McpToolRegistryBridge registryBridge;
     private final ModelsConfig modelsConfig;
     private final SearchService searchService;
+    private final EnterpriseAdminService enterpriseAdminService;
 
     /**
      * Returns the workshop.
@@ -68,11 +72,13 @@ public class AgentWorkshopController {
                                                     @RequestParam(value = "status", required = false) String status,
                                                     @RequestParam(value = "model", required = false) String model,
                                                     @RequestParam(value = "page", required = false) Integer page,
-                                                    @RequestParam(value = "pageSize", required = false) Integer pageSize) {
+                                                    @RequestParam(value = "pageSize", required = false) Integer pageSize,
+                                                    HttpServletRequest request) {
         List<String> availableTools = availableTools();
         Map<String, List<String>> mcpToolsByServiceId = mcpToolsByServiceId();
         List<AgentCard> allAgents = skillCatalogService.list().stream()
             .map(skill -> toAgentCard(skill, availableTools, mcpToolsByServiceId))
+            .filter(agent -> canCurrentUserAccessAgent(request, agent.id()))
             .toList();
         List<AgentCard> filteredAgents = allAgents.stream()
             .filter(agent -> matchesAgentFilters(agent, keyword, category, status, model))
@@ -122,7 +128,11 @@ public class AgentWorkshopController {
      */
     @GetMapping("/{agentId}")
     @Operation(summary = "Get one Agent workshop configuration")
-    public ApiResponse<AgentCard> getAgent(@PathVariable("agentId") String agentId) {
+    public ApiResponse<AgentCard> getAgent(@PathVariable("agentId") String agentId,
+                                           HttpServletRequest request) {
+        if (!canCurrentUserAccessAgent(request, agentId)) {
+            return ApiResponse.badRequest("Current role is not allowed to use this Agent");
+        }
         return ApiResponse.success(toAgentCard(skillCatalogService.resolve(agentId), availableTools(), mcpToolsByServiceId()));
     }
 
@@ -446,6 +456,22 @@ public class AgentWorkshopController {
             .distinct()
             .sorted(Comparator.naturalOrder())
             .toList();
+    }
+
+    private boolean canCurrentUserAccessAgent(HttpServletRequest request, String agentId) {
+        String currentUserId = currentUserId(request);
+        if (currentUserId == null) {
+            return true;
+        }
+        return enterpriseAdminService.canAccessAgent(currentUserId, agentId);
+    }
+
+    private String currentUserId(HttpServletRequest request) {
+        if (request == null) {
+            return null;
+        }
+        Object value = request.getAttribute(ApiAuthenticationFilter.CURRENT_USER_ID);
+        return value == null ? null : String.valueOf(value);
     }
 
     /**

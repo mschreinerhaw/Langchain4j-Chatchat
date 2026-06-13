@@ -47,6 +47,7 @@ public class LlmChatModeHandler implements InteractionModeHandler {
             .answer(answer)
             .metadata(java.util.Map.of(
                 "historyUsed", context.history().size(),
+                "summaryUsed", context.conversationSummary() != null && !context.conversationSummary().isBlank(),
                 "handler", "LlmChatModeHandler"
             ))
             .build();
@@ -63,6 +64,11 @@ public class LlmChatModeHandler implements InteractionModeHandler {
         StringBuilder builder = new StringBuilder();
         if (request.getSystemPrompt() != null && !request.getSystemPrompt().isBlank()) {
             builder.append("System: ").append(request.getSystemPrompt()).append("\n\n");
+        }
+        if (context.conversationSummary() != null && !context.conversationSummary().isBlank()) {
+            builder.append("Conversation Summary:\n")
+                .append(context.conversationSummary().trim())
+                .append("\n\n");
         }
         if (!context.history().isEmpty()) {
             String history = context.history().stream()

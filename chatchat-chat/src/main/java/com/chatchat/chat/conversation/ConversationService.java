@@ -23,6 +23,7 @@ public class ConversationService {
 
     private final ChatSessionRepository sessionRepository;
     private final ChatMessageIndexRepository messageIndexRepository;
+    private final ConversationSummaryRepository summaryRepository;
     private final ChatMessageDetailStore detailStore;
 
     /**
@@ -34,9 +35,11 @@ public class ConversationService {
      */
     public ConversationService(ChatSessionRepository sessionRepository,
                                ChatMessageIndexRepository messageIndexRepository,
+                               ConversationSummaryRepository summaryRepository,
                                ChatMessageDetailStore detailStore) {
         this.sessionRepository = sessionRepository;
         this.messageIndexRepository = messageIndexRepository;
+        this.summaryRepository = summaryRepository;
         this.detailStore = detailStore;
     }
 
@@ -141,6 +144,7 @@ public class ConversationService {
         List<ChatMessageIndexEntity> indexes = messageIndexRepository.findBySessionIdOrderByCreatedAtAsc(conversationId);
         indexes.forEach(index -> detailStore.delete(index.getRocksKey()));
         messageIndexRepository.deleteBySessionId(conversationId);
+        summaryRepository.deleteBySessionId(conversationId);
         sessionRepository.deleteById(conversationId);
     }
 
@@ -160,6 +164,7 @@ public class ConversationService {
         List<ChatMessageIndexEntity> existing = messageIndexRepository.findBySessionIdOrderByCreatedAtAsc(normalizedConversationId);
         existing.forEach(index -> detailStore.delete(index.getRocksKey()));
         messageIndexRepository.deleteBySessionId(normalizedConversationId);
+        summaryRepository.deleteBySessionId(normalizedConversationId);
 
         Instant lastCreatedAt = session.getUpdatedAt() == null ? Instant.now() : session.getUpdatedAt();
         List<Conversation.Message> snapshot = messages == null ? List.of() : messages;
@@ -251,6 +256,56 @@ public class ConversationService {
             .toList();
     }
 
+    @Transactional(readOnly = true)
+    public Optional<ConversationSummary> latestSummary(String conversationId) {
+        if (conversationId == null || conversationId.isBlank()) {
+            return Optional.empty();
+        }
+        return summaryRepository.findTopBySessionIdOrderByCreatedAtDesc(conversationId.trim())
+            .map(this::toSummary);
+    }
+
+    @Transactional(readOnly = true)
+    public List<Conversation.Message> summaryCandidates(String conversationId, int keepRecentMessages) {
+        if (conversationId == null || conversationId.isBlank()) {
+            return List.of();
+        }
+        List<ChatMessageIndexEntity> indexes = messageIndexRepository.findBySessionIdOrderByCreatedAtAsc(conversationId);
+        int endExclusive = Math.max(0, indexes.size() - Math.max(0, keepRecentMessages));
+        if (endExclusive == 0) {
+            return List.of();
+        }
+        int startInclusive = latestSummary(conversationId)
+            .map(summary -> indexAfterMessage(indexes, summary.messageEndId()))
+            .orElse(0);
+        if (startInclusive >= endExclusive) {
+            return List.of();
+        }
+        return indexes.subList(startInclusive, endExclusive).stream()
+            .map(index -> detailStore.get(index.getRocksKey()).orElse(null))
+            .filter(detail -> detail != null)
+            .map(this::toMessage)
+            .toList();
+    }
+
+    @Transactional
+    public Optional<ConversationSummary> saveSummary(String conversationId,
+                                                     String summary,
+                                                     String messageStartId,
+                                                     String messageEndId) {
+        if (conversationId == null || conversationId.isBlank() || summary == null || summary.isBlank()
+            || messageStartId == null || messageStartId.isBlank()
+            || messageEndId == null || messageEndId.isBlank()) {
+            return Optional.empty();
+        }
+        ConversationSummaryEntity entity = new ConversationSummaryEntity();
+        entity.setSessionId(conversationId.trim());
+        entity.setSummary(summary.trim());
+        entity.setMessageStartId(messageStartId.trim());
+        entity.setMessageEndId(messageEndId.trim());
+        return Optional.of(toSummary(summaryRepository.save(entity)));
+    }
+
     /**
      * Lists the message details.
      *
@@ -263,6 +318,18 @@ public class ConversationService {
             .filter(detail -> detail != null)
             .map(this::toMessage)
             .toList();
+    }
+
+    private int indexAfterMessage(List<ChatMessageIndexEntity> indexes, String messageId) {
+        if (indexes == null || indexes.isEmpty() || messageId == null || messageId.isBlank()) {
+            return 0;
+        }
+        for (int index = 0; index < indexes.size(); index++) {
+            if (messageId.equals(indexes.get(index).getMessageId())) {
+                return index + 1;
+            }
+        }
+        return 0;
     }
 
     /**
@@ -301,6 +368,17 @@ public class ConversationService {
             .sources(copyMaps(detail.getSources()))
             .traces(copyMaps(detail.getTraces()))
             .build();
+    }
+
+    private ConversationSummary toSummary(ConversationSummaryEntity entity) {
+        return new ConversationSummary(
+            entity.getId(),
+            entity.getSessionId(),
+            entity.getSummary(),
+            entity.getMessageStartId(),
+            entity.getMessageEndId(),
+            toLocalDateTime(entity.getCreatedAt())
+        );
     }
 
     /**

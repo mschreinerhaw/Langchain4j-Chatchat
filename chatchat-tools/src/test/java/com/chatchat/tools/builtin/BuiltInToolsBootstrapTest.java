@@ -12,7 +12,9 @@ import org.junit.jupiter.api.Test;
 import org.springframework.mock.env.MockEnvironment;
 
 import java.io.IOException;
+import java.lang.reflect.Method;
 import java.net.InetSocketAddress;
+import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
@@ -26,6 +28,9 @@ class BuiltInToolsBootstrapTest {
     private int documentLoginCount;
     private String documentSearchAuthorization;
     private String documentDetailAuthorization;
+    private String searchEngineQuery;
+    private String siteSearchKeyword;
+    private int searchLandingCount;
 
     @AfterEach
     void tearDown() {
@@ -105,7 +110,7 @@ class BuiltInToolsBootstrapTest {
 
         ToolRegistry.EnhancedTool documentSearch = registry.getEnhancedTool("document_search");
         ToolOutput output = documentSearch.execute(ToolInput.builder()
-            .parameters(Map.of("query", "Studio 配置文件修改", "limit", 1))
+            .parameters(Map.of("query", "Studio config file update", "limit", 1))
             .build());
 
         assertThat(output.isSuccess()).isTrue();
@@ -139,6 +144,7 @@ class BuiltInToolsBootstrapTest {
         webSearchProperties.setFetchPages(true);
         webSearchProperties.setMaxPagesToFetch(1);
         webSearchProperties.setPageExcerptChars(180);
+        webSearchProperties.getBrowser().setLocalBrowserEnabled(false);
 
         BuiltInToolsBootstrap bootstrap = new BuiltInToolsBootstrap(
             registry,
@@ -160,6 +166,8 @@ class BuiltInToolsBootstrapTest {
         assertThat(data)
             .containsEntry("contentMode", "page_enriched")
             .containsEntry("page_excerpt_count", 1);
+        assertThat(searchLandingCount).isEqualTo(1);
+        assertThat(searchEngineQuery).isEqualTo("Kunpeng ARM compatibility");
         List<Map<String, Object>> results = (List<Map<String, Object>>) data.get("results");
         assertThat(results).hasSize(1);
         assertThat(results.get(0))
@@ -171,6 +179,88 @@ class BuiltInToolsBootstrapTest {
         List<Map<String, Object>> excerpts = (List<Map<String, Object>>) data.get("pageExcerpts");
         assertThat(excerpts).hasSize(1);
         assertThat((String) excerpts.get(0).get("excerpt")).contains("ARM compatibility");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void webSearchOutputsStructuredTextAndRelevanceMetadata() throws Exception {
+        startWebSearchApi();
+        DefaultToolRegistry registry = new DefaultToolRegistry();
+        WebSearchToolProperties webSearchProperties = new WebSearchToolProperties();
+        webSearchProperties.setProvider("bing_html");
+        webSearchProperties.setEndpoint("http://localhost:" + server.getAddress().getPort() + "/search");
+        webSearchProperties.setMaxResults(3);
+        webSearchProperties.setFetchPages(false);
+        webSearchProperties.getBrowser().setLocalBrowserEnabled(false);
+        webSearchProperties.getSiteSearch().setEnabled(false);
+
+        BuiltInToolsBootstrap bootstrap = new BuiltInToolsBootstrap(
+            registry,
+            webSearchProperties,
+            new DatabaseToolProperties(),
+            mock(DynamicJdbcDriverLoader.class),
+            new MockEnvironment(),
+            new ObjectMapper()
+        );
+        bootstrap.initializeBuiltInTools();
+
+        ToolRegistry.EnhancedTool webSearch = registry.getEnhancedTool("web_search");
+        ToolOutput output = webSearch.execute(ToolInput.builder()
+            .parameters(Map.of("query", "Kunpeng ARM compatibility", "num_results", 1))
+            .build());
+
+        assertThat(output.isSuccess()).isTrue();
+        Map<String, Object> data = (Map<String, Object>) output.getData();
+        assertThat((List<Map<String, Object>>) data.get("results")).hasSize(1);
+        assertThat(data).containsEntry("search_result_useful", true);
+        assertThat((String) data.get("structured_text"))
+            .contains("search_result_useful: true")
+            .contains("Kunpeng compatibility guide")
+            .contains("keywordMatched: true");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void webSearchAcceptsDirectBingSearchUrlAndKeepsChineseQueryRaw() throws Exception {
+        startWebSearchApi();
+        DefaultToolRegistry registry = new DefaultToolRegistry();
+        WebSearchToolProperties webSearchProperties = new WebSearchToolProperties();
+        webSearchProperties.setProvider("bing_html");
+        webSearchProperties.setEndpoint("http://localhost:" + server.getAddress().getPort()
+            + "/search?q=\u9876\u70b9\u8f6f\u4ef6\u6700\u65b0\u516c\u544a");
+        webSearchProperties.setMaxResults(3);
+        webSearchProperties.setFetchPages(false);
+        webSearchProperties.getBrowser().setLocalBrowserEnabled(false);
+        webSearchProperties.getSiteSearch().setEnabled(false);
+
+        BuiltInToolsBootstrap bootstrap = new BuiltInToolsBootstrap(
+            registry,
+            webSearchProperties,
+            new DatabaseToolProperties(),
+            mock(DynamicJdbcDriverLoader.class),
+            new MockEnvironment(),
+            new ObjectMapper()
+        );
+        bootstrap.initializeBuiltInTools();
+
+        ToolRegistry.EnhancedTool webSearch = registry.getEnhancedTool("web_search");
+        ToolOutput output = webSearch.execute(ToolInput.builder()
+            .parameters(Map.of("query", "\u9876\u70b9\u8f6f\u4ef6\u6700\u65b0\u516c\u544a", "num_results", 1))
+            .build());
+
+        assertThat(output.isSuccess()).isTrue();
+        assertThat(searchLandingCount).isZero();
+        assertThat(searchEngineQuery).isEqualTo("\u9876\u70b9\u8f6f\u4ef6\u6700\u65b0\u516c\u544a");
+        Map<String, Object> data = (Map<String, Object>) output.getData();
+        assertThat((List<Map<String, Object>>) data.get("results")).hasSize(1);
+
+        Method rawUrlBuilder = webSearch.getClass()
+            .getDeclaredMethod("urlWithRawQueryParams", String.class, Map.class);
+        rawUrlBuilder.setAccessible(true);
+        assertThat((String) rawUrlBuilder.invoke(webSearch,
+            "https://cn.bing.com/search",
+            Map.of("q", "\u9876\u70b9\u8f6f\u4ef6\u6700\u65b0\u516c\u544a")))
+            .isEqualTo("https://cn.bing.com/search?q=\u9876\u70b9\u8f6f\u4ef6\u6700\u65b0\u516c\u544a");
     }
 
     @Test
@@ -242,25 +332,29 @@ class BuiltInToolsBootstrapTest {
         bootstrap.initializeBuiltInTools();
 
         ToolRegistry.EnhancedTool webSearch = registry.getEnhancedTool("web_search");
+        String targetUrl = "http://localhost:" + server.getAddress().getPort() + "/exchange-js";
         ToolOutput output = webSearch.execute(ToolInput.builder()
-            .parameters(Map.of("query", "603383", "num_results", 3))
+            .parameters(Map.of("query", "find " + targetUrl + " 603383", "num_results", 3))
             .build());
 
         assertThat(output.isSuccess()).isTrue();
         Map<String, Object> data = (Map<String, Object>) output.getData();
         assertThat(data)
+            .containsEntry("search_query", "site:localhost 603383")
+            .containsEntry("site_search_query", "603383")
             .containsEntry("contentMode", "site_search_enriched")
             .containsEntry("site_search_result_count", 1);
+        assertThat(searchEngineQuery).isEqualTo("site:localhost 603383");
+        assertThat(siteSearchKeyword).isEqualTo("603383");
         List<Map<String, Object>> results = (List<Map<String, Object>>) data.get("results");
         assertThat(results).anySatisfy(result -> assertThat(result)
             .containsEntry("source", "site_search_known")
-            .containsEntry("title", "[603383][顶点软件]顶点软件2025年年度报告摘要")
             .containsEntry("url", "http://localhost:" + server.getAddress().getPort() + "/disclosure/603383_annual_summary.pdf"));
     }
 
     @Test
     @SuppressWarnings("unchecked")
-    void webSearchHonorsExplicitTargetSiteWhenSearchEngineResultsDrift() throws Exception {
+    void webSearchDoesNotUseTargetUrlAsSiteSearchSeedWhenSearchEngineResultsDrift() throws Exception {
         startWebSearchApiWithOffDomainResultsAndKnownSearchTarget();
         DefaultToolRegistry registry = new DefaultToolRegistry();
         WebSearchToolProperties webSearchProperties = new WebSearchToolProperties();
@@ -295,12 +389,12 @@ class BuiltInToolsBootstrapTest {
             .containsEntry("search_query", "site:localhost 603383")
             .containsEntry("site_search_query", "603383")
             .containsEntry("target_site", "localhost")
-            .containsEntry("site_search_result_count", 1);
+            .containsEntry("site_search_result_count", 0)
+            .containsEntry("count", 0);
+        assertThat(searchEngineQuery).isEqualTo("site:localhost 603383");
+        assertThat(siteSearchKeyword).isNull();
         List<Map<String, Object>> results = (List<Map<String, Object>>) data.get("results");
-        assertThat(results).noneMatch(result -> String.valueOf(result.get("url")).contains("kimi.com"));
-        assertThat(results).anySatisfy(result -> assertThat(result)
-            .containsEntry("source", "site_search_known")
-            .containsEntry("url", "http://localhost:" + server.getAddress().getPort() + "/disclosure/603383_annual_summary.pdf"));
+        assertThat(results).isEmpty();
     }
 
     @Test
@@ -378,7 +472,7 @@ class BuiltInToolsBootstrapTest {
                 return;
             }
             String body = """
-                {"data":{"keyword":"Studio 配置文件修改","results":[{"docId":"doc-1","title":"LiveData Studio 部署","summary":"仅摘要","detailPath":"/api/v1/search/documents/doc-1"}],"total":1,"limit":1}}
+                {"data":{"keyword":"Studio config file update","results":[{"docId":"doc-1","title":"LiveData Studio Deployment","summary":"summary only","detailPath":"/api/v1/search/documents/doc-1"}],"total":1,"limit":1}}
                 """;
             byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
             exchange.getResponseHeaders().add("Content-Type", "application/json; charset=utf-8");
@@ -397,7 +491,7 @@ class BuiltInToolsBootstrapTest {
                 return;
             }
             String body = """
-                {"data":{"docId":"doc-1","title":"LiveData Studio 部署","content":"部署时需要修改 Studio 配置文件 application.yml，将 livedata-stream 复制到 /home/livedata 后配置连接、端口和服务路径，然后重启 Prometheus 服务。"}}
+                {"data":{"docId":"doc-1","title":"LiveData Studio Deployment","content":"Deployment requires editing Studio config file application.yml, copying livedata-stream to /home/livedata, configuring connection, port, and service path, then restarting Prometheus service."}}
                 """;
             byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
             exchange.getResponseHeaders().add("Content-Type", "application/json; charset=utf-8");
@@ -409,11 +503,23 @@ class BuiltInToolsBootstrapTest {
     }
 
     private void startWebSearchApi() throws IOException {
+        searchLandingCount = 0;
+        searchEngineQuery = null;
         server = HttpServer.create(new InetSocketAddress(0), 0);
         server.createContext("/search", exchange -> {
-            String body = """
-                <html><body><ol><li class="b_algo"><h2><a href="http://localhost:%d/page1">Kunpeng compatibility guide</a></h2><div class="b_caption"><p>Compatibility notes for ARM.</p></div></li></ol></body></html>
-                """.formatted(server.getAddress().getPort());
+            String query = queryParam(exchange.getRequestURI().getRawQuery(), "q");
+            String body;
+            if (query == null || query.isBlank()) {
+                searchLandingCount++;
+                body = """
+                    <html><body><form action="/search" method="get"><input type="search" name="q" aria-label="Search"><button type="submit">Search</button></form></body></html>
+                    """;
+            } else {
+                searchEngineQuery = query;
+                body = """
+                    <html><body><ol><li class="b_algo"><h2><a href="http://localhost:%d/page1">Kunpeng compatibility guide</a></h2><div class="b_caption"><p>Compatibility notes for ARM.</p></div></li></ol></body></html>
+                    """.formatted(server.getAddress().getPort());
+            }
             byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
             exchange.getResponseHeaders().add("Content-Type", "text/html; charset=utf-8");
             exchange.sendResponseHeaders(200, bytes.length);
@@ -514,8 +620,11 @@ class BuiltInToolsBootstrapTest {
     }
 
     private void startWebSearchApiWithKnownJsonpSiteSearch() throws IOException {
+        searchEngineQuery = null;
+        siteSearchKeyword = null;
         server = HttpServer.create(new InetSocketAddress(0), 0);
         server.createContext("/search", exchange -> {
+            searchEngineQuery = queryParam(exchange.getRequestURI().getRawQuery(), "q");
             String body = """
                 <html><body><ol><li class="b_algo"><h2><a href="http://localhost:%d/exchange-js">Exchange JS search</a></h2><div class="b_caption"><p>Search listed company disclosures.</p></div></li></ol></body></html>
                 """.formatted(server.getAddress().getPort());
@@ -536,8 +645,9 @@ class BuiltInToolsBootstrapTest {
             exchange.close();
         });
         server.createContext("/search/getESSearchDoc.do", exchange -> {
+            siteSearchKeyword = queryParam(exchange.getRequestURI().getRawQuery(), "keyword");
             String body = """
-                jsonpCallback({"code":"0","data":{"totalSize":1,"knowledgeList":[{"documentId":"doc-603383","title":"[<em>603383</em>][<em>顶点软件</em>]<em>顶点软件</em>2025年年度报告摘要","rtfContent":"<em>福建顶点软件股份有限公司</em>2025 年年度报告摘要 公司代码：<em>603383</em>","createTime":"2026-04-16 19:14:05","score":2262.8176,"extend":[{"name":"CURL","value":"/disclosure/603383_annual_summary.pdf"},{"name":"ZQDM","value":"603383"},{"name":"GSJC","value":"顶点软件"}]}]}})
+                jsonpCallback({"code":"0","data":{"totalSize":1,"knowledgeList":[{"documentId":"doc-603383","title":"[603383][Vertex Software] 2025 annual report summary","rtfContent":"Vertex Software disclosure summary, security code 603383","createTime":"2026-04-16 19:14:05","score":2262.8176,"extend":[{"name":"CURL","value":"/disclosure/603383_annual_summary.pdf"},{"name":"ZQDM","value":"603383"},{"name":"GSJC","value":"Vertex Software"}]}]}})
                 """;
             byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
             exchange.getResponseHeaders().add("Content-Type", "application/javascript; charset=utf-8");
@@ -549,8 +659,11 @@ class BuiltInToolsBootstrapTest {
     }
 
     private void startWebSearchApiWithOffDomainResultsAndKnownSearchTarget() throws IOException {
+        searchEngineQuery = null;
+        siteSearchKeyword = null;
         server = HttpServer.create(new InetSocketAddress(0), 0);
         server.createContext("/search", exchange -> {
+            searchEngineQuery = queryParam(exchange.getRequestURI().getRawQuery(), "q");
             String body = """
                 <html><body><ol><li class="b_algo"><h2><a href="https://www.kimi.com/zh/">Kimi AI assistant</a></h2><div class="b_caption"><p>Kimi model release notes unrelated to exchange disclosures.</p></div></li></ol></body></html>
                 """;
@@ -571,6 +684,7 @@ class BuiltInToolsBootstrapTest {
             exchange.close();
         });
         server.createContext("/search/getESSearchDoc.do", exchange -> {
+            siteSearchKeyword = queryParam(exchange.getRequestURI().getRawQuery(), "keyword");
             String body = """
                 jsonpCallback({"code":"0","data":{"totalSize":1,"knowledgeList":[{"documentId":"doc-603383","title":"[603383][Vertex Software] 2025 annual summary","rtfContent":"Vertex Software disclosure summary, security code 603383","createTime":"2026-04-16 19:14:05","score":2262.8176,"extend":[{"name":"CURL","value":"/disclosure/603383_annual_summary.pdf"},{"name":"ZQDM","value":"603383"},{"name":"GSJC","value":"Vertex Software"}]}]}})
                 """;
@@ -581,5 +695,21 @@ class BuiltInToolsBootstrapTest {
             exchange.close();
         });
         server.start();
+    }
+
+    private String queryParam(String rawQuery, String name) {
+        if (rawQuery == null || rawQuery.isBlank()) {
+            return null;
+        }
+        for (String part : rawQuery.split("&")) {
+            int equals = part.indexOf('=');
+            String key = equals < 0 ? part : part.substring(0, equals);
+            if (!name.equals(URLDecoder.decode(key, StandardCharsets.UTF_8))) {
+                continue;
+            }
+            String value = equals < 0 ? "" : part.substring(equals + 1);
+            return URLDecoder.decode(value, StandardCharsets.UTF_8);
+        }
+        return null;
     }
 }

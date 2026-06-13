@@ -28,10 +28,10 @@ import java.util.stream.Collectors;
 @Service
 public class InteractionOrchestrationService {
 
-    private static final int DEFAULT_HISTORY_WINDOW = 8;
     private final Map<InteractionMode, InteractionModeHandler> handlers;
     private final ConversationMemoryService memoryService;
     private final ImageUnderstandingService imageUnderstandingService;
+    private final ConversationContextProperties contextProperties;
 
     /**
      * Creates a new InteractionOrchestrationService instance.
@@ -42,11 +42,19 @@ public class InteractionOrchestrationService {
     @Autowired
     public InteractionOrchestrationService(List<InteractionModeHandler> modeHandlers,
                                            ConversationMemoryService memoryService,
-                                           ImageUnderstandingService imageUnderstandingService) {
+                                           ImageUnderstandingService imageUnderstandingService,
+                                           ConversationContextProperties contextProperties) {
         this.handlers = modeHandlers.stream()
             .collect(Collectors.toMap(InteractionModeHandler::mode, Function.identity()));
         this.memoryService = memoryService;
         this.imageUnderstandingService = imageUnderstandingService;
+        this.contextProperties = contextProperties == null ? new ConversationContextProperties() : contextProperties;
+    }
+
+    public InteractionOrchestrationService(List<InteractionModeHandler> modeHandlers,
+                                           ConversationMemoryService memoryService,
+                                           ImageUnderstandingService imageUnderstandingService) {
+        this(modeHandlers, memoryService, imageUnderstandingService, new ConversationContextProperties());
     }
 
     /**
@@ -57,7 +65,7 @@ public class InteractionOrchestrationService {
      */
     public InteractionOrchestrationService(List<InteractionModeHandler> modeHandlers,
                                            ConversationMemoryService memoryService) {
-        this(modeHandlers, memoryService, null);
+        this(modeHandlers, memoryService, null, new ConversationContextProperties());
     }
 
     /**
@@ -82,7 +90,9 @@ public class InteractionOrchestrationService {
 
         String requestId = UUID.randomUUID().toString();
         String conversationId = memoryService.ensureConversationId(request.getConversationId(), request.getUserId());
-        int historyWindow = request.getHistoryWindow() == null ? DEFAULT_HISTORY_WINDOW : request.getHistoryWindow();
+        int historyWindow = request.getHistoryWindow() == null
+            ? contextProperties.getRecentMessageLimit()
+            : request.getHistoryWindow();
         long startedAt = System.currentTimeMillis();
 
         InteractionContext context = InteractionContext.builder()
@@ -90,6 +100,7 @@ public class InteractionOrchestrationService {
             .conversationId(conversationId)
             .mode(mode)
             .startedAtMs(startedAt)
+            .conversationSummary(memoryService.summary(conversationId).map(summary -> summary.summary()).orElse(""))
             .history(memoryService.recent(conversationId, historyWindow))
             .build();
 
@@ -105,6 +116,7 @@ public class InteractionOrchestrationService {
 
         if (response.getAnswer() != null && !response.getAnswer().isBlank()) {
             memoryService.append(conversationId, "assistant", response.getAnswer(), response.getSources(), response.getToolTraces());
+            memoryService.maybeRefreshSummary(conversationId);
         }
 
         response.setConversationId(conversationId);

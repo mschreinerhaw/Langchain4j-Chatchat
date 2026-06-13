@@ -206,6 +206,12 @@ chatchat:
     streamingTimeout: 300
     maxMessageLength: 4096
     conversationHistorySize: 20
+    context:
+      recent-message-limit: ${CHAT_CONTEXT_RECENT_MESSAGE_LIMIT:8}
+      summary-trigger-messages: ${CHAT_CONTEXT_SUMMARY_TRIGGER_MESSAGES:12}
+      summary-keep-recent-messages: ${CHAT_CONTEXT_SUMMARY_KEEP_RECENT_MESSAGES:6}
+      summary-max-chars: ${CHAT_CONTEXT_SUMMARY_MAX_CHARS:1600}
+      summary-enabled: ${CHAT_CONTEXT_SUMMARY_ENABLED:true}
     detail-store:
       type: rocksdb
       path: ${CHAT_DETAIL_STORE_PATH:./data/chat-rocksdb}

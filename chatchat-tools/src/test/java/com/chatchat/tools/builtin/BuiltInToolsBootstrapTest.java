@@ -260,6 +260,51 @@ class BuiltInToolsBootstrapTest {
 
     @Test
     @SuppressWarnings("unchecked")
+    void webSearchHonorsExplicitTargetSiteWhenSearchEngineResultsDrift() throws Exception {
+        startWebSearchApiWithOffDomainResultsAndKnownSearchTarget();
+        DefaultToolRegistry registry = new DefaultToolRegistry();
+        WebSearchToolProperties webSearchProperties = new WebSearchToolProperties();
+        webSearchProperties.setProvider("bing_html");
+        webSearchProperties.setEndpoint("http://localhost:" + server.getAddress().getPort() + "/search");
+        webSearchProperties.setMaxResults(5);
+        webSearchProperties.setFetchPages(false);
+        webSearchProperties.getBrowser().setLocalBrowserEnabled(false);
+        webSearchProperties.getSiteSearch().setMaxPagesToInspect(1);
+        webSearchProperties.getSiteSearch().setMaxSecondaryPages(1);
+        webSearchProperties.getSiteSearch().setMaxLinksPerPage(3);
+
+        BuiltInToolsBootstrap bootstrap = new BuiltInToolsBootstrap(
+            registry,
+            webSearchProperties,
+            new DatabaseToolProperties(),
+            mock(DynamicJdbcDriverLoader.class),
+            new MockEnvironment(),
+            new ObjectMapper()
+        );
+        bootstrap.initializeBuiltInTools();
+
+        ToolRegistry.EnhancedTool webSearch = registry.getEnhancedTool("web_search");
+        String targetUrl = "http://localhost:" + server.getAddress().getPort() + "/exchange-js";
+        ToolOutput output = webSearch.execute(ToolInput.builder()
+            .parameters(Map.of("query", "find " + targetUrl + " 603383", "num_results", 3))
+            .build());
+
+        assertThat(output.isSuccess()).isTrue();
+        Map<String, Object> data = (Map<String, Object>) output.getData();
+        assertThat(data)
+            .containsEntry("search_query", "site:localhost 603383")
+            .containsEntry("site_search_query", "603383")
+            .containsEntry("target_site", "localhost")
+            .containsEntry("site_search_result_count", 1);
+        List<Map<String, Object>> results = (List<Map<String, Object>>) data.get("results");
+        assertThat(results).noneMatch(result -> String.valueOf(result.get("url")).contains("kimi.com"));
+        assertThat(results).anySatisfy(result -> assertThat(result)
+            .containsEntry("source", "site_search_known")
+            .containsEntry("url", "http://localhost:" + server.getAddress().getPort() + "/disclosure/603383_annual_summary.pdf"));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
     void webSearchDiscoversSearchEntrypointAndKeepsDocumentResults() throws Exception {
         startWebSearchApiWithSearchEntrypointAndDocuments();
         DefaultToolRegistry registry = new DefaultToolRegistry();
@@ -493,6 +538,41 @@ class BuiltInToolsBootstrapTest {
         server.createContext("/search/getESSearchDoc.do", exchange -> {
             String body = """
                 jsonpCallback({"code":"0","data":{"totalSize":1,"knowledgeList":[{"documentId":"doc-603383","title":"[<em>603383</em>][<em>顶点软件</em>]<em>顶点软件</em>2025年年度报告摘要","rtfContent":"<em>福建顶点软件股份有限公司</em>2025 年年度报告摘要 公司代码：<em>603383</em>","createTime":"2026-04-16 19:14:05","score":2262.8176,"extend":[{"name":"CURL","value":"/disclosure/603383_annual_summary.pdf"},{"name":"ZQDM","value":"603383"},{"name":"GSJC","value":"顶点软件"}]}]}})
+                """;
+            byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().add("Content-Type", "application/javascript; charset=utf-8");
+            exchange.sendResponseHeaders(200, bytes.length);
+            exchange.getResponseBody().write(bytes);
+            exchange.close();
+        });
+        server.start();
+    }
+
+    private void startWebSearchApiWithOffDomainResultsAndKnownSearchTarget() throws IOException {
+        server = HttpServer.create(new InetSocketAddress(0), 0);
+        server.createContext("/search", exchange -> {
+            String body = """
+                <html><body><ol><li class="b_algo"><h2><a href="https://www.kimi.com/zh/">Kimi AI assistant</a></h2><div class="b_caption"><p>Kimi model release notes unrelated to exchange disclosures.</p></div></li></ol></body></html>
+                """;
+            byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().add("Content-Type", "text/html; charset=utf-8");
+            exchange.sendResponseHeaders(200, bytes.length);
+            exchange.getResponseBody().write(bytes);
+            exchange.close();
+        });
+        server.createContext("/exchange-js", exchange -> {
+            String body = """
+                <html><body><main><h1>Exchange JS search</h1><script>var sseQueryURL = "http://localhost:%d/"; var api = "search/getESSearchDoc.do";</script></main></body></html>
+                """.formatted(server.getAddress().getPort());
+            byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().add("Content-Type", "text/html; charset=utf-8");
+            exchange.sendResponseHeaders(200, bytes.length);
+            exchange.getResponseBody().write(bytes);
+            exchange.close();
+        });
+        server.createContext("/search/getESSearchDoc.do", exchange -> {
+            String body = """
+                jsonpCallback({"code":"0","data":{"totalSize":1,"knowledgeList":[{"documentId":"doc-603383","title":"[603383][Vertex Software] 2025 annual summary","rtfContent":"Vertex Software disclosure summary, security code 603383","createTime":"2026-04-16 19:14:05","score":2262.8176,"extend":[{"name":"CURL","value":"/disclosure/603383_annual_summary.pdf"},{"name":"ZQDM","value":"603383"},{"name":"GSJC","value":"Vertex Software"}]}]}})
                 """;
             byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
             exchange.getResponseHeaders().add("Content-Type", "application/javascript; charset=utf-8");

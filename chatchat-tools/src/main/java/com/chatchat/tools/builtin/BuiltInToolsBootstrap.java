@@ -686,6 +686,8 @@ public class BuiltInToolsBootstrap {
         private final AtomicInteger dailyCalls = new AtomicInteger();
         private volatile LocalDate dailyWindow = LocalDate.now();
         private volatile long lastRequestAtMs;
+        private static final Pattern HTTP_URL_PATTERN = Pattern.compile("https?://[^\\s\\)\\]\\}>\"'，。；;,]+", Pattern.CASE_INSENSITIVE);
+        private static final Pattern SITE_OPERATOR_PATTERN = Pattern.compile("(?i)(?:^|\\s)site\\s*:\\s*([^\\s]+)");
 
         /**
          * Creates a new BuiltInToolsBootstrap instance.
@@ -754,6 +756,7 @@ public class BuiltInToolsBootstrap {
                 ? "duckduckgo_html"
                 : properties.getProvider().trim().toLowerCase(Locale.ROOT);
 
+            WebSearchQueryIntent queryIntent = analyzeSearchQuery(query);
             WebSearchRequestContext context = requestContext(input, query);
             List<SearchAttempt> attempts = buildSearchAttempts(provider, properties.getEndpoint());
             List<String> errors = new ArrayList<>();
@@ -769,7 +772,7 @@ public class BuiltInToolsBootstrap {
                         properties.isFetchPages(),
                         properties.getMaxPagesToFetch());
                     Map<String, Object> result = performWebSearchAttempt(
-                        attempt.provider(), attempt.endpoint(), query, numResults, errors, context, networkAudit);
+                        attempt.provider(), attempt.endpoint(), queryIntent, numResults, errors, context, networkAudit);
                     log.info("Web search provider attempt succeeded provider={} durationMs={} resultCount={} pageExcerptCount={}",
                         attempt.provider(),
                         Math.max(0L, System.currentTimeMillis() - startedAt),
@@ -797,15 +800,18 @@ public class BuiltInToolsBootstrap {
          */
         private Map<String, Object> performWebSearchAttempt(String provider,
                                                             String endpoint,
-                                                            String query,
+                                                            WebSearchQueryIntent queryIntent,
                                                             int numResults,
                                                             List<String> previousErrors,
                                                             WebSearchRequestContext context,
                                                             List<Map<String, Object>> networkAudit) throws Exception {
+            String query = queryIntent.originalQuery();
+            String searchQuery = queryIntent.searchQuery();
+            String siteQuery = queryIntent.siteSearchQuery();
             HtmlResponse searchResponse = sendHtmlRequest(
                 endpoint,
-                Map.of("q", query),
-                query,
+                Map.of("q", searchQuery),
+                searchQuery,
                 "search",
                 context,
                 networkAudit
@@ -820,14 +826,15 @@ public class BuiltInToolsBootstrap {
                 case "bing_html" -> parseBingResults(document, fetchLimit);
                 default -> throw new IllegalArgumentException("Unsupported web search provider: " + properties.getProvider());
             };
+            List<Map<String, Object>> primaryResults = targetedPrimaryResults(fetchedResults, queryIntent);
             List<Map<String, Object>> siteSearchResults = discoverSiteSearchResults(
-                fetchedResults,
-                query,
+                primaryResults,
+                siteQuery,
                 fetchLimit,
                 context,
                 networkAudit
             );
-            List<Map<String, Object>> mergedResults = mergeSearchResults(fetchedResults, siteSearchResults, fetchLimit);
+            List<Map<String, Object>> mergedResults = mergeSearchResults(primaryResults, siteSearchResults, fetchLimit);
             List<Map<String, Object>> results = mergedResults.size() <= numResults
                 ? mergedResults
                 : new ArrayList<>(mergedResults.subList(0, numResults));
@@ -843,6 +850,9 @@ public class BuiltInToolsBootstrap {
 
             Map<String, Object> output = new LinkedHashMap<>();
             output.put("query", query);
+            output.put("search_query", searchQuery);
+            output.put("site_search_query", siteQuery);
+            output.put("target_site", queryIntent.targetHost());
             output.put("provider", provider);
             output.put("configuredProvider", properties.getProvider());
             output.put("fallbackUsed", previousErrors != null && !previousErrors.isEmpty());
@@ -862,6 +872,119 @@ public class BuiltInToolsBootstrap {
             return output;
         }
 
+        private WebSearchQueryIntent analyzeSearchQuery(String query) {
+            String original = query == null ? "" : query.trim();
+            String targetUrl = firstUrl(original);
+            String targetHost = targetUrl == null ? null : normalizedSearchHost(hostOf(targetUrl));
+            Matcher siteMatcher = SITE_OPERATOR_PATTERN.matcher(original);
+            if ((targetHost == null || targetHost.isBlank()) && siteMatcher.find()) {
+                targetHost = normalizedSearchHost(siteMatcher.group(1));
+                targetUrl = "https://" + targetHost + "/";
+            }
+
+            String keyword = cleanupSiteKeyword(original);
+            String searchQuery = original;
+            if (targetHost != null && !targetHost.isBlank() && !containsSiteOperator(original)) {
+                searchQuery = keyword.isBlank()
+                    ? "site:" + targetHost
+                    : "site:" + targetHost + " " + keyword;
+            }
+            String siteSearchQuery = keyword.isBlank() ? original : keyword;
+            return new WebSearchQueryIntent(original, searchQuery, siteSearchQuery, targetUrl, targetHost);
+        }
+
+        private List<Map<String, Object>> targetedPrimaryResults(List<Map<String, Object>> fetchedResults,
+                                                                 WebSearchQueryIntent queryIntent) {
+            if (queryIntent.targetHost() == null || queryIntent.targetHost().isBlank()) {
+                return fetchedResults;
+            }
+            List<Map<String, Object>> targeted = new ArrayList<>();
+            Map<String, Object> seed = targetSiteSeed(queryIntent);
+            if (seed != null) {
+                targeted.add(seed);
+            }
+            if (fetchedResults != null) {
+                for (Map<String, Object> result : fetchedResults) {
+                    String url = stringValue(result.get("url"));
+                    if (sameSearchDomain(url, queryIntent.targetHost())) {
+                        targeted.add(new LinkedHashMap<>(result));
+                    }
+                }
+            }
+            return targeted;
+        }
+
+        private Map<String, Object> targetSiteSeed(WebSearchQueryIntent queryIntent) {
+            String targetUrl = queryIntent.targetUrl();
+            if (!isHttpUrl(targetUrl)) {
+                return null;
+            }
+            Map<String, Object> seed = new LinkedHashMap<>();
+            seed.put("rank", 1);
+            seed.put("title", queryIntent.targetHost());
+            seed.put("url", targetUrl);
+            seed.put("snippet", "Target site requested by user");
+            seed.put("source", "target_site");
+            return seed;
+        }
+
+        private String cleanupSiteKeyword(String query) {
+            String value = query == null ? "" : query.trim();
+            value = HTTP_URL_PATTERN.matcher(value).replaceAll(" ");
+            value = SITE_OPERATOR_PATTERN.matcher(value).replaceAll(" ");
+            value = value.replaceAll("(?i)\\b(from|within|inside|website|site|search|find|lookup|look up|on|in)\\b", " ");
+            for (String phrase : List.of(
+                "\u4ece\u8fd9\u4e2a\u7f51\u7ad9\u627e",
+                "\u4ece\u8fd9\u4e2a\u7f51\u7ad9\u641c\u7d22",
+                "\u8fd9\u4e2a\u7f51\u7ad9",
+                "\u7f51\u7ad9",
+                "\u641c\u7d22",
+                "\u67e5\u627e",
+                "\u67e5\u8be2",
+                "\u4ece"
+            )) {
+                value = value.replace(phrase, " ");
+            }
+            return value.replaceAll("\\s+", " ").trim();
+        }
+
+        private String firstUrl(String query) {
+            if (query == null || query.isBlank()) {
+                return null;
+            }
+            Matcher matcher = HTTP_URL_PATTERN.matcher(query);
+            return matcher.find() ? matcher.group() : null;
+        }
+
+        private boolean containsSiteOperator(String query) {
+            return query != null && SITE_OPERATOR_PATTERN.matcher(query).find();
+        }
+
+        private boolean sameSearchDomain(String url, String targetHost) {
+            String host = normalizedSearchHost(hostOf(url));
+            String target = normalizedSearchHost(targetHost);
+            return host != null && target != null && (host.equals(target) || host.endsWith("." + target));
+        }
+
+        private String normalizedSearchHost(String host) {
+            if (host == null || host.isBlank()) {
+                return null;
+            }
+            String value = host.trim().toLowerCase(Locale.ROOT);
+            if (value.startsWith("www.")) {
+                value = value.substring(4);
+            }
+            int slash = value.indexOf('/');
+            if (slash >= 0) {
+                value = value.substring(0, slash);
+            }
+            int colon = value.indexOf(':');
+            if (colon >= 0) {
+                value = value.substring(0, colon);
+            }
+            return value.isBlank() ? null : value;
+        }
+
         private String contentMode(List<Map<String, Object>> pageExcerpts, List<Map<String, Object>> siteSearchResults) {
             if (pageExcerpts != null && !pageExcerpts.isEmpty()) {
                 return siteSearchResults != null && !siteSearchResults.isEmpty()
@@ -871,6 +994,15 @@ public class BuiltInToolsBootstrap {
             return siteSearchResults != null && !siteSearchResults.isEmpty()
                 ? "site_search_enriched"
                 : "search_snippets_only";
+        }
+
+        private record WebSearchQueryIntent(
+            String originalQuery,
+            String searchQuery,
+            String siteSearchQuery,
+            String targetUrl,
+            String targetHost
+        ) {
         }
 
         /**

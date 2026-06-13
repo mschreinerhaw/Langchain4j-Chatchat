@@ -44,14 +44,12 @@ public class OpsMcpToolPublisher {
     }
 
     public synchronized void refresh() {
-        remove("http_request");
         remove("linux_command_execute");
         managedHttpToolNames.forEach(this::remove);
         managedHttpToolNames.clear();
         managedSshToolNames.forEach(this::remove);
         managedSshToolNames.clear();
 
-        mcpSyncServer.addTool(httpTool());
         for (HttpEndpointConfig endpoint : httpEndpointConfigService.listEnabled()) {
             try {
                 mcpSyncServer.addTool(httpEndpointTool(endpoint));
@@ -69,7 +67,7 @@ public class OpsMcpToolPublisher {
             }
         }
         mcpSyncServer.notifyToolsListChanged();
-        log.info("Ops MCP tools refreshed: http_request, {} HTTP asset tools and {} SSH asset tools",
+        log.info("Ops MCP asset tools refreshed: {} HTTP asset tools and {} SSH asset tools",
             managedHttpToolNames.size(), managedSshToolNames.size());
     }
 

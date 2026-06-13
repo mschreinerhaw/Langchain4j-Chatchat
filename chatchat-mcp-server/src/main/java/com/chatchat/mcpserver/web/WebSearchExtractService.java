@@ -14,9 +14,14 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Service
 public class WebSearchExtractService {
+
+    private static final Pattern HTTP_URL_PATTERN = Pattern.compile("https?://[^\\s\\)\\]\\}>\"'，。；;,]+", Pattern.CASE_INSENSITIVE);
+    private static final Pattern SITE_OPERATOR_PATTERN = Pattern.compile("(?i)(?:^|\\s)site\\s*:\\s*([^\\s]+)");
 
     private static final Set<String> PREFERRED_DOMAINS = Set.of(
         "docs.", "developer.", "learn.microsoft.com", "github.com", "wikipedia.org",
@@ -81,9 +86,10 @@ public class WebSearchExtractService {
             return output;
         }
 
-        List<String> rewrittenQueries = rewriteQueries(normalizedQuery, normalizedMode);
+        QueryScope queryScope = analyzeQueryScope(normalizedQuery);
+        List<String> rewrittenQueries = rewriteQueries(queryScope.searchQuery(), normalizedMode);
         Map<String, Object> searchOutput = runWebSearch(rewrittenQueries.get(0), searchResultLimit(normalizedMode, limit));
-        List<Map<String, Object>> ranked = rank(extractSearchResults(searchOutput), limit);
+        List<Map<String, Object>> ranked = rank(extractSearchResults(searchOutput), limit, queryScope);
         List<Map<String, Object>> pages = extractPages(ranked, normalizedMode);
         List<String> referenceUrls = ranked.stream()
             .map(item -> stringValue(item.get("url")))
@@ -119,6 +125,8 @@ public class WebSearchExtractService {
         output.put("mode", normalizedMode);
         output.put("topK", limit);
         output.put("query_rewrites", rewrittenQueries);
+        output.put("search_query", rewrittenQueries.get(0));
+        output.put("target_site", queryScope.targetHost());
         output.put("cacheHit", false);
         output.put("reference_urls", referenceUrls);
         output.put("results", ranked);
@@ -200,12 +208,23 @@ public class WebSearchExtractService {
         return new ArrayList<>(byUrl.values());
     }
 
-    private List<Map<String, Object>> rank(List<Map<String, Object>> results, int limit) {
-        return results.stream()
+    private List<Map<String, Object>> rank(List<Map<String, Object>> results, int limit, QueryScope queryScope) {
+        List<Map<String, Object>> scoped = applyTargetScope(results, queryScope);
+        return scoped.stream()
             .peek(item -> item.put("score", score(item)))
             .sorted(Comparator.comparingDouble((Map<String, Object> item) -> numberValue(item.get("score"), 0).doubleValue()).reversed())
             .limit(limit)
             .toList();
+    }
+
+    private List<Map<String, Object>> applyTargetScope(List<Map<String, Object>> results, QueryScope queryScope) {
+        if (queryScope.targetHost() == null || queryScope.targetHost().isBlank()) {
+            return results;
+        }
+        List<Map<String, Object>> scoped = results.stream()
+            .filter(item -> sameSearchDomain(stringValue(item.get("url")), queryScope.targetHost()))
+            .toList();
+        return scoped.isEmpty() ? results : scoped;
     }
 
     private double score(Map<String, Object> item) {
@@ -278,6 +297,82 @@ public class WebSearchExtractService {
             case "fast", "deep", "cached" -> normalized;
             default -> "fast";
         };
+    }
+
+    private QueryScope analyzeQueryScope(String query) {
+        String targetUrl = firstUrl(query);
+        String targetHost = targetUrl == null ? null : normalizedSearchHost(host(targetUrl));
+        Matcher siteMatcher = SITE_OPERATOR_PATTERN.matcher(query);
+        if ((targetHost == null || targetHost.isBlank()) && siteMatcher.find()) {
+            targetHost = normalizedSearchHost(siteMatcher.group(1));
+        }
+        if (targetHost == null || targetHost.isBlank() || containsSiteOperator(query)) {
+            return new QueryScope(query, targetHost);
+        }
+        String keyword = cleanupSiteKeyword(query);
+        String searchQuery = keyword.isBlank() ? "site:" + targetHost : "site:" + targetHost + " " + keyword;
+        return new QueryScope(searchQuery, targetHost);
+    }
+
+    private String cleanupSiteKeyword(String query) {
+        String value = query == null ? "" : query.trim();
+        value = HTTP_URL_PATTERN.matcher(value).replaceAll(" ");
+        value = SITE_OPERATOR_PATTERN.matcher(value).replaceAll(" ");
+        for (String phrase : List.of(
+            "\u4ece\u8fd9\u4e2a\u7f51\u7ad9\u627e",
+            "\u4ece\u8fd9\u4e2a\u7f51\u7ad9\u641c\u7d22",
+            "\u8fd9\u4e2a\u7f51\u7ad9",
+            "\u7f51\u7ad9",
+            "\u641c\u7d22",
+            "\u67e5\u627e",
+            "\u67e5\u8be2",
+            "\u4ece"
+        )) {
+            value = value.replace(phrase, " ");
+        }
+        return value.replaceAll("(?i)\\b(from|within|inside|website|site|search|find|lookup|look up|on|in)\\b", " ")
+            .replaceAll("\\s+", " ")
+            .trim();
+    }
+
+    private String firstUrl(String query) {
+        if (query == null || query.isBlank()) {
+            return null;
+        }
+        Matcher matcher = HTTP_URL_PATTERN.matcher(query);
+        return matcher.find() ? matcher.group() : null;
+    }
+
+    private boolean containsSiteOperator(String query) {
+        return query != null && SITE_OPERATOR_PATTERN.matcher(query).find();
+    }
+
+    private boolean sameSearchDomain(String url, String targetHost) {
+        String host = normalizedSearchHost(host(url));
+        String target = normalizedSearchHost(targetHost);
+        return host != null && target != null && (host.equals(target) || host.endsWith("." + target));
+    }
+
+    private String normalizedSearchHost(String host) {
+        if (host == null || host.isBlank()) {
+            return null;
+        }
+        String value = host.trim().toLowerCase(Locale.ROOT);
+        if (value.startsWith("www.")) {
+            value = value.substring(4);
+        }
+        int slash = value.indexOf('/');
+        if (slash >= 0) {
+            value = value.substring(0, slash);
+        }
+        int colon = value.indexOf(':');
+        if (colon >= 0) {
+            value = value.substring(0, colon);
+        }
+        return value.isBlank() ? null : value;
+    }
+
+    private record QueryScope(String searchQuery, String targetHost) {
     }
 
     private void addMaps(List<Map<String, Object>> values, Object source) {

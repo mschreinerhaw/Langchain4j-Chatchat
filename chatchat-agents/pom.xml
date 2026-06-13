@@ -67,6 +67,13 @@
             <artifactId>commons-lang3</artifactId>
         </dependency>
 
+        <!-- Runtime persistence -->
+        <dependency>
+            <groupId>org.rocksdb</groupId>
+            <artifactId>rocksdbjni</artifactId>
+            <version>${rocksdb.version}</version>
+        </dependency>
+
         <!-- Testing -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

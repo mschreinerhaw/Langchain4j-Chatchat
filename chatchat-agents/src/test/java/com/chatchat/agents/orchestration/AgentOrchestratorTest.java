@@ -2,6 +2,10 @@ package com.chatchat.agents.orchestration;
 
 import com.chatchat.agents.runtime.ToolRuntimeService;
 import com.chatchat.agents.runtime.ToolRuntimeProperties;
+import com.chatchat.agents.runtime.AgentRunRequest;
+import com.chatchat.agents.runtime.AgentRunResult;
+import com.chatchat.agents.runtime.AgentRunStatus;
+import com.chatchat.agents.runtime.InMemoryAgentRunStore;
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.config.ModelsConfig;
 import com.chatchat.common.interaction.InteractionToolTrace;
@@ -17,14 +21,334 @@ import java.util.List;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Queue;
+import java.util.function.BooleanSupplier;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class AgentOrchestratorTest {
+
+    @Test
+    void executeRuntimeRequestReturnsTypedRunResult() {
+        QueueChatModel chatModel = new QueueChatModel(
+            "{\"action\":\"tool\",\"toolName\":\"document_search\",\"arguments\":{\"query\":\"internal definition\"},\"reason\":\"Need internal evidence\"}",
+            "{\"action\":\"final\",\"answer\":\"Use the internal definition handbook.\"}",
+            "{\"accepted\":true,\"feedback\":\"The answer uses document evidence.\",\"revisedAnswer\":\"\"}"
+        );
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.getToolMetadata("document_search")).thenReturn(ToolMetadata.builder()
+            .id("document_search")
+            .title("Document Search")
+            .description("Search internal documents")
+            .build());
+        when(toolRegistry.executeEnhancedTool(eq("document_search"), any())).thenReturn(documentSearchOutput());
+        ToolRuntimeService toolRuntimeService = new ToolRuntimeService(
+            toolRegistry,
+            new ObjectMapper(),
+            toolRuntimeProperties(),
+            List.of(),
+            List.of()
+        );
+        AgentOrchestrator orchestrator = new AgentOrchestrator(
+            chatModel,
+            toolRegistry,
+            toolRuntimeService,
+            new ObjectMapper(),
+            new ModelsConfig()
+        );
+
+        AgentRunResult result = orchestrator.execute(AgentRunRequest.builder()
+            .query("What is the internal definition?")
+            .tenantId("tenant-1")
+            .availableTools(List.of("document_search"))
+            .systemPrompt("Use internal evidence.")
+            .skillId("research")
+            .requestId("req-runtime-1")
+            .conversationId("conv-runtime-1")
+            .userId("user-1")
+            .webSearchResultLimit(10)
+            .build());
+
+        assertThat(result.answer()).isEqualTo("Use the internal definition handbook.");
+        assertThat(result.stopReason()).isEqualTo("final_answer");
+        assertThat(result.toolTraces())
+            .extracting(InteractionToolTrace::getToolName)
+            .containsExactly("document_search");
+        assertThat(result.steps().stream().map(step -> step.action()).toList())
+            .containsExactly("tool", "final");
+        assertThat(result.observations().stream().map(observation -> observation.type()).toList())
+            .contains("document_evidence");
+        assertThat(result.metadata())
+            .containsEntry("runtimeContractVersion", "agent_runtime_v1")
+            .containsEntry("toolTraceCount", 1);
+    }
+
+    @Test
+    void runtimeRunStorePersistsRunLifecycleEvents() {
+        QueueChatModel chatModel = new QueueChatModel(
+            "{\"action\":\"tool\",\"toolName\":\"document_search\",\"arguments\":{\"query\":\"internal definition\"},\"reason\":\"Need internal evidence\"}",
+            "{\"action\":\"final\",\"answer\":\"Use the persisted run evidence.\"}",
+            "{\"accepted\":true,\"feedback\":\"The answer uses document evidence.\",\"revisedAnswer\":\"\"}"
+        );
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.getToolMetadata("document_search")).thenReturn(ToolMetadata.builder()
+            .id("document_search")
+            .title("Document Search")
+            .description("Search internal documents")
+            .build());
+        when(toolRegistry.executeEnhancedTool(eq("document_search"), any())).thenReturn(documentSearchOutput());
+        InMemoryAgentRunStore runStore = new InMemoryAgentRunStore();
+        AgentOrchestrator orchestrator = new AgentOrchestrator(
+            chatModel,
+            toolRegistry,
+            new ToolRuntimeService(
+                toolRegistry,
+                new ObjectMapper(),
+                toolRuntimeProperties(),
+                List.of(),
+                List.of()
+            ),
+            new ObjectMapper(),
+            new ModelsConfig(),
+            new EvidenceTrustEvaluator(),
+            runStore
+        );
+
+        AgentRunResult result = orchestrator.execute(AgentRunRequest.builder()
+            .runId("run-store-1")
+            .query("What is the internal definition?")
+            .tenantId("tenant-1")
+            .availableTools(List.of("document_search"))
+            .systemPrompt("Use internal evidence.")
+            .requestId("req-run-store-1")
+            .conversationId("conv-run-store-1")
+            .userId("user-1")
+            .build());
+
+        assertThat(result.runId()).isEqualTo("run-store-1");
+        assertThat(result.status()).isEqualTo(AgentRunStatus.COMPLETED);
+        assertThat(result.events()).extracting(event -> event.type().name())
+            .contains("RUN_STARTED", "STEP_RECORDED", "OBSERVATION_RECORDED", "RUN_COMPLETED");
+        assertThat(runStore.find("run-store-1")).isPresent();
+        assertThat(runStore.find("run-store-1").orElseThrow().status()).isEqualTo(AgentRunStatus.COMPLETED);
+        assertThat(runStore.find("run-store-1").orElseThrow().steps()).hasSize(2);
+        assertThat(runStore.events("run-store-1")).hasSize(result.events().size());
+    }
+
+    @Test
+    void executeRuntimeRequestReturnsCancelledRunWhenCancellationIsRequested() {
+        QueueChatModel chatModel = new QueueChatModel();
+        InMemoryAgentRunStore runStore = new InMemoryAgentRunStore();
+        AgentOrchestrator orchestrator = new AgentOrchestrator(
+            chatModel,
+            mock(ToolRegistry.class),
+            new ToolRuntimeService(
+                mock(ToolRegistry.class),
+                new ObjectMapper(),
+                toolRuntimeProperties(),
+                List.of(),
+                List.of()
+            ),
+            new ObjectMapper(),
+            new ModelsConfig(),
+            new EvidenceTrustEvaluator(),
+            runStore
+        );
+
+        AgentRunResult result = orchestrator.execute(AgentRunRequest.builder()
+            .runId("run-cancel-1")
+            .query("Cancel this run")
+            .tenantId("tenant-1")
+            .availableTools(List.of())
+            .requestId("req-cancel-1")
+            .attributes(Map.of("__agentCancellation", (BooleanSupplier) () -> true))
+            .build());
+
+        assertThat(result.status()).isEqualTo(AgentRunStatus.CANCELLED);
+        assertThat(result.stopReason()).isEqualTo("cancelled");
+        assertThat(result.events()).extracting(event -> event.type().name())
+            .contains("RUN_STARTED", "RUN_CANCELLED");
+        assertThat(runStore.find("run-cancel-1")).isPresent();
+        assertThat(runStore.find("run-cancel-1").orElseThrow().status()).isEqualTo(AgentRunStatus.CANCELLED);
+    }
+
+    @Test
+    void executeRuntimeRequestHonorsMaxStepsBudget() {
+        QueueChatModel chatModel = new QueueChatModel(
+            "{\"action\":\"tool\",\"toolName\":\"document_search\",\"arguments\":{\"query\":\"internal definition\"},\"reason\":\"Need internal evidence\"}",
+            "Fallback answer from one observed tool.",
+            "{\"accepted\":true,\"feedback\":\"The answer uses the observed tool result.\",\"revisedAnswer\":\"\"}"
+        );
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.getToolMetadata("document_search")).thenReturn(ToolMetadata.builder()
+            .id("document_search")
+            .title("Document Search")
+            .description("Search internal documents")
+            .build());
+        when(toolRegistry.executeEnhancedTool(eq("document_search"), any())).thenReturn(documentSearchOutput());
+        AgentOrchestrator orchestrator = new AgentOrchestrator(
+            chatModel,
+            toolRegistry,
+            new ToolRuntimeService(
+                toolRegistry,
+                new ObjectMapper(),
+                toolRuntimeProperties(),
+                List.of(),
+                List.of()
+            ),
+            new ObjectMapper(),
+            new ModelsConfig()
+        );
+
+        AgentRunResult result = orchestrator.execute(AgentRunRequest.builder()
+            .runId("run-max-steps-1")
+            .query("What is the internal definition?")
+            .tenantId("tenant-1")
+            .availableTools(List.of("document_search"))
+            .requestId("req-max-steps-1")
+            .maxSteps(1)
+            .build());
+
+        assertThat(result.status()).isEqualTo(AgentRunStatus.COMPLETED);
+        assertThat(result.answer()).isEqualTo("Fallback answer from one observed tool.");
+        assertThat(result.stopReason()).isEqualTo("max_steps_or_fallback");
+        assertThat(result.metadata())
+            .containsEntry("maxSteps", 1)
+            .containsEntry("steps", 1);
+        assertThat(result.toolTraces())
+            .extracting(InteractionToolTrace::getToolName)
+            .containsExactly("document_search");
+    }
+
+    @Test
+    void executeRuntimeRequestHonorsMaxToolCallsBudget() {
+        QueueChatModel chatModel = new QueueChatModel(
+            "{\"action\":\"tool\",\"toolName\":\"document_search\",\"arguments\":{\"query\":\"internal definition\"},\"reason\":\"Need internal evidence\"}",
+            "Cannot call tools under the current runtime budget.",
+            "{\"accepted\":true,\"feedback\":\"The answer explains the runtime limit.\",\"revisedAnswer\":\"\"}"
+        );
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.getToolMetadata("document_search")).thenReturn(ToolMetadata.builder()
+            .id("document_search")
+            .title("Document Search")
+            .description("Search internal documents")
+            .build());
+        AgentOrchestrator orchestrator = new AgentOrchestrator(
+            chatModel,
+            toolRegistry,
+            new ToolRuntimeService(
+                toolRegistry,
+                new ObjectMapper(),
+                toolRuntimeProperties(),
+                List.of(),
+                List.of()
+            ),
+            new ObjectMapper(),
+            new ModelsConfig()
+        );
+
+        AgentRunResult result = orchestrator.execute(AgentRunRequest.builder()
+            .runId("run-max-tool-calls-1")
+            .query("What is the internal definition?")
+            .tenantId("tenant-1")
+            .availableTools(List.of("document_search"))
+            .requestId("req-max-tool-calls-1")
+            .maxToolCalls(0)
+            .build());
+
+        assertThat(result.status()).isEqualTo(AgentRunStatus.COMPLETED);
+        assertThat(result.answer()).isEqualTo("Cannot call tools under the current runtime budget.");
+        assertThat(result.stopReason()).isEqualTo("tool_budget_exceeded");
+        assertThat(result.toolTraces()).isEmpty();
+        assertThat(result.metadata())
+            .containsEntry("maxToolCalls", 0)
+            .containsEntry("toolBudgetExceeded", true)
+            .containsEntry("requestedToolAfterBudget", "document_search");
+        verify(toolRegistry, never()).executeEnhancedTool(eq("document_search"), any());
+    }
+
+    @Test
+    void executeRuntimeRequestCancelsRunWhenTimeoutExpires() {
+        ChatModel chatModel = new SlowChatModel(
+            20L,
+            "{\"action\":\"final\",\"answer\":\"This answer should arrive too late.\"}"
+        );
+        InMemoryAgentRunStore runStore = new InMemoryAgentRunStore();
+        AgentOrchestrator orchestrator = new AgentOrchestrator(
+            chatModel,
+            mock(ToolRegistry.class),
+            new ToolRuntimeService(
+                mock(ToolRegistry.class),
+                new ObjectMapper(),
+                toolRuntimeProperties(),
+                List.of(),
+                List.of()
+            ),
+            new ObjectMapper(),
+            new ModelsConfig(),
+            new EvidenceTrustEvaluator(),
+            runStore
+        );
+
+        AgentRunResult result = orchestrator.execute(AgentRunRequest.builder()
+            .runId("run-timeout-1")
+            .query("Timeout this run")
+            .tenantId("tenant-1")
+            .availableTools(List.of())
+            .requestId("req-timeout-1")
+            .timeoutMs(1L)
+            .build());
+
+        assertThat(result.status()).isEqualTo(AgentRunStatus.CANCELLED);
+        assertThat(result.stopReason()).isEqualTo("cancelled");
+        assertThat(result.errorMessage()).isEqualTo("Agent run timed out");
+        assertThat(result.events()).extracting(event -> event.type().name())
+            .contains("RUN_STARTED", "RUN_CANCELLED");
+        assertThat(runStore.find("run-timeout-1")).isPresent();
+        assertThat(runStore.find("run-timeout-1").orElseThrow().status()).isEqualTo(AgentRunStatus.CANCELLED);
+    }
+
+    @Test
+    void executeRuntimeRequestReturnsFailedRunWhenPlannerThrows() {
+        ChatModel chatModel = new FailingChatModel("planner boom");
+        InMemoryAgentRunStore runStore = new InMemoryAgentRunStore();
+        AgentOrchestrator orchestrator = new AgentOrchestrator(
+            chatModel,
+            mock(ToolRegistry.class),
+            new ToolRuntimeService(
+                mock(ToolRegistry.class),
+                new ObjectMapper(),
+                toolRuntimeProperties(),
+                List.of(),
+                List.of()
+            ),
+            new ObjectMapper(),
+            new ModelsConfig(),
+            new EvidenceTrustEvaluator(),
+            runStore
+        );
+
+        AgentRunResult result = orchestrator.execute(AgentRunRequest.builder()
+            .runId("run-fail-1")
+            .query("Fail this run")
+            .tenantId("tenant-1")
+            .availableTools(List.of())
+            .requestId("req-fail-1")
+            .build());
+
+        assertThat(result.status()).isEqualTo(AgentRunStatus.FAILED);
+        assertThat(result.stopReason()).isEqualTo("failed");
+        assertThat(result.errorMessage()).isEqualTo("planner boom");
+        assertThat(result.events()).extracting(event -> event.type().name())
+            .contains("RUN_STARTED", "RUN_FAILED");
+        assertThat(runStore.find("run-fail-1")).isPresent();
+        assertThat(runStore.find("run-fail-1").orElseThrow().status()).isEqualTo(AgentRunStatus.FAILED);
+    }
 
     @Test
     void revisesFinalAnswerWhenReviewerRejectsIt() {
@@ -143,6 +467,67 @@ class AgentOrchestratorTest {
         assertThat(chatModel.messages().get(2))
             .contains("web citation labels such as [网页1]")
             .contains("https://example.com/audit");
+    }
+
+    @Test
+    void searchAndExtractUsesUnifiedEvidenceTrustAndCitationPipeline() {
+        CapturingQueueChatModel chatModel = new CapturingQueueChatModel(
+            "{\"action\":\"tool\",\"toolName\":\"search_and_extract\",\"arguments\":{\"query\":\"agent evidence runtime\"},\"reason\":\"Need structured web evidence\"}",
+            "{\"action\":\"final\",\"answer\":\"Structured web evidence supports the runtime claim [网页1].\"}",
+            "{\"accepted\":true,\"feedback\":\"The answer cites trusted web evidence.\",\"revisedAnswer\":\"\"}"
+        );
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.getToolMetadata("search_and_extract")).thenReturn(ToolMetadata.builder()
+            .id("search_and_extract")
+            .title("Search And Extract")
+            .description("Generate structured web evidence")
+            .build());
+        when(toolRegistry.executeEnhancedTool(eq("search_and_extract"), any())).thenReturn(searchAndExtractOutput());
+        ToolRuntimeService toolRuntimeService = new ToolRuntimeService(
+            toolRegistry,
+            new ObjectMapper(),
+            toolRuntimeProperties(),
+            List.of(),
+            List.of()
+        );
+        AgentOrchestrator orchestrator = new AgentOrchestrator(
+            chatModel,
+            toolRegistry,
+            toolRuntimeService,
+            new ObjectMapper(),
+            new ModelsConfig()
+        );
+
+        AgentOrchestrator.AgentExecutionResult result = orchestrator.executeAgent(
+            "Verify the agent evidence runtime with web evidence.",
+            "tenant-1",
+            List.of("search_and_extract"),
+            "Use evidence.",
+            null,
+            List.of(),
+            List.of(),
+            "research",
+            "req-search-extract-1",
+            "conv-search-extract-1",
+            "user-1",
+            10,
+            List.of(),
+            false
+        );
+
+        assertThat(result.answer()).contains("[网页1]");
+        assertThat(chatModel.messages()).hasSize(3);
+        assertThat(chatModel.messages().get(1))
+            .contains("Evidence trust policy")
+            .contains("usable=1")
+            .contains("ignoredLowScore=1")
+            .contains("Web citation map")
+            .contains("Trusted runtime evidence - https://docs.example.com/evidence")
+            .doesNotContain("https://docs.example.com/low-quality");
+        assertThat(chatModel.messages().get(2))
+            .contains("Evidence trust policy")
+            .contains("https://docs.example.com/evidence")
+            .doesNotContain("https://docs.example.com/low-quality");
     }
 
     @Test
@@ -540,6 +925,32 @@ class AgentOrchestratorTest {
         return ToolOutput.success(result);
     }
 
+    private ToolOutput searchAndExtractOutput() {
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("query", "agent evidence runtime");
+        result.put("provider", "evidence");
+        result.put("count", 2);
+        result.put("evidence_chunks", List.of(
+            Map.of(
+                "chunk_id", "trusted-1",
+                "title", "Trusted runtime evidence",
+                "source_url", "https://docs.example.com/evidence",
+                "domain", "docs.example.com",
+                "score", 0.92,
+                "content", "The agent evidence runtime is supported and available for structured web evidence."
+            ),
+            Map.of(
+                "chunk_id", "low-1",
+                "title", "Low quality runtime note",
+                "source_url", "https://docs.example.com/low-quality",
+                "domain", "docs.example.com",
+                "score", 0.12,
+                "content", "Low quality evidence that should not be cited."
+            )
+        ));
+        return ToolOutput.success(result);
+    }
+
     private ToolOutput documentSearchOutput() {
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("results", List.of(Map.of(
@@ -591,6 +1002,40 @@ class AgentOrchestratorTest {
 
         private List<String> messages() {
             return messages;
+        }
+    }
+
+    private static final class FailingChatModel implements ChatModel {
+        private final String message;
+
+        private FailingChatModel(String message) {
+            this.message = message;
+        }
+
+        @Override
+        public String chat(String message) {
+            throw new IllegalStateException(this.message);
+        }
+    }
+
+    private static final class SlowChatModel implements ChatModel {
+        private final long sleepMs;
+        private final String response;
+
+        private SlowChatModel(long sleepMs, String response) {
+            this.sleepMs = sleepMs;
+            this.response = response;
+        }
+
+        @Override
+        public String chat(String message) {
+            assertThat(message).isNotBlank();
+            try {
+                Thread.sleep(sleepMs);
+            } catch (InterruptedException ex) {
+                Thread.currentThread().interrupt();
+            }
+            return response;
         }
     }
 }

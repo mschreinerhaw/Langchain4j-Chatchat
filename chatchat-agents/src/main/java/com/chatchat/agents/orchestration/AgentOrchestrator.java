@@ -1,5 +1,18 @@
 package com.chatchat.agents.orchestration;
 
+import com.chatchat.agents.runtime.AgentAnswerReview;
+import com.chatchat.agents.runtime.AgentAnswerReviewer;
+import com.chatchat.agents.runtime.AgentObservation;
+import com.chatchat.agents.runtime.AgentObservationPipeline;
+import com.chatchat.agents.runtime.AgentRun;
+import com.chatchat.agents.runtime.AgentRunRequest;
+import com.chatchat.agents.runtime.AgentRunResult;
+import com.chatchat.agents.runtime.AgentRunStatus;
+import com.chatchat.agents.runtime.AgentRunStep;
+import com.chatchat.agents.runtime.AgentRunStore;
+import com.chatchat.agents.runtime.DefaultAgentAnswerReviewer;
+import com.chatchat.agents.runtime.DefaultAgentObservationPipeline;
+import com.chatchat.agents.runtime.InMemoryAgentRunStore;
 import com.chatchat.agents.runtime.ToolRuntimeExecution;
 import com.chatchat.agents.runtime.ToolRuntimeRequest;
 import com.chatchat.agents.runtime.ToolRuntimeService;
@@ -15,8 +28,8 @@ import dev.langchain4j.http.client.HttpClientBuilder;
 import dev.langchain4j.http.client.jdk.JdkHttpClientBuilder;
 import dev.langchain4j.model.chat.ChatModel;
 import dev.langchain4j.model.openai.OpenAiChatModel;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.net.InetSocketAddress;
@@ -24,6 +37,7 @@ import java.net.ProxySelector;
 import java.net.http.HttpClient;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
@@ -41,24 +55,182 @@ import java.util.function.BooleanSupplier;
  */
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class AgentOrchestrator {
 
     private static final int MAX_STEPS = 3;
     private static final int WEB_SEARCH_REFERENCE_LIMIT = 10;
     private static final String DOCUMENT_SEARCH_TOOL = "document_search";
     private static final String WEB_SEARCH_TOOL = "web_search";
+    private static final String SEARCH_AND_EXTRACT_TOOL = "search_and_extract";
+    private static final String AGENT_CANCELLATION_ATTRIBUTE = "__agentCancellation";
+    private static final String AGENT_MAX_STEPS_ATTRIBUTE = "__agentMaxSteps";
+    private static final String AGENT_MAX_TOOL_CALLS_ATTRIBUTE = "__agentMaxToolCalls";
+    private static final String AGENT_TIMEOUT_MS_ATTRIBUTE = "__agentTimeoutMs";
+    private static final String AGENT_DEADLINE_AT_ATTRIBUTE = "__agentDeadlineAt";
+    private static final String AGENT_RUN_ID_ATTRIBUTE = "__agentRunId";
     private static final String FINAL = "final";
     private static final String TOOL = "tool";
-    private static final String REVIEW_ACCEPTED = "accepted";
-    private static final String REVIEW_REVISED = "revised";
-
     private final ChatModel chatModel;
     private final ToolRegistry toolRegistry;
     private final ToolRuntimeService toolRuntimeService;
     private final ObjectMapper objectMapper;
     private final ModelsConfig modelsConfig;
+    private final EvidenceTrustEvaluator evidenceTrustEvaluator;
+    private final AgentRunStore runStore;
+    private final AgentObservationPipeline observationPipeline;
+    private final AgentAnswerReviewer answerReviewer;
     private final Map<String, ChatModel> chatModelsByName = new ConcurrentHashMap<>();
+
+    public AgentOrchestrator(ChatModel chatModel,
+                             ToolRegistry toolRegistry,
+                             ToolRuntimeService toolRuntimeService,
+                             ObjectMapper objectMapper,
+                             ModelsConfig modelsConfig) {
+        this(chatModel, toolRegistry, toolRuntimeService, objectMapper, modelsConfig,
+            new EvidenceTrustEvaluator(), new InMemoryAgentRunStore(), new DefaultAgentObservationPipeline(),
+            new DefaultAgentAnswerReviewer(objectMapper));
+    }
+
+    public AgentOrchestrator(ChatModel chatModel,
+                             ToolRegistry toolRegistry,
+                             ToolRuntimeService toolRuntimeService,
+                             ObjectMapper objectMapper,
+                             ModelsConfig modelsConfig,
+                             EvidenceTrustEvaluator evidenceTrustEvaluator) {
+        this(chatModel, toolRegistry, toolRuntimeService, objectMapper, modelsConfig,
+            evidenceTrustEvaluator, new InMemoryAgentRunStore(), new DefaultAgentObservationPipeline(),
+            new DefaultAgentAnswerReviewer(objectMapper));
+    }
+
+    public AgentOrchestrator(ChatModel chatModel,
+                             ToolRegistry toolRegistry,
+                             ToolRuntimeService toolRuntimeService,
+                             ObjectMapper objectMapper,
+                             ModelsConfig modelsConfig,
+                             EvidenceTrustEvaluator evidenceTrustEvaluator,
+                             AgentRunStore runStore) {
+        this(chatModel, toolRegistry, toolRuntimeService, objectMapper, modelsConfig,
+            evidenceTrustEvaluator, runStore, new DefaultAgentObservationPipeline(),
+            new DefaultAgentAnswerReviewer(objectMapper));
+    }
+
+    public AgentOrchestrator(ChatModel chatModel,
+                             ToolRegistry toolRegistry,
+                             ToolRuntimeService toolRuntimeService,
+                             ObjectMapper objectMapper,
+                             ModelsConfig modelsConfig,
+                             EvidenceTrustEvaluator evidenceTrustEvaluator,
+                             AgentRunStore runStore,
+                             AgentObservationPipeline observationPipeline) {
+        this(chatModel, toolRegistry, toolRuntimeService, objectMapper, modelsConfig,
+            evidenceTrustEvaluator, runStore, observationPipeline, new DefaultAgentAnswerReviewer(objectMapper));
+    }
+
+    @Autowired
+    public AgentOrchestrator(ChatModel chatModel,
+                             ToolRegistry toolRegistry,
+                             ToolRuntimeService toolRuntimeService,
+                             ObjectMapper objectMapper,
+                             ModelsConfig modelsConfig,
+                             EvidenceTrustEvaluator evidenceTrustEvaluator,
+                             AgentRunStore runStore,
+                             AgentObservationPipeline observationPipeline,
+                             AgentAnswerReviewer answerReviewer) {
+        this.chatModel = chatModel;
+        this.toolRegistry = toolRegistry;
+        this.toolRuntimeService = toolRuntimeService;
+        this.objectMapper = objectMapper;
+        this.modelsConfig = modelsConfig;
+        this.evidenceTrustEvaluator = evidenceTrustEvaluator == null ? new EvidenceTrustEvaluator() : evidenceTrustEvaluator;
+        this.runStore = runStore == null ? new InMemoryAgentRunStore() : runStore;
+        this.observationPipeline = observationPipeline == null ? new DefaultAgentObservationPipeline() : observationPipeline;
+        this.answerReviewer = answerReviewer == null ? new DefaultAgentAnswerReviewer(objectMapper) : answerReviewer;
+    }
+
+    /**
+     * Executes an agent run through the stable runtime request/result contract.
+     *
+     * @param request the agent run request
+     * @return the agent run result
+     */
+    public AgentRunResult execute(AgentRunRequest request) {
+        if (request == null) {
+            throw new IllegalArgumentException("Agent run request is required");
+        }
+        AgentRun run = runStore.start(request);
+        try {
+            AgentExecutionResult result = executeAgent(
+                request.getQuery(),
+                request.getTenantId(),
+                request.getAvailableTools(),
+                request.getSystemPrompt(),
+                request.getModelName(),
+                request.getBoundDocumentIds(),
+                request.getBoundDocumentTags(),
+                request.getSkillId(),
+                request.getRequestId(),
+                request.getConversationId(),
+                request.getUserId(),
+                request.getWebSearchResultLimit(),
+                request.getRequiredToolNames(),
+                request.isRequireBoundToolCall(),
+                runtimeAttributesFor(request)
+            );
+            AgentRunResult runtimeResult = toAgentRunResult(run.runId(), result);
+            AgentRun completed = runStore.complete(run.runId(), runtimeResult);
+            return runtimeResult.withStatusAndEvents(completed.status(), completed.events());
+        } catch (CancellationException ex) {
+            AgentRun cancelled = runStore.cancel(run.runId(), ex.getMessage());
+            return cancelledAgentRunResult(cancelled);
+        } catch (RuntimeException ex) {
+            AgentRun failed = runStore.fail(run.runId(), ex);
+            return failedAgentRunResult(failed);
+        }
+    }
+
+    private AgentRunResult cancelledAgentRunResult(AgentRun run) {
+        return AgentRunResult.builder()
+            .runId(run.runId())
+            .status(AgentRunStatus.CANCELLED)
+            .answer("")
+            .stopReason("cancelled")
+            .errorMessage(run.errorMessage())
+            .events(run.events())
+            .metadata(run.metadata())
+            .build();
+    }
+
+    private AgentRunResult failedAgentRunResult(AgentRun run) {
+        return AgentRunResult.builder()
+            .runId(run.runId())
+            .status(AgentRunStatus.FAILED)
+            .answer("")
+            .stopReason("failed")
+            .errorMessage(run.errorMessage())
+            .events(run.events())
+            .metadata(run.metadata())
+            .build();
+    }
+
+    private Map<String, Object> runtimeAttributesFor(AgentRunRequest request) {
+        Map<String, Object> attributes = new LinkedHashMap<>();
+        if (request.getAttributes() != null) {
+            attributes.putAll(request.getAttributes());
+        }
+        if (request.getRunId() != null && !request.getRunId().isBlank()) {
+            attributes.put(AGENT_RUN_ID_ATTRIBUTE, request.getRunId());
+        }
+        if (request.getMaxSteps() != null) {
+            attributes.put(AGENT_MAX_STEPS_ATTRIBUTE, request.getMaxSteps());
+        }
+        if (request.getMaxToolCalls() != null) {
+            attributes.put(AGENT_MAX_TOOL_CALLS_ATTRIBUTE, request.getMaxToolCalls());
+        }
+        if (request.getTimeoutMs() != null) {
+            attributes.put(AGENT_TIMEOUT_MS_ATTRIBUTE, request.getTimeoutMs());
+        }
+        return runtimeAttributesWithDeadline(attributes);
+    }
 
     /**
      * Executes the agent.
@@ -134,8 +306,10 @@ public class AgentOrchestrator {
                                              boolean requireBoundToolCall,
                                              Map<String, Object> runtimeAttributes) {
         List<String> tools = availableTools == null ? List.of() : availableTools;
-        Map<String, Object> requestRuntimeAttributes = runtimeAttributes == null ? Map.of() : runtimeAttributes;
+        Map<String, Object> requestRuntimeAttributes = runtimeAttributesWithDeadline(runtimeAttributes);
         BooleanSupplier cancellationCheck = cancellationCheck(requestRuntimeAttributes);
+        int maxSteps = runtimeMaxSteps(requestRuntimeAttributes);
+        int maxToolCalls = runtimeMaxToolCalls(requestRuntimeAttributes);
         List<String> documentIds = normalizeList(boundDocumentIds);
         List<String> documentTags = normalizeList(boundDocumentTags);
         String documentSearchTool = resolveDocumentSearchTool(tools);
@@ -157,7 +331,7 @@ public class AgentOrchestrator {
         boolean requireToolBeforeFinal = !mandatoryTools.isEmpty();
         ChatModel activeChatModel = resolveChatModel(modelName);
         List<InteractionToolTrace> traces = new ArrayList<>();
-        List<String> observations = new ArrayList<>();
+        List<String> observations = runtimeObservationList(stringValue(requestRuntimeAttributes.get(AGENT_RUN_ID_ATTRIBUTE)));
         Map<String, Object> metadata = new LinkedHashMap<>();
         List<Map<String, Object>> plannerSteps = new ArrayList<>();
         metadata.put("skillId", skillId == null ? "general" : skillId);
@@ -173,6 +347,14 @@ public class AgentOrchestrator {
         metadata.put("documentWebVerificationRequired", requireDocumentWebVerification);
         metadata.put("documentSearchTool", documentSearchTool);
         metadata.put("verificationWebSearchTool", verificationWebSearchTool);
+        metadata.put("maxSteps", maxSteps);
+        if (maxToolCalls != Integer.MAX_VALUE) {
+            metadata.put("maxToolCalls", maxToolCalls);
+        }
+        Object timeoutMs = requestRuntimeAttributes.get(AGENT_TIMEOUT_MS_ATTRIBUTE);
+        if (timeoutMs != null) {
+            metadata.put("timeoutMs", runtimeLong(timeoutMs, 0L));
+        }
         metadata.put("plannerSteps", plannerSteps);
 
         log.info("[{}] Agent orchestration started. tools={}", requestId, tools.size());
@@ -198,11 +380,11 @@ public class AgentOrchestrator {
             if (isConfirmationRequired(pendingConfirmedExecution)) {
                 metadata.put("stopReason", "confirmation_required");
                 metadata.put("confirmationRequired", true);
-                return new AgentExecutionResult("", traces, metadata);
+                return finishAgentExecution("", traces, metadata, observations);
             }
         }
 
-        for (int step = 1; step <= MAX_STEPS; step++) {
+        for (int step = 1; step <= maxSteps; step++) {
             checkCancelled(cancellationCheck);
             long plannedAt = System.currentTimeMillis();
             AgentDecision decision = decideNextAction(
@@ -234,6 +416,7 @@ public class AgentOrchestrator {
             plannerStep.put("plannedAt", plannedAt);
             plannerStep.put("observationCount", observations.size());
             plannerSteps.add(plannerStep);
+            recordRuntimeStep(requestRuntimeAttributes, plannerStep);
 
             if (FINAL.equals(decision.action())) {
                 checkCancelled(cancellationCheck);
@@ -253,11 +436,11 @@ public class AgentOrchestrator {
                 }
                 String answer = safeAnswer(activeChatModel, decision.answer(), query, observations, systemPrompt);
                 checkCancelled(cancellationCheck);
-                AnswerReview review = reviewAndReviseAnswer(activeChatModel, query, systemPrompt, observations, answer);
+                AgentAnswerReview review = answerReviewer.review(activeChatModel, query, systemPrompt, observations, answer);
                 checkCancelled(cancellationCheck);
                 recordAnswerReview(metadata, review);
                 metadata.put("stopReason", "final_answer");
-                return new AgentExecutionResult(review.answer(), traces, metadata);
+                return finishAgentExecution(review.answer(), traces, metadata, observations);
             }
 
             if (!TOOL.equals(decision.action())) {
@@ -293,6 +476,9 @@ public class AgentOrchestrator {
                 query,
                 webSearchResultLimit
             );
+            if (markToolBudgetExceeded(plannedToolName, maxToolCalls, traces, metadata, observations)) {
+                return finishBudgetedSummary(activeChatModel, query, systemPrompt, traces, metadata, observations, cancellationCheck);
+            }
             checkCancelled(cancellationCheck);
             ToolCallExecution execution = executeToolCall(
                 plannedToolName,
@@ -310,7 +496,7 @@ public class AgentOrchestrator {
             if (isConfirmationRequired(execution)) {
                 metadata.put("stopReason", "confirmation_required");
                 metadata.put("confirmationRequired", true);
-                return new AgentExecutionResult("", traces, metadata);
+                return finishAgentExecution("", traces, metadata, observations);
             }
             rememberCompletedWorkflowTool(completedWorkflowTools, execution);
             checkCancelled(cancellationCheck);
@@ -325,6 +511,9 @@ public class AgentOrchestrator {
                 documentIds,
                 documentTags
             );
+            if (markToolBudgetExceeded(fallbackTool, maxToolCalls, traces, metadata, observations)) {
+                return finishBudgetedSummary(activeChatModel, query, systemPrompt, traces, metadata, observations, cancellationCheck);
+            }
             ToolCallExecution execution = executeToolCall(
                 fallbackTool,
                 fallbackArguments,
@@ -342,7 +531,7 @@ public class AgentOrchestrator {
             if (isConfirmationRequired(execution)) {
                 metadata.put("stopReason", "confirmation_required");
                 metadata.put("confirmationRequired", true);
-                return new AgentExecutionResult("", traces, metadata);
+                return finishAgentExecution("", traces, metadata, observations);
             }
             rememberCompletedWorkflowTool(completedWorkflowTools, execution);
         }
@@ -363,21 +552,79 @@ public class AgentOrchestrator {
                 webSearchResultLimit,
                 verificationWebSearchTool,
                 metadata,
-                requestRuntimeAttributes
+                requestRuntimeAttributes,
+                maxToolCalls
             );
             if (Boolean.TRUE.equals(metadata.get("confirmationRequired"))) {
-                return new AgentExecutionResult("", traces, metadata);
+                return finishAgentExecution("", traces, metadata, observations);
+            }
+            if (Boolean.TRUE.equals(metadata.get("toolBudgetExceeded"))) {
+                return finishBudgetedSummary(activeChatModel, query, systemPrompt, traces, metadata, observations, cancellationCheck);
             }
         }
 
         checkCancelled(cancellationCheck);
         String finalAnswer = summarizeWithObservations(activeChatModel, query, systemPrompt, observations);
         checkCancelled(cancellationCheck);
-        AnswerReview review = reviewAndReviseAnswer(activeChatModel, query, systemPrompt, observations, finalAnswer);
+        AgentAnswerReview review = answerReviewer.review(activeChatModel, query, systemPrompt, observations, finalAnswer);
         checkCancelled(cancellationCheck);
         recordAnswerReview(metadata, review);
         metadata.put("stopReason", "max_steps_or_fallback");
-        return new AgentExecutionResult(review.answer(), traces, metadata);
+        return finishAgentExecution(review.answer(), traces, metadata, observations);
+    }
+
+    /**
+     * Finalizes the legacy result while preserving runtime contract metadata.
+     *
+     * @param answer the answer value
+     * @param traces the traces value
+     * @param metadata the metadata value
+     * @param observations the observations value
+     * @return the finalized result
+     */
+    private AgentExecutionResult finishAgentExecution(String answer,
+                                                     List<InteractionToolTrace> traces,
+                                                     Map<String, Object> metadata,
+                                                     List<String> observations) {
+        Map<String, Object> values = metadata == null ? new LinkedHashMap<>() : metadata;
+        values.put("runtimeContractVersion", "agent_runtime_v1");
+        values.put("observations", observations == null ? List.of() : List.copyOf(observations));
+        values.put("toolTraceCount", traces == null ? 0 : traces.size());
+        return new AgentExecutionResult(answer, traces == null ? List.of() : List.copyOf(traces), values);
+    }
+
+    private boolean markToolBudgetExceeded(String requestedToolName,
+                                           int maxToolCalls,
+                                           List<InteractionToolTrace> traces,
+                                           Map<String, Object> metadata,
+                                           List<String> observations) {
+        if (maxToolCalls == Integer.MAX_VALUE || traces == null || traces.size() < maxToolCalls) {
+            return false;
+        }
+        metadata.put("stopReason", "tool_budget_exceeded");
+        metadata.put("toolBudgetExceeded", true);
+        metadata.put("maxToolCalls", maxToolCalls);
+        metadata.put("requestedToolAfterBudget", requestedToolName);
+        observations.add("Agent run stopped before executing " + requestedToolName
+            + " because the max tool calls budget was reached.");
+        return true;
+    }
+
+    private AgentExecutionResult finishBudgetedSummary(ChatModel activeChatModel,
+                                                       String query,
+                                                       String systemPrompt,
+                                                       List<InteractionToolTrace> traces,
+                                                       Map<String, Object> metadata,
+                                                       List<String> observations,
+                                                       BooleanSupplier cancellationCheck) {
+        checkCancelled(cancellationCheck);
+        String finalAnswer = summarizeWithObservations(activeChatModel, query, systemPrompt, observations);
+        checkCancelled(cancellationCheck);
+        AgentAnswerReview review = answerReviewer.review(activeChatModel, query, systemPrompt, observations, finalAnswer);
+        checkCancelled(cancellationCheck);
+        recordAnswerReview(metadata, review);
+        metadata.put("stopReason", "tool_budget_exceeded");
+        return finishAgentExecution(review.answer(), traces, metadata, observations);
     }
 
     /**
@@ -691,6 +938,7 @@ public class AgentOrchestrator {
         prompt.append("When both internal document and web search observations are available, separate internal document evidence from web verification evidence and explain conflicts instead of merging them silently.\n");
         prompt.append("If observations include web citation labels such as [网页1], append the matching label immediately after every sentence that relies on that web source.\n");
         prompt.append("Do not invent citations or cite URLs that are not listed in the observations.\n");
+        prompt.append("If an Evidence trust policy asks for more evidence, avoid strong claims and say that trusted evidence is insufficient.\n");
         if (observations.isEmpty()) {
             prompt.append("No external tool observation is available.\n");
         } else {
@@ -701,91 +949,12 @@ public class AgentOrchestrator {
     }
 
     /**
-     * Performs the review and revise answer operation.
-     *
-     * @param activeChatModel the active chat model value
-     * @param query the query value
-     * @param systemPrompt the system prompt value
-     * @param observations the observations value
-     * @param answer the answer value
-     * @return the operation result
-     */
-    private AnswerReview reviewAndReviseAnswer(ChatModel activeChatModel,
-                                               String query,
-                                               String systemPrompt,
-                                               List<String> observations,
-                                               String answer) {
-        if (answer == null || answer.isBlank()) {
-            return new AnswerReview(REVIEW_REVISED, "", "Empty answer generated");
-        }
-
-        String raw = activeChatModel.chat(buildAnswerReviewPrompt(query, systemPrompt, observations, answer));
-        try {
-            @SuppressWarnings("unchecked")
-            Map<String, Object> payload = objectMapper.readValue(extractJson(raw), Map.class);
-            boolean accepted = booleanValue(payload.get("accepted"));
-            String feedback = stringValue(payload.get("feedback"));
-            String revisedAnswer = stringValue(payload.get("revisedAnswer"));
-            if (accepted) {
-                return new AnswerReview(REVIEW_ACCEPTED, answer, feedback);
-            }
-            if (revisedAnswer != null && !revisedAnswer.isBlank()) {
-                return new AnswerReview(REVIEW_REVISED, revisedAnswer, feedback);
-            }
-            return new AnswerReview(REVIEW_ACCEPTED, answer, firstNonBlank(feedback, "Review rejected without revised answer"));
-        } catch (Exception ex) {
-            log.debug("Failed to parse answer review: {}", raw, ex);
-            return new AnswerReview(REVIEW_ACCEPTED, answer, "Answer review unavailable");
-        }
-    }
-
-    /**
-     * Builds the answer review prompt.
-     *
-     * @param query the query value
-     * @param systemPrompt the system prompt value
-     * @param observations the observations value
-     * @param answer the answer value
-     * @return the built answer review prompt
-     */
-    private String buildAnswerReviewPrompt(String query,
-                                           String systemPrompt,
-                                           List<String> observations,
-                                           String answer) {
-        StringBuilder prompt = new StringBuilder();
-        prompt.append("You are the final answer quality reviewer for an enterprise AI assistant.\n");
-        prompt.append("Decide whether the candidate answer satisfies the user's actual formal request.\n");
-        prompt.append("Reject answers that only point to documents/tools, summarize where information may be, or avoid giving the concrete requested result.\n");
-        prompt.append("A good answer must directly address the user request, use the available observations as evidence, and clearly state missing evidence when the observations are insufficient.\n");
-        prompt.append("Do not invent facts that are absent from the observations.\n");
-        prompt.append("If both document_search and web_search observations are available, the answer must distinguish internal document evidence from web verification evidence and explicitly handle conflicts.\n");
-        prompt.append("If an observation says a tool failed, the answer must not claim that the failed tool provided supporting evidence.\n");
-        prompt.append("If observations include web citation labels such as [网页1], web-derived claims in the answer must keep the matching labels; reject and revise answers that omit those labels.\n");
-        prompt.append("Do not remove citation markers that prove which web page supports a statement.\n");
-        prompt.append("If the user's request is in Chinese, the revised answer must be in Chinese.\n\n");
-        if (systemPrompt != null && !systemPrompt.isBlank()) {
-            prompt.append("System instruction:\n").append(systemPrompt).append("\n\n");
-        }
-        prompt.append("User request:\n").append(query).append("\n\n");
-        prompt.append("Available observations:\n");
-        if (observations == null || observations.isEmpty()) {
-            prompt.append("- (none)\n");
-        } else {
-            observations.forEach(item -> prompt.append("- ").append(item).append("\n"));
-        }
-        prompt.append("\nCandidate answer:\n").append(answer).append("\n\n");
-        prompt.append("Respond with strict JSON only:\n");
-        prompt.append("{\"accepted\":true|false,\"feedback\":\"brief reason\",\"revisedAnswer\":\"if rejected, provide the improved final answer; otherwise empty string\"}");
-        return prompt.toString();
-    }
-
-    /**
      * Performs the record answer review operation.
      *
      * @param metadata the metadata value
      * @param review the review value
      */
-    private void recordAnswerReview(Map<String, Object> metadata, AnswerReview review) {
+    private void recordAnswerReview(Map<String, Object> metadata, AgentAnswerReview review) {
         metadata.put("answerReviewStatus", review.status());
         if (review.feedback() != null && !review.feedback().isBlank()) {
             metadata.put("answerReviewFeedback", review.feedback());
@@ -898,7 +1067,7 @@ public class AgentOrchestrator {
         if (isDocumentSearchToolName(toolName) && !values.containsKey("query") && query != null && !query.isBlank()) {
             values.put("query", query);
         }
-        if (!isWebSearchToolName(toolName)) {
+        if (!isWebEvidenceToolName(toolName)) {
             return values;
         }
         if (!values.containsKey("query") && query != null && !query.isBlank()) {
@@ -1096,7 +1265,7 @@ public class AgentOrchestrator {
         StringBuilder observation = new StringBuilder("Tool ")
             .append(toolName)
             .append(" succeeded.");
-        if (!isWebSearchToolName(toolName)) {
+        if (!isWebEvidenceToolName(toolName)) {
             String message = output == null ? null : output.getMessage();
             if (message != null && !message.isBlank()) {
                 observation.append(" Message: ").append(shortObservationText(message, 400));
@@ -1128,7 +1297,7 @@ public class AgentOrchestrator {
                 .append(firstNonBlank(stringValue(root.get("contentMode")), "unknown"))
                 .append('.');
         }
-        List<WebCitation> citations = extractWebCitations(data);
+        List<WebCitation> citations = trustedWebCitations(data, observation);
         if (citations.isEmpty()) {
             String summary = shortObservationText(outputText, 600);
             if (summary != null && !summary.isBlank()) {
@@ -1150,6 +1319,38 @@ public class AgentOrchestrator {
         }
         observation.append("Citation rule: append the matching [网页N] label immediately after any sentence that uses facts from that page.");
         return normalizeWebCitationLabels(observation.toString());
+    }
+
+    private List<WebCitation> trustedWebCitations(Object data, StringBuilder observation) {
+        Map<String, Object> root = asMap(data);
+        List<Map<String, Object>> evidenceChunks = new ArrayList<>();
+        addCandidateList(evidenceChunks, root.get("evidence_chunks"));
+        if (evidenceChunks.isEmpty()) {
+            return extractWebCitations(data);
+        }
+
+        EvidenceTrustEvaluator.TrustResult trustResult = evidenceTrustEvaluator.evaluate(evidenceChunks);
+        Map<String, Object> trust = trustResult.metadata();
+        observation.append("\nEvidence trust policy: version=")
+            .append(firstNonBlank(stringValue(trust.get("version")), "agent_evidence_trust_policy_v1"))
+            .append(", usable=")
+            .append(firstNonBlank(stringValue(trust.get("usableCount")), "0"))
+            .append(", ignoredLowScore=")
+            .append(firstNonBlank(stringValue(trust.get("ignoredLowScoreCount")), "0"))
+            .append(", downgradedDomains=")
+            .append(firstNonBlank(stringValue(trust.get("downgradedDomainCount")), "0"))
+            .append(", contradictionDetected=")
+            .append(firstNonBlank(stringValue(trust.get("contradictionDetected")), "false"))
+            .append('.');
+        if (Boolean.TRUE.equals(trust.get("requestMoreEvidence"))) {
+            observation.append(" Trust policy requests more evidence before making a strong claim: ")
+                .append(firstNonBlank(stringValue(trust.get("reason")), "insufficient trusted evidence"))
+                .append('.');
+        }
+        if (trustResult.usableEvidence().isEmpty()) {
+            return List.of();
+        }
+        return extractWebCitations(Map.of("evidenceSnippets", trustResult.usableEvidence()));
     }
 
     /**
@@ -1311,8 +1512,11 @@ public class AgentOrchestrator {
         if (tools.contains(WEB_SEARCH_TOOL)) {
             return WEB_SEARCH_TOOL;
         }
+        if (tools.contains(SEARCH_AND_EXTRACT_TOOL)) {
+            return SEARCH_AND_EXTRACT_TOOL;
+        }
         return tools.stream()
-            .filter(this::isWebSearchToolName)
+            .filter(this::isWebEvidenceToolName)
             .findFirst()
             .orElse(null);
     }
@@ -1377,6 +1581,7 @@ public class AgentOrchestrator {
      * @param verificationWebSearchTool the verification web search tool value
      * @param metadata the metadata value
      * @param runtimeAttributes the runtime attributes value
+     * @param maxToolCalls the max tool calls value
      */
     private void runMissingDocumentWebVerification(List<InteractionToolTrace> traces,
                                                    List<String> observations,
@@ -1392,7 +1597,8 @@ public class AgentOrchestrator {
                                                    int webSearchResultLimit,
                                                    String verificationWebSearchTool,
                                                    Map<String, Object> metadata,
-                                                   Map<String, Object> runtimeAttributes) {
+                                                   Map<String, Object> runtimeAttributes,
+                                                   int maxToolCalls) {
         List<String> fallbackTools = new ArrayList<>();
         if (!hasToolTrace(traces, documentSearchTool)) {
             fallbackTools.add(documentSearchTool);
@@ -1408,6 +1614,9 @@ public class AgentOrchestrator {
         for (String fallbackTool : fallbackTools) {
             if (fallbackTool == null || !tools.contains(fallbackTool)) {
                 continue;
+            }
+            if (markToolBudgetExceeded(fallbackTool, maxToolCalls, traces, metadata, observations)) {
+                return;
             }
             Map<String, Object> fallbackArguments = applyToolDefaults(
                 fallbackTool,
@@ -1446,11 +1655,66 @@ public class AgentOrchestrator {
      * @return whether the condition is satisfied
      */
     private BooleanSupplier cancellationCheck(Map<String, Object> runtimeAttributes) {
-        Object value = runtimeAttributes == null ? null : runtimeAttributes.get("__agentCancellation");
-        if (value instanceof BooleanSupplier supplier) {
-            return supplier;
+        Object value = runtimeAttributes == null ? null : runtimeAttributes.get(AGENT_CANCELLATION_ATTRIBUTE);
+        BooleanSupplier externalCancellation = value instanceof BooleanSupplier supplier ? supplier : null;
+        long deadlineAt = runtimeLong(runtimeAttributes == null ? null : runtimeAttributes.get(AGENT_DEADLINE_AT_ATTRIBUTE), 0L);
+        return () -> {
+            if (Thread.currentThread().isInterrupted()) {
+                return true;
+            }
+            if (externalCancellation != null && externalCancellation.getAsBoolean()) {
+                return true;
+            }
+            if (deadlineAt > 0 && System.currentTimeMillis() > deadlineAt) {
+                throw new CancellationException("Agent run timed out");
+            }
+            return false;
+        };
+    }
+
+    private Map<String, Object> runtimeAttributesWithDeadline(Map<String, Object> runtimeAttributes) {
+        Map<String, Object> attributes = new LinkedHashMap<>();
+        if (runtimeAttributes != null) {
+            attributes.putAll(runtimeAttributes);
         }
-        return () -> Thread.currentThread().isInterrupted();
+        long timeoutMs = runtimeLong(attributes.get(AGENT_TIMEOUT_MS_ATTRIBUTE), 0L);
+        if (timeoutMs > 0 && !attributes.containsKey(AGENT_DEADLINE_AT_ATTRIBUTE)) {
+            attributes.put(AGENT_DEADLINE_AT_ATTRIBUTE, System.currentTimeMillis() + timeoutMs);
+        }
+        return attributes;
+    }
+
+    private int runtimeMaxSteps(Map<String, Object> runtimeAttributes) {
+        return Math.max(1, (int) runtimeLong(
+            runtimeAttributes == null ? null : runtimeAttributes.get(AGENT_MAX_STEPS_ATTRIBUTE),
+            MAX_STEPS
+        ));
+    }
+
+    private int runtimeMaxToolCalls(Map<String, Object> runtimeAttributes) {
+        Object value = runtimeAttributes == null ? null : runtimeAttributes.get(AGENT_MAX_TOOL_CALLS_ATTRIBUTE);
+        if (value == null) {
+            return Integer.MAX_VALUE;
+        }
+        long maxToolCalls = runtimeLong(value, Integer.MAX_VALUE);
+        if (maxToolCalls < 0) {
+            return Integer.MAX_VALUE;
+        }
+        return (int) Math.min(Integer.MAX_VALUE, maxToolCalls);
+    }
+
+    private long runtimeLong(Object value, long defaultValue) {
+        if (value instanceof Number number) {
+            return number.longValue();
+        }
+        if (value instanceof String text && !text.isBlank()) {
+            try {
+                return Long.parseLong(text.trim());
+            } catch (NumberFormatException ex) {
+                return defaultValue;
+            }
+        }
+        return defaultValue;
     }
 
     /**
@@ -1496,6 +1760,9 @@ public class AgentOrchestrator {
         if (isWebSearchToolName(toolName)) {
             return Map.of("query", query, "num_results", Math.max(1, Math.min(WEB_SEARCH_REFERENCE_LIMIT, webSearchResultLimit)));
         }
+        if (isSearchAndExtractToolName(toolName)) {
+            return Map.of("query", query, "mode", "fast", "topK", Math.max(1, Math.min(WEB_SEARCH_REFERENCE_LIMIT, webSearchResultLimit)));
+        }
         if (toolName != null && (toolName.startsWith("mcp_") || isDocumentSearchToolName(toolName))) {
             return Map.of("query", query);
         }
@@ -1526,7 +1793,10 @@ public class AgentOrchestrator {
         for (Map<String, Object> item : candidates) {
             String url = firstNonBlank(
                 stringValue(item.get("url")),
-                firstNonBlank(stringValue(item.get("link")), stringValue(item.get("href")))
+                firstNonBlank(
+                    stringValue(item.get("link")),
+                    firstNonBlank(stringValue(item.get("href")), stringValue(item.get("source_url")))
+                )
             );
             if (url == null || url.isBlank() || byUrl.containsKey(url)) {
                 continue;
@@ -1543,7 +1813,10 @@ public class AgentOrchestrator {
                         stringValue(item.get("excerpt")),
                         firstNonBlank(
                             stringValue(item.get("pageExcerpt")),
-                            firstNonBlank(stringValue(item.get("contentExcerpt")), stringValue(item.get("summary")))
+                            firstNonBlank(
+                                stringValue(item.get("contentExcerpt")),
+                                firstNonBlank(stringValue(item.get("summary")), stringValue(item.get("content")))
+                            )
                         )
                     )
                 ))
@@ -1667,6 +1940,26 @@ public class AgentOrchestrator {
      */
     private boolean isWebSearchToolName(String toolName) {
         return toolName != null && toolName.toLowerCase(Locale.ROOT).contains("web_search");
+    }
+
+    /**
+     * Returns whether is web evidence tool name.
+     *
+     * @param toolName the tool name value
+     * @return whether the condition is satisfied
+     */
+    private boolean isWebEvidenceToolName(String toolName) {
+        return isWebSearchToolName(toolName) || isSearchAndExtractToolName(toolName);
+    }
+
+    /**
+     * Returns whether is search and extract tool name.
+     *
+     * @param toolName the tool name value
+     * @return whether the condition is satisfied
+     */
+    private boolean isSearchAndExtractToolName(String toolName) {
+        return toolName != null && toolName.toLowerCase(Locale.ROOT).contains(SEARCH_AND_EXTRACT_TOOL);
     }
 
     /**
@@ -1881,6 +2174,9 @@ public class AgentOrchestrator {
         if (WEB_SEARCH_TOOL.equals(key)) {
             return WEB_SEARCH_TOOL;
         }
+        if (SEARCH_AND_EXTRACT_TOOL.equals(key)) {
+            return SEARCH_AND_EXTRACT_TOOL;
+        }
         return normalized;
     }
 
@@ -1921,6 +2217,9 @@ public class AgentOrchestrator {
         String normalized = toolName.trim().toLowerCase(Locale.ROOT);
         if (normalized.contains(DOCUMENT_SEARCH_TOOL)) {
             return DOCUMENT_SEARCH_TOOL;
+        }
+        if (normalized.contains(SEARCH_AND_EXTRACT_TOOL)) {
+            return SEARCH_AND_EXTRACT_TOOL;
         }
         if (normalized.contains(WEB_SEARCH_TOOL)) {
             return WEB_SEARCH_TOOL;
@@ -2132,6 +2431,154 @@ public class AgentOrchestrator {
     }
 
     /**
+     * Converts the legacy orchestration result to the stable runtime result.
+     *
+     * @param result the legacy result value
+     * @return the converted runtime result
+     */
+    private AgentRunResult toAgentRunResult(String runId, AgentExecutionResult result) {
+        Map<String, Object> metadata = result == null || result.metadata() == null
+            ? Map.of()
+            : new LinkedHashMap<>(result.metadata());
+        return AgentRunResult.builder()
+            .runId(runId)
+            .status(booleanValue(metadata.get("confirmationRequired"))
+                ? AgentRunStatus.WAITING_CONFIRMATION
+                : AgentRunStatus.COMPLETED)
+            .answer(result == null ? "" : result.answer())
+            .stopReason(stringValue(metadata.get("stopReason")))
+            .confirmationRequired(booleanValue(metadata.get("confirmationRequired")))
+            .errorMessage(stringValue(metadata.get("errorMessage")))
+            .steps(toAgentRunSteps(metadata.get("plannerSteps")))
+            .observations(toAgentObservations(metadata.get("observations")))
+            .events(List.of())
+            .toolTraces(result == null || result.toolTraces() == null ? List.of() : result.toolTraces())
+            .metadata(metadata)
+            .build();
+    }
+
+    /**
+     * Converts planner step metadata to typed runtime steps.
+     *
+     * @param value the planner step metadata value
+     * @return the converted runtime steps
+     */
+    private List<AgentRunStep> toAgentRunSteps(Object value) {
+        if (!(value instanceof List<?> items) || items.isEmpty()) {
+            return List.of();
+        }
+        List<AgentRunStep> steps = new ArrayList<>();
+        for (Object item : items) {
+            Map<String, Object> step = asMap(item);
+            if (step.isEmpty()) {
+                continue;
+            }
+            steps.add(toAgentRunStep(step, steps.size() + 1));
+        }
+        return steps;
+    }
+
+    private AgentRunStep toAgentRunStep(Map<String, Object> step, int fallbackStep) {
+        return AgentRunStep.builder()
+            .step(firstInteger(step.get("step"), fallbackStep))
+            .action(stringValue(step.get("action")))
+            .toolName(stringValue(step.get("toolName")))
+            .resolvedToolName(stringValue(step.get("resolvedToolName")))
+            .reason(stringValue(step.get("reason")))
+            .executionPlan(asMap(step.get("executionPlan")))
+            .answerPreview(stringValue(step.get("answerPreview")))
+            .plannedAt(firstLong(step.get("plannedAt"), 0L))
+            .observationCount(firstInteger(step.get("observationCount"), 0))
+            .build();
+    }
+
+    private void recordRuntimeStep(Map<String, Object> runtimeAttributes, Map<String, Object> step) {
+        String runId = runtimeAttributes == null ? null : stringValue(runtimeAttributes.get(AGENT_RUN_ID_ATTRIBUTE));
+        if (runId == null || runId.isBlank() || step == null || step.isEmpty()) {
+            return;
+        }
+        runStore.recordStep(runId, toAgentRunStep(step, 1));
+    }
+
+    private List<String> runtimeObservationList(String runId) {
+        return new ArrayList<>() {
+            @Override
+            public boolean add(String observation) {
+                boolean added = super.add(observation);
+                if (added) {
+                    recordRuntimeObservation(runId, observation);
+                }
+                return added;
+            }
+
+            @Override
+            public void add(int index, String observation) {
+                super.add(index, observation);
+                recordRuntimeObservation(runId, observation);
+            }
+
+            @Override
+            public boolean addAll(Collection<? extends String> observations) {
+                boolean changed = false;
+                if (observations != null) {
+                    for (String observation : observations) {
+                        changed |= add(observation);
+                    }
+                }
+                return changed;
+            }
+        };
+    }
+
+    private void recordRuntimeObservation(String runId, String observation) {
+        if (runId == null || runId.isBlank() || observation == null || observation.isBlank()) {
+            return;
+        }
+        runStore.recordObservation(runId, observationPipeline.fromText(observation));
+    }
+
+    /**
+     * Converts observation metadata to typed runtime observations.
+     *
+     * @param value the observation metadata value
+     * @return the converted runtime observations
+     */
+    private List<AgentObservation> toAgentObservations(Object value) {
+        if (!(value instanceof List<?> items) || items.isEmpty()) {
+            return List.of();
+        }
+        List<String> texts = new ArrayList<>();
+        for (Object item : items) {
+            if (item == null) {
+                continue;
+            }
+            texts.add(String.valueOf(item));
+        }
+        return observationPipeline.fromTexts(texts);
+    }
+
+    /**
+     * Performs the first long operation.
+     *
+     * @param value the value value
+     * @param fallback the fallback value
+     * @return the operation result
+     */
+    private long firstLong(Object value, long fallback) {
+        if (value instanceof Number number) {
+            return number.longValue();
+        }
+        if (value != null) {
+            try {
+                return Long.parseLong(String.valueOf(value));
+            } catch (NumberFormatException ignored) {
+                return fallback;
+            }
+        }
+        return fallback;
+    }
+
+    /**
      * Resolves the display name.
      *
      * @param toolName the tool name value
@@ -2189,13 +2636,6 @@ public class AgentOrchestrator {
     private record ToolCallExecution(
         InteractionToolTrace trace,
         String observation
-    ) {
-    }
-
-    private record AnswerReview(
-        String status,
-        String answer,
-        String feedback
     ) {
     }
 

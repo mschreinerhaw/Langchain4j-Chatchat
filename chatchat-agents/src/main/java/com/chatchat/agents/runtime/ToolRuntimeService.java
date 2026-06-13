@@ -7,6 +7,7 @@ import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolOutput;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -24,7 +25,16 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -41,6 +51,7 @@ public class ToolRuntimeService {
     private final List<ToolRuntimePolicyProvider> policyProviders;
     private final List<ToolRuntimeAuditSink> auditSinks;
     private final ToolRuntimeUserPolicyStore userPolicyStore;
+    private final ExecutorService toolExecutionExecutor;
 
     private final Map<String, Deque<Long>> rateWindows = new ConcurrentHashMap<>();
     private final Map<String, CircuitState> circuitStates = new ConcurrentHashMap<>();
@@ -70,14 +81,23 @@ public class ToolRuntimeService {
                               List<ToolRuntimeAuditSink> auditSinks) {
         this.toolRegistry = toolRegistry;
         this.objectMapper = objectMapper;
-        this.properties = properties;
-        this.mcpPolicyProperties = mcpPolicyProperties;
-        this.mcpWorkflowProperties = mcpWorkflowProperties;
+        this.properties = properties == null ? new ToolRuntimeProperties() : properties;
+        this.mcpPolicyProperties = mcpPolicyProperties == null ? new McpPolicyProperties() : mcpPolicyProperties;
+        this.mcpWorkflowProperties = mcpWorkflowProperties == null ? new McpWorkflowProperties() : mcpWorkflowProperties;
         this.policyProviders = policyProviders == null ? List.of() : policyProviders;
         this.userPolicyStore = userPolicyStores == null || userPolicyStores.isEmpty()
             ? new InMemoryToolRuntimeUserPolicyStore()
             : userPolicyStores.get(0);
         this.auditSinks = auditSinks == null ? List.of() : auditSinks;
+        this.toolExecutionExecutor = new ThreadPoolExecutor(
+            this.properties.safeExecutionCorePoolSize(),
+            this.properties.safeExecutionMaxPoolSize(),
+            60L,
+            TimeUnit.SECONDS,
+            new ArrayBlockingQueue<>(this.properties.safeExecutionQueueCapacity()),
+            new ToolRuntimeThreadFactory(),
+            new ThreadPoolExecutor.AbortPolicy()
+        );
     }
 
     /**
@@ -221,7 +241,7 @@ public class ToolRuntimeService {
         long startedAt = System.currentTimeMillis();
         try {
             rememberUserToolPolicy(request, policyDecision);
-            ToolOutput output = toolRegistry.executeEnhancedTool(toolName, toolInput);
+            ToolOutput output = executeToolWithTimeout(toolName, toolInput, request, policy, metadata);
             if (output.getMetadata() == null) {
                 output.setMetadata(new LinkedHashMap<>());
             }
@@ -261,6 +281,66 @@ public class ToolRuntimeService {
         } finally {
             toolCounters.activeCalls.decrementAndGet();
         }
+    }
+
+    @PreDestroy
+    public void shutdown() {
+        toolExecutionExecutor.shutdownNow();
+    }
+
+    private ToolOutput executeToolWithTimeout(String toolName,
+                                              ToolInput toolInput,
+                                              ToolRuntimeRequest request,
+                                              ToolRuntimePolicy policy,
+                                              ToolMetadata metadata) {
+        long timeoutMs = resolveToolTimeoutMs(request, policy, metadata);
+        CompletableFuture<ToolOutput> future;
+        try {
+            future = CompletableFuture.supplyAsync(() -> toolRegistry.executeEnhancedTool(toolName, toolInput), toolExecutionExecutor);
+        } catch (RejectedExecutionException ex) {
+            ToolOutput output = ToolOutput.failure("Tool execution queue is full: " + toolName);
+            output.setExceptionType("TOOL_EXECUTION_REJECTED");
+            return output;
+        }
+        try {
+            ToolOutput output = future.get(timeoutMs, TimeUnit.MILLISECONDS);
+            return output == null ? ToolOutput.failure("Tool returned no output: " + toolName) : output;
+        } catch (TimeoutException ex) {
+            future.cancel(true);
+            ToolOutput output = ToolOutput.failure("Tool execution timed out after " + timeoutMs + " ms: " + toolName);
+            output.setExceptionType("TOOL_TIMEOUT");
+            return output;
+        } catch (InterruptedException ex) {
+            future.cancel(true);
+            Thread.currentThread().interrupt();
+            ToolOutput output = ToolOutput.failure("Tool execution interrupted: " + toolName);
+            output.setExceptionType("TOOL_INTERRUPTED");
+            return output;
+        } catch (ExecutionException ex) {
+            Throwable cause = ex.getCause() == null ? ex : ex.getCause();
+            ToolOutput output = ToolOutput.failure(cause.getMessage() == null ? cause.getClass().getSimpleName() : cause.getMessage());
+            output.setExceptionType(cause.getClass().getSimpleName());
+            return output;
+        }
+    }
+
+    private long resolveToolTimeoutMs(ToolRuntimeRequest request, ToolRuntimePolicy policy, ToolMetadata metadata) {
+        Object value = firstPresent(
+            request == null || request.getAttributes() == null ? null : request.getAttributes().get("toolTimeoutMs"),
+            policy == null || policy.attributes() == null ? null : policy.attributes().get("toolTimeoutMs"),
+            metadata == null ? null : metadata.getTimeoutMillis()
+        );
+        if (value instanceof Number number) {
+            return Math.max(1L, number.longValue());
+        }
+        if (value != null) {
+            try {
+                return Math.max(1L, Long.parseLong(String.valueOf(value)));
+            } catch (NumberFormatException ignored) {
+                return properties.safeDefaultToolTimeoutMs();
+            }
+        }
+        return properties.safeDefaultToolTimeoutMs();
     }
 
     /**
@@ -1815,6 +1895,9 @@ public class ToolRuntimeService {
         if (normalized.contains("document_search")) {
             return "document_search";
         }
+        if (normalized.contains("search_and_extract")) {
+            return "search_and_extract";
+        }
         if (normalized.contains("web_search")) {
             return "web_search";
         }
@@ -2603,6 +2686,17 @@ public class ToolRuntimeService {
         private static WorkflowDecision allowed(String workflowName, String stateKey, List<String> matchedRules) {
             return new WorkflowDecision(true, workflowName, stateKey, null,
                 "MCP workflow allows tool execution", new ArrayList<>(matchedRules));
+        }
+    }
+
+    private static final class ToolRuntimeThreadFactory implements ThreadFactory {
+        private final AtomicInteger sequence = new AtomicInteger(1);
+
+        @Override
+        public Thread newThread(Runnable runnable) {
+            Thread thread = new Thread(runnable, "tool-runtime-exec-" + sequence.getAndIncrement());
+            thread.setDaemon(true);
+            return thread;
         }
     }
 

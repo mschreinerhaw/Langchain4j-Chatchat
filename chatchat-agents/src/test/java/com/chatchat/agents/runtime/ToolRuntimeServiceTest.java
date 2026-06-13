@@ -78,6 +78,41 @@ class ToolRuntimeServiceTest {
     }
 
     @Test
+    void timesOutLongRunningToolExecution() {
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.getToolMetadata("slow_tool")).thenReturn(ToolMetadata.builder()
+            .id("slow_tool")
+            .title("Slow Tool")
+            .timeoutMillis(50L)
+            .build());
+        when(toolRegistry.executeEnhancedTool(any(), any())).thenAnswer(invocation -> {
+            Thread.sleep(250);
+            return ToolOutput.success("late");
+        });
+        ToolRuntimeService service = new ToolRuntimeService(toolRegistry, new ObjectMapper(), properties(), List.of(), List.of());
+
+        try {
+            ToolRuntimeExecution execution = service.execute(ToolRuntimeRequest.builder()
+                .toolName("slow_tool")
+                .runtimeMode("agent_chat")
+                .requestId("req-timeout-tool")
+                .conversationId("conv-timeout-tool")
+                .tenantId("tenant-1")
+                .userId("user-timeout")
+                .allowedTools(List.of("slow_tool"))
+                .toolInput(ToolInput.builder().userId("user-timeout").parameters(Map.of()).build())
+                .build());
+
+            assertThat(execution.output().isSuccess()).isFalse();
+            assertThat(execution.output().getExceptionType()).isEqualTo("TOOL_TIMEOUT");
+            assertThat(execution.output().getErrorMessage()).contains("timed out");
+            assertThat(execution.outcome()).isEqualTo("failed");
+        } finally {
+            service.shutdown();
+        }
+    }
+
+    @Test
     void opensCircuitAfterRepeatedFailures() {
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         when(toolRegistry.getToolMetadata("mcp_finance_quotes")).thenReturn(ToolMetadata.builder()

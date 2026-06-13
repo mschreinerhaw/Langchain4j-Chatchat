@@ -20,6 +20,26 @@ public class ToolRuntimeProperties {
     private int circuitBreakerFailureThreshold = 3;
     private int circuitBreakerOpenSeconds = 60;
     private int topToolLimit = 6;
+    private long defaultToolTimeoutMs = 60_000;
+    private int executionCorePoolSize = 4;
+    private int executionMaxPoolSize = 32;
+    private int executionQueueCapacity = 256;
     private String defaultRuntimeLevel = "readonly";
     private Map<String, String> levelPolicy = new LinkedHashMap<>();
+
+    public long safeDefaultToolTimeoutMs() {
+        return Math.max(1_000L, defaultToolTimeoutMs);
+    }
+
+    public int safeExecutionCorePoolSize() {
+        return Math.max(1, executionCorePoolSize);
+    }
+
+    public int safeExecutionMaxPoolSize() {
+        return Math.max(safeExecutionCorePoolSize(), executionMaxPoolSize);
+    }
+
+    public int safeExecutionQueueCapacity() {
+        return Math.max(1, executionQueueCapacity);
+    }
 }

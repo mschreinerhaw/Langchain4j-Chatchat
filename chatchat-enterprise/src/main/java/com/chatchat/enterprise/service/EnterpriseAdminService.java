@@ -76,6 +76,7 @@ public class EnterpriseAdminService implements ApplicationRunner {
     private final SysAuditLogRepository auditLogRepository;
     private final McpToolRegistryBridge registryBridge;
     private final Map<String, String> activeTokens = new ConcurrentHashMap<>();
+    private final Map<String, UserView> activeTokenUsers = new ConcurrentHashMap<>();
 
     /**
      * Runs the configured startup logic.
@@ -133,8 +134,10 @@ public class EnterpriseAdminService implements ApplicationRunner {
         String tokenSeed = user.getId() + ":" + user.getUsername() + ":" + UUID.randomUUID();
         String token = Base64.getUrlEncoder().withoutPadding()
             .encodeToString(tokenSeed.getBytes(StandardCharsets.UTF_8));
+        UserView userView = toUserView(user);
         activeTokens.put(token, user.getId());
-        return new AuthResult(token, toUserView(user));
+        activeTokenUsers.put(token, userView);
+        return new AuthResult(token, userView);
     }
 
     /**
@@ -166,6 +169,19 @@ public class EnterpriseAdminService implements ApplicationRunner {
             return Optional.empty();
         }
         return userRepository.findById(userId);
+    }
+
+    /**
+     * Resolves the already-authenticated user snapshot without opening a JPA transaction.
+     *
+     * @param token the bearer token value
+     * @return the cached user snapshot
+     */
+    public Optional<UserView> resolveSessionByToken(String token) {
+        if (token == null || token.isBlank()) {
+            return Optional.empty();
+        }
+        return Optional.ofNullable(activeTokenUsers.get(token.trim()));
     }
 
     /**

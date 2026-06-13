@@ -1,6 +1,9 @@
 package com.chatchat.chat.interaction.service.handler;
 
 import com.chatchat.agents.orchestration.AgentOrchestrator;
+import com.chatchat.agents.runtime.AgentRunRequest;
+import com.chatchat.agents.runtime.AgentRunResult;
+import com.chatchat.agents.runtime.AgentRuntime;
 import com.chatchat.chat.interaction.model.InteractionContext;
 import com.chatchat.chat.interaction.model.InteractionMode;
 import com.chatchat.chat.interaction.model.InteractionRequest;
@@ -29,15 +32,18 @@ public class AgentChatModeHandler implements InteractionModeHandler {
     private static final int WEB_SEARCH_REFERENCE_LIMIT = 10;
 
     private final AgentOrchestrator agentOrchestrator;
+    private final AgentRuntime agentRuntime;
     private final SkillCatalogService skillCatalogService;
     private final AgentToolPolicyResolver toolPolicyResolver;
     private final AgentLearningService learningService;
 
     @Autowired
-    public AgentChatModeHandler(AgentOrchestrator agentOrchestrator,
+    public AgentChatModeHandler(AgentRuntime agentRuntime,
+                                AgentOrchestrator agentOrchestrator,
                                 SkillCatalogService skillCatalogService,
                                 AgentToolPolicyResolver toolPolicyResolver,
                                 AgentLearningService learningService) {
+        this.agentRuntime = agentRuntime;
         this.agentOrchestrator = agentOrchestrator;
         this.skillCatalogService = skillCatalogService;
         this.toolPolicyResolver = toolPolicyResolver;
@@ -46,7 +52,8 @@ public class AgentChatModeHandler implements InteractionModeHandler {
 
     public AgentChatModeHandler(AgentOrchestrator agentOrchestrator,
                                 SkillCatalogService skillCatalogService,
-                                AgentToolPolicyResolver toolPolicyResolver) {
+                                 AgentToolPolicyResolver toolPolicyResolver) {
+        this.agentRuntime = null;
         this.agentOrchestrator = agentOrchestrator;
         this.skillCatalogService = skillCatalogService;
         this.toolPolicyResolver = toolPolicyResolver;
@@ -86,40 +93,15 @@ public class AgentChatModeHandler implements InteractionModeHandler {
             : request.getModelName();
 
         Map<String, Object> runtimeAttributes = runtimeAttributes(request, skill);
-        AgentOrchestrator.AgentExecutionResult result = runtimeAttributes.isEmpty()
-            ? agentOrchestrator.executeAgent(
-                request.getQuery(),
-                request.getTenantId(),
-                toolPolicy.availableTools(),
-                systemPrompt,
-                modelName,
-                skill.boundDocumentIds(),
-                skill.boundDocumentTags(),
-                request.getSkillId(),
-                context.requestId(),
-                context.conversationId(),
-                request.getUserId(),
-                resolveWebSearchResultLimit(request.getMaxResults()),
-                toolPolicy.requiredTools(),
-                toolPolicy.requireBoundToolCall()
-            )
-            : agentOrchestrator.executeAgent(
-                request.getQuery(),
-                request.getTenantId(),
-                toolPolicy.availableTools(),
-                systemPrompt,
-                modelName,
-                skill.boundDocumentIds(),
-                skill.boundDocumentTags(),
-                request.getSkillId(),
-                context.requestId(),
-                context.conversationId(),
-                request.getUserId(),
-                resolveWebSearchResultLimit(request.getMaxResults()),
-                toolPolicy.requiredTools(),
-                toolPolicy.requireBoundToolCall(),
-                runtimeAttributes
-            );
+        AgentRunResult result = executeThroughRuntime(
+            request,
+            context,
+            skill,
+            toolPolicy,
+            systemPrompt,
+            modelName,
+            runtimeAttributes
+        );
 
         Map<String, Object> metadata = new LinkedHashMap<>();
         metadata.put("availableTools", toolPolicy.availableTools());
@@ -139,6 +121,77 @@ public class AgentChatModeHandler implements InteractionModeHandler {
             .answer(result.answer())
             .toolTraces(result.toolTraces())
             .metadata(metadata)
+            .build();
+    }
+
+    private AgentRunResult executeThroughRuntime(InteractionRequest request,
+                                                 InteractionContext context,
+                                                 SkillDefinition skill,
+                                                 AgentToolPolicyResolver.ToolPolicy toolPolicy,
+                                                 String systemPrompt,
+                                                 String modelName,
+                                                 Map<String, Object> runtimeAttributes) {
+        String runId = runtimeId(runtimeAttributes, context.requestId());
+        AgentRunRequest runRequest = AgentRunRequest.builder()
+            .runId(runId)
+            .query(request.getQuery())
+            .tenantId(request.getTenantId())
+            .availableTools(toolPolicy.availableTools())
+            .systemPrompt(systemPrompt)
+            .modelName(modelName)
+            .boundDocumentIds(skill == null ? List.of() : skill.boundDocumentIds())
+            .boundDocumentTags(skill == null ? List.of() : skill.boundDocumentTags())
+            .skillId(request.getSkillId())
+            .requestId(context.requestId())
+            .conversationId(context.conversationId())
+            .userId(request.getUserId())
+            .webSearchResultLimit(resolveWebSearchResultLimit(request.getMaxResults()))
+            .requiredToolNames(toolPolicy.requiredTools())
+            .requireBoundToolCall(toolPolicy.requireBoundToolCall())
+            .attributes(runtimeAttributes == null ? Map.of() : runtimeAttributes)
+            .build();
+        if (agentRuntime != null) {
+            return agentRuntime.run(runRequest);
+        }
+        AgentOrchestrator.AgentExecutionResult legacyResult = runtimeAttributes == null || runtimeAttributes.isEmpty()
+            ? agentOrchestrator.executeAgent(
+                runRequest.getQuery(),
+                runRequest.getTenantId(),
+                runRequest.getAvailableTools(),
+                runRequest.getSystemPrompt(),
+                runRequest.getModelName(),
+                runRequest.getBoundDocumentIds(),
+                runRequest.getBoundDocumentTags(),
+                runRequest.getSkillId(),
+                runRequest.getRequestId(),
+                runRequest.getConversationId(),
+                runRequest.getUserId(),
+                runRequest.getWebSearchResultLimit(),
+                runRequest.getRequiredToolNames(),
+                runRequest.isRequireBoundToolCall()
+            )
+            : agentOrchestrator.executeAgent(
+                runRequest.getQuery(),
+                runRequest.getTenantId(),
+                runRequest.getAvailableTools(),
+                runRequest.getSystemPrompt(),
+                runRequest.getModelName(),
+                runRequest.getBoundDocumentIds(),
+                runRequest.getBoundDocumentTags(),
+                runRequest.getSkillId(),
+                runRequest.getRequestId(),
+                runRequest.getConversationId(),
+                runRequest.getUserId(),
+                runRequest.getWebSearchResultLimit(),
+                runRequest.getRequiredToolNames(),
+                runRequest.isRequireBoundToolCall(),
+                runRequest.getAttributes()
+            );
+        return AgentRunResult.builder()
+            .runId(runRequest.getRunId())
+            .answer(legacyResult.answer())
+            .toolTraces(legacyResult.toolTraces())
+            .metadata(legacyResult.metadata())
             .build();
     }
 
@@ -245,6 +298,10 @@ public class AgentChatModeHandler implements InteractionModeHandler {
             if (cancellation != null) {
                 attributes.put("__agentCancellation", cancellation);
             }
+            Object runId = request.getToolInput().get("__agentRunId");
+            if (runId != null && !String.valueOf(runId).isBlank()) {
+                attributes.put("__agentRunId", String.valueOf(runId).trim());
+            }
         }
         if (skill != null && skill.workflowConfig() != null && !skill.workflowConfig().isEmpty()) {
             attributes.put("mcpWorkflow", skill.workflowConfig());
@@ -290,5 +347,13 @@ public class AgentChatModeHandler implements InteractionModeHandler {
         values.put("callWeight", config.callWeight());
         values.put("enabled", config.enabled());
         return values;
+    }
+
+    private String runtimeId(Map<String, Object> runtimeAttributes, String fallback) {
+        Object value = runtimeAttributes == null ? null : runtimeAttributes.get("__agentRunId");
+        if (value == null || String.valueOf(value).isBlank()) {
+            return fallback;
+        }
+        return String.valueOf(value).trim();
     }
 }

@@ -173,6 +173,139 @@ class BuiltInToolsBootstrapTest {
         assertThat((String) excerpts.get(0).get("excerpt")).contains("ARM compatibility");
     }
 
+    @Test
+    @SuppressWarnings("unchecked")
+    void webSearchSubmitsDiscoveredSiteSearchForms() throws Exception {
+        startWebSearchApiWithSiteSearchForm();
+        DefaultToolRegistry registry = new DefaultToolRegistry();
+        WebSearchToolProperties webSearchProperties = new WebSearchToolProperties();
+        webSearchProperties.setProvider("bing_html");
+        webSearchProperties.setEndpoint("http://localhost:" + server.getAddress().getPort() + "/search");
+        webSearchProperties.setMaxResults(5);
+        webSearchProperties.setFetchPages(false);
+        webSearchProperties.getBrowser().setLocalBrowserEnabled(false);
+        webSearchProperties.getSiteSearch().setMaxPagesToInspect(1);
+        webSearchProperties.getSiteSearch().setMaxSecondaryPages(1);
+        webSearchProperties.getSiteSearch().setMaxLinksPerPage(3);
+
+        BuiltInToolsBootstrap bootstrap = new BuiltInToolsBootstrap(
+            registry,
+            webSearchProperties,
+            new DatabaseToolProperties(),
+            mock(DynamicJdbcDriverLoader.class),
+            new MockEnvironment(),
+            new ObjectMapper()
+        );
+        bootstrap.initializeBuiltInTools();
+
+        ToolRegistry.EnhancedTool webSearch = registry.getEnhancedTool("web_search");
+        ToolOutput output = webSearch.execute(ToolInput.builder()
+            .parameters(Map.of("query", "600519", "num_results", 3))
+            .build());
+
+        assertThat(output.isSuccess()).isTrue();
+        Map<String, Object> data = (Map<String, Object>) output.getData();
+        assertThat(data)
+            .containsEntry("contentMode", "site_search_enriched")
+            .containsEntry("site_search_result_count", 1);
+        List<String> referenceUrls = (List<String>) data.get("reference_urls");
+        assertThat(referenceUrls).anyMatch(url -> url.endsWith("/security/600519"));
+        List<Map<String, Object>> results = (List<Map<String, Object>>) data.get("results");
+        assertThat(results).anySatisfy(result -> assertThat(result)
+            .containsEntry("source", "site_search")
+            .containsEntry("url", "http://localhost:" + server.getAddress().getPort() + "/security/600519"));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void webSearchUsesKnownJsonpSiteSearchEndpoint() throws Exception {
+        startWebSearchApiWithKnownJsonpSiteSearch();
+        DefaultToolRegistry registry = new DefaultToolRegistry();
+        WebSearchToolProperties webSearchProperties = new WebSearchToolProperties();
+        webSearchProperties.setProvider("bing_html");
+        webSearchProperties.setEndpoint("http://localhost:" + server.getAddress().getPort() + "/search");
+        webSearchProperties.setMaxResults(5);
+        webSearchProperties.setFetchPages(false);
+        webSearchProperties.getBrowser().setLocalBrowserEnabled(false);
+        webSearchProperties.getSiteSearch().setMaxPagesToInspect(1);
+        webSearchProperties.getSiteSearch().setMaxSecondaryPages(1);
+        webSearchProperties.getSiteSearch().setMaxLinksPerPage(3);
+
+        BuiltInToolsBootstrap bootstrap = new BuiltInToolsBootstrap(
+            registry,
+            webSearchProperties,
+            new DatabaseToolProperties(),
+            mock(DynamicJdbcDriverLoader.class),
+            new MockEnvironment(),
+            new ObjectMapper()
+        );
+        bootstrap.initializeBuiltInTools();
+
+        ToolRegistry.EnhancedTool webSearch = registry.getEnhancedTool("web_search");
+        ToolOutput output = webSearch.execute(ToolInput.builder()
+            .parameters(Map.of("query", "603383", "num_results", 3))
+            .build());
+
+        assertThat(output.isSuccess()).isTrue();
+        Map<String, Object> data = (Map<String, Object>) output.getData();
+        assertThat(data)
+            .containsEntry("contentMode", "site_search_enriched")
+            .containsEntry("site_search_result_count", 1);
+        List<Map<String, Object>> results = (List<Map<String, Object>>) data.get("results");
+        assertThat(results).anySatisfy(result -> assertThat(result)
+            .containsEntry("source", "site_search_known")
+            .containsEntry("title", "[603383][顶点软件]顶点软件2025年年度报告摘要")
+            .containsEntry("url", "http://localhost:" + server.getAddress().getPort() + "/disclosure/603383_annual_summary.pdf"));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void webSearchDiscoversSearchEntrypointAndKeepsDocumentResults() throws Exception {
+        startWebSearchApiWithSearchEntrypointAndDocuments();
+        DefaultToolRegistry registry = new DefaultToolRegistry();
+        WebSearchToolProperties webSearchProperties = new WebSearchToolProperties();
+        webSearchProperties.setProvider("bing_html");
+        webSearchProperties.setEndpoint("http://localhost:" + server.getAddress().getPort() + "/engine");
+        webSearchProperties.setMaxResults(5);
+        webSearchProperties.setFetchPages(false);
+        webSearchProperties.getBrowser().setLocalBrowserEnabled(false);
+        webSearchProperties.getSiteSearch().setMaxPagesToInspect(3);
+        webSearchProperties.getSiteSearch().setMaxSecondaryPages(2);
+        webSearchProperties.getSiteSearch().setMaxLinksPerPage(5);
+
+        BuiltInToolsBootstrap bootstrap = new BuiltInToolsBootstrap(
+            registry,
+            webSearchProperties,
+            new DatabaseToolProperties(),
+            mock(DynamicJdbcDriverLoader.class),
+            new MockEnvironment(),
+            new ObjectMapper()
+        );
+        bootstrap.initializeBuiltInTools();
+
+        ToolRegistry.EnhancedTool webSearch = registry.getEnhancedTool("web_search");
+        ToolOutput output = webSearch.execute(ToolInput.builder()
+            .parameters(Map.of("query", "ACME-2025", "num_results", 4))
+            .build());
+
+        assertThat(output.isSuccess()).isTrue();
+        Map<String, Object> data = (Map<String, Object>) output.getData();
+        assertThat(data)
+            .containsEntry("contentMode", "site_search_enriched")
+            .containsEntry("site_search_result_count", 2);
+        List<String> referenceUrls = (List<String>) data.get("reference_urls");
+        assertThat(referenceUrls)
+            .anyMatch(url -> url.endsWith("/files/acme-2025-report.pdf"))
+            .anyMatch(url -> url.endsWith("/files/acme-2025-data.xlsx"));
+        List<Map<String, Object>> results = (List<Map<String, Object>>) data.get("results");
+        assertThat(results).anySatisfy(result -> assertThat(result)
+            .containsEntry("source", "site_search")
+            .containsEntry("url", "http://localhost:" + server.getAddress().getPort() + "/files/acme-2025-report.pdf"));
+        assertThat(results).anySatisfy(result -> assertThat(result)
+            .containsEntry("source", "site_search")
+            .containsEntry("url", "http://localhost:" + server.getAddress().getPort() + "/files/acme-2025-data.xlsx"));
+    }
+
     private void startDocumentApi() throws IOException {
         documentLoginCount = 0;
         documentSearchAuthorization = null;
@@ -248,6 +381,121 @@ class BuiltInToolsBootstrapTest {
                 """;
             byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
             exchange.getResponseHeaders().add("Content-Type", "text/html; charset=utf-8");
+            exchange.sendResponseHeaders(200, bytes.length);
+            exchange.getResponseBody().write(bytes);
+            exchange.close();
+        });
+        server.start();
+    }
+
+    private void startWebSearchApiWithSiteSearchForm() throws IOException {
+        server = HttpServer.create(new InetSocketAddress(0), 0);
+        server.createContext("/search", exchange -> {
+            String body = """
+                <html><body><ol><li class="b_algo"><h2><a href="http://localhost:%d/exchange">Example securities exchange</a></h2><div class="b_caption"><p>Search listed securities on this exchange.</p></div></li></ol></body></html>
+                """.formatted(server.getAddress().getPort());
+            byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().add("Content-Type", "text/html; charset=utf-8");
+            exchange.sendResponseHeaders(200, bytes.length);
+            exchange.getResponseBody().write(bytes);
+            exchange.close();
+        });
+        server.createContext("/exchange", exchange -> {
+            String body = """
+                <html><body><main><h1>Exchange</h1><form action="/exchange/search" method="get"><input type="search" name="keyword" placeholder="Search security code or name"><button type="submit">Search</button></form></main></body></html>
+                """;
+            byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().add("Content-Type", "text/html; charset=utf-8");
+            exchange.sendResponseHeaders(200, bytes.length);
+            exchange.getResponseBody().write(bytes);
+            exchange.close();
+        });
+        server.createContext("/exchange/search", exchange -> {
+            String body = """
+                <html><body><main class="search-results"><h1>Search results</h1><article><a href="/security/600519">Kweichow Moutai 600519</a><p>Listed security profile and exchange disclosure links.</p></article></main></body></html>
+                """;
+            byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().add("Content-Type", "text/html; charset=utf-8");
+            exchange.sendResponseHeaders(200, bytes.length);
+            exchange.getResponseBody().write(bytes);
+            exchange.close();
+        });
+        server.start();
+    }
+
+    private void startWebSearchApiWithSearchEntrypointAndDocuments() throws IOException {
+        server = HttpServer.create(new InetSocketAddress(0), 0);
+        server.createContext("/engine", exchange -> {
+            String body = """
+                <html><body><ol><li class="b_algo"><h2><a href="http://localhost:%d/company">ACME company homepage</a></h2><div class="b_caption"><p>Corporate homepage without the requested filing.</p></div></li></ol></body></html>
+                """.formatted(server.getAddress().getPort());
+            byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().add("Content-Type", "text/html; charset=utf-8");
+            exchange.sendResponseHeaders(200, bytes.length);
+            exchange.getResponseBody().write(bytes);
+            exchange.close();
+        });
+        server.createContext("/company", exchange -> {
+            String body = """
+                <html><body><main><h1>ACME</h1><p>Welcome to ACME.</p><a href="/home/search">Site Search</a></main></body></html>
+                """;
+            byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().add("Content-Type", "text/html; charset=utf-8");
+            exchange.sendResponseHeaders(200, bytes.length);
+            exchange.getResponseBody().write(bytes);
+            exchange.close();
+        });
+        server.createContext("/home/search", exchange -> {
+            String body = """
+                <html><body><main><h1>Search</h1><form action="/home/search/results" method="get"><input name="q" type="search" placeholder="Search files"><button>Search</button></form></main></body></html>
+                """;
+            byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().add("Content-Type", "text/html; charset=utf-8");
+            exchange.sendResponseHeaders(200, bytes.length);
+            exchange.getResponseBody().write(bytes);
+            exchange.close();
+        });
+        server.createContext("/home/search/results", exchange -> {
+            String body = """
+                <html><body><main class="search-results"><article><a href="/files/acme-2025-report.pdf">ACME-2025 annual report PDF</a><p>Annual report filing.</p></article><article><a href="/files/acme-2025-data.xlsx">ACME-2025 financial data Excel</a><p>Workbook attachment.</p></article></main></body></html>
+                """;
+            byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().add("Content-Type", "text/html; charset=utf-8");
+            exchange.sendResponseHeaders(200, bytes.length);
+            exchange.getResponseBody().write(bytes);
+            exchange.close();
+        });
+        server.start();
+    }
+
+    private void startWebSearchApiWithKnownJsonpSiteSearch() throws IOException {
+        server = HttpServer.create(new InetSocketAddress(0), 0);
+        server.createContext("/search", exchange -> {
+            String body = """
+                <html><body><ol><li class="b_algo"><h2><a href="http://localhost:%d/exchange-js">Exchange JS search</a></h2><div class="b_caption"><p>Search listed company disclosures.</p></div></li></ol></body></html>
+                """.formatted(server.getAddress().getPort());
+            byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().add("Content-Type", "text/html; charset=utf-8");
+            exchange.sendResponseHeaders(200, bytes.length);
+            exchange.getResponseBody().write(bytes);
+            exchange.close();
+        });
+        server.createContext("/exchange-js", exchange -> {
+            String body = """
+                <html><body><main><h1>Exchange JS search</h1><script>var sseQueryURL = "http://localhost:%d/"; var api = "search/getESSearchDoc.do";</script></main></body></html>
+                """.formatted(server.getAddress().getPort());
+            byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().add("Content-Type", "text/html; charset=utf-8");
+            exchange.sendResponseHeaders(200, bytes.length);
+            exchange.getResponseBody().write(bytes);
+            exchange.close();
+        });
+        server.createContext("/search/getESSearchDoc.do", exchange -> {
+            String body = """
+                jsonpCallback({"code":"0","data":{"totalSize":1,"knowledgeList":[{"documentId":"doc-603383","title":"[<em>603383</em>][<em>顶点软件</em>]<em>顶点软件</em>2025年年度报告摘要","rtfContent":"<em>福建顶点软件股份有限公司</em>2025 年年度报告摘要 公司代码：<em>603383</em>","createTime":"2026-04-16 19:14:05","score":2262.8176,"extend":[{"name":"CURL","value":"/disclosure/603383_annual_summary.pdf"},{"name":"ZQDM","value":"603383"},{"name":"GSJC","value":"顶点软件"}]}]}})
+                """;
+            byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().add("Content-Type", "application/javascript; charset=utf-8");
             exchange.sendResponseHeaders(200, bytes.length);
             exchange.getResponseBody().write(bytes);
             exchange.close();

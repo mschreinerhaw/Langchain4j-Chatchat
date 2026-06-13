@@ -39,14 +39,19 @@ import java.time.temporal.TemporalAccessor;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
@@ -266,7 +271,11 @@ public class BuiltInToolsBootstrap {
         int pageFetches = webSearchProperties.isFetchPages()
             ? Math.max(0, webSearchProperties.getMaxPagesToFetch())
             : 0;
-        return Math.max(30000L, perRequestTimeout * (searchAttempts + pageFetches + 1));
+        int siteSearchFetches = webSearchProperties.getSiteSearch().isEnabled()
+            ? Math.max(0, webSearchProperties.getSiteSearch().getMaxPagesToInspect())
+                + Math.max(0, webSearchProperties.getSiteSearch().getMaxSecondaryPages())
+            : 0;
+        return Math.max(30000L, perRequestTimeout * (searchAttempts + pageFetches + siteSearchFetches + 1));
     }
 
     /**
@@ -811,10 +820,18 @@ public class BuiltInToolsBootstrap {
                 case "bing_html" -> parseBingResults(document, fetchLimit);
                 default -> throw new IllegalArgumentException("Unsupported web search provider: " + properties.getProvider());
             };
-            List<Map<String, Object>> results = fetchedResults.size() <= numResults
-                ? fetchedResults
-                : new ArrayList<>(fetchedResults.subList(0, numResults));
-            List<String> referenceUrls = fetchedResults.stream()
+            List<Map<String, Object>> siteSearchResults = discoverSiteSearchResults(
+                fetchedResults,
+                query,
+                fetchLimit,
+                context,
+                networkAudit
+            );
+            List<Map<String, Object>> mergedResults = mergeSearchResults(fetchedResults, siteSearchResults, fetchLimit);
+            List<Map<String, Object>> results = mergedResults.size() <= numResults
+                ? mergedResults
+                : new ArrayList<>(mergedResults.subList(0, numResults));
+            List<String> referenceUrls = mergedResults.stream()
                 .map(item -> item.get("url"))
                 .filter(String.class::isInstance)
                 .map(String.class::cast)
@@ -833,14 +850,27 @@ public class BuiltInToolsBootstrap {
             output.put("count", results.size());
             output.put("reference_url_count", referenceUrls.size());
             output.put("reference_urls", referenceUrls);
+            output.put("site_search_enabled", properties.getSiteSearch().isEnabled());
+            output.put("site_search_result_count", siteSearchResults.size());
             output.put("page_fetch_enabled", properties.isFetchPages());
             output.put("page_excerpt_count", pageExcerpts.size());
-            output.put("contentMode", pageExcerpts.isEmpty() ? "search_snippets_only" : "page_enriched");
+            output.put("contentMode", contentMode(pageExcerpts, siteSearchResults));
             output.put("web_search_audit", properties.getAudit().isIncludeInResult() ? networkAudit : List.of());
             output.put("pageExcerpts", pageExcerpts);
             output.put("evidenceSnippets", pageExcerpts);
             output.put("results", results);
             return output;
+        }
+
+        private String contentMode(List<Map<String, Object>> pageExcerpts, List<Map<String, Object>> siteSearchResults) {
+            if (pageExcerpts != null && !pageExcerpts.isEmpty()) {
+                return siteSearchResults != null && !siteSearchResults.isEmpty()
+                    ? "page_and_site_search_enriched"
+                    : "page_enriched";
+            }
+            return siteSearchResults != null && !siteSearchResults.isEmpty()
+                ? "site_search_enriched"
+                : "search_snippets_only";
         }
 
         /**
@@ -986,16 +1016,827 @@ public class BuiltInToolsBootstrap {
             return excerpts;
         }
 
+        private List<Map<String, Object>> discoverSiteSearchResults(List<Map<String, Object>> results,
+                                                                    String query,
+                                                                    int resultLimit,
+                                                                    WebSearchRequestContext context,
+                                                                    List<Map<String, Object>> networkAudit) {
+            WebSearchToolProperties.SiteSearchProperties siteSearch = properties.getSiteSearch();
+            if (siteSearch == null || !siteSearch.isEnabled() || results == null || results.isEmpty()) {
+                return List.of();
+            }
+            int inspectLimit = Math.max(0, siteSearch.getMaxPagesToInspect());
+            int secondaryLimit = Math.max(0, siteSearch.getMaxSecondaryPages());
+            if (inspectLimit <= 0 || secondaryLimit <= 0) {
+                return List.of();
+            }
+
+            List<Map<String, Object>> discovered = new ArrayList<>();
+            Set<String> seenUrls = new LinkedHashSet<>();
+            for (Map<String, Object> result : results) {
+                String url = stringValue(result.get("url"));
+                if (url != null && !url.isBlank()) {
+                    seenUrls.add(normalizeComparableUrl(url));
+                }
+            }
+
+            int inspected = 0;
+            int secondaryRequests = 0;
+            log.info("Web search site-search discovery started query={} inspectLimit={} secondaryLimit={} resultLimit={}",
+                query,
+                inspectLimit,
+                secondaryLimit,
+                resultLimit);
+            for (Map<String, Object> result : results) {
+                if (inspected >= inspectLimit || secondaryRequests >= secondaryLimit) {
+                    break;
+                }
+                String pageUrl = stringValue(result.get("url"));
+                if (!isFetchablePageUrl(pageUrl) || !isAllowedUrl(pageUrl)) {
+                    continue;
+                }
+                inspected++;
+                try {
+                    log.info("Web search site-search inspect started inspected={}/{} url={}",
+                        inspected,
+                        inspectLimit,
+                        pageUrl);
+                    if (secondaryRequests < secondaryLimit && looksLikeShanghaiStockExchangeUrl(pageUrl)) {
+                        secondaryRequests++;
+                        List<Map<String, Object>> knownResults = runKnownSiteSearch(
+                            null,
+                            pageUrl,
+                            query,
+                            seenUrls,
+                            Math.max(1, siteSearch.getMaxLinksPerPage()),
+                            context,
+                            networkAudit
+                        );
+                        if (!knownResults.isEmpty()) {
+                            result.put("siteSearchAvailable", true);
+                            result.put("siteSearchType", "known_jsonp");
+                            result.put("siteSearchResultCount", knownResults.size());
+                            discovered.addAll(knownResults);
+                            log.info("Web search site-search known endpoint succeeded url={} resultCount={} totalDiscovered={}",
+                                pageUrl,
+                                knownResults.size(),
+                                discovered.size());
+                            continue;
+                        }
+                    }
+                    HtmlResponse pageResponse = sendHtmlRequest(
+                        pageUrl,
+                        Map.of(),
+                        query,
+                        "site_search_page",
+                        context,
+                        networkAudit
+                    );
+                    boolean pageHasEvidence = pageContainsQueryEvidence(pageResponse.document(), query);
+                    result.put("siteSearchPageContainsQuery", pageHasEvidence);
+                    log.info("Web search site-search page inspected url={} queryEvidence={}", pageUrl, pageHasEvidence);
+                    if (secondaryRequests < secondaryLimit && knownSearchEndpoint(pageResponse.document(), pageUrl) != null) {
+                        secondaryRequests++;
+                        List<Map<String, Object>> knownResults = runKnownSiteSearch(
+                            pageResponse.document(),
+                            pageUrl,
+                            query,
+                            seenUrls,
+                            Math.max(1, siteSearch.getMaxLinksPerPage()),
+                            context,
+                            networkAudit
+                        );
+                        if (!knownResults.isEmpty()) {
+                            result.put("siteSearchAvailable", true);
+                            result.put("siteSearchType", "known_jsonp");
+                            result.put("siteSearchResultCount", knownResults.size());
+                            discovered.addAll(knownResults);
+                            log.info("Web search site-search known endpoint succeeded url={} resultCount={} totalDiscovered={}",
+                                pageUrl,
+                                knownResults.size(),
+                                discovered.size());
+                            continue;
+                        }
+                    }
+                    List<SiteSearchForm> forms = findSiteSearchForms(pageResponse.document(), pageUrl, query);
+                    if (forms.isEmpty() && !pageHasEvidence) {
+                        forms = discoverSearchFormsFromEntrypoints(
+                            pageResponse.document(),
+                            pageUrl,
+                            query,
+                            context,
+                            networkAudit,
+                            Math.max(0, inspectLimit - inspected)
+                        );
+                        inspected += Math.max(0, Math.min(inspectLimit - inspected, inspectedEntrypointCount(forms)));
+                    }
+                    if (forms.isEmpty()) {
+                        result.put("siteSearchAvailable", false);
+                        log.info("Web search site-search no searchable form found url={}", pageUrl);
+                        continue;
+                    }
+                    result.put("siteSearchAvailable", true);
+                    result.put("siteSearchFormCount", forms.size());
+                    log.info("Web search site-search forms found url={} formCount={}", pageUrl, forms.size());
+                    for (SiteSearchForm form : forms) {
+                        if (secondaryRequests >= secondaryLimit || discovered.size() >= resultLimit) {
+                            break;
+                        }
+                        secondaryRequests++;
+                        log.info("Web search site-search submit started sourceUrl={} method={} actionUrl={} submittedUrl={}",
+                            pageUrl,
+                            form.method(),
+                            form.actionUrl(),
+                            form.submittedUrl());
+                        HtmlResponse secondaryResponse = sendHtmlRequest(
+                            form.actionUrl(),
+                            form.parameters(),
+                            query,
+                            "site_search",
+                            context,
+                            networkAudit,
+                            form.method()
+                        );
+                        List<Map<String, Object>> secondaryResults = parseSiteSearchLinks(
+                            secondaryResponse.document(),
+                            pageUrl,
+                            form.submittedUrl(),
+                            query,
+                            seenUrls,
+                            Math.max(1, siteSearch.getMaxLinksPerPage())
+                        );
+                        discovered.addAll(secondaryResults);
+                        log.info("Web search site-search submit completed sourceUrl={} resultCount={} totalDiscovered={}",
+                            pageUrl,
+                            secondaryResults.size(),
+                            discovered.size());
+                    }
+                } catch (Exception ex) {
+                    result.put("siteSearchAvailable", false);
+                    result.put("siteSearchError", ex.getMessage());
+                    log.warn("Web search site-search enrichment failed url={} error={}", pageUrl, ex.getMessage());
+                }
+            }
+            log.info("Web search site-search discovery completed query={} inspected={} secondaryRequests={} discovered={}",
+                query,
+                inspected,
+                secondaryRequests,
+                discovered.size());
+            return discovered;
+        }
+
+        private List<SiteSearchForm> discoverSearchFormsFromEntrypoints(Document document,
+                                                                        String pageUrl,
+                                                                        String query,
+                                                                        WebSearchRequestContext context,
+                                                                        List<Map<String, Object>> networkAudit,
+                                                                        int maxAdditionalInspections) {
+            if (maxAdditionalInspections <= 0) {
+                return List.of();
+            }
+            List<String> candidates = siteSearchEntrypoints(document, pageUrl);
+            if (candidates.isEmpty()) {
+                return List.of();
+            }
+            List<SiteSearchForm> forms = new ArrayList<>();
+            Set<String> seenForms = new LinkedHashSet<>();
+            int inspected = 0;
+            for (String candidateUrl : candidates) {
+                if (inspected >= maxAdditionalInspections || !isFetchablePageUrl(candidateUrl) || !isAllowedUrl(candidateUrl)) {
+                    continue;
+                }
+                inspected++;
+                try {
+                    log.info("Web search site-search entrypoint inspect started sourceUrl={} entrypoint={}",
+                        pageUrl,
+                        candidateUrl);
+                    HtmlResponse response = sendHtmlRequest(
+                        candidateUrl,
+                        Map.of(),
+                        query,
+                        "site_search_entrypoint",
+                        contextWithReferer(context, pageUrl, query),
+                        networkAudit
+                    );
+                    for (SiteSearchForm form : findSiteSearchForms(response.document(), candidateUrl, query)) {
+                        String key = normalizeComparableUrl(form.submittedUrl());
+                        if (seenForms.add(key)) {
+                            forms.add(form);
+                        }
+                    }
+                    log.info("Web search site-search entrypoint inspect completed entrypoint={} formCount={} totalForms={}",
+                        candidateUrl,
+                        forms.size(),
+                        seenForms.size());
+                    if (!forms.isEmpty()) {
+                        break;
+                    }
+                } catch (Exception ex) {
+                    log.warn("Web search site-search entrypoint inspect failed sourceUrl={} entrypoint={} error={}",
+                        pageUrl,
+                        candidateUrl,
+                        ex.getMessage());
+                }
+            }
+            return forms;
+        }
+
+        private int inspectedEntrypointCount(List<SiteSearchForm> forms) {
+            if (forms == null || forms.isEmpty()) {
+                return 0;
+            }
+            return (int) forms.stream()
+                .map(SiteSearchForm::sourcePageUrl)
+                .filter(value -> value != null && !value.isBlank())
+                .distinct()
+                .count();
+        }
+
+        private List<String> siteSearchEntrypoints(Document document, String pageUrl) {
+            String origin = originOf(pageUrl);
+            if (origin == null || origin.isBlank()) {
+                return List.of();
+            }
+            Set<String> candidates = new LinkedHashSet<>();
+            if (document != null) {
+                for (Element link : document.select("a[href]")) {
+                    String href = normalizeSearchUrl(link.absUrl("href"));
+                    if (!isLikelySearchEntrypoint(href, link.text())) {
+                        continue;
+                    }
+                    String host = hostOf(href);
+                    String sourceHost = hostOf(pageUrl);
+                    if (host != null && sourceHost != null && host.equalsIgnoreCase(sourceHost)) {
+                        candidates.add(href);
+                    }
+                }
+            }
+            candidates.add(origin + "/");
+            candidates.add(origin + "/search");
+            candidates.add(origin + "/search/");
+            candidates.add(origin + "/home/search");
+            candidates.add(origin + "/home/search/");
+            candidates.add(origin + "/search.html");
+            candidates.add(origin + "/search/index.html");
+            candidates.add(origin + "/sousuo");
+            candidates.add(origin + "/sousuo/");
+            String current = normalizeComparableUrl(pageUrl);
+            return candidates.stream()
+                .filter(url -> url != null && !url.isBlank())
+                .filter(url -> !normalizeComparableUrl(url).equals(current))
+                .toList();
+        }
+
+        private boolean pageContainsQueryEvidence(Document document, String query) {
+            if (document == null || query == null || query.isBlank()) {
+                return false;
+            }
+            String text = cleanHtmlText(document.title() + " " + document.body().text()).toLowerCase(Locale.ROOT);
+            if (text.isBlank()) {
+                return false;
+            }
+            List<String> terms = queryTerms(query);
+            if (terms.isEmpty()) {
+                return false;
+            }
+            int matched = 0;
+            for (String term : terms) {
+                if (text.contains(term.toLowerCase(Locale.ROOT))) {
+                    matched++;
+                }
+            }
+            return matched > 0 && (terms.size() <= 2 || matched >= Math.min(2, terms.size()));
+        }
+
+        private boolean isLikelySearchEntrypoint(String href, String label) {
+            if (!isHttpUrl(href)) {
+                return false;
+            }
+            String text = (href + " " + firstNonBlank(label, "")).toLowerCase(Locale.ROOT);
+            return containsAny(text, List.of(
+                "search",
+                "query",
+                "find",
+                "keyword",
+                "sousuo",
+                "搜索",
+                "检索",
+                "查询",
+                "站内"
+            ));
+        }
+
+        private List<Map<String, Object>> runKnownSiteSearch(Document document,
+                                                             String sourcePageUrl,
+                                                             String query,
+                                                             Set<String> seenUrls,
+                                                             int maxLinks,
+                                                             WebSearchRequestContext context,
+                                                             List<Map<String, Object>> networkAudit) throws Exception {
+            String endpoint = knownSearchEndpoint(document, sourcePageUrl);
+            if (endpoint == null || endpoint.isBlank()) {
+                return List.of();
+            }
+            String callback = "jsonpCallback" + Math.abs((query + ":" + sourcePageUrl).hashCode());
+            Map<String, String> parameters = new LinkedHashMap<>();
+            parameters.put("jsonCallBack", callback);
+            parameters.put("keyword", query);
+            parameters.put("page", "0");
+            parameters.put("limit", String.valueOf(Math.max(1, maxLinks)));
+            parameters.put("spaceId", "3");
+            parameters.put("keywordPosition", "content");
+            parameters.put("orderByKey", "score");
+            parameters.put("orderByDirection", "DESC");
+            parameters.put("searchMode", "fuzzy");
+            parameters.put("channelId", "10001");
+
+            WebSearchRequestContext siteContext = contextWithReferer(context, sourcePageUrl, query);
+            String submittedUrl = urlWithQueryParams(endpoint, parameters);
+            log.info("Web search site-search known endpoint request started sourceUrl={} endpoint={} query={}",
+                sourcePageUrl,
+                endpoint,
+                query);
+            HtmlResponse response = sendHtmlRequest(
+                endpoint,
+                parameters,
+                query,
+                "site_search_known",
+                siteContext,
+                networkAudit
+            );
+            String payload = response.document() == null ? "" : response.document().text();
+            List<Map<String, Object>> results = parseKnownJsonpSearchResults(
+                payload,
+                sourcePageUrl,
+                submittedUrl,
+                query,
+                seenUrls,
+                maxLinks
+            );
+            log.info("Web search site-search known endpoint response sourceUrl={} statusCode={} resultCount={}",
+                sourcePageUrl,
+                response.statusCode(),
+                results.size());
+            return results;
+        }
+
+        private String knownSearchEndpoint(Document document, String sourcePageUrl) {
+            if (looksLikeShanghaiStockExchangeUrl(sourcePageUrl)) {
+                return "https://query.sse.com.cn/search/getESSearchDoc.do";
+            }
+            if (document == null) {
+                return null;
+            }
+            String html = document.outerHtml();
+            if (!html.contains("sseQueryURL") || !html.contains("getESSearchDoc.do")) {
+                return null;
+            }
+            Matcher matcher = Pattern.compile("sseQueryURL\\s*=\\s*['\"]([^'\"]+)['\"]").matcher(html);
+            if (!matcher.find()) {
+                return null;
+            }
+            String base = normalizeProtocolRelativeUrl(matcher.group(1), sourcePageUrl);
+            if (base == null || base.isBlank()) {
+                return null;
+            }
+            if (!base.endsWith("/")) {
+                base = base + "/";
+            }
+            return base + "search/getESSearchDoc.do";
+        }
+
+        private boolean looksLikeShanghaiStockExchangeUrl(String url) {
+            String host = hostOf(url);
+            return host != null && (host.equalsIgnoreCase("sse.com.cn") || host.toLowerCase(Locale.ROOT).endsWith(".sse.com.cn"));
+        }
+
+        @SuppressWarnings("unchecked")
+        private List<Map<String, Object>> parseKnownJsonpSearchResults(String payload,
+                                                                       String sourcePageUrl,
+                                                                       String searchUrl,
+                                                                       String query,
+                                                                       Set<String> seenUrls,
+                                                                       int maxLinks) throws IOException {
+            String json = unwrapJsonp(payload);
+            if (json == null || json.isBlank()) {
+                return List.of();
+            }
+            Map<String, Object> root = objectMapper.readValue(json, Map.class);
+            Object dataValue = root.get("data");
+            if (!(dataValue instanceof Map<?, ?> data)) {
+                return List.of();
+            }
+            Object listValue = data.get("knowledgeList");
+            if (!(listValue instanceof List<?> knowledgeList)) {
+                return List.of();
+            }
+            List<Map<String, Object>> results = new ArrayList<>();
+            int rank = 1;
+            for (Object value : knowledgeList) {
+                if (results.size() >= maxLinks || !(value instanceof Map<?, ?> raw)) {
+                    continue;
+                }
+                Map<String, Object> item = (Map<String, Object>) raw;
+                String url = absoluteSiteUrl(firstNonBlank(
+                    stringValue(item.get("url")),
+                    extendValue(item.get("extend"), "CURL")
+                ), sourcePageUrl);
+                if (!isHttpUrl(url)) {
+                    continue;
+                }
+                String comparable = normalizeComparableUrl(url);
+                if (!seenUrls.add(comparable)) {
+                    continue;
+                }
+                Map<String, Object> result = new LinkedHashMap<>();
+                result.put("rank", rank++);
+                result.put("title", cleanHtmlText(firstNonBlank(stringValue(item.get("title")), url)));
+                result.put("url", url);
+                result.put("snippet", buildTextExcerpt(cleanHtmlText(stringValue(item.get("rtfContent"))), query,
+                    Math.min(500, properties.getPageExcerptChars())));
+                result.put("source", "site_search_known");
+                result.put("sourcePageUrl", sourcePageUrl);
+                result.put("siteSearchUrl", searchUrl);
+                result.put("siteSearchEngine", "sse_ess_jsonp");
+                result.put("publishedAt", item.get("createTime"));
+                result.put("documentId", item.get("documentId"));
+                result.put("score", item.get("score"));
+                result.put("totalSize", data.get("totalSize"));
+                result.put("securityCode", extendValue(item.get("extend"), "ZQDM"));
+                result.put("securityName", extendValue(item.get("extend"), "GSJC"));
+                results.add(result);
+            }
+            return results;
+        }
+
+        private String unwrapJsonp(String payload) {
+            if (payload == null || payload.isBlank()) {
+                return null;
+            }
+            String value = payload.trim();
+            int start = value.indexOf('(');
+            int end = value.lastIndexOf(')');
+            if (start >= 0 && end > start) {
+                return value.substring(start + 1, end);
+            }
+            return value.startsWith("{") ? value : null;
+        }
+
+        private String extendValue(Object extendValue, String name) {
+            if (!(extendValue instanceof List<?> entries)) {
+                return null;
+            }
+            for (Object entry : entries) {
+                if (entry instanceof Map<?, ?> map && name.equals(stringValue(map.get("name")))) {
+                    return stringValue(map.get("value"));
+                }
+            }
+            return null;
+        }
+
+        private String cleanHtmlText(String value) {
+            return value == null ? "" : Jsoup.parse(value).text().replaceAll("\\s+", " ").trim();
+        }
+
+        private String absoluteSiteUrl(String url, String sourcePageUrl) {
+            if (url == null || url.isBlank()) {
+                return null;
+            }
+            String value = url.trim();
+            if (value.startsWith("http://") || value.startsWith("https://")) {
+                return value;
+            }
+            if (value.startsWith("//")) {
+                return "https:" + value;
+            }
+            if (value.startsWith("www.")) {
+                return "https://" + value;
+            }
+            try {
+                URI base = URI.create(sourcePageUrl);
+                if (looksLikeShanghaiStockExchangeUrl(sourcePageUrl) && value.startsWith("/")) {
+                    return "https://www.sse.com.cn" + value;
+                }
+                return base.resolve(value).toString();
+            } catch (Exception ex) {
+                return value;
+            }
+        }
+
+        private String normalizeProtocolRelativeUrl(String value, String sourcePageUrl) {
+            if (value == null || value.isBlank()) {
+                return null;
+            }
+            String trimmed = value.trim();
+            if (trimmed.startsWith("//")) {
+                String scheme = "https";
+                try {
+                    scheme = firstNonBlank(URI.create(sourcePageUrl).getScheme(), "https");
+                } catch (Exception ignored) {
+                    // Use https by default for protocol-relative search APIs.
+                }
+                return scheme + ":" + trimmed;
+            }
+            if (trimmed.startsWith("/")) {
+                try {
+                    return URI.create(sourcePageUrl).resolve(trimmed).toString();
+                } catch (Exception ignored) {
+                    return trimmed;
+                }
+            }
+            return trimmed;
+        }
+
+        private WebSearchRequestContext contextWithReferer(WebSearchRequestContext context, String sourcePageUrl, String query) {
+            String referer = looksLikeShanghaiStockExchangeUrl(sourcePageUrl)
+                ? "https://www.sse.com.cn/home/search/?webswd=" + URLEncoder.encode(query, StandardCharsets.UTF_8)
+                : sourcePageUrl;
+            return new WebSearchRequestContext(
+                context.query(),
+                context.tenantId(),
+                context.taskId(),
+                context.agentId(),
+                context.proxyPool(),
+                referer
+            );
+        }
+
+        private List<SiteSearchForm> findSiteSearchForms(Document document, String pageUrl, String query) {
+            if (document == null) {
+                return List.of();
+            }
+            List<SiteSearchForm> forms = new ArrayList<>();
+            Set<String> seen = new LinkedHashSet<>();
+            for (Element form : document.select("form")) {
+                Element queryInput = bestSearchInput(form);
+                if (queryInput == null) {
+                    continue;
+                }
+                String inputName = firstNonBlank(queryInput.attr("name"), queryInput.attr("id"));
+                if (inputName == null || inputName.isBlank()) {
+                    continue;
+                }
+                String actionUrl = form.absUrl("action");
+                if (actionUrl == null || actionUrl.isBlank()) {
+                    actionUrl = pageUrl;
+                }
+                if (!looksLikeSiteSearchForm(form, actionUrl, queryInput)) {
+                    continue;
+                }
+                Map<String, String> parameters = formParameters(form, inputName, query);
+                if (!parameters.containsKey(inputName)) {
+                    parameters.put(inputName, query);
+                }
+                String method = firstNonBlank(form.attr("method"), "GET").trim().toUpperCase(Locale.ROOT);
+                if (!"POST".equals(method)) {
+                    method = "GET";
+                }
+                String submittedUrl = "POST".equals(method)
+                    ? actionUrl
+                    : urlWithQueryParams(actionUrl, parameters);
+                String key = normalizeComparableUrl(urlWithQueryParams(actionUrl, parameters));
+                if (seen.add(key)) {
+                    forms.add(new SiteSearchForm(actionUrl, parameters, method, submittedUrl, pageUrl));
+                }
+            }
+            return forms;
+        }
+
+        private Element bestSearchInput(Element form) {
+            Element best = null;
+            int bestScore = 0;
+            for (Element input : form.select("input")) {
+                String type = firstNonBlank(input.attr("type"), "text").toLowerCase(Locale.ROOT);
+                if (Set.of("hidden", "submit", "button", "reset", "checkbox", "radio", "file", "image").contains(type)) {
+                    continue;
+                }
+                String name = firstNonBlank(input.attr("name"), input.attr("id"));
+                if (name == null || name.isBlank()) {
+                    continue;
+                }
+                int score = searchInputScore(input);
+                if (score > bestScore) {
+                    best = input;
+                    bestScore = score;
+                }
+            }
+            return bestScore > 0 ? best : null;
+        }
+
+        private int searchInputScore(Element input) {
+            int score = 0;
+            String type = firstNonBlank(input.attr("type"), "text").toLowerCase(Locale.ROOT);
+            if ("search".equals(type)) {
+                score += 6;
+            }
+            String text = String.join(" ",
+                input.attr("name"),
+                input.attr("id"),
+                input.attr("class"),
+                input.attr("placeholder"),
+                input.attr("aria-label")
+            ).toLowerCase(Locale.ROOT);
+            if (containsAny(text, properties.getSiteSearch().getInputNameHints())) {
+                score += 5;
+            }
+            if (text.contains("搜索") || text.contains("检索") || text.contains("查询")
+                || text.contains("股票") || text.contains("证券") || text.contains("代码")) {
+                score += 5;
+            }
+            return score;
+        }
+
+        private boolean looksLikeSiteSearchForm(Element form, String actionUrl, Element input) {
+            String text = String.join(" ",
+                form.attr("id"),
+                form.attr("class"),
+                form.attr("role"),
+                form.text(),
+                actionUrl,
+                input.attr("name"),
+                input.attr("id"),
+                input.attr("placeholder"),
+                input.attr("aria-label")
+            ).toLowerCase(Locale.ROOT);
+            return containsAny(text, properties.getSiteSearch().getFormActionHints())
+                || text.contains("搜索")
+                || text.contains("检索")
+                || text.contains("查询")
+                || text.contains("股票")
+                || text.contains("证券")
+                || text.contains("代码");
+        }
+
+        private Map<String, String> formParameters(Element form, String queryInputName, String query) {
+            Map<String, String> parameters = new LinkedHashMap<>();
+            for (Element field : form.select("input[name], select[name], textarea[name]")) {
+                String name = field.attr("name");
+                if (name == null || name.isBlank()) {
+                    continue;
+                }
+                String tag = field.tagName();
+                String type = field.attr("type").toLowerCase(Locale.ROOT);
+                if ("input".equals(tag) && Set.of("submit", "button", "reset", "file", "image").contains(type)) {
+                    continue;
+                }
+                if ("input".equals(tag) && ("checkbox".equals(type) || "radio".equals(type)) && !field.hasAttr("checked")) {
+                    continue;
+                }
+                String value = name.equals(queryInputName)
+                    ? query
+                    : firstNonBlank(field.val(), field.attr("value"));
+                parameters.put(name, firstNonBlank(value, ""));
+            }
+            parameters.put(queryInputName, query);
+            return parameters;
+        }
+
+        private List<Map<String, Object>> parseSiteSearchLinks(Document document,
+                                                               String sourcePageUrl,
+                                                               String searchUrl,
+                                                               String query,
+                                                               Set<String> seenUrls,
+                                                               int maxLinks) {
+            if (document == null || maxLinks <= 0) {
+                return List.of();
+            }
+            List<Map<String, Object>> links = new ArrayList<>();
+            Element scope = first(
+                document.selectFirst("main"),
+                document.selectFirst("[role=main]"),
+                document.selectFirst("[class*=search]"),
+                document.selectFirst("[id*=search]"),
+                document.body()
+            );
+            if (scope == null) {
+                return List.of();
+            }
+            int rank = 1;
+            for (Element link : scope.select("a[href]")) {
+                if (links.size() >= maxLinks) {
+                    break;
+                }
+                String href = normalizeSearchUrl(link.absUrl("href"));
+                if (!isUsefulSiteSearchLink(href, link.text(), sourcePageUrl, searchUrl, query)) {
+                    continue;
+                }
+                String comparable = normalizeComparableUrl(href);
+                if (!seenUrls.add(comparable)) {
+                    continue;
+                }
+                Map<String, Object> item = new LinkedHashMap<>();
+                item.put("rank", rank++);
+                item.put("title", firstNonBlank(link.text(), href));
+                item.put("url", href);
+                item.put("snippet", nearbyText(link, query));
+                item.put("source", "site_search");
+                item.put("sourcePageUrl", sourcePageUrl);
+                item.put("siteSearchUrl", searchUrl);
+                links.add(item);
+            }
+            return links;
+        }
+
+        private boolean isUsefulSiteSearchLink(String href,
+                                               String text,
+                                               String sourcePageUrl,
+                                               String searchUrl,
+                                               String query) {
+            if (!isSupportedResultUrl(href)) {
+                return false;
+            }
+            String normalized = normalizeComparableUrl(href);
+            if (normalized.equals(normalizeComparableUrl(sourcePageUrl))
+                || normalized.equals(normalizeComparableUrl(searchUrl))) {
+                return false;
+            }
+            String host = hostOf(href);
+            String sourceHost = hostOf(sourcePageUrl);
+            if (host == null || sourceHost == null || !host.equalsIgnoreCase(sourceHost)) {
+                return false;
+            }
+            String label = text == null ? "" : text.replaceAll("\\s+", " ").trim();
+            if (label.isBlank() && isDocumentUrl(href)) {
+                label = fileNameFromUrl(href);
+            }
+            if (label.length() < 2) {
+                return false;
+            }
+            String lowerLabel = label.toLowerCase(Locale.ROOT);
+            if (Set.of("home", "login", "more", "next", "previous", "首页", "登录", "更多", "下一页", "上一页")
+                .contains(lowerLabel)) {
+                return false;
+            }
+            String combined = (href + " " + label).toLowerCase(Locale.ROOT);
+            for (String term : queryTerms(query)) {
+                if (combined.contains(term.toLowerCase(Locale.ROOT))) {
+                    return true;
+                }
+            }
+            return isDocumentUrl(href) || label.length() >= 4;
+        }
+
+        private String nearbyText(Element link, String query) {
+            Element container = first(
+                link.closest("li"),
+                link.closest("article"),
+                link.closest(".result"),
+                link.parent()
+            );
+            String text = container == null ? link.text() : container.text();
+            return buildTextExcerpt(text, query, Math.min(500, properties.getPageExcerptChars()));
+        }
+
+        private List<Map<String, Object>> mergeSearchResults(List<Map<String, Object>> primary,
+                                                             List<Map<String, Object>> secondary,
+                                                             int limit) {
+            List<Map<String, Object>> merged = new ArrayList<>();
+            Set<String> seen = new LinkedHashSet<>();
+            appendSearchResults(merged, seen, primary);
+            appendSearchResults(merged, seen, secondary);
+            int rank = 1;
+            for (Map<String, Object> item : merged) {
+                item.put("rank", rank++);
+            }
+            return merged.size() <= limit ? merged : new ArrayList<>(merged.subList(0, limit));
+        }
+
+        private void appendSearchResults(List<Map<String, Object>> merged,
+                                         Set<String> seen,
+                                         List<Map<String, Object>> source) {
+            if (source == null) {
+                return;
+            }
+            for (Map<String, Object> item : source) {
+                String url = stringValue(item.get("url"));
+                if (url == null || url.isBlank() || !seen.add(normalizeComparableUrl(url))) {
+                    continue;
+                }
+                merged.add(new LinkedHashMap<>(item));
+            }
+        }
+
         private HtmlResponse sendHtmlRequest(String url,
                                              Map<String, String> queryParams,
                                              String query,
                                              String phase,
                                              WebSearchRequestContext context,
                                              List<Map<String, Object>> networkAudit) throws Exception {
+            return sendHtmlRequest(url, queryParams, query, phase, context, networkAudit, "GET");
+        }
+
+        private HtmlResponse sendHtmlRequest(String url,
+                                             Map<String, String> queryParams,
+                                             String query,
+                                             String phase,
+                                             WebSearchRequestContext context,
+                                             List<Map<String, Object>> networkAudit,
+                                             String httpMethod) throws Exception {
             if (!isAllowedUrl(url)) {
                 addAudit(networkAudit, query, url, phase, null, 0, 0, "BLOCKED", "domain not allowed");
                 throw new IllegalArgumentException("Web search target domain is not allowed: " + hostOf(url));
             }
+            String method = firstNonBlank(httpMethod, "GET").toUpperCase(Locale.ROOT);
             int maxAttempts = Math.max(1, properties.getRetry().getMaxAttempts());
             Exception lastException = null;
             for (int attempt = 1; attempt <= maxAttempts; attempt++) {
@@ -1004,23 +1845,28 @@ public class BuiltInToolsBootstrap {
                 boolean rateAcquired = false;
                 try {
                     rateAcquired = acquireRateSlot();
-                    org.jsoup.Connection connection = Jsoup.connect(url)
-                        .timeout(Math.max(1000, properties.getTimeoutMs()))
-                        .maxBodySize(Math.max(1024, properties.getPageMaxBytes()))
-                        .ignoreHttpErrors(true)
-                        .ignoreContentType(true)
-                        .followRedirects(true);
-                    if (queryParams != null && !queryParams.isEmpty()) {
-                        connection.data(queryParams);
-                    }
-                    applyBrowserHeaders(connection, url, phase, context, proxy);
-                    applyProxy(connection, proxy);
                     String cookieKey = cookieKey(context, proxy);
+                    HtmlResponse browserResponse = tryLocalBrowserRequest(
+                        url,
+                        queryParams,
+                        query,
+                        phase,
+                        context,
+                        proxy,
+                        startedAt,
+                        networkAudit,
+                        method
+                    );
+                    if (browserResponse != null) {
+                        markProxySuccess(proxy);
+                        return browserResponse;
+                    }
+
+                    org.jsoup.Connection connection = buildJsoupConnection(url, queryParams, phase, context, proxy, method);
                     Map<String, String> cookies = readCookies(cookieKey);
                     if (!cookies.isEmpty()) {
                         connection.cookies(cookies);
                     }
-
                     org.jsoup.Connection.Response response = connection.execute();
                     updateCookies(cookieKey, response.cookies());
                     int statusCode = response.statusCode();
@@ -1055,6 +1901,282 @@ public class BuiltInToolsBootstrap {
                 }
             }
             throw lastException == null ? new IOException("web search request failed") : lastException;
+        }
+
+        private org.jsoup.Connection buildJsoupConnection(String url,
+                                                          Map<String, String> queryParams,
+                                                          String phase,
+                                                          WebSearchRequestContext context,
+                                                          WebSearchToolProperties.ProxyConfig proxy,
+                                                          String httpMethod) {
+            org.jsoup.Connection connection = Jsoup.connect(url)
+                .timeout(Math.max(1000, properties.getTimeoutMs()))
+                .maxBodySize(Math.max(1024, properties.getPageMaxBytes()))
+                .ignoreHttpErrors(true)
+                .ignoreContentType(true)
+                .followRedirects(true);
+            if ("POST".equalsIgnoreCase(httpMethod)) {
+                connection.method(org.jsoup.Connection.Method.POST);
+            }
+            if (queryParams != null && !queryParams.isEmpty()) {
+                connection.data(queryParams);
+            }
+            applyBrowserHeaders(connection, url, phase, context, proxy);
+            applyProxy(connection, proxy);
+            return connection;
+        }
+
+        private HtmlResponse tryLocalBrowserRequest(String url,
+                                                    Map<String, String> queryParams,
+                                                    String query,
+                                                    String phase,
+                                                    WebSearchRequestContext context,
+                                                    WebSearchToolProperties.ProxyConfig proxy,
+                                                    long startedAt,
+                                                    List<Map<String, Object>> networkAudit,
+                                                    String httpMethod) {
+            if (!"GET".equalsIgnoreCase(firstNonBlank(httpMethod, "GET")) || !localBrowserEnabled()) {
+                return null;
+            }
+            String executable = resolveBrowserExecutable();
+            if (executable == null || executable.isBlank()) {
+                return null;
+            }
+            String targetUrl = urlWithQueryParams(url, queryParams);
+            try {
+                HtmlResponse response = executeLocalBrowser(executable, targetUrl, context, proxy);
+                long durationMs = Math.max(0L, System.currentTimeMillis() - startedAt);
+                addAudit(networkAudit, query, targetUrl, phase, proxyId(proxy), response.statusCode(), durationMs,
+                    "OK", "local browser");
+                logWebSearchAudit(query, targetUrl, phase, proxy, response.statusCode(), durationMs, null);
+                return response;
+            } catch (Exception ex) {
+                log.warn("Local browser web_search request failed executable={} url={} error={}",
+                    executable, targetUrl, ex.getMessage());
+                return null;
+            }
+        }
+
+        private boolean localBrowserEnabled() {
+            WebSearchToolProperties.BrowserProperties browser = properties.getBrowser();
+            return browser != null && browser.isEnabled() && browser.isLocalBrowserEnabled();
+        }
+
+        private HtmlResponse executeLocalBrowser(String executable,
+                                                 String targetUrl,
+                                                 WebSearchRequestContext context,
+                                                 WebSearchToolProperties.ProxyConfig proxy) throws Exception {
+            Path userDataDir = Files.createTempDirectory("chatchat-web-search-browser-");
+            try {
+                List<String> command = new ArrayList<>();
+                WebSearchToolProperties.BrowserProperties browser = properties.getBrowser();
+                command.add(executable);
+                command.add("--headless=new");
+                command.add("--disable-gpu");
+                command.add("--disable-extensions");
+                command.add("--disable-background-networking");
+                command.add("--disable-sync");
+                command.add("--disable-features=Translate,OptimizationHints");
+                command.add("--no-first-run");
+                command.add("--no-default-browser-check");
+                command.add("--disable-dev-shm-usage");
+                if (browser.isNoSandbox()) {
+                    command.add("--no-sandbox");
+                }
+                command.add("--user-data-dir=" + userDataDir.toAbsolutePath());
+                command.add("--window-size=1365,768");
+                command.add("--lang=" + browserLanguage(browser.getAcceptLanguage()));
+                command.add("--user-agent=" + selectUserAgent(context));
+                String proxyArgument = browserProxyArgument(proxy);
+                if (proxyArgument != null) {
+                    command.add("--proxy-server=" + proxyArgument);
+                }
+                command.add("--dump-dom");
+                command.add(targetUrl);
+
+                ProcessBuilder processBuilder = new ProcessBuilder(command);
+                processBuilder.redirectErrorStream(true);
+                Process process = processBuilder.start();
+                CompletableFuture<String> outputFuture =
+                    CompletableFuture.supplyAsync(() -> readProcessOutput(process));
+                int timeoutMs = Math.max(1000, browser.getProcessTimeoutMs());
+                boolean finished = process.waitFor(timeoutMs, TimeUnit.MILLISECONDS);
+                if (!finished) {
+                    process.destroyForcibly();
+                    throw new IOException("local browser timed out after " + timeoutMs + " ms");
+                }
+                String output = outputFuture.get(1, TimeUnit.SECONDS);
+                int exitCode = process.exitValue();
+                if (exitCode != 0 && (output == null || output.isBlank())) {
+                    throw new IOException("local browser exited with code " + exitCode);
+                }
+                String html = output == null ? "" : output;
+                if (html.isBlank()) {
+                    throw new IOException("local browser returned empty DOM");
+                }
+                return new HtmlResponse(exitCode == 0 ? 200 : 0, Jsoup.parse(html, targetUrl));
+            } finally {
+                deleteDirectory(userDataDir);
+            }
+        }
+
+        private String readProcessOutput(Process process) {
+            try {
+                return new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+            } catch (IOException ex) {
+                return "";
+            }
+        }
+
+        private String resolveBrowserExecutable() {
+            WebSearchToolProperties.BrowserProperties browser = properties.getBrowser();
+            String configured = firstNonBlank(browser.getExecutablePath(), osSpecificBrowserPath(browser));
+            String resolved = resolveExecutable(configured);
+            if (resolved != null) {
+                return resolved;
+            }
+            if (browser.getExecutablePaths() != null) {
+                for (String candidate : browser.getExecutablePaths()) {
+                    resolved = resolveExecutable(candidate);
+                    if (resolved != null) {
+                        return resolved;
+                    }
+                }
+            }
+            for (String candidate : defaultBrowserCandidates()) {
+                resolved = resolveExecutable(candidate);
+                if (resolved != null) {
+                    return resolved;
+                }
+            }
+            return null;
+        }
+
+        private String osSpecificBrowserPath(WebSearchToolProperties.BrowserProperties browser) {
+            return isWindows()
+                ? browser.getWindowsExecutablePath()
+                : browser.getLinuxExecutablePath();
+        }
+
+        private List<String> defaultBrowserCandidates() {
+            List<String> candidates = new ArrayList<>();
+            if (isWindows()) {
+                addIfPresent(candidates, System.getenv("PROGRAMFILES"), "Google\\Chrome\\Application\\chrome.exe");
+                addIfPresent(candidates, System.getenv("PROGRAMFILES(X86)"), "Google\\Chrome\\Application\\chrome.exe");
+                addIfPresent(candidates, System.getenv("LOCALAPPDATA"), "Google\\Chrome\\Application\\chrome.exe");
+                addIfPresent(candidates, System.getenv("PROGRAMFILES"), "Microsoft\\Edge\\Application\\msedge.exe");
+                addIfPresent(candidates, System.getenv("PROGRAMFILES(X86)"), "Microsoft\\Edge\\Application\\msedge.exe");
+                candidates.add("chrome.exe");
+                candidates.add("msedge.exe");
+            } else {
+                candidates.add("/usr/bin/google-chrome");
+                candidates.add("/usr/bin/google-chrome-stable");
+                candidates.add("/usr/bin/chromium");
+                candidates.add("/usr/bin/chromium-browser");
+                candidates.add("/snap/bin/chromium");
+                candidates.add("google-chrome");
+                candidates.add("chromium");
+                candidates.add("chromium-browser");
+            }
+            return candidates;
+        }
+
+        private void addIfPresent(List<String> candidates, String basePath, String relativePath) {
+            if (basePath != null && !basePath.isBlank()) {
+                candidates.add(Path.of(basePath, relativePath).toString());
+            }
+        }
+
+        private String resolveExecutable(String candidate) {
+            if (candidate == null || candidate.isBlank()) {
+                return null;
+            }
+            String normalized = candidate.trim();
+            Path directPath = Path.of(normalized);
+            if (directPath.isAbsolute() || directPath.getParent() != null) {
+                return Files.isRegularFile(directPath) ? directPath.toString() : null;
+            }
+            String path = System.getenv("PATH");
+            if (path == null || path.isBlank()) {
+                return normalized;
+            }
+            List<String> extensions = isWindows()
+                ? List.of("", ".exe", ".cmd", ".bat")
+                : List.of("");
+            for (String directory : path.split(Pattern.quote(System.getProperty("path.separator")))) {
+                if (directory == null || directory.isBlank()) {
+                    continue;
+                }
+                for (String extension : extensions) {
+                    Path resolved = Path.of(directory, normalized + extension);
+                    if (Files.isRegularFile(resolved) && Files.isExecutable(resolved)) {
+                        return resolved.toString();
+                    }
+                }
+            }
+            return null;
+        }
+
+        private boolean isWindows() {
+            return System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("win");
+        }
+
+        private String browserLanguage(String acceptLanguage) {
+            String value = firstNonBlank(acceptLanguage, "en-US");
+            int separator = value.indexOf(',');
+            return separator > 0 ? value.substring(0, separator).trim() : value.trim();
+        }
+
+        private String browserProxyArgument(WebSearchToolProperties.ProxyConfig proxy) {
+            if (!properties.getProxyPool().isEnabled()
+                || proxy == null
+                || proxy.getHost() == null
+                || proxy.getHost().isBlank()
+                || proxy.getPort() <= 0) {
+                return null;
+            }
+            String type = firstNonBlank(proxy.getType(), "HTTP").toLowerCase(Locale.ROOT);
+            String scheme = type.contains("socks") ? "socks5" : "http";
+            return scheme + "://" + proxy.getHost().trim() + ":" + proxy.getPort();
+        }
+
+        private String urlWithQueryParams(String url, Map<String, String> queryParams) {
+            if (queryParams == null || queryParams.isEmpty()) {
+                return url;
+            }
+            StringBuilder builder = new StringBuilder(url);
+            builder.append(url.contains("?") ? "&" : "?");
+            boolean first = true;
+            for (Map.Entry<String, String> entry : queryParams.entrySet()) {
+                if (entry.getKey() == null || entry.getKey().isBlank()) {
+                    continue;
+                }
+                if (!first) {
+                    builder.append('&');
+                }
+                builder.append(URLEncoder.encode(entry.getKey(), StandardCharsets.UTF_8));
+                builder.append('=');
+                builder.append(URLEncoder.encode(firstNonBlank(entry.getValue(), ""), StandardCharsets.UTF_8));
+                first = false;
+            }
+            return builder.toString();
+        }
+
+        private void deleteDirectory(Path directory) {
+            if (directory == null || !Files.exists(directory)) {
+                return;
+            }
+            try (var stream = Files.walk(directory)) {
+                stream.sorted(Comparator.reverseOrder()).forEach(path -> {
+                    try {
+                        Files.deleteIfExists(path);
+                    } catch (IOException ignored) {
+                        // Best effort cleanup for transient browser profile files.
+                    }
+                });
+            } catch (IOException ignored) {
+                // Best effort cleanup for transient browser profile files.
+            }
         }
 
         private void applyBrowserHeaders(org.jsoup.Connection connection,
@@ -1364,6 +2486,25 @@ public class BuiltInToolsBootstrap {
             }
         }
 
+        private String originOf(String url) {
+            try {
+                URI uri = URI.create(url);
+                String scheme = firstNonBlank(uri.getScheme(), "https").toLowerCase(Locale.ROOT);
+                String host = uri.getHost();
+                if (host == null || host.isBlank()) {
+                    return null;
+                }
+                int port = uri.getPort();
+                StringBuilder builder = new StringBuilder(scheme).append("://").append(host);
+                if (port > 0 && !(("http".equals(scheme) && port == 80) || ("https".equals(scheme) && port == 443))) {
+                    builder.append(':').append(port);
+                }
+                return builder.toString();
+            } catch (Exception ex) {
+                return null;
+            }
+        }
+
         private String proxyId(WebSearchToolProperties.ProxyConfig proxy) {
             if (proxy == null) {
                 return "direct";
@@ -1430,7 +2571,7 @@ public class BuiltInToolsBootstrap {
                 return false;
             }
             String value = url.toLowerCase(Locale.ROOT);
-            if (!value.startsWith("http://") && !value.startsWith("https://")) {
+            if (!isHttpUrl(value)) {
                 return false;
             }
             return !(value.endsWith(".pdf")
@@ -1441,6 +2582,71 @@ public class BuiltInToolsBootstrap {
                 || value.endsWith(".zip")
                 || value.endsWith(".rar")
                 || value.endsWith(".7z"));
+        }
+
+        private boolean isSupportedResultUrl(String url) {
+            if (!isHttpUrl(url)) {
+                return false;
+            }
+            String value = stripUrlQueryAndFragment(url).toLowerCase(Locale.ROOT);
+            return !(value.endsWith(".zip")
+                || value.endsWith(".rar")
+                || value.endsWith(".7z")
+                || value.endsWith(".tar")
+                || value.endsWith(".gz"));
+        }
+
+        private boolean isDocumentUrl(String url) {
+            if (!isHttpUrl(url)) {
+                return false;
+            }
+            String value = stripUrlQueryAndFragment(url).toLowerCase(Locale.ROOT);
+            return value.endsWith(".pdf")
+                || value.endsWith(".doc")
+                || value.endsWith(".docx")
+                || value.endsWith(".xls")
+                || value.endsWith(".xlsx")
+                || value.endsWith(".csv")
+                || value.endsWith(".ppt")
+                || value.endsWith(".pptx");
+        }
+
+        private String fileNameFromUrl(String url) {
+            try {
+                String path = URI.create(url).getPath();
+                if (path == null || path.isBlank()) {
+                    return url;
+                }
+                int slash = path.lastIndexOf('/');
+                return slash >= 0 ? path.substring(slash + 1) : path;
+            } catch (Exception ex) {
+                return url;
+            }
+        }
+
+        private String stripUrlQueryAndFragment(String url) {
+            if (url == null) {
+                return "";
+            }
+            int query = url.indexOf('?');
+            int fragment = url.indexOf('#');
+            int cut = -1;
+            if (query >= 0 && fragment >= 0) {
+                cut = Math.min(query, fragment);
+            } else if (query >= 0) {
+                cut = query;
+            } else if (fragment >= 0) {
+                cut = fragment;
+            }
+            return cut >= 0 ? url.substring(0, cut) : url;
+        }
+
+        private boolean isHttpUrl(String url) {
+            if (url == null || url.isBlank()) {
+                return false;
+            }
+            String value = url.toLowerCase(Locale.ROOT);
+            return value.startsWith("http://") || value.startsWith("https://");
         }
 
         /**
@@ -1682,6 +2888,47 @@ public class BuiltInToolsBootstrap {
             return null;
         }
 
+        private boolean containsAny(String value, List<String> candidates) {
+            if (value == null || value.isBlank() || candidates == null || candidates.isEmpty()) {
+                return false;
+            }
+            String lower = value.toLowerCase(Locale.ROOT);
+            return candidates.stream()
+                .filter(candidate -> candidate != null && !candidate.isBlank())
+                .map(candidate -> candidate.trim().toLowerCase(Locale.ROOT))
+                .anyMatch(lower::contains);
+        }
+
+        private String normalizeComparableUrl(String url) {
+            if (url == null || url.isBlank()) {
+                return "";
+            }
+            try {
+                URI uri = URI.create(url.trim()).normalize();
+                String scheme = uri.getScheme() == null ? "" : uri.getScheme().toLowerCase(Locale.ROOT);
+                String host = uri.getHost() == null ? "" : uri.getHost().toLowerCase(Locale.ROOT);
+                int port = uri.getPort();
+                String authority = host;
+                if (port > 0 && !(("http".equals(scheme) && port == 80) || ("https".equals(scheme) && port == 443))) {
+                    authority = authority + ":" + port;
+                }
+                String path = uri.getRawPath() == null || uri.getRawPath().isBlank() ? "/" : uri.getRawPath();
+                String query = uri.getRawQuery();
+                StringBuilder builder = new StringBuilder();
+                if (!scheme.isBlank()) {
+                    builder.append(scheme).append("://");
+                }
+                builder.append(authority).append(path);
+                if (query != null && !query.isBlank()) {
+                    builder.append('?').append(query);
+                }
+                return builder.toString();
+            } catch (Exception ex) {
+                int fragment = url.indexOf('#');
+                return (fragment >= 0 ? url.substring(0, fragment) : url).trim();
+            }
+        }
+
         /**
          * Performs the string value operation.
          *
@@ -1707,6 +2954,13 @@ public class BuiltInToolsBootstrap {
         }
 
         private record HtmlResponse(int statusCode, Document document) {
+        }
+
+        private record SiteSearchForm(String actionUrl,
+                                      Map<String, String> parameters,
+                                      String method,
+                                      String submittedUrl,
+                                      String sourcePageUrl) {
         }
 
         private record WebSearchRequestContext(String query,

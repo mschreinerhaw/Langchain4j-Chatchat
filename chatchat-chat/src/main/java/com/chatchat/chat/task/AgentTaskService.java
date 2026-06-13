@@ -1,5 +1,6 @@
 package com.chatchat.chat.task;
 
+import com.chatchat.agents.runtime.AgentRuntime;
 import com.chatchat.agents.runtime.ToolRuntimeService;
 import com.chatchat.chat.interaction.model.InteractionRequest;
 import com.chatchat.chat.interaction.model.InteractionResponse;
@@ -50,6 +51,7 @@ public class AgentTaskService {
     private final ObjectMapper objectMapper;
     private final AgentTaskProperties properties;
     private final ToolRuntimeService toolRuntimeService;
+    private final AgentRuntime agentRuntime;
     private final AgentTaskCancellationRegistry cancellationRegistry;
     private final AgentLearningService learningService;
     private final TaskConfirmRepository taskConfirmRepository;
@@ -717,6 +719,7 @@ public class AgentTaskService {
         Map<String, Object> toolInput = new LinkedHashMap<>(request.getToolInput() == null ? Map.of() : request.getToolInput());
         BooleanSupplier cancellationCheck = () -> isCancelled(taskId);
         toolInput.put("__agentTaskId", taskId);
+        toolInput.put("__agentRunId", taskId);
         toolInput.put("__agentCancellation", cancellationCheck);
         request.setToolInput(toolInput);
     }
@@ -882,6 +885,11 @@ public class AgentTaskService {
             return AgentTaskResponse.from(task);
         }
         cancellationRegistry.cancelTask(task.getTaskId());
+        try {
+            agentRuntime.cancel(task.getTaskId());
+        } catch (RuntimeException ex) {
+            log.debug("Agent runtime cancel skipped for taskId={}: {}", task.getTaskId(), ex.getMessage());
+        }
         Thread runningThread = runningTaskThreads.get(task.getTaskId());
         if (runningThread != null) {
             runningThread.interrupt();

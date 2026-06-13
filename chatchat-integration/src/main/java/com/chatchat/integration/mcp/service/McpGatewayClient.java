@@ -1,6 +1,7 @@
 package com.chatchat.integration.mcp.service;
 
 import com.chatchat.integration.mcp.entity.McpServiceConfig;
+import com.chatchat.integration.mcp.config.McpCenterProperties;
 import com.chatchat.integration.mcp.model.McpToolDefinition;
 import com.chatchat.integration.mcp.model.McpToolInvokeResult;
 import com.chatchat.common.tool.ToolLogSummarizer;
@@ -58,6 +59,7 @@ public class McpGatewayClient {
     private static final String DEFAULT_LEGACY_SSE_PATH = "/sse";
 
     private final ObjectMapper objectMapper;
+    private final McpCenterProperties centerProperties;
     private final McpStdioProxyService stdioProxyService;
     private final WebClient directWebClient = WebClient.builder().build();
     private final Map<String, ManagedSdkClient> sdkClientCache = new ConcurrentHashMap<>();
@@ -309,6 +311,7 @@ public class McpGatewayClient {
      */
     private HttpRequest.Builder buildHttpRequestBuilder(McpServiceConfig config) {
         HttpRequest.Builder builder = HttpRequest.newBuilder();
+        String fallbackToken = fallbackStandaloneInvocationToken(config);
 
         if (config.getAuthToken() != null && !config.getAuthToken().isBlank()) {
             String token = config.getAuthToken().trim();
@@ -316,6 +319,8 @@ public class McpGatewayClient {
                 token = "Bearer " + token;
             }
             builder.header(HttpHeaders.AUTHORIZATION, token);
+        } else if (fallbackToken != null) {
+            builder.header(HttpHeaders.AUTHORIZATION, "Bearer " + fallbackToken);
         }
 
         Map<String, String> headers = readCustomHeaders(config);
@@ -330,15 +335,19 @@ public class McpGatewayClient {
      * @return the operation result
      */
     private Map<String, String> readCustomHeaders(McpServiceConfig config) {
-        if (config.getCustomHeadersJson() == null || config.getCustomHeadersJson().isBlank()) {
-            return Map.of();
-        }
+        Map<String, String> headers = new LinkedHashMap<>();
         try {
-            return objectMapper.readValue(config.getCustomHeadersJson(), new TypeReference<>() {});
+            if (config.getCustomHeadersJson() != null && !config.getCustomHeadersJson().isBlank()) {
+                headers.putAll(objectMapper.readValue(config.getCustomHeadersJson(), new TypeReference<>() {}));
+            }
         } catch (Exception ex) {
             log.warn("Invalid customHeadersJson for MCP service {}: {}", config.getId(), ex.getMessage());
-            return Map.of();
         }
+        String fallbackToken = fallbackStandaloneInvocationToken(config);
+        if (fallbackToken != null) {
+            headers.putIfAbsent("X-MCP-TOKEN", fallbackToken);
+        }
+        return headers.isEmpty() ? Map.of() : headers;
     }
 
     /**
@@ -383,6 +392,7 @@ public class McpGatewayClient {
             nullSafe(config.getToolInvokePath()),
             nullSafe(config.getAuthToken()),
             nullSafe(config.getCustomHeadersJson()),
+            nullSafe(fallbackStandaloneInvocationToken(config)),
             String.valueOf(Math.max(1000, requestTimeoutMs)),
             String.valueOf(config.isProxyEnabled()),
             nullSafe(config.getProxyType()),
@@ -391,6 +401,31 @@ public class McpGatewayClient {
             nullSafe(config.getProxyUsername()),
             nullSafe(config.getProxyPassword())
         );
+    }
+
+    private String fallbackStandaloneInvocationToken(McpServiceConfig config) {
+        if (config == null || centerProperties == null) {
+            return null;
+        }
+        String token = normalizeText(centerProperties.getInvocationToken());
+        if (token == null || !isStandaloneCenterService(config)) {
+            return null;
+        }
+        return token;
+    }
+
+    private boolean isStandaloneCenterService(McpServiceConfig config) {
+        String standaloneId = normalizeText(centerProperties.getStandaloneServiceId());
+        String standaloneName = normalizeText(centerProperties.getStandaloneServiceName());
+        return (standaloneId != null && standaloneId.equalsIgnoreCase(normalizeText(config.getId())))
+            || (standaloneName != null && standaloneName.equalsIgnoreCase(normalizeText(config.getName())));
+    }
+
+    private String normalizeText(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim();
     }
 
     /**
@@ -986,12 +1021,15 @@ public class McpGatewayClient {
      */
     private void applyHeaders(HttpHeaders headers, McpServiceConfig config) {
         headers.set(HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE);
+        String fallbackToken = fallbackStandaloneInvocationToken(config);
         if (config.getAuthToken() != null && !config.getAuthToken().isBlank()) {
             String token = config.getAuthToken().trim();
             if (!token.toLowerCase(Locale.ROOT).startsWith("bearer ")) {
                 token = "Bearer " + token;
             }
             headers.set(HttpHeaders.AUTHORIZATION, token);
+        } else if (fallbackToken != null) {
+            headers.set(HttpHeaders.AUTHORIZATION, "Bearer " + fallbackToken);
         }
 
         Map<String, String> extra = readCustomHeaders(config);

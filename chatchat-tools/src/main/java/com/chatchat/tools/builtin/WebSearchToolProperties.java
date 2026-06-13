@@ -36,6 +36,8 @@ public class WebSearchToolProperties {
 
     private boolean fallbackEnabled = true;
 
+    private SiteSearchProperties siteSearch = new SiteSearchProperties();
+
     private BrowserProperties browser = new BrowserProperties();
 
     private ProxyPoolProperties proxyPool = new ProxyPoolProperties();
@@ -51,9 +53,65 @@ public class WebSearchToolProperties {
     private AuditProperties audit = new AuditProperties();
 
     @Data
+    public static class SiteSearchProperties {
+
+        private boolean enabled = true;
+
+        private int maxPagesToInspect = 3;
+
+        private int maxSecondaryPages = 3;
+
+        private int maxLinksPerPage = 5;
+
+        private List<String> inputNameHints = new ArrayList<>(List.of(
+            "q",
+            "query",
+            "keyword",
+            "keywords",
+            "search",
+            "searchText",
+            "searchKey",
+            "searchword",
+            "searchValue",
+            "stock",
+            "code",
+            "symbol",
+            "securityCode",
+            "secuCode",
+            "secucode"
+        ));
+
+        private List<String> formActionHints = new ArrayList<>(List.of(
+            "search",
+            "query",
+            "keyword",
+            "stock",
+            "quote",
+            "security",
+            "securities",
+            "result",
+            "find"
+        ));
+    }
+
+    @Data
     public static class BrowserProperties {
 
         private boolean enabled = true;
+
+        private boolean localBrowserEnabled = true;
+
+        private String executablePath = "";
+
+        private String windowsExecutablePath = "";
+
+        private String linuxExecutablePath = "";
+
+        private List<String> executablePaths = new ArrayList<>();
+
+        private int processTimeoutMs = 15000;
+
+        private boolean noSandbox = true;
 
         private String accept = "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8";
 

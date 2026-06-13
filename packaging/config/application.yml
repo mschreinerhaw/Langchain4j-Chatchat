@@ -62,14 +62,14 @@ chatchat:
     center:
       enabled: true
       base-url: http://localhost:8090
-      admin-username: admin
-      admin-password: admin123
+      admin-username: ${CHAT_MCP_CENTER_ADMIN_USERNAME:}
+      admin-password: ${CHAT_MCP_CENTER_ADMIN_PASSWORD:}
       admin-login-path: /api/v1/admin/auth/login
       service-list-path: /api/v1/mcp-services
       mcp-endpoint: /mcp
       standalone-service-id: chatchat-mcp-server
       standalone-service-name: ChatChat MCP Server
-      invocation-token:
+      invocation-token: ${CHAT_MCP_CENTER_INVOCATION_TOKEN:${CHAT_MCP_INVOCATION_TOKEN:}}
       timeout-ms: 90000
       import-standalone-server: true
     stdio-proxy:
@@ -90,7 +90,7 @@ chatchat:
     defaultChatModel: qwen3.6-plus
     timeout: 300
     openai:
-      apiKey: replace-with-your-key
+      apiKey: ${OPENAI_API_KEY:}
       baseUrl: https://dashscope.aliyuncs.com/compatible-mode/v1
       timeout: 300
       maxRetries: 3
@@ -99,6 +99,13 @@ chatchat:
         host:
         port: 0
         type: http
+  agent-runtime:
+    store-type: ${CHAT_AGENT_RUNTIME_STORE_TYPE:rocksdb}
+    rocks-db-path: ${CHAT_AGENT_RUNTIME_ROCKSDB_PATH:./data/agent-runtime-rocksdb}
+    rocks-db-create-if-missing: ${CHAT_AGENT_RUNTIME_ROCKSDB_CREATE_IF_MISSING:true}
+    fail-interrupted-runs-on-startup: ${CHAT_AGENT_RUNTIME_FAIL_INTERRUPTED_RUNS_ON_STARTUP:true}
+    max-stored-runs: ${CHAT_AGENT_RUNTIME_MAX_STORED_RUNS:10000}
+    terminal-run-ttl-ms: ${CHAT_AGENT_RUNTIME_TERMINAL_RUN_TTL_MS:0}
   agent:
     task:
       queue-capacity: 1000
@@ -155,8 +162,8 @@ chatchat:
       auth:
         enabled: true
         login-path: /api/v1/enterprise/auth/login
-        username: admin
-        password: 123456
+        username: ${CHAT_DOCUMENT_SEARCH_AUTH_USERNAME:}
+        password: ${CHAT_DOCUMENT_SEARCH_AUTH_PASSWORD:}
         bearer-token: ""
       risk-level: medium
       confirmation:
@@ -180,6 +187,17 @@ chatchat:
         default: ask_before_execute
       parameter-policy:
         path: ask_before_execute
+  tool-runtime:
+    enforce-allowed-tools: ${CHAT_TOOL_RUNTIME_ENFORCE_ALLOWED_TOOLS:true}
+    enforce-authentication: ${CHAT_TOOL_RUNTIME_ENFORCE_AUTHENTICATION:true}
+    default-max-calls-per-minute: ${CHAT_TOOL_RUNTIME_DEFAULT_MAX_CALLS_PER_MINUTE:0}
+    circuit-breaker-failure-threshold: ${CHAT_TOOL_RUNTIME_CIRCUIT_THRESHOLD:3}
+    circuit-breaker-open-seconds: ${CHAT_TOOL_RUNTIME_CIRCUIT_OPEN_SECONDS:60}
+    top-tool-limit: ${CHAT_TOOL_RUNTIME_TOP_TOOL_LIMIT:6}
+    default-tool-timeout-ms: ${CHAT_TOOL_RUNTIME_DEFAULT_TOOL_TIMEOUT_MS:60000}
+    execution-core-pool-size: ${CHAT_TOOL_RUNTIME_EXECUTION_CORE_POOL_SIZE:4}
+    execution-max-pool-size: ${CHAT_TOOL_RUNTIME_EXECUTION_MAX_POOL_SIZE:32}
+    execution-queue-capacity: ${CHAT_TOOL_RUNTIME_EXECUTION_QUEUE_CAPACITY:256}
 
 mcp-policy:
   enabled: true

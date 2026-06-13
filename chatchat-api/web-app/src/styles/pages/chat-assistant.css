@@ -38,11 +38,11 @@
 .hero-orb {
   position: relative;
   z-index: 1;
-  width: 82px;
-  height: 82px;
+  width: 72px;
+  height: 72px;
   display: grid;
   place-items: center;
-  margin-bottom: 28px;
+  margin-bottom: 22px;
   border-radius: 50%;
   background: #6d9dff;
   box-shadow: 0 8px 30px rgba(47, 124, 246, 0.38);
@@ -59,7 +59,7 @@
 .hero-orb span {
   position: relative;
   color: #fff;
-  font-size: 28px;
+  font-size: 24px;
   font-weight: 800;
 }
 
@@ -106,30 +106,44 @@
 .hero-panel h1 {
   position: relative;
   z-index: 1;
-  margin-bottom: 16px;
-  font-size: 30px;
+  max-width: min(760px, 92vw);
+  display: -webkit-box;
+  margin-bottom: 12px;
+  overflow: hidden;
+  font-size: 24px;
   line-height: 1.25;
   letter-spacing: 0;
   text-align: center;
+  text-overflow: ellipsis;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .hero-panel p {
   position: relative;
   z-index: 1;
+  max-width: min(780px, 92vw);
+  display: -webkit-box;
   margin-bottom: 0;
+  overflow: hidden;
   color: #5f6d80;
-  font-size: 16px;
+  font-size: 14px;
+  line-height: 1.7;
   text-align: center;
+  text-overflow: ellipsis;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
 }
 
 .hero-agent-scope {
   position: relative;
   z-index: 1;
+  max-width: min(760px, 92vw);
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  gap: 8px;
-  margin-top: 16px;
+  gap: 6px;
+  margin-top: 14px;
 }
 
 .hero-agent-scope span,
@@ -149,9 +163,13 @@
 }
 
 .hero-agent-scope strong {
+  max-width: 150px;
+  overflow: hidden;
   background: rgba(255, 255, 255, 0.78);
   color: #435064;
   font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .hero-panel.compact {
@@ -1724,7 +1742,7 @@
   }
 
   .hero-panel h1 {
-    font-size: 24px;
+    font-size: 22px;
   }
 
   .prompt-card {

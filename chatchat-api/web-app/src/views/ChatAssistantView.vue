@@ -6,11 +6,11 @@
       </div>
       <div class="spark spark-one"></div>
       <div class="spark spark-two"></div>
-      <h1>{{ heroGreeting }}</h1>
-      <p>{{ heroDescription }}</p>
-      <div v-if="agentResponsibilities.length" class="hero-agent-scope">
+      <h1>{{ heroTitle }}</h1>
+      <p>{{ heroIntro }}</p>
+      <div v-if="displayAgentResponsibilities.length" class="hero-agent-scope">
         <span>职责</span>
-        <strong v-for="item in agentResponsibilities" :key="item">{{ item }}</strong>
+        <strong v-for="item in displayAgentResponsibilities" :key="item" :title="item">{{ item }}</strong>
       </div>
     </section>
 

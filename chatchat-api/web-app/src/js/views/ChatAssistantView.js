@@ -121,6 +121,14 @@ function todayString() {
   return new Date().toISOString().slice(0, 10);
 }
 
+function compactText(value, maxLength = 96) {
+  const text = String(value || "").replace(/\s+/g, " ").trim();
+  if (!text) {
+    return "";
+  }
+  return text.length <= maxLength ? text : `${text.slice(0, Math.max(0, maxLength - 1))}…`;
+}
+
 function inferDocumentType(fileName = "") {
   const extension = fileName.includes(".") ? fileName.split(".").pop().toLowerCase() : "";
   if (extension === "pdf") {
@@ -376,6 +384,24 @@ export default {
       const scenarios = Array.isArray(this.selectedAgent.usageScenarios) ? this.selectedAgent.usageScenarios : [];
       const tags = Array.isArray(this.selectedAgent.skillTags) ? this.selectedAgent.skillTags : [];
       return [...scenarios, ...tags].filter(Boolean).slice(0, 3);
+    },
+    heroTitle() {
+      if (this.selectedAgent) {
+        return compactText(this.selectedAgent.name || "Agent", 32);
+      }
+      return compactText(this.heroGreeting, 32);
+    },
+    heroIntro() {
+      if (this.selectedAgent) {
+        return compactText(this.selectedAgent.firstUseGreeting || this.heroDescription, 108);
+      }
+      return compactText(this.heroDescription, 108);
+    },
+    displayAgentResponsibilities() {
+      return this.agentResponsibilities
+        .filter(Boolean)
+        .slice(0, 4)
+        .map((item) => compactText(item, 14));
     },
     activeSuggestions() {
       return this.heroQuickQuestions.length ? this.heroQuickQuestions : this.suggestions;

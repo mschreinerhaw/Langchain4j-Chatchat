@@ -89,6 +89,60 @@ class AgentOrchestratorTest {
     }
 
     @Test
+    void plannerSufficientSignalAllowsFinalBeforeNonWorkflowRequiredTool() {
+        QueueChatModel chatModel = new QueueChatModel(
+            "{\"action\":\"final\",\"answer\":\"The existing context is enough.\",\"reason\":\"No extra lookup needed\",\"sufficient\":true}",
+            "{\"accepted\":true,\"feedback\":\"The answer is sufficiently grounded.\",\"revisedAnswer\":\"\"}"
+        );
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.getToolMetadata("document_search")).thenReturn(ToolMetadata.builder()
+            .id("document_search")
+            .title("Document Search")
+            .description("Search internal documents")
+            .build());
+        ToolRuntimeService toolRuntimeService = new ToolRuntimeService(
+            toolRegistry,
+            new ObjectMapper(),
+            toolRuntimeProperties(),
+            List.of(),
+            List.of()
+        );
+        AgentOrchestrator orchestrator = new AgentOrchestrator(
+            chatModel,
+            toolRegistry,
+            toolRuntimeService,
+            new ObjectMapper(),
+            new ModelsConfig()
+        );
+
+        AgentOrchestrator.AgentExecutionResult result = orchestrator.executeAgent(
+            "Use existing context only.",
+            "tenant-1",
+            List.of("document_search"),
+            "Do not use tools unless needed.",
+            null,
+            List.of(),
+            List.of(),
+            "research",
+            "req-sufficient-final",
+            "conv-sufficient-final",
+            "user-1",
+            10,
+            List.of("document_search"),
+            true,
+            Map.of()
+        );
+
+        assertThat(result.answer()).isEqualTo("The existing context is enough.");
+        assertThat(result.toolTraces()).isEmpty();
+        assertThat(result.metadata())
+            .containsEntry("finalDecisionReason", "PLANNER_SUFFICIENT")
+            .containsEntry("plannerSufficient", true)
+            .containsEntry("stopReason", "final_answer");
+        verify(toolRegistry, never()).executeEnhancedTool(eq("document_search"), any());
+    }
+
+    @Test
     void runtimeRunStorePersistsRunLifecycleEvents() {
         QueueChatModel chatModel = new QueueChatModel(
             "{\"action\":\"tool\",\"toolName\":\"document_search\",\"arguments\":{\"query\":\"internal definition\"},\"reason\":\"Need internal evidence\"}",
@@ -662,8 +716,7 @@ class AgentOrchestratorTest {
         String documentSearch = "mcp_chatchat_mcp_server_document_search";
         String webSearch = "mcp_chatchat_mcp_server_web_search";
         CapturingQueueChatModel chatModel = new CapturingQueueChatModel(
-            "{\"action\":\"tool\",\"toolName\":\"mcp_chatchat_mcp_server_web_search\",\"arguments\":{\"query\":\"Kafka Connect SASL_PLAINTEXT startup\"},\"reason\":\"Verify with web evidence\",\"executionPlan\":{\"workflow\":\"document-web-verification\",\"intent\":\"verify\",\"tool\":\"mcp_chatchat_mcp_server_web_search\",\"operation_type\":\"read\",\"risk_level\":\"low\",\"parameters\":{\"query\":\"Kafka Connect SASL_PLAINTEXT startup\"}}}",
-            "{\"action\":\"final\",\"answer\":\"Document evidence and web evidence are both available.\"}",
+            "Document evidence and web evidence are both available.",
             "{\"accepted\":true,\"feedback\":\"The answer used both observations.\",\"revisedAnswer\":\"\"}"
         );
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
@@ -746,9 +799,7 @@ class AgentOrchestratorTest {
         String mcpDocumentSearch = "mcp_chatchat_mcp_server_document_search";
         String mcpWebSearch = "mcp_chatchat_mcp_server_web_search";
         CapturingQueueChatModel chatModel = new CapturingQueueChatModel(
-            "{\"action\":\"tool\",\"toolName\":\"document_search\",\"arguments\":{\"query\":\"PushGateway Prometheus\"},\"reason\":\"Need internal evidence first\"}",
-            "{\"action\":\"tool\",\"toolName\":\"web_search\",\"arguments\":{\"query\":\"PushGateway Prometheus\"},\"reason\":\"Validate with web evidence\"}",
-            "{\"action\":\"final\",\"answer\":\"先查内部文档，再做联网验证。\"}",
+            "Workflow summary uses internal and web observations.",
             "{\"accepted\":true,\"feedback\":\"The answer follows the workflow.\",\"revisedAnswer\":\"\"}"
         );
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
@@ -810,11 +861,168 @@ class AgentOrchestratorTest {
             .containsExactly(mcpDocumentSearch, mcpWebSearch);
         assertThat(result.metadata())
             .containsEntry("workflowMandatoryTools", List.of(mcpDocumentSearch, mcpWebSearch))
-            .containsEntry("mandatoryTools", List.of(mcpDocumentSearch, mcpWebSearch));
+            .containsEntry("mandatoryTools", List.of(mcpDocumentSearch, mcpWebSearch))
+            .containsEntry("runtimeEnforcedMcpWorkflow", true);
         assertThat(chatModel.messages().get(0))
-            .contains("Required tools are ordered by workflow or runtime policy: [" + mcpDocumentSearch + ", " + mcpWebSearch + "]")
-            .contains("Call " + mcpDocumentSearch + " first")
-            .contains("Then call " + mcpWebSearch);
+            .contains("Mandatory workflow execution Tool " + mcpDocumentSearch + " succeeded")
+            .contains("Mandatory workflow execution Tool " + mcpWebSearch + " succeeded");
+    }
+
+    @Test
+    void workflowRuntimeOverridesPlannerWhenItSkipsConfiguredToolOrder() {
+        String profileTool = "mcp_crm_customer_profile";
+        String assetTool = "mcp_crm_customer_assets";
+        CapturingQueueChatModel chatModel = new CapturingQueueChatModel(
+            "Profile and assets were both checked.",
+            "{\"accepted\":true,\"feedback\":\"The answer follows the configured workflow.\",\"revisedAnswer\":\"\"}"
+        );
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.getToolMetadata(profileTool)).thenReturn(ToolMetadata.builder()
+            .id(profileTool)
+            .title("Customer Profile")
+            .description("Fetch customer profile")
+            .build());
+        when(toolRegistry.getToolMetadata(assetTool)).thenReturn(ToolMetadata.builder()
+            .id(assetTool)
+            .title("Customer Assets")
+            .description("Fetch customer assets")
+            .build());
+        when(toolRegistry.executeEnhancedTool(eq(profileTool), any())).thenReturn(ToolOutput.success(Map.of("customer_id", "c-001")));
+        when(toolRegistry.executeEnhancedTool(eq(assetTool), any())).thenReturn(ToolOutput.success(Map.of("aum", 1200000)));
+        ToolRuntimeService toolRuntimeService = new ToolRuntimeService(
+            toolRegistry,
+            new ObjectMapper(),
+            toolRuntimeProperties(),
+            List.of(),
+            List.of()
+        );
+        AgentOrchestrator orchestrator = new AgentOrchestrator(
+            chatModel,
+            toolRegistry,
+            toolRuntimeService,
+            new ObjectMapper(),
+            new ModelsConfig()
+        );
+        Map<String, Object> workflowConfig = Map.of(
+            "enabled", true,
+            "workflow", "customer_review",
+            "executionStrategy", Map.of("mode", "sequential", "stopOnError", true),
+            "steps", List.of(
+                Map.of("step", 1, "tool", profileTool, "required", true, "confirmation", "auto_execute"),
+                Map.of("step", 2, "tool", assetTool, "required", true, "confirmation", "auto_execute", "dependsOn", List.of(profileTool))
+            )
+        );
+
+        AgentOrchestrator.AgentExecutionResult result = orchestrator.executeAgent(
+            "Review customer c-001.",
+            "tenant-1",
+            List.of(profileTool, assetTool),
+            "Follow the selected Agent tool workflow.",
+            null,
+            List.of(),
+            List.of(),
+            "customer_review",
+            "req-workflow-override",
+            "conv-workflow-override",
+            "user-1",
+            10,
+            List.of(),
+            true,
+            Map.of("mcpWorkflow", workflowConfig)
+        );
+
+        assertThat(result.toolTraces())
+            .extracting(InteractionToolTrace::getToolName)
+            .containsExactly(profileTool, assetTool);
+        assertThat(result.metadata())
+            .containsEntry("workflowMandatoryTools", List.of(profileTool, assetTool))
+            .containsEntry("runtimeEnforcedMcpWorkflow", true)
+            .doesNotContainKey("workflowToolOverrides");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void workflowConditionCanShortCircuitMandatoryStepAndContinueDependentFlow() {
+        String profileTool = "mcp_crm_customer_profile";
+        String assetTool = "mcp_crm_customer_assets";
+        CapturingQueueChatModel chatModel = new CapturingQueueChatModel(
+            "Asset check completed after skipping profile by policy condition.",
+            "{\"accepted\":true,\"feedback\":\"The conditional workflow was respected.\",\"revisedAnswer\":\"\"}"
+        );
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.getToolMetadata(profileTool)).thenReturn(ToolMetadata.builder()
+            .id(profileTool)
+            .title("Customer Profile")
+            .description("Fetch customer profile")
+            .build());
+        when(toolRegistry.getToolMetadata(assetTool)).thenReturn(ToolMetadata.builder()
+            .id(assetTool)
+            .title("Customer Assets")
+            .description("Fetch customer assets")
+            .build());
+        when(toolRegistry.executeEnhancedTool(eq(assetTool), any())).thenReturn(ToolOutput.success(Map.of("aum", 1200000)));
+        ToolRuntimeService toolRuntimeService = new ToolRuntimeService(
+            toolRegistry,
+            new ObjectMapper(),
+            toolRuntimeProperties(),
+            List.of(),
+            List.of()
+        );
+        AgentOrchestrator orchestrator = new AgentOrchestrator(
+            chatModel,
+            toolRegistry,
+            toolRuntimeService,
+            new ObjectMapper(),
+            new ModelsConfig()
+        );
+        Map<String, Object> workflowConfig = Map.of(
+            "enabled", true,
+            "workflow", "conditional_customer_review",
+            "executionStrategy", Map.of("mode", "sequential", "stopOnError", true),
+            "steps", List.of(
+                Map.of("step", 1, "tool", profileTool, "required", true, "condition", "needsProfile == true"),
+                Map.of("step", 2, "tool", assetTool, "required", true, "dependsOn", List.of(profileTool))
+            )
+        );
+
+        AgentOrchestrator.AgentExecutionResult result = orchestrator.executeAgent(
+            "Review customer assets only.",
+            "tenant-1",
+            List.of(profileTool, assetTool),
+            "Follow the selected Agent tool workflow.",
+            null,
+            List.of(),
+            List.of(),
+            "customer_review",
+            "req-workflow-condition",
+            "conv-workflow-condition",
+            "user-1",
+            10,
+            List.of(),
+            true,
+            Map.of(
+                "mcpWorkflow", workflowConfig,
+                "workflowContext", Map.of("needsProfile", false)
+            )
+        );
+
+        assertThat(result.toolTraces())
+            .extracting(InteractionToolTrace::getToolName)
+            .containsExactly(assetTool);
+        assertThat(result.metadata())
+            .containsEntry("workflowSkippedTools", List.of(profileTool))
+            .containsEntry("workflowMandatoryTools", List.of(assetTool))
+            .containsEntry("runtimeEnforcedMcpWorkflow", true);
+        List<Map<String, Object>> skipDecisions = (List<Map<String, Object>>) result.metadata().get("workflowSkipDecisions");
+        assertThat(skipDecisions)
+            .singleElement()
+            .satisfies(decision -> assertThat(decision)
+                .containsEntry("tool", profileTool)
+                .containsEntry("status", "SKIPPED")
+                .containsEntry("reason", "CONDITION_NOT_MET")
+                .containsEntry("condition", "needsProfile == true")
+                .containsEntry("evaluated", false));
+        verify(toolRegistry, never()).executeEnhancedTool(eq(profileTool), any());
     }
 
     @Test
@@ -822,9 +1030,6 @@ class AgentOrchestratorTest {
         String documentSearch = "mcp_xxx_document_search";
         String knowledgeSearch = "mcp_xxx_knowledge_search";
         CapturingQueueChatModel chatModel = new CapturingQueueChatModel(
-            "{\"action\":\"tool\",\"toolName\":\"document_search\",\"arguments\":{\"query\":\"internal\"},\"reason\":\"Need document evidence\"}",
-            "{\"action\":\"final\",\"answer\":\"Too early.\"}",
-            "{\"action\":\"tool\",\"toolName\":\"mcp_xxx_knowledge_search\",\"arguments\":{\"query\":\"internal\"},\"reason\":\"Need second internal source\"}",
             "Both internal tools have been observed.",
             "{\"accepted\":true,\"feedback\":\"All required tools were observed.\",\"revisedAnswer\":\"\"}"
         );
@@ -892,9 +1097,11 @@ class AgentOrchestratorTest {
             .containsExactly(documentSearch, knowledgeSearch);
         assertThat(result.metadata())
             .containsEntry("workflowMandatoryTools", List.of(documentSearch, knowledgeSearch))
-            .containsEntry("missingMandatoryTools", List.of(knowledgeSearch));
-        assertThat(chatModel.messages().get(2))
-            .contains("Missing: [" + knowledgeSearch + "]");
+            .containsEntry("missingMandatoryTools", List.of())
+            .containsEntry("runtimeEnforcedMcpWorkflow", true);
+        assertThat(chatModel.messages().get(0))
+            .contains("Mandatory workflow execution Tool " + documentSearch + " succeeded")
+            .contains("Mandatory workflow execution Tool " + knowledgeSearch + " succeeded");
     }
 
     private AgentOrchestrator newOrchestrator(ChatModel chatModel) {

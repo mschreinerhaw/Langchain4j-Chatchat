@@ -6,6 +6,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
@@ -37,8 +38,8 @@ public class McpInvocationAuthFilter extends OncePerRequestFilter {
             return;
         }
 
-        String token = request.getHeader("X-MCP-TOKEN");
-        if (registryService.isValidToken(token)) {
+        String token = resolveInvocationToken(request);
+        if (securityProperties.matchesInvocationToken(token) || registryService.isValidToken(token)) {
             filterChain.doFilter(request, response);
             return;
         }
@@ -50,5 +51,22 @@ public class McpInvocationAuthFilter extends OncePerRequestFilter {
             "message", "Invalid X-MCP-TOKEN",
             "timestamp", System.currentTimeMillis()
         ));
+    }
+
+    private String resolveInvocationToken(HttpServletRequest request) {
+        String token = request.getHeader("X-MCP-TOKEN");
+        if (token != null && !token.isBlank()) {
+            return token.trim();
+        }
+        String authorization = request.getHeader(HttpHeaders.AUTHORIZATION);
+        if (authorization == null || authorization.isBlank()) {
+            return null;
+        }
+        String bearerPrefix = "Bearer ";
+        if (!authorization.regionMatches(true, 0, bearerPrefix, 0, bearerPrefix.length())) {
+            return null;
+        }
+        String bearerToken = authorization.substring(bearerPrefix.length()).trim();
+        return bearerToken.isBlank() ? null : bearerToken;
     }
 }

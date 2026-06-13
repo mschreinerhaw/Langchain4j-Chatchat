@@ -5,7 +5,7 @@ spring:
     url: jdbc:h2:file:./data/h2/chatchat-mcp-server;MODE=MySQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE;DB_CLOSE_DELAY=-1
     driver-class-name: org.h2.Driver
     username: sa
-    password: chatchat_mcp_h2_pwd
+    password: ${CHAT_MCP_DATASOURCE_PASSWORD:}
     hikari:
       pool-name: ChatChatMcpHikariPool
       maximum-pool-size: 10
@@ -46,11 +46,12 @@ server:
 chatchat:
   mcp:
     admin:
-      username: admin
-      password: admin123
+      username: ${CHAT_MCP_ADMIN_USERNAME:}
+      password: ${CHAT_MCP_ADMIN_PASSWORD:}
       token-ttl-minutes: 480
     security:
-      require-mcp-token: false
+      require-mcp-token: ${CHAT_MCP_REQUIRE_TOKEN:true}
+      invocation-token: ${CHAT_MCP_INVOCATION_TOKEN:}
     cache:
       enabled: true
       path: ./data/mcp-cache-rocksdb
@@ -65,13 +66,16 @@ chatchat:
       excluded-tool-names: []
       instructions: "ChatChat standalone MCP server exposing LangChain4j-compatible tools."
       concurrency:
+        # Enables global/tool/user/agent concurrency guards for MCP tool calls.
         enabled: true
+        # Global limit shared by all MCP tool calls.
         global:
           max-concurrency: 64
           queue-size: 128
           queue-timeout-seconds: 5
           timeout-seconds: 30
           runtime-level: global
+        # Default limit used when no runtime-level or tool-specific limit matches.
         defaults:
           max-concurrency: 8
           queue-size: 64
@@ -82,18 +86,21 @@ chatchat:
           retry-attempts: 0
           failure-threshold: 5
           circuit-open-seconds: 30
+        # Per-user limit when a request carries user identity fields.
         user:
           max-concurrency: 8
           queue-size: 64
           queue-timeout-seconds: 5
           timeout-seconds: 30
           runtime-level: user
+        # Per-agent limit when a request carries agent identity fields.
         agent:
           max-concurrency: 4
           queue-size: 32
           queue-timeout-seconds: 5
           timeout-seconds: 30
           runtime-level: agent
+        # Runtime-level defaults for tool families.
         runtime-levels:
           ssh:
             max-concurrency: 2
@@ -119,23 +126,53 @@ chatchat:
             queue-timeout-seconds: 5
             timeout-seconds: 30
             runtime-level: notification
+        # Tool-specific overrides. web_search uses a longer timeout because it may launch a local browser.
+        tools:
+          web_search:
+            max-concurrency: 2
+            queue-size: 32
+            queue-timeout-seconds: 10
+            timeout-seconds: 90
+            runtime-level: http
+    web-crawler:
+      # Enables page crawling for search_and_extract evidence enrichment.
+      enabled: true
+      # User-Agent sent when fetching target pages.
+      user-agent: ChatChat-MCP-Crawler/1.0
+      # Per-page HTTP timeout.
+      timeout-ms: 10000
+      # Maximum response bytes read before aborting a page fetch.
+      max-body-bytes: 1048576
+      # Maximum raw HTML characters retained for processing.
+      max-html-chars: 200000
+      # Maximum readable text characters retained after cleaning.
+      max-text-chars: 120000
+      # Evidence chunk size and overlap for downstream ranking.
+      chunk-chars: 1200
+      chunk-overlap-chars: 120
+      max-chunks: 20
+      # Cache crawled pages for seven days.
+      cache-ttl-seconds: 604800
+      # Include raw HTML in cached page records for debugging and reprocessing.
+      include-html: true
+      accept-language: en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7
     livedata:
       # Enables the admin page to list and manually register LiveData APIs. Startup auto-sync is disabled.
-      enabled: true
-      jdbc-url: jdbc:mysql://192.168.195.223:3306/LiveDOP?characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai
-      username: root
-      password: liveData#12345
-      driver-class: com.mysql.cj.jdbc.Driver
+      enabled: ${CHAT_MCP_LIVEDATA_ENABLED:false}
+      jdbc-url: ${CHAT_MCP_LIVEDATA_JDBC_URL:}
+      username: ${CHAT_MCP_LIVEDATA_USERNAME:}
+      password: ${CHAT_MCP_LIVEDATA_PASSWORD:}
+      driver-class: ${CHAT_MCP_LIVEDATA_DRIVER_CLASS:com.mysql.cj.jdbc.Driver}
       table-name: ld_dataservice_api
-      service-base-url: http://192.168.195.223:5006
+      service-base-url: ${CHAT_MCP_LIVEDATA_SERVICE_BASE_URL:}
       service-path-template: /service/{serviceName}/call
       login-enabled: true
       login-path: /login
-      login-id: console
-      login-pwd: 123456
+      login-id: ${CHAT_MCP_LIVEDATA_LOGIN_ID:}
+      login-pwd: ${CHAT_MCP_LIVEDATA_LOGIN_PASSWORD:}
       login-timeout-ms: 10000
       session-ttl-seconds: 1800
-      ams-token: aaabfc8b3eebfdfdb9faf418c285048a
+      ams-token: ${CHAT_MCP_LIVEDATA_AMS_TOKEN:}
       default-namespace: livedata
       tool-name-prefix: livedata_
       published-state: 0
@@ -148,6 +185,7 @@ chatchat:
       expose-ams-token-parameter: false
   tools:
     calculator:
+      # Safe local arithmetic tool.
       risk-level: low
       operation-type: read
       timeout-ms: 5000
@@ -156,6 +194,7 @@ chatchat:
       parameter-policy:
         expression: auto_execute
     document-search:
+      # Retrieves documents from the ChatChat runtime/API service.
       enabled: true
       # Runtime/API retrieval service address. Set this when MCP Server and Runtime are deployed separately.
       api-base-url: http://localhost:8080
@@ -165,10 +204,11 @@ chatchat:
       default-limit: 5
       max-limit: 20
       auth:
+        # Login-based auth is used when bearer-token is empty.
         enabled: true
         login-path: /api/v1/enterprise/auth/login
-        username: admin
-        password: 123456
+        username: ${CHAT_DOCUMENT_SEARCH_AUTH_USERNAME:}
+        password: ${CHAT_DOCUMENT_SEARCH_AUTH_PASSWORD:}
         bearer-token: ""
       risk-level: medium
       confirmation:
@@ -191,8 +231,20 @@ chatchat:
       page-excerpt-chars: 2500
       page-max-bytes: 1048576
       fallback-enabled: true
+      site-search:
+        enabled: true
+        max-pages-to-inspect: 3
+        max-secondary-pages: 3
+        max-links-per-page: 5
       browser:
         enabled: true
+        local-browser-enabled: true
+        # Optional absolute path. If empty, Chrome/Edge/Chromium is auto-detected on Windows and Linux.
+        executable-path: ""
+        windows-executable-path: "C:/Program Files/Google/Chrome/Application/chrome.exe"
+        linux-executable-path: "/usr/bin/google-chrome"
+        process-timeout-ms: 15000
+        no-sandbox: true
         accept-language: en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7
         referer: https://www.bing.com/
         tls-fingerprint-profile: jdk-default
@@ -234,6 +286,7 @@ chatchat:
         enabled: true
         include-in-result: true
     database-query:
+      # Read-only SQL query tool for configured external databases.
       enabled: true
       risk-level: high
       operation-type: read
@@ -242,13 +295,17 @@ chatchat:
       confirmation:
         default: ask_before_execute
       parameter-policy:
+        # JDBC URL and password require confirmation because they may reveal sensitive infrastructure.
         jdbc-url: ask_before_execute
         password: ask_before_execute
       default-max-rows: 50
       max-rows: 500
+      # Statement timeout for database calls.
       query-timeout-seconds: 15
+      # Extra JDBC drivers can be placed here in release packages.
       driver-lib-path: ./lib/drivers
     file-system:
+      # Local file inspection tool. Keep confirmation enabled because paths may expose sensitive files.
       risk-level: high
       operation-type: read
       timeout-ms: 10000

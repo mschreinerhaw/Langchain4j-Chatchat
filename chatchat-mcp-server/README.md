@@ -158,7 +158,7 @@ chatchat:
 
 ## Web Search anti-blocking controls
 
-The built-in `web_search` tool supports browser-like request headers, proxy pools, IP rotation, retry-on-block, QPS/concurrency/day limits, isolated cookies, allow-list checks, and request audit logs.
+The built-in `web_search` tool supports local browser rendering, browser-like request headers, proxy pools, IP rotation, retry-on-block, QPS/concurrency/day limits, isolated cookies, allow-list checks, and request audit logs.
 
 Example proxy pool:
 
@@ -166,6 +166,15 @@ Example proxy pool:
 chatchat:
   tools:
     web-search:
+      browser:
+        enabled: true
+        local-browser-enabled: true
+        # Leave empty for auto-detect, or set an absolute path for the deployment host.
+        executable-path: ""
+        windows-executable-path: "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"
+        linux-executable-path: "/usr/bin/google-chrome"
+        process-timeout-ms: 15000
+        no-sandbox: true
       proxy-pool:
         enabled: true
         default-pool: search
@@ -188,9 +197,18 @@ chatchat:
         enabled: true
         isolation: proxy_task
         persist: true
+      site-search:
+        enabled: true
+        max-pages-to-inspect: 3
+        max-secondary-pages: 3
+        max-links-per-page: 5
       allow-list:
         enabled: true
         domains: [bing.com, duckduckgo.com, reuters.com, bloomberg.com]
 ```
+
+When `browser.local-browser-enabled` is true, `web_search` first tries a local Chrome/Edge/Chromium process in headless `--dump-dom` mode and falls back to the original HTTP fetcher if the browser is missing or fails. Set `browser.executable-path`, `browser.windows-executable-path`, or `browser.linux-executable-path` when the deployment host needs an explicit browser executable.
+
+When `site-search.enabled` is true, `web_search` inspects top result pages for search forms, submits the original keyword through detected search inputs, and merges same-domain secondary result links back into `results` and `reference_urls`. This helps securities exchange and market-data websites whose useful pages only appear after an in-page search.
 
 Each request logs keyword, phase, target domain, proxy id, status code, duration, and failure reason. When `audit.include-in-result` is true, the MCP response also includes `web_search_audit`.

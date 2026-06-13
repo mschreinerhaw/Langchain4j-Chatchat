@@ -5,8 +5,8 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties(prefix = "chatchat.mcp.admin")
 public class AdminAuthProperties {
 
-    private String username = "admin";
-    private String password = "admin123";
+    private String username = "";
+    private String password = "";
     private long tokenTtlMinutes = 480;
 
     /**

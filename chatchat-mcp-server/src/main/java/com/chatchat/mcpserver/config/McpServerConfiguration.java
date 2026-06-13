@@ -1,6 +1,7 @@
 package com.chatchat.mcpserver.config;
 
 import com.chatchat.agents.tool.ToolRegistry;
+import com.chatchat.mcpserver.tool.McpServerToolRegistrar;
 import com.chatchat.mcpserver.tool.ToolRegistryMcpAdapter;
 import com.chatchat.tools.builtin.BuiltInToolsBootstrap;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -13,6 +14,8 @@ import io.modelcontextprotocol.spec.McpSchema;
 import org.springframework.boot.web.servlet.ServletRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+
+import java.util.List;
 
 @Configuration
 public class McpServerConfiguration {
@@ -74,6 +77,7 @@ public class McpServerConfiguration {
      * @param toolRegistry the tool registry value
      * @param toolRegistryMcpAdapter the tool registry mcp adapter value
      * @param properties the properties value
+     * @param toolRegistrars the tool registrars value
      * @return the operation result
      */
     @Bean(destroyMethod = "close")
@@ -82,9 +86,13 @@ public class McpServerConfiguration {
         BuiltInToolsBootstrap builtInToolsBootstrap,
         ToolRegistry toolRegistry,
         ToolRegistryMcpAdapter toolRegistryMcpAdapter,
-        ChatChatMcpServerProperties properties
+        ChatChatMcpServerProperties properties,
+        List<McpServerToolRegistrar> toolRegistrars
     ) {
         builtInToolsBootstrap.initializeBuiltInTools();
+        if (toolRegistrars != null) {
+            toolRegistrars.forEach(registrar -> registrar.registerTools(toolRegistry));
+        }
 
         return McpServer.sync(transportProvider)
             .serverInfo(properties.getName(), properties.getVersion())

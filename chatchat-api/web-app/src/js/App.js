@@ -9,11 +9,13 @@ import FavoritesView from "../views/FavoritesView.vue";
 import McpCenterView from "../views/McpCenterView.vue";
 import AgentWorkshopView from "../views/AgentWorkshopView.vue";
 import AgentScheduleView from "../views/AgentScheduleView.vue";
+import AgentRuntimeView from "../views/AgentRuntimeView.vue";
 import SystemManagementView from "../views/SystemManagementView.vue";
 import TasksView from "../views/TasksView.vue";
 import {
   actAgentTodo,
   addUserFavorite,
+  AUTH_REQUIRED_EVENT,
   clearAuthSession,
   deleteConversationHistory,
   fetchAgentTodos,
@@ -42,6 +44,7 @@ const views = {
   mcp: McpCenterView,
   agents: AgentWorkshopView,
   schedules: AgentScheduleView,
+  runtime: AgentRuntimeView,
   tasks: TasksView,
   system: SystemManagementView
 };
@@ -155,12 +158,13 @@ export default {
   },
   mounted() {
     window.addEventListener("hashchange", this.handleHashChange);
+    window.addEventListener(AUTH_REQUIRED_EVENT, this.handleAuthRequired);
     this.stopAgentTaskCancelledListener = onAgentTaskCancelled(this.handleAgentTaskCancelled);
     if (isAuthenticatedSession(this.authSession)) {
       this.ensureAuthenticatedRoute();
-      this.loadConversationHistory();
+      this.loadConversationHistory({ suppressError: true });
       this.loadFavoriteConversationIds();
-      this.loadRuntimeTodos();
+      this.loadRuntimeTodos({ silent: true, suppressError: true });
       this.startTodoRefresh();
       this.startIdleLogoutWatcher();
       return;
@@ -169,6 +173,7 @@ export default {
   },
   beforeUnmount() {
     window.removeEventListener("hashchange", this.handleHashChange);
+    window.removeEventListener(AUTH_REQUIRED_EVENT, this.handleAuthRequired);
     if (this.stopAgentTaskCancelledListener) {
       this.stopAgentTaskCancelledListener();
       this.stopAgentTaskCancelledListener = null;
@@ -188,12 +193,15 @@ export default {
       this.userId = sessionUser.username || sessionUser.id || USER_ID;
       this.navigateToView(this.consumeRedirectView() || viewFromHash() || DEFAULT_VIEW);
       this.startIdleLogoutWatcher();
-      this.loadConversationHistory();
+      this.loadConversationHistory({ suppressError: true });
       this.loadFavoriteConversationIds();
-      this.loadRuntimeTodos();
+      this.loadRuntimeTodos({ silent: true, suppressError: true });
       this.startTodoRefresh();
     },
     handleLogout() {
+      this.handleUnauthenticated();
+    },
+    handleAuthRequired() {
       this.handleUnauthenticated();
     },
     handleUnauthenticated() {
@@ -276,7 +284,7 @@ export default {
     startTodoRefresh() {
       this.stopTodoRefresh();
       this.todoRefreshTimer = window.setInterval(() => {
-        this.loadRuntimeTodos({ silent: true });
+        this.loadRuntimeTodos({ silent: true, suppressError: true });
       }, TODO_REFRESH_MS);
     },
     stopTodoRefresh() {
@@ -351,15 +359,20 @@ export default {
       }, IDLE_LOGOUT_MS);
     },
     async loadConversationHistory(filters = {}) {
+      const { suppressError = false, ...historyFilters } = filters || {};
       this.historyLoading = true;
       this.historyError = "";
       try {
         const history = await fetchConversationHistory(this.userId, {
           limit: 30,
-          ...filters
+          ...historyFilters
         });
         this.conversationHistory = Array.isArray(history) ? history : [];
       } catch (error) {
+        this.conversationHistory = [];
+        if (suppressError) {
+          return;
+        }
         this.historyError = error.message || "历史会话加载失败";
       } finally {
         this.historyLoading = false;
@@ -401,6 +414,11 @@ export default {
         this.runtimeTodos = Array.isArray(payload?.items) ? payload.items : [];
         this.scheduleTodoTimeoutKill();
       } catch (error) {
+        this.runtimeTodos = [];
+        this.stopTodoTimeoutKill();
+        if (options.suppressError) {
+          return;
+        }
         this.todoError = error.message || "待办任务加载失败";
       } finally {
         if (!options.silent) {

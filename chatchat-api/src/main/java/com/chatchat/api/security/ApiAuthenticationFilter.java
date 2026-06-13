@@ -1,7 +1,6 @@
 package com.chatchat.api.security;
 
 import com.chatchat.common.response.ApiResponse;
-import com.chatchat.enterprise.entity.SysUser;
 import com.chatchat.enterprise.service.EnterpriseAdminService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.FilterChain;
@@ -9,6 +8,7 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -19,6 +19,7 @@ import java.io.IOException;
 
 @Component
 @RequiredArgsConstructor
+@ConditionalOnProperty(prefix = "chatchat.api.auth", name = "enabled", havingValue = "true", matchIfMissing = true)
 public class ApiAuthenticationFilter extends OncePerRequestFilter {
 
     public static final String CURRENT_USER_ID = "chatchat.currentUserId";
@@ -60,16 +61,22 @@ public class ApiAuthenticationFilter extends OncePerRequestFilter {
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
         String token = resolveBearerToken(request.getHeader(HttpHeaders.AUTHORIZATION));
-        SysUser user = adminService.resolveUserByToken(token)
-            .filter(candidate -> "enabled".equalsIgnoreCase(candidate.getStatus()))
-            .orElse(null);
+        EnterpriseAdminService.UserView user;
+        try {
+            user = adminService.resolveSessionByToken(token)
+                .filter(candidate -> "enabled".equalsIgnoreCase(candidate.status()))
+                .orElse(null);
+        } catch (RuntimeException ex) {
+            writeUnauthorized(response);
+            return;
+        }
         if (user == null) {
             writeUnauthorized(response);
             return;
         }
-        request.setAttribute(CURRENT_USER_ID, user.getId());
-        request.setAttribute(CURRENT_USERNAME, user.getUsername());
-        request.setAttribute(CURRENT_TENANT_ID, user.getTenantId());
+        request.setAttribute(CURRENT_USER_ID, user.id());
+        request.setAttribute(CURRENT_USERNAME, user.username());
+        request.setAttribute(CURRENT_TENANT_ID, user.tenantId());
         filterChain.doFilter(request, response);
     }
 

@@ -1,5 +1,7 @@
 const API_BASE = "/api/v1";
 const AUTH_SESSION_KEY = "chatchat.auth.session";
+export const AUTH_REQUIRED_EVENT = "chatchat:auth-required";
+let lastAuthRequiredEventAt = 0;
 
 export function getStoredAuthSession() {
   try {
@@ -35,11 +37,17 @@ export async function apiRequest(path, options = {}) {
     payload = null;
   }
 
+  notifyAuthRequiredIfNeeded(response, payload, path);
+
   if (!response.ok) {
+    const userMessage = userFacingApiErrorMessage(response, payload);
+    if (userMessage) {
+      throw new Error(userMessage);
+    }
     throw new Error(payload?.message || `请求失败：${response.status}`);
   }
 
-  return unwrapApiPayload(payload);
+  return unwrapApiPayload(payload, path);
 }
 
 export function sendInteractionMessage(payload) {
@@ -290,6 +298,85 @@ export function fetchAgentTaskEvents(taskId, limit = 50, tenantId = "") {
     params.set("tenantId", tenantId);
   }
   return apiRequest(`/agent/tasks/${encodeURIComponent(taskId)}/events?${params.toString()}`);
+}
+
+export function fetchGenericAgentRuntimeSnapshot() {
+  return apiRequest("/agent/runtime/snapshot");
+}
+
+export function fetchGenericAgentRuns(filters = {}) {
+  const params = new URLSearchParams();
+  if (filters.status) {
+    params.set("status", filters.status);
+  }
+  if (filters.tenantId) {
+    params.set("tenantId", filters.tenantId);
+  }
+  if (filters.userId) {
+    params.set("userId", filters.userId);
+  }
+  if (filters.conversationId) {
+    params.set("conversationId", filters.conversationId);
+  }
+  if (filters.limit) {
+    params.set("limit", String(filters.limit));
+  }
+  if (filters.offset) {
+    params.set("offset", String(filters.offset));
+  }
+  const query = params.toString();
+  return apiRequest(`/agent/runtime/runs${query ? `?${query}` : ""}`);
+}
+
+export function fetchGenericAgentRunTimeline(runId, filters = {}) {
+  const params = new URLSearchParams();
+  if (filters.afterCreatedAt) {
+    params.set("afterCreatedAt", String(filters.afterCreatedAt));
+  }
+  if (filters.eventLimit) {
+    params.set("eventLimit", String(filters.eventLimit));
+  }
+  if (filters.afterStep) {
+    params.set("afterStep", String(filters.afterStep));
+  }
+  if (filters.stepLimit) {
+    params.set("stepLimit", String(filters.stepLimit));
+  }
+  if (filters.observationOffset) {
+    params.set("observationOffset", String(filters.observationOffset));
+  }
+  if (filters.observationLimit) {
+    params.set("observationLimit", String(filters.observationLimit));
+  }
+  const query = params.toString();
+  return apiRequest(`/agent/runtime/runs/${encodeURIComponent(runId)}/timeline${query ? `?${query}` : ""}`);
+}
+
+export function cancelGenericAgentRun(runId) {
+  return apiRequest(`/agent/runtime/runs/${encodeURIComponent(runId)}/cancel`, {
+    method: "POST"
+  });
+}
+
+export function streamGenericAgentRunEvents(runId, filters = {}, handlers = {}) {
+  const params = new URLSearchParams();
+  if (filters.afterCreatedAt) {
+    params.set("afterCreatedAt", String(filters.afterCreatedAt));
+  }
+  if (filters.limit) {
+    params.set("limit", String(filters.limit));
+  }
+  if (filters.pollIntervalMs) {
+    params.set("pollIntervalMs", String(filters.pollIntervalMs));
+  }
+  if (filters.timeoutMs) {
+    params.set("timeoutMs", String(filters.timeoutMs));
+  }
+  const query = params.toString();
+  return fetchEventStreamGet(
+    `/agent/runtime/runs/${encodeURIComponent(runId)}/events/stream${query ? `?${query}` : ""}`,
+    handlers
+  );
 }
 
 export function fetchConversationHistory(userId, filters = {}) {
@@ -588,6 +675,7 @@ export async function fetchDocumentFile(fileUrl) {
 
   if (!response.ok) {
     const errorPayload = await readJsonSafely(response);
+    notifyAuthRequiredIfNeeded(response, errorPayload, fileUrl);
     throw new Error(errorPayload?.message || `文档文件下载失败：${response.status}`);
   }
 
@@ -819,10 +907,11 @@ export async function uploadSearchDocument(formData) {
     body: formData
   });
   const payload = await readJsonSafely(response);
+  notifyAuthRequiredIfNeeded(response, payload, "/search/documents/upload");
   if (!response.ok) {
     throw new Error(payload?.message || `请求失败：${response.status}`);
   }
-  return unwrapApiPayload(payload);
+  return unwrapApiPayload(payload, "/search/documents/upload");
 }
 
 export async function uploadChatImage(formData) {
@@ -835,10 +924,11 @@ export async function uploadChatImage(formData) {
     body: formData
   });
   const payload = await readJsonSafely(response);
+  notifyAuthRequiredIfNeeded(response, payload, "/images/upload");
   if (!response.ok) {
     throw new Error(payload?.message || `Request failed: ${response.status}`);
   }
-  return unwrapApiPayload(payload);
+  return unwrapApiPayload(payload, "/images/upload");
 }
 
 export function analyzeChatImage(payload) {
@@ -866,11 +956,64 @@ async function fetchEventStream(path, payload, handlers) {
   const contentType = response.headers.get("Content-Type") || "";
   if (!response.ok) {
     const errorPayload = await readJsonSafely(response);
+    notifyAuthRequiredIfNeeded(response, errorPayload, path);
     throw new Error(errorPayload?.message || `请求失败：${response.status}`);
   }
 
   if (!contentType.includes("text/event-stream") || !response.body) {
-    const directPayload = unwrapApiPayload(await readJsonSafely(response));
+    const directPayload = unwrapApiPayload(await readJsonSafely(response), path);
+    handlers.direct?.(directPayload);
+    handlers.done?.({ direct: true });
+    return {
+      type: "direct",
+      data: directPayload
+    };
+  }
+
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder("utf-8");
+  let buffer = "";
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) {
+      break;
+    }
+    buffer += decoder.decode(value, { stream: true });
+    const parts = buffer.split(/\r?\n\r?\n/);
+    buffer = parts.pop() || "";
+    parts.forEach((part) => dispatchSseEvent(part, handlers));
+  }
+
+  if (buffer.trim()) {
+    dispatchSseEvent(buffer, handlers);
+  }
+
+  return {
+    type: "stream"
+  };
+}
+
+async function fetchEventStreamGet(path, handlers = {}) {
+  const session = getStoredAuthSession();
+  const response = await fetch(`${API_BASE}${path}`, {
+    method: "GET",
+    signal: handlers.signal,
+    headers: {
+      Accept: "text/event-stream",
+      ...(session?.token ? { Authorization: `Bearer ${session.token}` } : {})
+    }
+  });
+
+  const contentType = response.headers.get("Content-Type") || "";
+  if (!response.ok) {
+    const errorPayload = await readJsonSafely(response);
+    notifyAuthRequiredIfNeeded(response, errorPayload, path);
+    throw new Error(errorPayload?.message || `璇锋眰澶辫触锛?{response.status}`);
+  }
+
+  if (!contentType.includes("text/event-stream") || !response.body) {
+    const directPayload = unwrapApiPayload(await readJsonSafely(response), path);
     handlers.direct?.(directPayload);
     handlers.done?.({ direct: true });
     return {
@@ -911,9 +1054,67 @@ async function readJsonSafely(response) {
   }
 }
 
-function unwrapApiPayload(payload) {
+function isAuthFailure(response, payload) {
+  const status = response?.status || Number(payload?.status || payload?.code || 0);
+  const message = String(payload?.message || payload?.error || "");
+  return status === 401 || payload?.code === 401 || message.includes("请先登录");
+}
+
+function userFacingApiErrorMessage(response, payload) {
+  const message = String(payload?.message || payload?.error || "");
+  if (isAuthFailure(response, payload)) {
+    return message || "请先登录";
+  }
+  if (isInfrastructureFailure(message)) {
+    return "服务暂不可用，请稍后重试";
+  }
+  return "";
+}
+
+function isInfrastructureFailure(message) {
+  const normalized = String(message || "").toLowerCase();
+  return [
+    "could not open jpa entitymanager",
+    "entitymanager",
+    "jdbc",
+    "hikaripool",
+    "connection is not available",
+    "dataaccessresourcefailure",
+    "sqltransientconnection"
+  ].some((keyword) => normalized.includes(keyword));
+}
+
+function notifyAuthRequiredIfNeeded(response, payload, path = "") {
+  if (!isAuthFailure(response, payload) || String(path).includes("/enterprise/auth/login")) {
+    return;
+  }
+  clearAuthSession();
+  const now = Date.now();
+  if (now - lastAuthRequiredEventAt < 500) {
+    return;
+  }
+  lastAuthRequiredEventAt = now;
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(
+      new CustomEvent(AUTH_REQUIRED_EVENT, {
+        detail: {
+          path,
+          status: response?.status || payload?.code || 401,
+          message: payload?.message || "请先登录"
+        }
+      })
+    );
+  }
+}
+
+function unwrapApiPayload(payload, path = "") {
   if (payload && typeof payload === "object" && "code" in payload) {
     if (payload.code !== 200) {
+      notifyAuthRequiredIfNeeded(null, payload, path);
+      const userMessage = userFacingApiErrorMessage(null, payload);
+      if (userMessage) {
+        throw new Error(userMessage);
+      }
       throw new Error(payload.message || "服务端返回异常");
     }
     return payload.data;

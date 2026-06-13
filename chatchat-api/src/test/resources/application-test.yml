@@ -26,6 +26,14 @@ logging:
     org.hibernate.SQL: WARN
 
 chatchat:
+  models:
+    openai:
+      apiKey: test-openai-key
+  api:
+    auth:
+      enabled: false
+  agent-runtime:
+    store-type: memory
   agent:
     learning:
       model-attribution-enabled: false

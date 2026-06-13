@@ -34,13 +34,31 @@
           </div>
         </div>
         <div v-else class="message-markdown" v-html="renderMarkdown(message.content, message)"></div>
+        <div v-if="message.latencyMs" class="message-extra">耗时 {{ message.latencyMs }}ms</div>
         <ResponseReferences
           v-if="message.role === 'assistant' && !message.streaming && message.status !== 'waiting'"
           :sources="message.sources || []"
           :tool-traces="message.traces || []"
           compact
         />
-        <div v-if="message.latencyMs" class="message-extra">耗时 {{ message.latencyMs }}ms</div>
+        <div v-if="canShowEvaluation(message)" class="message-feedback" aria-label="回答评价">
+          <button
+            v-for="option in feedbackOptions"
+            :key="option.value"
+            type="button"
+            class="message-feedback-button"
+            :class="{ unresolved: option.value === 'unresolved' }"
+            :disabled="message.feedbackSubmitting"
+            :title="`评价为${option.label}`"
+            @click="$emit('feedback', { message, action: option.value })"
+          >
+            <CircleX v-if="option.value === 'unresolved'" :size="16" stroke-width="2.2" />
+            <CircleCheck v-else :size="16" stroke-width="2.2" />
+            <span>{{ option.label }}</span>
+          </button>
+        </div>
+        <p v-else-if="message.feedbackTime" class="message-feedback-done">已参与评价</p>
+        <p v-if="message.feedbackError" class="message-feedback-error">{{ message.feedbackError }}</p>
       </div>
     </article>
 

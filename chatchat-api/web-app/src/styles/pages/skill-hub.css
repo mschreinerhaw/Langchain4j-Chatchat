@@ -753,6 +753,65 @@
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
+.experience-subtabs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  padding: 4px;
+  border: 1px solid #e3e9f3;
+  border-radius: 8px;
+  background: #f7f9fc;
+}
+
+.experience-subtabs button {
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border-radius: 7px;
+  background: transparent;
+  color: #536175;
+  font-size: 13px;
+  font-weight: 850;
+}
+
+.experience-subtabs button.active {
+  background: #fff;
+  color: var(--primary-strong);
+  box-shadow: 0 1px 4px rgba(16, 24, 40, 0.08);
+}
+
+.experience-subtabs button span {
+  min-width: 20px;
+  height: 20px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 999px;
+  background: #e8eef8;
+  color: #536175;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.experience-subtabs button.active span {
+  background: #eaf2ff;
+  color: var(--primary-strong);
+}
+
+.experience-tab-panel {
+  display: grid;
+  gap: 10px;
+}
+
+.experience-subsection-head {
+  margin-top: 4px;
+}
+
+.experience-subsection-head:not(:first-of-type) {
+  padding-top: 6px;
+}
+
 .experience-scenarios article {
   min-width: 0;
   display: grid;
@@ -943,6 +1002,57 @@
   align-items: center;
   justify-content: space-between;
   gap: 8px;
+}
+
+.runtime-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border-top: 1px solid #edf1f7;
+  padding-top: 12px;
+}
+
+.runtime-pagination > span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.runtime-pagination > div {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.runtime-pagination button {
+  min-width: 34px;
+  min-height: 30px;
+  border: 1px solid #d9e2ef;
+  border-radius: 7px;
+  padding: 0 10px;
+  background: #fff;
+  color: #344054;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.runtime-pagination button:hover {
+  border-color: rgba(47, 124, 246, 0.35);
+  background: #f5f9ff;
+  color: var(--primary-strong);
+}
+
+.runtime-pagination button.active {
+  border-color: rgba(47, 124, 246, 0.45);
+  background: rgba(47, 124, 246, 0.1);
+  color: var(--primary-strong);
+}
+
+.runtime-pagination button:disabled {
+  cursor: default;
+  opacity: 0.5;
 }
 
 .tool-table article,
@@ -2766,11 +2876,14 @@
   .effect-table article,
   .low-score-list button,
   .experience-scenarios,
+  .experience-subtabs,
   .experience-index-list article header,
   .experience-index-list dl,
   .experience-list article header,
   .experience-list dl,
   .experience-patterns,
+  .runtime-pagination,
+  .runtime-pagination > div,
   .governance-table article,
   .runtime-stage-panel header,
   .runtime-panel > header,

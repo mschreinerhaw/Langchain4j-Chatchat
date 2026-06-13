@@ -140,6 +140,7 @@ export default {
         grid: LayoutGrid,
         hub: Boxes,
         mcp: Wrench,
+        runtime: Boxes,
         search: Search,
         star: Star,
         tasks: ClipboardList

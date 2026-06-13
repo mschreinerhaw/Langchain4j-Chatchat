@@ -1,5 +1,5 @@
 import MarkdownIt from "markdown-it";
-import { Check, Copy } from "@lucide/vue";
+import { Check, CircleCheck, CircleX, Copy } from "@lucide/vue";
 import ResponseReferences from "../../components/ResponseReferences.vue";
 import { extractDocumentSearchPagesFromTraces, extractWebSearchPagesFromTraces } from "../utils/webReferences.js";
 
@@ -50,9 +50,12 @@ export default {
   name: "ChatMessageList",
   components: {
     Check,
+    CircleCheck,
+    CircleX,
     Copy,
     ResponseReferences
   },
+  emits: ["feedback"],
   props: {
     messages: {
       type: Array,
@@ -74,7 +77,13 @@ export default {
   data() {
     return {
       copiedMessageId: "",
-      copiedResetTimer: null
+      copiedResetTimer: null,
+      feedbackOptions: [
+        { value: "useful", label: "\u6709\u7528" },
+        { value: "adopted", label: "\u91c7\u7eb3" },
+        { value: "resolved", label: "\u89e3\u51b3" },
+        { value: "unresolved", label: "\u672a\u89e3\u51b3" }
+      ]
     };
   },
   computed: {
@@ -97,6 +106,15 @@ export default {
     }
   },
   methods: {
+    canShowEvaluation(message = {}) {
+      const status = String(message.status || "").toLowerCase();
+      return message.role === "assistant"
+        && !!message.content
+        && !!message.taskId
+        && !message.streaming
+        && !message.feedbackTime
+        && !["waiting", "cancelled", "failed", "streaming", "running"].includes(status);
+    },
     renderMarkdown(content, message = {}) {
       const prepared = this.prepareMarkdownContent(String(content ?? ""), message);
       return markdown.render(prepared.content, {

@@ -8,6 +8,7 @@ import {
   saveConversationHistory,
   sendInteractionMessage,
   sendInteractionMessageStream,
+  submitAgentTaskFeedback,
   updateWorkshopAgent,
   uploadChatImage,
   uploadSearchDocument
@@ -18,6 +19,12 @@ import { onAgentTaskCancelled } from "../utils/agentTaskEvents";
 const EMPTY_RESPONSE = {
   sources: [],
   toolTraces: []
+};
+const MESSAGE_FEEDBACK_PAYLOADS = {
+  useful: { useful: true },
+  adopted: { adopted: true },
+  resolved: { resolved: true },
+  unresolved: { resolved: false }
 };
 const AGENT_TASK_POLL_TIMEOUT_MS = 1200;
 const AGENT_TASK_MAX_WAIT_MS = 300000;
@@ -83,7 +90,17 @@ function normalizeMessages(messages, status = "") {
         sources: waitingConfirmation ? [] : normalizeMessageSources(message),
         traces: waitingConfirmation ? [] : normalizeMessageTraces(message),
         streaming,
-        status: waitingConfirmation ? "waiting" : (message.status || (streaming ? "streaming" : "completed"))
+        status: waitingConfirmation ? "waiting" : (message.status || (streaming ? "streaming" : "completed")),
+        taskId: message.taskId || "",
+        feedbackTime: message.feedbackTime || "",
+        feedbackAction: message.feedbackAction || "",
+        feedbackUseful: message.feedbackUseful,
+        feedbackAdopted: message.feedbackAdopted,
+        feedbackResolved: message.feedbackResolved,
+        feedbackComment: message.feedbackComment || "",
+        feedbackReasonCategory: message.feedbackReasonCategory || "",
+        feedbackSubmitting: false,
+        feedbackError: ""
       };
     });
 }
@@ -677,6 +694,7 @@ export default {
         toolInput: requestPayload.toolInput || {}
       });
       runContext.taskId = task?.taskId || "";
+      assistantMessage.taskId = runContext.taskId;
 
       const event = await this.waitForAgentTaskResult(runContext.taskId, this.userId);
       const eventPayload = parseJsonPayload(event?.payload);
@@ -728,7 +746,7 @@ export default {
 
       const response = eventPayload || {};
       this.applyResponseMetadata(response, runContext);
-      this.captureMcpConfirmation(response, query, requestPayload);
+      this.captureMcpConfirmation(response, query, requestPayload, runContext.taskId);
       assistantMessage.content = response.answer || "No response generated";
       assistantMessage.timestamp = response.timestamp || event?.createTime || Date.now();
       assistantMessage.latencyMs = response.latencyMs;
@@ -778,7 +796,8 @@ export default {
           sources: targetContext.lastResponse.sources,
           traces: targetContext.lastResponse.toolTraces,
           streaming: false,
-          status: "completed"
+          status: "completed",
+          taskId: targetContext.taskId || ""
         })
       );
       if (this.isActiveRun(targetContext)) {
@@ -797,6 +816,16 @@ export default {
         traces: [],
         streaming: false,
         status: "completed",
+        taskId: "",
+        feedbackTime: "",
+        feedbackAction: "",
+        feedbackUseful: undefined,
+        feedbackAdopted: undefined,
+        feedbackResolved: undefined,
+        feedbackComment: "",
+        feedbackReasonCategory: "",
+        feedbackSubmitting: false,
+        feedbackError: "",
         ...overrides
       };
     },
@@ -813,6 +842,15 @@ export default {
       message.traces = [];
       message.latencyMs = undefined;
       message.timestamp = Date.now();
+      message.feedbackTime = "";
+      message.feedbackAction = "";
+      message.feedbackUseful = undefined;
+      message.feedbackAdopted = undefined;
+      message.feedbackResolved = undefined;
+      message.feedbackComment = "";
+      message.feedbackReasonCategory = "";
+      message.feedbackSubmitting = false;
+      message.feedbackError = "";
       return message;
     },
     createRunContext(question) {
@@ -912,8 +950,55 @@ export default {
         sources: message.sources || [],
         traces: message.traces || [],
         streaming: !!message.streaming,
-        status: message.status || (message.streaming ? "streaming" : "completed")
+        status: message.status || (message.streaming ? "streaming" : "completed"),
+        taskId: message.taskId || "",
+        feedbackTime: message.feedbackTime || "",
+        feedbackAction: message.feedbackAction || "",
+        feedbackUseful: message.feedbackUseful,
+        feedbackAdopted: message.feedbackAdopted,
+        feedbackResolved: message.feedbackResolved,
+        feedbackComment: message.feedbackComment || "",
+        feedbackReasonCategory: message.feedbackReasonCategory || ""
       }));
+    },
+    async handleMessageFeedback({ message, action } = {}) {
+      const targetMessage = this.messages.find((item) => item.id === message?.id);
+      const feedbackPayload = MESSAGE_FEEDBACK_PAYLOADS[action];
+      if (!targetMessage?.taskId || !feedbackPayload || targetMessage.feedbackSubmitting || targetMessage.feedbackTime) {
+        return;
+      }
+
+      targetMessage.feedbackSubmitting = true;
+      targetMessage.feedbackError = "";
+      this.messages = [...this.messages];
+      try {
+        const updatedTask = await submitAgentTaskFeedback(targetMessage.taskId, this.userId, {
+          tenantId: this.userId,
+          userId: this.userId,
+          ...feedbackPayload
+        });
+        this.applyFeedbackToMessage(targetMessage, action, updatedTask, feedbackPayload);
+        this.messages = [...this.messages];
+        const question = this.lastUserQuestion();
+        this.emitActiveConversationSnapshot(question, this.conversationStatus || "completed");
+        await this.saveHistory(question, this.conversationStatus || "completed");
+      } catch (error) {
+        targetMessage.feedbackError = error.message || "评价提交失败，请稍后重试";
+        this.messages = [...this.messages];
+      } finally {
+        targetMessage.feedbackSubmitting = false;
+        this.messages = [...this.messages];
+      }
+    },
+    applyFeedbackToMessage(message, action, updatedTask = {}, fallback = {}) {
+      message.feedbackAction = action || "";
+      message.feedbackTime = updatedTask?.feedbackTime || new Date().toISOString();
+      message.feedbackUseful = updatedTask?.feedbackUseful ?? fallback.useful;
+      message.feedbackAdopted = updatedTask?.feedbackAdopted ?? fallback.adopted;
+      message.feedbackResolved = updatedTask?.feedbackResolved ?? fallback.resolved;
+      message.feedbackComment = updatedTask?.feedbackComment || fallback.comment || "";
+      message.feedbackReasonCategory = updatedTask?.feedbackReasonCategory || fallback.reasonCategory || "";
+      message.feedbackError = "";
     },
     ensureRunningAssistantMessage(messages, status) {
       if (!isRunningStatus(status)) {

@@ -21,6 +21,7 @@
       :loading="loading"
       :user-id="userId"
       :active-agent="selectedAgent"
+      @feedback="handleMessageFeedback"
     />
       <p v-if="statusNotice" class="chat-status-notice">{{ statusNotice }}</p>
       <p v-if="uploadNotice" class="chat-status-notice">{{ uploadNotice }}</p>

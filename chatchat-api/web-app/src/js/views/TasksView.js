@@ -1,4 +1,5 @@
 import "../../styles/pages/skill-hub.css";
+import AgentRuntimeView from "../../views/AgentRuntimeView.vue";
 import {
   Activity,
   Database,
@@ -20,16 +21,21 @@ import {
   fetchAgentRuntimeSummary,
   fetchAgentRuntimeToolAudits,
   fetchAgentTaskEvents,
+  fetchGenericAgentRuntimeSnapshot,
   fetchToolGovernance,
   submitAgentTaskFeedback,
   updateConversationHistoryStatus
 } from "../../services/api";
 import { notifyAgentTaskCancelled } from "../utils/agentTaskEvents";
 
+const AGENT_RUNS_TAB = "agent-runs";
+const DEFAULT_RUNTIME_PAGE_SIZE = 10;
+
 export default {
   name: "TasksView",
   components: {
     Activity,
+    AgentRuntimeView,
     Database,
     GitBranch,
     Layers,
@@ -54,8 +60,9 @@ export default {
       eventsLoading: false,
       error: "",
       tenantId: this.userId || "",
-      activeTab: "tasks",
+      activeTab: AGENT_RUNS_TAB,
       effectActiveTab: "agents",
+      experienceActiveTab: "scenarios",
       taskSearchQuery: "",
       statusFilter: "",
       eventSearchQuery: "",
@@ -66,10 +73,26 @@ export default {
       governanceLevelFilter: "",
       auditSearchQuery: "",
       auditOutcomeFilter: "",
+      pageSize: DEFAULT_RUNTIME_PAGE_SIZE,
+      runtimePages: {
+        tasks: 1,
+        agentEffects: 1,
+        lowScores: 1,
+        reasonMetrics: 1,
+        experienceScenarios: 1,
+        experienceIndexes: 1,
+        experiences: 1,
+        events: 1,
+        tools: 1,
+        governance: 1,
+        audits: 1
+      },
       summary: null,
       effectAnalytics: null,
       experienceSummary: null,
       toolGovernance: null,
+      genericRuntimeSnapshot: null,
+      legacyRuntimeLoaded: false,
       recentToolAudits: [],
       selectedTask: null,
       selectedEvents: [],
@@ -98,6 +121,7 @@ export default {
   computed: {
     tabs() {
       return [
+        { key: "agent-runs", label: "Runs", icon: Layers, count: this.genericRuntimeSnapshot?.totalRuns || 0 },
         { key: "tasks", label: "任务", icon: Layers, count: this.tasks.length },
         { key: "effects", label: "效果", icon: Activity, count: this.lowScoreTasks.length },
         { key: "experiences", label: "经验", icon: GitBranch, count: this.experienceItems.length },
@@ -285,27 +309,89 @@ export default {
   mounted() {
     this.loadRuntime();
   },
+  watch: {
+    taskSearchQuery() {
+      this.resetRuntimePage("tasks");
+    },
+    statusFilter() {
+      this.resetRuntimePage("tasks");
+    },
+    eventSearchQuery() {
+      this.resetRuntimePage("events");
+    },
+    eventTypeFilter() {
+      this.resetRuntimePage("events");
+    },
+    toolSearchQuery() {
+      this.resetRuntimePage("tools");
+    },
+    toolHealthFilter() {
+      this.resetRuntimePage("tools");
+    },
+    governanceSearchQuery() {
+      this.resetRuntimePage("governance");
+    },
+    governanceLevelFilter() {
+      this.resetRuntimePage("governance");
+    },
+    auditSearchQuery() {
+      this.resetRuntimePage("audits");
+    },
+    auditOutcomeFilter() {
+      this.resetRuntimePage("audits");
+    },
+    effectActiveTab(value) {
+      this.resetRuntimePage(value === "agents" ? "agentEffects" : "lowScores");
+    },
+    reasonMetrics() {
+      this.resetRuntimePage("reasonMetrics");
+    },
+    experienceScenarios() {
+      this.resetRuntimePage("experienceScenarios");
+    },
+    experienceIndexes() {
+      this.resetRuntimePage("experienceIndexes");
+    },
+    experienceItems() {
+      this.resetRuntimePage("experiences");
+    }
+  },
   methods: {
     async loadRuntime() {
+      if (this.activeTab === AGENT_RUNS_TAB) {
+        await this.loadGenericRuntimeSnapshot();
+        return;
+      }
+      await this.loadLegacyRuntime();
+    },
+    async loadGenericRuntimeSnapshot() {
+      try {
+        const genericSnapshot = await fetchGenericAgentRuntimeSnapshot();
+        this.genericRuntimeSnapshot = genericSnapshot || {};
+      } catch (error) {
+        this.genericRuntimeSnapshot = this.genericRuntimeSnapshot || {};
+      }
+    },
+    async loadLegacyRuntime() {
       this.loading = true;
       this.error = "";
       try {
         const [summary, audits, effects, experiences, governance] = await Promise.all([
           fetchAgentRuntimeSummary({
             tenantId: this.tenantId,
-            latestLimit: 20
+            latestLimit: 100
           }),
           fetchAgentRuntimeToolAudits({
             tenantId: this.tenantId,
-            limit: 40
+            limit: 100
           }),
           fetchAgentEffectAnalytics({
             tenantId: this.tenantId,
-            lowScoreLimit: 12
+            lowScoreLimit: 100
           }),
           fetchAgentExperiences({
             tenantId: this.tenantId,
-            limit: 20
+            limit: 100
           }),
           fetchToolGovernance({
             tenantId: this.tenantId
@@ -316,6 +402,8 @@ export default {
         this.experienceSummary = experiences;
         this.toolGovernance = governance;
         this.recentToolAudits = Array.isArray(audits) ? audits : [];
+        this.legacyRuntimeLoaded = true;
+        this.clampRuntimePages();
         const pendingTaskId = sessionStorage.getItem("chatchat.runtime.selectedTaskId") || "";
         const pendingTask = pendingTaskId ? this.tasks.find((task) => task.taskId === pendingTaskId) : null;
         if (pendingTask) {
@@ -336,6 +424,12 @@ export default {
     },
     activateTab(key) {
       this.activeTab = key;
+      this.error = "";
+      if (key === AGENT_RUNS_TAB) {
+        this.loadGenericRuntimeSnapshot();
+      } else if (!this.legacyRuntimeLoaded) {
+        this.loadLegacyRuntime();
+      }
     },
     async inspectTask(task) {
       await this.selectTask(task);
@@ -344,6 +438,7 @@ export default {
     async selectTask(task) {
       this.selectedTask = task;
       this.syncFeedbackDraft(task);
+      this.resetRuntimePage("events");
       await this.reloadEvents();
     },
     syncFeedbackDraft(task) {
@@ -368,6 +463,10 @@ export default {
           this.selectedTask.tenantId || this.tenantId
         );
         this.selectedEvents = Array.isArray(events) ? events : [];
+        this.runtimePages = {
+          ...this.runtimePages,
+          events: this.clampedRuntimePage("events", this.filteredEvents.length)
+        };
       } catch (error) {
         this.error = error.message || "读取事件链路失败";
         this.selectedEvents = [];
@@ -380,6 +479,69 @@ export default {
       if (task) {
         this.selectTask(task);
       }
+    },
+    pagedRows(rows, pageKey) {
+      const items = Array.isArray(rows) ? rows : [];
+      const page = this.clampedRuntimePage(pageKey, items.length);
+      const start = (page - 1) * this.pageSize;
+      return items.slice(start, start + this.pageSize);
+    },
+    runtimePageCount(total) {
+      return Math.max(1, Math.ceil((Number(total) || 0) / this.pageSize));
+    },
+    clampedRuntimePage(pageKey, total) {
+      const page = Number(this.runtimePages[pageKey]) || 1;
+      return Math.min(Math.max(1, page), this.runtimePageCount(total));
+    },
+    runtimePageStart(pageKey, total) {
+      if (!total) {
+        return 0;
+      }
+      return (this.clampedRuntimePage(pageKey, total) - 1) * this.pageSize + 1;
+    },
+    runtimePageEnd(pageKey, total) {
+      return Math.min(this.clampedRuntimePage(pageKey, total) * this.pageSize, total);
+    },
+    runtimePageButtons(pageKey, total) {
+      const pageCount = this.runtimePageCount(total);
+      const current = this.clampedRuntimePage(pageKey, total);
+      const start = Math.max(1, Math.min(current - 2, pageCount - 4));
+      const end = Math.min(pageCount, start + 4);
+      return Array.from({ length: end - start + 1 }, (_, index) => start + index);
+    },
+    showRuntimePagination(total) {
+      return Number(total) > this.pageSize;
+    },
+    showRuntimePager(total) {
+      return Number(total) > 0;
+    },
+    goRuntimePage(pageKey, page, total) {
+      this.runtimePages = {
+        ...this.runtimePages,
+        [pageKey]: Math.min(Math.max(1, Number(page) || 1), this.runtimePageCount(total))
+      };
+    },
+    resetRuntimePage(pageKey) {
+      this.runtimePages = {
+        ...this.runtimePages,
+        [pageKey]: 1
+      };
+    },
+    clampRuntimePages() {
+      this.runtimePages = {
+        ...this.runtimePages,
+        tasks: this.clampedRuntimePage("tasks", this.filteredTasks.length),
+        agentEffects: this.clampedRuntimePage("agentEffects", this.agentEffectRows.length),
+        lowScores: this.clampedRuntimePage("lowScores", this.lowScoreTasks.length),
+        reasonMetrics: this.clampedRuntimePage("reasonMetrics", this.reasonMetrics.length),
+        experienceScenarios: this.clampedRuntimePage("experienceScenarios", this.experienceScenarios.length),
+        experienceIndexes: this.clampedRuntimePage("experienceIndexes", this.experienceIndexes.length),
+        experiences: this.clampedRuntimePage("experiences", this.experienceItems.length),
+        events: this.clampedRuntimePage("events", this.filteredEvents.length),
+        tools: this.clampedRuntimePage("tools", this.filteredTopTools.length),
+        governance: this.clampedRuntimePage("governance", this.filteredGovernanceTools.length),
+        audits: this.clampedRuntimePage("audits", this.filteredAudits.length)
+      };
     },
     isActiveTask(task) {
       const normalized = String(task?.status || "").toUpperCase();

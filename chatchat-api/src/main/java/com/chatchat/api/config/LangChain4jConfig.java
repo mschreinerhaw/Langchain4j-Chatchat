@@ -34,6 +34,9 @@ public class LangChain4jConfig {
     @ConditionalOnProperty(prefix = "chatchat.models", name = "defaultProvider", havingValue = "openai")
     public ChatModel chatLanguageModel() {
         log.info("Initializing OpenAI Chat Model");
+        if (modelsConfig.getOpenai().getApiKey() == null || modelsConfig.getOpenai().getApiKey().isBlank()) {
+            throw new IllegalStateException("OPENAI_API_KEY or chatchat.models.openai.apiKey is required");
+        }
 
         OpenAiChatModel.OpenAiChatModelBuilder builder = OpenAiChatModel.builder()
             .apiKey(modelsConfig.getOpenai().getApiKey())
@@ -41,8 +44,8 @@ public class LangChain4jConfig {
             .modelName(modelsConfig.getDefaultChatModel())
             .timeout(Duration.ofSeconds(modelsConfig.getOpenai().getTimeout()))
             .maxRetries(modelsConfig.getOpenai().getMaxRetries())
-            .logRequests(true)
-            .logResponses(true);
+            .logRequests(false)
+            .logResponses(false);
 
         HttpClientBuilder httpClientBuilder = resolveOpenAiHttpClientBuilder();
         if (httpClientBuilder != null) {

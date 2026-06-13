@@ -41,6 +41,10 @@ export default {
     documentPageRows() {
       return extractDocumentSearchPagesFromTraces(this.toolTraces);
     },
+    documentReferenceRows() {
+      const sourceRows = this.sources.map((source, index) => this.sourceToDocumentRow(source, index));
+      return this.uniqueDocumentRows([...sourceRows, ...this.documentPageRows]);
+    },
     toolTraceRows() {
       return this.toolTraces.map((trace) => ({
         ...trace,
@@ -73,6 +77,26 @@ export default {
         return "";
       }
       return trace?.errorMessage || trace?.error || trace?.message || "";
+    },
+    sourceToDocumentRow(source = {}, index = 0) {
+      return {
+        rank: source.rank || index + 1,
+        docId: source.docId || source.documentId || source.id || "",
+        title: source.source || source.title || source.name || "引用文档",
+        url: this.sourceUrl(source),
+        snippet: source.snippet || source.content || source.summary || ""
+      };
+    },
+    uniqueDocumentRows(rows = []) {
+      const seen = new Set();
+      return rows.filter((row) => {
+        const key = row.docId || row.url || `${row.rank}:${row.title}:${row.snippet}`;
+        if (seen.has(key)) {
+          return false;
+        }
+        seen.add(key);
+        return true;
+      });
     },
     sourceUrl(source) {
       const value = source?.url || source?.link || source?.href || source?.sourceUrl;

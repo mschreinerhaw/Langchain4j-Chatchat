@@ -1,50 +1,31 @@
 <template>
   <section v-if="hasDetails" class="response-references" :class="{ compact }">
-    <details v-if="sources.length" :open="compact">
-      <summary>内部文档来源（{{ sources.length }}）</summary>
-      <article v-for="source in sources" :key="source.rank + source.source" class="reference-row">
-        <strong>
-          <span class="reference-badge">文档 {{ source.rank || "-" }}</span>
-          <a
-            v-if="sourceUrl(source)"
-            :href="sourceUrl(source)"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            {{ source.source || source.title || "来源" }}
-          </a>
-          <span v-else>{{ source.source || source.title || "来源" }}</span>
-        </strong>
-        <p>{{ source.snippet || source.content || "暂无摘要" }}</p>
-      </article>
-    </details>
-
-    <details v-if="documentPageRows.length" :open="compact">
-      <summary>引用文档（{{ documentPageRows.length }}）</summary>
+    <details v-if="documentReferenceRows.length">
+      <summary>引用文档（{{ documentReferenceRows.length }}）</summary>
       <article
-        v-for="(page, index) in documentPageRows"
-        :key="page.docId + page.url + page.title + index"
+        v-for="(source, index) in documentReferenceRows"
+        :key="source.docId + source.url + source.title + index"
         class="reference-row document-reference-row"
       >
         <strong>
-          <span class="reference-badge">文档 {{ page.rank || index + 1 }}</span>
+          <span class="reference-badge">文档 {{ source.rank || index + 1 }}</span>
           <a
-            v-if="page.url"
-            :href="page.url"
+            v-if="source.url"
+            :href="source.url"
             target="_blank"
             rel="noopener noreferrer"
           >
-            {{ page.title || page.docId || "引用文档" }}
+            {{ source.title || source.docId || "引用文档" }}
           </a>
-          <span v-else>{{ page.title || page.docId || "引用文档" }}</span>
+          <span v-else>{{ source.title || source.docId || "引用文档" }}</span>
         </strong>
-        <small v-if="page.docId">{{ page.docId }}</small>
-        <small v-else-if="page.url">{{ displayUrl(page.url) }}</small>
-        <p>{{ page.snippet || "暂无摘要" }}</p>
+        <small v-if="source.docId">{{ source.docId }}</small>
+        <small v-else-if="source.url">{{ displayUrl(source.url) }}</small>
+        <p>{{ source.snippet || "暂无摘要" }}</p>
       </article>
     </details>
 
-    <details v-if="webPageRows.length" :open="compact">
+    <details v-if="webPageRows.length">
       <summary>网络搜索引用（{{ webPageRows.length }}）</summary>
       <article v-for="(page, index) in webPageRows" :key="page.rank + page.url + page.title" class="reference-row web-reference-row">
         <strong>
@@ -64,7 +45,7 @@
       </article>
     </details>
 
-    <details v-if="toolTraceRows.length" :open="compact && !webPageRows.length">
+    <details v-if="toolTraceRows.length">
       <summary>调用工具</summary>
       <article v-for="trace in toolTraceRows" :key="trace.toolName + trace.startedAt" class="reference-row">
         <strong>{{ trace.displayName || trace.toolName || "工具调用" }}</strong>

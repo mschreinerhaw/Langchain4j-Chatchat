@@ -14,7 +14,7 @@ public class ChatChatMcpServerProperties {
     private String version = "1.0.0-SNAPSHOT";
     private String endpoint = "/mcp";
     private boolean exposeAgentCompatibleOnly = true;
-    private Set<String> excludedToolNames = new LinkedHashSet<>(Set.of("web_search"));
+    private Set<String> excludedToolNames = new LinkedHashSet<>();
     private String instructions = "ChatChat standalone MCP server exposing LangChain4j-compatible tools.";
     private ConcurrencyProperties concurrency = new ConcurrencyProperties();
 

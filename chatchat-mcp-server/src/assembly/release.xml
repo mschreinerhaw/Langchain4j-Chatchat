@@ -31,7 +31,8 @@
             <directory>${project.basedir}/src/main/distribution/config</directory>
             <outputDirectory>/config</outputDirectory>
             <includes>
-                <include>application.yml</include>
+                <include>*.yml</include>
+                <include>*.properties</include>
             </includes>
         </fileSet>
         <fileSet>

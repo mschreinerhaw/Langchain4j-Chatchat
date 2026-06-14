@@ -151,6 +151,37 @@ chatchat:
       # Include raw HTML in cached page records for debugging and reprocessing.
       include-html: true
       accept-language: en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7
+      # Default crawl_url mode: java = JSoup HTTP with browser-like headers, browser = Playwright Chromium, auto = browser when enabled.
+      default-mode: java
+      browser:
+        enabled: true
+        browsers-path: ${PLAYWRIGHT_BROWSERS_PATH:playwright-browsers}
+        skip-browser-download: ${PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD:false}
+        navigation-timeout-ms: 0
+        accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8
+        accept-language: en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7
+        referer:
+      proxy-pool:
+        # Shared crawler proxy pool. Supports HTTP and SOCKS/SOCKS5; username/password are optional.
+        enabled: false
+        default-pool: default
+        proxies: []
+        # Example:
+        # proxies:
+        #   - id: proxy-a
+        #     pool: default
+        #     type: HTTP
+        #     host: 127.0.0.1
+        #     port: 7890
+        #     username:
+        #     password:
+        #   - id: proxy-b
+        #     pool: search
+        #     type: SOCKS5
+        #     host: 127.0.0.1
+        #     port: 1080
+        #     tenant-ids: [tenant-a]
+        #     task-ids: [task-a]
     livedata:
       # Enables the admin page to list and manually register LiveData APIs. Startup auto-sync is disabled.
       enabled: false
@@ -227,8 +258,12 @@ chatchat:
       page-excerpt-chars: 2500
       page-max-bytes: 1048576
       fallback-enabled: true
+      default-mode: java
+      browser-fallback-to-java: true
       site-search:
         enabled: true
+        default-mode: java
+        browser-fallback-to-java: true
         max-pages-to-inspect: 3
         max-secondary-pages: 3
         max-links-per-page: 5
@@ -242,9 +277,27 @@ chatchat:
         referer: https://www.bing.com/
         tls-fingerprint-profile: jdk-default
       proxy-pool:
+        # Used by web_search and web_site_search in both Java and browser modes.
+        # Supports HTTP and SOCKS/SOCKS5; username/password are optional.
         enabled: false
         default-pool: default
         proxies: []
+        # Example:
+        # proxies:
+        #   - id: proxy-a
+        #     pool: default
+        #     type: HTTP
+        #     host: 127.0.0.1
+        #     port: 7890
+        #     username:
+        #     password:
+        #   - id: proxy-b
+        #     pool: search
+        #     type: SOCKS5
+        #     host: 127.0.0.1
+        #     port: 1080
+        #     tenant-ids: [tenant-a]
+        #     task-ids: [task-a]
       retry:
         max-attempts: 3
         backoff-ms: 500

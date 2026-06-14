@@ -32,6 +32,7 @@ public class DefaultAgentAnswerReviewer implements AgentAnswerReviewer {
         }
 
         String raw = chatModel.chat(buildPrompt(query, systemPrompt, observations, answer));
+        log.info("agentModelRawOutput phase=review raw=\n{}", raw == null ? "" : raw);
         try {
             @SuppressWarnings("unchecked")
             Map<String, Object> payload = objectMapper.readValue(extractJson(raw), Map.class);

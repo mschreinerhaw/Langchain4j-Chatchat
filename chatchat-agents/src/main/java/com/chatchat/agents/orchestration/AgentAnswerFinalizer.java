@@ -156,6 +156,9 @@ class AgentAnswerFinalizer {
             firstNonBlank(runId, ""),
             System.currentTimeMillis() - startedAt,
             answer == null ? 0 : answer.length());
+        log.info("agentModelOutput phase=summary runId={} answer=\n{}",
+            firstNonBlank(runId, ""),
+            answer == null ? "" : answer);
         return answer;
     }
 
@@ -186,6 +189,10 @@ class AgentAnswerFinalizer {
             System.currentTimeMillis() - startedAt,
             review == null ? null : review.status(),
             review == null || review.answer() == null ? 0 : review.answer().length());
+        log.info("agentModelOutput phase=review runId={} status={} answer=\n{}",
+            firstNonBlank(runId, ""),
+            review == null ? null : review.status(),
+            review == null || review.answer() == null ? "" : review.answer());
         if (review != null && AgentAnswerReview.REJECTED.equals(review.status())) {
             log.warn("agentModelReviewRejected runId={} feedback={}",
                 firstNonBlank(runId, ""),

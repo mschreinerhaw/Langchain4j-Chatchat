@@ -650,6 +650,7 @@ public class AgentTaskService {
                     confirmationEvent.setLatencyMs(response.getLatencyMs());
                     confirmationEvent.setCreateTime(resolveAnswerTime(response, modelFinishedAt));
                     eventStore.save(confirmationEvent);
+                    logAgentTaskEvent("confirmation", confirmationEvent);
                     updateLatest(question.getTaskId(), "WAIT_CONFIRMATION", null, "Agent task is waiting for MCP confirmation");
                     eventBus.publishResult(confirmationEvent);
 
@@ -667,6 +668,7 @@ public class AgentTaskService {
                 resultEvent.setLatencyMs(response.getLatencyMs());
                 resultEvent.setCreateTime(resolveAnswerTime(response, modelFinishedAt));
                 eventStore.save(resultEvent);
+                logAgentTaskEvent("result", resultEvent);
                 Map<String, Object> completePayload = new LinkedHashMap<>();
                 completePayload.put("message", resultContract.completeMessage());
                 completePayload.put("mode", response.getMode());
@@ -678,6 +680,7 @@ public class AgentTaskService {
                 completeEvent.setParentEventId(resultEvent.getEventId());
                 completeEvent.setCreateTime(Math.max(resultEvent.getCreateTime(), System.currentTimeMillis()));
                 eventStore.save(completeEvent);
+                logAgentTaskEvent("complete", completeEvent);
                 updateLatest(question.getTaskId(), resultContract.status(), summarize(resultContract.answerSummary()), null);
                 eventBus.publishResult(resultEvent);
                 return;
@@ -693,6 +696,7 @@ public class AgentTaskService {
                 cancelledEvent.setSequence(nextSequence(question));
                 cancelledEvent.setParentEventId(question.getEventId());
                 eventStore.save(cancelledEvent);
+                logAgentTaskEvent("cancelled", cancelledEvent);
                 eventBus.publishResult(cancelledEvent);
             }
         } catch (Exception ex) {
@@ -705,6 +709,7 @@ public class AgentTaskService {
             errorEvent.setParentEventId(question.getEventId());
             errorEvent.setErrorCode(ex.getClass().getSimpleName());
             eventStore.save(errorEvent);
+            logAgentTaskEvent("error", errorEvent);
             AgentEvent completeEvent = copyEvent(question, "COMPLETE", "FAILED", writePayload(Map.of(
                 "message", "Agent task failed",
                 "error", message
@@ -714,6 +719,7 @@ public class AgentTaskService {
             completeEvent.setErrorCode(ex.getClass().getSimpleName());
             completeEvent.setCreateTime(Math.max(errorEvent.getCreateTime(), System.currentTimeMillis()));
             eventStore.save(completeEvent);
+            logAgentTaskEvent("complete", completeEvent);
             updateLatest(question.getTaskId(), "FAILED", null, message);
             eventBus.publishResult(errorEvent);
         } finally {
@@ -1104,6 +1110,7 @@ public class AgentTaskService {
         thinkEvent.setLatencyMs(Math.max(0L, modelFinishedAt - modelStartedAt));
         thinkEvent.setCreateTime(modelStartedAt);
         eventStore.save(thinkEvent);
+        logAgentTaskEvent("think", thinkEvent);
     }
 
     /**
@@ -1131,6 +1138,7 @@ public class AgentTaskService {
             planEvent.setToolName(stringValue(step.get("toolName")));
             planEvent.setCreateTime(plannedAt);
             eventStore.save(planEvent);
+            logAgentTaskEvent("plan", planEvent);
 
             String reason = stringValue(step.get("reason"));
             String preview = stringValue(step.get("answerPreview"));
@@ -1146,6 +1154,7 @@ public class AgentTaskService {
                 thinkEvent.setToolName(stringValue(step.get("toolName")));
                 thinkEvent.setCreateTime(plannedAt);
                 eventStore.save(thinkEvent);
+                logAgentTaskEvent("planner_think", thinkEvent);
             }
         }
     }
@@ -1171,6 +1180,7 @@ public class AgentTaskService {
             waitToolEvent.setToolName(trace.getToolName());
             waitToolEvent.setCreateTime(startedAt);
             eventStore.save(waitToolEvent);
+            logAgentTaskEvent("wait_tool", waitToolEvent);
 
             Map<String, Object> toolCallPayload = new LinkedHashMap<>();
             toolCallPayload.put("toolName", trace.getToolName());
@@ -1185,6 +1195,7 @@ public class AgentTaskService {
             toolCallEvent.setToolName(trace.getToolName());
             toolCallEvent.setCreateTime(startedAt);
             eventStore.save(toolCallEvent);
+            logAgentTaskEvent("tool_call", toolCallEvent);
 
             Map<String, Object> toolResultPayload = new LinkedHashMap<>();
             toolResultPayload.put("toolName", trace.getToolName());
@@ -1206,6 +1217,7 @@ public class AgentTaskService {
             toolResultEvent.setErrorCode(trace.isSuccess() ? null : "TOOL_EXECUTION_FAILED");
             toolResultEvent.setCreateTime(finishedAt);
             eventStore.save(toolResultEvent);
+            logAgentTaskEvent("tool_result", toolResultEvent);
         }
     }
 
@@ -1634,6 +1646,23 @@ public class AgentTaskService {
      */
     private String stringValue(Object value) {
         return value == null ? null : String.valueOf(value);
+    }
+
+    private void logAgentTaskEvent(String phase, AgentEvent event) {
+        if (event == null) {
+            return;
+        }
+        log.info("agentTaskStepLog phase={} taskId={} tenantId={} sessionId={} sequence={} type={} status={} toolName={} latencyMs={} payload=\n{}",
+            phase,
+            event.getTaskId(),
+            event.getTenantId(),
+            event.getSessionId(),
+            event.getSequence(),
+            event.getType(),
+            event.getStatus(),
+            event.getToolName(),
+            event.getLatencyMs(),
+            event.getPayload() == null ? "" : event.getPayload());
     }
 
     /**

@@ -1,4 +1,4 @@
-import { Bot, FileText, Globe, ImagePlus, Send, Trash2, Upload, XCircle } from "@lucide/vue";
+﻿import { Bot, FileText, Globe, ImagePlus, Send, Trash2, Upload, XCircle } from "@lucide/vue";
 
 export default {
   name: "PromptComposer",
@@ -37,6 +37,10 @@ export default {
       type: Boolean,
       default: false
     },
+    defaultModelName: {
+      type: String,
+      default: ""
+    },
     showSuggestions: {
       type: Boolean,
       default: true
@@ -58,8 +62,8 @@ export default {
       return [
         {
           id: "",
-          name: "通用对话",
-          description: "不绑定 Agent 设置",
+          name: this.defaultModelName || "通用对话",
+          description: this.defaultModelName ? "默认模型" : "不绑定 Agent 设置",
           documentWorkflow: false
         },
         ...this.agents
@@ -75,9 +79,9 @@ export default {
     },
     agentSelectLabel() {
       if (this.agentsLoading) {
-        return "加载Agent";
+        return "鍔犺浇Agent";
       }
-      return this.selectedAgent?.name || "通用对话";
+      return this.selectedAgent?.name || "閫氱敤瀵硅瘽";
     },
     documentWorkflowActive() {
       return !!this.selectedAgent?.documentWorkflow;

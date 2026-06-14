@@ -1,5 +1,4 @@
-import "../../styles/pages/skill-hub.css";
-import AgentRuntimeView from "../../views/AgentRuntimeView.vue";
+﻿import "../../styles/pages/skill-hub.css";
 import {
   Activity,
   Database,
@@ -21,21 +20,18 @@ import {
   fetchAgentRuntimeSummary,
   fetchAgentRuntimeToolAudits,
   fetchAgentTaskEvents,
-  fetchGenericAgentRuntimeSnapshot,
   fetchToolGovernance,
   submitAgentTaskFeedback,
   updateConversationHistoryStatus
 } from "../../services/api";
 import { notifyAgentTaskCancelled } from "../utils/agentTaskEvents";
 
-const AGENT_RUNS_TAB = "agent-runs";
 const DEFAULT_RUNTIME_PAGE_SIZE = 10;
 
 export default {
   name: "TasksView",
   components: {
     Activity,
-    AgentRuntimeView,
     Database,
     GitBranch,
     Layers,
@@ -60,7 +56,7 @@ export default {
       eventsLoading: false,
       error: "",
       tenantId: this.userId || "",
-      activeTab: AGENT_RUNS_TAB,
+      activeTab: "tasks",
       effectActiveTab: "agents",
       experienceActiveTab: "scenarios",
       taskSearchQuery: "",
@@ -91,7 +87,6 @@ export default {
       effectAnalytics: null,
       experienceSummary: null,
       toolGovernance: null,
-      genericRuntimeSnapshot: null,
       legacyRuntimeLoaded: false,
       recentToolAudits: [],
       selectedTask: null,
@@ -121,8 +116,7 @@ export default {
   computed: {
     tabs() {
       return [
-        { key: "agent-runs", label: "Runs", icon: Layers, count: this.genericRuntimeSnapshot?.totalRuns || 0 },
-        { key: "tasks", label: "任务", icon: Layers, count: this.tasks.length },
+        { key: "tasks", label: "任务", icon: ListFilter, count: this.tasks.length },
         { key: "effects", label: "效果", icon: Activity, count: this.lowScoreTasks.length },
         { key: "experiences", label: "经验", icon: GitBranch, count: this.experienceItems.length },
         { key: "events", label: "事件", icon: Database, count: this.filteredEvents.length },
@@ -358,19 +352,7 @@ export default {
   },
   methods: {
     async loadRuntime() {
-      if (this.activeTab === AGENT_RUNS_TAB) {
-        await this.loadGenericRuntimeSnapshot();
-        return;
-      }
       await this.loadLegacyRuntime();
-    },
-    async loadGenericRuntimeSnapshot() {
-      try {
-        const genericSnapshot = await fetchGenericAgentRuntimeSnapshot();
-        this.genericRuntimeSnapshot = genericSnapshot || {};
-      } catch (error) {
-        this.genericRuntimeSnapshot = this.genericRuntimeSnapshot || {};
-      }
     },
     async loadLegacyRuntime() {
       this.loading = true;
@@ -417,7 +399,7 @@ export default {
           this.selectedEvents = [];
         }
       } catch (error) {
-        this.error = error.message || "加载运行监控失败";
+        this.error = error.message || "鍔犺浇杩愯鐩戞帶澶辫触";
       } finally {
         this.loading = false;
       }
@@ -425,9 +407,7 @@ export default {
     activateTab(key) {
       this.activeTab = key;
       this.error = "";
-      if (key === AGENT_RUNS_TAB) {
-        this.loadGenericRuntimeSnapshot();
-      } else if (!this.legacyRuntimeLoaded) {
+      if (!this.legacyRuntimeLoaded) {
         this.loadLegacyRuntime();
       }
     },
@@ -468,7 +448,7 @@ export default {
           events: this.clampedRuntimePage("events", this.filteredEvents.length)
         };
       } catch (error) {
-        this.error = error.message || "读取事件链路失败";
+        this.error = error.message || "璇诲彇浜嬩欢閾捐矾澶辫触";
         this.selectedEvents = [];
       } finally {
         this.eventsLoading = false;
@@ -574,7 +554,7 @@ export default {
           await this.reloadEvents();
         }
       } catch (error) {
-        this.error = error.message || "停止任务失败";
+        this.error = error.message || "鍋滄浠诲姟澶辫触";
       } finally {
         const next = { ...this.cancellingTaskIds };
         delete next[task.taskId];
@@ -605,7 +585,7 @@ export default {
         await this.reloadEvents();
         await this.loadRuntime();
       } catch (error) {
-        this.error = error.message || "记录任务反馈失败";
+        this.error = error.message || "璁板綍浠诲姟鍙嶉澶辫触";
       } finally {
         this.feedbackSubmitting = false;
       }
@@ -701,20 +681,20 @@ export default {
       const normalized = String(value || "").toLowerCase();
       return (
         {
-          success: "通过",
-          denied: "拒绝",
-          failed: "失败",
-          rate_limited: "限流",
-          circuit_open: "熔断"
-        }[normalized] || (normalized ? normalized.replaceAll("_", " ") : "未知")
+          success: "閫氳繃",
+          denied: "鎷掔粷",
+          failed: "澶辫触",
+          rate_limited: "闄愭祦",
+          circuit_open: "鐔旀柇"
+        }[normalized] || (normalized ? normalized.replaceAll("_", " ") : "鏈煡")
       );
     },
     formatToolHealth(value) {
       return (
         {
-          healthy: "稳定",
-          problem: "异常"
-        }[value] || "全部"
+          healthy: "绋冲畾",
+          problem: "寮傚父"
+        }[value] || "鍏ㄩ儴"
       );
     },
     toolHealth(tool) {

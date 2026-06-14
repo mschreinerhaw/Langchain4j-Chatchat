@@ -41,7 +41,16 @@ public class InterpretationPlanRewriter {
             return RewriteResult.failed("ChatModel is required for plan rewriting", null, null);
         }
         String prompt = buildRewritePrompt(request);
+        long startedAt = System.currentTimeMillis();
+        log.info("agentModelRequest phase=interpretation_plan_rewrite promptChars={} observationCount={} availableToolCount={}",
+            prompt.length(),
+            request.observations() == null ? 0 : request.observations().size(),
+            request.availableTools() == null ? 0 : request.availableTools().size());
         String raw = chatModel.chat(prompt);
+        log.info("agentModelResponse phase=interpretation_plan_rewrite durationMs={} responseChars={}",
+            System.currentTimeMillis() - startedAt,
+            raw == null ? 0 : raw.length());
+        log.info("agentModelRawOutput phase=interpretation_plan_rewrite raw=\n{}", raw == null ? "" : raw);
         try {
             InterpretationPlan rewrittenPlan = objectMapper.readValue(extractJson(raw), InterpretationPlan.class);
             InterpretationPlanValidator.ValidationResult validation = validator.validate(

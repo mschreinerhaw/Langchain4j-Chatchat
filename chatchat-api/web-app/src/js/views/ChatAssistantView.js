@@ -726,6 +726,7 @@ export default {
       lastResponse: { ...EMPTY_RESPONSE },
       suggestions: [],
       agents: [],
+      defaultModelName: "",
       appliedDraftId: "",
       agentsLoading: false,
       selectedAgentId: "",
@@ -949,7 +950,7 @@ export default {
         userId: this.userId,
         mode: this.selectedAgentId || payload?.webSearch ? "agent_chat" : "llm_chat",
         skillId: this.selectedAgentId || undefined,
-        modelName: this.selectedAgent?.modelName || undefined,
+        modelName: this.selectedAgent?.modelName || this.defaultModelName || undefined,
         query,
         maxResults: 10,
         historyWindow: 8,
@@ -1607,6 +1608,8 @@ export default {
       this.agentsLoading = true;
       try {
         const payload = await fetchAgentWorkshop({ status: "published" });
+        const models = Array.isArray(payload?.models) ? payload.models : [];
+        this.defaultModelName = this.defaultModelFromOptions(models);
         const agents = Array.isArray(payload?.agents) ? payload.agents : [];
         this.agents = agents
           .filter((agent) => agent?.id && agent.marketStatus === "published")
@@ -1616,10 +1619,27 @@ export default {
         if (this.selectedAgentId && !this.agents.some((agent) => agent.id === this.selectedAgentId)) {
           this.selectedAgentId = "";
         }
+        this.selectDefaultAgentForNewConversation();
       } catch (error) {
         this.errorMessage = error.message || "Agent列表加载失败";
       } finally {
         this.agentsLoading = false;
+      }
+    },
+    defaultModelFromOptions(models) {
+      const first = models.find((model) => {
+        const value = typeof model === "string" ? model : model?.value;
+        return value && String(value).trim();
+      });
+      return String(typeof first === "string" ? first : first?.value || "").trim();
+    },
+    selectDefaultAgentForNewConversation() {
+      if (this.selectedAgentId || this.historyId || this.hasConversation) {
+        return;
+      }
+      const defaultAgent = this.agents.find((agent) => agent?.defaultAgent);
+      if (defaultAgent?.id) {
+        this.selectedAgentId = defaultAgent.id;
       }
     },
     handleUpload() {

@@ -8,6 +8,7 @@ import com.chatchat.chat.interaction.service.ConversationMemoryService;
 import com.chatchat.chat.interaction.service.InteractionModeHandler;
 import dev.langchain4j.model.chat.ChatModel;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.util.stream.Collectors;
@@ -17,6 +18,7 @@ import java.util.stream.Collectors;
  */
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class LlmChatModeHandler implements InteractionModeHandler {
 
     private final ChatModel chatLanguageModel;
@@ -41,7 +43,19 @@ public class LlmChatModeHandler implements InteractionModeHandler {
     @Override
     public InteractionResponse handle(InteractionRequest request, InteractionContext context) {
         String prompt = buildPrompt(request, context);
+        long startedAt = System.currentTimeMillis();
+        log.info("llmChatModelRequest requestId={} conversationId={} promptChars={} historyUsed={}",
+            context.requestId(),
+            context.conversationId(),
+            prompt.length(),
+            context.history().size());
         String answer = chatLanguageModel.chat(prompt);
+        log.info("llmChatModelOutput requestId={} conversationId={} durationMs={} answerChars={} answer=\n{}",
+            context.requestId(),
+            context.conversationId(),
+            System.currentTimeMillis() - startedAt,
+            answer == null ? 0 : answer.length(),
+            answer == null ? "" : answer);
 
         return InteractionResponse.builder()
             .answer(answer)

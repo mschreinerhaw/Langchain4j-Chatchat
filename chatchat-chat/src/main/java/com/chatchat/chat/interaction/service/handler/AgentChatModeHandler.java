@@ -15,6 +15,8 @@ import com.chatchat.chat.skills.SkillCatalogService;
 import com.chatchat.chat.skills.SkillDefinition;
 import com.chatchat.chat.skills.SkillToolConfig;
 import com.chatchat.chat.task.AgentLearningService;
+import com.chatchat.common.interaction.InteractionToolTrace;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -27,6 +29,7 @@ import java.util.stream.Collectors;
  * Agent interaction handler with tool orchestration.
  */
 @Component
+@Slf4j
 public class AgentChatModeHandler implements InteractionModeHandler {
 
     private static final int WEB_SEARCH_REFERENCE_LIMIT = 10;
@@ -102,6 +105,7 @@ public class AgentChatModeHandler implements InteractionModeHandler {
             modelName,
             runtimeAttributes
         );
+        logAgentRunOutput(context, request, result);
 
         Map<String, Object> metadata = new LinkedHashMap<>();
         metadata.put("availableTools", toolPolicy.availableTools());
@@ -365,5 +369,55 @@ public class AgentChatModeHandler implements InteractionModeHandler {
             return fallback;
         }
         return String.valueOf(value).trim();
+    }
+
+    @SuppressWarnings("unchecked")
+    private void logAgentRunOutput(InteractionContext context, InteractionRequest request, AgentRunResult result) {
+        Map<String, Object> metadata = result == null || result.metadata() == null ? Map.of() : result.metadata();
+        Object plannerSteps = metadata.get("plannerSteps");
+        if (plannerSteps instanceof List<?> steps) {
+            for (Object item : steps) {
+                if (!(item instanceof Map<?, ?> rawStep)) {
+                    continue;
+                }
+                Map<String, Object> step = (Map<String, Object>) rawStep;
+                log.info("agentStepOutput requestId={} conversationId={} runId={} step={} action={} toolName={} reason={} answerPreview={} observationCount={}",
+                    context.requestId(),
+                    context.conversationId(),
+                    result == null ? null : result.runId(),
+                    step.get("step"),
+                    step.get("action"),
+                    firstPresent(step.get("resolvedToolName"), step.get("toolName")),
+                    step.get("reason"),
+                    step.get("answerPreview"),
+                    step.get("observationCount"));
+            }
+        }
+        List<InteractionToolTrace> traces = result == null || result.toolTraces() == null ? List.of() : result.toolTraces();
+        for (InteractionToolTrace trace : traces) {
+            log.info("agentToolOutput requestId={} conversationId={} runId={} toolName={} success={} durationMs={} input={} output={} error={}",
+                context.requestId(),
+                context.conversationId(),
+                result.runId(),
+                trace.getToolName(),
+                trace.isSuccess(),
+                trace.getDurationMs(),
+                trace.getInput(),
+                trace.getOutput(),
+                trace.getErrorMessage());
+        }
+        log.info("agentFinalOutput requestId={} conversationId={} runId={} modelName={} status={} stopReason={} answerChars={} answer=\n{}",
+            context.requestId(),
+            context.conversationId(),
+            result == null ? null : result.runId(),
+            request.getModelName(),
+            result == null ? null : result.status(),
+            result == null ? null : result.stopReason(),
+            result == null || result.answer() == null ? 0 : result.answer().length(),
+            result == null || result.answer() == null ? "" : result.answer());
+    }
+
+    private Object firstPresent(Object first, Object second) {
+        return first == null ? second : first;
     }
 }

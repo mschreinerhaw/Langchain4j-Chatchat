@@ -86,6 +86,7 @@
         v-model:selected-agent-id="selectedAgentId"
         :agents="agents"
         :agents-loading="agentsLoading"
+        :default-model-name="defaultModelName"
         :suggestions="activeSuggestions"
         :loading="composerBusy"
         :stop-available="canKillActiveRun"

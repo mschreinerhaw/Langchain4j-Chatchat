@@ -1014,6 +1014,10 @@ public class AgentOrchestrator {
             stage,
             System.currentTimeMillis() - startedAt,
             answer == null ? 0 : answer.length());
+        log.info("agentModelOutput phase=interpretation_plan_summary runId={} stage={} answer=\n{}",
+            firstNonBlank(runId, ""),
+            stage,
+            answer == null ? "" : answer);
         if (metadata != null) {
             metadata.put("interpretationPlanSummaryGenerated", true);
             metadata.put("interpretationPlanSummaryStage", stage);
@@ -1155,6 +1159,13 @@ public class AgentOrchestrator {
             request.maxAttempts(),
             System.currentTimeMillis() - startedAt,
             raw == null ? 0 : raw.length());
+        log.info("agentModelRawOutput phase=tool_result_review runId={} stepId={} tool={} attempt={}/{} raw=\n{}",
+            firstNonBlank(runId, ""),
+            request.step() == null ? null : request.step().id(),
+            request.execution().toolName(),
+            request.attempt(),
+            request.maxAttempts(),
+            raw == null ? "" : raw);
         Map<String, Object> payload = parseJsonObject(raw);
         if (payload.isEmpty()) {
             return InterpretationPlanRuntime.StepReview.rejected(

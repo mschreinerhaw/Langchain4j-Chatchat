@@ -303,7 +303,9 @@ public class ToolRuntimeService {
             return output;
         }
         try {
-            ToolOutput output = future.get(timeoutMs, TimeUnit.MILLISECONDS);
+            ToolOutput output = timeoutMs <= 0
+                ? future.get()
+                : future.get(timeoutMs, TimeUnit.MILLISECONDS);
             return output == null ? ToolOutput.failure("Tool returned no output: " + toolName) : output;
         } catch (TimeoutException ex) {
             future.cancel(true);
@@ -325,22 +327,48 @@ public class ToolRuntimeService {
     }
 
     private long resolveToolTimeoutMs(ToolRuntimeRequest request, ToolRuntimePolicy policy, ToolMetadata metadata) {
+        String toolName = request == null ? null : request.getToolName();
+        if (isMcpTool(toolName, metadata)) {
+            return 0L;
+        }
         Object value = firstPresent(
             request == null || request.getAttributes() == null ? null : request.getAttributes().get("toolTimeoutMs"),
             policy == null || policy.attributes() == null ? null : policy.attributes().get("toolTimeoutMs"),
             metadata == null ? null : metadata.getTimeoutMillis()
         );
         if (value instanceof Number number) {
-            return Math.max(1L, number.longValue());
+            return number.longValue();
         }
         if (value != null) {
             try {
-                return Math.max(1L, Long.parseLong(String.valueOf(value)));
+                return Long.parseLong(String.valueOf(value));
             } catch (NumberFormatException ignored) {
                 return properties.safeDefaultToolTimeoutMs();
             }
         }
         return properties.safeDefaultToolTimeoutMs();
+    }
+
+    private boolean isMcpTool(String toolName, ToolMetadata metadata) {
+        String normalized = normalizePolicyKey(firstText(toolName, metadata == null ? null : metadata.getId()));
+        if (normalized.startsWith("mcp_")) {
+            return true;
+        }
+        if (metadata != null) {
+            if (metadata.getCategories() != null && metadata.getCategories().stream()
+                .anyMatch(category -> "mcp".equalsIgnoreCase(String.valueOf(category)))) {
+                return true;
+            }
+            if (metadata.getTags() != null && metadata.getTags().stream()
+                .anyMatch(tag -> "mcp".equalsIgnoreCase(String.valueOf(tag)))) {
+                return true;
+            }
+        }
+        return normalized.contains("web_search")
+            || normalized.contains("document_search")
+            || normalized.contains("crawl_url")
+            || normalized.contains("retrieve_evidence")
+            || normalized.contains("search_and_extract");
     }
 
     /**
@@ -1939,10 +1967,44 @@ public class ToolRuntimeService {
         String tenant = normalizeText(request == null ? null : request.getTenantId());
         String user = normalizeText(request == null ? null : request.getUserId());
         String conversation = normalizeText(request == null ? null : request.getConversationId());
-        String requestId = normalizeText(request == null ? null : request.getRequestId());
-        String scope = firstText(conversation, firstText(requestId, "adhoc"));
+        String scope = firstText(workflowRunScope(request), firstText(conversation, "adhoc"));
         return firstText(tenant, "default") + "::" + firstText(user, "anonymous")
             + "::" + scope + "::" + firstText(workflowName, "global");
+    }
+
+    private String workflowRunScope(ToolRuntimeRequest request) {
+        if (request == null) {
+            return null;
+        }
+        Map<String, Object> attributes = request.getAttributes();
+        Object attributeScope = firstPresent(
+            attributes == null ? null : attributes.get("agentRunId"),
+            attributes == null ? null : attributes.get("__agentRunId"),
+            attributes == null ? null : attributes.get("taskId"),
+            attributes == null ? null : attributes.get("agentTaskId"),
+            attributes == null ? null : attributes.get("__agentTaskId"),
+            attributes == null ? null : attributes.get("runId"),
+            attributes == null ? null : attributes.get("workflowRunId")
+        );
+        String scoped = normalizeText(stringValue(attributeScope));
+        if (scoped != null) {
+            return scoped;
+        }
+        Map<String, Object> parameters = request.getToolInput() == null ? null : request.getToolInput().getParameters();
+        Object parameterScope = firstPresent(
+            parameters == null ? null : parameters.get("__agentRunId"),
+            parameters == null ? null : parameters.get("agentRunId"),
+            parameters == null ? null : parameters.get("__agentTaskId"),
+            parameters == null ? null : parameters.get("agentTaskId"),
+            parameters == null ? null : parameters.get("taskId"),
+            parameters == null ? null : parameters.get("runId"),
+            parameters == null ? null : parameters.get("workflowRunId")
+        );
+        scoped = normalizeText(stringValue(parameterScope));
+        if (scoped != null) {
+            return scoped;
+        }
+        return normalizeText(request.getRequestId());
     }
 
     /**

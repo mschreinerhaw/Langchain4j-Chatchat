@@ -8,4 +8,5 @@ public record AgentAnswerReview(
 
     public static final String ACCEPTED = "accepted";
     public static final String REVISED = "revised";
+    public static final String REJECTED = "rejected";
 }

@@ -80,7 +80,7 @@ public class McpServiceConfig {
     private boolean enabled = true;
 
     @Column(nullable = false)
-    private int timeoutMs = 20000;
+    private int timeoutMs = 0;
 
     @Column(nullable = false)
     private Instant createdAt;

@@ -9,6 +9,7 @@ target/
 /data/
 /h2/
 /logs/
+**/config/env.local
 /chatchat-api/data/
 /chatchat-api/h2/
 /chatchat-api/logs/

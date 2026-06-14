@@ -302,17 +302,19 @@ class AgentOrchestratorTest {
     }
 
     @Test
-    void plannerSufficientSignalAllowsFinalBeforeNonWorkflowRequiredTool() {
+    void requiredToolCannotBeSkippedByPlannerSufficientSignal() {
         QueueChatModel chatModel = new QueueChatModel(
-            "{\"action\":\"final\",\"answer\":\"The existing context is enough.\",\"reason\":\"No extra lookup needed\",\"sufficient\":true}",
-            "{\"accepted\":true,\"feedback\":\"The answer is sufficiently grounded.\",\"revisedAnswer\":\"\"}"
+            interpretationPlan("Use the required document evidence.", "document_search"),
+            "{\"accepted\":true,\"feedback\":\"The answer uses the required tool.\",\"revisedAnswer\":\"\"}"
         );
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool("document_search")).thenReturn(true);
         when(toolRegistry.getToolMetadata("document_search")).thenReturn(ToolMetadata.builder()
             .id("document_search")
             .title("Document Search")
             .description("Search internal documents")
             .build());
+        when(toolRegistry.executeEnhancedTool(eq("document_search"), any())).thenReturn(documentSearchOutput());
         ToolRuntimeService toolRuntimeService = new ToolRuntimeService(
             toolRegistry,
             new ObjectMapper(),
@@ -346,13 +348,15 @@ class AgentOrchestratorTest {
             Map.of()
         );
 
-        assertThat(result.answer()).isEqualTo("The existing context is enough.");
-        assertThat(result.toolTraces()).isEmpty();
+        assertThat(result.answer()).isEqualTo("Use the required document evidence.");
+        assertThat(result.toolTraces())
+            .extracting(InteractionToolTrace::getToolName)
+            .containsExactly("document_search");
         assertThat(result.metadata())
-            .containsEntry("finalDecisionReason", "PLANNER_SUFFICIENT")
-            .containsEntry("plannerSufficient", true)
-            .containsEntry("stopReason", "final_answer");
-        verify(toolRegistry, never()).executeEnhancedTool(eq("document_search"), any());
+            .containsEntry("interpretationPlanPipeline", true)
+            .containsEntry("mandatoryWorkflowCompleted", true)
+            .containsEntry("stopReason", "interpretation_plan_completed");
+        verify(toolRegistry).executeEnhancedTool(eq("document_search"), any());
     }
 
     @Test
@@ -801,12 +805,16 @@ class AgentOrchestratorTest {
     void documentWebVerificationAllowsDocumentSearchBeforeMandatoryWebTool() {
         String mcpWebSearch = "mcp_chatchat_mcp_server_web_search";
         QueueChatModel chatModel = new QueueChatModel(
-            "{\"action\":\"tool\",\"toolName\":\"document_search\",\"arguments\":{\"query\":\"internal definition\"},\"reason\":\"Need internal evidence first\"}",
-            "{\"action\":\"tool\",\"toolName\":\"mcp_chatchat_mcp_server_web_search\",\"arguments\":{\"query\":\"internal definition\"},\"reason\":\"Validate public evidence\"}",
-            "{\"action\":\"final\",\"answer\":\"Use internal documents first, then public web verification.\"}",
+            interpretationPlan(
+                "Use internal documents first, then public web verification.",
+                "document_search",
+                mcpWebSearch
+            ),
             "{\"accepted\":true,\"feedback\":\"The answer separates document and web evidence.\",\"revisedAnswer\":\"\"}"
         );
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool("document_search")).thenReturn(true);
+        when(toolRegistry.hasTool(mcpWebSearch)).thenReturn(true);
         when(toolRegistry.getToolMetadata("document_search")).thenReturn(ToolMetadata.builder()
             .id("document_search")
             .title("Document Search")
@@ -929,10 +937,12 @@ class AgentOrchestratorTest {
         String documentSearch = "mcp_chatchat_mcp_server_document_search";
         String webSearch = "mcp_chatchat_mcp_server_web_search";
         CapturingQueueChatModel chatModel = new CapturingQueueChatModel(
-            "Document evidence and web evidence are both available.",
+            interpretationPlan("Document evidence and web evidence are both available.", webSearch),
             "{\"accepted\":true,\"feedback\":\"The answer used both observations.\",\"revisedAnswer\":\"\"}"
         );
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool(documentSearch)).thenReturn(true);
+        when(toolRegistry.hasTool(webSearch)).thenReturn(true);
         when(toolRegistry.getToolMetadata(documentSearch)).thenReturn(ToolMetadata.builder()
             .id(documentSearch)
             .title("MCP Document Search")
@@ -1012,10 +1022,12 @@ class AgentOrchestratorTest {
         String mcpDocumentSearch = "mcp_chatchat_mcp_server_document_search";
         String mcpWebSearch = "mcp_chatchat_mcp_server_web_search";
         CapturingQueueChatModel chatModel = new CapturingQueueChatModel(
-            "Workflow summary uses internal and web observations.",
+            interpretationPlan("Workflow summary uses internal and web observations.", mcpDocumentSearch, mcpWebSearch),
             "{\"accepted\":true,\"feedback\":\"The answer follows the workflow.\",\"revisedAnswer\":\"\"}"
         );
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool(mcpDocumentSearch)).thenReturn(true);
+        when(toolRegistry.hasTool(mcpWebSearch)).thenReturn(true);
         when(toolRegistry.getToolMetadata(mcpDocumentSearch)).thenReturn(ToolMetadata.builder()
             .id(mcpDocumentSearch)
             .title("MCP Document Search")
@@ -1077,8 +1089,9 @@ class AgentOrchestratorTest {
             .containsEntry("mandatoryTools", List.of(mcpDocumentSearch, mcpWebSearch))
             .containsEntry("runtimeEnforcedMcpWorkflow", true);
         assertThat(chatModel.messages().get(0))
-            .contains("Mandatory workflow execution Tool " + mcpDocumentSearch + " succeeded")
-            .contains("Mandatory workflow execution Tool " + mcpWebSearch + " succeeded");
+            .contains("The user query MUST first be converted into this executable InterpretationPlan")
+            .contains(mcpDocumentSearch)
+            .contains(mcpWebSearch);
     }
 
     @Test
@@ -1086,10 +1099,12 @@ class AgentOrchestratorTest {
         String profileTool = "mcp_crm_customer_profile";
         String assetTool = "mcp_crm_customer_assets";
         CapturingQueueChatModel chatModel = new CapturingQueueChatModel(
-            "Profile and assets were both checked.",
+            interpretationPlan("Profile and assets were both checked.", profileTool, assetTool),
             "{\"accepted\":true,\"feedback\":\"The answer follows the configured workflow.\",\"revisedAnswer\":\"\"}"
         );
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool(profileTool)).thenReturn(true);
+        when(toolRegistry.hasTool(assetTool)).thenReturn(true);
         when(toolRegistry.getToolMetadata(profileTool)).thenReturn(ToolMetadata.builder()
             .id(profileTool)
             .title("Customer Profile")
@@ -1159,10 +1174,12 @@ class AgentOrchestratorTest {
         String profileTool = "mcp_crm_customer_profile";
         String assetTool = "mcp_crm_customer_assets";
         CapturingQueueChatModel chatModel = new CapturingQueueChatModel(
-            "Asset check completed after skipping profile by policy condition.",
+            interpretationPlan("Asset check completed after skipping profile by policy condition.", assetTool),
             "{\"accepted\":true,\"feedback\":\"The conditional workflow was respected.\",\"revisedAnswer\":\"\"}"
         );
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool(profileTool)).thenReturn(true);
+        when(toolRegistry.hasTool(assetTool)).thenReturn(true);
         when(toolRegistry.getToolMetadata(profileTool)).thenReturn(ToolMetadata.builder()
             .id(profileTool)
             .title("Customer Profile")
@@ -1243,10 +1260,12 @@ class AgentOrchestratorTest {
         String documentSearch = "mcp_xxx_document_search";
         String knowledgeSearch = "mcp_xxx_knowledge_search";
         CapturingQueueChatModel chatModel = new CapturingQueueChatModel(
-            "Both internal tools have been observed.",
+            interpretationPlan("Both internal tools have been observed.", documentSearch, knowledgeSearch),
             "{\"accepted\":true,\"feedback\":\"All required tools were observed.\",\"revisedAnswer\":\"\"}"
         );
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool(documentSearch)).thenReturn(true);
+        when(toolRegistry.hasTool(knowledgeSearch)).thenReturn(true);
         when(toolRegistry.getToolMetadata(documentSearch)).thenReturn(ToolMetadata.builder()
             .id(documentSearch)
             .title("MCP Document Search")
@@ -1313,8 +1332,9 @@ class AgentOrchestratorTest {
             .containsEntry("missingMandatoryTools", List.of())
             .containsEntry("runtimeEnforcedMcpWorkflow", true);
         assertThat(chatModel.messages().get(0))
-            .contains("Mandatory workflow execution Tool " + documentSearch + " succeeded")
-            .contains("Mandatory workflow execution Tool " + knowledgeSearch + " succeeded");
+            .contains("The user query MUST first be converted into this executable InterpretationPlan")
+            .contains(documentSearch)
+            .contains(knowledgeSearch);
     }
 
     private AgentOrchestrator newOrchestrator(ChatModel chatModel) {
@@ -1389,6 +1409,52 @@ class AgentOrchestratorTest {
         return properties;
     }
 
+    private static String interpretationPlan(String answer, String... tools) {
+        StringBuilder steps = new StringBuilder();
+        StringBuilder allowTools = new StringBuilder();
+        StringBuilder finalDependencies = new StringBuilder("[");
+        int stepId = 1;
+        for (String tool : tools) {
+            if (steps.length() > 0) {
+                steps.append(",");
+            }
+            if (allowTools.length() > 0) {
+                allowTools.append(",");
+            }
+            if (finalDependencies.length() > 1) {
+                finalDependencies.append(",");
+            }
+            steps.append("{\"id\":").append(stepId)
+                .append(",\"action_type\":\"mcp_tool\",\"tool_name\":\"").append(jsonEscape(tool))
+                .append("\",\"input\":{\"query\":\"runtime workflow evidence\"},\"depends_on\":[]}");
+            allowTools.append("\"").append(jsonEscape(tool)).append("\"");
+            finalDependencies.append(stepId);
+            stepId++;
+        }
+        finalDependencies.append("]");
+        if (steps.length() > 0) {
+            steps.append(",");
+        }
+        steps.append("{\"id\":").append(stepId)
+            .append(",\"action_type\":\"final_answer\",\"tool_name\":\"\",\"input\":{\"answer\":\"")
+            .append(jsonEscape(answer))
+            .append("\"},\"depends_on\":").append(finalDependencies).append("}");
+        return """
+            {
+              "version": "1.0",
+              "intent": {"type": "workflow", "goal": "Execute the configured runtime workflow", "risk_level": "low"},
+              "context": {"key_facts": [], "assumptions": [], "missing_info": [], "constraints": ["Use required workflow tools"]},
+              "plan": {"steps": [%s]},
+              "execution_policy": {"max_steps": %d, "allow_parallel": false, "allow_tool": [%s], "deny_tool": [], "max_rewrite_times": 0, "fallback_mode": "partial_result"},
+              "review": {"self_check": {"completeness_score": 0.9, "hallucination_risk": 0.1, "tool_sufficiency": true, "missing_steps": []}, "fallback_plan": []}
+            }
+            """.formatted(steps, Math.max(1, tools.length + 1), allowTools);
+    }
+
+    private static String jsonEscape(String value) {
+        return value == null ? "" : value.replace("\\", "\\\\").replace("\"", "\\\"");
+    }
+
     private static final class QueueChatModel implements ChatModel {
         private final Queue<String> responses = new ArrayDeque<>();
 
@@ -1399,6 +1465,12 @@ class AgentOrchestratorTest {
         @Override
         public String chat(String message) {
             assertThat(message).isNotBlank();
+            if (message.contains("runtime reviewer for one completed MCP tool call")) {
+                return "{\"satisfied\":true,\"reason\":\"test reviewer accepts tool result\",\"selected_urls\":[],\"confidence\":1.0}";
+            }
+            if (message.contains("final step-by-step answer synthesizer")) {
+                return answerHint(message);
+            }
             assertThat(responses).isNotEmpty();
             return responses.remove();
         }
@@ -1415,14 +1487,32 @@ class AgentOrchestratorTest {
         @Override
         public String chat(String message) {
             assertThat(message).isNotBlank();
-            assertThat(responses).isNotEmpty();
             messages.add(message);
+            if (message.contains("runtime reviewer for one completed MCP tool call")) {
+                return "{\"satisfied\":true,\"reason\":\"test reviewer accepts tool result\",\"selected_urls\":[],\"confidence\":1.0}";
+            }
+            if (message.contains("final step-by-step answer synthesizer")) {
+                return answerHint(message);
+            }
+            assertThat(responses).isNotEmpty();
             return responses.remove();
         }
 
         private List<String> messages() {
             return messages;
         }
+    }
+
+    private static String answerHint(String message) {
+        String marker = "Plan final answer hint, not authoritative evidence:";
+        int start = message.indexOf(marker);
+        if (start < 0) {
+            return "Synthesized answer from executed steps.";
+        }
+        int valueStart = start + marker.length();
+        int valueEnd = message.indexOf("\n\n", valueStart);
+        String value = valueEnd < 0 ? message.substring(valueStart) : message.substring(valueStart, valueEnd);
+        return value.trim().isBlank() ? "Synthesized answer from executed steps." : value.trim();
     }
 
     private static final class FailingChatModel implements ChatModel {

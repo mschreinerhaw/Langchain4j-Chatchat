@@ -55,6 +55,26 @@ class DefaultAgentAnswerReviewerTest {
         assertThat(review.feedback()).isEqualTo("Direct answer");
     }
 
+    @Test
+    void rejectsAnswerWhenReviewerRejectsWithoutRevision() {
+        DefaultAgentAnswerReviewer reviewer = new DefaultAgentAnswerReviewer(new ObjectMapper());
+        QueueChatModel chatModel = new QueueChatModel(
+            "{\"accepted\":false,\"feedback\":\"No concrete evidence was produced\",\"revisedAnswer\":\"\"}"
+        );
+
+        AgentAnswerReview review = reviewer.review(
+            chatModel,
+            "Find the latest company update.",
+            null,
+            List.of("web_search failed"),
+            "Unable to provide the latest update."
+        );
+
+        assertThat(review.status()).isEqualTo(AgentAnswerReview.REJECTED);
+        assertThat(review.answer()).isBlank();
+        assertThat(review.feedback()).isEqualTo("No concrete evidence was produced");
+    }
+
     private static final class QueueChatModel implements ChatModel {
         private final Queue<String> responses = new ArrayDeque<>();
         private final List<String> messages = new java.util.ArrayList<>();

@@ -40,7 +40,7 @@ public class AgentTaskService {
 
     private static final List<String> ACTIVE_STATUSES = List.of("PENDING", "RUNNING", "WAIT_TOOL", "WAIT_MODEL", "WAIT_CONFIRMATION", "WAITING_CONFIRM");
     private static final List<String> RECOVERABLE_STATUSES = List.of("PENDING", "RUNNING", "WAIT_TOOL", "WAIT_MODEL");
-    private static final List<String> TERMINAL_STATUSES = List.of("SUCCESS", "FAILED", "CANCELLED", "REJECTED", "TIMEOUT_CANCELLED", "KILLED");
+    private static final List<String> TERMINAL_STATUSES = List.of("SUCCESS", "PARTIAL", "EMPTY", "FAILED", "CANCELLED", "REJECTED", "TIMEOUT_CANCELLED", "KILLED");
     private static final int MAX_IDLE_POLLS = 3;
     private static final int MAX_CONFIRMATION_ROUNDS = 20;
 
@@ -285,9 +285,17 @@ public class AgentTaskService {
             }
             return Optional.empty();
         }
-        return eventStore.listByTask(latestTask.getTenantId(), latestTask.getSessionId(), taskId, properties.getListLimit()).stream()
+        List<AgentEvent> events = eventStore.listByTask(latestTask.getTenantId(), latestTask.getSessionId(), taskId, properties.getListLimit());
+        Optional<AgentEvent> resultEvent = events.stream()
             .filter(event -> "ANSWER".equalsIgnoreCase(event.getType())
-                || "ERROR".equalsIgnoreCase(event.getType())
+                || "RESULT".equalsIgnoreCase(event.getType())
+                || "ERROR".equalsIgnoreCase(event.getType()))
+            .reduce((previous, current) -> current);
+        if (resultEvent.isPresent()) {
+            return resultEvent;
+        }
+        return events.stream()
+            .filter(event -> "COMPLETE".equalsIgnoreCase(event.getType())
                 || ("STATUS".equalsIgnoreCase(event.getType()) && TERMINAL_STATUSES.contains(normalizeStatus(event.getStatus()))))
             .reduce((previous, current) -> current);
     }
@@ -602,11 +610,23 @@ public class AgentTaskService {
                 updateLatest(question.getTaskId(), "WAIT_MODEL", null, null);
                 saveStatusEvent(question, "WAIT_MODEL", Map.of("message", "Agent task is waiting for model inference"));
                 long modelStartedAt = System.currentTimeMillis();
+                log.info("Agent task model inference started. taskId={} tenantId={} agentId={} sessionId={} mode={}",
+                    question.getTaskId(),
+                    question.getTenantId(),
+                    question.getAgentId(),
+                    question.getSessionId(),
+                    interactionRequest.getMode());
 
                 attachCancellationCheck(interactionRequest, question.getTaskId());
                 InteractionResponse response = orchestrationService.chat(interactionRequest);
                 long modelFinishedAt = System.currentTimeMillis();
-                String answer = response.getAnswer() == null ? "" : response.getAnswer();
+                log.info("Agent task model inference finished. taskId={} tenantId={} durationMs={} answerPresent={} toolTraceCount={} responseMode={}",
+                    question.getTaskId(),
+                    question.getTenantId(),
+                    modelFinishedAt - modelStartedAt,
+                    response != null && response.getAnswer() != null && !response.getAnswer().isBlank(),
+                    response == null || response.getToolTraces() == null ? 0 : response.getToolTraces().size(),
+                    response == null ? null : response.getMode());
                 if (isCancelled(question.getTaskId())) {
                     return;
                 }
@@ -640,24 +660,26 @@ public class AgentTaskService {
                     continue;
                 }
 
-                AgentEvent answerEvent = copyEvent(question, "ANSWER", "SUCCESS", writePayload(response));
-                answerEvent.setSequence(nextSequence(question));
-                answerEvent.setParentEventId(question.getEventId());
-                answerEvent.setLatencyMs(response.getLatencyMs());
-                answerEvent.setCreateTime(resolveAnswerTime(response, modelFinishedAt));
-                eventStore.save(answerEvent);
+                ExecutionResultContract resultContract = compileExecutionResult(response);
+                AgentEvent resultEvent = copyEvent(question, resultContract.eventType(), resultContract.status(), writePayload(resultContract.payload(response)));
+                resultEvent.setSequence(nextSequence(question));
+                resultEvent.setParentEventId(question.getEventId());
+                resultEvent.setLatencyMs(response.getLatencyMs());
+                resultEvent.setCreateTime(resolveAnswerTime(response, modelFinishedAt));
+                eventStore.save(resultEvent);
                 Map<String, Object> completePayload = new LinkedHashMap<>();
-                completePayload.put("message", "Agent task completed");
+                completePayload.put("message", resultContract.completeMessage());
                 completePayload.put("mode", response.getMode());
                 completePayload.put("handler", metadataValue(response.getMetadata(), "handler"));
                 completePayload.put("toolTraceCount", response.getToolTraces() == null ? 0 : response.getToolTraces().size());
-                AgentEvent completeEvent = copyEvent(question, "COMPLETE", "SUCCESS", writePayload(completePayload));
+                completePayload.put("executionResult", resultContract.asMap(response));
+                AgentEvent completeEvent = copyEvent(question, "COMPLETE", resultContract.status(), writePayload(completePayload));
                 completeEvent.setSequence(nextSequence(question));
-                completeEvent.setParentEventId(answerEvent.getEventId());
-                completeEvent.setCreateTime(Math.max(answerEvent.getCreateTime(), System.currentTimeMillis()));
+                completeEvent.setParentEventId(resultEvent.getEventId());
+                completeEvent.setCreateTime(Math.max(resultEvent.getCreateTime(), System.currentTimeMillis()));
                 eventStore.save(completeEvent);
-                updateLatest(question.getTaskId(), "SUCCESS", summarize(answer), null);
-                eventBus.publishResult(answerEvent);
+                updateLatest(question.getTaskId(), resultContract.status(), summarize(resultContract.answerSummary()), null);
+                eventBus.publishResult(resultEvent);
                 return;
             }
             throw new CancellationException("Agent task stopped");
@@ -1708,6 +1730,51 @@ public class AgentTaskService {
         return answer.length() <= maxLength ? answer : answer.substring(0, maxLength);
     }
 
+    private ExecutionResultContract compileExecutionResult(InteractionResponse response) {
+        String answer = response == null ? "" : firstText(response.getAnswer(), "");
+        boolean hasAnswer = !answer.isBlank();
+        boolean hasSources = response != null && response.getSources() != null && !response.getSources().isEmpty();
+        boolean hasToolOutput = response != null && response.getToolTraces() != null && !response.getToolTraces().isEmpty();
+        boolean hasObservations = metadataList(response == null ? null : response.getMetadata(), "observations");
+        boolean hasArtifact = hasAnswer || hasSources || hasToolOutput || hasObservations;
+        String status = hasAnswer ? "SUCCESS" : (hasArtifact ? "PARTIAL" : "EMPTY");
+        String message = switch (status) {
+            case "SUCCESS" -> "Agent task completed";
+            case "PARTIAL" -> "Agent task completed with partial result";
+            case "EMPTY" -> "Agent task completed without displayable result";
+            default -> "Agent task completed";
+        };
+        String displayAnswer = switch (status) {
+            case "SUCCESS" -> answer;
+            case "PARTIAL" -> "本次执行已完成，并获取到部分工具结果或中间产物，但没有生成最终回答。请查看执行步骤、引用来源或工具轨迹，必要时可补充要求后重试。";
+            case "EMPTY" -> "本次执行已结束，但没有产生可展示的回答或结果产物。请检查 Agent 配置、模型服务或换一种问法后重试。";
+            default -> answer;
+        };
+        Map<String, Object> flags = new LinkedHashMap<>();
+        flags.put("hasAnswer", hasAnswer);
+        flags.put("hasInsight", hasAnswer);
+        flags.put("hasToolOutput", hasToolOutput);
+        flags.put("hasSources", hasSources);
+        flags.put("hasArtifact", hasArtifact);
+        return new ExecutionResultContract(status, displayAnswer, answer, message, flags);
+    }
+
+    private boolean metadataList(Map<String, Object> metadata, String key) {
+        if (metadata == null || key == null || key.isBlank()) {
+            return false;
+        }
+        Object value = metadata.get(key);
+        if (value instanceof List<?> list) {
+            return !list.isEmpty();
+        }
+        Object agent = metadata.get("agent");
+        if (agent instanceof Map<?, ?> agentMap) {
+            Object nested = agentMap.get(key);
+            return nested instanceof List<?> list && !list.isEmpty();
+        }
+        return false;
+    }
+
     private String truncate(String value, int maxLength) {
         if (value == null || value.isBlank()) {
             return null;
@@ -1779,6 +1846,67 @@ public class AgentTaskService {
 
     private Object firstPresent(Object first, Object second) {
         return first == null ? second : first;
+    }
+
+    private record ExecutionResultContract(
+        String status,
+        String displayAnswer,
+        String finalAnswer,
+        String completeMessage,
+        Map<String, Object> semanticFlags
+    ) {
+
+        private String eventType() {
+            return "SUCCESS".equals(status) ? "ANSWER" : "RESULT";
+        }
+
+        private String answerSummary() {
+            return "SUCCESS".equals(status) ? finalAnswer : displayAnswer;
+        }
+
+        private Map<String, Object> payload(InteractionResponse response) {
+            Map<String, Object> metadata = new LinkedHashMap<>();
+            if (response != null && response.getMetadata() != null) {
+                metadata.putAll(response.getMetadata());
+            }
+            Map<String, Object> result = asMap(response);
+            metadata.put("executionResult", result);
+
+            Map<String, Object> payload = new LinkedHashMap<>();
+            payload.put("conversationId", response == null ? "" : response.getConversationId());
+            payload.put("requestId", response == null ? "" : response.getRequestId());
+            payload.put("mode", response == null ? "" : response.getMode());
+            payload.put("answer", displayAnswer);
+            payload.put("sources", response == null || response.getSources() == null ? List.of() : response.getSources());
+            payload.put("toolTraces", response == null || response.getToolTraces() == null ? List.of() : response.getToolTraces());
+            payload.put("metadata", metadata);
+            payload.put("latencyMs", response == null ? null : response.getLatencyMs());
+            payload.put("timestamp", response == null || response.getTimestamp() == null ? System.currentTimeMillis() : response.getTimestamp());
+            payload.put("executionResult", result);
+            return payload;
+        }
+
+        private Map<String, Object> asMap() {
+            return asMap(null);
+        }
+
+        private Map<String, Object> asMap(InteractionResponse response) {
+            Map<String, Object> artifacts = new LinkedHashMap<>();
+            artifacts.put("finalAnswer", finalAnswer == null ? "" : finalAnswer);
+            artifacts.put("tables", List.of());
+            artifacts.put("metrics", Map.of());
+            artifacts.put("traceSummary", Map.of(
+                "sourceCount", response == null || response.getSources() == null ? 0 : response.getSources().size(),
+                "toolTraceCount", response == null || response.getToolTraces() == null ? 0 : response.getToolTraces().size()
+            ));
+
+            Map<String, Object> result = new LinkedHashMap<>();
+            result.put("status", status);
+            result.put("artifacts", artifacts);
+            result.put("semanticFlags", semanticFlags == null ? Map.of() : semanticFlags);
+            result.put("message", completeMessage);
+            return result;
+        }
     }
 
     private static class AgentTaskStoppedException extends CancellationException {

@@ -377,9 +377,10 @@ public class McpStdioProxyService {
      * @return the operation result
      */
     private Map<String, Object> awaitResponse(Session session, String requestId, long timeoutMs) {
-        long deadline = System.currentTimeMillis() + Math.max(1000L, timeoutMs);
-        while (System.currentTimeMillis() < deadline) {
-            long remain = deadline - System.currentTimeMillis();
+        boolean bounded = timeoutMs > 0;
+        long deadline = bounded ? System.currentTimeMillis() + Math.max(1000L, timeoutMs) : Long.MAX_VALUE;
+        while (!bounded || System.currentTimeMillis() < deadline) {
+            long remain = bounded ? deadline - System.currentTimeMillis() : 1000L;
             try {
                 Map<String, Object> message = session.incoming.poll(Math.max(1L, remain), TimeUnit.MILLISECONDS);
                 if (message == null) {

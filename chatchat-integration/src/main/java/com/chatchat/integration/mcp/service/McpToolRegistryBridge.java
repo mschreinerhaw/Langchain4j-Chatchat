@@ -162,7 +162,7 @@ public class McpToolRegistryBridge {
             .inputPolicy(emptyToNull(definition.inputPolicy()))
             .outputPolicy(emptyToNull(definition.outputPolicy()))
             .outputType("json")
-            .timeoutMillis(definition.timeoutMillis())
+            .timeoutMillis(null)
             .agentCompatible(true)
             .parameters(List.of(
                 ToolParameter.builder()
@@ -290,7 +290,7 @@ public class McpToolRegistryBridge {
                 serviceId,
                 remoteToolName,
                 input.getRequestId(),
-                metadata.getTimeoutMillis(),
+                "unbounded",
                 ToolLogSummarizer.summarize(arguments));
             McpToolInvokeResult result = gatewayClient.invokeTool(
                 configService.getById(serviceId),

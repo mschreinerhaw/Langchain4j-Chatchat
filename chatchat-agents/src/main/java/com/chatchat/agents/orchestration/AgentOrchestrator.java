@@ -1,6 +1,7 @@
 package com.chatchat.agents.orchestration;
 
 import com.chatchat.agents.runtime.AgentAnswerReviewer;
+import com.chatchat.agents.runtime.AgentObservation;
 import com.chatchat.agents.runtime.AgentObservationPipeline;
 import com.chatchat.agents.runtime.AgentRun;
 import com.chatchat.agents.runtime.AgentRunRequest;
@@ -56,6 +57,7 @@ public class AgentOrchestrator {
     private static final String AGENT_RUN_ID_ATTRIBUTE = "__agentRunId";
     private static final String FINAL = "final";
     private static final String TOOL = "tool";
+    private static final String WORKFLOW_PROBLEM_SOLVING = "agent_problem_solving";
     private final ToolRegistry toolRegistry;
     private final ToolRuntimeService toolRuntimeService;
     private final ObjectMapper objectMapper;
@@ -348,6 +350,7 @@ public class AgentOrchestrator {
         List<String> observations = runResultAdapter.runtimeObservationList(stringValue(requestRuntimeAttributes.get(AGENT_RUN_ID_ATTRIBUTE)));
         Map<String, Object> metadata = new LinkedHashMap<>();
         List<Map<String, Object>> plannerSteps = new ArrayList<>();
+        metadata.put("agentRunId", stringValue(requestRuntimeAttributes.get(AGENT_RUN_ID_ATTRIBUTE)));
         metadata.put("skillId", skillId == null ? "general" : skillId);
         metadata.put("modelName", normalizeModelName(modelName));
         metadata.put("boundDocumentIds", documentIds);
@@ -379,6 +382,29 @@ public class AgentOrchestrator {
         metadata.put("plannerSteps", plannerSteps);
 
         log.info("[{}] Agent orchestration started. tools={}", requestId, tools.size());
+        recordLifecyclePhase(
+            requestRuntimeAttributes,
+            metadata,
+            "problem_identification",
+            "Problem identified from user input.",
+            metadataOf(
+                "queryPreview", preview(query),
+                "skillId", metadata.get("skillId"),
+                "documentWebVerificationRequired", requireDocumentWebVerification
+            )
+        );
+        recordLifecyclePhase(
+            requestRuntimeAttributes,
+            metadata,
+            "tool_discovery",
+            "Tool discovery completed and capability space was constructed.",
+            metadataOf(
+                "availableTools", tools,
+                "mandatoryTools", mandatoryTools,
+                "documentSearchTool", documentSearchTool,
+                "verificationWebSearchTool", verificationWebSearchTool
+            )
+        );
 
         Set<String> completedWorkflowTools = new LinkedHashSet<>();
         completedWorkflowTools.addAll(workflowMandatoryResolution.skippedTools());
@@ -408,37 +434,18 @@ public class AgentOrchestrator {
 
         if (!workflowMandatoryTools.isEmpty()) {
             metadata.put("runtimeEnforcedMcpWorkflow", true);
-            runMissingMandatoryWorkflowTools(
-                traces,
-                observations,
-                query,
-                conversationId,
-                requestId,
-                userId,
-                tenantId,
-                tools,
-                mandatoryTools,
-                documentIds,
-                documentTags,
-                webSearchResultLimit,
-                metadata,
-                workflowStateTracker.attributesWithCompletedTools(requestRuntimeAttributes, completedWorkflowTools),
-                maxToolCalls
-            );
-            if (Boolean.TRUE.equals(metadata.get("confirmationRequired"))) {
-                return answerFinalizer.finishExecution("", traces, metadata, observations);
-            }
-            if (Boolean.TRUE.equals(metadata.get("toolBudgetExceeded"))) {
-                return answerFinalizer.finishBudgetedSummary(activeChatModel, query, systemPrompt, traces, metadata, observations, cancellationCheck);
-            }
-            List<String> missingAfterMandatoryWorkflow = workflowTools.missingMandatoryTools(mandatoryTools, traces);
-            metadata.put("missingMandatoryTools", missingAfterMandatoryWorkflow);
-            metadata.put("mandatoryWorkflowCompleted", missingAfterMandatoryWorkflow.isEmpty());
+            metadata.put("mandatoryWorkflowPending", true);
         }
 
         for (int step = 1; step <= maxSteps; step++) {
             runtimeGuard.checkCancelled(cancellationCheck);
             long plannedAt = System.currentTimeMillis();
+            Set<String> plannerCompletedTools = completedWorkflowToolsFromEvents(
+                requestRuntimeAttributes,
+                completedWorkflowToolsWithTraces(completedWorkflowTools, traces)
+            );
+            List<String> plannerMandatoryTools = workflowTools.missingMandatoryTools(mandatoryTools, plannerCompletedTools);
+            boolean plannerRequiresToolBeforeFinal = !plannerMandatoryTools.isEmpty();
             AgentDecision decision = planner.decideNextAction(
                 activeChatModel,
                 query,
@@ -447,8 +454,8 @@ public class AgentOrchestrator {
                 observations,
                 documentIds,
                 documentTags,
-                mandatoryTools,
-                requireToolBeforeFinal && traces.isEmpty(),
+                plannerMandatoryTools,
+                plannerRequiresToolBeforeFinal,
                 requireDocumentWebVerification,
                 documentSearchTool,
                 verificationWebSearchTool,
@@ -469,6 +476,21 @@ public class AgentOrchestrator {
             plannerStep.put("observationCount", observations.size());
             plannerSteps.add(plannerStep);
             runResultAdapter.recordRuntimeStep(requestRuntimeAttributes, AGENT_RUN_ID_ATTRIBUTE, plannerStep);
+            recordLifecyclePhase(
+                requestRuntimeAttributes,
+                metadata,
+                "plan_generation",
+                decision.interpretationPlan() == null
+                    ? "Planner generated the next action."
+                    : "Planner generated an executable InterpretationPlan DAG.",
+                metadataOf(
+                    "step", step,
+                    "action", decision.action(),
+                    "toolName", stringValue(decision.toolName()),
+                    "resolvedToolName", plannedToolName,
+                    "plannerProtocol", decision.executionPlan() == null ? null : decision.executionPlan().get("plannerProtocol")
+                )
+            );
 
             if (decision.interpretationPlan() != null
                 && Boolean.TRUE.equals(decision.executionPlan().get("interpretationPlanValid"))) {
@@ -482,7 +504,7 @@ public class AgentOrchestrator {
                     conversationId,
                     userId,
                     tools,
-                    requestRuntimeAttributes,
+                    workflowStateTracker.attributesWithCompletedTools(requestRuntimeAttributes, completedWorkflowTools),
                     traces,
                     observations,
                     metadata,
@@ -492,12 +514,22 @@ public class AgentOrchestrator {
 
             if (FINAL.equals(decision.action())) {
                 runtimeGuard.checkCancelled(cancellationCheck);
-                FinalExecutionDecision finalDecision = workflowDecisionEngine.resolveFinalExecution(
-                    Boolean.TRUE.equals(decision.sufficient()),
-                    mandatoryTools,
-                    traces,
-                    requestRuntimeAttributes
+                Set<String> eventCompletedTools = completedWorkflowToolsFromEvents(
+                    requestRuntimeAttributes,
+                    completedWorkflowToolsWithTraces(completedWorkflowTools, traces)
                 );
+                List<String> eventMissingMandatoryTools = workflowTools.missingMandatoryTools(mandatoryTools, eventCompletedTools);
+                FinalExecutionDecision finalDecision = eventMissingMandatoryTools.isEmpty()
+                    ? new FinalExecutionDecision(true, "REQUIRED_TOOLS_COMPLETED_BY_EVENTS", eventMissingMandatoryTools)
+                    : new FinalExecutionDecision(
+                        Boolean.TRUE.equals(decision.sufficient()) || workflowDecisionEngine.policyAllowsEarlyFinal(requestRuntimeAttributes),
+                        Boolean.TRUE.equals(decision.sufficient())
+                            ? "PLANNER_SUFFICIENT"
+                            : workflowDecisionEngine.policyAllowsEarlyFinal(requestRuntimeAttributes)
+                                ? "POLICY_EARLY_EXIT"
+                                : "MISSING_REQUIRED_TOOLS_BY_EVENTS",
+                        eventMissingMandatoryTools
+                    );
                 metadata.put("finalDecisionReason", finalDecision.reason());
                 metadata.put("plannerSufficient", Boolean.TRUE.equals(decision.sufficient()));
                 metadata.put("policyAllowsEarlyFinal", workflowDecisionEngine.policyAllowsEarlyFinal(requestRuntimeAttributes));
@@ -508,7 +540,8 @@ public class AgentOrchestrator {
                     metadata.put("missingMandatoryTools", finalDecision.missingMandatoryTools());
                     continue;
                 }
-                if (requireDocumentWebVerification && workflowTools.missingDocumentWebVerification(traces, documentSearchTool, verificationWebSearchTool)) {
+                if (requireDocumentWebVerification
+                    && workflowTools.missingDocumentWebVerification(eventCompletedTools, documentSearchTool, verificationWebSearchTool)) {
                     observations.add("Planner final answer rejected: document-web verification requires both document_search and "
                         + verificationWebSearchTool + " observations before final answer.");
                     metadata.put("rejectedFinalBeforeVerification", true);
@@ -556,7 +589,11 @@ public class AgentOrchestrator {
                 workflowDecisionEngine.recordWorkflowDecision(metadata, toolDecision);
                 continue;
             }
-            String nextMandatoryTool = workflowTools.nextMandatoryTool(mandatoryTools, traces);
+            Set<String> eventCompletedTools = completedWorkflowToolsFromEvents(
+                requestRuntimeAttributes,
+                completedWorkflowToolsWithTraces(completedWorkflowTools, traces)
+            );
+            String nextMandatoryTool = workflowTools.nextMandatoryTool(mandatoryTools, eventCompletedTools);
             boolean plannerFollowedWorkflow = nextMandatoryTool == null || toolNames.sameToolName(nextMandatoryTool, plannedToolName);
             if (requireToolBeforeFinal && !plannerFollowedWorkflow) {
                 observations.add("Planner requested " + plannedToolName
@@ -565,7 +602,7 @@ public class AgentOrchestrator {
                 plannedToolName = nextMandatoryTool;
             }
             if (requireDocumentWebVerification
-                && !workflowTools.hasToolTrace(traces, documentSearchTool)
+                && !eventCompletedTools.stream().anyMatch(tool -> toolNames.sameToolName(documentSearchTool, tool))
                 && !toolNames.sameToolName(documentSearchTool, plannedToolName)) {
                 observations.add("Planner requested " + plannedToolName
                     + " before " + documentSearchTool + "; document-web verification must start with " + documentSearchTool + ".");
@@ -593,7 +630,11 @@ public class AgentOrchestrator {
                 tenantId,
                 tools,
                 decision.executionPlan(),
-                workflowStateTracker.attributesWithCompletedTools(requestRuntimeAttributes, completedWorkflowTools)
+                attributesWithWorkflowStep(
+                    workflowStateTracker.attributesWithCompletedTools(requestRuntimeAttributes, completedWorkflowTools),
+                    step,
+                    plannedToolName
+                )
             );
             traces.add(execution.trace());
             observations.add(execution.observation());
@@ -722,9 +763,25 @@ public class AgentOrchestrator {
         runtimeGuard.checkCancelled(cancellationCheck);
         metadata.put("interpretationPlanPipeline", true);
         metadata.put("interpretationPlanVersion", plan.version());
+        recordLifecyclePhase(
+            runtimeAttributes,
+            metadata,
+            "step_execution",
+            "InterpretationPlan DAG execution started.",
+            metadataOf(
+                "stage", "initial",
+                "planVersion", plan.version(),
+                "stepCount", plan.steps() == null ? 0 : plan.steps().size()
+            )
+        );
 
         InterpretationPlanValidator validator = new InterpretationPlanValidator();
-        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(toolRuntimeService, validator);
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            toolRuntimeService,
+            validator,
+            runStore,
+            request -> reviewInterpretationPlanToolResult(activeChatModel, query, systemPrompt, cancellationCheck, request)
+        );
         InterpretationPlanRuntime.ExecutionResult firstResult = runtime.execute(planExecutionRequest(
             plan,
             tenantId,
@@ -743,6 +800,18 @@ public class AgentOrchestrator {
             return answerFinalizer.finishExecution("", traces, metadata, observations);
         }
         if (firstResult.success()) {
+            recordMandatoryWorkflowCompletion(traces, metadata, runtimeAttributes);
+            String synthesizedAnswer = synthesizeInterpretationPlanAnswer(
+                activeChatModel,
+                query,
+                systemPrompt,
+                firstResult,
+                runtimeAttributes,
+                observations,
+                metadata,
+                cancellationCheck,
+                "initial"
+            );
             return answerFinalizer.finishReviewedAnswer(
                 activeChatModel,
                 query,
@@ -750,7 +819,7 @@ public class AgentOrchestrator {
                 traces,
                 metadata,
                 observations,
-                firstResult.finalAnswer(),
+                synthesizedAnswer,
                 cancellationCheck,
                 "interpretation_plan_completed"
             );
@@ -786,6 +855,17 @@ public class AgentOrchestrator {
             }
 
             currentPlan = rewrite.rewrittenPlan();
+            recordLifecyclePhase(
+                runtimeAttributes,
+                metadata,
+                "step_execution",
+                "Rewritten InterpretationPlan DAG execution started.",
+                metadataOf(
+                    "stage", rewriteCount == 1 ? "rewrite" : "rewrite" + rewriteCount,
+                    "planVersion", currentPlan.version(),
+                    "stepCount", currentPlan.steps() == null ? 0 : currentPlan.steps().size()
+                )
+            );
             currentResult = runtime.execute(planExecutionRequest(
                 currentPlan,
                 tenantId,
@@ -804,6 +884,18 @@ public class AgentOrchestrator {
                 return answerFinalizer.finishExecution("", traces, metadata, observations);
             }
             if (currentResult.success()) {
+                recordMandatoryWorkflowCompletion(traces, metadata, runtimeAttributes);
+                String synthesizedAnswer = synthesizeInterpretationPlanAnswer(
+                    activeChatModel,
+                    query,
+                    systemPrompt,
+                    currentResult,
+                    runtimeAttributes,
+                    observations,
+                    metadata,
+                    cancellationCheck,
+                    rewriteCount == 1 ? "rewrite" : "rewrite" + rewriteCount
+                );
                 return answerFinalizer.finishReviewedAnswer(
                     activeChatModel,
                     query,
@@ -811,7 +903,7 @@ public class AgentOrchestrator {
                     traces,
                     metadata,
                     observations,
-                    currentResult.finalAnswer(),
+                    synthesizedAnswer,
                     cancellationCheck,
                     "interpretation_plan_rewritten"
                 );
@@ -835,6 +927,33 @@ public class AgentOrchestrator {
         );
     }
 
+    @SuppressWarnings("unchecked")
+    private void recordMandatoryWorkflowCompletion(List<InteractionToolTrace> traces,
+                                                   Map<String, Object> metadata,
+                                                   Map<String, Object> runtimeAttributes) {
+        if (metadata == null || !Boolean.TRUE.equals(metadata.get("runtimeEnforcedMcpWorkflow"))) {
+            if (!Boolean.TRUE.equals(metadata == null ? null : metadata.get("mandatoryToolCall"))) {
+                return;
+            }
+        }
+        Object mandatoryToolsValue = metadata.get("mandatoryTools");
+        if (!(mandatoryToolsValue instanceof List<?> rawMandatoryTools)) {
+            return;
+        }
+        List<String> mandatoryTools = rawMandatoryTools.stream()
+            .map(String::valueOf)
+            .filter(tool -> tool != null && !tool.isBlank())
+            .toList();
+        Set<String> eventCompletedTools = completedWorkflowToolsFromEvents(
+            runtimeAttributes,
+            completedWorkflowToolsWithTraces(Set.of(), traces)
+        );
+        List<String> missingMandatoryTools = workflowTools.missingMandatoryTools(mandatoryTools, eventCompletedTools);
+        metadata.put("missingMandatoryTools", missingMandatoryTools);
+        metadata.put("mandatoryWorkflowCompleted", missingMandatoryTools.isEmpty());
+        metadata.put("mandatoryWorkflowPending", !missingMandatoryTools.isEmpty());
+    }
+
     private InterpretationPlanRuntime.ExecutionRequest planExecutionRequest(InterpretationPlan plan,
                                                                             String tenantId,
                                                                             String requestId,
@@ -852,6 +971,246 @@ public class AgentOrchestrator {
             userId,
             runtimeAttributes == null ? Map.of() : runtimeAttributes
         );
+    }
+
+    private String synthesizeInterpretationPlanAnswer(ChatModel activeChatModel,
+                                                      String query,
+                                                      String systemPrompt,
+                                                      InterpretationPlanRuntime.ExecutionResult result,
+                                                      Map<String, Object> runtimeAttributes,
+                                                      List<String> observations,
+                                                      Map<String, Object> metadata,
+                                                      BooleanSupplier cancellationCheck,
+                                                      String stage) {
+        runtimeGuard.checkCancelled(cancellationCheck);
+        if (activeChatModel == null) {
+            return result == null ? "" : firstNonBlank(result.finalAnswer(), "");
+        }
+        List<AgentObservation> storedObservations = storedInterpretationPlanObservations(runtimeAttributes);
+        recordLifecyclePhase(
+            runtimeAttributes,
+            metadata,
+            "final_synthesis",
+            "Final synthesis started from executed steps and stored observations.",
+            metadataOf(
+                "stage", stage,
+                "stepCount", result == null || result.steps() == null ? 0 : result.steps().size(),
+                "storedObservationCount", storedObservations.size()
+            )
+        );
+        String prompt = buildInterpretationPlanSummaryPrompt(query, systemPrompt, result, observations, storedObservations);
+        String runId = stringValue(runtimeAttributes == null ? null : runtimeAttributes.get(AGENT_RUN_ID_ATTRIBUTE));
+        long startedAt = System.currentTimeMillis();
+        log.info("agentModelRequest phase=interpretation_plan_summary runId={} stage={} modelClass={} promptChars={} stepCount={} storedObservationCount={}",
+            firstNonBlank(runId, ""),
+            stage,
+            activeChatModel.getClass().getName(),
+            prompt.length(),
+            result == null || result.steps() == null ? 0 : result.steps().size(),
+            storedObservations.size());
+        String answer = activeChatModel.chat(prompt);
+        log.info("agentModelResponse phase=interpretation_plan_summary runId={} stage={} durationMs={} responseChars={}",
+            firstNonBlank(runId, ""),
+            stage,
+            System.currentTimeMillis() - startedAt,
+            answer == null ? 0 : answer.length());
+        if (metadata != null) {
+            metadata.put("interpretationPlanSummaryGenerated", true);
+            metadata.put("interpretationPlanSummaryStage", stage);
+            metadata.put("interpretationPlanStoredObservationCount", storedObservations.size());
+        }
+        runResultAdapter.recordRuntimeObservation(
+            runtimeAttributes,
+            AGENT_RUN_ID_ATTRIBUTE,
+            "InterpretationPlan " + stage + " final stepwise summary generated.",
+            "interpretation_plan_summary",
+            metadataOf(
+                "type", "final_summary",
+                "workflow", "interpretation_plan",
+                "stage", stage,
+                "answerPreview", preview(answer)
+            )
+        );
+        return answer == null || answer.isBlank()
+            ? (result == null ? "" : firstNonBlank(result.finalAnswer(), ""))
+            : answer;
+    }
+
+    private String buildInterpretationPlanSummaryPrompt(String query,
+                                                        String systemPrompt,
+                                                        InterpretationPlanRuntime.ExecutionResult result,
+                                                        List<String> observations,
+                                                        List<AgentObservation> storedObservations) {
+        StringBuilder prompt = new StringBuilder();
+        if (systemPrompt != null && !systemPrompt.isBlank()) {
+            prompt.append("System instruction:\n").append(systemPrompt).append("\n\n");
+        }
+        prompt.append("You are the final step-by-step answer synthesizer for a completed MCP InterpretationPlan.\n");
+        prompt.append("Answer the user in Chinese using only the executed step records, model review decisions, and stored observations.\n");
+        prompt.append("Workflow contract:\n");
+        prompt.append("- Treat every tool step as evidence only if it succeeded and the model review marked it satisfied.\n");
+        prompt.append("- Use each step's review reason as the premise for later steps.\n");
+        prompt.append("- Summarize what was done step by step, then provide the final answer.\n");
+        prompt.append("- If some step failed or was rejected, state the limitation and do not use that result as evidence.\n");
+        prompt.append("- Do not invent facts that are not present in the step outputs or observations.\n\n");
+        prompt.append("User query:\n").append(query == null ? "" : query).append("\n\n");
+        if (result != null && result.finalAnswer() != null && !result.finalAnswer().isBlank()) {
+            prompt.append("Plan final answer hint, not authoritative evidence:\n")
+                .append(result.finalAnswer())
+                .append("\n\n");
+        }
+        prompt.append("Executed steps:\n");
+        if (result == null || result.steps() == null || result.steps().isEmpty()) {
+            prompt.append("- (none)\n");
+        } else {
+            for (InterpretationPlanRuntime.StepExecution step : result.steps()) {
+                prompt.append("- step=").append(step.stepId())
+                    .append(", action=").append(step.actionType())
+                    .append(", tool=").append(firstNonBlank(step.toolName(), ""))
+                    .append(", success=").append(step.success())
+                    .append(", durationMs=").append(step.durationMs())
+                    .append("\n");
+                if (step.errorMessage() != null && !step.errorMessage().isBlank()) {
+                    prompt.append("  error: ").append(step.errorMessage()).append("\n");
+                }
+                Map<String, Object> stepMetadata = step.metadata() == null ? Map.of() : step.metadata();
+                if (!stepMetadata.isEmpty()) {
+                    prompt.append("  review: satisfied=")
+                        .append(stepMetadata.get("toolResultReviewSatisfied"))
+                        .append(", reason=")
+                        .append(stepMetadata.get("toolResultReviewReason"))
+                        .append("\n");
+                }
+                prompt.append("  output: ")
+                    .append(shortObservationText(stringify(step.output()), 4000))
+                    .append("\n");
+            }
+        }
+        prompt.append("\nStored RunStore/RocksDB observations:\n");
+        if (storedObservations == null || storedObservations.isEmpty()) {
+            prompt.append("- (none)\n");
+        } else {
+            for (AgentObservation observation : storedObservations) {
+                prompt.append("- type=").append(observation.type())
+                    .append(", source=").append(observation.source())
+                    .append(", content=").append(shortObservationText(observation.content(), 1000))
+                    .append("\n");
+                if (observation.metadata() != null && !observation.metadata().isEmpty()) {
+                    prompt.append("  metadata: ")
+                        .append(shortObservationText(stringify(observation.metadata()), 1600))
+                        .append("\n");
+                }
+            }
+        }
+        if (observations != null && !observations.isEmpty()) {
+            prompt.append("\nIn-memory observations:\n");
+            observations.forEach(observation -> prompt.append("- ")
+                .append(shortObservationText(observation, 1000))
+                .append("\n"));
+        }
+        prompt.append("\nReturn only the final user-facing answer, no JSON.");
+        return prompt.toString();
+    }
+
+    private List<AgentObservation> storedInterpretationPlanObservations(Map<String, Object> runtimeAttributes) {
+        String runId = runtimeAttributes == null ? null : stringValue(runtimeAttributes.get(AGENT_RUN_ID_ATTRIBUTE));
+        if (runId == null || runId.isBlank()) {
+            return List.of();
+        }
+        return runStore.observations(runId).stream()
+            .filter(observation -> observation != null && observation.metadata() != null)
+            .filter(observation -> "interpretation_plan".equals(observation.metadata().get("workflow"))
+                || "interpretation_plan_summary".equals(observation.source()))
+            .toList();
+    }
+
+    private InterpretationPlanRuntime.StepReview reviewInterpretationPlanToolResult(
+        ChatModel activeChatModel,
+        String query,
+        String systemPrompt,
+        BooleanSupplier cancellationCheck,
+        InterpretationPlanRuntime.StepReviewRequest request
+    ) {
+        runtimeGuard.checkCancelled(cancellationCheck);
+        if (activeChatModel == null || request == null || request.execution() == null) {
+            return InterpretationPlanRuntime.StepReview.accepted("Model reviewer unavailable; accepting tool result.", Map.of(
+                "toolResultReviewSkipped", true
+            ));
+        }
+        long startedAt = System.currentTimeMillis();
+        String runId = null;
+        log.info("agentModelRequest phase=tool_result_review runId={} stepId={} tool={} attempt={}/{} modelClass={}",
+            firstNonBlank(runId, ""),
+            request.step() == null ? null : request.step().id(),
+            request.execution().toolName(),
+            request.attempt(),
+            request.maxAttempts(),
+            activeChatModel.getClass().getName());
+        String raw = activeChatModel.chat(buildToolResultReviewPrompt(query, systemPrompt, request));
+        log.info("agentModelResponse phase=tool_result_review runId={} stepId={} tool={} attempt={}/{} durationMs={} responseChars={}",
+            firstNonBlank(runId, ""),
+            request.step() == null ? null : request.step().id(),
+            request.execution().toolName(),
+            request.attempt(),
+            request.maxAttempts(),
+            System.currentTimeMillis() - startedAt,
+            raw == null ? 0 : raw.length());
+        Map<String, Object> payload = parseJsonObject(raw);
+        if (payload.isEmpty()) {
+            return InterpretationPlanRuntime.StepReview.rejected(
+                "Tool result review did not return valid JSON.",
+                metadataOf("toolResultReviewRaw", preview(raw))
+            );
+        }
+        boolean satisfied = booleanValue(firstObject(payload, "satisfied", "accepted", "sufficient"));
+        String reason = firstNonBlank(
+            stringValue(firstObject(payload, "reason", "feedback", "analysis")),
+            satisfied ? "Tool result satisfies the plan step." : "Tool result does not satisfy the plan step."
+        );
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("toolResultReviewRaw", preview(raw));
+        List<String> selectedUrls = stringList(firstObject(payload, "selected_urls", "selectedUrls", "urls"));
+        if (!selectedUrls.isEmpty()) {
+            metadata.put("selectedUrls", selectedUrls);
+        }
+        Object confidence = firstObject(payload, "confidence", "score");
+        if (confidence != null) {
+            metadata.put("toolResultReviewConfidence", confidence);
+        }
+        return satisfied
+            ? InterpretationPlanRuntime.StepReview.accepted(reason, metadata)
+            : InterpretationPlanRuntime.StepReview.rejected(reason, metadata);
+    }
+
+    private String buildToolResultReviewPrompt(String query,
+                                               String systemPrompt,
+                                               InterpretationPlanRuntime.StepReviewRequest request) {
+        StringBuilder prompt = new StringBuilder();
+        if (systemPrompt != null && !systemPrompt.isBlank()) {
+            prompt.append("System instruction:\n").append(systemPrompt).append("\n\n");
+        }
+        prompt.append("You are the runtime reviewer for one completed MCP tool call.\n");
+        prompt.append("Return strict JSON only with this shape:\n");
+        prompt.append("{\"satisfied\":true|false,\"reason\":\"short reason\",\"selected_urls\":[\"https://...\"],\"confidence\":0.0}\n");
+        prompt.append("Rules:\n");
+        prompt.append("- Decide whether this tool output is sufficient for the current plan step and user request.\n");
+        prompt.append("- If satisfied=false, the DAG must not continue to dependent steps.\n");
+        prompt.append("- For web_search, judge candidate URLs/snippets only. Do not treat snippets as final evidence; select URLs that should be crawled next.\n");
+        prompt.append("- For crawl/content tools, judge whether the fetched full content is relevant and usable for analysis.\n");
+        prompt.append("- If the user required an official source, reject results that do not satisfy that source constraint.\n");
+        prompt.append("- Do not answer the user here; only review the tool result.\n\n");
+        prompt.append("Attempt: ").append(request.attempt()).append('/').append(request.maxAttempts()).append("\n");
+        prompt.append("User query:\n").append(query == null ? "" : query).append("\n\n");
+        InterpretationPlan plan = request.plan();
+        prompt.append("Plan intent:\n")
+            .append(plan == null || plan.intent() == null ? "" : stringify(plan.intent()))
+            .append("\n\n");
+        prompt.append("Current step:\n")
+            .append(request.step() == null ? "" : stringify(request.step()))
+            .append("\n\n");
+        prompt.append("Tool output:\n")
+            .append(shortObservationText(stringify(request.execution().output()), 9000));
+        return prompt.toString();
     }
 
     private int maxRewriteTimes(InterpretationPlan plan) {
@@ -890,6 +1249,9 @@ public class AgentOrchestrator {
             record.put("durationMs", step.durationMs());
             if (step.errorMessage() != null && !step.errorMessage().isBlank()) {
                 record.put("errorMessage", step.errorMessage());
+            }
+            if (step.metadata() != null && !step.metadata().isEmpty()) {
+                record.put("metadata", step.metadata());
             }
             records.add(record);
             if (step.toolExecution() != null && step.toolExecution().trace() != null) {
@@ -1056,7 +1418,75 @@ public class AgentOrchestrator {
         String observation = output.isSuccess()
             ? toolObservationBuilder.buildSuccessObservation(toolName, output, outputText)
             : toolObservationBuilder.buildFailureObservation(toolName, output);
+        recordStructuredToolObservation(runtimeAttributes, toolName, output, execution, observation);
         return new ToolCallExecution(trace, observation);
+    }
+
+    private Map<String, Object> attributesWithWorkflowStep(Map<String, Object> runtimeAttributes,
+                                                           Integer stepId,
+                                                           String toolName) {
+        Map<String, Object> attributes = new LinkedHashMap<>(runtimeAttributes == null ? Map.of() : runtimeAttributes);
+        if (stepId != null) {
+            attributes.put("workflowStepId", stepId);
+        }
+        if (toolName != null && !toolName.isBlank()) {
+            attributes.put("workflowToolName", toolName);
+        }
+        return attributes;
+    }
+
+    private void recordStructuredToolObservation(Map<String, Object> runtimeAttributes,
+                                                 String toolName,
+                                                 ToolOutput output,
+                                                 ToolRuntimeExecution execution,
+                                                 String observation) {
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("type", output != null && output.isSuccess() ? "tool" : "tool_failure");
+        metadata.put("toolName", toolName);
+        metadata.put("success", output != null && output.isSuccess());
+        metadata.put("outcome", execution == null ? null : execution.outcome());
+        copyAttribute(runtimeAttributes, metadata, "workflowStepId");
+        copyAttribute(runtimeAttributes, metadata, "workflowToolName");
+        copyAttribute(runtimeAttributes, metadata, "interpretationPlanStepId");
+        copyAttribute(runtimeAttributes, metadata, "interpretationPlanActionType");
+        if (output != null && output.getErrorMessage() != null && !output.getErrorMessage().isBlank()) {
+            metadata.put("errorMessage", output.getErrorMessage());
+        }
+        runResultAdapter.recordRuntimeObservation(
+            runtimeAttributes,
+            AGENT_RUN_ID_ATTRIBUTE,
+            observation,
+            toolName,
+            metadata
+        );
+    }
+
+    private void copyAttribute(Map<String, Object> source, Map<String, Object> target, String key) {
+        if (source == null || target == null || key == null) {
+            return;
+        }
+        Object value = source.get(key);
+        if (value != null) {
+            target.put(key, value);
+        }
+    }
+
+    private Set<String> completedWorkflowToolsFromEvents(Map<String, Object> runtimeAttributes,
+                                                         Set<String> fallbackCompletedTools) {
+        Set<String> completed = new LinkedHashSet<>(fallbackCompletedTools == null ? Set.of() : fallbackCompletedTools);
+        String runId = stringValue(runtimeAttributes == null ? null : runtimeAttributes.get(AGENT_RUN_ID_ATTRIBUTE));
+        if (runId == null || runId.isBlank()) {
+            return completed;
+        }
+        completed.addAll(workflowStateTracker.completedToolsFromEvents(runStore.events(runId)));
+        return completed;
+    }
+
+    private Set<String> completedWorkflowToolsWithTraces(Set<String> completedWorkflowTools,
+                                                         List<InteractionToolTrace> traces) {
+        Set<String> completed = new LinkedHashSet<>(completedWorkflowTools == null ? Set.of() : completedWorkflowTools);
+        completed.addAll(workflowStateTracker.completedToolsFromTraces(traces));
+        return completed;
     }
 
 
@@ -1104,10 +1534,14 @@ public class AgentOrchestrator {
                                                   Map<String, Object> runtimeAttributes,
                                                   int maxToolCalls) {
         List<String> fallbackTools = new ArrayList<>();
-        String nextTool = workflowTools.nextMandatoryTool(mandatoryTools, traces);
+        Set<String> completedTools = completedWorkflowToolsFromEvents(
+            runtimeAttributes,
+            workflowStateTracker.completedToolsFromTraces(traces)
+        );
+        String nextTool = workflowTools.nextMandatoryTool(mandatoryTools, completedTools);
         while (nextTool != null && !fallbackTools.contains(nextTool)) {
             fallbackTools.add(nextTool);
-            nextTool = workflowTools.missingMandatoryTools(mandatoryTools, traces).stream()
+            nextTool = workflowTools.missingMandatoryTools(mandatoryTools, completedTools).stream()
                 .filter(tool -> !fallbackTools.contains(tool))
                 .findFirst()
                 .orElse(null);
@@ -1117,7 +1551,12 @@ public class AgentOrchestrator {
         }
         metadata.put("mandatoryWorkflowExecutionTools", fallbackTools);
         for (String fallbackTool : fallbackTools) {
-            if (fallbackTool == null || !tools.contains(fallbackTool) || workflowTools.hasToolTrace(traces, fallbackTool)) {
+            completedTools = completedWorkflowToolsFromEvents(
+                runtimeAttributes,
+                workflowStateTracker.completedToolsFromTraces(traces)
+            );
+            if (fallbackTool == null || !tools.contains(fallbackTool)
+                || completedTools.stream().anyMatch(tool -> toolNames.sameToolName(fallbackTool, tool))) {
                 continue;
             }
             if (answerFinalizer.markToolBudgetExceeded(fallbackTool, maxToolCalls, traces, metadata, observations)) {
@@ -1140,7 +1579,7 @@ public class AgentOrchestrator {
                 tenantId,
                 tools,
                 Map.of(),
-                workflowStateTracker.attributesWithCompletedTools(runtimeAttributes, workflowStateTracker.completedToolsFromTraces(traces))
+                workflowStateTracker.attributesWithCompletedTools(runtimeAttributes, completedTools)
             );
             traces.add(execution.trace());
             observations.add("Mandatory workflow execution " + execution.observation());
@@ -1153,7 +1592,10 @@ public class AgentOrchestrator {
                 metadata.put("mandatoryWorkflowStoppedOnFailure", fallbackTool);
                 return;
             }
-            runtimeAttributes = workflowStateTracker.attributesWithCompletedTools(runtimeAttributes, workflowStateTracker.completedToolsFromTraces(traces));
+            runtimeAttributes = workflowStateTracker.attributesWithCompletedTools(
+                runtimeAttributes,
+                completedWorkflowToolsFromEvents(runtimeAttributes, workflowStateTracker.completedToolsFromTraces(traces))
+            );
         }
     }
 
@@ -1194,10 +1636,14 @@ public class AgentOrchestrator {
                                                    Map<String, Object> runtimeAttributes,
                                                    int maxToolCalls) {
         List<String> fallbackTools = new ArrayList<>();
-        if (!workflowTools.hasToolTrace(traces, documentSearchTool)) {
+        Set<String> completedTools = completedWorkflowToolsFromEvents(
+            runtimeAttributes,
+            workflowStateTracker.completedToolsFromTraces(traces)
+        );
+        if (!completedTools.stream().anyMatch(tool -> toolNames.sameToolName(documentSearchTool, tool))) {
             fallbackTools.add(documentSearchTool);
         }
-        if (!workflowTools.hasToolTrace(traces, verificationWebSearchTool)) {
+        if (!completedTools.stream().anyMatch(tool -> toolNames.sameToolName(verificationWebSearchTool, tool))) {
             fallbackTools.add(verificationWebSearchTool);
         }
         if (fallbackTools.isEmpty()) {
@@ -1229,11 +1675,12 @@ public class AgentOrchestrator {
                 tenantId,
                 tools,
                 Map.of(),
-                workflowStateTracker.attributesWithCompletedTools(runtimeAttributes, workflowStateTracker.completedToolsFromTraces(traces))
+                workflowStateTracker.attributesWithCompletedTools(runtimeAttributes, completedTools)
             );
             traces.add(execution.trace());
             observations.add("Document-web verification fallback " + execution.observation());
-            runtimeAttributes = workflowStateTracker.attributesWithCompletedTools(runtimeAttributes, workflowStateTracker.completedToolsFromTraces(traces));
+            completedTools = completedWorkflowToolsFromEvents(runtimeAttributes, workflowStateTracker.completedToolsFromTraces(traces));
+            runtimeAttributes = workflowStateTracker.attributesWithCompletedTools(runtimeAttributes, completedTools);
             if (workflowStateTracker.isConfirmationRequired(execution)) {
                 metadata.put("stopReason", "confirmation_required");
                 metadata.put("confirmationRequired", true);
@@ -1261,6 +1708,84 @@ public class AgentOrchestrator {
             }
         }
         return Map.of();
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> parseJsonObject(String raw) {
+        if (raw == null || raw.isBlank()) {
+            return Map.of();
+        }
+        try {
+            return objectMapper.readValue(extractJsonObject(raw), Map.class);
+        } catch (Exception ex) {
+            return Map.of();
+        }
+    }
+
+    private String extractJsonObject(String raw) {
+        String text = raw == null ? "" : raw.trim();
+        int blockStart = text.indexOf("```");
+        if (blockStart >= 0) {
+            int firstBrace = text.indexOf('{', blockStart);
+            int lastBrace = text.lastIndexOf('}');
+            if (firstBrace >= 0 && lastBrace > firstBrace) {
+                return text.substring(firstBrace, lastBrace + 1);
+            }
+        }
+        int firstBrace = text.indexOf('{');
+        int lastBrace = text.lastIndexOf('}');
+        if (firstBrace >= 0 && lastBrace > firstBrace) {
+            return text.substring(firstBrace, lastBrace + 1);
+        }
+        return text;
+    }
+
+    private void recordLifecyclePhase(Map<String, Object> runtimeAttributes,
+                                      Map<String, Object> metadata,
+                                      String phase,
+                                      String content,
+                                      Map<String, Object> phaseMetadata) {
+        if (phase == null || phase.isBlank()) {
+            return;
+        }
+        Map<String, Object> values = new LinkedHashMap<>();
+        values.put("type", "lifecycle");
+        values.put("workflow", WORKFLOW_PROBLEM_SOLVING);
+        values.put("lifecyclePhase", phase);
+        values.put("createdAt", System.currentTimeMillis());
+        values.putAll(phaseMetadata == null ? Map.of() : phaseMetadata);
+        if (metadata != null) {
+            metadataList(metadata, "agentLifecyclePhases").add(values);
+        }
+        log.info("agentLifecycle phase={} runId={} content={}",
+            phase,
+            firstNonBlank(stringValue(runtimeAttributes == null ? null : runtimeAttributes.get(AGENT_RUN_ID_ATTRIBUTE)), ""),
+            content);
+        runResultAdapter.recordRuntimeObservation(
+            runtimeAttributes,
+            AGENT_RUN_ID_ATTRIBUTE,
+            content,
+            "agent_lifecycle",
+            values
+        );
+    }
+
+    private Map<String, Object> metadataOf(Object... keyValues) {
+        if (keyValues == null || keyValues.length == 0) {
+            return Map.of();
+        }
+        Map<String, Object> values = new LinkedHashMap<>();
+        for (int i = 0; i + 1 < keyValues.length; i += 2) {
+            Object key = keyValues[i];
+            if (key == null) {
+                continue;
+            }
+            Object value = keyValues[i + 1];
+            if (value != null) {
+                values.put(String.valueOf(key), value);
+            }
+        }
+        return values;
     }
 
     /**

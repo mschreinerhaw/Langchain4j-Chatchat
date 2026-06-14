@@ -4,6 +4,7 @@ import com.chatchat.agents.runtime.AgentAnswerReview;
 import com.chatchat.agents.runtime.AgentAnswerReviewer;
 import com.chatchat.common.interaction.InteractionToolTrace;
 import dev.langchain4j.model.chat.ChatModel;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -13,6 +14,7 @@ import java.util.function.BooleanSupplier;
 /**
  * Builds final agent answers and preserves the legacy execution result contract.
  */
+@Slf4j
 class AgentAnswerFinalizer {
 
     private final AgentAnswerReviewer answerReviewer;
@@ -63,13 +65,13 @@ class AgentAnswerFinalizer {
                                                                  List<String> observations,
                                                                  BooleanSupplier cancellationCheck) {
         runtimeGuard.checkCancelled(cancellationCheck);
-        String finalAnswer = summarizeWithObservations(activeChatModel, query, systemPrompt, observations);
+        String finalAnswer = summarizeWithObservations(activeChatModel, query, systemPrompt, observations, metadata);
         runtimeGuard.checkCancelled(cancellationCheck);
-        AgentAnswerReview review = answerReviewer.review(activeChatModel, query, systemPrompt, observations, finalAnswer);
+        AgentAnswerReview review = reviewAnswer(activeChatModel, query, systemPrompt, observations, finalAnswer, metadata);
         runtimeGuard.checkCancelled(cancellationCheck);
         recordAnswerReview(metadata, review);
         metadata.put("stopReason", "tool_budget_exceeded");
-        return finishExecution(review.answer(), traces, metadata, observations);
+        return finishExecution(reviewedAnswer(review, metadata), traces, metadata, observations);
     }
 
     AgentOrchestrator.AgentExecutionResult finishReviewedSummary(ChatModel activeChatModel,
@@ -81,13 +83,13 @@ class AgentAnswerFinalizer {
                                                                  BooleanSupplier cancellationCheck,
                                                                  String stopReason) {
         runtimeGuard.checkCancelled(cancellationCheck);
-        String finalAnswer = summarizeWithObservations(activeChatModel, query, systemPrompt, observations);
+        String finalAnswer = summarizeWithObservations(activeChatModel, query, systemPrompt, observations, metadata);
         runtimeGuard.checkCancelled(cancellationCheck);
-        AgentAnswerReview review = answerReviewer.review(activeChatModel, query, systemPrompt, observations, finalAnswer);
+        AgentAnswerReview review = reviewAnswer(activeChatModel, query, systemPrompt, observations, finalAnswer, metadata);
         runtimeGuard.checkCancelled(cancellationCheck);
         recordAnswerReview(metadata, review);
         metadata.put("stopReason", stopReason);
-        return finishExecution(review.answer(), traces, metadata, observations);
+        return finishExecution(reviewedAnswer(review, metadata), traces, metadata, observations);
     }
 
     AgentOrchestrator.AgentExecutionResult finishReviewedAnswer(ChatModel activeChatModel,
@@ -99,30 +101,32 @@ class AgentAnswerFinalizer {
                                                                 String answer,
                                                                 BooleanSupplier cancellationCheck,
                                                                 String stopReason) {
-        String finalAnswer = safeAnswer(activeChatModel, answer, query, observations, systemPrompt);
+        String finalAnswer = safeAnswer(activeChatModel, answer, query, observations, systemPrompt, metadata);
         runtimeGuard.checkCancelled(cancellationCheck);
-        AgentAnswerReview review = answerReviewer.review(activeChatModel, query, systemPrompt, observations, finalAnswer);
+        AgentAnswerReview review = reviewAnswer(activeChatModel, query, systemPrompt, observations, finalAnswer, metadata);
         runtimeGuard.checkCancelled(cancellationCheck);
         recordAnswerReview(metadata, review);
         metadata.put("stopReason", stopReason);
-        return finishExecution(review.answer(), traces, metadata, observations);
+        return finishExecution(reviewedAnswer(review, metadata), traces, metadata, observations);
     }
 
     private String safeAnswer(ChatModel activeChatModel,
                               String answer,
                               String query,
                               List<String> observations,
-                              String systemPrompt) {
+                              String systemPrompt,
+                              Map<String, Object> metadata) {
         if (answer != null && !answer.isBlank()) {
             return answer;
         }
-        return summarizeWithObservations(activeChatModel, query, systemPrompt, observations);
+        return summarizeWithObservations(activeChatModel, query, systemPrompt, observations, metadata);
     }
 
     private String summarizeWithObservations(ChatModel activeChatModel,
                                              String query,
                                              String systemPrompt,
-                                             List<String> observations) {
+                                             List<String> observations,
+                                             Map<String, Object> metadata) {
         StringBuilder prompt = new StringBuilder();
         if (systemPrompt != null && !systemPrompt.isBlank()) {
             prompt.append("System instruction: ").append(systemPrompt).append("\n\n");
@@ -139,7 +143,55 @@ class AgentAnswerFinalizer {
             observations.forEach(ob -> prompt.append("- ").append(ob).append("\n"));
         }
         prompt.append("\nUser question: ").append(query);
-        return activeChatModel.chat(prompt.toString());
+        String promptText = prompt.toString();
+        String runId = stringValue(metadata == null ? null : metadata.get("agentRunId"));
+        long startedAt = System.currentTimeMillis();
+        log.info("agentModelRequest phase=summary runId={} modelClass={} promptChars={} observationCount={}",
+            firstNonBlank(runId, ""),
+            activeChatModel == null ? null : activeChatModel.getClass().getName(),
+            promptText.length(),
+            observations == null ? 0 : observations.size());
+        String answer = activeChatModel.chat(promptText);
+        log.info("agentModelResponse phase=summary runId={} durationMs={} responseChars={}",
+            firstNonBlank(runId, ""),
+            System.currentTimeMillis() - startedAt,
+            answer == null ? 0 : answer.length());
+        return answer;
+    }
+
+    private AgentAnswerReview reviewAnswer(ChatModel activeChatModel,
+                                           String query,
+                                           String systemPrompt,
+                                           List<String> observations,
+                                           String finalAnswer,
+                                           Map<String, Object> metadata) {
+        String runId = stringValue(metadata == null ? null : metadata.get("agentRunId"));
+        if (finalAnswer == null || finalAnswer.isBlank() || activeChatModel == null) {
+            log.info("agentModelSkipped phase=review runId={} reason={} answerChars={} observationCount={}",
+                firstNonBlank(runId, ""),
+                activeChatModel == null ? "chat_model_unavailable" : "empty_answer",
+                finalAnswer == null ? 0 : finalAnswer.length(),
+                observations == null ? 0 : observations.size());
+            return answerReviewer.review(activeChatModel, query, systemPrompt, observations, finalAnswer);
+        }
+        long startedAt = System.currentTimeMillis();
+        log.info("agentModelRequest phase=review runId={} modelClass={} answerChars={} observationCount={}",
+            firstNonBlank(runId, ""),
+            activeChatModel == null ? null : activeChatModel.getClass().getName(),
+            finalAnswer == null ? 0 : finalAnswer.length(),
+            observations == null ? 0 : observations.size());
+        AgentAnswerReview review = answerReviewer.review(activeChatModel, query, systemPrompt, observations, finalAnswer);
+        log.info("agentModelResponse phase=review runId={} durationMs={} status={} answerChars={}",
+            firstNonBlank(runId, ""),
+            System.currentTimeMillis() - startedAt,
+            review == null ? null : review.status(),
+            review == null || review.answer() == null ? 0 : review.answer().length());
+        if (review != null && AgentAnswerReview.REJECTED.equals(review.status())) {
+            log.warn("agentModelReviewRejected runId={} feedback={}",
+                firstNonBlank(runId, ""),
+                review.feedback());
+        }
+        return review;
     }
 
     private void recordAnswerReview(Map<String, Object> metadata, AgentAnswerReview review) {
@@ -150,5 +202,25 @@ class AgentAnswerFinalizer {
         if (review.feedback() != null && !review.feedback().isBlank()) {
             metadata.put("answerReviewFeedback", review.feedback());
         }
+    }
+
+    private String reviewedAnswer(AgentAnswerReview review, Map<String, Object> metadata) {
+        String answer = review == null ? "" : review.answer();
+        if (answer != null && !answer.isBlank()) {
+            return answer;
+        }
+        if (metadata != null) {
+            metadata.put("emptyAnswer", true);
+            metadata.put("emptyAnswerReason", review == null ? "answer_review_unavailable" : review.feedback());
+        }
+        return "";
+    }
+
+    private String stringValue(Object value) {
+        return value == null ? null : String.valueOf(value);
+    }
+
+    private String firstNonBlank(String first, String second) {
+        return first == null || first.isBlank() ? second : first;
     }
 }

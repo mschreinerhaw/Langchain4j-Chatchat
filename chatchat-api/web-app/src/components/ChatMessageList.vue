@@ -4,7 +4,14 @@
       v-for="message in messages"
       :key="message.id"
       class="chat-message"
-      :class="[message.role, { streaming: message.streaming, 'streaming-has-content': message.streaming && message.content }]"
+      :class="[
+        message.role,
+        {
+          streaming: message.streaming,
+          executing: isExecutionRunning(message),
+          'streaming-has-content': message.streaming && message.content
+        }
+      ]"
     >
       <div class="message-avatar">{{ message.role === "user" ? userAvatarLabel : "AI" }}</div>
       <div class="message-bubble">
@@ -25,7 +32,29 @@
             </button>
           </div>
         </div>
-        <div v-if="message.role === 'assistant' && message.streaming && !message.content" class="analysis-progress">
+        <div
+          v-if="shouldShowSteps(message)"
+          class="analysis-progress"
+          :class="{ compact: !!message.content, running: isExecutionRunning(message) }"
+        >
+          <strong>
+            <span>{{ executionTitle(message) }}</span>
+            <i v-if="isExecutionRunning(message)" class="execution-live-indicator" aria-hidden="true"></i>
+          </strong>
+          <TransitionGroup name="execution-step-list" tag="div">
+            <span
+              v-for="step in visibleExecutionSteps(message)"
+              :key="step.id"
+              :class="stepStatusClass(step)"
+              :aria-current="step.status === 'active' ? 'step' : undefined"
+            >
+              <b>{{ step.title }}</b>
+              <small v-if="step.detail">{{ step.detail }}</small>
+            </span>
+          </TransitionGroup>
+          <div v-if="isExecutionRunning(message)" class="execution-flow-bar" aria-hidden="true"></div>
+        </div>
+        <div v-else-if="message.role === 'assistant' && message.streaming && !message.content" class="analysis-progress">
           <strong>正在分析{{ activeAgent?.name ? `：${activeAgent.name}` : "" }}</strong>
           <div>
             <span class="done">获取业务上下文</span>
@@ -33,10 +62,10 @@
             <span class="active">生成分析结论</span>
           </div>
         </div>
-        <div v-else class="message-markdown" v-html="renderMarkdown(message.content, message)"></div>
+        <div v-if="message.content" class="message-markdown" v-html="renderMarkdown(message.content, message)"></div>
         <div v-if="message.latencyMs" class="message-extra">耗时 {{ message.latencyMs }}ms</div>
         <ResponseReferences
-          v-if="message.role === 'assistant' && !message.streaming && message.status !== 'waiting'"
+          v-if="message.role === 'assistant' && !message.streaming && !isExecutionRunning(message) && message.status !== 'waiting'"
           :sources="message.sources || []"
           :tool-traces="message.traces || []"
           compact

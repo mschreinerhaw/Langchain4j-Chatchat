@@ -229,6 +229,13 @@ mvn -pl chatchat-tools -am exec:java -Dexec.mainClass=com.microsoft.playwright.C
 
 The selected OS subdirectory must contain the browser builds required by the Playwright Java version in the parent `pom.xml`. After upgrading Playwright, re-run the install command so build folders such as `chromium-*`, `chromium_headless_shell-*`, `ffmpeg-*`, and `winldd-*` match the runtime version. If Linux bundles are extracted on Windows, run `playwright-browsers/fix-linux-permissions.sh` once after copying them to Linux.
 
+`web_search` only launches Playwright Chromium. When the selected cache directory already contains a Chromium build, the runtime sets `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1` for the Playwright child process so Playwright does not try to backfill unused browser builds such as Firefox or WebKit. To force the same behavior even before the cache is checked, add this to `config/env.local`:
+
+```properties
+CHAT_WEB_SEARCH_BROWSER_SKIP_DOWNLOAD=true
+PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
+```
+
 When `site-search.enabled` is true, `web_search` inspects top result pages for search forms, submits the original keyword through detected search inputs, and merges same-domain secondary result links back into `results` and `reference_urls`. This helps securities exchange and market-data websites whose useful pages only appear after an in-page search.
 
 Each request logs keyword, phase, target domain, proxy id, status code, duration, and failure reason. When `audit.include-in-result` is true, the MCP response also includes `web_search_audit`.

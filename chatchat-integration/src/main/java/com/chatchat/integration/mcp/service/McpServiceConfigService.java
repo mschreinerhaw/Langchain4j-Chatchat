@@ -111,7 +111,7 @@ public class McpServiceConfigService {
         current.setProxyUsername(blankToNull(draft.getProxyUsername()));
         current.setProxyPassword(blankToNull(draft.getProxyPassword()));
         current.setEnabled(draft.isEnabled());
-        current.setTimeoutMs(draft.getTimeoutMs() <= 0 ? 20000 : draft.getTimeoutMs());
+        current.setTimeoutMs(Math.max(0, draft.getTimeoutMs()));
         validate(current);
         McpServiceConfig saved = repository.save(current);
         snapshotVersion(saved, source == null || source.isBlank() ? "import_update" : "import_" + source.trim());
@@ -146,7 +146,7 @@ public class McpServiceConfigService {
         current.setProxyUsername(blankToNull(draft.getProxyUsername()));
         current.setProxyPassword(blankToNull(draft.getProxyPassword()));
         current.setEnabled(draft.isEnabled());
-        current.setTimeoutMs(draft.getTimeoutMs() <= 0 ? 20000 : draft.getTimeoutMs());
+        current.setTimeoutMs(Math.max(0, draft.getTimeoutMs()));
         validate(current);
         McpServiceConfig saved = repository.save(current);
         snapshotVersion(saved, "update");
@@ -238,7 +238,7 @@ public class McpServiceConfigService {
         current.setProxyUsername(target.getProxyUsername());
         current.setProxyPassword(target.getProxyPassword());
         current.setEnabled(target.isEnabled());
-        current.setTimeoutMs(target.getTimeoutMs() <= 0 ? 20000 : target.getTimeoutMs());
+        current.setTimeoutMs(Math.max(0, target.getTimeoutMs()));
         validate(current);
         McpServiceConfig saved = repository.save(current);
         snapshotVersion(saved, "rollback");
@@ -283,9 +283,7 @@ public class McpServiceConfigService {
                 throw new IllegalArgumentException("MCP proxy host and port are required when proxy is enabled");
             }
         }
-        if (config.getTimeoutMs() <= 0) {
-            config.setTimeoutMs(20000);
-        }
+        config.setTimeoutMs(Math.max(0, config.getTimeoutMs()));
         if (stdioProxy && (config.getBaseUrl() == null || config.getBaseUrl().isBlank())) {
             config.setBaseUrl("stdio://local");
         }

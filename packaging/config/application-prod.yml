@@ -75,7 +75,7 @@ chatchat:
     stdio-proxy:
       enabled: true
       max-sessions: 32
-      request-timeout-ms: 20000
+      request-timeout-ms: ${CHAT_MCP_STDIO_PROXY_REQUEST_TIMEOUT_MS:0}
       startup-timeout-ms: 15000
       idle-ttl-ms: 300000
       cleanup-interval-ms: 30000

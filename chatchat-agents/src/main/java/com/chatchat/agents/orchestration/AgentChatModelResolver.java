@@ -46,10 +46,12 @@ class AgentChatModelResolver {
             .apiKey(modelsConfig.getOpenai().getApiKey())
             .baseUrl(modelsConfig.getOpenai().getBaseUrl())
             .modelName(modelName)
-            .timeout(Duration.ofSeconds(modelsConfig.getOpenai().getTimeout()))
             .maxRetries(modelsConfig.getOpenai().getMaxRetries())
             .logRequests(true)
             .logResponses(true);
+        if (modelsConfig.getOpenai().getTimeout() > 0) {
+            builder.timeout(Duration.ofSeconds(modelsConfig.getOpenai().getTimeout()));
+        }
         HttpClientBuilder httpClientBuilder = resolveOpenAiHttpClientBuilder();
         if (httpClientBuilder != null) {
             builder.httpClientBuilder(httpClientBuilder);

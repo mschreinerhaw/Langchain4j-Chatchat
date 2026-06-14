@@ -2,15 +2,16 @@ spring:
   application:
     name: chatchat-mcp-server
   datasource:
+    type: com.zaxxer.hikari.HikariDataSource
     url: jdbc:h2:file:./data/h2/chatchat-mcp-server;MODE=MySQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE;DB_CLOSE_DELAY=-1
     driver-class-name: org.h2.Driver
     username: sa
     password: 
     hikari:
       pool-name: ChatChatMcpHikariPool
-      maximum-pool-size: 10
+      maximum-pool-size: 20
       minimum-idle: 2
-      connection-timeout: 20000
+      connection-timeout: 30000
       idle-timeout: 300000
       max-lifetime: 1200000
       auto-commit: true
@@ -28,14 +29,7 @@ spring:
     show-sql: false
     properties:
       hibernate:
-        format_sql: true
-        connection:
-          driver_class: org.h2.Driver
-          url: jdbc:h2:file:./data/h2/chatchat-mcp-server;MODE=MySQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE;DB_CLOSE_DELAY=-1
-          username: sa
-          pool_size: 10
-          autocommit: true
-          isolation: 2
+        format_sql: false
 
 server:
   port: 8090
@@ -140,7 +134,8 @@ chatchat:
       # User-Agent sent when fetching target pages.
       user-agent: ChatChat-MCP-Crawler/1.0
       # Per-page HTTP timeout.
-      timeout-ms: 10000
+      # 0 means wait for web search/page fetch completion without a local request timeout.
+      timeout-ms: 0
       # Maximum response bytes read before aborting a page fetch.
       max-body-bytes: 1048576
       # Maximum raw HTML characters retained for processing.
@@ -224,7 +219,8 @@ chatchat:
       provider: bing_html
       endpoint: https://www.bing.com/search
       user-agent: ChatChat-MCP-Server/1.0
-      timeout-ms: 10000
+      # 0 means wait for web_search completion without a local request timeout.
+      timeout-ms: 0
       max-results: 10
       fetch-pages: true
       max-pages-to-fetch: 3
@@ -240,7 +236,8 @@ chatchat:
         enabled: true
         browsers-path: ${PLAYWRIGHT_BROWSERS_PATH:playwright-browsers}
         skip-browser-download: ${CHAT_WEB_SEARCH_BROWSER_SKIP_DOWNLOAD:false}
-        navigation-timeout-ms: 15000
+        # 0 disables Playwright navigation timeout.
+        navigation-timeout-ms: 0
         accept-language: en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7
         referer: https://www.bing.com/
         tls-fingerprint-profile: jdk-default

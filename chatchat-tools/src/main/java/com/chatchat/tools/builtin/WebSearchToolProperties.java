@@ -22,7 +22,7 @@ public class WebSearchToolProperties {
 
     private String userAgent = "ChatChat-MCP-Server/1.0";
 
-    private int timeoutMs = 10000;
+    private int timeoutMs = 0;
 
     private int maxResults = 10;
 
@@ -103,7 +103,7 @@ public class WebSearchToolProperties {
 
         private boolean skipBrowserDownload = false;
 
-        private int navigationTimeoutMs = 15000;
+        private int navigationTimeoutMs = 0;
 
         private String accept = "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8";
 

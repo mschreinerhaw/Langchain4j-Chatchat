@@ -113,6 +113,41 @@ class ToolRuntimeServiceTest {
     }
 
     @Test
+    void doesNotTimeoutMcpToolExecution() {
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.getToolMetadata("mcp_chatchat_mcp_server_web_search")).thenReturn(ToolMetadata.builder()
+            .id("mcp_chatchat_mcp_server_web_search")
+            .title("MCP Web Search")
+            .categories(List.of("mcp"))
+            .timeoutMillis(10L)
+            .build());
+        when(toolRegistry.executeEnhancedTool(any(), any())).thenAnswer(invocation -> {
+            Thread.sleep(80);
+            return ToolOutput.success("search result");
+        });
+        ToolRuntimeService service = new ToolRuntimeService(toolRegistry, new ObjectMapper(), properties(), List.of(), List.of());
+
+        try {
+            ToolRuntimeExecution execution = service.execute(ToolRuntimeRequest.builder()
+                .toolName("mcp_chatchat_mcp_server_web_search")
+                .runtimeMode("agent_chat")
+                .requestId("req-mcp-no-timeout")
+                .conversationId("conv-mcp-no-timeout")
+                .tenantId("tenant-1")
+                .userId("user-mcp")
+                .allowedTools(List.of("mcp_chatchat_mcp_server_web_search"))
+                .toolInput(ToolInput.builder().userId("user-mcp").parameters(Map.of("query", "market")).build())
+                .build());
+
+            assertThat(execution.output().isSuccess()).isTrue();
+            assertThat(execution.output().getDataAsString()).isEqualTo("search result");
+            assertThat(execution.output().getExceptionType()).isNull();
+        } finally {
+            service.shutdown();
+        }
+    }
+
+    @Test
     void opensCircuitAfterRepeatedFailures() {
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         when(toolRegistry.getToolMetadata("mcp_finance_quotes")).thenReturn(ToolMetadata.builder()
@@ -531,6 +566,58 @@ class ToolRuntimeServiceTest {
         verify(toolRegistry, times(3)).executeEnhancedTool(any(), any());
     }
 
+    @Test
+    void workflowFailureDoesNotLeakAcrossRequestsInSameConversation() {
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.getToolMetadata("mcp_chatchat_mcp_server_web_search")).thenReturn(ToolMetadata.builder()
+            .id("mcp_chatchat_mcp_server_web_search")
+            .title("Web Search")
+            .categories(List.of("mcp"))
+            .build());
+        when(toolRegistry.executeEnhancedTool(any(), any())).thenReturn(
+            ToolOutput.failure("network failed"),
+            ToolOutput.success("fresh result")
+        );
+
+        ToolRuntimeService service = new ToolRuntimeService(
+            toolRegistry,
+            new ObjectMapper(),
+            properties(),
+            new McpPolicyProperties(),
+            new McpWorkflowProperties(),
+            List.of(),
+            List.of()
+        );
+        Map<String, Object> workflowConfig = Map.of(
+            "enabled", true,
+            "workflow", "live_data_workflow",
+            "executionStrategy", Map.of("mode", "sequential", "stopOnError", true),
+            "steps", List.of(
+                Map.of("step", 1, "tool", "mcp_chatchat_mcp_server_web_search", "required", true)
+            )
+        );
+
+        ToolRuntimeExecution failed = service.execute(agentWorkflowRequest(
+            "mcp_chatchat_mcp_server_web_search",
+            workflowConfig,
+            List.of("mcp_chatchat_mcp_server_web_search"),
+            "req-live-data-1",
+            "conv-live-data"
+        ));
+        ToolRuntimeExecution nextRequest = service.execute(agentWorkflowRequest(
+            "mcp_chatchat_mcp_server_web_search",
+            workflowConfig,
+            List.of("mcp_chatchat_mcp_server_web_search"),
+            "req-live-data-2",
+            "conv-live-data"
+        ));
+
+        assertThat(failed.output().isSuccess()).isFalse();
+        assertThat(nextRequest.output().isSuccess()).isTrue();
+        assertThat(nextRequest.output().getDataAsString()).isEqualTo("fresh result");
+        verify(toolRegistry, times(2)).executeEnhancedTool(any(), any());
+    }
+
     private ToolRuntimeProperties properties() {
         ToolRuntimeProperties properties = new ToolRuntimeProperties();
         properties.setEnforceAllowedTools(true);
@@ -558,11 +645,19 @@ class ToolRuntimeServiceTest {
     }
 
     private ToolRuntimeRequest agentWorkflowRequest(String toolName, Map<String, Object> workflowConfig, List<String> allowedTools) {
+        return agentWorkflowRequest(toolName, workflowConfig, allowedTools, "req-agent-workflow", "conv-agent-workflow");
+    }
+
+    private ToolRuntimeRequest agentWorkflowRequest(String toolName,
+                                                    Map<String, Object> workflowConfig,
+                                                    List<String> allowedTools,
+                                                    String requestId,
+                                                    String conversationId) {
         return ToolRuntimeRequest.builder()
             .toolName(toolName)
             .runtimeMode("agent_chat")
-            .requestId("req-agent-workflow")
-            .conversationId("conv-agent-workflow")
+            .requestId(requestId)
+            .conversationId(conversationId)
             .tenantId("tenant-1")
             .userId("user-agent-workflow")
             .allowedTools(allowedTools)

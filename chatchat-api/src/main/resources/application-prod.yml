@@ -9,23 +9,17 @@ spring:
     database-platform: ${CHAT_JPA_DIALECT:org.hibernate.dialect.H2Dialect}
     properties:
       hibernate:
-        format_sql: true
-        connection:
-          driver_class: ${CHAT_DATASOURCE_DRIVER:org.h2.Driver}
-          url: ${CHAT_DATASOURCE_URL:jdbc:h2:file:./data/h2/chatchat;MODE=MySQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE;DB_CLOSE_DELAY=-1}
-          username: ${CHAT_DATASOURCE_USERNAME:sa}
-          pool_size: ${CHAT_HIKARI_MAXIMUM_POOL_SIZE:5}
-          autocommit: ${CHAT_HIKARI_AUTO_COMMIT:true}
-          isolation: ${CHAT_HIBERNATE_CONNECTION_ISOLATION:2}
+        format_sql: false
   datasource:
+    type: com.zaxxer.hikari.HikariDataSource
     url: ${CHAT_DATASOURCE_URL:jdbc:h2:file:./data/h2/chatchat;MODE=MySQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE;DB_CLOSE_DELAY=-1}
     driver-class-name: ${CHAT_DATASOURCE_DRIVER:org.h2.Driver}
     username: ${CHAT_DATASOURCE_USERNAME:sa}
     password: ${CHAT_DATASOURCE_PASSWORD:}
     hikari:
-      maximum-pool-size: 5
-      minimum-idle: 1
-      connection-timeout: 20000
+      maximum-pool-size: ${CHAT_HIKARI_MAXIMUM_POOL_SIZE:20}
+      minimum-idle: ${CHAT_HIKARI_MINIMUM_IDLE:2}
+      connection-timeout: ${CHAT_HIKARI_CONNECTION_TIMEOUT_MS:30000}
       idle-timeout: 300000
       max-lifetime: 1200000
       auto-commit: ${CHAT_HIKARI_AUTO_COMMIT:true}
@@ -80,7 +74,7 @@ chatchat:
     stdio-proxy:
       enabled: true
       max-sessions: 32
-      request-timeout-ms: 20000
+      request-timeout-ms: ${CHAT_MCP_STDIO_PROXY_REQUEST_TIMEOUT_MS:0}
       startup-timeout-ms: 15000
       idle-ttl-ms: 300000
       cleanup-interval-ms: 30000
@@ -323,7 +317,9 @@ logging:
     org.springframework.web: INFO
     org.springframework.security: DEBUG
     org.hibernate: WARN
-    org.hibernate.SQL: DEBUG
+    org.hibernate.SQL: WARN
+    org.hibernate.orm.jdbc.bind: WARN
+    org.hibernate.type.descriptor.sql.BasicBinder: WARN
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
     file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"

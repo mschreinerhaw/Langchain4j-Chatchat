@@ -18,6 +18,9 @@ fi
 
 mkdir -p "$APP_HOME/logs" "$APP_HOME/lib/drivers"
 
+. "$APP_HOME/bin/load-env.sh"
+export SPRING_PROFILES_ACTIVE="${SPRING_PROFILES_ACTIVE:-prod}"
+
 if [ -f "$PID_FILE" ]; then
   PID="$(cat "$PID_FILE")"
   if [ -n "$PID" ] && kill -0 "$PID" 2>/dev/null; then

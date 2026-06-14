@@ -4,8 +4,10 @@ import com.chatchat.common.interaction.InteractionToolTrace;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Resolves mandatory workflow tools and document-web verification progress.
@@ -36,6 +38,12 @@ class AgentWorkflowToolResolver {
         return !hasToolTrace(traces, documentSearchTool) || !hasToolTrace(traces, verificationWebSearchTool);
     }
 
+    boolean missingDocumentWebVerification(Set<String> completedTools,
+                                           String documentSearchTool,
+                                           String verificationWebSearchTool) {
+        return !hasCompletedTool(completedTools, documentSearchTool) || !hasCompletedTool(completedTools, verificationWebSearchTool);
+    }
+
     boolean hasToolTrace(List<InteractionToolTrace> traces, String toolName) {
         if (traces == null || traces.isEmpty() || toolName == null || toolName.isBlank()) {
             return false;
@@ -50,8 +58,19 @@ class AgentWorkflowToolResolver {
             .toList();
     }
 
+    List<String> missingMandatoryTools(List<String> mandatoryTools, Set<String> completedTools) {
+        return normalizeList(mandatoryTools).stream()
+            .filter(toolName -> !hasCompletedTool(completedTools, toolName))
+            .toList();
+    }
+
     String nextMandatoryTool(List<String> mandatoryTools, List<InteractionToolTrace> traces) {
         List<String> missing = missingMandatoryTools(mandatoryTools, traces);
+        return missing.isEmpty() ? null : missing.get(0);
+    }
+
+    String nextMandatoryTool(List<String> mandatoryTools, Set<String> completedTools) {
+        List<String> missing = missingMandatoryTools(mandatoryTools, completedTools);
         return missing.isEmpty() ? null : missing.get(0);
     }
 
@@ -113,5 +132,13 @@ class AgentWorkflowToolResolver {
             .map(String::trim)
             .distinct()
             .toList();
+    }
+
+    private boolean hasCompletedTool(Set<String> completedTools, String toolName) {
+        if (completedTools == null || completedTools.isEmpty() || toolName == null || toolName.isBlank()) {
+            return false;
+        }
+        Set<String> normalized = new LinkedHashSet<>(completedTools);
+        return normalized.stream().anyMatch(completed -> toolNames.sameToolName(toolName, completed));
     }
 }

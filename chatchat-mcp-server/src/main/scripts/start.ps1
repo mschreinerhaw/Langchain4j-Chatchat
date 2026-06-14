@@ -12,6 +12,11 @@ $ConfigDir = Join-Path $AppHome "config"
 
 New-Item -ItemType Directory -Force -Path $LogsDir, $DriversDir | Out-Null
 
+. (Join-Path $PSScriptRoot "load-env.ps1")
+if (-not $env:SPRING_PROFILES_ACTIVE) {
+    $env:SPRING_PROFILES_ACTIVE = "prod"
+}
+
 if (Test-Path $PidFile) {
     $OldPid = Get-Content $PidFile -ErrorAction SilentlyContinue | Select-Object -First 1
     if ($OldPid -and (Get-Process -Id $OldPid -ErrorAction SilentlyContinue)) {

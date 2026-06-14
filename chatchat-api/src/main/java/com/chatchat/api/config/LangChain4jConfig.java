@@ -45,10 +45,12 @@ public class LangChain4jConfig {
             .apiKey(modelsConfig.getOpenai().getApiKey())
             .baseUrl(modelsConfig.getOpenai().getBaseUrl())
             .modelName(modelsConfig.getDefaultChatModel())
-            .timeout(Duration.ofSeconds(modelsConfig.getOpenai().getTimeout()))
             .maxRetries(modelsConfig.getOpenai().getMaxRetries())
             .logRequests(false)
             .logResponses(false);
+        if (modelsConfig.getOpenai().getTimeout() > 0) {
+            builder.timeout(Duration.ofSeconds(modelsConfig.getOpenai().getTimeout()));
+        }
 
         HttpClientBuilder httpClientBuilder = resolveOpenAiHttpClientBuilder();
         if (httpClientBuilder != null) {

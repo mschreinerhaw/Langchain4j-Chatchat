@@ -310,7 +310,7 @@ public class McpServiceController {
         config.setToolInvokePath(request.toolInvokePath());
         config.setAuthToken(request.authToken());
         config.setEnabled(request.enabled() == null || request.enabled());
-        config.setTimeoutMs(request.timeoutMs() == null ? 20000 : request.timeoutMs());
+        config.setTimeoutMs(request.timeoutMs() == null ? 0 : Math.max(0, request.timeoutMs()));
         config.setCustomHeadersJson(writeHeadersJson(request.customHeaders()));
         config.setProtocol(request.protocol());
         config.setStdioCommand(request.stdioCommand());

@@ -1,11 +1,15 @@
 package com.chatchat.agents.runtime.plan;
 
+import com.chatchat.agents.runtime.AgentRunEvent;
+import com.chatchat.agents.runtime.AgentRunEventType;
+import com.chatchat.agents.runtime.InMemoryAgentRunStore;
 import com.chatchat.agents.runtime.ToolRuntimeExecution;
 import com.chatchat.agents.runtime.ToolRuntimeRequest;
 import com.chatchat.agents.runtime.ToolRuntimeService;
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolOutput;
+import org.mockito.ArgumentCaptor;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -100,6 +104,127 @@ class InterpretationPlanRuntimeTest {
     }
 
     @Test
+    void stopsDagWhenModelReviewRejectsToolResult() {
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool("document_search")).thenReturn(true);
+        when(toolRegistry.getToolMetadata("document_search")).thenReturn(ToolMetadata.builder().riskLevel("low").build());
+        ToolRuntimeService toolRuntimeService = mock(ToolRuntimeService.class);
+        when(toolRuntimeService.execute(any())).thenReturn(new ToolRuntimeExecution(
+            ToolOutput.success(Map.of("results", List.of())),
+            ToolMetadata.builder().id("document_search").build(),
+            null,
+            "success",
+            Map.of()
+        ));
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            toolRuntimeService,
+            new InterpretationPlanValidator(),
+            new InterpretationPlanOptimizer(),
+            null,
+            null,
+            request -> InterpretationPlanRuntime.StepReview.rejected("evidence is empty", Map.of("reviewed", true))
+        );
+
+        InterpretationPlanRuntime.ExecutionResult result = runtime.execute(new InterpretationPlanRuntime.ExecutionRequest(
+            serialPlan(),
+            toolRegistry,
+            List.of("document_search"),
+            "tenant-1",
+            "req-review-reject",
+            "conv-review-reject",
+            "user-1",
+            Map.of()
+        ));
+
+        assertThat(result.success()).isFalse();
+        assertThat(result.status()).isEqualTo("STEP_FAILED");
+        assertThat(result.errorMessage()).contains("Tool result rejected by model review");
+        assertThat(result.steps()).extracting(InterpretationPlanRuntime.StepExecution::stepId)
+            .containsExactly(1);
+        assertThat(result.steps().get(0).metadata())
+            .containsEntry("toolResultReviewSatisfied", false)
+            .containsEntry("reviewed", true);
+    }
+
+    @Test
+    void feedsReviewedWebSearchUrlIntoCrawlerStep() {
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool("web_search")).thenReturn(true);
+        when(toolRegistry.hasTool("crawl_url")).thenReturn(true);
+        when(toolRegistry.getToolMetadata(any())).thenReturn(ToolMetadata.builder().riskLevel("low").build());
+        ToolRuntimeService toolRuntimeService = mock(ToolRuntimeService.class);
+        when(toolRuntimeService.execute(any())).thenAnswer(invocation -> {
+            ToolRuntimeRequest request = invocation.getArgument(0);
+            if ("web_search".equals(request.getToolName())) {
+                return new ToolRuntimeExecution(
+                    ToolOutput.success(Map.of("results", List.of(Map.of(
+                        "title", "Example",
+                        "url", "https://example.com/page",
+                        "snippet", "candidate"
+                    )))),
+                    ToolMetadata.builder().id("web_search").build(),
+                    null,
+                    "success",
+                    Map.of()
+                );
+            }
+            return new ToolRuntimeExecution(
+                ToolOutput.success(Map.of("content", "full page")),
+                ToolMetadata.builder().id("crawl_url").build(),
+                null,
+                "success",
+                Map.of()
+            );
+        });
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("web_search", "Collect full web evidence", "low"),
+            context(),
+            new InterpretationPlan.Plan(List.of(
+                new InterpretationPlan.Step(1, "mcp_tool", "web_search", Map.of("query", "example"), List.of(), null, null),
+                new InterpretationPlan.Step(2, "mcp_tool", "crawl_url", Map.of(), List.of(1), null, null),
+                new InterpretationPlan.Step(3, "final_answer", "", Map.of("answer", "done"), List.of(2), null, null)
+            )),
+            new InterpretationPlan.ExecutionPolicy(3, false, List.of("web_search", "crawl_url"), List.of(), 30000),
+            review()
+        );
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            toolRuntimeService,
+            new InterpretationPlanValidator(),
+            new InterpretationPlanOptimizer(),
+            null,
+            null,
+            request -> {
+                if ("web_search".equals(request.execution().toolName())) {
+                    return InterpretationPlanRuntime.StepReview.accepted(
+                        "candidate selected",
+                        Map.of("selectedUrls", List.of("https://example.com/page"))
+                    );
+                }
+                return InterpretationPlanRuntime.StepReview.accepted("content usable", Map.of());
+            }
+        );
+
+        InterpretationPlanRuntime.ExecutionResult result = runtime.execute(new InterpretationPlanRuntime.ExecutionRequest(
+            plan,
+            toolRegistry,
+            List.of("web_search", "crawl_url"),
+            "tenant-1",
+            "req-crawl-url",
+            "conv-crawl-url",
+            "user-1",
+            Map.of()
+        ));
+
+        ArgumentCaptor<ToolRuntimeRequest> captor = ArgumentCaptor.forClass(ToolRuntimeRequest.class);
+        verify(toolRuntimeService, times(2)).execute(captor.capture());
+        assertThat(result.success()).isTrue();
+        assertThat(captor.getAllValues().get(1).getToolName()).isEqualTo("crawl_url");
+        assertThat(captor.getAllValues().get(1).getToolInput().getParameters())
+            .containsEntry("url", "https://example.com/page");
+    }
+
+    @Test
     void failsWhenEdgeContractRequiredFieldIsMissing() {
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         when(toolRegistry.hasTool("document_search")).thenReturn(true);
@@ -142,6 +267,52 @@ class InterpretationPlanRuntimeTest {
         assertThat(result.success()).isFalse();
         assertThat(result.status()).isEqualTo("EDGE_CONTRACT_FAILED");
         assertThat(result.errorMessage()).contains("missing required field data.results");
+    }
+
+    @Test
+    void recordsStructuredEventsForDagStepsWhenRunIdIsAvailable() {
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool("document_search")).thenReturn(true);
+        when(toolRegistry.getToolMetadata("document_search")).thenReturn(ToolMetadata.builder().riskLevel("low").build());
+        ToolRuntimeService toolRuntimeService = mock(ToolRuntimeService.class);
+        when(toolRuntimeService.execute(any())).thenReturn(new ToolRuntimeExecution(
+            ToolOutput.success(Map.of("results", List.of("internal evidence"))),
+            ToolMetadata.builder().id("document_search").build(),
+            null,
+            "success",
+            Map.of()
+        ));
+        InMemoryAgentRunStore runStore = new InMemoryAgentRunStore();
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            toolRuntimeService,
+            new InterpretationPlanValidator(),
+            runStore
+        );
+
+        InterpretationPlanRuntime.ExecutionResult result = runtime.execute(new InterpretationPlanRuntime.ExecutionRequest(
+            serialPlan(),
+            toolRegistry,
+            List.of("document_search"),
+            "tenant-1",
+            "req-event-dag",
+            "conv-event-dag",
+            "user-1",
+            Map.of("__agentRunId", "run-event-dag")
+        ));
+
+        assertThat(result.success()).isTrue();
+        assertThat(result.finalAnswer()).isEqualTo("done");
+        List<AgentRunEvent> events = runStore.events("run-event-dag");
+        assertThat(events).extracting(AgentRunEvent::type)
+            .contains(AgentRunEventType.STEP_RECORDED, AgentRunEventType.OBSERVATION_RECORDED);
+        assertThat(events.stream()
+            .filter(event -> event.type() == AgentRunEventType.OBSERVATION_RECORDED)
+            .map(event -> event.payload().get("metadata"))
+            .map(metadata -> (Map<?, ?>) metadata)
+            .anyMatch(metadata -> Integer.valueOf(1).equals(metadata.get("interpretationPlanStepId"))
+                && Boolean.TRUE.equals(metadata.get("success"))
+                && "document_search".equals(metadata.get("toolName"))))
+            .isTrue();
     }
 
     private InterpretationPlan parallelPlan() {

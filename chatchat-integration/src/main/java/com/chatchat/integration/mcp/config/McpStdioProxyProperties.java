@@ -28,9 +28,9 @@ public class McpStdioProxyProperties {
     private int maxSessions = 32;
 
     /**
-     * Request timeout in milliseconds.
+     * Request timeout in milliseconds. 0 means wait until the MCP tool returns.
      */
-    private long requestTimeoutMs = 20000;
+    private long requestTimeoutMs = 0;
 
     /**
      * Startup timeout in milliseconds.

@@ -120,13 +120,13 @@ public class InMemoryAgentRunStore implements AgentRunStore {
             List<AgentObservation> observations = mergeObservations(base.observations(), resultObservations);
             for (AgentRunStep step : newSteps) {
                 AgentRunEvent stepRecorded = AgentRunEvent.of(key, AgentRunEventType.STEP_RECORDED,
-                    "Agent step recorded", Map.of("step", step.step(), "action", firstText(step.action(), "")));
+                    "Agent step recorded", stepPayload(step));
                 events.add(stepRecorded);
                 publishEvent(stepRecorded);
             }
             for (AgentObservation observation : newObservations) {
                 AgentRunEvent observationRecorded = AgentRunEvent.of(key, AgentRunEventType.OBSERVATION_RECORDED,
-                    "Agent observation recorded", Map.of("type", firstText(observation.type(), "text")));
+                    "Agent observation recorded", observationPayload(observation));
                 events.add(observationRecorded);
                 publishEvent(observationRecorded);
             }
@@ -175,7 +175,7 @@ public class InMemoryAgentRunStore implements AgentRunStore {
             steps.add(step);
             List<AgentRunEvent> events = new ArrayList<>(base.events());
             AgentRunEvent recorded = AgentRunEvent.of(key, AgentRunEventType.STEP_RECORDED,
-                "Agent step recorded", Map.of("step", step.step(), "action", firstText(step.action(), "")));
+                "Agent step recorded", stepPayload(step));
             events.add(recorded);
             publishEvent(recorded);
             return AgentRun.builder()
@@ -213,7 +213,7 @@ public class InMemoryAgentRunStore implements AgentRunStore {
             observations.add(observation);
             List<AgentRunEvent> events = new ArrayList<>(base.events());
             AgentRunEvent recorded = AgentRunEvent.of(key, AgentRunEventType.OBSERVATION_RECORDED,
-                "Agent observation recorded", Map.of("type", firstText(observation.type(), "text")));
+                "Agent observation recorded", observationPayload(observation));
             events.add(recorded);
             publishEvent(recorded);
             return AgentRun.builder()
@@ -457,6 +457,57 @@ public class InMemoryAgentRunStore implements AgentRunStore {
             log.warn("Agent run event publisher failed. runId={} eventType={} error={}",
                 event.runId(), event.type(), ex.getMessage());
         }
+    }
+
+    private Map<String, Object> stepPayload(AgentRunStep step) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("step", step.step());
+        payload.put("action", firstText(step.action(), ""));
+        if (step.toolName() != null && !step.toolName().isBlank()) {
+            payload.put("toolName", step.toolName());
+        }
+        if (step.resolvedToolName() != null && !step.resolvedToolName().isBlank()) {
+            payload.put("resolvedToolName", step.resolvedToolName());
+        }
+        if (step.reason() != null && !step.reason().isBlank()) {
+            payload.put("reason", step.reason());
+        }
+        if (step.answerPreview() != null && !step.answerPreview().isBlank()) {
+            payload.put("answerPreview", step.answerPreview());
+        }
+        if (step.plannedAt() > 0) {
+            payload.put("plannedAt", step.plannedAt());
+        }
+        payload.put("observationCount", step.observationCount());
+        if (step.executionPlan() != null && !step.executionPlan().isEmpty()) {
+            payload.put("executionPlan", step.executionPlan());
+        }
+        return payload;
+    }
+
+    private Map<String, Object> observationPayload(AgentObservation observation) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("type", firstText(observation.type(), "text"));
+        if (observation.source() != null && !observation.source().isBlank()) {
+            payload.put("source", observation.source());
+        }
+        String preview = preview(observation.content(), 500);
+        if (preview != null) {
+            payload.put("contentPreview", preview);
+        }
+        if (observation.metadata() != null && !observation.metadata().isEmpty()) {
+            payload.put("metadata", observation.metadata());
+        }
+        return payload;
+    }
+
+    private String preview(String value, int maxLength) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        String normalized = value.replaceAll("\\s+", " ").trim();
+        int limit = Math.max(80, maxLength);
+        return normalized.length() <= limit ? normalized : normalized.substring(0, limit);
     }
 
     private String firstText(String value, String fallback) {

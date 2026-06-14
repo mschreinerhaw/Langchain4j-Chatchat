@@ -11,6 +11,7 @@ import com.microsoft.playwright.BrowserType;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.Playwright;
 import com.microsoft.playwright.options.LoadState;
+import com.microsoft.playwright.options.WaitUntilState;
 import lombok.extern.slf4j.Slf4j;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -70,6 +71,7 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
     private volatile long lastRequestAtMs;
     private volatile boolean playwrightBrowsersPathInfoLogged;
     private volatile boolean playwrightBrowsersPathWarningLogged;
+    private volatile boolean playwrightSkipDownloadInfoLogged;
     private static final Pattern HTTP_URL_PATTERN = Pattern.compile("https?://[^\\s\\)\\]\\}>\"'\\uFF0C\\u3002\\uFF1B;,]+", Pattern.CASE_INSENSITIVE);
     private static final Pattern SITE_OPERATOR_PATTERN = Pattern.compile("(?i)(?:^|\\s)site\\s*:\\s*([^\\s]+)");
 
@@ -211,7 +213,15 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
         };
         List<Map<String, Object>> primaryResults = targetedPrimaryResults(fetchedResults, queryIntent);
         SearchResultRelevance searchResultRelevance = assessSearchResultRelevance(primaryResults, searchQuery);
-        List<Map<String, Object>> siteSearchResults = discoverSiteSearchResults(
+        List<Map<String, Object>> siteSearchResults = runTargetedKnownSiteSearch(
+            queryIntent,
+            siteQuery,
+            primaryResults,
+            fetchLimit,
+            context,
+            networkAudit
+        );
+        List<Map<String, Object>> discoveredSiteSearchResults = discoverSiteSearchResults(
             primaryResults,
             siteQuery,
             fetchLimit,
@@ -219,6 +229,7 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
             networkAudit,
             !searchResultRelevance.useful()
         );
+        siteSearchResults = mergeSearchResults(siteSearchResults, discoveredSiteSearchResults, fetchLimit);
         List<Map<String, Object>> mergedResults = mergeSearchResults(primaryResults, siteSearchResults, fetchLimit);
         List<Map<String, Object>> results = mergedResults.size() <= numResults
             ? mergedResults
@@ -269,8 +280,16 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
             targetHost = normalizedSearchHost(siteMatcher.group(1));
             targetUrl = "https://" + targetHost + "/";
         }
+        NaturalTargetSite naturalTargetSite = null;
+        if (targetHost == null || targetHost.isBlank()) {
+            naturalTargetSite = naturalTargetSite(original);
+            if (naturalTargetSite != null) {
+                targetHost = naturalTargetSite.host();
+                targetUrl = naturalTargetSite.url();
+            }
+        }
 
-        String keyword = cleanupSiteKeyword(original);
+        String keyword = cleanupNaturalTargetSitePhrases(cleanupSiteKeyword(original), targetHost);
         String searchQuery = original;
         if (targetHost != null && !targetHost.isBlank() && !containsSiteOperator(original)) {
             searchQuery = keyword.isBlank()
@@ -308,12 +327,89 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
             "\u4ece\u8fd9\u4e2a\u7f51\u7ad9\u641c\u7d22",
             "\u8fd9\u4e2a\u7f51\u7ad9",
             "\u7f51\u7ad9",
+            "\u5b98\u65b9\u7f51\u7ad9",
+            "\u5b98\u7f51",
+            "\u5b98\u65b9",
             "\u641c\u7d22",
             "\u67e5\u627e",
             "\u67e5\u8be2",
+            "\u83b7\u53d6",
             "\u4ece"
         )) {
             value = value.replace(phrase, " ");
+        }
+        return value.replaceAll("\\s+", " ").trim();
+    }
+
+    private NaturalTargetSite naturalTargetSite(String query) {
+        String value = query == null ? "" : query.toLowerCase(Locale.ROOT);
+        if (containsAny(value, List.of(
+            "\u4e0a\u6d77\u8bc1\u5238\u4ea4\u6613\u6240",
+            "\u4e0a\u6d77\u4ea4\u6613\u6240",
+            "\u4e0a\u4ea4\u6240",
+            "sse.com.cn",
+            " sse "
+        ))) {
+            return new NaturalTargetSite("sse.com.cn", "https://www.sse.com.cn/");
+        }
+        if (containsAny(value, List.of(
+            "\u6df1\u5733\u8bc1\u5238\u4ea4\u6613\u6240",
+            "\u6df1\u5733\u4ea4\u6613\u6240",
+            "\u6df1\u4ea4\u6240",
+            "szse.cn",
+            " szse "
+        ))) {
+            return new NaturalTargetSite("szse.cn", "https://www.szse.cn/");
+        }
+        if (containsAny(value, List.of(
+            "\u5de8\u6f6e\u8d44\u8baf",
+            "\u5de8\u6f6e\u7f51",
+            "cninfo.com.cn",
+            " cninfo "
+        ))) {
+            return new NaturalTargetSite("cninfo.com.cn", "https://www.cninfo.com.cn/");
+        }
+        return null;
+    }
+
+    private String cleanupNaturalTargetSitePhrases(String query, String targetHost) {
+        if (query == null || query.isBlank() || targetHost == null || targetHost.isBlank()) {
+            return query == null ? "" : query.trim();
+        }
+        String value = query;
+        if ("sse.com.cn".equals(targetHost)) {
+            for (String phrase : List.of(
+                "\u4e0a\u6d77\u8bc1\u5238\u4ea4\u6613\u6240\u7f51\u7ad9",
+                "\u4e0a\u6d77\u8bc1\u5238\u4ea4\u6613\u6240",
+                "\u4e0a\u6d77\u4ea4\u6613\u6240\u7f51\u7ad9",
+                "\u4e0a\u6d77\u4ea4\u6613\u6240",
+                "\u4e0a\u4ea4\u6240\u7f51\u7ad9",
+                "\u4e0a\u4ea4\u6240",
+                "sse.com.cn"
+            )) {
+                value = value.replace(phrase, " ");
+            }
+        } else if ("szse.cn".equals(targetHost)) {
+            for (String phrase : List.of(
+                "\u6df1\u5733\u8bc1\u5238\u4ea4\u6613\u6240\u7f51\u7ad9",
+                "\u6df1\u5733\u8bc1\u5238\u4ea4\u6613\u6240",
+                "\u6df1\u5733\u4ea4\u6613\u6240\u7f51\u7ad9",
+                "\u6df1\u5733\u4ea4\u6613\u6240",
+                "\u6df1\u4ea4\u6240\u7f51\u7ad9",
+                "\u6df1\u4ea4\u6240",
+                "szse.cn"
+            )) {
+                value = value.replace(phrase, " ");
+            }
+        } else if ("cninfo.com.cn".equals(targetHost)) {
+            for (String phrase : List.of(
+                "\u5de8\u6f6e\u8d44\u8baf\u7f51\u7ad9",
+                "\u5de8\u6f6e\u8d44\u8baf",
+                "\u5de8\u6f6e\u7f51",
+                "cninfo.com.cn"
+            )) {
+                value = value.replace(phrase, " ");
+            }
         }
         return value.replaceAll("\\s+", " ").trim();
     }
@@ -441,6 +537,9 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
     ) {
     }
 
+    private record NaturalTargetSite(String host, String url) {
+    }
+
     private record SearchResultRelevance(boolean useful,
                                          int totalResults,
                                          int matchedResults,
@@ -478,6 +577,18 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
                                                String searchQuery,
                                                WebSearchRequestContext context,
                                                List<Map<String, Object>> networkAudit) throws Exception {
+        if (!hasQueryParameter(endpoint, "q") && isBingHost(endpoint)) {
+            return sendHtmlRequest(
+                urlWithRawQueryParams(endpoint, Map.of("q", searchQuery)),
+                Map.of(),
+                searchQuery,
+                "search",
+                context,
+                networkAudit,
+                "GET",
+                false
+            );
+        }
         HtmlResponse landingResponse = sendSearchPageRequest(
             endpoint,
             Map.of(),
@@ -529,6 +640,11 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
             networkAudit,
             searchForm.method()
         );
+    }
+
+    private boolean isBingHost(String url) {
+        String host = hostOf(url);
+        return host != null && (host.equalsIgnoreCase("bing.com") || host.toLowerCase(Locale.ROOT).endsWith(".bing.com"));
     }
 
     private SiteSearchForm firstSearchForm(Document document, String pageUrl, String query) {
@@ -877,6 +993,54 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
             secondaryRequests,
             discovered.size());
         return discovered;
+    }
+
+    private List<Map<String, Object>> runTargetedKnownSiteSearch(WebSearchQueryIntent queryIntent,
+                                                                 String query,
+                                                                 List<Map<String, Object>> primaryResults,
+                                                                 int resultLimit,
+                                                                 WebSearchRequestContext context,
+                                                                 List<Map<String, Object>> networkAudit) {
+        if (queryIntent == null || query == null || query.isBlank()
+            || queryIntent.targetUrl() == null || queryIntent.targetUrl().isBlank()) {
+            return List.of();
+        }
+        if (knownSearchEndpoint(null, queryIntent.targetUrl()) == null) {
+            return List.of();
+        }
+        Set<String> seenUrls = new LinkedHashSet<>();
+        if (primaryResults != null) {
+            for (Map<String, Object> result : primaryResults) {
+                String url = stringValue(result.get("url"));
+                if (url != null && !url.isBlank()) {
+                    seenUrls.add(normalizeComparableUrl(url));
+                }
+            }
+        }
+        try {
+            log.info("Web search targeted known site-search started targetHost={} query={} resultLimit={}",
+                queryIntent.targetHost(),
+                query,
+                resultLimit);
+            List<Map<String, Object>> results = runKnownSiteSearch(
+                null,
+                queryIntent.targetUrl(),
+                query,
+                seenUrls,
+                Math.max(1, resultLimit),
+                context,
+                networkAudit
+            );
+            log.info("Web search targeted known site-search completed targetHost={} resultCount={}",
+                queryIntent.targetHost(),
+                results.size());
+            return results;
+        } catch (Exception ex) {
+            log.warn("Web search targeted known site-search failed targetHost={} error={}",
+                queryIntent.targetHost(),
+                ex.getMessage());
+            return List.of();
+        }
     }
 
     private List<SiteSearchForm> discoverSearchFormsFromEntrypoints(Document document,
@@ -1520,7 +1684,7 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
                                          String phase,
                                          WebSearchRequestContext context,
                                          List<Map<String, Object>> networkAudit) throws Exception {
-        return sendHtmlRequest(url, queryParams, query, phase, context, networkAudit, "GET");
+        return sendHtmlRequest(url, queryParams, query, phase, context, networkAudit, "GET", true);
     }
 
     private HtmlResponse sendSearchPageRequest(String url,
@@ -1552,9 +1716,10 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
             if (browserResponse != null) {
                 return browserResponse;
             }
-            throw new IOException("Playwright browser request failed for search page: " + url);
+            log.info("Playwright browser request failed for search page, falling back to HTTP fetcher: {}", url);
+            return sendHtmlRequest(url, queryParams, query, phase, context, networkAudit, httpMethod, false);
         }
-        return sendHtmlRequest(url, queryParams, query, phase, context, networkAudit, httpMethod);
+        return sendHtmlRequest(url, queryParams, query, phase, context, networkAudit, httpMethod, true);
     }
 
     private HtmlResponse sendPlaywrightOnlyRequest(String url,
@@ -1619,6 +1784,17 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
                                          WebSearchRequestContext context,
                                          List<Map<String, Object>> networkAudit,
                                          String httpMethod) throws Exception {
+        return sendHtmlRequest(url, queryParams, query, phase, context, networkAudit, httpMethod, true);
+    }
+
+    private HtmlResponse sendHtmlRequest(String url,
+                                         Map<String, String> queryParams,
+                                         String query,
+                                         String phase,
+                                         WebSearchRequestContext context,
+                                         List<Map<String, Object>> networkAudit,
+                                         String httpMethod,
+                                         boolean allowBrowserAttempt) throws Exception {
         if (!isAllowedUrl(url)) {
             addAudit(networkAudit, query, url, phase, null, 0, 0, "BLOCKED", "domain not allowed");
             throw new IllegalArgumentException("Web search target domain is not allowed: " + hostOf(url));
@@ -1635,7 +1811,7 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
                 String cookieKey = cookieKey(context, proxy);
                 Map<String, String> cookies = readCookies(cookieKey);
                 HtmlResponse browserResponse = null;
-                if (!shouldUseRawQueryParams(phase, method)) {
+                if (allowBrowserAttempt && !shouldUseRawQueryParams(phase, method)) {
                     browserResponse = tryPlaywrightRequest(
                         url,
                         queryParams,
@@ -1718,7 +1894,7 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
             ? urlWithRawQueryParams(url, queryParams)
             : url;
         org.jsoup.Connection connection = Jsoup.connect(requestUrl)
-            .timeout(Math.max(1000, properties.getTimeoutMs()))
+            .timeout(Math.max(0, properties.getTimeoutMs()))
             .maxBodySize(Math.max(1024, properties.getPageMaxBytes()))
             .ignoreHttpErrors(true)
             .ignoreContentType(true)
@@ -1752,7 +1928,7 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
         }
 
         try (Socket socket = openRawSocket(host, port, https, proxy)) {
-            socket.setSoTimeout(Math.max(1000, properties.getTimeoutMs()));
+            socket.setSoTimeout(Math.max(0, properties.getTimeoutMs()));
             OutputStream out = socket.getOutputStream();
             String requestTarget = requestTarget(requestUrl, baseUri, proxy);
             StringBuilder request = new StringBuilder();
@@ -1796,7 +1972,7 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
                                  int port,
                                  boolean https,
                                  WebSearchToolProperties.ProxyConfig proxy) throws IOException {
-        int timeoutMs = Math.max(1000, properties.getTimeoutMs());
+        int timeoutMs = Math.max(0, properties.getTimeoutMs());
         Socket socket;
         if (proxy != null && proxy.getHost() != null && !proxy.getHost().isBlank() && proxy.getPort() > 0) {
             String type = firstNonBlank(proxy.getType(), "HTTP").toUpperCase(Locale.ROOT);
@@ -1966,7 +2142,7 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
                                                   WebSearchRequestContext context,
                                                   WebSearchToolProperties.ProxyConfig proxy) {
         WebSearchToolProperties.BrowserProperties browserProperties = properties.getBrowser();
-        int timeoutMs = Math.max(1000, browserProperties.getNavigationTimeoutMs());
+        int timeoutMs = Math.max(0, browserProperties.getNavigationTimeoutMs());
         BrowserType.LaunchOptions launchOptions = new BrowserType.LaunchOptions()
             .setHeadless(true)
             .setTimeout(timeoutMs);
@@ -1984,17 +2160,31 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
             if ("POST".equalsIgnoreCase(httpMethod)) {
                 page.setContent(autoSubmitFormHtml(targetUrl, queryParams, "POST"));
                 page.locator("#f").evaluate("form => form.submit()");
-                page.waitForLoadState(LoadState.NETWORKIDLE);
+                waitForUsefulPlaywrightContent(page, timeoutMs);
                 response = null;
             } else {
-                response = page.navigate(targetUrl, new Page.NavigateOptions().setTimeout(timeoutMs));
-                page.waitForLoadState(LoadState.NETWORKIDLE);
+                response = page.navigate(targetUrl, new Page.NavigateOptions()
+                    .setTimeout(timeoutMs)
+                    .setWaitUntil(WaitUntilState.DOMCONTENTLOADED));
+                waitForUsefulPlaywrightContent(page, timeoutMs);
             }
             String html = page.content();
             if (html == null || html.isBlank()) {
                 throw new IllegalStateException("Playwright returned empty page content");
             }
             return new HtmlResponse(response == null ? 200 : response.status(), Jsoup.parse(html, page.url()));
+        }
+    }
+
+    private void waitForUsefulPlaywrightContent(Page page, int timeoutMs) {
+        if (timeoutMs <= 0) {
+            return;
+        }
+        try {
+            page.waitForLoadState(LoadState.NETWORKIDLE,
+                new Page.WaitForLoadStateOptions().setTimeout(Math.min(3000, Math.max(1000, timeoutMs / 3))));
+        } catch (RuntimeException ex) {
+            log.debug("Playwright page did not reach networkidle before content extraction: {}", ex.getMessage());
         }
     }
 
@@ -2010,6 +2200,10 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
             String normalizedPath = normalizePlaywrightBrowsersPath(browsersPath);
             env.put("PLAYWRIGHT_BROWSERS_PATH", normalizedPath);
             logPlaywrightBrowsersPath(normalizedPath);
+            if (containsPlaywrightChromiumInstall(Path.of(normalizedPath))) {
+                env.put("PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD", "1");
+                logPlaywrightSkipDownload(normalizedPath);
+            }
         }
         if (browserProperties != null && browserProperties.isSkipBrowserDownload()) {
             env.put("PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD", "1");
@@ -2023,7 +2217,7 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
             return value;
         }
         Path path = resolvePlaywrightBrowsersPath(value);
-        if (containsPlaywrightBrowserInstall(path)) {
+        if (containsPlaywrightChromiumInstall(path)) {
             return path.toString();
         }
         String platformDirectory = playwrightPlatformDirectoryName();
@@ -2055,7 +2249,7 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
         return directPath;
     }
 
-    private boolean containsPlaywrightBrowserInstall(Path path) {
+    private boolean containsPlaywrightChromiumInstall(Path path) {
         if (!Files.isDirectory(path)) {
             return false;
         }
@@ -2063,8 +2257,7 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
             return children
                 .map(child -> child.getFileName() == null ? "" : child.getFileName().toString())
                 .anyMatch(name -> name.startsWith("chromium-")
-                    || name.startsWith("chromium_headless_shell-")
-                    || name.startsWith("ffmpeg-"));
+                    || name.startsWith("chromium_headless_shell-"));
         } catch (IOException ex) {
             return false;
         }
@@ -2099,6 +2292,17 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
                     log.warn("Configured Playwright browser cache path does not exist yet: {}. "
                         + "Pre-download Chromium into this directory before running offline.", browsersPath);
                     playwrightBrowsersPathWarningLogged = true;
+                }
+            }
+        }
+    }
+
+    private void logPlaywrightSkipDownload(String browsersPath) {
+        if (!playwrightSkipDownloadInfoLogged) {
+            synchronized (this) {
+                if (!playwrightSkipDownloadInfoLogged) {
+                    log.info("Playwright browser download skipped because cached Chromium was found: {}", browsersPath);
+                    playwrightSkipDownloadInfoLogged = true;
                 }
             }
         }

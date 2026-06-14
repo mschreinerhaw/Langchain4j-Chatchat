@@ -15,6 +15,7 @@ import com.chatchat.enterprise.entity.SysAuditLog;
 import com.chatchat.enterprise.repository.SysAuditLogRepository;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import dev.langchain4j.model.chat.ChatModel;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -74,6 +75,9 @@ class AgentTaskControllerTest {
 
     @MockBean
     private InteractionOrchestrationService orchestrationService;
+
+    @MockBean
+    private ChatModel chatModel;
 
     @Test
     void submitTaskAndReadEvents() throws Exception {
@@ -376,6 +380,127 @@ class AgentTaskControllerTest {
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.code").value(200))
             .andExpect(jsonPath("$.data[?(@.type == 'ERROR')]").isNotEmpty());
+    }
+
+    @Test
+    void emptyFinalAnswerPublishesEmptyResultInsteadOfSuccessAnswer() throws Exception {
+        reset(orchestrationService);
+        when(orchestrationService.chat(any())).thenReturn(InteractionResponse.builder()
+            .conversationId("session-empty-answer-001")
+            .requestId("request-empty-answer-001")
+            .mode("agent_chat")
+            .answer("")
+            .metadata(Map.of("source", "mock"))
+            .build());
+
+        String requestBody = objectMapper.writeValueAsString(Map.of(
+            "tenantId", "tenant-empty-answer-001",
+            "userId", "user-empty-answer-001",
+            "agentId", "general",
+            "sessionId", "session-empty-answer-001",
+            "query", "produce empty answer"
+        ));
+
+        String submitResponse = mockMvc.perform(post("/api/v1/agent/tasks")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(requestBody))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.code").value(200))
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+        String taskId = objectMapper.readTree(submitResponse).path("data").path("taskId").asText();
+        waitForTaskStatus("tenant-empty-answer-001", taskId, "EMPTY");
+
+        mockMvc.perform(get("/api/v1/agent/tasks/" + taskId + "/result")
+                .param("tenantId", "tenant-empty-answer-001")
+                .param("timeoutMs", "1000"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.code").value(200))
+            .andExpect(jsonPath("$.data.type").value("RESULT"))
+            .andExpect(jsonPath("$.data.status").value("EMPTY"))
+            .andExpect(jsonPath("$.data.payload").value(org.hamcrest.Matchers.containsString("executionResult")));
+
+        mockMvc.perform(get("/api/v1/agent/tasks/" + taskId + "/result")
+                .param("tenantId", "tenant-empty-answer-001")
+                .param("timeoutMs", "0"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.code").value(200))
+            .andExpect(jsonPath("$.data.type").value("RESULT"))
+            .andExpect(jsonPath("$.data.status").value("EMPTY"));
+
+        mockMvc.perform(get("/api/v1/agent/tasks/" + taskId + "/events")
+                .param("tenantId", "tenant-empty-answer-001"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.code").value(200))
+            .andExpect(jsonPath("$.data[?(@.type == 'ANSWER')]").isEmpty())
+            .andExpect(jsonPath("$.data[?(@.type == 'RESULT' && @.status == 'EMPTY')]").isNotEmpty())
+            .andExpect(jsonPath("$.data[?(@.type == 'COMPLETE' && @.status == 'EMPTY')]").isNotEmpty());
+    }
+
+    @Test
+    void toolOutputWithoutFinalAnswerPublishesPartialResult() throws Exception {
+        reset(orchestrationService);
+        when(orchestrationService.chat(any())).thenReturn(InteractionResponse.builder()
+            .conversationId("session-partial-answer-001")
+            .requestId("request-partial-answer-001")
+            .mode("agent_chat")
+            .answer("")
+            .toolTraces(List.of(InteractionToolTrace.builder()
+                .toolName("web_search")
+                .displayName("Web Search")
+                .success(true)
+                .output("{\"items\":1}")
+                .durationMs(18L)
+                .build()))
+            .metadata(Map.of("source", "mock"))
+            .build());
+
+        String requestBody = objectMapper.writeValueAsString(Map.of(
+            "tenantId", "tenant-partial-answer-001",
+            "userId", "user-partial-answer-001",
+            "agentId", "general",
+            "sessionId", "session-partial-answer-001",
+            "query", "produce partial answer"
+        ));
+
+        String submitResponse = mockMvc.perform(post("/api/v1/agent/tasks")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(requestBody))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.code").value(200))
+            .andReturn()
+            .getResponse()
+            .getContentAsString();
+
+        String taskId = objectMapper.readTree(submitResponse).path("data").path("taskId").asText();
+        waitForTaskStatus("tenant-partial-answer-001", taskId, "PARTIAL");
+
+        mockMvc.perform(get("/api/v1/agent/tasks/" + taskId + "/result")
+                .param("tenantId", "tenant-partial-answer-001")
+                .param("timeoutMs", "1000"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.code").value(200))
+            .andExpect(jsonPath("$.data.type").value("RESULT"))
+            .andExpect(jsonPath("$.data.status").value("PARTIAL"))
+            .andExpect(jsonPath("$.data.payload").value(org.hamcrest.Matchers.containsString("hasToolOutput")));
+
+        mockMvc.perform(get("/api/v1/agent/tasks/" + taskId + "/result")
+                .param("tenantId", "tenant-partial-answer-001")
+                .param("timeoutMs", "0"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.code").value(200))
+            .andExpect(jsonPath("$.data.type").value("RESULT"))
+            .andExpect(jsonPath("$.data.status").value("PARTIAL"));
+
+        mockMvc.perform(get("/api/v1/agent/tasks/" + taskId + "/events")
+                .param("tenantId", "tenant-partial-answer-001"))
+            .andExpect(status().isOk())
+            .andExpect(jsonPath("$.code").value(200))
+            .andExpect(jsonPath("$.data[?(@.type == 'ANSWER')]").isEmpty())
+            .andExpect(jsonPath("$.data[?(@.type == 'RESULT' && @.status == 'PARTIAL')]").isNotEmpty())
+            .andExpect(jsonPath("$.data[?(@.type == 'COMPLETE' && @.status == 'PARTIAL')]").isNotEmpty());
     }
 
     @Test

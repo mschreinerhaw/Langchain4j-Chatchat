@@ -9,23 +9,17 @@ spring:
     database-platform: org.hibernate.dialect.H2Dialect
     properties:
       hibernate:
-        format_sql: true
-        connection:
-          driver_class: org.h2.Driver
-          url: jdbc:h2:file:./data/h2/chatchat;MODE=MySQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE;DB_CLOSE_DELAY=-1
-          username: sa
-          pool_size: 5
-          autocommit: true
-          isolation: 2
+        format_sql: false
   datasource:
+    type: com.zaxxer.hikari.HikariDataSource
     url: jdbc:h2:file:./data/h2/chatchat;MODE=MySQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE;DB_CLOSE_DELAY=-1
     driver-class-name: org.h2.Driver
     username: sa
     password: 
     hikari:
-      maximum-pool-size: 5
-      minimum-idle: 1
-      connection-timeout: 20000
+      maximum-pool-size: 20
+      minimum-idle: 2
+      connection-timeout: 30000
       idle-timeout: 300000
       max-lifetime: 1200000
       auto-commit: true
@@ -80,7 +74,8 @@ chatchat:
     stdio-proxy:
       enabled: true
       max-sessions: 32
-      request-timeout-ms: 20000
+      # 0 means wait for MCP tool completion without a proxy request timeout.
+      request-timeout-ms: 0
       startup-timeout-ms: 15000
       idle-ttl-ms: 300000
       cleanup-interval-ms: 30000
@@ -100,12 +95,14 @@ chatchat:
       - qwen3.6-35b-a3b
       - qwen-flash-character
       - qwen3.6-max-preview
-#    timeout: 300
+#    timeout: 0
     openai:
-      apiKey: 
+      # OpenAI-compatible API key. For DashScope compatible mode, set DASHSCOPE_API_KEY or OPENAI_API_KEY.
+      api-key: sk-720436c855ac470bb955388d0e8c9b89
       baseUrl: https://dashscope.aliyuncs.com/compatible-mode/v1
 #      baseUrl: https://api.deepseek.com/v1
-      timeout: 300
+      # 0 means do not set a client-side model request timeout.
+      timeout: 0
       maxRetries: 3
       proxy:
         enabled: false
@@ -142,7 +139,7 @@ chatchat:
     calculator:
       risk-level: low
       operation-type: read
-      timeout-ms: 5000
+      timeout-ms: 0
       confirmation:
         default: auto_execute
       parameter-policy:
@@ -160,7 +157,7 @@ chatchat:
       api-base-url: http://localhost:8080
       search-path: /api/v1/search
       detail-path-template: /api/v1/search/documents/{docId}
-      timeout-ms: 20000
+      timeout-ms: 0
       default-limit: 5
       max-limit: 20
       auth:
@@ -185,7 +182,7 @@ chatchat:
     file-system:
       risk-level: high
       operation-type: read
-      timeout-ms: 10000
+      timeout-ms: 0
       confirmation:
         default: ask_before_execute
       parameter-policy:
@@ -197,7 +194,8 @@ chatchat:
     circuit-breaker-failure-threshold: 3
     circuit-breaker-open-seconds: 60
     top-tool-limit: 6
-    default-tool-timeout-ms: 60000
+    # 0 means wait for tool completion without a runtime timeout.
+    default-tool-timeout-ms: 0
     execution-core-pool-size: 4
     execution-max-pool-size: 32
     execution-queue-capacity: 256
@@ -319,11 +317,13 @@ springdoc:
 
 logging:
   level:
-    com.chatchat: DEBUG
+    com.chatchat: INFO
     org.springframework.web: INFO
     org.springframework.security: DEBUG
     org.hibernate: WARN
-    org.hibernate.SQL: DEBUG
+    org.hibernate.SQL: WARN
+    org.hibernate.orm.jdbc.bind: WARN
+    org.hibernate.type.descriptor.sql.BasicBinder: WARN
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
     file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
@@ -344,4 +344,3 @@ management:
     distribution:
       percentiles-histogram:
         http.server.requests: true
-

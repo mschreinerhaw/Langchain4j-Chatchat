@@ -97,7 +97,7 @@ export default {
       return this.activeAgent?.name || "AI投资助手";
     },
     hasStreamingMessage() {
-      return this.messages.some((message) => message.streaming);
+      return this.messages.some((message) => message.streaming || this.isExecutionRunning(message));
     }
   },
   beforeUnmount() {
@@ -106,6 +106,70 @@ export default {
     }
   },
   methods: {
+    shouldShowSteps(message = {}) {
+      return message.role === "assistant"
+        && ((Array.isArray(message.steps) && message.steps.length > 0) || this.isExecutionRunning(message));
+    },
+    isExecutionRunning(message = {}) {
+      const status = String(message.status || "").toLowerCase();
+      const runningStatus = ["running", "streaming", "processing", "executing"].includes(status);
+      return message.role === "assistant"
+        && (!!message.streaming || (this.loading && runningStatus) || (runningStatus && !message.content))
+        && !["failed", "cancelled", "empty", "partial", "completed", "waiting"].includes(status);
+    },
+    visibleExecutionSteps(message = {}) {
+      const steps = Array.isArray(message.steps) ? message.steps : [];
+      const running = this.isExecutionRunning(message);
+      const visible = running && !steps.length ? this.defaultRunningSteps(message) : (running ? steps : steps.slice(-8));
+      const normalized = visible.map((step, index) => ({
+        id: step.id || `${message.id || "message"}-step-${index}`,
+        title: step.title || "\u6267\u884c\u6b65\u9aa4",
+        detail: step.detail || "",
+        status: step.status || "pending"
+      }));
+      if (!running || normalized.some((step) => String(step.status || "").toLowerCase() === "active")) {
+        return normalized;
+      }
+      const activeIndex = [...normalized]
+        .reverse()
+        .findIndex((step) => !["error", "cancelled", "empty"].includes(String(step.status || "").toLowerCase()));
+      if (activeIndex < 0) {
+        return normalized;
+      }
+      const targetIndex = normalized.length - 1 - activeIndex;
+      return normalized.map((step, index) => ({
+        ...step,
+        status: index === targetIndex ? "active" : step.status
+      }));
+    },
+    stepStatusClass(step = {}) {
+      const status = String(step.status || "pending").toLowerCase();
+      if (["done", "active", "partial", "empty", "error", "cancelled"].includes(status)) {
+        return status;
+      }
+      return "pending";
+    },
+    executionTitle(message = {}) {
+      if (message.status === "waiting") {
+        return "\u7b49\u5f85\u6743\u9650\u786e\u8ba4";
+      }
+      if (message.status === "failed") {
+        return "\u540e\u7aef\u6267\u884c\u672a\u5b8c\u6210";
+      }
+      if (message.status === "partial") {
+        return "\u90e8\u5206\u7ed3\u679c";
+      }
+      if (message.status === "empty") {
+        return "\u672a\u4ea7\u751f\u53ef\u5c55\u793a\u7ed3\u679c";
+      }
+      if (message.status === "cancelled") {
+        return "\u5df2\u505c\u6b62\u672c\u6b21\u6267\u884c";
+      }
+      if (message.streaming || this.isExecutionRunning(message)) {
+        return `\u6b63\u5728\u6267\u884c${this.activeAgent?.name ? `: ${this.activeAgent.name}` : ""}`;
+      }
+      return "\u6267\u884c\u6b65\u9aa4";
+    },
     canShowEvaluation(message = {}) {
       const status = String(message.status || "").toLowerCase();
       return message.role === "assistant"
@@ -120,6 +184,22 @@ export default {
       return markdown.render(prepared.content, {
         webCitationUrls: new Set(prepared.citationUrls)
       });
+    },
+    defaultRunningSteps(message = {}) {
+      return [
+        {
+          id: `${message.id || "message"}-sync-events`,
+          title: "\u540c\u6b65\u6267\u884c\u72b6\u6001",
+          detail: "\u6b63\u5728\u83b7\u53d6\u540e\u7aef\u8fd0\u884c\u4e8b\u4ef6",
+          status: "done"
+        },
+        {
+          id: `${message.id || "message"}-waiting-progress`,
+          title: "\u7b49\u5f85\u4e0b\u4e00\u6b65",
+          detail: "\u5de5\u5177\u6216\u6a21\u578b\u6267\u884c\u4e2d",
+          status: "active"
+        }
+      ];
     },
     prepareMarkdownContent(content, message = {}) {
       const pages = extractWebSearchPagesFromTraces(message.traces || []);

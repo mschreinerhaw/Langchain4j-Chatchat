@@ -249,7 +249,11 @@ public class BuiltInToolsBootstrap {
      * @return the operation result
      */
     private long webSearchTimeoutMillis() {
-        long perRequestTimeout = Math.max(1000L, webSearchProperties.getTimeoutMs());
+        long configuredTimeoutMs = webSearchProperties.getTimeoutMs();
+        if (configuredTimeoutMs <= 0) {
+            return 0L;
+        }
+        long perRequestTimeout = Math.max(1000L, configuredTimeoutMs);
         int searchAttempts = webSearchProperties.isFallbackEnabled() ? 3 : 1;
         int pageFetches = webSearchProperties.isFetchPages()
             ? Math.max(0, webSearchProperties.getMaxPagesToFetch())

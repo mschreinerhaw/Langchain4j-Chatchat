@@ -75,7 +75,8 @@ chatchat:
     stdio-proxy:
       enabled: true
       max-sessions: 32
-      request-timeout-ms: 20000
+      # 0 means wait for MCP tool completion without a proxy request timeout.
+      request-timeout-ms: 0
       startup-timeout-ms: 15000
       idle-ttl-ms: 300000
       cleanup-interval-ms: 30000
@@ -88,11 +89,13 @@ chatchat:
   models:
     defaultProvider: openai
     defaultChatModel: qwen3.6-plus
-    timeout: 300
+    timeout: 0
     openai:
-      apiKey: 
+      # OpenAI-compatible API key. For DashScope compatible mode, set DASHSCOPE_API_KEY or OPENAI_API_KEY.
+      api-key: ${OPENAI_API_KEY:${DASHSCOPE_API_KEY:}}
       baseUrl: https://dashscope.aliyuncs.com/compatible-mode/v1
-      timeout: 300
+      # 0 means do not set a client-side model request timeout.
+      timeout: 0
       maxRetries: 3
       proxy:
         enabled: false
@@ -138,7 +141,7 @@ chatchat:
     calculator:
       risk-level: low
       operation-type: read
-      timeout-ms: 5000
+      timeout-ms: 0
       confirmation:
         default: auto_execute
       parameter-policy:
@@ -156,7 +159,7 @@ chatchat:
       api-base-url: http://localhost:8080
       search-path: /api/v1/search
       detail-path-template: /api/v1/search/documents/{docId}
-      timeout-ms: 20000
+      timeout-ms: 0
       default-limit: 5
       max-limit: 20
       auth:
@@ -182,7 +185,7 @@ chatchat:
     file-system:
       risk-level: high
       operation-type: read
-      timeout-ms: 10000
+      timeout-ms: 0
       confirmation:
         default: ask_before_execute
       parameter-policy:
@@ -194,7 +197,8 @@ chatchat:
     circuit-breaker-failure-threshold: 3
     circuit-breaker-open-seconds: 60
     top-tool-limit: 6
-    default-tool-timeout-ms: 60000
+    # 0 means wait for tool completion without a runtime timeout.
+    default-tool-timeout-ms: 0
     execution-core-pool-size: 4
     execution-max-pool-size: 32
     execution-queue-capacity: 256

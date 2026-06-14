@@ -57,6 +57,7 @@ public class McpGatewayClient {
     private static final String PROTOCOL_LEGACY_SSE = "mcp_legacy_sse";
     private static final String DEFAULT_STREAMABLE_HTTP_PATH = "/mcp";
     private static final String DEFAULT_LEGACY_SSE_PATH = "/sse";
+    private static final Duration UNBOUNDED_MCP_REQUEST_TIMEOUT = Duration.ofDays(36500);
 
     private final ObjectMapper objectMapper;
     private final McpCenterProperties centerProperties;
@@ -124,14 +125,14 @@ public class McpGatewayClient {
         if (kind == TransportKind.LEGACY_HTTP) {
             return invokeToolViaLegacyHttp(config, toolName, arguments);
         }
-        int requestTimeoutMs = effectiveTimeoutMs(config, timeoutOverrideMs);
+        int requestTimeoutMs = effectiveToolTimeoutMs(timeoutOverrideMs);
         log.info("MCP SDK invoke started serviceId={} service={} remoteTool={} transport={} protocol={} timeoutMs={} args={}",
             config.getId(),
             config.getName(),
             toolName,
             kind,
             config.getProtocol(),
-            requestTimeoutMs,
+            requestTimeoutMs <= 0 ? "unbounded" : requestTimeoutMs,
             ToolLogSummarizer.summarize(arguments));
 
         try {
@@ -178,7 +179,7 @@ public class McpGatewayClient {
      * @return the or create sdk client
      */
     private McpSyncClient getOrCreateSdkClient(McpServiceConfig config, TransportKind kind) {
-        return getOrCreateSdkClient(config, kind, effectiveTimeoutMs(config, null));
+        return getOrCreateSdkClient(config, kind, 0);
     }
 
     /**
@@ -190,7 +191,8 @@ public class McpGatewayClient {
      * @return the or create sdk client
      */
     private McpSyncClient getOrCreateSdkClient(McpServiceConfig config, TransportKind kind, int requestTimeoutMs) {
-        String key = serviceKey(config) + ":" + Math.max(1000, requestTimeoutMs);
+        int normalizedRequestTimeoutMs = Math.max(0, requestTimeoutMs);
+        String key = serviceKey(config) + ":" + normalizedRequestTimeoutMs;
         String fingerprint = transportFingerprint(config, kind, requestTimeoutMs);
 
         ManagedSdkClient cached = sdkClientCache.get(key);
@@ -208,10 +210,10 @@ public class McpGatewayClient {
             }
 
             McpClientTransport transport = createSdkTransport(config, kind);
-            McpSyncClient client = McpClient.sync(transport)
-                .requestTimeout(Duration.ofMillis(Math.max(1000, requestTimeoutMs)))
-                .clientInfo(new McpSchema.Implementation("chatchat-mcp-client", "1.0.0"))
-                .build();
+            var clientBuilder = McpClient.sync(transport)
+                .requestTimeout(sdkRequestTimeout(normalizedRequestTimeoutMs))
+                .clientInfo(new McpSchema.Implementation("chatchat-mcp-client", "1.0.0"));
+            McpSyncClient client = clientBuilder.build();
             client.initialize();
 
             sdkClientCache.put(key, new ManagedSdkClient(fingerprint, client));
@@ -235,7 +237,7 @@ public class McpGatewayClient {
 
         java.net.http.HttpClient.Builder clientBuilder = buildHttpClientBuilder(config);
         HttpRequest.Builder requestBuilder = buildHttpRequestBuilder(config);
-        Duration connectTimeout = Duration.ofMillis(Math.max(1000, config.getTimeoutMs()));
+        Duration connectTimeout = Duration.ofMillis(positiveOrDefault(config.getTimeoutMs(), 20_000));
 
         if (kind == TransportKind.LEGACY_SSE) {
             return HttpClientSseClientTransport.builder(endpoint.baseUrl())
@@ -393,7 +395,7 @@ public class McpGatewayClient {
             nullSafe(config.getAuthToken()),
             nullSafe(config.getCustomHeadersJson()),
             nullSafe(fallbackStandaloneInvocationToken(config)),
-            String.valueOf(Math.max(1000, requestTimeoutMs)),
+            String.valueOf(Math.max(0, requestTimeoutMs)),
             String.valueOf(config.isProxyEnabled()),
             nullSafe(config.getProxyType()),
             nullSafe(config.getProxyHost()),
@@ -654,13 +656,12 @@ public class McpGatewayClient {
         WebClient webClient = webClientFor(config);
         String url = buildUrl(config.getBaseUrl(), config.getToolDiscoveryPath());
         try {
-            Object raw = webClient.get()
+            var response = webClient.get()
                 .uri(url)
                 .headers(headers -> applyHeaders(headers, config))
                 .retrieve()
-                .bodyToMono(Object.class)
-                .timeout(Duration.ofMillis(config.getTimeoutMs()))
-                .block();
+                .bodyToMono(Object.class);
+            Object raw = blockWithOptionalTimeout(response, config.getTimeoutMs());
             return normalizeTools(raw);
         } catch (Exception ex) {
             log.warn("Failed to discover MCP tools from {}: {}", url, ex.getMessage());
@@ -687,23 +688,23 @@ public class McpGatewayClient {
         payload.put("input", arguments == null ? Map.of() : arguments);
 
         try {
+            int requestTimeoutMs = effectiveToolTimeoutMs(null);
             log.info("MCP legacy HTTP invoke started serviceId={} service={} remoteTool={} url={} timeoutMs={} args={}",
                 config.getId(),
                 config.getName(),
                 toolName,
                 url,
-                config.getTimeoutMs(),
+                requestTimeoutMs <= 0 ? "unbounded" : requestTimeoutMs,
                 ToolLogSummarizer.summarize(arguments));
             long startedAt = System.currentTimeMillis();
-            Object raw = webClient.post()
+            var response = webClient.post()
                 .uri(url)
                 .headers(headers -> applyHeaders(headers, config))
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue(payload)
                 .retrieve()
-                .bodyToMono(Object.class)
-                .timeout(Duration.ofMillis(config.getTimeoutMs()))
-                .block();
+                .bodyToMono(Object.class);
+            Object raw = blockWithOptionalTimeout(response, requestTimeoutMs);
             McpToolInvokeResult result = normalizeInvokeResult(raw);
             log.info("MCP legacy HTTP invoke completed serviceId={} service={} remoteTool={} success={} durationMs={} result={}",
                 config.getId(),
@@ -1197,16 +1198,34 @@ public class McpGatewayClient {
     }
 
     /**
-     * Performs the effective timeout ms operation.
+     * Performs the effective tool timeout ms operation.
      *
-     * @param config the config value
      * @param timeoutOverrideMs the timeout override ms value
      * @return the operation result
      */
-    private int effectiveTimeoutMs(McpServiceConfig config, Long timeoutOverrideMs) {
-        long serviceTimeout = config == null ? 20000L : config.getTimeoutMs();
-        long override = timeoutOverrideMs == null ? 0L : timeoutOverrideMs;
-        return (int) Math.min(Integer.MAX_VALUE, Math.max(1000L, Math.max(serviceTimeout, override)));
+    private int effectiveToolTimeoutMs(Long timeoutOverrideMs) {
+        if (timeoutOverrideMs == null || timeoutOverrideMs <= 0) {
+            return 0;
+        }
+        return (int) Math.min(Integer.MAX_VALUE, timeoutOverrideMs);
+    }
+
+    private Object blockWithOptionalTimeout(reactor.core.publisher.Mono<Object> response, int timeoutMs) {
+        if (timeoutMs <= 0) {
+            return response.block();
+        }
+        return response.timeout(Duration.ofMillis(timeoutMs)).block();
+    }
+
+    private int positiveOrDefault(int value, int fallback) {
+        return value > 0 ? value : fallback;
+    }
+
+    private Duration sdkRequestTimeout(int timeoutMs) {
+        if (timeoutMs <= 0) {
+            return UNBOUNDED_MCP_REQUEST_TIMEOUT;
+        }
+        return Duration.ofMillis(timeoutMs);
     }
 
     /**

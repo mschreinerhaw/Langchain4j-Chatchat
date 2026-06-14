@@ -55,6 +55,25 @@ class AgentRunResultAdapter {
         runStore.recordStep(runId, toAgentRunStep(step, 1));
     }
 
+    void recordRuntimeObservation(Map<String, Object> runtimeAttributes,
+                                  String runIdAttribute,
+                                  String content,
+                                  String source,
+                                  Map<String, Object> metadata) {
+        String runId = runtimeAttributes == null ? null : stringValue(runtimeAttributes.get(runIdAttribute));
+        if (runId == null || runId.isBlank() || content == null || content.isBlank()) {
+            return;
+        }
+        Map<String, Object> values = new LinkedHashMap<>(metadata == null ? Map.of() : metadata);
+        values.putIfAbsent("structuredRuntimeObservation", true);
+        runStore.recordObservation(runId, AgentObservation.builder()
+            .type(stringValue(values.getOrDefault("type", "tool")))
+            .source(firstNonBlank(source, stringValue(values.get("toolName"))))
+            .content(content)
+            .metadata(values)
+            .build());
+    }
+
     List<String> runtimeObservationList(String runId) {
         return new ArrayList<>() {
             @Override
@@ -185,5 +204,12 @@ class AgentRunResultAdapter {
             }
         }
         return fallback;
+    }
+
+    private String firstNonBlank(String first, String second) {
+        if (first != null && !first.isBlank()) {
+            return first;
+        }
+        return second == null || second.isBlank() ? null : second;
     }
 }

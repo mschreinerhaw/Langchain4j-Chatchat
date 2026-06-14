@@ -140,7 +140,8 @@ chatchat:
       # User-Agent sent when fetching target pages.
       user-agent: ChatChat-MCP-Crawler/1.0
       # Per-page HTTP timeout.
-      timeout-ms: 10000
+      # 0 means wait for web search/page fetch completion without a local request timeout.
+      timeout-ms: 0
       # Maximum response bytes read before aborting a page fetch.
       max-body-bytes: 1048576
       # Maximum raw HTML characters retained for processing.
@@ -224,7 +225,8 @@ chatchat:
       provider: bing_html
       endpoint: https://www.bing.com/search
       user-agent: ChatChat-MCP-Server/1.0
-      timeout-ms: 10000
+      # 0 means wait for web_search completion without a local request timeout.
+      timeout-ms: 0
       max-results: 10
       fetch-pages: true
       max-pages-to-fetch: 3
@@ -240,7 +242,8 @@ chatchat:
         enabled: true
         browsers-path: ${PLAYWRIGHT_BROWSERS_PATH:playwright-browsers}
         skip-browser-download: ${CHAT_WEB_SEARCH_BROWSER_SKIP_DOWNLOAD:false}
-        navigation-timeout-ms: 15000
+        # 0 disables Playwright navigation timeout.
+        navigation-timeout-ms: 0
         accept-language: en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7
         referer: https://www.bing.com/
         tls-fingerprint-profile: jdk-default

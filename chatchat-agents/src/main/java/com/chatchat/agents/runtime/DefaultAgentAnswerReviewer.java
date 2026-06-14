@@ -44,7 +44,7 @@ public class DefaultAgentAnswerReviewer implements AgentAnswerReviewer {
             if (revisedAnswer != null && !revisedAnswer.isBlank()) {
                 return new AgentAnswerReview(AgentAnswerReview.REVISED, revisedAnswer, feedback);
             }
-            return new AgentAnswerReview(AgentAnswerReview.ACCEPTED, answer,
+            return new AgentAnswerReview(AgentAnswerReview.REJECTED, "",
                 firstNonBlank(feedback, "Review rejected without revised answer"));
         } catch (Exception ex) {
             log.debug("Failed to parse answer review: {}", raw, ex);

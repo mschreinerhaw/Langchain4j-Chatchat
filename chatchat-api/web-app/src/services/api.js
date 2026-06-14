@@ -68,7 +68,7 @@ export function submitAgentTask(payload) {
   });
 }
 
-export function pollAgentTaskResult(taskId, timeoutMs = 1200, tenantId = "") {
+export function pollAgentTaskResult(taskId, timeoutMs = 5000, tenantId = "") {
   const params = new URLSearchParams();
   params.set("timeoutMs", String(timeoutMs));
   if (tenantId) {

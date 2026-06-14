@@ -28,7 +28,7 @@ public class ToolRuntimeProperties {
     private Map<String, String> levelPolicy = new LinkedHashMap<>();
 
     public long safeDefaultToolTimeoutMs() {
-        return Math.max(1_000L, defaultToolTimeoutMs);
+        return Math.max(0L, defaultToolTimeoutMs);
     }
 
     public int safeExecutionCorePoolSize() {

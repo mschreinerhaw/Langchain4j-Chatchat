@@ -429,14 +429,68 @@
 }
 
 .analysis-progress {
+  position: relative;
   display: grid;
   gap: 10px;
+  margin-bottom: 10px;
   color: #344054;
 }
 
+.analysis-progress.compact {
+  margin-bottom: 12px;
+  border-bottom: 1px solid #eef2f7;
+  padding-bottom: 10px;
+}
+
 .analysis-progress > strong {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
   color: #172033;
   font-size: 14px;
+}
+
+.analysis-progress > strong span {
+  min-width: 0;
+  display: inline;
+  padding: 0;
+  overflow: hidden;
+  color: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.analysis-progress > strong span::before,
+.analysis-progress > strong span::after {
+  content: none;
+}
+
+.analysis-progress.running {
+  border-left: 2px solid rgba(47, 124, 246, 0.38);
+  padding-left: 10px;
+}
+
+.execution-live-indicator {
+  position: relative;
+  width: 7px;
+  height: 7px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: #2f7cf6;
+  box-shadow: 0 0 0 0 rgba(47, 124, 246, 0.24);
+  animation: execution-live-dot 1.15s ease-in-out infinite;
+}
+
+.execution-live-indicator::after {
+  content: "";
+  position: absolute;
+  inset: -5px;
+  border: 1px solid rgba(47, 124, 246, 0.26);
+  border-radius: 50%;
+  animation: execution-live-ring 1.15s ease-out infinite;
 }
 
 .analysis-progress > div {
@@ -444,17 +498,52 @@
   gap: 7px;
 }
 
+.execution-step-list-move,
+.execution-step-list-enter-active,
+.execution-step-list-leave-active {
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.execution-step-list-enter-from,
+.execution-step-list-leave-to {
+  opacity: 0;
+  transform: translateY(4px);
+}
+
 .analysis-progress span {
   position: relative;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 7px;
+  min-height: 22px;
+  border-radius: 7px;
+  padding: 2px 6px 2px 0;
   color: #5f6d80;
   font-size: 13px;
   font-weight: 700;
+  overflow: hidden;
+  transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+}
+
+.analysis-progress span b {
+  min-width: 86px;
+  color: #344054;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.analysis-progress span small {
+  min-width: 0;
+  color: #667085;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
 }
 
 .analysis-progress span::before {
+  position: relative;
+  z-index: 1;
   width: 16px;
   height: 16px;
   display: grid;
@@ -462,6 +551,28 @@
   place-items: center;
   border-radius: 50%;
   font-size: 11px;
+}
+
+.analysis-progress span::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0;
+}
+
+.analysis-progress span b,
+.analysis-progress span small {
+  position: relative;
+  z-index: 1;
+  transition: color 0.2s ease;
+}
+
+.analysis-progress span.pending::before {
+  content: "";
+  background: #eef2f7;
+  box-shadow: inset 0 0 0 1px #d6deea;
 }
 
 .analysis-progress span.done::before {
@@ -477,9 +588,171 @@
   animation: analysis-pulse 1.1s ease-in-out infinite;
 }
 
+.analysis-progress span.done {
+  animation: analysis-step-settle 0.24s ease-out;
+}
+
+.analysis-progress span.active {
+  background: #f3f7ff;
+  box-shadow: inset 0 0 0 1px rgba(47, 124, 246, 0.1);
+  transform: translateX(2px);
+  animation: analysis-active-row 1.65s ease-in-out infinite;
+}
+
+.analysis-progress span.active b {
+  color: #1d5ed8;
+}
+
+.analysis-progress span.active::after {
+  opacity: 1;
+  background: linear-gradient(100deg, transparent 0%, rgba(47, 124, 246, 0.13) 45%, transparent 80%);
+  transform: translateX(-110%);
+  animation: analysis-step-scan 1.7s ease-in-out infinite;
+}
+
+.execution-flow-bar {
+  position: relative;
+  display: block;
+  height: 2px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e8eef8;
+}
+
+.execution-flow-bar::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 34%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, rgba(47, 124, 246, 0), #2f7cf6, rgba(47, 124, 246, 0));
+  animation: execution-flow 1.55s ease-in-out infinite;
+}
+
+.analysis-progress span.partial::before,
+.analysis-progress span.empty::before {
+  content: "i";
+  background: rgba(47, 124, 246, 0.12);
+  color: #1d5ed8;
+  font-weight: 900;
+  font-family: Arial, sans-serif;
+}
+
+.analysis-progress span.empty::before {
+  background: rgba(102, 112, 133, 0.12);
+  color: #667085;
+}
+
+.analysis-progress span.partial b,
+.analysis-progress span.partial small {
+  color: #1d5ed8;
+}
+
+.analysis-progress span.empty b,
+.analysis-progress span.empty small {
+  color: #667085;
+}
+
+.analysis-progress span.error::before,
+.analysis-progress span.cancelled::before {
+  content: "!";
+  background: rgba(220, 38, 38, 0.1);
+  color: #b42318;
+}
+
+.analysis-progress span.cancelled::before {
+  background: rgba(102, 112, 133, 0.12);
+  color: #667085;
+}
+
+.analysis-progress span.error b,
+.analysis-progress span.error small {
+  color: #b42318;
+}
+
+.analysis-progress span.cancelled b,
+.analysis-progress span.cancelled small {
+  color: #667085;
+}
+
+.analysis-progress > strong > span {
+  min-height: 0;
+  display: inline;
+  border-radius: 0;
+  padding: 0;
+  overflow: hidden;
+  color: inherit;
+  font-size: inherit;
+  font-weight: inherit;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transform: none;
+}
+
+.analysis-progress > strong > span::before,
+.analysis-progress > strong > span::after {
+  content: none;
+  display: none;
+}
+
 @keyframes analysis-pulse {
   50% {
     box-shadow: inset 0 0 0 4px #fff, 0 0 0 4px rgba(47, 124, 246, 0.14);
+  }
+}
+
+@keyframes analysis-step-scan {
+  60%, 100% {
+    transform: translateX(110%);
+  }
+}
+
+@keyframes analysis-step-settle {
+  0% {
+    transform: translateX(2px);
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
+
+@keyframes analysis-active-row {
+  0%,
+  100% {
+    background: #f3f7ff;
+  }
+
+  50% {
+    background: #e9f2ff;
+  }
+}
+
+@keyframes execution-live-dot {
+  50% {
+    box-shadow: 0 0 0 6px rgba(47, 124, 246, 0.13);
+    transform: scale(0.92);
+  }
+}
+
+@keyframes execution-live-ring {
+  0% {
+    opacity: 0.75;
+    transform: scale(0.72);
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(1.65);
+  }
+}
+
+@keyframes execution-flow {
+  0% {
+    transform: translateX(-120%);
+  }
+
+  100% {
+    transform: translateX(310%);
   }
 }
 
@@ -594,6 +867,10 @@
 }
 
 .thinking-message .message-avatar {
+  animation: avatar-thinking 1.8s ease-in-out infinite;
+}
+
+.chat-message.executing .message-avatar {
   animation: avatar-thinking 1.8s ease-in-out infinite;
 }
 
@@ -734,9 +1011,15 @@
 
 @media (prefers-reduced-motion: reduce) {
   .thinking-message .message-avatar,
+  .chat-message.executing .message-avatar,
   .thinking-brief::after,
   .thinking-steps span,
-  .analysis-progress span.active::before {
+  .analysis-progress span.active,
+  .analysis-progress span.active::before,
+  .analysis-progress span.active::after,
+  .execution-live-indicator,
+  .execution-live-indicator::after,
+  .execution-flow-bar::before {
     animation: none;
   }
 }

@@ -13,6 +13,10 @@ import com.chatchat.agents.runtime.InMemoryAgentRunStore;
 import com.chatchat.agents.runtime.ToolRuntimeExecution;
 import com.chatchat.agents.runtime.ToolRuntimeRequest;
 import com.chatchat.agents.runtime.ToolRuntimeService;
+import com.chatchat.agents.runtime.plan.InterpretationPlan;
+import com.chatchat.agents.runtime.plan.InterpretationPlanRewriter;
+import com.chatchat.agents.runtime.plan.InterpretationPlanRuntime;
+import com.chatchat.agents.runtime.plan.InterpretationPlanValidator;
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.interaction.InteractionToolTrace;
 import com.chatchat.common.tool.ToolInput;
@@ -466,6 +470,26 @@ public class AgentOrchestrator {
             plannerSteps.add(plannerStep);
             runResultAdapter.recordRuntimeStep(requestRuntimeAttributes, AGENT_RUN_ID_ATTRIBUTE, plannerStep);
 
+            if (decision.interpretationPlan() != null
+                && Boolean.TRUE.equals(decision.executionPlan().get("interpretationPlanValid"))) {
+                return executeInterpretationPlanPipeline(
+                    decision.interpretationPlan(),
+                    activeChatModel,
+                    query,
+                    systemPrompt,
+                    tenantId,
+                    requestId,
+                    conversationId,
+                    userId,
+                    tools,
+                    requestRuntimeAttributes,
+                    traces,
+                    observations,
+                    metadata,
+                    cancellationCheck
+                );
+            }
+
             if (FINAL.equals(decision.action())) {
                 runtimeGuard.checkCancelled(cancellationCheck);
                 FinalExecutionDecision finalDecision = workflowDecisionEngine.resolveFinalExecution(
@@ -679,6 +703,256 @@ public class AgentOrchestrator {
             cancellationCheck,
             "max_steps_or_fallback"
         );
+    }
+
+    private AgentExecutionResult executeInterpretationPlanPipeline(InterpretationPlan plan,
+                                                                   ChatModel activeChatModel,
+                                                                   String query,
+                                                                   String systemPrompt,
+                                                                   String tenantId,
+                                                                   String requestId,
+                                                                   String conversationId,
+                                                                   String userId,
+                                                                   List<String> tools,
+                                                                   Map<String, Object> runtimeAttributes,
+                                                                   List<InteractionToolTrace> traces,
+                                                                   List<String> observations,
+                                                                   Map<String, Object> metadata,
+                                                                   BooleanSupplier cancellationCheck) {
+        runtimeGuard.checkCancelled(cancellationCheck);
+        metadata.put("interpretationPlanPipeline", true);
+        metadata.put("interpretationPlanVersion", plan.version());
+
+        InterpretationPlanValidator validator = new InterpretationPlanValidator();
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(toolRuntimeService, validator);
+        InterpretationPlanRuntime.ExecutionResult firstResult = runtime.execute(planExecutionRequest(
+            plan,
+            tenantId,
+            requestId,
+            conversationId,
+            userId,
+            tools,
+            runtimeAttributes
+        ));
+        recordPlanRuntimeResult("initial", firstResult, traces, observations, metadata);
+        runtimeGuard.checkCancelled(cancellationCheck);
+
+        if (firstResult.approvalRequired()) {
+            metadata.put("stopReason", "confirmation_required");
+            metadata.put("confirmationRequired", true);
+            return answerFinalizer.finishExecution("", traces, metadata, observations);
+        }
+        if (firstResult.success()) {
+            return answerFinalizer.finishReviewedAnswer(
+                activeChatModel,
+                query,
+                systemPrompt,
+                traces,
+                metadata,
+                observations,
+                firstResult.finalAnswer(),
+                cancellationCheck,
+                "interpretation_plan_completed"
+            );
+        }
+
+        InterpretationPlanRewriter rewriter = new InterpretationPlanRewriter(activeChatModel, objectMapper, validator);
+        InterpretationPlan currentPlan = plan;
+        InterpretationPlanRuntime.ExecutionResult currentResult = firstResult;
+        int maxRewriteTimes = maxRewriteTimes(plan);
+        metadata.put("interpretationPlanMaxRewriteTimes", maxRewriteTimes);
+        for (int rewriteCount = 1; rewriteCount <= maxRewriteTimes; rewriteCount++) {
+            InterpretationPlan.Step failedStep = failedStep(currentPlan, currentResult);
+            InterpretationPlanRewriter.RewriteResult rewrite = rewriter.rewrite(new InterpretationPlanRewriter.RewriteRequest(
+                currentPlan,
+                failedStep,
+                currentResult.errorMessage(),
+                observations,
+                tools,
+                toolRegistry
+            ));
+            metadata.put("interpretationPlanRewriteAttempted", true);
+            metadata.put("interpretationPlanRewriteCount", rewriteCount);
+            metadata.put("interpretationPlanRewriteValid", rewrite.valid());
+            metadata.put("interpretationPlanRewriteExecutable", rewrite.executable());
+            if (rewrite.errorMessage() != null && !rewrite.errorMessage().isBlank()) {
+                metadata.put("interpretationPlanRewriteError", rewrite.errorMessage());
+            }
+            runtimeGuard.checkCancelled(cancellationCheck);
+
+            if (!rewrite.valid() || rewrite.rewrittenPlan() == null) {
+                observations.add("InterpretationPlan rewrite failed: " + firstNonBlank(rewrite.errorMessage(), "rewriter did not return a valid plan"));
+                break;
+            }
+
+            currentPlan = rewrite.rewrittenPlan();
+            currentResult = runtime.execute(planExecutionRequest(
+                currentPlan,
+                tenantId,
+                requestId,
+                conversationId,
+                userId,
+                tools,
+                runtimeAttributes
+            ));
+            recordPlanRuntimeResult(rewriteCount == 1 ? "rewrite" : "rewrite" + rewriteCount, currentResult, traces, observations, metadata);
+            runtimeGuard.checkCancelled(cancellationCheck);
+
+            if (currentResult.approvalRequired()) {
+                metadata.put("stopReason", "confirmation_required");
+                metadata.put("confirmationRequired", true);
+                return answerFinalizer.finishExecution("", traces, metadata, observations);
+            }
+            if (currentResult.success()) {
+                return answerFinalizer.finishReviewedAnswer(
+                    activeChatModel,
+                    query,
+                    systemPrompt,
+                    traces,
+                    metadata,
+                    observations,
+                    currentResult.finalAnswer(),
+                    cancellationCheck,
+                    "interpretation_plan_rewritten"
+                );
+            }
+        }
+
+        metadata.put("interpretationPlanRewriteBudgetExceeded", maxRewriteTimes <= 0
+            || firstInteger(metadata.get("interpretationPlanRewriteCount"), 0) >= maxRewriteTimes);
+        metadata.put("interpretationPlanFallbackMode", fallbackMode(plan));
+        metadata.put("stopReason", "interpretation_plan_failed");
+        observations.add("InterpretationPlan failed after rewrite budget. Fallback mode: " + fallbackMode(plan) + ".");
+        return answerFinalizer.finishReviewedSummary(
+            activeChatModel,
+            query,
+            systemPrompt,
+            traces,
+            metadata,
+            observations,
+            cancellationCheck,
+            "interpretation_plan_failed"
+        );
+    }
+
+    private InterpretationPlanRuntime.ExecutionRequest planExecutionRequest(InterpretationPlan plan,
+                                                                            String tenantId,
+                                                                            String requestId,
+                                                                            String conversationId,
+                                                                            String userId,
+                                                                            List<String> tools,
+                                                                            Map<String, Object> runtimeAttributes) {
+        return new InterpretationPlanRuntime.ExecutionRequest(
+            plan,
+            toolRegistry,
+            tools,
+            tenantId,
+            requestId,
+            conversationId,
+            userId,
+            runtimeAttributes == null ? Map.of() : runtimeAttributes
+        );
+    }
+
+    private int maxRewriteTimes(InterpretationPlan plan) {
+        Integer configured = plan == null || plan.executionPolicy() == null
+            ? null
+            : plan.executionPolicy().maxRewriteTimes();
+        return configured == null ? 1 : Math.max(0, configured);
+    }
+
+    private String fallbackMode(InterpretationPlan plan) {
+        String configured = plan == null || plan.executionPolicy() == null
+            ? null
+            : plan.executionPolicy().fallbackMode();
+        if ("partial_result".equals(configured) || "safe_answer".equals(configured)) {
+            return configured;
+        }
+        return "safe_answer";
+    }
+
+    private void recordPlanRuntimeResult(String stage,
+                                         InterpretationPlanRuntime.ExecutionResult result,
+                                         List<InteractionToolTrace> traces,
+                                         List<String> observations,
+                                         Map<String, Object> metadata) {
+        if (result == null) {
+            return;
+        }
+        List<Map<String, Object>> records = new ArrayList<>();
+        for (InterpretationPlanRuntime.StepExecution step : result.steps()) {
+            Map<String, Object> record = new LinkedHashMap<>();
+            record.put("stage", stage);
+            record.put("stepId", step.stepId());
+            record.put("actionType", step.actionType());
+            record.put("toolName", step.toolName());
+            record.put("success", step.success());
+            record.put("durationMs", step.durationMs());
+            if (step.errorMessage() != null && !step.errorMessage().isBlank()) {
+                record.put("errorMessage", step.errorMessage());
+            }
+            records.add(record);
+            if (step.toolExecution() != null && step.toolExecution().trace() != null) {
+                traces.add(step.toolExecution().trace());
+            }
+            observations.add(planStepObservation(stage, step));
+        }
+        metadata.put("interpretationPlan" + capitalize(stage) + "Status", result.status());
+        metadata.put("interpretationPlan" + capitalize(stage) + "Success", result.success());
+        metadata.put("interpretationPlan" + capitalize(stage) + "DurationMs", result.durationMs());
+        if (result.errorMessage() != null && !result.errorMessage().isBlank()) {
+            metadata.put("interpretationPlan" + capitalize(stage) + "Error", result.errorMessage());
+        }
+        addCandidateList(metadataList(metadata, "interpretationPlanStepExecutions"), records);
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<Map<String, Object>> metadataList(Map<String, Object> metadata, String key) {
+        Object existing = metadata.get(key);
+        if (existing instanceof List<?> list) {
+            return (List<Map<String, Object>>) list;
+        }
+        List<Map<String, Object>> values = new ArrayList<>();
+        metadata.put(key, values);
+        return values;
+    }
+
+    private String planStepObservation(String stage, InterpretationPlanRuntime.StepExecution step) {
+        if (step.success()) {
+            if ("final_answer".equals(step.actionType())) {
+                return "InterpretationPlan " + stage + " final answer step " + step.stepId() + " completed.";
+            }
+            return "InterpretationPlan " + stage + " step " + step.stepId() + " "
+                + firstNonBlank(step.toolName(), step.actionType()) + " succeeded.";
+        }
+        return "InterpretationPlan " + stage + " step " + step.stepId() + " "
+            + firstNonBlank(step.toolName(), step.actionType()) + " failed: "
+            + firstNonBlank(step.errorMessage(), "unknown error");
+    }
+
+    private InterpretationPlan.Step failedStep(InterpretationPlan plan, InterpretationPlanRuntime.ExecutionResult result) {
+        if (plan == null || result == null || result.steps() == null) {
+            return null;
+        }
+        Integer failedStepId = result.steps().stream()
+            .filter(step -> !step.success())
+            .map(InterpretationPlanRuntime.StepExecution::stepId)
+            .findFirst()
+            .orElse(null);
+        if (failedStepId == null) {
+            return null;
+        }
+        return plan.steps().stream()
+            .filter(step -> failedStepId.equals(step.id()))
+            .findFirst()
+            .orElse(null);
+    }
+
+    private String capitalize(String value) {
+        if (value == null || value.isBlank()) {
+            return "";
+        }
+        return value.substring(0, 1).toUpperCase() + value.substring(1);
     }
 
     /**

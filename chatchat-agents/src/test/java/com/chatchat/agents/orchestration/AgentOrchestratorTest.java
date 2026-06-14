@@ -34,6 +34,219 @@ import static org.mockito.Mockito.when;
 class AgentOrchestratorTest {
 
     @Test
+    void interpretationPlanRunsThroughDagRuntimePipeline() {
+        QueueChatModel chatModel = new QueueChatModel(
+            """
+                {
+                  "version": "1.0",
+                  "intent": {"type": "document_retrieval", "goal": "Use document evidence", "risk_level": "low"},
+                  "context": {"key_facts": [], "assumptions": [], "missing_info": [], "constraints": ["Use registered tools"]},
+                  "plan": {
+                    "steps": [
+                      {"id": 1, "action_type": "mcp_tool", "tool_name": "document_search", "input": {"query": "internal definition"}, "depends_on": []},
+                      {"id": 2, "action_type": "final_answer", "tool_name": "", "input": {"answer": "Use the internal definition handbook."}, "depends_on": [1]}
+                    ]
+                  },
+                  "execution_policy": {"max_steps": 2, "allow_parallel": false, "allow_tool": ["document_search"], "deny_tool": [], "timeout_ms": 30000},
+                  "review": {"self_check": {"completeness_score": 0.9, "hallucination_risk": 0.1, "tool_sufficiency": true, "missing_steps": []}, "fallback_plan": []}
+                }
+                """,
+            "{\"accepted\":true,\"feedback\":\"The answer follows the plan.\",\"revisedAnswer\":\"\"}"
+        );
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool("document_search")).thenReturn(true);
+        when(toolRegistry.getToolMetadata("document_search")).thenReturn(ToolMetadata.builder()
+            .id("document_search")
+            .title("Document Search")
+            .description("Search internal documents")
+            .riskLevel("low")
+            .build());
+        when(toolRegistry.executeEnhancedTool(eq("document_search"), any())).thenReturn(documentSearchOutput());
+        AgentOrchestrator orchestrator = new AgentOrchestrator(
+            chatModel,
+            toolRegistry,
+            new ToolRuntimeService(toolRegistry, new ObjectMapper(), toolRuntimeProperties(), List.of(), List.of()),
+            new ObjectMapper(),
+            new ModelsConfig()
+        );
+
+        AgentOrchestrator.AgentExecutionResult result = orchestrator.executeAgent(
+            "What is the internal definition?",
+            "tenant-1",
+            List.of("document_search"),
+            "Use internal evidence.",
+            null,
+            List.of(),
+            List.of(),
+            "research",
+            "req-plan-pipeline",
+            "conv-plan-pipeline",
+            "user-1",
+            10,
+            List.of(),
+            false
+        );
+
+        assertThat(result.answer()).isEqualTo("Use the internal definition handbook.");
+        assertThat(result.toolTraces()).extracting(InteractionToolTrace::getToolName)
+            .containsExactly("document_search");
+        assertThat(result.metadata())
+            .containsEntry("interpretationPlanPipeline", true)
+            .containsEntry("interpretationPlanInitialSuccess", true)
+            .containsEntry("stopReason", "interpretation_plan_completed");
+    }
+
+    @Test
+    void interpretationPlanFailureTriggersRewriteAndRunsRewrittenPlan() {
+        QueueChatModel chatModel = new QueueChatModel(
+            """
+                {
+                  "version": "1.0",
+                  "intent": {"type": "document_retrieval", "goal": "Use document evidence", "risk_level": "low"},
+                  "context": {"key_facts": [], "assumptions": [], "missing_info": [], "constraints": ["Use registered tools"]},
+                  "plan": {
+                    "steps": [
+                      {"id": 1, "action_type": "mcp_tool", "tool_name": "document_search", "input": {"query": "internal definition"}, "depends_on": []},
+                      {"id": 2, "action_type": "final_answer", "tool_name": "", "input": {"answer": "Use document evidence."}, "depends_on": [1]}
+                    ]
+                  },
+                  "execution_policy": {"max_steps": 2, "allow_parallel": false, "allow_tool": ["document_search"], "deny_tool": [], "timeout_ms": 30000},
+                  "review": {"self_check": {"completeness_score": 0.7, "hallucination_risk": 0.2, "tool_sufficiency": false, "missing_steps": []}, "fallback_plan": []}
+                }
+                """,
+            """
+                {
+                  "version": "1.0",
+                  "intent": {"type": "web_search", "goal": "Recover with web evidence", "risk_level": "low"},
+                  "context": {"key_facts": ["document_search failed"], "assumptions": [], "missing_info": [], "constraints": ["Use registered tools"]},
+                  "plan": {
+                    "steps": [
+                      {"id": 1, "action_type": "mcp_tool", "tool_name": "web_search", "input": {"query": "internal definition public evidence"}, "depends_on": []},
+                      {"id": 2, "action_type": "final_answer", "tool_name": "", "input": {"answer": "Use web evidence fallback."}, "depends_on": [1]}
+                    ]
+                  },
+                  "execution_policy": {"max_steps": 2, "allow_parallel": false, "allow_tool": ["web_search"], "deny_tool": ["document_search"], "timeout_ms": 30000},
+                  "review": {"self_check": {"completeness_score": 0.8, "hallucination_risk": 0.2, "tool_sufficiency": true, "missing_steps": []}, "fallback_plan": []}
+                }
+                """,
+            "{\"accepted\":true,\"feedback\":\"The rewritten answer follows available evidence.\",\"revisedAnswer\":\"\"}"
+        );
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool("document_search")).thenReturn(true);
+        when(toolRegistry.hasTool("web_search")).thenReturn(true);
+        when(toolRegistry.getToolMetadata("document_search")).thenReturn(ToolMetadata.builder()
+            .id("document_search")
+            .title("Document Search")
+            .description("Search internal documents")
+            .riskLevel("low")
+            .build());
+        when(toolRegistry.getToolMetadata("web_search")).thenReturn(ToolMetadata.builder()
+            .id("web_search")
+            .title("Web Search")
+            .description("Search web pages")
+            .riskLevel("low")
+            .build());
+        when(toolRegistry.executeEnhancedTool(eq("document_search"), any())).thenReturn(ToolOutput.failure("document backend down"));
+        when(toolRegistry.executeEnhancedTool(eq("web_search"), any())).thenReturn(webSearchOutput());
+        AgentOrchestrator orchestrator = new AgentOrchestrator(
+            chatModel,
+            toolRegistry,
+            new ToolRuntimeService(toolRegistry, new ObjectMapper(), toolRuntimeProperties(), List.of(), List.of()),
+            new ObjectMapper(),
+            new ModelsConfig()
+        );
+
+        AgentOrchestrator.AgentExecutionResult result = orchestrator.executeAgent(
+            "What is the internal definition?",
+            "tenant-1",
+            List.of("document_search", "web_search"),
+            "Recover safely if internal evidence is unavailable.",
+            null,
+            List.of(),
+            List.of(),
+            "research",
+            "req-plan-rewrite",
+            "conv-plan-rewrite",
+            "user-1",
+            10,
+            List.of(),
+            false
+        );
+
+        assertThat(result.answer()).isEqualTo("Use web evidence fallback.");
+        assertThat(result.toolTraces()).extracting(InteractionToolTrace::getToolName)
+            .containsExactly("document_search", "web_search");
+        assertThat(result.metadata())
+            .containsEntry("interpretationPlanRewriteAttempted", true)
+            .containsEntry("interpretationPlanRewriteValid", true)
+            .containsEntry("interpretationPlanRewriteSuccess", true)
+            .containsEntry("stopReason", "interpretation_plan_rewritten");
+    }
+
+    @Test
+    void interpretationPlanHonorsZeroRewriteBudgetAndFallsBack() {
+        QueueChatModel chatModel = new QueueChatModel(
+            """
+                {
+                  "version": "1.0",
+                  "intent": {"type": "document_retrieval", "goal": "Use document evidence", "risk_level": "low"},
+                  "context": {"key_facts": [], "assumptions": [], "missing_info": [], "constraints": ["Use registered tools"]},
+                  "plan": {
+                    "steps": [
+                      {"id": 1, "action_type": "mcp_tool", "tool_name": "document_search", "input": {"query": "internal definition"}, "depends_on": []},
+                      {"id": 2, "action_type": "final_answer", "tool_name": "", "input": {"answer": "Use document evidence."}, "depends_on": [1]}
+                    ]
+                  },
+                  "execution_policy": {"max_steps": 2, "allow_parallel": false, "allow_tool": ["document_search"], "deny_tool": [], "timeout_ms": 30000, "max_rewrite_times": 0, "fallback_mode": "partial_result"},
+                  "review": {"self_check": {"completeness_score": 0.7, "hallucination_risk": 0.2, "tool_sufficiency": false, "missing_steps": []}, "fallback_plan": []}
+                }
+                """,
+            "Internal evidence is unavailable, so only a partial result can be provided.",
+            "{\"accepted\":true,\"feedback\":\"The fallback is honest about missing evidence.\",\"revisedAnswer\":\"\"}"
+        );
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool("document_search")).thenReturn(true);
+        when(toolRegistry.getToolMetadata("document_search")).thenReturn(ToolMetadata.builder()
+            .id("document_search")
+            .title("Document Search")
+            .description("Search internal documents")
+            .riskLevel("low")
+            .build());
+        when(toolRegistry.executeEnhancedTool(eq("document_search"), any())).thenReturn(ToolOutput.failure("document backend down"));
+        AgentOrchestrator orchestrator = new AgentOrchestrator(
+            chatModel,
+            toolRegistry,
+            new ToolRuntimeService(toolRegistry, new ObjectMapper(), toolRuntimeProperties(), List.of(), List.of()),
+            new ObjectMapper(),
+            new ModelsConfig()
+        );
+
+        AgentOrchestrator.AgentExecutionResult result = orchestrator.executeAgent(
+            "What is the internal definition?",
+            "tenant-1",
+            List.of("document_search"),
+            "Do not rewrite when budget is exhausted.",
+            null,
+            List.of(),
+            List.of(),
+            "research",
+            "req-plan-no-rewrite",
+            "conv-plan-no-rewrite",
+            "user-1",
+            10,
+            List.of(),
+            false
+        );
+
+        assertThat(result.answer()).isEqualTo("Internal evidence is unavailable, so only a partial result can be provided.");
+        assertThat(result.metadata())
+            .containsEntry("interpretationPlanRewriteBudgetExceeded", true)
+            .containsEntry("interpretationPlanFallbackMode", "partial_result")
+            .containsEntry("stopReason", "interpretation_plan_failed");
+        assertThat(result.metadata()).doesNotContainKey("interpretationPlanRewriteAttempted");
+    }
+
+    @Test
     void executeRuntimeRequestReturnsTypedRunResult() {
         QueueChatModel chatModel = new QueueChatModel(
             "{\"action\":\"tool\",\"toolName\":\"document_search\",\"arguments\":{\"query\":\"internal definition\"},\"reason\":\"Need internal evidence\"}",

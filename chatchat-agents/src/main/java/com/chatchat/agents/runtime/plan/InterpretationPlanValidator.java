@@ -1,0 +1,490 @@
+package com.chatchat.agents.runtime.plan;
+
+import com.chatchat.agents.tool.ToolRegistry;
+import com.chatchat.common.tool.ToolMetadata;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
+
+/**
+ * Runtime validator for planner-produced InterpretationPlan JSON.
+ */
+public class InterpretationPlanValidator {
+
+    private static final String HIGH = "high";
+    private static final Set<String> ACTION_TYPES = Set.of(
+        "mcp_tool", "reasoning", "retrieval", "aggregation", "validation", "final_answer"
+    );
+
+    /**
+     * Validates a plan against the current tool registry.
+     *
+     * @param plan the interpretation plan
+     * @param toolRegistry the tool registry
+     * @return validation result
+     */
+    public ValidationResult validate(InterpretationPlan plan, ToolRegistry toolRegistry) {
+        return validate(plan, toolRegistry, Set.of());
+    }
+
+    /**
+     * Validates a plan against the current tool registry and request-scoped allowed tools.
+     *
+     * @param plan the interpretation plan
+     * @param toolRegistry the tool registry
+     * @param availableTools request-scoped tools visible to the agent
+     * @return validation result
+     */
+    public ValidationResult validate(InterpretationPlan plan, ToolRegistry toolRegistry, Set<String> availableTools) {
+        ValidationState state = new ValidationState();
+        if (plan == null) {
+            state.error("plan", "InterpretationPlan is required");
+            return state.result(List.of());
+        }
+
+        validateRequiredSections(plan, state);
+        List<InterpretationPlan.Step> steps = plan.steps();
+        if (steps.isEmpty()) {
+            state.error("plan.steps", "At least one plan step is required");
+            return state.result(List.of());
+        }
+
+        Map<Integer, InterpretationPlan.Step> stepsById = validateSteps(plan, toolRegistry, availableTools, state);
+        validateFinalAnswer(steps, state);
+        validateExecutionPolicy(plan, steps, toolRegistry, state);
+        validateStability(plan, stepsById, toolRegistry, availableTools, state);
+        validateEdgeContracts(plan, stepsById, state);
+        List<InterpretationPlan.Step> orderedSteps = validateDag(stepsById, state);
+        return state.result(orderedSteps);
+    }
+
+    private void validateRequiredSections(InterpretationPlan plan, ValidationState state) {
+        if (blank(plan.version())) {
+            state.error("version", "Plan version is required");
+        }
+        if (plan.intent() == null) {
+            state.error("intent", "Intent is required");
+        } else {
+            if (blank(plan.intent().type())) {
+                state.error("intent.type", "Intent type is required");
+            }
+            if (blank(plan.intent().goal())) {
+                state.error("intent.goal", "Intent goal is required");
+            }
+        }
+        if (plan.context() == null) {
+            state.error("context", "Context is required");
+        }
+        if (plan.plan() == null) {
+            state.error("plan", "Plan body is required");
+        }
+        if (plan.review() == null) {
+            state.error("review", "Review is required");
+        } else if (plan.review().selfCheck() == null) {
+            state.error("review.self_check", "Review self_check is required");
+        }
+    }
+
+    private Map<Integer, InterpretationPlan.Step> validateSteps(InterpretationPlan plan,
+                                                                ToolRegistry toolRegistry,
+                                                                Set<String> availableTools,
+                                                                ValidationState state) {
+        Map<Integer, InterpretationPlan.Step> stepsById = new LinkedHashMap<>();
+        Set<Integer> duplicateIds = new LinkedHashSet<>();
+        Set<String> denyTools = normalizedSet(plan.executionPolicy() == null ? null : plan.executionPolicy().denyTool());
+        Set<String> allowTools = normalizedSet(plan.executionPolicy() == null ? null : plan.executionPolicy().allowTool());
+
+        for (int index = 0; index < plan.steps().size(); index++) {
+            InterpretationPlan.Step step = plan.steps().get(index);
+            String path = "plan.steps[" + index + "]";
+            if (step == null) {
+                state.error(path, "Plan step cannot be null");
+                continue;
+            }
+            if (step.id() == null) {
+                state.error(path + ".id", "Step id is required");
+            } else if (stepsById.containsKey(step.id())) {
+                duplicateIds.add(step.id());
+            } else {
+                stepsById.put(step.id(), step);
+            }
+            if (blank(step.actionType())) {
+                state.error(path + ".action_type", "Step action_type is required");
+            }
+            if (step.dependsOn() == null) {
+                state.error(path + ".depends_on", "Step depends_on is required");
+            }
+            validateToolStep(plan, step, path, toolRegistry, availableTools, denyTools, allowTools, state);
+        }
+
+        for (Integer duplicateId : duplicateIds) {
+            state.error("plan.steps.id", "Step id must be unique: " + duplicateId);
+        }
+        for (InterpretationPlan.Step step : stepsById.values()) {
+            if (step.dependsOn() == null) {
+                continue;
+            }
+            for (Integer dependency : step.dependsOn()) {
+                if (dependency == null) {
+                    state.error("plan.steps[" + step.id() + "].depends_on", "Dependency id cannot be null");
+                } else if (step.id() != null && dependency.equals(step.id())) {
+                    state.error("plan.steps[" + step.id() + "].depends_on", "Step cannot depend on itself: " + step.id());
+                } else if (!stepsById.containsKey(dependency)) {
+                    state.error("plan.steps[" + step.id() + "].depends_on", "Dependency step does not exist: " + dependency);
+                }
+            }
+        }
+        return stepsById;
+    }
+
+    private void validateToolStep(InterpretationPlan plan,
+                                  InterpretationPlan.Step step,
+                                  String path,
+                                  ToolRegistry toolRegistry,
+                                  Set<String> availableTools,
+                                  Set<String> denyTools,
+                                  Set<String> allowTools,
+                                  ValidationState state) {
+        if (!step.mcpToolAction()) {
+            return;
+        }
+        if (blank(step.toolName())) {
+            state.error(path + ".tool_name", "MCP tool step requires tool_name");
+            return;
+        }
+        if (containsTool(denyTools, step.toolName())) {
+            state.error(path + ".tool_name", "Tool is denied by execution_policy.deny_tool: " + step.toolName());
+        }
+        if (!toolExists(step.toolName(), toolRegistry, availableTools)) {
+            state.error(path + ".tool_name", "Tool is not registered or available: " + step.toolName());
+        }
+        if (isHighRisk(plan, step, toolRegistry) && !containsTool(allowTools, step.toolName())) {
+            state.approval(path + ".tool_name", "High-risk tool requires explicit allow_tool approval: " + step.toolName());
+        }
+    }
+
+    private void validateFinalAnswer(List<InterpretationPlan.Step> steps, ValidationState state) {
+        long finalAnswerCount = steps.stream()
+            .filter(step -> step != null && step.finalAnswerAction())
+            .count();
+        if (finalAnswerCount != 1) {
+            state.error("plan.steps", "Exactly one final_answer step is required, found: " + finalAnswerCount);
+        }
+    }
+
+    private void validateExecutionPolicy(InterpretationPlan plan,
+                                         List<InterpretationPlan.Step> steps,
+                                         ToolRegistry toolRegistry,
+                                         ValidationState state) {
+        InterpretationPlan.ExecutionPolicy policy = plan.executionPolicy();
+        if (policy == null) {
+            return;
+        }
+        if (policy.maxSteps() != null && steps.size() > policy.maxSteps()) {
+            state.error("execution_policy.max_steps", "Plan has more steps than max_steps: " + steps.size());
+        }
+        if (policy.timeoutMs() != null && policy.timeoutMs() <= 0) {
+            state.error("execution_policy.timeout_ms", "timeout_ms must be positive when provided");
+        }
+        if (policy.maxRewriteTimes() != null && policy.maxRewriteTimes() < 0) {
+            state.error("execution_policy.max_rewrite_times", "max_rewrite_times must be zero or positive");
+        }
+        if (policy.fallbackMode() != null
+            && !policy.fallbackMode().isBlank()
+            && !"safe_answer".equals(policy.fallbackMode())
+            && !"partial_result".equals(policy.fallbackMode())) {
+            state.error("execution_policy.fallback_mode", "fallback_mode must be safe_answer or partial_result");
+        }
+        if (policy.costBudget() != null && policy.costBudget() < 0) {
+            state.error("execution_policy.cost_budget", "cost_budget must be zero or positive");
+        }
+        if (policy.latencyBudgetMs() != null && policy.latencyBudgetMs() <= 0) {
+            state.error("execution_policy.latency_budget_ms", "latency_budget_ms must be positive");
+        }
+        if (policy.accuracyVsSpeed() != null && (policy.accuracyVsSpeed() < 0 || policy.accuracyVsSpeed() > 1)) {
+            state.error("execution_policy.accuracy_vs_speed", "accuracy_vs_speed must be between 0 and 1");
+        }
+        if (policy.toolPriority() != null) {
+            for (Map.Entry<String, Double> entry : policy.toolPriority().entrySet()) {
+                if (blank(entry.getKey())) {
+                    state.error("execution_policy.tool_priority", "tool_priority tool name cannot be blank");
+                    continue;
+                }
+                if (entry.getValue() == null || entry.getValue() < 0 || entry.getValue() > 1) {
+                    state.error("execution_policy.tool_priority." + entry.getKey(), "tool priority must be between 0 and 1");
+                }
+                if (toolRegistry != null && !toolExists(entry.getKey(), toolRegistry, Set.of())) {
+                    state.warning("execution_policy.tool_priority." + entry.getKey(), "Priority references an unregistered tool: " + entry.getKey());
+                }
+            }
+        }
+        validateKnownToolNames("execution_policy.allow_tool", policy.allowTool(), toolRegistry, state);
+        validateKnownToolNames("execution_policy.deny_tool", policy.denyTool(), toolRegistry, state);
+    }
+
+    private void validateStability(InterpretationPlan plan,
+                                   Map<Integer, InterpretationPlan.Step> stepsById,
+                                   ToolRegistry toolRegistry,
+                                   Set<String> availableTools,
+                                   ValidationState state) {
+        InterpretationPlan.Stability stability = plan == null || plan.plan() == null ? null : plan.plan().stability();
+        if (stability == null) {
+            return;
+        }
+        if (stability.stableNodes() != null) {
+            for (Integer stepId : stability.stableNodes()) {
+                if (stepId == null || !stepsById.containsKey(stepId)) {
+                    state.error("plan.stability.stable_nodes", "Stable node does not exist: " + stepId);
+                }
+            }
+        }
+        if (stability.criticalTools() != null) {
+            for (String toolName : stability.criticalTools()) {
+                if (blank(toolName)) {
+                    state.error("plan.stability.critical_tools", "Critical tool name cannot be blank");
+                } else if (!toolExists(toolName, toolRegistry, availableTools)) {
+                    state.warning("plan.stability.critical_tools", "Critical tool is not registered or available: " + toolName);
+                }
+            }
+        }
+        if (stability.mutableActionTypes() != null) {
+            for (String actionType : stability.mutableActionTypes()) {
+                if (!ACTION_TYPES.contains(normalize(actionType))) {
+                    state.error("plan.stability.mutable_action_types", "Unsupported mutable action_type: " + actionType);
+                }
+            }
+        }
+    }
+
+    private void validateEdgeContracts(InterpretationPlan plan,
+                                       Map<Integer, InterpretationPlan.Step> stepsById,
+                                       ValidationState state) {
+        if (plan == null || plan.plan() == null || plan.plan().edgeContracts() == null) {
+            return;
+        }
+        for (int index = 0; index < plan.plan().edgeContracts().size(); index++) {
+            InterpretationPlan.EdgeContract contract = plan.plan().edgeContracts().get(index);
+            String path = "plan.edge_contracts[" + index + "]";
+            if (contract == null) {
+                state.error(path, "Edge contract cannot be null");
+                continue;
+            }
+            if (contract.from() == null || !stepsById.containsKey(contract.from())) {
+                state.error(path + ".from", "Edge contract source step does not exist: " + contract.from());
+            }
+            if (contract.to() == null || !stepsById.containsKey(contract.to())) {
+                state.error(path + ".to", "Edge contract target step does not exist: " + contract.to());
+            }
+            if (blank(contract.field())) {
+                state.error(path + ".field", "Edge contract field is required");
+            }
+            if (blank(contract.type())) {
+                state.error(path + ".type", "Edge contract type is required");
+            } else if (!Set.of("array", "object", "string", "number", "boolean", "any").contains(normalize(contract.type()))) {
+                state.error(path + ".type", "Unsupported edge contract type: " + contract.type());
+            }
+            InterpretationPlan.Step target = stepsById.get(contract.to());
+            if (target != null
+                && contract.from() != null
+                && (target.dependsOn() == null || !target.dependsOn().contains(contract.from()))) {
+                state.warning(path, "Edge contract target should depend on source step: " + contract.from() + " -> " + contract.to());
+            }
+        }
+    }
+
+    private void validateKnownToolNames(String path,
+                                        List<String> toolNames,
+                                        ToolRegistry toolRegistry,
+                                        ValidationState state) {
+        if (toolNames == null || toolNames.isEmpty()) {
+            return;
+        }
+        for (String toolName : toolNames) {
+            if (blank(toolName)) {
+                state.error(path, "Tool name cannot be blank");
+            } else if (toolRegistry != null && !toolExists(toolName, toolRegistry, Set.of())) {
+                state.warning(path, "Tool is not currently registered: " + toolName);
+            }
+        }
+    }
+
+    private List<InterpretationPlan.Step> validateDag(Map<Integer, InterpretationPlan.Step> stepsById, ValidationState state) {
+        if (stepsById.isEmpty()) {
+            return List.of();
+        }
+        Map<Integer, VisitState> visitStates = new HashMap<>();
+        List<InterpretationPlan.Step> ordered = new ArrayList<>();
+        for (Integer id : stepsById.keySet()) {
+            visitStep(id, stepsById, visitStates, ordered, state);
+        }
+        return state.hasErrors() ? List.of() : ordered;
+    }
+
+    private void visitStep(Integer stepId,
+                           Map<Integer, InterpretationPlan.Step> stepsById,
+                           Map<Integer, VisitState> visitStates,
+                           List<InterpretationPlan.Step> ordered,
+                           ValidationState state) {
+        VisitState visitState = visitStates.get(stepId);
+        if (visitState == VisitState.DONE) {
+            return;
+        }
+        if (visitState == VisitState.VISITING) {
+            state.error("plan.steps.depends_on", "Plan must be a DAG; cycle detected at step: " + stepId);
+            return;
+        }
+        InterpretationPlan.Step step = stepsById.get(stepId);
+        if (step == null) {
+            return;
+        }
+        visitStates.put(stepId, VisitState.VISITING);
+        if (step.dependsOn() != null) {
+            for (Integer dependency : step.dependsOn()) {
+                if (stepsById.containsKey(dependency)) {
+                    visitStep(dependency, stepsById, visitStates, ordered, state);
+                }
+            }
+        }
+        visitStates.put(stepId, VisitState.DONE);
+        ordered.add(step);
+    }
+
+    private boolean isHighRisk(InterpretationPlan plan,
+                               InterpretationPlan.Step step,
+                               ToolRegistry toolRegistry) {
+        if (plan.intent() != null && HIGH.equals(normalize(plan.intent().riskLevel()))) {
+            return true;
+        }
+        ToolMetadata metadata = toolMetadata(step.toolName(), toolRegistry);
+        return metadata != null && HIGH.equals(normalize(metadata.getRiskLevel()));
+    }
+
+    private boolean toolExists(String toolName, ToolRegistry toolRegistry, Set<String> availableTools) {
+        if (containsTool(availableTools, toolName)) {
+            return true;
+        }
+        if (toolRegistry == null || blank(toolName)) {
+            return false;
+        }
+        try {
+            if (toolRegistry.hasTool(toolName)) {
+                return true;
+            }
+        } catch (RuntimeException ignored) {
+            // Fall through to metadata-based resolution.
+        }
+        return toolMetadata(toolName, toolRegistry) != null;
+    }
+
+    private ToolMetadata toolMetadata(String toolName, ToolRegistry toolRegistry) {
+        if (toolRegistry == null || blank(toolName)) {
+            return null;
+        }
+        try {
+            return toolRegistry.getToolMetadata(toolName);
+        } catch (RuntimeException ignored) {
+            return null;
+        }
+    }
+
+    private Set<String> normalizedSet(List<String> values) {
+        if (values == null || values.isEmpty()) {
+            return Set.of();
+        }
+        Set<String> normalized = new HashSet<>();
+        for (String value : values) {
+            String key = normalize(value);
+            if (!key.isBlank()) {
+                normalized.add(key);
+            }
+        }
+        return normalized;
+    }
+
+    private boolean containsTool(Set<String> toolNames, String toolName) {
+        if (toolNames == null || toolNames.isEmpty() || blank(toolName)) {
+            return false;
+        }
+        return toolNames.contains(normalize(toolName));
+    }
+
+    private String normalize(String value) {
+        return value == null ? "" : value.trim().toLowerCase(Locale.ROOT).replace('-', '_');
+    }
+
+    private boolean blank(String value) {
+        return value == null || value.isBlank();
+    }
+
+    private enum VisitState {
+        VISITING,
+        DONE
+    }
+
+    private static final class ValidationState {
+        private final List<ValidationIssue> errors = new ArrayList<>();
+        private final List<ValidationIssue> warnings = new ArrayList<>();
+        private final List<ValidationIssue> approvalRequests = new ArrayList<>();
+
+        private void error(String path, String message) {
+            errors.add(new ValidationIssue("error", path, message));
+        }
+
+        private void warning(String path, String message) {
+            warnings.add(new ValidationIssue("warning", path, message));
+        }
+
+        private void approval(String path, String message) {
+            approvalRequests.add(new ValidationIssue("approval_required", path, message));
+        }
+
+        private boolean hasErrors() {
+            return !errors.isEmpty();
+        }
+
+        private ValidationResult result(List<InterpretationPlan.Step> orderedSteps) {
+            return new ValidationResult(
+                errors.isEmpty(),
+                errors.isEmpty() && approvalRequests.isEmpty(),
+                !approvalRequests.isEmpty(),
+                List.copyOf(errors),
+                List.copyOf(warnings),
+                List.copyOf(approvalRequests),
+                orderedSteps == null ? List.of() : List.copyOf(orderedSteps)
+            );
+        }
+    }
+
+    public record ValidationIssue(
+        String severity,
+        String path,
+        String message
+    ) {
+    }
+
+    public record ValidationResult(
+        boolean valid,
+        boolean executable,
+        boolean approvalRequired,
+        List<ValidationIssue> errors,
+        List<ValidationIssue> warnings,
+        List<ValidationIssue> approvalRequests,
+        List<InterpretationPlan.Step> orderedSteps
+    ) {
+        public List<ValidationIssue> issues() {
+            List<ValidationIssue> issues = new ArrayList<>();
+            issues.addAll(errors == null ? List.of() : errors);
+            issues.addAll(warnings == null ? List.of() : warnings);
+            issues.addAll(approvalRequests == null ? List.of() : approvalRequests);
+            return Collections.unmodifiableList(issues);
+        }
+    }
+}

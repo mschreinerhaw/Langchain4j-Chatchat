@@ -39,6 +39,9 @@ class AgentChatModelResolver {
     }
 
     private ChatModel buildOpenAiChatModel(String modelName) {
+        if (modelsConfig.getOpenai().getApiKey() == null || modelsConfig.getOpenai().getApiKey().isBlank()) {
+            return defaultChatModel;
+        }
         OpenAiChatModel.OpenAiChatModelBuilder builder = OpenAiChatModel.builder()
             .apiKey(modelsConfig.getOpenai().getApiKey())
             .baseUrl(modelsConfig.getOpenai().getBaseUrl())

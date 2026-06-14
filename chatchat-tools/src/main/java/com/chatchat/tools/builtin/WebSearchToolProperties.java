@@ -36,6 +36,10 @@ public class WebSearchToolProperties {
 
     private boolean fallbackEnabled = true;
 
+    private String defaultMode = "java";
+
+    private boolean browserFallbackToJava = true;
+
     private SiteSearchProperties siteSearch = new SiteSearchProperties();
 
     private BrowserProperties browser = new BrowserProperties();
@@ -56,6 +60,10 @@ public class WebSearchToolProperties {
     public static class SiteSearchProperties {
 
         private boolean enabled = true;
+
+        private String defaultMode = "java";
+
+        private boolean browserFallbackToJava = true;
 
         private int maxPagesToInspect = 3;
 

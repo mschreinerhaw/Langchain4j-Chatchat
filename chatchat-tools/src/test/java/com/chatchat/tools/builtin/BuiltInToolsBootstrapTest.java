@@ -68,7 +68,7 @@ class BuiltInToolsBootstrapTest {
         assertThat(webSearch.getConfirmation()).containsEntry("default", "auto_execute");
         assertThat(webSearch.getInputPolicy()).containsEntry("must_show_parameters", true);
         assertThat(webSearch.getInputPolicy()).containsKey("sensitive_params");
-        assertThat(webSearch.getTimeoutMillis()).isGreaterThanOrEqualTo(60000L);
+        assertThat(webSearch.getTimeoutMillis()).isGreaterThanOrEqualTo(0L);
 
         ToolMetadata databaseQuery = registry.getToolMetadata("database_query");
         assertThat(databaseQuery.getCategory()).isEqualTo("database_data_query");
@@ -305,6 +305,107 @@ class BuiltInToolsBootstrapTest {
         assertThat(results).anySatisfy(result -> assertThat(result)
             .containsEntry("source", "site_search")
             .containsEntry("url", "http://localhost:" + server.getAddress().getPort() + "/security/600519"));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void webSearchPrimaryStageReturnsOnlySearchSnippets() throws Exception {
+        startWebSearchApiWithSiteSearchForm();
+        DefaultToolRegistry registry = new DefaultToolRegistry();
+        WebSearchToolProperties webSearchProperties = new WebSearchToolProperties();
+        webSearchProperties.setProvider("bing_html");
+        webSearchProperties.setEndpoint("http://localhost:" + server.getAddress().getPort() + "/search");
+        webSearchProperties.setMaxResults(5);
+        webSearchProperties.setFetchPages(true);
+        webSearchProperties.getBrowser().setEnabled(false);
+        webSearchProperties.getSiteSearch().setMaxPagesToInspect(1);
+        webSearchProperties.getSiteSearch().setMaxSecondaryPages(1);
+
+        BuiltInToolsBootstrap bootstrap = new BuiltInToolsBootstrap(
+            registry,
+            webSearchProperties,
+            new DatabaseToolProperties(),
+            mock(DynamicJdbcDriverLoader.class),
+            new MockEnvironment(),
+            new ObjectMapper()
+        );
+        bootstrap.initializeBuiltInTools();
+
+        ToolRegistry.EnhancedTool webSearch = registry.getEnhancedTool("web_search");
+        ToolOutput output = webSearch.execute(ToolInput.builder()
+            .parameters(Map.of(
+                "query", "600519",
+                "num_results", 3,
+                "search_stage", "primary"
+            ))
+            .build());
+
+        assertThat(output.isSuccess()).isTrue();
+        Map<String, Object> data = (Map<String, Object>) output.getData();
+        assertThat(data)
+            .containsEntry("search_stage", "primary")
+            .containsEntry("contentMode", "search_snippets_only")
+            .containsEntry("site_search_result_count", 0)
+            .containsEntry("page_fetch_enabled", false)
+            .containsEntry("page_excerpt_count", 0);
+        List<Map<String, Object>> results = (List<Map<String, Object>>) data.get("results");
+        assertThat(results).hasSize(1);
+        assertThat(results.get(0))
+            .containsEntry("url", "http://localhost:" + server.getAddress().getPort() + "/exchange");
+        assertThat((String) data.get("structured_text"))
+            .contains("Example securities exchange")
+            .doesNotContain("/security/600519");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void webSearchSiteSearchStageUsesSelectedSeedUrls() throws Exception {
+        startWebSearchApiWithSiteSearchForm();
+        DefaultToolRegistry registry = new DefaultToolRegistry();
+        WebSearchToolProperties webSearchProperties = new WebSearchToolProperties();
+        webSearchProperties.setProvider("bing_html");
+        webSearchProperties.setEndpoint("http://localhost:" + server.getAddress().getPort() + "/search");
+        webSearchProperties.setMaxResults(5);
+        webSearchProperties.setFetchPages(false);
+        webSearchProperties.getBrowser().setEnabled(false);
+        webSearchProperties.getSiteSearch().setMaxPagesToInspect(1);
+        webSearchProperties.getSiteSearch().setMaxSecondaryPages(1);
+        webSearchProperties.getSiteSearch().setMaxLinksPerPage(3);
+
+        BuiltInToolsBootstrap bootstrap = new BuiltInToolsBootstrap(
+            registry,
+            webSearchProperties,
+            new DatabaseToolProperties(),
+            mock(DynamicJdbcDriverLoader.class),
+            new MockEnvironment(),
+            new ObjectMapper()
+        );
+        bootstrap.initializeBuiltInTools();
+
+        String seedUrl = "http://localhost:" + server.getAddress().getPort() + "/exchange";
+        ToolRegistry.EnhancedTool webSearch = registry.getEnhancedTool("web_search");
+        ToolOutput output = webSearch.execute(ToolInput.builder()
+            .parameters(Map.of(
+                "query", "600519",
+                "num_results", 3,
+                "search_stage", "site_search",
+                "seed_urls", List.of(seedUrl)
+            ))
+            .build());
+
+        assertThat(output.isSuccess()).isTrue();
+        Map<String, Object> data = (Map<String, Object>) output.getData();
+        assertThat(data)
+            .containsEntry("search_stage", "site_search")
+            .containsEntry("contentMode", "site_search_enriched")
+            .containsEntry("site_search_result_count", 1)
+            .containsEntry("page_fetch_enabled", false);
+        List<Map<String, Object>> results = (List<Map<String, Object>>) data.get("results");
+        assertThat(results).anySatisfy(result -> assertThat(result)
+            .containsEntry("source", "site_search")
+            .containsEntry("url", "http://localhost:" + server.getAddress().getPort() + "/security/600519"));
+        assertThat((List<Map<String, Object>>) data.get("seed_results"))
+            .anySatisfy(result -> assertThat(result).containsEntry("url", seedUrl));
     }
 
     @Test

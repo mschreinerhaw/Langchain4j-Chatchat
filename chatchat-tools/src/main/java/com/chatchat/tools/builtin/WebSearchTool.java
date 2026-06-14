@@ -58,6 +58,13 @@ import javax.net.ssl.SSLSocketFactory;
 @Slf4j
 class WebSearchTool implements ToolRegistry.EnhancedTool {
 
+    private static final String SEARCH_STAGE_FULL = "full";
+    private static final String SEARCH_STAGE_PRIMARY = "primary";
+    private static final String SEARCH_STAGE_SITE_SEARCH = "site_search";
+    private static final String SITE_SEARCH_MODE_JAVA = "java";
+    private static final String SITE_SEARCH_MODE_BROWSER = "browser";
+    private static final String SITE_SEARCH_MODE_AUTO = "auto";
+
     private final WebSearchToolProperties properties;
     private final ObjectMapper objectMapper;
     private final Semaphore rateSemaphore;
@@ -121,7 +128,16 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
                 return ToolOutput.failure("Search query is required");
             }
 
-            Map<String, Object> result = performWebSearch(input, query, numResults);
+            String searchStage = normalizeSearchStage(input.getParameterAsString("search_stage", SEARCH_STAGE_FULL));
+            Map<String, Object> result = SEARCH_STAGE_SITE_SEARCH.equals(searchStage)
+                ? performSiteSearch(input, query, numResults)
+                : performWebSearch(
+                    input,
+                    query,
+                    numResults,
+                    includeSiteSearch(input, searchStage),
+                    includePageFetch(input, searchStage)
+                );
             return ToolOutput.success(result, buildSearchMessage(result));
 
         } catch (Exception e) {
@@ -137,13 +153,19 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
      * @return the operation result
      * @throws Exception if the operation fails
      */
-    private Map<String, Object> performWebSearch(ToolInput input, String query, int numResults) throws Exception {
+    private Map<String, Object> performWebSearch(ToolInput input,
+                                                 String query,
+                                                 int numResults,
+                                                 boolean includeSiteSearch,
+                                                 boolean includePageFetch) throws Exception {
         String provider = properties.getProvider() == null
             ? "duckduckgo_html"
             : properties.getProvider().trim().toLowerCase(Locale.ROOT);
 
         WebSearchQueryIntent queryIntent = analyzeSearchQuery(query);
         WebSearchRequestContext context = requestContext(input, query);
+        String webSearchMode = webSearchMode(input);
+        String siteSearchMode = siteSearchMode(input);
         List<SearchAttempt> attempts = buildSearchAttempts(provider, properties.getEndpoint());
         List<String> errors = new ArrayList<>();
         List<Map<String, Object>> networkAudit = new ArrayList<>();
@@ -155,10 +177,21 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
                     attempt.endpoint(),
                     query,
                     numResults,
-                    properties.isFetchPages(),
+                    includePageFetch,
                     properties.getMaxPagesToFetch());
                 Map<String, Object> result = performWebSearchAttempt(
-                    attempt.provider(), attempt.endpoint(), queryIntent, numResults, errors, context, networkAudit);
+                    attempt.provider(),
+                    attempt.endpoint(),
+                    queryIntent,
+                    numResults,
+                    errors,
+                    context,
+                    networkAudit,
+                    includeSiteSearch,
+                    includePageFetch,
+                    webSearchMode,
+                    siteSearchMode
+                );
                 log.info("Web search provider attempt succeeded provider={} durationMs={} resultCount={} pageExcerptCount={}",
                     attempt.provider(),
                     Math.max(0L, System.currentTimeMillis() - startedAt),
@@ -190,7 +223,11 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
                                                         int numResults,
                                                         List<String> previousErrors,
                                                         WebSearchRequestContext context,
-                                                        List<Map<String, Object>> networkAudit) throws Exception {
+                                                        List<Map<String, Object>> networkAudit,
+                                                        boolean includeSiteSearch,
+                                                        boolean includePageFetch,
+                                                        String webSearchMode,
+                                                        String siteSearchMode) throws Exception {
         String query = queryIntent.originalQuery();
         String searchQuery = queryIntent.searchQuery();
         String siteQuery = queryIntent.siteSearchQuery();
@@ -199,7 +236,8 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
             endpoint,
             searchQuery,
             context,
-            networkAudit
+            networkAudit,
+            webSearchMode
         );
         Document document = searchResponse.document();
 
@@ -213,22 +251,28 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
         };
         List<Map<String, Object>> primaryResults = targetedPrimaryResults(fetchedResults, queryIntent);
         SearchResultRelevance searchResultRelevance = assessSearchResultRelevance(primaryResults, searchQuery);
-        List<Map<String, Object>> siteSearchResults = runTargetedKnownSiteSearch(
-            queryIntent,
-            siteQuery,
-            primaryResults,
-            fetchLimit,
-            context,
-            networkAudit
-        );
-        List<Map<String, Object>> discoveredSiteSearchResults = discoverSiteSearchResults(
-            primaryResults,
-            siteQuery,
-            fetchLimit,
-            context,
-            networkAudit,
-            !searchResultRelevance.useful()
-        );
+        List<Map<String, Object>> siteSearchResults = includeSiteSearch
+            ? runTargetedKnownSiteSearch(
+                queryIntent,
+                siteQuery,
+                primaryResults,
+                fetchLimit,
+                context,
+                networkAudit,
+                siteSearchMode
+            )
+            : List.of();
+        List<Map<String, Object>> discoveredSiteSearchResults = includeSiteSearch
+            ? discoverSiteSearchResults(
+                primaryResults,
+                siteQuery,
+                fetchLimit,
+                context,
+                networkAudit,
+                !searchResultRelevance.useful(),
+                siteSearchMode
+            )
+            : List.of();
         siteSearchResults = mergeSearchResults(siteSearchResults, discoveredSiteSearchResults, fetchLimit);
         List<Map<String, Object>> mergedResults = mergeSearchResults(primaryResults, siteSearchResults, fetchLimit);
         List<Map<String, Object>> results = mergedResults.size() <= numResults
@@ -242,7 +286,9 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
             .distinct()
             .limit(referenceLimit)
             .toList();
-        List<Map<String, Object>> pageExcerpts = fetchPageExcerpts(results, query, context, networkAudit);
+        List<Map<String, Object>> pageExcerpts = includePageFetch
+            ? fetchPageExcerpts(results, query, context, networkAudit)
+            : List.of();
 
         Map<String, Object> output = new LinkedHashMap<>();
         output.put("query", query);
@@ -258,9 +304,12 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
         output.put("reference_urls", referenceUrls);
         output.put("search_result_useful", searchResultRelevance.useful());
         output.put("search_result_relevance", searchResultRelevance.toMap());
-        output.put("site_search_enabled", properties.getSiteSearch().isEnabled());
+        output.put("search_stage", includeSiteSearch || includePageFetch ? SEARCH_STAGE_FULL : SEARCH_STAGE_PRIMARY);
+        output.put("web_search_mode", webSearchMode);
+        output.put("site_search_mode", includeSiteSearch ? siteSearchMode : SITE_SEARCH_MODE_JAVA);
+        output.put("site_search_enabled", includeSiteSearch && properties.getSiteSearch().isEnabled());
         output.put("site_search_result_count", siteSearchResults.size());
-        output.put("page_fetch_enabled", properties.isFetchPages());
+        output.put("page_fetch_enabled", includePageFetch && properties.isFetchPages());
         output.put("page_excerpt_count", pageExcerpts.size());
         output.put("contentMode", contentMode(pageExcerpts, siteSearchResults));
         output.put("structured_text", structuredSearchText(results, pageExcerpts, searchResultRelevance));
@@ -268,6 +317,89 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
         output.put("pageExcerpts", pageExcerpts);
         output.put("evidenceSnippets", pageExcerpts);
         output.put("results", results);
+        return output;
+    }
+
+    private Map<String, Object> performSiteSearch(ToolInput input, String query, int numResults) {
+        WebSearchQueryIntent queryIntent = analyzeSearchQuery(query);
+        WebSearchRequestContext context = requestContext(input, query);
+        String siteSearchMode = siteSearchMode(input);
+        List<Map<String, Object>> networkAudit = new ArrayList<>();
+        int resultLimit = Math.max(1, Math.min(properties.getMaxResults(), numResults));
+        String siteQuery = firstNonBlank(
+            input.getParameterAsString("site_search_query", ""),
+            queryIntent.siteSearchQuery()
+        );
+        List<Map<String, Object>> seedResults = seedResults(input, queryIntent);
+        if (seedResults.isEmpty()) {
+            Map<String, Object> output = new LinkedHashMap<>();
+            output.put("query", query);
+            output.put("site_search_query", siteQuery);
+            output.put("target_site", queryIntent.targetHost());
+            output.put("search_stage", SEARCH_STAGE_SITE_SEARCH);
+            output.put("site_search_mode", siteSearchMode);
+            output.put("count", 0);
+            output.put("reference_url_count", 0);
+            output.put("reference_urls", List.of());
+            output.put("results", List.of());
+            output.put("structured_text", "site_search_result_count: 0\nmessage: no seed urls selected");
+            output.put("web_search_audit", properties.getAudit().isIncludeInResult() ? networkAudit : List.of());
+            output.put("message", "No seed URLs were provided for site search");
+            return output;
+        }
+
+        List<Map<String, Object>> siteSearchResults = new ArrayList<>();
+        siteSearchResults.addAll(runTargetedKnownSiteSearch(
+            queryIntent,
+            siteQuery,
+            seedResults,
+            resultLimit,
+            context,
+            networkAudit,
+            siteSearchMode
+        ));
+        siteSearchResults = mergeSearchResults(siteSearchResults, discoverSiteSearchResults(
+            seedResults,
+            siteQuery,
+            resultLimit,
+            context,
+            networkAudit,
+            true,
+            siteSearchMode
+        ), resultLimit);
+
+        List<String> referenceUrls = siteSearchResults.stream()
+            .map(item -> item.get("url"))
+            .filter(String.class::isInstance)
+            .map(String.class::cast)
+            .filter(url -> !url.isBlank())
+            .distinct()
+            .limit(Math.max(0, Math.min(10, properties.getMaxResults())))
+            .toList();
+        SearchResultRelevance relevance = assessSearchResultRelevance(siteSearchResults, siteQuery);
+
+        Map<String, Object> output = new LinkedHashMap<>();
+        output.put("query", query);
+        output.put("site_search_query", siteQuery);
+        output.put("target_site", queryIntent.targetHost());
+        output.put("search_stage", SEARCH_STAGE_SITE_SEARCH);
+        output.put("site_search_mode", siteSearchMode);
+        output.put("count", siteSearchResults.size());
+        output.put("reference_url_count", referenceUrls.size());
+        output.put("reference_urls", referenceUrls);
+        output.put("search_result_useful", relevance.useful());
+        output.put("search_result_relevance", relevance.toMap());
+        output.put("site_search_enabled", properties.getSiteSearch().isEnabled());
+        output.put("site_search_result_count", siteSearchResults.size());
+        output.put("page_fetch_enabled", false);
+        output.put("page_excerpt_count", 0);
+        output.put("contentMode", siteSearchResults.isEmpty() ? "site_search_empty" : "site_search_enriched");
+        output.put("structured_text", structuredSearchText(siteSearchResults, List.of(), relevance));
+        output.put("web_search_audit", properties.getAudit().isIncludeInResult() ? networkAudit : List.of());
+        output.put("pageExcerpts", List.of());
+        output.put("evidenceSnippets", List.of());
+        output.put("seed_results", seedResults);
+        output.put("results", siteSearchResults);
         return output;
     }
 
@@ -462,6 +594,162 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
             : "search_snippets_only";
     }
 
+    private String normalizeSearchStage(String value) {
+        if (value == null || value.isBlank()) {
+            return SEARCH_STAGE_FULL;
+        }
+        String normalized = value.trim().toLowerCase(Locale.ROOT).replace('-', '_');
+        return switch (normalized) {
+            case "primary", "snippet", "snippets", "search_only" -> SEARCH_STAGE_PRIMARY;
+            case "site_search", "secondary", "secondary_search" -> SEARCH_STAGE_SITE_SEARCH;
+            case "full", "legacy" -> SEARCH_STAGE_FULL;
+            default -> SEARCH_STAGE_FULL;
+        };
+    }
+
+    private boolean includeSiteSearch(ToolInput input, String searchStage) {
+        if (SEARCH_STAGE_PRIMARY.equals(searchStage)) {
+            return input.getParameterAsBoolean("include_site_search", false);
+        }
+        return input.getParameterAsBoolean("include_site_search", true);
+    }
+
+    private boolean includePageFetch(ToolInput input, String searchStage) {
+        if (SEARCH_STAGE_PRIMARY.equals(searchStage)) {
+            return input.getParameterAsBoolean("fetch_pages", false);
+        }
+        return input.getParameterAsBoolean("fetch_pages", properties.isFetchPages());
+    }
+
+    private String webSearchMode(ToolInput input) {
+        String explicit = firstNonBlank(
+            input == null ? null : input.getParameterAsString("web_search_mode", ""),
+            input == null ? null : input.getParameterAsString("mode", "")
+        );
+        String value = firstNonBlank(explicit, properties.getDefaultMode());
+        if (value == null || value.isBlank()) {
+            return SITE_SEARCH_MODE_JAVA;
+        }
+        String normalized = value.trim().toLowerCase(Locale.ROOT).replace('-', '_');
+        return switch (normalized) {
+            case "browser", "playwright", "render", "rendered" -> SITE_SEARCH_MODE_BROWSER;
+            case "auto" -> SITE_SEARCH_MODE_AUTO;
+            case "http", "jsoup", "java", "java_http", "default" -> SITE_SEARCH_MODE_JAVA;
+            default -> SITE_SEARCH_MODE_JAVA;
+        };
+    }
+
+    private boolean webSearchBrowserFirst(String webSearchMode) {
+        return modeBrowserFirst(webSearchMode);
+    }
+
+    private boolean webSearchFallbackToJava() {
+        return properties.isBrowserFallbackToJava();
+    }
+
+    private String siteSearchMode(ToolInput input) {
+        String explicit = firstNonBlank(
+            input == null ? null : input.getParameterAsString("site_search_mode", ""),
+            input == null ? null : input.getParameterAsString("mode", "")
+        );
+        String configured = properties.getSiteSearch() == null
+            ? SITE_SEARCH_MODE_JAVA
+            : properties.getSiteSearch().getDefaultMode();
+        String value = firstNonBlank(explicit, configured);
+        if (value == null || value.isBlank()) {
+            return SITE_SEARCH_MODE_JAVA;
+        }
+        String normalized = value.trim().toLowerCase(Locale.ROOT).replace('-', '_');
+        return switch (normalized) {
+            case "browser", "playwright", "render", "rendered" -> SITE_SEARCH_MODE_BROWSER;
+            case "auto" -> SITE_SEARCH_MODE_AUTO;
+            case "http", "jsoup", "java", "java_http", "default" -> SITE_SEARCH_MODE_JAVA;
+            default -> SITE_SEARCH_MODE_JAVA;
+        };
+    }
+
+    private boolean siteSearchBrowserFirst(String siteSearchMode) {
+        return modeBrowserFirst(siteSearchMode);
+    }
+
+    private boolean modeBrowserFirst(String mode) {
+        return (SITE_SEARCH_MODE_BROWSER.equals(mode) || SITE_SEARCH_MODE_AUTO.equals(mode))
+            && browserRenderingEnabled();
+    }
+
+    private boolean siteSearchFallbackToJava() {
+        return properties.getSiteSearch() == null || properties.getSiteSearch().isBrowserFallbackToJava();
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<Map<String, Object>> seedResults(ToolInput input, WebSearchQueryIntent queryIntent) {
+        List<Map<String, Object>> results = new ArrayList<>();
+        Object candidates = firstObject(
+            input.getParameter("candidate_results"),
+            input.getParameter("selected_results"),
+            input.getParameter("results")
+        );
+        if (candidates instanceof List<?> list) {
+            int fallbackRank = 1;
+            for (Object item : list) {
+                if (item instanceof Map<?, ?> raw) {
+                    Map<String, Object> result = new LinkedHashMap<>();
+                    raw.forEach((key, value) -> {
+                        if (key != null) {
+                            result.put(String.valueOf(key), value);
+                        }
+                    });
+                    if (!result.containsKey("rank")) {
+                        result.put("rank", fallbackRank);
+                    }
+                    fallbackRank++;
+                    if (isHttpUrl(stringValue(result.get("url")))) {
+                        results.add(result);
+                    }
+                } else {
+                    String url = stringValue(item);
+                    if (isHttpUrl(url)) {
+                        results.add(seedResult(results.size() + 1, url));
+                    }
+                }
+            }
+        }
+        for (String url : stringList(firstObject(
+            input.getParameter("seed_urls"),
+            input.getParameter("selected_urls"),
+            input.getParameter("urls")
+        ))) {
+            if (isHttpUrl(url)) {
+                results.add(seedResult(results.size() + 1, url));
+            }
+        }
+        String targetUrl = firstNonBlank(
+            input.getParameterAsString("target_url", ""),
+            queryIntent == null ? null : queryIntent.targetUrl()
+        );
+        if (isHttpUrl(targetUrl)) {
+            results.add(seedResult(results.size() + 1, targetUrl));
+        }
+        Map<String, Map<String, Object>> byUrl = new LinkedHashMap<>();
+        for (Map<String, Object> result : results) {
+            String url = stringValue(result.get("url"));
+            if (url != null && !url.isBlank()) {
+                byUrl.putIfAbsent(normalizeComparableUrl(url), result);
+            }
+        }
+        return new ArrayList<>(byUrl.values());
+    }
+
+    private Map<String, Object> seedResult(int rank, String url) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("rank", rank);
+        result.put("title", url);
+        result.put("url", url);
+        result.put("snippet", "");
+        result.put("source", "llm_selected_seed");
+        return result;
+    }
+
     private SearchResultRelevance assessSearchResultRelevance(List<Map<String, Object>> results, String query) {
         List<String> terms = queryTerms(query);
         if (results == null || results.isEmpty() || terms.isEmpty()) {
@@ -559,26 +847,32 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
                                                  String endpoint,
                                                  String searchQuery,
                                                  WebSearchRequestContext context,
-                                                 List<Map<String, Object>> networkAudit) throws Exception {
+                                                 List<Map<String, Object>> networkAudit,
+                                                 String webSearchMode) throws Exception {
         if ("bing_html".equals(provider)) {
-            return sendBingSearchRequest(endpoint, searchQuery, context, networkAudit);
+            return sendBingSearchRequest(endpoint, searchQuery, context, networkAudit, webSearchMode);
         }
-        return sendSearchPageRequest(
+        return sendSearchPageRequestWithMode(
             endpoint,
             Map.of("q", searchQuery),
             searchQuery,
             "search",
             context,
-            networkAudit
+            networkAudit,
+            "GET",
+            webSearchMode,
+            webSearchFallbackToJava(),
+            "web_search"
         );
     }
 
     private HtmlResponse sendBingSearchRequest(String endpoint,
                                                String searchQuery,
                                                WebSearchRequestContext context,
-                                               List<Map<String, Object>> networkAudit) throws Exception {
+                                               List<Map<String, Object>> networkAudit,
+                                               String webSearchMode) throws Exception {
         if (!hasQueryParameter(endpoint, "q") && isBingHost(endpoint)) {
-            return sendHtmlRequest(
+            return sendSearchPageRequestWithMode(
                 urlWithRawQueryParams(endpoint, Map.of("q", searchQuery)),
                 Map.of(),
                 searchQuery,
@@ -586,16 +880,22 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
                 context,
                 networkAudit,
                 "GET",
-                false
+                webSearchMode,
+                webSearchFallbackToJava(),
+                "web_search"
             );
         }
-        HtmlResponse landingResponse = sendSearchPageRequest(
+        HtmlResponse landingResponse = sendSearchPageRequestWithMode(
             endpoint,
             Map.of(),
             searchQuery,
             "search_open",
             context,
-            networkAudit
+            networkAudit,
+            "GET",
+            webSearchMode,
+            webSearchFallbackToJava(),
+            "web_search"
         );
         SiteSearchForm searchForm = firstSearchForm(landingResponse.document(), endpoint, searchQuery);
         if (searchForm == null) {
@@ -604,13 +904,17 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
                 return landingResponse;
             }
             log.warn("Bing search form was not found after opening endpoint={}, falling back to q parameter", endpoint);
-            return sendSearchPageRequest(
+            return sendSearchPageRequestWithMode(
                 urlWithRawQueryParams(endpoint, Map.of("q", searchQuery)),
                 Map.of(),
                 searchQuery,
                 "search",
                 context,
-                networkAudit
+                networkAudit,
+                "GET",
+                webSearchMode,
+                webSearchFallbackToJava(),
+                "web_search"
             );
         }
         String submittedUrl = "POST".equals(searchForm.method())
@@ -622,23 +926,30 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
             searchForm.method(),
             submittedUrl);
         if (!"POST".equals(searchForm.method())) {
-            return sendSearchPageRequest(
+            return sendSearchPageRequestWithMode(
                 submittedUrl,
                 Map.of(),
                 searchQuery,
                 "search_submit",
                 contextWithReferer(context, endpoint, searchQuery),
-                networkAudit
+                networkAudit,
+                "GET",
+                webSearchMode,
+                webSearchFallbackToJava(),
+                "web_search"
             );
         }
-        return sendSearchPageRequest(
+        return sendSearchPageRequestWithMode(
             searchForm.actionUrl(),
             searchForm.parameters(),
             searchQuery,
             "search_submit",
             contextWithReferer(context, endpoint, searchQuery),
             networkAudit,
-            searchForm.method()
+            searchForm.method(),
+            webSearchMode,
+            webSearchFallbackToJava(),
+            "web_search"
         );
     }
 
@@ -824,7 +1135,8 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
                                                                 int resultLimit,
                                                                 WebSearchRequestContext context,
                                                                 List<Map<String, Object>> networkAudit,
-                                                                boolean inspectTopFive) {
+                                                                boolean inspectTopFive,
+                                                                String siteSearchMode) {
         WebSearchToolProperties.SiteSearchProperties siteSearch = properties.getSiteSearch();
         if (siteSearch == null || !siteSearch.isEnabled() || results == null || results.isEmpty()
             || query == null || query.isBlank()) {
@@ -880,7 +1192,8 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
                         seenUrls,
                         Math.max(1, siteSearch.getMaxLinksPerPage()),
                         context,
-                        networkAudit
+                        networkAudit,
+                        siteSearchMode
                     );
                     if (!knownResults.isEmpty()) {
                         result.put("siteSearchAvailable", true);
@@ -900,7 +1213,9 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
                     query,
                     "site_search_page",
                     context,
-                    networkAudit
+                    networkAudit,
+                    "GET",
+                    siteSearchMode
                 );
                 boolean pageHasEvidence = pageContainsQueryEvidence(pageResponse.document(), query);
                 result.put("siteSearchPageContainsQuery", pageHasEvidence);
@@ -914,7 +1229,8 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
                         seenUrls,
                         Math.max(1, siteSearch.getMaxLinksPerPage()),
                         context,
-                        networkAudit
+                        networkAudit,
+                        siteSearchMode
                     );
                     if (!knownResults.isEmpty()) {
                         result.put("siteSearchAvailable", true);
@@ -936,7 +1252,8 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
                         query,
                         context,
                         networkAudit,
-                        inspectTopFive ? 5 : Math.max(0, inspectLimit - inspected)
+                        inspectTopFive ? 5 : Math.max(0, inspectLimit - inspected),
+                        siteSearchMode
                     );
                     inspected += Math.max(0, Math.min(inspectLimit - inspected, inspectedEntrypointCount(forms)));
                 }
@@ -965,7 +1282,8 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
                         "site_search",
                         context,
                         networkAudit,
-                        form.method()
+                        form.method(),
+                        siteSearchMode
                     );
                     List<Map<String, Object>> secondaryResults = parseSiteSearchLinks(
                         secondaryResponse.document(),
@@ -1000,7 +1318,8 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
                                                                  List<Map<String, Object>> primaryResults,
                                                                  int resultLimit,
                                                                  WebSearchRequestContext context,
-                                                                 List<Map<String, Object>> networkAudit) {
+                                                                 List<Map<String, Object>> networkAudit,
+                                                                 String siteSearchMode) {
         if (queryIntent == null || query == null || query.isBlank()
             || queryIntent.targetUrl() == null || queryIntent.targetUrl().isBlank()) {
             return List.of();
@@ -1029,7 +1348,8 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
                 seenUrls,
                 Math.max(1, resultLimit),
                 context,
-                networkAudit
+                networkAudit,
+                siteSearchMode
             );
             log.info("Web search targeted known site-search completed targetHost={} resultCount={}",
                 queryIntent.targetHost(),
@@ -1048,7 +1368,8 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
                                                                     String query,
                                                                     WebSearchRequestContext context,
                                                                     List<Map<String, Object>> networkAudit,
-                                                                    int maxAdditionalInspections) {
+                                                                    int maxAdditionalInspections,
+                                                                    String siteSearchMode) {
         if (maxAdditionalInspections <= 0) {
             return List.of();
         }
@@ -1074,7 +1395,9 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
                     query,
                     "site_search_entrypoint",
                     contextWithReferer(context, pageUrl, query),
-                    networkAudit
+                    networkAudit,
+                    "GET",
+                    siteSearchMode
                 );
                 for (SiteSearchForm form : findSiteSearchForms(response.document(), candidateUrl, query)) {
                     String key = normalizeComparableUrl(form.submittedUrl());
@@ -1190,7 +1513,8 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
                                                          Set<String> seenUrls,
                                                          int maxLinks,
                                                          WebSearchRequestContext context,
-                                                         List<Map<String, Object>> networkAudit) throws Exception {
+                                                         List<Map<String, Object>> networkAudit,
+                                                         String siteSearchMode) throws Exception {
         String endpoint = knownSearchEndpoint(document, sourcePageUrl);
         if (endpoint == null || endpoint.isBlank()) {
             return List.of();
@@ -1220,7 +1544,9 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
             query,
             "site_search_known",
             siteContext,
-            networkAudit
+            networkAudit,
+            "GET",
+            siteSearchMode
         );
         String payload = response.document() == null ? "" : response.document().text();
         List<Map<String, Object>> results = parseKnownJsonpSearchResults(
@@ -1414,7 +1740,6 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
             context.tenantId(),
             context.taskId(),
             context.agentId(),
-            context.proxyPool(),
             referer
         );
     }
@@ -1722,6 +2047,63 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
         return sendHtmlRequest(url, queryParams, query, phase, context, networkAudit, httpMethod, true);
     }
 
+    private HtmlResponse sendSearchPageRequest(String url,
+                                               Map<String, String> queryParams,
+                                               String query,
+                                               String phase,
+                                               WebSearchRequestContext context,
+                                               List<Map<String, Object>> networkAudit,
+                                               String httpMethod,
+                                               String siteSearchMode) throws Exception {
+        return sendSearchPageRequestWithMode(
+            url,
+            queryParams,
+            query,
+            phase,
+            context,
+            networkAudit,
+            httpMethod,
+            siteSearchMode,
+            siteSearchFallbackToJava(),
+            "site_search"
+        );
+    }
+
+    private HtmlResponse sendSearchPageRequestWithMode(String url,
+                                                       Map<String, String> queryParams,
+                                                       String query,
+                                                       String phase,
+                                                       WebSearchRequestContext context,
+                                                       List<Map<String, Object>> networkAudit,
+                                                       String httpMethod,
+                                                       String mode,
+                                                       boolean fallbackToJava,
+                                                       String modeLabel) throws Exception {
+        String method = firstNonBlank(httpMethod, "GET").toUpperCase(Locale.ROOT);
+        if (modeBrowserFirst(mode)) {
+            HtmlResponse browserResponse = sendPlaywrightOnlyRequest(
+                url,
+                queryParams,
+                query,
+                phase,
+                context,
+                networkAudit,
+                method
+            );
+            if (browserResponse != null) {
+                return browserResponse;
+            }
+            if (!fallbackToJava) {
+                throw new IOException(modeLabel + " browser request failed and Java fallback is disabled");
+            }
+            log.info("{} browser request failed for phase={} url={}, falling back to Java fetcher",
+                modeLabel,
+                phase,
+                urlWithQueryParamsForPhase(url, queryParams, phase));
+        }
+        return sendHtmlRequest(url, queryParams, query, phase, context, networkAudit, method, false);
+    }
+
     private HtmlResponse sendPlaywrightOnlyRequest(String url,
                                                    Map<String, String> queryParams,
                                                    String query,
@@ -1946,6 +2328,11 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
             if (!cookieHeader.isBlank()) {
                 request.append("Cookie: ").append(cookieHeader).append("\r\n");
             }
+            if (proxy != null && proxy.getUsername() != null && !proxy.getUsername().isBlank()) {
+                String token = Base64.getEncoder().encodeToString(
+                    (proxy.getUsername() + ":" + firstNonBlank(proxy.getPassword(), "")).getBytes(StandardCharsets.UTF_8));
+                request.append("Proxy-Authorization: Basic ").append(token).append("\r\n");
+            }
             request.append("\r\n");
             out.write(request.toString().getBytes(StandardCharsets.UTF_8));
             out.flush();
@@ -2146,9 +2533,9 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
         BrowserType.LaunchOptions launchOptions = new BrowserType.LaunchOptions()
             .setHeadless(true)
             .setTimeout(timeoutMs);
-        String proxyArgument = browserProxyArgument(proxy);
-        if (proxyArgument != null) {
-            launchOptions.setProxy(new com.microsoft.playwright.options.Proxy(proxyArgument));
+        com.microsoft.playwright.options.Proxy playwrightProxy = playwrightProxy(proxy);
+        if (playwrightProxy != null) {
+            launchOptions.setProxy(playwrightProxy);
         }
         try (Playwright playwright = createPlaywright(browserProperties);
              Browser browser = playwright.chromium().launch(launchOptions);
@@ -2379,6 +2766,19 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
         return scheme + "://" + proxy.getHost().trim() + ":" + proxy.getPort();
     }
 
+    private com.microsoft.playwright.options.Proxy playwrightProxy(WebSearchToolProperties.ProxyConfig proxy) {
+        String proxyArgument = browserProxyArgument(proxy);
+        if (proxyArgument == null) {
+            return null;
+        }
+        com.microsoft.playwright.options.Proxy playwrightProxy = new com.microsoft.playwright.options.Proxy(proxyArgument);
+        if (proxy.getUsername() != null && !proxy.getUsername().isBlank()) {
+            playwrightProxy.setUsername(proxy.getUsername());
+            playwrightProxy.setPassword(firstNonBlank(proxy.getPassword(), ""));
+        }
+        return playwrightProxy;
+    }
+
     private String urlWithQueryParams(String url, Map<String, String> queryParams) {
         if (queryParams == null || queryParams.isEmpty()) {
             return url;
@@ -2532,7 +2932,7 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
         boolean taskMatches = proxy.getTaskIds() == null
             || proxy.getTaskIds().isEmpty()
             || (context.taskId() != null && proxy.getTaskIds().contains(context.taskId()));
-        String pool = firstNonBlank(context.proxyPool(), properties.getProxyPool().getDefaultPool());
+        String pool = properties.getProxyPool().getDefaultPool();
         boolean poolMatches = pool == null || pool.isBlank() || pool.equalsIgnoreCase(firstNonBlank(proxy.getPool(), "default"));
         return tenantMatches && taskMatches && poolMatches;
     }
@@ -2634,7 +3034,6 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
             firstNonBlank(stringValue(parameters.get("tenantId")), stringValue(parameters.get("tenant_id"))),
             firstNonBlank(stringValue(parameters.get("sourceTaskId")), stringValue(parameters.get("taskId"))),
             stringValue(parameters.get("agentId")),
-            stringValue(parameters.get("proxyPool")),
             stringValue(parameters.get("referer"))
         );
     }
@@ -2793,7 +3192,6 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
         item.put("keyword", query);
         item.put("phase", phase);
         item.put("targetDomain", hostOf(url));
-        item.put("proxyId", firstNonBlank(proxyId, "direct"));
         item.put("statusCode", statusCode);
         item.put("durationMs", durationMs);
         item.put("outcome", outcome);
@@ -3203,6 +3601,39 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
         return first == null || first.isBlank() ? second : first;
     }
 
+    private Object firstObject(Object... values) {
+        if (values == null) {
+            return null;
+        }
+        for (Object value : values) {
+            if (value == null) {
+                continue;
+            }
+            if (value instanceof String text && text.isBlank()) {
+                continue;
+            }
+            return value;
+        }
+        return null;
+    }
+
+    private List<String> stringList(Object value) {
+        if (value instanceof List<?> list) {
+            return list.stream()
+                .map(this::stringValue)
+                .filter(text -> text != null && !text.isBlank())
+                .map(String::trim)
+                .toList();
+        }
+        if (value instanceof String text && !text.isBlank()) {
+            return List.of(text.split("[,\\n]")).stream()
+                .map(String::trim)
+                .filter(item -> !item.isBlank())
+                .toList();
+        }
+        return List.of();
+    }
+
     private record SearchAttempt(String provider, String endpoint) {
     }
 
@@ -3226,7 +3657,6 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
                                            String tenantId,
                                            String taskId,
                                            String agentId,
-                                           String proxyPool,
                                            String referer) {
     }
 

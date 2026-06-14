@@ -202,14 +202,14 @@ public class BuiltInToolsBootstrap {
                 ToolParameter.builder()
                     .name("tenantId")
                     .type("string")
-                    .description("Optional tenant identifier used for proxy and cookie isolation")
+                    .description("Optional tenant identifier used for request isolation")
                     .required(false)
                     .maxLength(128)
                     .build(),
                 ToolParameter.builder()
                     .name("sourceTaskId")
                     .type("string")
-                    .description("Optional task identifier used for proxy and cookie isolation")
+                    .description("Optional task identifier used for request isolation")
                     .required(false)
                     .maxLength(128)
                     .build(),
@@ -217,13 +217,6 @@ public class BuiltInToolsBootstrap {
                     .name("agentId")
                     .type("string")
                     .description("Optional agent identifier used for audit and rate control")
-                    .required(false)
-                    .maxLength(128)
-                    .build(),
-                ToolParameter.builder()
-                    .name("proxyPool")
-                    .type("string")
-                    .description("Optional proxy pool name")
                     .required(false)
                     .maxLength(128)
                     .build(),

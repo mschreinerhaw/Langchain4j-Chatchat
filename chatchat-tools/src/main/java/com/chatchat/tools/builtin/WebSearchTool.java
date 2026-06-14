@@ -5,15 +5,24 @@ import com.chatchat.common.tool.ToolInput;
 import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolOutput;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.microsoft.playwright.Browser;
+import com.microsoft.playwright.BrowserContext;
+import com.microsoft.playwright.BrowserType;
+import com.microsoft.playwright.Page;
+import com.microsoft.playwright.Playwright;
+import com.microsoft.playwright.options.LoadState;
 import lombok.extern.slf4j.Slf4j;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.net.Proxy;
 import java.net.URI;
+import java.net.Socket;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.net.http.HttpClient;
@@ -34,12 +43,13 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
+import javax.net.ssl.SSLSocketFactory;
 
 /**
  * Web Search Tool implementation
@@ -58,7 +68,9 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
     private final AtomicInteger dailyCalls = new AtomicInteger();
     private volatile LocalDate dailyWindow = LocalDate.now();
     private volatile long lastRequestAtMs;
-    private static final Pattern HTTP_URL_PATTERN = Pattern.compile("https?://[^\\s\\)\\]\\}>\"'锛屻€傦紱;,]+", Pattern.CASE_INSENSITIVE);
+    private volatile boolean playwrightBrowsersPathInfoLogged;
+    private volatile boolean playwrightBrowsersPathWarningLogged;
+    private static final Pattern HTTP_URL_PATTERN = Pattern.compile("https?://[^\\s\\)\\]\\}>\"'\\uFF0C\\u3002\\uFF1B;,]+", Pattern.CASE_INSENSITIVE);
     private static final Pattern SITE_OPERATOR_PATTERN = Pattern.compile("(?i)(?:^|\\s)site\\s*:\\s*([^\\s]+)");
 
     /**
@@ -1033,7 +1045,7 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
         parameters.put("channelId", "10001");
 
         WebSearchRequestContext siteContext = contextWithReferer(context, sourcePageUrl, query);
-        String submittedUrl = urlWithQueryParams(endpoint, parameters);
+        String submittedUrl = urlWithRawQueryParams(endpoint, parameters);
         log.info("Web search site-search known endpoint request started sourceUrl={} endpoint={} query={}",
             sourcePageUrl,
             endpoint,
@@ -1231,7 +1243,7 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
 
     private WebSearchRequestContext contextWithReferer(WebSearchRequestContext context, String sourcePageUrl, String query) {
         String referer = looksLikeShanghaiStockExchangeUrl(sourcePageUrl)
-            ? "https://www.sse.com.cn/home/search/?webswd=" + URLEncoder.encode(query, StandardCharsets.UTF_8)
+            ? "https://www.sse.com.cn/home/search/?webswd=" + rawQueryValue(query)
             : sourcePageUrl;
         return new WebSearchRequestContext(
             context.query(),
@@ -1279,8 +1291,8 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
             }
             String submittedUrl = "POST".equals(method)
                 ? actionUrl
-                : urlWithQueryParams(actionUrl, parameters);
-            String key = normalizeComparableUrl(urlWithQueryParams(actionUrl, parameters));
+                : urlWithRawQueryParams(actionUrl, parameters);
+            String key = normalizeComparableUrl(submittedUrl);
             if (seen.add(key)) {
                 forms.add(new SiteSearchForm(actionUrl, parameters, method, submittedUrl, pageUrl));
             }
@@ -1527,8 +1539,8 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
                                                WebSearchRequestContext context,
                                                List<Map<String, Object>> networkAudit,
                                                String httpMethod) throws Exception {
-        if (localBrowserEnabled()) {
-            HtmlResponse browserResponse = sendLocalBrowserOnlyRequest(
+        if (browserRenderingEnabled() && !shouldUseRawQueryParams(phase, httpMethod)) {
+            HtmlResponse browserResponse = sendPlaywrightOnlyRequest(
                 url,
                 queryParams,
                 query,
@@ -1540,18 +1552,18 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
             if (browserResponse != null) {
                 return browserResponse;
             }
-            throw new IOException("local browser request failed for search page: " + url);
+            throw new IOException("Playwright browser request failed for search page: " + url);
         }
         return sendHtmlRequest(url, queryParams, query, phase, context, networkAudit, httpMethod);
     }
 
-    private HtmlResponse sendLocalBrowserOnlyRequest(String url,
-                                                     Map<String, String> queryParams,
-                                                     String query,
-                                                     String phase,
-                                                     WebSearchRequestContext context,
-                                                     List<Map<String, Object>> networkAudit,
-                                                     String httpMethod) throws Exception {
+    private HtmlResponse sendPlaywrightOnlyRequest(String url,
+                                                   Map<String, String> queryParams,
+                                                   String query,
+                                                   String phase,
+                                                   WebSearchRequestContext context,
+                                                   List<Map<String, Object>> networkAudit,
+                                                   String httpMethod) throws Exception {
         if (!isAllowedUrl(url)) {
             addAudit(networkAudit, query, url, phase, null, 0, 0, "BLOCKED", "domain not allowed");
             throw new IllegalArgumentException("Web search target domain is not allowed: " + hostOf(url));
@@ -1564,7 +1576,7 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
             boolean rateAcquired = false;
             try {
                 rateAcquired = acquireRateSlot();
-                HtmlResponse browserResponse = tryLocalBrowserRequest(
+                HtmlResponse browserResponse = tryPlaywrightRequest(
                     url,
                     queryParams,
                     query,
@@ -1595,7 +1607,7 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
             }
         }
         if (lastException != null) {
-            log.warn("Local browser request failed for phase={} url={} error={}", phase, url, lastException.getMessage());
+            log.warn("Playwright browser request failed for phase={} url={} error={}", phase, url, lastException.getMessage());
         }
         return null;
     }
@@ -1621,35 +1633,51 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
             try {
                 rateAcquired = acquireRateSlot();
                 String cookieKey = cookieKey(context, proxy);
-                HtmlResponse browserResponse = tryLocalBrowserRequest(
-                    url,
-                    queryParams,
-                    query,
-                    phase,
-                    context,
-                    proxy,
-                    startedAt,
-                    networkAudit,
-                    method
-                );
-                if (browserResponse != null) {
-                    markProxySuccess(proxy);
-                    return browserResponse;
-                }
-
-                org.jsoup.Connection connection = buildJsoupConnection(url, queryParams, phase, context, proxy, method);
                 Map<String, String> cookies = readCookies(cookieKey);
-                if (!cookies.isEmpty()) {
-                    connection.cookies(cookies);
+                HtmlResponse browserResponse = null;
+                if (!shouldUseRawQueryParams(phase, method)) {
+                    browserResponse = tryPlaywrightRequest(
+                        url,
+                        queryParams,
+                        query,
+                        phase,
+                        context,
+                        proxy,
+                        startedAt,
+                        networkAudit,
+                        method
+                    );
+                    if (browserResponse != null) {
+                        markProxySuccess(proxy);
+                        return browserResponse;
+                    }
                 }
-                org.jsoup.Connection.Response response = connection.execute();
-                updateCookies(cookieKey, response.cookies());
-                int statusCode = response.statusCode();
-                String body = response.body();
+                RawHttpResponse rawResponse = null;
+                org.jsoup.Connection.Response response = null;
+                int statusCode;
+                String body;
+                String responseUrl;
+                if (shouldUseRawQueryParams(phase, method)) {
+                    rawResponse = executeRawGet(urlWithRawQueryParams(url, queryParams), context, phase, proxy, cookies);
+                    updateCookies(cookieKey, rawResponse.cookies());
+                    statusCode = rawResponse.statusCode();
+                    body = rawResponse.body();
+                    responseUrl = rawResponse.url();
+                } else {
+                    org.jsoup.Connection connection = buildJsoupConnection(url, queryParams, phase, context, proxy, method);
+                    if (!cookies.isEmpty()) {
+                        connection.cookies(cookies);
+                    }
+                    response = connection.execute();
+                    updateCookies(cookieKey, response.cookies());
+                    statusCode = response.statusCode();
+                    body = response.body();
+                    responseUrl = response.url().toString();
+                }
                 long durationMs = Math.max(0L, System.currentTimeMillis() - startedAt);
-                addAudit(networkAudit, query, response.url().toString(), phase, proxyId(proxy), statusCode,
+                addAudit(networkAudit, query, responseUrl, phase, proxyId(proxy), statusCode,
                     durationMs, "OK", null);
-                logWebSearchAudit(query, response.url().toString(), phase, proxy, statusCode, durationMs, null);
+                logWebSearchAudit(query, responseUrl, phase, proxy, statusCode, durationMs, null);
                 if (shouldRetry(statusCode, body)) {
                     markProxyFailure(proxy);
                     if (attempt < maxAttempts) {
@@ -1659,7 +1687,9 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
                     throw new IOException("HTTP " + statusCode + " from " + hostOf(url));
                 }
                 markProxySuccess(proxy);
-                return new HtmlResponse(statusCode, response.parse());
+                return rawResponse == null
+                    ? new HtmlResponse(statusCode, response.parse())
+                    : new HtmlResponse(statusCode, Jsoup.parse(body, responseUrl));
             } catch (Exception ex) {
                 lastException = ex;
                 markProxyFailure(proxy);
@@ -1684,7 +1714,10 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
                                                       WebSearchRequestContext context,
                                                       WebSearchToolProperties.ProxyConfig proxy,
                                                       String httpMethod) {
-        org.jsoup.Connection connection = Jsoup.connect(url)
+        String requestUrl = shouldUseRawQueryParams(phase, httpMethod)
+            ? urlWithRawQueryParams(url, queryParams)
+            : url;
+        org.jsoup.Connection connection = Jsoup.connect(requestUrl)
             .timeout(Math.max(1000, properties.getTimeoutMs()))
             .maxBodySize(Math.max(1024, properties.getPageMaxBytes()))
             .ignoreHttpErrors(true)
@@ -1693,128 +1726,405 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
         if ("POST".equalsIgnoreCase(httpMethod)) {
             connection.method(org.jsoup.Connection.Method.POST);
         }
-        if (queryParams != null && !queryParams.isEmpty()) {
+        if (queryParams != null && !queryParams.isEmpty() && !shouldUseRawQueryParams(phase, httpMethod)) {
             connection.data(queryParams);
         }
-        applyBrowserHeaders(connection, url, phase, context, proxy);
+        applyBrowserHeaders(connection, requestUrl, phase, context, proxy);
         applyProxy(connection, proxy);
         return connection;
     }
 
-    private HtmlResponse tryLocalBrowserRequest(String url,
-                                                Map<String, String> queryParams,
-                                                String query,
-                                                String phase,
-                                                WebSearchRequestContext context,
-                                                WebSearchToolProperties.ProxyConfig proxy,
-                                                long startedAt,
-                                                List<Map<String, Object>> networkAudit,
-                                                String httpMethod) {
-        if (!localBrowserEnabled()) {
-            return null;
+    private RawHttpResponse executeRawGet(String requestUrl,
+                                          WebSearchRequestContext context,
+                                          String phase,
+                                          WebSearchToolProperties.ProxyConfig proxy,
+                                          Map<String, String> cookies) throws IOException {
+        URI baseUri = baseUri(requestUrl);
+        String scheme = firstNonBlank(baseUri.getScheme(), "http").toLowerCase(Locale.ROOT);
+        String host = baseUri.getHost();
+        if (host == null || host.isBlank()) {
+            throw new IOException("raw GET target host is missing: " + requestUrl);
         }
-        String executable = resolveBrowserExecutable();
-        if (executable == null || executable.isBlank()) {
+        int port = baseUri.getPort() > 0 ? baseUri.getPort() : ("https".equals(scheme) ? 443 : 80);
+        boolean https = "https".equals(scheme);
+        if (https && proxy != null && "HTTP".equalsIgnoreCase(firstNonBlank(proxy.getType(), ""))) {
+            throw new IOException("raw HTTPS GET through HTTP proxy is not supported");
+        }
+
+        try (Socket socket = openRawSocket(host, port, https, proxy)) {
+            socket.setSoTimeout(Math.max(1000, properties.getTimeoutMs()));
+            OutputStream out = socket.getOutputStream();
+            String requestTarget = requestTarget(requestUrl, baseUri, proxy);
+            StringBuilder request = new StringBuilder();
+            request.append("GET ").append(requestTarget).append(" HTTP/1.1\r\n");
+            request.append("Host: ").append(hostHeader(host, port, https)).append("\r\n");
+            request.append("User-Agent: ").append(selectUserAgent(context)).append("\r\n");
+            request.append("Accept: ").append(firstNonBlank(properties.getBrowser().getAccept(), "*/*")).append("\r\n");
+            request.append("Accept-Language: ").append(firstNonBlank(properties.getBrowser().getAcceptLanguage(), "en-US,en;q=0.9")).append("\r\n");
+            request.append("Connection: close\r\n");
+            String referer = firstNonBlank(context.referer(), properties.getBrowser().getReferer());
+            if (referer != null && !referer.isBlank()) {
+                request.append("Referer: ").append(referer).append("\r\n");
+            }
+            String cookieHeader = cookieHeader(cookies);
+            if (!cookieHeader.isBlank()) {
+                request.append("Cookie: ").append(cookieHeader).append("\r\n");
+            }
+            request.append("\r\n");
+            out.write(request.toString().getBytes(StandardCharsets.UTF_8));
+            out.flush();
+
+            byte[] bytes = readAll(socket.getInputStream());
+            String raw = new String(bytes, StandardCharsets.UTF_8);
+            int headerEnd = raw.indexOf("\r\n\r\n");
+            if (headerEnd < 0) {
+                throw new IOException("raw GET returned an invalid HTTP response for " + requestUrl);
+            }
+            String headerText = raw.substring(0, headerEnd);
+            String body = raw.substring(headerEnd + 4);
+            int statusCode = statusCode(headerText);
+            if (isChunked(headerText)) {
+                body = decodeChunkedBody(body);
+            }
+            Map<String, String> responseCookies = responseCookies(headerText);
+            log.debug("Raw site-search GET completed phase={} url={} statusCode={}", phase, requestUrl, statusCode);
+            return new RawHttpResponse(statusCode, body, responseCookies, requestUrl);
+        }
+    }
+
+    private Socket openRawSocket(String host,
+                                 int port,
+                                 boolean https,
+                                 WebSearchToolProperties.ProxyConfig proxy) throws IOException {
+        int timeoutMs = Math.max(1000, properties.getTimeoutMs());
+        Socket socket;
+        if (proxy != null && proxy.getHost() != null && !proxy.getHost().isBlank() && proxy.getPort() > 0) {
+            String type = firstNonBlank(proxy.getType(), "HTTP").toUpperCase(Locale.ROOT);
+            if (type.contains("SOCKS")) {
+                socket = new Socket(new Proxy(Proxy.Type.SOCKS, new InetSocketAddress(proxy.getHost(), proxy.getPort())));
+                socket.connect(new InetSocketAddress(host, port), timeoutMs);
+                return https
+                    ? ((SSLSocketFactory) SSLSocketFactory.getDefault()).createSocket(socket, host, port, true)
+                    : socket;
+            }
+            socket = new Socket();
+            socket.connect(new InetSocketAddress(proxy.getHost(), proxy.getPort()), timeoutMs);
+            return socket;
+        }
+        socket = new Socket();
+        socket.connect(new InetSocketAddress(host, port), timeoutMs);
+        return https
+            ? ((SSLSocketFactory) SSLSocketFactory.getDefault()).createSocket(socket, host, port, true)
+            : socket;
+    }
+
+    private URI baseUri(String requestUrl) {
+        int queryStart = requestUrl.indexOf('?');
+        String baseUrl = queryStart >= 0 ? requestUrl.substring(0, queryStart) : requestUrl;
+        return URI.create(baseUrl);
+    }
+
+    private String requestTarget(String requestUrl, URI baseUri, WebSearchToolProperties.ProxyConfig proxy) {
+        if (proxy != null
+            && "HTTP".equalsIgnoreCase(firstNonBlank(proxy.getType(), ""))
+            && "http".equalsIgnoreCase(firstNonBlank(baseUri.getScheme(), "http"))) {
+            return requestUrl;
+        }
+        int queryStart = requestUrl.indexOf('?');
+        String rawPath = firstNonBlank(baseUri.getRawPath(), "/");
+        if (rawPath.isBlank()) {
+            rawPath = "/";
+        }
+        return queryStart >= 0 ? rawPath + requestUrl.substring(queryStart) : rawPath;
+    }
+
+    private String hostHeader(String host, int port, boolean https) {
+        int defaultPort = https ? 443 : 80;
+        return port == defaultPort ? host : host + ":" + port;
+    }
+
+    private String cookieHeader(Map<String, String> cookies) {
+        if (cookies == null || cookies.isEmpty()) {
+            return "";
+        }
+        return cookies.entrySet().stream()
+            .filter(entry -> entry.getKey() != null && !entry.getKey().isBlank())
+            .map(entry -> entry.getKey() + "=" + firstNonBlank(entry.getValue(), ""))
+            .reduce((left, right) -> left + "; " + right)
+            .orElse("");
+    }
+
+    private byte[] readAll(InputStream inputStream) throws IOException {
+        return inputStream.readAllBytes();
+    }
+
+    private int statusCode(String headerText) throws IOException {
+        String firstLine = headerText.lines().findFirst().orElse("");
+        Matcher matcher = Pattern.compile("HTTP/\\S+\\s+(\\d{3})").matcher(firstLine);
+        if (!matcher.find()) {
+            throw new IOException("raw GET returned an invalid status line: " + firstLine);
+        }
+        return Integer.parseInt(matcher.group(1));
+    }
+
+    private Map<String, String> responseCookies(String headerText) {
+        Map<String, String> cookies = new LinkedHashMap<>();
+        for (String line : headerText.split("\\r?\\n")) {
+            int colon = line.indexOf(':');
+            if (colon <= 0 || !"set-cookie".equalsIgnoreCase(line.substring(0, colon).trim())) {
+                continue;
+            }
+            String cookie = line.substring(colon + 1).trim();
+            int semicolon = cookie.indexOf(';');
+            String pair = semicolon >= 0 ? cookie.substring(0, semicolon) : cookie;
+            int equals = pair.indexOf('=');
+            if (equals > 0) {
+                cookies.put(pair.substring(0, equals).trim(), pair.substring(equals + 1).trim());
+            }
+        }
+        return cookies;
+    }
+
+    private boolean isChunked(String headerText) {
+        return headerText != null
+            && Pattern.compile("(?im)^transfer-encoding\\s*:\\s*.*\\bchunked\\b").matcher(headerText).find();
+    }
+
+    private String decodeChunkedBody(String body) {
+        if (body == null || body.isBlank()) {
+            return "";
+        }
+        StringBuilder decoded = new StringBuilder();
+        int position = 0;
+        while (position < body.length()) {
+            int lineEnd = body.indexOf("\r\n", position);
+            if (lineEnd < 0) {
+                break;
+            }
+            String sizeLine = body.substring(position, lineEnd).trim();
+            int extension = sizeLine.indexOf(';');
+            if (extension >= 0) {
+                sizeLine = sizeLine.substring(0, extension).trim();
+            }
+            int size;
+            try {
+                size = Integer.parseInt(sizeLine, 16);
+            } catch (NumberFormatException ex) {
+                return body;
+            }
+            position = lineEnd + 2;
+            if (size <= 0) {
+                break;
+            }
+            int chunkEnd = Math.min(body.length(), position + size);
+            decoded.append(body, position, chunkEnd);
+            position = chunkEnd;
+            if (position + 2 <= body.length() && body.startsWith("\r\n", position)) {
+                position += 2;
+            }
+        }
+        return decoded.toString();
+    }
+
+    private HtmlResponse tryPlaywrightRequest(String url,
+                                              Map<String, String> queryParams,
+                                              String query,
+                                              String phase,
+                                              WebSearchRequestContext context,
+                                              WebSearchToolProperties.ProxyConfig proxy,
+                                              long startedAt,
+                                              List<Map<String, Object>> networkAudit,
+                                              String httpMethod) {
+        if (!browserRenderingEnabled()) {
             return null;
         }
         String method = firstNonBlank(httpMethod, "GET").toUpperCase(Locale.ROOT);
         String targetUrl = "POST".equals(method)
             ? url
-            : urlWithQueryParams(url, queryParams);
+            : urlWithQueryParamsForPhase(url, queryParams, phase);
         try {
-            HtmlResponse response = executeLocalBrowser(executable, targetUrl, queryParams, method, context, proxy);
+            HtmlResponse response = executePlaywrightRequest(targetUrl, queryParams, method, context, proxy);
             long durationMs = Math.max(0L, System.currentTimeMillis() - startedAt);
             addAudit(networkAudit, query, targetUrl, phase, proxyId(proxy), response.statusCode(), durationMs,
-                "OK", "local browser");
+                "OK", "playwright browser");
             logWebSearchAudit(query, targetUrl, phase, proxy, response.statusCode(), durationMs, null);
             return response;
         } catch (Exception ex) {
-            log.warn("Local browser web_search request failed executable={} url={} error={}",
-                executable, targetUrl, ex.getMessage());
+            log.warn("Playwright web_search request failed url={} error={}", targetUrl, ex.getMessage());
             return null;
         }
     }
 
-    private boolean localBrowserEnabled() {
+    private boolean browserRenderingEnabled() {
         WebSearchToolProperties.BrowserProperties browser = properties.getBrowser();
-        return browser != null && browser.isEnabled() && browser.isLocalBrowserEnabled();
+        return browser != null && browser.isEnabled();
     }
 
-    private HtmlResponse executeLocalBrowser(String executable,
-                                             String targetUrl,
-                                             Map<String, String> queryParams,
-                                             String httpMethod,
-                                             WebSearchRequestContext context,
-                                             WebSearchToolProperties.ProxyConfig proxy) throws Exception {
-        Path userDataDir = Files.createTempDirectory("chatchat-web-search-browser-");
-        Path submitPage = null;
-        try {
-            List<String> command = new ArrayList<>();
-            WebSearchToolProperties.BrowserProperties browser = properties.getBrowser();
-            command.add(executable);
-            command.add("--headless=new");
-            command.add("--disable-gpu");
-            command.add("--disable-extensions");
-            command.add("--disable-background-networking");
-            command.add("--disable-sync");
-            command.add("--disable-features=Translate,OptimizationHints");
-            command.add("--no-first-run");
-            command.add("--no-default-browser-check");
-            command.add("--disable-dev-shm-usage");
-            if (browser.isNoSandbox()) {
-                command.add("--no-sandbox");
-            }
-            command.add("--user-data-dir=" + userDataDir.toAbsolutePath());
-            command.add("--window-size=1365,768");
-            command.add("--lang=" + browserLanguage(browser.getAcceptLanguage()));
-            command.add("--user-agent=" + selectUserAgent(context));
-            String proxyArgument = browserProxyArgument(proxy);
-            if (proxyArgument != null) {
-                command.add("--proxy-server=" + proxyArgument);
-            }
-            String browserTarget = targetUrl;
+    private HtmlResponse executePlaywrightRequest(String targetUrl,
+                                                  Map<String, String> queryParams,
+                                                  String httpMethod,
+                                                  WebSearchRequestContext context,
+                                                  WebSearchToolProperties.ProxyConfig proxy) {
+        WebSearchToolProperties.BrowserProperties browserProperties = properties.getBrowser();
+        int timeoutMs = Math.max(1000, browserProperties.getNavigationTimeoutMs());
+        BrowserType.LaunchOptions launchOptions = new BrowserType.LaunchOptions()
+            .setHeadless(true)
+            .setTimeout(timeoutMs);
+        String proxyArgument = browserProxyArgument(proxy);
+        if (proxyArgument != null) {
+            launchOptions.setProxy(new com.microsoft.playwright.options.Proxy(proxyArgument));
+        }
+        try (Playwright playwright = createPlaywright(browserProperties);
+             Browser browser = playwright.chromium().launch(launchOptions);
+             BrowserContext browserContext = browser.newContext(playwrightContextOptions(context))) {
+            Page page = browserContext.newPage();
+            page.setDefaultTimeout(timeoutMs);
+            page.setDefaultNavigationTimeout(timeoutMs);
+            com.microsoft.playwright.Response response;
             if ("POST".equalsIgnoreCase(httpMethod)) {
-                submitPage = createAutoSubmitFormPage(targetUrl, queryParams, "POST");
-                browserTarget = submitPage.toUri().toString();
+                page.setContent(autoSubmitFormHtml(targetUrl, queryParams, "POST"));
+                page.locator("#f").evaluate("form => form.submit()");
+                page.waitForLoadState(LoadState.NETWORKIDLE);
+                response = null;
+            } else {
+                response = page.navigate(targetUrl, new Page.NavigateOptions().setTimeout(timeoutMs));
+                page.waitForLoadState(LoadState.NETWORKIDLE);
             }
-            command.add("--dump-dom");
-            command.add(browserTarget);
-
-            ProcessBuilder processBuilder = new ProcessBuilder(command);
-            processBuilder.redirectErrorStream(true);
-            Process process = processBuilder.start();
-            CompletableFuture<String> outputFuture =
-                CompletableFuture.supplyAsync(() -> readProcessOutput(process));
-            int timeoutMs = Math.max(1000, browser.getProcessTimeoutMs());
-            boolean finished = process.waitFor(timeoutMs, TimeUnit.MILLISECONDS);
-            if (!finished) {
-                process.destroyForcibly();
-                throw new IOException("local browser timed out after " + timeoutMs + " ms");
+            String html = page.content();
+            if (html == null || html.isBlank()) {
+                throw new IllegalStateException("Playwright returned empty page content");
             }
-            String output = outputFuture.get(1, TimeUnit.SECONDS);
-            int exitCode = process.exitValue();
-            if (exitCode != 0 && (output == null || output.isBlank())) {
-                throw new IOException("local browser exited with code " + exitCode);
-            }
-            String html = output == null ? "" : output;
-            if (html.isBlank()) {
-                throw new IOException("local browser returned empty DOM");
-            }
-            return new HtmlResponse(exitCode == 0 ? 200 : 0, Jsoup.parse(html, targetUrl));
-        } finally {
-            if (submitPage != null) {
-                try {
-                    Files.deleteIfExists(submitPage);
-                } catch (IOException ignored) {
-                    // Best effort cleanup for transient form page.
-                }
-            }
-            deleteDirectory(userDataDir);
+            return new HtmlResponse(response == null ? 200 : response.status(), Jsoup.parse(html, page.url()));
         }
     }
 
-    private Path createAutoSubmitFormPage(String actionUrl, Map<String, String> parameters, String method) throws IOException {
-        Path file = Files.createTempFile("chatchat-web-search-submit-", ".html");
+    private Playwright createPlaywright(WebSearchToolProperties.BrowserProperties browserProperties) {
+        return Playwright.create(new Playwright.CreateOptions().setEnv(playwrightEnvironment(browserProperties)));
+    }
+
+    private Map<String, String> playwrightEnvironment(WebSearchToolProperties.BrowserProperties browserProperties) {
+        Map<String, String> env = new LinkedHashMap<>(System.getenv());
+        String configuredBrowsersPath = browserProperties == null ? null : browserProperties.getBrowsersPath();
+        String browsersPath = firstNonBlank(configuredBrowsersPath, env.get("PLAYWRIGHT_BROWSERS_PATH"));
+        if (browsersPath != null && !browsersPath.isBlank()) {
+            String normalizedPath = normalizePlaywrightBrowsersPath(browsersPath);
+            env.put("PLAYWRIGHT_BROWSERS_PATH", normalizedPath);
+            logPlaywrightBrowsersPath(normalizedPath);
+        }
+        if (browserProperties != null && browserProperties.isSkipBrowserDownload()) {
+            env.put("PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD", "1");
+        }
+        return env;
+    }
+
+    private String normalizePlaywrightBrowsersPath(String browsersPath) {
+        String value = browsersPath == null ? "" : browsersPath.trim();
+        if (value.isBlank() || "0".equals(value)) {
+            return value;
+        }
+        Path path = resolvePlaywrightBrowsersPath(value);
+        if (containsPlaywrightBrowserInstall(path)) {
+            return path.toString();
+        }
+        String platformDirectory = playwrightPlatformDirectoryName();
+        if (platformDirectory != null) {
+            Path platformPath = path.resolve(platformDirectory);
+            if (Files.isDirectory(platformPath)) {
+                return platformPath.toString();
+            }
+        }
+        return path.toString();
+    }
+
+    private Path resolvePlaywrightBrowsersPath(String browsersPath) {
+        Path configuredPath = Path.of(browsersPath);
+        if (configuredPath.isAbsolute()) {
+            return configuredPath.normalize();
+        }
+        Path cwd = Path.of("").toAbsolutePath().normalize();
+        Path directPath = cwd.resolve(configuredPath).normalize();
+        if (Files.exists(directPath)) {
+            return directPath;
+        }
+        for (Path parent = cwd.getParent(); parent != null; parent = parent.getParent()) {
+            Path candidate = parent.resolve(configuredPath).normalize();
+            if (Files.exists(candidate)) {
+                return candidate;
+            }
+        }
+        return directPath;
+    }
+
+    private boolean containsPlaywrightBrowserInstall(Path path) {
+        if (!Files.isDirectory(path)) {
+            return false;
+        }
+        try (java.util.stream.Stream<Path> children = Files.list(path)) {
+            return children
+                .map(child -> child.getFileName() == null ? "" : child.getFileName().toString())
+                .anyMatch(name -> name.startsWith("chromium-")
+                    || name.startsWith("chromium_headless_shell-")
+                    || name.startsWith("ffmpeg-"));
+        } catch (IOException ex) {
+            return false;
+        }
+    }
+
+    private String playwrightPlatformDirectoryName() {
+        String os = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
+        if (os.contains("win")) {
+            return "windows";
+        }
+        if (os.contains("linux")) {
+            return "linux";
+        }
+        if (os.contains("mac") || os.contains("darwin")) {
+            return "mac";
+        }
+        return null;
+    }
+
+    private void logPlaywrightBrowsersPath(String browsersPath) {
+        if (!playwrightBrowsersPathInfoLogged) {
+            synchronized (this) {
+                if (!playwrightBrowsersPathInfoLogged) {
+                    log.info("Playwright browser cache path: {}", browsersPath);
+                    playwrightBrowsersPathInfoLogged = true;
+                }
+            }
+        }
+        if (!"0".equals(browsersPath) && !Files.isDirectory(Path.of(browsersPath)) && !playwrightBrowsersPathWarningLogged) {
+            synchronized (this) {
+                if (!playwrightBrowsersPathWarningLogged) {
+                    log.warn("Configured Playwright browser cache path does not exist yet: {}. "
+                        + "Pre-download Chromium into this directory before running offline.", browsersPath);
+                    playwrightBrowsersPathWarningLogged = true;
+                }
+            }
+        }
+    }
+
+    private Browser.NewContextOptions playwrightContextOptions(WebSearchRequestContext context) {
+        WebSearchToolProperties.BrowserProperties browser = properties.getBrowser();
+        Map<String, String> headers = new LinkedHashMap<>();
+        headers.put("Accept", firstNonBlank(browser.getAccept(), "*/*"));
+        headers.put("Accept-Language", firstNonBlank(browser.getAcceptLanguage(), "en-US,en;q=0.9"));
+        String referer = firstNonBlank(context.referer(), browser.getReferer());
+        if (referer != null && !referer.isBlank()) {
+            headers.put("Referer", referer);
+        }
+        if (browser.getHeaders() != null) {
+            headers.putAll(browser.getHeaders());
+        }
+        return new Browser.NewContextOptions()
+            .setUserAgent(selectUserAgent(context))
+            .setLocale(browserLanguage(browser.getAcceptLanguage()))
+            .setViewportSize(1365, 768)
+            .setIgnoreHTTPSErrors(true)
+            .setExtraHTTPHeaders(headers);
+    }
+
+    private String autoSubmitFormHtml(String actionUrl, Map<String, String> parameters, String method) {
         StringBuilder html = new StringBuilder();
         html.append("<!doctype html><html><body>");
         html.append("<form id=\"f\" action=\"").append(escapeHtmlAttribute(actionUrl)).append("\" method=\"")
@@ -1831,9 +2141,8 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
                     .append("\">");
             }
         }
-        html.append("</form><script>document.getElementById('f').submit();</script></body></html>");
-        Files.writeString(file, html.toString(), StandardCharsets.UTF_8);
-        return file;
+        html.append("</form></body></html>");
+        return html.toString();
     }
 
     private String escapeHtmlAttribute(String value) {
@@ -1845,107 +2154,6 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
             .replace("\"", "&quot;")
             .replace("<", "&lt;")
             .replace(">", "&gt;");
-    }
-
-    private String readProcessOutput(Process process) {
-        try {
-            return new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-        } catch (IOException ex) {
-            return "";
-        }
-    }
-
-    private String resolveBrowserExecutable() {
-        WebSearchToolProperties.BrowserProperties browser = properties.getBrowser();
-        String configured = firstNonBlank(browser.getExecutablePath(), osSpecificBrowserPath(browser));
-        String resolved = resolveExecutable(configured);
-        if (resolved != null) {
-            return resolved;
-        }
-        if (browser.getExecutablePaths() != null) {
-            for (String candidate : browser.getExecutablePaths()) {
-                resolved = resolveExecutable(candidate);
-                if (resolved != null) {
-                    return resolved;
-                }
-            }
-        }
-        for (String candidate : defaultBrowserCandidates()) {
-            resolved = resolveExecutable(candidate);
-            if (resolved != null) {
-                return resolved;
-            }
-        }
-        return null;
-    }
-
-    private String osSpecificBrowserPath(WebSearchToolProperties.BrowserProperties browser) {
-        return isWindows()
-            ? browser.getWindowsExecutablePath()
-            : browser.getLinuxExecutablePath();
-    }
-
-    private List<String> defaultBrowserCandidates() {
-        List<String> candidates = new ArrayList<>();
-        if (isWindows()) {
-            addIfPresent(candidates, System.getenv("PROGRAMFILES"), "Google\\Chrome\\Application\\chrome.exe");
-            addIfPresent(candidates, System.getenv("PROGRAMFILES(X86)"), "Google\\Chrome\\Application\\chrome.exe");
-            addIfPresent(candidates, System.getenv("LOCALAPPDATA"), "Google\\Chrome\\Application\\chrome.exe");
-            addIfPresent(candidates, System.getenv("PROGRAMFILES"), "Microsoft\\Edge\\Application\\msedge.exe");
-            addIfPresent(candidates, System.getenv("PROGRAMFILES(X86)"), "Microsoft\\Edge\\Application\\msedge.exe");
-            candidates.add("chrome.exe");
-            candidates.add("msedge.exe");
-        } else {
-            candidates.add("/usr/bin/google-chrome");
-            candidates.add("/usr/bin/google-chrome-stable");
-            candidates.add("/usr/bin/chromium");
-            candidates.add("/usr/bin/chromium-browser");
-            candidates.add("/snap/bin/chromium");
-            candidates.add("google-chrome");
-            candidates.add("chromium");
-            candidates.add("chromium-browser");
-        }
-        return candidates;
-    }
-
-    private void addIfPresent(List<String> candidates, String basePath, String relativePath) {
-        if (basePath != null && !basePath.isBlank()) {
-            candidates.add(Path.of(basePath, relativePath).toString());
-        }
-    }
-
-    private String resolveExecutable(String candidate) {
-        if (candidate == null || candidate.isBlank()) {
-            return null;
-        }
-        String normalized = candidate.trim();
-        Path directPath = Path.of(normalized);
-        if (directPath.isAbsolute() || directPath.getParent() != null) {
-            return Files.isRegularFile(directPath) ? directPath.toString() : null;
-        }
-        String path = System.getenv("PATH");
-        if (path == null || path.isBlank()) {
-            return normalized;
-        }
-        List<String> extensions = isWindows()
-            ? List.of("", ".exe", ".cmd", ".bat")
-            : List.of("");
-        for (String directory : path.split(Pattern.quote(System.getProperty("path.separator")))) {
-            if (directory == null || directory.isBlank()) {
-                continue;
-            }
-            for (String extension : extensions) {
-                Path resolved = Path.of(directory, normalized + extension);
-                if (Files.isRegularFile(resolved) && Files.isExecutable(resolved)) {
-                    return resolved.toString();
-                }
-            }
-        }
-        return null;
-    }
-
-    private boolean isWindows() {
-        return System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("win");
     }
 
     private String browserLanguage(String acceptLanguage) {
@@ -1989,6 +2197,19 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
         return builder.toString();
     }
 
+    private String urlWithQueryParamsForPhase(String url, Map<String, String> queryParams, String phase) {
+        return shouldUseRawQueryParams(phase, "GET")
+            ? urlWithRawQueryParams(url, queryParams)
+            : urlWithQueryParams(url, queryParams);
+    }
+
+    private boolean shouldUseRawQueryParams(String phase, String httpMethod) {
+        String method = firstNonBlank(httpMethod, "GET").toUpperCase(Locale.ROOT);
+        return "GET".equals(method)
+            && phase != null
+            && phase.startsWith("site_search");
+    }
+
     private String urlWithRawQueryParams(String url, Map<String, String> queryParams) {
         if (queryParams == null || queryParams.isEmpty()) {
             return url;
@@ -2013,23 +2234,6 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
 
     private String rawQueryValue(String value) {
         return value == null ? "" : value.trim().replace(" ", "+");
-    }
-
-    private void deleteDirectory(Path directory) {
-        if (directory == null || !Files.exists(directory)) {
-            return;
-        }
-        try (var stream = Files.walk(directory)) {
-            stream.sorted(Comparator.reverseOrder()).forEach(path -> {
-                try {
-                    Files.deleteIfExists(path);
-                } catch (IOException ignored) {
-                    // Best effort cleanup for transient browser profile files.
-                }
-            });
-        } catch (IOException ignored) {
-            // Best effort cleanup for transient browser profile files.
-        }
     }
 
     private void applyBrowserHeaders(org.jsoup.Connection connection,
@@ -2567,7 +2771,7 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
             return List.of();
         }
         List<String> terms = new ArrayList<>();
-        for (String term : query.trim().split("[\\s,锛屻€傦紱;:锛?\\\\]+")) {
+        for (String term : query.trim().split("[\\s,\\uFF0C\\u3002\\uFF1B;:\\uFF1A\\u3001\\\\]+")) {
             if (term.length() >= 2) {
                 terms.add(term);
             }
@@ -2799,6 +3003,12 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
     }
 
     private record HtmlResponse(int statusCode, Document document) {
+    }
+
+    private record RawHttpResponse(int statusCode,
+                                   String body,
+                                   Map<String, String> cookies,
+                                   String url) {
     }
 
     private record SiteSearchForm(String actionUrl,

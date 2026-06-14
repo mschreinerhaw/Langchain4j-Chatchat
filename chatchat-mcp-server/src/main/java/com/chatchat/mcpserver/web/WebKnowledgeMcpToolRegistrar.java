@@ -39,6 +39,7 @@ public class WebKnowledgeMcpToolRegistrar implements McpServerToolRegistrar {
     @Override
     public void registerTools(ToolRegistry toolRegistry) {
         toolRegistry.registerTool("crawl_url", crawlUrlMetadata(), new CrawlUrlTool());
+        toolRegistry.registerTool("retrieve_evidence", retrieveEvidenceMetadata(), new RetrieveEvidenceTool());
         toolRegistry.registerTool("search_and_extract", searchAndExtractMetadata(), new SearchAndExtractTool());
     }
 
@@ -96,8 +97,8 @@ public class WebKnowledgeMcpToolRegistrar implements McpServerToolRegistrar {
     private ToolMetadata searchAndExtractMetadata() {
         return ToolMetadata.builder()
             .id("search_and_extract")
-            .title("Internet Evidence Generator")
-            .description("Generate ranked internet evidence chunks with citations from web search, crawling, cleaning, scoring, and deduplication.")
+            .title("Internet Evidence Generator Debug")
+            .description("Debug and compatibility tool that returns full web search, crawl, raw evidence, rerank, and observability data.")
             .version("1.0.0")
             .author("ChatChat MCP Server")
             .categories(Arrays.asList("mcp", "search", "crawler", "internet"))
@@ -109,7 +110,7 @@ public class WebKnowledgeMcpToolRegistrar implements McpServerToolRegistrar {
             .inputPolicy(Map.of("must_show_parameters", true))
             .outputType("json")
             .timeoutMillis(90000L)
-            .agentCompatible(true)
+            .agentCompatible(false)
             .parameters(List.of(
                 ToolParameter.builder()
                     .name("query")
@@ -141,7 +142,65 @@ public class WebKnowledgeMcpToolRegistrar implements McpServerToolRegistrar {
             .metadata(Map.of(
                 "cacheFirst", true,
                 "workflow", "web-search-crawl-content-process-evidence",
-                "outputContract", "reranked evidence_chunks + citations",
+                "outputContract", "debug output including raw search/pages/evidence",
+                "schemaVersion", EvidenceContractService.SCHEMA_VERSION,
+                "evidenceLayer", "InternetEvidenceService",
+                "rankerVersion", InternetEvidenceService.VERSION,
+                "rerankerVersion", EvidenceReranker.VERSION,
+                "observabilityVersion", "evidence_observability_v1"
+            ))
+            .build();
+    }
+
+    private ToolMetadata retrieveEvidenceMetadata() {
+        return ToolMetadata.builder()
+            .id("retrieve_evidence")
+            .title("Retrieve Internet Evidence")
+            .description("Return a compact evidence package for LLM reasoning: ranked evidence_chunks, citations, source URLs, and retrieval metadata.")
+            .version("1.0.0")
+            .author("ChatChat MCP Server")
+            .categories(Arrays.asList("mcp", "search", "crawler", "internet", "rag"))
+            .category("http_web_search")
+            .riskLevel(environment.getProperty("chatchat.mcp.retrieve-evidence.risk-level", "low"))
+            .operationType("read")
+            .runtimeLevel("readonly")
+            .confirmation(Map.of("default", environment.getProperty("chatchat.mcp.retrieve-evidence.confirmation.default", "auto_execute")))
+            .inputPolicy(Map.of("must_show_parameters", true))
+            .outputType("json")
+            .timeoutMillis(90000L)
+            .agentCompatible(true)
+            .parameters(List.of(
+                ToolParameter.builder()
+                    .name("query")
+                    .type("string")
+                    .description("User question or search query")
+                    .required(true)
+                    .minLength(1)
+                    .maxLength(500)
+                    .build(),
+                ToolParameter.builder()
+                    .name("mode")
+                    .type("string")
+                    .description("Retrieval mode")
+                    .required(false)
+                    .defaultValue("fast")
+                    .enumValues(new String[]{"fast", "deep", "cached"})
+                    .build(),
+                ToolParameter.builder()
+                    .name("topK")
+                    .type("integer")
+                    .description("Maximum ranked URLs to search before evidence compression")
+                    .required(false)
+                    .defaultValue(5)
+                    .minimum(1)
+                    .maximum(20)
+                    .build()
+            ))
+            .tags(Arrays.asList("mcp", "web", "search", "evidence", "rag", "cache_first"))
+            .metadata(Map.of(
+                "cacheFirst", true,
+                "workflow", "web-search-crawl-content-process-evidence",
+                "outputContract", "compact evidence_chunks + citations only",
                 "schemaVersion", EvidenceContractService.SCHEMA_VERSION,
                 "evidenceLayer", "InternetEvidenceService",
                 "rankerVersion", InternetEvidenceService.VERSION,
@@ -217,6 +276,42 @@ public class WebKnowledgeMcpToolRegistrar implements McpServerToolRegistrar {
                     topK == null ? 5 : topK.intValue()
                 );
                 return ToolOutput.success(result, "Search and extraction completed successfully");
+            } catch (Exception ex) {
+                return ToolOutput.failure(ex);
+            }
+        }
+    }
+
+    private final class RetrieveEvidenceTool implements ToolRegistry.EnhancedTool {
+
+        /**
+         * Returns the metadata.
+         *
+         * @return the metadata
+         */
+        @Override
+        public ToolMetadata getMetadata() {
+            return retrieveEvidenceMetadata();
+        }
+
+        /**
+         * Executes the execute.
+         *
+         * @param input the input value
+         * @return the operation result
+         */
+        @Override
+        public ToolOutput execute(ToolInput input) {
+            try {
+                String query = input.getParameterAsString("query", "");
+                String mode = input.getParameterAsString("mode", "fast");
+                Number topK = input.getParameterAsNumber("topK");
+                Map<String, Object> result = searchExtractService.retrieveEvidence(
+                    query,
+                    mode,
+                    topK == null ? 5 : topK.intValue()
+                );
+                return ToolOutput.success(result, "Evidence retrieved successfully");
             } catch (Exception ex) {
                 return ToolOutput.failure(ex);
             }

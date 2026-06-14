@@ -1489,6 +1489,12 @@
   color: #168555;
 }
 
+.agent-workshop-view .agent-tags .agent-default-tag {
+  border: 1px solid rgba(47, 124, 246, 0.18);
+  background: rgba(47, 124, 246, 0.09);
+  color: var(--primary-strong);
+}
+
 .agent-workshop-view .agent-meta {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -1521,7 +1527,7 @@
 .agent-workshop-view .agent-card-actions {
   width: 100%;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(92px, 1fr));
   margin-top: 2px;
   gap: 8px;
 }
@@ -1636,6 +1642,25 @@
   color: var(--muted);
   font-size: 12px;
   font-weight: 800;
+}
+
+.agent-workshop-view .dialog-body .default-agent-row {
+  grid-template-columns: 18px minmax(0, 1fr);
+  align-items: center;
+  align-content: center;
+  gap: 8px;
+  min-height: 42px;
+}
+
+.agent-workshop-view .dialog-body .default-agent-row input {
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  accent-color: var(--primary);
+}
+
+.agent-workshop-view .dialog-body .default-agent-row span {
+  color: var(--text);
 }
 
 .agent-workshop-view .wide-field,

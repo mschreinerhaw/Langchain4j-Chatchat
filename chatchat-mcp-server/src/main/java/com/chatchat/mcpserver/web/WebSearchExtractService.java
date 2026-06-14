@@ -148,6 +148,57 @@ public class WebSearchExtractService {
         return output;
     }
 
+    /**
+     * Searches, extracts, and returns only the evidence contract intended for LLM reasoning.
+     *
+     * @param query the query value
+     * @param mode the mode value
+     * @param topK the top k value
+     * @return the operation result
+     */
+    public Map<String, Object> retrieveEvidence(String query, String mode, int topK) {
+        Map<String, Object> full = searchAndExtract(query, mode, topK);
+        Map<String, Object> output = new LinkedHashMap<>();
+        output.put("schema_version", EvidenceContractService.SCHEMA_VERSION);
+        copyIfPresent(full, output, "query");
+        copyIfPresent(full, output, "mode");
+        copyIfPresent(full, output, "topK");
+        copyIfPresent(full, output, "search_query");
+        copyIfPresent(full, output, "target_site");
+        copyIfPresent(full, output, "cacheHit");
+        copyIfPresent(full, output, "cacheAgeSeconds");
+        copyIfPresent(full, output, "contentMode");
+        output.put("evidence_chunks", full.getOrDefault("evidence_chunks", List.of()));
+        output.put("citations", full.getOrDefault("citations", List.of()));
+        output.put("reference_urls", full.getOrDefault("reference_urls", List.of()));
+        output.put("evidence_contract", full.getOrDefault("evidence_contract", Map.of()));
+        output.put("retrieval", retrievalMetadata(full));
+        if (full.containsKey("message")) {
+            output.put("message", full.get("message"));
+        }
+        return output;
+    }
+
+    private Map<String, Object> retrievalMetadata(Map<String, Object> full) {
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("workflow", "web-search-crawl-content-process-evidence");
+        metadata.put("source", "search_and_extract");
+        metadata.put("ranker", full.getOrDefault("evidence_ranker", Map.of()));
+        metadata.put("reranker", full.getOrDefault("evidence_reranker", Map.of()));
+        metadata.put("answering_policy", List.of(
+            "Use evidence_chunks as the primary factual context.",
+            "Cite chunk_id or source_url for factual claims.",
+            "Say evidence is insufficient when evidence_chunks do not support an answer."
+        ));
+        return metadata;
+    }
+
+    private void copyIfPresent(Map<String, Object> source, Map<String, Object> target, String key) {
+        if (source.containsKey(key)) {
+            target.put(key, source.get(key));
+        }
+    }
+
     private Map<String, Object> runWebSearch(String query, int limit) {
         if (!toolRegistry.hasTool("web_search")) {
             throw new IllegalStateException("web_search tool is not registered");

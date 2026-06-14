@@ -158,7 +158,7 @@ chatchat:
 
 ## Web Search anti-blocking controls
 
-The built-in `web_search` tool supports local browser rendering, browser-like request headers, proxy pools, IP rotation, retry-on-block, QPS/concurrency/day limits, isolated cookies, allow-list checks, and request audit logs.
+The built-in `web_search` tool supports Playwright browser rendering, browser-like request headers, proxy pools, IP rotation, retry-on-block, QPS/concurrency/day limits, isolated cookies, allow-list checks, and request audit logs.
 
 Example proxy pool:
 
@@ -168,13 +168,9 @@ chatchat:
     web-search:
       browser:
         enabled: true
-        local-browser-enabled: true
-        # Leave empty for auto-detect, or set an absolute path for the deployment host.
-        executable-path: ""
-        windows-executable-path: "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe"
-        linux-executable-path: "/usr/bin/google-chrome"
-        process-timeout-ms: 15000
-        no-sandbox: true
+        navigation-timeout-ms: 15000
+        accept-language: en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7
+        referer: https://www.bing.com/
       proxy-pool:
         enabled: true
         default-pool: search
@@ -207,8 +203,64 @@ chatchat:
         domains: [bing.com, duckduckgo.com, reuters.com, bloomberg.com]
 ```
 
-When `browser.local-browser-enabled` is true, `web_search` first tries a local Chrome/Edge/Chromium process in headless `--dump-dom` mode and falls back to the original HTTP fetcher if the browser is missing or fails. Set `browser.executable-path`, `browser.windows-executable-path`, or `browser.linux-executable-path` when the deployment host needs an explicit browser executable.
+When `browser.enabled` is true, `web_search` first tries Playwright Chromium rendering (`page.navigate`, `NETWORKIDLE`, `page.content`) and falls back to the original HTTP fetcher if browser rendering is unavailable or fails.
+
+Playwright browser binaries can be pre-downloaded into a fixed directory instead of using the OS default cache. The MCP package defaults to `playwright-browsers`; when this directory contains `windows` and `linux` subdirectories, the runtime automatically selects the current OS subdirectory. Override it in `config/env.local` when packages need a different absolute path:
+
+```properties
+PLAYWRIGHT_BROWSERS_PATH=C:/chatchat/playwright-browsers
+```
+
+```properties
+PLAYWRIGHT_BROWSERS_PATH=/opt/chatchat/playwright-browsers
+```
+
+Use the same path while downloading the browser bundle:
+
+```powershell
+$env:PLAYWRIGHT_BROWSERS_PATH = "C:/chatchat/playwright-browsers/windows"
+mvn -pl chatchat-tools -am exec:java "-Dexec.mainClass=com.microsoft.playwright.CLI" "-Dexec.args=install chromium"
+```
+
+```sh
+export PLAYWRIGHT_BROWSERS_PATH=/opt/chatchat/playwright-browsers/linux
+mvn -pl chatchat-tools -am exec:java -Dexec.mainClass=com.microsoft.playwright.CLI -Dexec.args="install chromium"
+```
+
+The selected OS subdirectory must contain the browser builds required by the Playwright Java version in the parent `pom.xml`. After upgrading Playwright, re-run the install command so build folders such as `chromium-*`, `chromium_headless_shell-*`, `ffmpeg-*`, and `winldd-*` match the runtime version. If Linux bundles are extracted on Windows, run `playwright-browsers/fix-linux-permissions.sh` once after copying them to Linux.
 
 When `site-search.enabled` is true, `web_search` inspects top result pages for search forms, submits the original keyword through detected search inputs, and merges same-domain secondary result links back into `results` and `reference_urls`. This helps securities exchange and market-data websites whose useful pages only appear after an in-page search.
 
 Each request logs keyword, phase, target domain, proxy id, status code, duration, and failure reason. When `audit.include-in-result` is true, the MCP response also includes `web_search_audit`.
+
+## Internet evidence tool contract
+
+Agents should call `retrieve_evidence` for web-backed answers. It wraps search, crawl, cleanup, chunking, reranking, and contract normalization, then returns only the compact evidence package intended for LLM reasoning:
+
+```json
+{
+  "schema_version": "evidence_contract_v1",
+  "query": "...",
+  "mode": "fast",
+  "evidence_chunks": [
+    {
+      "chunk_id": "web-1",
+      "content": "...",
+      "score": 0.82,
+      "source_url": "https://example.com/page",
+      "domain": "example.com",
+      "citations": [
+        {
+          "chunk_id": "web-1",
+          "url": "https://example.com/page",
+          "confidence": 0.82
+        }
+      ]
+    }
+  ],
+  "citations": [],
+  "reference_urls": []
+}
+```
+
+`search_and_extract` remains registered as a debug/compatibility tool and returns raw search results, crawled pages, raw evidence, rerank metadata, and observability fields. With the default `expose-agent-compatible-only=true`, only the compact `retrieve_evidence` tool is exposed to agents.

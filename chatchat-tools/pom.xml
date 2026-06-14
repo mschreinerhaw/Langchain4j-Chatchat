@@ -63,6 +63,11 @@
             <artifactId>jsoup</artifactId>
             <version>1.16.2</version>
         </dependency>
+        <dependency>
+            <groupId>com.microsoft.playwright</groupId>
+            <artifactId>playwright</artifactId>
+            <version>${playwright.version}</version>
+        </dependency>
 
         <!-- Code execution support (sandboxed) -->
         <dependency>
@@ -76,6 +81,7 @@
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
+
     </dependencies>
 
 </project>

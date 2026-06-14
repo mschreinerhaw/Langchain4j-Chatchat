@@ -78,6 +78,9 @@ public class SkillConfigEntity {
     @Column(length = 32, nullable = false)
     private String marketStatus = "draft";
 
+    @Column(nullable = false, columnDefinition = "boolean default false")
+    private boolean defaultAgent = false;
+
     @Column(nullable = false)
     private Instant createdAt;
 

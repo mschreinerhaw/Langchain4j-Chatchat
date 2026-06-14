@@ -99,19 +99,11 @@ public class WebSearchToolProperties {
 
         private boolean enabled = true;
 
-        private boolean localBrowserEnabled = true;
+        private String browsersPath = "playwright-browsers";
 
-        private String executablePath = "";
+        private boolean skipBrowserDownload = false;
 
-        private String windowsExecutablePath = "";
-
-        private String linuxExecutablePath = "";
-
-        private List<String> executablePaths = new ArrayList<>();
-
-        private int processTimeoutMs = 15000;
-
-        private boolean noSandbox = true;
+        private int navigationTimeoutMs = 15000;
 
         private String accept = "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8";
 

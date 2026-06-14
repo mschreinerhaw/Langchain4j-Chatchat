@@ -123,6 +123,19 @@ public class DataQueryController {
     }
 
     /**
+     * Sets the default Agent skill.
+     *
+     * @param skillId the skill id value
+     * @return the updated skill
+     */
+    @PostMapping("/skills/{skillId}/default-agent")
+    @Operation(summary = "Set skill as default Agent capability")
+    public ApiResponse<SkillOption> setDefaultAgentSkill(@PathVariable("skillId") String skillId) {
+        SkillDefinition saved = skillCatalogService.setDefaultAgent(skillId);
+        return ApiResponse.success(toSkillOption(saved), "Default Agent skill updated");
+    }
+
+    /**
      * Deletes the skill.
      *
      * @param skillId the skill id value
@@ -167,6 +180,7 @@ public class DataQueryController {
                 item.workflowConfig(),
                 item.quickQuestions(),
                 item.marketStatus(),
+                Boolean.TRUE.equals(item.defaultAgent()),
                 item.createdAt()
             ))
             .toList();
@@ -403,6 +417,7 @@ public class DataQueryController {
         private Map<String, Object> workflowConfig;
         private List<String> quickQuestions;
         private String marketStatus;
+        private Boolean defaultAgent;
     }
 
     public record ModelOption(String value, String label) {
@@ -430,6 +445,7 @@ public class DataQueryController {
         Map<String, Object> workflowConfig,
         List<String> quickQuestions,
         String marketStatus,
+        boolean defaultAgent,
         Long createdAt
     ) {
     }
@@ -883,6 +899,7 @@ public class DataQueryController {
             skill.workflowConfig(),
             skill.quickQuestions(),
             skill.marketStatus(),
+            Boolean.TRUE.equals(skill.defaultAgent()),
             skillCatalogService.isBuiltinSkill(skill.id()),
             skillCatalogService.editableFields(skill.id())
         );
@@ -919,7 +936,8 @@ public class DataQueryController {
             request.getRoutingSettings(),
             request.getWorkflowConfig(),
             request.getQuickQuestions(),
-            request.getMarketStatus()
+            request.getMarketStatus(),
+            request.getDefaultAgent()
         );
     }
 
@@ -943,6 +961,7 @@ public class DataQueryController {
         Map<String, Object> workflowConfig,
         List<String> quickQuestions,
         String marketStatus,
+        boolean defaultAgent,
         boolean builtin,
         List<String> editableFields
     ) {

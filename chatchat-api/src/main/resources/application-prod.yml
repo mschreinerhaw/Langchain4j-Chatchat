@@ -1,0 +1,346 @@
+spring:
+  application:
+    name: chatchat
+    version: 1.0.0-SNAPSHOT
+  jpa:
+    hibernate:
+      ddl-auto: ${CHAT_JPA_DDL_AUTO:update}
+    show-sql: false
+    database-platform: ${CHAT_JPA_DIALECT:org.hibernate.dialect.H2Dialect}
+    properties:
+      hibernate:
+        format_sql: true
+        connection:
+          driver_class: ${CHAT_DATASOURCE_DRIVER:org.h2.Driver}
+          url: ${CHAT_DATASOURCE_URL:jdbc:h2:file:./data/h2/chatchat;MODE=MySQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE;DB_CLOSE_DELAY=-1}
+          username: ${CHAT_DATASOURCE_USERNAME:sa}
+          pool_size: ${CHAT_HIKARI_MAXIMUM_POOL_SIZE:5}
+          autocommit: ${CHAT_HIKARI_AUTO_COMMIT:true}
+          isolation: ${CHAT_HIBERNATE_CONNECTION_ISOLATION:2}
+  datasource:
+    url: ${CHAT_DATASOURCE_URL:jdbc:h2:file:./data/h2/chatchat;MODE=MySQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE;DB_CLOSE_DELAY=-1}
+    driver-class-name: ${CHAT_DATASOURCE_DRIVER:org.h2.Driver}
+    username: ${CHAT_DATASOURCE_USERNAME:sa}
+    password: ${CHAT_DATASOURCE_PASSWORD:}
+    hikari:
+      maximum-pool-size: 5
+      minimum-idle: 1
+      connection-timeout: 20000
+      idle-timeout: 300000
+      max-lifetime: 1200000
+      auto-commit: ${CHAT_HIKARI_AUTO_COMMIT:true}
+      transaction-isolation: ${CHAT_HIKARI_TRANSACTION_ISOLATION:TRANSACTION_READ_COMMITTED}
+  h2:
+    console:
+      enabled: false
+      path: /h2-console
+  web:
+    resources:
+      static-locations: classpath:/static/
+  mvc:
+    static-path-pattern: /**
+    throw-exception-if-no-handler-found: true
+  resources:
+    add-mappings: false
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 5MB
+
+server:
+  port: 8080
+  servlet:
+    context-path: /
+  shutdown: graceful
+  tomcat:
+    threads:
+      max: 200
+      min-spare: 10
+    max-connections: 500
+    max-http-post-size: 10485760
+  error:
+    include-stacktrace: on-param
+    include-message: always
+
+chatchat:
+  mcp:
+    center:
+      enabled: ${CHAT_MCP_CENTER_ENABLED:true}
+      base-url: ${CHAT_MCP_CENTER_BASE_URL:http://localhost:8090}
+      admin-username: ${CHAT_MCP_CENTER_ADMIN_USERNAME:}
+      admin-password: ${CHAT_MCP_CENTER_ADMIN_PASSWORD:}
+      admin-login-path: ${CHAT_MCP_CENTER_ADMIN_LOGIN_PATH:/api/v1/admin/auth/login}
+      service-list-path: ${CHAT_MCP_CENTER_SERVICE_LIST_PATH:/api/v1/mcp-services}
+      mcp-endpoint: ${CHAT_MCP_CENTER_MCP_ENDPOINT:/mcp}
+      standalone-service-id: ${CHAT_MCP_CENTER_STANDALONE_SERVICE_ID:chatchat-mcp-server}
+      standalone-service-name: ${CHAT_MCP_CENTER_STANDALONE_SERVICE_NAME:ChatChat MCP Server}
+      invocation-token: ${CHAT_MCP_CENTER_INVOCATION_TOKEN:${CHAT_MCP_INVOCATION_TOKEN:}}
+      timeout-ms: ${CHAT_MCP_CENTER_TIMEOUT_MS:90000}
+      import-standalone-server: ${CHAT_MCP_CENTER_IMPORT_STANDALONE:true}
+    stdio-proxy:
+      enabled: true
+      max-sessions: 32
+      request-timeout-ms: 20000
+      startup-timeout-ms: 15000
+      idle-ttl-ms: 300000
+      cleanup-interval-ms: 30000
+      command-allow-list:
+        - npx
+        - node
+        - uvx
+        - python
+        - python3
+  models:
+    defaultProvider: openai
+    defaultChatModel: qwen3.6-plus
+    availableChatModels:
+      - qwen3.6-plus
+      - deepseek-v4-pro
+      - qwen3.5-35b-a3b
+      - qwen3.6-35b-a3b
+      - qwen-flash-character
+      - qwen3.6-max-preview
+#    timeout: 300
+    openai:
+      apiKey: ${OPENAI_API_KEY:}
+      baseUrl: https://dashscope.aliyuncs.com/compatible-mode/v1
+#      baseUrl: https://api.deepseek.com/v1
+      timeout: 300
+      maxRetries: 3
+      proxy:
+        enabled: ${OPENAI_PROXY_ENABLED:false}
+        host: ${OPENAI_PROXY_HOST:}
+        port: ${OPENAI_PROXY_PORT:0}
+        type: ${OPENAI_PROXY_TYPE:http}
+  agent-runtime:
+    store-type: ${CHAT_AGENT_RUNTIME_STORE_TYPE:rocksdb}
+    rocks-db-path: ${CHAT_AGENT_RUNTIME_ROCKSDB_PATH:./data/agent-runtime-rocksdb}
+    rocks-db-create-if-missing: ${CHAT_AGENT_RUNTIME_ROCKSDB_CREATE_IF_MISSING:true}
+    fail-interrupted-runs-on-startup: ${CHAT_AGENT_RUNTIME_FAIL_INTERRUPTED_RUNS_ON_STARTUP:true}
+    max-stored-runs: ${CHAT_AGENT_RUNTIME_MAX_STORED_RUNS:10000}
+    terminal-run-ttl-ms: ${CHAT_AGENT_RUNTIME_TERMINAL_RUN_TTL_MS:0}
+  agent:
+    task:
+      queue-capacity: ${CHAT_AGENT_TASK_QUEUE_CAPACITY:1000}
+      core-pool-size: ${CHAT_AGENT_TASK_CORE_POOL_SIZE:4}
+      max-pool-size: ${CHAT_AGENT_TASK_MAX_POOL_SIZE:16}
+      keep-alive-seconds: ${CHAT_AGENT_TASK_KEEP_ALIVE_SECONDS:60}
+      list-limit: ${CHAT_AGENT_TASK_LIST_LIMIT:50}
+      event-store:
+        type: ${CHAT_AGENT_EVENT_STORE_TYPE:rocksdb}
+        path: ${CHAT_AGENT_EVENT_STORE_PATH:./data/agent-event-rocksdb}
+        create-if-missing: true
+  search:
+    store-path: ${CHAT_SEARCH_STORE_PATH:./data/search-rocksdb}
+    file-path: ${CHAT_SEARCH_FILE_PATH:./data/search-files}
+    create-if-missing: true
+    max-upload-bytes: ${CHAT_SEARCH_MAX_UPLOAD_BYTES:5242880}
+    default-limit: 20
+    max-limit: 100
+    summary-length: 180
+  tools:
+    calculator:
+      risk-level: ${CHAT_CALCULATOR_RISK_LEVEL:low}
+      operation-type: ${CHAT_CALCULATOR_OPERATION_TYPE:read}
+      timeout-ms: ${CHAT_CALCULATOR_TIMEOUT_MS:5000}
+      confirmation:
+        default: ${CHAT_CALCULATOR_CONFIRMATION:auto_execute}
+      parameter-policy:
+        expression: ${CHAT_CALCULATOR_EXPRESSION_POLICY:auto_execute}
+    web-search:
+      risk-level: ${CHAT_WEB_SEARCH_RISK_LEVEL:low}
+      operation-type: ${CHAT_WEB_SEARCH_OPERATION_TYPE:read}
+      confirmation:
+        default: ${CHAT_WEB_SEARCH_CONFIRMATION:auto_execute}
+      parameter-policy:
+        query: ${CHAT_WEB_SEARCH_QUERY_POLICY:auto_execute}
+    document-search:
+      enabled: ${CHAT_DOCUMENT_SEARCH_ENABLED:true}
+      # Runtime/API retrieval service address. For the standalone MCP Server, point this to the Runtime/API host.
+      api-base-url: ${CHAT_DOCUMENT_SEARCH_API_BASE_URL:${CHAT_RUNTIME_API_BASE_URL:http://localhost:8080}}
+      search-path: ${CHAT_DOCUMENT_SEARCH_PATH:/api/v1/search}
+      detail-path-template: ${CHAT_DOCUMENT_SEARCH_DETAIL_PATH_TEMPLATE:/api/v1/search/documents/{docId}}
+      timeout-ms: ${CHAT_DOCUMENT_SEARCH_TIMEOUT_MS:20000}
+      default-limit: ${CHAT_DOCUMENT_SEARCH_DEFAULT_LIMIT:5}
+      max-limit: ${CHAT_DOCUMENT_SEARCH_MAX_LIMIT:20}
+      auth:
+        enabled: ${CHAT_DOCUMENT_SEARCH_AUTH_ENABLED:true}
+        login-path: ${CHAT_DOCUMENT_SEARCH_AUTH_LOGIN_PATH:/api/v1/enterprise/auth/login}
+        username: ${CHAT_DOCUMENT_SEARCH_AUTH_USERNAME:}
+        password: ${CHAT_DOCUMENT_SEARCH_AUTH_PASSWORD:}
+        bearer-token: ${CHAT_DOCUMENT_SEARCH_AUTH_BEARER_TOKEN:}
+      risk-level: ${CHAT_DOCUMENT_SEARCH_RISK_LEVEL:medium}
+      confirmation:
+        default: ${CHAT_DOCUMENT_SEARCH_CONFIRMATION:ask_before_execute}
+    database-query:
+      risk-level: ${CHAT_DATABASE_QUERY_RISK_LEVEL:high}
+      operation-type: ${CHAT_DATABASE_QUERY_OPERATION_TYPE:read}
+      user-visible: ${CHAT_DATABASE_QUERY_USER_VISIBLE:false}
+      agent-compatible: ${CHAT_DATABASE_QUERY_AGENT_COMPATIBLE:false}
+      confirmation:
+        default: ${CHAT_DATABASE_QUERY_CONFIRMATION:ask_before_execute}
+      parameter-policy:
+        jdbc-url: ${CHAT_DATABASE_QUERY_JDBC_URL_POLICY:ask_before_execute}
+        password: ${CHAT_DATABASE_QUERY_PASSWORD_POLICY:ask_before_execute}
+    file-system:
+      risk-level: ${CHAT_FILE_SYSTEM_RISK_LEVEL:high}
+      operation-type: ${CHAT_FILE_SYSTEM_OPERATION_TYPE:read}
+      timeout-ms: ${CHAT_FILE_SYSTEM_TIMEOUT_MS:10000}
+      confirmation:
+        default: ${CHAT_FILE_SYSTEM_CONFIRMATION:ask_before_execute}
+      parameter-policy:
+        path: ${CHAT_FILE_SYSTEM_PATH_POLICY:ask_before_execute}
+  tool-runtime:
+    enforce-allowed-tools: ${CHAT_TOOL_RUNTIME_ENFORCE_ALLOWED_TOOLS:true}
+    enforce-authentication: ${CHAT_TOOL_RUNTIME_ENFORCE_AUTHENTICATION:true}
+    default-max-calls-per-minute: ${CHAT_TOOL_RUNTIME_DEFAULT_MAX_CALLS_PER_MINUTE:0}
+    circuit-breaker-failure-threshold: ${CHAT_TOOL_RUNTIME_CIRCUIT_THRESHOLD:3}
+    circuit-breaker-open-seconds: ${CHAT_TOOL_RUNTIME_CIRCUIT_OPEN_SECONDS:60}
+    top-tool-limit: ${CHAT_TOOL_RUNTIME_TOP_TOOL_LIMIT:6}
+    default-tool-timeout-ms: ${CHAT_TOOL_RUNTIME_DEFAULT_TOOL_TIMEOUT_MS:60000}
+    execution-core-pool-size: ${CHAT_TOOL_RUNTIME_EXECUTION_CORE_POOL_SIZE:4}
+    execution-max-pool-size: ${CHAT_TOOL_RUNTIME_EXECUTION_MAX_POOL_SIZE:32}
+    execution-queue-capacity: ${CHAT_TOOL_RUNTIME_EXECUTION_QUEUE_CAPACITY:256}
+  chat:
+    defaultTimeout: 30
+    streamingTimeout: 300
+    maxMessageLength: 4096
+    conversationHistorySize: 20
+    context:
+      recent-message-limit: ${CHAT_CONTEXT_RECENT_MESSAGE_LIMIT:8}
+      summary-trigger-messages: ${CHAT_CONTEXT_SUMMARY_TRIGGER_MESSAGES:12}
+      summary-keep-recent-messages: ${CHAT_CONTEXT_SUMMARY_KEEP_RECENT_MESSAGES:6}
+      summary-max-chars: ${CHAT_CONTEXT_SUMMARY_MAX_CHARS:1600}
+      summary-enabled: ${CHAT_CONTEXT_SUMMARY_ENABLED:true}
+    detail-store:
+      type: rocksdb
+      path: ${CHAT_DETAIL_STORE_PATH:./data/chat-rocksdb}
+      create-if-missing: true
+
+mcp-policy:
+  enabled: true
+  risk-policy:
+    low: auto_execute
+    medium: ask_before_execute
+    high: ask_before_execute
+    forbidden: deny
+  tool-policy:
+    calculator: auto_execute
+    query_dictionary: auto_execute
+    web_search: auto_execute
+    document_search: ask_before_execute
+    database_query: ask_before_execute
+    file_system: ask_before_execute
+    send_email: ask_before_execute
+    delete_record: deny
+  parameter-policy:
+    send_email:
+      recipient_count_gt_10: ask_before_execute
+      external_domain: ask_before_execute
+    execute_sql:
+      contains_delete: deny
+      contains_update: ask_before_execute
+      contains_drop: deny
+    query_customer_asset:
+      customer_detail: ask_before_execute
+      branch_summary: auto_execute
+    calculator:
+      expression: auto_execute
+    web_search:
+      query: auto_execute
+    document_search:
+      document_ids: ask_before_execute
+      tags: auto_execute
+    database_query:
+      contains_delete: deny
+      contains_update: ask_before_execute
+      contains_drop: deny
+      jdbc_url: ask_before_execute
+      password: ask_before_execute
+    file_system:
+      operation: ask_before_execute
+      path: ask_before_execute
+
+mcp-workflow:
+  enabled: true
+  workflows:
+    customer_asset_analysis:
+      execution-strategy:
+        mode: sequential
+        stop-on-error: true
+        max-steps: 6
+        allow-parallel: false
+      steps:
+        - step: 1
+          tool: get_user_permission
+          required: true
+        - step: 2
+          tool: query_customer_basic_info
+          required: true
+        - step: 3
+          tool: query_customer_asset_summary
+          required: true
+          confirmation: ask_before_execute
+        - step: 4
+          tool: query_customer_position_detail
+          required: false
+          depends-on:
+            - query_customer_basic_info
+            - query_customer_asset_summary
+        - step: 5
+          tool: query_high_value_customer_profile
+          required: false
+          condition: asset_total > 1000000
+        - step: 6
+          tool: generate_analysis_report
+          required: true
+          depends-on:
+            - query_customer_asset_summary
+  tool-dependencies:
+    query_customer_position_detail:
+      depends-on:
+        - query_customer_basic_info
+        - query_customer_asset_summary
+    generate_analysis_report:
+      depends-on:
+        - query_customer_asset_summary
+
+springdoc:
+  api-docs:
+    path: /api-docs
+    enabled: true
+  swagger-ui:
+    path: /swagger-ui.html
+    enabled: false
+    display-request-duration: true
+    try-it-out-enabled: true
+  show-actuator: false
+  use-fqn: false
+
+logging:
+  level:
+    com.chatchat: DEBUG
+    org.springframework.web: INFO
+    org.springframework.security: DEBUG
+    org.hibernate: WARN
+    org.hibernate.SQL: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+  file:
+    name: logs/chatchat.log
+    max-size: 10MB
+    max-history: 30
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics,info
+  endpoint:
+    health:
+      show-details: when-authorized
+  metrics:
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true

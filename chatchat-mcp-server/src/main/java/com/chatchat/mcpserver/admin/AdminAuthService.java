@@ -1,6 +1,5 @@
 package com.chatchat.mcpserver.admin;
 
-import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -18,14 +17,6 @@ public class AdminAuthService {
     private final SecureRandom secureRandom = new SecureRandom();
     private final Map<String, TokenSession> sessions = new ConcurrentHashMap<>();
 
-    @PostConstruct
-    public void validateCredentials() {
-        if (properties.getUsername() == null || properties.getUsername().isBlank()
-            || properties.getPassword() == null || properties.getPassword().isBlank()) {
-            throw new IllegalStateException("CHAT_MCP_ADMIN_USERNAME and CHAT_MCP_ADMIN_PASSWORD are required");
-        }
-    }
-
     /**
      * Performs the login operation.
      *
@@ -34,6 +25,10 @@ public class AdminAuthService {
      * @return the operation result
      */
     public LoginResult login(String username, String password) {
+        if (properties.getUsername() == null || properties.getUsername().isBlank()
+            || properties.getPassword() == null || properties.getPassword().isBlank()) {
+            throw new IllegalStateException("MCP admin username/password is not configured");
+        }
         if (!constantTimeEquals(properties.getUsername(), username)
             || !constantTimeEquals(properties.getPassword(), password)) {
             throw new IllegalArgumentException("Invalid username or password");

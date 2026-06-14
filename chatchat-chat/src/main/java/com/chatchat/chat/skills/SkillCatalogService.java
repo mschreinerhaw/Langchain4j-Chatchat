@@ -63,6 +63,7 @@ public class SkillCatalogService {
     @Transactional
     public void initializeDefaults() {
         ensureSkillSchemaCompatibility();
+        ensureDefaultAgentPresent();
     }
 
     /**
@@ -74,7 +75,9 @@ public class SkillCatalogService {
     public synchronized List<SkillDefinition> list() {
         return repository.findAll().stream()
             .map(this::toDefinition)
-            .sorted(Comparator.comparing(SkillDefinition::label, String.CASE_INSENSITIVE_ORDER))
+            .sorted(Comparator
+                .comparing((SkillDefinition skill) -> !Boolean.TRUE.equals(skill.defaultAgent()))
+                .thenComparing(SkillDefinition::label, String.CASE_INSENSITIVE_ORDER))
             .toList();
     }
 
@@ -87,12 +90,12 @@ public class SkillCatalogService {
     @Transactional(readOnly = true)
     public synchronized SkillDefinition resolve(String skillId) {
         if (skillId == null || skillId.isBlank()) {
-            return findGeneralOrDefault();
+            return findDefaultAgentOrGeneralOrDefault();
         }
         String id = skillId.trim().toLowerCase(Locale.ROOT);
         return repository.findById(id)
             .map(this::toDefinition)
-            .orElseGet(this::findGeneralOrDefault);
+            .orElseGet(this::findDefaultAgentOrGeneralOrDefault);
     }
 
     /**
@@ -264,11 +267,15 @@ public class SkillCatalogService {
             normalizeRoutingSettings(draft.routingSettings()),
             normalizeWorkflowConfig(draft.workflowConfig()),
             normalizeList(draft.quickQuestions()),
-            marketStatus
+            marketStatus,
+            resolveDefaultAgentFlag(draft.defaultAgent(), existing)
         );
 
         SkillConfigEntity entity = existing == null ? new SkillConfigEntity() : existing;
         boolean exists = existing != null;
+        if (Boolean.TRUE.equals(normalized.defaultAgent())) {
+            clearDefaultAgentExcept(id);
+        }
         entity.setId(id);
         entity.setLabel(normalized.label());
         entity.setDescription(normalized.description());
@@ -288,6 +295,7 @@ public class SkillCatalogService {
         entity.setWorkflowConfigJson(writeWorkflowConfigJson(normalized.workflowConfig()));
         entity.setQuickQuestionsJson(writeListJson(normalized.quickQuestions()));
         entity.setMarketStatus(normalized.marketStatus());
+        entity.setDefaultAgent(Boolean.TRUE.equals(normalized.defaultAgent()));
 
         SkillConfigEntity saved = repository.save(entity);
         snapshotVersion(saved, exists ? "update" : "create");
@@ -350,8 +358,30 @@ public class SkillCatalogService {
         current.setMarketStatus(normalizeMarketStatus(target.getMarketStatus()) == null
             ? defaultMarketStatus(id)
             : normalizeMarketStatus(target.getMarketStatus()));
+        if (target.isDefaultAgent()) {
+            clearDefaultAgentExcept(id);
+        }
+        current.setDefaultAgent(target.isDefaultAgent());
         SkillConfigEntity saved = repository.save(current);
         snapshotVersion(saved, "rollback");
+        return toDefinition(saved);
+    }
+
+    /**
+     * Sets one skill as the default Agent capability.
+     *
+     * @param skillId the skill id value
+     * @return the operation result
+     */
+    @Transactional
+    public synchronized SkillDefinition setDefaultAgent(String skillId) {
+        String id = normalizeId(skillId);
+        SkillConfigEntity entity = repository.findById(id)
+            .orElseThrow(() -> new IllegalArgumentException("skill not found: " + id));
+        clearDefaultAgentExcept(id);
+        entity.setDefaultAgent(true);
+        SkillConfigEntity saved = repository.save(entity);
+        snapshotVersion(saved, "default_agent");
         return toDefinition(saved);
     }
 
@@ -409,11 +439,15 @@ public class SkillCatalogService {
     @Transactional
     public synchronized boolean delete(String skillId) {
         String id = normalizeId(skillId);
-        boolean exists = repository.existsById(id);
-        if (exists) {
-            repository.deleteById(id);
+        SkillConfigEntity entity = repository.findById(id).orElse(null);
+        if (entity == null) {
+            return false;
         }
-        return exists;
+        if (entity.isDefaultAgent()) {
+            throw new IllegalArgumentException("default Agent capability cannot be deleted");
+        }
+        repository.deleteById(id);
+        return true;
     }
 
     /**
@@ -444,7 +478,8 @@ public class SkillCatalogService {
             readListJson(entity.getQuickQuestionsJson()),
             normalizeMarketStatus(entity.getMarketStatus()) == null
                 ? defaultMarketStatus(entity.getId())
-                : normalizeMarketStatus(entity.getMarketStatus())
+                : normalizeMarketStatus(entity.getMarketStatus()),
+            entity.isDefaultAgent()
         );
     }
 
@@ -479,6 +514,7 @@ public class SkillCatalogService {
             normalizeMarketStatus(entity.getMarketStatus()) == null
                 ? defaultMarketStatus(entity.getSkillId())
                 : normalizeMarketStatus(entity.getMarketStatus()),
+            entity.isDefaultAgent(),
             entity.getCreatedAt() == null ? Instant.EPOCH.toEpochMilli() : entity.getCreatedAt().toEpochMilli()
         );
     }
@@ -514,7 +550,64 @@ public class SkillCatalogService {
         version.setWorkflowConfigJson(source.getWorkflowConfigJson());
         version.setQuickQuestionsJson(source.getQuickQuestionsJson());
         version.setMarketStatus(source.getMarketStatus());
+        version.setDefaultAgent(source.isDefaultAgent());
         versionRepository.save(version);
+    }
+
+    /**
+     * Ensures one default Agent capability exists after schema migration.
+     */
+    private void ensureDefaultAgentPresent() {
+        if (!repository.findByDefaultAgentTrue().isEmpty()) {
+            return;
+        }
+        SkillConfigEntity fallback = repository.findById(DEFAULT_SKILL_ID)
+            .orElseGet(() -> repository.findAll().stream()
+                .sorted(Comparator.comparing(SkillConfigEntity::getLabel, String.CASE_INSENSITIVE_ORDER))
+                .findFirst()
+                .orElse(null));
+        if (fallback == null) {
+            return;
+        }
+        fallback.setDefaultAgent(true);
+        repository.save(fallback);
+    }
+
+    /**
+     * Clears default Agent flags from all skills except the provided id.
+     *
+     * @param skillId the skill id value
+     */
+    private void clearDefaultAgentExcept(String skillId) {
+        List<SkillConfigEntity> defaultAgents = repository.findByDefaultAgentTrue();
+        List<SkillConfigEntity> changed = new ArrayList<>();
+        for (SkillConfigEntity entity : defaultAgents) {
+            if (entity.getId() != null && entity.getId().equals(skillId)) {
+                continue;
+            }
+            entity.setDefaultAgent(false);
+            changed.add(entity);
+        }
+        if (!changed.isEmpty()) {
+            repository.saveAll(changed);
+        }
+    }
+
+    /**
+     * Resolves whether the current skill should be marked as default Agent.
+     *
+     * @param requestedDefaultAgent the requested default agent flag
+     * @param existing the existing entity value
+     * @return whether this skill is the default Agent
+     */
+    private boolean resolveDefaultAgentFlag(Boolean requestedDefaultAgent, SkillConfigEntity existing) {
+        if (requestedDefaultAgent != null) {
+            return Boolean.TRUE.equals(requestedDefaultAgent);
+        }
+        if (existing != null) {
+            return existing.isDefaultAgent();
+        }
+        return repository.findByDefaultAgentTrue().isEmpty();
     }
 
     /**
@@ -522,7 +615,15 @@ public class SkillCatalogService {
      *
      * @return the matching general or default
      */
-    private SkillDefinition findGeneralOrDefault() {
+    private SkillDefinition findDefaultAgentOrGeneralOrDefault() {
+        List<SkillConfigEntity> defaultAgents = repository.findByDefaultAgentTrue();
+        if (!defaultAgents.isEmpty()) {
+            return defaultAgents.stream()
+                .map(this::toDefinition)
+                .sorted(Comparator.comparing(SkillDefinition::label, String.CASE_INSENSITIVE_ORDER))
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException("No skill is registered"));
+        }
         return repository.findById(DEFAULT_SKILL_ID)
             .map(this::toDefinition)
             .orElseGet(() -> repository.findAll().stream()
@@ -537,6 +638,7 @@ public class SkillCatalogService {
      */
     private void ensureSkillSchemaCompatibility() {
         ensureColumn("skill_config", "market_status", "varchar(32) default 'published'");
+        ensureColumn("skill_config", "default_agent", "boolean default false");
         ensureColumn("skill_config", "model_name", "varchar(128)");
         ensureColumn("skill_config", "preferred_tool_prefixes_json", "varchar(16000)");
         ensureColumn("skill_config", "bound_mcp_service_ids_json", "varchar(16000)");
@@ -549,6 +651,7 @@ public class SkillCatalogService {
         ensureColumn("skill_config", "quick_questions_json", "varchar(16000)");
 
         ensureColumn("skill_config_version", "market_status", "varchar(32)");
+        ensureColumn("skill_config_version", "default_agent", "boolean default false");
         ensureColumn("skill_config_version", "model_name", "varchar(128)");
         ensureColumn("skill_config_version", "preferred_tool_prefixes_json", "varchar(16000)");
         ensureColumn("skill_config_version", "bound_mcp_service_ids_json", "varchar(16000)");
@@ -1152,6 +1255,7 @@ public class SkillCatalogService {
         Map<String, Object> workflowConfig,
         List<String> quickQuestions,
         String marketStatus,
+        Boolean defaultAgent,
         Long createdAt
     ) {
     }

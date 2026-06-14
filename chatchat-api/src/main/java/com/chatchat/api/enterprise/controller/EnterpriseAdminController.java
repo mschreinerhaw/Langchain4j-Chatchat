@@ -581,6 +581,7 @@ public class EnterpriseAdminController {
         String name,
         String description,
         String marketStatus,
+        boolean defaultAgent,
         List<String> skillTags
     ) {
     }
@@ -591,6 +592,7 @@ public class EnterpriseAdminController {
             skill.label(),
             skill.description(),
             skill.marketStatus(),
+            Boolean.TRUE.equals(skill.defaultAgent()),
             skill.skillTags()
         );
     }

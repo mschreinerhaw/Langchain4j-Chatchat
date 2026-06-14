@@ -30,6 +30,7 @@ class BuiltInToolsBootstrapTest {
     private String documentDetailAuthorization;
     private String searchEngineQuery;
     private String siteSearchKeyword;
+    private String siteSearchRawQuery;
     private int searchLandingCount;
 
     @AfterEach
@@ -144,7 +145,7 @@ class BuiltInToolsBootstrapTest {
         webSearchProperties.setFetchPages(true);
         webSearchProperties.setMaxPagesToFetch(1);
         webSearchProperties.setPageExcerptChars(180);
-        webSearchProperties.getBrowser().setLocalBrowserEnabled(false);
+        webSearchProperties.getBrowser().setEnabled(false);
 
         BuiltInToolsBootstrap bootstrap = new BuiltInToolsBootstrap(
             registry,
@@ -191,7 +192,7 @@ class BuiltInToolsBootstrapTest {
         webSearchProperties.setEndpoint("http://localhost:" + server.getAddress().getPort() + "/search");
         webSearchProperties.setMaxResults(3);
         webSearchProperties.setFetchPages(false);
-        webSearchProperties.getBrowser().setLocalBrowserEnabled(false);
+        webSearchProperties.getBrowser().setEnabled(false);
         webSearchProperties.getSiteSearch().setEnabled(false);
 
         BuiltInToolsBootstrap bootstrap = new BuiltInToolsBootstrap(
@@ -230,7 +231,7 @@ class BuiltInToolsBootstrapTest {
             + "/search?q=\u9876\u70b9\u8f6f\u4ef6\u6700\u65b0\u516c\u544a");
         webSearchProperties.setMaxResults(3);
         webSearchProperties.setFetchPages(false);
-        webSearchProperties.getBrowser().setLocalBrowserEnabled(false);
+        webSearchProperties.getBrowser().setEnabled(false);
         webSearchProperties.getSiteSearch().setEnabled(false);
 
         BuiltInToolsBootstrap bootstrap = new BuiltInToolsBootstrap(
@@ -273,7 +274,7 @@ class BuiltInToolsBootstrapTest {
         webSearchProperties.setEndpoint("http://localhost:" + server.getAddress().getPort() + "/search");
         webSearchProperties.setMaxResults(5);
         webSearchProperties.setFetchPages(false);
-        webSearchProperties.getBrowser().setLocalBrowserEnabled(false);
+        webSearchProperties.getBrowser().setEnabled(false);
         webSearchProperties.getSiteSearch().setMaxPagesToInspect(1);
         webSearchProperties.getSiteSearch().setMaxSecondaryPages(1);
         webSearchProperties.getSiteSearch().setMaxLinksPerPage(3);
@@ -316,7 +317,7 @@ class BuiltInToolsBootstrapTest {
         webSearchProperties.setEndpoint("http://localhost:" + server.getAddress().getPort() + "/search");
         webSearchProperties.setMaxResults(5);
         webSearchProperties.setFetchPages(false);
-        webSearchProperties.getBrowser().setLocalBrowserEnabled(false);
+        webSearchProperties.getBrowser().setEnabled(false);
         webSearchProperties.getSiteSearch().setMaxPagesToInspect(1);
         webSearchProperties.getSiteSearch().setMaxSecondaryPages(1);
         webSearchProperties.getSiteSearch().setMaxLinksPerPage(3);
@@ -334,18 +335,21 @@ class BuiltInToolsBootstrapTest {
         ToolRegistry.EnhancedTool webSearch = registry.getEnhancedTool("web_search");
         String targetUrl = "http://localhost:" + server.getAddress().getPort() + "/exchange-js";
         ToolOutput output = webSearch.execute(ToolInput.builder()
-            .parameters(Map.of("query", "find " + targetUrl + " 603383", "num_results", 3))
+            .parameters(Map.of("query", "find " + targetUrl + " ACME/603383", "num_results", 3))
             .build());
 
         assertThat(output.isSuccess()).isTrue();
         Map<String, Object> data = (Map<String, Object>) output.getData();
         assertThat(data)
-            .containsEntry("search_query", "site:localhost 603383")
-            .containsEntry("site_search_query", "603383")
+            .containsEntry("search_query", "site:localhost ACME/603383")
+            .containsEntry("site_search_query", "ACME/603383")
             .containsEntry("contentMode", "site_search_enriched")
             .containsEntry("site_search_result_count", 1);
-        assertThat(searchEngineQuery).isEqualTo("site:localhost 603383");
-        assertThat(siteSearchKeyword).isEqualTo("603383");
+        assertThat(searchEngineQuery).isEqualTo("site:localhost ACME/603383");
+        assertThat(siteSearchKeyword).isEqualTo("ACME/603383");
+        assertThat(siteSearchRawQuery)
+            .contains("keyword=ACME/603383")
+            .doesNotContain("ACME%2F603383");
         List<Map<String, Object>> results = (List<Map<String, Object>>) data.get("results");
         assertThat(results).anySatisfy(result -> assertThat(result)
             .containsEntry("source", "site_search_known")
@@ -362,7 +366,7 @@ class BuiltInToolsBootstrapTest {
         webSearchProperties.setEndpoint("http://localhost:" + server.getAddress().getPort() + "/search");
         webSearchProperties.setMaxResults(5);
         webSearchProperties.setFetchPages(false);
-        webSearchProperties.getBrowser().setLocalBrowserEnabled(false);
+        webSearchProperties.getBrowser().setEnabled(false);
         webSearchProperties.getSiteSearch().setMaxPagesToInspect(1);
         webSearchProperties.getSiteSearch().setMaxSecondaryPages(1);
         webSearchProperties.getSiteSearch().setMaxLinksPerPage(3);
@@ -407,7 +411,7 @@ class BuiltInToolsBootstrapTest {
         webSearchProperties.setEndpoint("http://localhost:" + server.getAddress().getPort() + "/engine");
         webSearchProperties.setMaxResults(5);
         webSearchProperties.setFetchPages(false);
-        webSearchProperties.getBrowser().setLocalBrowserEnabled(false);
+        webSearchProperties.getBrowser().setEnabled(false);
         webSearchProperties.getSiteSearch().setMaxPagesToInspect(3);
         webSearchProperties.getSiteSearch().setMaxSecondaryPages(2);
         webSearchProperties.getSiteSearch().setMaxLinksPerPage(5);
@@ -622,6 +626,7 @@ class BuiltInToolsBootstrapTest {
     private void startWebSearchApiWithKnownJsonpSiteSearch() throws IOException {
         searchEngineQuery = null;
         siteSearchKeyword = null;
+        siteSearchRawQuery = null;
         server = HttpServer.create(new InetSocketAddress(0), 0);
         server.createContext("/search", exchange -> {
             searchEngineQuery = queryParam(exchange.getRequestURI().getRawQuery(), "q");
@@ -645,6 +650,7 @@ class BuiltInToolsBootstrapTest {
             exchange.close();
         });
         server.createContext("/search/getESSearchDoc.do", exchange -> {
+            siteSearchRawQuery = exchange.getRequestURI().getRawQuery();
             siteSearchKeyword = queryParam(exchange.getRequestURI().getRawQuery(), "keyword");
             String body = """
                 jsonpCallback({"code":"0","data":{"totalSize":1,"knowledgeList":[{"documentId":"doc-603383","title":"[603383][Vertex Software] 2025 annual report summary","rtfContent":"Vertex Software disclosure summary, security code 603383","createTime":"2026-04-16 19:14:05","score":2262.8176,"extend":[{"name":"CURL","value":"/disclosure/603383_annual_summary.pdf"},{"name":"ZQDM","value":"603383"},{"name":"GSJC","value":"Vertex Software"}]}]}})

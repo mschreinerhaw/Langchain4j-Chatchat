@@ -115,7 +115,8 @@
           </ul>
         </section>
 
-        <div v-if="agent.skillTags?.length" class="agent-tags">
+        <div v-if="agent.defaultAgent || agent.skillTags?.length" class="agent-tags">
+          <span v-if="agent.defaultAgent" class="agent-default-tag">默认Agent</span>
           <span v-for="tag in agent.skillTags" :key="`${agent.id}-${tag}`">{{ tag }}</span>
         </div>
 
@@ -145,6 +146,15 @@
         <div class="agent-card-actions">
           <button type="button" class="secondary-button" @click="openEditDialog(agent)">设置</button>
           <button
+            v-if="!agent.defaultAgent"
+            type="button"
+            class="secondary-button"
+            :disabled="saving"
+            @click="setDefaultAgent(agent)"
+          >
+            设为默认
+          </button>
+          <button
             v-if="agent.marketStatus !== 'published'"
             type="button"
             class="primary-button"
@@ -163,7 +173,15 @@
             回收能力
           </button>
           <button
-            v-if="!agent.builtin"
+            v-if="agent.defaultAgent"
+            type="button"
+            class="secondary-button"
+            disabled
+          >
+            默认不可删
+          </button>
+          <button
+            v-else-if="!agent.builtin"
             type="button"
             class="danger-button"
             :disabled="saving"
@@ -229,6 +247,10 @@
               <option value="llm_chat">llm_chat</option>
               <option value="knowledge_chat">knowledge_chat</option>
             </select>
+          </label>
+          <label class="checkbox-row default-agent-row">
+            <input v-model="form.defaultAgent" type="checkbox">
+            <span>设为默认Agent</span>
           </label>
           <label>
             <span>绑定模型</span>

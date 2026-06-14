@@ -499,6 +499,12 @@ export function deleteSkill(skillId) {
   });
 }
 
+export function setDefaultAgentSkill(skillId) {
+  return apiRequest(`/data/skills/${encodeURIComponent(skillId)}/default-agent`, {
+    method: "POST"
+  });
+}
+
 export function fetchSkillVersions(skillId) {
   return apiRequest(`/data/skills/${encodeURIComponent(skillId)}/versions`);
 }
@@ -550,6 +556,12 @@ export function updateWorkshopAgent(agentId, payload) {
 export function deleteWorkshopAgent(agentId) {
   return apiRequest(`/agents/workshop/${encodeURIComponent(agentId)}`, {
     method: "DELETE"
+  });
+}
+
+export function setDefaultWorkshopAgent(agentId) {
+  return apiRequest(`/agents/workshop/${encodeURIComponent(agentId)}/default`, {
+    method: "POST"
   });
 }
 

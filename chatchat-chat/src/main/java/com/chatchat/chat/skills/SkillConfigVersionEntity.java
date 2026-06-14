@@ -84,6 +84,9 @@ public class SkillConfigVersionEntity {
     @Column(length = 32)
     private String marketStatus;
 
+    @Column(nullable = false, columnDefinition = "boolean default false")
+    private boolean defaultAgent = false;
+
     @Column(nullable = false)
     private Instant createdAt;
 

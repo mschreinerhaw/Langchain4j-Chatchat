@@ -4,6 +4,7 @@ import {
   fetchAgentWorkshop,
   publishWorkshopAgent,
   recallWorkshopAgent,
+  setDefaultWorkshopAgent,
   updateWorkshopAgent
 } from "../../services/api.js";
 import * as XLSX from "xlsx";
@@ -60,6 +61,14 @@ function textValue(value) {
     return JSON.stringify(value);
   }
   return String(value).trim();
+}
+
+function booleanValue(value) {
+  if (typeof value === "boolean") {
+    return value;
+  }
+  const normalized = textValue(value).toLowerCase();
+  return ["true", "1", "yes", "y", "default", "默认", "是"].includes(normalized);
 }
 
 function listValue(value) {
@@ -133,7 +142,8 @@ function emptyForm() {
     routingSettings: defaultRoutingSettings(),
     workflowConfig: defaultWorkflowConfig(),
     quickQuestions: "",
-    marketStatus: "draft"
+    marketStatus: "draft",
+    defaultAgent: false
   };
 }
 
@@ -193,6 +203,7 @@ export default {
         { value: "all", label: "全部状态" },
         { value: "published", label: "已发布" },
         { value: "unpublished", label: "未发布" },
+        { value: "default", label: "默认Agent" },
         { value: "custom", label: "自定义" },
         { value: "builtin", label: "内置" }
       ];
@@ -476,6 +487,7 @@ export default {
         agent?.status,
         agent?.marketStatus,
         agent?.marketStatusLabel,
+        agent?.defaultAgent ? "default agent" : "",
         agent?.defaultMode,
         agent?.modelName,
         ...(agent?.usageScenarios || []),
@@ -586,7 +598,8 @@ export default {
         },
         workflowConfig: this.normalizeWorkflowConfig(agent?.workflowConfig, parseList(agent?.boundMcpToolNames)),
         quickQuestions: joinList(agent?.quickQuestions),
-        marketStatus: agent?.marketStatus || "draft"
+        marketStatus: agent?.marketStatus || "draft",
+        defaultAgent: !!agent?.defaultAgent
       };
     },
     formToPayload() {
@@ -624,7 +637,8 @@ export default {
         },
         workflowConfig,
         quickQuestions: parseList(this.form.quickQuestions),
-        marketStatus: this.form.marketStatus || "draft"
+        marketStatus: this.form.marketStatus || "draft",
+        defaultAgent: !!this.form.defaultAgent
       };
     },
     normalizeImportedAgent(row, index) {
@@ -686,7 +700,10 @@ export default {
         ])),
         marketStatus: textValue(fieldValue(row, [
           "marketStatus", "status", "发布状态", "状态"
-        ])) || "draft"
+        ])) || "draft",
+        defaultAgent: booleanValue(fieldValue(row, [
+          "defaultAgent", "default_agent", "isDefault", "default", "默认Agent", "是否默认"
+        ]))
       };
       if (!payload.id || !/^[a-z0-9_-]{2,64}$/.test(payload.id)) {
         throw new Error(`第 ${index + 1} 行缺少有效 Agent ID，ID 需为 2-64 位小写字母、数字、下划线或短横线。`);
@@ -815,7 +832,8 @@ export default {
         boundMcpToolNames: agent.boundMcpToolNames || [],
         boundDocumentIds: agent.boundDocumentIds || [],
         boundDocumentTags: agent.boundDocumentTags || [],
-        marketStatus: agent.marketStatus || "draft"
+        marketStatus: agent.marketStatus || "draft",
+        defaultAgent: !!agent.defaultAgent
       }));
     },
     exportAgentsAsJson() {
@@ -1033,7 +1051,7 @@ export default {
       this.form = emptyForm();
     },
     async removeAgent(agent) {
-      if (!agent?.id || agent.builtin) {
+      if (!agent?.id || agent.builtin || agent.defaultAgent) {
         return;
       }
       if (!window.confirm(`确认删除Agent「${agent.name || agent.id}」？`)) {
@@ -1046,6 +1064,21 @@ export default {
         await this.loadWorkshop();
       } catch (error) {
         this.error = error.message || "Agent删除失败";
+      } finally {
+        this.saving = false;
+      }
+    },
+    async setDefaultAgent(agent) {
+      if (!agent?.id || agent.defaultAgent) {
+        return;
+      }
+      this.saving = true;
+      this.error = "";
+      try {
+        await setDefaultWorkshopAgent(agent.id);
+        await this.loadWorkshop();
+      } catch (error) {
+        this.error = error.message || "默认Agent设置失败";
       } finally {
         this.saving = false;
       }

@@ -503,7 +503,8 @@ class AgentChatModeHandlerTest {
             routingSettings,
             Map.of(),
             List.of(),
-            "published"
+            "published",
+            false
         );
     }
 

@@ -877,6 +877,9 @@ public class BuiltInToolsBootstrap {
             if (!configuredToken.isBlank()) {
                 return configuredToken;
             }
+            if (!hasDocumentSearchLoginCredentials()) {
+                return "";
+            }
             String cachedToken = documentSearchToken;
             if (cachedToken != null && !cachedToken.isBlank()) {
                 return cachedToken;
@@ -902,7 +905,7 @@ public class BuiltInToolsBootstrap {
             String username = environment.getProperty("chatchat.tools.document-search.auth.username", "admin");
             String password = environment.getProperty("chatchat.tools.document-search.auth.password", "123456");
             if (username == null || username.isBlank() || password == null || password.isBlank()) {
-                throw new IllegalStateException("document search auth username/password must be configured");
+                return "";
             }
             int timeoutMs = environment.getProperty("chatchat.tools.document-search.timeout-ms", Integer.class, 20000);
             URI loginUri = buildDocumentSearchLoginUri();
@@ -985,6 +988,12 @@ public class BuiltInToolsBootstrap {
          */
         private String configuredDocumentSearchToken() {
             return environment.getProperty("chatchat.tools.document-search.auth.bearer-token", "").trim();
+        }
+
+        private boolean hasDocumentSearchLoginCredentials() {
+            String username = environment.getProperty("chatchat.tools.document-search.auth.username", "admin");
+            String password = environment.getProperty("chatchat.tools.document-search.auth.password", "123456");
+            return username != null && !username.isBlank() && password != null && !password.isBlank();
         }
 
         /**
@@ -1122,7 +1131,7 @@ public class BuiltInToolsBootstrap {
                 return List.of();
             }
             List<String> terms = new ArrayList<>();
-            for (String term : query.trim().split("[\\s,锛屻€傦紱;:锛?\\\\]+")) {
+            for (String term : query.trim().split("[\\s,\\uFF0C\\u3002\\uFF1B;:\\uFF1A\\u3001\\\\]+")) {
                 if (term.length() >= 2) {
                     terms.add(term);
                 }

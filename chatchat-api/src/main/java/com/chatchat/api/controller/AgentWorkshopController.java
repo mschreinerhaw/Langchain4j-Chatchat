@@ -204,6 +204,19 @@ public class AgentWorkshopController {
     }
 
     /**
+     * Sets the default Agent capability.
+     *
+     * @param agentId the agent id value
+     * @return the operation result
+     */
+    @PostMapping("/{agentId}/default")
+    @Operation(summary = "Set one Agent as default capability")
+    public ApiResponse<AgentCard> setDefaultAgent(@PathVariable("agentId") String agentId) {
+        SkillDefinition saved = skillCatalogService.setDefaultAgent(agentId);
+        return ApiResponse.success(toAgentCard(saved, availableTools(), mcpToolsByServiceId()), "Default Agent updated");
+    }
+
+    /**
      * Converts the value to agent card.
      *
      * @param skill the skill value
@@ -250,6 +263,7 @@ public class AgentWorkshopController {
             skill.quickQuestions(),
             skill.marketStatus(),
             marketStatusLabel(skill.marketStatus()),
+            Boolean.TRUE.equals(skill.defaultAgent()),
             resolvedTools,
             resolvedTools.size(),
             skill.boundMcpServiceIds() == null ? 0 : skill.boundMcpServiceIds().size(),
@@ -302,6 +316,7 @@ public class AgentWorkshopController {
             || ("published".equals(normalizedStatus) && "published".equalsIgnoreCase(agent.marketStatus()))
             || ("unpublished".equals(normalizedStatus) && !"published".equalsIgnoreCase(agent.marketStatus()))
             || ("builtin".equals(normalizedStatus) && agent.builtin())
+            || ("default".equals(normalizedStatus) && agent.defaultAgent())
             || ("custom".equals(normalizedStatus) && !agent.builtin());
         boolean modelMatched = normalizedModel.isEmpty() || containsIgnoreCase(agent.modelName(), normalizedModel);
         return keywordMatched && categoryMatched && statusMatched && modelMatched;
@@ -533,7 +548,8 @@ public class AgentWorkshopController {
             request.getRoutingSettings(),
             request.getWorkflowConfig(),
             request.getQuickQuestions(),
-            request.getMarketStatus()
+            request.getMarketStatus(),
+            request.getDefaultAgent()
         );
     }
 
@@ -624,6 +640,7 @@ public class AgentWorkshopController {
         private Map<String, Object> workflowConfig;
         private List<String> quickQuestions;
         private String marketStatus;
+        private Boolean defaultAgent;
     }
 
     public record WorkshopPayload(
@@ -711,6 +728,7 @@ public class AgentWorkshopController {
         List<String> quickQuestions,
         String marketStatus,
         String marketStatusLabel,
+        boolean defaultAgent,
         List<String> resolvedToolNames,
         int resolvedToolCount,
         int boundServiceCount,

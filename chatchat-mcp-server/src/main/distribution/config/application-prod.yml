@@ -1,0 +1,325 @@
+spring:
+  application:
+    name: chatchat-mcp-server
+  datasource:
+    url: jdbc:h2:file:./data/h2/chatchat-mcp-server;MODE=MySQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: ${CHAT_MCP_DATASOURCE_PASSWORD:}
+    hikari:
+      pool-name: ChatChatMcpHikariPool
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 20000
+      idle-timeout: 300000
+      max-lifetime: 1200000
+      auto-commit: true
+      transaction-isolation: TRANSACTION_READ_COMMITTED
+  h2:
+    console:
+      enabled: false
+      path: /h2-console
+      settings:
+        web-allow-others: false
+  jpa:
+    hibernate:
+      ddl-auto: update
+    database-platform: org.hibernate.dialect.H2Dialect
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+        connection:
+          driver_class: org.h2.Driver
+          url: jdbc:h2:file:./data/h2/chatchat-mcp-server;MODE=MySQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE;DB_CLOSE_DELAY=-1
+          username: sa
+          pool_size: 10
+          autocommit: true
+          isolation: 2
+
+server:
+  port: 8090
+  servlet:
+    context-path: /
+  shutdown: graceful
+
+chatchat:
+  mcp:
+    admin:
+      username: ${CHAT_MCP_ADMIN_USERNAME:}
+      password: ${CHAT_MCP_ADMIN_PASSWORD:}
+      token-ttl-minutes: 480
+    security:
+      require-mcp-token: ${CHAT_MCP_REQUIRE_TOKEN:true}
+      invocation-token: ${CHAT_MCP_INVOCATION_TOKEN:}
+    cache:
+      enabled: true
+      path: ./data/mcp-cache-rocksdb
+      create-if-missing: true
+      cleanup-interval-ms: 60000
+      cleanup-batch-size: 500
+    server:
+      name: chatchat-langchain4j-mcp-server
+      version: 1.0.0-SNAPSHOT
+      endpoint: /mcp
+      expose-agent-compatible-only: true
+      excluded-tool-names: []
+      instructions: "ChatChat standalone MCP server exposing LangChain4j-compatible tools."
+      concurrency:
+        # Enables global/tool/user/agent concurrency guards for MCP tool calls.
+        enabled: true
+        # Global limit shared by all MCP tool calls.
+        global:
+          max-concurrency: 64
+          queue-size: 128
+          queue-timeout-seconds: 5
+          timeout-seconds: 30
+          runtime-level: global
+        # Default limit used when no runtime-level or tool-specific limit matches.
+        defaults:
+          max-concurrency: 8
+          queue-size: 64
+          queue-timeout-seconds: 5
+          timeout-seconds: 30
+          runtime-level: tool
+          max-output-chars: 200000
+          retry-attempts: 0
+          failure-threshold: 5
+          circuit-open-seconds: 30
+        # Per-user limit when a request carries user identity fields.
+        user:
+          max-concurrency: 8
+          queue-size: 64
+          queue-timeout-seconds: 5
+          timeout-seconds: 30
+          runtime-level: user
+        # Per-agent limit when a request carries agent identity fields.
+        agent:
+          max-concurrency: 4
+          queue-size: 32
+          queue-timeout-seconds: 5
+          timeout-seconds: 30
+          runtime-level: agent
+        # Runtime-level defaults for tool families.
+        runtime-levels:
+          ssh:
+            max-concurrency: 2
+            queue-size: 32
+            queue-timeout-seconds: 10
+            timeout-seconds: 30
+            runtime-level: ssh
+          sql:
+            max-concurrency: 5
+            queue-size: 64
+            queue-timeout-seconds: 10
+            timeout-seconds: 30
+            runtime-level: sql
+          http:
+            max-concurrency: 30
+            queue-size: 256
+            queue-timeout-seconds: 5
+            timeout-seconds: 30
+            runtime-level: http
+          notification:
+            max-concurrency: 10
+            queue-size: 128
+            queue-timeout-seconds: 5
+            timeout-seconds: 30
+            runtime-level: notification
+        # Tool-specific overrides. web_search uses a longer timeout because it may run Playwright rendering.
+        tools:
+          web_search:
+            max-concurrency: 2
+            queue-size: 32
+            queue-timeout-seconds: 10
+            timeout-seconds: 90
+            runtime-level: http
+    web-crawler:
+      # Enables page crawling for search_and_extract evidence enrichment.
+      enabled: true
+      # User-Agent sent when fetching target pages.
+      user-agent: ChatChat-MCP-Crawler/1.0
+      # Per-page HTTP timeout.
+      timeout-ms: 10000
+      # Maximum response bytes read before aborting a page fetch.
+      max-body-bytes: 1048576
+      # Maximum raw HTML characters retained for processing.
+      max-html-chars: 200000
+      # Maximum readable text characters retained after cleaning.
+      max-text-chars: 120000
+      # Evidence chunk size and overlap for downstream ranking.
+      chunk-chars: 1200
+      chunk-overlap-chars: 120
+      max-chunks: 20
+      # Cache crawled pages for seven days.
+      cache-ttl-seconds: 604800
+      # Include raw HTML in cached page records for debugging and reprocessing.
+      include-html: true
+      accept-language: en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7
+    livedata:
+      # Enables the admin page to list and manually register LiveData APIs. Startup auto-sync is disabled.
+      enabled: ${CHAT_MCP_LIVEDATA_ENABLED:false}
+      jdbc-url: ${CHAT_MCP_LIVEDATA_JDBC_URL:}
+      username: ${CHAT_MCP_LIVEDATA_USERNAME:}
+      password: ${CHAT_MCP_LIVEDATA_PASSWORD:}
+      driver-class: ${CHAT_MCP_LIVEDATA_DRIVER_CLASS:com.mysql.cj.jdbc.Driver}
+      table-name: ld_dataservice_api
+      service-base-url: ${CHAT_MCP_LIVEDATA_SERVICE_BASE_URL:}
+      service-path-template: /service/{serviceName}/call
+      login-enabled: true
+      login-path: /login
+      login-id: ${CHAT_MCP_LIVEDATA_LOGIN_ID:}
+      login-pwd: ${CHAT_MCP_LIVEDATA_LOGIN_PASSWORD:}
+      login-timeout-ms: 10000
+      session-ttl-seconds: 1800
+      ams-token: ${CHAT_MCP_LIVEDATA_AMS_TOKEN:}
+      default-namespace: livedata
+      tool-name-prefix: livedata_
+      published-state: 0
+      max-apis: 1000
+      timeout-ms: 20000
+      cache-enabled: false
+      cache-ttl-seconds: 300
+      overwrite-existing: false
+      include-unpublished-as-disabled: false
+      expose-ams-token-parameter: false
+  tools:
+    calculator:
+      # Safe local arithmetic tool.
+      risk-level: low
+      operation-type: read
+      timeout-ms: 5000
+      confirmation:
+        default: auto_execute
+      parameter-policy:
+        expression: auto_execute
+    document-search:
+      # Retrieves documents from the ChatChat runtime/API service.
+      enabled: true
+      # Runtime/API retrieval service address. Set this when MCP Server and Runtime are deployed separately.
+      api-base-url: http://localhost:8080
+      search-path: /api/v1/search
+      detail-path-template: /api/v1/search/documents/{docId}
+      timeout-ms: 20000
+      default-limit: 5
+      max-limit: 20
+      auth:
+        # Login-based auth is used when bearer-token is empty.
+        enabled: true
+        login-path: /api/v1/enterprise/auth/login
+        username: ${CHAT_DOCUMENT_SEARCH_AUTH_USERNAME:}
+        password: ${CHAT_DOCUMENT_SEARCH_AUTH_PASSWORD:}
+        bearer-token: ""
+      risk-level: medium
+      confirmation:
+        default: ask_before_execute
+    web-search:
+      enabled: true
+      risk-level: low
+      operation-type: read
+      confirmation:
+        default: auto_execute
+      parameter-policy:
+        query: auto_execute
+      provider: bing_html
+      endpoint: https://www.bing.com/search
+      user-agent: ChatChat-MCP-Server/1.0
+      timeout-ms: 10000
+      max-results: 10
+      fetch-pages: true
+      max-pages-to-fetch: 3
+      page-excerpt-chars: 2500
+      page-max-bytes: 1048576
+      fallback-enabled: true
+      site-search:
+        enabled: true
+        max-pages-to-inspect: 3
+        max-secondary-pages: 3
+        max-links-per-page: 5
+      browser:
+        enabled: true
+        browsers-path: ${PLAYWRIGHT_BROWSERS_PATH:playwright-browsers}
+        skip-browser-download: ${CHAT_WEB_SEARCH_BROWSER_SKIP_DOWNLOAD:false}
+        navigation-timeout-ms: 15000
+        accept-language: en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7
+        referer: https://www.bing.com/
+        tls-fingerprint-profile: jdk-default
+      proxy-pool:
+        enabled: false
+        default-pool: default
+        proxies: []
+      retry:
+        max-attempts: 3
+        backoff-ms: 500
+        retry-status-codes: [403, 408, 429, 500, 502, 503, 504]
+        retry-body-keywords:
+          - captcha
+          - verify you are human
+          - too many requests
+      rate-limit:
+        enabled: true
+        max-concurrency: 5
+        qps: 1.0
+        daily-limit: 1000
+      cookie:
+        enabled: true
+        persist: false
+        store-path: ./data/web-search-cookies.json
+        isolation: proxy_task
+      allow-list:
+        enabled: false
+        domains:
+          - bing.com
+          - duckduckgo.com
+          - google.com
+          - news.google.com
+          - finance.yahoo.com
+          - reuters.com
+          - bloomberg.com
+          - localhost
+          - 127.0.0.1
+      audit:
+        enabled: true
+        include-in-result: true
+    database-query:
+      # Read-only SQL query tool for configured external databases.
+      enabled: true
+      risk-level: high
+      operation-type: read
+      user-visible: false
+      agent-compatible: false
+      confirmation:
+        default: ask_before_execute
+      parameter-policy:
+        # JDBC URL and password require confirmation because they may reveal sensitive infrastructure.
+        jdbc-url: ask_before_execute
+        password: ask_before_execute
+      default-max-rows: 50
+      max-rows: 500
+      # Statement timeout for database calls.
+      query-timeout-seconds: 15
+      # Extra JDBC drivers can be placed here in release packages.
+      driver-lib-path: ./lib/drivers
+    file-system:
+      # Local file inspection tool. Keep confirmation enabled because paths may expose sensitive files.
+      risk-level: high
+      operation-type: read
+      timeout-ms: 10000
+      confirmation:
+        default: ask_before_execute
+      parameter-policy:
+        path: ask_before_execute
+
+logging:
+  file:
+    name: ./logs/chatchat-mcp-server.log
+  level:
+    com.chatchat: INFO
+    io.modelcontextprotocol: INFO
+  logback:
+    rollingpolicy:
+      max-file-size: 100MB
+      max-history: 30
+      total-size-cap: 3GB
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"

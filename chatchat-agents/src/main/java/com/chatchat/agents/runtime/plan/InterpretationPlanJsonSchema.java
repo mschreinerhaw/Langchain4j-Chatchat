@@ -97,6 +97,23 @@ public final class InterpretationPlanJsonSchema {
                     }
                   }
                 },
+                "bindings": {
+                  "type": "array",
+                  "description": "Executable data-flow bindings from an upstream step output into a downstream step input.",
+                  "items": {
+                    "type": "object",
+                    "required": ["from", "output_path", "to", "input_field", "type"],
+                    "additionalProperties": false,
+                    "properties": {
+                      "from": {"type": "integer"},
+                      "output_path": {"type": "string", "description": "source output path, e.g. $.results[0].url"},
+                      "to": {"type": "integer"},
+                      "input_field": {"type": "string", "description": "target input field, e.g. url"},
+                      "type": {"type": "string", "enum": ["jsonpath", "jq"]},
+                      "required": {"type": "boolean"}
+                    }
+                  }
+                },
                 "stability": {
                   "type": "object",
                   "additionalProperties": false,

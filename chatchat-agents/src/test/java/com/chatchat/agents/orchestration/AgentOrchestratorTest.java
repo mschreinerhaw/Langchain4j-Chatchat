@@ -6,6 +6,7 @@ import com.chatchat.agents.runtime.AgentRunRequest;
 import com.chatchat.agents.runtime.AgentRunResult;
 import com.chatchat.agents.runtime.AgentRunStatus;
 import com.chatchat.agents.runtime.InMemoryAgentRunStore;
+import com.chatchat.agents.runtime.plan.InterpretationExecutionProtocol;
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.config.ModelsConfig;
 import com.chatchat.common.interaction.InteractionToolTrace;
@@ -94,6 +95,141 @@ class AgentOrchestratorTest {
             .containsEntry("interpretationPlanPipeline", true)
             .containsEntry("interpretationPlanInitialSuccess", true)
             .containsEntry("stopReason", "interpretation_plan_completed");
+    }
+
+    @Test
+    void interpretationPlanCanUseRequestScopedAvailableToolWhenRegistryDoesNotAdvertiseIt() {
+        String requestScopedTool = "mcp_dynamic_document_search";
+        QueueChatModel chatModel = new QueueChatModel(
+            """
+                {
+                  "version": "1.0",
+                  "intent": {"type": "document_retrieval", "goal": "Use request-scoped MCP evidence", "risk_level": "low"},
+                  "context": {"key_facts": [], "assumptions": [], "missing_info": [], "constraints": ["Use available request tools"]},
+                  "plan": {
+                    "steps": [
+                      {"id": 1, "action_type": "mcp_tool", "tool_name": "mcp_dynamic_document_search", "input": {"query": "internal definition"}, "depends_on": []},
+                      {"id": 2, "action_type": "final_answer", "tool_name": "", "input": {"answer": "Use request scoped evidence."}, "depends_on": [1]}
+                    ]
+                  },
+                  "execution_policy": {"max_steps": 2, "allow_parallel": false, "allow_tool": ["mcp_dynamic_document_search"], "deny_tool": [], "timeout_ms": 30000},
+                  "review": {"self_check": {"completeness_score": 0.9, "hallucination_risk": 0.1, "tool_sufficiency": true, "missing_steps": []}, "fallback_plan": []}
+                }
+                """,
+            "{\"accepted\":true,\"feedback\":\"The answer follows the request-scoped tool evidence.\",\"revisedAnswer\":\"\"}"
+        );
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool(requestScopedTool)).thenReturn(false);
+        when(toolRegistry.executeEnhancedTool(eq(requestScopedTool), any())).thenReturn(documentSearchOutput());
+        AgentOrchestrator orchestrator = new AgentOrchestrator(
+            chatModel,
+            toolRegistry,
+            new ToolRuntimeService(toolRegistry, new ObjectMapper(), toolRuntimeProperties(), List.of(), List.of()),
+            new ObjectMapper(),
+            new ModelsConfig()
+        );
+
+        AgentOrchestrator.AgentExecutionResult result = orchestrator.executeAgent(
+            "What is the internal definition?",
+            "tenant-1",
+            List.of(requestScopedTool),
+            "Use request-scoped tools.",
+            null,
+            List.of(),
+            List.of(),
+            "research",
+            "req-request-scoped-tool",
+            "conv-request-scoped-tool",
+            "user-1",
+            10,
+            List.of(),
+            false
+        );
+
+        assertThat(result.toolTraces()).extracting(InteractionToolTrace::getToolName)
+            .containsExactly(requestScopedTool);
+        assertThat(result.metadata())
+            .containsEntry("interpretationPlanPipeline", true)
+            .containsEntry("interpretationPlanInitialSuccess", true);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void plannerAttributionSelectsBestPlanAfterThreeInvalidRepairs() {
+        QueueChatModel chatModel = new QueueChatModel(
+            invalidToolPlan("missing_tool_a"),
+            invalidToolPlan("missing_tool_b"),
+            invalidToolPlan("missing_tool_c"),
+            """
+                {
+                  "analysis": "All three candidates failed because their selected tools were unavailable. Candidate C has the simplest structure and is the safest base for minimal repair.",
+                  "scores": {"A": 20, "B": 25, "C": 55},
+                  "selected": "C",
+                  "reason": "Candidate C is structurally smallest, so only the unavailable tool needs minimal replacement with the available document_search tool.",
+                  "plan": {
+                    "version": "1.0",
+                    "intent": {"type": "document_retrieval", "goal": "Use the selected candidate with available document evidence", "risk_level": "low"},
+                    "context": {"key_facts": ["Previous candidates used unavailable tools"], "assumptions": [], "missing_info": [], "constraints": ["Use available tools"]},
+                    "plan": {
+                      "steps": [
+                        {"id": 1, "action_type": "mcp_tool", "tool_name": "document_search", "input": {"query": "internal definition"}, "depends_on": []},
+                        {"id": 2, "action_type": "final_answer", "tool_name": "", "input": {"answer": "Attribution selected the document-backed plan."}, "depends_on": [1]}
+                      ]
+                    },
+                    "execution_policy": {"max_steps": 2, "allow_parallel": false, "allow_tool": ["document_search"], "deny_tool": [], "timeout_ms": 30000},
+                    "review": {"self_check": {"completeness_score": 0.9, "hallucination_risk": 0.1, "tool_sufficiency": true, "missing_steps": []}, "fallback_plan": []}
+                  }
+                }
+                """,
+            "{\"accepted\":true,\"feedback\":\"The answer follows the attributed plan.\",\"revisedAnswer\":\"\"}"
+        );
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool("document_search")).thenReturn(true);
+        when(toolRegistry.getToolMetadata("document_search")).thenReturn(ToolMetadata.builder()
+            .id("document_search")
+            .title("Document Search")
+            .description("Search internal documents")
+            .riskLevel("low")
+            .build());
+        when(toolRegistry.executeEnhancedTool(eq("document_search"), any())).thenReturn(documentSearchOutput());
+        AgentOrchestrator orchestrator = new AgentOrchestrator(
+            chatModel,
+            toolRegistry,
+            new ToolRuntimeService(toolRegistry, new ObjectMapper(), toolRuntimeProperties(), List.of(), List.of()),
+            new ObjectMapper(),
+            new ModelsConfig()
+        );
+
+        AgentOrchestrator.AgentExecutionResult result = orchestrator.executeAgent(
+            "What is the internal definition?",
+            "tenant-1",
+            List.of("document_search"),
+            "Use internal evidence.",
+            null,
+            List.of(),
+            List.of(),
+            "research",
+            "req-plan-attribution",
+            "conv-plan-attribution",
+            "user-1",
+            10,
+            List.of(),
+            false,
+            Map.of("plannerMaxRepairAttempts", 9)
+        );
+
+        assertThat(result.answer()).isEqualTo("Attribution selected the document-backed plan.");
+        assertThat(result.toolTraces()).extracting(InteractionToolTrace::getToolName)
+            .containsExactly("document_search");
+        List<Map<String, Object>> plannerSteps = (List<Map<String, Object>>) result.metadata().get("plannerSteps");
+        assertThat(plannerSteps)
+            .anySatisfy(step -> assertThat((Map<String, Object>) step.get("executionPlan"))
+                .containsEntry("plannerAttributionSelection", true)
+                .containsEntry("plannerAttributionCandidateCount", 3)
+                .containsEntry("plannerAttributionSelected", "C")
+                .containsEntry("plannerAttributionFailurePattern", "TOOL_MISSING")
+                .containsKey("plannerAttributionScores")
+                .containsKey("plannerAttributionCandidateFingerprints"));
     }
 
     @Test
@@ -1092,6 +1228,12 @@ class AgentOrchestratorTest {
             .contains("The user query MUST first be converted into this executable InterpretationPlan")
             .contains(mcpDocumentSearch)
             .contains(mcpWebSearch);
+        assertThat(chatModel.messages().stream()
+            .anyMatch(message -> message.contains("Decision protocol:")
+                && message.contains(InterpretationExecutionProtocol.VERSION)
+                && message.contains("\"action\": \"execute_step | execute_parallel_steps | final_answer | rewrite_plan | abort\"")
+                && message.contains("Observation contract used for replay/debug")))
+            .isTrue();
     }
 
     @Test
@@ -1451,6 +1593,24 @@ class AgentOrchestratorTest {
             """.formatted(steps, Math.max(1, tools.length + 1), allowTools);
     }
 
+    private static String invalidToolPlan(String toolName) {
+        return """
+            {
+              "version": "1.0",
+              "intent": {"type": "document_retrieval", "goal": "Use unavailable evidence", "risk_level": "low"},
+              "context": {"key_facts": [], "assumptions": [], "missing_info": [], "constraints": ["Use available tools"]},
+              "plan": {
+                "steps": [
+                  {"id": 1, "action_type": "mcp_tool", "tool_name": "%s", "input": {"query": "internal definition"}, "depends_on": []},
+                  {"id": 2, "action_type": "final_answer", "tool_name": "", "input": {"answer": "Invalid unavailable tool plan."}, "depends_on": [1]}
+                ]
+              },
+              "execution_policy": {"max_steps": 2, "allow_parallel": false, "allow_tool": ["%s"], "deny_tool": [], "timeout_ms": 30000},
+              "review": {"self_check": {"completeness_score": 0.4, "hallucination_risk": 0.4, "tool_sufficiency": false, "missing_steps": []}, "fallback_plan": []}
+            }
+            """.formatted(jsonEscape(toolName), jsonEscape(toolName));
+    }
+
     private static String jsonEscape(String value) {
         return value == null ? "" : value.replace("\\", "\\\\").replace("\"", "\\\"");
     }
@@ -1465,6 +1625,9 @@ class AgentOrchestratorTest {
         @Override
         public String chat(String message) {
             assertThat(message).isNotBlank();
+            if (message.contains("Agent Runtime DAG execution controller")) {
+                return dagDecision(message);
+            }
             if (message.contains("runtime reviewer for one completed MCP tool call")) {
                 return "{\"satisfied\":true,\"reason\":\"test reviewer accepts tool result\",\"selected_urls\":[],\"confidence\":1.0}";
             }
@@ -1488,6 +1651,9 @@ class AgentOrchestratorTest {
         public String chat(String message) {
             assertThat(message).isNotBlank();
             messages.add(message);
+            if (message.contains("Agent Runtime DAG execution controller")) {
+                return dagDecision(message);
+            }
             if (message.contains("runtime reviewer for one completed MCP tool call")) {
                 return "{\"satisfied\":true,\"reason\":\"test reviewer accepts tool result\",\"selected_urls\":[],\"confidence\":1.0}";
             }
@@ -1513,6 +1679,36 @@ class AgentOrchestratorTest {
         int valueEnd = message.indexOf("\n\n", valueStart);
         String value = valueEnd < 0 ? message.substring(valueStart) : message.substring(valueStart, valueEnd);
         return value.trim().isBlank() ? "Synthesized answer from executed steps." : value.trim();
+    }
+
+    private static String dagDecision(String message) {
+        List<Integer> remaining = integersFromLine(message, "remaining_step_ids:");
+        if (remaining.isEmpty()) {
+            return "{\"action\":\"abort\",\"reason\":\"No remaining DAG steps.\"}";
+        }
+        return "{\"action\":\"execute_step\",\"step_ids\":[" + remaining.get(0)
+            + "],\"reason\":\"test model selects the next DAG step\",\"confidence\":1.0}";
+    }
+
+    private static List<Integer> integersFromLine(String message, String prefix) {
+        int start = message.indexOf(prefix);
+        if (start < 0) {
+            return List.of();
+        }
+        int end = message.indexOf('\n', start);
+        String line = end < 0 ? message.substring(start + prefix.length()) : message.substring(start + prefix.length(), end);
+        List<Integer> values = new ArrayList<>();
+        for (String token : line.replace("[", "").replace("]", "").split(",")) {
+            if (token.isBlank()) {
+                continue;
+            }
+            try {
+                values.add(Integer.parseInt(token.trim()));
+            } catch (NumberFormatException ignored) {
+                // Ignore non-integer prompt text in the test helper.
+            }
+        }
+        return values;
     }
 
     private static final class FailingChatModel implements ChatModel {

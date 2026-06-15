@@ -23,20 +23,25 @@ public class InterpretationPlanOptimizer {
         List<InterpretationPlan.EdgeContract> edgeContracts = plan.plan().edgeContracts() == null
             ? List.of()
             : new ArrayList<>(plan.plan().edgeContracts());
+        List<InterpretationPlan.Binding> bindings = plan.plan().bindings() == null
+            ? List.of()
+            : new ArrayList<>(plan.plan().bindings());
         InterpretationPlan.Stability stability = plan.plan().stability();
         boolean lockedEdges = stability != null && Boolean.TRUE.equals(stability.lockedEdges());
 
         if (!lockedEdges) {
-            RewriteState pruned = pruneNoopSteps(plan, steps, edgeContracts);
+            RewriteState pruned = pruneNoopSteps(plan, steps, edgeContracts, bindings);
             steps = pruned.steps();
             edgeContracts = pruned.edgeContracts();
+            bindings = pruned.bindings();
             if (pruned.changed()) {
                 passes.add("PruneNoopPass");
             }
 
-            RewriteState deduped = dedupeToolCalls(plan, steps, edgeContracts);
+            RewriteState deduped = dedupeToolCalls(plan, steps, edgeContracts, bindings);
             steps = deduped.steps();
             edgeContracts = deduped.edgeContracts();
+            bindings = deduped.bindings();
             if (deduped.changed()) {
                 passes.add("DedupeToolCallPass");
             }
@@ -60,6 +65,7 @@ public class InterpretationPlanOptimizer {
             new InterpretationPlan.Plan(
                 renumber(steps),
                 remapContractsForRenumber(steps, edgeContracts),
+                remapBindingsForRenumber(steps, bindings),
                 remapStabilityForRenumber(steps, plan.plan().stability())
             ),
             parallel.executionPolicy(),
@@ -70,7 +76,8 @@ public class InterpretationPlanOptimizer {
 
     private RewriteState pruneNoopSteps(InterpretationPlan plan,
                                         List<InterpretationPlan.Step> steps,
-                                        List<InterpretationPlan.EdgeContract> edgeContracts) {
+                                        List<InterpretationPlan.EdgeContract> edgeContracts,
+                                        List<InterpretationPlan.Binding> bindings) {
         Set<Integer> removed = new LinkedHashSet<>();
         Set<Integer> stableNodes = stableNodes(plan);
         Set<String> mutableTypes = mutableActionTypes(plan);
@@ -86,7 +93,7 @@ public class InterpretationPlanOptimizer {
             }
         }
         if (removed.isEmpty()) {
-            return new RewriteState(steps, edgeContracts, false);
+            return new RewriteState(steps, edgeContracts, bindings, false);
         }
         Map<Integer, List<Integer>> dependencies = dependencyMap(steps);
         List<InterpretationPlan.Step> rewritten = steps.stream()
@@ -96,12 +103,16 @@ public class InterpretationPlanOptimizer {
         List<InterpretationPlan.EdgeContract> contracts = edgeContracts.stream()
             .filter(contract -> contract != null && !removed.contains(contract.from()) && !removed.contains(contract.to()))
             .toList();
-        return new RewriteState(rewritten, contracts, true);
+        List<InterpretationPlan.Binding> rewrittenBindings = bindings.stream()
+            .filter(binding -> binding != null && !removed.contains(binding.from()) && !removed.contains(binding.to()))
+            .toList();
+        return new RewriteState(rewritten, contracts, rewrittenBindings, true);
     }
 
     private RewriteState dedupeToolCalls(InterpretationPlan plan,
                                          List<InterpretationPlan.Step> steps,
-                                         List<InterpretationPlan.EdgeContract> edgeContracts) {
+                                         List<InterpretationPlan.EdgeContract> edgeContracts,
+                                         List<InterpretationPlan.Binding> bindings) {
         Map<String, Integer> firstBySignature = new LinkedHashMap<>();
         Map<Integer, Integer> redirects = new LinkedHashMap<>();
         Set<Integer> stableNodes = stableNodes(plan);
@@ -120,7 +131,7 @@ public class InterpretationPlanOptimizer {
             }
         }
         if (redirects.isEmpty()) {
-            return new RewriteState(steps, edgeContracts, false);
+            return new RewriteState(steps, edgeContracts, bindings, false);
         }
         List<InterpretationPlan.Step> rewritten = steps.stream()
             .filter(step -> step != null && !redirects.containsKey(step.id()))
@@ -130,7 +141,11 @@ public class InterpretationPlanOptimizer {
             .map(contract -> redirectContract(contract, redirects))
             .filter(contract -> contract != null && !Objects.equals(contract.from(), contract.to()))
             .toList();
-        return new RewriteState(rewritten, contracts, true);
+        List<InterpretationPlan.Binding> rewrittenBindings = bindings.stream()
+            .map(binding -> redirectBinding(binding, redirects))
+            .filter(binding -> binding != null && !Objects.equals(binding.from(), binding.to()))
+            .toList();
+        return new RewriteState(rewritten, contracts, rewrittenBindings, true);
     }
 
     private OrderingResult policyAwareOrdering(InterpretationPlan plan, List<InterpretationPlan.Step> steps) {
@@ -233,6 +248,25 @@ public class InterpretationPlanOptimizer {
             .toList();
     }
 
+    private List<InterpretationPlan.Binding> remapBindingsForRenumber(List<InterpretationPlan.Step> originalSteps,
+                                                                      List<InterpretationPlan.Binding> bindings) {
+        Map<Integer, Integer> idMap = new LinkedHashMap<>();
+        int next = 1;
+        for (InterpretationPlan.Step step : originalSteps) {
+            idMap.put(step.id(), next++);
+        }
+        return bindings.stream()
+            .map(binding -> new InterpretationPlan.Binding(
+                idMap.getOrDefault(binding.from(), binding.from()),
+                binding.outputPath(),
+                idMap.getOrDefault(binding.to(), binding.to()),
+                binding.inputField(),
+                binding.type(),
+                binding.required()
+            ))
+            .toList();
+    }
+
     private InterpretationPlan.Stability remapStabilityForRenumber(List<InterpretationPlan.Step> originalSteps,
                                                                     InterpretationPlan.Stability stability) {
         if (stability == null) {
@@ -319,6 +353,21 @@ public class InterpretationPlanOptimizer {
         );
     }
 
+    private InterpretationPlan.Binding redirectBinding(InterpretationPlan.Binding binding,
+                                                       Map<Integer, Integer> redirects) {
+        if (binding == null) {
+            return null;
+        }
+        return new InterpretationPlan.Binding(
+            redirects.getOrDefault(binding.from(), binding.from()),
+            binding.outputPath(),
+            redirects.getOrDefault(binding.to(), binding.to()),
+            binding.inputField(),
+            binding.type(),
+            binding.required()
+        );
+    }
+
     private Set<Integer> stableNodes(InterpretationPlan plan) {
         if (plan == null || plan.plan() == null || plan.plan().stability() == null || plan.plan().stability().stableNodes() == null) {
             return Set.of();
@@ -364,6 +413,7 @@ public class InterpretationPlanOptimizer {
     private record RewriteState(
         List<InterpretationPlan.Step> steps,
         List<InterpretationPlan.EdgeContract> edgeContracts,
+        List<InterpretationPlan.Binding> bindings,
         boolean changed
     ) {
     }

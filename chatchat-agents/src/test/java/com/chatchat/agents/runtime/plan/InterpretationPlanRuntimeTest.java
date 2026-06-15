@@ -8,6 +8,7 @@ import com.chatchat.agents.runtime.ToolRuntimeRequest;
 import com.chatchat.agents.runtime.ToolRuntimeService;
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.tool.ToolMetadata;
+import com.chatchat.common.tool.ToolParameter;
 import com.chatchat.common.tool.ToolOutput;
 import org.mockito.ArgumentCaptor;
 import org.junit.jupiter.api.Test;
@@ -49,7 +50,11 @@ class InterpretationPlanRuntimeTest {
             );
         });
 
-        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(toolRuntimeService, new InterpretationPlanValidator());
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            toolRuntimeService,
+            new InterpretationPlanValidator(),
+            scriptedController(List.of(List.of(1, 2), List.of(3)))
+        );
 
         InterpretationPlanRuntime.ExecutionResult result = runtime.execute(new InterpretationPlanRuntime.ExecutionRequest(
             parallelPlan(),
@@ -83,7 +88,11 @@ class InterpretationPlanRuntimeTest {
             "failed",
             Map.of()
         ));
-        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(toolRuntimeService, new InterpretationPlanValidator());
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            toolRuntimeService,
+            new InterpretationPlanValidator(),
+            scriptedController(List.of(List.of(1), List.of(2)))
+        );
 
         InterpretationPlanRuntime.ExecutionResult result = runtime.execute(new InterpretationPlanRuntime.ExecutionRequest(
             serialPlan(),
@@ -121,8 +130,8 @@ class InterpretationPlanRuntimeTest {
             new InterpretationPlanValidator(),
             new InterpretationPlanOptimizer(),
             null,
-            null,
-            request -> InterpretationPlanRuntime.StepReview.rejected("evidence is empty", Map.of("reviewed", true))
+            request -> InterpretationPlanRuntime.StepReview.rejected("evidence is empty", Map.of("reviewed", true)),
+            scriptedController(List.of(List.of(1), List.of(2)))
         );
 
         InterpretationPlanRuntime.ExecutionResult result = runtime.execute(new InterpretationPlanRuntime.ExecutionRequest(
@@ -193,7 +202,6 @@ class InterpretationPlanRuntimeTest {
             new InterpretationPlanValidator(),
             new InterpretationPlanOptimizer(),
             null,
-            null,
             request -> {
                 if ("web_search".equals(request.execution().toolName())) {
                     return InterpretationPlanRuntime.StepReview.accepted(
@@ -202,7 +210,8 @@ class InterpretationPlanRuntimeTest {
                     );
                 }
                 return InterpretationPlanRuntime.StepReview.accepted("content usable", Map.of());
-            }
+            },
+            scriptedController(List.of(List.of(1), List.of(2), List.of(3)))
         );
 
         InterpretationPlanRuntime.ExecutionResult result = runtime.execute(new InterpretationPlanRuntime.ExecutionRequest(
@@ -222,6 +231,95 @@ class InterpretationPlanRuntimeTest {
         assertThat(captor.getAllValues().get(1).getToolName()).isEqualTo("crawl_url");
         assertThat(captor.getAllValues().get(1).getToolInput().getParameters())
             .containsEntry("url", "https://example.com/page");
+    }
+
+    @Test
+    void resolvesPlanBindingIntoDownstreamToolInput() {
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool("web_search")).thenReturn(true);
+        when(toolRegistry.hasTool("crawl_url")).thenReturn(true);
+        when(toolRegistry.getToolMetadata("web_search")).thenReturn(ToolMetadata.builder()
+            .id("web_search")
+            .riskLevel("low")
+            .parameters(List.of(ToolParameter.builder()
+                .name("query")
+                .type("string")
+                .required(true)
+                .build()))
+            .build());
+        when(toolRegistry.getToolMetadata("crawl_url")).thenReturn(ToolMetadata.builder()
+            .id("crawl_url")
+            .riskLevel("low")
+            .parameters(List.of(ToolParameter.builder()
+                .name("url")
+                .type("string")
+                .required(true)
+                .build()))
+            .build());
+        ToolRuntimeService toolRuntimeService = mock(ToolRuntimeService.class);
+        when(toolRuntimeService.execute(any())).thenAnswer(invocation -> {
+            ToolRuntimeRequest request = invocation.getArgument(0);
+            if ("web_search".equals(request.getToolName())) {
+                return new ToolRuntimeExecution(
+                    ToolOutput.success(Map.of("results", List.of(Map.of(
+                        "title", "Market News",
+                        "url", "https://example.com/market",
+                        "snippet", "candidate"
+                    )))),
+                    ToolMetadata.builder().id("web_search").build(),
+                    null,
+                    "success",
+                    Map.of()
+                );
+            }
+            return new ToolRuntimeExecution(
+                ToolOutput.success(Map.of("content", "full page")),
+                ToolMetadata.builder().id("crawl_url").build(),
+                null,
+                "success",
+                Map.of()
+            );
+        });
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("web_search", "Search then crawl", "low"),
+            context(),
+            new InterpretationPlan.Plan(
+                List.of(
+                    new InterpretationPlan.Step(1, "mcp_tool", "web_search", Map.of("query", "今天市场热点"), List.of(), null, null),
+                    new InterpretationPlan.Step(2, "mcp_tool", "crawl_url", Map.of(), List.of(1), null, null),
+                    new InterpretationPlan.Step(3, "final_answer", "", Map.of("answer", "done"), List.of(2), null, null)
+                ),
+                List.of(),
+                List.of(new InterpretationPlan.Binding(1, "$.results[0].url", 2, "url", "jsonpath", true)),
+                null
+            ),
+            new InterpretationPlan.ExecutionPolicy(3, false, List.of("web_search", "crawl_url"), List.of(), 30000),
+            review()
+        );
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            toolRuntimeService,
+            new InterpretationPlanValidator(),
+            scriptedController(List.of(List.of(1), List.of(2), List.of(3)))
+        );
+
+        InterpretationPlanRuntime.ExecutionResult result = runtime.execute(new InterpretationPlanRuntime.ExecutionRequest(
+            plan,
+            toolRegistry,
+            List.of("web_search", "crawl_url"),
+            "tenant-1",
+            "req-binding",
+            "conv-binding",
+            "user-1",
+            Map.of()
+        ));
+
+        ArgumentCaptor<ToolRuntimeRequest> captor = ArgumentCaptor.forClass(ToolRuntimeRequest.class);
+        verify(toolRuntimeService, times(2)).execute(captor.capture());
+        assertThat(result.success()).isTrue();
+        assertThat(captor.getAllValues().get(1).getToolName()).isEqualTo("crawl_url");
+        assertThat(captor.getAllValues().get(1).getToolInput().getParameters())
+            .containsEntry("url", "https://example.com/market");
     }
 
     @Test
@@ -251,7 +349,11 @@ class InterpretationPlanRuntimeTest {
             new InterpretationPlan.ExecutionPolicy(2, false, List.of("document_search"), List.of(), 30000),
             review()
         );
-        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(toolRuntimeService, new InterpretationPlanValidator());
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            toolRuntimeService,
+            new InterpretationPlanValidator(),
+            scriptedController(List.of(List.of(1), List.of(2)))
+        );
 
         InterpretationPlanRuntime.ExecutionResult result = runtime.execute(new InterpretationPlanRuntime.ExecutionRequest(
             plan,
@@ -286,7 +388,8 @@ class InterpretationPlanRuntimeTest {
         InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
             toolRuntimeService,
             new InterpretationPlanValidator(),
-            runStore
+            runStore,
+            scriptedController(List.of(List.of(1), List.of(2)))
         );
 
         InterpretationPlanRuntime.ExecutionResult result = runtime.execute(new InterpretationPlanRuntime.ExecutionRequest(
@@ -302,6 +405,9 @@ class InterpretationPlanRuntimeTest {
 
         assertThat(result.success()).isTrue();
         assertThat(result.finalAnswer()).isEqualTo("done");
+        assertThat(result.metadata())
+            .containsEntry("protocolVersion", InterpretationExecutionProtocol.VERSION)
+            .containsEntry("executionTraceId", "run-event-dag::interpretation_plan");
         List<AgentRunEvent> events = runStore.events("run-event-dag");
         assertThat(events).extracting(AgentRunEvent::type)
             .contains(AgentRunEventType.STEP_RECORDED, AgentRunEventType.OBSERVATION_RECORDED);
@@ -312,6 +418,16 @@ class InterpretationPlanRuntimeTest {
             .anyMatch(metadata -> Integer.valueOf(1).equals(metadata.get("interpretationPlanStepId"))
                 && Boolean.TRUE.equals(metadata.get("success"))
                 && "document_search".equals(metadata.get("toolName"))))
+            .isTrue();
+        assertThat(events.stream()
+            .filter(event -> event.type() == AgentRunEventType.OBSERVATION_RECORDED)
+            .map(event -> event.payload().get("metadata"))
+            .map(metadata -> (Map<?, ?>) metadata)
+            .anyMatch(metadata -> InterpretationExecutionProtocol.VERSION.equals(metadata.get("protocolVersion"))
+                && "run-event-dag::interpretation_plan".equals(metadata.get("executionTraceId"))
+                && "controller_decision".equals(metadata.get("lifecyclePhase"))
+                && metadata.get("decision") instanceof Map<?, ?>
+                && metadata.get("guardResult") instanceof Map<?, ?>))
             .isTrue();
     }
 
@@ -353,5 +469,20 @@ class InterpretationPlanRuntimeTest {
             new InterpretationPlan.SelfCheck(0.8, 0.1, true, List.of()),
             List.of()
         );
+    }
+
+    private InterpretationPlanRuntime.DagExecutionController scriptedController(List<List<Integer>> waves) {
+        AtomicInteger index = new AtomicInteger();
+        return request -> {
+            int current = index.getAndIncrement();
+            if (waves == null || current >= waves.size()) {
+                return InterpretationPlanRuntime.DagDecision.abort("No scripted DAG decision remains");
+            }
+            List<Integer> stepIds = waves.get(current);
+            if (stepIds.size() > 1) {
+                return InterpretationPlanRuntime.DagDecision.executeParallelSteps(stepIds, "scripted parallel decision");
+            }
+            return InterpretationPlanRuntime.DagDecision.executeStep(stepIds.get(0), "scripted decision");
+        };
     }
 }

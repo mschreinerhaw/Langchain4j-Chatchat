@@ -12,7 +12,6 @@ import com.chatchat.common.tool.ToolOutput;
 import com.chatchat.common.tool.ToolInput;
 
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -20,8 +19,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.Executor;
-import java.util.concurrent.ForkJoinPool;
 import java.util.stream.Collectors;
 
 /**
@@ -34,61 +31,50 @@ public class InterpretationPlanRuntime {
     private final ToolRuntimeService toolRuntimeService;
     private final InterpretationPlanValidator validator;
     private final InterpretationPlanOptimizer optimizer;
-    private final Executor executor;
     private final AgentRunStore runStore;
     private final StepResultReviewer stepResultReviewer;
-
-    public InterpretationPlanRuntime(ToolRuntimeService toolRuntimeService,
-                                     InterpretationPlanValidator validator) {
-        this(toolRuntimeService, validator, new InterpretationPlanOptimizer(), null, null, null);
-    }
+    private final DagExecutionController dagExecutionController;
 
     public InterpretationPlanRuntime(ToolRuntimeService toolRuntimeService,
                                      InterpretationPlanValidator validator,
-                                     AgentRunStore runStore) {
-        this(toolRuntimeService, validator, new InterpretationPlanOptimizer(), null, runStore, null);
+                                     DagExecutionController dagExecutionController) {
+        this(toolRuntimeService, validator, new InterpretationPlanOptimizer(), null, null, dagExecutionController);
     }
 
     public InterpretationPlanRuntime(ToolRuntimeService toolRuntimeService,
                                      InterpretationPlanValidator validator,
                                      AgentRunStore runStore,
-                                     StepResultReviewer stepResultReviewer) {
-        this(toolRuntimeService, validator, new InterpretationPlanOptimizer(), null, runStore, stepResultReviewer);
+                                     DagExecutionController dagExecutionController) {
+        this(toolRuntimeService, validator, new InterpretationPlanOptimizer(), runStore, null, dagExecutionController);
     }
 
     public InterpretationPlanRuntime(ToolRuntimeService toolRuntimeService,
                                      InterpretationPlanValidator validator,
-                                     Executor executor) {
-        this(toolRuntimeService, validator, new InterpretationPlanOptimizer(), executor, null, null);
-    }
-
-    public InterpretationPlanRuntime(ToolRuntimeService toolRuntimeService,
-                                     InterpretationPlanValidator validator,
-                                     InterpretationPlanOptimizer optimizer,
-                                     Executor executor) {
-        this(toolRuntimeService, validator, optimizer, executor, null, null);
-    }
-
-    public InterpretationPlanRuntime(ToolRuntimeService toolRuntimeService,
-                                     InterpretationPlanValidator validator,
-                                     InterpretationPlanOptimizer optimizer,
-                                     Executor executor,
-                                     AgentRunStore runStore) {
-        this(toolRuntimeService, validator, optimizer, executor, runStore, null);
-    }
-
-    public InterpretationPlanRuntime(ToolRuntimeService toolRuntimeService,
-                                     InterpretationPlanValidator validator,
-                                     InterpretationPlanOptimizer optimizer,
-                                     Executor executor,
                                      AgentRunStore runStore,
-                                     StepResultReviewer stepResultReviewer) {
+                                     StepResultReviewer stepResultReviewer,
+                                     DagExecutionController dagExecutionController) {
+        this(toolRuntimeService, validator, new InterpretationPlanOptimizer(), runStore, stepResultReviewer, dagExecutionController);
+    }
+
+    public InterpretationPlanRuntime(ToolRuntimeService toolRuntimeService,
+                                     InterpretationPlanValidator validator,
+                                     InterpretationPlanOptimizer optimizer,
+                                     DagExecutionController dagExecutionController) {
+        this(toolRuntimeService, validator, optimizer, null, null, dagExecutionController);
+    }
+
+    public InterpretationPlanRuntime(ToolRuntimeService toolRuntimeService,
+                                     InterpretationPlanValidator validator,
+                                     InterpretationPlanOptimizer optimizer,
+                                     AgentRunStore runStore,
+                                     StepResultReviewer stepResultReviewer,
+                                     DagExecutionController dagExecutionController) {
         this.toolRuntimeService = toolRuntimeService;
         this.validator = validator == null ? new InterpretationPlanValidator() : validator;
         this.optimizer = optimizer == null ? new InterpretationPlanOptimizer() : optimizer;
-        this.executor = executor;
         this.runStore = runStore;
         this.stepResultReviewer = stepResultReviewer;
+        this.dagExecutionController = dagExecutionController;
     }
 
     /**
@@ -104,7 +90,11 @@ public class InterpretationPlanRuntime {
         }
         InterpretationPlanOptimizer.OptimizationResult optimization = optimizer.optimize(request.plan());
         InterpretationPlan executablePlan = optimization.plan() == null ? request.plan() : optimization.plan();
-        ExecutionRequest executableRequest = request.withPlan(executablePlan);
+        String executionTraceId = executionTraceId(request, startedAt);
+        ExecutionRequest executableRequest = request.withPlanAndAttributes(
+            executablePlan,
+            attributesWithProtocol(request.attributes(), executionTraceId)
+        );
         InterpretationPlanValidator.ValidationResult validation = validator.validate(
             executablePlan,
             request.toolRegistry(),
@@ -128,6 +118,16 @@ public class InterpretationPlanRuntime {
                 elapsed(startedAt)
             );
         }
+        if (dagExecutionController == null) {
+            return ExecutionResult.failed(
+                "DAG_CONTROLLER_REQUIRED",
+                "InterpretationPlan DAG execution requires an LLM decision controller",
+                List.of(),
+                Map.of("validationIssues", validation.issues()),
+                null,
+                elapsed(startedAt)
+            );
+        }
 
         Map<Integer, InterpretationPlan.Step> stepsById = executablePlan.steps().stream()
             .filter(step -> step != null && step.id() != null)
@@ -141,26 +141,90 @@ public class InterpretationPlanRuntime {
         Set<Integer> remaining = new LinkedHashSet<>(stepsById.keySet());
         List<StepExecution> executions = new ArrayList<>();
         String finalAnswer = null;
-        Executor executionExecutor = resolveExecutor(executableRequest);
         String runId = runId(executableRequest);
+        int decisionCount = 0;
 
         while (!remaining.isEmpty()) {
             InterpretationPlanEventState eventState = eventState(runId, completed.keySet());
-            List<InterpretationPlan.Step> ready = readySteps(executablePlan, remaining, stepsById, eventState.completedStepIds());
-            if (ready.isEmpty()) {
+            Set<Integer> completedStepIds = new LinkedHashSet<>(completed.keySet());
+            completedStepIds.addAll(eventState.completedStepIds());
+            DagDecision decision = dagExecutionController.decide(new DagDecisionRequest(
+                executablePlan,
+                new LinkedHashSet<>(remaining),
+                Map.copyOf(completed),
+                List.copyOf(executions),
+                completedStepIds,
+                ++decisionCount,
+                InterpretationExecutionProtocol.VERSION,
+                executionTraceId,
+                finalAnswer
+            ));
+            DecisionValidation decisionValidation = validateDecision(decision, executablePlan, remaining, stepsById, completedStepIds);
+            recordControllerDecision(
+                executableRequest,
+                executionTraceId,
+                decisionCount,
+                decision,
+                decisionValidation,
+                remaining,
+                completedStepIds
+            );
+            if (!decisionValidation.valid()) {
                 return ExecutionResult.failed(
-                    "DAG_STALLED",
-                    "No executable steps remain; dependencies may be unsatisfied",
+                    decisionValidation.status(),
+                    decisionValidation.message(),
                     executions,
-                    Map.of("remainingStepIds", new ArrayList<>(remaining)),
+                    Map.of(
+                        "protocolVersion", InterpretationExecutionProtocol.VERSION,
+                        "executionTraceId", executionTraceId,
+                        "remainingStepIds", new ArrayList<>(remaining),
+                        "completedStepIds", new ArrayList<>(completedStepIds),
+                        "decisionCount", decisionCount,
+                        "controllerDecision", decision == null ? Map.of() : decisionMetadata(decision),
+                        "guardResult", guardResultMetadata(decisionValidation)
+                    ),
                     finalAnswer,
                     elapsed(startedAt)
                 );
             }
-            if (!allowParallel(executablePlan)) {
-                ready = ready.stream().limit(1).toList();
+            if ("abort".equals(decisionValidation.action())) {
+                return ExecutionResult.failed(
+                    "DAG_ABORTED",
+                    decision.reason() == null || decision.reason().isBlank() ? "LLM DAG controller aborted execution" : decision.reason(),
+                    executions,
+                    Map.of(
+                        "protocolVersion", InterpretationExecutionProtocol.VERSION,
+                        "executionTraceId", executionTraceId,
+                        "remainingStepIds", new ArrayList<>(remaining),
+                        "completedStepIds", new ArrayList<>(completedStepIds),
+                        "decisionCount", decisionCount,
+                        "controllerDecision", decisionMetadata(decision),
+                        "guardResult", guardResultMetadata(decisionValidation)
+                    ),
+                    firstText(decision.finalAnswer(), finalAnswer),
+                    elapsed(startedAt)
+                );
             }
-            List<StepExecution> waveResults = executeWave(ready, executableRequest, completed, executionExecutor);
+            if ("rewrite_plan".equals(decisionValidation.action())) {
+                return ExecutionResult.failed(
+                    "DAG_REWRITE_REQUESTED",
+                    decision.reason() == null || decision.reason().isBlank() ? "LLM DAG controller requested plan rewrite" : decision.reason(),
+                    executions,
+                    Map.of(
+                        "protocolVersion", InterpretationExecutionProtocol.VERSION,
+                        "executionTraceId", executionTraceId,
+                        "remainingStepIds", new ArrayList<>(remaining),
+                        "completedStepIds", new ArrayList<>(completedStepIds),
+                        "decisionCount", decisionCount,
+                        "controllerDecision", decisionMetadata(decision),
+                        "guardResult", guardResultMetadata(decisionValidation)
+                    ),
+                    firstText(decision.finalAnswer(), finalAnswer),
+                    elapsed(startedAt)
+                );
+            }
+            List<InterpretationPlan.Step> selected = decisionValidation.steps();
+            List<StepExecution> waveResults = executeWave(selected, executableRequest, completed);
             for (StepExecution execution : waveResults) {
                 executions.add(execution);
                 completed.put(execution.stepId(), execution);
@@ -213,8 +277,12 @@ public class InterpretationPlanRuntime {
             finalAnswer,
             executions,
             Map.of(
+                "protocolVersion", InterpretationExecutionProtocol.VERSION,
+                "executionTraceId", executionTraceId,
                 "stepCount", executions.size(),
                 "parallel", allowParallel(executablePlan),
+                "decisionCount", decisionCount,
+                "llmDagController", true,
                 "optimizationPasses", optimization.appliedPasses()
             ),
             elapsed(startedAt)
@@ -223,15 +291,14 @@ public class InterpretationPlanRuntime {
 
     private List<StepExecution> executeWave(List<InterpretationPlan.Step> ready,
                                             ExecutionRequest request,
-                                            Map<Integer, StepExecution> completed,
-                                            Executor executionExecutor) {
+                                            Map<Integer, StepExecution> completed) {
         if (ready.size() == 1 || !allowParallel(request.plan())) {
             return ready.stream()
                 .map(step -> executeStep(step, request, completed))
                 .toList();
         }
         List<CompletableFuture<StepExecution>> futures = ready.stream()
-            .map(step -> CompletableFuture.supplyAsync(() -> executeStep(step, request, completed), executionExecutor))
+            .map(step -> CompletableFuture.supplyAsync(() -> executeStep(step, request, completed)))
             .toList();
         return futures.stream().map(CompletableFuture::join).toList();
     }
@@ -243,7 +310,7 @@ public class InterpretationPlanRuntime {
         recordPlanStep(request, step, completed);
         if (step.mcpToolAction()) {
             try {
-                Map<String, Object> resolvedInput = resolvedStepInput(step, completed);
+                Map<String, Object> resolvedInput = resolvedStepInput(step, request.plan(), completed);
                 ToolRuntimeExecution execution = toolRuntimeService.execute(ToolRuntimeRequest.builder()
                     .toolName(step.toolName())
                     .runtimeMode("interpretation_plan")
@@ -332,6 +399,8 @@ public class InterpretationPlanRuntime {
         }
         Map<String, Object> executionPlan = new LinkedHashMap<>();
         executionPlan.put("workflow", "interpretation_plan");
+        executionPlan.put("protocolVersion", InterpretationExecutionProtocol.VERSION);
+        executionPlan.put("executionTraceId", executionTraceId(request));
         executionPlan.put("interpretationPlanStepId", step.id());
         executionPlan.put("actionType", step.actionType());
         executionPlan.put("tool", step.toolName());
@@ -359,6 +428,8 @@ public class InterpretationPlanRuntime {
         Map<String, Object> metadata = new LinkedHashMap<>();
         metadata.put("structuredRuntimeObservation", true);
         metadata.put("workflow", "interpretation_plan");
+        metadata.put("protocolVersion", InterpretationExecutionProtocol.VERSION);
+        metadata.put("executionTraceId", executionTraceId(request));
         metadata.put("lifecyclePhase", "observation");
         metadata.put("interpretationPlanStepId", step.stepId());
         metadata.put("interpretationPlanActionType", step.actionType());
@@ -396,6 +467,8 @@ public class InterpretationPlanRuntime {
         Map<String, Object> metadata = new LinkedHashMap<>();
         metadata.put("structuredRuntimeObservation", true);
         metadata.put("workflow", "interpretation_plan");
+        metadata.put("protocolVersion", InterpretationExecutionProtocol.VERSION);
+        metadata.put("executionTraceId", executionTraceId(request));
         metadata.put("lifecyclePhase", "state_update");
         metadata.put("completedPlanStepIds", new ArrayList<>(completed.keySet()));
         metadata.put("remainingPlanStepIds", new ArrayList<>(remaining));
@@ -527,8 +600,10 @@ public class InterpretationPlanRuntime {
     }
 
     private Map<String, Object> resolvedStepInput(InterpretationPlan.Step step,
+                                                  InterpretationPlan plan,
                                                   Map<Integer, StepExecution> completed) {
         Map<String, Object> input = new LinkedHashMap<>(step.input() == null ? Map.of() : step.input());
+        applyBindings(step, plan, completed, input);
         if (!isCrawlerTool(step.toolName())) {
             return input;
         }
@@ -538,6 +613,60 @@ public class InterpretationPlanRuntime {
         }
         input.put("url", selectedUrls.get(0));
         return input;
+    }
+
+    private void applyBindings(InterpretationPlan.Step step,
+                               InterpretationPlan plan,
+                               Map<Integer, StepExecution> completed,
+                               Map<String, Object> input) {
+        if (step == null || step.id() == null || plan == null || plan.plan() == null
+            || plan.plan().bindings() == null || plan.plan().bindings().isEmpty()) {
+            return;
+        }
+        for (InterpretationPlan.Binding binding : plan.plan().bindings()) {
+            if (binding == null || !step.id().equals(binding.to())) {
+                continue;
+            }
+            StepExecution source = completed == null ? null : completed.get(binding.from());
+            if (source == null || !source.success()) {
+                if (binding.required() == null || binding.required()) {
+                    throw new IllegalStateException("BINDING_FAILED: source step not completed for binding "
+                        + binding.from() + " -> " + binding.to());
+                }
+                continue;
+            }
+            Object value = valueAtPath(source.output(), binding.outputPath());
+            if (value == null) {
+                if (binding.required() == null || binding.required()) {
+                    throw new IllegalStateException("BINDING_FAILED: missing output_path " + binding.outputPath()
+                        + " from step " + binding.from() + " for input " + binding.inputField());
+                }
+                continue;
+            }
+            putInputValue(input, binding.inputField(), value);
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private void putInputValue(Map<String, Object> input, String inputField, Object value) {
+        if (input == null || inputField == null || inputField.isBlank()) {
+            return;
+        }
+        List<String> tokens = pathTokens(inputField);
+        if (tokens.isEmpty()) {
+            return;
+        }
+        Map<String, Object> current = input;
+        for (int i = 0; i < tokens.size() - 1; i++) {
+            String token = tokens.get(i);
+            Object child = current.get(token);
+            if (!(child instanceof Map<?, ?>)) {
+                child = new LinkedHashMap<String, Object>();
+                current.put(token, child);
+            }
+            current = (Map<String, Object>) child;
+        }
+        current.put(tokens.get(tokens.size() - 1), value);
     }
 
     private boolean hasNonBlank(Map<String, Object> input, String... keys) {
@@ -675,30 +804,69 @@ public class InterpretationPlanRuntime {
         return value == null ? null : String.valueOf(value);
     }
 
-    private List<InterpretationPlan.Step> readySteps(InterpretationPlan plan,
-                                                     Set<Integer> remaining,
-                                                     Map<Integer, InterpretationPlan.Step> stepsById,
-                                                     Set<Integer> completed) {
-        return remaining.stream()
-            .map(stepsById::get)
-            .filter(step -> step != null && completed.containsAll(safeIntegerList(step.dependsOn())))
-            .sorted(Comparator
-                .comparingDouble((InterpretationPlan.Step step) -> -toolPriority(plan, step))
-                .thenComparing(InterpretationPlan.Step::id))
-            .toList();
+    private String executionTraceId(ExecutionRequest request, long startedAt) {
+        Map<String, Object> attributes = request == null ? null : request.attributes();
+        Object configured = firstPresent(attributes, "executionTraceId", "interpretationExecutionTraceId", "__executionTraceId");
+        if (configured != null && !String.valueOf(configured).isBlank()) {
+            return String.valueOf(configured).trim();
+        }
+        String runId = runId(request);
+        if (runId != null && !runId.isBlank()) {
+            return runId + "::interpretation_plan";
+        }
+        String requestId = request == null ? null : request.requestId();
+        if (requestId != null && !requestId.isBlank()) {
+            return requestId + "::interpretation_plan::" + startedAt;
+        }
+        return "interpretation_plan::" + startedAt;
     }
 
-    private double toolPriority(InterpretationPlan plan, InterpretationPlan.Step step) {
-        if (plan == null || plan.executionPolicy() == null || plan.executionPolicy().toolPriority() == null
-            || step == null || step.toolName() == null) {
-            return 0.0;
+    private String executionTraceId(ExecutionRequest request) {
+        Map<String, Object> attributes = request == null ? null : request.attributes();
+        Object configured = firstPresent(attributes, "executionTraceId", "interpretationExecutionTraceId", "__executionTraceId");
+        return configured == null ? "" : String.valueOf(configured);
+    }
+
+    private Map<String, Object> attributesWithProtocol(Map<String, Object> attributes, String executionTraceId) {
+        Map<String, Object> values = new LinkedHashMap<>(attributes == null ? Map.of() : attributes);
+        values.put("protocolVersion", InterpretationExecutionProtocol.VERSION);
+        values.put("executionTraceId", executionTraceId);
+        values.put("interpretationExecutionTraceId", executionTraceId);
+        return values;
+    }
+
+    private void recordControllerDecision(ExecutionRequest request,
+                                          String executionTraceId,
+                                          int decisionCount,
+                                          DagDecision decision,
+                                          DecisionValidation validation,
+                                          Set<Integer> remaining,
+                                          Set<Integer> completedStepIds) {
+        String runId = runId(request);
+        if (runStore == null || runId == null || runId.isBlank()) {
+            return;
         }
-        Map<String, Double> priority = plan.executionPolicy().toolPriority();
-        Double exact = priority.get(step.toolName());
-        if (exact != null) {
-            return exact;
-        }
-        return priority.getOrDefault(step.toolName().trim().toLowerCase().replace('-', '_'), 0.0);
+        Map<String, Object> decisionMetadata = decision == null ? Map.of() : decisionMetadata(decision);
+        Map<String, Object> guardResult = guardResultMetadata(validation);
+        Map<String, Object> metadata = new LinkedHashMap<>(InterpretationExecutionProtocol.protocolMetadata(
+            executionTraceId,
+            decisionCount,
+            "controller_decision"
+        ));
+        metadata.put("workflow", "interpretation_plan");
+        metadata.put("structuredRuntimeObservation", true);
+        metadata.put("type", "controller_decision");
+        metadata.put("decision", decisionMetadata);
+        metadata.put("guardResult", guardResult);
+        metadata.put("remainingStepIds", remaining == null ? List.of() : new ArrayList<>(remaining));
+        metadata.put("completedStepIds", completedStepIds == null ? List.of() : new ArrayList<>(completedStepIds));
+        runStore.recordObservation(runId, AgentObservation.builder()
+            .type("controller_decision")
+            .source(InterpretationExecutionProtocol.DECISION_OBSERVATION_SOURCE)
+            .content("LLM DAG controller decision " + decisionCount + " was "
+                + (validation != null && validation.valid() ? "accepted" : "rejected") + " by runtime guard.")
+            .metadata(metadata)
+            .build());
     }
 
     private StepExecution validateEdgeContracts(InterpretationPlan plan,
@@ -765,16 +933,17 @@ public class InterpretationPlanRuntime {
             return output;
         }
         Object current = output;
-        String[] parts = path.split("\\.");
-        int start = parts.length > 1 && "data".equals(parts[0]) && !(current instanceof Map<?, ?> map && map.containsKey("data"))
+        List<String> parts = pathTokens(path);
+        int start = parts.size() > 1 && "data".equals(parts.get(0)) && !(current instanceof Map<?, ?> map && map.containsKey("data"))
             ? 1
             : 0;
-        for (int i = start; i < parts.length; i++) {
+        for (int i = start; i < parts.size(); i++) {
+            String part = parts.get(i);
             if (current instanceof Map<?, ?> map) {
-                current = map.get(parts[i]);
+                current = map.get(part);
             } else if (current instanceof List<?> list) {
                 try {
-                    current = list.get(Integer.parseInt(parts[i]));
+                    current = list.get(Integer.parseInt(part));
                 } catch (RuntimeException ex) {
                     return null;
                 }
@@ -785,17 +954,109 @@ public class InterpretationPlanRuntime {
         return current;
     }
 
-    private Executor resolveExecutor(ExecutionRequest request) {
-        if (executor != null) {
-            return executor;
+    private List<String> pathTokens(String path) {
+        if (path == null || path.isBlank()) {
+            return List.of();
         }
-        return ForkJoinPool.commonPool();
+        String normalized = path.trim();
+        if (normalized.startsWith("$.")) {
+            normalized = normalized.substring(2);
+        } else if (normalized.startsWith("$")) {
+            normalized = normalized.substring(1);
+        }
+        if (normalized.startsWith(".")) {
+            normalized = normalized.substring(1);
+        }
+        normalized = normalized.replaceAll("\\[(\\d+)]", ".$1");
+        return List.of(normalized.split("\\.")).stream()
+            .map(String::trim)
+            .filter(part -> !part.isBlank())
+            .toList();
     }
 
     private boolean allowParallel(InterpretationPlan plan) {
         return plan != null
             && plan.executionPolicy() != null
             && Boolean.TRUE.equals(plan.executionPolicy().allowParallel());
+    }
+
+    private DecisionValidation validateDecision(DagDecision decision,
+                                                InterpretationPlan plan,
+                                                Set<Integer> remaining,
+                                                Map<Integer, InterpretationPlan.Step> stepsById,
+                                                Set<Integer> completedStepIds) {
+        if (decision == null) {
+            return DecisionValidation.invalid("DAG_DECISION_FAILED", "LLM DAG controller returned no decision");
+        }
+        String action = normalize(decision.action());
+        if (!InterpretationExecutionProtocol.ACTIONS.contains(action)) {
+            return DecisionValidation.invalid("DAG_DECISION_REJECTED", "Unsupported DAG controller action: " + decision.action());
+        }
+        if ("abort".equals(action) || "rewrite_plan".equals(action)) {
+            return DecisionValidation.control(action);
+        }
+        List<Integer> stepIds = safeIntegerList(decision.stepIds()).stream()
+            .filter(stepId -> stepId != null)
+            .distinct()
+            .toList();
+        if (stepIds.isEmpty()) {
+            return DecisionValidation.invalid("DAG_DECISION_REJECTED", "DAG controller must choose at least one step id");
+        }
+        if (stepIds.size() > 1 && !allowParallel(plan)) {
+            return DecisionValidation.invalid("DAG_DECISION_REJECTED", "DAG controller selected multiple steps but allow_parallel is false");
+        }
+        if ("execute_step".equals(action) && stepIds.size() > 1) {
+            return DecisionValidation.invalid("DAG_DECISION_REJECTED", "execute_step may select only one step");
+        }
+        List<InterpretationPlan.Step> selected = new ArrayList<>();
+        for (Integer stepId : stepIds) {
+            if (!remaining.contains(stepId)) {
+                return DecisionValidation.invalid("DAG_DECISION_REJECTED", "DAG controller selected a step that is not remaining: " + stepId);
+            }
+            InterpretationPlan.Step step = stepsById.get(stepId);
+            if (step == null) {
+                return DecisionValidation.invalid("DAG_DECISION_REJECTED", "DAG controller selected unknown step: " + stepId);
+            }
+            if (!completedStepIds.containsAll(safeIntegerList(step.dependsOn()))) {
+                return DecisionValidation.invalid(
+                    "DAG_DECISION_REJECTED",
+                    "DAG controller selected step " + stepId + " before dependencies were satisfied: " + safeIntegerList(step.dependsOn())
+                );
+            }
+            if ("final_answer".equals(action) && !step.finalAnswerAction()) {
+                return DecisionValidation.invalid("DAG_DECISION_REJECTED", "final_answer action must select a final_answer step");
+            }
+            selected.add(step);
+        }
+        return DecisionValidation.executable(action, selected);
+    }
+
+    private Map<String, Object> guardResultMetadata(DecisionValidation validation) {
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("protocolVersion", InterpretationExecutionProtocol.VERSION);
+        metadata.put("allowed", validation != null && validation.valid());
+        metadata.put("status", validation != null && validation.valid() ? "accepted" : "rejected");
+        metadata.put("reason", validation == null || validation.message() == null ? "Runtime guard accepted DAG decision." : validation.message());
+        metadata.put("validatedAction", validation == null ? null : validation.action());
+        metadata.put("validatedStepIds", validation == null || validation.steps() == null
+            ? List.of()
+            : validation.steps().stream().map(InterpretationPlan.Step::id).toList());
+        return metadata;
+    }
+
+    private Map<String, Object> decisionMetadata(DagDecision decision) {
+        if (decision == null) {
+            return Map.of();
+        }
+        Map<String, Object> metadata = new LinkedHashMap<>(decision.metadata() == null ? Map.of() : decision.metadata());
+        metadata.put("protocolVersion", firstText(decision.protocolVersion(), InterpretationExecutionProtocol.VERSION));
+        metadata.put("action", decision.action());
+        metadata.put("stepIds", decision.stepIds() == null ? List.of() : decision.stepIds());
+        metadata.put("reason", decision.reason());
+        if (decision.finalAnswer() != null && !decision.finalAnswer().isBlank()) {
+            metadata.put("finalAnswerPreview", shortText(decision.finalAnswer(), 1000));
+        }
+        return metadata;
     }
 
     private List<String> safeList(List<String> values) {
@@ -823,6 +1084,14 @@ public class InterpretationPlanRuntime {
         return value == null ? null : String.valueOf(value);
     }
 
+    private String firstText(String first, String second) {
+        return first != null && !first.isBlank() ? first : second;
+    }
+
+    private String normalize(String value) {
+        return value == null ? "" : value.trim().toLowerCase(Locale.ROOT);
+    }
+
     private String shortText(String value, int maxChars) {
         if (value == null || value.isBlank()) {
             return null;
@@ -846,8 +1115,8 @@ public class InterpretationPlanRuntime {
         String userId,
         Map<String, Object> attributes
     ) {
-        private ExecutionRequest withPlan(InterpretationPlan nextPlan) {
-            return new ExecutionRequest(nextPlan, toolRegistry, allowedTools, tenantId, requestId, conversationId, userId, attributes);
+        private ExecutionRequest withPlanAndAttributes(InterpretationPlan nextPlan, Map<String, Object> nextAttributes) {
+            return new ExecutionRequest(nextPlan, toolRegistry, allowedTools, tenantId, requestId, conversationId, userId, nextAttributes);
         }
     }
 
@@ -925,6 +1194,84 @@ public class InterpretationPlanRuntime {
                 nextDurationMs,
                 nextMetadata
             );
+        }
+    }
+
+    public interface DagExecutionController {
+        DagDecision decide(DagDecisionRequest request);
+    }
+
+    public record DagDecisionRequest(
+        InterpretationPlan plan,
+        Set<Integer> remainingStepIds,
+        Map<Integer, StepExecution> completed,
+        List<StepExecution> executions,
+        Set<Integer> completedStepIds,
+        int decisionCount,
+        String protocolVersion,
+        String executionTraceId,
+        String finalAnswer
+    ) {
+    }
+
+    public record DagDecision(
+        String protocolVersion,
+        String action,
+        List<Integer> stepIds,
+        String reason,
+        String finalAnswer,
+        Map<String, Object> metadata
+    ) {
+        public DagDecision {
+            if (protocolVersion == null || protocolVersion.isBlank()) {
+                protocolVersion = InterpretationExecutionProtocol.VERSION;
+            }
+            if (stepIds == null) {
+                stepIds = List.of();
+            }
+            if (metadata == null) {
+                metadata = Map.of();
+            }
+        }
+
+        public static DagDecision executeStep(Integer stepId, String reason) {
+            return new DagDecision(InterpretationExecutionProtocol.VERSION, "execute_step", stepId == null ? List.of() : List.of(stepId), reason, null, Map.of());
+        }
+
+        public static DagDecision executeParallelSteps(List<Integer> stepIds, String reason) {
+            return new DagDecision(InterpretationExecutionProtocol.VERSION, "execute_parallel_steps", stepIds == null ? List.of() : stepIds, reason, null, Map.of());
+        }
+
+        public static DagDecision finalAnswer(Integer stepId, String answer, String reason) {
+            return new DagDecision(InterpretationExecutionProtocol.VERSION, "final_answer", stepId == null ? List.of() : List.of(stepId), reason, answer, Map.of());
+        }
+
+        public static DagDecision abort(String reason) {
+            return new DagDecision(InterpretationExecutionProtocol.VERSION, "abort", List.of(), reason, null, Map.of());
+        }
+
+        public static DagDecision rewritePlan(String reason) {
+            return new DagDecision(InterpretationExecutionProtocol.VERSION, "rewrite_plan", List.of(), reason, null, Map.of());
+        }
+    }
+
+    private record DecisionValidation(
+        boolean valid,
+        String status,
+        String message,
+        String action,
+        List<InterpretationPlan.Step> steps
+    ) {
+        private static DecisionValidation invalid(String status, String message) {
+            return new DecisionValidation(false, status, message, null, List.of());
+        }
+
+        private static DecisionValidation control(String action) {
+            return new DecisionValidation(true, null, null, action, List.of());
+        }
+
+        private static DecisionValidation executable(String action, List<InterpretationPlan.Step> steps) {
+            return new DecisionValidation(true, null, null, action, steps == null ? List.of() : steps);
         }
     }
 

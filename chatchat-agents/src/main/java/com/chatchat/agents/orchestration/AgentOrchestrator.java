@@ -15,6 +15,7 @@ import com.chatchat.agents.runtime.ToolRuntimeExecution;
 import com.chatchat.agents.runtime.ToolRuntimeRequest;
 import com.chatchat.agents.runtime.ToolRuntimeService;
 import com.chatchat.agents.runtime.plan.InterpretationPlan;
+import com.chatchat.agents.runtime.plan.InterpretationExecutionProtocol;
 import com.chatchat.agents.runtime.plan.InterpretationPlanRewriter;
 import com.chatchat.agents.runtime.plan.InterpretationPlanRuntime;
 import com.chatchat.agents.runtime.plan.InterpretationPlanValidator;
@@ -480,9 +481,7 @@ public class AgentOrchestrator {
                 requestRuntimeAttributes,
                 metadata,
                 "plan_generation",
-                decision.interpretationPlan() == null
-                    ? "Planner generated the next action."
-                    : "Planner generated an executable InterpretationPlan DAG.",
+                planGenerationLifecycleContent(decision),
                 metadataOf(
                     "step", step,
                     "action", decision.action(),
@@ -780,7 +779,8 @@ public class AgentOrchestrator {
             toolRuntimeService,
             validator,
             runStore,
-            request -> reviewInterpretationPlanToolResult(activeChatModel, query, systemPrompt, cancellationCheck, request)
+            request -> reviewInterpretationPlanToolResult(activeChatModel, query, systemPrompt, cancellationCheck, request),
+            request -> decideInterpretationPlanDagStep(activeChatModel, query, systemPrompt, cancellationCheck, request)
         );
         InterpretationPlanRuntime.ExecutionResult firstResult = runtime.execute(planExecutionRequest(
             plan,
@@ -971,6 +971,141 @@ public class AgentOrchestrator {
             userId,
             runtimeAttributes == null ? Map.of() : runtimeAttributes
         );
+    }
+
+    private InterpretationPlanRuntime.DagDecision decideInterpretationPlanDagStep(
+        ChatModel activeChatModel,
+        String query,
+        String systemPrompt,
+        BooleanSupplier cancellationCheck,
+        InterpretationPlanRuntime.DagDecisionRequest request
+    ) {
+        runtimeGuard.checkCancelled(cancellationCheck);
+        if (activeChatModel == null || request == null) {
+            return InterpretationPlanRuntime.DagDecision.abort("LLM DAG controller is unavailable.");
+        }
+        String prompt = buildInterpretationPlanDagDecisionPrompt(query, systemPrompt, request);
+        long startedAt = System.currentTimeMillis();
+        log.info("agentModelRequest phase=interpretation_plan_dag_decision decisionCount={} promptChars={} remainingStepCount={} completedStepCount={} modelClass={}",
+            request.decisionCount(),
+            prompt.length(),
+            request.remainingStepIds() == null ? 0 : request.remainingStepIds().size(),
+            request.completedStepIds() == null ? 0 : request.completedStepIds().size(),
+            activeChatModel.getClass().getName());
+        String raw = activeChatModel.chat(prompt);
+        log.info("agentModelResponse phase=interpretation_plan_dag_decision decisionCount={} durationMs={} responseChars={}",
+            request.decisionCount(),
+            System.currentTimeMillis() - startedAt,
+            raw == null ? 0 : raw.length());
+        log.info("agentModelRawOutput phase=interpretation_plan_dag_decision decisionCount={} raw=\n{}",
+            request.decisionCount(),
+            raw == null ? "" : raw);
+        Map<String, Object> payload = parseJsonObject(raw);
+        if (payload.isEmpty()) {
+            return new InterpretationPlanRuntime.DagDecision(
+                InterpretationExecutionProtocol.VERSION,
+                "abort",
+                List.of(),
+                "DAG controller did not return valid JSON.",
+                null,
+                metadataOf("raw", preview(raw))
+            );
+        }
+        String protocolVersion = firstNonBlank(
+            stringValue(firstObject(payload, "protocol_version", "protocolVersion")),
+            InterpretationExecutionProtocol.VERSION
+        );
+        String action = firstNonBlank(
+            stringValue(firstObject(payload, "action", "decision")),
+            "abort"
+        );
+        List<Integer> stepIds = integerList(firstObject(payload, "step_ids", "stepIds", "steps"));
+        Object singleStep = firstObject(payload, "step_id", "stepId");
+        if (stepIds.isEmpty() && singleStep != null) {
+            stepIds = integerList(List.of(singleStep));
+        }
+        String reason = firstNonBlank(
+            stringValue(firstObject(payload, "reason", "analysis", "rationale")),
+            "LLM DAG controller decision."
+        );
+        String finalAnswer = stringValue(firstObject(payload, "final_answer", "finalAnswer", "answer"));
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("raw", preview(raw));
+        metadata.put("controllerPhase", "llm_decision");
+        Object confidence = firstObject(payload, "confidence", "score");
+        if (confidence != null) {
+            metadata.put("confidence", confidence);
+        }
+        return new InterpretationPlanRuntime.DagDecision(protocolVersion, action, stepIds, reason, finalAnswer, metadata);
+    }
+
+    private String buildInterpretationPlanDagDecisionPrompt(String query,
+                                                            String systemPrompt,
+                                                            InterpretationPlanRuntime.DagDecisionRequest request) {
+        StringBuilder prompt = new StringBuilder();
+        if (systemPrompt != null && !systemPrompt.isBlank()) {
+            prompt.append("System instruction:\n").append(systemPrompt).append("\n\n");
+        }
+        prompt.append("You are the responsible Agent Runtime DAG execution controller.\n");
+        prompt.append("You, not Java code, decide which DAG node should run next.\n");
+        prompt.append("Decision protocol:\n")
+            .append(InterpretationExecutionProtocol.DECISION_SCHEMA)
+            .append("\n");
+        prompt.append("Runtime guard result contract for your decision:\n")
+            .append(InterpretationExecutionProtocol.GUARD_RESULT_SCHEMA)
+            .append("\n");
+        prompt.append("Observation contract used for replay/debug:\n")
+            .append(InterpretationExecutionProtocol.OBSERVATION_SCHEMA)
+            .append("\n");
+        prompt.append("Rules:\n");
+        prompt.append("- Select only step ids from remaining_step_ids.\n");
+        prompt.append("- Do not select a step until all of its depends_on steps are in completed_step_ids.\n");
+        prompt.append("- Use execute_parallel_steps only when execution_policy.allow_parallel is true and every selected step is independently ready.\n");
+        prompt.append("- Select the final_answer step only after its dependencies are complete and evidence is sufficient.\n");
+        prompt.append("- If a required dependency failed, request rewrite_plan or abort instead of forcing a dependent step.\n");
+        prompt.append("- Do not call tools directly; Java will only execute the step ids you choose after safety validation.\n\n");
+        prompt.append("User query:\n").append(query == null ? "" : query).append("\n\n");
+        prompt.append("decision_count: ").append(request.decisionCount()).append("\n");
+        prompt.append("remaining_step_ids: ").append(request.remainingStepIds() == null ? List.of() : request.remainingStepIds()).append("\n");
+        prompt.append("completed_step_ids: ").append(request.completedStepIds() == null ? List.of() : request.completedStepIds()).append("\n");
+        prompt.append("current_final_answer_hint: ").append(firstNonBlank(request.finalAnswer(), "")).append("\n\n");
+        prompt.append("Full InterpretationPlan:\n")
+            .append(stringify(request.plan()))
+            .append("\n\n");
+        prompt.append("Executed step records:\n");
+        if (request.executions() == null || request.executions().isEmpty()) {
+            prompt.append("- (none)\n");
+        } else {
+            for (InterpretationPlanRuntime.StepExecution execution : request.executions()) {
+                prompt.append("- step=").append(execution.stepId())
+                    .append(", action=").append(execution.actionType())
+                    .append(", tool=").append(firstNonBlank(execution.toolName(), ""))
+                    .append(", success=").append(execution.success())
+                    .append(", error=").append(firstNonBlank(execution.errorMessage(), ""))
+                    .append("\n");
+                prompt.append("  output: ")
+                    .append(shortObservationText(stringify(execution.output()), 3000))
+                    .append("\n");
+                if (execution.metadata() != null && !execution.metadata().isEmpty()) {
+                    prompt.append("  metadata: ")
+                        .append(shortObservationText(stringify(execution.metadata()), 1200))
+                        .append("\n");
+                }
+            }
+        }
+        prompt.append("\nReturn only the decision JSON.");
+        return prompt.toString();
+    }
+
+    private String planGenerationLifecycleContent(AgentDecision decision) {
+        if (decision == null || decision.interpretationPlan() == null) {
+            return "Planner generated the next action.";
+        }
+        Object valid = decision.executionPlan() == null ? null : decision.executionPlan().get("interpretationPlanValid");
+        if (Boolean.TRUE.equals(valid)) {
+            return "Planner generated an executable InterpretationPlan DAG.";
+        }
+        return "Planner generated an InterpretationPlan DAG candidate that failed runtime validation.";
     }
 
     private String synthesizeInterpretationPlanAnswer(ChatModel activeChatModel,
@@ -1889,6 +2024,32 @@ public class AgentOrchestrator {
             return values.stream().distinct().toList();
         }
         return List.of();
+    }
+
+    private List<Integer> integerList(Object value) {
+        if (value instanceof List<?> list) {
+            return list.stream()
+                .map(this::integerValue)
+                .filter(item -> item != null)
+                .distinct()
+                .toList();
+        }
+        Integer single = integerValue(value);
+        return single == null ? List.of() : List.of(single);
+    }
+
+    private Integer integerValue(Object value) {
+        if (value instanceof Number number) {
+            return number.intValue();
+        }
+        if (value == null) {
+            return null;
+        }
+        try {
+            return Integer.parseInt(String.valueOf(value).trim());
+        } catch (NumberFormatException ex) {
+            return null;
+        }
     }
 
     /**

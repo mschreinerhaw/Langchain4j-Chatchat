@@ -2,6 +2,7 @@ package com.chatchat.agents.runtime.plan;
 
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.tool.ToolMetadata;
+import com.chatchat.common.tool.ToolParameter;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 
@@ -97,6 +98,92 @@ class InterpretationPlanValidatorTest {
             .anyMatch(message -> message.contains("Dependency step does not exist: 99"))
             .anyMatch(message -> message.contains("Plan must be a DAG"))
             .anyMatch(message -> message.contains("Exactly one final_answer step is required"));
+    }
+
+    @Test
+    void rejectsToolStepMissingRequiredMetadataInput() {
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool("web_crawler")).thenReturn(true);
+        when(toolRegistry.getToolMetadata("web_crawler")).thenReturn(ToolMetadata.builder()
+            .id("web_crawler")
+            .riskLevel("low")
+            .parameters(List.of(ToolParameter.builder()
+                .name("url")
+                .type("string")
+                .required(true)
+                .build()))
+            .build());
+
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("web_search", "Fetch a selected page", "low"),
+            context(),
+            new InterpretationPlan.Plan(List.of(
+                new InterpretationPlan.Step(1, "mcp_tool", "web_crawler", Map.of("query", "分析今天市场热点"), List.of(), null, null),
+                finalStep(2, List.of(1))
+            )),
+            new InterpretationPlan.ExecutionPolicy(3, false, List.of("web_crawler"), List.of(), 30000),
+            review(true)
+        );
+
+        InterpretationPlanValidator.ValidationResult result = validator.validate(plan, toolRegistry, Set.of("web_crawler"));
+
+        assertThat(result.valid()).isFalse();
+        assertThat(result.executable()).isFalse();
+        assertThat(result.errors()).extracting(InterpretationPlanValidator.ValidationIssue::message)
+            .anyMatch(message -> message.contains("Required tool input is missing for web_crawler: url"));
+    }
+
+    @Test
+    void allowsRequiredToolInputProvidedByBinding() {
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool("web_search")).thenReturn(true);
+        when(toolRegistry.hasTool("web_crawler")).thenReturn(true);
+        when(toolRegistry.getToolMetadata("web_search")).thenReturn(ToolMetadata.builder()
+            .id("web_search")
+            .riskLevel("low")
+            .parameters(List.of(ToolParameter.builder()
+                .name("query")
+                .type("string")
+                .required(true)
+                .build()))
+            .build());
+        when(toolRegistry.getToolMetadata("web_crawler")).thenReturn(ToolMetadata.builder()
+            .id("web_crawler")
+            .riskLevel("low")
+            .parameters(List.of(ToolParameter.builder()
+                .name("url")
+                .type("string")
+                .required(true)
+                .build()))
+            .build());
+
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("web_search", "Search then crawl", "low"),
+            context(),
+            new InterpretationPlan.Plan(
+                List.of(
+                    new InterpretationPlan.Step(1, "mcp_tool", "web_search", Map.of("query", "今天市场热点"), List.of(), null, null),
+                    new InterpretationPlan.Step(2, "mcp_tool", "web_crawler", Map.of(), List.of(1), null, null),
+                    finalStep(3, List.of(2))
+                ),
+                List.of(),
+                List.of(new InterpretationPlan.Binding(1, "$.results[0].url", 2, "url", "jsonpath", true)),
+                null
+            ),
+            new InterpretationPlan.ExecutionPolicy(3, false, List.of("web_search", "web_crawler"), List.of(), 30000),
+            review(true)
+        );
+
+        InterpretationPlanValidator.ValidationResult result = validator.validate(
+            plan,
+            toolRegistry,
+            Set.of("web_search", "web_crawler")
+        );
+
+        assertThat(result.valid()).isTrue();
+        assertThat(result.executable()).isTrue();
     }
 
     @Test

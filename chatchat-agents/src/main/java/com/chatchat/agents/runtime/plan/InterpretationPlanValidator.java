@@ -2,6 +2,7 @@ package com.chatchat.agents.runtime.plan;
 
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.tool.ToolMetadata;
+import com.chatchat.common.tool.ToolParameter;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -62,6 +63,7 @@ public class InterpretationPlanValidator {
         validateExecutionPolicy(plan, steps, toolRegistry, state);
         validateStability(plan, stepsById, toolRegistry, availableTools, state);
         validateEdgeContracts(plan, stepsById, state);
+        validateBindings(plan, stepsById, state);
         List<InterpretationPlan.Step> orderedSteps = validateDag(stepsById, state);
         return state.result(orderedSteps);
     }
@@ -166,9 +168,63 @@ public class InterpretationPlanValidator {
         if (!toolExists(step.toolName(), toolRegistry, availableTools)) {
             state.error(path + ".tool_name", "Tool is not registered or available: " + step.toolName());
         }
+        validateToolInput(plan, step, path, toolRegistry, state);
         if (isHighRisk(plan, step, toolRegistry) && !containsTool(allowTools, step.toolName())) {
             state.approval(path + ".tool_name", "High-risk tool requires explicit allow_tool approval: " + step.toolName());
         }
+    }
+
+    private void validateToolInput(InterpretationPlan plan,
+                                   InterpretationPlan.Step step,
+                                   String path,
+                                   ToolRegistry toolRegistry,
+                                   ValidationState state) {
+        ToolMetadata metadata = toolMetadata(step.toolName(), toolRegistry);
+        if (metadata == null || metadata.getParameters() == null || metadata.getParameters().isEmpty()) {
+            return;
+        }
+        Map<String, Object> input = step.input() == null ? Map.of() : step.input();
+        for (ToolParameter parameter : metadata.getParameters()) {
+            if (parameter == null || !parameter.isRequired() || blank(parameter.getName())) {
+                continue;
+            }
+            Object value = input.get(parameter.getName());
+            if (missingRequiredValue(value) && !hasBindingForInput(plan, step.id(), parameter.getName())) {
+                state.error(
+                    path + ".input." + parameter.getName(),
+                    "Required tool input is missing for " + step.toolName() + ": " + parameter.getName()
+                );
+            }
+        }
+    }
+
+    private boolean hasBindingForInput(InterpretationPlan plan, Integer stepId, String inputField) {
+        if (plan == null || plan.plan() == null || plan.plan().bindings() == null
+            || stepId == null || blank(inputField)) {
+            return false;
+        }
+        return plan.plan().bindings().stream()
+            .filter(binding -> binding != null && stepId.equals(binding.to()))
+            .map(InterpretationPlan.Binding::inputField)
+            .filter(field -> field != null && !field.isBlank())
+            .map(field -> field.split("\\.")[0])
+            .anyMatch(root -> inputField.equals(root));
+    }
+
+    private boolean missingRequiredValue(Object value) {
+        if (value == null) {
+            return true;
+        }
+        if (value instanceof String text) {
+            return text.isBlank();
+        }
+        if (value instanceof List<?> list) {
+            return list.isEmpty();
+        }
+        if (value instanceof Map<?, ?> map) {
+            return map.isEmpty();
+        }
+        return false;
     }
 
     private void validateFinalAnswer(List<InterpretationPlan.Step> steps, ValidationState state) {
@@ -296,6 +352,46 @@ public class InterpretationPlanValidator {
                 && contract.from() != null
                 && (target.dependsOn() == null || !target.dependsOn().contains(contract.from()))) {
                 state.warning(path, "Edge contract target should depend on source step: " + contract.from() + " -> " + contract.to());
+            }
+        }
+    }
+
+    private void validateBindings(InterpretationPlan plan,
+                                  Map<Integer, InterpretationPlan.Step> stepsById,
+                                  ValidationState state) {
+        if (plan == null || plan.plan() == null || plan.plan().bindings() == null) {
+            return;
+        }
+        for (int index = 0; index < plan.plan().bindings().size(); index++) {
+            InterpretationPlan.Binding binding = plan.plan().bindings().get(index);
+            String path = "plan.bindings[" + index + "]";
+            if (binding == null) {
+                state.error(path, "Binding cannot be null");
+                continue;
+            }
+            if (binding.from() == null || !stepsById.containsKey(binding.from())) {
+                state.error(path + ".from", "Binding source step does not exist: " + binding.from());
+            }
+            if (binding.to() == null || !stepsById.containsKey(binding.to())) {
+                state.error(path + ".to", "Binding target step does not exist: " + binding.to());
+            }
+            if (blank(binding.outputPath())) {
+                state.error(path + ".output_path", "Binding output_path is required");
+            }
+            if (blank(binding.inputField())) {
+                state.error(path + ".input_field", "Binding input_field is required");
+            }
+            String type = normalize(binding.type());
+            if (type.isBlank()) {
+                state.error(path + ".type", "Binding type is required");
+            } else if (!Set.of("jsonpath", "jq").contains(type)) {
+                state.error(path + ".type", "Unsupported binding type: " + binding.type());
+            }
+            InterpretationPlan.Step target = stepsById.get(binding.to());
+            if (target != null
+                && binding.from() != null
+                && (target.dependsOn() == null || !target.dependsOn().contains(binding.from()))) {
+                state.warning(path, "Binding target should depend on source step: " + binding.from() + " -> " + binding.to());
             }
         }
     }

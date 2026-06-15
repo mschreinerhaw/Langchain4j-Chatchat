@@ -55,14 +55,15 @@ public class DataSourceStartupLogger implements ApplicationRunner {
         if (dataSource instanceof HikariDataSource hikari) {
             log.info(
                 "Application HikariCP: poolName={}, minimumIdle={}, maximumPoolSize={}, connectionTimeoutMs={}, " +
-                    "idleTimeoutMs={}, maxLifetimeMs={}, autoCommit={}",
+                    "idleTimeoutMs={}, maxLifetimeMs={}, autoCommit={}, transactionIsolation={}",
                 hikari.getPoolName(),
                 hikari.getMinimumIdle(),
                 hikari.getMaximumPoolSize(),
                 hikari.getConnectionTimeout(),
                 hikari.getIdleTimeout(),
                 hikari.getMaxLifetime(),
-                hikari.isAutoCommit()
+                hikari.isAutoCommit(),
+                hikari.getTransactionIsolation()
             );
         } else {
             log.info("Application datasource type: {}", dataSource.getClass().getName());

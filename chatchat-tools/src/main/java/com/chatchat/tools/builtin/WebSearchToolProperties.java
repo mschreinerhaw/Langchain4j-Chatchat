@@ -36,11 +36,13 @@ public class WebSearchToolProperties {
 
     private boolean fallbackEnabled = true;
 
-    private String defaultMode = "java";
+    private String defaultMode = "browser";
 
     private boolean browserFallbackToJava = true;
 
     private SiteSearchProperties siteSearch = new SiteSearchProperties();
+
+    private List<FinanceSiteSearchTarget> financeSites = new ArrayList<>();
 
     private BrowserProperties browser = new BrowserProperties();
 
@@ -103,6 +105,30 @@ public class WebSearchToolProperties {
     }
 
     @Data
+    public static class FinanceSiteSearchTarget {
+
+        private boolean enabled = true;
+
+        private String id;
+
+        private String name;
+
+        private String domain;
+
+        private String homepageUrl;
+
+        private String searchUrlTemplate;
+
+        private String queryParam;
+
+        private String defaultMode = "java";
+
+        private List<String> informationTypes = new ArrayList<>();
+
+        private String description;
+    }
+
+    @Data
     public static class BrowserProperties {
 
         private boolean enabled = true;
@@ -110,6 +136,8 @@ public class WebSearchToolProperties {
         private String browsersPath = "playwright-browsers";
 
         private boolean skipBrowserDownload = false;
+
+        private boolean persistentEnabled = true;
 
         private int navigationTimeoutMs = 0;
 

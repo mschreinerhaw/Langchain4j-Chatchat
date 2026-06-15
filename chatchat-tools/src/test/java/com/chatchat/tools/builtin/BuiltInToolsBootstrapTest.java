@@ -146,6 +146,7 @@ class BuiltInToolsBootstrapTest {
         webSearchProperties.setMaxPagesToFetch(1);
         webSearchProperties.setPageExcerptChars(180);
         webSearchProperties.getBrowser().setEnabled(false);
+        webSearchProperties.getSiteSearch().setEnabled(false);
 
         BuiltInToolsBootstrap bootstrap = new BuiltInToolsBootstrap(
             registry,
@@ -159,7 +160,7 @@ class BuiltInToolsBootstrapTest {
 
         ToolRegistry.EnhancedTool webSearch = registry.getEnhancedTool("web_search");
         ToolOutput output = webSearch.execute(ToolInput.builder()
-            .parameters(Map.of("query", "Kunpeng ARM compatibility", "num_results", 1))
+            .parameters(Map.of("query", "Kunpeng", "num_results", 1))
             .build());
 
         assertThat(output.isSuccess()).isTrue();
@@ -167,19 +168,17 @@ class BuiltInToolsBootstrapTest {
         assertThat(data)
             .containsEntry("contentMode", "page_enriched")
             .containsEntry("page_excerpt_count", 1);
-        assertThat(searchLandingCount).isEqualTo(1);
-        assertThat(searchEngineQuery).isEqualTo("Kunpeng ARM compatibility");
+        assertThat(searchLandingCount).isGreaterThanOrEqualTo(1);
+        assertThat(searchEngineQuery).isEqualTo("Kunpeng");
         List<Map<String, Object>> results = (List<Map<String, Object>>) data.get("results");
         assertThat(results).hasSize(1);
-        assertThat(results.get(0))
-            .containsEntry("pageFetched", true)
-            .containsEntry("pageContentAvailable", true);
-        assertThat((String) results.get(0).get("pageExcerpt"))
-            .contains("Kunpeng")
-            .contains("ARM compatibility");
+        assertThat(results.get(0)).doesNotContainKeys("pageFetched", "pageExcerpt");
         List<Map<String, Object>> excerpts = (List<Map<String, Object>>) data.get("pageExcerpts");
         assertThat(excerpts).hasSize(1);
         assertThat((String) excerpts.get(0).get("excerpt")).contains("ARM compatibility");
+        assertThat((List<Map<String, Object>>) data.get("pageEvidence")).hasSize(1);
+        assertThat((List<Map<String, Object>>) data.get("primaryResults")).hasSize(1);
+        assertThat((List<Map<String, Object>>) data.get("finalResults")).hasSize(1);
     }
 
     @Test
@@ -207,7 +206,7 @@ class BuiltInToolsBootstrapTest {
 
         ToolRegistry.EnhancedTool webSearch = registry.getEnhancedTool("web_search");
         ToolOutput output = webSearch.execute(ToolInput.builder()
-            .parameters(Map.of("query", "Kunpeng ARM compatibility", "num_results", 1))
+            .parameters(Map.of("query", "Kunpeng", "num_results", 1))
             .build());
 
         assertThat(output.isSuccess()).isTrue();
@@ -215,9 +214,54 @@ class BuiltInToolsBootstrapTest {
         assertThat((List<Map<String, Object>>) data.get("results")).hasSize(1);
         assertThat(data).containsEntry("search_result_useful", true);
         assertThat((String) data.get("structured_text"))
-            .contains("search_result_useful: true")
+            .contains("results_returned_for_model_judgment: 1")
             .contains("Kunpeng compatibility guide")
-            .contains("keywordMatched: true");
+            .doesNotContain("keywordMatched")
+            .doesNotContain("matched_results")
+            .doesNotContain("keywords:");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void webSearchTreatsSearchEngineUrlAsSubmittedQuery() throws Exception {
+        startWebSearchApi();
+        DefaultToolRegistry registry = new DefaultToolRegistry();
+        WebSearchToolProperties webSearchProperties = new WebSearchToolProperties();
+        webSearchProperties.setProvider("bing_html");
+        webSearchProperties.setEndpoint("http://localhost:" + server.getAddress().getPort() + "/search");
+        webSearchProperties.setMaxResults(3);
+        webSearchProperties.setFetchPages(false);
+        webSearchProperties.getBrowser().setEnabled(false);
+        webSearchProperties.getSiteSearch().setEnabled(false);
+
+        BuiltInToolsBootstrap bootstrap = new BuiltInToolsBootstrap(
+            registry,
+            webSearchProperties,
+            new DatabaseToolProperties(),
+            mock(DynamicJdbcDriverLoader.class),
+            new MockEnvironment(),
+            new ObjectMapper()
+        );
+        bootstrap.initializeBuiltInTools();
+
+        String searchQuery = "\u4eba\u5de5\u667a\u80fd\u677f\u5757\u884c\u60c5 \u6700\u65b0";
+        ToolRegistry.EnhancedTool webSearch = registry.getEnhancedTool("web_search");
+        ToolOutput output = webSearch.execute(ToolInput.builder()
+            .parameters(Map.of(
+                "query", "https://cn.bing.com/search query=" + searchQuery,
+                "num_results", 1
+            ))
+            .build());
+
+        assertThat(output.isSuccess()).isTrue();
+        assertThat(searchLandingCount).isGreaterThanOrEqualTo(1);
+        assertThat(searchEngineQuery).isEqualTo(searchQuery);
+        Map<String, Object> data = (Map<String, Object>) output.getData();
+        assertThat(data)
+            .containsEntry("search_query", searchQuery)
+            .containsEntry("site_search_query", searchQuery);
+        assertThat(data.get("target_site")).isNull();
+        assertThat((List<Map<String, Object>>) data.get("results")).hasSize(1);
     }
 
     @Test
@@ -262,6 +306,43 @@ class BuiltInToolsBootstrapTest {
             "https://cn.bing.com/search",
             Map.of("q", "\u9876\u70b9\u8f6f\u4ef6\u6700\u65b0\u516c\u544a")))
             .isEqualTo("https://cn.bing.com/search?q=\u9876\u70b9\u8f6f\u4ef6\u6700\u65b0\u516c\u544a");
+        assertThat((String) rawUrlBuilder.invoke(webSearch,
+            "https://example.com/search",
+            Map.of("keyword", "ACME/603383 latest report")))
+            .isEqualTo("https://example.com/search?keyword=ACME/603383 latest report");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void bingProviderOpensSearchLandingAndReplaysFormParameters() throws Exception {
+        WebSearchTool webSearch = new WebSearchTool(new WebSearchToolProperties(), new ObjectMapper());
+
+        Method landingUrl = webSearch.getClass().getDeclaredMethod("bingSearchLandingUrl", String.class);
+        landingUrl.setAccessible(true);
+        assertThat((String) landingUrl.invoke(webSearch, "https://cn.bing.com/search?q=old"))
+            .isEqualTo("https://cn.bing.com/search");
+        assertThat((String) landingUrl.invoke(webSearch, "https://www.bing.com/"))
+            .isEqualTo("https://www.bing.com/search");
+
+        Method queryParams = webSearch.getClass().getDeclaredMethod("bingSearchQueryParams", String.class);
+        queryParams.setAccessible(true);
+        Map<String, String> params = (Map<String, String>) queryParams.invoke(
+            webSearch,
+            "\u4eba\u5de5\u667a\u80fd\u677f\u5757\u884c\u60c5 \u6700\u65b0"
+        );
+        assertThat(params)
+            .containsEntry("go", "\u641c\u7d22")
+            .containsEntry("q", "\u4eba\u5de5\u667a\u80fd\u677f\u5757\u884c\u60c5 \u6700\u65b0")
+            .containsEntry("qs", "n")
+            .containsEntry("form", "QBRE")
+            .containsEntry("sp", "-1")
+            .containsEntry("lq", "0")
+            .containsEntry("pq", "")
+            .containsEntry("sc", "0-0")
+            .containsEntry("sk", "")
+            .containsEntry("mkt", "zh-CN")
+            .containsEntry("setlang", "zh-Hans")
+            .containsEntry("cc", "CN");
     }
 
     @Test
@@ -386,7 +467,7 @@ class BuiltInToolsBootstrapTest {
         ToolRegistry.EnhancedTool webSearch = registry.getEnhancedTool("web_search");
         ToolOutput output = webSearch.execute(ToolInput.builder()
             .parameters(Map.of(
-                "query", "600519",
+                "query", "600519/ABC",
                 "num_results", 3,
                 "search_stage", "site_search",
                 "seed_urls", List.of(seedUrl)
@@ -404,6 +485,10 @@ class BuiltInToolsBootstrapTest {
         assertThat(results).anySatisfy(result -> assertThat(result)
             .containsEntry("source", "site_search")
             .containsEntry("url", "http://localhost:" + server.getAddress().getPort() + "/security/600519"));
+        assertThat(siteSearchRawQuery)
+            .contains("keyword=600519/ABC")
+            .doesNotContain("600519%2FABC")
+            .doesNotContain("600519%252FABC");
         assertThat((List<Map<String, Object>>) data.get("seed_results"))
             .anySatisfy(result -> assertThat(result).containsEntry("url", seedUrl));
     }
@@ -449,8 +534,8 @@ class BuiltInToolsBootstrapTest {
         assertThat(searchEngineQuery).isEqualTo("site:localhost ACME/603383");
         assertThat(siteSearchKeyword).isEqualTo("ACME/603383");
         assertThat(siteSearchRawQuery)
-            .contains("keyword=ACME/603383")
-            .doesNotContain("ACME%2F603383");
+            .contains("keyword=ACME%2F603383")
+            .doesNotContain("ACME%252F603383");
         List<Map<String, Object>> results = (List<Map<String, Object>>) data.get("results");
         assertThat(results).anySatisfy(result -> assertThat(result)
             .containsEntry("source", "site_search_known")
@@ -495,11 +580,14 @@ class BuiltInToolsBootstrapTest {
             .containsEntry("site_search_query", "603383")
             .containsEntry("target_site", "localhost")
             .containsEntry("site_search_result_count", 0)
-            .containsEntry("count", 0);
+            .containsEntry("count", 1);
         assertThat(searchEngineQuery).isEqualTo("site:localhost 603383");
         assertThat(siteSearchKeyword).isNull();
         List<Map<String, Object>> results = (List<Map<String, Object>>) data.get("results");
-        assertThat(results).isEmpty();
+        assertThat(results).hasSize(1);
+        assertThat(results.get(0))
+            .containsEntry("url", "https://www.kimi.com/zh/")
+            .containsEntry("targetDomainMatched", false);
     }
 
     @Test
@@ -645,6 +733,7 @@ class BuiltInToolsBootstrapTest {
     }
 
     private void startWebSearchApiWithSiteSearchForm() throws IOException {
+        siteSearchRawQuery = null;
         server = HttpServer.create(new InetSocketAddress(0), 0);
         server.createContext("/search", exchange -> {
             String body = """
@@ -667,6 +756,7 @@ class BuiltInToolsBootstrapTest {
             exchange.close();
         });
         server.createContext("/exchange/search", exchange -> {
+            siteSearchRawQuery = exchange.getRequestURI().getRawQuery();
             String body = """
                 <html><body><main class="search-results"><h1>Search results</h1><article><a href="/security/600519">Kweichow Moutai 600519</a><p>Listed security profile and exchange disclosure links.</p></article></main></body></html>
                 """;

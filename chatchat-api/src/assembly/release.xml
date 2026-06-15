@@ -32,6 +32,7 @@
             <outputDirectory>/config</outputDirectory>
             <includes>
                 <include>*.yml</include>
+                <include>*.properties</include>
             </includes>
         </fileSet>
         <fileSet>

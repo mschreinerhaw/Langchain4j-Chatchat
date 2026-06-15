@@ -148,6 +148,50 @@ chatchat:
         default: ${CHAT_WEB_SEARCH_CONFIRMATION:auto_execute}
       parameter-policy:
         query: ${CHAT_WEB_SEARCH_QUERY_POLICY:auto_execute}
+      finance-sites:
+        - id: sse
+          name: Shanghai Stock Exchange
+          domain: www.sse.com.cn
+          homepage-url: https://www.sse.com.cn/
+          search-url-template: https://www.sse.com.cn/home/search/index.shtml?webswd={keyword}
+          query-param: webswd
+          default-mode: java
+          information-types:
+            - SSE listed company announcements
+            - Periodic reports
+            - Ad hoc announcements
+            - Regulatory disclosures
+            - Security code and company name lookup
+          description: Suitable for searching Shanghai-listed company announcements, annual/interim/quarterly reports, ad hoc announcements, regulatory disclosures, security codes, and company names.
+        - id: szse
+          name: Shenzhen Stock Exchange
+          domain: www.szse.cn
+          homepage-url: https://www.szse.cn/
+          search-url-template: https://www.szse.cn/application/search/index.html?keyword={keyword}
+          query-param: keyword
+          default-mode: browser
+          information-types:
+            - SZSE listed company announcements
+            - Periodic reports
+            - Ad hoc announcements
+            - Regulatory disclosures
+            - Security code and company name lookup
+          description: Suitable for searching Shenzhen Main Board and ChiNext company announcements, periodic reports, ad hoc announcements, regulatory disclosures, security codes, and company names.
+        - id: cninfo
+          name: CNINFO
+          domain: www.cninfo.com.cn
+          homepage-url: https://www.cninfo.com.cn/
+          search-url-template: https://www.cninfo.com.cn/new/fulltextSearch?notautosubmit=&keyWord={keyword}
+          query-param: keyWord
+          default-mode: browser
+          information-types:
+            - CNINFO full-text search
+            - Listed company announcements
+            - Periodic reports
+            - Ad hoc announcements
+            - Regulatory disclosures
+            - Security code and company name lookup
+          description: Suitable for cross-market searches of listed company announcements, annual/interim/quarterly reports, ad hoc announcements, regulatory disclosures, security codes, and company names.
     document-search:
       enabled: ${CHAT_DOCUMENT_SEARCH_ENABLED:true}
       # Runtime/API retrieval service address. For the standalone MCP Server, point this to the Runtime/API host.

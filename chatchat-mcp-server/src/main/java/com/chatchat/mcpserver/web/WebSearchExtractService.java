@@ -3,11 +3,13 @@ package com.chatchat.mcpserver.web;
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.tool.ToolInput;
 import com.chatchat.common.tool.ToolOutput;
+import com.chatchat.tools.web.WebCrawlerProperties;
+import com.chatchat.tools.web.WebCrawlerService;
+import com.chatchat.tools.web.WebToolCache;
 import org.springframework.stereotype.Service;
 
 import java.net.URI;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -22,11 +24,6 @@ public class WebSearchExtractService {
 
     private static final Pattern HTTP_URL_PATTERN = Pattern.compile("https?://[^\\s\\)\\]\\}>\"'，。；;,]+", Pattern.CASE_INSENSITIVE);
     private static final Pattern SITE_OPERATOR_PATTERN = Pattern.compile("(?i)(?:^|\\s)site\\s*:\\s*([^\\s]+)");
-
-    private static final Set<String> PREFERRED_DOMAINS = Set.of(
-        "docs.", "developer.", "learn.microsoft.com", "github.com", "wikipedia.org",
-        "openai.com", "spring.io", "oracle.com", "ietf.org", "w3.org"
-    );
 
     private final ToolRegistry toolRegistry;
     private final WebCrawlerService crawlerService;
@@ -68,7 +65,7 @@ public class WebSearchExtractService {
         String normalizedMode = normalizeMode(mode);
         int limit = Math.max(1, Math.min(20, topK <= 0 ? 5 : topK));
         String cacheIdentity = normalizedMode + "|" + limit + "|" + normalizedQuery;
-        WebPageCacheService.CacheLookup cached = cacheService.get("search_extract", cacheIdentity);
+        WebToolCache.CacheLookup cached = cacheService.get("search_extract", cacheIdentity);
         if (cached.hit()) {
             Map<String, Object> output = new LinkedHashMap<>(cached.data());
             output.put("cacheHit", true);
@@ -260,31 +257,15 @@ public class WebSearchExtractService {
     }
 
     private List<Map<String, Object>> rank(List<Map<String, Object>> results, int limit, QueryScope queryScope) {
-        List<Map<String, Object>> scoped = applyTargetScope(results, queryScope);
-        return scoped.stream()
+        return results.stream()
             .peek(item -> item.put("score", score(item)))
-            .sorted(Comparator.comparingDouble((Map<String, Object> item) -> numberValue(item.get("score"), 0).doubleValue()).reversed())
             .limit(limit)
             .toList();
     }
 
-    private List<Map<String, Object>> applyTargetScope(List<Map<String, Object>> results, QueryScope queryScope) {
-        if (queryScope.targetHost() == null || queryScope.targetHost().isBlank()) {
-            return results;
-        }
-        List<Map<String, Object>> scoped = results.stream()
-            .filter(item -> sameSearchDomain(stringValue(item.get("url")), queryScope.targetHost()))
-            .toList();
-        return scoped.isEmpty() ? results : scoped;
-    }
-
     private double score(Map<String, Object> item) {
         int rank = numberValue(item.get("rank"), 100).intValue();
-        String host = host(stringValue(item.get("url")));
         double score = 1.0d / Math.max(1, rank);
-        if (host != null && PREFERRED_DOMAINS.stream().anyMatch(host::contains)) {
-            score += 0.2d;
-        }
         String snippet = stringValue(item.get("snippet"));
         if (snippet != null && snippet.length() > 80) {
             score += 0.05d;

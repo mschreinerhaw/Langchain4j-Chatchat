@@ -1,4 +1,4 @@
-package com.chatchat.mcpserver.web;
+package com.chatchat.tools.web;
 
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -6,21 +6,12 @@ import org.jsoup.nodes.Element;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
-import java.util.Set;
 
 @Component
 public class WebContentProcessor {
-
-    private static final Set<String> STOP_WORDS = Set.of(
-        "the", "and", "for", "with", "from", "this", "that", "are", "was", "were",
-        "you", "your", "not", "have", "has", "can", "will", "about", "into", "more",
-        "一个", "我们", "你们", "他们", "这个", "那个", "以及", "对于", "通过", "可以"
-    );
 
     private final WebCrawlerProperties properties;
 
@@ -54,9 +45,7 @@ public class WebContentProcessor {
             mainText = mainText.substring(0, maxTextChars);
         }
 
-        List<String> chunks = chunk(mainText);
-        List<String> keywords = keywords(title + " " + mainText);
-        return new ProcessedContent(title, mainText, chunks, keywords, truncated);
+        return new ProcessedContent(title, mainText, chunk(mainText), truncated);
     }
 
     /**
@@ -70,7 +59,6 @@ public class WebContentProcessor {
         values.put("title", content.title());
         values.put("main_text", content.mainText());
         values.put("chunks", content.chunks());
-        values.put("keywords", content.keywords());
         values.put("truncated", content.truncated());
         return values;
     }
@@ -87,7 +75,7 @@ public class WebContentProcessor {
         while (start < text.length() && chunks.size() < maxChunks) {
             int end = Math.min(text.length(), start + chunkChars);
             if (end < text.length()) {
-                int sentenceEnd = Math.max(text.lastIndexOf('。', end), text.lastIndexOf('.', end));
+                int sentenceEnd = Math.max(text.lastIndexOf('\u3002', end), text.lastIndexOf('.', end));
                 if (sentenceEnd > start + chunkChars / 2) {
                     end = sentenceEnd + 1;
                 }
@@ -102,25 +90,6 @@ public class WebContentProcessor {
             start = Math.max(end - overlap, start + 1);
         }
         return chunks;
-    }
-
-    private List<String> keywords(String text) {
-        if (text == null || text.isBlank()) {
-            return List.of();
-        }
-        Map<String, Integer> counts = new LinkedHashMap<>();
-        for (String token : text.toLowerCase(Locale.ROOT).split("[^\\p{IsAlphabetic}\\p{IsDigit}\\p{IsHan}]+")) {
-            if (token.length() < 2 || STOP_WORDS.contains(token)) {
-                continue;
-            }
-            counts.merge(token, 1, Integer::sum);
-        }
-        return counts.entrySet().stream()
-            .sorted(Map.Entry.<String, Integer>comparingByValue(Comparator.reverseOrder()).thenComparing(Map.Entry::getKey))
-            .limit(12)
-            .map(Map.Entry::getKey)
-            .distinct()
-            .toList();
     }
 
     private String normalize(String value) {
@@ -140,7 +109,6 @@ public class WebContentProcessor {
         String title,
         String mainText,
         List<String> chunks,
-        List<String> keywords,
         boolean truncated
     ) {
     }

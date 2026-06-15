@@ -1,4 +1,4 @@
-package com.chatchat.mcpserver.web;
+package com.chatchat.tools.web;
 
 import lombok.Data;
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -11,7 +11,7 @@ import java.util.Map;
 
 @Data
 @Component
-@ConfigurationProperties(prefix = "chatchat.mcp.web-crawler")
+@ConfigurationProperties(prefix = "chatchat.tools.web-crawler")
 public class WebCrawlerProperties {
 
     private boolean enabled = true;
@@ -36,9 +36,11 @@ public class WebCrawlerProperties {
 
     private boolean includeHtml = true;
 
+    private int maxFollowUrls = 5;
+
     private String acceptLanguage = "en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7";
 
-    private String defaultMode = "java";
+    private String defaultMode = "browser";
 
     private BrowserProperties browser = new BrowserProperties();
 

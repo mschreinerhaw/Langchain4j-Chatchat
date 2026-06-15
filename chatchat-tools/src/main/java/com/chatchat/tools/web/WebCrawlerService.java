@@ -1,11 +1,10 @@
-package com.chatchat.mcpserver.web;
+package com.chatchat.tools.web;
 
+import com.chatchat.tools.playwright.PlaywrightBrowserSupport;
 import com.microsoft.playwright.Browser;
 import com.microsoft.playwright.BrowserContext;
-import com.microsoft.playwright.BrowserType;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.Playwright;
-import com.microsoft.playwright.options.LoadState;
 import com.microsoft.playwright.options.WaitUntilState;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
@@ -16,35 +15,44 @@ import org.springframework.stereotype.Service;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.URI;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Base64;
+import java.util.LinkedHashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Service
 public class WebCrawlerService {
 
     private static final Logger log = LoggerFactory.getLogger(WebCrawlerService.class);
 
+    private static final Pattern REQUESTED_URL_FIELD_PATTERN = Pattern.compile(
+        "(?i)[\"']?requestedUrl[\"']?\\s*[:=]\\s*[\"'](https?://[^\"'\\s<>]+)[\"']");
+
+    private static final Pattern ABSOLUTE_URL_PATTERN = Pattern.compile("https?://[^\\s\"'<>]+", Pattern.CASE_INSENSITIVE);
+
+    private static final Pattern SZSE_INDIVIDUAL_PAGE_PATTERN = Pattern.compile(
+        "(?i)^https?://www\\.szse\\.cn/certificate/individual/index\\.html\\?[^#]*\\bcode=([0-9]{6})\\b.*$");
+
     private final WebCrawlerProperties properties;
     private final WebContentProcessor contentProcessor;
-    private final WebPageCacheService cacheService;
+    private final WebToolCache cacheService;
+    private final PlaywrightBrowserSupport playwrightSupport = new PlaywrightBrowserSupport("web_crawler");
     private final AtomicInteger proxyCursor = new AtomicInteger();
-    private volatile boolean playwrightBrowsersPathInfoLogged;
-    private volatile boolean playwrightBrowsersPathWarningLogged;
-    private volatile boolean playwrightSkipDownloadInfoLogged;
 
     public WebCrawlerService(WebCrawlerProperties properties,
                              WebContentProcessor contentProcessor,
-                             WebPageCacheService cacheService) {
+                             WebToolCache cacheService) {
         this.properties = properties;
         this.contentProcessor = contentProcessor;
-        this.cacheService = cacheService;
+        this.cacheService = cacheService == null ? WebToolCache.NOOP : cacheService;
     }
 
     /**
@@ -94,7 +102,7 @@ public class WebCrawlerService {
         String crawlMode = resolveMode(mode, render);
         WebCrawlerProperties.ProxyConfig proxy = chooseProxy(context);
         String cacheNamespace = "page:" + crawlMode + ":" + proxyId(proxy);
-        WebPageCacheService.CacheLookup cache = cacheService.get(cacheNamespace, normalizedUrl);
+        WebToolCache.CacheLookup cache = cacheService.get(cacheNamespace, normalizedUrl);
         if (cache.hit()) {
             Map<String, Object> cached = new LinkedHashMap<>(cache.data());
             cached.put("cacheHit", true);
@@ -105,15 +113,49 @@ public class WebCrawlerService {
         long startedAt = System.currentTimeMillis();
         int timeout = timeoutMs > 0 ? timeoutMs : properties.getTimeoutMs();
         try {
-            log.info("Web crawler request started url={} mode={} renderRequested={} timeoutMs={} proxy={}",
-                normalizedUrl, crawlMode, render, timeout, proxyId(proxy));
-            CrawlResponse response = "browser".equals(crawlMode)
-                ? fetchWithBrowser(normalizedUrl, timeout, proxy)
-                : fetchWithJava(normalizedUrl, timeout, proxy);
-            Map<String, Object> output = buildOutput(normalizedUrl, response, crawlMode, render, startedAt, proxy);
+            List<Map<String, Object>> crawlChain = new ArrayList<>();
+            Set<String> visited = new LinkedHashSet<>();
+            String currentUrl = normalizedUrl;
+            Map<String, Object> output = null;
+            int maxFollowUrls = Math.max(0, properties.getMaxFollowUrls());
+            for (int hop = 0; hop <= maxFollowUrls; hop++) {
+                String comparableUrl = normalizeComparableUrl(currentUrl);
+                if (!visited.add(comparableUrl)) {
+                    log.warn("Web crawler follow chain stopped because URL was already visited url={}", currentUrl);
+                    break;
+                }
+                log.info("Web crawler request started url={} mode={} renderRequested={} timeoutMs={} proxy={} hop={}/{}",
+                    currentUrl, crawlMode, render, timeout, proxyId(proxy), hop, maxFollowUrls);
+                String effectiveCrawlMode = effectiveCrawlMode(crawlMode, currentUrl);
+                CrawlResponse response = "browser".equals(effectiveCrawlMode)
+                    ? fetchWithBrowser(currentUrl, timeout, proxy)
+                    : fetchWithJava(currentUrl, timeout, proxy);
+                output = buildOutput(normalizedUrl, response, effectiveCrawlMode, render, startedAt, proxy);
+                output.put("requestedCrawlMode", crawlMode);
+                output.put("browserFallbackUsed", !crawlMode.equals(effectiveCrawlMode));
+                crawlChain.add(crawlChainItem(hop, currentUrl, response, output));
+                String nextUrl = nextFollowUrl(output, response.html(), response.url());
+                if (!isHttpUrl(nextUrl)) {
+                    break;
+                }
+                String normalizedNextUrl = normalizeUrl(nextUrl);
+                if (visited.contains(normalizeComparableUrl(normalizedNextUrl))) {
+                    log.warn("Web crawler follow chain stopped before loop nextUrl={}", normalizedNextUrl);
+                    break;
+                }
+                currentUrl = normalizedNextUrl;
+            }
+            if (output == null) {
+                throw new IllegalStateException("No crawl response was produced");
+            }
+            output.put("crawlChain", crawlChain);
+            output.put("followedUrlCount", Math.max(0, crawlChain.size() - 1));
+            if (!crawlChain.isEmpty()) {
+                output.put("finalRequestedUrl", crawlChain.get(crawlChain.size() - 1).get("requestedUrl"));
+            }
             cacheService.put(cacheNamespace, normalizedUrl, output, properties.getCacheTtlSeconds());
             log.info("Web crawler request succeeded url={} mode={} engine={} proxy={} durationMs={} contentLength={}",
-                response.url(), crawlMode, response.engine(), proxyId(proxy), output.get("durationMs"), output.get("contentLength"));
+                output.get("url"), crawlMode, output.get("renderEngine"), proxyId(proxy), output.get("durationMs"), output.get("contentLength"));
             return output;
         } catch (Exception ex) {
             log.warn("Web crawler request failed url={} mode={} proxy={} error={}",
@@ -151,14 +193,8 @@ public class WebCrawlerService {
         }
         WebCrawlerProperties.BrowserProperties browserProperties = properties.getBrowser();
         int timeoutMs = timeout > 0 ? timeout : Math.max(0, browserProperties.getNavigationTimeoutMs());
-        BrowserType.LaunchOptions launchOptions = new BrowserType.LaunchOptions()
-            .setHeadless(true)
-            .setTimeout(timeoutMs);
-        com.microsoft.playwright.options.Proxy playwrightProxy = playwrightProxy(proxyConfig);
-        if (playwrightProxy != null) {
-            launchOptions.setProxy(playwrightProxy);
-        }
-        try (Playwright playwright = createPlaywright(browserProperties);
+        var launchOptions = playwrightSupport.headlessLaunchOptions(timeoutMs, playwrightProxyConfig(proxyConfig));
+        try (Playwright playwright = playwrightSupport.createPlaywright(playwrightBrowserConfig(browserProperties));
              Browser browser = playwright.chromium().launch(launchOptions);
              BrowserContext browserContext = browser.newContext(playwrightContextOptions())) {
             Page page = browserContext.newPage();
@@ -167,7 +203,8 @@ public class WebCrawlerService {
             page.navigate(normalizedUrl, new Page.NavigateOptions()
                 .setTimeout(timeoutMs)
                 .setWaitUntil(WaitUntilState.DOMCONTENTLOADED));
-            waitForUsefulBrowserContent(page, timeoutMs);
+            playwrightSupport.waitForNetworkIdle(page, timeoutMs,
+                "Browser crawl page did not reach networkidle before content extraction");
             String html = page.content();
             if (html == null || html.isBlank()) {
                 throw new IllegalStateException("Playwright returned empty page content");
@@ -183,22 +220,23 @@ public class WebCrawlerService {
                                             long startedAt,
                                             WebCrawlerProperties.ProxyConfig proxyConfig) {
         WebContentProcessor.ProcessedContent content = contentProcessor.process(response.url(), response.html());
+        String mainText = focusedContent(requestedUrl, response.url(), content.mainText());
+        List<String> chunks = content.mainText().equals(mainText) ? content.chunks() : chunk(mainText);
         Map<String, Object> output = new LinkedHashMap<>();
         output.put("url", response.url());
         output.put("requestedUrl", requestedUrl);
         output.put("title", content.title());
-        output.put("content", content.mainText());
-        output.put("main_text", content.mainText());
-        output.put("chunks", content.chunks());
-        output.put("keywords", content.keywords());
+        output.put("content", mainText);
+        output.put("main_text", mainText);
+        output.put("chunks", chunks);
         output.put("timestamp", Instant.now().toEpochMilli());
         output.put("crawlMode", crawlMode);
         output.put("renderRequested", render || "browser".equals(crawlMode));
         output.put("rendered", response.rendered());
         output.put("renderEngine", response.engine());
         output.put("cacheHit", false);
-        output.put("contentLength", content.mainText().length());
-        output.put("contentHash", cacheService.hash(content.mainText()));
+        output.put("contentLength", mainText.length());
+        output.put("contentHash", cacheService.hash(mainText));
         output.put("durationMs", Math.max(0L, System.currentTimeMillis() - startedAt));
         output.put("html", properties.isIncludeHtml() ? truncate(response.html(), properties.getMaxHtmlChars()) : "");
         return output;
@@ -219,135 +257,105 @@ public class WebCrawlerService {
         };
     }
 
-    private void waitForUsefulBrowserContent(Page page, int timeoutMs) {
-        if (timeoutMs <= 0) {
-            return;
-        }
-        try {
-            page.waitForLoadState(LoadState.NETWORKIDLE,
-                new Page.WaitForLoadStateOptions().setTimeout(Math.min(3000, Math.max(1000, timeoutMs / 3))));
-        } catch (RuntimeException ex) {
-            log.debug("Browser crawl page did not reach networkidle before content extraction: {}", ex.getMessage());
-        }
-    }
-
-    private Playwright createPlaywright(WebCrawlerProperties.BrowserProperties browserProperties) {
-        return Playwright.create(new Playwright.CreateOptions().setEnv(playwrightEnvironment(browserProperties)));
-    }
-
-    private Map<String, String> playwrightEnvironment(WebCrawlerProperties.BrowserProperties browserProperties) {
-        Map<String, String> env = new LinkedHashMap<>(System.getenv());
-        String configuredBrowsersPath = browserProperties == null ? null : browserProperties.getBrowsersPath();
-        String browsersPath = firstNonBlank(configuredBrowsersPath, env.get("PLAYWRIGHT_BROWSERS_PATH"));
-        if (browsersPath != null && !browsersPath.isBlank()) {
-            String normalizedPath = normalizePlaywrightBrowsersPath(browsersPath);
-            env.put("PLAYWRIGHT_BROWSERS_PATH", normalizedPath);
-            logPlaywrightBrowsersPath(normalizedPath);
-            if (containsPlaywrightChromiumInstall(Path.of(normalizedPath))) {
-                env.put("PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD", "1");
-                logPlaywrightSkipDownload(normalizedPath);
+    private String effectiveCrawlMode(String crawlMode, String url) {
+        if ("java".equals(crawlMode) && requiresBrowserRendering(url)) {
+            if (properties.getBrowser() != null && properties.getBrowser().isEnabled()) {
+                return "browser";
             }
+            log.warn("Web crawler URL appears to require browser rendering but browser mode is disabled url={}", url);
         }
-        if (browserProperties != null && browserProperties.isSkipBrowserDownload()) {
-            env.put("PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD", "1");
-        }
-        return env;
+        return crawlMode;
     }
 
-    private String normalizePlaywrightBrowsersPath(String browsersPath) {
-        String value = browsersPath == null ? "" : browsersPath.trim();
-        if (value.isBlank() || "0".equals(value)) {
+    private boolean requiresBrowserRendering(String url) {
+        return szseIndividualStockCode(url) != null;
+    }
+
+    private String focusedContent(String requestedUrl, String responseUrl, String mainText) {
+        String value = mainText == null ? "" : mainText.trim();
+        String stockCode = firstNonBlank(szseIndividualStockCode(responseUrl), szseIndividualStockCode(requestedUrl));
+        if (stockCode == null || stockCode.isBlank()) {
             return value;
         }
-        Path path = resolvePlaywrightBrowsersPath(value);
-        if (containsPlaywrightChromiumInstall(path)) {
-            return path.toString();
+        int start = value.indexOf(stockCode);
+        if (start < 0) {
+            return value;
         }
-        String platformDirectory = playwrightPlatformDirectoryName();
-        if (platformDirectory != null) {
-            Path platformPath = path.resolve(platformDirectory);
-            if (Files.isDirectory(platformPath)) {
-                return platformPath.toString();
+        int end = firstPositive(
+            value.indexOf("返回顶部", start),
+            value.indexOf("意见反馈", start),
+            value.length()
+        );
+        String focused = value.substring(start, Math.min(value.length(), end)).trim();
+        return focused.isBlank() ? value : focused;
+    }
+
+    private int firstPositive(int... values) {
+        if (values == null || values.length == 0) {
+            return -1;
+        }
+        int selected = -1;
+        for (int value : values) {
+            if (value >= 0 && (selected < 0 || value < selected)) {
+                selected = value;
             }
         }
-        return path.toString();
+        return selected < 0 ? values[values.length - 1] : selected;
     }
 
-    private Path resolvePlaywrightBrowsersPath(String browsersPath) {
-        Path configuredPath = Path.of(browsersPath);
-        if (configuredPath.isAbsolute()) {
-            return configuredPath.normalize();
+    private String szseIndividualStockCode(String url) {
+        if (url == null || url.isBlank()) {
+            return null;
         }
-        Path cwd = Path.of("").toAbsolutePath().normalize();
-        Path directPath = cwd.resolve(configuredPath).normalize();
-        if (Files.exists(directPath)) {
-            return directPath;
-        }
-        for (Path parent = cwd.getParent(); parent != null; parent = parent.getParent()) {
-            Path candidate = parent.resolve(configuredPath).normalize();
-            if (Files.exists(candidate)) {
-                return candidate;
-            }
-        }
-        return directPath;
+        Matcher matcher = SZSE_INDIVIDUAL_PAGE_PATTERN.matcher(url.trim());
+        return matcher.matches() ? matcher.group(1) : null;
     }
 
-    private boolean containsPlaywrightChromiumInstall(Path path) {
-        if (!Files.isDirectory(path)) {
-            return false;
+    private List<String> chunk(String text) {
+        if (text == null || text.isBlank()) {
+            return List.of();
         }
-        try (java.util.stream.Stream<Path> children = Files.list(path)) {
-            return children
-                .map(child -> child.getFileName() == null ? "" : child.getFileName().toString())
-                .anyMatch(name -> name.startsWith("chromium-")
-                    || name.startsWith("chromium_headless_shell-"));
-        } catch (IOException ex) {
-            return false;
-        }
-    }
-
-    private String playwrightPlatformDirectoryName() {
-        String os = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
-        if (os.contains("win")) {
-            return "windows";
-        }
-        if (os.contains("linux")) {
-            return "linux";
-        }
-        if (os.contains("mac") || os.contains("darwin")) {
-            return "mac";
-        }
-        return null;
-    }
-
-    private void logPlaywrightBrowsersPath(String browsersPath) {
-        if (!playwrightBrowsersPathInfoLogged) {
-            synchronized (this) {
-                if (!playwrightBrowsersPathInfoLogged) {
-                    log.info("Web crawler Playwright browser cache path: {}", browsersPath);
-                    playwrightBrowsersPathInfoLogged = true;
+        int chunkChars = Math.max(300, properties.getChunkChars());
+        int overlap = Math.max(0, Math.min(properties.getChunkOverlapChars(), chunkChars / 3));
+        int maxChunks = Math.max(1, properties.getMaxChunks());
+        List<String> chunks = new ArrayList<>();
+        int start = 0;
+        while (start < text.length() && chunks.size() < maxChunks) {
+            int end = Math.min(text.length(), start + chunkChars);
+            if (end < text.length()) {
+                int sentenceEnd = Math.max(text.lastIndexOf('\u3002', end), text.lastIndexOf('.', end));
+                if (sentenceEnd > start + chunkChars / 2) {
+                    end = sentenceEnd + 1;
                 }
             }
-        }
-        if (!"0".equals(browsersPath) && !Files.isDirectory(Path.of(browsersPath)) && !playwrightBrowsersPathWarningLogged) {
-            synchronized (this) {
-                if (!playwrightBrowsersPathWarningLogged) {
-                    log.warn("Configured web crawler Playwright browser cache path does not exist yet: {}", browsersPath);
-                    playwrightBrowsersPathWarningLogged = true;
-                }
+            String chunk = text.substring(start, end).trim();
+            if (!chunk.isBlank()) {
+                chunks.add(chunk);
             }
+            if (end >= text.length()) {
+                break;
+            }
+            start = Math.max(end - overlap, start + 1);
         }
+        return chunks;
     }
 
-    private void logPlaywrightSkipDownload(String browsersPath) {
-        if (!playwrightSkipDownloadInfoLogged) {
-            synchronized (this) {
-                if (!playwrightSkipDownloadInfoLogged) {
-                    log.info("Web crawler Playwright browser download skipped because cached Chromium was found: {}", browsersPath);
-                    playwrightSkipDownloadInfoLogged = true;
-                }
-            }
-        }
+    private PlaywrightBrowserSupport.BrowserConfig playwrightBrowserConfig(WebCrawlerProperties.BrowserProperties browserProperties) {
+        return new PlaywrightBrowserSupport.BrowserConfig(
+            browserProperties == null ? null : browserProperties.getBrowsersPath(),
+            browserProperties != null && browserProperties.isSkipBrowserDownload()
+        );
+    }
+
+    private PlaywrightBrowserSupport.ProxyConfig playwrightProxyConfig(WebCrawlerProperties.ProxyConfig proxyConfig) {
+        return new PlaywrightBrowserSupport.ProxyConfig(
+            proxyUsable(proxyConfig),
+            proxyConfig == null ? null : proxyConfig.getType(),
+            proxyConfig == null ? null : proxyConfig.getHost(),
+            proxyConfig == null ? 0 : proxyConfig.getPort(),
+            proxyConfig == null ? null : proxyConfig.getUsername(),
+            proxyConfig == null ? null : proxyConfig.getPassword()
+        );
     }
 
     private Browser.NewContextOptions playwrightContextOptions() {
@@ -408,21 +416,6 @@ public class WebCrawlerService {
         String type = firstNonBlank(config.getType(), "HTTP").trim().toUpperCase(Locale.ROOT);
         java.net.Proxy.Type proxyType = type.contains("SOCKS") ? java.net.Proxy.Type.SOCKS : java.net.Proxy.Type.HTTP;
         return new java.net.Proxy(proxyType, new InetSocketAddress(config.getHost().trim(), config.getPort()));
-    }
-
-    private com.microsoft.playwright.options.Proxy playwrightProxy(WebCrawlerProperties.ProxyConfig proxyConfig) {
-        if (!proxyUsable(proxyConfig)) {
-            return null;
-        }
-        String type = firstNonBlank(proxyConfig.getType(), "HTTP").toLowerCase(Locale.ROOT);
-        String scheme = type.contains("socks") ? "socks5" : "http";
-        com.microsoft.playwright.options.Proxy proxy =
-            new com.microsoft.playwright.options.Proxy(scheme + "://" + proxyConfig.getHost().trim() + ":" + proxyConfig.getPort());
-        if (proxyConfig.getUsername() != null && !proxyConfig.getUsername().isBlank()) {
-            proxy.setUsername(proxyConfig.getUsername());
-            proxy.setPassword(firstNonBlank(proxyConfig.getPassword(), ""));
-        }
-        return proxy;
     }
 
     private boolean proxyUsable(WebCrawlerProperties.ProxyConfig proxyConfig) {
@@ -517,6 +510,106 @@ public class WebCrawlerService {
 
     private String firstNonBlank(String first, String second) {
         return first == null || first.isBlank() ? second : first;
+    }
+
+    private Map<String, Object> crawlChainItem(int hop,
+                                               String requestedUrl,
+                                               CrawlResponse response,
+                                               Map<String, Object> output) {
+        Map<String, Object> item = new LinkedHashMap<>();
+        item.put("hop", hop);
+        item.put("requestedUrl", requestedUrl);
+        item.put("url", response.url());
+        item.put("title", output.get("title"));
+        item.put("contentLength", output.get("contentLength"));
+        item.put("rendered", response.rendered());
+        item.put("renderEngine", response.engine());
+        return item;
+    }
+
+    private String nextFollowUrl(Map<String, Object> output, String html, String baseUrl) {
+        String fromRequestedUrlField = requestedUrlField(output, html);
+        if (isHttpUrl(fromRequestedUrlField) && !sameUrl(fromRequestedUrlField, baseUrl)) {
+            return fromRequestedUrlField;
+        }
+        String content = output == null ? "" : String.valueOf(output.getOrDefault("content", ""));
+        String singleContentUrl = singleUrl(content);
+        if (isHttpUrl(singleContentUrl) && !sameUrl(singleContentUrl, baseUrl)) {
+            return singleContentUrl;
+        }
+        return null;
+    }
+
+    private String requestedUrlField(Map<String, Object> output, String html) {
+        String content = output == null ? "" : String.valueOf(output.getOrDefault("content", ""));
+        String value = requestedUrlField(content);
+        if (isHttpUrl(value)) {
+            return value;
+        }
+        return requestedUrlField(html);
+    }
+
+    private String requestedUrlField(String text) {
+        if (text == null || text.isBlank()) {
+            return null;
+        }
+        Matcher matcher = REQUESTED_URL_FIELD_PATTERN.matcher(text);
+        return matcher.find() ? trimTrailingUrlPunctuation(matcher.group(1)) : null;
+    }
+
+    private String singleUrl(String text) {
+        if (text == null || text.isBlank()) {
+            return null;
+        }
+        Matcher matcher = ABSOLUTE_URL_PATTERN.matcher(text.trim());
+        if (!matcher.find()) {
+            return null;
+        }
+        String first = trimTrailingUrlPunctuation(matcher.group());
+        if (matcher.find()) {
+            return null;
+        }
+        String withoutUrl = text.replace(first, "").replaceAll("[\\s\\p{Punct}\\u3000-\\u303f]+", "");
+        return withoutUrl.isBlank() ? first : null;
+    }
+
+    private String trimTrailingUrlPunctuation(String url) {
+        if (url == null) {
+            return null;
+        }
+        return url.replaceAll("[\\]\\[)('\"，。；;、]+$", "");
+    }
+
+    private boolean isHttpUrl(String url) {
+        if (url == null || url.isBlank()) {
+            return false;
+        }
+        try {
+            URI uri = URI.create(url.trim());
+            return ("http".equalsIgnoreCase(uri.getScheme()) || "https".equalsIgnoreCase(uri.getScheme()))
+                && uri.getHost() != null
+                && !uri.getHost().isBlank();
+        } catch (Exception ex) {
+            return false;
+        }
+    }
+
+    private boolean sameUrl(String first, String second) {
+        if (!isHttpUrl(first) || !isHttpUrl(second)) {
+            return false;
+        }
+        return normalizeComparableUrl(first).equals(normalizeComparableUrl(second));
+    }
+
+    private String normalizeComparableUrl(String url) {
+        URI uri = URI.create(url.trim()).normalize();
+        String scheme = uri.getScheme() == null ? "" : uri.getScheme().toLowerCase(Locale.ROOT);
+        String host = uri.getHost() == null ? "" : uri.getHost().toLowerCase(Locale.ROOT);
+        int port = uri.getPort();
+        String path = uri.getRawPath() == null || uri.getRawPath().isBlank() ? "/" : uri.getRawPath();
+        String query = uri.getRawQuery() == null ? "" : "?" + uri.getRawQuery();
+        String portPart = port < 0 ? "" : ":" + port;
+        return scheme + "://" + host + portPart + path + query;
     }
 
     private String normalizeUrl(String url) {

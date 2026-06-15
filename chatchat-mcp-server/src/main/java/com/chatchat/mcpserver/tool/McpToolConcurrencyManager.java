@@ -120,8 +120,10 @@ public class McpToolConcurrencyManager {
         });
 
         try {
-            long timeoutSeconds = Math.max(1, toolLimit.getTimeoutSeconds());
-            return future.get(timeoutSeconds, TimeUnit.SECONDS);
+            long timeoutSeconds = toolLimit.getTimeoutSeconds();
+            return timeoutSeconds <= 0
+                ? future.get()
+                : future.get(timeoutSeconds, TimeUnit.SECONDS);
         } catch (TimeoutException ex) {
             future.cancel(true);
             circuit.recordFailure(toolLimit);
@@ -155,7 +157,7 @@ public class McpToolConcurrencyManager {
         Map<String, Object> meta = new LinkedHashMap<>();
         meta.put("tool_name", toolName);
         meta.put("max_concurrency", normalizePositive(limit.getMaxConcurrency(), 1));
-        meta.put("timeout_seconds", Math.max(1, limit.getTimeoutSeconds()));
+        meta.put("timeout_seconds", Math.max(0, limit.getTimeoutSeconds()));
         meta.put("queue_size", Math.max(0, limit.getQueueSize()));
         meta.put("queue_timeout_seconds", Math.max(0, limit.getQueueTimeoutSeconds()));
         meta.put("runtime_level", firstText(limit.getRuntimeLevel(), normalizeRuntimeLevel(toolName, runtimeLevel)));
@@ -182,7 +184,13 @@ public class McpToolConcurrencyManager {
         if (!acquired) {
             state.waiting.incrementAndGet();
             try {
-                acquired = state.semaphore.tryAcquire(Math.max(0, limit.getQueueTimeoutSeconds()), TimeUnit.SECONDS);
+                long queueTimeoutSeconds = limit.getQueueTimeoutSeconds();
+                if (queueTimeoutSeconds <= 0) {
+                    state.semaphore.acquire();
+                    acquired = true;
+                } else {
+                    acquired = state.semaphore.tryAcquire(queueTimeoutSeconds, TimeUnit.SECONDS);
+                }
             } catch (InterruptedException ex) {
                 Thread.currentThread().interrupt();
                 return new AcquireResult(false, STATUS_TIMEOUT,

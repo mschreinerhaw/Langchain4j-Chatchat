@@ -1,20 +1,19 @@
 package com.chatchat.mcpserver.web;
 
 import com.chatchat.mcpserver.cache.McpRocksDbStore;
+import com.chatchat.tools.web.WebToolCache;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
 @Service
-public class WebPageCacheService {
+public class WebPageCacheService implements WebToolCache {
 
     private static final TypeReference<Map<String, Object>> MAP_TYPE = new TypeReference<>() {
     };
@@ -35,6 +34,7 @@ public class WebPageCacheService {
      * @param cacheKey the cache key value
      * @return the operation result
      */
+    @Override
     public CacheLookup get(String namespace, String cacheKey) {
         String key = key(namespace, cacheKey);
         try {
@@ -69,6 +69,7 @@ public class WebPageCacheService {
      * @param data the data value
      * @param ttlSeconds the ttl seconds value
      */
+    @Override
     public void put(String namespace, String cacheKey, Map<String, Object> data, long ttlSeconds) {
         if (data == null || data.isEmpty()) {
             return;
@@ -96,20 +97,6 @@ public class WebPageCacheService {
      * @param value the value value
      * @return the operation result
      */
-    public String hash(String value) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            byte[] bytes = digest.digest((value == null ? "" : value).getBytes(StandardCharsets.UTF_8));
-            StringBuilder builder = new StringBuilder();
-            for (byte b : bytes) {
-                builder.append(String.format("%02x", b));
-            }
-            return builder.toString();
-        } catch (Exception ex) {
-            return Integer.toHexString(String.valueOf(value).hashCode());
-        }
-    }
-
     private String key(String namespace, String cacheKey) {
         return "web:" + normalize(namespace) + ":" + hash(cacheKey);
     }
@@ -129,18 +116,4 @@ public class WebPageCacheService {
         }
     }
 
-    public record CacheLookup(boolean hit, boolean expired, long ageSeconds, Map<String, Object> data) {
-
-        private static CacheLookup hit(Map<String, Object> data, long ageSeconds) {
-            return new CacheLookup(true, false, ageSeconds, data);
-        }
-
-        private static CacheLookup miss() {
-            return new CacheLookup(false, false, 0L, Map.of());
-        }
-
-        private static CacheLookup expired(long ageSeconds) {
-            return new CacheLookup(false, true, ageSeconds, Map.of());
-        }
-    }
 }

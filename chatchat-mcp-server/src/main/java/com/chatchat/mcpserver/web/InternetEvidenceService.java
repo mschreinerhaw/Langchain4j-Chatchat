@@ -115,7 +115,6 @@ public class InternetEvidenceService {
                 candidate.put("snippet", excerpt(chunk));
                 candidate.put("chunk_index", index++);
                 candidate.put("contentLength", numberValue(page.get("contentLength"), chunk.length()));
-                candidate.put("keywords", page.get("keywords"));
                 candidate.put("cacheHit", page.get("cacheHit"));
                 candidate.put("timestamp", page.get("timestamp"));
                 candidate.put("rendered", page.get("rendered"));
@@ -226,9 +225,6 @@ public class InternetEvidenceService {
         double score = 0.02d;
         if ("crawled_page".equals(item.get("source_type"))) {
             score += 0.08d;
-        }
-        if (item.get("keywords") instanceof List<?> list && !list.isEmpty()) {
-            score += 0.04d;
         }
         if (numberValue(item.get("chunk_index"), 0).intValue() == 1) {
             score += 0.03d;

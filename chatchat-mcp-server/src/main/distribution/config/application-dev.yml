@@ -8,9 +8,9 @@ spring:
     password: 
     hikari:
       pool-name: ChatChatMcpHikariPool
-      maximum-pool-size: 10
+      maximum-pool-size: 20
       minimum-idle: 2
-      connection-timeout: 20000
+      connection-timeout: 30000
       idle-timeout: 300000
       max-lifetime: 1200000
       auto-commit: true
@@ -29,13 +29,6 @@ spring:
     properties:
       hibernate:
         format_sql: true
-        connection:
-          driver_class: org.h2.Driver
-          url: jdbc:h2:file:./data/h2/chatchat-mcp-server;MODE=MySQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE;DB_CLOSE_DELAY=-1
-          username: sa
-          pool_size: 10
-          autocommit: true
-          isolation: 2
 
 server:
   port: 8090
@@ -126,14 +119,33 @@ chatchat:
             queue-timeout-seconds: 5
             timeout-seconds: 30
             runtime-level: notification
-        # Tool-specific overrides. web_search uses a longer timeout because it may run Playwright rendering.
+        # Tool-specific overrides. 0 means wait for completion; users can cancel long-running web calls manually.
         tools:
           web_search:
             max-concurrency: 2
             queue-size: 32
-            queue-timeout-seconds: 10
-            timeout-seconds: 90
+            queue-timeout-seconds: 0
+            timeout-seconds: 0
             runtime-level: http
+          web_site_search:
+            max-concurrency: 2
+            queue-size: 32
+            queue-timeout-seconds: 0
+            timeout-seconds: 0
+            runtime-level: http
+          web_crawler:
+            max-concurrency: 2
+            queue-size: 32
+            queue-timeout-seconds: 0
+            timeout-seconds: 0
+            runtime-level: http
+          crawl_url:
+            max-concurrency: 2
+            queue-size: 32
+            queue-timeout-seconds: 0
+            timeout-seconds: 0
+            runtime-level: http
+  tools:
     web-crawler:
       # Enables page crawling for search_and_extract evidence enrichment.
       enabled: true
@@ -152,13 +164,15 @@ chatchat:
       chunk-chars: 1200
       chunk-overlap-chars: 120
       max-chunks: 20
+      # Follow wrapper pages whose content/requestedUrl points to another URL.
+      max-follow-urls: 5
       # Cache crawled pages for seven days.
       cache-ttl-seconds: 604800
       # Include raw HTML in cached page records for debugging and reprocessing.
       include-html: true
       accept-language: en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7
-      # Default crawl_url mode: java = JSoup HTTP with browser-like headers, browser = Playwright Chromium, auto = browser when enabled.
-      default-mode: java
+      # Default crawl_url mode: browser = Playwright Chromium rendering; java = JSoup HTTP with browser-like headers; auto = browser when enabled.
+      default-mode: browser
       browser:
         enabled: true
         browsers-path: ${PLAYWRIGHT_BROWSERS_PATH:playwright-browsers}
@@ -215,7 +229,6 @@ chatchat:
       overwrite-existing: false
       include-unpublished-as-disabled: false
       expose-ams-token-parameter: false
-  tools:
     calculator:
       # Safe local arithmetic tool.
       risk-level: low
@@ -254,7 +267,7 @@ chatchat:
       parameter-policy:
         query: auto_execute
       provider: bing_html
-      endpoint: https://www.bing.com/search
+      endpoint: https://cn.bing.com/search
       user-agent: ChatChat-MCP-Server/1.0
       # 0 means wait for web_search completion without a local request timeout.
       timeout-ms: 0
@@ -264,7 +277,7 @@ chatchat:
       page-excerpt-chars: 2500
       page-max-bytes: 1048576
       fallback-enabled: true
-      default-mode: java
+      default-mode: browser
       browser-fallback-to-java: true
       site-search:
         enabled: true
@@ -273,14 +286,59 @@ chatchat:
         max-pages-to-inspect: 3
         max-secondary-pages: 3
         max-links-per-page: 5
+      finance-sites:
+        - id: sse
+          name: Shanghai Stock Exchange
+          domain: www.sse.com.cn
+          homepage-url: https://www.sse.com.cn/
+          search-url-template: https://www.sse.com.cn/home/search/index.shtml?webswd={keyword}
+          query-param: webswd
+          default-mode: java
+          information-types:
+            - SSE listed company announcements
+            - Periodic reports
+            - Ad hoc announcements
+            - Regulatory disclosures
+            - Security code and company name lookup
+          description: Suitable for searching Shanghai-listed company announcements, annual/interim/quarterly reports, ad hoc announcements, regulatory disclosures, security codes, and company names.
+        - id: szse
+          name: Shenzhen Stock Exchange
+          domain: www.szse.cn
+          homepage-url: https://www.szse.cn/
+          search-url-template: https://www.szse.cn/application/search/index.html?keyword={keyword}
+          query-param: keyword
+          default-mode: browser
+          information-types:
+            - SZSE listed company announcements
+            - Periodic reports
+            - Ad hoc announcements
+            - Regulatory disclosures
+            - Security code and company name lookup
+          description: Suitable for searching Shenzhen Main Board and ChiNext company announcements, periodic reports, ad hoc announcements, regulatory disclosures, security codes, and company names.
+        - id: cninfo
+          name: CNINFO
+          domain: www.cninfo.com.cn
+          homepage-url: https://www.cninfo.com.cn/
+          search-url-template: https://www.cninfo.com.cn/new/fulltextSearch?notautosubmit=&keyWord={keyword}
+          query-param: keyWord
+          default-mode: browser
+          information-types:
+            - CNINFO full-text search
+            - Listed company announcements
+            - Periodic reports
+            - Ad hoc announcements
+            - Regulatory disclosures
+            - Security code and company name lookup
+          description: Suitable for cross-market searches of listed company announcements, annual/interim/quarterly reports, ad hoc announcements, regulatory disclosures, security codes, and company names.
       browser:
         enabled: true
         browsers-path: ${PLAYWRIGHT_BROWSERS_PATH:playwright-browsers}
         skip-browser-download: ${CHAT_WEB_SEARCH_BROWSER_SKIP_DOWNLOAD:false}
+        persistent-enabled: true
         # 0 disables Playwright navigation timeout.
         navigation-timeout-ms: 0
-        accept-language: en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7
-        referer: https://www.bing.com/
+        accept-language: zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7
+        referer: https://cn.bing.com/
         tls-fingerprint-profile: jdk-default
       proxy-pool:
         # Used by web_search and web_site_search in both Java and browser modes.

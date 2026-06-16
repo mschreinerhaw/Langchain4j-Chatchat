@@ -1,5 +1,11 @@
 package com.chatchat.agents.runtime;
 
+import com.chatchat.agents.runtime.plan.InterpretationPlan;
+import com.chatchat.agents.runtime.plan.InterpretationPlanDagConverter;
+import com.chatchat.agents.runtime.plan.InterpretationPlanRecord;
+import com.chatchat.agents.runtime.plan.InterpretationPlanStore;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
@@ -10,6 +16,7 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -17,11 +24,17 @@ import java.util.concurrent.ConcurrentHashMap;
 @Component
 @ConditionalOnProperty(prefix = "chatchat.agent-runtime", name = "store-type", havingValue = "memory")
 @Slf4j
-public class InMemoryAgentRunStore implements AgentRunStore {
+public class InMemoryAgentRunStore implements AgentRunStore, InterpretationPlanStore {
 
     protected final Map<String, AgentRun> runs = new ConcurrentHashMap<>();
+    protected final Map<String, InterpretationPlanRecord> planSnapshots = new ConcurrentHashMap<>();
+    protected final Map<String, List<InterpretationPlanRecord>> planVersions = new ConcurrentHashMap<>();
+    protected final Map<String, String> planDags = new ConcurrentHashMap<>();
+    protected final Map<String, String> planIdIndex = new ConcurrentHashMap<>();
     private final AgentRunEventPublisher eventPublisher;
     private final AgentRuntimeProperties properties;
+    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final InterpretationPlanDagConverter planDagConverter = new InterpretationPlanDagConverter();
 
     public InMemoryAgentRunStore() {
         this(new NoopAgentRunEventPublisher(), new AgentRuntimeProperties());
@@ -376,6 +389,114 @@ public class InMemoryAgentRunStore implements AgentRunStore {
     @Override
     public AgentRuntimeSnapshot snapshot() {
         return AgentRuntimeSnapshot.fromRuns(runs.values());
+    }
+
+    @Override
+    public InterpretationPlanRecord savePlan(String tenantId,
+                                             String taskId,
+                                             String planId,
+                                             InterpretationPlan plan,
+                                             String status) {
+        return savePlan(tenantId, taskId, planId, plan, status, null);
+    }
+
+    @Override
+    public InterpretationPlanRecord savePlan(String tenantId,
+                                             String taskId,
+                                             String planId,
+                                             InterpretationPlan plan,
+                                             String status,
+                                             Map<String, Object> dagOverride) {
+        String normalizedTenant = firstText(tenantId, "default");
+        String normalizedTaskId = firstText(taskId, "unknown-task");
+        int version = nextPlanVersion(normalizedTenant, normalizedTaskId);
+        String normalizedPlanId = firstText(planId, "plan-" + normalizedTaskId + "-v" + version);
+        long now = System.currentTimeMillis();
+        Map<String, Object> dag = dagOverride == null || dagOverride.isEmpty() ? planDagConverter.convert(plan) : dagOverride;
+        try {
+            InterpretationPlanRecord existing = getSnapshot(normalizedTenant, normalizedTaskId).orElse(null);
+            InterpretationPlanRecord record = new InterpretationPlanRecord(
+                normalizedTenant,
+                normalizedTaskId,
+                normalizedPlanId,
+                version,
+                objectMapper.writeValueAsString(plan),
+                objectMapper.writeValueAsString(dag),
+                dag,
+                firstText(status, "GENERATED"),
+                existing == null || existing.createdAt() == null ? now : existing.createdAt(),
+                now
+            );
+            saveSnapshot(record);
+            saveVersion(record);
+            saveDag(record);
+            savePlanIndex(record);
+            return record;
+        } catch (JsonProcessingException ex) {
+            throw new IllegalStateException("Failed to serialize interpretation plan", ex);
+        }
+    }
+
+    @Override
+    public void saveSnapshot(InterpretationPlanRecord record) {
+        if (record == null || record.tenantId() == null || record.taskId() == null) {
+            return;
+        }
+        planSnapshots.put(planTaskKey(record.tenantId(), record.taskId()), record);
+    }
+
+    @Override
+    public void saveVersion(InterpretationPlanRecord record) {
+        if (record == null || record.tenantId() == null || record.taskId() == null) {
+            return;
+        }
+        planVersions.compute(planTaskKey(record.tenantId(), record.taskId()), (key, current) -> {
+            List<InterpretationPlanRecord> versions = current == null ? new ArrayList<>() : new ArrayList<>(current);
+            versions.add(record);
+            versions.sort(Comparator.comparing(item -> Optional.ofNullable(item.version()).orElse(0)));
+            return versions;
+        });
+    }
+
+    @Override
+    public Optional<InterpretationPlanRecord> getSnapshot(String tenantId, String taskId) {
+        return Optional.ofNullable(planSnapshots.get(planTaskKey(firstText(tenantId, "default"), taskId)));
+    }
+
+    @Override
+    public Optional<String> getDagJson(String tenantId, String taskId) {
+        return Optional.ofNullable(planDags.get(planTaskKey(firstText(tenantId, "default"), taskId)));
+    }
+
+    @Override
+    public List<InterpretationPlanRecord> listVersions(String tenantId, String taskId) {
+        return planVersions.getOrDefault(planTaskKey(firstText(tenantId, "default"), taskId), List.of());
+    }
+
+    protected void saveDag(InterpretationPlanRecord record) {
+        if (record == null || record.tenantId() == null || record.taskId() == null) {
+            return;
+        }
+        planDags.put(planTaskKey(record.tenantId(), record.taskId()), record.dagJson());
+    }
+
+    protected void savePlanIndex(InterpretationPlanRecord record) {
+        if (record == null || record.tenantId() == null || record.planId() == null) {
+            return;
+        }
+        planIdIndex.put(record.tenantId() + ":" + record.planId(), record.taskId());
+    }
+
+    private int nextPlanVersion(String tenantId, String taskId) {
+        return listVersions(tenantId, taskId).stream()
+            .map(InterpretationPlanRecord::version)
+            .filter(Objects::nonNull)
+            .max(Integer::compareTo)
+            .orElse(0) + 1;
+    }
+
+    private String planTaskKey(String tenantId, String taskId) {
+        return firstText(tenantId, "default") + ":" + firstText(taskId, "unknown-task");
     }
 
     private AgentRun missingRun(String runId) {

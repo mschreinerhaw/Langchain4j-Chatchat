@@ -199,17 +199,17 @@ class AgentPlanner {
         if (discoverySearchTool != null && crawlerTool != null) {
             prompt.append("Web evidence workflow:\n");
             prompt.append("1. Use ").append(discoverySearchTool)
-                .append(" only to discover candidate pages and short snippets. Do not treat web_search snippets as final evidence.\n");
-            prompt.append("2. After ").append(discoverySearchTool)
-                .append(" returns candidates, runtime will ask the model to choose relevant URLs.\n");
+                .append(" and other web discovery tools only to discover candidate pages, page links, search routes, and short snippets. Do not treat discovery snippets as final evidence.\n");
+            prompt.append("2. After a web discovery tool returns candidates, runtime will ask the model to choose relevant URLs.\n");
             prompt.append("3. Then call ").append(crawlerTool)
                 .append(" to fetch cleaned full page content from the selected URL before analysis.\n");
-            prompt.append("4. The final_answer step MUST depend on the crawler/content step, not only on web_search.\n");
-            prompt.append("5. If an official website or exchange site is required, keep that source constraint in the web_search query/input.\n\n");
+            prompt.append("4. The final_answer step MUST depend on the crawler/content step, not only on web discovery.\n");
+            prompt.append("5. If an official website or exchange site is required, keep that source constraint in the web discovery query/input.\n\n");
+            prompt.append("Discovery tools include web_search, web_page_analyze, site_intelligence_resolver, finance_site_search, and generic_web_site_search when available.\n\n");
             prompt.append("Crawler input contract:\n");
             prompt.append("- Never use ").append(crawlerTool).append(" as a search tool. It cannot accept a free-text query.\n");
-            prompt.append("- ").append(crawlerTool).append(" may only be called with an HTTP/HTTPS url selected from prior web_search results, for example {\"url\":\"https://example.com/page\"}.\n");
-            prompt.append("- If no URL has been observed yet, call ").append(discoverySearchTool).append(" first and do not call ").append(crawlerTool).append(".\n\n");
+            prompt.append("- ").append(crawlerTool).append(" may only be called with an HTTP/HTTPS url selected from prior web discovery results, for example {\"url\":\"https://example.com/page\"}.\n");
+            prompt.append("- If no URL has been observed yet, call a web discovery tool first and do not call ").append(crawlerTool).append(".\n\n");
             prompt.append("Binding contract:\n");
             prompt.append("- Use plan.bindings for data flow from one step output to another step input. edge_contracts only validate data shape; they do not populate inputs.\n");
             prompt.append("- When ").append(crawlerTool).append(" depends on ").append(discoverySearchTool)
@@ -583,35 +583,35 @@ class AgentPlanner {
         if (crawlerTool == null) {
             return;
         }
-        List<Integer> webSearchSteps = new ArrayList<>();
+        List<Integer> webDiscoverySteps = new ArrayList<>();
         List<Integer> crawlerSteps = new ArrayList<>();
         for (Map.Entry<String, List<Integer>> entry : toolStepIds.entrySet()) {
-            if (isWebSearchTool(entry.getKey())) {
-                webSearchSteps.addAll(entry.getValue());
+            if (isWebDiscoveryTool(entry.getKey())) {
+                webDiscoverySteps.addAll(entry.getValue());
             } else if (sameToolName(entry.getKey(), crawlerTool) || isCrawlerTool(entry.getKey())) {
                 crawlerSteps.addAll(entry.getValue());
             }
         }
-        if (webSearchSteps.isEmpty()) {
+        if (webDiscoverySteps.isEmpty()) {
             return;
         }
         if (crawlerSteps.isEmpty()) {
-            issues.add("web_search must be followed by a crawler/content tool before final_answer: " + crawlerTool);
+            issues.add("web discovery must be followed by a crawler/content tool before final_answer: " + crawlerTool);
             return;
         }
-        for (Integer webStepId : webSearchSteps) {
-            boolean hasCrawlerAfterSearch = crawlerSteps.stream()
+        for (Integer webStepId : webDiscoverySteps) {
+            boolean hasCrawlerAfterDiscovery = crawlerSteps.stream()
                 .anyMatch(crawlerStepId -> crawlerStepId > webStepId
                     && dependsOnStep(crawlerStepId, webStepId, stepsById, new LinkedHashSet<>()));
-            if (!hasCrawlerAfterSearch) {
-                issues.add("crawler/content step must depend on each web_search step before analysis.");
+            if (!hasCrawlerAfterDiscovery) {
+                issues.add("crawler/content step must depend on each web discovery step before analysis.");
             }
         }
         if (finalStep != null) {
             boolean finalDependsOnCrawler = crawlerSteps.stream()
                 .anyMatch(crawlerStepId -> dependsOnStep(finalStep.id(), crawlerStepId, stepsById, new LinkedHashSet<>()));
             if (!finalDependsOnCrawler) {
-                issues.add("final_answer must depend on crawler/content evidence, not only on web_search snippets.");
+                issues.add("final_answer must depend on crawler/content evidence, not only on web discovery snippets.");
             }
         }
     }
@@ -644,9 +644,24 @@ class AgentPlanner {
         return semantic.equals("web_search") || semantic.endsWith("_web_search") || semantic.contains("web_search");
     }
 
+    private boolean isWebDiscoveryTool(String toolName) {
+        String semantic = toolSemanticKey(toolName);
+        return isWebSearchTool(toolName)
+            || semantic.equals("web_page_analyze")
+            || semantic.contains("web_page_analyze")
+            || semantic.equals("site_intelligence_resolver")
+            || semantic.contains("site_intelligence")
+            || semantic.equals("finance_site_search")
+            || semantic.contains("finance_site_search")
+            || semantic.equals("generic_web_site_search")
+            || semantic.contains("generic_web_site_search")
+            || semantic.equals("web_site_search")
+            || (semantic.contains("site_search") && !semantic.contains("search_and_extract"));
+    }
+
     private boolean isCrawlerTool(String toolName) {
         String semantic = toolSemanticKey(toolName);
-        return !isWebSearchTool(toolName)
+        return !isWebDiscoveryTool(toolName)
             && (semantic.equals("crawl_url")
             || semantic.contains("crawl")
             || semantic.contains("crawler")

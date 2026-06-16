@@ -1,5 +1,6 @@
 package com.chatchat.agents.runtime;
 
+import com.chatchat.agents.runtime.plan.InterpretationPlanRecord;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
@@ -22,6 +23,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @Slf4j
 @Component
@@ -32,6 +34,10 @@ public class RocksDbAgentRunStore extends InMemoryAgentRunStore {
     private static final String EVENT_KEY_PREFIX = "event:";
     private static final String STEP_KEY_PREFIX = "step:";
     private static final String OBSERVATION_KEY_PREFIX = "observation:";
+    private static final String PLAN_SNAPSHOT_KEY_PREFIX = "plan:snapshot:";
+    private static final String PLAN_VERSION_KEY_PREFIX = "plan:version:";
+    private static final String PLAN_DAG_KEY_PREFIX = "plan:dag:";
+    private static final String PLAN_INDEX_KEY_PREFIX = "plan:index:planId:";
     private static final String AGENT_CANCELLATION_ATTRIBUTE = "__agentCancellation";
     private static final String INTERRUPTED_BY_RESTART = "Agent run interrupted by runtime restart";
 
@@ -147,6 +153,119 @@ public class RocksDbAgentRunStore extends InMemoryAgentRunStore {
     public List<AgentObservation> observations(String runId, int offset, int limit) {
         List<AgentObservation> indexedObservations = indexedObservations(runId, offset, recordLimit(limit));
         return indexedObservations.isEmpty() ? super.observations(runId, offset, limit) : indexedObservations;
+    }
+
+    @Override
+    public void saveSnapshot(InterpretationPlanRecord record) {
+        super.saveSnapshot(record);
+        if (record == null || record.tenantId() == null || record.taskId() == null) {
+            return;
+        }
+        ensureOpen();
+        try {
+            db.put(bytes(planSnapshotKey(record.tenantId(), record.taskId())), objectMapper.writeValueAsBytes(record));
+        } catch (JsonProcessingException | RocksDBException ex) {
+            throw new IllegalStateException("Failed to persist interpretation plan snapshot " + record.taskId(), ex);
+        }
+    }
+
+    @Override
+    public void saveVersion(InterpretationPlanRecord record) {
+        super.saveVersion(record);
+        if (record == null || record.tenantId() == null || record.taskId() == null) {
+            return;
+        }
+        ensureOpen();
+        try {
+            db.put(bytes(planVersionKey(record)), objectMapper.writeValueAsBytes(record));
+        } catch (JsonProcessingException | RocksDBException ex) {
+            throw new IllegalStateException("Failed to persist interpretation plan version " + record.taskId(), ex);
+        }
+    }
+
+    @Override
+    public Optional<InterpretationPlanRecord> getSnapshot(String tenantId, String taskId) {
+        Optional<InterpretationPlanRecord> cached = super.getSnapshot(tenantId, taskId);
+        if (cached.isPresent() || db == null || taskId == null || taskId.isBlank()) {
+            return cached;
+        }
+        String normalizedTenant = firstText(tenantId, "default");
+        try {
+            byte[] value = db.get(bytes(planSnapshotKey(normalizedTenant, taskId)));
+            if (value == null) {
+                return Optional.empty();
+            }
+            InterpretationPlanRecord record = objectMapper.readValue(value, InterpretationPlanRecord.class);
+            super.saveSnapshot(record);
+            return Optional.of(record);
+        } catch (IOException | RocksDBException ex) {
+            throw new IllegalStateException("Failed to read interpretation plan snapshot " + taskId, ex);
+        }
+    }
+
+    @Override
+    public Optional<String> getDagJson(String tenantId, String taskId) {
+        Optional<String> cached = super.getDagJson(tenantId, taskId);
+        if (cached.isPresent() || db == null || taskId == null || taskId.isBlank()) {
+            return cached;
+        }
+        String normalizedTenant = firstText(tenantId, "default");
+        try {
+            byte[] value = db.get(bytes(planDagKey(normalizedTenant, taskId)));
+            return value == null ? Optional.empty() : Optional.of(new String(value, StandardCharsets.UTF_8));
+        } catch (RocksDBException ex) {
+            throw new IllegalStateException("Failed to read interpretation plan dag " + taskId, ex);
+        }
+    }
+
+    @Override
+    public List<InterpretationPlanRecord> listVersions(String tenantId, String taskId) {
+        List<InterpretationPlanRecord> cached = super.listVersions(tenantId, taskId);
+        if (!cached.isEmpty() || db == null || taskId == null || taskId.isBlank()) {
+            return cached;
+        }
+        String normalizedTenant = firstText(tenantId, "default");
+        String prefix = planVersionPrefix(normalizedTenant, taskId);
+        List<InterpretationPlanRecord> versions = new ArrayList<>();
+        try (RocksIterator iterator = db.newIterator()) {
+            iterator.seek(bytes(prefix));
+            while (iterator.isValid() && startsWith(iterator.key(), prefix)) {
+                versions.add(objectMapper.readValue(iterator.value(), InterpretationPlanRecord.class));
+                iterator.next();
+            }
+            versions.forEach(super::saveVersion);
+            return versions;
+        } catch (IOException ex) {
+            throw new IllegalStateException("Failed to read interpretation plan versions " + taskId, ex);
+        }
+    }
+
+    @Override
+    protected void saveDag(InterpretationPlanRecord record) {
+        super.saveDag(record);
+        if (record == null || record.tenantId() == null || record.taskId() == null) {
+            return;
+        }
+        ensureOpen();
+        try {
+            db.put(bytes(planDagKey(record.tenantId(), record.taskId())), bytes(record.dagJson() == null ? "{}" : record.dagJson()));
+        } catch (RocksDBException ex) {
+            throw new IllegalStateException("Failed to persist interpretation plan dag " + record.taskId(), ex);
+        }
+    }
+
+    @Override
+    protected void savePlanIndex(InterpretationPlanRecord record) {
+        super.savePlanIndex(record);
+        if (record == null || record.tenantId() == null || record.planId() == null) {
+            return;
+        }
+        ensureOpen();
+        try {
+            db.put(bytes(planIndexKey(record.tenantId(), record.planId())), bytes(record.taskId()));
+        } catch (RocksDBException ex) {
+            throw new IllegalStateException("Failed to persist interpretation plan index " + record.planId(), ex);
+        }
     }
 
     @Override
@@ -501,6 +620,31 @@ public class RocksDbAgentRunStore extends InMemoryAgentRunStore {
 
     private String observationKey(String runId, int index) {
         return observationPrefix(runId) + String.format("%010d", index);
+    }
+
+    private String planSnapshotKey(String tenantId, String taskId) {
+        return PLAN_SNAPSHOT_KEY_PREFIX + firstText(tenantId, "default") + ":" + taskId;
+    }
+
+    private String planVersionPrefix(String tenantId, String taskId) {
+        return PLAN_VERSION_KEY_PREFIX + firstText(tenantId, "default") + ":" + taskId + ":";
+    }
+
+    private String planVersionKey(InterpretationPlanRecord record) {
+        int version = record.version() == null ? 0 : record.version();
+        return planVersionPrefix(record.tenantId(), record.taskId()) + String.format("%010d", version);
+    }
+
+    private String planDagKey(String tenantId, String taskId) {
+        return PLAN_DAG_KEY_PREFIX + firstText(tenantId, "default") + ":" + taskId;
+    }
+
+    private String planIndexKey(String tenantId, String planId) {
+        return PLAN_INDEX_KEY_PREFIX + firstText(tenantId, "default") + ":" + planId;
+    }
+
+    private String firstText(String value, String fallback) {
+        return value == null || value.isBlank() ? fallback : value.trim();
     }
 
     private byte[] bytes(String value) {

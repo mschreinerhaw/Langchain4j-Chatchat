@@ -688,7 +688,7 @@ public class InterpretationPlanRuntime {
         }
         List<String> urls = new ArrayList<>();
         completed.values().stream()
-            .filter(step -> step != null && step.success() && isWebSearchTool(step.toolName()))
+            .filter(step -> step != null && step.success() && isWebDiscoveryTool(step.toolName()))
             .forEach(step -> {
                 collectUrls(step.metadata().get("selectedUrls"), urls);
                 collectUrls(step.metadata().get("selected_urls"), urls);
@@ -758,9 +758,24 @@ public class InterpretationPlanRuntime {
         return semantic.equals("web_search") || semantic.endsWith("_web_search") || semantic.contains("web_search");
     }
 
+    private boolean isWebDiscoveryTool(String toolName) {
+        String semantic = toolSemanticKey(toolName);
+        return isWebSearchTool(toolName)
+            || semantic.equals("web_page_analyze")
+            || semantic.contains("web_page_analyze")
+            || semantic.equals("site_intelligence_resolver")
+            || semantic.contains("site_intelligence")
+            || semantic.equals("finance_site_search")
+            || semantic.contains("finance_site_search")
+            || semantic.equals("generic_web_site_search")
+            || semantic.contains("generic_web_site_search")
+            || semantic.equals("web_site_search")
+            || (semantic.contains("site_search") && !semantic.contains("search_and_extract"));
+    }
+
     private boolean isCrawlerTool(String toolName) {
         String semantic = toolSemanticKey(toolName);
-        return !isWebSearchTool(toolName)
+        return !isWebDiscoveryTool(toolName)
             && (semantic.equals("crawl_url")
             || semantic.contains("crawl")
             || semantic.contains("crawler")

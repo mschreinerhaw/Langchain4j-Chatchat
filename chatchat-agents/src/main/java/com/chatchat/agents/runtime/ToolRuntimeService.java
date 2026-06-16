@@ -367,6 +367,9 @@ public class ToolRuntimeService {
         return normalized.contains("web_search")
             || normalized.contains("document_search")
             || normalized.contains("crawl_url")
+            || normalized.contains("finance_site_search")
+            || normalized.contains("generic_web_site_search")
+            || normalized.contains("retrieve_financial_evidence")
             || normalized.contains("retrieve_evidence")
             || normalized.contains("search_and_extract");
     }

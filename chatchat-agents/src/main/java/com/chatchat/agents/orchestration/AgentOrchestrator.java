@@ -14,10 +14,13 @@ import com.chatchat.agents.runtime.InMemoryAgentRunStore;
 import com.chatchat.agents.runtime.ToolRuntimeExecution;
 import com.chatchat.agents.runtime.ToolRuntimeRequest;
 import com.chatchat.agents.runtime.ToolRuntimeService;
+import com.chatchat.agents.runtime.plan.InterpretationPlanDagConverter;
 import com.chatchat.agents.runtime.plan.InterpretationPlan;
 import com.chatchat.agents.runtime.plan.InterpretationExecutionProtocol;
 import com.chatchat.agents.runtime.plan.InterpretationPlanRewriter;
+import com.chatchat.agents.runtime.plan.InterpretationPlanRecord;
 import com.chatchat.agents.runtime.plan.InterpretationPlanRuntime;
+import com.chatchat.agents.runtime.plan.InterpretationPlanStore;
 import com.chatchat.agents.runtime.plan.InterpretationPlanValidator;
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.interaction.InteractionToolTrace;
@@ -36,6 +39,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CancellationException;
@@ -83,6 +87,8 @@ public class AgentOrchestrator {
     private final AgentWorkflowToolResolver workflowTools;
     private final AgentWorkflowStateTracker workflowStateTracker = new AgentWorkflowStateTracker();
     private final AgentAnswerFinalizer answerFinalizer;
+    private final InterpretationPlanStore interpretationPlanStore;
+    private final InterpretationPlanDagConverter interpretationPlanDagConverter = new InterpretationPlanDagConverter();
 
     public AgentOrchestrator(ChatModel chatModel,
                              ToolRegistry toolRegistry,
@@ -129,7 +135,6 @@ public class AgentOrchestrator {
             evidenceTrustEvaluator, runStore, observationPipeline, new DefaultAgentAnswerReviewer(objectMapper));
     }
 
-    @Autowired
     public AgentOrchestrator(ChatModel chatModel,
                              ToolRegistry toolRegistry,
                              ToolRuntimeService toolRuntimeService,
@@ -139,6 +144,21 @@ public class AgentOrchestrator {
                              AgentRunStore runStore,
                              AgentObservationPipeline observationPipeline,
                              AgentAnswerReviewer answerReviewer) {
+        this(chatModel, toolRegistry, toolRuntimeService, objectMapper, modelsConfig,
+            evidenceTrustEvaluator, runStore, observationPipeline, answerReviewer, null);
+    }
+
+    @Autowired
+    public AgentOrchestrator(ChatModel chatModel,
+                             ToolRegistry toolRegistry,
+                             ToolRuntimeService toolRuntimeService,
+                             ObjectMapper objectMapper,
+                             ModelsConfig modelsConfig,
+                             EvidenceTrustEvaluator evidenceTrustEvaluator,
+                             AgentRunStore runStore,
+                             AgentObservationPipeline observationPipeline,
+                             AgentAnswerReviewer answerReviewer,
+                             InterpretationPlanStore interpretationPlanStore) {
         this.toolRegistry = toolRegistry;
         this.toolRuntimeService = toolRuntimeService;
         this.objectMapper = objectMapper;
@@ -154,6 +174,9 @@ public class AgentOrchestrator {
         this.toolArguments = new AgentToolArgumentResolver(this.toolNames, WEB_SEARCH_REFERENCE_LIMIT);
         this.workflowTools = new AgentWorkflowToolResolver(this.toolNames);
         this.answerFinalizer = new AgentAnswerFinalizer(resolvedAnswerReviewer, this.runtimeGuard);
+        this.interpretationPlanStore = interpretationPlanStore == null && this.runStore instanceof InterpretationPlanStore store
+            ? store
+            : interpretationPlanStore;
     }
 
     /**
@@ -762,6 +785,7 @@ public class AgentOrchestrator {
         runtimeGuard.checkCancelled(cancellationCheck);
         metadata.put("interpretationPlanPipeline", true);
         metadata.put("interpretationPlanVersion", plan.version());
+        saveInterpretationPlanSnapshot("initial", plan, tenantId, requestId, runtimeAttributes, metadata);
         recordLifecyclePhase(
             runtimeAttributes,
             metadata,
@@ -792,6 +816,7 @@ public class AgentOrchestrator {
             runtimeAttributes
         ));
         recordPlanRuntimeResult("initial", firstResult, traces, observations, metadata);
+        saveInterpretationPlanSnapshot("initial_result", plan, tenantId, requestId, runtimeAttributes, metadata, firstResult);
         runtimeGuard.checkCancelled(cancellationCheck);
 
         if (firstResult.approvalRequired()) {
@@ -855,6 +880,14 @@ public class AgentOrchestrator {
             }
 
             currentPlan = rewrite.rewrittenPlan();
+            saveInterpretationPlanSnapshot(
+                rewriteCount == 1 ? "rewrite" : "rewrite" + rewriteCount,
+                currentPlan,
+                tenantId,
+                requestId,
+                runtimeAttributes,
+                metadata
+            );
             recordLifecyclePhase(
                 runtimeAttributes,
                 metadata,
@@ -876,6 +909,15 @@ public class AgentOrchestrator {
                 runtimeAttributes
             ));
             recordPlanRuntimeResult(rewriteCount == 1 ? "rewrite" : "rewrite" + rewriteCount, currentResult, traces, observations, metadata);
+            saveInterpretationPlanSnapshot(
+                (rewriteCount == 1 ? "rewrite" : "rewrite" + rewriteCount) + "_result",
+                currentPlan,
+                tenantId,
+                requestId,
+                runtimeAttributes,
+                metadata,
+                currentResult
+            );
             runtimeGuard.checkCancelled(cancellationCheck);
 
             if (currentResult.approvalRequired()) {
@@ -1323,6 +1365,16 @@ public class AgentOrchestrator {
         if (confidence != null) {
             metadata.put("toolResultReviewConfidence", confidence);
         }
+        if (!satisfied && !selectedUrls.isEmpty() && isWebDiscoveryTool(request.execution().toolName())) {
+            satisfied = true;
+            metadata.put("toolResultReviewAutoAccepted", true);
+            metadata.put("toolResultReviewAutoAcceptReason", "web discovery tool selected follow-up URLs");
+            reason = "Discovery step selected follow-up URLs; continue to crawler/content step. Reviewer note: " + reason;
+            log.info("Tool result review auto-accepted web discovery step tool={} stepId={} selectedUrls={}",
+                request.execution().toolName(),
+                request.step() == null ? null : request.step().id(),
+                selectedUrls);
+        }
         return satisfied
             ? InterpretationPlanRuntime.StepReview.accepted(reason, metadata)
             : InterpretationPlanRuntime.StepReview.rejected(reason, metadata);
@@ -1341,7 +1393,8 @@ public class AgentOrchestrator {
         prompt.append("Rules:\n");
         prompt.append("- Decide whether this tool output is sufficient for the current plan step and user request.\n");
         prompt.append("- If satisfied=false, the DAG must not continue to dependent steps.\n");
-        prompt.append("- For web_search, judge candidate URLs/snippets only. Do not treat snippets as final evidence; select URLs that should be crawled next.\n");
+        prompt.append("- For web discovery tools (web_search, web_page_analyze, site_intelligence_resolver, *_site_search), judge candidate URLs/snippets only. Do not require full article content from these tools.\n");
+        prompt.append("- If a web discovery tool returns useful URLs for follow-up crawling or page analysis, set satisfied=true and put those URLs in selected_urls.\n");
         prompt.append("- For crawl/content tools, judge whether the fetched full content is relevant and usable for analysis.\n");
         prompt.append("- If the user required an official source, reject results that do not satisfy that source constraint.\n");
         prompt.append("- Do not answer the user here; only review the tool result.\n\n");
@@ -1357,6 +1410,49 @@ public class AgentOrchestrator {
         prompt.append("Tool output:\n")
             .append(shortObservationText(stringify(request.execution().output()), 9000));
         return prompt.toString();
+    }
+
+    private boolean isWebDiscoveryTool(String toolName) {
+        String semantic = toolSemanticKey(toolName);
+        return semantic.equals("web_search")
+            || semantic.endsWith("_web_search")
+            || semantic.contains("web_search")
+            || semantic.equals("web_page_analyze")
+            || semantic.contains("web_page_analyze")
+            || semantic.equals("site_intelligence_resolver")
+            || semantic.contains("site_intelligence")
+            || semantic.equals("finance_site_search")
+            || semantic.contains("finance_site_search")
+            || semantic.equals("generic_web_site_search")
+            || semantic.contains("generic_web_site_search")
+            || semantic.equals("web_site_search")
+            || (semantic.contains("site_search") && !semantic.contains("search_and_extract"));
+    }
+
+    private String toolSemanticKey(String toolName) {
+        if (toolName == null) {
+            return "";
+        }
+        String normalized = toolName.trim().toLowerCase(Locale.ROOT).replace('-', '_');
+        while (normalized.startsWith("mcp_")) {
+            normalized = normalized.substring(4);
+        }
+        String[] prefixes = {
+            "chatchat_mcp_server_",
+            "chatchat_",
+            "xxx_"
+        };
+        boolean changed = true;
+        while (changed) {
+            changed = false;
+            for (String prefix : prefixes) {
+                if (normalized.startsWith(prefix)) {
+                    normalized = normalized.substring(prefix.length());
+                    changed = true;
+                }
+            }
+        }
+        return normalized;
     }
 
     private int maxRewriteTimes(InterpretationPlan plan) {
@@ -1412,6 +1508,84 @@ public class AgentOrchestrator {
             metadata.put("interpretationPlan" + capitalize(stage) + "Error", result.errorMessage());
         }
         addCandidateList(metadataList(metadata, "interpretationPlanStepExecutions"), records);
+    }
+
+    private void saveInterpretationPlanSnapshot(String stage,
+                                                InterpretationPlan plan,
+                                                String tenantId,
+                                                String requestId,
+                                                Map<String, Object> runtimeAttributes,
+                                                Map<String, Object> metadata) {
+        if (interpretationPlanStore == null || plan == null) {
+            return;
+        }
+        String taskId = firstNonBlank(
+            stringValue(runtimeAttributes == null ? null : runtimeAttributes.get(AGENT_RUN_ID_ATTRIBUTE)),
+            requestId
+        );
+        if (taskId == null || taskId.isBlank()) {
+            return;
+        }
+        String normalizedStage = stage == null || stage.isBlank() ? "generated" : stage.trim();
+        String planId = taskId + "-" + normalizedStage;
+        try {
+            InterpretationPlanRecord record = interpretationPlanStore.savePlan(
+                firstNonBlank(tenantId, "default"),
+                taskId,
+                planId,
+                plan,
+                "GENERATED"
+            );
+            if (metadata != null) {
+                metadata.put("interpretationPlanId", record.planId());
+                metadata.put("interpretationPlanSnapshotVersion", record.version());
+                metadata.put("interpretationPlanDagStored", true);
+            }
+        } catch (RuntimeException ex) {
+            log.warn("Failed to save InterpretationPlan snapshot. taskId={} stage={} error={}",
+                taskId, normalizedStage, ex.getMessage());
+        }
+    }
+
+    private void saveInterpretationPlanSnapshot(String stage,
+                                                InterpretationPlan plan,
+                                                String tenantId,
+                                                String requestId,
+                                                Map<String, Object> runtimeAttributes,
+                                                Map<String, Object> metadata,
+                                                InterpretationPlanRuntime.ExecutionResult result) {
+        if (interpretationPlanStore == null || plan == null || result == null) {
+            return;
+        }
+        String taskId = firstNonBlank(
+            stringValue(runtimeAttributes == null ? null : runtimeAttributes.get(AGENT_RUN_ID_ATTRIBUTE)),
+            requestId
+        );
+        if (taskId == null || taskId.isBlank()) {
+            return;
+        }
+        String normalizedStage = stage == null || stage.isBlank() ? "execution_result" : stage.trim();
+        String planId = taskId + "-" + normalizedStage;
+        try {
+            Map<String, Object> dag = interpretationPlanDagConverter.convert(plan, normalizedStage, result);
+            InterpretationPlanRecord record = interpretationPlanStore.savePlan(
+                firstNonBlank(tenantId, "default"),
+                taskId,
+                planId,
+                plan,
+                result.success() ? "COMPLETED" : "FAILED",
+                dag
+            );
+            if (metadata != null) {
+                metadata.put("interpretationPlanId", record.planId());
+                metadata.put("interpretationPlanSnapshotVersion", record.version());
+                metadata.put("interpretationPlanDagStored", true);
+                metadata.put("interpretationPlanExecutionDagStored", true);
+            }
+        } catch (RuntimeException ex) {
+            log.warn("Failed to save InterpretationPlan execution snapshot. taskId={} stage={} error={}",
+                taskId, normalizedStage, ex.getMessage());
+        }
     }
 
     @SuppressWarnings("unchecked")

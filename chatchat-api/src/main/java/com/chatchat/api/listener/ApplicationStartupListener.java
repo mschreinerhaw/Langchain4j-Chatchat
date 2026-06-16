@@ -25,7 +25,7 @@ public class ApplicationStartupListener {
     @EventListener(ApplicationReadyEvent.class)
     public void onApplicationReady() {
         log.info("============================================");
-        log.info("ChatChat Enterprise AI Application Starting");
+        log.info("Agent Runtime Smart Workbench Starting");
         log.info("============================================");
 
         try {
@@ -38,7 +38,7 @@ public class ApplicationStartupListener {
             log.info("Recovered {} active Agent tasks", recoveredTasks);
 
             log.info("============================================");
-            log.info("Application started successfully");
+            log.info("Agent Runtime Smart Workbench started successfully");
             log.info("API Documentation: http://localhost:8080/swagger-ui.html");
             log.info("============================================");
         } catch (Exception e) {

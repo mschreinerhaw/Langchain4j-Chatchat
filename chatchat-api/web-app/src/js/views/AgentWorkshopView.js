@@ -181,6 +181,8 @@ export default {
       agentPageSize: 5,
       toolSearchQuery: "",
       toolGroupMode: "service",
+      documentSearchQuery: "",
+      documentCategoryFilter: "all",
       error: "",
       dialogError: "",
       importError: ""
@@ -333,8 +335,7 @@ export default {
         { value: "tag", label: "按标签" }
       ];
     },
-    visibleDocuments() {
-      const selected = new Set(this.selectedDocumentIds);
+    normalizedDocuments() {
       return this.documents
         .filter((document) => document?.docId)
         .map((document) => ({
@@ -345,7 +346,29 @@ export default {
           category: document.category || "",
           date: document.date || "",
           tags: Array.isArray(document.tags) ? document.tags : []
-        }))
+        }));
+    },
+    documentCategoryOptions() {
+      const categories = uniqueList(this.normalizedDocuments.map((document) => document.category || "未分类"))
+        .sort((left, right) => left.localeCompare(right, "zh-CN"));
+      return [
+        { value: "all", label: "全部分类" },
+        ...categories.map((category) => ({ value: category, label: category }))
+      ];
+    },
+    filteredDocuments() {
+      const keyword = this.documentSearchQuery.trim().toLowerCase();
+      const category = this.documentCategoryFilter;
+      return this.normalizedDocuments.filter((document) => {
+        const documentCategory = document.category || "未分类";
+        const categoryMatched = category === "all" || documentCategory === category;
+        const keywordMatched = !keyword || this.documentSearchText(document).includes(keyword);
+        return categoryMatched && keywordMatched;
+      });
+    },
+    visibleDocuments() {
+      const selected = new Set(this.selectedDocumentIds);
+      return [...this.filteredDocuments]
         .sort((left, right) => {
           const leftSelected = selected.has(left.docId) ? 0 : 1;
           const rightSelected = selected.has(right.docId) ? 0 : 1;
@@ -354,6 +377,15 @@ export default {
           }
           return left.title.localeCompare(right.title);
         });
+    },
+    documentResultLabel() {
+      if (!this.documents.length) {
+        return "暂无可绑定文档";
+      }
+      return `已勾选 ${this.selectedDocumentIds.length} / ${this.normalizedDocuments.length}，当前 ${this.filteredDocuments.length} 份`;
+    },
+    hasActiveDocumentFilters() {
+      return this.documentSearchQuery.trim() || this.documentCategoryFilter !== "all";
     },
     importPreviewLabel() {
       if (this.importItems.length) {
@@ -408,6 +440,7 @@ export default {
         this.models = Array.isArray(payload?.models) ? payload.models : [];
         this.documents = Array.isArray(payload?.documents) ? payload.documents : [];
         this.normalizeAgentFilters();
+        this.normalizeDocumentFilters();
       } catch (error) {
         this.error = error.message || "Agent管理加载失败";
       } finally {
@@ -467,6 +500,20 @@ export default {
       ];
       return fields.map((field) => String(field || "").toLowerCase()).join(" ");
     },
+    documentSearchText(document) {
+      const fields = [
+        document?.docId,
+        document?.title,
+        document?.source,
+        document?.category || "未分类",
+        document?.date,
+        document?.documentType,
+        document?.fileName,
+        document?.version,
+        ...(document?.tags || [])
+      ];
+      return fields.map((field) => String(field || "").toLowerCase()).join(" ");
+    },
     agentBadge(agent) {
       return String(agent?.name || agent?.id || "A").slice(0, 1).toUpperCase();
     },
@@ -518,6 +565,10 @@ export default {
       this.agentModelFilter = "all";
       this.agentPage = 1;
     },
+    resetDocumentFilters() {
+      this.documentSearchQuery = "";
+      this.documentCategoryFilter = "all";
+    },
     normalizeAgentFilters() {
       if (!this.agentCategoryOptions.some((option) => option.value === this.agentCategoryFilter)) {
         this.agentCategoryFilter = "all";
@@ -526,6 +577,11 @@ export default {
         this.agentModelFilter = "all";
       }
       this.clampAgentPage();
+    },
+    normalizeDocumentFilters() {
+      if (!this.documentCategoryOptions.some((option) => option.value === this.documentCategoryFilter)) {
+        this.documentCategoryFilter = "all";
+      }
     },
     clampAgentPage() {
       if (this.agentPage > this.totalAgentPages) {

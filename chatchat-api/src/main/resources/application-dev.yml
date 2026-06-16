@@ -69,7 +69,7 @@ chatchat:
       standalone-service-id: chatchat-mcp-server
       standalone-service-name: ChatChat MCP Server
       invocation-token: mcp_test_8f3c7b2a9e6d4f10b5a92cdd0e7a6413
-      timeout-ms: 90000
+      timeout-ms: 0
       import-standalone-server: true
     stdio-proxy:
       enabled: true
@@ -209,8 +209,8 @@ chatchat:
       auth:
         enabled: true
         login-path: /api/v1/enterprise/auth/login
-        username: 
-        password: 
+        username: admin
+        password: 123456
         bearer-token: 
       risk-level: medium
       confirmation:

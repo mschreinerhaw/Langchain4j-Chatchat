@@ -20,6 +20,8 @@ import {
   fetchAgentRuntimeSummary,
   fetchAgentRuntimeToolAudits,
   fetchAgentTaskEvents,
+  fetchAgentTaskPlanDag,
+  fetchAgentTaskPlanVersions,
   fetchToolGovernance,
   submitAgentTaskFeedback,
   updateConversationHistoryStatus
@@ -54,6 +56,7 @@ export default {
     return {
       loading: false,
       eventsLoading: false,
+      planLoading: false,
       error: "",
       tenantId: this.userId || "",
       activeTab: "tasks",
@@ -91,6 +94,13 @@ export default {
       recentToolAudits: [],
       selectedTask: null,
       selectedEvents: [],
+      selectedPlanDag: null,
+      selectedPlanVersions: [],
+      planZoom: 1,
+      planPanX: 0,
+      planPanY: 0,
+      planDragActive: false,
+      planDragStart: null,
       cancellingTaskIds: {},
       feedbackSubmitting: false,
       feedbackDraft: {
@@ -101,28 +111,29 @@ export default {
         reasonCategory: ""
       },
       feedbackReasonOptions: [
-        { value: "", label: "选择原因" },
-        { value: "answer_correct", label: "答案正确" },
-        { value: "steps_clear", label: "步骤清晰" },
-        { value: "tool_result_accurate", label: "工具结果准确" },
-        { value: "environment_mismatch", label: "环境不匹配" },
-        { value: "answer_incomplete", label: "回答不完整" },
-        { value: "tool_call_error", label: "工具调用错误" },
-        { value: "knowledge_outdated", label: "知识库内容过期" },
-        { value: "other", label: "其他" }
+        { value: "", label: "Select reason" },
+        { value: "answer_correct", label: "Answer correct" },
+        { value: "steps_clear", label: "Steps clear" },
+        { value: "tool_result_accurate", label: "Tool result accurate" },
+        { value: "environment_mismatch", label: "Environment mismatch" },
+        { value: "answer_incomplete", label: "Answer incomplete" },
+        { value: "tool_call_error", label: "Tool call error" },
+        { value: "knowledge_outdated", label: "Knowledge outdated" },
+        { value: "other", label: "Other" }
       ]
     };
   },
   computed: {
     tabs() {
       return [
-        { key: "tasks", label: "任务", icon: ListFilter, count: this.tasks.length },
-        { key: "effects", label: "效果", icon: Activity, count: this.lowScoreTasks.length },
-        { key: "experiences", label: "经验", icon: GitBranch, count: this.experienceItems.length },
-        { key: "events", label: "事件", icon: Database, count: this.filteredEvents.length },
-        { key: "tools", label: "工具", icon: ShieldAlert, count: this.filteredTopTools.length },
-        { key: "governance", label: "治理", icon: ShieldCheck, count: this.filteredGovernanceTools.length },
-        { key: "audits", label: "审计", icon: ShieldCheck, count: this.filteredAudits.length }
+        { key: "tasks", label: "Tasks", icon: ListFilter, count: this.tasks.length },
+        { key: "effects", label: "Effects", icon: Activity, count: this.lowScoreTasks.length },
+        { key: "experiences", label: "Experience", icon: GitBranch, count: this.experienceItems.length },
+        { key: "events", label: "Events", icon: Database, count: this.filteredEvents.length },
+        { key: "plan", label: "Plan DAG", icon: GitBranch, count: this.planNodes.length },
+        { key: "tools", label: "Tools", icon: ShieldAlert, count: this.filteredTopTools.length },
+        { key: "governance", label: "Governance", icon: ShieldCheck, count: this.filteredGovernanceTools.length },
+        { key: "audits", label: "Audits", icon: ShieldCheck, count: this.filteredAudits.length }
       ];
     },
     tasks() {
@@ -174,12 +185,12 @@ export default {
       const summary = this.summary || {};
       const toolRuntime = summary.toolRuntime || {};
       return [
-        { label: "任务总量", value: summary.totalTasks || 0, icon: Layers },
-        { label: "运行中", value: summary.activeTasks || 0, icon: Activity },
-        { label: "队列深度", value: summary.queueDepth || 0, icon: GitBranch },
-        { label: "工作线程", value: summary.activeWorkerCount || 0, icon: TimerReset },
-        { label: "工具调用", value: toolRuntime.totalCalls || 0, icon: Database },
-        { label: "失败任务", value: summary.failedTasks || 0, icon: XCircle }
+        { label: "Total Tasks", value: summary.totalTasks || 0, icon: Layers },
+        { label: "Running", value: summary.activeTasks || 0, icon: Activity },
+        { label: "Queue Depth", value: summary.queueDepth || 0, icon: GitBranch },
+        { label: "Workers", value: summary.activeWorkerCount || 0, icon: TimerReset },
+        { label: "Tool Calls", value: toolRuntime.totalCalls || 0, icon: Database },
+        { label: "Failed Tasks", value: summary.failedTasks || 0, icon: XCircle }
       ];
     },
     governanceMetrics() {
@@ -189,10 +200,10 @@ export default {
         return acc;
       }, {});
       return [
-        { label: "通过", value: counts.success || 0, icon: ShieldCheck },
-        { label: "拒绝", value: counts.denied || 0, icon: ShieldX },
+        { label: "Passed", value: counts.success || 0, icon: ShieldCheck },
+        { label: "Denied", value: counts.denied || 0, icon: ShieldX },
         {
-          label: "保护中",
+          label: "Protected",
           value: (counts.rate_limited || 0) + (counts.circuit_open || 0),
           icon: ShieldAlert
         }
@@ -201,12 +212,12 @@ export default {
     effectMetrics() {
       const analytics = this.effectAnalytics || {};
       return [
-        { label: "反馈样本", value: analytics.feedbackTasks || 0, icon: Database },
-        { label: "有用率", value: this.formatPercent(analytics.usefulRate), icon: ShieldCheck },
-        { label: "采纳率", value: this.formatPercent(analytics.adoptedRate), icon: Activity },
-        { label: "解决率", value: this.formatPercent(analytics.resolvedRate), icon: GitBranch },
-        { label: "失败率", value: this.formatPercent(analytics.failedRate), icon: XCircle },
-        { label: "低评分", value: this.lowScoreTasks.length, icon: ShieldAlert }
+        { label: "Feedback Samples", value: analytics.feedbackTasks || 0, icon: Database },
+        { label: "Useful Rate", value: this.formatPercent(analytics.usefulRate), icon: ShieldCheck },
+        { label: "Adoption Rate", value: this.formatPercent(analytics.adoptedRate), icon: Activity },
+        { label: "Resolution Rate", value: this.formatPercent(analytics.resolvedRate), icon: GitBranch },
+        { label: "Failure Rate", value: this.formatPercent(analytics.failedRate), icon: XCircle },
+        { label: "Low Scores", value: this.lowScoreTasks.length, icon: ShieldAlert }
       ];
     },
     filteredTasks() {
@@ -289,11 +300,119 @@ export default {
       }
       return {
         id: this.shortId(this.selectedTask.taskId),
-        title: this.selectedTask.question || "未命名任务",
+        title: this.selectedTask.question || "Untitled task",
         subtitle: this.selectedTask.agentId || "default-agent",
         description:
           this.selectedTask.answerSummary || this.selectedTask.errorMessage || this.selectedTask.question || ""
       };
+    },
+    planNodes() {
+      return Array.isArray(this.selectedPlanDag?.nodes) ? this.selectedPlanDag.nodes : [];
+    },
+    planEdges() {
+      return Array.isArray(this.selectedPlanDag?.edges) ? this.selectedPlanDag.edges : [];
+    },
+    planNodeViews() {
+      const nodes = this.planNodes;
+      if (nodes.length === 0) {
+        return [];
+      }
+      const incoming = this.planEdges.reduce((acc, edge) => {
+        const target = edge.target || edge.to || `step-${edge.toStepId}`;
+        const source = edge.source || edge.from || `step-${edge.fromStepId}`;
+        if (target && source) {
+          acc[target] = [...(acc[target] || []), source];
+        }
+        return acc;
+      }, {});
+      const byId = nodes.reduce((acc, node) => {
+        acc[node.id || `step-${node.stepId}`] = node;
+        return acc;
+      }, {});
+      const levelCache = {};
+      const resolveLevel = (nodeId, seen = new Set()) => {
+        if (levelCache[nodeId] !== undefined) {
+          return levelCache[nodeId];
+        }
+        if (seen.has(nodeId)) {
+          return 0;
+        }
+        seen.add(nodeId);
+        const parents = (incoming[nodeId] || []).filter((parentId) => byId[parentId]);
+        const level = parents.length === 0 ? 0 : Math.max(...parents.map((parentId) => resolveLevel(parentId, seen))) + 1;
+        levelCache[nodeId] = level;
+        return level;
+      };
+      const lanes = {};
+      return nodes.map((node, index) => {
+        const id = node.id || `step-${node.stepId || index + 1}`;
+        const level = resolveLevel(id);
+        const laneIndex = lanes[level] || 0;
+        lanes[level] = laneIndex + 1;
+        return {
+          ...node,
+          id,
+          x: 36 + level * 380,
+          y: 36 + laneIndex * 168,
+          width: 310,
+          height: 118,
+          labelText: this.compactPlanText(node.label || node.toolName || node.actionType || id, 36),
+          fullLabelText: node.label || node.toolName || node.actionType || id,
+          actionText: this.formatPlanAction(node.actionType),
+          toolText: this.compactPlanText(node.toolName || node.actionType || "step", 34),
+          statusText: node.status || (node.success === true ? "success" : node.success === false ? "failed" : "planned"),
+          detailText: node.errorMessage || node.outputPreview || ""
+        };
+      });
+    },
+    planEdgeViews() {
+      const nodesById = this.planNodeViews.reduce((acc, node) => {
+        acc[node.id] = node;
+        return acc;
+      }, {});
+      return this.planEdges
+        .map((edge, index) => {
+          const sourceId = edge.source || edge.from || `step-${edge.fromStepId}`;
+          const targetId = edge.target || edge.to || `step-${edge.toStepId}`;
+          const source = nodesById[sourceId];
+          const target = nodesById[targetId];
+          if (!source || !target) {
+            return null;
+          }
+          const sx = source.x + source.width;
+          const sy = source.y + source.height / 2;
+          const tx = target.x;
+          const ty = target.y + target.height / 2;
+          const curve = Math.max(48, (tx - sx) / 2);
+          return {
+            id: edge.id || `edge-${index}`,
+            label: this.compactPlanText(edge.label || edge.kind || edge.type || "", 24),
+            hasLabel: !!(edge.label || edge.kind || edge.type),
+            x: (sx + tx) / 2,
+            y: (sy + ty) / 2 - 14,
+            path: `M ${sx} ${sy} C ${sx + curve} ${sy}, ${tx - curve} ${ty}, ${tx} ${ty}`
+          };
+        })
+        .filter(Boolean);
+    },
+    planDagSize() {
+      const width = Math.max(1040, ...this.planNodeViews.map((node) => node.x + node.width + 44));
+      const height = Math.max(500, ...this.planNodeViews.map((node) => node.y + node.height + 44));
+      return { width, height };
+    },
+    planDagViewBox() {
+      const width = this.planDagSize.width / this.planZoom;
+      const height = this.planDagSize.height / this.planZoom;
+      return `${this.planPanX} ${this.planPanY} ${width} ${height}`;
+    },
+    planZoomLabel() {
+      return `${Math.round(this.planZoom * 100)}%`;
+    },
+    latestPlanVersionLabel() {
+      if (!this.selectedPlanDag?.version) {
+        return "No snapshot";
+      }
+      return `v${this.selectedPlanDag.version}`;
     },
     canRecordFeedback() {
       const normalized = String(this.selectedTask?.status || "").toUpperCase();
@@ -399,7 +518,7 @@ export default {
           this.selectedEvents = [];
         }
       } catch (error) {
-        this.error = error.message || "鍔犺浇杩愯鐩戞帶澶辫触";
+        this.error = error.message || "Failed to load runtime monitoring.";
       } finally {
         this.loading = false;
       }
@@ -410,6 +529,9 @@ export default {
       if (!this.legacyRuntimeLoaded) {
         this.loadLegacyRuntime();
       }
+      if (key === "plan") {
+        this.loadPlanDag();
+      }
     },
     async inspectTask(task) {
       await this.selectTask(task);
@@ -419,7 +541,13 @@ export default {
       this.selectedTask = task;
       this.syncFeedbackDraft(task);
       this.resetRuntimePage("events");
+      this.selectedPlanDag = null;
+      this.selectedPlanVersions = [];
+      this.resetPlanDagView();
       await this.reloadEvents();
+      if (this.activeTab === "plan") {
+        await this.loadPlanDag();
+      }
     },
     syncFeedbackDraft(task) {
       this.feedbackDraft = {
@@ -448,10 +576,198 @@ export default {
           events: this.clampedRuntimePage("events", this.filteredEvents.length)
         };
       } catch (error) {
-        this.error = error.message || "璇诲彇浜嬩欢閾捐矾澶辫触";
+        this.error = error.message || "Failed to load event chain.";
         this.selectedEvents = [];
       } finally {
         this.eventsLoading = false;
+      }
+    },
+    async loadPlanDag() {
+      if (!this.selectedTask?.taskId) {
+        this.selectedPlanDag = null;
+        this.selectedPlanVersions = [];
+        return;
+      }
+      this.planLoading = true;
+      this.error = "";
+      try {
+        const tenantId = this.selectedTask.tenantId || this.tenantId;
+        const [dag, versions] = await Promise.all([
+          fetchAgentTaskPlanDag(this.selectedTask.taskId, tenantId),
+          fetchAgentTaskPlanVersions(this.selectedTask.taskId, tenantId)
+        ]);
+        this.selectedPlanVersions = Array.isArray(versions) ? versions : [];
+        const latestVersion = this.selectedPlanVersions[this.selectedPlanVersions.length - 1];
+        this.selectedPlanDag = dag || this.planPayloadFromRecord(latestVersion);
+        this.resetPlanDagView();
+      } catch (error) {
+        this.error = error.message || "Failed to load plan DAG.";
+        this.selectedPlanDag = null;
+        this.selectedPlanVersions = [];
+      } finally {
+        this.planLoading = false;
+      }
+    },
+    selectPlanVersion(version) {
+      const payload = this.planPayloadFromRecord(version);
+      if (payload) {
+        this.selectedPlanDag = payload;
+        this.resetPlanDagView();
+      }
+    },
+    zoomPlanDag(factor, anchor = null) {
+      const nextZoom = Math.min(3.5, Math.max(0.35, this.planZoom * factor));
+      if (Math.abs(nextZoom - this.planZoom) < 0.001) {
+        return;
+      }
+      const currentWidth = this.planDagSize.width / this.planZoom;
+      const currentHeight = this.planDagSize.height / this.planZoom;
+      const anchorX = anchor?.x ?? this.planPanX + currentWidth / 2;
+      const anchorY = anchor?.y ?? this.planPanY + currentHeight / 2;
+      const ratioX = currentWidth === 0 ? 0.5 : (anchorX - this.planPanX) / currentWidth;
+      const ratioY = currentHeight === 0 ? 0.5 : (anchorY - this.planPanY) / currentHeight;
+      const nextWidth = this.planDagSize.width / nextZoom;
+      const nextHeight = this.planDagSize.height / nextZoom;
+      this.planZoom = nextZoom;
+      this.planPanX = anchorX - ratioX * nextWidth;
+      this.planPanY = anchorY - ratioY * nextHeight;
+    },
+    resetPlanDagView() {
+      this.planZoom = 1;
+      this.planPanX = 0;
+      this.planPanY = 0;
+      this.planDragActive = false;
+      this.planDragStart = null;
+    },
+    handlePlanDagWheel(event) {
+      if (!this.planNodes.length) {
+        return;
+      }
+      event.preventDefault();
+      const rect = event.currentTarget.getBoundingClientRect();
+      const viewWidth = this.planDagSize.width / this.planZoom;
+      const viewHeight = this.planDagSize.height / this.planZoom;
+      const x = this.planPanX + ((event.clientX - rect.left) / rect.width) * viewWidth;
+      const y = this.planPanY + ((event.clientY - rect.top) / rect.height) * viewHeight;
+      this.zoomPlanDag(event.deltaY < 0 ? 1.12 : 0.88, { x, y });
+    },
+    startPlanDagPan(event) {
+      if (event.button !== undefined && event.button !== 0) {
+        return;
+      }
+      event.currentTarget.setPointerCapture?.(event.pointerId);
+      this.planDragActive = true;
+      this.planDragStart = {
+        clientX: event.clientX,
+        clientY: event.clientY,
+        panX: this.planPanX,
+        panY: this.planPanY
+      };
+    },
+    movePlanDagPan(event) {
+      if (!this.planDragActive || !this.planDragStart) {
+        return;
+      }
+      const rect = event.currentTarget.getBoundingClientRect();
+      const viewWidth = this.planDagSize.width / this.planZoom;
+      const viewHeight = this.planDagSize.height / this.planZoom;
+      const dx = ((event.clientX - this.planDragStart.clientX) / rect.width) * viewWidth;
+      const dy = ((event.clientY - this.planDragStart.clientY) / rect.height) * viewHeight;
+      this.planPanX = this.planDragStart.panX - dx;
+      this.planPanY = this.planDragStart.panY - dy;
+    },
+    stopPlanDagPan(event) {
+      if (this.planDragActive) {
+        event?.currentTarget?.releasePointerCapture?.(event.pointerId);
+      }
+      this.planDragActive = false;
+      this.planDragStart = null;
+    },
+    downloadPlanDagJson() {
+      if (!this.selectedPlanDag) {
+        return;
+      }
+      this.downloadText(
+        `${this.planDownloadName()}.json`,
+        JSON.stringify(this.selectedPlanDag, null, 2),
+        "application/json"
+      );
+    },
+    downloadPlanDagSvg() {
+      const svg = this.$refs.planDagSvg;
+      if (!svg || !this.planNodes.length) {
+        return;
+      }
+      const clone = svg.cloneNode(true);
+      clone.setAttribute("xmlns", "http://www.w3.org/2000/svg");
+      clone.setAttribute("viewBox", `0 0 ${this.planDagSize.width} ${this.planDagSize.height}`);
+      clone.setAttribute("width", String(this.planDagSize.width));
+      clone.setAttribute("height", String(this.planDagSize.height));
+      const style = document.createElementNS("http://www.w3.org/2000/svg", "style");
+      style.textContent = `
+        .plan-dag-edges path{fill:none;stroke:#667085;stroke-width:2.4}
+        .plan-dag-edges marker path{fill:#667085}
+        .plan-dag-edge-label rect{fill:#fbfcff;stroke:#d7e0ef;stroke-width:1}
+        .plan-dag-edge-label text{fill:#344054;font-size:12px;font-weight:800;dominant-baseline:middle;text-anchor:middle}
+        .plan-dag-node rect{fill:#fff;stroke:rgba(47,124,246,.46);stroke-width:2}
+        .plan-dag-node.mcp-tool rect,.plan-dag-node.tool-call rect{stroke:rgba(47,124,246,.56);fill:#f8fbff}
+        .plan-dag-node.final-answer rect{stroke:rgba(244,166,41,.48);fill:#fffdf7}
+        .plan-dag-node.runtime rect{stroke:rgba(102,112,133,.42);fill:#f8fafc}
+        .plan-dag-node.failed rect{stroke:rgba(239,79,95,.62);fill:#fff7f8}
+        .plan-dag-node.success rect{stroke:rgba(32,178,107,.52);fill:#f7fffa}
+        .plan-dag-node text{fill:#5d6b82;font-family:Arial,sans-serif;font-size:14px;font-weight:800}
+        .plan-dag-node .plan-dag-node-title{fill:#111827;font-size:16px;font-weight:900}
+        .plan-dag-node .plan-dag-node-meta{fill:#7a8799;font-size:13px}
+      `;
+      clone.insertBefore(style, clone.firstChild);
+      this.downloadText(
+        `${this.planDownloadName()}.svg`,
+        new XMLSerializer().serializeToString(clone),
+        "image/svg+xml"
+      );
+    },
+    planDownloadName() {
+      const task = this.shortId(this.selectedPlanDag?.taskId || this.selectedTask?.taskId || "task");
+      const version = this.selectedPlanDag?.version ? `v${this.selectedPlanDag.version}` : "snapshot";
+      return `plan-dag-${task}-${version}`;
+    },
+    downloadText(filename, content, type) {
+      const blob = new Blob([content], { type });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    },
+    planPayloadFromRecord(record) {
+      if (!record) {
+        return null;
+      }
+      const dag = record.dag && typeof record.dag === "object" ? record.dag : this.parsePlanJson(record.dagJson);
+      return {
+        tenantId: record.tenantId,
+        taskId: record.taskId,
+        planId: record.planId,
+        version: record.version,
+        status: record.status,
+        createdAt: record.createdAt,
+        updatedAt: record.updatedAt,
+        nodes: Array.isArray(dag?.nodes) ? dag.nodes : [],
+        edges: Array.isArray(dag?.edges) ? dag.edges : [],
+        summary: dag?.summary || {}
+      };
+    },
+    parsePlanJson(value) {
+      if (!value || typeof value !== "string") {
+        return {};
+      }
+      try {
+        return JSON.parse(value);
+      } catch (error) {
+        return {};
       }
     },
     onSelectedTaskChange(taskId) {
@@ -554,7 +870,7 @@ export default {
           await this.reloadEvents();
         }
       } catch (error) {
-        this.error = error.message || "鍋滄浠诲姟澶辫触";
+        this.error = error.message || "Failed to stop task.";
       } finally {
         const next = { ...this.cancellingTaskIds };
         delete next[task.taskId];
@@ -585,7 +901,7 @@ export default {
         await this.reloadEvents();
         await this.loadRuntime();
       } catch (error) {
-        this.error = error.message || "璁板綍浠诲姟鍙嶉澶辫触";
+        this.error = error.message || "Failed to save task feedback.";
       } finally {
         this.feedbackSubmitting = false;
       }
@@ -614,7 +930,7 @@ export default {
       if (!value) {
         return "-";
       }
-      return new Intl.DateTimeFormat("zh-CN", {
+      return new Intl.DateTimeFormat("en-US", {
         month: "2-digit",
         day: "2-digit",
         hour: "2-digit",
@@ -625,7 +941,7 @@ export default {
       if (!value) {
         return "-";
       }
-      return new Intl.DateTimeFormat("zh-CN", {
+      return new Intl.DateTimeFormat("en-US", {
         hour: "2-digit",
         minute: "2-digit",
         second: "2-digit"
@@ -635,7 +951,7 @@ export default {
       if (!value) {
         return "-";
       }
-      return new Intl.DateTimeFormat("zh-CN", {
+      return new Intl.DateTimeFormat("en-US", {
         month: "2-digit",
         day: "2-digit",
         hour: "2-digit",
@@ -657,45 +973,55 @@ export default {
       const normalized = String(value || "").toLowerCase();
       return (
         {
-          readonly: "只读",
-          suggestion: "建议型",
-          confirm_required: "需确认",
-          forbidden: "禁用"
-        }[normalized] || "只读"
+          readonly: "Read-only",
+          suggestion: "Suggestion",
+          confirm_required: "Confirmation required",
+          forbidden: "Forbidden"
+        }[normalized] || "Read-only"
       );
     },
     formatRuntimeAction(value) {
       const normalized = String(value || "").toLowerCase();
       return (
         {
-          auto_execute: "自动执行",
-          ask_before_execute: "执行前确认",
-          deny: "拒绝执行"
-        }[normalized] || "自动执行"
+          auto_execute: "Auto execute",
+          ask_before_execute: "Ask before execute",
+          deny: "Deny"
+        }[normalized] || "Auto execute"
       );
     },
     formatFeedbackReason(value) {
-      return this.feedbackReasonOptions.find((item) => item.value === value)?.label || "其他";
+      return this.feedbackReasonOptions.find((item) => item.value === value)?.label || "Other";
     },
     formatOutcome(value) {
       const normalized = String(value || "").toLowerCase();
       return (
         {
-          success: "閫氳繃",
-          denied: "鎷掔粷",
-          failed: "澶辫触",
-          rate_limited: "闄愭祦",
-          circuit_open: "鐔旀柇"
-        }[normalized] || (normalized ? normalized.replaceAll("_", " ") : "鏈煡")
+          success: "Passed",
+          denied: "Denied",
+          failed: "Failed",
+          rate_limited: "Rate limited",
+          circuit_open: "Circuit open"
+        }[normalized] || (normalized ? normalized.replaceAll("_", " ") : "Unknown")
       );
     },
     formatToolHealth(value) {
       return (
         {
-          healthy: "绋冲畾",
-          problem: "寮傚父"
-        }[value] || "鍏ㄩ儴"
+          healthy: "Stable",
+          problem: "Problem"
+        }[value] || "All"
       );
+    },
+    formatPlanAction(value) {
+      return String(value || "step").replaceAll("_", " ");
+    },
+    compactPlanText(value, maxLength = 24) {
+      const text = String(value || "").replace(/\s+/g, " ").trim();
+      if (text.length <= maxLength) {
+        return text || "-";
+      }
+      return `${text.slice(0, Math.max(4, maxLength - 1))}...`;
     },
     toolHealth(tool) {
       if (!tool) {

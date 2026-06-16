@@ -69,7 +69,7 @@ chatchat:
       standalone-service-id: ${CHAT_MCP_CENTER_STANDALONE_SERVICE_ID:chatchat-mcp-server}
       standalone-service-name: ${CHAT_MCP_CENTER_STANDALONE_SERVICE_NAME:ChatChat MCP Server}
       invocation-token: ${CHAT_MCP_CENTER_INVOCATION_TOKEN:${CHAT_MCP_INVOCATION_TOKEN:}}
-      timeout-ms: ${CHAT_MCP_CENTER_TIMEOUT_MS:90000}
+      timeout-ms: ${CHAT_MCP_CENTER_TIMEOUT_MS:0}
       import-standalone-server: ${CHAT_MCP_CENTER_IMPORT_STANDALONE:true}
     stdio-proxy:
       enabled: true

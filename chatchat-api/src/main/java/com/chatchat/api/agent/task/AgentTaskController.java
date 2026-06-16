@@ -2,6 +2,8 @@ package com.chatchat.api.agent.task;
 
 import com.chatchat.agents.runtime.ToolRuntimeProperties;
 import com.chatchat.agents.runtime.ToolRuntimeSnapshot;
+import com.chatchat.agents.runtime.plan.InterpretationPlanRecord;
+import com.chatchat.agents.runtime.plan.InterpretationPlanStore;
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.chat.task.AgentEffectAnalytics;
 import com.chatchat.chat.task.AgentEvent;
@@ -21,6 +23,7 @@ import com.chatchat.enterprise.entity.SysAuditLog;
 import com.chatchat.enterprise.repository.SysAuditLogRepository;
 import com.chatchat.enterprise.service.EnterpriseAdminService;
 import com.chatchat.integration.mcp.service.McpToolRegistryBridge;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.annotations.Operation;
@@ -60,6 +63,7 @@ public class AgentTaskController {
     private final AgentLearningService learningService;
     private final EnterpriseAdminService enterpriseAdminService;
     private final AgentTodoService todoService;
+    private final InterpretationPlanStore interpretationPlanStore;
 
     /**
      * Performs the submit operation.
@@ -220,6 +224,42 @@ public class AgentTaskController {
                                                 @RequestParam(value = "limit", defaultValue = "50") int limit) {
         try {
             return ApiResponse.success(taskService.listEvents(tenantId, taskId, limit));
+        } catch (IllegalArgumentException e) {
+            return ApiResponse.badRequest(e.getMessage());
+        }
+    }
+
+    @GetMapping("/{taskId}/plan")
+    @Operation(summary = "Get latest InterpretationPlan snapshot for one task")
+    public ApiResponse<InterpretationPlanRecord> plan(@RequestParam("tenantId") String tenantId,
+                                                      @PathVariable("taskId") String taskId) {
+        try {
+            return ApiResponse.success(interpretationPlanStore.getSnapshot(requireTenant(tenantId), taskId).orElse(null));
+        } catch (IllegalArgumentException e) {
+            return ApiResponse.badRequest(e.getMessage());
+        }
+    }
+
+    @GetMapping("/{taskId}/plan-dag")
+    @Operation(summary = "Get latest InterpretationPlan DAG for one task")
+    public ApiResponse<Map<String, Object>> planDag(@RequestParam("tenantId") String tenantId,
+                                                    @PathVariable("taskId") String taskId) {
+        try {
+            return ApiResponse.success(interpretationPlanStore
+                .getSnapshot(requireTenant(tenantId), taskId)
+                .map(this::toPlanDagPayload)
+                .orElse(null));
+        } catch (IllegalArgumentException e) {
+            return ApiResponse.badRequest(e.getMessage());
+        }
+    }
+
+    @GetMapping("/{taskId}/plan/versions")
+    @Operation(summary = "List InterpretationPlan versions for one task")
+    public ApiResponse<List<InterpretationPlanRecord>> planVersions(@RequestParam("tenantId") String tenantId,
+                                                                    @PathVariable("taskId") String taskId) {
+        try {
+            return ApiResponse.success(interpretationPlanStore.listVersions(requireTenant(tenantId), taskId));
         } catch (IllegalArgumentException e) {
             return ApiResponse.badRequest(e.getMessage());
         }
@@ -480,6 +520,36 @@ public class AgentTaskController {
             textValue(detail, "errorCode"),
             textValue(detail, "errorMessage")
         );
+    }
+
+    private Map<String, Object> toPlanDagPayload(InterpretationPlanRecord record) {
+        Map<String, Object> dag = record.dag() == null || record.dag().isEmpty()
+            ? readJsonMap(record.dagJson())
+            : new LinkedHashMap<>(record.dag());
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("tenantId", record.tenantId());
+        payload.put("taskId", record.taskId());
+        payload.put("planId", record.planId());
+        payload.put("version", record.version());
+        payload.put("status", record.status());
+        payload.put("createdAt", record.createdAt());
+        payload.put("updatedAt", record.updatedAt());
+        payload.put("nodes", dag.getOrDefault("nodes", List.of()));
+        payload.put("edges", dag.getOrDefault("edges", List.of()));
+        payload.put("summary", dag.getOrDefault("summary", Map.of()));
+        return payload;
+    }
+
+    private Map<String, Object> readJsonMap(String value) {
+        if (value == null || value.isBlank()) {
+            return Map.of();
+        }
+        try {
+            return objectMapper.readValue(value, new TypeReference<>() {
+            });
+        } catch (Exception ex) {
+            return Map.of("raw", value);
+        }
     }
 
     private ToolGovernanceView toToolGovernanceView(String toolName,

@@ -469,7 +469,7 @@
             <div class="agent-tool-picker-head">
               <div>
                 <strong>知识库文档</strong>
-                <span>{{ documents.length ? `已勾选 ${selectedDocumentIds.length} / ${documents.length}` : "暂无可绑定文档" }}</span>
+                <span>{{ documentResultLabel }}</span>
               </div>
               <button
                 v-if="documents.length"
@@ -480,7 +480,33 @@
                 清空
               </button>
             </div>
-            <div v-if="documents.length" class="agent-document-checklist">
+            <div v-if="documents.length" class="agent-document-searchbar">
+              <label>
+                <span>检索文档</span>
+                <input
+                  v-model.trim="documentSearchQuery"
+                  type="search"
+                  placeholder="按标题、来源、ID、分类或标签"
+                >
+              </label>
+              <label>
+                <span>分类</span>
+                <select v-model="documentCategoryFilter">
+                  <option v-for="option in documentCategoryOptions" :key="option.value" :value="option.value">
+                    {{ option.label }}
+                  </option>
+                </select>
+              </label>
+              <button
+                v-if="hasActiveDocumentFilters"
+                type="button"
+                class="secondary-button compact-button"
+                @click="resetDocumentFilters"
+              >
+                重置
+              </button>
+            </div>
+            <div v-if="documents.length && visibleDocuments.length" class="agent-document-checklist">
               <label
                 v-for="document in visibleDocuments"
                 :key="document.docId"
@@ -495,18 +521,14 @@
                 >
                 <span>
                   <strong>{{ document.title }}</strong>
-                  <small>{{ document.source }} {{ document.date }}</small>
+                  <small>{{ document.source }} · {{ document.category || "未分类" }} · {{ document.date }}</small>
                   <em>{{ document.docId }}</em>
                 </span>
               </label>
             </div>
+            <p v-else-if="documents.length" class="agent-tool-empty">没有匹配的知识库文档，请调整分类或关键词。</p>
             <p v-else class="agent-tool-empty">请先在知识库上传或创建可检索文档。</p>
           </section>
-
-          <label class="wide-field">
-            <span>文档标签范围</span>
-            <input v-model="form.boundDocumentTags" placeholder="可选，多个标签用逗号或换行分隔">
-          </label>
 
           <section class="routing-settings wide-field">
             <label class="checkbox-row">

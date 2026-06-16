@@ -300,6 +300,33 @@ export function fetchAgentTaskEvents(taskId, limit = 50, tenantId = "") {
   return apiRequest(`/agent/tasks/${encodeURIComponent(taskId)}/events?${params.toString()}`);
 }
 
+export function fetchAgentTaskPlan(taskId, tenantId = "") {
+  const params = new URLSearchParams();
+  if (tenantId) {
+    params.set("tenantId", tenantId);
+  }
+  const query = params.toString();
+  return apiRequest(`/agent/tasks/${encodeURIComponent(taskId)}/plan${query ? `?${query}` : ""}`);
+}
+
+export function fetchAgentTaskPlanDag(taskId, tenantId = "") {
+  const params = new URLSearchParams();
+  if (tenantId) {
+    params.set("tenantId", tenantId);
+  }
+  const query = params.toString();
+  return apiRequest(`/agent/tasks/${encodeURIComponent(taskId)}/plan-dag${query ? `?${query}` : ""}`);
+}
+
+export function fetchAgentTaskPlanVersions(taskId, tenantId = "") {
+  const params = new URLSearchParams();
+  if (tenantId) {
+    params.set("tenantId", tenantId);
+  }
+  const query = params.toString();
+  return apiRequest(`/agent/tasks/${encodeURIComponent(taskId)}/plan/versions${query ? `?${query}` : ""}`);
+}
+
 export function fetchGenericAgentRuntimeSnapshot() {
   return apiRequest("/agent/runtime/snapshot");
 }

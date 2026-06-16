@@ -25,6 +25,7 @@ public final class WebCrawlerManualMain {
         Map<String, String> options = parseOptions(args);
 
         String url = firstNonBlank(options.get("url"), System.getenv("WEB_CRAWLER_URL"), DEFAULT_URL);
+        String query = firstNonBlank(options.get("query"), System.getenv("WEB_CRAWLER_QUERY"), "");
         String mode = firstNonBlank(options.get("mode"), System.getenv("WEB_CRAWLER_MODE"), "browser");
         boolean render = parseBoolean(firstNonBlank(options.get("render"), System.getenv("WEB_CRAWLER_RENDER")), false);
         int timeoutMs = parseInt(firstNonBlank(options.get("timeoutMs"), System.getenv("WEB_CRAWLER_TIMEOUT_MS")), 30000);
@@ -58,6 +59,7 @@ public final class WebCrawlerManualMain {
 
         Map<String, Object> input = new LinkedHashMap<>();
         input.put("url", url);
+        input.put("query", query);
         input.put("mode", mode);
         input.put("render", render);
         input.put("timeoutMs", timeoutMs);
@@ -75,7 +77,8 @@ public final class WebCrawlerManualMain {
             new WebCrawlerService.CrawlRequestContext(
                 firstNonBlank(options.get("tenantId"), System.getenv("WEB_CRAWLER_TENANT_ID"), "manual"),
                 firstNonBlank(options.get("taskId"), System.getenv("WEB_CRAWLER_TASK_ID"), "manual-web-crawler"),
-                firstNonBlank(options.get("agentId"), System.getenv("WEB_CRAWLER_AGENT_ID"), "manual")
+                firstNonBlank(options.get("agentId"), System.getenv("WEB_CRAWLER_AGENT_ID"), "manual"),
+                query
             )
         );
         output.put("manualDurationMs", Math.max(0L, System.currentTimeMillis() - startedAt));

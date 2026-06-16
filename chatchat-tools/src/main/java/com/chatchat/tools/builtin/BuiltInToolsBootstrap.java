@@ -708,7 +708,7 @@ public class BuiltInToolsBootstrap {
                 int timeoutMs = environment.getProperty("chatchat.tools.document-search.timeout-ms", Integer.class, 20000);
                 HttpResponse<String> response = sendDocumentApiGet(uri, timeoutMs);
                 if (response.statusCode() < 200 || response.statusCode() >= 300) {
-                    return ToolOutput.failure("document search API returned HTTP " + response.statusCode() + " from " + uri);
+                    return ToolOutput.failure(documentApiFailureMessage("document search", response.statusCode(), uri));
                 }
                 Map<String, Object> payload = objectMapper.readValue(response.body(), Map.class);
                 Object data = payload.containsKey("data") ? payload.get("data") : payload;
@@ -775,7 +775,7 @@ public class BuiltInToolsBootstrap {
                 HttpResponse<String> detailResponse = sendDocumentApiGet(detailUri, timeoutMs);
                 if (detailResponse.statusCode() < 200 || detailResponse.statusCode() >= 300) {
                     result.put("detailFetched", false);
-                    result.put("detailFetchError", "document detail API returned HTTP " + detailResponse.statusCode() + " from " + detailUri);
+                    result.put("detailFetchError", documentApiFailureMessage("document detail", detailResponse.statusCode(), detailUri));
                     return;
                 }
                 Map<String, Object> payload = objectMapper.readValue(detailResponse.body(), Map.class);
@@ -985,6 +985,15 @@ public class BuiltInToolsBootstrap {
          */
         private String configuredDocumentSearchToken() {
             return environment.getProperty("chatchat.tools.document-search.auth.bearer-token", "").trim();
+        }
+
+        private String documentApiFailureMessage(String apiName, int statusCode, URI uri) {
+            String message = apiName + " API returned HTTP " + statusCode + " from " + uri;
+            if (statusCode == 401 && isDocumentSearchAuthEnabled()) {
+                message += "; configure chatchat.tools.document-search.auth.bearer-token or"
+                    + " chatchat.tools.document-search.auth.username/password for the Runtime/API service";
+            }
+            return message;
         }
 
         private boolean hasDocumentSearchLoginCredentials() {

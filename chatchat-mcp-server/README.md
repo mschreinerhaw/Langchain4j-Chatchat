@@ -240,9 +240,11 @@ When `site-search.enabled` is true, `web_search` inspects top result pages for s
 
 Each request logs keyword, phase, target domain, proxy id, status code, duration, and failure reason. When `audit.include-in-result` is true, the MCP response also includes `web_search_audit`.
 
-## Internet evidence tool contract
+## Financial evidence tool contract
 
-Agents should call `retrieve_evidence` for web-backed answers. It wraps search, crawl, cleanup, chunking, reranking, and contract normalization, then returns only the compact evidence package intended for LLM reasoning:
+Agents should call `retrieve_financial_evidence` for finance-backed answers such as listed-company disclosures, filings, announcements, securities-market facts, and finance source evidence. It wraps search, crawl, cleanup, chunking, reranking, and contract normalization, then returns only the compact evidence package intended for LLM reasoning.
+
+For non-financial information retrieval, agents should compose `web_search`, `site_intelligence_resolver`, `generic_web_site_search`, and `web_crawler` directly instead of using the financial evidence chain.
 
 ```json
 {
@@ -270,4 +272,4 @@ Agents should call `retrieve_evidence` for web-backed answers. It wraps search, 
 }
 ```
 
-`search_and_extract` remains registered as a debug/compatibility tool and returns raw search results, crawled pages, raw evidence, rerank metadata, and observability fields. With the default `expose-agent-compatible-only=true`, only the compact `retrieve_evidence` tool is exposed to agents.
+`search_and_extract` remains registered as a debug/compatibility tool and returns raw search results, crawled pages, raw evidence, rerank metadata, and observability fields. With the default `expose-agent-compatible-only=true`, only the compact `retrieve_financial_evidence` tool is exposed to agents for the financial evidence workflow.

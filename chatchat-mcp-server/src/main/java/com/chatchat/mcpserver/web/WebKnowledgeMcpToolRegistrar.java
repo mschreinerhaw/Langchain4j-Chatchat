@@ -7,8 +7,10 @@ import com.chatchat.common.tool.ToolOutput;
 import com.chatchat.common.tool.ToolParameter;
 import com.chatchat.mcpserver.tool.McpServerToolRegistrar;
 import com.chatchat.tools.builtin.WebSearchToolProperties;
+import com.chatchat.tools.web.SiteIntelligenceResolverService;
 import com.chatchat.tools.web.WebCrawlerProperties;
 import com.chatchat.tools.web.WebCrawlerService;
+import com.chatchat.tools.web.WebPageAnalyzeService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.env.Environment;
@@ -23,24 +25,32 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.regex.Pattern;
 
 @Component
 public class WebKnowledgeMcpToolRegistrar implements McpServerToolRegistrar {
 
     private static final Logger log = LoggerFactory.getLogger(WebKnowledgeMcpToolRegistrar.class);
+    private static final Pattern HTTP_URL_PATTERN = Pattern.compile("https?://[^\\s\"'<>，。；、)）\\]}]+");
 
     private final WebCrawlerService crawlerService;
+    private final SiteIntelligenceResolverService siteIntelligenceResolverService;
+    private final WebPageAnalyzeService webPageAnalyzeService;
     private final WebSearchExtractService searchExtractService;
     private final WebCrawlerProperties crawlerProperties;
     private final WebSearchToolProperties webSearchProperties;
     private final Environment environment;
 
     public WebKnowledgeMcpToolRegistrar(WebCrawlerService crawlerService,
+                                        SiteIntelligenceResolverService siteIntelligenceResolverService,
+                                        WebPageAnalyzeService webPageAnalyzeService,
                                         WebSearchExtractService searchExtractService,
                                         WebCrawlerProperties crawlerProperties,
                                         WebSearchToolProperties webSearchProperties,
                                         Environment environment) {
         this.crawlerService = crawlerService;
+        this.siteIntelligenceResolverService = siteIntelligenceResolverService;
+        this.webPageAnalyzeService = webPageAnalyzeService;
         this.searchExtractService = searchExtractService;
         this.crawlerProperties = crawlerProperties;
         this.webSearchProperties = webSearchProperties;
@@ -57,13 +67,16 @@ public class WebKnowledgeMcpToolRegistrar implements McpServerToolRegistrar {
         ToolRegistry.EnhancedTool rawWebSearch = toolRegistry.getEnhancedTool("web_search");
         if (rawWebSearch != null) {
             toolRegistry.registerTool("web_search", webSearchSnippetsMetadata(), new WebSearchSnippetsTool(rawWebSearch));
-            toolRegistry.registerTool("web_site_search", webSiteSearchMetadata(), new WebSiteSearchTool(rawWebSearch));
+            toolRegistry.registerTool("finance_site_search", financeSiteSearchMetadata(), new FinanceSiteSearchTool(rawWebSearch));
+            toolRegistry.registerTool("generic_web_site_search", genericWebSiteSearchMetadata(), new GenericWebSiteSearchTool(rawWebSearch));
         }
         ToolMetadata crawlUrlMetadata = crawlUrlMetadata();
         ToolMetadata webCrawlerMetadata = webCrawlerMetadata();
         toolRegistry.registerTool("crawl_url", crawlUrlMetadata, new CrawlUrlTool(crawlUrlMetadata));
         toolRegistry.registerTool("web_crawler", webCrawlerMetadata, new CrawlUrlTool(webCrawlerMetadata));
-        toolRegistry.registerTool("retrieve_evidence", retrieveEvidenceMetadata(), new RetrieveEvidenceTool());
+        toolRegistry.registerTool("web_page_analyze", webPageAnalyzeMetadata(), new WebPageAnalyzeTool());
+        toolRegistry.registerTool("site_intelligence_resolver", siteIntelligenceResolverMetadata(), new SiteIntelligenceResolverTool());
+        toolRegistry.registerTool("retrieve_financial_evidence", retrieveFinancialEvidenceMetadata(), new RetrieveEvidenceTool());
         toolRegistry.registerTool("search_and_extract", searchAndExtractMetadata(), new SearchAndExtractTool());
     }
 
@@ -71,7 +84,7 @@ public class WebKnowledgeMcpToolRegistrar implements McpServerToolRegistrar {
         return ToolMetadata.builder()
             .id("web_search")
             .title("Web Search Snippets")
-            .description("Search the public web and return only search result titles, URLs, and short snippets for model-side relevance judgment. This tool does not crawl pages or run secondary site search; call web_site_search or web_crawler after choosing relevant URLs.")
+            .description("Search the public web and return only search result titles, URLs, and short snippets for model-side relevance judgment. This tool does not crawl pages or run secondary site search; call web_page_analyze to inspect candidate pages before crawling, finance_site_search for financial disclosure sites, generic_web_site_search for non-financial sites, or web_crawler after choosing relevant URLs.")
             .version("1.1.0")
             .author("ChatChat MCP Server")
             .categories(Arrays.asList("mcp", "search", "internet"))
@@ -134,7 +147,7 @@ public class WebKnowledgeMcpToolRegistrar implements McpServerToolRegistrar {
             ))
             .tags(Arrays.asList("mcp", "web", "search", "snippets", "llm_rerank"))
             .metadata(Map.of(
-                "workflow", "web_search_then_model_judges_then_optional_web_site_search_or_web_crawler",
+                "workflow", "web_search_then_web_page_analyze_then_model_selects_urls_then_optional_finance_site_search_or_generic_web_site_search_or_web_crawler",
                 "searchStage", "primary",
                 "outputContract", "short search result snippets only",
                 "modes", List.of("java", "browser", "auto"),
@@ -143,12 +156,12 @@ public class WebKnowledgeMcpToolRegistrar implements McpServerToolRegistrar {
             .build();
     }
 
-    private ToolMetadata webSiteSearchMetadata() {
+    private ToolMetadata financeSiteSearchMetadata() {
         return ToolMetadata.builder()
-            .id("web_site_search")
-            .title("Exchange Disclosure Site Search")
-            .description("Dedicated financial disclosure site search for configured financeSiteSearchTargets only. Returns candidate URLs plus short retrieval snippets for model-side judgment; call web_crawler separately only for URLs the model selects.")
-            .version("1.1.0")
+            .id("finance_site_search")
+            .title("Finance Site Search")
+            .description("Finance-only site search for configured exchange/disclosure targets such as SSE, SZSE, and CNINFO. Use this for listed-company announcements, exchange disclosures, finance filings, and securities-market source discovery. Do not use this tool for generic websites, media sites, company sites, blogs, or non-financial information retrieval; use generic_web_site_search and web_crawler for those.")
+            .version("1.2.0")
             .author("ChatChat MCP Server")
             .categories(Arrays.asList("mcp", "search", "internet", "site-search"))
             .category("http_web_search")
@@ -252,6 +265,8 @@ public class WebKnowledgeMcpToolRegistrar implements McpServerToolRegistrar {
                 Map.entry("searchStage", "site_search"),
                 Map.entry("independentMcpTool", true),
                 Map.entry("genericSiteSearch", false),
+                Map.entry("financeOnly", true),
+                Map.entry("doNotUseFor", List.of("generic websites", "media sites", "company sites", "blogs", "non-financial site search")),
                 Map.entry("inputContract", "finance_site_search_query_or_site_search_query + optional finance_site_id"),
                 Map.entry("financeSiteSearchQuery", "Financial disclosure search keyword value: listed company name or stock code, e.g. Dingdian Software/603383"),
                 Map.entry("financeSiteSearchTargets", financeSiteSearchTargetsForModel()),
@@ -259,6 +274,98 @@ public class WebKnowledgeMcpToolRegistrar implements McpServerToolRegistrar {
                 Map.entry("crawlDecision", "model decides whether to call web_crawler and which candidate URLs to crawl"),
                 Map.entry("modes", List.of("java", "browser", "auto")),
                 Map.entry("browserFallback", "browser mode falls back to Java HTTP fetching when Playwright fails")
+            ))
+            .build();
+    }
+
+    private ToolMetadata genericWebSiteSearchMetadata() {
+        return ToolMetadata.builder()
+            .id("generic_web_site_search")
+            .title("Generic Website Site Search")
+            .description("Generic non-financial site search. Use this when the model has a website entrance URL, media site, company site, blog, documentation site, or portal and needs to discover/search within that site. For financial disclosure exchanges use finance_site_search instead.")
+            .version("1.0.0")
+            .author("ChatChat MCP Server")
+            .categories(Arrays.asList("mcp", "search", "internet", "site-search", "generic"))
+            .category("http_web_search")
+            .riskLevel(environment.getProperty("chatchat.tools.web-search.risk-level", "low"))
+            .operationType(environment.getProperty("chatchat.tools.web-search.operation-type", "read"))
+            .runtimeLevel(environment.getProperty("chatchat.tools.web-search.runtime-level", "readonly"))
+            .confirmation(Map.of("default", environment.getProperty("chatchat.tools.web-search.confirmation.default", "auto_execute")))
+            .inputPolicy(Map.of("must_show_parameters", true))
+            .outputType("json")
+            .timeoutMillis(0L)
+            .agentCompatible(true)
+            .parameters(List.of(
+                ToolParameter.builder()
+                    .name("site_url")
+                    .type("string")
+                    .description("Website entrance URL to search within, for example https://www.jiqizhixin.com/")
+                    .required(true)
+                    .minLength(8)
+                    .maxLength(2000)
+                    .build(),
+                ToolParameter.builder()
+                    .name("site_search_query")
+                    .type("string")
+                    .description("Keyword or phrase to search within the target website.")
+                    .required(true)
+                    .minLength(1)
+                    .maxLength(300)
+                    .build(),
+                ToolParameter.builder()
+                    .name("query")
+                    .type("string")
+                    .description("Optional original user question. If omitted, site_search_query is used.")
+                    .required(false)
+                    .maxLength(500)
+                    .build(),
+                ToolParameter.builder()
+                    .name("mode")
+                    .type("string")
+                    .description("Discovery and site-search mode. auto uses browser when enabled; java uses static HTTP parsing; browser uses Playwright.")
+                    .required(false)
+                    .defaultValue("auto")
+                    .enumValues(new String[]{"java", "browser", "auto"})
+                    .build(),
+                ToolParameter.builder()
+                    .name("num_results")
+                    .type("number")
+                    .description("Maximum generic site-search candidates to return")
+                    .required(false)
+                    .defaultValue(10)
+                    .minimum(1)
+                    .maximum(20)
+                    .build(),
+                ToolParameter.builder()
+                    .name("tenantId")
+                    .type("string")
+                    .description("Optional tenant identifier used for request isolation")
+                    .required(false)
+                    .maxLength(128)
+                    .build(),
+                ToolParameter.builder()
+                    .name("sourceTaskId")
+                    .type("string")
+                    .description("Optional task identifier used for request isolation")
+                    .required(false)
+                    .maxLength(128)
+                    .build(),
+                ToolParameter.builder()
+                    .name("agentId")
+                    .type("string")
+                    .description("Optional agent identifier used for audit and rate control")
+                    .required(false)
+                    .maxLength(128)
+                    .build()
+            ))
+            .tags(Arrays.asList("mcp", "web", "generic_site_search", "site_intelligence", "llm_rerank"))
+            .metadata(Map.of(
+                "workflow", "site_intelligence_resolver_then_generic_site_search",
+                "financeOnly", false,
+                "useFor", List.of("media sites", "company sites", "blogs", "documentation sites", "portal homepages"),
+                "useFinanceSiteSearchFor", "financial disclosure exchange targets only",
+                "outputContract", "site_intelligence + crawl_candidates + model_selection_text with candidate URLs and evidence cards",
+                "searchStage", "site_search"
             ))
             .build();
     }
@@ -329,6 +436,112 @@ public class WebKnowledgeMcpToolRegistrar implements McpServerToolRegistrar {
         );
     }
 
+    private ToolMetadata webPageAnalyzeMetadata() {
+        return ToolMetadata.builder()
+            .id("web_page_analyze")
+            .title("Web Page Analyze")
+            .description("Analyze one current web page before crawling. It fetches only the given URL and returns page metadata, search forms, ranked links with short snippets, pagination candidates, and recommended next actions so the model can choose which URL to crawl. This tool does not crawl the whole site and does not extract full page content.")
+            .version("1.0.0")
+            .author("ChatChat MCP Server")
+            .categories(Arrays.asList("mcp", "crawler", "internet", "page-analysis"))
+            .category("http_page_analysis")
+            .riskLevel(environment.getProperty("chatchat.tools.web-page-analyze.risk-level", "low"))
+            .operationType("read")
+            .runtimeLevel("readonly")
+            .confirmation(Map.of("default", environment.getProperty("chatchat.tools.web-page-analyze.confirmation.default", "auto_execute")))
+            .inputPolicy(Map.of("must_show_parameters", true))
+            .outputType("json")
+            .timeoutMillis(0L)
+            .agentCompatible(true)
+            .parameters(List.of(
+                ToolParameter.builder()
+                    .name("url")
+                    .type("string")
+                    .description("HTTP or HTTPS page URL to analyze. The tool only inspects this page and does not recursively crawl the site. Preferred parameter name is url; site_url/pageUrl/target_url/base_url are also accepted for compatibility.")
+                    .required(true)
+                    .minLength(8)
+                    .maxLength(2000)
+                    .build(),
+                ToolParameter.builder()
+                    .name("query")
+                    .type("string")
+                    .description("Optional user question or retrieval goal used to score links and recommended actions.")
+                    .required(false)
+                    .maxLength(1000)
+                    .build(),
+                ToolParameter.builder()
+                    .name("maxLinks")
+                    .type("integer")
+                    .description("Maximum ranked links to return from the current page")
+                    .required(false)
+                    .defaultValue(50)
+                    .minimum(1)
+                    .maximum(200)
+                    .build()
+            ))
+            .tags(Arrays.asList("mcp", "web", "page_analyze", "url_map", "crawl_planning"))
+            .metadata(Map.of(
+                "workflow", "web_search_then_web_page_analyze_then_model_selects_urls_then_crawl_url",
+                "outputContract", "pageUrl + title + description + canonicalUrl + pageType + searchForms + ranked links(url,text,title,snippet,type,score) + pagination + recommendedActions",
+                "crawlPolicy", "analyze first, then crawl only model-selected URLs",
+                "doesNotDo", List.of("full site crawling", "recursive crawling", "full content extraction")
+            ))
+            .build();
+    }
+
+    private ToolMetadata siteIntelligenceResolverMetadata() {
+        return ToolMetadata.builder()
+            .id("site_intelligence_resolver")
+            .title("Site Intelligence Resolver")
+            .description("Discover how a website can be searched: search forms, URL templates, sitemap hints, route candidates, and recommended retrieval strategy. Use this before generic_web_site_search when the model only has a non-financial entrance URL such as a portal homepage.")
+            .version("1.0.0")
+            .author("ChatChat MCP Server")
+            .categories(Arrays.asList("mcp", "crawler", "internet", "site-intelligence"))
+            .category("http_site_intelligence")
+            .riskLevel(environment.getProperty("chatchat.tools.site-intelligence.risk-level", "low"))
+            .operationType("read")
+            .runtimeLevel("readonly")
+            .confirmation(Map.of("default", environment.getProperty("chatchat.tools.site-intelligence.confirmation.default", "auto_execute")))
+            .inputPolicy(Map.of("must_show_parameters", true))
+            .outputType("json")
+            .timeoutMillis(0L)
+            .agentCompatible(true)
+            .parameters(List.of(
+                ToolParameter.builder()
+                    .name("url")
+                    .type("string")
+                    .description("HTTP or HTTPS site entrance URL, for example https://finance.sina.com.cn/. Preferred parameter name is url; site_url/pageUrl/target_url/base_url/homepageUrl are also accepted for compatibility.")
+                    .required(true)
+                    .minLength(8)
+                    .maxLength(2000)
+                    .build(),
+                ToolParameter.builder()
+                    .name("probe_query")
+                    .type("string")
+                    .description("Optional sample keyword used only to produce sample search URLs from discovered templates.")
+                    .required(false)
+                    .defaultValue("test")
+                    .maxLength(200)
+                    .build(),
+                ToolParameter.builder()
+                    .name("mode")
+                    .type("string")
+                    .description("Discovery mode: java/static uses HTML parsing; browser uses Playwright DOM and network sniffing; auto uses browser when enabled.")
+                    .required(false)
+                    .defaultValue("auto")
+                    .enumValues(new String[]{"java", "browser", "auto"})
+                    .build()
+            ))
+            .tags(Arrays.asList("mcp", "site", "intelligence", "search_discovery", "routing"))
+            .metadata(Map.of(
+                "workflow", "site_entry_url_to_search_capabilities",
+                "outputContract", "capabilities + search_endpoint_candidates + discovered_routes + recommended_strategy",
+                "layers", List.of("static_html_analysis", "browser_dom_analysis", "network_search_request_sniffing", "heuristic_known_site_rules"),
+                "useBefore", "generic_web_site_search or web_crawler when only a non-financial site entrance URL is available"
+            ))
+            .build();
+    }
+
     private ToolMetadata crawlerMetadata(String id, String title, String description) {
         return ToolMetadata.builder()
             .id(id)
@@ -350,10 +563,17 @@ public class WebKnowledgeMcpToolRegistrar implements McpServerToolRegistrar {
                 ToolParameter.builder()
                     .name("url")
                     .type("string")
-                    .description("HTTP or HTTPS URL to crawl")
+                    .description("HTTP or HTTPS URL to crawl. Preferred parameter name is url; pageUrl/site_url/target_url are also accepted for compatibility.")
                     .required(true)
                     .minLength(8)
                     .maxLength(2000)
+                    .build(),
+                ToolParameter.builder()
+                    .name("query")
+                    .type("string")
+                    .description("Optional user query used to rank returned evidence blocks for model judgment.")
+                    .required(false)
+                    .maxLength(1000)
                     .build(),
                 ToolParameter.builder()
                     .name("render")
@@ -369,15 +589,6 @@ public class WebKnowledgeMcpToolRegistrar implements McpServerToolRegistrar {
                     .required(false)
                     .defaultValue(crawlerProperties.getDefaultMode())
                     .enumValues(new String[]{"java", "browser", "auto"})
-                    .build(),
-                ToolParameter.builder()
-                    .name("timeout")
-                    .type("integer")
-                    .description("Request timeout in milliseconds. 0 means no request timeout.")
-                    .required(false)
-                    .defaultValue(crawlerProperties.getTimeoutMs())
-                    .minimum(0)
-                    .maximum(60000)
                     .build(),
                 ToolParameter.builder()
                     .name("tenantId")
@@ -428,7 +639,7 @@ public class WebKnowledgeMcpToolRegistrar implements McpServerToolRegistrar {
             .confirmation(Map.of("default", environment.getProperty("chatchat.mcp.search-and-extract.confirmation.default", "auto_execute")))
             .inputPolicy(Map.of("must_show_parameters", true))
             .outputType("json")
-            .timeoutMillis(90000L)
+            .timeoutMillis(0L)
             .agentCompatible(false)
             .parameters(List.of(
                 ToolParameter.builder()
@@ -471,14 +682,14 @@ public class WebKnowledgeMcpToolRegistrar implements McpServerToolRegistrar {
             .build();
     }
 
-    private ToolMetadata retrieveEvidenceMetadata() {
+    private ToolMetadata retrieveFinancialEvidenceMetadata() {
         return ToolMetadata.builder()
-            .id("retrieve_evidence")
-            .title("Retrieve Internet Evidence")
-            .description("Return a compact evidence package for LLM reasoning: ranked evidence_chunks, citations, source URLs, and retrieval metadata.")
+            .id("retrieve_financial_evidence")
+            .title("Retrieve Financial Evidence")
+            .description("Finance-oriented evidence-chain retrieval. Use this for financial information, listed-company disclosures, securities-market questions, filings, announcements, and finance-source evidence packages. It returns compact ranked evidence_chunks, citations, source URLs, and retrieval metadata for LLM reasoning. For non-financial information, compose web_search, generic_web_site_search, site_intelligence_resolver, and web_crawler directly.")
             .version("1.0.0")
             .author("ChatChat MCP Server")
-            .categories(Arrays.asList("mcp", "search", "crawler", "internet", "rag"))
+            .categories(Arrays.asList("mcp", "search", "crawler", "internet", "rag", "finance"))
             .category("http_web_search")
             .riskLevel(environment.getProperty("chatchat.mcp.retrieve-evidence.risk-level", "low"))
             .operationType("read")
@@ -486,13 +697,13 @@ public class WebKnowledgeMcpToolRegistrar implements McpServerToolRegistrar {
             .confirmation(Map.of("default", environment.getProperty("chatchat.mcp.retrieve-evidence.confirmation.default", "auto_execute")))
             .inputPolicy(Map.of("must_show_parameters", true))
             .outputType("json")
-            .timeoutMillis(90000L)
+            .timeoutMillis(0L)
             .agentCompatible(true)
             .parameters(List.of(
                 ToolParameter.builder()
                     .name("query")
                     .type("string")
-                    .description("User question or search query")
+                    .description("Financial user question or search query")
                     .required(true)
                     .minLength(1)
                     .maxLength(500)
@@ -515,10 +726,12 @@ public class WebKnowledgeMcpToolRegistrar implements McpServerToolRegistrar {
                     .maximum(20)
                     .build()
             ))
-            .tags(Arrays.asList("mcp", "web", "search", "evidence", "rag", "cache_first"))
+            .tags(Arrays.asList("mcp", "web", "search", "evidence", "rag", "finance", "financial_evidence", "cache_first"))
             .metadata(Map.of(
                 "cacheFirst", true,
-                "workflow", "web-search-crawl-content-process-evidence",
+                "workflow", "financial-web-search-crawl-content-process-evidence",
+                "financeOnly", true,
+                "doNotUseFor", List.of("generic non-financial website search", "general news unrelated to finance", "documentation lookup", "blog search"),
                 "outputContract", "compact evidence_chunks + citations only",
                 "schemaVersion", EvidenceContractService.SCHEMA_VERSION,
                 "evidenceLayer", "InternetEvidenceService",
@@ -556,22 +769,83 @@ public class WebKnowledgeMcpToolRegistrar implements McpServerToolRegistrar {
         @Override
         public ToolOutput execute(ToolInput input) {
             try {
-                String url = input.getParameterAsString("url", "");
+                String url = urlParameter(input, "url", "pageUrl", "page_url", "site_url", "target_url", "base_url", "homepageUrl", "homepage_url");
+                if (!hasText(url)) {
+                    return missingUrlFailure("crawl_url/web_crawler", input);
+                }
                 String mode = input.getParameterAsString("mode", crawlerProperties.getDefaultMode());
                 boolean render = input.getParameterAsBoolean("render", false);
-                Number timeout = input.getParameterAsNumber("timeout");
                 Map<String, Object> result = crawlerService.crawl(
                     url,
                     mode,
                     render,
-                    timeout == null ? crawlerProperties.getTimeoutMs() : timeout.intValue(),
+                    0,
                     new WebCrawlerService.CrawlRequestContext(
                         input.getParameterAsString("tenantId", ""),
                         input.getParameterAsString("sourceTaskId", ""),
-                        input.getParameterAsString("agentId", "")
+                        input.getParameterAsString("agentId", ""),
+                        input.getParameterAsString("query", "")
                     )
                 );
                 return ToolOutput.success(result, "URL crawled and cleaned successfully");
+            } catch (Exception ex) {
+                return ToolOutput.failure(ex);
+            }
+        }
+    }
+
+    private final class WebPageAnalyzeTool implements ToolRegistry.EnhancedTool {
+
+        @Override
+        public ToolMetadata getMetadata() {
+            return webPageAnalyzeMetadata();
+        }
+
+        @Override
+        public ToolOutput execute(ToolInput input) {
+            try {
+                String url = urlParameter(input, "url", "pageUrl", "page_url", "site_url", "target_url", "base_url", "homepageUrl", "homepage_url");
+                if (!hasText(url)) {
+                    return missingUrlFailure("web_page_analyze", input);
+                }
+                String query = input.getParameterAsString("query", "");
+                Number maxLinks = input.getParameterAsNumber("maxLinks");
+                Map<String, Object> result = webPageAnalyzeService.analyze(
+                    url,
+                    query,
+                    maxLinks == null ? 50 : maxLinks.intValue(),
+                    0
+                );
+                return ToolOutput.success(result, "Web page analyzed successfully");
+            } catch (Exception ex) {
+                return ToolOutput.failure(ex);
+            }
+        }
+    }
+
+    private final class SiteIntelligenceResolverTool implements ToolRegistry.EnhancedTool {
+
+        @Override
+        public ToolMetadata getMetadata() {
+            return siteIntelligenceResolverMetadata();
+        }
+
+        @Override
+        public ToolOutput execute(ToolInput input) {
+            try {
+                String url = urlParameter(input, "url", "site_url", "pageUrl", "page_url", "target_url", "base_url", "homepageUrl", "homepage_url", "entrance_url");
+                if (!hasText(url)) {
+                    return missingUrlFailure("site_intelligence_resolver", input);
+                }
+                String mode = input.getParameterAsString("mode", "auto");
+                String probeQuery = input.getParameterAsString("probe_query", "test");
+                Map<String, Object> result = siteIntelligenceResolverService.resolve(
+                    url,
+                    mode,
+                    probeQuery,
+                    0
+                );
+                return ToolOutput.success(result, "Site intelligence resolved successfully");
             } catch (Exception ex) {
                 return ToolOutput.failure(ex);
             }
@@ -597,22 +871,67 @@ public class WebKnowledgeMcpToolRegistrar implements McpServerToolRegistrar {
         }
     }
 
-    private final class WebSiteSearchTool implements ToolRegistry.EnhancedTool {
+    private final class FinanceSiteSearchTool implements ToolRegistry.EnhancedTool {
 
         private final ToolRegistry.EnhancedTool delegate;
 
-        private WebSiteSearchTool(ToolRegistry.EnhancedTool delegate) {
+        private FinanceSiteSearchTool(ToolRegistry.EnhancedTool delegate) {
             this.delegate = delegate;
         }
 
         @Override
         public ToolMetadata getMetadata() {
-            return webSiteSearchMetadata();
+            return financeSiteSearchMetadata();
         }
 
         @Override
         public ToolOutput execute(ToolInput input) {
             return delegate.execute(webSearchInput(input, "site_search"));
+        }
+    }
+
+    private final class GenericWebSiteSearchTool implements ToolRegistry.EnhancedTool {
+
+        private final ToolRegistry.EnhancedTool delegate;
+
+        private GenericWebSiteSearchTool(ToolRegistry.EnhancedTool delegate) {
+            this.delegate = delegate;
+        }
+
+        @Override
+        public ToolMetadata getMetadata() {
+            return genericWebSiteSearchMetadata();
+        }
+
+        @Override
+        public ToolOutput execute(ToolInput input) {
+            try {
+                String siteUrl = input.getParameterAsString("site_url", "");
+                String keyword = input.getParameterAsString("site_search_query", "");
+                String mode = input.getParameterAsString("mode", "auto");
+                Map<String, Object> siteIntelligence = siteIntelligenceResolverService.resolve(
+                    siteUrl,
+                    mode,
+                    keyword,
+                    0
+                );
+                ToolInput searchInput = genericSiteSearchInput(input, siteUrl, keyword, mode, siteIntelligence);
+                ToolOutput output = delegate.execute(searchInput);
+                if (output.isSuccess() && output.getData() instanceof Map<?, ?> data) {
+                    Map<String, Object> merged = new LinkedHashMap<>();
+                    data.forEach((key, value) -> {
+                        if (key != null) {
+                            merged.put(String.valueOf(key), value);
+                        }
+                    });
+                    merged.put("site_intelligence", siteIntelligence);
+                    merged.put("tool_scope", "generic_non_financial_site_search");
+                    return ToolOutput.success(merged, "Generic site search completed successfully");
+                }
+                return output;
+            } catch (Exception ex) {
+                return ToolOutput.failure(ex);
+            }
         }
     }
 
@@ -646,6 +965,93 @@ public class WebKnowledgeMcpToolRegistrar implements McpServerToolRegistrar {
             .conversationId(input == null ? null : input.getConversationId())
             .context(input == null || input.getContext() == null ? Map.of() : input.getContext())
             .build();
+    }
+
+    private ToolInput genericSiteSearchInput(ToolInput input,
+                                             String siteUrl,
+                                             String keyword,
+                                             String mode,
+                                             Map<String, Object> siteIntelligence) {
+        Map<String, Object> parameters = new LinkedHashMap<>(input == null || input.getParameters() == null
+            ? Map.of()
+            : input.getParameters());
+        parameters.remove("site_url");
+        parameters.put("search_stage", "site_search");
+        parameters.put("site_search_query", keyword);
+        parameters.put("query", firstNonBlank(input == null ? null : input.getParameterAsString("query", ""), keyword));
+        parameters.put("site_search_mode", mode);
+        if (!hasText(parameters.get("num_results")) && hasText(parameters.get("max_results"))) {
+            parameters.put("num_results", parameters.get("max_results"));
+        }
+        List<String> seedUrls = genericSiteSearchSeedUrls(siteUrl, keyword, siteIntelligence);
+        parameters.put("seed_urls", seedUrls);
+        parameters.put("target_url", siteUrl);
+        parameters.put("generic_site_search", true);
+        return ToolInput.builder()
+            .rawInput(input == null ? null : input.getRawInput())
+            .parameters(parameters)
+            .requestId(input == null ? null : input.getRequestId())
+            .userId(input == null ? null : input.getUserId())
+            .conversationId(input == null ? null : input.getConversationId())
+            .context(input == null || input.getContext() == null ? Map.of() : input.getContext())
+            .build();
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<String> genericSiteSearchSeedUrls(String siteUrl,
+                                                   String keyword,
+                                                   Map<String, Object> siteIntelligence) {
+        List<String> seeds = new ArrayList<>();
+        if (hasText(siteUrl)) {
+            seeds.add(siteUrl);
+        }
+        Object capabilitiesValue = siteIntelligence == null ? null : siteIntelligence.get("capabilities");
+        if (capabilitiesValue instanceof Map<?, ?> capabilities) {
+            Object endpointsValue = capabilities.get("search_endpoint_candidates");
+            if (endpointsValue instanceof List<?> endpoints) {
+                for (Object endpointValue : endpoints) {
+                    if (!(endpointValue instanceof Map<?, ?> endpoint)) {
+                        continue;
+                    }
+                    double confidence = numberValue(endpoint.get("confidence"), 0);
+                    if (confidence < 0.6) {
+                        continue;
+                    }
+                    String sampleUrl = firstNonBlank(
+                        stringValue(endpoint.get("sample_url")),
+                        searchTemplateToUrl(stringValue(endpoint.get("url")), keyword)
+                    );
+                    if (hasText(sampleUrl)) {
+                        seeds.add(sampleUrl);
+                    }
+                }
+            }
+        }
+        Object routesValue = siteIntelligence == null ? null : siteIntelligence.get("discovered_routes");
+        if (routesValue instanceof List<?> routes) {
+            for (Object routeValue : routes) {
+                if (!(routeValue instanceof Map<?, ?> route)) {
+                    continue;
+                }
+                double confidence = numberValue(route.get("confidence"), 0);
+                if (confidence >= 0.65 && hasText(route.get("url"))) {
+                    seeds.add(stringValue(route.get("url")));
+                }
+            }
+        }
+        return seeds.stream()
+            .filter(this::hasText)
+            .distinct()
+            .limit(12)
+            .toList();
+    }
+
+    private String searchTemplateToUrl(String template, String keyword) {
+        if (!hasText(template)) {
+            return null;
+        }
+        String encoded = URLEncoder.encode(firstNonBlank(keyword, ""), StandardCharsets.UTF_8);
+        return template.contains("{q}") ? template.replace("{q}", encoded) : template;
     }
 
     private void applyFinanceSiteSearchDefaults(Map<String, Object> parameters) {
@@ -767,6 +1173,62 @@ public class WebKnowledgeMcpToolRegistrar implements McpServerToolRegistrar {
         return !String.valueOf(value).isBlank();
     }
 
+    private String urlParameter(ToolInput input, String... names) {
+        if (input == null) {
+            return "";
+        }
+        Map<String, Object> parameters = input.getParameters() == null ? Map.of() : input.getParameters();
+        for (String name : names) {
+            Object value = parameters.get(name);
+            if (hasText(value)) {
+                String extracted = extractHttpUrl(String.valueOf(value));
+                return hasText(extracted) ? extracted : String.valueOf(value).trim();
+            }
+        }
+        for (Object value : parameters.values()) {
+            if (value instanceof String text) {
+                String extracted = extractHttpUrl(text);
+                if (hasText(extracted)) {
+                    return extracted;
+                }
+            }
+        }
+        return extractHttpUrl(input.getRawInput());
+    }
+
+    private String extractHttpUrl(String value) {
+        if (!hasText(value)) {
+            return "";
+        }
+        var matcher = HTTP_URL_PATTERN.matcher(value);
+        return matcher.find() ? matcher.group() : "";
+    }
+
+    private ToolOutput missingUrlFailure(String toolName, ToolInput input) {
+        Map<String, Object> parameters = input == null || input.getParameters() == null ? Map.of() : input.getParameters();
+        String message = "url is required; accepted url parameter aliases: url, site_url, pageUrl, page_url, target_url, base_url, homepageUrl";
+        log.warn("Web tool missing URL tool={} requestId={} args={}", toolName, input == null ? null : input.getRequestId(), parameters);
+        return ToolOutput.failure(message);
+    }
+
+    private String stringValue(Object value) {
+        return value == null ? null : String.valueOf(value);
+    }
+
+    private double numberValue(Object value, double fallback) {
+        if (value instanceof Number number) {
+            return number.doubleValue();
+        }
+        if (value instanceof String text && !text.isBlank()) {
+            try {
+                return Double.parseDouble(text.trim());
+            } catch (NumberFormatException ignored) {
+                return fallback;
+            }
+        }
+        return fallback;
+    }
+
     private String firstNonBlank(String... values) {
         if (values == null) {
             return null;
@@ -824,7 +1286,7 @@ public class WebKnowledgeMcpToolRegistrar implements McpServerToolRegistrar {
          */
         @Override
         public ToolMetadata getMetadata() {
-            return retrieveEvidenceMetadata();
+            return retrieveFinancialEvidenceMetadata();
         }
 
         /**

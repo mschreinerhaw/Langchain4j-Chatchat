@@ -127,7 +127,31 @@ chatchat:
             queue-timeout-seconds: 0
             timeout-seconds: 0
             runtime-level: http
-          web_site_search:
+          finance_site_search:
+            max-concurrency: 2
+            queue-size: 32
+            queue-timeout-seconds: 0
+            timeout-seconds: 0
+            runtime-level: http
+          generic_web_site_search:
+            max-concurrency: 2
+            queue-size: 32
+            queue-timeout-seconds: 0
+            timeout-seconds: 0
+            runtime-level: http
+          web_page_analyze:
+            max-concurrency: 2
+            queue-size: 32
+            queue-timeout-seconds: 0
+            timeout-seconds: 0
+            runtime-level: http
+          site_intelligence_resolver:
+            max-concurrency: 2
+            queue-size: 32
+            queue-timeout-seconds: 0
+            timeout-seconds: 0
+            runtime-level: http
+          retrieve_financial_evidence:
             max-concurrency: 2
             queue-size: 32
             queue-timeout-seconds: 0
@@ -140,6 +164,12 @@ chatchat:
             timeout-seconds: 0
             runtime-level: http
           crawl_url:
+            max-concurrency: 2
+            queue-size: 32
+            queue-timeout-seconds: 0
+            timeout-seconds: 0
+            runtime-level: http
+          search_and_extract:
             max-concurrency: 2
             queue-size: 32
             queue-timeout-seconds: 0
@@ -331,7 +361,7 @@ chatchat:
         referer: https://cn.bing.com/
         tls-fingerprint-profile: jdk-default
       proxy-pool:
-        # Used by web_search and web_site_search in both Java and browser modes.
+        # Used by web_search, finance_site_search, and generic_web_site_search in both Java and browser modes.
         # Supports HTTP and SOCKS/SOCKS5; username/password are optional.
         enabled: ${CHAT_WEB_SEARCH_PROXY_ENABLED:false}
         default-pool: ${CHAT_WEB_SEARCH_PROXY_POOL:default}

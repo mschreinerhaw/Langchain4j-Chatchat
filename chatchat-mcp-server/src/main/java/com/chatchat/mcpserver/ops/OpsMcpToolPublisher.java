@@ -89,30 +89,6 @@ public class OpsMcpToolPublisher {
             .build();
     }
 
-    private McpServerFeatures.SyncToolSpecification httpTool() {
-        McpSchema.Tool tool = McpSchema.Tool.builder()
-            .name("http_request")
-            .title("HTTP 请求工具")
-            .description("查询 REST API、业务系统接口、监控数据或第三方服务状态。")
-            .inputSchema(new McpSchema.JsonSchema("object", Map.of(
-                "method", Map.of("type", "string", "enum", List.of("GET", "POST", "PUT", "DELETE"), "default", "GET"),
-                "url", Map.of("type", "string", "description", "请求 URL"),
-                "headers", Map.of("type", "object", "additionalProperties", true),
-                "body", Map.of("description", "POST/PUT/DELETE 请求体，可以是字符串或 JSON 对象"),
-                "timeoutMs", Map.of("type", "integer", "minimum", 1000, "maximum", 60000, "default", 10000),
-                "sourceTaskId", Map.of("type", "string")
-            ), List.of("url"), true, null, null))
-            .meta(httpMeta())
-            .build();
-        return McpServerFeatures.SyncToolSpecification.builder()
-            .tool(tool)
-            .callHandler((exchange, request) -> concurrencyManager.execute(
-                "http_request",
-                "http",
-                request.arguments(),
-                () -> toCallToolResult(httpRequestToolService.execute(request.arguments()))))
-            .build();
-    }
 
     private McpServerFeatures.SyncToolSpecification sshTool(SshHostConfig host) {
         McpSchema.Tool tool = McpSchema.Tool.builder()
@@ -120,9 +96,9 @@ public class OpsMcpToolPublisher {
             .title(host.getTitle())
             .description(description(host))
             .inputSchema(new McpSchema.JsonSchema("object", Map.of(
-                "template", Map.of("type", "string", "description", "命令模板编号，例如 CHECK_CPU、CHECK_DISK、CHECK_SERVICE_STATUS"),
+                "template", Map.of("type", "string", "description", "Command template id, for example CHECK_CPU, CHECK_DISK, CHECK_SERVICE_STATUS"),
                 "parameters", Map.of("type", "object", "additionalProperties", true),
-                "reason", Map.of("type", "string", "description", "执行原因，供用户确认和审计"),
+                "reason", Map.of("type", "string", "description", "Execution reason for user confirmation and audit"),
                 "sourceTaskId", Map.of("type", "string")
             ), List.of("template"), false, null, null))
             .meta(sshMeta(host))
@@ -137,21 +113,6 @@ public class OpsMcpToolPublisher {
             .build();
     }
 
-    private Map<String, Object> httpMeta() {
-        Map<String, Object> governance = new LinkedHashMap<>();
-        governance.put("category", "ops_http");
-        governance.put("operation_type", "read");
-        governance.put("risk_level", "low");
-        governance.put("data_scope", "external_http");
-        governance.put("user_visible", true);
-        governance.put("confirmation", mutableMap("default", "auto_execute", "allow_user_override", true));
-        governance.put("audit", mutableMap("enabled", true, "log_params", true, "log_result_summary", true));
-        Map<String, Object> meta = new LinkedHashMap<>(governanceFactory.toMeta("ops_builtin", "http_request", governance));
-        meta.put("runtime_action", "readonly");
-        meta.put("runtimeAction", "readonly");
-        meta.put("mcp_tool_limit", concurrencyManager.limitMeta("http_request", "http"));
-        return meta;
-    }
 
     private Map<String, Object> httpEndpointMeta(HttpEndpointConfig endpoint) {
         Map<String, Object> governance = new LinkedHashMap<>();
@@ -203,14 +164,15 @@ public class OpsMcpToolPublisher {
         if (host.getDescription() != null && !host.getDescription().isBlank()) {
             return host.getDescription();
         }
-        return "用途：通过 SSH 巡检 " + host.getName() + "，只能执行 Runtime 注册的命令模板，禁止自由 Shell 命令。";
+        return "Use this tool to inspect host " + host.getName()
+            + " through SSH. Only runtime-registered command templates are allowed; free-form shell commands are forbidden.";
     }
 
     private String description(HttpEndpointConfig endpoint) {
         if (endpoint.getDescription() != null && !endpoint.getDescription().isBlank()) {
             return endpoint.getDescription();
         }
-        return "用途：调用 " + endpoint.getName() + " HTTP 接口。";
+        return "Use this tool to call the configured HTTP endpoint " + endpoint.getName() + ".";
     }
 
     @SuppressWarnings("unchecked")

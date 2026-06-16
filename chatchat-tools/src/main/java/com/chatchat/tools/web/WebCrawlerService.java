@@ -15,6 +15,7 @@ import org.apache.tika.parser.ParseContext;
 import org.apache.tika.sax.BodyContentHandler;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -121,7 +122,7 @@ public class WebCrawlerService {
         }
 
         long startedAt = System.currentTimeMillis();
-        int timeout = timeoutMs > 0 ? timeoutMs : properties.getTimeoutMs();
+        int timeout = timeoutMs < 0 ? properties.getTimeoutMs() : timeoutMs;
         try {
             List<Map<String, Object>> crawlChain = new ArrayList<>();
             Set<String> visited = new LinkedHashSet<>();
@@ -285,6 +286,10 @@ public class WebCrawlerService {
         String mainText = focusedContent(requestedUrl, response.url(), content.mainText());
         List<String> chunks = content.mainText().equals(mainText) ? content.chunks() : chunk(mainText);
         String query = context == null ? "" : firstNonBlank(context.query(), "");
+        List<Map<String, Object>> candidateLinks = response.htmlResource()
+            ? candidateDetailLinks(response.html(), response.url(), query)
+            : List.of();
+        String recommendedFollowUrl = recommendedFollowUrl(query, response.url(), candidateLinks);
         Map<String, Object> quality = qualityReport(response, content, mainText, chunks);
         String summary = buildSummary(mainText);
         List<String> keywords = extractKeywords(content.title(), mainText, query);
@@ -300,6 +305,13 @@ public class WebCrawlerService {
         output.put("keywords", keywords);
         output.put("evidenceBlocks", evidenceBlocks);
         output.put("evidence_blocks", evidenceBlocks);
+        output.put("candidateLinks", candidateLinks);
+        output.put("candidate_links", candidateLinks);
+        output.put("recommendedActions", recommendedActions(candidateLinks, recommendedFollowUrl));
+        output.put("recommended_actions", recommendedActions(candidateLinks, recommendedFollowUrl));
+        if (isHttpUrl(recommendedFollowUrl)) {
+            output.put("recommendedFollowUrl", recommendedFollowUrl);
+        }
         output.put("quality", quality);
         output.put("llmEvidence", llmEvidenceCard(response, content, mainText, summary, keywords, evidenceBlocks, quality));
         output.put("timestamp", Instant.now().toEpochMilli());
@@ -514,6 +526,139 @@ public class WebCrawlerService {
             );
         });
         return candidates.size() <= maxBlocks ? candidates : new ArrayList<>(candidates.subList(0, maxBlocks));
+    }
+
+    private List<Map<String, Object>> candidateDetailLinks(String html, String baseUrl, String query) {
+        if (html == null || html.isBlank() || !isHttpUrl(baseUrl)) {
+            return List.of();
+        }
+        Document document = Jsoup.parse(html, baseUrl);
+        document.select("script,style,noscript,template,svg,canvas,iframe,nav,header,footer,aside,form").remove();
+        List<String> terms = queryTerms(query);
+        String baseRoot = rootDomain(baseUrl);
+        Set<String> seen = new LinkedHashSet<>();
+        List<Map<String, Object>> links = new ArrayList<>();
+        for (Element link : document.select("a[href]")) {
+            String url = link.absUrl("href");
+            if (!isHttpUrl(url) || sameUrl(url, baseUrl) || !sameRootDomain(baseRoot, url) || !seen.add(normalizeComparableUrl(url))) {
+                continue;
+            }
+            String text = normalizeText(firstNonBlank(link.text(), firstNonBlank(link.attr("title"), link.attr("aria-label"))));
+            if (text.length() < 6 || isLowValueLinkText(text) || isLikelyNonContentUrl(url)) {
+                continue;
+            }
+            double score = candidateLinkScore(url, text, terms);
+            if (score < 0.35) {
+                continue;
+            }
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("url", url);
+            item.put("text", truncate(text, 160));
+            item.put("title", firstNonBlank(link.attr("title"), ""));
+            item.put("type", looksLikeArticleUrl(url) ? "detail" : "candidate");
+            item.put("score", round(score));
+            links.add(item);
+        }
+        links.sort((left, right) -> Double.compare(numberValue(right.get("score"), 0), numberValue(left.get("score"), 0)));
+        return links.size() <= 20 ? links : new ArrayList<>(links.subList(0, 20));
+    }
+
+    private List<Map<String, Object>> recommendedActions(List<Map<String, Object>> candidateLinks, String recommendedFollowUrl) {
+        if (candidateLinks == null || candidateLinks.isEmpty()) {
+            return List.of();
+        }
+        List<Map<String, Object>> actions = new ArrayList<>();
+        for (Map<String, Object> link : candidateLinks.stream().limit(5).toList()) {
+            Map<String, Object> action = new LinkedHashMap<>();
+            action.put("action", "crawl_url");
+            action.put("url", link.get("url"));
+            action.put("confidence", link.get("score"));
+            action.put("reason", isHttpUrl(recommendedFollowUrl) && sameUrl(String.valueOf(link.get("url")), recommendedFollowUrl)
+                ? "Auto-follow candidate selected because the query asks for a headline/detail article."
+                : "Candidate detail link discovered on the current list/channel page.");
+            actions.add(action);
+        }
+        return actions;
+    }
+
+    private String recommendedFollowUrl(String query, String currentUrl, List<Map<String, Object>> candidateLinks) {
+        if (!wantsHeadlineOrDetail(query) || candidateLinks == null || candidateLinks.isEmpty()) {
+            return null;
+        }
+        for (Map<String, Object> link : candidateLinks) {
+            String url = String.valueOf(link.getOrDefault("url", ""));
+            if (isHttpUrl(url) && !sameUrl(url, currentUrl) && numberValue(link.get("score"), 0) >= 0.65) {
+                return url;
+            }
+        }
+        return null;
+    }
+
+    private boolean wantsHeadlineOrDetail(String query) {
+        String value = query == null ? "" : query.toLowerCase(Locale.ROOT);
+        return value.contains("头条")
+            || value.contains("第一条")
+            || value.contains("首条")
+            || value.contains("第一篇")
+            || value.contains("文章内容")
+            || value.contains("正文")
+            || value.contains("详情")
+            || value.contains("headline")
+            || value.contains("top story")
+            || value.contains("article");
+    }
+
+    private double candidateLinkScore(String url, String text, List<String> terms) {
+        double score = looksLikeArticleUrl(url) ? 0.65 : 0.35;
+        String lowerUrl = url.toLowerCase(Locale.ROOT);
+        String lowerText = text.toLowerCase(Locale.ROOT);
+        if (lowerUrl.matches(".*\\d{8,}.*")) {
+            score += 0.12;
+        }
+        if (text.length() >= 12) {
+            score += 0.08;
+        }
+        if (terms != null) {
+            for (String term : terms) {
+                String normalized = term.toLowerCase(Locale.ROOT);
+                if (!normalized.isBlank() && (lowerText.contains(normalized) || lowerUrl.contains(normalized))) {
+                    score += 0.08;
+                }
+            }
+        }
+        return Math.min(1.0, score);
+    }
+
+    private boolean looksLikeArticleUrl(String url) {
+        if (url == null || url.isBlank()) {
+            return false;
+        }
+        String value = url.toLowerCase(Locale.ROOT);
+        return value.matches(".*(/a/|/article/|/detail/|/newsinfo/|/content/).*")
+            || value.matches(".*\\d{6,}.*\\.s?html(?:[?#].*)?$")
+            || value.matches(".*\\d{6,}.*\\.html(?:[?#].*)?$");
+    }
+
+    private boolean isLikelyNonContentUrl(String url) {
+        String value = url == null ? "" : url.toLowerCase(Locale.ROOT);
+        return value.contains("javascript:")
+            || value.contains("/login")
+            || value.contains("/register")
+            || value.contains("/download")
+            || value.contains("/app")
+            || value.contains("/client")
+            || value.contains("/about")
+            || value.contains("/help")
+            || value.contains("/feedback")
+            || value.contains("/ad")
+            || value.matches(".*/news/c[a-z0-9_-]+\\.html(?:[?#].*)?$");
+    }
+
+    private boolean isLowValueLinkText(String text) {
+        String value = text == null ? "" : text.trim().toLowerCase(Locale.ROOT);
+        return value.isBlank()
+            || value.matches("(?i)^(更多|全部|首页|上一页|下一页|登录|注册|下载|客户端|app|关注|分享|返回|more|home|login|register)$")
+            || value.length() <= 2;
     }
 
     private Map<String, Object> qualityReport(CrawlResponse response,
@@ -893,6 +1038,10 @@ public class WebCrawlerService {
         if (isHttpUrl(singleContentUrl) && !sameUrl(singleContentUrl, baseUrl)) {
             return singleContentUrl;
         }
+        String recommendedFollowUrl = output == null ? null : String.valueOf(output.getOrDefault("recommendedFollowUrl", ""));
+        if (isHttpUrl(recommendedFollowUrl) && !sameUrl(recommendedFollowUrl, baseUrl)) {
+            return recommendedFollowUrl;
+        }
         return null;
     }
 
@@ -966,6 +1115,30 @@ public class WebCrawlerService {
         String query = uri.getRawQuery() == null ? "" : "?" + uri.getRawQuery();
         String portPart = port < 0 ? "" : ":" + port;
         return scheme + "://" + host + portPart + path + query;
+    }
+
+    private boolean sameRootDomain(String baseRoot, String url) {
+        if (baseRoot == null || baseRoot.isBlank()) {
+            return false;
+        }
+        return baseRoot.equals(rootDomain(url));
+    }
+
+    private String rootDomain(String url) {
+        try {
+            String host = URI.create(url.trim()).getHost();
+            if (host == null || host.isBlank()) {
+                return "";
+            }
+            String normalized = host.toLowerCase(Locale.ROOT);
+            String[] parts = normalized.split("\\.");
+            if (parts.length <= 2) {
+                return normalized;
+            }
+            return parts[parts.length - 2] + "." + parts[parts.length - 1];
+        } catch (Exception ex) {
+            return "";
+        }
     }
 
     private String normalizeUrl(String url) {

@@ -100,7 +100,7 @@ public class McpCenterSyncService {
         config.setToolInvokePath(properties.getMcpEndpoint());
         config.setProtocol(PROTOCOL_STREAMABLE_HTTP);
         config.setEnabled(true);
-        config.setTimeoutMs(properties.getTimeoutMs());
+        config.setTimeoutMs(0);
         config.setCustomHeadersJson(writeInvocationHeaders(properties.getInvocationToken()));
 
         McpServiceConfig saved = configService.upsertImported(
@@ -125,7 +125,7 @@ public class McpCenterSyncService {
         config.setToolInvokePath("/mcp");
         config.setProtocol(PROTOCOL_STREAMABLE_HTTP);
         config.setEnabled(centerService.enabled() && isActive(centerService.status()));
-        config.setTimeoutMs(properties.getTimeoutMs());
+        config.setTimeoutMs(0);
         config.setCustomHeadersJson(writeInvocationHeaders(centerService.serviceToken()));
 
         McpServiceConfig saved = configService.upsertImported(
@@ -146,14 +146,12 @@ public class McpCenterSyncService {
             "username", properties.getAdminUsername(),
             "password", properties.getAdminPassword()
         );
-        Object raw = webClient.post()
+        Object raw = blockWithOptionalTimeout(webClient.post()
             .uri(buildUrl(properties.getBaseUrl(), properties.getAdminLoginPath()))
             .contentType(MediaType.APPLICATION_JSON)
             .bodyValue(payload)
             .retrieve()
-            .bodyToMono(Object.class)
-            .timeout(Duration.ofMillis(Math.max(1000, properties.getTimeoutMs())))
-            .block();
+            .bodyToMono(Object.class), properties.getTimeoutMs());
 
         Object data = unwrapData(raw);
         if (!(data instanceof Map<?, ?> map) || map.get("token") == null) {
@@ -169,13 +167,11 @@ public class McpCenterSyncService {
      * @return the center services list
      */
     private List<CenterService> listCenterServices(String adminToken) {
-        Object raw = webClient.get()
+        Object raw = blockWithOptionalTimeout(webClient.get()
             .uri(buildUrl(properties.getBaseUrl(), properties.getServiceListPath()))
             .headers(headers -> headers.set(HttpHeaders.AUTHORIZATION, "Bearer " + adminToken))
             .retrieve()
-            .bodyToMono(Object.class)
-            .timeout(Duration.ofMillis(Math.max(1000, properties.getTimeoutMs())))
-            .block();
+            .bodyToMono(Object.class), properties.getTimeoutMs());
 
         Object data = unwrapData(raw);
         if (!(data instanceof List<?> list)) {
@@ -227,6 +223,13 @@ public class McpCenterSyncService {
             }
         }
         return raw;
+    }
+
+    private Object blockWithOptionalTimeout(reactor.core.publisher.Mono<Object> response, int timeoutMs) {
+        if (timeoutMs <= 0) {
+            return response.block();
+        }
+        return response.timeout(Duration.ofMillis(Math.max(1000, timeoutMs))).block();
     }
 
     /**

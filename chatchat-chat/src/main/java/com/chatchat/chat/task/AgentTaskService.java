@@ -2,6 +2,8 @@ package com.chatchat.chat.task;
 
 import com.chatchat.agents.runtime.AgentRuntime;
 import com.chatchat.agents.runtime.ToolRuntimeService;
+import com.chatchat.agents.runtime.plan.InterpretationPlanRecord;
+import com.chatchat.agents.runtime.plan.InterpretationPlanStore;
 import com.chatchat.chat.interaction.model.InteractionRequest;
 import com.chatchat.chat.interaction.model.InteractionResponse;
 import com.chatchat.chat.interaction.service.InteractionOrchestrationService;
@@ -55,6 +57,7 @@ public class AgentTaskService {
     private final AgentTaskCancellationRegistry cancellationRegistry;
     private final AgentLearningService learningService;
     private final TaskConfirmRepository taskConfirmRepository;
+    private final InterpretationPlanStore interpretationPlanStore;
 
     @Qualifier("agentTaskExecutor")
     private final ThreadPoolTaskExecutor taskExecutor;
@@ -1055,6 +1058,7 @@ public class AgentTaskService {
         payload.put("comment", source.getFeedbackComment());
         payload.put("reasonCategory", source.getFeedbackReasonCategory());
         payload.put("feedbackTime", source.getFeedbackTime());
+        payload.putAll(planAttributionPayload(source));
         AgentEvent feedbackEvent = AgentEvent.builder()
             .taskId(source.getTaskId())
             .tenantId(source.getTenantId())
@@ -1068,6 +1072,33 @@ public class AgentTaskService {
         feedbackEvent.setSequence(nextSequence(source));
         eventStore.save(feedbackEvent);
         return feedbackEvent;
+    }
+
+    private Map<String, Object> planAttributionPayload(AgentTaskLatestEntity source) {
+        if (source == null || source.getTaskId() == null || source.getTaskId().isBlank()) {
+            return Map.of();
+        }
+        try {
+            Optional<InterpretationPlanRecord> snapshot = interpretationPlanStore.getSnapshot(
+                source.getTenantId(),
+                source.getTaskId()
+            );
+            if (snapshot.isEmpty()) {
+                return Map.of();
+            }
+            InterpretationPlanRecord record = snapshot.get();
+            Map<String, Object> payload = new LinkedHashMap<>();
+            payload.put("interpretationPlanId", record.planId());
+            payload.put("interpretationPlanVersion", record.version());
+            payload.put("interpretationPlanStatus", record.status());
+            payload.put("interpretationPlanUpdatedAt", record.updatedAt());
+            payload.put("interpretationPlanDagAvailable", record.dagJson() != null && !record.dagJson().isBlank());
+            return payload;
+        } catch (RuntimeException ex) {
+            log.warn("Failed to attach InterpretationPlan attribution to feedback. taskId={} error={}",
+                source.getTaskId(), ex.getMessage());
+            return Map.of();
+        }
     }
 
     /**

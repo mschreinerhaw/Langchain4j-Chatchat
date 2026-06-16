@@ -31,7 +31,7 @@ public class McpCenterProperties {
 
     private String invocationToken;
 
-    private int timeoutMs = 20000;
+    private int timeoutMs = 0;
 
     private boolean importStandaloneServer = true;
 }

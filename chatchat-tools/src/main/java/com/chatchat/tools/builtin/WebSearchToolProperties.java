@@ -32,6 +32,8 @@ public class WebSearchToolProperties {
 
     private int pageExcerptChars = 2500;
 
+    private UrlEvidenceProperties urlEvidence = new UrlEvidenceProperties();
+
     private int pageMaxBytes = 1048576;
 
     private boolean fallbackEnabled = true;
@@ -102,6 +104,20 @@ public class WebSearchToolProperties {
             "result",
             "find"
         ));
+    }
+
+    @Data
+    public static class UrlEvidenceProperties {
+
+        private boolean enabled = true;
+
+        private boolean fetchForSiteSearch = true;
+
+        private int maxSnippetChars = 500;
+
+        private int maxSummaryChars = 420;
+
+        private int maxKeywords = 8;
     }
 
     @Data

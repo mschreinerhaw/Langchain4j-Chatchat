@@ -230,6 +230,7 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
         String query = queryIntent.originalQuery();
         String searchQuery = queryIntent.searchQuery();
         String siteQuery = queryIntent.siteSearchQuery();
+        SearchStrategy searchStrategy = searchStrategy(queryIntent);
         HtmlResponse searchResponse = sendSearchEngineRequest(
             provider,
             endpoint,
@@ -281,7 +282,8 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
         List<Map<String, Object>> pageExcerpts = includePageFetch
             ? fetchPageExcerpts(mergedCandidates, query, context, networkAudit)
             : List.of();
-        List<Map<String, Object>> rankedResults = rankSearchResults(mergedCandidates, pageExcerpts, searchQuery, fetchLimit);
+        List<Map<String, Object>> rankedResults = rankSearchResults(mergedCandidates, pageExcerpts, searchQuery, fetchLimit, searchStrategy);
+        attachUrlEvidence(rankedResults, pageExcerpts, searchQuery, searchStrategy);
         List<Map<String, Object>> results = rankedResults.size() <= numResults
             ? rankedResults
             : new ArrayList<>(rankedResults.subList(0, numResults));
@@ -298,6 +300,8 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
         output.put("query", query);
         output.put("search_query", searchQuery);
         output.put("site_search_query", siteQuery);
+        output.put("query_strategy", searchStrategy.toMap());
+        output.put("query_plan", queryPlan(queryIntent, searchStrategy));
         output.put("target_site", queryIntent.targetHost());
         output.put("provider", provider);
         output.put("configuredProvider", properties.getProvider());
@@ -318,6 +322,7 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
         output.put("page_excerpt_count", pageExcerpts.size());
         output.put("final_result_count", rankedResults.size());
         output.put("contentMode", contentMode(pageExcerpts, siteSearchResults));
+        output.put("rerank_engine", "heuristic_evidence_v2");
         output.put("structured_text", structuredSearchText(results, pageExcerpts, searchResultRelevance));
         output.put("web_search_audit", properties.getAudit().isIncludeInResult() ? networkAudit : List.of());
         output.put("primaryResults", primaryResults);
@@ -332,6 +337,7 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
 
     private Map<String, Object> performSiteSearch(ToolInput input, String query, int numResults) {
         WebSearchQueryIntent queryIntent = analyzeSearchQuery(query);
+        SearchStrategy searchStrategy = searchStrategy(queryIntent);
         WebSearchRequestContext context = requestContext(input, query);
         String siteSearchMode = siteSearchMode(input);
         List<Map<String, Object>> networkAudit = new ArrayList<>();
@@ -381,6 +387,12 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
             siteSearchMode
         ), resultLimit);
 
+        List<Map<String, Object>> pageExcerpts = properties.getUrlEvidence().isFetchForSiteSearch()
+            ? fetchPageExcerpts(siteSearchResults, siteQuery, context, networkAudit, resultLimit)
+            : List.of();
+        siteSearchResults = rankSearchResults(siteSearchResults, pageExcerpts, siteQuery, resultLimit, searchStrategy);
+        attachUrlEvidence(siteSearchResults, pageExcerpts, siteQuery, searchStrategy);
+
         List<String> referenceUrls = siteSearchResults.stream()
             .map(item -> item.get("url"))
             .filter(String.class::isInstance)
@@ -396,6 +408,8 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
         Map<String, Object> output = new LinkedHashMap<>();
         output.put("query", query);
         output.put("site_search_query", siteQuery);
+        output.put("query_strategy", searchStrategy.toMap());
+        output.put("query_plan", queryPlan(queryIntent, searchStrategy));
         output.put("target_site", queryIntent.targetHost());
         output.put("search_stage", SEARCH_STAGE_SITE_SEARCH);
         output.put("site_search_mode", siteSearchMode);
@@ -407,14 +421,16 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
         output.put("search_result_relevance", relevance.toMap());
         output.put("site_search_enabled", properties.getSiteSearch().isEnabled());
         output.put("site_search_result_count", siteSearchResults.size());
-        output.put("page_fetch_enabled", false);
-        output.put("page_excerpt_count", 0);
+        output.put("page_fetch_enabled", properties.isFetchPages() && properties.getUrlEvidence().isFetchForSiteSearch());
+        output.put("page_excerpt_count", pageExcerpts.size());
         output.put("contentMode", siteSearchResults.isEmpty() ? "site_search_empty" : "site_search_enriched");
-        output.put("structured_text", structuredSearchText(siteSearchResults, List.of(), relevance));
+        output.put("rerank_engine", "heuristic_evidence_v2");
+        output.put("structured_text", structuredSearchText(siteSearchResults, pageExcerpts, relevance));
         output.put("model_selection_text", modelSelectionText);
         output.put("web_search_audit", properties.getAudit().isIncludeInResult() ? networkAudit : List.of());
-        output.put("pageExcerpts", List.of());
-        output.put("evidenceSnippets", List.of());
+        output.put("pageEvidence", pageExcerpts);
+        output.put("pageExcerpts", pageExcerpts);
+        output.put("evidenceSnippets", pageExcerpts);
         output.put("seed_results", seedResults);
         output.put("crawl_candidates", crawlCandidates);
         output.put("results", siteSearchResults);
@@ -552,6 +568,86 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
             .toList();
     }
 
+    private SearchStrategy searchStrategy(WebSearchQueryIntent queryIntent) {
+        String original = queryIntent == null ? "" : firstNonBlank(queryIntent.originalQuery(), "");
+        String searchQuery = queryIntent == null ? original : firstNonBlank(queryIntent.searchQuery(), original);
+        String value = (original + " " + searchQuery).toLowerCase(Locale.ROOT);
+        Set<String> modes = new LinkedHashSet<>();
+        if (containsAny(value, List.of("latest", "today", "breaking", "news", "2026", "\u6700\u65b0", "\u4eca\u5929", "\u65b0\u95fb", "\u8d44\u8baf"))) {
+            modes.add("news");
+        }
+        if (containsAny(value, List.of("finance", "earnings", "revenue", "stock", "securities", "annual report", "financial report", "\u8d22\u62a5", "\u4e1a\u7ee9", "\u80a1\u7968", "\u8bc1\u5238", "\u5e74\u62a5"))) {
+            modes.add("finance");
+        }
+        if (containsAny(value, List.of("api", "sdk", "java", "python", "github", "docs", "documentation", "error", "stack", "\u6559\u7a0b", "\u4ee3\u7801", "\u6587\u6863"))) {
+            modes.add("technical");
+        }
+        if (containsAny(value, List.of("how to", "tutorial", "guide", "example", "\u600e\u4e48", "\u5982\u4f55", "\u6307\u5357", "\u793a\u4f8b"))) {
+            modes.add("tutorial");
+        }
+        if (containsAny(value, List.of("compare", "vs", "versus", "difference", "better", "\u5bf9\u6bd4", "\u533a\u522b", "\u54ea\u4e2a\u597d"))) {
+            modes.add("comparison");
+        }
+        if (containsAny(value, List.of("price", "buy", "review", "rating", "product", "\u4ef7\u683c", "\u8d2d\u4e70", "\u8bc4\u6d4b", "\u5546\u54c1", "\u4ea7\u54c1"))) {
+            modes.add("product");
+        }
+        if (containsAny(value, List.of("paper", "study", "research", "journal", "citation", "doi", "arxiv", "\u8bba\u6587", "\u7814\u7a76", "\u5b66\u672f"))) {
+            modes.add("academic");
+        }
+        if (modes.isEmpty()) {
+            modes.add("factual");
+        }
+
+        boolean freshnessSensitive = modes.contains("news")
+            || containsAny(value, List.of("latest", "today", "2026", "\u6700\u65b0", "\u4eca\u5929", "\u8fd1\u671f"));
+        boolean authoritativePreferred = modes.stream().anyMatch(mode -> Set.of("finance", "technical", "academic", "factual").contains(mode))
+            || containsAny(value, List.of("official", "source", "\u5b98\u65b9", "\u6765\u6e90"));
+        List<String> generatedQueries = generatedQueries(queryIntent, modes);
+        return new SearchStrategy(modes.iterator().next(), new ArrayList<>(modes), freshnessSensitive, authoritativePreferred, generatedQueries);
+    }
+
+    private List<String> generatedQueries(WebSearchQueryIntent queryIntent, Set<String> modes) {
+        String base = queryIntent == null ? "" : firstNonBlank(queryIntent.searchQuery(), queryIntent.originalQuery());
+        if (base == null || base.isBlank()) {
+            return List.of();
+        }
+        Set<String> queries = new LinkedHashSet<>();
+        queries.add(base);
+        if (queryIntent != null && queryIntent.targetHost() != null && !queryIntent.targetHost().isBlank()) {
+            queries.add("site:" + queryIntent.targetHost() + " " + firstNonBlank(queryIntent.siteSearchQuery(), base));
+        }
+        if (modes.contains("finance")) {
+            queries.add(base + " earnings revenue annual report");
+            queries.add(base + " financial report official");
+        }
+        if (modes.contains("news")) {
+            queries.add(base + " latest news");
+        }
+        if (modes.contains("technical")) {
+            queries.add(base + " official docs github");
+        }
+        if (modes.contains("academic")) {
+            queries.add(base + " paper doi research");
+        }
+        if (modes.contains("product")) {
+            queries.add(base + " review price");
+        }
+        return new ArrayList<>(queries);
+    }
+
+    private Map<String, Object> queryPlan(WebSearchQueryIntent queryIntent, SearchStrategy strategy) {
+        Map<String, Object> plan = new LinkedHashMap<>();
+        plan.put("original_query", queryIntent == null ? "" : firstNonBlank(queryIntent.originalQuery(), ""));
+        plan.put("search_query", queryIntent == null ? "" : firstNonBlank(queryIntent.searchQuery(), ""));
+        plan.put("site_search_query", queryIntent == null ? "" : firstNonBlank(queryIntent.siteSearchQuery(), ""));
+        plan.put("target_site", queryIntent == null ? "" : firstNonBlank(queryIntent.targetHost(), ""));
+        plan.put("strategy", strategy == null ? Map.of() : strategy.toMap());
+        plan.put("generated_queries", strategy == null ? List.of() : strategy.generatedQueries());
+        plan.put("recall_layers", List.of("primary_search", "targeted_site_search", "light_page_fetch"));
+        plan.put("ranking_features", List.of("term_match", "page_evidence", "domain_trust", "freshness", "source_type_fit"));
+        return plan;
+    }
+
     private List<Map<String, Object>> fallbackExtractAllLinks(Document document, String query, int maxLinks) {
         if (document == null || maxLinks <= 0) {
             return List.of();
@@ -591,7 +687,8 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
     private List<Map<String, Object>> rankSearchResults(List<Map<String, Object>> candidates,
                                                         List<Map<String, Object>> pageEvidence,
                                                         String query,
-                                                        int limit) {
+                                                        int limit,
+                                                        SearchStrategy strategy) {
         if (candidates == null || candidates.isEmpty()) {
             return List.of();
         }
@@ -610,7 +707,7 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
         int originalIndex = 0;
         for (Map<String, Object> candidate : candidates) {
             Map<String, Object> copy = new LinkedHashMap<>(candidate);
-            double score = relevanceScore(copy, evidenceByUrl, terms, originalIndex++);
+            double score = relevanceScore(copy, evidenceByUrl, terms, originalIndex++, strategy);
             copy.put("relevanceScore", score);
             ranked.add(copy);
         }
@@ -637,7 +734,8 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
     private double relevanceScore(Map<String, Object> candidate,
                                   Map<String, String> evidenceByUrl,
                                   List<String> terms,
-                                  int originalIndex) {
+                                  int originalIndex,
+                                  SearchStrategy strategy) {
         String title = firstNonBlank(stringValue(candidate.get("title")), "");
         String snippet = firstNonBlank(stringValue(candidate.get("snippet")), "");
         String url = firstNonBlank(stringValue(candidate.get("url")), "");
@@ -662,6 +760,12 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
         }
         if (!evidence.isBlank()) {
             score += 3;
+        }
+        score += domainTrustScore(url) * 18;
+        score += freshnessScore(candidate, evidence, strategy) * 14;
+        score += sourceTypeFitScore(classifySourceType(url, title, stringValue(candidate.get("source"))), strategy) * 12;
+        if (isDocumentUrl(url) && strategy != null && strategy.modes().stream().anyMatch(Set.of("technical", "academic", "finance")::contains)) {
+            score += 5;
         }
         return score;
     }
@@ -992,6 +1096,27 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
                 if (!pageExcerpt.isBlank()) {
                     builder.append("  pageExcerpt: ").append(pageExcerpt.replaceAll("\\s+", " ").trim()).append('\n');
                 }
+                Map<String, Object> evidence = mapValue(result.get("urlEvidence"));
+                if (!evidence.isEmpty()) {
+                    builder.append("  domain: ").append(firstNonBlank(stringValue(evidence.get("domain")), "")).append('\n');
+                    builder.append("  status: ").append(firstNonBlank(stringValue(evidence.get("status")), "unknown")).append('\n');
+                    builder.append("  content_type: ").append(firstNonBlank(stringValue(evidence.get("content_type")), "other")).append('\n');
+                    builder.append("  source_type: ").append(firstNonBlank(stringValue(evidence.get("source_type")), "other")).append('\n');
+                    builder.append("  trust_score: ").append(firstNonBlank(stringValue(evidence.get("trust_score")), "0")).append('\n');
+                    builder.append("  freshness_score: ").append(firstNonBlank(stringValue(evidence.get("freshness_score")), "0")).append('\n');
+                    String summary = firstNonBlank(stringValue(evidence.get("summary")), "");
+                    if (!summary.isBlank()) {
+                        builder.append("  summary: ").append(summary.replaceAll("\\s+", " ").trim()).append('\n');
+                    }
+                    Object keyPoints = evidence.get("key_points");
+                    if (keyPoints instanceof List<?> list && !list.isEmpty()) {
+                        builder.append("  key_points: ").append(list).append('\n');
+                    }
+                    Object keywords = evidence.get("keywords");
+                    if (keywords instanceof List<?> list && !list.isEmpty()) {
+                        builder.append("  keywords: ").append(list).append('\n');
+                    }
+                }
             }
         }
         if (pageExcerpts != null && !pageExcerpts.isEmpty()) {
@@ -1027,6 +1152,22 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
             candidate.put("url", url);
             candidate.put("title", compactText(firstNonBlank(stringValue(result.get("title")), url), 160));
             candidate.put("retrieval_snippet", compactText(firstNonBlank(stringValue(result.get("snippet")), ""), 420));
+            Map<String, Object> evidence = mapValue(result.get("urlEvidence"));
+            if (!evidence.isEmpty()) {
+                candidate.put("summary", compactText(stringValue(evidence.get("summary")), properties.getUrlEvidence().getMaxSummaryChars()));
+                candidate.put("domain", evidence.get("domain"));
+                candidate.put("status", evidence.get("status"));
+                candidate.put("language", evidence.get("language"));
+                candidate.put("content_type", evidence.get("content_type"));
+                candidate.put("source_type", evidence.get("source_type"));
+                candidate.put("freshness", evidence.get("freshness"));
+                candidate.put("keywords", evidence.get("keywords"));
+                candidate.put("relevance_score", evidence.get("relevance_score"));
+                candidate.put("trust_score", evidence.get("trust_score"));
+                candidate.put("freshness_score", evidence.get("freshness_score"));
+                candidate.put("key_points", evidence.get("key_points"));
+                candidate.put("evidence_card", evidence);
+            }
             candidate.put("source", firstNonBlank(stringValue(result.get("source")), "site_search"));
             copyIfPresent(result, candidate, "publishedAt");
             copyIfPresent(result, candidate, "securityCode");
@@ -1057,6 +1198,26 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
             if (!snippet.isBlank()) {
                 builder.append("  retrieval_snippet: ").append(snippet).append('\n');
             }
+            String summary = firstNonBlank(stringValue(candidate.get("summary")), "");
+            if (!summary.isBlank()) {
+                builder.append("  summary: ").append(summary).append('\n');
+            }
+            String status = firstNonBlank(stringValue(candidate.get("status")), "");
+            if (!status.isBlank()) {
+                builder.append("  status: ").append(status).append('\n');
+            }
+            String contentType = firstNonBlank(stringValue(candidate.get("content_type")), "");
+            if (!contentType.isBlank()) {
+                builder.append("  content_type: ").append(contentType).append('\n');
+            }
+            String sourceType = firstNonBlank(stringValue(candidate.get("source_type")), "");
+            if (!sourceType.isBlank()) {
+                builder.append("  source_type: ").append(sourceType).append('\n');
+            }
+            Object keyPoints = candidate.get("key_points");
+            if (keyPoints instanceof List<?> list && !list.isEmpty()) {
+                builder.append("  key_points: ").append(list).append('\n');
+            }
             String source = firstNonBlank(stringValue(candidate.get("source")), "");
             if (!source.isBlank()) {
                 builder.append("  source: ").append(source).append('\n');
@@ -1086,6 +1247,23 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
         String targetUrl,
         String targetHost
     ) {
+    }
+
+    private record SearchStrategy(String primaryMode,
+                                  List<String> modes,
+                                  boolean freshnessSensitive,
+                                  boolean authoritativePreferred,
+                                  List<String> generatedQueries) {
+
+        private Map<String, Object> toMap() {
+            Map<String, Object> values = new LinkedHashMap<>();
+            values.put("primary_mode", primaryMode);
+            values.put("modes", modes == null ? List.of() : modes);
+            values.put("freshness_sensitive", freshnessSensitive);
+            values.put("authoritative_preferred", authoritativePreferred);
+            values.put("generated_query_count", generatedQueries == null ? 0 : generatedQueries.size());
+            return values;
+        }
     }
 
     private record NaturalTargetSite(String host, String url) {
@@ -1735,6 +1913,460 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
         return message.toString().trim();
     }
 
+    private void attachUrlEvidence(List<Map<String, Object>> results,
+                                   List<Map<String, Object>> pageEvidence,
+                                   String query,
+                                   SearchStrategy strategy) {
+        if (!properties.getUrlEvidence().isEnabled() || results == null || results.isEmpty()) {
+            return;
+        }
+        Map<String, Map<String, Object>> evidenceByUrl = new HashMap<>();
+        if (pageEvidence != null) {
+            for (Map<String, Object> evidence : pageEvidence) {
+                String url = stringValue(evidence.get("url"));
+                if (url != null && !url.isBlank()) {
+                    evidenceByUrl.put(normalizeComparableUrl(url), evidence);
+                }
+            }
+        }
+        for (Map<String, Object> result : results) {
+            String url = stringValue(result.get("url"));
+            Map<String, Object> fetchedEvidence = url == null
+                ? Map.of()
+                : evidenceByUrl.getOrDefault(normalizeComparableUrl(url), Map.of());
+            Map<String, Object> evidence = buildUrlEvidenceCard(result, fetchedEvidence, query, strategy);
+            result.put("urlEvidence", evidence);
+            result.put("evidence_card", evidence);
+            putIfNotBlank(result, "summary", stringValue(evidence.get("summary")));
+            putIfNotBlank(result, "domain", stringValue(evidence.get("domain")));
+            putIfNotBlank(result, "language", stringValue(evidence.get("language")));
+            putIfNotBlank(result, "content_type", stringValue(evidence.get("content_type")));
+            putIfNotBlank(result, "freshness", stringValue(evidence.get("freshness")));
+            putIfNotBlank(result, "status", stringValue(evidence.get("status")));
+            putIfNotBlank(result, "source_type", stringValue(evidence.get("source_type")));
+            result.put("trust_score", evidence.get("trust_score"));
+            result.put("freshness_score", evidence.get("freshness_score"));
+            result.put("rerank_score", evidence.get("rerank_score"));
+            result.put("key_points", evidence.getOrDefault("key_points", List.of()));
+            result.put("quality_flags", evidence.getOrDefault("quality_flags", List.of()));
+            result.put("keywords", evidence.getOrDefault("keywords", List.of()));
+            result.put("relevance_score", evidence.get("relevance_score"));
+        }
+    }
+
+    private Map<String, Object> buildUrlEvidenceCard(Map<String, Object> result,
+                                                     Map<String, Object> pageEvidence,
+                                                     String query,
+                                                     SearchStrategy strategy) {
+        String url = firstNonBlank(stringValue(result.get("url")), stringValue(pageEvidence.get("url")));
+        String title = firstNonBlank(
+            stringValue(result.get("title")),
+            firstNonBlank(stringValue(pageEvidence.get("title")), url)
+        );
+        String snippet = compactText(firstNonBlank(
+            stringValue(result.get("snippet")),
+            firstNonBlank(stringValue(pageEvidence.get("description")), stringValue(pageEvidence.get("excerpt")))
+        ), properties.getUrlEvidence().getMaxSnippetChars());
+        String excerpt = firstNonBlank(stringValue(pageEvidence.get("excerpt")), "");
+        String summary = compactText(firstNonBlank(
+            stringValue(pageEvidence.get("summary")),
+            buildEvidenceSummary(firstNonBlank(excerpt, snippet), query)
+        ), properties.getUrlEvidence().getMaxSummaryChars());
+        if (summary.isBlank()) {
+            summary = compactText(firstNonBlank(snippet, title), properties.getUrlEvidence().getMaxSummaryChars());
+        }
+        String status = firstNonBlank(
+            stringValue(pageEvidence.get("status")),
+            firstNonBlank(stringValue(pageEvidence.get("statusCode")), isDocumentUrl(url) ? "document_or_binary" : "not_fetched")
+        );
+        String freshness = firstNonBlank(
+            stringValue(result.get("publishedAt")),
+            firstNonBlank(stringValue(pageEvidence.get("publishedAt")), stringValue(result.get("freshness")))
+        );
+        double relevanceScore = numberValue(firstObject(result.get("relevanceScore"), result.get("relevance_score")), 0);
+        String sourceType = classifySourceType(url, title, stringValue(result.get("source")));
+        double trustScore = domainTrustScore(url);
+        double freshnessScore = freshnessScore(result, firstNonBlank(excerpt, summary), strategy);
+        List<String> keyPoints = keyPoints(firstNonBlank(excerpt, summary), query);
+        List<String> qualityFlags = qualityFlags(status, summary, pageEvidence, trustScore);
+        List<String> keywords = evidenceKeywords(query, title, snippet, summary);
+
+        Map<String, Object> evidence = new LinkedHashMap<>();
+        evidence.put("url", url);
+        evidence.put("title", title);
+        evidence.put("snippet", snippet);
+        evidence.put("summary", summary);
+        evidence.put("domain", hostOf(url));
+        evidence.put("language", detectLanguage(title + " " + snippet + " " + summary));
+        evidence.put("content_type", classifyContentType(url, title, stringValue(result.get("source"))));
+        evidence.put("source_type", sourceType);
+        evidence.put("relevance_score", relevanceScore);
+        evidence.put("rerank_score", relevanceScore);
+        evidence.put("trust_score", trustScore);
+        evidence.put("freshness_score", freshnessScore);
+        evidence.put("strategy_fit_score", sourceTypeFitScore(sourceType, strategy));
+        evidence.put("freshness", freshness);
+        evidence.put("status", status);
+        evidence.put("key_points", keyPoints);
+        evidence.put("quality_flags", qualityFlags);
+        evidence.put("keywords", keywords);
+        evidence.put("source", firstNonBlank(stringValue(result.get("source")), "search_result"));
+        copyIfPresent(pageEvidence, evidence, "statusCode");
+        copyIfPresent(pageEvidence, evidence, "contentLength");
+        copyIfPresent(pageEvidence, evidence, "contentTruncated");
+        copyIfPresent(pageEvidence, evidence, "fetchError");
+        return evidence;
+    }
+
+    private Map<String, Object> basePageEvidence(Map<String, Object> result,
+                                                 String url,
+                                                 String status,
+                                                 int statusCode) {
+        Map<String, Object> evidence = new LinkedHashMap<>();
+        evidence.put("rank", result == null ? null : result.get("rank"));
+        evidence.put("title", result == null ? url : firstNonBlank(stringValue(result.get("title")), url));
+        evidence.put("url", url);
+        evidence.put("excerpt", "");
+        evidence.put("summary", "");
+        evidence.put("contentLength", 0);
+        evidence.put("contentTruncated", false);
+        evidence.put("status", status);
+        if (statusCode > 0) {
+            evidence.put("statusCode", statusCode);
+        }
+        return evidence;
+    }
+
+    private String pageMetaDescription(Document page) {
+        if (page == null) {
+            return "";
+        }
+        return compactText(firstNonBlank(
+            metaContent(page, "meta[name=description]"),
+            firstNonBlank(metaContent(page, "meta[property=og:description]"), metaContent(page, "meta[name=twitter:description]"))
+        ), properties.getUrlEvidence().getMaxSnippetChars());
+    }
+
+    private String publishedAt(Document page) {
+        if (page == null) {
+            return "";
+        }
+        return firstNonBlank(
+            metaContent(page, "meta[property=article:published_time]"),
+            firstNonBlank(
+                metaContent(page, "meta[name=date]"),
+                firstNonBlank(metaContent(page, "meta[name=publishdate]"), firstElementAttr(page, "time[datetime]", "datetime"))
+            )
+        );
+    }
+
+    private String metaContent(Document page, String selector) {
+        Element element = page.selectFirst(selector);
+        return element == null ? "" : element.attr("content").replaceAll("\\s+", " ").trim();
+    }
+
+    private String firstElementAttr(Document page, String selector, String attr) {
+        Element element = page.selectFirst(selector);
+        return element == null ? "" : element.attr(attr).replaceAll("\\s+", " ").trim();
+    }
+
+    private String buildEvidenceSummary(String text, String query) {
+        String source = buildTextExcerpt(firstNonBlank(text, ""), query, properties.getUrlEvidence().getMaxSummaryChars() * 2);
+        if (source.isBlank()) {
+            return "";
+        }
+        String[] parts = source.split("(?<=[。！？.!?])\\s+|(?<=[。！？.!?])");
+        StringBuilder builder = new StringBuilder();
+        for (String part : parts) {
+            String sentence = part.replaceAll("\\s+", " ").trim();
+            if (sentence.isBlank()) {
+                continue;
+            }
+            if (builder.length() + sentence.length() > properties.getUrlEvidence().getMaxSummaryChars()) {
+                break;
+            }
+            builder.append(sentence);
+            if (builder.length() >= properties.getUrlEvidence().getMaxSummaryChars() / 2) {
+                break;
+            }
+        }
+        String summary = builder.length() == 0 ? source : builder.toString();
+        return compactText(summary, properties.getUrlEvidence().getMaxSummaryChars());
+    }
+
+    private List<String> evidenceKeywords(String query, String title, String snippet, String summary) {
+        int limit = Math.max(1, properties.getUrlEvidence().getMaxKeywords());
+        Set<String> keywords = new LinkedHashSet<>();
+        for (String term : queryTerms(query)) {
+            if (keywords.size() >= limit) {
+                break;
+            }
+            keywords.add(term);
+        }
+        Matcher matcher = Pattern.compile("[A-Za-z][A-Za-z0-9_-]{2,}|[\\u4e00-\\u9fa5]{2,8}|\\d{4,}").matcher(
+            String.join(" ", firstNonBlank(title, ""), firstNonBlank(snippet, ""), firstNonBlank(summary, ""))
+        );
+        while (matcher.find() && keywords.size() < limit) {
+            String keyword = matcher.group().trim();
+            if (!keyword.isBlank()) {
+                keywords.add(keyword);
+            }
+        }
+        return new ArrayList<>(keywords);
+    }
+
+    private String classifyContentType(String url, String title, String source) {
+        String value = (firstNonBlank(url, "") + " " + firstNonBlank(title, "") + " " + firstNonBlank(source, "")).toLowerCase(Locale.ROOT);
+        if (isDocumentUrl(url)) {
+            return "document";
+        }
+        if (containsAny(value, List.of("forum", "bbs", "thread", "post", "zhihu.com", "reddit.com", "tieba"))) {
+            return "forum";
+        }
+        if (containsAny(value, List.of("news", "article", "notice", "announcement", "公告", "新闻", "资讯"))) {
+            return "news";
+        }
+        if (containsAny(value, List.of("product", "item", "sku", "goods", "shop", "mall", "商品", "产品"))) {
+            return "product";
+        }
+        if (containsAny(value, List.of("search", "site_search"))) {
+            return "search_result";
+        }
+        return "article";
+    }
+
+    private String classifySourceType(String url, String title, String source) {
+        String host = firstNonBlank(hostOf(url), "").toLowerCase(Locale.ROOT);
+        String value = (host + " " + firstNonBlank(url, "") + " " + firstNonBlank(title, "") + " " + firstNonBlank(source, "")).toLowerCase(Locale.ROOT);
+        if (isDocumentUrl(url)) {
+            return "document";
+        }
+        if (host.endsWith(".gov") || host.contains(".gov.") || host.endsWith(".edu") || host.contains(".edu.")) {
+            return "official";
+        }
+        if (containsAny(value, List.of("official", "官网", "\u5b98\u65b9", "investor", "ir.", "docs.", "developer.", "api."))) {
+            return "official";
+        }
+        if (containsAny(value, List.of("news", "reuters", "bloomberg", "apnews", "xinhua", "xinhuanet", "people.com.cn", "news.cn", "\u65b0\u95fb", "\u8d44\u8baf"))) {
+            return "news";
+        }
+        if (containsAny(value, List.of("forum", "bbs", "thread", "post", "reddit.com", "zhihu.com", "tieba", "stackoverflow.com"))) {
+            return "forum";
+        }
+        if (containsAny(value, List.of("shop", "mall", "product", "item", "sku", "amazon.", "jd.com", "taobao", "tmall", "\u5546\u54c1", "\u4ea7\u54c1"))) {
+            return "commerce";
+        }
+        if (containsAny(value, List.of("paper", "journal", "arxiv", "doi.org", "scholar", "pubmed", "\u8bba\u6587", "\u5b66\u672f"))) {
+            return "academic";
+        }
+        return "web";
+    }
+
+    private double domainTrustScore(String url) {
+        String host = firstNonBlank(hostOf(url), "").toLowerCase(Locale.ROOT);
+        if (host.isBlank()) {
+            return 0.25;
+        }
+        if (host.endsWith(".gov") || host.contains(".gov.") || host.endsWith(".edu") || host.contains(".edu.")) {
+            return 1.0;
+        }
+        if (containsAny(host, List.of("wikipedia.org", "reuters.com", "bloomberg.com", "apnews.com", "xinhua", "people.com.cn", "sec.gov"))) {
+            return 0.92;
+        }
+        if (containsAny(host, List.of("github.com", "microsoft.com", "openai.com", "oracle.com", "spring.io", "apache.org", "docs."))) {
+            return 0.88;
+        }
+        if (containsAny(host, List.of("sse.com.cn", "szse.cn", "cninfo.com.cn", "nasdaq.com", "nyse.com"))) {
+            return 0.9;
+        }
+        if (containsAny(host, List.of("reddit.com", "zhihu.com", "tieba", "quora.com", "medium.com", "blogspot", "wordpress"))) {
+            return 0.55;
+        }
+        if (containsAny(host, List.of("download", "file", "cdn"))) {
+            return 0.5;
+        }
+        return 0.7;
+    }
+
+    private double freshnessScore(Map<String, Object> result, String text, SearchStrategy strategy) {
+        String combined = String.join(" ",
+            firstNonBlank(stringValue(result.get("publishedAt")), ""),
+            firstNonBlank(stringValue(result.get("freshness")), ""),
+            firstNonBlank(stringValue(result.get("title")), ""),
+            firstNonBlank(stringValue(result.get("url")), ""),
+            firstNonBlank(text, "")
+        );
+        int year = latestYearMention(combined);
+        int currentYear = LocalDate.now().getYear();
+        if (year >= currentYear) {
+            return 1.0;
+        }
+        if (year == currentYear - 1) {
+            return strategy != null && strategy.freshnessSensitive() ? 0.78 : 0.86;
+        }
+        if (year > 0) {
+            int age = Math.max(1, currentYear - year);
+            return Math.max(0.18, 0.75 - age * 0.11);
+        }
+        return strategy != null && strategy.freshnessSensitive() ? 0.42 : 0.65;
+    }
+
+    private int latestYearMention(String text) {
+        if (text == null || text.isBlank()) {
+            return 0;
+        }
+        Matcher matcher = Pattern.compile("\\b(20[0-9]{2})\\b").matcher(text);
+        int latest = 0;
+        while (matcher.find()) {
+            try {
+                latest = Math.max(latest, Integer.parseInt(matcher.group(1)));
+            } catch (NumberFormatException ignored) {
+                // Ignore malformed year-like values.
+            }
+        }
+        return latest;
+    }
+
+    private double sourceTypeFitScore(String sourceType, SearchStrategy strategy) {
+        if (strategy == null || sourceType == null || sourceType.isBlank()) {
+            return 0.5;
+        }
+        List<String> modes = strategy.modes();
+        if (modes.contains("finance")) {
+            return switch (sourceType) {
+                case "official", "document", "news" -> 1.0;
+                case "web" -> 0.65;
+                default -> 0.35;
+            };
+        }
+        if (modes.contains("news")) {
+            return switch (sourceType) {
+                case "news", "official" -> 1.0;
+                case "forum" -> 0.55;
+                default -> 0.65;
+            };
+        }
+        if (modes.contains("technical") || modes.contains("tutorial")) {
+            return switch (sourceType) {
+                case "official", "document", "web" -> 1.0;
+                case "forum" -> 0.75;
+                default -> 0.6;
+            };
+        }
+        if (modes.contains("academic")) {
+            return switch (sourceType) {
+                case "academic", "document", "official" -> 1.0;
+                default -> 0.45;
+            };
+        }
+        if (modes.contains("product")) {
+            return switch (sourceType) {
+                case "commerce", "official", "web" -> 1.0;
+                case "forum" -> 0.7;
+                default -> 0.55;
+            };
+        }
+        return "official".equals(sourceType) ? 0.9 : 0.65;
+    }
+
+    private List<String> keyPoints(String text, String query) {
+        String source = text == null ? "" : text.replaceAll("\\s+", " ").trim();
+        if (source.isBlank()) {
+            return List.of();
+        }
+        List<String> terms = queryTerms(query);
+        String[] sentences = source.split("(?<=[。！？.!?])\\s+|(?<=[。！？.!?])");
+        List<Map<String, Object>> ranked = new ArrayList<>();
+        int index = 0;
+        for (String sentenceValue : sentences) {
+            String sentence = sentenceValue.replaceAll("\\s+", " ").trim();
+            if (sentence.length() < 20) {
+                continue;
+            }
+            double score = Math.max(0, 100 - index++);
+            String lower = sentence.toLowerCase(Locale.ROOT);
+            for (String term : terms) {
+                if (lower.contains(term.toLowerCase(Locale.ROOT))) {
+                    score += 20;
+                }
+            }
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("score", score);
+            item.put("text", compactText(sentence, 220));
+            ranked.add(item);
+        }
+        ranked.sort((left, right) -> Double.compare(numberValue(right.get("score"), 0), numberValue(left.get("score"), 0)));
+        return ranked.stream()
+            .map(item -> stringValue(item.get("text")))
+            .filter(value -> value != null && !value.isBlank())
+            .limit(3)
+            .toList();
+    }
+
+    private List<String> qualityFlags(String status,
+                                      String summary,
+                                      Map<String, Object> pageEvidence,
+                                      double trustScore) {
+        List<String> flags = new ArrayList<>();
+        String normalizedStatus = firstNonBlank(status, "").toLowerCase(Locale.ROOT);
+        if (normalizedStatus.contains("404") || normalizedStatus.contains("timeout") || normalizedStatus.contains("error") || normalizedStatus.contains("blocked")) {
+            flags.add("fetch_issue");
+        }
+        if (summary == null || summary.length() < 60) {
+            flags.add("thin_summary");
+        }
+        if (Boolean.TRUE.equals(pageEvidence.get("contentTruncated"))) {
+            flags.add("content_truncated");
+        }
+        if (pageEvidence.get("fetchError") != null) {
+            flags.add("fetch_error");
+        }
+        if (trustScore < 0.6) {
+            flags.add("low_domain_trust");
+        }
+        return flags;
+    }
+
+    private String detectLanguage(String text) {
+        if (text == null || text.isBlank()) {
+            return "unknown";
+        }
+        int cjk = 0;
+        int latin = 0;
+        for (int i = 0; i < text.length(); i++) {
+            char ch = text.charAt(i);
+            if (ch >= '\u4e00' && ch <= '\u9fff') {
+                cjk++;
+            } else if ((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z')) {
+                latin++;
+            }
+        }
+        if (cjk == 0 && latin == 0) {
+            return "unknown";
+        }
+        return cjk >= latin ? "zh" : "en";
+    }
+
+    private double numberValue(Object value, double fallback) {
+        if (value instanceof Number number) {
+            return number.doubleValue();
+        }
+        if (value instanceof String text && !text.isBlank()) {
+            try {
+                return Double.parseDouble(text);
+            } catch (NumberFormatException ignored) {
+                return fallback;
+            }
+        }
+        return fallback;
+    }
+
+    private void putIfNotBlank(Map<String, Object> target, String key, String value) {
+        if (value != null && !value.isBlank()) {
+            target.put(key, value);
+        }
+    }
+
     /**
      * Performs the fetch page excerpts operation.
      *
@@ -1746,10 +2378,19 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
                                                         String query,
                                                         WebSearchRequestContext context,
                                                         List<Map<String, Object>> networkAudit) {
+        int limit = results == null ? 0 : Math.min(properties.getMaxPagesToFetch(), results.size());
+        return fetchPageExcerpts(results, query, context, networkAudit, limit);
+    }
+
+    private List<Map<String, Object>> fetchPageExcerpts(List<Map<String, Object>> results,
+                                                        String query,
+                                                        WebSearchRequestContext context,
+                                                        List<Map<String, Object>> networkAudit,
+                                                        int requestedLimit) {
         if (!properties.isFetchPages() || results == null || results.isEmpty()) {
             return List.of();
         }
-        int limit = Math.max(0, Math.min(properties.getMaxPagesToFetch(), results.size()));
+        int limit = Math.max(0, Math.min(requestedLimit, results.size()));
         if (limit <= 0) {
             return List.of();
         }
@@ -1762,10 +2403,17 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
             }
             String url = stringValue(result.get("url"));
             if (!isFetchablePageUrl(url)) {
+                Map<String, Object> evidence = basePageEvidence(result, url, "document_or_binary", 0);
+                evidence.put("fetchError", "unsupported content type for inline HTML extraction");
+                excerpts.add(evidence);
+                attempts++;
                 continue;
             }
             if (!isAllowedUrl(url)) {
                 addAudit(networkAudit, query, url, "page", null, 0, 0, "BLOCKED", "domain not allowed");
+                Map<String, Object> evidence = basePageEvidence(result, url, "blocked", 0);
+                evidence.put("fetchError", "domain not allowed");
+                excerpts.add(evidence);
                 continue;
             }
             attempts++;
@@ -1789,18 +2437,27 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
 
                 String pageText = extractReadableText(page);
                 if (pageText.isBlank()) {
+                    Map<String, Object> evidence = basePageEvidence(result, url, String.valueOf(statusCode), statusCode);
+                    evidence.put("fetchError", "empty readable content");
+                    evidence.put("description", pageMetaDescription(page));
+                    excerpts.add(evidence);
                     continue;
                 }
                 String excerpt = buildTextExcerpt(pageText, query, properties.getPageExcerptChars());
+                String metaDescription = pageMetaDescription(page);
 
                 Map<String, Object> evidence = new LinkedHashMap<>();
                 evidence.put("rank", result.get("rank"));
                 evidence.put("title", firstNonBlank(stringValue(result.get("title")), page.title()));
                 evidence.put("url", url);
+                evidence.put("description", metaDescription);
                 evidence.put("excerpt", excerpt);
+                evidence.put("summary", buildEvidenceSummary(pageText, query));
+                evidence.put("publishedAt", firstNonBlank(stringValue(result.get("publishedAt")), publishedAt(page)));
                 evidence.put("contentLength", pageText.length());
                 evidence.put("contentTruncated", pageText.length() > excerpt.length());
                 evidence.put("statusCode", statusCode);
+                evidence.put("status", String.valueOf(statusCode));
                 excerpts.add(evidence);
                 log.info("Web search page fetch succeeded attempt={}/{} rank={} statusCode={} durationMs={} excerptChars={}",
                     attempts,
@@ -1816,6 +2473,9 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
                     result.get("rank"),
                     url,
                     ex.getMessage());
+                Map<String, Object> evidence = basePageEvidence(result, url, "timeout_or_error", 0);
+                evidence.put("fetchError", ex.getMessage());
+                excerpts.add(evidence);
             }
         }
         return excerpts;
@@ -4132,6 +4792,19 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
      */
     private String stringValue(Object value) {
         return value == null ? null : String.valueOf(value);
+    }
+
+    private Map<String, Object> mapValue(Object value) {
+        if (!(value instanceof Map<?, ?> map) || map.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, Object> copy = new LinkedHashMap<>();
+        for (Map.Entry<?, ?> entry : map.entrySet()) {
+            if (entry.getKey() != null) {
+                copy.put(String.valueOf(entry.getKey()), entry.getValue());
+            }
+        }
+        return copy;
     }
 
     private List<Map<String, Object>> loggableSearchResults(List<Map<String, Object>> results) {

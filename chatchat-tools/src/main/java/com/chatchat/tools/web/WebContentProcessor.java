@@ -49,6 +49,23 @@ public class WebContentProcessor {
     }
 
     /**
+     * Processes already-extracted document text.
+     *
+     * @param title the title value
+     * @param text the text value
+     * @return the operation result
+     */
+    public ProcessedContent processText(String title, String text) {
+        String mainText = normalize(text);
+        int maxTextChars = Math.max(1000, properties.getMaxTextChars());
+        boolean truncated = mainText.length() > maxTextChars;
+        if (truncated) {
+            mainText = mainText.substring(0, maxTextChars);
+        }
+        return new ProcessedContent(normalize(title), mainText, chunk(mainText), truncated);
+    }
+
+    /**
      * Converts processed content to a map.
      *
      * @param content the content value

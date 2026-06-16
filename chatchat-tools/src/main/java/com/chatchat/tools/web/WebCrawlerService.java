@@ -6,12 +6,21 @@ import com.microsoft.playwright.BrowserContext;
 import com.microsoft.playwright.Page;
 import com.microsoft.playwright.Playwright;
 import com.microsoft.playwright.options.WaitUntilState;
+import org.apache.tika.config.TikaConfig;
+import org.apache.tika.exception.TikaException;
+import org.apache.tika.metadata.Metadata;
+import org.apache.tika.metadata.TikaCoreProperties;
+import org.apache.tika.parser.AutoDetectParser;
+import org.apache.tika.parser.ParseContext;
+import org.apache.tika.sax.BodyContentHandler;
 import org.jsoup.Jsoup;
 import org.jsoup.nodes.Document;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.xml.sax.SAXException;
 
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.URI;
@@ -46,6 +55,7 @@ public class WebCrawlerService {
     private final WebToolCache cacheService;
     private final PlaywrightBrowserSupport playwrightSupport = new PlaywrightBrowserSupport("web_crawler");
     private final AtomicInteger proxyCursor = new AtomicInteger();
+    private final AutoDetectParser documentParser = new AutoDetectParser(TikaConfig.getDefaultConfig());
 
     public WebCrawlerService(WebCrawlerProperties properties,
                              WebContentProcessor contentProcessor,
@@ -130,10 +140,13 @@ public class WebCrawlerService {
                 CrawlResponse response = "browser".equals(effectiveCrawlMode)
                     ? fetchWithBrowser(currentUrl, timeout, proxy)
                     : fetchWithJava(currentUrl, timeout, proxy);
-                output = buildOutput(normalizedUrl, response, effectiveCrawlMode, render, startedAt, proxy);
+                output = buildOutput(normalizedUrl, response, effectiveCrawlMode, render, startedAt, proxy, context);
                 output.put("requestedCrawlMode", crawlMode);
                 output.put("browserFallbackUsed", !crawlMode.equals(effectiveCrawlMode));
                 crawlChain.add(crawlChainItem(hop, currentUrl, response, output));
+                if (!response.htmlResource()) {
+                    break;
+                }
                 String nextUrl = nextFollowUrl(output, response.html(), response.url());
                 if (!isHttpUrl(nextUrl)) {
                     break;
@@ -172,17 +185,63 @@ public class WebCrawlerService {
             .header("Accept", browserAccept())
             .header("Accept-Language", browserAcceptLanguage())
             .timeout(timeout <= 0 ? 0 : Math.max(1000, timeout))
-            .maxBodySize(Math.max(1024, properties.getMaxBodyBytes()))
+            .maxBodySize(javaFetchMaxBodySize(normalizedUrl))
             .ignoreHttpErrors(true)
             .ignoreContentType(true)
             .followRedirects(true);
         applyBrowserLikeHeaders(connection, normalizedUrl);
         applyProxy(connection, proxyConfig);
-        Document document = connection.get();
-        String responseUrl = document.location() == null || document.location().isBlank()
+        org.jsoup.Connection.Response response = connection.execute();
+        String responseUrl = response.url() == null
             ? normalizedUrl
-            : document.location();
-        return new CrawlResponse(responseUrl, document.outerHtml(), false, "java_jsoup");
+            : response.url().toString();
+        String contentType = firstNonBlank(response.contentType(), "");
+        byte[] body = response.bodyAsBytes();
+        if (shouldExtractDocument(responseUrl, contentType)) {
+            if (!properties.getDocumentExtraction().isEnabled()) {
+                return CrawlResponse.document(
+                    responseUrl,
+                    "",
+                    false,
+                    "java_document",
+                    contentType,
+                    fileNameFromUrl(responseUrl),
+                    body.length,
+                    "",
+                    false,
+                    "document extraction is disabled"
+                );
+            }
+            if (body.length > documentMaxBytes()) {
+                return CrawlResponse.document(
+                    responseUrl,
+                    "",
+                    false,
+                    "java_document",
+                    contentType,
+                    fileNameFromUrl(responseUrl),
+                    body.length,
+                    "",
+                    false,
+                    "document is larger than maxDocumentBytes"
+                );
+            }
+            DocumentExtraction extraction = extractDocumentText(responseUrl, contentType, body);
+            return CrawlResponse.document(
+                responseUrl,
+                extraction.text(),
+                false,
+                "java_document",
+                firstNonBlank(extraction.contentType(), contentType),
+                fileNameFromUrl(responseUrl),
+                body.length,
+                extraction.title(),
+                extraction.truncated(),
+                extraction.error()
+            );
+        }
+        Document document = response.parse();
+        return CrawlResponse.html(responseUrl, document.outerHtml(), false, "java_jsoup", contentType, body.length);
     }
 
     private CrawlResponse fetchWithBrowser(String normalizedUrl,
@@ -209,7 +268,7 @@ public class WebCrawlerService {
             if (html == null || html.isBlank()) {
                 throw new IllegalStateException("Playwright returned empty page content");
             }
-            return new CrawlResponse(page.url(), html, true, "playwright_chromium");
+            return CrawlResponse.html(page.url(), html, true, "playwright_chromium", "text/html", html.length());
         }
     }
 
@@ -218,10 +277,18 @@ public class WebCrawlerService {
                                             String crawlMode,
                                             boolean render,
                                             long startedAt,
-                                            WebCrawlerProperties.ProxyConfig proxyConfig) {
-        WebContentProcessor.ProcessedContent content = contentProcessor.process(response.url(), response.html());
+                                            WebCrawlerProperties.ProxyConfig proxyConfig,
+                                            CrawlRequestContext context) {
+        WebContentProcessor.ProcessedContent content = response.documentResource()
+            ? contentProcessor.processText(firstNonBlank(response.title(), response.fileName()), response.text())
+            : contentProcessor.process(response.url(), response.html());
         String mainText = focusedContent(requestedUrl, response.url(), content.mainText());
         List<String> chunks = content.mainText().equals(mainText) ? content.chunks() : chunk(mainText);
+        String query = context == null ? "" : firstNonBlank(context.query(), "");
+        Map<String, Object> quality = qualityReport(response, content, mainText, chunks);
+        String summary = buildSummary(mainText);
+        List<String> keywords = extractKeywords(content.title(), mainText, query);
+        List<Map<String, Object>> evidenceBlocks = evidenceBlocks(response.url(), chunks, query);
         Map<String, Object> output = new LinkedHashMap<>();
         output.put("url", response.url());
         output.put("requestedUrl", requestedUrl);
@@ -229,16 +296,32 @@ public class WebCrawlerService {
         output.put("content", mainText);
         output.put("main_text", mainText);
         output.put("chunks", chunks);
+        output.put("summary", summary);
+        output.put("keywords", keywords);
+        output.put("evidenceBlocks", evidenceBlocks);
+        output.put("evidence_blocks", evidenceBlocks);
+        output.put("quality", quality);
+        output.put("llmEvidence", llmEvidenceCard(response, content, mainText, summary, keywords, evidenceBlocks, quality));
         output.put("timestamp", Instant.now().toEpochMilli());
         output.put("crawlMode", crawlMode);
         output.put("renderRequested", render || "browser".equals(crawlMode));
         output.put("rendered", response.rendered());
         output.put("renderEngine", response.engine());
+        output.put("resourceType", response.resourceType());
+        output.put("contentType", response.contentType());
+        output.put("fileName", response.fileName());
+        output.put("documentExtracted", response.documentResource());
+        output.put("documentTextTruncated", response.documentTextTruncated());
+        output.put("documentExtractionError", firstNonBlank(response.documentExtractionError(), ""));
         output.put("cacheHit", false);
         output.put("contentLength", mainText.length());
+        output.put("contentTruncated", content.truncated());
+        output.put("rawContentLength", response.rawContentLength());
         output.put("contentHash", cacheService.hash(mainText));
         output.put("durationMs", Math.max(0L, System.currentTimeMillis() - startedAt));
-        output.put("html", properties.isIncludeHtml() ? truncate(response.html(), properties.getMaxHtmlChars()) : "");
+        output.put("html", response.htmlResource() && properties.isIncludeHtml()
+            ? truncate(response.html(), properties.getMaxHtmlChars())
+            : "");
         return output;
     }
 
@@ -258,6 +341,9 @@ public class WebCrawlerService {
     }
 
     private String effectiveCrawlMode(String crawlMode, String url) {
+        if ("browser".equals(crawlMode) && isSupportedDocumentUrl(url)) {
+            return "java";
+        }
         if ("java".equals(crawlMode) && requiresBrowserRendering(url)) {
             if (properties.getBrowser() != null && properties.getBrowser().isEnabled()) {
                 return "browser";
@@ -338,6 +424,273 @@ public class WebCrawlerService {
             start = Math.max(end - overlap, start + 1);
         }
         return chunks;
+    }
+
+    private String buildSummary(String text) {
+        if (!evidenceEnabled()) {
+            return "";
+        }
+        String normalized = normalizeText(text);
+        if (normalized.isBlank()) {
+            return "";
+        }
+        int limit = Math.max(120, properties.getEvidence().getMaxSummaryChars());
+        String[] sentences = normalized.split("(?<=[。！？.!?])\\s+|(?<=[。！？.!?])");
+        StringBuilder builder = new StringBuilder();
+        for (String sentenceValue : sentences) {
+            String sentence = normalizeText(sentenceValue);
+            if (sentence.isBlank()) {
+                continue;
+            }
+            if (builder.length() + sentence.length() > limit) {
+                break;
+            }
+            builder.append(sentence);
+            if (builder.length() >= limit / 2) {
+                break;
+            }
+        }
+        String summary = builder.length() == 0 ? normalized : builder.toString();
+        return truncate(summary, limit);
+    }
+
+    private List<String> extractKeywords(String title, String text, String query) {
+        if (!evidenceEnabled()) {
+            return List.of();
+        }
+        int limit = Math.max(1, properties.getEvidence().getMaxKeywords());
+        Set<String> keywords = new LinkedHashSet<>();
+        for (String term : queryTerms(query)) {
+            if (keywords.size() >= limit) {
+                break;
+            }
+            keywords.add(term);
+        }
+        String source = String.join(" ", firstNonBlank(title, ""), truncate(firstNonBlank(text, ""), 4000));
+        Matcher matcher = Pattern.compile("[A-Za-z][A-Za-z0-9_-]{2,}|[\\u4e00-\\u9fa5]{2,8}|\\d{4,}").matcher(source);
+        while (matcher.find() && keywords.size() < limit) {
+            String keyword = matcher.group().trim();
+            if (!keyword.isBlank() && !isStopKeyword(keyword)) {
+                keywords.add(keyword);
+            }
+        }
+        return new ArrayList<>(keywords);
+    }
+
+    private List<Map<String, Object>> evidenceBlocks(String url, List<String> chunks, String query) {
+        if (!evidenceEnabled() || chunks == null || chunks.isEmpty()) {
+            return List.of();
+        }
+        int maxBlocks = Math.max(1, properties.getEvidence().getMaxEvidenceBlocks());
+        int maxChars = Math.max(200, properties.getEvidence().getMaxEvidenceBlockChars());
+        List<String> terms = queryTerms(query);
+        List<Map<String, Object>> candidates = new ArrayList<>();
+        int index = 0;
+        for (String chunk : chunks) {
+            String text = truncate(normalizeText(chunk), maxChars);
+            if (text.isBlank()) {
+                continue;
+            }
+            Map<String, Object> block = new LinkedHashMap<>();
+            block.put("index", index);
+            block.put("url", url);
+            block.put("text", text);
+            block.put("score", evidenceScore(text, terms, index));
+            block.put("source", "web_crawler");
+            candidates.add(block);
+            index++;
+        }
+        candidates.sort((left, right) -> {
+            int score = Double.compare(
+                numberValue(right.get("score"), 0),
+                numberValue(left.get("score"), 0)
+            );
+            if (score != 0) {
+                return score;
+            }
+            return Integer.compare(
+                ((Number) left.getOrDefault("index", Integer.MAX_VALUE)).intValue(),
+                ((Number) right.getOrDefault("index", Integer.MAX_VALUE)).intValue()
+            );
+        });
+        return candidates.size() <= maxBlocks ? candidates : new ArrayList<>(candidates.subList(0, maxBlocks));
+    }
+
+    private Map<String, Object> qualityReport(CrawlResponse response,
+                                              WebContentProcessor.ProcessedContent content,
+                                              String mainText,
+                                              List<String> chunks) {
+        Map<String, Object> quality = new LinkedHashMap<>();
+        String text = firstNonBlank(mainText, "");
+        int contentLength = text.length();
+        int minUseful = Math.max(20, properties.getEvidence().getMinUsefulTextChars());
+        List<String> issues = new ArrayList<>();
+        if (contentLength == 0) {
+            issues.add("empty_content");
+        } else if (contentLength < minUseful) {
+            issues.add("short_content");
+        }
+        if (content.truncated() || response.documentTextTruncated()) {
+            issues.add("truncated");
+        }
+        if (response.documentExtractionError() != null && !response.documentExtractionError().isBlank()) {
+            issues.add("document_extraction_error");
+        }
+        if (looksLikeBlockedPage(text)) {
+            issues.add("possible_anti_crawl_or_verification_page");
+        }
+        if (chunks == null || chunks.isEmpty()) {
+            issues.add("no_chunks");
+        }
+
+        double readability = readabilityScore(response, text);
+        double completeness = (content.truncated() || response.documentTextTruncated()) ? 0.65 : 1.0;
+        double usability = 0.45 * readability + 0.35 * completeness + 0.20 * (issues.isEmpty() ? 1.0 : Math.max(0.0, 1.0 - issues.size() * 0.25));
+        boolean usable = contentLength >= minUseful
+            && !looksLikeBlockedPage(text)
+            && (response.documentExtractionError() == null || response.documentExtractionError().isBlank());
+
+        quality.put("usable", usable);
+        quality.put("status", usable ? "usable" : "needs_review");
+        quality.put("readability_score", round(readability));
+        quality.put("completeness_score", round(completeness));
+        quality.put("usability_score", round(usability));
+        quality.put("content_length", contentLength);
+        quality.put("chunk_count", chunks == null ? 0 : chunks.size());
+        quality.put("issues", issues);
+        return quality;
+    }
+
+    private Map<String, Object> llmEvidenceCard(CrawlResponse response,
+                                                WebContentProcessor.ProcessedContent content,
+                                                String mainText,
+                                                String summary,
+                                                List<String> keywords,
+                                                List<Map<String, Object>> evidenceBlocks,
+                                                Map<String, Object> quality) {
+        Map<String, Object> evidence = new LinkedHashMap<>();
+        evidence.put("url", response.url());
+        evidence.put("title", content.title());
+        evidence.put("summary", summary);
+        evidence.put("resource_type", response.resourceType());
+        evidence.put("content_type", response.contentType());
+        evidence.put("language", detectLanguage(mainText));
+        evidence.put("keywords", keywords);
+        evidence.put("quality", quality);
+        evidence.put("evidence_blocks", evidenceBlocks);
+        evidence.put("citation_count", evidenceBlocks == null ? 0 : evidenceBlocks.size());
+        evidence.put("document_extraction_error", firstNonBlank(response.documentExtractionError(), ""));
+        return evidence;
+    }
+
+    private double evidenceScore(String text, List<String> terms, int index) {
+        double score = Math.max(0, 100 - index);
+        String lower = text.toLowerCase(Locale.ROOT);
+        if (terms != null) {
+            for (String term : terms) {
+                String normalized = term.toLowerCase(Locale.ROOT);
+                if (!normalized.isBlank() && lower.contains(normalized)) {
+                    score += 20;
+                }
+            }
+        }
+        score += Math.min(20, text.length() / 80.0);
+        return round(score);
+    }
+
+    private List<String> queryTerms(String query) {
+        if (query == null || query.isBlank()) {
+            return List.of();
+        }
+        List<String> terms = new ArrayList<>();
+        for (String term : query.trim().split("[\\s,\\uFF0C\\u3002\\uFF1B;:\\uFF1A\\u3001\\\\]+")) {
+            if (term.length() >= 2) {
+                terms.add(term);
+            }
+        }
+        terms.sort((left, right) -> Integer.compare(right.length(), left.length()));
+        return terms;
+    }
+
+    private boolean evidenceEnabled() {
+        return properties.getEvidence() != null && properties.getEvidence().isEnabled();
+    }
+
+    private boolean isStopKeyword(String keyword) {
+        String value = keyword.toLowerCase(Locale.ROOT);
+        return Set.of("http", "https", "www", "com", "html", "index", "the", "and", "for", "with").contains(value);
+    }
+
+    private boolean looksLikeBlockedPage(String text) {
+        if (text == null || text.isBlank()) {
+            return false;
+        }
+        String lower = text.toLowerCase(Locale.ROOT);
+        return lower.contains("captcha")
+            || lower.contains("verify you are human")
+            || lower.contains("access denied")
+            || lower.contains("too many requests")
+            || lower.contains("forbidden")
+            || lower.contains("人机验证")
+            || lower.contains("访问过于频繁")
+            || lower.contains("验证码");
+    }
+
+    private double readabilityScore(CrawlResponse response, String text) {
+        int textLength = text == null ? 0 : text.length();
+        if (textLength <= 0) {
+            return 0.0;
+        }
+        if (response.documentResource()) {
+            return textLength >= Math.max(20, properties.getEvidence().getMinUsefulTextChars()) ? 1.0 : 0.35;
+        }
+        int htmlLength = response.html() == null ? 0 : response.html().length();
+        if (htmlLength <= 0) {
+            return 0.5;
+        }
+        return Math.max(0.0, Math.min(1.0, textLength / (double) htmlLength * 4.0));
+    }
+
+    private String detectLanguage(String text) {
+        if (text == null || text.isBlank()) {
+            return "unknown";
+        }
+        int cjk = 0;
+        int latin = 0;
+        for (int i = 0; i < text.length(); i++) {
+            char ch = text.charAt(i);
+            if (ch >= '\u4e00' && ch <= '\u9fff') {
+                cjk++;
+            } else if ((ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z')) {
+                latin++;
+            }
+        }
+        if (cjk == 0 && latin == 0) {
+            return "unknown";
+        }
+        return cjk >= latin ? "zh" : "en";
+    }
+
+    private String normalizeText(String value) {
+        return value == null ? "" : value.replaceAll("\\s+", " ").trim();
+    }
+
+    private double numberValue(Object value, double fallback) {
+        if (value instanceof Number number) {
+            return number.doubleValue();
+        }
+        if (value instanceof String text && !text.isBlank()) {
+            try {
+                return Double.parseDouble(text);
+            } catch (NumberFormatException ignored) {
+                return fallback;
+            }
+        }
+        return fallback;
+    }
+
+    private double round(double value) {
+        return Math.round(value * 1000.0) / 1000.0;
     }
 
     private PlaywrightBrowserSupport.BrowserConfig playwrightBrowserConfig(WebCrawlerProperties.BrowserProperties browserProperties) {
@@ -524,6 +877,9 @@ public class WebCrawlerService {
         item.put("contentLength", output.get("contentLength"));
         item.put("rendered", response.rendered());
         item.put("renderEngine", response.engine());
+        item.put("resourceType", response.resourceType());
+        item.put("contentType", response.contentType());
+        item.put("fileName", response.fileName());
         return item;
     }
 
@@ -624,6 +980,156 @@ public class WebCrawlerService {
         return uri.normalize().toString();
     }
 
+    private int javaFetchMaxBodySize(String url) {
+        int htmlBytes = Math.max(1024, properties.getMaxBodyBytes());
+        return Math.max(htmlBytes, documentMaxBytes());
+    }
+
+    private int documentMaxBytes() {
+        WebCrawlerProperties.DocumentExtractionProperties documentProperties = properties.getDocumentExtraction();
+        int configured = documentProperties == null ? 0 : documentProperties.getMaxDocumentBytes();
+        return Math.max(1024, configured <= 0 ? properties.getMaxBodyBytes() : configured);
+    }
+
+    private boolean shouldExtractDocument(String url, String contentType) {
+        if (contentType != null && contentType.toLowerCase(Locale.ROOT).contains("text/html")) {
+            return false;
+        }
+        return isSupportedDocumentUrl(url) || isSupportedDocumentContentType(contentType);
+    }
+
+    private boolean isSupportedDocumentUrl(String url) {
+        String extension = fileExtension(url);
+        if (extension == null || extension.isBlank()) {
+            return false;
+        }
+        WebCrawlerProperties.DocumentExtractionProperties documentProperties = properties.getDocumentExtraction();
+        List<String> supported = documentProperties == null ? List.of() : documentProperties.getSupportedExtensions();
+        if (supported == null || supported.isEmpty()) {
+            return false;
+        }
+        return supported.stream()
+            .filter(item -> item != null && !item.isBlank())
+            .map(item -> item.trim().toLowerCase(Locale.ROOT).replaceFirst("^\\.", ""))
+            .anyMatch(extension::equals);
+    }
+
+    private boolean isSupportedDocumentContentType(String contentType) {
+        if (contentType == null || contentType.isBlank()) {
+            return false;
+        }
+        String value = contentType.toLowerCase(Locale.ROOT);
+        return value.contains("application/pdf")
+            || value.contains("msword")
+            || value.contains("officedocument")
+            || value.contains("vnd.ms-excel")
+            || value.contains("vnd.ms-powerpoint")
+            || value.contains("text/csv")
+            || value.contains("application/rtf")
+            || value.contains("text/rtf");
+    }
+
+    private DocumentExtraction extractDocumentText(String url, String contentType, byte[] body) {
+        if (body == null || body.length == 0) {
+            return new DocumentExtraction("", fileNameFromUrl(url), contentType, false, "document body is empty");
+        }
+        int writeLimit = documentTextLimit();
+        BodyContentHandler handler = new BodyContentHandler(writeLimit);
+        Metadata metadata = new Metadata();
+        String fileName = fileNameFromUrl(url);
+        metadata.set(TikaCoreProperties.RESOURCE_NAME_KEY, fileName);
+        if (contentType != null && !contentType.isBlank()) {
+            metadata.set(Metadata.CONTENT_TYPE, contentType);
+        }
+        try (ByteArrayInputStream input = new ByteArrayInputStream(body)) {
+            documentParser.parse(input, handler, metadata, new ParseContext());
+            return new DocumentExtraction(
+                normalizeExtractedText(handler.toString()),
+                firstNonBlank(metadata.get(TikaCoreProperties.TITLE), fileName),
+                firstNonBlank(metadata.get(Metadata.CONTENT_TYPE), contentType),
+                false,
+                ""
+            );
+        } catch (SAXException ex) {
+            String text = normalizeExtractedText(handler.toString());
+            if (!text.isBlank() && isWriteLimitReached(ex)) {
+                return new DocumentExtraction(
+                    text,
+                    firstNonBlank(metadata.get(TikaCoreProperties.TITLE), fileName),
+                    firstNonBlank(metadata.get(Metadata.CONTENT_TYPE), contentType),
+                    true,
+                    ""
+                );
+            }
+            return new DocumentExtraction(
+                text,
+                firstNonBlank(metadata.get(TikaCoreProperties.TITLE), fileName),
+                firstNonBlank(metadata.get(Metadata.CONTENT_TYPE), contentType),
+                false,
+                ex.getMessage()
+            );
+        } catch (IOException | TikaException ex) {
+            return new DocumentExtraction(
+                normalizeExtractedText(handler.toString()),
+                firstNonBlank(metadata.get(TikaCoreProperties.TITLE), fileName),
+                firstNonBlank(metadata.get(Metadata.CONTENT_TYPE), contentType),
+                false,
+                ex.getMessage()
+            );
+        }
+    }
+
+    private int documentTextLimit() {
+        WebCrawlerProperties.DocumentExtractionProperties documentProperties = properties.getDocumentExtraction();
+        int configured = documentProperties == null ? 0 : documentProperties.getMaxExtractedChars();
+        return Math.max(1000, configured > 0 ? configured : properties.getMaxTextChars());
+    }
+
+    private String normalizeExtractedText(String value) {
+        return value == null ? "" : value.replaceAll("[\\t\\x0B\\f\\r ]+", " ")
+            .replaceAll("\\n{3,}", "\n\n")
+            .trim();
+    }
+
+    private boolean isWriteLimitReached(Throwable throwable) {
+        Throwable current = throwable;
+        while (current != null) {
+            String className = current.getClass().getName().toLowerCase(Locale.ROOT);
+            String message = current.getMessage() == null ? "" : current.getMessage().toLowerCase(Locale.ROOT);
+            if (className.contains("writelimit") || message.contains("write limit")) {
+                return true;
+            }
+            current = current.getCause();
+        }
+        return false;
+    }
+
+    private String fileNameFromUrl(String url) {
+        if (url == null || url.isBlank()) {
+            return "";
+        }
+        try {
+            String path = URI.create(url.trim()).getPath();
+            if (path == null || path.isBlank()) {
+                return "";
+            }
+            int slash = path.lastIndexOf('/');
+            String fileName = slash >= 0 ? path.substring(slash + 1) : path;
+            return java.net.URLDecoder.decode(fileName, java.nio.charset.StandardCharsets.UTF_8);
+        } catch (Exception ex) {
+            return "";
+        }
+    }
+
+    private String fileExtension(String url) {
+        String fileName = fileNameFromUrl(url);
+        int dot = fileName.lastIndexOf('.');
+        if (dot < 0 || dot == fileName.length() - 1) {
+            return "";
+        }
+        return fileName.substring(dot + 1).toLowerCase(Locale.ROOT);
+    }
+
     private String truncate(String value, int maxChars) {
         if (value == null) {
             return "";
@@ -632,13 +1138,87 @@ public class WebCrawlerService {
         return value.length() <= limit ? value : value.substring(0, limit);
     }
 
-    private record CrawlResponse(String url, String html, boolean rendered, String engine) {
+    private record DocumentExtraction(String text,
+                                      String title,
+                                      String contentType,
+                                      boolean truncated,
+                                      String error) {
     }
 
-    public record CrawlRequestContext(String tenantId, String taskId, String agentId) {
+    private record CrawlResponse(String url,
+                                 String text,
+                                 String html,
+                                 boolean rendered,
+                                 String engine,
+                                 String contentType,
+                                 String resourceType,
+                                 String fileName,
+                                 long rawContentLength,
+                                 String title,
+                                 boolean documentTextTruncated,
+                                 String documentExtractionError) {
+
+        private static CrawlResponse html(String url,
+                                          String html,
+                                          boolean rendered,
+                                          String engine,
+                                          String contentType,
+                                          long rawContentLength) {
+            return new CrawlResponse(
+                url,
+                "",
+                html,
+                rendered,
+                engine,
+                contentType,
+                "html",
+                "",
+                rawContentLength,
+                "",
+                false,
+                ""
+            );
+        }
+
+        private static CrawlResponse document(String url,
+                                              String text,
+                                              boolean rendered,
+                                              String engine,
+                                              String contentType,
+                                              String fileName,
+                                              long rawContentLength,
+                                              String title,
+                                              boolean documentTextTruncated,
+                                              String documentExtractionError) {
+            return new CrawlResponse(
+                url,
+                text,
+                "",
+                rendered,
+                engine,
+                contentType,
+                "document",
+                fileName,
+                rawContentLength,
+                title,
+                documentTextTruncated,
+                documentExtractionError
+            );
+        }
+
+        private boolean htmlResource() {
+            return "html".equals(resourceType);
+        }
+
+        private boolean documentResource() {
+            return "document".equals(resourceType);
+        }
+    }
+
+    public record CrawlRequestContext(String tenantId, String taskId, String agentId, String query) {
 
         public static CrawlRequestContext empty() {
-            return new CrawlRequestContext(null, null, null);
+            return new CrawlRequestContext(null, null, null, null);
         }
     }
 }

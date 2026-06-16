@@ -26,6 +26,10 @@ public class WebCrawlerProperties {
 
     private int maxTextChars = 120000;
 
+    private DocumentExtractionProperties documentExtraction = new DocumentExtractionProperties();
+
+    private EvidenceProperties evidence = new EvidenceProperties();
+
     private int chunkChars = 1200;
 
     private int chunkOverlapChars = 120;
@@ -45,6 +49,45 @@ public class WebCrawlerProperties {
     private BrowserProperties browser = new BrowserProperties();
 
     private ProxyPoolProperties proxyPool = new ProxyPoolProperties();
+
+    @Data
+    public static class DocumentExtractionProperties {
+
+        private boolean enabled = true;
+
+        private int maxDocumentBytes = 10485760;
+
+        private int maxExtractedChars = 0;
+
+        private List<String> supportedExtensions = new ArrayList<>(List.of(
+            "pdf",
+            "doc",
+            "docx",
+            "xls",
+            "xlsx",
+            "xlsm",
+            "csv",
+            "rtf",
+            "ppt",
+            "pptx"
+        ));
+    }
+
+    @Data
+    public static class EvidenceProperties {
+
+        private boolean enabled = true;
+
+        private int maxSummaryChars = 500;
+
+        private int maxEvidenceBlocks = 5;
+
+        private int maxEvidenceBlockChars = 900;
+
+        private int maxKeywords = 10;
+
+        private int minUsefulTextChars = 120;
+    }
 
     @Data
     public static class BrowserProperties {

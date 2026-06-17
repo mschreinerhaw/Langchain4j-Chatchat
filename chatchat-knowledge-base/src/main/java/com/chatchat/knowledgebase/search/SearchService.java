@@ -45,9 +45,11 @@ public class SearchService {
     private static final int COVERAGE_SCORE = 20;
 
     private final RocksDbSearchStore store;
-    private final LuceneSearchStore luceneStore;
+    private final LuceneDocumentIndexService luceneStore;
     private final SearchTokenizer tokenizer;
-    private final DocumentContentExtractor contentExtractor;
+    private final DocumentTextExtractor textExtractor;
+    private final KeywordExtractor keywordExtractor;
+    private final QueryExpander queryExpander;
     private final SearchProperties properties;
 
     /**
@@ -117,7 +119,7 @@ public class SearchService {
             throw new IllegalArgumentException("file size exceeds 5MB limit");
         }
         String originalFileName = safeFileName(file.getOriginalFilename());
-        if (!contentExtractor.supports(originalFileName)) {
+        if (!textExtractor.supports(originalFileName)) {
             throw new IllegalArgumentException("unsupported file type: " + originalFileName);
         }
 
@@ -130,7 +132,7 @@ public class SearchService {
             .map(document -> nextVersion(versionGroupId, resolvedTitle))
             .orElse(1);
         Path savedFile = saveOriginalFile(file, docId, originalFileName);
-        String extractedContent = contentExtractor.extract(savedFile, originalFileName);
+        String extractedContent = textExtractor.extractText(savedFile, originalFileName);
         String content = !isBlank(extractedContent) ? extractedContent : nullToEmpty(fallbackContent);
         if (isBlank(content)) {
             throw new IllegalArgumentException("document content is empty after extraction");
@@ -145,7 +147,7 @@ public class SearchService {
             .tags(parseList(tags))
             .companies(parseList(companies))
             .industries(parseList(industries))
-            .keywords(parseList(keywords))
+            .keywords(keywordExtractor.mergeKeywords(parseList(keywords), content))
             .fileName(originalFileName)
             .filePath(savedFile.toString())
             .documentType(resolveDocumentType(documentType, originalFileName))
@@ -214,9 +216,12 @@ public class SearchService {
         int pageSize = normalizeLimit(limit);
         int pageNumber = normalizePage(page);
         List<String> queryTokens = tokenizer.searchTokens(keyword);
+        QueryIntent queryIntent = queryExpander.classifyIntent(keyword);
+        String queryIntentName = queryExpander.classifyIntentName(keyword);
+        List<String> expandedQueryTokens = queryExpander.expandTokens(queryTokens, queryIntentName, keyword);
         List<String> scopedDocumentIds = parseList(docIds);
         if (hasKeyword(keyword)
-            && queryTokens.isEmpty()
+            && expandedQueryTokens.isEmpty()
             && noFilters(tag, company, industry)
             && scopedDocumentIds.isEmpty()) {
             return emptySearchPage(keyword, pageSize, pageNumber, startedAt, "no_match");
@@ -231,6 +236,7 @@ public class SearchService {
             pageNumber,
             pageSize,
             queryTokens,
+            expandedQueryTokens,
             significantTerms
         );
         if (lucenePage != null) {
@@ -240,9 +246,9 @@ public class SearchService {
         Map<String, Set<String>> matchedKeywords = new HashMap<>();
         Set<String> candidates = null;
 
-        if (!queryTokens.isEmpty()) {
+        if (!expandedQueryTokens.isEmpty()) {
             candidates = new LinkedHashSet<>();
-            for (String token : queryTokens) {
+            for (String token : expandedQueryTokens) {
                 for (String docId : store.findByKeyword(token)) {
                     candidates.add(docId);
                     scores.merge(docId, scoreForToken(token), Integer::sum);
@@ -259,7 +265,7 @@ public class SearchService {
         if (candidates == null) {
             candidates = new LinkedHashSet<>(store.listDocumentIds(0));
         }
-        if (candidates.isEmpty() && !queryTokens.isEmpty() && noFilters(tag, company, industry) && scopedDocumentIds.isEmpty()) {
+        if (candidates.isEmpty() && !expandedQueryTokens.isEmpty() && noFilters(tag, company, industry) && scopedDocumentIds.isEmpty()) {
             candidates = new LinkedHashSet<>(store.listDocumentIds(0));
         }
 
@@ -267,8 +273,8 @@ public class SearchService {
             .map(store::get)
             .flatMap(Optional::stream)
             .filter(this::isLatestVersion)
-            .map(document -> toResult(document, keyword, queryTokens, significantTerms, scores, matchedKeywords, null))
-            .filter(result -> queryTokens.isEmpty() || isRelevantResult(result, significantTerms))
+            .map(document -> toResult(document, keyword, expandedQueryTokens, significantTerms, scores, matchedKeywords, null))
+            .filter(result -> expandedQueryTokens.isEmpty() || isRelevantResult(result, significantTerms))
             .sorted(resultComparator())
             .toList();
 
@@ -395,8 +401,9 @@ public class SearchService {
                                         int pageNumber,
                                         int pageSize,
                                         List<String> queryTokens,
+                                        List<String> expandedQueryTokens,
                                         List<String> significantTerms) {
-        if (queryTokens.isEmpty() || !luceneStore.isAvailable()) {
+        if (expandedQueryTokens.isEmpty() || !luceneStore.isAvailable()) {
             return null;
         }
         try {
@@ -426,13 +433,13 @@ public class SearchService {
             candidates = applyDocumentScope(candidates, parseList(docIds));
 
             Map<String, Set<String>> matchedKeywords = new HashMap<>();
-            candidates.forEach(docId -> matchedKeywords.put(docId, new LinkedHashSet<>(queryTokens)));
+            candidates.forEach(docId -> matchedKeywords.put(docId, new LinkedHashSet<>(expandedQueryTokens)));
 
             List<SearchResult> allResults = candidates.stream()
                 .map(store::get)
                 .flatMap(Optional::stream)
                 .filter(this::isLatestVersion)
-                .map(document -> toResult(document, keyword, queryTokens, significantTerms, scores, matchedKeywords, hitsByDocId.get(document.getDocId())))
+                .map(document -> toResult(document, keyword, expandedQueryTokens, significantTerms, scores, matchedKeywords, hitsByDocId.get(document.getDocId())))
                 .filter(result -> isRelevantResult(result, significantTerms))
                 .sorted(resultComparator())
                 .toList();
@@ -628,7 +635,7 @@ public class SearchService {
             .tags(cleanList(request.getTags()))
             .companies(cleanList(request.getCompanies()))
             .industries(cleanList(request.getIndustries()))
-            .keywords(cleanList(request.getKeywords()))
+            .keywords(keywordExtractor.mergeKeywords(cleanList(request.getKeywords()), content))
             .fileName(request.getFileName())
             .filePath(request.getFilePath())
             .documentType(resolveDocumentType(request.getDocumentType(), request.getFileName()))
@@ -1026,8 +1033,14 @@ public class SearchService {
         }
         return hits.stream()
             .map(hit -> new SearchMatchedChunk(
+                hit.docId(),
+                hit.fileName(),
+                hit.section(),
+                hit.chunkType(),
                 hit.chunkId(),
                 hit.chunkIndex(),
+                hit.positionRatio(),
+                hit.chunkText(),
                 hit.chunkText(),
                 hit.score()
             ))
@@ -1327,7 +1340,21 @@ public class SearchService {
         if (breakdown.phraseScore() > 0) {
             return true;
         }
+        if (breakdown.coverageRatio() <= 0.0D
+            && breakdown.baseTokenScore() >= luceneRecallScoreThreshold(significantTerms.size())) {
+            return true;
+        }
         return breakdown.coverageRatio() >= minCoverageRatio(significantTerms.size());
+    }
+
+    private int luceneRecallScoreThreshold(int termCount) {
+        if (termCount <= 1) {
+            return 12;
+        }
+        if (termCount <= 3) {
+            return 18;
+        }
+        return 24;
     }
 
     /**
@@ -1704,10 +1731,11 @@ public class SearchService {
         String normalized = normalizeText(requestedType);
         if (!normalized.isEmpty() && !"auto".equals(normalized)) {
             return switch (normalized) {
-                case "markdown", "pdf", "word", "excel", "text" -> normalized;
+                case "markdown", "pdf", "word", "excel", "presentation", "text" -> normalized;
                 case "md" -> "markdown";
                 case "doc", "docx" -> "word";
                 case "csv", "xls", "xlsx" -> "excel";
+                case "ppt", "pptx" -> "presentation";
                 case "txt" -> "text";
                 default -> inferDocumentType(fileName);
             };
@@ -1728,6 +1756,7 @@ public class SearchService {
             case "pdf" -> "pdf";
             case "doc", "docx" -> "word";
             case "csv", "xls", "xlsx" -> "excel";
+            case "ppt", "pptx" -> "presentation";
             default -> "text";
         };
     }

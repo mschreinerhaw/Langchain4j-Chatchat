@@ -1,5 +1,6 @@
 package com.chatchat.knowledgebase.search;
 
+import com.chatchat.knowledgebase.search.rule.RetrievalRuleService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
@@ -11,6 +12,8 @@ import java.nio.file.Path;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class SearchServiceTest {
 
@@ -18,7 +21,7 @@ class SearchServiceTest {
     Path tempDir;
 
     private RocksDbSearchStore store;
-    private LuceneSearchStore luceneStore;
+    private LuceneDocumentIndexService luceneStore;
 
     @AfterEach
     void closeStore() {
@@ -233,6 +236,84 @@ class SearchServiceTest {
         assertThat(result.matchedChunks()).extracting(SearchMatchedChunk::text)
             .anySatisfy(text -> assertThat(text).contains("Alpha Incident"))
             .anySatisfy(text -> assertThat(text).contains("Gamma Follow Up"));
+        assertThat(result.matchedChunks()).extracting(SearchMatchedChunk::section)
+            .anySatisfy(section -> assertThat(section).contains("Alpha Incident"))
+            .anySatisfy(section -> assertThat(section).contains("Gamma Follow Up"));
+        assertThat(result.matchedChunks()).extracting(SearchMatchedChunk::chunkType)
+            .contains("troubleshooting");
+    }
+
+    @Test
+    void expandsSynonymsForLuceneSearchWithoutVectorStore() {
+        SearchService service = newSearchService();
+        service.createOrUpdate(SearchDocument.builder()
+            .docId("doc-error")
+            .title("Nightly Job Failure")
+            .content("The report export failed because the database queue timed out during authentication.")
+            .source("ops")
+            .date("2024-06-10")
+            .build());
+
+        SearchPage page = service.search("报表异常原因", null, null, null, 10);
+
+        assertThat(page.results()).extracting(SearchResult::docId)
+            .contains("doc-error");
+        assertThat(page.queryTokens()).doesNotContain("error", "exception", "failure");
+        assertThat(page.results().get(0).matchedChunks().get(0).content())
+            .contains("report export failed");
+    }
+
+    @Test
+    void extractsKeywordsAutomaticallyForUploadedDocuments() {
+        SearchService service = newSearchService();
+
+        SearchDocument document = service.upload(
+            textFile("latency-report.txt", "latency latency latency database queue timeout report"),
+            "Latency Report",
+            "ops",
+            "2024-06-11",
+            null,
+            null,
+            null,
+            null,
+            "text",
+            null
+        );
+
+        assertThat(document.getKeywords()).contains("latency", "database", "queue");
+    }
+
+    @Test
+    void intentExpansionAndChunkTypePreferHowToSteps() {
+        SearchService service = newSearchService();
+        service.createOrUpdate(SearchDocument.builder()
+            .docId("doc-step")
+            .title("Login Configuration Guide")
+            .content("""
+                # Setup Steps
+                Step 1 configure the login provider.
+                Step 2 enable authentication callback.
+                Step 3 verify users can sign in.
+                """)
+            .source("guide")
+            .date("2024-06-12")
+            .build());
+        service.createOrUpdate(SearchDocument.builder()
+            .docId("doc-general")
+            .title("Login Overview")
+            .content("Login overview explains authentication concepts and account security.")
+            .source("guide")
+            .date("2024-06-12")
+            .build());
+
+        SearchPage page = service.search("how to login", null, null, null, 10);
+
+        assertThat(page.results()).extracting(SearchResult::docId)
+            .startsWith("doc-step");
+        assertThat(page.results().get(0).matchedChunks().get(0).chunkType())
+            .isEqualTo("step");
+        assertThat(page.results().get(0).matchedChunks().get(0).positionRatio())
+            .isEqualTo(0.0F);
     }
 
     private void saveSemiconductorDocument(SearchService service) {
@@ -262,14 +343,124 @@ class SearchServiceTest {
         store = new RocksDbSearchStore(properties, new ObjectMapper());
         store.open();
         SearchTokenizer tokenizer = new SearchTokenizer();
-        luceneStore = new LuceneSearchStore(properties, tokenizer);
+        KeywordExtractor keywordExtractor = new KeywordExtractor(tokenizer);
+        RetrievalRuleService ruleService = retrievalRuleService();
+        QueryIntentClassifier intentClassifier = new QueryIntentClassifier(tokenizer, ruleService);
+        QueryExpander queryExpander = new QueryExpander(tokenizer, intentClassifier, ruleService);
+        luceneStore = new LuceneDocumentIndexService(
+            properties,
+            tokenizer,
+            new TextChunker(),
+            keywordExtractor,
+            queryExpander,
+            new ChunkTypeClassifier(ruleService),
+            new ChunkReranker()
+        );
         luceneStore.open();
         return new SearchService(
             store,
             luceneStore,
             tokenizer,
-            new DocumentContentExtractor(),
+            new DocumentTextExtractor(),
+            keywordExtractor,
+            queryExpander,
             properties
+        );
+    }
+
+    private RetrievalRuleService retrievalRuleService() {
+        RetrievalRuleService ruleService = mock(RetrievalRuleService.class);
+        when(ruleService.snapshot()).thenReturn(new RetrievalRuleService.RuleSnapshot(
+            intentRules(),
+            chunkRules(),
+            expandRules(),
+            System.currentTimeMillis()
+        ));
+        return ruleService;
+    }
+
+    private List<RetrievalRuleService.IntentRule> intentRules() {
+        return List.of(
+            new RetrievalRuleService.IntentRule(
+                "troubleshooting",
+                List.of("error", "exception", "failure", "failed", "timeout", "\u5f02\u5e38", "\u539f\u56e0"),
+                null,
+                2,
+                10
+            ),
+            new RetrievalRuleService.IntentRule(
+                "how_to",
+                List.of("how", "setup", "configure", "steps", "step", "guide"),
+                null,
+                2,
+                8
+            ),
+            new RetrievalRuleService.IntentRule(
+                "data_issue",
+                List.of("data", "report", "export", "\u62a5\u8868", "\u6570\u636e"),
+                null,
+                1,
+                6
+            )
+        );
+    }
+
+    private List<RetrievalRuleService.ChunkRule> chunkRules() {
+        return List.of(
+            new RetrievalRuleService.ChunkRule(
+                "troubleshooting",
+                List.of("incident", "failure", "failed", "timeout", "retry", "retries", "root cause"),
+                null,
+                2,
+                10
+            ),
+            new RetrievalRuleService.ChunkRule(
+                "step",
+                List.of("step", "steps", "configure", "setup", "how to"),
+                null,
+                2,
+                8
+            )
+        );
+    }
+
+    private List<RetrievalRuleService.ExpandRule> expandRules() {
+        return List.of(
+            new RetrievalRuleService.ExpandRule(
+                "troubleshooting",
+                "",
+                List.of("error", "exception", "failure", "failed", "root cause", "reason"),
+                1,
+                10
+            ),
+            new RetrievalRuleService.ExpandRule(
+                "how_to",
+                "",
+                List.of("how", "steps", "guide", "setup", "configure", "signin", "auth"),
+                1,
+                8
+            ),
+            new RetrievalRuleService.ExpandRule(
+                "",
+                "\u62a5\u8868",
+                List.of("report", "export", "data"),
+                1,
+                6
+            ),
+            new RetrievalRuleService.ExpandRule(
+                "",
+                "\u5f02\u5e38",
+                List.of("error", "exception", "failure", "failed"),
+                1,
+                6
+            ),
+            new RetrievalRuleService.ExpandRule(
+                "",
+                "\u539f\u56e0",
+                List.of("reason", "root", "cause"),
+                1,
+                6
+            )
         );
     }
 }

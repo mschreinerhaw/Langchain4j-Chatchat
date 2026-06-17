@@ -22,6 +22,6 @@ public class SearchProperties {
     private String luceneIndexPath = "./data/search-lucene";
     private int luceneMaxHits = 500;
     private int luceneChunksPerDocument = 3;
-    private int chunkSize = 900;
+    private int chunkSize = 800;
     private int chunkOverlap = 120;
 }

@@ -8,6 +8,7 @@ import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.core.WhitespaceAnalyzer;
 import org.apache.lucene.document.Document;
 import org.apache.lucene.document.Field;
+import org.apache.lucene.document.IntPoint;
 import org.apache.lucene.document.StoredField;
 import org.apache.lucene.document.StringField;
 import org.apache.lucene.document.TextField;
@@ -36,14 +37,22 @@ import java.util.List;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-class LuceneSearchStore {
+public class LuceneDocumentIndexService {
 
-    private static final String DOC_ID = "docId";
+    private static final String FILE_ID = "fileId";
+    private static final String FILE_NAME = "fileName";
     private static final String CHUNK_ID = "chunkId";
     private static final String CHUNK_INDEX = "chunkIndex";
     private static final String CHUNK_TEXT = "chunkText";
+    private static final String CONTENT = "content";
+    private static final String UPLOAD_TIME = "uploadTime";
+    private static final String TITLE_TEXT = "title";
+    private static final String SECTION = "section";
+    private static final String KEYWORDS_TEXT = "keywords";
+    private static final String CHUNK_TYPE = "chunkType";
+    private static final String POSITION_RATIO = "positionRatio";
     private static final String TITLE = "titleTokens";
-    private static final String CONTENT = "contentTokens";
+    private static final String CONTENT_TOKENS = "contentTokens";
     private static final String SOURCE = "sourceTokens";
     private static final String KEYWORDS = "keywordTokens";
     private static final String TAGS = "tagTokens";
@@ -52,6 +61,11 @@ class LuceneSearchStore {
 
     private final SearchProperties properties;
     private final SearchTokenizer tokenizer;
+    private final TextChunker chunker;
+    private final KeywordExtractor keywordExtractor;
+    private final QueryExpander queryExpander;
+    private final ChunkTypeClassifier chunkTypeClassifier;
+    private final ChunkReranker chunkReranker;
     private Directory directory;
     private Analyzer analyzer;
     private IndexWriter writer;
@@ -89,14 +103,14 @@ class LuceneSearchStore {
             return;
         }
         try {
-            writer.deleteDocuments(new Term(DOC_ID, document.getDocId()));
+            writer.deleteDocuments(new Term(FILE_ID, document.getDocId()));
             if (Boolean.FALSE.equals(document.getLatestVersion())) {
                 writer.commit();
                 return;
             }
-            List<String> chunks = chunks(document.getContent());
+            List<TextChunker.TextChunk> chunks = chunks(document.getContent());
             for (int i = 0; i < chunks.size(); i++) {
-                writer.addDocument(toLuceneDocument(document, chunks.get(i), i));
+                writer.addDocument(toLuceneDocument(document, chunks.get(i), i, chunks.size()));
             }
             writer.commit();
         } catch (IOException ex) {
@@ -114,7 +128,7 @@ class LuceneSearchStore {
             return;
         }
         try {
-            writer.deleteDocuments(new Term(DOC_ID, docId));
+            writer.deleteDocuments(new Term(FILE_ID, docId));
             writer.commit();
         } catch (IOException ex) {
             throw new IllegalStateException("Failed to delete document from Lucene: " + docId, ex);
@@ -135,9 +149,9 @@ class LuceneSearchStore {
             if (documents != null) {
                 for (SearchDocument document : documents) {
                     if (document != null && !Boolean.FALSE.equals(document.getLatestVersion())) {
-                        List<String> chunks = chunks(document.getContent());
+                        List<TextChunker.TextChunk> chunks = chunks(document.getContent());
                         for (int i = 0; i < chunks.size(); i++) {
-                            writer.addDocument(toLuceneDocument(document, chunks.get(i), i));
+                            writer.addDocument(toLuceneDocument(document, chunks.get(i), i, chunks.size()));
                         }
                     }
                 }
@@ -160,7 +174,9 @@ class LuceneSearchStore {
         if (!isAvailable() || keyword == null || keyword.isBlank()) {
             return List.of();
         }
-        List<String> terms = tokenizer.searchTokens(keyword);
+        QueryIntent intent = queryExpander.classifyIntent(keyword);
+        String intentName = queryExpander.classifyIntentName(keyword);
+        List<String> terms = queryExpander.expandTokens(tokenizer.searchTokens(keyword), intentName, keyword);
         if (terms.isEmpty()) {
             return List.of();
         }
@@ -174,16 +190,20 @@ class LuceneSearchStore {
                 List<LuceneSearchHit> hits = new ArrayList<>();
                 for (ScoreDoc scoreDoc : topDocs.scoreDocs) {
                     Document hit = searcher.storedFields().document(scoreDoc.doc);
-                    String docId = hit.get(DOC_ID);
+                    String docId = hit.get(FILE_ID);
                     if (docId == null || docId.isBlank()) {
                         continue;
                     }
                     LuceneSearchHit current = new LuceneSearchHit(
                         docId,
+                        hit.get(FILE_NAME),
+                        hit.get(SECTION),
+                        hit.get(CHUNK_TYPE),
                         hit.get(CHUNK_ID),
                         intValue(hit.get(CHUNK_INDEX)),
-                        hit.get(CHUNK_TEXT),
-                        scoreDoc.score
+                        firstPresent(hit.get(CONTENT), hit.get(CHUNK_TEXT)),
+                        floatValue(hit.get(POSITION_RATIO), 1.0F),
+                        chunkReranker.score(scoreDoc.score, hit, keyword, terms, intent)
                     );
                     hits.add(current);
                 }
@@ -235,15 +255,35 @@ class LuceneSearchStore {
      * @param chunkIndex the chunk index value
      * @return the converted lucene document
      */
-    private Document toLuceneDocument(SearchDocument document, String chunkText, int chunkIndex) {
+    private Document toLuceneDocument(SearchDocument document,
+                                      TextChunker.TextChunk chunk,
+                                      int chunkIndex,
+                                      int chunkCount) {
         Document luceneDocument = new Document();
-        String chunkId = document.getDocId() + "#" + chunkIndex;
-        luceneDocument.add(new StringField(DOC_ID, document.getDocId(), Field.Store.YES));
+        String chunkId = document.getDocId() + "_" + chunkIndex;
+        String chunkText = chunk.content();
+        String section = nullToEmpty(chunk.section());
+        String keywordText = String.join(" ", keywordExtractor.mergeKeywords(document.getKeywords(), chunkText));
+        String chunkType = chunkTypeClassifier.classify(document, chunk);
+        String positionRatio = String.valueOf(positionRatio(chunkIndex, chunkCount));
+        luceneDocument.add(new StringField(FILE_ID, document.getDocId(), Field.Store.YES));
+        luceneDocument.add(new StringField(FILE_NAME, nullToEmpty(document.getFileName()), Field.Store.YES));
         luceneDocument.add(new StringField(CHUNK_ID, chunkId, Field.Store.YES));
+        luceneDocument.add(new StringField(CHUNK_TYPE, chunkType, Field.Store.YES));
+        luceneDocument.add(new IntPoint(CHUNK_INDEX, chunkIndex));
         luceneDocument.add(new StoredField(CHUNK_INDEX, String.valueOf(chunkIndex)));
         luceneDocument.add(new StoredField(CHUNK_TEXT, chunkText));
+        luceneDocument.add(new TextField(CONTENT, chunkText, Field.Store.YES));
+        luceneDocument.add(new StoredField(UPLOAD_TIME, document.getUploadedAt() == null ? 0L : document.getUploadedAt()));
+        luceneDocument.add(new StoredField(POSITION_RATIO, positionRatio));
+        luceneDocument.add(new TextField(TITLE_TEXT, nullToEmpty(document.getTitle()), Field.Store.YES));
+        luceneDocument.add(new TextField(SECTION, section, Field.Store.YES));
+        luceneDocument.add(new TextField(KEYWORDS_TEXT, keywordText, Field.Store.YES));
         addTokenField(luceneDocument, TITLE, document.getTitle());
-        addTokenField(luceneDocument, CONTENT, chunkText);
+        addTokenField(luceneDocument, TITLE, document.getFileName());
+        addTokenField(luceneDocument, SECTION, section);
+        addTokenField(luceneDocument, KEYWORDS_TEXT, keywordText);
+        addTokenField(luceneDocument, CONTENT_TOKENS, chunkText);
         addTokenField(luceneDocument, SOURCE, document.getSource());
         addTokenField(luceneDocument, KEYWORDS, document.getKeywords());
         addTokenField(luceneDocument, TAGS, document.getTags());
@@ -263,11 +303,14 @@ class LuceneSearchStore {
         for (String term : terms) {
             BooleanQuery.Builder termQuery = new BooleanQuery.Builder();
             addTermQuery(termQuery, TITLE, term, 5.0F);
+            addTermQuery(termQuery, TITLE_TEXT, term, 5.0F);
+            addTermQuery(termQuery, SECTION, term, 4.6F);
             addTermQuery(termQuery, KEYWORDS, term, 4.2F);
+            addTermQuery(termQuery, KEYWORDS_TEXT, term, 4.2F);
             addTermQuery(termQuery, TAGS, term, 4.5F);
             addTermQuery(termQuery, COMPANIES, term, 3.5F);
             addTermQuery(termQuery, INDUSTRIES, term, 3.5F);
-            addTermQuery(termQuery, CONTENT, term, 1.2F);
+            addTermQuery(termQuery, CONTENT_TOKENS, term, 1.2F);
             addTermQuery(termQuery, SOURCE, term, 0.7F);
             query.add(termQuery.build(), BooleanClause.Occur.SHOULD);
         }
@@ -282,16 +325,7 @@ class LuceneSearchStore {
      * @return the operation result
      */
     private int minimumShouldMatch(int termCount) {
-        if (termCount <= 1) {
-            return 1;
-        }
-        if (termCount == 2) {
-            return 1;
-        }
-        if (termCount <= 5) {
-            return 2;
-        }
-        return Math.max(2, (int) Math.ceil(termCount * 0.35D));
+        return 1;
     }
 
     /**
@@ -367,160 +401,9 @@ class LuceneSearchStore {
      * @param content the content value
      * @return the operation result
      */
-    private List<String> chunks(String content) {
-        String normalized = content == null ? "" : content.replace("\r\n", "\n").replace('\r', '\n').trim();
-        if (normalized.isBlank()) {
-            return List.of("");
-        }
-        int chunkSize = Math.max(200, properties.getChunkSize());
-        int overlap = Math.max(0, Math.min(properties.getChunkOverlap(), chunkSize / 2));
-        List<String> blocks = paragraphBlocks(normalized);
-        List<String> chunks = new ArrayList<>();
-        StringBuilder current = new StringBuilder();
-        for (String block : blocks) {
-            if (block.length() > chunkSize) {
-                flushChunk(chunks, current);
-                chunks.addAll(splitLongBlock(block, chunkSize, overlap));
-                continue;
-            }
-            if (current.length() == 0) {
-                current.append(block);
-                continue;
-            }
-            if (current.length() + 2 + block.length() <= chunkSize) {
-                current.append("\n\n").append(block);
-            } else {
-                flushChunk(chunks, current);
-                current.append(block);
-            }
-        }
-        flushChunk(chunks, current);
-        return chunks.isEmpty() ? List.of(normalized.replaceAll("\\s+", " ").trim()) : chunks;
-    }
-
-    /**
-     * Performs the paragraph blocks operation.
-     *
-     * @param content the content value
-     * @return the operation result
-     */
-    private List<String> paragraphBlocks(String content) {
-        List<String> blocks = new ArrayList<>();
-        StringBuilder current = new StringBuilder();
-        String currentHeading = "";
-        for (String rawLine : content.split("\\n")) {
-            String line = rawLine.trim();
-            if (line.isBlank()) {
-                flushBlock(blocks, current, currentHeading);
-                continue;
-            }
-            if (isHeading(line)) {
-                flushBlock(blocks, current, currentHeading);
-                currentHeading = line.replaceAll("\\s+", " ");
-                continue;
-            }
-            if (current.length() > 0) {
-                current.append(' ');
-            }
-            current.append(line.replaceAll("\\s+", " "));
-        }
-        flushBlock(blocks, current, currentHeading);
-        if (blocks.isEmpty()) {
-            blocks.add(content.replaceAll("\\s+", " ").trim());
-        }
-        return blocks;
-    }
-
-    /**
-     * Returns whether is heading.
-     *
-     * @param line the line value
-     * @return whether the condition is satisfied
-     */
-    private boolean isHeading(String line) {
-        return line.startsWith("#")
-            || line.matches("^\\d+(\\.\\d+)*[\\u3001.\\)]\\s+.+")
-            || line.matches("^[\\u4e00\\u4e8c\\u4e09\\u56db\\u4e94\\u516d\\u4e03\\u516b\\u4e5d\\u5341]+[\\u3001.]\\s*.+");
-    }
-
-    /**
-     * Performs the flush block operation.
-     *
-     * @param blocks the blocks value
-     * @param current the current value
-     * @param heading the heading value
-     */
-    private void flushBlock(List<String> blocks, StringBuilder current, String heading) {
-        if (current.length() == 0) {
-            return;
-        }
-        String text = current.toString().trim();
-        if (!text.isBlank()) {
-            blocks.add((heading == null || heading.isBlank() ? "" : heading + "\n") + text);
-        }
-        current.setLength(0);
-    }
-
-    /**
-     * Performs the flush chunk operation.
-     *
-     * @param chunks the chunks value
-     * @param current the current value
-     */
-    private void flushChunk(List<String> chunks, StringBuilder current) {
-        if (current.length() == 0) {
-            return;
-        }
-        String text = current.toString().trim();
-        if (!text.isBlank()) {
-            chunks.add(text);
-        }
-        current.setLength(0);
-    }
-
-    /**
-     * Performs the split long block operation.
-     *
-     * @param text the text value
-     * @param chunkSize the chunk size value
-     * @param overlap the overlap value
-     * @return the operation result
-     */
-    private List<String> splitLongBlock(String text, int chunkSize, int overlap) {
-        List<String> chunks = new ArrayList<>();
-        String heading = leadingHeading(text);
-        int start = 0;
-        while (start < text.length()) {
-            int end = Math.min(text.length(), start + chunkSize);
-            String chunk = text.substring(start, end).trim();
-            if (!heading.isBlank() && !chunk.startsWith(heading)) {
-                chunk = heading + "\n" + chunk;
-            }
-            chunks.add(chunk);
-            if (end >= text.length()) {
-                break;
-            }
-            start = Math.max(start + 1, end - overlap);
-        }
-        return chunks;
-    }
-
-    /**
-     * Performs the leading heading operation.
-     *
-     * @param text the text value
-     * @return the operation result
-     */
-    private String leadingHeading(String text) {
-        if (text == null || text.isBlank()) {
-            return "";
-        }
-        int newline = text.indexOf('\n');
-        if (newline <= 0) {
-            return "";
-        }
-        String firstLine = text.substring(0, newline).trim();
-        return isHeading(firstLine) ? firstLine : "";
+    private List<TextChunker.TextChunk> chunks(String content) {
+        List<TextChunker.TextChunk> chunks = chunker.splitChunks(content, properties.getChunkSize(), properties.getChunkOverlap());
+        return chunks.isEmpty() ? List.of(new TextChunker.TextChunk("", "")) : chunks;
     }
 
     /**
@@ -538,5 +421,31 @@ class LuceneSearchStore {
         } catch (NumberFormatException ex) {
             return 0;
         }
+    }
+
+    private float floatValue(String value, float fallback) {
+        if (value == null || value.isBlank()) {
+            return fallback;
+        }
+        try {
+            return Float.parseFloat(value);
+        } catch (NumberFormatException ex) {
+            return fallback;
+        }
+    }
+
+    private String firstPresent(String first, String second) {
+        return first == null ? second : first;
+    }
+
+    private String nullToEmpty(String value) {
+        return value == null ? "" : value;
+    }
+
+    private float positionRatio(int chunkIndex, int chunkCount) {
+        if (chunkCount <= 1) {
+            return 0.0F;
+        }
+        return (float) chunkIndex / (float) (chunkCount - 1);
     }
 }

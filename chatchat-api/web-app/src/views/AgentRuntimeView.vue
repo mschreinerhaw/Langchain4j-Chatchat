@@ -416,6 +416,76 @@
             <p v-if="timelineItems.length === 0" class="agent-runtime-empty">No timeline entries.</p>
           </div>
 
+          <div v-else-if="activeDetailTab === 'trace'" class="agent-runtime-observation-list">
+            <article v-if="trace">
+              <header>
+                <strong>{{ trace.contractVersion || "TRACE" }}</strong>
+                <span>{{ trace.grounding?.status || "not_evaluated" }}</span>
+              </header>
+              <p>{{ trace.question || "-" }}</p>
+              <dl>
+                <div>
+                  <dt>Answer</dt>
+                  <dd>{{ trace.answer?.confidence || "-" }}</dd>
+                </div>
+                <div>
+                  <dt>Evidence</dt>
+                  <dd>{{ trace.evidence?.length || 0 }}</dd>
+                </div>
+                <div>
+                  <dt>Tools</dt>
+                  <dd>{{ trace.toolCalls?.length || 0 }}</dd>
+                </div>
+              </dl>
+              <pre v-if="trace.failureReasons?.length">{{ formatJson(trace.failureReasons) }}</pre>
+            </article>
+
+            <article v-for="tool in trace?.toolCalls || []" :key="`trace-tool-${tool.step}-${tool.toolName}`">
+              <header>
+                <strong>Tool #{{ tool.step || "-" }} {{ tool.displayName || tool.toolName || "tool" }}</strong>
+                <span>{{ tool.governance?.policyDecision || (tool.success === false ? "failed" : tool.success === true ? "success" : "recorded") }}</span>
+              </header>
+              <p>
+                {{ tool.errorMessage || tool.outputPreview || "-" }}
+              </p>
+              <p v-if="tool.governance?.auditId">
+                audit {{ tool.governance.auditId }} 路 {{ tool.governance.riskLevel || "-" }}
+                {{ tool.governance.confirmRequired ? "/ confirm required" : "" }}
+              </p>
+              <pre v-if="hasPayload(tool.input)">{{ formatJson(tool.input) }}</pre>
+              <pre v-if="hasPayload(tool.governance)">{{ formatJson(tool.governance) }}</pre>
+            </article>
+
+            <article v-for="item in trace?.evidence || []" :key="`trace-evidence-${item.refId}`">
+              <header>
+                <strong>{{ item.evidenceType || "EVIDENCE" }}</strong>
+                <span>{{ item.citationUsed ? "cited" : "unused" }}</span>
+              </header>
+              <p>{{ item.refId }} {{ item.source ? `- ${item.source}` : "" }}</p>
+              <p>{{ item.contentPreview || "-" }}</p>
+              <pre v-if="hasPayload(item.metadata)">{{ formatJson(item.metadata) }}</pre>
+            </article>
+
+            <article v-if="trace?.answer">
+              <header>
+                <strong>Answer</strong>
+                <span>{{ trace.answer.contractVersion || "-" }}</span>
+              </header>
+              <p>{{ trace.answer.answer || "-" }}</p>
+              <pre>{{ formatJson(trace.answer) }}</pre>
+            </article>
+
+            <article v-if="trace?.grounding">
+              <header>
+                <strong>Grounding</strong>
+                <span>{{ trace.grounding.status || "not_evaluated" }}</span>
+              </header>
+              <pre>{{ formatJson(trace.grounding) }}</pre>
+            </article>
+
+            <p v-if="!trace" class="agent-runtime-empty">No trace.</p>
+          </div>
+
           <div v-else-if="activeDetailTab === 'events'" class="agent-runtime-event-list">
             <article v-for="event in events" :key="event.eventId || `${event.type}-${event.createdAt}`">
               <header>

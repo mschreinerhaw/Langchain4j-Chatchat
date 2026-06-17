@@ -10,6 +10,7 @@ import McpCenterView from "../views/McpCenterView.vue";
 import AgentWorkshopView from "../views/AgentWorkshopView.vue";
 import AgentScheduleView from "../views/AgentScheduleView.vue";
 import AgentRuntimeView from "../views/AgentRuntimeView.vue";
+import RetrievalRulesView from "../views/RetrievalRulesView.vue";
 import SystemManagementView from "../views/SystemManagementView.vue";
 import TasksView from "../views/TasksView.vue";
 import {
@@ -45,6 +46,7 @@ const views = {
   agents: AgentWorkshopView,
   schedules: AgentScheduleView,
   runtime: AgentRuntimeView,
+  rules: RetrievalRulesView,
   tasks: TasksView,
   system: SystemManagementView
 };
@@ -122,6 +124,7 @@ export default {
             { id: "mcp", label: "MCP服务", icon: "mcp" },
             { id: "agents", label: "Agent管理", icon: "agent" },
             { id: "schedules", label: "Agent调度", icon: "schedule" },
+            { id: "rules", label: "关键词规则", icon: "search" },
             { id: "tasks", label: "运行监控", icon: "tasks" },
             { id: "system", label: "系统管理", icon: "gear" }
           ]

@@ -379,6 +379,17 @@ export function fetchGenericAgentRunTimeline(runId, filters = {}) {
   return apiRequest(`/agent/runtime/runs/${encodeURIComponent(runId)}/timeline${query ? `?${query}` : ""}`);
 }
 
+export function fetchGenericAgentRunTrace(runId) {
+  return apiRequest(`/agent/runtime/runs/${encodeURIComponent(runId)}/trace`);
+}
+
+export function evaluateGenericAgentRun(runId, payload = {}) {
+  return apiRequest(`/agent/runtime/runs/${encodeURIComponent(runId)}/evaluation`, {
+    method: "POST",
+    body: JSON.stringify(payload || {})
+  });
+}
+
 export function cancelGenericAgentRun(runId) {
   return apiRequest(`/agent/runtime/runs/${encodeURIComponent(runId)}/cancel`, {
     method: "POST"

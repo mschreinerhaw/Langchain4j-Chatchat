@@ -29,6 +29,7 @@ import {
   deleteIntentRule,
   fetchRetrievalRules,
   fetchGenericAgentRunTimeline,
+  fetchGenericAgentRunTrace,
   fetchGenericAgentRuntimeSnapshot,
   fetchGenericAgentRuns,
   refreshRetrievalRules,
@@ -91,7 +92,8 @@ export default {
         run: null,
         events: [],
         steps: [],
-        observations: []
+        observations: [],
+        trace: null
       },
       filters: {
         status: "",
@@ -147,6 +149,9 @@ export default {
     observations() {
       return Array.isArray(this.timeline.observations) ? this.timeline.observations : [];
     },
+    trace() {
+      return this.timeline.trace || null;
+    },
     filteredRuns() {
       const keyword = this.filters.keyword.trim().toLowerCase();
       if (!keyword) {
@@ -186,6 +191,12 @@ export default {
     detailTabs() {
       return [
         { key: "timeline", label: "Timeline", icon: GitBranch, count: this.timelineItems.length },
+        {
+          key: "trace",
+          label: "Trace",
+          icon: Activity,
+          count: this.trace ? (this.trace.evidence?.length || 0) + (this.trace.toolCalls?.length || 0) : 0
+        },
         { key: "events", label: "Events", icon: Database, count: this.events.length },
         { key: "steps", label: "Steps", icon: SquareStack, count: this.steps.length },
         { key: "observations", label: "Observations", icon: CircleDot, count: this.observations.length }
@@ -313,7 +324,7 @@ export default {
         if (this.selectedRunId) {
           await this.loadTimeline(this.selectedRunId);
         } else {
-          this.timeline = { run: null, events: [], steps: [], observations: [] };
+          this.timeline = { run: null, events: [], steps: [], observations: [], trace: null };
         }
       } catch (error) {
         this.error = error.message || "Failed to load Agent Runtime.";
@@ -508,16 +519,20 @@ export default {
       }
       this.timelineLoading = true;
       try {
-        const timeline = await fetchGenericAgentRunTimeline(runId, {
-          eventLimit: 200,
-          stepLimit: 200,
-          observationLimit: 200
-        });
+        const [timeline, trace] = await Promise.all([
+          fetchGenericAgentRunTimeline(runId, {
+            eventLimit: 200,
+            stepLimit: 200,
+            observationLimit: 200
+          }),
+          fetchGenericAgentRunTrace(runId)
+        ]);
         this.timeline = {
           run: timeline?.run || null,
           events: Array.isArray(timeline?.events) ? timeline.events : [],
           steps: Array.isArray(timeline?.steps) ? timeline.steps : [],
-          observations: Array.isArray(timeline?.observations) ? timeline.observations : []
+          observations: Array.isArray(timeline?.observations) ? timeline.observations : [],
+          trace: trace || null
         };
         this.streamCursor = this.events.reduce((cursor, event) => Math.max(cursor, event.createdAt || 0), 0);
       } catch (error) {

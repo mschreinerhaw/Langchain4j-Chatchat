@@ -17,6 +17,7 @@ import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Component;
 
 import java.net.URLEncoder;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -25,6 +26,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Locale;
 import java.util.regex.Pattern;
 
 @Component
@@ -32,6 +34,7 @@ public class WebKnowledgeMcpToolRegistrar implements McpServerToolRegistrar {
 
     private static final Logger log = LoggerFactory.getLogger(WebKnowledgeMcpToolRegistrar.class);
     private static final Pattern HTTP_URL_PATTERN = Pattern.compile("https?://[^\\s\"'<>，。；、)）\\]}]+");
+    private static final String WEB_CONTRACT_VERSION = "web_evidence_v1";
 
     private final WebCrawlerService crawlerService;
     private final SiteIntelligenceResolverService siteIntelligenceResolverService;
@@ -97,7 +100,7 @@ public class WebKnowledgeMcpToolRegistrar implements McpServerToolRegistrar {
             .outputType("json")
             .timeoutMillis(0L)
             .agentCompatible(true)
-            .parameters(List.of(
+            .parameters(withWebGovernanceParameters(
                 ToolParameter.builder()
                     .name("query")
                     .type("string")
@@ -173,7 +176,7 @@ public class WebKnowledgeMcpToolRegistrar implements McpServerToolRegistrar {
             .outputType("json")
             .timeoutMillis(0L)
             .agentCompatible(true)
-            .parameters(List.of(
+            .parameters(withWebGovernanceParameters(
                 ToolParameter.builder()
                     .name("query")
                     .type("string")
@@ -295,7 +298,7 @@ public class WebKnowledgeMcpToolRegistrar implements McpServerToolRegistrar {
             .outputType("json")
             .timeoutMillis(0L)
             .agentCompatible(true)
-            .parameters(List.of(
+            .parameters(withWebGovernanceParameters(
                 ToolParameter.builder()
                     .name("site_url")
                     .type("string")
@@ -453,7 +456,7 @@ public class WebKnowledgeMcpToolRegistrar implements McpServerToolRegistrar {
             .outputType("json")
             .timeoutMillis(0L)
             .agentCompatible(true)
-            .parameters(List.of(
+            .parameters(withWebGovernanceParameters(
                 ToolParameter.builder()
                     .name("url")
                     .type("string")
@@ -506,7 +509,7 @@ public class WebKnowledgeMcpToolRegistrar implements McpServerToolRegistrar {
             .outputType("json")
             .timeoutMillis(0L)
             .agentCompatible(true)
-            .parameters(List.of(
+            .parameters(withWebGovernanceParameters(
                 ToolParameter.builder()
                     .name("url")
                     .type("string")
@@ -559,7 +562,7 @@ public class WebKnowledgeMcpToolRegistrar implements McpServerToolRegistrar {
             .outputType("json")
             .timeoutMillis(0L)
             .agentCompatible(true)
-            .parameters(List.of(
+            .parameters(withWebGovernanceParameters(
                 ToolParameter.builder()
                     .name("url")
                     .type("string")
@@ -641,7 +644,7 @@ public class WebKnowledgeMcpToolRegistrar implements McpServerToolRegistrar {
             .outputType("json")
             .timeoutMillis(0L)
             .agentCompatible(false)
-            .parameters(List.of(
+            .parameters(withWebGovernanceParameters(
                 ToolParameter.builder()
                     .name("query")
                     .type("string")
@@ -699,7 +702,7 @@ public class WebKnowledgeMcpToolRegistrar implements McpServerToolRegistrar {
             .outputType("json")
             .timeoutMillis(0L)
             .agentCompatible(true)
-            .parameters(List.of(
+            .parameters(withWebGovernanceParameters(
                 ToolParameter.builder()
                     .name("query")
                     .type("string")
@@ -773,6 +776,10 @@ public class WebKnowledgeMcpToolRegistrar implements McpServerToolRegistrar {
                 if (!hasText(url)) {
                     return missingUrlFailure("crawl_url/web_crawler", input);
                 }
+                WebToolRequestContext context = webToolRequestContext(input);
+                if (!isAllowedUrl(url, context)) {
+                    return domainPolicyFailure(metadata.getId(), url, context);
+                }
                 String mode = input.getParameterAsString("mode", crawlerProperties.getDefaultMode());
                 boolean render = input.getParameterAsBoolean("render", false);
                 Map<String, Object> result = crawlerService.crawl(
@@ -781,13 +788,13 @@ public class WebKnowledgeMcpToolRegistrar implements McpServerToolRegistrar {
                     render,
                     0,
                     new WebCrawlerService.CrawlRequestContext(
-                        input.getParameterAsString("tenantId", ""),
-                        input.getParameterAsString("sourceTaskId", ""),
-                        input.getParameterAsString("agentId", ""),
+                        context.tenantId(),
+                        context.taskId(),
+                        context.agentId(),
                         input.getParameterAsString("query", "")
                     )
                 );
-                return ToolOutput.success(result, "URL crawled and cleaned successfully");
+                return ToolOutput.success(enrichWebToolResult(result, metadata.getId(), context), "URL crawled and cleaned successfully");
             } catch (Exception ex) {
                 return ToolOutput.failure(ex);
             }
@@ -808,6 +815,10 @@ public class WebKnowledgeMcpToolRegistrar implements McpServerToolRegistrar {
                 if (!hasText(url)) {
                     return missingUrlFailure("web_page_analyze", input);
                 }
+                WebToolRequestContext context = webToolRequestContext(input);
+                if (!isAllowedUrl(url, context)) {
+                    return domainPolicyFailure("web_page_analyze", url, context);
+                }
                 String query = input.getParameterAsString("query", "");
                 Number maxLinks = input.getParameterAsNumber("maxLinks");
                 Map<String, Object> result = webPageAnalyzeService.analyze(
@@ -816,7 +827,7 @@ public class WebKnowledgeMcpToolRegistrar implements McpServerToolRegistrar {
                     maxLinks == null ? 50 : maxLinks.intValue(),
                     0
                 );
-                return ToolOutput.success(result, "Web page analyzed successfully");
+                return ToolOutput.success(enrichWebToolResult(result, "web_page_analyze", context), "Web page analyzed successfully");
             } catch (Exception ex) {
                 return ToolOutput.failure(ex);
             }
@@ -837,6 +848,10 @@ public class WebKnowledgeMcpToolRegistrar implements McpServerToolRegistrar {
                 if (!hasText(url)) {
                     return missingUrlFailure("site_intelligence_resolver", input);
                 }
+                WebToolRequestContext context = webToolRequestContext(input);
+                if (!isAllowedUrl(url, context)) {
+                    return domainPolicyFailure("site_intelligence_resolver", url, context);
+                }
                 String mode = input.getParameterAsString("mode", "auto");
                 String probeQuery = input.getParameterAsString("probe_query", "test");
                 Map<String, Object> result = siteIntelligenceResolverService.resolve(
@@ -845,7 +860,7 @@ public class WebKnowledgeMcpToolRegistrar implements McpServerToolRegistrar {
                     probeQuery,
                     0
                 );
-                return ToolOutput.success(result, "Site intelligence resolved successfully");
+                return ToolOutput.success(enrichWebToolResult(result, "site_intelligence_resolver", context), "Site intelligence resolved successfully");
             } catch (Exception ex) {
                 return ToolOutput.failure(ex);
             }
@@ -908,6 +923,10 @@ public class WebKnowledgeMcpToolRegistrar implements McpServerToolRegistrar {
             try {
                 String siteUrl = input.getParameterAsString("site_url", "");
                 String keyword = input.getParameterAsString("site_search_query", "");
+                WebToolRequestContext context = webToolRequestContext(input);
+                if (hasText(siteUrl) && !isAllowedUrl(siteUrl, context)) {
+                    return domainPolicyFailure("generic_web_site_search", siteUrl, context);
+                }
                 String mode = input.getParameterAsString("mode", "auto");
                 Map<String, Object> siteIntelligence = siteIntelligenceResolverService.resolve(
                     siteUrl,
@@ -924,8 +943,9 @@ public class WebKnowledgeMcpToolRegistrar implements McpServerToolRegistrar {
                             merged.put(String.valueOf(key), value);
                         }
                     });
-                    merged.put("site_intelligence", siteIntelligence);
+                    merged.put("site_intelligence", enrichWebToolResult(siteIntelligence, "site_intelligence_resolver", context));
                     merged.put("tool_scope", "generic_non_financial_site_search");
+                    enrichWebToolResult(merged, "generic_web_site_search", context);
                     return ToolOutput.success(merged, "Generic site search completed successfully");
                 }
                 return output;
@@ -1157,6 +1177,220 @@ public class WebKnowledgeMcpToolRegistrar implements McpServerToolRegistrar {
         return false;
     }
 
+    private List<ToolParameter> withWebGovernanceParameters(ToolParameter... parameters) {
+        List<ToolParameter> values = new ArrayList<>();
+        if (parameters != null) {
+            values.addAll(Arrays.asList(parameters));
+        }
+        List<String> names = values.stream().map(ToolParameter::getName).toList();
+        if (!names.contains("tenantId")) {
+            values.add(ToolParameter.builder()
+                .name("tenantId")
+                .type("string")
+                .description("Optional tenant identifier used for request isolation")
+                .required(false)
+                .maxLength(128)
+                .build());
+        }
+        if (!names.contains("userId")) {
+            values.add(ToolParameter.builder()
+                .name("userId")
+                .type("string")
+                .description("Optional user identifier used for audit and request isolation")
+                .required(false)
+                .maxLength(128)
+                .build());
+        }
+        if (!names.contains("roles")) {
+            values.add(ToolParameter.builder()
+                .name("roles")
+                .type("array")
+                .description("Optional caller roles used for policy-aware web retrieval")
+                .required(false)
+                .metadata(Map.of("items", Map.of("type", "string")))
+                .build());
+        }
+        if (!names.contains("sourceTaskId")) {
+            values.add(ToolParameter.builder()
+                .name("sourceTaskId")
+                .type("string")
+                .description("Optional task identifier used for request isolation")
+                .required(false)
+                .maxLength(128)
+                .build());
+        }
+        if (!names.contains("agentId")) {
+            values.add(ToolParameter.builder()
+                .name("agentId")
+                .type("string")
+                .description("Optional agent identifier used for audit context")
+                .required(false)
+                .maxLength(128)
+                .build());
+        }
+        if (!names.contains("allowedDomains")) {
+            values.add(ToolParameter.builder()
+                .name("allowedDomains")
+                .type("array")
+                .description("Optional request-scoped allow-list. When set, the web tool only returns or fetches URLs under these domains.")
+                .required(false)
+                .metadata(Map.of("items", Map.of("type", "string")))
+                .build());
+        }
+        if (!names.contains("blockedDomains")) {
+            values.add(ToolParameter.builder()
+                .name("blockedDomains")
+                .type("array")
+                .description("Optional request-scoped deny-list. Matching URLs are blocked even when other allow rules match.")
+                .required(false)
+                .metadata(Map.of("items", Map.of("type", "string")))
+                .build());
+        }
+        return values;
+    }
+
+    private WebToolRequestContext webToolRequestContext(ToolInput input) {
+        Map<String, Object> parameters = input == null || input.getParameters() == null ? Map.of() : input.getParameters();
+        return new WebToolRequestContext(
+            firstNonBlank(stringValue(parameters.get("tenantId")), stringValue(parameters.get("tenant_id")), "default"),
+            firstNonBlank(stringValue(parameters.get("userId")), stringValue(parameters.get("user_id")), input == null ? null : input.getUserId(), "anonymous"),
+            stringList(firstObject(parameters, "roles", "role")),
+            firstNonBlank(stringValue(parameters.get("sourceTaskId")), stringValue(parameters.get("taskId")), stringValue(parameters.get("task_id"))),
+            firstNonBlank(stringValue(parameters.get("agentId")), stringValue(parameters.get("agent_id"))),
+            stringList(firstObject(parameters, "allowedDomains", "allowed_domains", "allowDomains")),
+            stringList(firstObject(parameters, "blockedDomains", "blocked_domains", "denyDomains"))
+        );
+    }
+
+    private Object firstObject(Map<String, Object> parameters, String... names) {
+        if (parameters == null || names == null) {
+            return null;
+        }
+        for (String name : names) {
+            Object value = parameters.get(name);
+            if (hasText(value)) {
+                return value;
+            }
+        }
+        return null;
+    }
+
+    private List<String> stringList(Object value) {
+        List<String> values = new ArrayList<>();
+        if (value instanceof Collection<?> collection) {
+            for (Object item : collection) {
+                addTextValue(values, item);
+            }
+        } else if (value instanceof String text) {
+            for (String part : text.split("[,;\\s]+")) {
+                addTextValue(values, part);
+            }
+        } else {
+            addTextValue(values, value);
+        }
+        return values;
+    }
+
+    private void addTextValue(List<String> values, Object value) {
+        if (value == null) {
+            return;
+        }
+        String text = String.valueOf(value).trim();
+        if (!text.isBlank() && !values.contains(text)) {
+            values.add(text);
+        }
+    }
+
+    private boolean isAllowedUrl(String url, WebToolRequestContext context) {
+        String host = normalizedHost(url);
+        if (!hasText(host)) {
+            return false;
+        }
+        if (matchesDomain(host, context == null ? List.of() : context.blockedDomains())) {
+            return false;
+        }
+        List<String> allowedDomains = context == null ? List.of() : context.allowedDomains();
+        return allowedDomains.isEmpty() || matchesDomain(host, allowedDomains);
+    }
+
+    private String normalizedHost(String url) {
+        try {
+            URI uri = URI.create(url);
+            String host = uri.getHost();
+            if (!hasText(host)) {
+                return "";
+            }
+            return host.toLowerCase(Locale.ROOT);
+        } catch (Exception ignored) {
+            return "";
+        }
+    }
+
+    private boolean matchesDomain(String normalizedHost, List<String> domains) {
+        if (!hasText(normalizedHost) || domains == null || domains.isEmpty()) {
+            return false;
+        }
+        for (String domain : domains) {
+            String candidate = normalizedHost(domain);
+            if (!hasText(candidate)) {
+                candidate = domain == null ? "" : domain.trim().toLowerCase(Locale.ROOT);
+            }
+            if (candidate.startsWith(".")) {
+                candidate = candidate.substring(1);
+            }
+            if (hasText(candidate) && (normalizedHost.equals(candidate) || normalizedHost.endsWith("." + candidate))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private Map<String, Object> enrichWebToolResult(Map<String, Object> result,
+                                                    String toolName,
+                                                    WebToolRequestContext context) {
+        Map<String, Object> values = result == null ? new LinkedHashMap<>() : result;
+        values.putIfAbsent("contractVersion", WEB_CONTRACT_VERSION);
+        values.put("requestContext", webRequestContextMap(context));
+        values.put("governance", webGovernanceMap(toolName, context));
+        return values;
+    }
+
+    private Map<String, Object> webRequestContextMap(WebToolRequestContext context) {
+        Map<String, Object> values = new LinkedHashMap<>();
+        values.put("tenantId", context == null ? "default" : firstNonBlank(context.tenantId(), "default"));
+        values.put("userId", context == null ? "anonymous" : firstNonBlank(context.userId(), "anonymous"));
+        values.put("roles", context == null ? List.of() : context.roles());
+        values.put("taskId", context == null ? null : context.taskId());
+        values.put("agentId", context == null ? null : context.agentId());
+        values.put("allowedDomains", context == null ? List.of() : context.allowedDomains());
+        values.put("blockedDomains", context == null ? List.of() : context.blockedDomains());
+        return values;
+    }
+
+    private Map<String, Object> webGovernanceMap(String toolName, WebToolRequestContext context) {
+        Map<String, Object> values = new LinkedHashMap<>();
+        values.put("tool", toolName);
+        values.put("contractVersion", WEB_CONTRACT_VERSION);
+        values.put("domainPolicy", Map.of(
+            "requestAllowListEnabled", context != null && !context.allowedDomains().isEmpty(),
+            "allowedDomains", context == null ? List.of() : context.allowedDomains(),
+            "blockedDomains", context == null ? List.of() : context.blockedDomains()
+        ));
+        return values;
+    }
+
+    private ToolOutput domainPolicyFailure(String toolName, String url, WebToolRequestContext context) {
+        Map<String, Object> result = enrichWebToolResult(new LinkedHashMap<>(), toolName, context);
+        result.put("url", url);
+        result.put("blocked", true);
+        result.put("blockReason", "domain_policy_denied");
+        return ToolOutput.builder()
+            .success(false)
+            .data(result)
+            .errorMessage("URL is blocked by request domain policy: " + url)
+            .build();
+    }
+
     private boolean hasText(Object value) {
         if (value == null) {
             return false;
@@ -1241,6 +1475,15 @@ public class WebKnowledgeMcpToolRegistrar implements McpServerToolRegistrar {
         return null;
     }
 
+    private record WebToolRequestContext(String tenantId,
+                                         String userId,
+                                         List<String> roles,
+                                         String taskId,
+                                         String agentId,
+                                         List<String> allowedDomains,
+                                         List<String> blockedDomains) {
+    }
+
     private final class SearchAndExtractTool implements ToolRegistry.EnhancedTool {
 
         /**
@@ -1270,7 +1513,8 @@ public class WebKnowledgeMcpToolRegistrar implements McpServerToolRegistrar {
                     mode,
                     topK == null ? 5 : topK.intValue()
                 );
-                return ToolOutput.success(result, "Search and extraction completed successfully");
+                return ToolOutput.success(enrichWebToolResult(result, "search_and_extract", webToolRequestContext(input)),
+                    "Search and extraction completed successfully");
             } catch (Exception ex) {
                 return ToolOutput.failure(ex);
             }
@@ -1306,7 +1550,8 @@ public class WebKnowledgeMcpToolRegistrar implements McpServerToolRegistrar {
                     mode,
                     topK == null ? 5 : topK.intValue()
                 );
-                return ToolOutput.success(result, "Evidence retrieved successfully");
+                return ToolOutput.success(enrichWebToolResult(result, "retrieve_financial_evidence", webToolRequestContext(input)),
+                    "Evidence retrieved successfully");
             } catch (Exception ex) {
                 return ToolOutput.failure(ex);
             }

@@ -26,6 +26,18 @@ import java.util.Map;
 @Slf4j
 public class ToolRegistryMcpAdapter {
 
+    private static final String DOCUMENT_SEARCH_TOOL = "document_search";
+    private static final String DOCUMENT_SEARCH_EVIDENCE_GUIDANCE = String.join(" ",
+        "Returns cited document evidence chunks for grounded answers.",
+        "Use the result context field as RAG input and keep citations with the final answer.",
+        "The stable result contract is document_evidence_v1.",
+        "Set debug=true only when retrieval diagnostics are needed."
+    );
+    private static final String DOCUMENT_SEARCH_QUERY_GUIDANCE = String.join(" ",
+        "Question or concise retrieval query used to find document evidence.",
+        "Preserve exact document titles, product names, codes, versions, dates, and domain terms."
+    );
+
     private final ObjectMapper objectMapper;
     private final ChatChatMcpServerProperties properties;
     private final AgentRuntimeGovernanceFactory governanceFactory;
@@ -68,7 +80,7 @@ public class ToolRegistryMcpAdapter {
             .name(name)
             .title(metadata == null ? name : metadata.getTitle())
             .description(description(toolRegistry, name, metadata))
-            .inputSchema(toInputSchema(metadata))
+            .inputSchema(toInputSchema(name, metadata))
             .meta(withLimitMeta(governanceFactory.metaForToolMetadata("builtin_tool", name, metadata), name, runtimeLevel))
             .build();
 
@@ -167,7 +179,7 @@ public class ToolRegistryMcpAdapter {
      * @param metadata the metadata value
      * @return the converted input schema
      */
-    private McpSchema.JsonSchema toInputSchema(ToolMetadata metadata) {
+    private McpSchema.JsonSchema toInputSchema(String toolName, ToolMetadata metadata) {
         if (metadata == null || metadata.getParameters() == null || metadata.getParameters().isEmpty()) {
             return new McpSchema.JsonSchema("object", Map.of(), List.of(), false, null, null);
         }
@@ -179,7 +191,7 @@ public class ToolRegistryMcpAdapter {
             if (parameter == null || parameter.getName() == null || parameter.getName().isBlank()) {
                 continue;
             }
-            schemaProperties.put(parameter.getName(), toPropertySchema(parameter));
+            schemaProperties.put(parameter.getName(), toPropertySchema(toolName, parameter));
             if (parameter.isRequired()) {
                 required.add(parameter.getName());
             }
@@ -194,10 +206,10 @@ public class ToolRegistryMcpAdapter {
      * @param parameter the parameter value
      * @return the converted property schema
      */
-    private Map<String, Object> toPropertySchema(ToolParameter parameter) {
+    private Map<String, Object> toPropertySchema(String toolName, ToolParameter parameter) {
         Map<String, Object> property = new LinkedHashMap<>();
         property.put("type", normalizeType(parameter.getType()));
-        putIfPresent(property, "description", parameter.getDescription());
+        putIfPresent(property, "description", parameterDescription(toolName, parameter));
         putIfPresent(property, "default", parameter.getDefaultValue());
         putIfPresent(property, "minLength", parameter.getMinLength());
         putIfPresent(property, "maxLength", parameter.getMaxLength());
@@ -300,20 +312,58 @@ public class ToolRegistryMcpAdapter {
      * @return the operation result
      */
     private String description(ToolRegistry toolRegistry, String name, ToolMetadata metadata) {
+        String baseDescription;
         if (metadata != null && metadata.getDescription() != null && !metadata.getDescription().isBlank()) {
-            return metadata.getDescription();
+            baseDescription = metadata.getDescription();
+        } else {
+            ToolRegistry.Tool simpleTool = toolRegistry.getTool(name);
+            if (simpleTool != null && simpleTool.getDescription() != null && !simpleTool.getDescription().isBlank()) {
+                baseDescription = simpleTool.getDescription();
+            } else {
+                baseDescription = "ChatChat tool: " + name;
+            }
         }
-        ToolRegistry.Tool simpleTool = toolRegistry.getTool(name);
-        if (simpleTool != null && simpleTool.getDescription() != null && !simpleTool.getDescription().isBlank()) {
-            return simpleTool.getDescription();
+        if (isDocumentSearchToolName(name) && !containsEvidenceGuidance(baseDescription)) {
+            return baseDescription + " " + DOCUMENT_SEARCH_EVIDENCE_GUIDANCE;
         }
-        return "ChatChat tool: " + name;
+        return baseDescription;
     }
 
     private Map<String, Object> withLimitMeta(Map<String, Object> meta, String toolName, String runtimeLevel) {
         Map<String, Object> values = new LinkedHashMap<>(meta == null ? Map.of() : meta);
         values.put("mcp_tool_limit", concurrencyManager.limitMeta(toolName, runtimeLevel));
+        if (isDocumentSearchToolName(toolName)) {
+            values.put("result_contract", "document_evidence_chunks");
+            values.put("contract_version", "document_evidence_v1");
+            values.put("retrieval_guidance", DOCUMENT_SEARCH_EVIDENCE_GUIDANCE);
+            values.put("default_debug", false);
+        }
         return values;
+    }
+
+    private String parameterDescription(String toolName, ToolParameter parameter) {
+        String baseDescription = parameter.getDescription();
+        if (isDocumentSearchToolName(toolName)
+            && "query".equals(parameter.getName())
+            && !containsEvidenceGuidance(baseDescription)) {
+            if (baseDescription == null || baseDescription.isBlank()) {
+                return DOCUMENT_SEARCH_QUERY_GUIDANCE;
+            }
+            return baseDescription + " " + DOCUMENT_SEARCH_QUERY_GUIDANCE;
+        }
+        return baseDescription;
+    }
+
+    private boolean isDocumentSearchToolName(String toolName) {
+        if (toolName == null || toolName.isBlank()) {
+            return false;
+        }
+        String normalized = toolName.trim().toLowerCase();
+        return DOCUMENT_SEARCH_TOOL.equals(normalized) || normalized.endsWith("_" + DOCUMENT_SEARCH_TOOL);
+    }
+
+    private boolean containsEvidenceGuidance(String text) {
+        return text != null && text.toLowerCase().contains("evidence");
     }
 
     private String runtimeLevelFor(String name, ToolMetadata metadata) {

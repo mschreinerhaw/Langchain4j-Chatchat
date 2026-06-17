@@ -8,6 +8,11 @@ import com.chatchat.agents.runtime.AgentRunStatus;
 import com.chatchat.agents.runtime.AgentRunStep;
 import com.chatchat.agents.runtime.AgentRuntime;
 import com.chatchat.agents.runtime.AgentRuntimeSnapshot;
+import com.chatchat.agents.runtime.evaluation.AgentEvaluationCase;
+import com.chatchat.agents.runtime.evaluation.AgentEvaluationReport;
+import com.chatchat.agents.runtime.evaluation.AgentEvaluationService;
+import com.chatchat.agents.runtime.trace.AgentRunTrace;
+import com.chatchat.agents.runtime.trace.AgentRunTraceBuilder;
 import com.chatchat.api.runtime.AgentRuntimeEventStreamService;
 import com.chatchat.api.security.ApiAuthenticationFilter;
 import com.chatchat.common.constants.AppConstants;
@@ -21,6 +26,7 @@ import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -38,6 +44,8 @@ public class AgentRuntimeController {
 
     private final AgentRuntime agentRuntime;
     private final AgentRuntimeEventStreamService eventStreamService;
+    private final AgentRunTraceBuilder traceBuilder;
+    private final AgentEvaluationService evaluationService;
 
     @GetMapping("/snapshot")
     @Operation(summary = "Get Agent runtime snapshot")
@@ -208,6 +216,40 @@ public class AgentRuntimeController {
                     agentRuntime.steps(runId, valueOrDefault(afterStep, 0), valueOrDefault(stepLimit, 100)),
                     agentRuntime.observations(runId, valueOrDefault(observationOffset, 0), valueOrDefault(observationLimit, 100))
                 )))
+                .orElseGet(() -> ApiResponse.notFound("Agent run not found: " + runId));
+        } catch (AccessDeniedException ex) {
+            return ApiResponse.error(403, ex.getMessage());
+        } catch (RuntimeException ex) {
+            return runtimeUnavailable(ex);
+        }
+    }
+
+    @GetMapping("/runs/{runId}/trace")
+    @Operation(summary = "Read one Agent runtime execution trace")
+    public ApiResponse<AgentRunTrace> trace(@PathVariable("runId") String runId,
+                                            HttpServletRequest request) {
+        try {
+            return findAuthorized(runId, request)
+                .map(traceBuilder::fromRun)
+                .map(ApiResponse::success)
+                .orElseGet(() -> ApiResponse.notFound("Agent run not found: " + runId));
+        } catch (AccessDeniedException ex) {
+            return ApiResponse.error(403, ex.getMessage());
+        } catch (RuntimeException ex) {
+            return runtimeUnavailable(ex);
+        }
+    }
+
+    @PostMapping("/runs/{runId}/evaluation")
+    @Operation(summary = "Evaluate one Agent runtime run against expected evidence and answer criteria")
+    public ApiResponse<AgentEvaluationReport> evaluate(@PathVariable("runId") String runId,
+                                                       @RequestBody(required = false) AgentEvaluationCase evaluationCase,
+                                                       HttpServletRequest request) {
+        try {
+            return findAuthorized(runId, request)
+                .map(traceBuilder::fromRun)
+                .map(trace -> evaluationService.evaluate(trace, evaluationCase))
+                .map(ApiResponse::success)
                 .orElseGet(() -> ApiResponse.notFound("Agent run not found: " + runId));
         } catch (AccessDeniedException ex) {
             return ApiResponse.error(403, ex.getMessage());

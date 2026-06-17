@@ -2,11 +2,17 @@ package com.chatchat.api.controller;
 
 import com.chatchat.knowledgebase.search.SearchDocument;
 import com.chatchat.knowledgebase.search.DocumentFileResource;
+import com.chatchat.knowledgebase.search.DocumentSearchEvidenceService;
+import com.chatchat.knowledgebase.search.DocumentSearchRequest;
+import com.chatchat.knowledgebase.search.DocumentSearchResult;
 import com.chatchat.knowledgebase.search.LibraryCategory;
 import com.chatchat.knowledgebase.search.LibraryPage;
 import com.chatchat.knowledgebase.search.SearchPage;
+import com.chatchat.knowledgebase.search.SearchPermissionContext;
 import com.chatchat.knowledgebase.search.SearchService;
 import com.chatchat.knowledgebase.search.SearchDocumentVersionItem;
+import com.chatchat.knowledgebase.search.SearchFeedbackEntity;
+import com.chatchat.knowledgebase.search.SearchFeedbackService;
 import com.chatchat.knowledgebase.search.TitleExistsResult;
 import com.chatchat.common.constants.AppConstants;
 import com.chatchat.common.response.ApiResponse;
@@ -38,6 +44,8 @@ import java.util.List;
 public class SearchController {
 
     private final SearchService searchService;
+    private final SearchFeedbackService searchFeedbackService;
+    private final DocumentSearchEvidenceService documentSearchEvidenceService;
 
     /**
      * Searches the search.
@@ -61,8 +69,40 @@ public class SearchController {
                                           @RequestParam(value = "docIds", required = false) String docIds,
                                           @RequestParam(value = "page", required = false) Integer page,
                                           @RequestParam(value = "pageSize", required = false) Integer pageSize,
-                                          @RequestParam(value = "limit", required = false) Integer limit) {
-        return ApiResponse.success(searchService.search(keyword, tag, company, industry, docIds, page, pageSize == null ? limit : pageSize));
+                                          @RequestParam(value = "limit", required = false) Integer limit,
+                                          @RequestParam(value = "tenantId", required = false) String tenantId,
+                                          @RequestParam(value = "userId", required = false) String userId,
+                                          @RequestParam(value = "roles", required = false) String roles) {
+        return ApiResponse.success(searchService.search(
+            keyword,
+            tag,
+            company,
+            industry,
+            docIds,
+            page,
+            pageSize == null ? limit : pageSize,
+            permissionContext(tenantId, userId, roles)
+        ));
+    }
+
+    @PostMapping("/document-search")
+    @Operation(summary = "Search documents and return standard evidence chunks")
+    public ApiResponse<DocumentSearchResult> documentSearch(@RequestBody DocumentSearchRequest request) {
+        try {
+            return ApiResponse.success(documentSearchEvidenceService.search(request));
+        } catch (IllegalArgumentException ex) {
+            return ApiResponse.badRequest(ex.getMessage());
+        }
+    }
+
+    @PostMapping("/feedback")
+    @Operation(summary = "Record search result feedback for Rocchio expansion")
+    public ApiResponse<SearchFeedbackEntity> feedback(@RequestBody SearchFeedbackService.SearchFeedbackRequest request) {
+        try {
+            return ApiResponse.success(searchFeedbackService.record(request), "Search feedback recorded");
+        } catch (IllegalArgumentException ex) {
+            return ApiResponse.badRequest(ex.getMessage());
+        }
     }
 
     /**
@@ -81,8 +121,17 @@ public class SearchController {
                                                 @RequestParam(value = "title", required = false) String title,
                                                 @RequestParam(value = "page", required = false) Integer page,
                                                 @RequestParam(value = "pageSize", required = false) Integer pageSize,
-                                                @RequestParam(value = "limit", required = false) Integer limit) {
-        return ApiResponse.success(searchService.listLibrary(category, title, page, pageSize == null ? limit : pageSize));
+                                                @RequestParam(value = "limit", required = false) Integer limit,
+                                                @RequestParam(value = "tenantId", required = false) String tenantId,
+                                                @RequestParam(value = "userId", required = false) String userId,
+                                                @RequestParam(value = "roles", required = false) String roles) {
+        return ApiResponse.success(searchService.listLibrary(
+            category,
+            title,
+            page,
+            pageSize == null ? limit : pageSize,
+            permissionContext(tenantId, userId, roles)
+        ));
     }
 
     /**
@@ -108,8 +157,11 @@ public class SearchController {
      */
     @GetMapping("/documents/title-exists")
     @Operation(summary = "Check whether one document title already exists")
-    public ApiResponse<TitleExistsResult> titleExists(@RequestParam("title") String title) {
-        return ApiResponse.success(searchService.titleExists(title));
+    public ApiResponse<TitleExistsResult> titleExists(@RequestParam("title") String title,
+                                                      @RequestParam(value = "tenantId", required = false) String tenantId,
+                                                      @RequestParam(value = "userId", required = false) String userId,
+                                                      @RequestParam(value = "roles", required = false) String roles) {
+        return ApiResponse.success(searchService.titleExists(title, permissionContext(tenantId, userId, roles)));
     }
 
     /**
@@ -120,8 +172,11 @@ public class SearchController {
      */
     @GetMapping("/documents/{docId}")
     @Operation(summary = "Get one document detail")
-    public ApiResponse<SearchDocument> getDocument(@PathVariable("docId") String docId) {
-        return searchService.get(docId)
+    public ApiResponse<SearchDocument> getDocument(@PathVariable("docId") String docId,
+                                                   @RequestParam(value = "tenantId", required = false) String tenantId,
+                                                   @RequestParam(value = "userId", required = false) String userId,
+                                                   @RequestParam(value = "roles", required = false) String roles) {
+        return searchService.get(docId, permissionContext(tenantId, userId, roles))
             .map(ApiResponse::success)
             .orElseGet(() -> ApiResponse.notFound("document not found: " + docId));
     }
@@ -134,11 +189,15 @@ public class SearchController {
      */
     @GetMapping("/documents/{docId}/versions")
     @Operation(summary = "List versions of one document")
-    public ApiResponse<List<SearchDocumentVersionItem>> listDocumentVersions(@PathVariable("docId") String docId) {
-        if (searchService.get(docId).isEmpty()) {
+    public ApiResponse<List<SearchDocumentVersionItem>> listDocumentVersions(@PathVariable("docId") String docId,
+                                                                             @RequestParam(value = "tenantId", required = false) String tenantId,
+                                                                             @RequestParam(value = "userId", required = false) String userId,
+                                                                             @RequestParam(value = "roles", required = false) String roles) {
+        SearchPermissionContext context = permissionContext(tenantId, userId, roles);
+        if (searchService.get(docId, context).isEmpty()) {
             return ApiResponse.notFound("document not found: " + docId);
         }
-        return ApiResponse.success(searchService.listVersions(docId));
+        return ApiResponse.success(searchService.listVersions(docId, context));
     }
 
     /**
@@ -151,8 +210,11 @@ public class SearchController {
     @GetMapping("/documents/{docId}/versions/{version}")
     @Operation(summary = "Get one document version detail")
     public ApiResponse<SearchDocument> getDocumentVersion(@PathVariable("docId") String docId,
-                                                          @PathVariable("version") Integer version) {
-        return searchService.getVersion(docId, version)
+                                                          @PathVariable("version") Integer version,
+                                                          @RequestParam(value = "tenantId", required = false) String tenantId,
+                                                          @RequestParam(value = "userId", required = false) String userId,
+                                                          @RequestParam(value = "roles", required = false) String roles) {
+        return searchService.getVersion(docId, version, permissionContext(tenantId, userId, roles))
             .map(ApiResponse::success)
             .orElseGet(() -> ApiResponse.notFound("document version not found: " + docId + " v" + version));
     }
@@ -165,11 +227,25 @@ public class SearchController {
      */
     @DeleteMapping("/documents/{docId}")
     @Operation(summary = "Delete one uploaded document")
-    public ApiResponse<Void> deleteDocument(@PathVariable("docId") String docId) {
-        if (!searchService.deleteDocument(docId)) {
+    public ApiResponse<Void> deleteDocument(@PathVariable("docId") String docId,
+                                            @RequestParam(value = "tenantId", required = false) String tenantId,
+                                            @RequestParam(value = "userId", required = false) String userId,
+                                            @RequestParam(value = "roles", required = false) String roles) {
+        if (!searchService.deleteDocument(docId, permissionContext(tenantId, userId, roles))) {
             return ApiResponse.notFound("document not found: " + docId);
         }
         return ApiResponse.success(null, "document deleted");
+    }
+
+    @PostMapping("/documents/{docId}/reindex")
+    @Operation(summary = "Rebuild search index for one document")
+    public ApiResponse<SearchDocument> reindexDocument(@PathVariable("docId") String docId,
+                                                       @RequestParam(value = "tenantId", required = false) String tenantId,
+                                                       @RequestParam(value = "userId", required = false) String userId,
+                                                       @RequestParam(value = "roles", required = false) String roles) {
+        return searchService.reindexDocument(docId, permissionContext(tenantId, userId, roles))
+            .map(document -> ApiResponse.success(document, "document reindexed"))
+            .orElseGet(() -> ApiResponse.notFound("document not found: " + docId));
     }
 
     /**
@@ -180,8 +256,11 @@ public class SearchController {
      */
     @GetMapping("/documents/{docId}/file")
     @Operation(summary = "Get original uploaded document file")
-    public ResponseEntity<Resource> getDocumentFile(@PathVariable("docId") String docId) {
-        return searchService.getFileResource(docId)
+    public ResponseEntity<Resource> getDocumentFile(@PathVariable("docId") String docId,
+                                                    @RequestParam(value = "tenantId", required = false) String tenantId,
+                                                    @RequestParam(value = "userId", required = false) String userId,
+                                                    @RequestParam(value = "roles", required = false) String roles) {
+        return searchService.getFileResource(docId, permissionContext(tenantId, userId, roles))
             .map(file -> ResponseEntity.ok()
                 .contentType(mediaTypeFor(file))
                 .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename*=UTF-8''" + encodeFileName(file.fileName()))
@@ -199,8 +278,11 @@ public class SearchController {
     @GetMapping("/documents/{docId}/versions/{version}/file")
     @Operation(summary = "Get original uploaded document file for one version")
     public ResponseEntity<Resource> getDocumentVersionFile(@PathVariable("docId") String docId,
-                                                           @PathVariable("version") Integer version) {
-        return searchService.getVersionFileResource(docId, version)
+                                                           @PathVariable("version") Integer version,
+                                                           @RequestParam(value = "tenantId", required = false) String tenantId,
+                                                           @RequestParam(value = "userId", required = false) String userId,
+                                                           @RequestParam(value = "roles", required = false) String roles) {
+        return searchService.getVersionFileResource(docId, version, permissionContext(tenantId, userId, roles))
             .map(file -> ResponseEntity.ok()
                 .contentType(mediaTypeFor(file))
                 .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename*=UTF-8''" + encodeFileName(file.fileName()))
@@ -246,7 +328,12 @@ public class SearchController {
                                                      @RequestParam(value = "industries", required = false) String industries,
                                                      @RequestParam(value = "keywords", required = false) String keywords,
                                                      @RequestParam(value = "documentType", required = false) String documentType,
-                                                     @RequestParam(value = "content", required = false) String fallbackContent) {
+                                                     @RequestParam(value = "content", required = false) String fallbackContent,
+                                                     @RequestParam(value = "tenantId", required = false) String tenantId,
+                                                     @RequestParam(value = "userId", required = false) String userId,
+                                                     @RequestParam(value = "roles", required = false) String roles,
+                                                     @RequestParam(value = "visibility", required = false) String visibility,
+                                                     @RequestParam(value = "permissionRoles", required = false) String permissionRoles) {
         SearchDocument document = searchService.upload(
             file,
             title,
@@ -257,7 +344,10 @@ public class SearchController {
             industries,
             keywords,
             documentType,
-            fallbackContent
+            fallbackContent,
+            permissionContext(tenantId, userId, roles),
+            visibility,
+            parseCsv(permissionRoles)
         );
         return ApiResponse.success(document, "Document uploaded and indexed");
     }
@@ -300,5 +390,20 @@ public class SearchController {
     private String encodeFileName(String fileName) {
         String safeName = fileName == null || fileName.isBlank() ? "document" : fileName;
         return URLEncoder.encode(safeName, StandardCharsets.UTF_8).replace("+", "%20");
+    }
+
+    private SearchPermissionContext permissionContext(String tenantId, String userId, String roles) {
+        return SearchPermissionContext.of(tenantId, userId, parseCsv(roles));
+    }
+
+    private List<String> parseCsv(String value) {
+        if (value == null || value.isBlank()) {
+            return List.of();
+        }
+        return List.of(value.split("[,\\uFF0C;\\uFF1B\\r\\n]+")).stream()
+            .filter(part -> part != null && !part.isBlank())
+            .map(String::trim)
+            .distinct()
+            .toList();
     }
 }

@@ -1,8 +1,12 @@
 import {
   Building2,
+  Copy,
+  KeyRound,
+  Link2,
   Pencil,
   Plus,
   RefreshCw,
+  RotateCcw,
   Save,
   ShieldCheck,
   Trash2,
@@ -12,11 +16,14 @@ import {
 import "../../styles/pages/system-management.css";
 import {
   createOrg,
+  createEmbedLoginToken,
   createRole,
   createUser,
   deleteOrg,
   deleteRole,
   deleteUser,
+  expireEmbedLoginToken,
+  fetchEmbedLoginTokens,
   fetchAgentOptions,
   fetchEnterpriseSummary,
   fetchOrgs,
@@ -67,9 +74,13 @@ export default {
   name: "SystemManagementView",
   components: {
     Building2,
+    Copy,
+    KeyRound,
+    Link2,
     Pencil,
     Plus,
     RefreshCw,
+    RotateCcw,
     Save,
     ShieldCheck,
     Trash2,
@@ -82,9 +93,12 @@ export default {
       savingOrg: false,
       savingRole: false,
       savingUser: false,
+      embedTokenLoading: false,
+      embedTokenSaving: false,
       orgModalOpen: false,
       roleModalOpen: false,
       userModalOpen: false,
+      embedTokenModalOpen: false,
       error: "",
       message: "",
       activeManagementTab: "users",
@@ -95,6 +109,9 @@ export default {
       users: [],
       permissions: [],
       agentOptions: [],
+      embedTokens: [],
+      embedTokenDuration: 86400,
+      embedTokenLatestUrl: "",
       selectedTenantId: "",
       selectedRoleId: "",
       selectedPermissionIds: [],
@@ -287,6 +304,15 @@ export default {
         result[role.id] = role;
         return result;
       }, {});
+    },
+    embedTokenDurations() {
+      return [
+        { label: "1 小时", value: 3600 },
+        { label: "1 天", value: 86400 },
+        { label: "7 天", value: 604800 },
+        { label: "30 天", value: 2592000 },
+        { label: "永久", value: 0 }
+      ];
     }
   },
   mounted() {
@@ -486,6 +512,78 @@ export default {
     closeUserModal() {
       this.userModalOpen = false;
       this.resetUserForm();
+    },
+    async openEmbedTokenModal(user = null) {
+      if (!this.isAdminUser(user)) {
+        this.setNotice("仅 admin 用户可以查看嵌入登录 URL", true);
+        return;
+      }
+      this.embedTokenModalOpen = true;
+      this.embedTokenLatestUrl = "";
+      await this.loadEmbedTokens();
+    },
+    closeEmbedTokenModal() {
+      this.embedTokenModalOpen = false;
+      this.embedTokenLatestUrl = "";
+    },
+    async loadEmbedTokens() {
+      this.embedTokenLoading = true;
+      try {
+        const tokens = await fetchEmbedLoginTokens();
+        this.embedTokens = Array.isArray(tokens) ? tokens : [];
+      } catch (error) {
+        this.setNotice(error.message || "嵌入登录授权加载失败", true);
+      } finally {
+        this.embedTokenLoading = false;
+      }
+    },
+    async createEmbedToken() {
+      this.embedTokenSaving = true;
+      try {
+        const token = await createEmbedLoginToken(Number(this.embedTokenDuration) || 0);
+        this.embedTokenLatestUrl = this.buildEmbedLoginUrl(token);
+        await this.loadEmbedTokens();
+        this.setNotice("嵌入登录 URL 已生成");
+      } catch (error) {
+        this.setNotice(error.message || "嵌入登录 URL 生成失败", true);
+      } finally {
+        this.embedTokenSaving = false;
+      }
+    },
+    async expireEmbedToken(token) {
+      if (!token?.id || !window.confirm("确认让该授权立即过期？")) {
+        return;
+      }
+      this.embedTokenSaving = true;
+      try {
+        await expireEmbedLoginToken(token.id);
+        await this.loadEmbedTokens();
+        this.setNotice("嵌入登录授权已过期");
+      } catch (error) {
+        this.setNotice(error.message || "嵌入登录授权过期失败", true);
+      } finally {
+        this.embedTokenSaving = false;
+      }
+    },
+    async copyEmbedTokenUrl(token) {
+      const url = typeof token === "string" ? token : this.buildEmbedLoginUrl(token);
+      if (!url) {
+        return;
+      }
+      try {
+        await navigator.clipboard.writeText(url);
+        this.setNotice("嵌入登录 URL 已复制");
+      } catch (error) {
+        window.prompt("复制嵌入登录 URL", url);
+      }
+    },
+    buildEmbedLoginUrl(token) {
+      const rawToken = token?.token || "";
+      if (!rawToken) {
+        return "";
+      }
+      const baseUrl = `${window.location.origin}${window.location.pathname || "/"}`;
+      return `${baseUrl}?embedToken=${encodeURIComponent(rawToken)}#/chat`;
     },
     editUser(user) {
       this.userForm = {
@@ -799,6 +897,31 @@ export default {
     },
     isAdminUser(user) {
       return String(user?.username || "").toLowerCase() === "admin";
+    },
+    embedTokenStatusLabel(token) {
+      if (this.isEmbedTokenExpired(token)) {
+        return "已过期";
+      }
+      return token?.status === "active" ? "有效" : "已过期";
+    },
+    isEmbedTokenExpired(token) {
+      if (!token || token.status !== "active") {
+        return true;
+      }
+      if (!token.expiresAt) {
+        return false;
+      }
+      return new Date(token.expiresAt).getTime() <= Date.now();
+    },
+    formatDateTime(value) {
+      if (!value) {
+        return "永久";
+      }
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) {
+        return value;
+      }
+      return date.toLocaleString();
     },
     roleNamesForUser(user) {
       return (Array.isArray(user?.roleIds) ? user.roleIds : [])

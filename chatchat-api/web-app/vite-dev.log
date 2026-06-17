@@ -1,12 +1,24 @@
 
 > chatchat-web-app@1.0.0 dev
-> vite --host 0.0.0.0 --host 0.0.0.0
+> vite --host 0.0.0.0 --host 0.0.0.0 --port 5173
 
+Port 5173 is in use, trying another one...
 
-  [32m[1mVITE[22m v7.3.5[39m  [2mready in [0m[1m314[22m[2m[0m ms[22m
+  [32m[1mVITE[22m v7.3.5[39m  [2mready in [0m[1m256[22m[2m[0m ms[22m
 
-  [32m➜[39m  [1mLocal[22m:   [36mhttp://localhost:[1m5173[22m/[39m
-  [32m➜[39m  [1mNetwork[22m: [36mhttp://192.168.22.1:[1m5173[22m/[39m
-  [32m➜[39m  [1mNetwork[22m: [36mhttp://192.168.36.1:[1m5173[22m/[39m
-  [32m➜[39m  [1mNetwork[22m: [36mhttp://198.18.81.4:[1m5173[22m/[39m
-  [32m➜[39m  [1mNetwork[22m: [36mhttp://192.168.69.100:[1m5173[22m/[39m
+  [32m➜[39m  [1mLocal[22m:   [36mhttp://localhost:[1m5174[22m/[39m
+  [32m➜[39m  [1mNetwork[22m: [36mhttp://192.168.22.1:[1m5174[22m/[39m
+  [32m➜[39m  [1mNetwork[22m: [36mhttp://192.168.36.1:[1m5174[22m/[39m
+  [32m➜[39m  [1mNetwork[22m: [36mhttp://198.18.81.4:[1m5174[22m/[39m
+  [32m➜[39m  [1mNetwork[22m: [36mhttp://192.168.0.100:[1m5174[22m/[39m
+[2m16:08:20[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/views/SystemManagementView.vue[22m
+[2m16:08:28[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/views/SystemManagementView.vue[22m
+[2m16:43:13[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/App.vue, /src/views/LoginView.vue, /src/views/LibraryView.vue, /src/views/ChatAssistantView.vue, /src/views/CapabilityMarketView.vue, /src/components/RightPanel.vue, /src/views/AiSearchView.vue, /src/views/FavoritesView.vue, /src/views/AgentScheduleView.vue, /src/views/AgentWorkshopView.vue, /src/views/SystemManagementView.vue, /src/views/AgentRuntimeView.vue, /src/views/RetrievalRulesView.vue, /src/views/McpCenterView.vue, /src/views/TasksView.vue[22m
+[2m17:26:55[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/App.vue, /src/views/LoginView.vue, /src/views/LibraryView.vue, /src/views/ChatAssistantView.vue, /src/views/CapabilityMarketView.vue, /src/components/RightPanel.vue, /src/views/AiSearchView.vue, /src/views/FavoritesView.vue, /src/views/AgentScheduleView.vue, /src/views/AgentWorkshopView.vue, /src/views/SystemManagementView.vue, /src/views/AgentRuntimeView.vue, /src/views/RetrievalRulesView.vue, /src/views/McpCenterView.vue, /src/views/TasksView.vue[22m
+[2m17:27:19[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/App.vue[22m
+[2m17:28:03[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/views/SystemManagementView.vue[22m
+[2m17:28:58[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/views/SystemManagementView.vue[22m
+[2m17:29:36[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/views/SystemManagementView.vue[22m
+[2m17:30:02[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles/pages/system-management.css[22m
+[2m17:30:14[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/styles/pages/system-management.css[22m
+[2m17:32:23[22m [36m[1m[vite][22m[39m [90m[2m(client)[22m[39m [32mhmr update [39m[2m/src/views/SystemManagementView.vue[22m

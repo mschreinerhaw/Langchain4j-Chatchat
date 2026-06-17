@@ -28,6 +28,7 @@ public class ApiAuthenticationFilter extends OncePerRequestFilter {
 
     private static final String API_PREFIX = "/api/v1/";
     private static final String LOGIN_PATH = "/api/v1/enterprise/auth/login";
+    private static final String EMBED_LOGIN_PATH = "/api/v1/enterprise/auth/embed-login";
     private static final String BEARER_PREFIX = "Bearer ";
 
     private final EnterpriseAdminService adminService;
@@ -44,7 +45,8 @@ public class ApiAuthenticationFilter extends OncePerRequestFilter {
         String path = request.getRequestURI().substring(request.getContextPath().length());
         return "OPTIONS".equalsIgnoreCase(request.getMethod())
             || !path.startsWith(API_PREFIX)
-            || LOGIN_PATH.equals(path);
+            || LOGIN_PATH.equals(path)
+            || EMBED_LOGIN_PATH.equals(path);
     }
 
     /**

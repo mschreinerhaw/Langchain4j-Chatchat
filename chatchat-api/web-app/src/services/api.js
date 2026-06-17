@@ -870,6 +870,34 @@ export async function loginEnterprise(payload) {
   return session;
 }
 
+export async function loginEnterpriseWithEmbedToken(token) {
+  const session = await apiRequest("/enterprise/auth/embed-login", {
+    method: "POST",
+    body: JSON.stringify({ token })
+  });
+  if (session?.token) {
+    storeAuthSession(session);
+  }
+  return session;
+}
+
+export function fetchEmbedLoginTokens() {
+  return apiRequest("/enterprise/auth/embed-tokens");
+}
+
+export function createEmbedLoginToken(expiresInSeconds) {
+  return apiRequest("/enterprise/auth/embed-tokens", {
+    method: "POST",
+    body: JSON.stringify({ expiresInSeconds })
+  });
+}
+
+export function expireEmbedLoginToken(tokenId) {
+  return apiRequest(`/enterprise/auth/embed-tokens/${encodeURIComponent(tokenId)}/expire`, {
+    method: "POST"
+  });
+}
+
 export function fetchTenants() {
   return apiRequest("/enterprise/tenants");
 }

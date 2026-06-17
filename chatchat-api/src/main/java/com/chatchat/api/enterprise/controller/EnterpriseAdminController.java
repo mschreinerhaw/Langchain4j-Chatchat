@@ -16,6 +16,7 @@ import com.chatchat.enterprise.repository.SysAuditLogRepository;
 import com.chatchat.enterprise.repository.SysOrgRepository;
 import com.chatchat.enterprise.repository.SysRoleRepository;
 import com.chatchat.enterprise.repository.SysTenantRepository;
+import com.chatchat.api.security.ApiAuthenticationFilter;
 import com.chatchat.enterprise.service.EnterpriseAdminService;
 import com.chatchat.common.constants.AppConstants;
 import com.chatchat.common.response.ApiResponse;
@@ -23,6 +24,7 @@ import com.chatchat.chat.skills.SkillCatalogService;
 import com.chatchat.chat.skills.SkillDefinition;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -63,6 +65,62 @@ public class EnterpriseAdminController {
     @Operation(summary = "Development login endpoint")
     public ApiResponse<EnterpriseAdminService.AuthResult> login(@RequestBody LoginRequest request) {
         return ApiResponse.success(adminService.login(request.username(), request.password()), "login success");
+    }
+
+    /**
+     * Performs the embed token login operation.
+     *
+     * @param request the request value
+     * @return the operation result
+     */
+    @PostMapping("/auth/embed-login")
+    @Operation(summary = "Admin embed-token login endpoint")
+    public ApiResponse<EnterpriseAdminService.AuthResult> embedLogin(@RequestBody EmbedLoginRequest request) {
+        return ApiResponse.success(adminService.loginWithEmbedToken(request.token()), "login success");
+    }
+
+    /**
+     * Lists the admin embed login tokens.
+     *
+     * @param servletRequest the servlet request
+     * @return the embed login tokens
+     */
+    @GetMapping("/auth/embed-tokens")
+    @Operation(summary = "List admin embed login tokens")
+    public ApiResponse<List<EnterpriseAdminService.EmbedLoginTokenView>> listEmbedTokens(HttpServletRequest servletRequest) {
+        return ApiResponse.success(adminService.listEmbedLoginTokens(currentUsername(servletRequest)));
+    }
+
+    /**
+     * Creates an admin embed login token.
+     *
+     * @param servletRequest the servlet request
+     * @param request the request value
+     * @return the created embed token
+     */
+    @PostMapping("/auth/embed-tokens")
+    @Operation(summary = "Create admin embed login token")
+    public ApiResponse<EnterpriseAdminService.EmbedLoginTokenView> createEmbedToken(
+        HttpServletRequest servletRequest,
+        @RequestBody EnterpriseAdminService.EmbedLoginTokenRequest request
+    ) {
+        return ApiResponse.success(adminService.createEmbedLoginToken(currentUsername(servletRequest), request), "embed token created");
+    }
+
+    /**
+     * Expires an admin embed login token.
+     *
+     * @param servletRequest the servlet request
+     * @param id the token id
+     * @return the expired embed token
+     */
+    @PostMapping("/auth/embed-tokens/{id}/expire")
+    @Operation(summary = "Expire admin embed login token")
+    public ApiResponse<EnterpriseAdminService.EmbedLoginTokenView> expireEmbedToken(
+        HttpServletRequest servletRequest,
+        @PathVariable("id") String id
+    ) {
+        return ApiResponse.success(adminService.expireEmbedLoginToken(currentUsername(servletRequest), id), "embed token expired");
     }
 
     /**
@@ -567,6 +625,9 @@ public class EnterpriseAdminController {
     public record LoginRequest(String username, String password) {
     }
 
+    public record EmbedLoginRequest(String token) {
+    }
+
     public record UserUpsertRequest(SysUser user, List<String> roleIds) {
     }
 
@@ -595,5 +656,10 @@ public class EnterpriseAdminController {
             Boolean.TRUE.equals(skill.defaultAgent()),
             skill.skillTags()
         );
+    }
+
+    private String currentUsername(HttpServletRequest request) {
+        Object username = request.getAttribute(ApiAuthenticationFilter.CURRENT_USERNAME);
+        return username == null ? "" : String.valueOf(username);
     }
 }

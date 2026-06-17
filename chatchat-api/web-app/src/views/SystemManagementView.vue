@@ -86,6 +86,15 @@
               <em :class="['status-pill', user.status]">{{ statusLabel(user.status) }}</em>
             </span>
             <span class="entity-row-actions">
+              <button
+                v-if="isAdminUser(user)"
+                type="button"
+                class="icon-button"
+                title="嵌入登录 URL"
+                @click="openEmbedTokenModal(user)"
+              >
+                <KeyRound :size="15" />
+              </button>
               <button type="button" class="icon-button" title="编辑账户" @click="openUserModal(user)">
                 <Pencil :size="15" />
               </button>
@@ -298,6 +307,87 @@
             </button>
           </div>
         </form>
+      </div>
+
+      <div v-if="embedTokenModalOpen" class="permission-modal-backdrop" @click.self="closeEmbedTokenModal">
+        <div class="embed-token-modal">
+          <div class="modal-head">
+            <div>
+              <p>admin 嵌入登录</p>
+              <h2>URL 授权</h2>
+            </div>
+            <button type="button" class="icon-button" title="关闭" @click="closeEmbedTokenModal">
+              <X :size="18" />
+            </button>
+          </div>
+
+          <div class="embed-token-toolbar">
+            <label>
+              <span>授权时长</span>
+              <select v-model.number="embedTokenDuration">
+                <option v-for="option in embedTokenDurations" :key="option.value" :value="option.value">
+                  {{ option.label }}
+                </option>
+              </select>
+            </label>
+            <button type="button" class="primary-button" :disabled="embedTokenSaving" @click="createEmbedToken">
+              <Link2 :size="16" />
+              <span>生成 URL</span>
+            </button>
+          </div>
+
+          <div v-if="embedTokenLatestUrl" class="embed-token-url">
+            <input :value="embedTokenLatestUrl" readonly />
+            <button type="button" class="ghost-button compact-button" @click="copyEmbedTokenUrl(embedTokenLatestUrl)">
+              <Copy :size="14" />
+              复制
+            </button>
+          </div>
+
+          <div class="embed-token-table">
+            <div class="embed-token-head">
+              <span>Token</span>
+              <span>状态</span>
+              <span>过期时间</span>
+              <span>最后使用</span>
+              <span>次数</span>
+              <span>操作</span>
+            </div>
+            <div v-for="token in embedTokens" :key="token.id" class="embed-token-row">
+              <strong>{{ token.tokenPreview }}</strong>
+              <em :class="['status-pill', isEmbedTokenExpired(token) ? 'disabled' : '']">
+                {{ embedTokenStatusLabel(token) }}
+              </em>
+              <span>{{ formatDateTime(token.expiresAt) }}</span>
+              <span>{{ token.lastUsedAt ? formatDateTime(token.lastUsedAt) : "-" }}</span>
+              <span>{{ token.usedCount || 0 }}</span>
+              <span class="entity-row-actions">
+                <button
+                  type="button"
+                  class="icon-button"
+                  title="复制 URL"
+                  :disabled="isEmbedTokenExpired(token)"
+                  @click="copyEmbedTokenUrl(token)"
+                >
+                  <Copy :size="15" />
+                </button>
+                <button
+                  type="button"
+                  class="icon-button"
+                  title="立即过期"
+                  :disabled="isEmbedTokenExpired(token) || embedTokenSaving"
+                  @click="expireEmbedToken(token)"
+                >
+                  <RotateCcw :size="15" />
+                </button>
+              </span>
+            </div>
+            <div v-if="!embedTokenLoading && embedTokens.length === 0" class="empty-state">
+              暂无嵌入登录授权
+            </div>
+            <div v-if="embedTokenLoading" class="empty-state">加载中...</div>
+          </div>
+        </div>
       </div>
 
       <div v-if="roleModalOpen" class="permission-modal-backdrop" @click.self="closeRoleModal">

@@ -1,6 +1,7 @@
 package com.chatchat.enterprise.service;
 
 import com.chatchat.enterprise.entity.DataSourceConfig;
+import com.chatchat.enterprise.entity.EmbedLoginToken;
 import com.chatchat.enterprise.entity.ExternalOrg;
 import com.chatchat.enterprise.entity.ExternalUser;
 import com.chatchat.enterprise.entity.McpToolAsset;
@@ -16,6 +17,7 @@ import com.chatchat.enterprise.entity.SysTenant;
 import com.chatchat.enterprise.entity.SysUser;
 import com.chatchat.enterprise.entity.SysUserRole;
 import com.chatchat.enterprise.repository.DataSourceConfigRepository;
+import com.chatchat.enterprise.repository.EmbedLoginTokenRepository;
 import com.chatchat.enterprise.repository.ExternalOrgRepository;
 import com.chatchat.enterprise.repository.ExternalUserRepository;
 import com.chatchat.enterprise.repository.McpToolAssetRepository;
@@ -38,7 +40,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.nio.charset.StandardCharsets;
+import java.security.SecureRandom;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -75,8 +79,10 @@ public class EnterpriseAdminService implements ApplicationRunner {
     private final DataSourceConfigRepository dataSourceRepository;
     private final SysAuditLogRepository auditLogRepository;
     private final McpToolRegistryBridge registryBridge;
+    private final EmbedLoginTokenRepository embedLoginTokenRepository;
     private final Map<String, String> activeTokens = new ConcurrentHashMap<>();
     private final Map<String, UserView> activeTokenUsers = new ConcurrentHashMap<>();
+    private final SecureRandom secureRandom = new SecureRandom();
 
     /**
      * Runs the configured startup logic.
@@ -141,6 +147,105 @@ public class EnterpriseAdminService implements ApplicationRunner {
     }
 
     /**
+     * Logs in with an admin-owned embed token.
+     *
+     * @param token the embed token value
+     * @return the operation result
+     */
+    @Transactional
+    public AuthResult loginWithEmbedToken(String token) {
+        EmbedLoginToken record = resolveUsableEmbedToken(token)
+            .orElseThrow(() -> new IllegalArgumentException("embed token is invalid or expired"));
+        SysUser user = userRepository.findById(record.getUserId())
+            .orElseThrow(() -> new IllegalArgumentException("user not found"));
+        if (!isAdminUser(user) || !"enabled".equalsIgnoreCase(user.getStatus())) {
+            throw new IllegalArgumentException("embed token user is not available");
+        }
+        Instant now = Instant.now();
+        user.setLastLoginAt(now);
+        userRepository.save(user);
+        record.setLastUsedAt(now);
+        record.setUsedCount(record.getUsedCount() + 1L);
+        embedLoginTokenRepository.save(record);
+        UserView userView = toUserView(user);
+        activeTokenUsers.put(record.getToken(), userView);
+        audit(user.getTenantId(), user.getId(), user.getDisplayName(), "auth", "embed-login",
+            "embed_login_token", record.getId(), "embed login success");
+        return new AuthResult(record.getToken(), userView, record.getExpiresAt(), true);
+    }
+
+    /**
+     * Lists the embed login tokens for the admin user.
+     *
+     * @param operatorUsername the current operator username
+     * @return the embed token views
+     */
+    @Transactional(readOnly = true)
+    public List<EmbedLoginTokenView> listEmbedLoginTokens(String operatorUsername) {
+        SysUser admin = requireAdminOperator(operatorUsername);
+        return embedLoginTokenRepository.findByUserIdOrderByCreatedAtDesc(admin.getId()).stream()
+            .map(this::toEmbedLoginTokenView)
+            .toList();
+    }
+
+    /**
+     * Creates an embed login token for the admin user.
+     *
+     * @param operatorUsername the current operator username
+     * @param request the create request
+     * @return the created token view
+     */
+    @Transactional
+    public EmbedLoginTokenView createEmbedLoginToken(String operatorUsername, EmbedLoginTokenRequest request) {
+        SysUser admin = requireAdminOperator(operatorUsername);
+        long expiresInSeconds = request == null || request.expiresInSeconds() == null
+            ? ChronoUnit.DAYS.getDuration().getSeconds()
+            : request.expiresInSeconds();
+        Instant expiresAt = expiresInSeconds <= 0 ? null : Instant.now().plusSeconds(expiresInSeconds);
+        String token = generateSecureToken();
+        EmbedLoginToken record = new EmbedLoginToken();
+        record.setToken(token);
+        record.setTokenPreview(tokenPreview(token));
+        record.setTenantId(admin.getTenantId());
+        record.setUserId(admin.getId());
+        record.setUsername(admin.getUsername());
+        record.setDisplayName(admin.getDisplayName());
+        record.setExpiresAt(expiresAt);
+        record.setStatus("active");
+        record.setCreatedBy(admin.getId());
+        record.setCreatedByName(admin.getDisplayName());
+        EmbedLoginToken saved = embedLoginTokenRepository.save(record);
+        audit(admin.getTenantId(), admin.getId(), admin.getDisplayName(), "auth", "embed-token-create",
+            "embed_login_token", saved.getId(), expiresAt == null ? "permanent" : expiresAt.toString());
+        return toEmbedLoginTokenView(saved);
+    }
+
+    /**
+     * Expires an embed login token.
+     *
+     * @param operatorUsername the current operator username
+     * @param tokenId the token id
+     * @return the expired token view
+     */
+    @Transactional
+    public EmbedLoginTokenView expireEmbedLoginToken(String operatorUsername, String tokenId) {
+        SysUser admin = requireAdminOperator(operatorUsername);
+        EmbedLoginToken record = embedLoginTokenRepository.findById(requireText(tokenId, "tokenId"))
+            .orElseThrow(() -> new IllegalArgumentException("embed token not found"));
+        if (!admin.getId().equals(record.getUserId())) {
+            throw new IllegalArgumentException("embed token is not owned by admin");
+        }
+        record.setStatus("expired");
+        record.setExpiresAt(Instant.now());
+        record.setRevokedAt(Instant.now());
+        activeTokenUsers.remove(record.getToken());
+        EmbedLoginToken saved = embedLoginTokenRepository.save(record);
+        audit(admin.getTenantId(), admin.getId(), admin.getDisplayName(), "auth", "embed-token-expire",
+            "embed_login_token", saved.getId(), "expired by admin");
+        return toEmbedLoginTokenView(saved);
+    }
+
+    /**
      * Returns whether is token valid.
      *
      * @param token the token value
@@ -150,7 +255,8 @@ public class EnterpriseAdminService implements ApplicationRunner {
     public boolean isTokenValid(String token) {
         return resolveUserByToken(token)
             .filter(user -> "enabled".equalsIgnoreCase(user.getStatus()))
-            .isPresent();
+            .isPresent()
+            || resolveUsableEmbedToken(token).isPresent();
     }
 
     /**
@@ -177,11 +283,39 @@ public class EnterpriseAdminService implements ApplicationRunner {
      * @param token the bearer token value
      * @return the cached user snapshot
      */
+    @Transactional(readOnly = true)
     public Optional<UserView> resolveSessionByToken(String token) {
         if (token == null || token.isBlank()) {
             return Optional.empty();
         }
-        return Optional.ofNullable(activeTokenUsers.get(token.trim()));
+        String normalized = token.trim();
+        UserView cached = activeTokenUsers.get(normalized);
+        if (cached != null) {
+            if (activeTokens.get(normalized) != null) {
+                return Optional.of(cached);
+            }
+            Optional<EmbedLoginToken> embedToken = resolveUsableEmbedToken(normalized);
+            if (embedToken.isEmpty()) {
+                activeTokenUsers.remove(normalized);
+                return Optional.empty();
+            }
+            return embedToken
+                .flatMap(record -> userRepository.findById(record.getUserId()))
+                .filter(user -> isAdminUser(user) && "enabled".equalsIgnoreCase(user.getStatus()))
+                .map(user -> {
+                    UserView userView = toUserView(user);
+                    activeTokenUsers.put(normalized, userView);
+                    return userView;
+                });
+        }
+        return resolveUsableEmbedToken(normalized)
+            .flatMap(record -> userRepository.findById(record.getUserId()))
+            .filter(user -> isAdminUser(user) && "enabled".equalsIgnoreCase(user.getStatus()))
+            .map(user -> {
+                UserView userView = toUserView(user);
+                activeTokenUsers.put(normalized, userView);
+                return userView;
+            });
     }
 
     /**
@@ -777,6 +911,63 @@ public class EnterpriseAdminService implements ApplicationRunner {
             .or(() -> userRepository.findByUsername(value));
     }
 
+    private SysUser requireAdminOperator(String username) {
+        SysUser user = userRepository.findByUsername(requireText(username, "username"))
+            .orElseThrow(() -> new IllegalArgumentException("admin user not found"));
+        if (!isAdminUser(user) || !"enabled".equalsIgnoreCase(user.getStatus())) {
+            throw new IllegalArgumentException("only admin user can manage embed login tokens");
+        }
+        return user;
+    }
+
+    private Optional<EmbedLoginToken> resolveUsableEmbedToken(String token) {
+        if (token == null || token.isBlank()) {
+            return Optional.empty();
+        }
+        Instant now = Instant.now();
+        return embedLoginTokenRepository.findByToken(token.trim())
+            .filter(record -> "active".equalsIgnoreCase(record.getStatus()))
+            .filter(record -> record.getExpiresAt() == null || record.getExpiresAt().isAfter(now));
+    }
+
+    private EmbedLoginTokenView toEmbedLoginTokenView(EmbedLoginToken record) {
+        boolean expired = record.getExpiresAt() != null && !record.getExpiresAt().isAfter(Instant.now());
+        String effectiveStatus = expired && "active".equalsIgnoreCase(record.getStatus())
+            ? "expired"
+            : record.getStatus();
+        return new EmbedLoginTokenView(
+            record.getId(),
+            record.getToken(),
+            record.getTokenPreview(),
+            record.getUserId(),
+            record.getUsername(),
+            record.getDisplayName(),
+            effectiveStatus,
+            record.getExpiresAt(),
+            record.getLastUsedAt(),
+            record.getUsedCount(),
+            record.getCreatedAt(),
+            record.getUpdatedAt()
+        );
+    }
+
+    private boolean isAdminUser(SysUser user) {
+        return user != null && "admin".equalsIgnoreCase(user.getUsername());
+    }
+
+    private String generateSecureToken() {
+        byte[] bytes = new byte[32];
+        secureRandom.nextBytes(bytes);
+        return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+    }
+
+    private String tokenPreview(String token) {
+        if (token == null || token.length() <= 12) {
+            return token;
+        }
+        return token.substring(0, 6) + "..." + token.substring(token.length() - 6);
+    }
+
     private boolean hasAllAgentAccess(SysUser user) {
         if (user == null) {
             return false;
@@ -1231,7 +1422,29 @@ public class EnterpriseAdminService implements ApplicationRunner {
                 .orElseThrow(() -> new IllegalArgumentException("tenant not found")));
     }
 
-    public record AuthResult(String token, UserView user) {
+    public record AuthResult(String token, UserView user, Instant expiresAt, boolean embedded) {
+        public AuthResult(String token, UserView user) {
+            this(token, user, null, false);
+        }
+    }
+
+    public record EmbedLoginTokenRequest(Long expiresInSeconds) {
+    }
+
+    public record EmbedLoginTokenView(
+        String id,
+        String token,
+        String tokenPreview,
+        String userId,
+        String username,
+        String displayName,
+        String status,
+        Instant expiresAt,
+        Instant lastUsedAt,
+        long usedCount,
+        Instant createdAt,
+        Instant updatedAt
+    ) {
     }
 
     public record RoleAuthorizationRequest(

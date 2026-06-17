@@ -23,7 +23,8 @@ import {
   fetchConversationHistory,
   fetchWorkbenchShortcuts,
   getStoredAuthSession,
-  killRuntimeTask
+  killRuntimeTask,
+  loginEnterpriseWithEmbedToken
 } from "../services/api";
 import { notifyAgentTaskCancelled, onAgentTaskCancelled } from "./utils/agentTaskEvents";
 
@@ -163,13 +164,20 @@ export default {
     window.addEventListener("hashchange", this.handleHashChange);
     window.addEventListener(AUTH_REQUIRED_EVENT, this.handleAuthRequired);
     this.stopAgentTaskCancelledListener = onAgentTaskCancelled(this.handleAgentTaskCancelled);
+    const embedToken = this.consumeEmbedLoginToken();
+    if (embedToken) {
+      this.loginWithEmbedToken(embedToken);
+      return;
+    }
     if (isAuthenticatedSession(this.authSession)) {
       this.ensureAuthenticatedRoute();
       this.loadConversationHistory({ suppressError: true });
       this.loadFavoriteConversationIds();
       this.loadRuntimeTodos({ silent: true, suppressError: true });
       this.startTodoRefresh();
-      this.startIdleLogoutWatcher();
+      if (!this.authSession?.embedded) {
+        this.startIdleLogoutWatcher();
+      }
       return;
     }
     this.handleUnauthenticated();
@@ -195,11 +203,23 @@ export default {
       const sessionUser = session?.user || {};
       this.userId = sessionUser.username || sessionUser.id || USER_ID;
       this.navigateToView(this.consumeRedirectView() || viewFromHash() || DEFAULT_VIEW);
-      this.startIdleLogoutWatcher();
+      if (session?.embedded) {
+        this.stopIdleLogoutWatcher();
+      } else {
+        this.startIdleLogoutWatcher();
+      }
       this.loadConversationHistory({ suppressError: true });
       this.loadFavoriteConversationIds();
       this.loadRuntimeTodos({ silent: true, suppressError: true });
       this.startTodoRefresh();
+    },
+    async loginWithEmbedToken(token) {
+      try {
+        const session = await loginEnterpriseWithEmbedToken(token);
+        this.handleLoginSuccess(session);
+      } catch (error) {
+        this.handleUnauthenticated();
+      }
     },
     handleLogout() {
       this.handleUnauthenticated();
@@ -256,6 +276,18 @@ export default {
       sessionStorage.removeItem(REDIRECT_VIEW_KEY);
       return views[value] ? value : "";
     },
+    consumeEmbedLoginToken() {
+      const url = new URL(window.location.href);
+      const token = url.searchParams.get("embedToken") || "";
+      if (!token) {
+        return "";
+      }
+      url.searchParams.delete("embedToken");
+      const query = url.searchParams.toString();
+      const nextUrl = `${url.pathname}${query ? `?${query}` : ""}${url.hash}`;
+      window.history.replaceState({}, document.title, nextUrl);
+      return token.trim();
+    },
     navigateToView(view) {
       const nextView = views[view] ? view : DEFAULT_VIEW;
       this.activeView = nextView;
@@ -268,6 +300,10 @@ export default {
       }
     },
     startIdleLogoutWatcher() {
+      if (this.authSession?.embedded) {
+        this.stopIdleLogoutWatcher();
+        return;
+      }
       this.stopIdleLogoutWatcher();
       this.lastActivityAt = Date.now();
       ACTIVITY_EVENTS.forEach((eventName) => {

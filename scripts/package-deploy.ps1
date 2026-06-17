@@ -82,6 +82,36 @@ function Write-TextFile {
     Set-Content -Path $Path -Value $Content -Encoding UTF8
 }
 
+function Copy-TikaLibrariesToExt {
+    param(
+        [Parameter(Mandatory = $true)][string]$SourceJar,
+        [Parameter(Mandatory = $true)][string]$DestinationDir
+    )
+
+    Add-Type -AssemblyName System.IO.Compression.FileSystem
+    New-Item -Path $DestinationDir -ItemType Directory -Force | Out-Null
+
+    $Archive = [System.IO.Compression.ZipFile]::OpenRead($SourceJar)
+    try {
+        $Entries = $Archive.Entries |
+            Where-Object { $_.FullName -match '^BOOT-INF/lib/tika-.*\.jar$' } |
+            Sort-Object FullName
+
+        if ($Entries.Count -eq 0) {
+            Write-Warning "No Apache Tika libraries found in $SourceJar."
+            return
+        }
+
+        foreach ($Entry in $Entries) {
+            $DestPath = Join-Path $DestinationDir ([System.IO.Path]::GetFileName($Entry.FullName))
+            [System.IO.Compression.ZipFileExtensions]::ExtractToFile($Entry, $DestPath, $true)
+            Write-Host "Copied Tika library: $([System.IO.Path]::GetFileName($DestPath)) -> lib/ext"
+        }
+    } finally {
+        $Archive.Dispose()
+    }
+}
+
 if (!(Test-Path $RootPomPath)) {
     throw "Cannot find root pom.xml. Please run this script from the project workspace."
 }
@@ -159,13 +189,14 @@ if (Test-Path $StagingRoot) {
 }
 
 New-Item -Path $StagingRoot -ItemType Directory -Force | Out-Null
-foreach ($Dir in @("bin", "config", "data", "logs", "run", "lib", "lib\app", "lib\drivers")) {
+foreach ($Dir in @("bin", "config", "data", "logs", "run", "lib", "lib\app", "lib\ext", "lib\drivers")) {
     New-Item -Path (Join-Path $StagingRoot $Dir) -ItemType Directory -Force | Out-Null
 }
 
 Copy-Item -Path (Join-Path $TemplateDir "bin\*") -Destination (Join-Path $StagingRoot "bin") -Recurse -Force
 Copy-Item -Path (Join-Path $TemplateDir "config\*") -Destination (Join-Path $StagingRoot "config") -Recurse -Force
 Copy-Item -Path $JarFile.FullName -Destination (Join-Path $StagingRoot "lib\app\$AppName.jar") -Force
+Copy-TikaLibrariesToExt -SourceJar $JarFile.FullName -DestinationDir (Join-Path $StagingRoot "lib\ext")
 
 Write-TextFile -Path (Join-Path $StagingRoot "VERSION") -Content @"
 name=$AppName
@@ -185,6 +216,7 @@ Write-TextFile -Path (Join-Path $StagingRoot "README.md") -Content @"
 - `logs`: application logs and console output
 - `run`: pid file storage
 - `lib/app`: executable application jar
+- `lib/ext`: optional external application library jars, including copied Apache Tika jars
 - `lib/drivers`: optional external JDBC driver jars
 
 ## Start
@@ -220,8 +252,23 @@ Windows:
 
 - Configure `OPENAI_API_KEY` before enabling OpenAI-compatible model calls.
 - Use `config/application-mysql.yml` with `APP_ARGS=--spring.profiles.active=mysql` when deploying with MySQL.
+- Apache Tika jars are copied to `lib/ext` during packaging. Put other optional non-JDBC library jars in `lib/ext`, or directly under `lib`.
 - Put external JDBC driver jars in `lib/drivers`.
 - Runtime JVM options can be passed with `JAVA_OPTS`; extra Spring Boot arguments can be passed with `APP_ARGS`.
+"@
+
+Write-TextFile -Path (Join-Path $StagingRoot "lib\ext\README.md") -Content @"
+# Extension libraries
+
+Put optional non-JDBC application library jars in this directory.
+
+Apache Tika jars from the application package are copied here automatically during release packaging.
+
+The startup scripts load jars from:
+
+- `lib/*.jar`
+- `lib/ext`
+- `lib/drivers`
 "@
 
 Write-TextFile -Path (Join-Path $StagingRoot "lib\drivers\README.md") -Content @"

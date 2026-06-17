@@ -12,17 +12,32 @@ import {
   ListFilter,
   PauseCircle,
   PlayCircle,
+  Plus,
   RefreshCw,
+  Save,
   Search,
+  SlidersHorizontal,
   SquareStack,
+  Trash2,
   XCircle,
   Zap
 } from "@lucide/vue";
 import {
   cancelGenericAgentRun,
+  deleteChunkTypeRule,
+  deleteExpandRule,
+  deleteIntentRule,
+  fetchRetrievalRules,
   fetchGenericAgentRunTimeline,
   fetchGenericAgentRuntimeSnapshot,
   fetchGenericAgentRuns,
+  refreshRetrievalRules,
+  activateRetrievalRuleVersion,
+  publishRetrievalRules,
+  publishRetrievalRuleType,
+  saveChunkTypeRule,
+  saveExpandRule,
+  saveIntentRule,
   streamGenericAgentRunEvents
 } from "../../services/api";
 
@@ -44,9 +59,13 @@ export default {
     ListFilter,
     PauseCircle,
     PlayCircle,
+    Plus,
     RefreshCw,
+    Save,
     Search,
+    SlidersHorizontal,
     SquareStack,
+    Trash2,
     XCircle,
     Zap
   },
@@ -93,6 +112,22 @@ export default {
       streamState: {
         kind: "",
         message: ""
+      },
+      rulesLoading: false,
+      rulesError: "",
+      ruleTab: "intent",
+      retrievalRules: {
+        intentRules: [],
+        chunkTypeRules: [],
+        expandRules: [],
+        versions: [],
+        activeVersions: {},
+        refreshedAt: 0
+      },
+      ruleForms: {
+        intent: this.emptyIntentRule(),
+        chunk: this.emptyChunkTypeRule(),
+        expand: this.emptyExpandRule()
       }
     };
   },
@@ -156,6 +191,40 @@ export default {
         { key: "observations", label: "Observations", icon: CircleDot, count: this.observations.length }
       ];
     },
+    ruleTabs() {
+      return [
+        {
+          key: "intent",
+          label: "Intent",
+          type: "intent",
+          count: this.retrievalRules.intentRules.length,
+          active: this.retrievalRules.activeVersions?.intentVersion || 1
+        },
+        {
+          key: "chunk",
+          label: "Chunk Type",
+          type: "chunk",
+          count: this.retrievalRules.chunkTypeRules.length,
+          active: this.retrievalRules.activeVersions?.chunkVersion || 1
+        },
+        {
+          key: "expand",
+          label: "Expansion",
+          type: "expand",
+          count: this.retrievalRules.expandRules.length,
+          active: this.retrievalRules.activeVersions?.expandVersion || 1
+        }
+      ];
+    },
+    currentRuleType() {
+      return this.ruleTabs.find((tab) => tab.key === this.ruleTab)?.type || "intent";
+    },
+    currentRuleActiveVersion() {
+      return this.ruleTabs.find((tab) => tab.key === this.ruleTab)?.active || 1;
+    },
+    currentRuleVersions() {
+      return (this.retrievalRules.versions || []).filter((version) => version.type === this.currentRuleType);
+    },
     timelineItems() {
       const eventItems = this.events.map((event) => ({
         key: `event-${event.eventId || `${event.type}-${event.createdAt}`}`,
@@ -200,6 +269,9 @@ export default {
   },
   mounted() {
     this.loadRuntime();
+    if (!this.embedded) {
+      this.loadRetrievalRules();
+    }
     if (this.autoRefresh) {
       this.startAutoRefresh();
     }
@@ -248,6 +320,187 @@ export default {
       } finally {
         this.loading = false;
       }
+    },
+    async loadRetrievalRules() {
+      this.rulesLoading = true;
+      this.rulesError = "";
+      try {
+        const rules = await fetchRetrievalRules();
+        this.retrievalRules = this.normalizeRules(rules);
+      } catch (error) {
+        this.rulesError = error.message || "Failed to load retrieval rules.";
+      } finally {
+        this.rulesLoading = false;
+      }
+    },
+    async refreshRules() {
+      this.rulesLoading = true;
+      this.rulesError = "";
+      try {
+        const rules = await refreshRetrievalRules();
+        this.retrievalRules = this.normalizeRules(rules);
+      } catch (error) {
+        this.rulesError = error.message || "Failed to refresh retrieval rules.";
+      } finally {
+        this.rulesLoading = false;
+      }
+    },
+    async publishAllRules() {
+      this.rulesLoading = true;
+      this.rulesError = "";
+      try {
+        const rules = await publishRetrievalRules();
+        this.retrievalRules = this.normalizeRules(rules);
+      } catch (error) {
+        this.rulesError = error.message || "Failed to publish retrieval rules.";
+      } finally {
+        this.rulesLoading = false;
+      }
+    },
+    async publishCurrentRules() {
+      this.rulesLoading = true;
+      this.rulesError = "";
+      try {
+        const rules = await publishRetrievalRuleType(this.currentRuleType);
+        this.retrievalRules = this.normalizeRules(rules);
+      } catch (error) {
+        this.rulesError = error.message || "Failed to publish retrieval rule version.";
+      } finally {
+        this.rulesLoading = false;
+      }
+    },
+    async activateRuleVersion(version) {
+      if (!version?.version) {
+        return;
+      }
+      this.rulesLoading = true;
+      this.rulesError = "";
+      try {
+        const rules = await activateRetrievalRuleVersion(version.type, version.version);
+        this.retrievalRules = this.normalizeRules(rules);
+      } catch (error) {
+        this.rulesError = error.message || "Failed to activate retrieval rule version.";
+      } finally {
+        this.rulesLoading = false;
+      }
+    },
+    async saveRule(kind) {
+      this.rulesLoading = true;
+      this.rulesError = "";
+      try {
+        if (kind === "intent") {
+          await saveIntentRule(this.rulePayload(this.ruleForms.intent, ["intent", "keywords"]));
+          this.ruleForms.intent = this.emptyIntentRule();
+        } else if (kind === "chunk") {
+          await saveChunkTypeRule(this.rulePayload(this.ruleForms.chunk, ["chunkType"]));
+          this.ruleForms.chunk = this.emptyChunkTypeRule();
+        } else {
+          await saveExpandRule(this.rulePayload(this.ruleForms.expand, ["expandWords"]));
+          this.ruleForms.expand = this.emptyExpandRule();
+        }
+        await this.loadRetrievalRules();
+      } catch (error) {
+        this.rulesError = error.message || "Failed to save retrieval rule.";
+      } finally {
+        this.rulesLoading = false;
+      }
+    },
+    async deleteRule(kind, rule) {
+      if (!rule?.id || !window.confirm("Delete this retrieval rule?")) {
+        return;
+      }
+      this.rulesLoading = true;
+      this.rulesError = "";
+      try {
+        if (kind === "intent") {
+          await deleteIntentRule(rule.id);
+        } else if (kind === "chunk") {
+          await deleteChunkTypeRule(rule.id);
+        } else {
+          await deleteExpandRule(rule.id);
+        }
+        await this.loadRetrievalRules();
+      } catch (error) {
+        this.rulesError = error.message || "Failed to delete retrieval rule.";
+      } finally {
+        this.rulesLoading = false;
+      }
+    },
+    editRule(kind, rule) {
+      if (kind === "intent") {
+        this.ruleForms.intent = { ...this.emptyIntentRule(), ...rule };
+      } else if (kind === "chunk") {
+        this.ruleForms.chunk = { ...this.emptyChunkTypeRule(), ...rule };
+      } else {
+        this.ruleForms.expand = { ...this.emptyExpandRule(), ...rule };
+      }
+    },
+    resetRuleForm(kind) {
+      if (kind === "intent") {
+        this.ruleForms.intent = this.emptyIntentRule();
+      } else if (kind === "chunk") {
+        this.ruleForms.chunk = this.emptyChunkTypeRule();
+      } else {
+        this.ruleForms.expand = this.emptyExpandRule();
+      }
+    },
+    normalizeRules(rules) {
+      return {
+        intentRules: Array.isArray(rules?.intentRules) ? rules.intentRules : [],
+        chunkTypeRules: Array.isArray(rules?.chunkTypeRules) ? rules.chunkTypeRules : [],
+        expandRules: Array.isArray(rules?.expandRules) ? rules.expandRules : [],
+        versions: Array.isArray(rules?.versions) ? rules.versions : [],
+        activeVersions: rules?.activeVersions || {},
+        refreshedAt: rules?.refreshedAt || 0
+      };
+    },
+    rulePayload(form, requiredFields) {
+      const payload = {
+        ...form,
+        weight: Number(form.weight || 1),
+        priority: Number(form.priority || 0),
+        enabled: !!form.enabled
+      };
+      requiredFields.forEach((field) => {
+        if (!String(payload[field] || "").trim()) {
+          throw new Error(`${field} is required.`);
+        }
+      });
+      return payload;
+    },
+    emptyIntentRule() {
+      return {
+        id: null,
+        intent: "",
+        name: "",
+        keywords: "",
+        regex: "",
+        weight: 1,
+        priority: 0,
+        enabled: true
+      };
+    },
+    emptyChunkTypeRule() {
+      return {
+        id: null,
+        chunkType: "",
+        keywords: "",
+        pattern: "",
+        weight: 1,
+        priority: 0,
+        enabled: true
+      };
+    },
+    emptyExpandRule() {
+      return {
+        id: null,
+        intent: "",
+        sourceWord: "",
+        expandWords: "",
+        weight: 1,
+        priority: 0,
+        enabled: true
+      };
     },
     async loadTimeline(runId) {
       if (!runId) {

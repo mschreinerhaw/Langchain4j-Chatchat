@@ -282,6 +282,9 @@ public class SearchController {
         if ("excel".equals(file.documentType()) || fileName.endsWith(".xls") || fileName.endsWith(".xlsx")) {
             return MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
         }
+        if ("presentation".equals(file.documentType()) || fileName.endsWith(".ppt") || fileName.endsWith(".pptx")) {
+            return MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.presentationml.presentation");
+        }
         if ("markdown".equals(file.documentType()) || fileName.endsWith(".md")) {
             return MediaType.parseMediaType("text/markdown");
         }

@@ -38,6 +38,8 @@
 .agent-runtime-head,
 .agent-runtime-compact-head,
 .agent-runtime-filters,
+.agent-runtime-rules,
+.agent-runtime-rules-head,
 .agent-runtime-shell,
 .agent-runtime-detail-head,
 .agent-runtime-run-summary,
@@ -116,7 +118,8 @@
 
 .agent-runtime-actions,
 .agent-runtime-run-actions,
-.agent-runtime-runs header {
+.agent-runtime-runs header,
+.agent-runtime-rules-head {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -272,16 +275,225 @@
 }
 
 .agent-runtime-view input,
-.agent-runtime-view select {
+.agent-runtime-view select,
+.agent-runtime-view textarea {
   width: 100%;
-  height: 38px;
   min-width: 0;
   border: 1px solid #d8e1ef;
   border-radius: 8px;
-  padding: 0 11px;
   background: #fff;
   color: var(--text);
   outline: 0;
+}
+
+.agent-runtime-view input,
+.agent-runtime-view select {
+  height: 38px;
+  padding: 0 11px;
+}
+
+.agent-runtime-view textarea {
+  min-height: 84px;
+  resize: vertical;
+  padding: 9px 11px;
+  font: inherit;
+  line-height: 1.45;
+}
+
+.agent-runtime-rules {
+  display: grid;
+  gap: 10px;
+  border: 1px solid #e1e8f2;
+  border-radius: 8px;
+  padding: 12px;
+  background: #fff;
+}
+
+.agent-runtime-rules-head {
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+.agent-runtime-rules-head > div {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+  margin-right: auto;
+}
+
+.agent-runtime-rules-head p,
+.agent-runtime-rules-head strong,
+.agent-runtime-rule-form span,
+.agent-runtime-rule-list small {
+  margin: 0;
+}
+
+.agent-runtime-rules-head p,
+.agent-runtime-rule-form span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.agent-runtime-rules-head strong {
+  color: #344054;
+  font-size: 13px;
+}
+
+.agent-runtime-rule-tabs {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  padding: 9px 0;
+}
+
+.agent-runtime-rule-tabs button {
+  min-height: 34px;
+  flex: 0 0 auto;
+  border-radius: 999px;
+}
+
+.agent-runtime-rule-tabs button.active {
+  border-color: rgba(47, 124, 246, 0.45);
+  background: rgba(47, 124, 246, 0.08);
+  color: var(--primary-strong);
+}
+
+.agent-runtime-rule-tabs strong {
+  min-width: 22px;
+  height: 22px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 999px;
+  background: #f2f5fb;
+  font-size: 11px;
+}
+
+.agent-runtime-rule-versions {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+}
+
+.agent-runtime-rule-versions button {
+  min-height: 32px;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  padding: 0 10px;
+}
+
+.agent-runtime-rule-versions button.active {
+  border-color: rgba(32, 178, 107, 0.42);
+  background: #ecfdf3;
+  color: #047857;
+}
+
+.agent-runtime-rule-versions strong {
+  font-size: 10px;
+  letter-spacing: 0;
+}
+
+.agent-runtime-rule-grid {
+  display: grid;
+  grid-template-columns: minmax(320px, 0.45fr) minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.agent-runtime-rule-form {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.agent-runtime-rule-form label {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.agent-runtime-rule-form label:has(textarea),
+.agent-runtime-rule-wide,
+.agent-runtime-rule-actions {
+  grid-column: 1 / -1;
+}
+
+.agent-runtime-rule-check {
+  grid-template-columns: 18px minmax(0, 1fr);
+  align-items: center;
+  align-self: end;
+  min-height: 38px;
+}
+
+.agent-runtime-rule-check input {
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  accent-color: var(--primary);
+}
+
+.agent-runtime-rule-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.agent-runtime-rule-list {
+  min-width: 0;
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  max-height: 360px;
+  overflow: auto;
+}
+
+.agent-runtime-rule-list article {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto 34px;
+  gap: 8px;
+  align-items: center;
+  border: 1px solid #e7ebf3;
+  border-radius: 8px;
+  padding: 8px;
+  background: #fbfdff;
+}
+
+.agent-runtime-rule-list article > button:first-child {
+  min-width: 0;
+  min-height: 34px;
+  display: grid;
+  justify-items: start;
+  gap: 2px;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  text-align: left;
+}
+
+.agent-runtime-rule-list article > button:last-child {
+  width: 34px;
+  min-height: 34px;
+  padding: 0;
+}
+
+.agent-runtime-rule-list strong,
+.agent-runtime-rule-list span,
+.agent-runtime-rule-list small {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-runtime-rule-list span,
+.agent-runtime-rule-list small {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
 }
 
 .agent-runtime-search div {
@@ -744,10 +956,15 @@
   .agent-runtime-shell {
     grid-template-columns: 1fr;
   }
+
+  .agent-runtime-rule-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 720px) {
   .agent-runtime-head,
+  .agent-runtime-rules-head,
   .agent-runtime-detail-head,
   .agent-runtime-run-summary {
     align-items: stretch;
@@ -775,5 +992,26 @@
   .agent-runtime-filters button,
   .agent-runtime-search {
     grid-column: 1 / -1;
+  }
+
+  .agent-runtime-rule-form {
+    grid-template-columns: 1fr;
+  }
+
+  .agent-runtime-rule-actions {
+    justify-content: stretch;
+  }
+
+  .agent-runtime-rule-actions button {
+    flex: 1 1 0;
+  }
+
+  .agent-runtime-rule-list article {
+    grid-template-columns: minmax(0, 1fr) 34px;
+  }
+
+  .agent-runtime-rule-list small {
+    grid-column: 1 / -1;
+    grid-row: 2;
   }
 }

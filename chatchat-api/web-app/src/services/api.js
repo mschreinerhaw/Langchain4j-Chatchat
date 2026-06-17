@@ -406,6 +406,81 @@ export function streamGenericAgentRunEvents(runId, filters = {}, handlers = {}) 
   );
 }
 
+export function fetchRetrievalRules() {
+  return apiRequest("/retrieval/rules");
+}
+
+export function refreshRetrievalRules() {
+  return apiRequest("/retrieval/rules/refresh", {
+    method: "POST"
+  });
+}
+
+export function publishRetrievalRules() {
+  return apiRequest("/retrieval/rules/versions/publish", {
+    method: "POST"
+  });
+}
+
+export function publishRetrievalRuleType(type, version = "") {
+  const params = new URLSearchParams();
+  if (version) {
+    params.set("version", String(version));
+  }
+  const query = params.toString();
+  return apiRequest(`/retrieval/rules/versions/${encodeURIComponent(type)}/publish${query ? `?${query}` : ""}`, {
+    method: "POST"
+  });
+}
+
+export function activateRetrievalRuleVersion(type, version) {
+  return apiRequest(`/retrieval/rules/versions/${encodeURIComponent(type)}/activate/${encodeURIComponent(version)}`, {
+    method: "POST"
+  });
+}
+
+export function saveIntentRule(payload) {
+  const id = payload?.id;
+  return apiRequest(`/retrieval/rules/intent${id ? `/${encodeURIComponent(id)}` : ""}`, {
+    method: id ? "PUT" : "POST",
+    body: JSON.stringify(payload || {})
+  });
+}
+
+export function deleteIntentRule(id) {
+  return apiRequest(`/retrieval/rules/intent/${encodeURIComponent(id)}`, {
+    method: "DELETE"
+  });
+}
+
+export function saveChunkTypeRule(payload) {
+  const id = payload?.id;
+  return apiRequest(`/retrieval/rules/chunk-type${id ? `/${encodeURIComponent(id)}` : ""}`, {
+    method: id ? "PUT" : "POST",
+    body: JSON.stringify(payload || {})
+  });
+}
+
+export function deleteChunkTypeRule(id) {
+  return apiRequest(`/retrieval/rules/chunk-type/${encodeURIComponent(id)}`, {
+    method: "DELETE"
+  });
+}
+
+export function saveExpandRule(payload) {
+  const id = payload?.id;
+  return apiRequest(`/retrieval/rules/expand${id ? `/${encodeURIComponent(id)}` : ""}`, {
+    method: id ? "PUT" : "POST",
+    body: JSON.stringify(payload || {})
+  });
+}
+
+export function deleteExpandRule(id) {
+  return apiRequest(`/retrieval/rules/expand/${encodeURIComponent(id)}`, {
+    method: "DELETE"
+  });
+}
+
 export function fetchConversationHistory(userId, filters = {}) {
   const params = new URLSearchParams();
   if (filters.keyword) {

@@ -6,13 +6,15 @@ $AppJar = Join-Path $AppHome "lib/app/$AppName.jar"
 $LogsDir = Join-Path $AppHome "logs"
 $RunDir = Join-Path $AppHome "run"
 $DataDir = Join-Path $AppHome "data"
+$LibDir = Join-Path $AppHome "lib"
+$ExtLibDir = Join-Path $LibDir "ext"
 $DriversDir = Join-Path $AppHome "lib/drivers"
 $PidFile = Join-Path $RunDir "$AppName.pid"
 $StdoutLog = Join-Path $LogsDir "$AppName.out"
 $StderrLog = Join-Path $LogsDir "$AppName.err"
 $ConfigDir = Join-Path $AppHome "config"
 
-New-Item -ItemType Directory -Force -Path $LogsDir, $RunDir, $DataDir, $DriversDir | Out-Null
+New-Item -ItemType Directory -Force -Path $LogsDir, $RunDir, $DataDir, $ExtLibDir, $DriversDir | Out-Null
 
 . (Join-Path $PSScriptRoot "load-env.ps1")
 if (-not $env:SPRING_PROFILES_ACTIVE) {
@@ -34,7 +36,14 @@ if (-not (Test-Path $AppJar)) {
 }
 
 $Java = if ($env:JAVA_HOME) { Join-Path $env:JAVA_HOME "bin/java.exe" } else { "java" }
-$ArgumentLine = (($env:JAVA_OPTS, "-jar", "`"$AppJar`"", "--spring.config.additional-location=optional:file:$ConfigDir/", $env:APP_ARGS) |
+$RootLibJars = Get-ChildItem -Path $LibDir -Filter "*.jar" -File -ErrorAction SilentlyContinue |
+    Sort-Object Name |
+    ForEach-Object { $_.FullName }
+$LoaderPathItems = @($RootLibJars) + @($ExtLibDir, $DriversDir)
+$LoaderPath = ($LoaderPathItems |
+    Where-Object { $_ }) -join ","
+$LauncherClass = "org.springframework.boot.loader.launch.PropertiesLauncher"
+$ArgumentLine = (($env:JAVA_OPTS, "-Dloader.path=`"$LoaderPath`"", "-cp", "`"$AppJar`"", $LauncherClass, "--spring.config.additional-location=optional:file:$ConfigDir/", $env:APP_ARGS) |
     Where-Object { $_ }) -join " "
 
 $Process = Start-Process `

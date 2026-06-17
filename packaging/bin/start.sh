@@ -7,6 +7,10 @@ APP_JAR="$APP_HOME/lib/app/$APP_NAME.jar"
 PID_FILE="$APP_HOME/run/$APP_NAME.pid"
 STDOUT_LOG="$APP_HOME/logs/$APP_NAME.out"
 CONFIG_DIR="$APP_HOME/config/"
+LIB_DIR="$APP_HOME/lib"
+EXT_LIB_DIR="$LIB_DIR/ext"
+DRIVERS_DIR="$LIB_DIR/drivers"
+LAUNCHER_CLASS="org.springframework.boot.loader.launch.PropertiesLauncher"
 
 if [ -n "${JAVA_HOME:-}" ]; then
   JAVA_CMD="$JAVA_HOME/bin/java"
@@ -14,7 +18,7 @@ else
   JAVA_CMD="java"
 fi
 
-mkdir -p "$APP_HOME/logs" "$APP_HOME/run" "$APP_HOME/data" "$APP_HOME/lib/drivers"
+mkdir -p "$APP_HOME/logs" "$APP_HOME/run" "$APP_HOME/data" "$EXT_LIB_DIR" "$DRIVERS_DIR"
 
 . "$APP_HOME/bin/load-env.sh"
 export SPRING_PROFILES_ACTIVE="${SPRING_PROFILES_ACTIVE:-prod}"
@@ -33,7 +37,14 @@ if [ ! -f "$APP_JAR" ]; then
   exit 1
 fi
 
-nohup "$JAVA_CMD" ${JAVA_OPTS:-} -jar "$APP_JAR" \
+LOADER_PATH="$EXT_LIB_DIR,$DRIVERS_DIR"
+for JAR in "$LIB_DIR"/*.jar; do
+  if [ -f "$JAR" ]; then
+    LOADER_PATH="$JAR,$LOADER_PATH"
+  fi
+done
+
+nohup "$JAVA_CMD" ${JAVA_OPTS:-} "-Dloader.path=$LOADER_PATH" -cp "$APP_JAR" "$LAUNCHER_CLASS" \
   --spring.config.additional-location="optional:file:$CONFIG_DIR" \
   ${APP_ARGS:-} >> "$STDOUT_LOG" 2>&1 &
 

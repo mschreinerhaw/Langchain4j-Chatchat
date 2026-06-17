@@ -1,5 +1,9 @@
 package com.chatchat.agents.orchestration;
 
+import com.chatchat.agents.evidence.EvidenceAudit;
+import com.chatchat.agents.evidence.EvidenceChunk;
+import com.chatchat.agents.evidence.EvidenceFormatter;
+import com.chatchat.agents.evidence.EvidenceNormalizer;
 import com.chatchat.common.tool.ToolOutput;
 
 import java.util.ArrayList;
@@ -21,6 +25,8 @@ class ToolObservationBuilder {
     private static final String SEARCH_AND_EXTRACT_TOOL = "search_and_extract";
 
     private final EvidenceTrustEvaluator evidenceTrustEvaluator;
+    private final EvidenceNormalizer evidenceNormalizer = new EvidenceNormalizer();
+    private final EvidenceFormatter evidenceFormatter = new EvidenceFormatter();
 
     ToolObservationBuilder(EvidenceTrustEvaluator evidenceTrustEvaluator) {
         this.evidenceTrustEvaluator = evidenceTrustEvaluator == null ? new EvidenceTrustEvaluator() : evidenceTrustEvaluator;
@@ -52,6 +58,7 @@ class ToolObservationBuilder {
             observation.append(" Message: ").append(shortObservationText(message, 400));
         }
         Map<String, Object> root = asMap(data);
+        appendUnifiedEvidence(observation, toolName, data);
         if (!root.isEmpty()) {
             observation.append("\nWeb search summary: query=")
                 .append(firstNonBlank(stringValue(root.get("query")), "unknown"))
@@ -142,6 +149,7 @@ class ToolObservationBuilder {
         }
 
         Map<String, Object> root = asMap(data);
+        appendUnifiedEvidence(observation, toolName, data);
         if (!root.isEmpty()) {
             List<Map<String, Object>> results = new ArrayList<>();
             addCandidateList(results, root.get("results"));
@@ -182,6 +190,51 @@ class ToolObservationBuilder {
             observation.append("\n");
         }
         return observation.toString();
+    }
+
+    private void appendUnifiedEvidence(StringBuilder observation, String toolName, Object data) {
+        Object evidenceData = trustedUnifiedEvidenceData(toolName, data);
+        List<EvidenceChunk> chunks = evidenceNormalizer.normalize(toolName, evidenceData, WEB_SEARCH_REFERENCE_LIMIT);
+        if (chunks.isEmpty()) {
+            return;
+        }
+        String context = evidenceFormatter.formatContext(chunks);
+        if (context == null || context.isBlank()) {
+            return;
+        }
+        observation.append('\n').append(context).append('\n');
+        List<EvidenceAudit> audits = evidenceNormalizer.audits(toolName, data, chunks);
+        if (!audits.isEmpty()) {
+            long documentCount = chunks.stream().filter(chunk -> chunk.evidenceType() != null && "DOCUMENT".equals(chunk.evidenceType().name())).count();
+            long webCount = chunks.stream().filter(chunk -> chunk.evidenceType() != null && "WEB".equals(chunk.evidenceType().name())).count();
+            long blockedCount = audits.stream().filter(audit -> "BLOCKED".equals(audit.policyStatus())).count();
+            observation.append("Evidence audit: toolName=")
+                .append(firstNonBlank(toolName, "unknown"))
+                .append(", contractVersion=evidence_v1")
+                .append(", documentEvidence=")
+                .append(documentCount)
+                .append(", webEvidence=")
+                .append(webCount)
+                .append(", blockedEvidence=")
+                .append(blockedCount)
+                .append(".\n");
+        }
+    }
+
+    private Object trustedUnifiedEvidenceData(String toolName, Object data) {
+        if (!isWebEvidenceToolName(toolName)) {
+            return data;
+        }
+        Map<String, Object> root = asMap(data);
+        List<Map<String, Object>> evidenceChunks = new ArrayList<>();
+        addCandidateList(evidenceChunks, root.get("evidence_chunks"));
+        if (evidenceChunks.isEmpty()) {
+            return data;
+        }
+        EvidenceTrustEvaluator.TrustResult trustResult = evidenceTrustEvaluator.evaluate(evidenceChunks);
+        Map<String, Object> trustedRoot = new LinkedHashMap<>(root);
+        trustedRoot.put("evidence_chunks", trustResult.usableEvidence());
+        return trustedRoot;
     }
 
     private List<WebCitation> extractWebCitations(Object data) {

@@ -25,11 +25,22 @@ public class DefaultAgentObservationPipeline implements AgentObservationPipeline
             return "text";
         }
         String normalized = content.toLowerCase(Locale.ROOT);
+        if (normalized.contains("contractversion=evidence_v1")
+            || normalized.contains("\"contractversion\":\"evidence_v1\"")
+            || normalized.contains("unified evidence context")) {
+            if (normalized.contains("type: document")) {
+                return "document_evidence";
+            }
+            return "evidence";
+        }
         if (normalized.contains("evidence trust policy") || normalized.contains("web citation map")
             || normalized.contains("web search summary")) {
             return "web_evidence";
         }
-        if (normalized.contains("document evidence snippets") || normalized.contains("document search")) {
+        if (normalized.contains("document_evidence_v1")
+            || normalized.contains("document evidence snippets")
+            || normalized.contains("document search")
+            || (normalized.contains("\"contractversion\"") && normalized.contains("\"citations\""))) {
             return "document_evidence";
         }
         if (normalized.startsWith("mandatory fallback tool ")
@@ -73,8 +84,15 @@ public class DefaultAgentObservationPipeline implements AgentObservationPipeline
         if (content != null && content.contains("Evidence trust policy")) {
             values.put("containsTrustPolicy", true);
         }
+        if (content != null && (content.contains("contractVersion=evidence_v1") || content.contains("Unified evidence context"))) {
+            values.put("containsUnifiedEvidence", true);
+            values.put("evidenceContractVersion", "evidence_v1");
+        }
         if (content != null && content.contains("Web citation map")) {
             values.put("containsCitations", true);
+        }
+        if (content != null && (content.contains("document_evidence_v1") || content.contains("\"citations\""))) {
+            values.put("containsDocumentCitations", true);
         }
         return values;
     }

@@ -63,6 +63,10 @@ public class DefaultAgentAnswerReviewer implements AgentAnswerReviewer {
         prompt.append("If both document_search and web_search observations are available, the answer must distinguish internal document evidence from web verification evidence and explicitly handle conflicts.\n");
         prompt.append("If an observation says a tool failed, the answer must not claim that the failed tool provided supporting evidence.\n");
         prompt.append("If an observation says the Evidence trust policy requests more evidence, reject answers that present unsupported strong claims.\n");
+        prompt.append("If observations include evidence_v1 Unified evidence context, reject answers that rely on EvidenceChunk content but omit the matching doc:// or web:// citation.\n");
+        prompt.append("If observations include evidence_v1, reject answers that cannot be represented as EvidenceAnswer with answer, citations, confidence, and missingInfo.\n");
+        prompt.append("If observations include document_evidence_v1, document evidence context, or document citations, reject and revise answers that rely on document evidence but omit the matching document citation.\n");
+        prompt.append("If observations include document_evidence_v1, reject answers that cannot be represented as EvidenceAnswer with answer, citations, confidence, and missingInfo.\n");
         prompt.append("If observations include web citation labels such as [网页1], web-derived claims in the answer must keep the matching labels; reject and revise answers that omit those labels.\n");
         prompt.append("Do not remove citation markers that prove which web page supports a statement.\n");
         prompt.append("If the user's request is in Chinese, the revised answer must be in Chinese.\n\n");

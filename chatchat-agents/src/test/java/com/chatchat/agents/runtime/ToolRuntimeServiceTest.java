@@ -7,6 +7,7 @@ import com.chatchat.common.tool.ToolOutput;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -43,6 +44,88 @@ class ToolRuntimeServiceTest {
         assertThat(execution.output().getErrorMessage()).contains("not allowed");
         assertThat(execution.trace().getRuntimeMetadata()).containsEntry("outcome", "denied");
         assertThat(service.snapshot().deniedCalls()).isEqualTo(1);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void attachesUnifiedGovernanceToReadonlyToolTraceAndAudit() {
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.getToolMetadata("db_read")).thenReturn(ToolMetadata.builder()
+            .id("db_read")
+            .title("DB Read")
+            .riskLevel("low")
+            .operationType("read")
+            .build());
+        when(toolRegistry.executeEnhancedTool(any(), any())).thenReturn(ToolOutput.success("rows"));
+        List<ToolRuntimeAuditRecord> audits = new ArrayList<>();
+        ToolRuntimeService service = new ToolRuntimeService(
+            toolRegistry,
+            new ObjectMapper(),
+            properties(),
+            List.of(),
+            List.of(audits::add)
+        );
+
+        ToolRuntimeExecution execution = service.execute(ToolRuntimeRequest.builder()
+            .toolName("db_read")
+            .runtimeMode("agent_chat")
+            .requestId("req-governance-read")
+            .conversationId("conv-governance-read")
+            .tenantId("tenant-a")
+            .userId("user-a")
+            .allowedTools(List.of("db_read"))
+            .toolInput(ToolInput.builder().userId("user-a").parameters(Map.of("sql", "select 1")).build())
+            .attributes(Map.of("roles", List.of("analyst"), "auditId", "audit-read-1"))
+            .build());
+
+        Map<String, Object> governance = (Map<String, Object>) execution.audit().get("governance");
+        assertThat(execution.output().isSuccess()).isTrue();
+        assertThat(governance)
+            .containsEntry("contractVersion", "tool_governance_v1")
+            .containsEntry("tenantId", "tenant-a")
+            .containsEntry("userId", "user-a")
+            .containsEntry("riskLevel", "readonly")
+            .containsEntry("policyDecision", "ALLOW")
+            .containsEntry("confirmRequired", false)
+            .containsEntry("auditId", "audit-read-1");
+        assertThat((List<String>) governance.get("roles")).containsExactly("analyst");
+        assertThat(execution.trace().getRuntimeMetadata().get("governance")).isEqualTo(governance);
+        assertThat(audits).hasSize(1);
+        assertThat(audits.get(0).runtimeMetadata().get("governance")).isEqualTo(governance);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void requiresConfirmationForNonMcpWriteToolThroughUnifiedGovernance() {
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.getToolMetadata("http_post")).thenReturn(ToolMetadata.builder()
+            .id("http_post")
+            .title("HTTP POST")
+            .riskLevel("low")
+            .operationType("write")
+            .build());
+        ToolRuntimeService service = new ToolRuntimeService(toolRegistry, new ObjectMapper(), properties(), List.of(), List.of());
+
+        ToolRuntimeExecution execution = service.execute(ToolRuntimeRequest.builder()
+            .toolName("http_post")
+            .runtimeMode("agent_chat")
+            .requestId("req-governance-write")
+            .conversationId("conv-governance-write")
+            .tenantId("tenant-a")
+            .userId("user-a")
+            .allowedTools(List.of("http_post"))
+            .toolInput(ToolInput.builder().userId("user-a").parameters(Map.of("url", "https://example.com", "body", "{}")).build())
+            .build());
+
+        Map<String, Object> governance = (Map<String, Object>) execution.audit().get("governance");
+        assertThat(execution.outcome()).isEqualTo("confirmation_required");
+        assertThat(governance)
+            .containsEntry("contractVersion", "tool_governance_v1")
+            .containsEntry("riskLevel", "confirm_required")
+            .containsEntry("policyDecision", "REQUIRE_CONFIRM")
+            .containsEntry("confirmRequired", true)
+            .containsEntry("confirmed", false);
+        verify(toolRegistry, never()).executeEnhancedTool(any(), any());
     }
 
     @Test

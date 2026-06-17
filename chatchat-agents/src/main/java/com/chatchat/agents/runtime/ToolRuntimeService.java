@@ -25,6 +25,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
@@ -751,7 +752,107 @@ public class ToolRuntimeService {
                 values.put("confirmation", buildConfirmationPayload(request, metadata, executionPlan, policyDecision));
             }
         }
+        ToolGovernanceDecision governance = governanceDecision(request, metadata, outcome, executionPlan, policyDecision);
+        values.put("governance", governance.toMap());
+        values.put("tenantId", governance.tenantId());
+        values.put("roles", governance.roles());
+        values.put("auditId", governance.auditId());
+        values.put("policyDecision", governance.policyDecision());
+        values.put("confirmRequired", governance.confirmRequired());
         return values;
+    }
+
+    private ToolGovernanceDecision governanceDecision(ToolRuntimeRequest request,
+                                                      ToolMetadata metadata,
+                                                      String outcome,
+                                                      ToolExecutionPlan executionPlan,
+                                                      ToolPolicyDecision policyDecision) {
+        ToolRuntimeAction action = policyDecision == null ? null : policyDecision.action();
+        String runtimeLevel = policyDecision == null
+            ? normalizeRuntimeLevel(firstText(metadata == null ? null : metadata.getRuntimeLevel(), properties.getDefaultRuntimeLevel()))
+            : policyDecision.runtimeLevel();
+        String toolRiskLevel = policyDecision == null
+            ? firstText(executionPlan == null ? null : executionPlan.riskLevel(), metadata == null ? "low" : metadata.getRiskLevel())
+            : policyDecision.riskLevel();
+        String decision = policyDecisionLabel(action, outcome);
+        boolean confirmRequired = action == ToolRuntimeAction.ASK_BEFORE_EXECUTE
+            || "REQUIRE_CONFIRM".equals(decision)
+            || "confirmation_required".equals(outcome);
+        boolean confirmed = policyDecision != null
+            && action == ToolRuntimeAction.ASK_BEFORE_EXECUTE
+            && isConfirmed(request, policyDecision)
+            && !"confirmation_required".equals(outcome);
+        return new ToolGovernanceDecision(
+            ToolGovernanceDecision.CONTRACT_VERSION,
+            normalizeText(request == null ? null : request.getTenantId()),
+            normalizeText(request == null ? null : request.getUserId()),
+            governanceRoles(request),
+            runtimeLevel,
+            normalizePolicyKey(toolRiskLevel),
+            confirmRequired,
+            confirmed,
+            auditId(request),
+            decision,
+            action == null ? null : action.code(),
+            policyDecision == null ? null : policyDecision.reason(),
+            runtimeLevel,
+            policyDecision == null
+                ? firstText(executionPlan == null ? null : executionPlan.operationType(), metadata == null ? null : metadata.getOperationType())
+                : policyDecision.operationType(),
+            policyDecision == null ? null : policyDecision.dataScope(),
+            policyDecision == null ? List.of() : policyDecision.matchedRules()
+        );
+    }
+
+    private String policyDecisionLabel(ToolRuntimeAction action, String outcome) {
+        if (action == ToolRuntimeAction.DENY || "denied".equals(outcome)) {
+            return "BLOCK";
+        }
+        if (action == ToolRuntimeAction.ASK_BEFORE_EXECUTE || "confirmation_required".equals(outcome)) {
+            return "REQUIRE_CONFIRM";
+        }
+        return "ALLOW";
+    }
+
+    private String auditId(ToolRuntimeRequest request) {
+        Object value = firstPresent(
+            request == null || request.getAttributes() == null ? null : request.getAttributes().get("auditId"),
+            request == null || request.getAttributes() == null ? null : request.getAttributes().get("toolAuditId")
+        );
+        String text = value == null ? null : String.valueOf(value).trim();
+        return text == null || text.isBlank() ? UUID.randomUUID().toString() : text;
+    }
+
+    private List<String> governanceRoles(ToolRuntimeRequest request) {
+        List<String> roles = new ArrayList<>();
+        collectRoles(request == null || request.getAttributes() == null ? null : request.getAttributes().get("roles"), roles);
+        collectRoles(request == null || request.getAttributes() == null ? null : request.getAttributes().get("role"), roles);
+        ToolInput input = request == null ? null : request.getToolInput();
+        collectRoles(input == null || input.getContext() == null ? null : input.getContext().get("roles"), roles);
+        collectRoles(input == null || input.getContext() == null ? null : input.getContext().get("role"), roles);
+        return roles.stream()
+            .map(String::trim)
+            .filter(value -> !value.isBlank())
+            .distinct()
+            .toList();
+    }
+
+    private void collectRoles(Object value, List<String> roles) {
+        if (value == null || roles == null) {
+            return;
+        }
+        if (value instanceof Iterable<?> iterable) {
+            for (Object item : iterable) {
+                collectRoles(item, roles);
+            }
+            return;
+        }
+        String text = String.valueOf(value);
+        for (String item : text.split("[,;]")) {
+            if (!item.isBlank()) {
+                roles.add(item.trim());
+            }
+        }
     }
 
     /**

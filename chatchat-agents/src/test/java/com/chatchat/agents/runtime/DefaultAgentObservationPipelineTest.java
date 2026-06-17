@@ -35,4 +35,22 @@ class DefaultAgentObservationPipelineTest {
         assertThat(failure.type()).isEqualTo("tool_failure");
         assertThat(failure.source()).isEqualTo("web_search");
     }
+
+    @Test
+    void classifiesUnifiedEvidenceObservation() {
+        AgentObservation observation = pipeline.fromText("""
+            Tool web_search succeeded.
+            Unified evidence context (contractVersion=evidence_v1):
+            [Evidence 1]
+            type: WEB
+            citation: web://example.com/a#result=1
+            content:
+            evidence
+            """);
+
+        assertThat(observation.type()).isEqualTo("evidence");
+        assertThat(observation.metadata())
+            .containsEntry("containsUnifiedEvidence", true)
+            .containsEntry("evidenceContractVersion", "evidence_v1");
+    }
 }

@@ -4,6 +4,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -23,11 +24,22 @@ public class DocumentSearchEvidenceService {
 
     public DocumentSearchResult search(DocumentSearchRequest request) {
         String query = requireQuery(request == null ? null : request.query());
-        int topK = normalizeTopK(request.topK());
-        DocumentSearchFilters filters = request.filters();
-        String fileIds = joinValues(request.fileIds());
-        boolean debug = Boolean.TRUE.equals(request.debug());
-        SearchPermissionContext permissionContext = SearchPermissionContext.of(request.tenantId(), request.userId(), request.roles());
+        int topK = normalizeTopK(request == null ? null : request.topK());
+        DocumentSearchFilters filters = request == null ? null : request.filters();
+        List<String> scopedFileIds = request == null ? List.of() : safeList(request.fileIds()).stream()
+            .filter(this::hasText)
+            .map(String::trim)
+            .distinct()
+            .toList();
+        String fileIds = joinValues(scopedFileIds);
+        boolean debug = request != null && Boolean.TRUE.equals(request.debug());
+        SearchPermissionContext permissionContext = request == null
+            ? SearchPermissionContext.system()
+            : SearchPermissionContext.of(request.tenantId(), request.userId(), request.roles());
+
+        if (!scopedFileIds.isEmpty()) {
+            return searchScopedDocuments(query, topK, scopedFileIds, filters, debug, permissionContext);
+        }
 
         SearchPage page = searchService.search(
             query,
@@ -65,6 +77,118 @@ public class DocumentSearchEvidenceService {
             }
         }
         return contextFormatter.toSearchResult(query, intent, chunks);
+    }
+
+    private DocumentSearchResult searchScopedDocuments(String query,
+                                                       int topK,
+                                                       List<String> fileIds,
+                                                       DocumentSearchFilters filters,
+                                                       boolean debug,
+                                                       SearchPermissionContext permissionContext) {
+        String intent = intentClassifier.classifyName(query);
+        List<String> queryTokens = tokenizer.searchTokens(query);
+        List<DocumentEvidenceChunk> chunks = new ArrayList<>();
+        for (String fileId : fileIds) {
+            searchService.get(fileId, permissionContext)
+                .filter(document -> matchesDocumentFilters(document, filters))
+                .ifPresent(document -> chunks.addAll(toScopedEvidence(document, query, queryTokens, intent, debug, topK)));
+            if (chunks.size() >= topK) {
+                break;
+            }
+        }
+        List<DocumentEvidenceChunk> ranked = chunks.stream()
+            .sorted(Comparator
+                .comparing(DocumentEvidenceChunk::score, Comparator.nullsLast(Comparator.reverseOrder()))
+                .thenComparing(DocumentEvidenceChunk::fileName, Comparator.nullsLast(String::compareTo)))
+            .limit(topK)
+            .toList();
+        return contextFormatter.toSearchResult(query, intent, ranked);
+    }
+
+    private List<DocumentEvidenceChunk> toScopedEvidence(SearchDocument document,
+                                                         String query,
+                                                         List<String> queryTokens,
+                                                         String intent,
+                                                         boolean debug,
+                                                         int topK) {
+        String content = firstNonBlank(document.getContent(), "");
+        if (!hasText(content)) {
+            return List.of();
+        }
+        List<ScopedExcerpt> excerpts = scopedExcerpts(content, queryTokens, Math.min(Math.max(1, topK), 3));
+        List<DocumentEvidenceChunk> chunks = new ArrayList<>();
+        for (int i = 0; i < excerpts.size(); i++) {
+            ScopedExcerpt excerpt = excerpts.get(i);
+            String fileId = firstNonBlank(document.getDocId(), "unknown");
+            String fileName = firstNonBlank(document.getFileName(), document.getTitle(), fileId);
+            Integer chunkIndex = excerpt.index();
+            chunks.add(new DocumentEvidenceChunk(
+                refId(fileId, chunkIndex),
+                fileId + "_" + chunkIndex,
+                fileId,
+                fileName,
+                "",
+                chunkIndex,
+                "document",
+                excerpt.score(),
+                excerpt.text(),
+                highlights(query, List.of(), excerpt.text()),
+                citation(fileName, "", chunkIndex),
+                debug ? new SearchTrace(
+                    highlights(query, List.of(), excerpt.text()),
+                    intent,
+                    List.of(),
+                    "scoped document evidence matched"
+                ) : null,
+                document.getTenantId(),
+                document.getUserId(),
+                document.getVisibility(),
+                safeList(document.getPermissionRoles())
+            ));
+        }
+        return chunks;
+    }
+
+    private List<ScopedExcerpt> scopedExcerpts(String content, List<String> queryTokens, int maxChunks) {
+        String normalizedContent = content.toLowerCase(Locale.ROOT);
+        List<String> tokens = safeList(queryTokens).stream()
+            .filter(this::hasText)
+            .map(token -> token.toLowerCase(Locale.ROOT))
+            .distinct()
+            .toList();
+        int window = 1200;
+        int overlap = 180;
+        List<ScopedExcerpt> excerpts = new ArrayList<>();
+        int index = 0;
+        for (int start = 0; start < content.length(); start += Math.max(1, window - overlap)) {
+            int end = Math.min(content.length(), start + window);
+            String text = content.substring(start, end).trim();
+            double score = scopedScore(normalizedContent.substring(start, end), tokens, index);
+            if (score > 0 || excerpts.isEmpty()) {
+                excerpts.add(new ScopedExcerpt(index, text, score));
+            }
+            index++;
+            if (end == content.length()) {
+                break;
+            }
+        }
+        return excerpts.stream()
+            .sorted(Comparator
+                .comparingDouble(ScopedExcerpt::score)
+                .reversed()
+                .thenComparingInt(ScopedExcerpt::index))
+            .limit(maxChunks)
+            .toList();
+    }
+
+    private double scopedScore(String normalizedText, List<String> tokens, int index) {
+        double score = Math.max(0, 10 - index);
+        for (String token : tokens) {
+            if (hasText(token) && normalizedText.contains(token)) {
+                score += token.length() > 2 ? 18 : 8;
+            }
+        }
+        return Math.round(Math.min(100.0D, score) * 10.0D) / 10.0D;
     }
 
     private DocumentEvidenceChunk toEvidence(SearchResult result,
@@ -201,6 +325,35 @@ public class DocumentSearchEvidenceService {
         return expected.equals(documentType) || fileName.endsWith("." + expected);
     }
 
+    private boolean matchesDocumentFilters(SearchDocument document, DocumentSearchFilters filters) {
+        if (filters == null) {
+            return true;
+        }
+        if (hasText(filters.fileType())) {
+            String expected = filters.fileType().trim().toLowerCase(Locale.ROOT);
+            String documentType = nullToEmpty(document.getDocumentType()).toLowerCase(Locale.ROOT);
+            String fileName = nullToEmpty(document.getFileName()).toLowerCase(Locale.ROOT);
+            if (!expected.equals(documentType) && !fileName.endsWith("." + expected)) {
+                return false;
+            }
+        }
+        if (hasText(filters.tag()) && !containsIgnoreCase(document.getTags(), filters.tag())) {
+            return false;
+        }
+        if (hasText(filters.company()) && !containsIgnoreCase(document.getCompanies(), filters.company())) {
+            return false;
+        }
+        return !hasText(filters.industry()) || containsIgnoreCase(document.getIndustries(), filters.industry());
+    }
+
+    private boolean containsIgnoreCase(List<String> values, String expected) {
+        String needle = expected == null ? "" : expected.trim().toLowerCase(Locale.ROOT);
+        return safeList(values).stream()
+            .filter(this::hasText)
+            .map(value -> value.toLowerCase(Locale.ROOT))
+            .anyMatch(value -> value.contains(needle) || needle.contains(value));
+    }
+
     private boolean matchesChunkType(SearchMatchedChunk chunk, String chunkType) {
         if (!hasText(chunkType)) {
             return true;
@@ -278,5 +431,8 @@ public class DocumentSearchEvidenceService {
             }
         }
         return "";
+    }
+
+    private record ScopedExcerpt(int index, String text, Double score) {
     }
 }

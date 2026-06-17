@@ -10,6 +10,8 @@ import com.chatchat.agents.runtime.AgentRunStatus;
 import com.chatchat.agents.runtime.AgentRunStep;
 import com.chatchat.agents.runtime.AgentRuntime;
 import com.chatchat.agents.runtime.AgentRuntimeSnapshot;
+import com.chatchat.agents.runtime.evaluation.AgentEvaluationService;
+import com.chatchat.agents.runtime.trace.AgentRunTraceBuilder;
 import com.chatchat.api.runtime.AgentRuntimeEventStreamService;
 import com.chatchat.api.security.ApiAuthenticationFilter;
 import org.junit.jupiter.api.Test;
@@ -163,7 +165,12 @@ class AgentRuntimeControllerTest {
         AgentRuntime runtime = mock(AgentRuntime.class);
         AgentRuntimeEventStreamService streamService = mock(AgentRuntimeEventStreamService.class);
         when(streamService.streamEvents("runtime-run-4", 10L, 20, 500L, 1_000L)).thenReturn(new SseEmitter(1_000L));
-        MockMvc mockMvc = standaloneSetup(new AgentRuntimeController(runtime, streamService)).build();
+        MockMvc mockMvc = standaloneSetup(new AgentRuntimeController(
+            runtime,
+            streamService,
+            mock(AgentRunTraceBuilder.class),
+            mock(AgentEvaluationService.class)
+        )).build();
 
         mockMvc.perform(get("/api/v1/agent/runtime/runs/runtime-run-4/events/stream")
                 .param("afterCreatedAt", "10")
@@ -191,6 +198,11 @@ class AgentRuntimeControllerTest {
     }
 
     private MockMvc mockMvc(AgentRuntime runtime) {
-        return standaloneSetup(new AgentRuntimeController(runtime, mock(AgentRuntimeEventStreamService.class))).build();
+        return standaloneSetup(new AgentRuntimeController(
+            runtime,
+            mock(AgentRuntimeEventStreamService.class),
+            mock(AgentRunTraceBuilder.class),
+            mock(AgentEvaluationService.class)
+        )).build();
     }
 }

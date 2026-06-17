@@ -7,8 +7,10 @@ import com.chatchat.knowledgebase.search.DocumentSearchRequest;
 import com.chatchat.knowledgebase.search.DocumentSearchResult;
 import com.chatchat.knowledgebase.search.LibraryCategory;
 import com.chatchat.knowledgebase.search.LibraryPage;
+import com.chatchat.knowledgebase.search.SearchMatchedChunk;
 import com.chatchat.knowledgebase.search.SearchPage;
 import com.chatchat.knowledgebase.search.SearchPermissionContext;
+import com.chatchat.knowledgebase.search.SearchResult;
 import com.chatchat.knowledgebase.search.SearchService;
 import com.chatchat.knowledgebase.search.SearchDocumentVersionItem;
 import com.chatchat.knowledgebase.search.SearchFeedbackEntity;
@@ -43,6 +45,10 @@ import java.util.List;
 @Tag(name = "AI Search", description = "Investment research document search APIs")
 public class SearchController {
 
+    private static final int SEARCH_RESULT_MAX_CHUNKS = 3;
+    private static final int SEARCH_RESULT_CHUNK_MAX_CHARS = 1200;
+    private static final int SEARCH_RESULT_SUMMARY_MAX_CHARS = 800;
+
     private final SearchService searchService;
     private final SearchFeedbackService searchFeedbackService;
     private final DocumentSearchEvidenceService documentSearchEvidenceService;
@@ -61,7 +67,7 @@ public class SearchController {
      * @return the operation result
      */
     @GetMapping
-    @Operation(summary = "Search documents by keyword and filters")
+    @Operation(summary = "Legacy document search endpoint")
     public ApiResponse<SearchPage> search(@RequestParam(value = "keyword", required = false) String keyword,
                                           @RequestParam(value = "tag", required = false) String tag,
                                           @RequestParam(value = "company", required = false) String company,
@@ -83,6 +89,38 @@ public class SearchController {
             pageSize == null ? limit : pageSize,
             permissionContext(tenantId, userId, roles)
         ));
+    }
+
+    @GetMapping("/frontend")
+    @Operation(summary = "Search documents for the web document search page")
+    public ApiResponse<SearchPage> frontendSearch(@RequestParam(value = "keyword", required = false) String keyword,
+                                                  @RequestParam(value = "tag", required = false) String tag,
+                                                  @RequestParam(value = "company", required = false) String company,
+                                                  @RequestParam(value = "industry", required = false) String industry,
+                                                  @RequestParam(value = "docIds", required = false) String docIds,
+                                                  @RequestParam(value = "page", required = false) Integer page,
+                                                  @RequestParam(value = "pageSize", required = false) Integer pageSize,
+                                                  @RequestParam(value = "limit", required = false) Integer limit,
+                                                  @RequestParam(value = "tenantId", required = false) String tenantId,
+                                                  @RequestParam(value = "userId", required = false) String userId,
+                                                  @RequestParam(value = "roles", required = false) String roles) {
+        SearchPage pageResult = searchService.frontendQuickSearch(
+            keyword,
+            tag,
+            company,
+            industry,
+            docIds,
+            page,
+            pageSize == null ? limit : pageSize,
+            permissionContext(tenantId, userId, roles)
+        );
+        return ApiResponse.success(lightweightSearchPage(pageResult));
+    }
+
+    @PostMapping
+    @Operation(summary = "Compatibility endpoint for document_search evidence requests")
+    public ApiResponse<DocumentSearchResult> documentSearchCompat(@RequestBody DocumentSearchRequest request) {
+        return documentSearch(request);
     }
 
     @PostMapping("/document-search")
@@ -394,6 +432,92 @@ public class SearchController {
 
     private SearchPermissionContext permissionContext(String tenantId, String userId, String roles) {
         return SearchPermissionContext.of(tenantId, userId, parseCsv(roles));
+    }
+
+    private SearchPage lightweightSearchPage(SearchPage page) {
+        if (page == null || page.results() == null || page.results().isEmpty()) {
+            return page;
+        }
+        return new SearchPage(
+            page.keyword(),
+            page.queryTokens(),
+            page.results().stream().map(this::lightweightSearchResult).toList(),
+            page.total(),
+            page.limit(),
+            page.page(),
+            page.pageSize(),
+            page.totalPages(),
+            page.hasMore(),
+            page.tookMs(),
+            page.documentCount(),
+            page.message()
+        );
+    }
+
+    private SearchResult lightweightSearchResult(SearchResult result) {
+        if (result == null) {
+            return null;
+        }
+        return new SearchResult(
+            result.docId(),
+            result.title(),
+            truncate(result.summary(), SEARCH_RESULT_SUMMARY_MAX_CHARS),
+            result.source(),
+            result.date(),
+            result.fileName(),
+            result.documentType(),
+            result.detailPath(),
+            result.tags(),
+            result.companies(),
+            result.industries(),
+            result.score(),
+            result.scoreBreakdown(),
+            result.matchedKeywords(),
+            lightweightMatchedChunks(result.matchedChunks()),
+            result.versionGroupId(),
+            result.version(),
+            result.latestVersion(),
+            result.tenantId(),
+            result.userId(),
+            result.visibility(),
+            result.permissionRoles(),
+            result.lifecycleStatus(),
+            result.indexedAt(),
+            result.deletedAt(),
+            result.errorMessage()
+        );
+    }
+
+    private List<SearchMatchedChunk> lightweightMatchedChunks(List<SearchMatchedChunk> chunks) {
+        if (chunks == null || chunks.isEmpty()) {
+            return List.of();
+        }
+        return chunks.stream()
+            .limit(SEARCH_RESULT_MAX_CHUNKS)
+            .map(chunk -> new SearchMatchedChunk(
+                chunk.fileId(),
+                chunk.fileName(),
+                chunk.section(),
+                chunk.chunkType(),
+                chunk.chunkId(),
+                chunk.chunkIndex(),
+                chunk.positionRatio(),
+                truncate(chunk.content(), SEARCH_RESULT_CHUNK_MAX_CHARS),
+                truncate(chunk.text(), SEARCH_RESULT_CHUNK_MAX_CHARS),
+                chunk.score(),
+                chunk.tenantId(),
+                chunk.userId(),
+                chunk.visibility(),
+                chunk.permissionRoles()
+            ))
+            .toList();
+    }
+
+    private String truncate(String value, int maxChars) {
+        if (value == null || value.length() <= maxChars) {
+            return value;
+        }
+        return value.substring(0, maxChars) + "...";
     }
 
     private List<String> parseCsv(String value) {

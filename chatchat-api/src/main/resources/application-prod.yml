@@ -196,9 +196,9 @@ chatchat:
       enabled: ${CHAT_DOCUMENT_SEARCH_ENABLED:true}
       # Runtime/API retrieval service address. For the standalone MCP Server, point this to the Runtime/API host.
       api-base-url: ${CHAT_DOCUMENT_SEARCH_API_BASE_URL:${CHAT_RUNTIME_API_BASE_URL:http://localhost:8080}}
-      search-path: ${CHAT_DOCUMENT_SEARCH_PATH:/api/v1/search}
+      search-path: ${CHAT_DOCUMENT_SEARCH_PATH:/api/v1/search/document-search}
       detail-path-template: ${CHAT_DOCUMENT_SEARCH_DETAIL_PATH_TEMPLATE:/api/v1/search/documents/{docId}}
-      timeout-ms: ${CHAT_DOCUMENT_SEARCH_TIMEOUT_MS:20000}
+      timeout-ms: ${CHAT_DOCUMENT_SEARCH_TIMEOUT_MS:300000}
       default-limit: ${CHAT_DOCUMENT_SEARCH_DEFAULT_LIMIT:5}
       max-limit: ${CHAT_DOCUMENT_SEARCH_MAX_LIMIT:20}
       auth:

@@ -181,6 +181,45 @@ class SearchServiceTest {
     }
 
     @Test
+    void frontendQuickSearchReturnsLightweightDocumentResults() {
+        SearchService service = newSearchService();
+        service.createOrUpdate(SearchDocument.builder()
+            .docId("doc-spark")
+            .title("Spark SQL Performance Guide")
+            .content("Spark SQL tuning uses partition pruning, broadcast joins and adaptive execution.")
+            .source("docs")
+            .date("2024-06-10")
+            .tags(List.of("spark", "sql"))
+            .build());
+        service.createOrUpdate(SearchDocument.builder()
+            .docId("doc-other")
+            .title("Database Backup Guide")
+            .content("Backup and restore checklist.")
+            .source("docs")
+            .date("2024-06-09")
+            .tags(List.of("database"))
+            .build());
+
+        SearchPage page = service.frontendQuickSearch(
+            "Spark",
+            null,
+            null,
+            null,
+            null,
+            1,
+            6,
+            SearchPermissionContext.system()
+        );
+
+        assertThat(page.total()).isEqualTo(1);
+        assertThat(page.results()).extracting(SearchResult::docId)
+            .containsExactly("doc-spark");
+        assertThat(page.results().get(0).summary()).contains("Spark SQL");
+        assertThat(page.results().get(0).matchedChunks()).hasSize(1);
+        assertThat(page.results().get(0).matchedChunks().get(0).chunkType()).isEqualTo("frontend");
+    }
+
+    @Test
     void ignoresGenericSearchWordsBeforeRankingDocuments() {
         SearchService service = newSearchService();
         service.createOrUpdate(SearchDocument.builder()

@@ -43,6 +43,8 @@ public class SearchService {
     private static final int CONTENT_TERM_SCORE = 4;
     private static final int SOURCE_TERM_SCORE = 2;
     private static final int COVERAGE_SCORE = 20;
+    private static final int FRONTEND_CONTENT_SCAN_CHARS = 120_000;
+    private static final int FRONTEND_SNIPPET_RADIUS = 180;
 
     private final RocksDbSearchStore store;
     private final LuceneDocumentIndexService luceneStore;
@@ -335,6 +337,59 @@ public class SearchService {
             (System.nanoTime() - startedAt) / 1_000_000,
             documentCount,
             buildSearchMessage(allResults.size(), documentCount, queryTokens)
+        );
+    }
+
+    public SearchPage frontendQuickSearch(String keyword,
+                                          String tag,
+                                          String company,
+                                          String industry,
+                                          String docIds,
+                                          Integer page,
+                                          Integer limit,
+                                          SearchPermissionContext permissionContext) {
+        SearchPermissionContext context = permissionContext == null ? SearchPermissionContext.system() : permissionContext;
+        long startedAt = System.nanoTime();
+        int pageSize = normalizeLimit(limit);
+        int pageNumber = normalizePage(page);
+        List<String> queryTokens = tokenizer.searchTokens(keyword);
+        List<String> significantTerms = significantQueryTerms(keyword, queryTokens);
+        List<String> scopedDocumentIds = parseList(docIds);
+        List<String> tagTerms = tokenizer.splitFilter(tag);
+        List<String> companyTerms = tokenizer.splitFilter(company);
+        List<String> industryTerms = tokenizer.splitFilter(industry);
+        Set<String> scopedIds = scopedDocumentIds.isEmpty() ? Set.of() : new LinkedHashSet<>(scopedDocumentIds);
+
+        List<SearchDocument> documents = loadLatestDocuments(context);
+        List<SearchResult> allResults = documents.stream()
+            .filter(document -> scopedIds.isEmpty() || scopedIds.contains(document.getDocId()))
+            .filter(document -> matchesQuickFilter(document.getTags(), tagTerms))
+            .filter(document -> matchesQuickFilter(document.getCompanies(), companyTerms))
+            .filter(document -> matchesQuickFilter(document.getIndustries(), industryTerms))
+            .map(document -> toFrontendQuickResult(document, keyword, significantTerms, queryTokens))
+            .filter(result -> !hasKeyword(keyword) || result.score() > 0)
+            .sorted(resultComparator())
+            .toList();
+
+        List<SearchResult> results = allResults.stream()
+            .skip(pageOffset(pageNumber, pageSize))
+            .limit(pageSize)
+            .toList();
+
+        int totalPages = totalPages(allResults.size(), pageSize);
+        return new SearchPage(
+            keyword,
+            queryTokens,
+            results,
+            allResults.size(),
+            pageSize,
+            pageNumber,
+            pageSize,
+            totalPages,
+            pageNumber < totalPages,
+            (System.nanoTime() - startedAt) / 1_000_000,
+            documents.size(),
+            buildSearchMessage(allResults.size(), documents.size(), queryTokens)
         );
     }
 
@@ -1149,6 +1204,243 @@ public class SearchService {
             document.getIndexedAt(),
             document.getDeletedAt(),
             document.getErrorMessage()
+        );
+    }
+
+    private SearchResult toFrontendQuickResult(SearchDocument document,
+                                               String keyword,
+                                               List<String> significantTerms,
+                                               List<String> queryTokens) {
+        FrontendQuickScore scored = scoreFrontendDocument(document, keyword, significantTerms, queryTokens);
+        String summary = scored.bestSnippet().isBlank()
+            ? buildSummary(document.getContent(), scored.matchedTerms())
+            : scored.bestSnippet();
+        return new SearchResult(
+            document.getDocId(),
+            document.getTitle(),
+            summary,
+            document.getSource(),
+            document.getDate(),
+            document.getFileName(),
+            document.getDocumentType(),
+            "/api/v1/search/documents/" + document.getDocId(),
+            document.getTags(),
+            document.getCompanies(),
+            document.getIndustries(),
+            scored.score(),
+            scored.breakdown(),
+            new ArrayList<>(scored.matchedTerms()),
+            scored.matchedChunk() == null ? List.of() : List.of(scored.matchedChunk()),
+            versionGroupIdOf(document),
+            versionOf(document),
+            isLatestVersion(document),
+            normalizeTenant(document.getTenantId()),
+            normalizeUser(document.getUserId()),
+            normalizeVisibility(document.getVisibility()),
+            cleanList(document.getPermissionRoles()),
+            normalizeLifecycleStatus(document.getLifecycleStatus()),
+            document.getIndexedAt(),
+            document.getDeletedAt(),
+            document.getErrorMessage()
+        );
+    }
+
+    private FrontendQuickScore scoreFrontendDocument(SearchDocument document,
+                                                    String keyword,
+                                                    List<String> significantTerms,
+                                                    List<String> queryTokens) {
+        List<String> scoringTerms = significantTerms == null || significantTerms.isEmpty()
+            ? queryTokens
+            : significantTerms;
+        String phrase = normalizeSearchText(keyword);
+        String title = normalizeSearchText(document.getTitle());
+        String source = normalizeSearchText(document.getSource());
+        String content = quickContentText(document.getContent());
+        Set<String> matchedTerms = new LinkedHashSet<>();
+        int titleScore = 0;
+        int keywordScore = 0;
+        int tagScore = 0;
+        int companyScore = 0;
+        int industryScore = 0;
+        int contentScore = 0;
+        int sourceScore = 0;
+        int phraseScore = 0;
+        int coveredTerms = 0;
+        String bestTerm = "";
+
+        if (!phrase.isBlank()) {
+            if (title.contains(phrase)) {
+                phraseScore += TITLE_PHRASE_SCORE;
+                matchedTerms.add(phrase);
+                bestTerm = phrase;
+            }
+            if (listContainsNormalized(document.getKeywords(), phrase)) {
+                phraseScore += KEYWORD_PHRASE_SCORE;
+                matchedTerms.add(phrase);
+                bestTerm = phrase;
+            }
+            if (content.contains(phrase)) {
+                phraseScore += CONTENT_PHRASE_SCORE;
+                matchedTerms.add(phrase);
+                bestTerm = phrase;
+            }
+        }
+
+        for (String term : scoringTerms) {
+            String normalizedTerm = normalizeSearchText(term);
+            if (normalizedTerm.isBlank()) {
+                continue;
+            }
+            boolean matched = false;
+            if (title.contains(normalizedTerm)) {
+                titleScore += TITLE_TERM_SCORE;
+                matched = true;
+            }
+            if (listContainsNormalized(document.getKeywords(), normalizedTerm)) {
+                keywordScore += KEYWORD_TERM_SCORE;
+                matched = true;
+            }
+            if (listContainsNormalized(document.getTags(), normalizedTerm)) {
+                tagScore += TAG_TERM_SCORE;
+                matched = true;
+            }
+            if (listContainsNormalized(document.getCompanies(), normalizedTerm)) {
+                companyScore += COMPANY_TERM_SCORE;
+                matched = true;
+            }
+            if (listContainsNormalized(document.getIndustries(), normalizedTerm)) {
+                industryScore += INDUSTRY_TERM_SCORE;
+                matched = true;
+            }
+            if (content.contains(normalizedTerm)) {
+                contentScore += CONTENT_TERM_SCORE;
+                matched = true;
+            }
+            if (source.contains(normalizedTerm)) {
+                sourceScore += SOURCE_TERM_SCORE;
+                matched = true;
+            }
+            if (matched) {
+                coveredTerms++;
+                matchedTerms.add(normalizedTerm);
+                if (bestTerm.isBlank()) {
+                    bestTerm = normalizedTerm;
+                }
+            }
+        }
+
+        double coverageRatio = scoringTerms == null || scoringTerms.isEmpty()
+            ? 1.0D
+            : (double) coveredTerms / scoringTerms.size();
+        int coverageScore = (int) Math.round(coverageRatio * COVERAGE_SCORE);
+        int totalScore = titleScore
+            + keywordScore
+            + tagScore
+            + companyScore
+            + industryScore
+            + contentScore
+            + sourceScore
+            + phraseScore
+            + coverageScore;
+        Map<String, Integer> fieldScores = new HashMap<>();
+        fieldScores.put("title", titleScore);
+        fieldScores.put("keywords", keywordScore);
+        fieldScores.put("tags", tagScore);
+        fieldScores.put("companies", companyScore);
+        fieldScores.put("industries", industryScore);
+        fieldScores.put("content", contentScore);
+        fieldScores.put("source", sourceScore);
+        fieldScores.put("phrase", phraseScore);
+        fieldScores.put("coverage", coverageScore);
+        fieldScores.put("baseToken", 0);
+        SearchScoreBreakdown breakdown = new SearchScoreBreakdown(
+            0,
+            titleScore,
+            keywordScore,
+            tagScore,
+            companyScore,
+            industryScore,
+            contentScore,
+            sourceScore,
+            phraseScore,
+            coverageScore,
+            coverageRatio,
+            fieldScores
+        );
+        String snippet = quickSnippet(document.getContent(), bestTerm);
+        return new FrontendQuickScore(
+            totalScore,
+            matchedTerms,
+            breakdown,
+            snippet,
+            quickMatchedChunk(document, snippet, bestTerm, totalScore)
+        );
+    }
+
+    private boolean matchesQuickFilter(List<String> values, List<String> terms) {
+        if (terms == null || terms.isEmpty()) {
+            return true;
+        }
+        for (String term : terms) {
+            if (listContainsNormalized(values, term)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private String quickContentText(String content) {
+        String normalized = normalizeSearchText(content);
+        if (normalized.length() <= FRONTEND_CONTENT_SCAN_CHARS) {
+            return normalized;
+        }
+        return normalized.substring(0, FRONTEND_CONTENT_SCAN_CHARS);
+    }
+
+    private String quickSnippet(String content, String term) {
+        String text = content == null ? "" : content.replaceAll("\\s+", " ").trim();
+        if (text.isBlank()) {
+            return "";
+        }
+        if (term == null || term.isBlank()) {
+            return text.length() <= properties.getSummaryLength()
+                ? text
+                : text.substring(0, properties.getSummaryLength()) + "...";
+        }
+        String normalizedText = text.toLowerCase(Locale.ROOT);
+        String normalizedTerm = term.toLowerCase(Locale.ROOT);
+        int index = normalizedText.indexOf(normalizedTerm);
+        if (index < 0) {
+            return text.length() <= properties.getSummaryLength()
+                ? text
+                : text.substring(0, properties.getSummaryLength()) + "...";
+        }
+        int start = Math.max(0, index - FRONTEND_SNIPPET_RADIUS);
+        int end = Math.min(text.length(), index + normalizedTerm.length() + FRONTEND_SNIPPET_RADIUS);
+        return (start > 0 ? "..." : "")
+            + text.substring(start, end)
+            + (end < text.length() ? "..." : "");
+    }
+
+    private SearchMatchedChunk quickMatchedChunk(SearchDocument document, String snippet, String term, int score) {
+        if (snippet == null || snippet.isBlank() || term == null || term.isBlank()) {
+            return null;
+        }
+        return new SearchMatchedChunk(
+            document.getDocId(),
+            document.getFileName(),
+            "quick-match",
+            "frontend",
+            document.getDocId() + "#quick-0",
+            0,
+            0.0F,
+            snippet,
+            snippet,
+            Math.max(1.0F, score),
+            normalizeTenant(document.getTenantId()),
+            normalizeUser(document.getUserId()),
+            normalizeVisibility(document.getVisibility()),
+            cleanList(document.getPermissionRoles())
         );
     }
 
@@ -2113,6 +2405,15 @@ public class SearchService {
         int totalScore,
         Set<String> matchedTerms,
         SearchScoreBreakdown breakdown
+    ) {
+    }
+
+    private record FrontendQuickScore(
+        int score,
+        Set<String> matchedTerms,
+        SearchScoreBreakdown breakdown,
+        String bestSnippet,
+        SearchMatchedChunk matchedChunk
     ) {
     }
 }

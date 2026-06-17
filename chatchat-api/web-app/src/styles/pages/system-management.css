@@ -573,11 +573,105 @@
 }
 
 .permission-tree {
-  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  grid-template-columns: 1fr;
 }
 
 .permission-tree .permission-item {
   padding-left: calc(10px + min(var(--level), 2) * 14px);
+}
+
+.permission-category {
+  min-width: 0;
+  border: 1px solid #edf0f6;
+  border-radius: 8px;
+  background: #fff;
+  overflow: hidden;
+}
+
+.permission-category-head {
+  min-height: 52px;
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) auto auto auto;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 10px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.permission-category-head::-webkit-details-marker {
+  display: none;
+}
+
+.permission-category-head::after {
+  content: "展开";
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.permission-category[open] > .permission-category-head {
+  border-bottom: 1px solid #edf0f6;
+  background: #fafcff;
+}
+
+.permission-category[open] > .permission-category-head::after {
+  content: "收起";
+}
+
+.permission-category-head input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--primary);
+}
+
+.permission-category-title {
+  min-width: 0;
+}
+
+.permission-category-title strong,
+.permission-category-title small {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.permission-category-title strong {
+  color: #172033;
+  font-size: 13px;
+}
+
+.permission-category-title small {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.permission-category-type,
+.permission-category-count {
+  justify-self: end;
+  padding: 3px 7px;
+  border-radius: 6px;
+  background: #f2f5fb;
+  color: #5b6678;
+  font-size: 12px;
+  font-style: normal;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.permission-category-count {
+  background: #eef7f1;
+  color: #087443;
+}
+
+.permission-category-items {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 8px;
+  padding: 10px;
 }
 
 .user-item {
@@ -746,7 +840,7 @@
   min-height: 0;
   display: grid;
   grid-template-columns: minmax(360px, 0.95fr) minmax(390px, 1.05fr);
-  grid-template-rows: auto auto auto minmax(170px, 0.85fr);
+  grid-template-rows: auto auto auto auto;
   grid-template-areas:
     "permissions info"
     "permissions scope"
@@ -795,6 +889,50 @@
   grid-template-rows: auto auto minmax(0, 1fr);
 }
 
+.role-config-collapsible:not([open]) {
+  min-height: 0;
+  grid-template-rows: auto;
+}
+
+.role-config-collapsible:not([open]) > :not(summary) {
+  display: none;
+}
+
+.role-config-summary {
+  cursor: pointer;
+  list-style: none;
+}
+
+.role-config-summary::-webkit-details-marker {
+  display: none;
+}
+
+.role-config-summary span {
+  min-width: 0;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 750;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.role-config-summary::after {
+  content: "展开";
+  flex: 0 0 auto;
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.role-config-collapsible[open] > .role-config-summary::after {
+  content: "收起";
+}
+
+.role-config-subhead {
+  min-height: 30px;
+}
+
 .role-config-panel:nth-child(4) .auth-check-list,
 .role-config-panel:nth-child(5) .auth-check-list {
   min-height: 0;
@@ -803,6 +941,146 @@
 
 .agent-bind-dropdown {
   position: relative;
+}
+
+.agent-bind-select {
+  min-height: 38px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 0 11px;
+  border: 1px solid #dce2ec;
+  border-radius: 7px;
+  background: #fff;
+  color: #344054;
+  cursor: pointer;
+  text-align: left;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.agent-bind-select:hover {
+  border-color: #bdd2ff;
+  background: #f6f9ff;
+}
+
+.agent-bind-select span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-bind-select em {
+  color: var(--muted);
+  font-style: normal;
+  font-size: 12px;
+}
+
+.selected-agent-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-height: 0;
+  overflow: auto;
+}
+
+.selected-agent-chips button {
+  min-height: 28px;
+  max-width: 180px;
+  padding: 0 9px;
+  border: 1px solid #dce7ff;
+  border-radius: 999px;
+  background: #f4f7ff;
+  color: #1d4ed8;
+  font-size: 12px;
+  font-weight: 750;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-picker-modal {
+  width: min(760px, 100%);
+}
+
+.agent-picker-tools {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) auto auto auto;
+  align-items: end;
+  gap: 10px;
+}
+
+.agent-picker-tools label {
+  display: grid;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.agent-picker-tools input {
+  height: 36px;
+  padding: 0 10px;
+  border: 1px solid #dce2ec;
+  border-radius: 7px;
+  background: #fff;
+  color: #202939;
+}
+
+.agent-picker-list {
+  min-height: 0;
+  overflow: auto;
+  display: grid;
+  gap: 7px;
+  padding: 8px;
+  border: 1px solid #edf0f6;
+  border-radius: 8px;
+  background: #fafcff;
+}
+
+.agent-picker-record {
+  min-height: 48px;
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid #edf0f6;
+  border-radius: 7px;
+  background: #fff;
+  color: #344054;
+}
+
+.agent-picker-record:hover {
+  border-color: #bdd2ff;
+  background: #f1f6ff;
+}
+
+.agent-picker-record input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--primary);
+}
+
+.agent-picker-record strong,
+.agent-picker-record small {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-picker-record strong {
+  font-size: 13px;
+}
+
+.agent-picker-record small {
+  margin-top: 2px;
+  color: var(--muted);
+  font-size: 12px;
 }
 
 .agent-bind-dropdown summary {
@@ -1332,6 +1610,26 @@
 
 .permission-form-grid label:nth-child(5) {
   grid-column: 1 / -1;
+}
+
+.role-config-panel.role-config-collapsible:not([open]) {
+  min-height: 0 !important;
+  max-height: 64px;
+  grid-template-rows: auto;
+  align-content: center;
+  padding-block: 12px;
+}
+
+.role-config-summary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+}
+
+.agent-picker-tools {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) auto auto auto;
+  align-items: end;
+  justify-content: stretch;
 }
 
 .modal-actions {

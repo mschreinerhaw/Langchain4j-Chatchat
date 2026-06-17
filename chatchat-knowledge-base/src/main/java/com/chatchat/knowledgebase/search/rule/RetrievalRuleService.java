@@ -36,7 +36,30 @@ public class RetrievalRuleService {
 
     @PostConstruct
     public void loadRules() {
+        initializeDefaultRulesIfNeeded();
         refreshRules();
+    }
+
+    @Transactional
+    public void initializeDefaultRulesIfNeeded() {
+        boolean hasAnyRule = intentRuleRepository.count() > 0
+            || chunkTypeRuleRepository.count() > 0
+            || expandRuleRepository.count() > 0;
+        boolean hasAnyVersion = ruleVersionRepository.count() > 0;
+        if (hasAnyRule || hasAnyVersion) {
+            return;
+        }
+
+        long now = System.currentTimeMillis();
+        intentRuleRepository.saveAll(defaultIntentRules(now));
+        chunkTypeRuleRepository.saveAll(defaultChunkTypeRules(now));
+        expandRuleRepository.saveAll(defaultExpandRules(now));
+        ruleVersionRepository.saveAll(List.of(
+            activeVersionEntity(TYPE_INTENT, now),
+            activeVersionEntity(TYPE_CHUNK, now),
+            activeVersionEntity(TYPE_EXPAND, now)
+        ));
+        log.info("Initialized default retrieval keyword rules");
     }
 
     @Scheduled(fixedDelayString = "${chatchat.search.rule-refresh-ms:30000}")
@@ -447,6 +470,105 @@ public class RetrievalRuleService {
 
     private String normalize(String value) {
         return value == null ? "" : value.trim().toLowerCase(Locale.ROOT).replaceAll("\\s+", " ");
+    }
+
+    private List<QueryIntentRuleEntity> defaultIntentRules(long now) {
+        return List.of(
+            intentRule("TROUBLESHOOTING", "Troubleshooting Intent",
+                "错误,异常,失败,故障,报错,无法,不能,超时,重试,error,exception,fail,failure,timeout,retry,issue",
+                5, 100, now),
+            intentRule("HOW_TO", "How-to Intent",
+                "如何,怎么,怎样,步骤,配置,设置,安装,接入,使用,教程,指南,how,configure,setup,install,guide,step",
+                4, 90, now),
+            intentRule("DATA_ISSUE", "Data Issue Intent",
+                "数据,报表,统计,指标,同步,缺失,不一致,异常值,口径,data,report,metric,statistics,sync,missing,mismatch",
+                4, 80, now),
+            intentRule("POLICY", "Policy Intent",
+                "制度,规范,规则,权限,审批,合规,流程,policy,permission,approval,compliance,process,role",
+                3, 70, now),
+            intentRule("FAQ", "FAQ Intent",
+                "是什么,为什么,说明,介绍,含义,区别,faq,what,why,explain,definition,meaning,difference",
+                3, 60, now)
+        );
+    }
+
+    private List<ChunkTypeRuleEntity> defaultChunkTypeRules(long now) {
+        return List.of(
+            chunkRule("troubleshooting", "错误,异常,失败,故障,排查,原因,解决,修复,error,exception,failure,root cause,fix,retry", 5, 100, now),
+            chunkRule("step", "步骤,第一步,第二步,操作,配置,安装,流程,step,procedure,configure,setup,install", 4, 90, now),
+            chunkRule("definition", "定义,是什么,说明,概念,含义,definition,overview,description,meaning", 3, 80, now),
+            chunkRule("policy", "制度,规范,规则,权限,审批,合规,policy,permission,approval,compliance", 3, 70, now),
+            chunkRule("example", "示例,例子,样例,案例,example,sample,case", 2, 60, now),
+            chunkRule("table", "表格,字段,列,行,统计,清单,table,column,row,sheet,list", 2, 50, now),
+            chunkRule("log", "日志,trace,debug,warn,error,stack,exception,log", 2, 40, now)
+        );
+    }
+
+    private List<QueryExpandRuleEntity> defaultExpandRules(long now) {
+        return List.of(
+            expandRule("TROUBLESHOOTING", "登录", "login,signin,auth,token,session,账号,认证", 4, 100, now),
+            expandRule("TROUBLESHOOTING", "错误", "error,exception,failure,fail,异常,失败,报错", 4, 95, now),
+            expandRule("TROUBLESHOOTING", "超时", "timeout,slow,retry,latency,延迟,重试", 3, 90, now),
+            expandRule("HOW_TO", "配置", "configure,setup,setting,install,guide,步骤,设置,安装", 3, 85, now),
+            expandRule("DATA_ISSUE", "报表", "report,statistics,metric,data,统计,指标,数据", 3, 80, now),
+            expandRule("POLICY", "权限", "permission,role,access,auth,approval,角色,访问,审批", 3, 75, now),
+            expandRule("FAQ", "区别", "difference,compare,versus,对比,不同,差异", 2, 60, now)
+        );
+    }
+
+    private QueryIntentRuleEntity intentRule(String intent, String name, String keywords,
+                                             int weight, int priority, long now) {
+        QueryIntentRuleEntity entity = new QueryIntentRuleEntity();
+        entity.setIntent(intent);
+        entity.setName(name);
+        entity.setKeywords(keywords);
+        entity.setRegex("");
+        entity.setWeight(weight);
+        entity.setPriority(priority);
+        entity.setEnabled(true);
+        entity.setVersion(1);
+        entity.setCreatedAt(now);
+        entity.setUpdatedAt(now);
+        return entity;
+    }
+
+    private ChunkTypeRuleEntity chunkRule(String chunkType, String keywords, int weight, int priority, long now) {
+        ChunkTypeRuleEntity entity = new ChunkTypeRuleEntity();
+        entity.setChunkType(chunkType);
+        entity.setKeywords(keywords);
+        entity.setPattern("");
+        entity.setWeight(weight);
+        entity.setPriority(priority);
+        entity.setEnabled(true);
+        entity.setVersion(1);
+        entity.setCreatedAt(now);
+        entity.setUpdatedAt(now);
+        return entity;
+    }
+
+    private QueryExpandRuleEntity expandRule(String intent, String sourceWord, String expandWords,
+                                             int weight, int priority, long now) {
+        QueryExpandRuleEntity entity = new QueryExpandRuleEntity();
+        entity.setIntent(intent);
+        entity.setSourceWord(sourceWord);
+        entity.setExpandWords(expandWords);
+        entity.setWeight(weight);
+        entity.setPriority(priority);
+        entity.setEnabled(true);
+        entity.setVersion(1);
+        entity.setCreatedAt(now);
+        entity.setUpdatedAt(now);
+        return entity;
+    }
+
+    private RuleVersionEntity activeVersionEntity(String type, long now) {
+        RuleVersionEntity entity = new RuleVersionEntity();
+        entity.setType(type);
+        entity.setVersion(1);
+        entity.setActive(true);
+        entity.setCreatedAt(now);
+        entity.setUpdatedAt(now);
+        return entity;
     }
 
     @FunctionalInterface

@@ -121,6 +121,12 @@ chatchat:
             runtime-level: notification
         # Tool-specific overrides. 0 means wait for completion; users can cancel long-running web calls manually.
         tools:
+          document_search:
+            max-concurrency: 8
+            queue-size: 64
+            queue-timeout-seconds: 5
+            timeout-seconds: 300
+            runtime-level: tool
           web_search:
             max-concurrency: 2
             queue-size: 32
@@ -273,9 +279,9 @@ chatchat:
       enabled: true
       # Runtime/API retrieval service address. Set this when MCP Server and Runtime are deployed separately.
       api-base-url: http://localhost:8080
-      search-path: /api/v1/search
+      search-path: /api/v1/search/document-search
       detail-path-template: /api/v1/search/documents/{docId}
-      timeout-ms: 20000
+      timeout-ms: 300000
       default-limit: 5
       max-limit: 20
       auth:

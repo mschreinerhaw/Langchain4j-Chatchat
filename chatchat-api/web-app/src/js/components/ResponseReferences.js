@@ -1,5 +1,6 @@
 import {
   displayUrl,
+  documentReferenceTitle,
   extractDocumentSearchPages,
   extractDocumentSearchPagesFromTraces,
   extractWebSearchPages,
@@ -79,10 +80,11 @@ export default {
       return trace?.errorMessage || trace?.error || trace?.message || "";
     },
     sourceToDocumentRow(source = {}, index = 0) {
+      const docId = source.docId || source.documentId || source.id || source.fileId || source.file_id || "";
       return {
         rank: source.rank || index + 1,
-        docId: source.docId || source.documentId || source.id || "",
-        title: source.source || source.title || source.name || "引用文档",
+        docId,
+        title: documentReferenceTitle(source, docId),
         url: this.sourceUrl(source),
         snippet: source.snippet || source.content || source.summary || ""
       };
@@ -125,3 +127,4 @@ export default {
     }
   }
 };
+

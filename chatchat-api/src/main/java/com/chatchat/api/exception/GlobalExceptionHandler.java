@@ -3,12 +3,14 @@ package com.chatchat.api.exception;
 import com.chatchat.common.response.ApiResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.context.request.async.AsyncRequestNotUsableException;
 import org.springframework.web.context.request.WebRequest;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
@@ -24,6 +26,8 @@ import java.util.stream.Collectors;
 @Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
+
+    private static final HttpStatusCode CLIENT_CLOSED_REQUEST = HttpStatusCode.valueOf(499);
 
     /**
      * Handle validation exceptions
@@ -107,6 +111,18 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * Handle client disconnects while the server is writing a response.
+     */
+    @ExceptionHandler(AsyncRequestNotUsableException.class)
+    public ResponseEntity<Void> handleAsyncRequestNotUsableException(
+            AsyncRequestNotUsableException ex,
+            WebRequest request) {
+
+        log.debug("Client disconnected before response completed: {}", ex.getMessage());
+        return ResponseEntity.status(CLIENT_CLOSED_REQUEST).build();
+    }
+
+    /**
      * Handle ChatException (custom application exception)
      */
     @ExceptionHandler(ChatException.class)
@@ -130,12 +146,38 @@ public class GlobalExceptionHandler {
             Exception ex,
             WebRequest request) {
 
+        if (isClientAbort(ex)) {
+            log.debug("Client disconnected before response completed: {}", ex.getMessage());
+            return new ResponseEntity<>(null, CLIENT_CLOSED_REQUEST);
+        }
+
         log.error("Unexpected error", ex);
 
         return new ResponseEntity<>(
             ApiResponse.internalError("An unexpected error occurred: " + ex.getMessage()),
             HttpStatus.INTERNAL_SERVER_ERROR
         );
+    }
+
+    private boolean isClientAbort(Throwable ex) {
+        Throwable current = ex;
+        while (current != null) {
+            String className = current.getClass().getName();
+            String message = current.getMessage() == null ? "" : current.getMessage().toLowerCase();
+            if (current instanceof AsyncRequestNotUsableException
+                || className.equals("org.apache.catalina.connector.ClientAbortException")
+                || className.equals("java.io.EOFException")
+                || message.contains("clientabortexception")
+                || message.contains("broken pipe")
+                || message.contains("connection reset")
+                || message.contains("software in your host machine aborted")
+                || message.contains("中止了一个已建立的连接")
+                || message.contains("远程主机强迫关闭")) {
+                return true;
+            }
+            current = current.getCause();
+        }
+        return false;
     }
 
     /**

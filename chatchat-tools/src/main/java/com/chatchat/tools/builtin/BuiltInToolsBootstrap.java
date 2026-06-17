@@ -340,7 +340,7 @@ public class BuiltInToolsBootstrap {
             ))
             .outputType("json")
             .returnDirect(false)
-            .timeoutMillis(environment.getProperty("chatchat.tools.document-search.timeout-ms", Long.class, 20000L))
+            .timeoutMillis(environment.getProperty("chatchat.tools.document-search.timeout-ms", Long.class, 300000L))
             .agentCompatible(true)
             .parameters(Arrays.asList(
                 ToolParameter.builder()
@@ -735,7 +735,7 @@ public class BuiltInToolsBootstrap {
         private DocumentSearchTool(Environment environment, ObjectMapper objectMapper) {
             this.environment = environment;
             this.objectMapper = objectMapper;
-            int timeoutMs = environment.getProperty("chatchat.tools.document-search.timeout-ms", Integer.class, 20000);
+            int timeoutMs = environment.getProperty("chatchat.tools.document-search.timeout-ms", Integer.class, 300000);
             this.httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofMillis(Math.max(1000, timeoutMs)))
                 .build();
@@ -771,7 +771,7 @@ public class BuiltInToolsBootstrap {
                 }
                 uri = buildEvidenceSearchUri();
                 Map<String, Object> body = buildEvidenceSearchBody(input, query.trim());
-                int timeoutMs = environment.getProperty("chatchat.tools.document-search.timeout-ms", Integer.class, 20000);
+                int timeoutMs = environment.getProperty("chatchat.tools.document-search.timeout-ms", Integer.class, 300000);
                 HttpResponse<String> response = sendDocumentApiPost(uri, body, timeoutMs);
                 if (response.statusCode() < 200 || response.statusCode() >= 300) {
                     return ToolOutput.failure(documentApiFailureMessage("document search", response.statusCode(), uri));
@@ -837,7 +837,7 @@ public class BuiltInToolsBootstrap {
                 return;
             }
             try {
-                int timeoutMs = environment.getProperty("chatchat.tools.document-search.timeout-ms", Integer.class, 20000);
+                int timeoutMs = environment.getProperty("chatchat.tools.document-search.timeout-ms", Integer.class, 300000);
                 HttpResponse<String> detailResponse = sendDocumentApiGet(detailUri, timeoutMs);
                 if (detailResponse.statusCode() < 200 || detailResponse.statusCode() >= 300) {
                     result.put("detailFetched", false);
@@ -876,8 +876,14 @@ public class BuiltInToolsBootstrap {
                     result.put("contentTruncated", content.replaceAll("\\s+", " ").trim().length() > excerptChars);
                     result.put("contentExcerpt", excerpt);
                     Map<String, Object> evidence = new LinkedHashMap<>();
+                    String fileName = firstNonBlank(stringValue(result.get("fileName")), stringValue(detail.get("fileName")));
+                    String title = firstNonBlank(
+                        fileName,
+                        firstNonBlank(stringValue(result.get("title")), stringValue(detail.get("title")))
+                    );
                     evidence.put("docId", firstNonBlank(stringValue(result.get("docId")), stringValue(detail.get("docId"))));
-                    evidence.put("title", firstNonBlank(stringValue(result.get("title")), stringValue(detail.get("title"))));
+                    evidence.put("fileName", fileName);
+                    evidence.put("title", title);
                     evidence.put("excerpt", excerpt);
                     evidenceSnippets.add(evidence);
                 }
@@ -1015,7 +1021,7 @@ public class BuiltInToolsBootstrap {
             if (username == null || username.isBlank() || password == null || password.isBlank()) {
                 return "";
             }
-            int timeoutMs = environment.getProperty("chatchat.tools.document-search.timeout-ms", Integer.class, 20000);
+            int timeoutMs = environment.getProperty("chatchat.tools.document-search.timeout-ms", Integer.class, 300000);
             URI loginUri = buildDocumentSearchLoginUri();
             String body = objectMapper.writeValueAsString(Map.of(
                 "username", username,
@@ -1137,7 +1143,8 @@ public class BuiltInToolsBootstrap {
                 }
                 Map<String, Object> item = new LinkedHashMap<>();
                 item.put("docId", stringValue(result.get("docId")));
-                item.put("title", stringValue(result.get("title")));
+                item.put("fileName", stringValue(result.get("fileName")));
+                item.put("title", firstNonBlank(stringValue(result.get("fileName")), stringValue(result.get("title"))));
                 item.put("chunkId", stringValue(chunk.get("chunkId")));
                 item.put("chunkIndex", chunk.get("chunkIndex"));
                 item.put("score", chunk.get("score"));
@@ -1331,7 +1338,7 @@ public class BuiltInToolsBootstrap {
          */
         private URI buildSearchUri(ToolInput input, String query, int limit) {
             String apiBaseUrl = documentSearchApiBaseUrl();
-            String searchPath = environment.getProperty("chatchat.tools.document-search.search-path", "/api/v1/search");
+            String searchPath = environment.getProperty("chatchat.tools.document-search.search-path", "/api/v1/search/document-search");
             StringBuilder url = new StringBuilder(trimTrailingSlash(apiBaseUrl));
             if (!searchPath.startsWith("/")) {
                 url.append('/');

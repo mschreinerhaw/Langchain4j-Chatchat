@@ -769,7 +769,7 @@ export function searchDocuments(filters = {}) {
     params.set("pageSize", String(filters.pageSize));
   }
   const query = params.toString();
-  return apiRequest(`/search${query ? `?${query}` : ""}`);
+  return apiRequest(`/search/frontend${query ? `?${query}` : ""}`);
 }
 
 export function getSearchDocument(docId) {

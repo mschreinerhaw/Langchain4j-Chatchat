@@ -108,6 +108,9 @@ export default {
       draftUserIds: [],
       draftScopeType: "org_and_children",
       draftScopeOrgId: "",
+      agentPickerOpen: false,
+      agentPickerQuery: "",
+      tempPickerAgentIds: [],
       userPickerOpen: false,
       tempPickerUserIds: [],
       orgForm: blankOrgForm(),
@@ -170,6 +173,35 @@ export default {
       walk("root", 0);
       return result.length ? result : this.permissions.map((item) => ({ ...item, level: 0 }));
     },
+    permissionGroups() {
+      const selected = new Set(this.draftPermissionIds);
+      const groups = [];
+      let currentGroup = null;
+
+      this.permissionTree.forEach((permission) => {
+        if (permission.level === 0 || !currentGroup) {
+          currentGroup = {
+            root: permission,
+            children: [],
+            permissionIds: [permission.id]
+          };
+          groups.push(currentGroup);
+          return;
+        }
+
+        currentGroup.children.push({
+          ...permission,
+          displayLevel: Math.max(permission.level - 1, 0)
+        });
+        currentGroup.permissionIds.push(permission.id);
+      });
+
+      return groups.map((group) => ({
+        ...group,
+        selectedCount: group.permissionIds.filter((id) => selected.has(id)).length,
+        totalCount: group.permissionIds.length
+      }));
+    },
     savedPermissionTree() {
       const selected = new Set(this.selectedPermissionIds);
       return this.permissionTree.filter((permission) => selected.has(permission.id));
@@ -204,6 +236,33 @@ export default {
     selectedDraftAgents() {
       const selected = new Set(this.draftAgentIds);
       return this.agentOptions.filter((agent) => selected.has(agent.id));
+    },
+    filteredAgentOptions() {
+      const query = this.agentPickerQuery.trim().toLowerCase();
+      if (!query) {
+        return this.agentOptions;
+      }
+      return this.agentOptions.filter((agent) => [
+        agent.id,
+        agent.name,
+        agent.description,
+        agent.category,
+        agent.marketStatus,
+        agent.status
+      ].some((value) => String(value || "").toLowerCase().includes(query)));
+    },
+    roleInfoSummary() {
+      const name = this.roleForm.roleName || "未填写角色名称";
+      const code = this.roleForm.roleCode ? ` · ${this.roleForm.roleCode}` : "";
+      return `${name}${code}`;
+    },
+    scopeSummary() {
+      if (this.draftScopeType === "all") {
+        return "全部组织";
+      }
+      const org = this.orgs.find((item) => item.id === this.draftScopeOrgId);
+      const scope = this.draftScopeType === "org" ? "指定组织" : "组织及下级";
+      return `${scope}${org ? ` · ${org.orgName}` : ""}`;
     },
     draftAgentSummary() {
       if (!this.draftAgentIds.length) {
@@ -522,7 +581,10 @@ export default {
       this.draftScopeType = role ? this.scopeType || "org_and_children" : "org_and_children";
       this.draftScopeOrgId = role ? this.scopeOrgId || "" : "";
       this.userPickerOpen = false;
+      this.agentPickerOpen = false;
       this.tempPickerUserIds = [];
+      this.tempPickerAgentIds = [];
+      this.agentPickerQuery = "";
       this.roleModalOpen = true;
     },
     closeRoleModal() {
@@ -542,8 +604,11 @@ export default {
       this.draftUserIds = [];
       this.draftScopeType = this.scopeType || "org_and_children";
       this.draftScopeOrgId = this.scopeOrgId || "";
+      this.agentPickerOpen = false;
       this.userPickerOpen = false;
+      this.tempPickerAgentIds = [];
       this.tempPickerUserIds = [];
+      this.agentPickerQuery = "";
     },
     async saveRoleForm() {
       if (!this.roleForm.roleName || !this.roleForm.roleCode) {
@@ -606,11 +671,42 @@ export default {
     clearPermissions() {
       this.draftPermissionIds = [];
     },
+    togglePermissionGroup(group, checked) {
+      const groupIds = new Set(group.permissionIds);
+      if (checked) {
+        this.draftPermissionIds = Array.from(new Set([...this.draftPermissionIds, ...group.permissionIds]));
+        return;
+      }
+      this.draftPermissionIds = this.draftPermissionIds.filter((id) => !groupIds.has(id));
+    },
     selectAllAgents() {
       this.draftAgentIds = this.agentOptions.map((agent) => agent.id);
     },
     clearAgents() {
       this.draftAgentIds = [];
+    },
+    removeDraftAgent(agentId) {
+      this.draftAgentIds = this.draftAgentIds.filter((id) => id !== agentId);
+    },
+    openAgentPicker() {
+      this.tempPickerAgentIds = [...this.draftAgentIds];
+      this.agentPickerQuery = "";
+      this.agentPickerOpen = true;
+    },
+    closeAgentPicker() {
+      this.agentPickerOpen = false;
+      this.tempPickerAgentIds = [];
+      this.agentPickerQuery = "";
+    },
+    selectAllPickerAgents() {
+      this.tempPickerAgentIds = this.filteredAgentOptions.map((agent) => agent.id);
+    },
+    clearPickerAgents() {
+      this.tempPickerAgentIds = [];
+    },
+    confirmAgentPicker() {
+      this.draftAgentIds = [...this.tempPickerAgentIds];
+      this.closeAgentPicker();
     },
     addDraftUser(userId) {
       if (!userId || this.draftUserIds.includes(userId)) {

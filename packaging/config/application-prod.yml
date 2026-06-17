@@ -198,9 +198,9 @@ chatchat:
       enabled: true
       # Runtime/API retrieval service address. For the standalone MCP Server, point this to the Runtime/API host.
       api-base-url: http://localhost:8080
-      search-path: /api/v1/search
+      search-path: /api/v1/search/document-search
       detail-path-template: /api/v1/search/documents/{docId}
-      timeout-ms: 20000
+      timeout-ms: 300000
       default-limit: 5
       max-limit: 20
       auth:

@@ -78,11 +78,11 @@ export function extractDocumentSearchPages(trace) {
     .flat();
   return uniqueDocumentPages(candidates
     .map((item, index) => {
-      const docId = item.docId || item.documentId || item.id || item.fileId || "";
+      const docId = item.docId || item.documentId || item.id || item.fileId || item.file_id || documentIdFromRef(item.refId) || "";
       return {
         rank: item.rank || item.position || index + 1,
         docId,
-        title: item.title || item.name || item.filename || item.source || docId || "引用文档",
+        title: documentReferenceTitle(item, docId),
         url: item.url || item.link || item.href || item.sourceUrl || item.detailPath || "",
         snippet: shortSnippet(
           item.excerpt
@@ -105,6 +105,35 @@ export function extractDocumentSearchPagesFromTraces(traces = []) {
     return [];
   }
   return uniqueDocumentPages(traces.flatMap((trace) => extractDocumentSearchPages(trace)));
+}
+
+export function documentReferenceTitle(item = {}, docId = "") {
+  const citation = item && typeof item.citation === "object" ? item.citation : {};
+  const source = item && typeof item.source === "object" ? item.source : {};
+  const normalizedDocId = String(docId || "").trim();
+  const fileId = String(item.fileId || item.file_id || "").trim();
+  const candidates = [
+    item.fileName,
+    item.file_name,
+    item.documentTitle,
+    item.document_title,
+    item.title,
+    item.name,
+    item.filename,
+    citation.fileName,
+    citation.file_name,
+    citation.source,
+    source.name,
+    source.title,
+    source.fileName,
+    source.file_name,
+    typeof item.source === "string" ? item.source : "",
+    normalizedDocId
+  ];
+  const title = candidates
+    .map((value) => String(value || "").trim())
+    .find((value) => isReadableDocumentTitle(value, normalizedDocId, fileId));
+  return title || normalizedDocId || "\u5f15\u7528\u6587\u6863";
 }
 
 export function displayUrl(url) {
@@ -174,6 +203,27 @@ function shortSnippet(value) {
   return normalized.length > 120 ? `${normalized.slice(0, 120)}...` : normalized;
 }
 
+function documentIdFromRef(refId) {
+  const match = String(refId || "").match(/^doc:\/\/([^#]+)/i);
+  return match ? match[1] : "";
+}
+
+function isReadableDocumentTitle(value, docId, fileId) {
+  if (!value) {
+    return false;
+  }
+  if (value === docId || value === fileId) {
+    return false;
+  }
+  if (/^doc:\/\//i.test(value) || /^https?:\/\//i.test(value)) {
+    return false;
+  }
+  if (/^\d{8}_[a-f0-9]{6,}$/i.test(value)) {
+    return false;
+  }
+  return true;
+}
+
 function isWebSearchTrace(trace) {
   const name = String(trace?.toolName || trace?.displayName || "").toLowerCase();
   const extendedName = String([
@@ -233,3 +283,4 @@ function hasWebUrl(item) {
   const value = item?.url || item?.link || item?.href || item?.sourceUrl;
   return /^https?:\/\//i.test(String(value || ""));
 }
+

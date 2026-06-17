@@ -50,6 +50,19 @@ import java.util.regex.Pattern;
 @RequiredArgsConstructor
 public class BuiltInToolsBootstrap {
 
+    private static final String DOCUMENT_SEARCH_EVIDENCE_GUIDANCE = String.join(" ",
+        "Search indexed knowledge-base documents and return cited evidence chunks.",
+        "Use this when the answer should be grounded in uploaded or indexed internal documents.",
+        "The result contains contractVersion, source, section, content, score, citation, context, and citations fields.",
+        "Use context as the RAG input and keep citations with the final answer.",
+        "Set debug=true only for retrieval diagnostics; normal agent reasoning should use the evidence fields."
+    );
+
+    private static final String DOCUMENT_SEARCH_QUERY_GUIDANCE = String.join(" ",
+        "User question or concise retrieval query to find document evidence.",
+        "Preserve exact titles, product names, domain terms, codes, versions, dates, and aliases when present."
+    );
+
     private final ToolRegistry toolRegistry;
     private final WebSearchToolProperties webSearchProperties;
     private final DatabaseToolProperties databaseToolProperties;
@@ -207,6 +220,34 @@ public class BuiltInToolsBootstrap {
                     .maxLength(128)
                     .build(),
                 ToolParameter.builder()
+                    .name("userId")
+                    .type("string")
+                    .description("Optional user identifier used for audit and request isolation")
+                    .required(false)
+                    .maxLength(128)
+                    .build(),
+                ToolParameter.builder()
+                    .name("roles")
+                    .type("array")
+                    .description("Optional runtime user roles used by web governance policy.")
+                    .required(false)
+                    .metadata(Map.of("items", Map.of("type", "string")))
+                    .build(),
+                ToolParameter.builder()
+                    .name("allowedDomains")
+                    .type("array")
+                    .description("Optional request-scoped allow-list. When set, web_search only returns or fetches URLs under these domains.")
+                    .required(false)
+                    .metadata(Map.of("items", Map.of("type", "string")))
+                    .build(),
+                ToolParameter.builder()
+                    .name("blockedDomains")
+                    .type("array")
+                    .description("Optional request-scoped block-list. Matching result URLs are removed and matching fetches are denied.")
+                    .required(false)
+                    .metadata(Map.of("items", Map.of("type", "string")))
+                    .build(),
+                ToolParameter.builder()
                     .name("sourceTaskId")
                     .type("string")
                     .description("Optional task identifier used for request isolation")
@@ -263,16 +304,15 @@ public class BuiltInToolsBootstrap {
      */
     private void registerDocumentSearchTool() {
         String apiBaseUrl = environment.getProperty("chatchat.tools.document-search.api-base-url", "http://localhost:8080");
-        String searchPath = environment.getProperty("chatchat.tools.document-search.search-path", "/api/v1/search");
+        String searchPath = environment.getProperty("chatchat.tools.document-search.search-path", "/api/v1/search/document-search");
         String confirmationAction = environment.getProperty(
             "chatchat.tools.document-search.confirmation.default",
             "ask_before_execute"
         );
         ToolMetadata metadata = ToolMetadata.builder()
             .id("document_search")
-            .title("Knowledge Document Search")
-            .description("Search indexed knowledge-base documents with the platform retrieval API. " +
-                "Use this for internal research documents and pass document_ids or tags when the agent has a limited document scope.")
+            .title("Document Evidence Search")
+            .description(DOCUMENT_SEARCH_EVIDENCE_GUIDANCE)
             .version("1.0.0")
             .author("ChatChat System")
             .categories(Arrays.asList("search", "knowledge-base", "document"))
@@ -288,10 +328,10 @@ public class BuiltInToolsBootstrap {
             .inputPolicy(Map.of(
                 "must_show_parameters", true,
                 "allow_auto_fill", true,
-                "sensitive_params", List.of("document_ids"),
+                "sensitive_params", List.of("fileIds"),
                 "parameter_rules", Map.of(
-                    "document_ids", Map.of("action", "ask_before_execute"),
-                    "tags", Map.of("action", "auto_execute")
+                    "fileIds", Map.of("action", "ask_before_execute"),
+                    "filters", Map.of("action", "auto_execute")
                 )
             ))
             .outputPolicy(Map.of(
@@ -306,51 +346,77 @@ public class BuiltInToolsBootstrap {
                 ToolParameter.builder()
                     .name("query")
                     .type("string")
-                    .description("Document search query.")
+                    .description(DOCUMENT_SEARCH_QUERY_GUIDANCE)
                     .required(true)
                     .minLength(1)
                     .maxLength(1000)
                     .build(),
                 ToolParameter.builder()
-                    .name("document_ids")
-                    .type("array")
-                    .description("Optional document IDs that the search is allowed to retrieve from.")
-                    .required(false)
-                    .metadata(Map.of("items", Map.of("type", "string")))
-                    .build(),
-                ToolParameter.builder()
-                    .name("tags")
-                    .type("array")
-                    .description("Optional document tags to filter by.")
-                    .required(false)
-                    .metadata(Map.of("items", Map.of("type", "string")))
-                    .build(),
-                ToolParameter.builder()
-                    .name("company")
-                    .type("string")
-                    .description("Optional company filter.")
-                    .required(false)
-                    .maxLength(200)
-                    .build(),
-                ToolParameter.builder()
-                    .name("industry")
-                    .type("string")
-                    .description("Optional industry filter.")
-                    .required(false)
-                    .maxLength(200)
-                    .build(),
-                ToolParameter.builder()
-                    .name("limit")
+                    .name("topK")
                     .type("integer")
-                    .description("Maximum number of documents to return.")
+                    .description("Maximum number of evidence chunks to return.")
                     .required(false)
-                    .defaultValue(environment.getProperty("chatchat.tools.document-search.default-limit", Integer.class, 5))
+                    .defaultValue(environment.getProperty("chatchat.tools.document-search.default-limit", Integer.class, 8))
                     .minimum(1)
                     .maximum(environment.getProperty("chatchat.tools.document-search.max-limit", Integer.class, 20))
+                    .build(),
+                ToolParameter.builder()
+                    .name("fileIds")
+                    .type("array")
+                    .description("Optional document/file IDs that the search is allowed to retrieve from.")
+                    .required(false)
+                    .metadata(Map.of("items", Map.of("type", "string")))
+                    .build(),
+                ToolParameter.builder()
+                    .name("filters")
+                    .type("object")
+                    .description("Optional filters, for example {\"fileType\":\"pdf\",\"chunkType\":\"troubleshooting\",\"tag\":\"ops\"}.")
+                    .required(false)
+                    .metadata(Map.of(
+                        "properties", Map.of(
+                            "fileType", Map.of("type", "string"),
+                            "chunkType", Map.of("type", "string"),
+                            "tag", Map.of("type", "string"),
+                            "company", Map.of("type", "string"),
+                            "industry", Map.of("type", "string")
+                        ),
+                        "additionalProperties", true
+                    ))
+                    .build(),
+                ToolParameter.builder()
+                    .name("tenantId")
+                    .type("string")
+                    .description("Tenant scope for permission-filtered document evidence. Defaults to default.")
+                    .required(false)
+                    .build(),
+                ToolParameter.builder()
+                    .name("userId")
+                    .type("string")
+                    .description("User scope for private document evidence. Defaults to anonymous.")
+                    .required(false)
+                    .build(),
+                ToolParameter.builder()
+                    .name("roles")
+                    .type("array")
+                    .description("Runtime user roles used to access role-scoped documents.")
+                    .required(false)
+                    .metadata(Map.of("items", Map.of("type", "string")))
+                    .build(),
+                ToolParameter.builder()
+                    .name("debug")
+                    .type("boolean")
+                    .description("Return retrieval trace for diagnostics. Default false.")
+                    .required(false)
+                    .defaultValue(false)
                     .build()
             ))
             .tags(Arrays.asList("search", "document", "knowledge-base", "agent"))
-            .metadata(Map.of("readOnly", true))
+            .metadata(Map.of(
+                "readOnly", true,
+                "resultContract", "document_evidence_chunks",
+                "contractVersion", "document_evidence_v1",
+                "retrievalGuidance", DOCUMENT_SEARCH_EVIDENCE_GUIDANCE
+            ))
             .build();
 
         DocumentSearchTool documentSearchTool = new DocumentSearchTool(environment, objectMapper);
@@ -703,17 +769,17 @@ public class BuiltInToolsBootstrap {
                 if (query == null || query.isBlank()) {
                     return ToolOutput.failure("query parameter is required");
                 }
-                int limit = resolveLimit(input);
-                uri = buildSearchUri(input, query.trim(), limit);
+                uri = buildEvidenceSearchUri();
+                Map<String, Object> body = buildEvidenceSearchBody(input, query.trim());
                 int timeoutMs = environment.getProperty("chatchat.tools.document-search.timeout-ms", Integer.class, 20000);
-                HttpResponse<String> response = sendDocumentApiGet(uri, timeoutMs);
+                HttpResponse<String> response = sendDocumentApiPost(uri, body, timeoutMs);
                 if (response.statusCode() < 200 || response.statusCode() >= 300) {
                     return ToolOutput.failure(documentApiFailureMessage("document search", response.statusCode(), uri));
                 }
                 Map<String, Object> payload = objectMapper.readValue(response.body(), Map.class);
                 Object data = payload.containsKey("data") ? payload.get("data") : payload;
                 enrichWithDocumentContent(data, query.trim());
-                return ToolOutput.success(data, "Document search completed successfully");
+                return ToolOutput.success(data, "Document evidence search completed successfully");
             } catch (Exception e) {
                 String target = uri == null ? "" : " for " + uri;
                 return ToolOutput.failure("document search API call failed" + target + ": " + e.getMessage());
@@ -840,6 +906,27 @@ public class BuiltInToolsBootstrap {
         }
 
         /**
+         * Sends the document api post.
+         *
+         * @param uri the uri value
+         * @param body the body value
+         * @param timeoutMs the timeout ms value
+         * @return the operation result
+         * @throws IOException if the operation fails
+         * @throws InterruptedException if the operation fails
+         */
+        private HttpResponse<String> sendDocumentApiPost(URI uri,
+                                                         Map<String, Object> body,
+                                                         int timeoutMs) throws IOException, InterruptedException {
+            HttpResponse<String> response = httpClient.send(buildDocumentApiPost(uri, body, timeoutMs), HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            if (response.statusCode() == 401 && isDocumentSearchAuthEnabled() && configuredDocumentSearchToken().isBlank()) {
+                documentSearchToken = null;
+                response = httpClient.send(buildDocumentApiPost(uri, body, timeoutMs), HttpResponse.BodyHandlers.ofString(StandardCharsets.UTF_8));
+            }
+            return response;
+        }
+
+        /**
          * Builds the document api get.
          *
          * @param uri the uri value
@@ -852,6 +939,30 @@ public class BuiltInToolsBootstrap {
             HttpRequest.Builder builder = HttpRequest.newBuilder(uri)
                 .timeout(Duration.ofMillis(Math.max(1000, timeoutMs)))
                 .GET();
+            String token = resolveDocumentSearchToken();
+            if (token != null && !token.isBlank()) {
+                builder.header("Authorization", "Bearer " + token);
+            }
+            return builder.build();
+        }
+
+        /**
+         * Builds the document api post.
+         *
+         * @param uri the uri value
+         * @param body the body value
+         * @param timeoutMs the timeout ms value
+         * @return the built document api post
+         * @throws IOException if the operation fails
+         * @throws InterruptedException if the operation fails
+         */
+        private HttpRequest buildDocumentApiPost(URI uri,
+                                                 Map<String, Object> body,
+                                                 int timeoutMs) throws IOException, InterruptedException {
+            HttpRequest.Builder builder = HttpRequest.newBuilder(uri)
+                .timeout(Duration.ofMillis(Math.max(1000, timeoutMs)))
+                .header("Content-Type", "application/json")
+                .POST(HttpRequest.BodyPublishers.ofString(objectMapper.writeValueAsString(body), StandardCharsets.UTF_8));
             String token = resolveDocumentSearchToken();
             if (token != null && !token.isBlank()) {
                 builder.header("Authorization", "Bearer " + token);
@@ -1147,6 +1258,70 @@ public class BuiltInToolsBootstrap {
         }
 
         /**
+         * Builds the evidence search uri.
+         *
+         * @return the built evidence search uri
+         */
+        private URI buildEvidenceSearchUri() {
+            String apiBaseUrl = documentSearchApiBaseUrl();
+            String searchPath = environment.getProperty("chatchat.tools.document-search.search-path", "/api/v1/search/document-search");
+            StringBuilder url = new StringBuilder(trimTrailingSlash(apiBaseUrl));
+            if (!searchPath.startsWith("/")) {
+                url.append('/');
+            }
+            url.append(searchPath);
+            return URI.create(url.toString());
+        }
+
+        /**
+         * Builds the evidence search body.
+         *
+         * @param input the input value
+         * @param query the query value
+         * @return the built evidence search body
+         */
+        @SuppressWarnings("unchecked")
+        private Map<String, Object> buildEvidenceSearchBody(ToolInput input, String query) throws IOException {
+            Map<String, Object> body = new LinkedHashMap<>();
+            body.put("query", query);
+            body.put("topK", resolveTopK(input));
+
+            String fileIds = joinValues(firstPresentParameter(input, "fileIds", "file_ids", "document_ids"));
+            if (fileIds != null && !fileIds.isBlank()) {
+                body.put("fileIds", Arrays.asList(fileIds.split(",")));
+            }
+
+            Map<String, Object> filters = new LinkedHashMap<>();
+            Object rawFilters = input.getParameter("filters");
+            if (rawFilters instanceof Map<?, ?> map) {
+                for (Map.Entry<?, ?> entry : map.entrySet()) {
+                    if (entry.getKey() != null && entry.getValue() != null) {
+                        filters.put(String.valueOf(entry.getKey()), entry.getValue());
+                    }
+                }
+            } else if (rawFilters instanceof String text && !text.isBlank()) {
+                filters.putAll(objectMapper.readValue(text, Map.class));
+            }
+            putIfText(filters, "tag", firstNonBlank(joinValues(input.getParameter("tags")), input.getParameterAsString("tag", "")));
+            putIfText(filters, "company", input.getParameterAsString("company", ""));
+            putIfText(filters, "industry", input.getParameterAsString("industry", ""));
+            putIfText(filters, "fileType", firstNonBlank(input.getParameterAsString("fileType", ""), input.getParameterAsString("file_type", "")));
+            putIfText(filters, "chunkType", firstNonBlank(input.getParameterAsString("chunkType", ""), input.getParameterAsString("chunk_type", "")));
+            if (!filters.isEmpty()) {
+                body.put("filters", filters);
+            }
+
+            putIfText(body, "tenantId", firstNonBlank(input.getParameterAsString("tenantId", ""), input.getParameterAsString("tenant_id", "")));
+            putIfText(body, "userId", firstNonBlank(input.getParameterAsString("userId", ""), input.getParameterAsString("user_id", "")));
+            String roles = joinValues(firstPresentParameter(input, "roles", "role"));
+            if (roles != null && !roles.isBlank()) {
+                body.put("roles", Arrays.asList(roles.split(",")));
+            }
+            body.put("debug", input.getParameterAsBoolean("debug", false));
+            return body;
+        }
+
+        /**
          * Builds the search uri.
          *
          * @param input the input value
@@ -1190,6 +1365,26 @@ public class BuiltInToolsBootstrap {
         }
 
         /**
+         * Resolves the top k.
+         *
+         * @param input the input value
+         * @return the resolved top k
+         */
+        private int resolveTopK(ToolInput input) {
+            Number requested = input.getParameterAsNumber("topK");
+            if (requested == null) {
+                requested = input.getParameterAsNumber("top_k");
+            }
+            if (requested == null) {
+                requested = input.getParameterAsNumber("limit");
+            }
+            int defaultLimit = environment.getProperty("chatchat.tools.document-search.default-limit", Integer.class, 8);
+            int maxLimit = environment.getProperty("chatchat.tools.document-search.max-limit", Integer.class, 20);
+            int value = requested == null ? defaultLimit : requested.intValue();
+            return Math.max(1, Math.min(Math.max(1, maxLimit), value));
+        }
+
+        /**
          * Performs the document search api base url operation.
          *
          * @return the operation result
@@ -1226,6 +1421,36 @@ public class BuiltInToolsBootstrap {
                     .orElse("");
             }
             return String.valueOf(value).trim();
+        }
+
+        /**
+         * Performs the first present parameter operation.
+         *
+         * @param input the input value
+         * @param names the names value
+         * @return the operation result
+         */
+        private Object firstPresentParameter(ToolInput input, String... names) {
+            for (String name : names) {
+                Object value = input.getParameter(name);
+                if (value != null) {
+                    return value;
+                }
+            }
+            return null;
+        }
+
+        /**
+         * Puts the if text.
+         *
+         * @param values the values value
+         * @param key the key value
+         * @param value the value value
+         */
+        private void putIfText(Map<String, Object> values, String key, String value) {
+            if (value != null && !value.isBlank()) {
+                values.put(key, value.trim());
+            }
         }
 
         /**

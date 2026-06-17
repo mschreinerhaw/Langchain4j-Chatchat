@@ -58,6 +58,7 @@ import javax.net.ssl.SSLSocketFactory;
 @Slf4j
 class WebSearchTool implements ToolRegistry.EnhancedTool {
 
+    private static final String CONTRACT_VERSION = "web_evidence_v1";
     private static final String SEARCH_STAGE_FULL = "full";
     private static final String SEARCH_STAGE_PRIMARY = "primary";
     private static final String SEARCH_STAGE_SITE_SEARCH = "site_search";
@@ -252,7 +253,13 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
         if (fetchedResults.isEmpty()) {
             fetchedResults = fallbackExtractAllLinks(document, searchQuery, fetchLimit);
         }
-        List<Map<String, Object>> primaryResults = primaryResults(fetchedResults, queryIntent);
+        List<Map<String, Object>> primaryResults = filterAllowedResults(
+            primaryResults(fetchedResults, queryIntent),
+            context,
+            networkAudit,
+            searchQuery,
+            "primary_result_filter"
+        );
         SearchResultRelevance searchResultRelevance = assessSearchResultRelevance(primaryResults, searchQuery);
         List<Map<String, Object>> siteSearchSeeds = siteSearchSeeds(primaryResults, queryIntent);
         List<Map<String, Object>> siteSearchResults = includeSiteSearch
@@ -278,11 +285,23 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
             )
             : List.of();
         siteSearchResults = mergeSearchResults(siteSearchResults, discoveredSiteSearchResults, fetchLimit);
-        List<Map<String, Object>> mergedCandidates = mergeSearchResults(primaryResults, siteSearchResults, fetchLimit);
+        List<Map<String, Object>> mergedCandidates = filterAllowedResults(
+            mergeSearchResults(primaryResults, siteSearchResults, fetchLimit),
+            context,
+            networkAudit,
+            searchQuery,
+            "merged_result_filter"
+        );
         List<Map<String, Object>> pageExcerpts = includePageFetch
             ? fetchPageExcerpts(mergedCandidates, query, context, networkAudit)
             : List.of();
-        List<Map<String, Object>> rankedResults = rankSearchResults(mergedCandidates, pageExcerpts, searchQuery, fetchLimit, searchStrategy);
+        List<Map<String, Object>> rankedResults = filterAllowedResults(
+            rankSearchResults(mergedCandidates, pageExcerpts, searchQuery, fetchLimit, searchStrategy),
+            context,
+            networkAudit,
+            searchQuery,
+            "final_result_filter"
+        );
         attachUrlEvidence(rankedResults, pageExcerpts, searchQuery, searchStrategy);
         List<Map<String, Object>> results = rankedResults.size() <= numResults
             ? rankedResults
@@ -297,6 +316,9 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
             .toList();
 
         Map<String, Object> output = new LinkedHashMap<>();
+        output.put("contractVersion", CONTRACT_VERSION);
+        output.put("requestContext", requestContextMap(context));
+        output.put("governance", governanceMap(context));
         output.put("query", query);
         output.put("search_query", searchQuery);
         output.put("site_search_query", siteQuery);
@@ -324,7 +346,7 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
         output.put("contentMode", contentMode(pageExcerpts, siteSearchResults));
         output.put("rerank_engine", "heuristic_evidence_v2");
         output.put("structured_text", structuredSearchText(results, pageExcerpts, searchResultRelevance));
-        output.put("web_search_audit", properties.getAudit().isIncludeInResult() ? networkAudit : List.of());
+        output.put("web_search_audit", properties.getAudit().isIncludeInResult() ? auditForResult(networkAudit, context) : List.of());
         output.put("primaryResults", primaryResults);
         output.put("siteSearchResults", siteSearchResults);
         output.put("pageEvidence", pageExcerpts);
@@ -346,9 +368,18 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
             input.getParameterAsString("site_search_query", ""),
             queryIntent.siteSearchQuery()
         );
-        List<Map<String, Object>> seedResults = seedResults(input, queryIntent);
+        List<Map<String, Object>> seedResults = filterAllowedResults(
+            seedResults(input, queryIntent),
+            context,
+            networkAudit,
+            siteQuery,
+            "seed_result_filter"
+        );
         if (seedResults.isEmpty()) {
             Map<String, Object> output = new LinkedHashMap<>();
+            output.put("contractVersion", CONTRACT_VERSION);
+            output.put("requestContext", requestContextMap(context));
+            output.put("governance", governanceMap(context));
             output.put("query", query);
             output.put("site_search_query", siteQuery);
             output.put("target_site", queryIntent.targetHost());
@@ -362,7 +393,7 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
             output.put("results", List.of());
             output.put("structured_text", "site_search_result_count: 0\nmessage: no seed urls selected");
             output.put("model_selection_text", "No site-search candidate URLs were found. Do not call web_crawler unless another reliable URL is available.");
-            output.put("web_search_audit", properties.getAudit().isIncludeInResult() ? networkAudit : List.of());
+            output.put("web_search_audit", properties.getAudit().isIncludeInResult() ? auditForResult(networkAudit, context) : List.of());
             output.put("message", "No seed URLs were provided for site search");
             return output;
         }
@@ -377,7 +408,7 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
             networkAudit,
             siteSearchMode
         ));
-        siteSearchResults = mergeSearchResults(siteSearchResults, discoverSiteSearchResults(
+        siteSearchResults = filterAllowedResults(mergeSearchResults(siteSearchResults, discoverSiteSearchResults(
             seedResults,
             siteQuery,
             resultLimit,
@@ -385,12 +416,18 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
             networkAudit,
             true,
             siteSearchMode
-        ), resultLimit);
+        ), resultLimit), context, networkAudit, siteQuery, "site_result_filter");
 
         List<Map<String, Object>> pageExcerpts = properties.getUrlEvidence().isFetchForSiteSearch()
             ? fetchPageExcerpts(siteSearchResults, siteQuery, context, networkAudit, resultLimit)
             : List.of();
-        siteSearchResults = rankSearchResults(siteSearchResults, pageExcerpts, siteQuery, resultLimit, searchStrategy);
+        siteSearchResults = filterAllowedResults(
+            rankSearchResults(siteSearchResults, pageExcerpts, siteQuery, resultLimit, searchStrategy),
+            context,
+            networkAudit,
+            siteQuery,
+            "site_final_result_filter"
+        );
         attachUrlEvidence(siteSearchResults, pageExcerpts, siteQuery, searchStrategy);
 
         List<String> referenceUrls = siteSearchResults.stream()
@@ -406,6 +443,9 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
         String modelSelectionText = siteSearchModelSelectionText(siteQuery, crawlCandidates);
 
         Map<String, Object> output = new LinkedHashMap<>();
+        output.put("contractVersion", CONTRACT_VERSION);
+        output.put("requestContext", requestContextMap(context));
+        output.put("governance", governanceMap(context));
         output.put("query", query);
         output.put("site_search_query", siteQuery);
         output.put("query_strategy", searchStrategy.toMap());
@@ -427,7 +467,7 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
         output.put("rerank_engine", "heuristic_evidence_v2");
         output.put("structured_text", structuredSearchText(siteSearchResults, pageExcerpts, relevance));
         output.put("model_selection_text", modelSelectionText);
-        output.put("web_search_audit", properties.getAudit().isIncludeInResult() ? networkAudit : List.of());
+        output.put("web_search_audit", properties.getAudit().isIncludeInResult() ? auditForResult(networkAudit, context) : List.of());
         output.put("pageEvidence", pageExcerpts);
         output.put("pageExcerpts", pageExcerpts);
         output.put("evidenceSnippets", pageExcerpts);
@@ -1111,10 +1151,6 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
                     Object keyPoints = evidence.get("key_points");
                     if (keyPoints instanceof List<?> list && !list.isEmpty()) {
                         builder.append("  key_points: ").append(list).append('\n');
-                    }
-                    Object keywords = evidence.get("keywords");
-                    if (keywords instanceof List<?> list && !list.isEmpty()) {
-                        builder.append("  keywords: ").append(list).append('\n');
                     }
                 }
             }
@@ -2409,7 +2445,7 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
                 attempts++;
                 continue;
             }
-            if (!isAllowedUrl(url)) {
+            if (!isAllowedUrl(url, context)) {
                 addAudit(networkAudit, query, url, "page", null, 0, 0, "BLOCKED", "domain not allowed");
                 Map<String, Object> evidence = basePageEvidence(result, url, "blocked", 0);
                 evidence.put("fetchError", "domain not allowed");
@@ -2525,7 +2561,7 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
                 break;
             }
             String pageUrl = stringValue(result.get("url"));
-            if (!isFetchablePageUrl(pageUrl) || !isAllowedUrl(pageUrl)) {
+            if (!isFetchablePageUrl(pageUrl) || !isAllowedUrl(pageUrl, context)) {
                 continue;
             }
             inspected++;
@@ -2734,7 +2770,7 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
         Set<String> seenForms = new LinkedHashSet<>();
         int inspected = 0;
         for (String candidateUrl : candidates) {
-            if (inspected >= maxAdditionalInspections || !isFetchablePageUrl(candidateUrl) || !isAllowedUrl(candidateUrl)) {
+            if (inspected >= maxAdditionalInspections || !isFetchablePageUrl(candidateUrl) || !isAllowedUrl(candidateUrl, context)) {
                 continue;
             }
             inspected++;
@@ -3085,9 +3121,13 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
         return new WebSearchRequestContext(
             context.query(),
             context.tenantId(),
+            context.userId(),
+            context.roles(),
             context.taskId(),
             context.agentId(),
-            referer
+            referer,
+            context.allowedDomains(),
+            context.blockedDomains()
         );
     }
 
@@ -3458,7 +3498,7 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
                                                    WebSearchRequestContext context,
                                                    List<Map<String, Object>> networkAudit,
                                                    String httpMethod) throws Exception {
-        if (!isAllowedUrl(url)) {
+        if (!isAllowedUrl(url, context)) {
             addAudit(networkAudit, query, url, phase, null, 0, 0, "BLOCKED", "domain not allowed");
             throw new IllegalArgumentException("Web search target domain is not allowed: " + hostOf(url));
         }
@@ -3524,7 +3564,7 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
                                          List<Map<String, Object>> networkAudit,
                                          String httpMethod,
                                          boolean allowBrowserAttempt) throws Exception {
-        if (!isAllowedUrl(url)) {
+        if (!isAllowedUrl(url, context)) {
             addAudit(networkAudit, query, url, phase, null, 0, 0, "BLOCKED", "domain not allowed");
             throw new IllegalArgumentException("Web search target domain is not allowed: " + hostOf(url));
         }
@@ -4236,9 +4276,13 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
         return new WebSearchRequestContext(
             query,
             firstNonBlank(stringValue(parameters.get("tenantId")), stringValue(parameters.get("tenant_id"))),
+            firstNonBlank(stringValue(parameters.get("userId")), stringValue(parameters.get("user_id"))),
+            stringList(firstObject(parameters.get("roles"), parameters.get("role"))),
             firstNonBlank(stringValue(parameters.get("sourceTaskId")), stringValue(parameters.get("taskId"))),
             stringValue(parameters.get("agentId")),
-            stringValue(parameters.get("referer"))
+            stringValue(parameters.get("referer")),
+            stringList(firstObject(parameters.get("allowedDomains"), parameters.get("allowed_domains"), parameters.get("allowDomains"))),
+            stringList(firstObject(parameters.get("blockedDomains"), parameters.get("blocked_domains"), parameters.get("denyDomains")))
         );
     }
 
@@ -4327,19 +4371,99 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
         }
     }
 
-    private boolean isAllowedUrl(String url) {
-        if (!properties.getAllowList().isEnabled()) {
-            return true;
-        }
+    private boolean isAllowedUrl(String url, WebSearchRequestContext context) {
         String host = hostOf(url);
         if (host == null || host.isBlank()) {
             return false;
         }
         String normalizedHost = host.toLowerCase(Locale.ROOT);
-        return properties.getAllowList().getDomains().stream()
+        if (matchesDomain(normalizedHost, context == null ? List.of() : context.blockedDomains())) {
+            return false;
+        }
+        List<String> requestAllowList = context == null ? List.of() : context.allowedDomains();
+        if (requestAllowList != null && !requestAllowList.isEmpty()) {
+            return matchesDomain(normalizedHost, requestAllowList);
+        }
+        if (!properties.getAllowList().isEnabled()) {
+            return true;
+        }
+        return matchesDomain(normalizedHost, properties.getAllowList().getDomains());
+    }
+
+    private boolean matchesDomain(String normalizedHost, List<String> domains) {
+        if (normalizedHost == null || normalizedHost.isBlank() || domains == null || domains.isEmpty()) {
+            return false;
+        }
+        return domains.stream()
             .filter(domain -> domain != null && !domain.isBlank())
             .map(domain -> domain.trim().toLowerCase(Locale.ROOT))
+            .map(domain -> domain.startsWith("http://") || domain.startsWith("https://") ? hostOf(domain) : domain)
+            .filter(domain -> domain != null && !domain.isBlank())
             .anyMatch(domain -> normalizedHost.equals(domain) || normalizedHost.endsWith("." + domain));
+    }
+
+    private List<Map<String, Object>> filterAllowedResults(List<Map<String, Object>> results,
+                                                           WebSearchRequestContext context,
+                                                           List<Map<String, Object>> networkAudit,
+                                                           String query,
+                                                           String phase) {
+        if (results == null || results.isEmpty()) {
+            return List.of();
+        }
+        List<Map<String, Object>> filtered = new ArrayList<>();
+        for (Map<String, Object> result : results) {
+            String url = stringValue(result.get("url"));
+            if (url == null || url.isBlank() || isAllowedUrl(url, context)) {
+                filtered.add(result);
+            } else {
+                addAudit(networkAudit, query, url, phase, null, 0, 0, "BLOCKED", "domain not allowed");
+            }
+        }
+        return filtered;
+    }
+
+    private Map<String, Object> requestContextMap(WebSearchRequestContext context) {
+        Map<String, Object> values = new LinkedHashMap<>();
+        if (context == null) {
+            return values;
+        }
+        values.put("tenantId", firstNonBlank(context.tenantId(), "default"));
+        values.put("userId", firstNonBlank(context.userId(), "anonymous"));
+        values.put("roles", context.roles() == null ? List.of() : context.roles());
+        values.put("taskId", context.taskId());
+        values.put("agentId", context.agentId());
+        values.put("allowedDomains", context.allowedDomains() == null ? List.of() : context.allowedDomains());
+        values.put("blockedDomains", context.blockedDomains() == null ? List.of() : context.blockedDomains());
+        return values;
+    }
+
+    private Map<String, Object> governanceMap(WebSearchRequestContext context) {
+        Map<String, Object> values = new LinkedHashMap<>();
+        values.put("domainPolicy", Map.of(
+            "globalAllowListEnabled", properties.getAllowList().isEnabled(),
+            "requestAllowListEnabled", context != null && context.allowedDomains() != null && !context.allowedDomains().isEmpty(),
+            "requestBlockListEnabled", context != null && context.blockedDomains() != null && !context.blockedDomains().isEmpty()
+        ));
+        values.put("auditEnabled", properties.getAudit().isEnabled());
+        values.put("contractVersion", CONTRACT_VERSION);
+        return values;
+    }
+
+    private List<Map<String, Object>> auditForResult(List<Map<String, Object>> audit, WebSearchRequestContext context) {
+        if (audit == null || audit.isEmpty()) {
+            return List.of();
+        }
+        return audit.stream()
+            .map(item -> {
+                Map<String, Object> copy = new LinkedHashMap<>(item);
+                copy.put("tenantId", context == null ? null : firstNonBlank(context.tenantId(), "default"));
+                copy.put("userId", context == null ? null : firstNonBlank(context.userId(), "anonymous"));
+                copy.put("roles", context == null || context.roles() == null ? List.of() : context.roles());
+                copy.put("taskId", context == null ? null : context.taskId());
+                copy.put("agentId", context == null ? null : context.agentId());
+                return copy;
+            })
+            .toList();
     }
 
     private String hostOf(String url) {
@@ -4896,9 +5020,13 @@ class WebSearchTool implements ToolRegistry.EnhancedTool {
 
     private record WebSearchRequestContext(String query,
                                            String tenantId,
+                                           String userId,
+                                           List<String> roles,
                                            String taskId,
                                            String agentId,
-                                           String referer) {
+                                           String referer,
+                                           List<String> allowedDomains,
+                                           List<String> blockedDomains) {
     }
 
     private static class ProxyRuntimeState {

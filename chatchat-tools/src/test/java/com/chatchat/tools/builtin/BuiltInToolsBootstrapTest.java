@@ -69,6 +69,8 @@ class BuiltInToolsBootstrapTest {
         assertThat(webSearch.getInputPolicy()).containsEntry("must_show_parameters", true);
         assertThat(webSearch.getInputPolicy()).containsKey("sensitive_params");
         assertThat(webSearch.getTimeoutMillis()).isGreaterThanOrEqualTo(0L);
+        assertThat(webSearch.getParameters()).extracting("name")
+            .contains("tenantId", "userId", "roles", "allowedDomains", "blockedDomains");
 
         ToolMetadata databaseQuery = registry.getToolMetadata("database_query");
         assertThat(databaseQuery.getCategory()).isEqualTo("database_data_query");
@@ -166,8 +168,12 @@ class BuiltInToolsBootstrapTest {
         assertThat(output.isSuccess()).isTrue();
         Map<String, Object> data = (Map<String, Object>) output.getData();
         assertThat(data)
+            .containsEntry("contractVersion", "web_evidence_v1")
             .containsEntry("contentMode", "page_enriched")
             .containsEntry("page_excerpt_count", 1);
+        assertThat((Map<String, Object>) data.get("requestContext"))
+            .containsEntry("tenantId", "default")
+            .containsEntry("userId", "anonymous");
         assertThat(searchLandingCount).isGreaterThanOrEqualTo(1);
         assertThat(searchEngineQuery).isEqualTo("Kunpeng");
         List<Map<String, Object>> results = (List<Map<String, Object>>) data.get("results");
@@ -219,6 +225,59 @@ class BuiltInToolsBootstrapTest {
             .doesNotContain("keywordMatched")
             .doesNotContain("matched_results")
             .doesNotContain("keywords:");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void webSearchAppliesRequestScopedDomainPolicyAndAuditContext() throws Exception {
+        startWebSearchApiWithMixedDomains();
+        DefaultToolRegistry registry = new DefaultToolRegistry();
+        WebSearchToolProperties webSearchProperties = new WebSearchToolProperties();
+        webSearchProperties.setProvider("bing_html");
+        webSearchProperties.setEndpoint("http://localhost:" + server.getAddress().getPort() + "/search");
+        webSearchProperties.setMaxResults(5);
+        webSearchProperties.setFetchPages(false);
+        webSearchProperties.getBrowser().setEnabled(false);
+        webSearchProperties.getSiteSearch().setEnabled(false);
+
+        BuiltInToolsBootstrap bootstrap = new BuiltInToolsBootstrap(
+            registry,
+            webSearchProperties,
+            new DatabaseToolProperties(),
+            mock(DynamicJdbcDriverLoader.class),
+            new MockEnvironment(),
+            new ObjectMapper()
+        );
+        bootstrap.initializeBuiltInTools();
+
+        ToolRegistry.EnhancedTool webSearch = registry.getEnhancedTool("web_search");
+        ToolOutput output = webSearch.execute(ToolInput.builder()
+            .parameters(Map.of(
+                "query", "domain policy",
+                "num_results", 5,
+                "tenantId", "tenant-a",
+                "userId", "alice",
+                "roles", List.of("analyst"),
+                "allowedDomains", List.of("localhost")
+            ))
+            .build());
+
+        assertThat(output.isSuccess()).isTrue();
+        Map<String, Object> data = (Map<String, Object>) output.getData();
+        assertThat(data).containsEntry("contractVersion", "web_evidence_v1");
+        assertThat((Map<String, Object>) data.get("requestContext"))
+            .containsEntry("tenantId", "tenant-a")
+            .containsEntry("userId", "alice");
+        assertThat((List<String>) ((Map<String, Object>) data.get("requestContext")).get("roles"))
+            .containsExactly("analyst");
+        List<Map<String, Object>> results = (List<Map<String, Object>>) data.get("results");
+        assertThat(results).hasSize(1);
+        assertThat((String) results.get(0).get("url")).contains("localhost");
+        List<Map<String, Object>> audit = (List<Map<String, Object>>) data.get("web_search_audit");
+        assertThat(audit).anySatisfy(item -> assertThat(item)
+            .containsEntry("outcome", "BLOCKED")
+            .containsEntry("tenantId", "tenant-a")
+            .containsEntry("userId", "alice"));
     }
 
     @Test
@@ -723,6 +782,26 @@ class BuiltInToolsBootstrapTest {
             String body = """
                 <html><head><title>Kunpeng compatibility guide</title></head><body><header>Navigation</header><main>Huawei Kunpeng CPU uses an ARM architecture. This page lists ARM compatibility requirements, operating system support, and deployment notes for enterprise software.</main><footer>Footer</footer></body></html>
                 """;
+            byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().add("Content-Type", "text/html; charset=utf-8");
+            exchange.sendResponseHeaders(200, bytes.length);
+            exchange.getResponseBody().write(bytes);
+            exchange.close();
+        });
+        server.start();
+    }
+
+    private void startWebSearchApiWithMixedDomains() throws IOException {
+        searchEngineQuery = null;
+        server = HttpServer.create(new InetSocketAddress(0), 0);
+        server.createContext("/search", exchange -> {
+            searchEngineQuery = queryParam(exchange.getRequestURI().getRawQuery(), "q");
+            String body = """
+                <html><body><ol>
+                <li class="b_algo"><h2><a href="http://localhost:%d/local">Allowed local result</a></h2><div class="b_caption"><p>Local result.</p></div></li>
+                <li class="b_algo"><h2><a href="https://example.com/blocked">Blocked remote result</a></h2><div class="b_caption"><p>Remote result.</p></div></li>
+                </ol></body></html>
+                """.formatted(server.getAddress().getPort());
             byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
             exchange.getResponseHeaders().add("Content-Type", "text/html; charset=utf-8");
             exchange.sendResponseHeaders(200, bytes.length);

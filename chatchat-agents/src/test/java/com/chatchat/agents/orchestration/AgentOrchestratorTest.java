@@ -98,6 +98,79 @@ class AgentOrchestratorTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    void interpretationPlanAcceptsDocumentSearchPartialEvidenceWhenModelReviewIsTooStrict() {
+        StrictDocumentReviewChatModel chatModel = new StrictDocumentReviewChatModel(
+            """
+                {
+                  "version": "1.0",
+                  "intent": {"type": "document_retrieval", "goal": "Use document chunks to synthesize a Spark SQL answer", "risk_level": "low"},
+                  "context": {"key_facts": [], "assumptions": [], "missing_info": [], "constraints": ["Use document_search evidence"]},
+                  "plan": {
+                    "steps": [
+                      {"id": 1, "action_type": "mcp_tool", "tool_name": "document_search", "input": {"query": "FileSystem JDBC Spark SQL"}, "depends_on": []},
+                      {"id": 2, "action_type": "final_answer", "tool_name": "", "input": {"answer": "Use the retrieved JDBC and Filesystem chunks, and state that the combined sync example is missing."}, "depends_on": [1]}
+                    ]
+                  },
+                  "execution_policy": {"max_steps": 2, "allow_parallel": false, "allow_tool": ["document_search"], "deny_tool": [], "timeout_ms": 30000},
+                  "review": {"self_check": {"completeness_score": 0.8, "hallucination_risk": 0.2, "tool_sufficiency": true, "missing_steps": []}, "fallback_plan": []}
+                }
+                """,
+            "{\"accepted\":true,\"feedback\":\"The answer honestly uses partial document evidence.\",\"revisedAnswer\":\"\"}"
+        );
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool("document_search")).thenReturn(true);
+        when(toolRegistry.getToolMetadata("document_search")).thenReturn(ToolMetadata.builder()
+            .id("document_search")
+            .title("Document Search")
+            .description("Search internal documents")
+            .riskLevel("low")
+            .build());
+        when(toolRegistry.executeEnhancedTool(eq("document_search"), any())).thenReturn(documentEvidenceSearchOutput());
+        AgentOrchestrator orchestrator = new AgentOrchestrator(
+            chatModel,
+            toolRegistry,
+            new ToolRuntimeService(toolRegistry, new ObjectMapper(), toolRuntimeProperties(), List.of(), List.of()),
+            new ObjectMapper(),
+            new ModelsConfig()
+        );
+
+        AgentOrchestrator.AgentExecutionResult result = orchestrator.executeAgent(
+            "给出 Spark SQL 中 FileSystem 和 JDBC 同步到 MySQL 的语法示例",
+            "tenant-1",
+            List.of("document_search"),
+            "Use internal evidence and state missing evidence clearly.",
+            null,
+            List.of(),
+            List.of(),
+            "research",
+            "req-document-partial-evidence",
+            "conv-document-partial-evidence",
+            "user-1",
+            10,
+            List.of(),
+            false
+        );
+
+        assertThat(result.answer())
+            .isEqualTo("Use the retrieved JDBC and Filesystem chunks, and state that the combined sync example is missing.");
+        assertThat(result.toolTraces()).extracting(InteractionToolTrace::getToolName)
+            .containsExactly("document_search");
+        List<Map<String, Object>> steps = (List<Map<String, Object>>) result.metadata().get("interpretationPlanStepExecutions");
+        assertThat(steps)
+            .anySatisfy(step -> {
+                Map<String, Object> stepMetadata = (Map<String, Object>) step.get("metadata");
+                assertThat(step)
+                    .containsEntry("toolName", "document_search")
+                    .containsEntry("success", true);
+                assertThat(stepMetadata)
+                    .containsEntry("toolResultReviewSatisfied", true)
+                    .containsEntry("toolResultReviewAutoAccepted", true)
+                    .containsEntry("toolResultReviewAutoAcceptReason", "document search returned usable partial evidence");
+            });
+    }
+
+    @Test
     void interpretationPlanCanUseRequestScopedAvailableToolWhenRegistryDoesNotAdvertiseIt() {
         String requestScopedTool = "mcp_dynamic_document_search";
         QueueChatModel chatModel = new QueueChatModel(
@@ -1543,6 +1616,31 @@ class AgentOrchestratorTest {
         return ToolOutput.success(result);
     }
 
+    private ToolOutput documentEvidenceSearchOutput() {
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("contractVersion", "document_evidence_v1");
+        result.put("total", 2);
+        result.put("results", List.of(
+            Map.of(
+                "refId", "doc://spark#chunk=159",
+                "fileId", "spark",
+                "title", "Spark SQL Reference.md",
+                "snippet", "JDBC connector CREATE TABLE example for MySQL."
+            ),
+            Map.of(
+                "refId", "doc://spark#chunk=155",
+                "fileId", "spark",
+                "title", "Spark SQL Reference.md",
+                "snippet", "Filesystem connector is listed as source and sink support."
+            )
+        ));
+        result.put("citations", List.of(
+            Map.of("refId", "doc://spark#chunk=159", "citation", "Spark SQL Reference.md / chunk: 159"),
+            Map.of("refId", "doc://spark#chunk=155", "citation", "Spark SQL Reference.md / chunk: 155")
+        ));
+        return ToolOutput.success(result);
+    }
+
     private ToolRuntimeProperties toolRuntimeProperties() {
         ToolRuntimeProperties properties = new ToolRuntimeProperties();
         properties.setEnforceAllowedTools(true);
@@ -1630,6 +1728,37 @@ class AgentOrchestratorTest {
             }
             if (message.contains("runtime reviewer for one completed MCP tool call")) {
                 return "{\"satisfied\":true,\"reason\":\"test reviewer accepts tool result\",\"selected_urls\":[],\"confidence\":1.0}";
+            }
+            if (message.contains("final step-by-step answer synthesizer")) {
+                return answerHint(message);
+            }
+            assertThat(responses).isNotEmpty();
+            return responses.remove();
+        }
+    }
+
+    private static final class StrictDocumentReviewChatModel implements ChatModel {
+        private final Queue<String> responses = new ArrayDeque<>();
+
+        private StrictDocumentReviewChatModel(String... responses) {
+            this.responses.addAll(List.of(responses));
+        }
+
+        @Override
+        public String chat(String message) {
+            assertThat(message).isNotBlank();
+            if (message.contains("Agent Runtime DAG execution controller")) {
+                return dagDecision(message);
+            }
+            if (message.contains("runtime reviewer for one completed MCP tool call")) {
+                return """
+                    {
+                      "satisfied": false,
+                      "reason": "The chunks mention JDBC and Filesystem separately but do not contain a complete combined sync SQL example.",
+                      "selected_urls": [],
+                      "confidence": 0.8
+                    }
+                    """;
             }
             if (message.contains("final step-by-step answer synthesizer")) {
                 return answerHint(message);

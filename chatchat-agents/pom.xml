@@ -54,6 +54,12 @@
             <artifactId>jackson-databind</artifactId>
         </dependency>
 
+        <!-- YAML regression case DSL -->
+        <dependency>
+            <groupId>org.yaml</groupId>
+            <artifactId>snakeyaml</artifactId>
+        </dependency>
+
         <!-- Lombok for annotations -->
         <dependency>
             <groupId>org.projectlombok</groupId>

@@ -1375,6 +1375,17 @@ public class AgentOrchestrator {
                 request.step() == null ? null : request.step().id(),
                 selectedUrls);
         }
+        if (!satisfied
+            && isDocumentSearchTool(request.execution().toolName())
+            && hasUsableDocumentEvidence(request.execution().output())) {
+            satisfied = true;
+            metadata.put("toolResultReviewAutoAccepted", true);
+            metadata.put("toolResultReviewAutoAcceptReason", "document search returned usable partial evidence");
+            reason = "Document search returned usable partial evidence for synthesis; continue to dependent steps. Reviewer note: " + reason;
+            log.info("Tool result review auto-accepted document evidence step tool={} stepId={}",
+                request.execution().toolName(),
+                request.step() == null ? null : request.step().id());
+        }
         return satisfied
             ? InterpretationPlanRuntime.StepReview.accepted(reason, metadata)
             : InterpretationPlanRuntime.StepReview.rejected(reason, metadata);
@@ -1396,6 +1407,9 @@ public class AgentOrchestrator {
         prompt.append("- For web discovery tools (web_search, web_page_analyze, site_intelligence_resolver, *_site_search), judge candidate URLs/snippets only. Do not require full article content from these tools.\n");
         prompt.append("- If a web discovery tool returns useful URLs for follow-up crawling or page analysis, set satisfied=true and put those URLs in selected_urls.\n");
         prompt.append("- For crawl/content tools, judge whether the fetched full content is relevant and usable for analysis.\n");
+        prompt.append("- For document_search, judge whether the result contains relevant document evidence that can support later synthesis. Do not require one chunk to contain the complete final answer or every requested example.\n");
+        prompt.append("- Accept document_search when multiple chunks collectively mention relevant entities, APIs, tables, citations, or snippets, even if the final answer must combine them and state missing pieces.\n");
+        prompt.append("- Reject document_search only when it failed, returned no useful results, violated an explicit source constraint, or is unrelated to the request.\n");
         prompt.append("- If the user required an official source, reject results that do not satisfy that source constraint.\n");
         prompt.append("- Do not answer the user here; only review the tool result.\n\n");
         prompt.append("Attempt: ").append(request.attempt()).append('/').append(request.maxAttempts()).append("\n");
@@ -1427,6 +1441,75 @@ public class AgentOrchestrator {
             || semantic.contains("generic_web_site_search")
             || semantic.equals("web_site_search")
             || (semantic.contains("site_search") && !semantic.contains("search_and_extract"));
+    }
+
+    private boolean isDocumentSearchTool(String toolName) {
+        String semantic = toolSemanticKey(toolName);
+        return semantic.equals("document_search")
+            || semantic.endsWith("_document_search")
+            || (semantic.contains("document") && semantic.contains("search"));
+    }
+
+    private boolean hasUsableDocumentEvidence(Object output) {
+        if (output == null) {
+            return false;
+        }
+        Map<String, Object> root = asMap(output);
+        if (!root.isEmpty()) {
+            if (hasUsableDocumentEvidenceMap(root)) {
+                return true;
+            }
+            Object nested = firstObject(root, "output", "data", "result", "body");
+            if (nested != null && nested != output) {
+                return hasUsableDocumentEvidence(nested);
+            }
+        }
+        if (!(output instanceof String text) || text.isBlank()) {
+            return false;
+        }
+        Map<String, Object> parsed = parseJsonObject(text);
+        if (!parsed.isEmpty()) {
+            return hasUsableDocumentEvidence(parsed);
+        }
+        String compact = text.replaceAll("\\s+", "").toLowerCase(Locale.ROOT);
+        if (compact.contains("\"total\":0") || compact.contains("\"count\":0")) {
+            return false;
+        }
+        return compact.contains("document_evidence_v1")
+            && (compact.contains("\"results\":[{")
+                || compact.contains("\"citations\":[{")
+                || compact.contains("\"evidencesnippets\":[{")
+                || compact.contains("doc://")
+                || compact.contains("documentevidencesnippets"));
+    }
+
+    private boolean hasUsableDocumentEvidenceMap(Map<String, Object> root) {
+        if (root == null || root.isEmpty()) {
+            return false;
+        }
+        if (candidateListPresent(root, "results")
+            || candidateListPresent(root, "items")
+            || candidateListPresent(root, "records")
+            || candidateListPresent(root, "citations")
+            || candidateListPresent(root, "evidenceSnippets")
+            || candidateListPresent(root, "evidence_snippets")
+            || candidateListPresent(root, "evidence_chunks")) {
+            return true;
+        }
+        String contractVersion = stringValue(firstObject(root, "contractVersion", "contract_version"));
+        if (contractVersion != null && "document_evidence_v1".equalsIgnoreCase(contractVersion)) {
+            Integer total = firstInteger(
+                firstObject(root, "total", "totalCount", "count", "returned", "resultCount"),
+                0
+            );
+            return total > 0;
+        }
+        return false;
+    }
+
+    private boolean candidateListPresent(Map<String, Object> root, String key) {
+        Object value = root == null ? null : root.get(key);
+        return value instanceof List<?> list && !list.isEmpty();
     }
 
     private String toolSemanticKey(String toolName) {

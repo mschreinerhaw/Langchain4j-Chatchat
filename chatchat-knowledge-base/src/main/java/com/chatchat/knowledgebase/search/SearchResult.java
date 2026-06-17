@@ -20,6 +20,14 @@ public record SearchResult(
     List<SearchMatchedChunk> matchedChunks,
     String versionGroupId,
     int version,
-    boolean latestVersion
+    boolean latestVersion,
+    String tenantId,
+    String userId,
+    String visibility,
+    List<String> permissionRoles,
+    String lifecycleStatus,
+    Long indexedAt,
+    Long deletedAt,
+    String errorMessage
 ) {
 }

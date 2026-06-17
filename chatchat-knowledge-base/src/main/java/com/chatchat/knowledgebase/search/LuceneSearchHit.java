@@ -9,6 +9,10 @@ record LuceneSearchHit(
     int chunkIndex,
     String chunkText,
     float positionRatio,
-    float score
+    float score,
+    String tenantId,
+    String userId,
+    String visibility,
+    java.util.List<String> permissionRoles
 ) {
 }

@@ -10,6 +10,10 @@ public record SearchMatchedChunk(
     float positionRatio,
     String content,
     String text,
-    float score
+    float score,
+    String tenantId,
+    String userId,
+    String visibility,
+    java.util.List<String> permissionRoles
 ) {
 }

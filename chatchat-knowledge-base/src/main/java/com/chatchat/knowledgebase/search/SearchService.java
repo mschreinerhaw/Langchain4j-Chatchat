@@ -112,6 +112,23 @@ public class SearchService {
                                  String keywords,
                                  String documentType,
                                  String fallbackContent) {
+        return upload(file, title, source, date, tags, companies, industries, keywords, documentType, fallbackContent,
+            SearchPermissionContext.system(), null, null);
+    }
+
+    public SearchDocument upload(MultipartFile file,
+                                 String title,
+                                 String source,
+                                 String date,
+                                 String tags,
+                                 String companies,
+                                 String industries,
+                                 String keywords,
+                                 String documentType,
+                                 String fallbackContent,
+                                 SearchPermissionContext permissionContext,
+                                 String visibility,
+                                 List<String> permissionRoles) {
         if (file == null || file.isEmpty()) {
             throw new IllegalArgumentException("file is required");
         }
@@ -137,6 +154,7 @@ public class SearchService {
         if (isBlank(content)) {
             throw new IllegalArgumentException("document content is empty after extraction");
         }
+        SearchPermissionContext context = permissionContext == null ? SearchPermissionContext.system() : permissionContext;
 
         SearchDocument document = SearchDocument.builder()
             .docId(docId)
@@ -157,6 +175,11 @@ public class SearchService {
             .versionGroupId(versionGroupId)
             .version(version)
             .latestVersion(true)
+            .tenantId(normalizeTenant(context.tenantId()))
+            .userId(normalizeUser(context.userId()))
+            .visibility(normalizeVisibility(visibility))
+            .permissionRoles(cleanList(permissionRoles == null ? context.roles() : permissionRoles))
+            .lifecycleStatus(DocumentLifecycleStatus.INDEXED)
             .build();
 
         SearchDocument saved = createOrUpdate(document);
@@ -212,6 +235,18 @@ public class SearchService {
                              String docIds,
                              Integer page,
                              Integer limit) {
+        return search(keyword, tag, company, industry, docIds, page, limit, SearchPermissionContext.system());
+    }
+
+    public SearchPage search(String keyword,
+                             String tag,
+                             String company,
+                             String industry,
+                             String docIds,
+                             Integer page,
+                             Integer limit,
+                             SearchPermissionContext permissionContext) {
+        SearchPermissionContext context = permissionContext == null ? SearchPermissionContext.system() : permissionContext;
         long startedAt = System.nanoTime();
         int pageSize = normalizeLimit(limit);
         int pageNumber = normalizePage(page);
@@ -224,7 +259,7 @@ public class SearchService {
             && expandedQueryTokens.isEmpty()
             && noFilters(tag, company, industry)
             && scopedDocumentIds.isEmpty()) {
-            return emptySearchPage(keyword, pageSize, pageNumber, startedAt, "no_match");
+            return emptySearchPage(keyword, pageSize, pageNumber, startedAt, "no_match", context);
         }
         List<String> significantTerms = significantQueryTerms(keyword, queryTokens);
         SearchPage lucenePage = searchWithLucene(
@@ -237,7 +272,8 @@ public class SearchService {
             pageSize,
             queryTokens,
             expandedQueryTokens,
-            significantTerms
+            significantTerms,
+            context
         );
         if (lucenePage != null) {
             return lucenePage;
@@ -273,6 +309,7 @@ public class SearchService {
             .map(store::get)
             .flatMap(Optional::stream)
             .filter(this::isLatestVersion)
+            .filter(document -> canAccess(document, context))
             .map(document -> toResult(document, keyword, expandedQueryTokens, significantTerms, scores, matchedKeywords, null))
             .filter(result -> expandedQueryTokens.isEmpty() || isRelevantResult(result, significantTerms))
             .sorted(resultComparator())
@@ -283,7 +320,7 @@ public class SearchService {
             .limit(pageSize)
             .toList();
 
-        int documentCount = countLatestDocuments();
+        int documentCount = countLatestDocuments(context);
         int totalPages = totalPages(allResults.size(), pageSize);
         return new SearchPage(
             keyword,
@@ -313,6 +350,14 @@ public class SearchService {
         return listLibrary(category, title, null, limit);
     }
 
+    public LibraryPage listLibrary(String category,
+                                   String title,
+                                   Integer page,
+                                   Integer limit,
+                                   SearchPermissionContext permissionContext) {
+        return listLibraryInternal(category, title, page, limit, permissionContext);
+    }
+
     /**
      * Lists the library.
      *
@@ -323,11 +368,20 @@ public class SearchService {
      * @return the library list
      */
     public LibraryPage listLibrary(String category, String title, Integer page, Integer limit) {
+        return listLibraryInternal(category, title, page, limit, SearchPermissionContext.system());
+    }
+
+    private LibraryPage listLibraryInternal(String category,
+                                            String title,
+                                            Integer page,
+                                            Integer limit,
+                                            SearchPermissionContext permissionContext) {
         int pageSize = normalizeLimit(limit);
         int pageNumber = normalizePage(page);
         String normalizedCategory = normalizeCategory(category);
         String normalizedTitle = normalizeText(title);
-        List<SearchDocument> allDocuments = loadLatestDocuments();
+        SearchPermissionContext context = permissionContext == null ? SearchPermissionContext.system() : permissionContext;
+        List<SearchDocument> allDocuments = loadLatestDocuments(context);
         List<LibraryCategory> categories = buildCategories(allDocuments);
 
         List<SearchDocument> matchedDocuments = allDocuments.stream()
@@ -402,12 +456,14 @@ public class SearchService {
                                         int pageSize,
                                         List<String> queryTokens,
                                         List<String> expandedQueryTokens,
-                                        List<String> significantTerms) {
+                                        List<String> significantTerms,
+                                        SearchPermissionContext permissionContext) {
         if (expandedQueryTokens.isEmpty() || !luceneStore.isAvailable()) {
             return null;
         }
         try {
-            List<LuceneSearchHit> hits = luceneStore.search(keyword, properties.getLuceneMaxHits());
+            SearchPermissionContext context = permissionContext == null ? SearchPermissionContext.system() : permissionContext;
+            List<LuceneSearchHit> hits = luceneStore.search(keyword, properties.getLuceneMaxHits(), context);
             if (hits.isEmpty()) {
                 return null;
             }
@@ -439,6 +495,7 @@ public class SearchService {
                 .map(store::get)
                 .flatMap(Optional::stream)
                 .filter(this::isLatestVersion)
+                .filter(document -> canAccess(document, context))
                 .map(document -> toResult(document, keyword, expandedQueryTokens, significantTerms, scores, matchedKeywords, hitsByDocId.get(document.getDocId())))
                 .filter(result -> isRelevantResult(result, significantTerms))
                 .sorted(resultComparator())
@@ -447,7 +504,7 @@ public class SearchService {
                 .skip(pageOffset(pageNumber, pageSize))
                 .limit(pageSize)
                 .toList();
-            int documentCount = countLatestDocuments();
+            int documentCount = countLatestDocuments(context);
             int totalPages = totalPages(allResults.size(), pageSize);
             return new SearchPage(
                 keyword,
@@ -491,11 +548,16 @@ public class SearchService {
      * @return the operation result
      */
     public TitleExistsResult titleExists(String title) {
+        return titleExists(title, SearchPermissionContext.system());
+    }
+
+    public TitleExistsResult titleExists(String title, SearchPermissionContext permissionContext) {
         String normalizedTitle = normalizeText(title);
         if (normalizedTitle.isEmpty()) {
             return new TitleExistsResult(title, false, null);
         }
-        return loadLatestDocuments().stream()
+        SearchPermissionContext context = permissionContext == null ? SearchPermissionContext.system() : permissionContext;
+        return loadLatestDocuments(context).stream()
             .filter(document -> normalizeText(document.getTitle()).equals(normalizedTitle))
             .findFirst()
             .map(document -> new TitleExistsResult(title, true, document.getDocId()))
@@ -515,6 +577,11 @@ public class SearchService {
         return store.get(docId.trim());
     }
 
+    public Optional<SearchDocument> get(String docId, SearchPermissionContext permissionContext) {
+        SearchPermissionContext context = permissionContext == null ? SearchPermissionContext.system() : permissionContext;
+        return get(docId).filter(document -> canAccess(document, context));
+    }
+
     /**
      * Lists the versions.
      *
@@ -527,6 +594,18 @@ public class SearchService {
             return List.of();
         }
         return listVersionDocuments(document.get()).stream()
+            .map(this::toVersionItem)
+            .toList();
+    }
+
+    public List<SearchDocumentVersionItem> listVersions(String docId, SearchPermissionContext permissionContext) {
+        Optional<SearchDocument> document = get(docId, permissionContext);
+        if (document.isEmpty()) {
+            return List.of();
+        }
+        SearchPermissionContext context = permissionContext == null ? SearchPermissionContext.system() : permissionContext;
+        return listVersionDocuments(document.get()).stream()
+            .filter(candidate -> canAccess(candidate, context))
             .map(this::toVersionItem)
             .toList();
     }
@@ -547,6 +626,11 @@ public class SearchService {
             .findFirst());
     }
 
+    public Optional<SearchDocument> getVersion(String docId, Integer version, SearchPermissionContext permissionContext) {
+        SearchPermissionContext context = permissionContext == null ? SearchPermissionContext.system() : permissionContext;
+        return getVersion(docId, version).filter(document -> canAccess(document, context));
+    }
+
     /**
      * Returns the version file resource.
      *
@@ -556,6 +640,12 @@ public class SearchService {
      */
     public Optional<DocumentFileResource> getVersionFileResource(String docId, Integer version) {
         return getVersion(docId, version).flatMap(this::fileResourceFor);
+    }
+
+    public Optional<DocumentFileResource> getVersionFileResource(String docId,
+                                                                Integer version,
+                                                                SearchPermissionContext permissionContext) {
+        return getVersion(docId, version, permissionContext).flatMap(this::fileResourceFor);
     }
 
     /**
@@ -568,6 +658,10 @@ public class SearchService {
         return get(docId).flatMap(this::fileResourceFor);
     }
 
+    public Optional<DocumentFileResource> getFileResource(String docId, SearchPermissionContext permissionContext) {
+        return get(docId, permissionContext).flatMap(this::fileResourceFor);
+    }
+
     /**
      * Returns whether delete document.
      *
@@ -575,7 +669,11 @@ public class SearchService {
      * @return whether the condition is satisfied
      */
     public boolean deleteDocument(String docId) {
-        Optional<SearchDocument> document = get(docId);
+        return deleteDocument(docId, SearchPermissionContext.system());
+    }
+
+    public boolean deleteDocument(String docId, SearchPermissionContext permissionContext) {
+        Optional<SearchDocument> document = get(docId, permissionContext);
         if (document.isEmpty()) {
             return false;
         }
@@ -601,6 +699,27 @@ public class SearchService {
                 });
         }
         return true;
+    }
+
+    public Optional<SearchDocument> reindexDocument(String docId) {
+        return reindexDocument(docId, SearchPermissionContext.system());
+    }
+
+    public Optional<SearchDocument> reindexDocument(String docId, SearchPermissionContext permissionContext) {
+        Optional<SearchDocument> document = get(docId, permissionContext);
+        if (document.isEmpty()) {
+            return Optional.empty();
+        }
+        SearchDocument target = document.get();
+        SearchIndexData oldIndexData = buildIndexData(target);
+        target.setLifecycleStatus(DocumentLifecycleStatus.INDEXED);
+        target.setIndexedAt(Instant.now().toEpochMilli());
+        target.setUpdatedAt(Instant.now().toEpochMilli());
+        target.setDeletedAt(null);
+        target.setErrorMessage(null);
+        store.put(target, buildIndexData(target), oldIndexData);
+        syncLuceneIndex(target);
+        return Optional.of(target);
     }
 
     /**
@@ -645,6 +764,20 @@ public class SearchService {
             .versionGroupId(versionGroupId)
             .version(version)
             .latestVersion(latestVersion)
+            .tenantId(normalizeTenant(firstNonBlank(request.getTenantId(), existing.map(SearchDocument::getTenantId).orElse(null))))
+            .userId(normalizeUser(firstNonBlank(request.getUserId(), existing.map(SearchDocument::getUserId).orElse(null))))
+            .visibility(normalizeVisibility(firstNonBlank(request.getVisibility(), existing.map(SearchDocument::getVisibility).orElse(null))))
+            .permissionRoles(cleanList(request.getPermissionRoles() == null || request.getPermissionRoles().isEmpty()
+                ? existing.map(SearchDocument::getPermissionRoles).orElse(List.of())
+                : request.getPermissionRoles()))
+            .lifecycleStatus(normalizeLifecycleStatus(firstNonBlank(
+                request.getLifecycleStatus(),
+                existing.map(SearchDocument::getLifecycleStatus).orElse(null),
+                DocumentLifecycleStatus.INDEXED
+            )))
+            .indexedAt(request.getIndexedAt() == null ? existing.map(SearchDocument::getIndexedAt).orElse(now) : request.getIndexedAt())
+            .deletedAt(request.getDeletedAt())
+            .errorMessage(request.getErrorMessage())
             .build();
     }
 
@@ -923,7 +1056,7 @@ public class SearchService {
             return;
         }
         try {
-            if (isLatestVersion(document)) {
+            if (isLatestVersion(document) && !isDeleted(document)) {
                 luceneStore.indexLatest(document);
             } else {
                 luceneStore.deleteDocument(document.getDocId());
@@ -1007,7 +1140,15 @@ public class SearchService {
             matchedChunks,
             versionGroupIdOf(document),
             versionOf(document),
-            isLatestVersion(document)
+            isLatestVersion(document),
+            normalizeTenant(document.getTenantId()),
+            normalizeUser(document.getUserId()),
+            normalizeVisibility(document.getVisibility()),
+            cleanList(document.getPermissionRoles()),
+            normalizeLifecycleStatus(document.getLifecycleStatus()),
+            document.getIndexedAt(),
+            document.getDeletedAt(),
+            document.getErrorMessage()
         );
     }
 
@@ -1042,7 +1183,11 @@ public class SearchService {
                 hit.positionRatio(),
                 hit.chunkText(),
                 hit.chunkText(),
-                hit.score()
+                hit.score(),
+                normalizeTenant(hit.tenantId()),
+                normalizeUser(hit.userId()),
+                normalizeVisibility(hit.visibility()),
+                cleanList(hit.permissionRoles())
             ))
             .toList();
     }
@@ -1070,7 +1215,15 @@ public class SearchService {
             document.getUpdatedAt(),
             versionGroupIdOf(document),
             versionOf(document),
-            isLatestVersion(document)
+            isLatestVersion(document),
+            normalizeTenant(document.getTenantId()),
+            normalizeUser(document.getUserId()),
+            normalizeVisibility(document.getVisibility()),
+            cleanList(document.getPermissionRoles()),
+            normalizeLifecycleStatus(document.getLifecycleStatus()),
+            document.getIndexedAt(),
+            document.getDeletedAt(),
+            document.getErrorMessage()
         );
     }
 
@@ -1094,6 +1247,14 @@ public class SearchService {
     private List<SearchDocument> loadLatestDocuments() {
         return loadAllDocuments().stream()
             .filter(this::isLatestVersion)
+            .filter(document -> !isDeleted(document))
+            .toList();
+    }
+
+    private List<SearchDocument> loadLatestDocuments(SearchPermissionContext permissionContext) {
+        SearchPermissionContext context = permissionContext == null ? SearchPermissionContext.system() : permissionContext;
+        return loadLatestDocuments().stream()
+            .filter(document -> canAccess(document, context))
             .toList();
     }
 
@@ -1105,6 +1266,16 @@ public class SearchService {
     private int countLatestDocuments() {
         return (int) loadAllDocuments().stream()
             .filter(this::isLatestVersion)
+            .filter(document -> !isDeleted(document))
+            .count();
+    }
+
+    private int countLatestDocuments(SearchPermissionContext permissionContext) {
+        SearchPermissionContext context = permissionContext == null ? SearchPermissionContext.system() : permissionContext;
+        return (int) loadAllDocuments().stream()
+            .filter(this::isLatestVersion)
+            .filter(document -> !isDeleted(document))
+            .filter(document -> canAccess(document, context))
             .count();
     }
 
@@ -1559,7 +1730,16 @@ public class SearchService {
      * @return the operation result
      */
     private SearchPage emptySearchPage(String keyword, int pageSize, int pageNumber, long startedAt, String message) {
-        int documentCount = countLatestDocuments();
+        return emptySearchPage(keyword, pageSize, pageNumber, startedAt, message, SearchPermissionContext.system());
+    }
+
+    private SearchPage emptySearchPage(String keyword,
+                                       int pageSize,
+                                       int pageNumber,
+                                       long startedAt,
+                                       String message,
+                                       SearchPermissionContext permissionContext) {
+        int documentCount = countLatestDocuments(permissionContext);
         return new SearchPage(
             keyword,
             List.of(),
@@ -1617,6 +1797,75 @@ public class SearchService {
      */
     private String normalizeText(String value) {
         return value == null ? "" : value.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private String normalizeTenant(String value) {
+        return isBlank(value) ? SearchPermissionContext.DEFAULT_TENANT : value.trim();
+    }
+
+    private String normalizeUser(String value) {
+        return isBlank(value) ? SearchPermissionContext.ANONYMOUS_USER : value.trim();
+    }
+
+    private String normalizeVisibility(String value) {
+        if (isBlank(value)) {
+            return "tenant";
+        }
+        return switch (value.trim().toLowerCase(Locale.ROOT)) {
+            case "public", "private", "role" -> value.trim().toLowerCase(Locale.ROOT);
+            default -> "tenant";
+        };
+    }
+
+    private String normalizeLifecycleStatus(String value) {
+        if (isBlank(value)) {
+            return DocumentLifecycleStatus.INDEXED;
+        }
+        String normalized = value.trim().toUpperCase(Locale.ROOT);
+        return switch (normalized) {
+            case DocumentLifecycleStatus.UPLOADED,
+                DocumentLifecycleStatus.PARSING,
+                DocumentLifecycleStatus.INDEXED,
+                DocumentLifecycleStatus.FAILED,
+                DocumentLifecycleStatus.DELETED -> normalized;
+            default -> DocumentLifecycleStatus.INDEXED;
+        };
+    }
+
+    private boolean canAccess(SearchDocument document, SearchPermissionContext permissionContext) {
+        if (document == null || isDeleted(document)) {
+            return false;
+        }
+        SearchPermissionContext context = permissionContext == null ? SearchPermissionContext.system() : permissionContext;
+        if (!normalizeTenant(document.getTenantId()).equals(normalizeTenant(context.tenantId()))) {
+            return false;
+        }
+        String visibility = normalizeVisibility(document.getVisibility());
+        if ("public".equals(visibility) || "tenant".equals(visibility)) {
+            return true;
+        }
+        if (normalizeUser(document.getUserId()).equals(normalizeUser(context.userId()))) {
+            return true;
+        }
+        return "role".equals(visibility) && intersects(cleanList(document.getPermissionRoles()), cleanList(context.roles()));
+    }
+
+    private boolean intersects(List<String> left, List<String> right) {
+        if (left == null || left.isEmpty() || right == null || right.isEmpty()) {
+            return false;
+        }
+        Set<String> normalizedRight = right.stream()
+            .filter(value -> value != null && !value.isBlank())
+            .map(value -> value.trim().toLowerCase(Locale.ROOT))
+            .collect(java.util.stream.Collectors.toSet());
+        return left.stream()
+            .filter(value -> value != null && !value.isBlank())
+            .map(value -> value.trim().toLowerCase(Locale.ROOT))
+            .anyMatch(normalizedRight::contains);
+    }
+
+    private boolean isDeleted(SearchDocument document) {
+        return document != null && DocumentLifecycleStatus.DELETED.equalsIgnoreCase(nullToEmpty(document.getLifecycleStatus()));
     }
 
     /**
@@ -1796,6 +2045,15 @@ public class SearchService {
      */
     private String nullToEmpty(String value) {
         return value == null ? "" : value;
+    }
+
+    private String firstNonBlank(String... values) {
+        for (String value : values) {
+            if (!isBlank(value)) {
+                return value.trim();
+            }
+        }
+        return null;
     }
 
     /**

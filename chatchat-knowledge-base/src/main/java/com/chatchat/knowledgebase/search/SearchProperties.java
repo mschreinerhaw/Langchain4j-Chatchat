@@ -22,6 +22,23 @@ public class SearchProperties {
     private String luceneIndexPath = "./data/search-lucene";
     private int luceneMaxHits = 500;
     private int luceneChunksPerDocument = 3;
+    private boolean lucenePrfEnabled = true;
+    private int lucenePrfTopN = 20;
+    private int lucenePrfMaxTerms = 8;
+    private int lucenePrfMinTermLength = 2;
+    private boolean luceneMmrEnabled = true;
+    private float luceneMmrLambda = 0.72F;
+    private boolean luceneRocchioEnabled = false;
+    private int luceneRocchioMaxTerms = 6;
+    private int luceneRocchioFeedbackLimit = 80;
+    private float luceneTitleBoost = 5.0F;
+    private float luceneSectionBoost = 4.6F;
+    private float luceneKeywordBoost = 4.2F;
+    private float luceneTagBoost = 4.5F;
+    private float luceneCompanyBoost = 3.5F;
+    private float luceneIndustryBoost = 3.5F;
+    private float luceneContentBoost = 1.2F;
+    private float luceneSourceBoost = 0.7F;
     private int chunkSize = 800;
     private int chunkOverlap = 120;
 }

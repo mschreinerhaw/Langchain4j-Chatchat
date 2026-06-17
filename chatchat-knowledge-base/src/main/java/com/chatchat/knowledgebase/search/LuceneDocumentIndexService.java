@@ -32,7 +32,13 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 @Slf4j
 @Component
@@ -58,6 +64,10 @@ public class LuceneDocumentIndexService {
     private static final String TAGS = "tagTokens";
     private static final String COMPANIES = "companyTokens";
     private static final String INDUSTRIES = "industryTokens";
+    private static final String TENANT_ID = "tenantId";
+    private static final String USER_ID = "userId";
+    private static final String VISIBILITY = "visibility";
+    private static final String PERMISSION_ROLE = "permissionRole";
 
     private final SearchProperties properties;
     private final SearchTokenizer tokenizer;
@@ -66,6 +76,7 @@ public class LuceneDocumentIndexService {
     private final QueryExpander queryExpander;
     private final ChunkTypeClassifier chunkTypeClassifier;
     private final ChunkReranker chunkReranker;
+    private final SearchFeedbackService feedbackService;
     private Directory directory;
     private Analyzer analyzer;
     private IndexWriter writer;
@@ -171,6 +182,10 @@ public class LuceneDocumentIndexService {
      * @return the operation result
      */
     public synchronized List<LuceneSearchHit> search(String keyword, int maxHits) {
+        return search(keyword, maxHits, SearchPermissionContext.system());
+    }
+
+    public synchronized List<LuceneSearchHit> search(String keyword, int maxHits, SearchPermissionContext permissionContext) {
         if (!isAvailable() || keyword == null || keyword.isBlank()) {
             return List.of();
         }
@@ -182,36 +197,72 @@ public class LuceneDocumentIndexService {
         }
         try {
             writer.commit();
-            BooleanQuery query = buildQuery(terms);
             try (DirectoryReader reader = DirectoryReader.open(writer)) {
                 IndexSearcher searcher = new IndexSearcher(reader);
                 searcher.setSimilarity(new BM25Similarity());
-                TopDocs topDocs = searcher.search(query, Math.max(1, maxHits));
-                List<LuceneSearchHit> hits = new ArrayList<>();
-                for (ScoreDoc scoreDoc : topDocs.scoreDocs) {
-                    Document hit = searcher.storedFields().document(scoreDoc.doc);
-                    String docId = hit.get(FILE_ID);
-                    if (docId == null || docId.isBlank()) {
-                        continue;
-                    }
-                    LuceneSearchHit current = new LuceneSearchHit(
-                        docId,
-                        hit.get(FILE_NAME),
-                        hit.get(SECTION),
-                        hit.get(CHUNK_TYPE),
-                        hit.get(CHUNK_ID),
-                        intValue(hit.get(CHUNK_INDEX)),
-                        firstPresent(hit.get(CONTENT), hit.get(CHUNK_TEXT)),
-                        floatValue(hit.get(POSITION_RATIO), 1.0F),
-                        chunkReranker.score(scoreDoc.score, hit, keyword, terms, intent)
+                List<String> finalTerms = terms;
+                if (properties.isLucenePrfEnabled()) {
+                    List<LuceneSearchHit> initialHits = executeSearch(
+                        searcher,
+                        buildQuery(terms, List.of(), permissionContext),
+                        Math.max(1, properties.getLucenePrfTopN()),
+                        keyword,
+                        terms,
+                        intent
                     );
-                    hits.add(current);
+                    finalTerms = expandWithPrfTerms(terms, initialHits);
                 }
-                return hits;
+                SearchFeedbackService.FeedbackExpansion feedbackExpansion = properties.isLuceneRocchioEnabled()
+                    ? feedbackService.expansion(keyword, finalTerms)
+                    : SearchFeedbackService.FeedbackExpansion.empty();
+                finalTerms = mergeTerms(finalTerms, feedbackExpansion.positiveTerms());
+                List<LuceneSearchHit> hits = executeSearch(
+                    searcher,
+                    buildQuery(finalTerms, feedbackExpansion.negativeTerms(), permissionContext),
+                    Math.max(1, maxHits),
+                    keyword,
+                    finalTerms,
+                    intent
+                );
+                return properties.isLuceneMmrEnabled() ? applyMmr(hits, Math.max(1, maxHits)) : hits;
             }
         } catch (IOException ex) {
             throw new IllegalStateException("Failed to search Lucene index", ex);
         }
+    }
+
+    private List<LuceneSearchHit> executeSearch(IndexSearcher searcher,
+                                                BooleanQuery query,
+                                                int maxHits,
+                                                String keyword,
+                                                List<String> terms,
+                                                QueryIntent intent) throws IOException {
+        TopDocs topDocs = searcher.search(query, maxHits);
+        List<LuceneSearchHit> hits = new ArrayList<>();
+        for (ScoreDoc scoreDoc : topDocs.scoreDocs) {
+            Document hit = searcher.storedFields().document(scoreDoc.doc);
+            String docId = hit.get(FILE_ID);
+            if (docId == null || docId.isBlank()) {
+                continue;
+            }
+            LuceneSearchHit current = new LuceneSearchHit(
+                docId,
+                hit.get(FILE_NAME),
+                hit.get(SECTION),
+                hit.get(CHUNK_TYPE),
+                hit.get(CHUNK_ID),
+                intValue(hit.get(CHUNK_INDEX)),
+                firstPresent(hit.get(CONTENT), hit.get(CHUNK_TEXT)),
+                floatValue(hit.get(POSITION_RATIO), 1.0F),
+                chunkReranker.score(scoreDoc.score, hit, keyword, terms, intent),
+                hit.get(TENANT_ID),
+                hit.get(USER_ID),
+                hit.get(VISIBILITY),
+                List.of(hit.getValues(PERMISSION_ROLE))
+            );
+            hits.add(current);
+        }
+        return hits;
     }
 
     /**
@@ -270,6 +321,12 @@ public class LuceneDocumentIndexService {
         luceneDocument.add(new StringField(FILE_NAME, nullToEmpty(document.getFileName()), Field.Store.YES));
         luceneDocument.add(new StringField(CHUNK_ID, chunkId, Field.Store.YES));
         luceneDocument.add(new StringField(CHUNK_TYPE, chunkType, Field.Store.YES));
+        luceneDocument.add(new StringField(TENANT_ID, normalizeTenant(document.getTenantId()), Field.Store.YES));
+        luceneDocument.add(new StringField(USER_ID, normalizeUser(document.getUserId()), Field.Store.YES));
+        luceneDocument.add(new StringField(VISIBILITY, normalizeVisibility(document.getVisibility()), Field.Store.YES));
+        for (String role : normalizeRoles(document.getPermissionRoles())) {
+            luceneDocument.add(new StringField(PERMISSION_ROLE, role, Field.Store.YES));
+        }
         luceneDocument.add(new IntPoint(CHUNK_INDEX, chunkIndex));
         luceneDocument.add(new StoredField(CHUNK_INDEX, String.valueOf(chunkIndex)));
         luceneDocument.add(new StoredField(CHUNK_TEXT, chunkText));
@@ -298,24 +355,164 @@ public class LuceneDocumentIndexService {
      * @param terms the terms value
      * @return the built query
      */
-    private BooleanQuery buildQuery(List<String> terms) {
+    private BooleanQuery buildQuery(List<String> terms, List<String> negativeTerms, SearchPermissionContext permissionContext) {
         BooleanQuery.Builder query = new BooleanQuery.Builder();
         for (String term : terms) {
             BooleanQuery.Builder termQuery = new BooleanQuery.Builder();
-            addTermQuery(termQuery, TITLE, term, 5.0F);
-            addTermQuery(termQuery, TITLE_TEXT, term, 5.0F);
-            addTermQuery(termQuery, SECTION, term, 4.6F);
-            addTermQuery(termQuery, KEYWORDS, term, 4.2F);
-            addTermQuery(termQuery, KEYWORDS_TEXT, term, 4.2F);
-            addTermQuery(termQuery, TAGS, term, 4.5F);
-            addTermQuery(termQuery, COMPANIES, term, 3.5F);
-            addTermQuery(termQuery, INDUSTRIES, term, 3.5F);
-            addTermQuery(termQuery, CONTENT_TOKENS, term, 1.2F);
-            addTermQuery(termQuery, SOURCE, term, 0.7F);
+            addTermQuery(termQuery, TITLE, term, properties.getLuceneTitleBoost());
+            addTermQuery(termQuery, TITLE_TEXT, term, properties.getLuceneTitleBoost());
+            addTermQuery(termQuery, SECTION, term, properties.getLuceneSectionBoost());
+            addTermQuery(termQuery, KEYWORDS, term, properties.getLuceneKeywordBoost());
+            addTermQuery(termQuery, KEYWORDS_TEXT, term, properties.getLuceneKeywordBoost());
+            addTermQuery(termQuery, TAGS, term, properties.getLuceneTagBoost());
+            addTermQuery(termQuery, COMPANIES, term, properties.getLuceneCompanyBoost());
+            addTermQuery(termQuery, INDUSTRIES, term, properties.getLuceneIndustryBoost());
+            addTermQuery(termQuery, CONTENT_TOKENS, term, properties.getLuceneContentBoost());
+            addTermQuery(termQuery, SOURCE, term, properties.getLuceneSourceBoost());
             query.add(termQuery.build(), BooleanClause.Occur.SHOULD);
         }
+        for (String term : negativeTerms == null ? List.<String>of() : negativeTerms) {
+            addNegativeTermQuery(query, TITLE, term);
+            addNegativeTermQuery(query, TITLE_TEXT, term);
+            addNegativeTermQuery(query, SECTION, term);
+            addNegativeTermQuery(query, KEYWORDS, term);
+            addNegativeTermQuery(query, KEYWORDS_TEXT, term);
+            addNegativeTermQuery(query, CONTENT_TOKENS, term);
+        }
+        addPermissionFilter(query, permissionContext);
         query.setMinimumNumberShouldMatch(minimumShouldMatch(terms.size()));
         return query.build();
+    }
+
+    private void addPermissionFilter(BooleanQuery.Builder query, SearchPermissionContext permissionContext) {
+        SearchPermissionContext context = permissionContext == null ? SearchPermissionContext.system() : permissionContext;
+        String tenantId = normalizeTenant(context.tenantId());
+        String userId = normalizeUser(context.userId());
+        BooleanQuery.Builder access = new BooleanQuery.Builder();
+        access.add(new TermQuery(new Term(VISIBILITY, "tenant")), BooleanClause.Occur.SHOULD);
+        access.add(new TermQuery(new Term(VISIBILITY, "public")), BooleanClause.Occur.SHOULD);
+        BooleanQuery.Builder privateAccess = new BooleanQuery.Builder();
+        privateAccess.add(new TermQuery(new Term(VISIBILITY, "private")), BooleanClause.Occur.MUST);
+        privateAccess.add(new TermQuery(new Term(USER_ID, userId)), BooleanClause.Occur.MUST);
+        access.add(privateAccess.build(), BooleanClause.Occur.SHOULD);
+        for (String role : normalizeRoles(context.roles())) {
+            BooleanQuery.Builder roleAccess = new BooleanQuery.Builder();
+            roleAccess.add(new TermQuery(new Term(VISIBILITY, "role")), BooleanClause.Occur.MUST);
+            roleAccess.add(new TermQuery(new Term(PERMISSION_ROLE, role)), BooleanClause.Occur.MUST);
+            access.add(roleAccess.build(), BooleanClause.Occur.SHOULD);
+        }
+        BooleanQuery.Builder ownerRoleAccess = new BooleanQuery.Builder();
+        ownerRoleAccess.add(new TermQuery(new Term(VISIBILITY, "role")), BooleanClause.Occur.MUST);
+        ownerRoleAccess.add(new TermQuery(new Term(USER_ID, userId)), BooleanClause.Occur.MUST);
+        access.add(ownerRoleAccess.build(), BooleanClause.Occur.SHOULD);
+        access.setMinimumNumberShouldMatch(1);
+
+        query.add(new TermQuery(new Term(TENANT_ID, tenantId)), BooleanClause.Occur.MUST);
+        query.add(access.build(), BooleanClause.Occur.MUST);
+    }
+
+    private List<String> mergeTerms(List<String> baseTerms, List<String> additionalTerms) {
+        Set<String> terms = new LinkedHashSet<>(baseTerms == null ? List.of() : baseTerms);
+        if (additionalTerms != null) {
+            additionalTerms.stream()
+                .filter(term -> term != null && !term.isBlank())
+                .forEach(terms::add);
+        }
+        return new ArrayList<>(terms);
+    }
+
+    private List<String> expandWithPrfTerms(List<String> originalTerms, List<LuceneSearchHit> initialHits) {
+        if (initialHits == null || initialHits.isEmpty()) {
+            return originalTerms;
+        }
+        Set<String> original = new HashSet<>(originalTerms == null ? List.of() : originalTerms);
+        Map<String, Float> weights = new HashMap<>();
+        int rank = 0;
+        for (LuceneSearchHit hit : initialHits) {
+            rank++;
+            float rankWeight = 1.0F / Math.max(1, rank);
+            addPrfTokens(weights, hit.fileName(), rankWeight * 1.8F);
+            addPrfTokens(weights, hit.section(), rankWeight * 1.6F);
+            addPrfTokens(weights, hit.chunkType(), rankWeight * 1.2F);
+            addPrfTokens(weights, hit.chunkText(), rankWeight);
+        }
+        List<String> expanded = new ArrayList<>(originalTerms == null ? List.of() : originalTerms);
+        weights.entrySet().stream()
+            .filter(entry -> !original.contains(entry.getKey()))
+            .filter(entry -> entry.getKey().length() >= Math.max(1, properties.getLucenePrfMinTermLength()))
+            .sorted(Map.Entry.<String, Float>comparingByValue(Comparator.reverseOrder())
+                .thenComparing(Map.Entry::getKey))
+            .limit(Math.max(0, properties.getLucenePrfMaxTerms()))
+            .map(Map.Entry::getKey)
+            .forEach(expanded::add);
+        return expanded;
+    }
+
+    private void addPrfTokens(Map<String, Float> weights, String value, float weight) {
+        for (String token : tokenizer.searchTokens(value)) {
+            if (!token.isBlank()) {
+                weights.merge(token, weight, Float::sum);
+            }
+        }
+    }
+
+    private List<LuceneSearchHit> applyMmr(List<LuceneSearchHit> hits, int maxHits) {
+        if (hits == null || hits.size() <= 2) {
+            return hits == null ? List.of() : hits;
+        }
+        List<LuceneSearchHit> remaining = new ArrayList<>(hits.stream()
+            .sorted(Comparator.comparingDouble(LuceneSearchHit::score).reversed())
+            .toList());
+        List<LuceneSearchHit> selected = new ArrayList<>();
+        float lambda = Math.max(0.0F, Math.min(1.0F, properties.getLuceneMmrLambda()));
+        float maxScore = Math.max(0.0001F, remaining.stream()
+            .map(LuceneSearchHit::score)
+            .max(Float::compareTo)
+            .orElse(1.0F));
+        while (!remaining.isEmpty() && selected.size() < maxHits) {
+            LuceneSearchHit best = null;
+            float bestScore = Float.NEGATIVE_INFINITY;
+            for (LuceneSearchHit candidate : remaining) {
+                float relevance = candidate.score() / maxScore;
+                float redundancy = selected.stream()
+                    .map(selectedHit -> chunkSimilarity(candidate, selectedHit))
+                    .max(Float::compareTo)
+                    .orElse(0.0F);
+                float mmrScore = lambda * relevance - (1.0F - lambda) * redundancy;
+                if (best == null || mmrScore > bestScore) {
+                    best = candidate;
+                    bestScore = mmrScore;
+                }
+            }
+            selected.add(best);
+            remaining.remove(best);
+        }
+        return selected;
+    }
+
+    private float chunkSimilarity(LuceneSearchHit left, LuceneSearchHit right) {
+        if (left == null || right == null) {
+            return 0.0F;
+        }
+        Set<String> leftTokens = new LinkedHashSet<>(tokenizer.searchTokens(
+            String.join(" ", nullToEmpty(left.fileName()), nullToEmpty(left.section()), nullToEmpty(left.chunkText()))
+        ));
+        Set<String> rightTokens = new LinkedHashSet<>(tokenizer.searchTokens(
+            String.join(" ", nullToEmpty(right.fileName()), nullToEmpty(right.section()), nullToEmpty(right.chunkText()))
+        ));
+        if (leftTokens.isEmpty() || rightTokens.isEmpty()) {
+            return sameNearbyChunk(left, right) ? 0.5F : 0.0F;
+        }
+        Set<String> intersection = new LinkedHashSet<>(leftTokens);
+        intersection.retainAll(rightTokens);
+        Set<String> union = new LinkedHashSet<>(leftTokens);
+        union.addAll(rightTokens);
+        float lexical = union.isEmpty() ? 0.0F : (float) intersection.size() / (float) union.size();
+        return Math.max(lexical, sameNearbyChunk(left, right) ? 0.62F : 0.0F);
+    }
+
+    private boolean sameNearbyChunk(LuceneSearchHit left, LuceneSearchHit right) {
+        return left.docId().equals(right.docId()) && Math.abs(left.chunkIndex() - right.chunkIndex()) <= 1;
     }
 
     /**
@@ -338,6 +535,12 @@ public class LuceneDocumentIndexService {
      */
     private void addTermQuery(BooleanQuery.Builder query, String field, String term, float boost) {
         query.add(new BoostQuery(new TermQuery(new Term(field, term)), boost), BooleanClause.Occur.SHOULD);
+    }
+
+    private void addNegativeTermQuery(BooleanQuery.Builder query, String field, String term) {
+        if (term != null && !term.isBlank()) {
+            query.add(new TermQuery(new Term(field, term)), BooleanClause.Occur.MUST_NOT);
+        }
     }
 
     /**
@@ -440,6 +643,35 @@ public class LuceneDocumentIndexService {
 
     private String nullToEmpty(String value) {
         return value == null ? "" : value;
+    }
+
+    private String normalizeTenant(String tenantId) {
+        return tenantId == null || tenantId.isBlank() ? SearchPermissionContext.DEFAULT_TENANT : tenantId.trim();
+    }
+
+    private String normalizeUser(String userId) {
+        return userId == null || userId.isBlank() ? SearchPermissionContext.ANONYMOUS_USER : userId.trim();
+    }
+
+    private String normalizeVisibility(String visibility) {
+        if (visibility == null || visibility.isBlank()) {
+            return "tenant";
+        }
+        return switch (visibility.trim().toLowerCase()) {
+            case "public", "private", "role" -> visibility.trim().toLowerCase();
+            default -> "tenant";
+        };
+    }
+
+    private List<String> normalizeRoles(List<String> roles) {
+        if (roles == null || roles.isEmpty()) {
+            return List.of();
+        }
+        return roles.stream()
+            .filter(role -> role != null && !role.isBlank())
+            .map(String::trim)
+            .distinct()
+            .toList();
     }
 
     private float positionRatio(int chunkIndex, int chunkCount) {

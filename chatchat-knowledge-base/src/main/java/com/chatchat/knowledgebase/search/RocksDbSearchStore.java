@@ -337,7 +337,15 @@ public class RocksDbSearchStore {
             document.getUpdatedAt(),
             document.getVersionGroupId(),
             document.getVersion(),
-            document.getLatestVersion()
+            document.getLatestVersion(),
+            document.getTenantId(),
+            document.getUserId(),
+            document.getVisibility(),
+            document.getPermissionRoles(),
+            document.getLifecycleStatus(),
+            document.getIndexedAt(),
+            document.getDeletedAt(),
+            document.getErrorMessage()
         );
     }
 
@@ -406,7 +414,15 @@ public class RocksDbSearchStore {
         Long updatedAt,
         String versionGroupId,
         Integer version,
-        Boolean latestVersion
+        Boolean latestVersion,
+        String tenantId,
+        String userId,
+        String visibility,
+        List<String> permissionRoles,
+        String lifecycleStatus,
+        Long indexedAt,
+        Long deletedAt,
+        String errorMessage
     ) {
     }
 }

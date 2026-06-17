@@ -36,4 +36,13 @@ public class SearchDocument {
     private String versionGroupId;
     private Integer version;
     private Boolean latestVersion;
+    private String tenantId;
+    private String userId;
+    private String visibility;
+    @Builder.Default
+    private List<String> permissionRoles = new ArrayList<>();
+    private String lifecycleStatus;
+    private Long indexedAt;
+    private Long deletedAt;
+    private String errorMessage;
 }

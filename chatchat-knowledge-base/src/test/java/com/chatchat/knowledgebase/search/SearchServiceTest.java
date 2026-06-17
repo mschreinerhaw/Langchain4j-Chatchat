@@ -316,6 +316,91 @@ class SearchServiceTest {
             .isEqualTo(0.0F);
     }
 
+    @Test
+    void isolatesDocumentsByTenantUserAndRolePermissions() {
+        SearchService service = newSearchService();
+        service.createOrUpdate(SearchDocument.builder()
+            .docId("tenant-a-public")
+            .title("Tenant A Runbook")
+            .content("shared deployment rollback checklist")
+            .source("ops")
+            .date("2024-06-13")
+            .tenantId("tenant-a")
+            .userId("owner-a")
+            .visibility("tenant")
+            .build());
+        service.createOrUpdate(SearchDocument.builder()
+            .docId("tenant-b-public")
+            .title("Tenant B Runbook")
+            .content("shared deployment rollback checklist")
+            .source("ops")
+            .date("2024-06-13")
+            .tenantId("tenant-b")
+            .userId("owner-b")
+            .visibility("tenant")
+            .build());
+        service.createOrUpdate(SearchDocument.builder()
+            .docId("tenant-a-private")
+            .title("Tenant A Private Runbook")
+            .content("private deployment rollback checklist")
+            .source("ops")
+            .date("2024-06-13")
+            .tenantId("tenant-a")
+            .userId("alice")
+            .visibility("private")
+            .build());
+        service.createOrUpdate(SearchDocument.builder()
+            .docId("tenant-a-role")
+            .title("Tenant A SecOps Runbook")
+            .content("role deployment rollback checklist")
+            .source("ops")
+            .date("2024-06-13")
+            .tenantId("tenant-a")
+            .userId("owner-a")
+            .visibility("role")
+            .permissionRoles(List.of("secops"))
+            .build());
+
+        SearchPage bobPage = service.search(
+            "deployment rollback checklist",
+            null,
+            null,
+            null,
+            null,
+            1,
+            10,
+            SearchPermissionContext.of("tenant-a", "bob", List.of())
+        );
+        SearchPage alicePage = service.search(
+            "deployment rollback checklist",
+            null,
+            null,
+            null,
+            null,
+            1,
+            10,
+            SearchPermissionContext.of("tenant-a", "alice", List.of())
+        );
+        SearchPage secopsPage = service.search(
+            "deployment rollback checklist",
+            null,
+            null,
+            null,
+            null,
+            1,
+            10,
+            SearchPermissionContext.of("tenant-a", "bob", List.of("secops"))
+        );
+
+        assertThat(bobPage.results()).extracting(SearchResult::docId)
+            .containsExactly("tenant-a-public");
+        assertThat(alicePage.results()).extracting(SearchResult::docId)
+            .containsExactlyInAnyOrder("tenant-a-private", "tenant-a-public");
+        assertThat(secopsPage.results()).extracting(SearchResult::docId)
+            .containsExactlyInAnyOrder("tenant-a-role", "tenant-a-public");
+        assertThat(secopsPage.results()).allSatisfy(result -> assertThat(result.tenantId()).isEqualTo("tenant-a"));
+    }
+
     private void saveSemiconductorDocument(SearchService service) {
         service.createOrUpdate(SearchDocument.builder()
             .docId("doc-001")
@@ -354,7 +439,8 @@ class SearchServiceTest {
             keywordExtractor,
             queryExpander,
             new ChunkTypeClassifier(ruleService),
-            new ChunkReranker()
+            new ChunkReranker(),
+            mock(SearchFeedbackService.class)
         );
         luceneStore.open();
         return new SearchService(

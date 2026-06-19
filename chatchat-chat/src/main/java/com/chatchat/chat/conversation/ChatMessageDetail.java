@@ -28,4 +28,10 @@ public class ChatMessageDetail {
     private String sourceKnowledgeBase;
     private List<Map<String, Object>> sources;
     private List<Map<String, Object>> traces;
+    private List<Map<String, Object>> steps;
+    private Map<String, Object> visualizationSpec;
+    private String analysisNodeId;
+    private String analysisParentNodeId;
+    private String analysisSourceMessageId;
+    private Map<String, Object> analysisSelection;
 }

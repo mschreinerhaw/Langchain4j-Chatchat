@@ -19,6 +19,7 @@ public class Conversation {
     private String status;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private Map<String, Object> analysisTree;
     private List<Message> messages;
 
     /**
@@ -33,6 +34,7 @@ public class Conversation {
         this.status = builder.status;
         this.createdAt = builder.createdAt;
         this.updatedAt = builder.updatedAt;
+        this.analysisTree = builder.analysisTree;
         this.messages = builder.messages;
     }
 
@@ -59,6 +61,12 @@ public class Conversation {
         private String sourceKnowledgeBase; // Knowledge base used for retrieval
         private List<Map<String, Object>> sources;
         private List<Map<String, Object>> traces;
+        private List<Map<String, Object>> steps;
+        private Map<String, Object> visualizationSpec;
+        private String analysisNodeId;
+        private String analysisParentNodeId;
+        private String analysisSourceMessageId;
+        private Map<String, Object> analysisSelection;
 
         /**
          * Creates a new Conversation instance.
@@ -123,6 +131,12 @@ public class Conversation {
             this.sourceKnowledgeBase = builder.sourceKnowledgeBase;
             this.sources = builder.sources;
             this.traces = builder.traces;
+            this.steps = builder.steps;
+            this.visualizationSpec = builder.visualizationSpec;
+            this.analysisNodeId = builder.analysisNodeId;
+            this.analysisParentNodeId = builder.analysisParentNodeId;
+            this.analysisSourceMessageId = builder.analysisSourceMessageId;
+            this.analysisSelection = builder.analysisSelection;
         }
 
         /**
@@ -142,6 +156,7 @@ public class Conversation {
         private String status;
         private LocalDateTime createdAt;
         private LocalDateTime updatedAt;
+        private Map<String, Object> analysisTree;
         private List<Message> messages;
 
         /**
@@ -210,6 +225,11 @@ public class Conversation {
             return this;
         }
 
+        public ConversationBuilder analysisTree(Map<String, Object> analysisTree) {
+            this.analysisTree = analysisTree;
+            return this;
+        }
+
         /**
          * Performs the messages operation.
          *
@@ -240,6 +260,12 @@ public class Conversation {
         private String sourceKnowledgeBase;
         private List<Map<String, Object>> sources;
         private List<Map<String, Object>> traces;
+        private List<Map<String, Object>> steps;
+        private Map<String, Object> visualizationSpec;
+        private String analysisNodeId;
+        private String analysisParentNodeId;
+        private String analysisSourceMessageId;
+        private Map<String, Object> analysisSelection;
 
         /**
          * Performs the id operation.
@@ -326,6 +352,36 @@ public class Conversation {
          */
         public MessageBuilder traces(List<Map<String, Object>> traces) {
             this.traces = traces;
+            return this;
+        }
+
+        public MessageBuilder steps(List<Map<String, Object>> steps) {
+            this.steps = steps;
+            return this;
+        }
+
+        public MessageBuilder visualizationSpec(Map<String, Object> visualizationSpec) {
+            this.visualizationSpec = visualizationSpec;
+            return this;
+        }
+
+        public MessageBuilder analysisNodeId(String analysisNodeId) {
+            this.analysisNodeId = analysisNodeId;
+            return this;
+        }
+
+        public MessageBuilder analysisParentNodeId(String analysisParentNodeId) {
+            this.analysisParentNodeId = analysisParentNodeId;
+            return this;
+        }
+
+        public MessageBuilder analysisSourceMessageId(String analysisSourceMessageId) {
+            this.analysisSourceMessageId = analysisSourceMessageId;
+            return this;
+        }
+
+        public MessageBuilder analysisSelection(Map<String, Object> analysisSelection) {
+            this.analysisSelection = analysisSelection;
             return this;
         }
 

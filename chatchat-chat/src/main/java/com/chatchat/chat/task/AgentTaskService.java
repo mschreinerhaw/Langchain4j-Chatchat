@@ -1917,6 +1917,8 @@ public class AgentTaskService {
         Map<String, Object> semanticFlags
     ) {
 
+        private static final int MAX_VISUALIZATION_BLOCKS = 6;
+
         private String eventType() {
             return "SUCCESS".equals(status) ? "ANSWER" : "RESULT";
         }
@@ -2073,6 +2075,8 @@ public class AgentTaskService {
             normalized.put("dataset", nextDataset);
             normalized.put("ui", ui);
             normalized.put("insight", insight);
+            normalized.put("analysisResult", analysisResult(spec, insight));
+            normalized.put("insightSpec", insight);
             return normalized;
         }
 
@@ -2083,6 +2087,9 @@ public class AgentTaskService {
             if (rawBlocks instanceof List<?> list) {
                 int index = 1;
                 for (Object item : list) {
+                    if (blocks.size() >= MAX_VISUALIZATION_BLOCKS) {
+                        break;
+                    }
                     if (item instanceof Map<?, ?> blockMap) {
                         Map<String, Object> block = new LinkedHashMap<>();
                         blockMap.forEach((key, value) -> {
@@ -2170,7 +2177,17 @@ public class AgentTaskService {
             normalized.put("blocks", blocks);
             normalized.put("ui", ui);
             normalized.put("insight", insight);
+            normalized.put("analysisResult", analysisResult(spec, insight));
+            normalized.put("insightSpec", insight);
             return normalized;
+        }
+
+        private Map<String, Object> analysisResult(Map<String, Object> spec, Map<String, Object> insight) {
+            Map<String, Object> result = new LinkedHashMap<>();
+            result.put("type", firstTextValue(spec.get("analysisType"), ""));
+            result.put("summary", firstTextValue(insight.get("summary"), ""));
+            result.put("drivers", insight.get("drivers") instanceof List<?> drivers ? drivers : List.of());
+            return result;
         }
 
         private List<Map<String, Object>> rows(Map<String, Object> spec) {

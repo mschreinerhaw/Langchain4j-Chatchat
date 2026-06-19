@@ -367,6 +367,12 @@ public class ConversationService {
             .sourceKnowledgeBase(detail.getSourceKnowledgeBase())
             .sources(copyMaps(detail.getSources()))
             .traces(copyMaps(detail.getTraces()))
+            .steps(copyMaps(detail.getSteps()))
+            .visualizationSpec(copyMap(detail.getVisualizationSpec()))
+            .analysisNodeId(detail.getAnalysisNodeId())
+            .analysisParentNodeId(detail.getAnalysisParentNodeId())
+            .analysisSourceMessageId(detail.getAnalysisSourceMessageId())
+            .analysisSelection(copyMap(detail.getAnalysisSelection()))
             .build();
     }
 
@@ -404,6 +410,12 @@ public class ConversationService {
             .sourceKnowledgeBase(message.getSourceKnowledgeBase())
             .sources(copyMaps(message.getSources()))
             .traces(copyMaps(message.getTraces()))
+            .steps(copyMaps(message.getSteps()))
+            .visualizationSpec(copyMap(message.getVisualizationSpec()))
+            .analysisNodeId(message.getAnalysisNodeId())
+            .analysisParentNodeId(message.getAnalysisParentNodeId())
+            .analysisSourceMessageId(message.getAnalysisSourceMessageId())
+            .analysisSelection(copyMap(message.getAnalysisSelection()))
             .build();
         String rocksKey = detailStore.put(detail);
 
@@ -462,6 +474,13 @@ public class ConversationService {
             }
         }
         return copy;
+    }
+
+    private Map<String, Object> copyMap(Map<String, Object> value) {
+        if (value == null || value.isEmpty()) {
+            return Map.of();
+        }
+        return new LinkedHashMap<>(value);
     }
 
     /**

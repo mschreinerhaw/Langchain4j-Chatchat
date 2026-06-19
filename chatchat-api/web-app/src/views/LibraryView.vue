@@ -60,7 +60,14 @@
             <span>{{ item.source }} · {{ item.date }} · {{ categoryLabel(item.category) }} · v{{ item.version || 1 }}</span>
           </div>
           <div class="library-document-actions">
-            <button type="button" @click="openDocument(item.docId)">查看</button>
+            <button
+              type="button"
+              :disabled="!canPreviewDocument(item)"
+              :title="documentPreviewTitle(item)"
+              @click="openDocument(item.docId, item)"
+            >
+              查看
+            </button>
             <button type="button" :disabled="favoriteSavingIds[item.docId]" @click="favoriteDocument(item)">
               {{ favoriteSavingIds[item.docId] ? "收藏中" : "收藏" }}
             </button>
@@ -155,9 +162,7 @@
             </button>
           </div>
 
-          <div v-if="viewerMode === 'pdf'" ref="pdfViewer" class="viewer-pdf"></div>
-          <div v-else-if="viewerMode === 'word'" ref="wordViewer" class="viewer-word"></div>
-          <div v-else-if="viewerMode === 'html'" class="viewer-html" v-html="viewerHtml"></div>
+          <div v-if="viewerMode === 'html'" class="viewer-html" v-html="viewerHtml"></div>
           <pre v-else class="viewer-text">{{ viewerDocument.content }}</pre>
         </div>
       </section>

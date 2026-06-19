@@ -19,7 +19,8 @@ import { onAgentTaskCancelled } from "../utils/agentTaskEvents";
 
 const EMPTY_RESPONSE = {
   sources: [],
-  toolTraces: []
+  toolTraces: [],
+  visualizationSpec: null
 };
 const MESSAGE_FEEDBACK_PAYLOADS = {
   useful: { useful: true },
@@ -31,6 +32,32 @@ const AGENT_TASK_POLL_TIMEOUT_MS = 5000;
 const AGENT_TASK_EVENT_LIMIT = 80;
 const MAX_UPLOAD_SIZE = 5 * 1024 * 1024;
 const MAX_IMAGE_UPLOAD_SIZE = 10 * 1024 * 1024;
+const RESPONSE_RENDER_CONTRACT = {
+  version: "response-contract-v2",
+  prompt: [
+    "RESPONSE FORMAT RULE:",
+    "- All responses MUST use explicit markdown code block language tags.",
+    "- Always wrap SQL in ```sql fenced code blocks.",
+    "- Always wrap JSON/configuration examples in ```json fenced code blocks.",
+    "- Use markdown headings for explanation sections.",
+    "- Separate mixed output sections clearly.",
+    "- Never output plain code without a language tag.",
+    "",
+    "VISUALIZATION CONTRACT:",
+    "- When the answer contains chartable structured data, emit visualizationSpec v2.",
+    "- Preferred schema: {version:'v2', type:'panel', title:'', analysisType:'comparison|trend|distribution|correlation', layout:'grid|stack', insight:{summary:'', anomaly:'', trend:'up|down|stable', drivers:[]}, blocks:[{id:'', type:'metric|chart|table', title:'', spec:{version:'v1', type:'chart|table|metric', chartType:'line|bar|pie|scatter', title:'', dataset:{xKey:'', series:[{name:'', yKey:''}], rows:[]}, ui:{allowSwitch:true, defaultView:'chart'}, insight:{summary:'', anomaly:'', trend:'up|down|stable', drivers:[]}}}]}",
+    "- Each panel block spec MUST use dataset.rows as an array of objects and dataset.series MUST reference numeric yKey fields in rows.",
+    "- Prefer metadata.visualizationSpec when the runtime supports structured metadata.",
+    "- If metadata is unavailable, include exactly one ```json block shaped as {\"visualizationSpec\": {...}}.",
+    "- Choose chartType by data shape: time series=line, category comparison=bar, proportions=pie, two numeric dimensions=scatter.",
+    "- Keep visualization data compact and numeric fields as numbers, not formatted strings."
+  ].join("\n"),
+  blocks: {
+    sql: "```sql",
+    config: "```json",
+    explanation: "markdown headings"
+  }
+};
 
 function uid() {
   return `${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -91,6 +118,7 @@ function normalizeMessages(messages, status = "") {
         sources: waitingConfirmation ? [] : normalizeMessageSources(message),
         traces: waitingConfirmation ? [] : normalizeMessageTraces(message),
         steps: normalizeMessageSteps(message),
+        visualizationSpec: waitingConfirmation ? null : normalizeMessageVisualization(message),
         streaming,
         status: waitingConfirmation ? "waiting" : (message.status || (streaming ? "streaming" : "completed")),
         taskId: message.taskId || "",
@@ -188,6 +216,273 @@ function parseJsonPayload(value) {
 
 function firstArray(...values) {
   return values.find(Array.isArray) || [];
+}
+
+function firstObject(...values) {
+  return values.find((value) => value && typeof value === "object" && !Array.isArray(value)) || null;
+}
+
+function numericValue(value) {
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : null;
+  }
+  const parsed = Number(String(value ?? "").replace(/,/g, ""));
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
+function normalizeVisualizationRows(spec = {}) {
+  if (Array.isArray(spec.dataset?.rows)) {
+    const columns = Array.isArray(spec.dataset?.columns) ? spec.dataset.columns : [];
+    return spec.dataset.rows
+      .map((row) => {
+        if (row && typeof row === "object" && !Array.isArray(row)) {
+          return row;
+        }
+        if (Array.isArray(row)) {
+          return Object.fromEntries(columns.map((column, index) => [column, row[index]]));
+        }
+        return null;
+      })
+      .filter(Boolean);
+  }
+  return Array.isArray(spec.data)
+    ? spec.data.filter((row) => row && typeof row === "object" && !Array.isArray(row))
+    : [];
+}
+
+function normalizeMetricRows(spec = {}) {
+  const metrics = spec.metrics || spec.values || spec.kpis;
+  if (Array.isArray(metrics)) {
+    return metrics.map((item, index) => ({
+      metric: item?.label || item?.name || item?.key || `Metric ${index + 1}`,
+      value: item?.value ?? item?.amount ?? "",
+      unit: item?.unit || ""
+    })).filter((item) => item.value !== "");
+  }
+  if (metrics && typeof metrics === "object") {
+    return Object.entries(metrics).map(([metric, value]) => ({ metric, value, unit: "" }));
+  }
+  return [];
+}
+
+function isTimeKey(key, rows = []) {
+  const normalized = String(key || "").toLowerCase();
+  if (/date|time|month|year|day|week|quarter/.test(normalized)) {
+    return true;
+  }
+  return rows.some((row) => !Number.isNaN(Date.parse(String(row?.[key] || ""))));
+}
+
+function chooseVisualizationChartType(spec = {}, rows = [], xKey = "", series = []) {
+  const requested = String(spec.chartType || spec.chart || "").toLowerCase();
+  if (["line", "bar", "pie", "scatter"].includes(requested)) {
+    return requested;
+  }
+  if (series.length >= 2 && rows.length > 2 && !isTimeKey(xKey, rows)) {
+    return "scatter";
+  }
+  const values = series.length ? rows.map((row) => numericValue(row[series[0].yKey])) : [];
+  const total = values.reduce((sum, value) => sum + Math.max(0, value || 0), 0);
+  if (rows.length > 1 && rows.length <= 8 && total > 0 && /share|ratio|percent|占比|比例/.test(`${spec.title || ""} ${series[0]?.name || ""}`.toLowerCase())) {
+    return "pie";
+  }
+  return isTimeKey(xKey, rows) ? "line" : "bar";
+}
+
+function normalizeVisualizationType(spec = {}, rows = [], series = []) {
+  const type = String(spec.type || "").toLowerCase();
+  if (type === "metric" || type === "metrics") {
+    return "metric";
+  }
+  if (type === "table") {
+    return "table";
+  }
+  if (type === "chart" || series.length) {
+    return "chart";
+  }
+  return rows.length ? "table" : "metric";
+}
+
+function firstVisualizationSpec(...values) {
+  for (const value of values) {
+    const spec = normalizeVisualizationSpec(value);
+    if (spec) {
+      return spec;
+    }
+  }
+  return null;
+}
+
+function normalizeVisualizationSpec(value) {
+  if (!value) {
+    return null;
+  }
+  if (typeof value === "string") {
+    try {
+      return normalizeVisualizationSpec(JSON.parse(value));
+    } catch (error) {
+      return null;
+    }
+  }
+  if (typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+  const spec = value.visualizationSpec || value.dataVisualization || value;
+  if (!spec || typeof spec !== "object" || Array.isArray(spec)) {
+    return null;
+  }
+  const panelType = String(spec.type || "").toLowerCase();
+  if (Array.isArray(spec.blocks) || panelType === "panel" || panelType === "dashboard") {
+    const blocks = (Array.isArray(spec.blocks) ? spec.blocks : [])
+      .map((block, index) => normalizeVisualizationBlock(block, index))
+      .filter(Boolean);
+    if (!blocks.length) {
+      const fallback = normalizeSingleVisualizationSpec(spec);
+      if (fallback) {
+        blocks.push({
+          id: "primary",
+          type: fallback.type,
+          title: fallback.title,
+          spec: fallback
+        });
+      }
+    }
+    if (!blocks.length) {
+      return null;
+    }
+    const layout = ["grid", "stack"].includes(String(spec.layout || "").toLowerCase())
+      ? String(spec.layout).toLowerCase()
+      : "stack";
+    const insight = spec.insight || {};
+    return {
+      version: "v2",
+      type: "panel",
+      title: String(spec.title || spec.name || "BI Panel"),
+      analysisType: String(spec.analysisType || ""),
+      layout,
+      blocks,
+      ui: {
+        allowSwitch: spec.ui?.allowSwitch !== false,
+        defaultView: spec.ui?.defaultView || "panel"
+      },
+      insight: {
+        summary: insight.summary || spec.summary || "",
+        anomaly: insight.anomaly || spec.anomaly || "",
+        trend: insight.trend || spec.trend || "",
+        drivers: Array.isArray(insight.drivers) ? insight.drivers : []
+      }
+    };
+  }
+  return normalizeSingleVisualizationSpec(spec);
+}
+
+function normalizeVisualizationBlock(block = {}, index = 0) {
+  const raw = block?.spec || block?.data || block?.visualizationSpec || block;
+  const normalized = normalizeSingleVisualizationSpec({
+    ...(raw || {}),
+    type: block?.type || raw?.type,
+    title: block?.title || raw?.title
+  });
+  if (!normalized) {
+    return null;
+  }
+  return {
+    id: block.id || `block-${index + 1}`,
+    type: block.type || normalized.type,
+    title: block.title || normalized.title,
+    spec: normalized
+  };
+}
+
+function normalizeSingleVisualizationSpec(value) {
+  if (!value) {
+    return null;
+  }
+  if (typeof value === "string") {
+    try {
+      return normalizeVisualizationSpec(JSON.parse(value));
+    } catch (error) {
+      return null;
+    }
+  }
+  if (typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+  const spec = value.visualizationSpec || value.dataVisualization || value;
+  if (!spec || typeof spec !== "object" || Array.isArray(spec)) {
+    return null;
+  }
+  const metricRows = normalizeMetricRows(spec);
+  const rows = normalizeVisualizationRows(spec);
+  const workingRows = rows.length ? rows : metricRows;
+  if (!workingRows.length) {
+    return null;
+  }
+  const columns = [...new Set(workingRows.flatMap((row) => Object.keys(row || {})))];
+  const xKey = spec.dataset?.xKey || spec.xKey || spec.x || columns.find((column) => numericValue(workingRows[0]?.[column]) === null) || columns[0] || "name";
+  const explicitSeries = Array.isArray(spec.dataset?.series) ? spec.dataset.series : [];
+  const legacyY = Array.isArray(spec.y) ? spec.y : (spec.y ? [spec.y] : []);
+  const numericColumns = columns.filter((column) => column !== xKey && workingRows.some((row) => numericValue(row[column]) !== null));
+  const series = (explicitSeries.length
+    ? explicitSeries
+    : (legacyY.length ? legacyY.map((yKey) => ({ name: yKey, yKey })) : numericColumns.map((yKey) => ({ name: yKey, yKey })))
+  ).filter((item) => item?.yKey && workingRows.some((row) => numericValue(row[item.yKey]) !== null)).slice(0, 4);
+  const type = normalizeVisualizationType(spec, workingRows, series);
+  const chartType = type === "chart" ? chooseVisualizationChartType(spec, workingRows, xKey, series) : "";
+  return {
+    version: "v1",
+    type,
+    chartType,
+    title: String(spec.title || spec.name || (type === "metric" ? "Key Metrics" : "Auto Visualization")),
+    analysisType: String(spec.analysisType || ""),
+    dataset: {
+      xKey,
+      series,
+      rows: workingRows
+    },
+    ui: {
+      allowSwitch: spec.ui?.allowSwitch !== false,
+      defaultView: spec.ui?.defaultView || (type === "table" ? "table" : "chart")
+    },
+    insight: {
+      summary: spec.insight?.summary || spec.summary || "",
+      anomaly: spec.insight?.anomaly || spec.anomaly || "",
+      trend: spec.insight?.trend || spec.trend || "",
+      drivers: Array.isArray(spec.insight?.drivers) ? spec.insight.drivers : []
+    }
+  };
+}
+
+function visualizationSpecFromAnswer(answer = "") {
+  const content = String(answer || "").trim();
+  if (!content) {
+    return null;
+  }
+  const direct = normalizeVisualizationSpec(content);
+  if (direct) {
+    return direct;
+  }
+  const fencedJson = content.match(/```json\s*([\s\S]*?)```/gi) || [];
+  for (const block of fencedJson) {
+    const json = block.replace(/^```json\s*/i, "").replace(/```\s*$/i, "").trim();
+    const spec = normalizeVisualizationSpec(json);
+    if (spec) {
+      return spec;
+    }
+  }
+  return null;
+}
+
+function normalizeMessageVisualization(message = {}) {
+  return firstVisualizationSpec(
+    message.visualizationSpec,
+    message.dataVisualization,
+    message.metadata?.visualizationSpec,
+    message.metadata?.dataVisualization,
+    message.metadata?.agent?.visualizationSpec,
+    message.extra?.visualizationSpec,
+    visualizationSpecFromAnswer(message.content)
+  );
 }
 
 function normalizeMessageSources(message = {}) {
@@ -635,8 +930,19 @@ function mergeExecutionSteps(previousSteps = [], events = []) {
 
 function normalizeResponsePayload(response = {}) {
   const payload = response?.data && typeof response.data === "object" ? response.data : response;
+  const visualizationSpec = firstVisualizationSpec(
+    payload?.visualizationSpec,
+    payload?.dataVisualization,
+    payload?.metadata?.visualizationSpec,
+    payload?.metadata?.dataVisualization,
+    payload?.metadata?.agent?.visualizationSpec,
+    payload?.metadata?.executionResult?.visualizationSpec,
+    payload?.metadata?.executionResult?.artifacts?.visualizationSpec,
+    visualizationSpecFromAnswer(payload?.answer)
+  );
   return {
     ...payload,
+    visualizationSpec,
     sources: firstArray(
       payload?.sources,
       payload?.references,
@@ -909,6 +1215,33 @@ export default {
         this.$refs.promptComposer?.focusComposer?.();
       });
     },
+    handleVisualizationDrillDown(payload = {}) {
+      if (this.loading) {
+        return;
+      }
+      const event = payload.event || {};
+      const selection = event.selection || {};
+      const row = selection.row && typeof selection.row === "object" ? selection.row : null;
+      const label = selection.label
+        || (row && event.xKey ? row[event.xKey] : "")
+        || (row ? Object.values(row).find((value) => value !== null && value !== undefined && value !== "") : "")
+        || "";
+      const value = selection.value ?? selection.height ?? "";
+      const title = event.blockTitle || event.title || "当前图表";
+      const details = [
+        event.panelTitle ? `面板：${event.panelTitle}` : "",
+        event.analysisType ? `分析类型：${event.analysisType}` : "",
+        label ? `选中项：${label}` : "",
+        value !== "" ? `数值：${value}` : "",
+        row ? `数据行：${JSON.stringify(row)}` : ""
+      ].filter(Boolean).join("；");
+      const query = [
+        `请基于刚才的可视化结果继续下钻分析「${title}」。`,
+        details,
+        "请解释该维度或数据点的原因、影响和下一步观察点，并在有结构化数据时继续输出符合 visualizationSpec v2 的 BI Panel。"
+      ].filter(Boolean).join("\n");
+      this.handleSend({ query, drillDown: { event, sourceMessageId: payload.message?.id || "" } });
+    },
     async handleSend(payload) {
       const query = typeof payload === "string" ? payload.trim() : payload?.query?.trim();
       if (!query || this.loading) {
@@ -961,7 +1294,8 @@ export default {
           agentName: payload?.agentName || "",
           documentWorkflow: !!payload?.documentWorkflow,
           webSearch: !!payload?.webSearch,
-          imageAnalysisIds
+          imageAnalysisIds,
+          responseContract: RESPONSE_RENDER_CONTRACT
         }
       };
       if (this.selectedAgentId) {
@@ -1082,6 +1416,7 @@ export default {
               assistantMessage.latencyMs = metadata.latencyMs;
               assistantMessage.sources = runContext.lastResponse.sources;
               assistantMessage.traces = runContext.lastResponse.toolTraces;
+              assistantMessage.visualizationSpec = runContext.lastResponse.visualizationSpec;
             }
             this.emitActiveConversationSnapshot(query, "running", runContext);
           },
@@ -1180,6 +1515,7 @@ export default {
         assistantMessage.latencyMs = response.latencyMs;
         assistantMessage.sources = runContext.lastResponse.sources;
         assistantMessage.traces = [];
+        assistantMessage.visualizationSpec = null;
         await refreshSteps();
         assistantMessage.streaming = false;
         assistantMessage.status = "waiting";
@@ -1228,6 +1564,7 @@ export default {
         assistantMessage.latencyMs = response.latencyMs || event?.latencyMs;
         assistantMessage.sources = runContext.lastResponse.sources;
         assistantMessage.traces = runContext.lastResponse.toolTraces;
+        assistantMessage.visualizationSpec = runContext.lastResponse.visualizationSpec;
         await refreshSteps();
         assistantMessage.streaming = false;
         assistantMessage.status = resultStatus;
@@ -1247,6 +1584,7 @@ export default {
       assistantMessage.latencyMs = response.latencyMs;
       assistantMessage.sources = runContext.lastResponse.sources;
       assistantMessage.traces = runContext.lastResponse.toolTraces;
+      assistantMessage.visualizationSpec = runContext.lastResponse.visualizationSpec;
       await refreshSteps();
       assistantMessage.streaming = false;
       assistantMessage.status = "completed";
@@ -1311,6 +1649,7 @@ export default {
           latencyMs: response?.latencyMs,
           sources: targetContext.lastResponse.sources,
           traces: targetContext.lastResponse.toolTraces,
+          visualizationSpec: targetContext.lastResponse.visualizationSpec,
           streaming: false,
           status: "completed",
           taskId: targetContext.taskId || ""
@@ -1331,6 +1670,7 @@ export default {
         sources: [],
         traces: [],
         steps: [],
+        visualizationSpec: null,
         streaming: false,
         status: "completed",
         taskId: "",
@@ -1358,6 +1698,7 @@ export default {
       message.sources = [];
       message.traces = [];
       message.steps = initialExecutionSteps(runContext?.agentName || "");
+      message.visualizationSpec = null;
       message.latencyMs = undefined;
       message.timestamp = Date.now();
       message.feedbackTime = "";
@@ -1471,6 +1812,7 @@ export default {
         sources: message.sources || [],
         traces: message.traces || [],
         steps: message.steps || [],
+        visualizationSpec: message.visualizationSpec || null,
         streaming: !!message.streaming,
         status: message.status || (message.streaming ? "streaming" : "completed"),
         taskId: message.taskId || "",
@@ -1552,7 +1894,8 @@ export default {
       const normalizedResponse = normalizeResponsePayload(response);
       const nextResponse = {
         sources: normalizedResponse.sources,
-        toolTraces: normalizedResponse.toolTraces
+        toolTraces: normalizedResponse.toolTraces,
+        visualizationSpec: normalizedResponse.visualizationSpec
       };
       if (runContext) {
         const previousHistoryId = runContext.historyId;

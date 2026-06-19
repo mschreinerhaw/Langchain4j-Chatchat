@@ -62,7 +62,17 @@
             <span class="active">生成分析结论</span>
           </div>
         </div>
-        <div v-if="message.content" class="message-markdown" v-html="renderMarkdown(message.content, message)"></div>
+        <div
+          v-if="message.content"
+          class="message-markdown"
+          v-html="renderMarkdown(message.content, message)"
+          @click="handleMarkdownClick"
+        ></div>
+        <VisualizationRenderer
+          v-if="message.role === 'assistant' && message.visualizationSpec && !message.streaming"
+          :spec="message.visualizationSpec"
+          @drill-down="handleVisualizationDrillDown(message, $event)"
+        />
         <div v-if="message.latencyMs" class="message-extra">耗时 {{ message.latencyMs }}ms</div>
         <ResponseReferences
           v-if="message.role === 'assistant' && !message.streaming && !isExecutionRunning(message) && message.status !== 'waiting'"

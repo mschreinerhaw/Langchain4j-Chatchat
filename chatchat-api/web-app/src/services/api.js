@@ -492,6 +492,20 @@ export function deleteExpandRule(id) {
   });
 }
 
+export function saveSemanticLexiconEntry(payload) {
+  const id = payload?.id;
+  return apiRequest(`/retrieval/rules/lexicon${id ? `/${encodeURIComponent(id)}` : ""}`, {
+    method: id ? "PUT" : "POST",
+    body: JSON.stringify(payload || {})
+  });
+}
+
+export function deleteSemanticLexiconEntry(id) {
+  return apiRequest(`/retrieval/rules/lexicon/${encodeURIComponent(id)}`, {
+    method: "DELETE"
+  });
+}
+
 export function fetchConversationHistory(userId, filters = {}) {
   const params = new URLSearchParams();
   if (filters.keyword) {

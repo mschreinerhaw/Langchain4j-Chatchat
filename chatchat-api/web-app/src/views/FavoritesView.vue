@@ -37,7 +37,14 @@
             <span>{{ formatType(favorite.targetType) }} · {{ favoriteCategory(favorite) }}</span>
           </div>
           <div class="favorite-actions">
-            <button type="button" @click="openFavorite(favorite)">打开</button>
+            <button
+              type="button"
+              :disabled="isUnsupportedDocumentFavorite(favorite)"
+              :title="favoritePreviewTitle(favorite)"
+              @click="openFavorite(favorite)"
+            >
+              打开
+            </button>
             <button type="button" @click="removeFavorite(favorite)">取消收藏</button>
           </div>
         </article>

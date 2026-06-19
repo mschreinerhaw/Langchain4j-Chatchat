@@ -137,6 +137,31 @@ chatchat:
     default-limit: 20
     max-limit: 100
     summary-length: 180
+    fallback-candidate-limit: 500
+    fallback-empty-result-limit: 200
+    fallback-exception-limit: 100
+    realtime-document-count-enabled: false
+    query-budget:
+      max-doc-scan: 1000
+      max-rocksdb-iter: 2000
+    retrieval-control:
+      enabled: true
+      query-validation-enabled: true
+      quality-scoring-enabled: true
+      max-search-calls: 1
+      max-attempts: 1
+      latency-ms: 100
+      min-quality-score: 20.0
+      min-specific-tokens: 2
+    ocr:
+      enabled: true
+      language: eng+chi_sim
+      timeout-seconds: 60
+      preserve-interword-spacing: true
+      image-preprocessing-enabled: true
+      pdf-strategy: auto
+      marker: "# OCR_TEXT"
+      score-penalty: 0.7
   tools:
     calculator:
       risk-level: low

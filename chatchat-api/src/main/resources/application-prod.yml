@@ -132,6 +132,31 @@ chatchat:
     default-limit: 20
     max-limit: 100
     summary-length: 180
+    fallback-candidate-limit: ${CHAT_SEARCH_FALLBACK_CANDIDATE_LIMIT:500}
+    fallback-empty-result-limit: ${CHAT_SEARCH_FALLBACK_EMPTY_RESULT_LIMIT:200}
+    fallback-exception-limit: ${CHAT_SEARCH_FALLBACK_EXCEPTION_LIMIT:100}
+    realtime-document-count-enabled: ${CHAT_SEARCH_REALTIME_DOCUMENT_COUNT_ENABLED:false}
+    query-budget:
+      max-doc-scan: ${CHAT_SEARCH_QUERY_BUDGET_MAX_DOC_SCAN:1000}
+      max-rocksdb-iter: ${CHAT_SEARCH_QUERY_BUDGET_MAX_ROCKSDB_ITER:2000}
+    retrieval-control:
+      enabled: ${CHAT_SEARCH_RETRIEVAL_CONTROL_ENABLED:true}
+      query-validation-enabled: ${CHAT_SEARCH_RETRIEVAL_QUERY_VALIDATION_ENABLED:true}
+      quality-scoring-enabled: ${CHAT_SEARCH_RETRIEVAL_QUALITY_SCORING_ENABLED:true}
+      max-search-calls: ${CHAT_SEARCH_RETRIEVAL_MAX_SEARCH_CALLS:1}
+      max-attempts: ${CHAT_SEARCH_RETRIEVAL_MAX_ATTEMPTS:1}
+      latency-ms: ${CHAT_SEARCH_RETRIEVAL_LATENCY_MS:100}
+      min-quality-score: ${CHAT_SEARCH_RETRIEVAL_MIN_QUALITY_SCORE:20.0}
+      min-specific-tokens: ${CHAT_SEARCH_RETRIEVAL_MIN_SPECIFIC_TOKENS:2}
+    ocr:
+      enabled: ${CHAT_SEARCH_OCR_ENABLED:true}
+      language: ${CHAT_SEARCH_OCR_LANGUAGE:eng+chi_sim}
+      timeout-seconds: ${CHAT_SEARCH_OCR_TIMEOUT_SECONDS:60}
+      preserve-interword-spacing: ${CHAT_SEARCH_OCR_PRESERVE_INTERWORD_SPACING:true}
+      image-preprocessing-enabled: ${CHAT_SEARCH_OCR_IMAGE_PREPROCESSING_ENABLED:true}
+      pdf-strategy: ${CHAT_SEARCH_OCR_PDF_STRATEGY:auto}
+      marker: "${CHAT_SEARCH_OCR_MARKER:# OCR_TEXT}"
+      score-penalty: ${CHAT_SEARCH_OCR_SCORE_PENALTY:0.7}
   tools:
     calculator:
       risk-level: ${CHAT_CALCULATOR_RISK_LEVEL:low}

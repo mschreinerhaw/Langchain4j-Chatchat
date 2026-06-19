@@ -6,6 +6,11 @@ import {
   searchDocuments,
   uploadSearchDocument
 } from "../../services/api.js";
+import {
+  inferDocumentType,
+  isDocumentOnlinePreviewSupported,
+  UNSUPPORTED_DOCUMENT_PREVIEW_MESSAGE
+} from "../utils/documentPreview.js";
 
 const MAX_UPLOAD_SIZE = 5 * 1024 * 1024;
 const MESSAGE_TEXT = {
@@ -17,23 +22,6 @@ const MESSAGE_TEXT = {
 
 function todayString() {
   return new Date().toISOString().slice(0, 10);
-}
-
-function inferDocumentType(fileName = "") {
-  const extension = fileName.includes(".") ? fileName.split(".").pop().toLowerCase() : "";
-  if (extension === "pdf") {
-    return "pdf";
-  }
-  if (["doc", "docx"].includes(extension)) {
-    return "word";
-  }
-  if (["xls", "xlsx", "csv"].includes(extension)) {
-    return "excel";
-  }
-  if (extension === "md") {
-    return "markdown";
-  }
-  return "text";
 }
 
 function defaultUploadForm() {
@@ -226,6 +214,10 @@ export default {
       if (!result?.docId) {
         return;
       }
+      if (!this.canPreviewResult(result)) {
+        this.error = UNSUPPORTED_DOCUMENT_PREVIEW_MESSAGE;
+        return;
+      }
       this.viewerOpen = true;
       this.viewerLoading = true;
       this.viewerError = "";
@@ -233,6 +225,10 @@ export default {
       this.viewerResult = result;
       try {
         this.viewerDocument = await getSearchDocument(result.docId);
+        if (!this.canPreviewResult(this.viewerDocument)) {
+          this.viewerError = UNSUPPORTED_DOCUMENT_PREVIEW_MESSAGE;
+          return;
+        }
         this.recordDocumentActivity(result, "VIEW");
       } catch (error) {
         this.viewerError = error.message || "加载文档内容失败";
@@ -264,6 +260,12 @@ export default {
       });
       this.recordDocumentActivity(result, "ASK");
     },
+    canPreviewResult(result) {
+      return isDocumentOnlinePreviewSupported(result);
+    },
+    documentPreviewTitle(result) {
+      return this.canPreviewResult(result) ? "" : UNSUPPORTED_DOCUMENT_PREVIEW_MESSAGE;
+    },
     applyDocumentShortcut(shortcut) {
       if (!shortcut?.docId || shortcut.id === this.appliedDocumentShortcutId) {
         return;
@@ -273,7 +275,9 @@ export default {
         docId: shortcut.docId,
         title: shortcut.title || shortcut.docId,
         summary: shortcut.summary || "",
-        source: shortcut.source || "workbench"
+        source: shortcut.source || "workbench",
+        fileName: shortcut.fileName || "",
+        documentType: shortcut.documentType || ""
       });
     },
     recordSearchHits() {

@@ -92,7 +92,14 @@
                 <strong>{{ document.title || document.targetId }}</strong>
                 <time>{{ shortcutTime(document.createdAt) }}</time>
                 <div class="shortcut-actions">
-                  <button type="button" @click="openDocument(document)">查看</button>
+                  <button
+                    type="button"
+                    :disabled="!canPreviewDocument(document)"
+                    :title="documentPreviewTitle(document)"
+                    @click="openDocument(document)"
+                  >
+                    查看
+                  </button>
                   <button type="button" @click="askAiAboutDocument(document)">问AI</button>
                 </div>
               </div>
@@ -116,7 +123,14 @@
                 <strong>{{ favorite.title || favorite.targetId }}</strong>
                 <time>{{ shortcutTime(favorite.createdAt) }}</time>
                 <div class="shortcut-actions">
-                  <button type="button" @click="openFavorite(favorite)">打开</button>
+                  <button
+                    type="button"
+                    :disabled="isUnsupportedDocumentFavorite(favorite)"
+                    :title="documentPreviewTitle(favorite)"
+                    @click="openFavorite(favorite)"
+                  >
+                    打开
+                  </button>
                   <button type="button" @click="deleteFavorite(favorite)">取消收藏</button>
                 </div>
               </div>

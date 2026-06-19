@@ -1,6 +1,7 @@
 import MarkdownIt from "markdown-it";
 import { Check, CircleCheck, CircleX, Copy } from "@lucide/vue";
 import ResponseReferences from "../../components/ResponseReferences.vue";
+import VisualizationRenderer from "../../components/VisualizationRenderer.vue";
 import { extractDocumentSearchPagesFromTraces, extractWebSearchPagesFromTraces } from "../utils/webReferences.js";
 
 const markdown = new MarkdownIt({
@@ -9,6 +10,19 @@ const markdown = new MarkdownIt({
   typographer: true,
   breaks: true
 });
+const FENCE_RE = /^(\s*)(`{3,}|~{3,})(\s*)([A-Za-z0-9_-]*)\s*$/;
+const SQL_START_RE = /^\s*(CREATE|WITH|SELECT|INSERT|UPDATE|DELETE|MERGE|ALTER|DROP|TRUNCATE|SET)\b/i;
+const SQL_CONTINUATION_RE = /^\s*(USING|OPTIONS\s*\(|PARTITIONED\s+BY|TBLPROPERTIES\s*\(|LOCATION\b|COMMENT\b|AS\b|FROM\b|WHERE\b|JOIN\b|LEFT\b|RIGHT\b|INNER\b|OUTER\b|ON\b|GROUP\b|ORDER\b|HAVING\b|LIMIT\b|VALUES\b|URL\b|DBTABLE\b|USER\b|PASSWORD\b|DRIVER\b|PARTITIONCOLUMN\b|LOWERBOUND\b|UPPERBOUND\b|NUMPARTITIONS\b|FETCHSIZE\b|SESSIONINITSTATEMENT\b|\)|;|,)/i;
+const SECTION_BOUNDARY_RE = /^\s*(#{1,6}\s+|[-*]\s+\d+[.)]\s+|\d+[.)]\s+|[\[(].+[\])]\s*$)/;
+const JSON_START_RE = /^\s*[{[]\s*$/;
+
+function escapeHtml(value) {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
 
 const defaultLinkOpen =
   markdown.renderer.rules.link_open ||
@@ -46,6 +60,24 @@ markdown.renderer.rules.link_open = (tokens, idx, options, env, self) => {
   return defaultLinkOpen(tokens, idx, options, env, self);
 };
 
+markdown.renderer.rules.fence = (tokens, idx) => {
+  const token = tokens[idx];
+  const language = String(token.info || "").trim().split(/\s+/)[0] || "";
+  const languageLabel = language
+    ? `<span class="markdown-code-language">${escapeHtml(language)}</span>`
+    : "";
+  const languageAttr = language ? ` class="language-${escapeHtml(language)}"` : "";
+  return [
+    '<div class="markdown-code-block" data-code-block>',
+    '<div class="markdown-code-toolbar">',
+    languageLabel,
+    '<button type="button" class="markdown-code-copy" data-code-copy title="Copy code" aria-label="Copy code">Copy</button>',
+    "</div>",
+    `<pre><code${languageAttr}>${escapeHtml(token.content)}</code></pre>`,
+    "</div>\n"
+  ].join("");
+};
+
 export default {
   name: "ChatMessageList",
   components: {
@@ -53,9 +85,10 @@ export default {
     CircleCheck,
     CircleX,
     Copy,
-    ResponseReferences
+    ResponseReferences,
+    VisualizationRenderer
   },
-  emits: ["feedback"],
+  emits: ["feedback", "visualization-drill-down"],
   props: {
     messages: {
       type: Array,
@@ -78,6 +111,7 @@ export default {
     return {
       copiedMessageId: "",
       copiedResetTimer: null,
+      codeCopyResetTimers: new Set(),
       feedbackOptions: [
         { value: "useful", label: "\u6709\u7528" },
         { value: "adopted", label: "\u91c7\u7eb3" },
@@ -104,6 +138,8 @@ export default {
     if (this.copiedResetTimer) {
       window.clearTimeout(this.copiedResetTimer);
     }
+    this.codeCopyResetTimers.forEach((timer) => window.clearTimeout(timer));
+    this.codeCopyResetTimers.clear();
   },
   methods: {
     shouldShowSteps(message = {}) {
@@ -185,6 +221,12 @@ export default {
         webCitationUrls: new Set(prepared.citationUrls)
       });
     },
+    handleVisualizationDrillDown(message, event = {}) {
+      this.$emit("visualization-drill-down", {
+        message,
+        event
+      });
+    },
     defaultRunningSteps(message = {}) {
       return [
         {
@@ -202,12 +244,14 @@ export default {
       ];
     },
     prepareMarkdownContent(content, message = {}) {
+      const displayContent = this.stripVisualizationSpecBlocks(content);
+      const normalizedContent = this.normalizeRenderContractBlocks(displayContent);
       const pages = extractWebSearchPagesFromTraces(message.traces || []);
       if (!pages.length) {
-        return { content, citationUrls: [] };
+        return { content: normalizedContent, citationUrls: [] };
       }
       const citationUrls = [];
-      const nextContent = content.replace(
+      const nextContent = normalizedContent.replace(
         /【\s*(引用|网页|来源|source)\s*(\d+)\s*】|[［\[]\s*(引用|网页|来源|source)\s*(\d+)\s*[］\]]|(?:引用|网页|来源|source)\s*(\d+)/gi,
         (...args) => {
           const match = args[0];
@@ -243,6 +287,112 @@ export default {
       );
       return { content: nextContent, citationUrls };
     },
+    stripVisualizationSpecBlocks(content) {
+      return String(content || "").replace(/```json\s*([\s\S]*?)```/gi, (match, body) => {
+        if (/"?(visualizationSpec|dataVisualization)"?\s*:/i.test(body || "")) {
+          return "";
+        }
+        return match;
+      }).trim();
+    },
+    normalizeRenderContractBlocks(content) {
+      const lines = String(content || "").replace(/\r\n/g, "\n").split("\n");
+      const output = [];
+      const pending = [];
+      let inFence = false;
+      let fenceMarker = "";
+
+      const emitPendingSql = () => {
+        if (!pending.length) {
+          return;
+        }
+        if (!this.isConfidentSqlBlock(pending)) {
+          output.push(...pending);
+          pending.length = 0;
+          return;
+        }
+        if (output.length && output[output.length - 1].trim()) {
+          output.push("");
+        }
+        output.push("```sql", ...pending, "```");
+        pending.length = 0;
+      };
+
+      lines.forEach((line, index) => {
+        const fence = line.match(FENCE_RE);
+        if (fence) {
+          emitPendingSql();
+          const marker = fence[2];
+          const language = fence[4] || "";
+          if (!inFence) {
+            const nextLine = lines[index + 1] || "";
+            if (!language && SQL_START_RE.test(nextLine)) {
+              output.push(`${fence[1]}${marker}${fence[3]}sql`);
+            } else if (!language && JSON_START_RE.test(nextLine)) {
+              output.push(`${fence[1]}${marker}${fence[3]}json`);
+            } else {
+              output.push(line);
+            }
+            inFence = true;
+            fenceMarker = marker;
+            return;
+          }
+          output.push(line);
+          if (marker[0] === fenceMarker[0] && marker.length >= fenceMarker.length) {
+            inFence = false;
+            fenceMarker = "";
+          }
+          return;
+        }
+
+        if (inFence) {
+          output.push(line);
+          return;
+        }
+
+        if (pending.length) {
+          if (this.shouldContinueSqlBlock(line)) {
+            pending.push(line);
+            return;
+          }
+          emitPendingSql();
+        }
+
+        if (this.isSqlBlockStart(line)) {
+          pending.push(line);
+          return;
+        }
+
+        output.push(line);
+      });
+      emitPendingSql();
+      return output.join("\n");
+    },
+    isSqlBlockStart(line) {
+      return SQL_START_RE.test(line);
+    },
+    shouldContinueSqlBlock(line) {
+      if (!line.trim()) {
+        return false;
+      }
+      if (SECTION_BOUNDARY_RE.test(line) && !SQL_CONTINUATION_RE.test(line)) {
+        return false;
+      }
+      return SQL_START_RE.test(line)
+        || SQL_CONTINUATION_RE.test(line)
+        || /^[\s\w."'`[\]-]+\s+'.*'[,]?\s*$/i.test(line)
+        || /^[\s\w."'`[\]-]+\s+\d+[,]?\s*$/i.test(line)
+        || /^\s*[),;]+\s*$/.test(line);
+    },
+    isConfidentSqlBlock(lines) {
+      const text = lines.join("\n");
+      if (/;\s*$/.test(text.trim())) {
+        return true;
+      }
+      return lines.length > 1
+        && /\b(CREATE|SELECT|INSERT|UPDATE|DELETE|MERGE|USING|OPTIONS|FROM|WHERE|JOIN)\b/i.test(text)
+        && /[()]/.test(text);
+    },
     plainCitationPrefix(value) {
       const match = String(value || "").match(/^(引用|网页|来源|source)/i);
       return match?.[1] || "";
@@ -256,6 +406,34 @@ export default {
     },
     escapeMarkdownTitle(value) {
       return String(value || "").replace(/"/g, "&quot;");
+    },
+    async handleMarkdownClick(event) {
+      const button = event.target?.closest?.("[data-code-copy]");
+      if (!button) {
+        return;
+      }
+      event.preventDefault();
+      event.stopPropagation();
+      const block = button.closest("[data-code-block]");
+      const code = block?.querySelector("pre code");
+      const text = code?.innerText || "";
+      if (!text) {
+        return;
+      }
+      try {
+        await this.writeClipboard(text);
+        const previousText = button.textContent || "Copy";
+        button.textContent = "Copied";
+        button.dataset.copied = "true";
+        const timer = window.setTimeout(() => {
+          button.textContent = previousText;
+          delete button.dataset.copied;
+          this.codeCopyResetTimers.delete(timer);
+        }, 1400);
+        this.codeCopyResetTimers.add(timer);
+      } catch (error) {
+        console.warn("Copy code block failed", error);
+      }
     },
     async copyMessage(message) {
       const text = this.buildCopyText(message);

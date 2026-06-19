@@ -37,7 +37,14 @@
               <div class="result-meta">{{ result.source }} · {{ result.date }}</div>
             </div>
             <div class="result-actions">
-              <button type="button" @click="openResult(result)">查看内容</button>
+              <button
+                type="button"
+                :disabled="!canPreviewResult(result)"
+                :title="documentPreviewTitle(result)"
+                @click="openResult(result)"
+              >
+                查看内容
+              </button>
               <button type="button" class="ask-ai-action" @click="askAiAboutResult(result)">问AI</button>
               <button type="button" class="danger-action" @click="removeDocument(result)">删除</button>
             </div>

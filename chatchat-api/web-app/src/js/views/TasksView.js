@@ -29,6 +29,12 @@ import {
 import { notifyAgentTaskCancelled } from "../utils/agentTaskEvents";
 
 const DEFAULT_RUNTIME_PAGE_SIZE = 10;
+const PLAN_NODE_WIDTH = 310;
+const PLAN_NODE_HEIGHT = 118;
+const PLAN_NODE_HORIZONTAL_PADDING = 40;
+const PLAN_EDGE_LABEL_MAX_WIDTH = 148;
+const PLAN_EDGE_LABEL_MIN_WIDTH = 54;
+const PLAN_EDGE_LABEL_PADDING = 20;
 
 export default {
   name: "TasksView",
@@ -349,17 +355,41 @@ export default {
         const level = resolveLevel(id);
         const laneIndex = lanes[level] || 0;
         lanes[level] = laneIndex + 1;
+        const labelValue = node.label || node.toolName || node.actionType || id;
+        const actionText = this.formatPlanAction(node.actionType);
+        const labelLines = this.compactPlanTextLinesForWidth(
+          labelValue,
+          PLAN_NODE_WIDTH - PLAN_NODE_HORIZONTAL_PADDING,
+          2,
+          16,
+          900
+        );
+        const hasWrappedLabel = labelLines.length > 1;
         return {
           ...node,
           id,
           x: 36 + level * 380,
           y: 36 + laneIndex * 168,
-          width: 310,
-          height: 118,
-          labelText: this.compactPlanText(node.label || node.toolName || node.actionType || id, 36),
-          fullLabelText: node.label || node.toolName || node.actionType || id,
-          actionText: this.formatPlanAction(node.actionType),
-          toolText: this.compactPlanText(node.toolName || node.actionType || "step", 34),
+          width: PLAN_NODE_WIDTH,
+          height: PLAN_NODE_HEIGHT,
+          labelLines,
+          labelText: labelLines.join(" "),
+          fullLabelText: labelValue,
+          actionText,
+          toolText: this.compactPlanTextForWidth(
+            node.toolName || node.actionType || "step",
+            PLAN_NODE_WIDTH - PLAN_NODE_HORIZONTAL_PADDING,
+            14,
+            800
+          ),
+          toolY: hasWrappedLabel ? 60 : 48,
+          metaText: this.compactPlanTextForWidth(
+            `#${node.stepId || id} · ${actionText}`,
+            PLAN_NODE_WIDTH - PLAN_NODE_HORIZONTAL_PADDING,
+            13,
+            800
+          ),
+          metaY: hasWrappedLabel ? 84 : 80,
           statusText: node.status || (node.success === true ? "success" : node.success === false ? "failed" : "planned"),
           detailText: node.errorMessage || node.outputPreview || ""
         };
@@ -384,10 +414,21 @@ export default {
           const tx = target.x;
           const ty = target.y + target.height / 2;
           const curve = Math.max(48, (tx - sx) / 2);
+          const fullLabel = edge.label || edge.kind || edge.type || "";
+          const label = this.compactPlanTextForWidth(fullLabel, PLAN_EDGE_LABEL_MAX_WIDTH - PLAN_EDGE_LABEL_PADDING, 12, 800);
+          const labelWidth = Math.min(
+            PLAN_EDGE_LABEL_MAX_WIDTH,
+            Math.max(
+              PLAN_EDGE_LABEL_MIN_WIDTH,
+              Math.ceil(this.estimatedPlanTextWidth(label, 12, 800) + PLAN_EDGE_LABEL_PADDING)
+            )
+          );
           return {
             id: edge.id || `edge-${index}`,
-            label: this.compactPlanText(edge.label || edge.kind || edge.type || "", 24),
-            hasLabel: !!(edge.label || edge.kind || edge.type),
+            label,
+            fullLabel,
+            labelWidth,
+            hasLabel: !!fullLabel,
             x: (sx + tx) / 2,
             y: (sy + ty) / 2 - 14,
             path: `M ${sx} ${sy} C ${sx + curve} ${sy}, ${tx - curve} ${ty}, ${tx} ${ty}`
@@ -707,8 +748,8 @@ export default {
       style.textContent = `
         .plan-dag-edges path{fill:none;stroke:#667085;stroke-width:2.4}
         .plan-dag-edges marker path{fill:#667085}
-        .plan-dag-edge-label rect{fill:#fbfcff;stroke:#d7e0ef;stroke-width:1}
-        .plan-dag-edge-label text{fill:#344054;font-size:12px;font-weight:800;dominant-baseline:middle;text-anchor:middle}
+        .plan-dag-edge-label rect{fill:rgba(255,255,255,.96);stroke:#cbd5e1;stroke-width:1}
+        .plan-dag-edge-label text{fill:#1f2937;font-size:12px;font-weight:900;dominant-baseline:middle;text-anchor:middle;paint-order:stroke;stroke:rgba(255,255,255,.9);stroke-width:2px}
         .plan-dag-node rect{fill:#fff;stroke:rgba(47,124,246,.46);stroke-width:2}
         .plan-dag-node.mcp-tool rect,.plan-dag-node.tool-call rect{stroke:rgba(47,124,246,.56);fill:#f8fbff}
         .plan-dag-node.final-answer rect{stroke:rgba(244,166,41,.48);fill:#fffdf7}
@@ -716,6 +757,7 @@ export default {
         .plan-dag-node.failed rect{stroke:rgba(239,79,95,.62);fill:#fff7f8}
         .plan-dag-node.success rect{stroke:rgba(32,178,107,.52);fill:#f7fffa}
         .plan-dag-node text{fill:#5d6b82;font-family:Arial,sans-serif;font-size:14px;font-weight:800}
+        .plan-dag-node-textbox{overflow:hidden}
         .plan-dag-node .plan-dag-node-title{fill:#111827;font-size:16px;font-weight:900}
         .plan-dag-node .plan-dag-node-meta{fill:#7a8799;font-size:13px}
       `;
@@ -1022,6 +1064,82 @@ export default {
         return text || "-";
       }
       return `${text.slice(0, Math.max(4, maxLength - 1))}...`;
+    },
+    compactPlanTextForWidth(value, maxWidth, fontSize = 14, fontWeight = 700) {
+      const text = String(value || "").replace(/\s+/g, " ").trim() || "-";
+      const ellipsis = "...";
+      if (this.estimatedPlanTextWidth(text, fontSize, fontWeight) <= maxWidth) {
+        return text;
+      }
+      const chars = Array.from(text);
+      let result = "";
+      for (const char of chars) {
+        const next = `${result}${char}`;
+        if (this.estimatedPlanTextWidth(`${next}${ellipsis}`, fontSize, fontWeight) > maxWidth) {
+          break;
+        }
+        result = next;
+      }
+      return `${result || chars[0] || ""}${ellipsis}`;
+    },
+    compactPlanTextLinesForWidth(value, maxWidth, maxLines = 2, fontSize = 14, fontWeight = 700) {
+      const text = String(value || "").replace(/\s+/g, " ").trim() || "-";
+      if (maxLines <= 1 || this.estimatedPlanTextWidth(text, fontSize, fontWeight) <= maxWidth) {
+        return [this.compactPlanTextForWidth(text, maxWidth, fontSize, fontWeight)];
+      }
+      const lines = [];
+      let remaining = text;
+      while (remaining && lines.length < maxLines) {
+        const isLastLine = lines.length === maxLines - 1;
+        const line = this.takePlanTextLineForWidth(remaining, maxWidth, fontSize, fontWeight, isLastLine);
+        lines.push(line);
+        if (isLastLine || line.endsWith("...")) {
+          break;
+        }
+        remaining = remaining.slice(Array.from(line).length).replace(/^[_\-\s.]+/, "");
+      }
+      return lines.length ? lines : ["-"];
+    },
+    takePlanTextLineForWidth(text, maxWidth, fontSize = 14, fontWeight = 700, withEllipsis = false) {
+      const chars = Array.from(text);
+      let result = "";
+      let lastBreakBeforeOverflow = -1;
+      for (let index = 0; index < chars.length; index += 1) {
+        if (/[\s._:/\\|-]/.test(chars[index])) {
+          lastBreakBeforeOverflow = index;
+        }
+        const next = `${result}${chars[index]}`;
+        const suffix = withEllipsis && index < chars.length - 1 ? "..." : "";
+        if (this.estimatedPlanTextWidth(`${next}${suffix}`, fontSize, fontWeight) > maxWidth) {
+          if (!withEllipsis && lastBreakBeforeOverflow > 0 && lastBreakBeforeOverflow < index) {
+            return chars.slice(0, lastBreakBeforeOverflow + 1).join("").replace(/[\s._:/\\|-]+$/, "");
+          }
+          return withEllipsis ? `${result || chars[0] || ""}...` : (result || chars[0] || "");
+        }
+        result = next;
+      }
+      return result;
+    },
+    estimatedPlanTextWidth(text, fontSize = 14, fontWeight = 700) {
+      const weightScale = Number(fontWeight) >= 800 ? 1.08 : 1;
+      return Array.from(String(text || "")).reduce((width, char) => {
+        if (/[\u4e00-\u9fff\u3040-\u30ff\uac00-\ud7af]/.test(char)) {
+          return width + fontSize;
+        }
+        if (/[A-Z0-9]/.test(char)) {
+          return width + fontSize * 0.64 * weightScale;
+        }
+        if (/[a-z]/.test(char)) {
+          return width + fontSize * 0.56 * weightScale;
+        }
+        if (/[._:/\\|-]/.test(char)) {
+          return width + fontSize * 0.36;
+        }
+        if (/\s/.test(char)) {
+          return width + fontSize * 0.32;
+        }
+        return width + fontSize * 0.5;
+      }, 0);
     },
     toolHealth(tool) {
       if (!tool) {

@@ -24,9 +24,11 @@ public class ImageUnderstandingToolRegistrar {
     public void register() {
         ToolMetadata metadata = ToolMetadata.builder()
             .id("image_understanding")
-            .title("Image Understanding")
-            .description("Analyze uploaded screenshots, document images, tables, reports, contracts and charts. "
-                + "Use it when a user asks about a previously uploaded image fileId.")
+            .title("Image OCR")
+            .description("Extract plain text from a previously uploaded image using Apache Tika OCR. "
+                + "Use it when the user asks to read text from screenshots, scanned document images, reports, forms or contracts. "
+                + "This tool is a low-confidence OCR text extractor: it does not perform visual reasoning, chart interpretation, "
+                + "table reconstruction, handwriting recognition, or high-precision document understanding.")
             .version("1.0.0")
             .author("ChatChat System")
             .categories(List.of("multimodal", "image", "ocr", "vision"))
@@ -59,19 +61,30 @@ public class ImageUnderstandingToolRegistrar {
                 ToolParameter.builder()
                     .name("question")
                     .type("string")
-                    .description("User question about the image.")
+                    .description("Optional user question used only as OCR context; the tool returns extracted text, not visual reasoning.")
                     .required(false)
                     .maxLength(2000)
                     .build(),
                 ToolParameter.builder()
                     .name("mode")
                     .type("string")
-                    .description("Analysis mode: auto, screenshot, document or chart.")
+                    .description("OCR context mode: auto, screenshot, document or chart. Chart mode still performs text OCR only.")
                     .required(false)
                     .defaultValue("auto")
                     .build()
             ))
             .tags(List.of("image", "ocr", "vision", "agent"))
+            .metadata(Map.of(
+                "engine", "apache_tika_tesseract",
+                "sourceType", "OCR_TEXT",
+                "confidenceTier", "low",
+                "behaviorRules", List.of(
+                    "Treat output as plain OCR text only",
+                    "Do not assume table structure, bounding boxes, or visual reasoning",
+                    "If extracted text is empty or weak, report insufficient OCR evidence",
+                    "Prefer verification for complex Chinese layout, blur, skew, handwriting, charts, invoices, or IDs"
+                )
+            ))
             .build();
         toolRegistry.registerTool("image_understanding", metadata, new ImageUnderstandingTool(metadata));
     }

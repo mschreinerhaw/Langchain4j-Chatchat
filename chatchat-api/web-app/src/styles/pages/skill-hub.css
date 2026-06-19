@@ -693,16 +693,20 @@
 }
 
 .plan-dag-edge-label rect {
-  fill: #fbfcff;
-  stroke: #d7e0ef;
+  fill: rgba(255, 255, 255, 0.96);
+  stroke: #cbd5e1;
   stroke-width: 1;
+  filter: drop-shadow(0 2px 4px rgba(15, 23, 42, 0.1));
 }
 
 .plan-dag-edge-label text {
-  fill: #344054;
+  fill: #1f2937;
   font-size: 12px;
-  font-weight: 800;
+  font-weight: 900;
   dominant-baseline: middle;
+  paint-order: stroke;
+  stroke: rgba(255, 255, 255, 0.9);
+  stroke-width: 2px;
   text-anchor: middle;
 }
 
@@ -746,6 +750,10 @@
   fill: #5d6b82;
   font-size: 14px;
   font-weight: 800;
+}
+
+.plan-dag-node-textbox {
+  overflow: hidden;
 }
 
 .plan-dag-node .plan-dag-node-title {

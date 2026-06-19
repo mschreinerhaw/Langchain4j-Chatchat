@@ -457,7 +457,12 @@
   font-weight: 750;
 }
 
-.shortcut-actions button:hover {
+.shortcut-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
+.shortcut-actions button:not(:disabled):hover {
   color: var(--primary-strong);
   text-decoration: underline;
 }

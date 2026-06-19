@@ -17,6 +17,11 @@ import {
   recordUserActivity,
   removeUserFavorite
 } from "../../services/api";
+import {
+  getDocumentPreviewType,
+  isDocumentOnlinePreviewSupported,
+  UNSUPPORTED_DOCUMENT_PREVIEW_MESSAGE
+} from "../utils/documentPreview.js";
 import "../../styles/components/right-panel.css";
 
 export default {
@@ -195,12 +200,18 @@ export default {
       if (!item?.targetId) {
         return;
       }
+      if (!this.canPreviewDocument(item)) {
+        this.error = UNSUPPORTED_DOCUMENT_PREVIEW_MESSAGE;
+        return;
+      }
       await this.recordShortcutAction(item, "VIEW");
       this.$emit("open-document", {
         docId: item.targetId,
         title: item.title || "",
         summary: item.summary || "",
-        source: "workbench"
+        source: "workbench",
+        fileName: item.fileName || item.extra?.fileName || "",
+        documentType: item.documentType || item.extra?.documentType || ""
       });
     },
     async askAiAboutDocument(item) {
@@ -234,6 +245,10 @@ export default {
       }
       const type = String(item.targetType).toUpperCase();
       if (type === "DOCUMENT") {
+        if (!this.canPreviewDocument(item)) {
+          this.error = UNSUPPORTED_DOCUMENT_PREVIEW_MESSAGE;
+          return;
+        }
         await this.openDocument(item);
         return;
       }
@@ -359,6 +374,18 @@ export default {
         "请结合这份文档，帮我提炼重点并给出可追问的问题。"
       ].filter(Boolean).join("\n");
     },
+    canPreviewDocument(item) {
+      return isDocumentOnlinePreviewSupported(item);
+    },
+    isUnsupportedDocumentFavorite(item) {
+      return String(item?.targetType || "").toUpperCase() === "DOCUMENT" && !this.canPreviewDocument(item);
+    },
+    documentPreviewTitle(item) {
+      if (item?.targetType && String(item.targetType).toUpperCase() !== "DOCUMENT") {
+        return "";
+      }
+      return this.canPreviewDocument(item) ? "" : UNSUPPORTED_DOCUMENT_PREVIEW_MESSAGE;
+    },
     shortcutTime(value) {
       if (!value) {
         return "";
@@ -371,15 +398,21 @@ export default {
       }).format(new Date(value));
     },
     docMark(item) {
-      const title = String(item?.title || item?.targetId || "").toLowerCase();
-      if (title.endsWith(".pdf")) {
+      const type = getDocumentPreviewType(item);
+      if (type === "pdf") {
         return "PDF";
       }
-      if (title.endsWith(".doc") || title.endsWith(".docx")) {
+      if (type === "word") {
         return "DOC";
       }
-      if (title.endsWith(".xls") || title.endsWith(".xlsx")) {
+      if (type === "excel") {
         return "XLS";
+      }
+      if (type === "markdown") {
+        return "MD";
+      }
+      if (type === "text") {
+        return "TXT";
       }
       return "DOC";
     },
@@ -388,7 +421,9 @@ export default {
       return {
         PDF: "red",
         DOC: "blue",
-        XLS: "green"
+        XLS: "green",
+        MD: "amber",
+        TXT: "amber"
       }[mark] || "amber";
     },
     agentShortName(item) {

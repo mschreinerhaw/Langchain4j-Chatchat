@@ -132,7 +132,12 @@
   font-weight: 700;
 }
 
-.favorites-view .library-list button:hover {
+.favorites-view .library-list button:disabled {
+  cursor: not-allowed;
+  opacity: 0.58;
+}
+
+.favorites-view .library-list button:not(:disabled):hover {
   color: #b42335;
 }
 

@@ -1824,6 +1824,11 @@
   color: #6941c6;
 }
 
+.version-pill.lexicon {
+  background: #fff7ed;
+  color: #c2410c;
+}
+
 .keyword-rule-actions {
   flex-wrap: wrap;
   justify-content: flex-end;
@@ -1857,7 +1862,8 @@
 }
 
 .keyword-rule-actions button:disabled,
-.keyword-rule-pagination button:disabled {
+.keyword-rule-pagination button:disabled,
+.row-actions button:disabled {
   cursor: not-allowed;
   opacity: 0.55;
 }
@@ -2141,6 +2147,11 @@
 .row-status.draft {
   background: #eaf1ff;
   color: #155eef;
+}
+
+.row-status.builtin {
+  background: #fff7ed;
+  color: #c2410c;
 }
 
 .row-actions {
@@ -2732,7 +2743,7 @@
 
 .keyword-rule-metrics {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 12px;
 }
 
@@ -3117,7 +3128,7 @@
 
 .keyword-rule-metrics {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 12px;
 }
 

@@ -1,8 +1,5 @@
 import { nextTick } from "vue";
 import MarkdownIt from "markdown-it";
-import * as pdfjsLib from "pdfjs-dist";
-import pdfWorkerUrl from "pdfjs-dist/build/pdf.worker.min.mjs?url";
-import { renderAsync } from "docx-preview";
 import * as XLSX from "xlsx";
 import "../../styles/pages/library.css";
 import {
@@ -15,8 +12,12 @@ import {
   getSearchDocumentVersion,
   getSearchDocumentVersions
 } from "../../services/api.js";
-
-pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
+import {
+  getDocumentPreviewType,
+  inferDocumentType,
+  isDocumentOnlinePreviewSupported,
+  UNSUPPORTED_DOCUMENT_PREVIEW_MESSAGE
+} from "../utils/documentPreview.js";
 
 const markdown = new MarkdownIt({
   html: false,
@@ -213,7 +214,13 @@ export default {
       this.categoryDialogOpen = false;
       this.newCategoryName = "";
     },
-    async openDocument(docId) {
+    canPreviewDocument(document) {
+      return isDocumentOnlinePreviewSupported(document);
+    },
+    documentPreviewTitle(document) {
+      return this.canPreviewDocument(document) ? "" : UNSUPPORTED_DOCUMENT_PREVIEW_MESSAGE;
+    },
+    async openDocument(docId, documentItem = null) {
       this.viewerOpen = true;
       this.viewerLoading = true;
       this.viewerError = "";
@@ -222,8 +229,19 @@ export default {
       this.selectedVersion = null;
       this.viewerHtml = "";
       this.viewerMode = "text";
+      if (documentItem && !this.canPreviewDocument(documentItem)) {
+        this.viewerOpen = false;
+        this.viewerLoading = false;
+        this.message = UNSUPPORTED_DOCUMENT_PREVIEW_MESSAGE;
+        return;
+      }
       try {
         const document = await getSearchDocument(docId);
+        if (!this.canPreviewDocument(document)) {
+          this.viewerError = UNSUPPORTED_DOCUMENT_PREVIEW_MESSAGE;
+          this.viewerLoading = false;
+          return;
+        }
         const versions = await getSearchDocumentVersions(docId);
         this.viewerDocument = document;
         this.viewerVersions = versions?.length ? versions : [this.versionItemFromDocument(document)];
@@ -313,21 +331,9 @@ export default {
     },
     async renderDocument() {
       const type = this.viewerType;
-      if (type === "pdf") {
-        this.viewerMode = "pdf";
-        await this.renderPdf();
-        return;
-      }
-      if (type === "word") {
-        this.viewerMode = "word";
-        try {
-          await this.renderWord();
-        } catch (error) {
-          this.viewerMode = "text";
-          if (!this.viewerDocument?.content) {
-            this.viewerError = error.message || "Word 文档预览失败";
-          }
-        }
+      if (!isDocumentOnlinePreviewSupported(type)) {
+        this.viewerMode = "text";
+        this.viewerError = UNSUPPORTED_DOCUMENT_PREVIEW_MESSAGE;
         return;
       }
       if (type === "excel") {
@@ -345,46 +351,6 @@ export default {
         return;
       }
       this.viewerMode = "text";
-    },
-    async renderPdf() {
-      const container = this.$refs.pdfViewer;
-      if (!container || !this.viewerFileUrl) {
-        return;
-      }
-      container.innerHTML = "";
-      const { buffer } = await fetchDocumentFile(this.viewerFileUrl);
-      const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
-      const pageCount = Math.min(pdf.numPages, 20);
-      for (let pageNumber = 1; pageNumber <= pageCount; pageNumber++) {
-        const page = await pdf.getPage(pageNumber);
-        const viewport = page.getViewport({ scale: 1.25 });
-        const canvas = document.createElement("canvas");
-        const context = canvas.getContext("2d");
-        canvas.width = viewport.width;
-        canvas.height = viewport.height;
-        container.appendChild(canvas);
-        await page.render({ canvasContext: context, viewport }).promise;
-      }
-    },
-    async renderWord() {
-      const container = this.$refs.wordViewer;
-      if (!container || !this.viewerFileUrl) {
-        return;
-      }
-      container.innerHTML = "";
-      const { buffer } = await fetchDocumentFile(this.viewerFileUrl);
-      if (!this.isZipDocument(buffer)) {
-        throw new Error("当前 Word 文件不是 docx 格式，无法直接预览");
-      }
-      await renderAsync(buffer, container, null, {
-        className: "docx-rendered",
-        inWrapper: true,
-        ignoreFonts: true,
-        useBase64URL: true
-      });
-      if (!container.textContent.trim()) {
-        throw new Error("Word 文档没有渲染出可见文字");
-      }
     },
     async renderExcel() {
       const { buffer } = await fetchDocumentFile(this.viewerFileUrl);
@@ -432,26 +398,10 @@ export default {
       return this.categoryLabel(category);
     },
     inferDocumentType(fileName = "") {
-      const extension = fileName.includes(".") ? fileName.split(".").pop().toLowerCase() : "";
-      if (extension === "pdf") {
-        return "pdf";
-      }
-      if (["doc", "docx"].includes(extension)) {
-        return "word";
-      }
-      if (["xls", "xlsx", "csv"].includes(extension)) {
-        return "excel";
-      }
-      if (extension === "md") {
-        return "markdown";
-      }
-      return "text";
-    },
-    isZipDocument(buffer) {
-      const bytes = new Uint8Array(buffer, 0, Math.min(buffer.byteLength, 4));
-      return bytes[0] === 0x50 && bytes[1] === 0x4b;
+      return inferDocumentType(fileName);
     },
     documentTypeLabel(type) {
+      const normalizedType = getDocumentPreviewType({ documentType: type });
       const labels = {
         pdf: "PDF",
         word: "Word",
@@ -459,7 +409,7 @@ export default {
         markdown: "Markdown",
         text: "Text"
       };
-      return labels[type] || "Text";
+      return labels[normalizedType] || "Text";
     },
     versionItemFromDocument(document) {
       return {

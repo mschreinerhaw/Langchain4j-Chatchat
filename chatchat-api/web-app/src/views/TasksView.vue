@@ -741,7 +741,8 @@
             <g class="plan-dag-edges">
               <path v-for="edge in planEdgeViews" :key="edge.id" :d="edge.path" marker-end="url(#plan-dag-arrow)" />
               <g v-for="edge in planEdgeViews.filter((item) => item.hasLabel)" :key="`${edge.id}-label`" class="plan-dag-edge-label">
-                <rect :x="edge.x - 58" :y="edge.y - 15" width="116" height="24" rx="6" />
+                <title>{{ edge.fullLabel }}</title>
+                <rect :x="edge.x - edge.labelWidth / 2" :y="edge.y - 15" :width="edge.labelWidth" height="26" rx="7" />
                 <text :x="edge.x" :y="edge.y">{{ edge.label }}</text>
               </g>
             </g>
@@ -753,9 +754,28 @@
               :transform="`translate(${node.x}, ${node.y})`"
             >
               <rect :width="node.width" :height="node.height" rx="8" />
-              <text x="20" y="30" class="plan-dag-node-title">{{ node.labelText }}</text>
-              <text x="20" y="62">{{ node.toolText }}</text>
-              <text x="20" y="94" class="plan-dag-node-meta">#{{ node.stepId || node.id }} · {{ node.actionText }}</text>
+              <title>{{ node.fullLabelText }} · {{ node.toolName || node.actionText }}</title>
+              <svg
+                class="plan-dag-node-textbox"
+                x="20"
+                y="14"
+                :width="node.width - 40"
+                :height="node.height - 28"
+                overflow="hidden"
+              >
+                <text x="0" y="16" class="plan-dag-node-title">
+                  <tspan
+                    v-for="(line, lineIndex) in node.labelLines"
+                    :key="`${node.id}-label-${lineIndex}`"
+                    x="0"
+                    :dy="lineIndex === 0 ? 0 : 20"
+                  >
+                    {{ line }}
+                  </tspan>
+                </text>
+                <text x="0" :y="node.toolY">{{ node.toolText }}</text>
+                <text x="0" :y="node.metaY" class="plan-dag-node-meta">{{ node.metaText }}</text>
+              </svg>
             </g>
           </svg>
         </div>

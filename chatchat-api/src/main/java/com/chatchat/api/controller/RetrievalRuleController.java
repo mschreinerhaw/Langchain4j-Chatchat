@@ -7,6 +7,7 @@ import com.chatchat.knowledgebase.search.rule.QueryExpandRuleEntity;
 import com.chatchat.knowledgebase.search.rule.QueryIntentRuleEntity;
 import com.chatchat.knowledgebase.search.rule.RetrievalRuleService;
 import com.chatchat.knowledgebase.search.rule.RuleVersionEntity;
+import com.chatchat.knowledgebase.search.rule.SemanticLexiconEntryEntity;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
@@ -192,12 +193,54 @@ public class RetrievalRuleController {
         return ApiResponse.success(null);
     }
 
+    @GetMapping("/lexicon")
+    @Operation(summary = "List semantic lexicon entries")
+    public ApiResponse<List<SemanticLexiconEntryEntity>> semanticLexiconEntries() {
+        return ApiResponse.success(ruleService.listSemanticLexiconEntries());
+    }
+
+    @PostMapping("/lexicon")
+    @Operation(summary = "Create semantic lexicon entry")
+    public ApiResponse<SemanticLexiconEntryEntity> createSemanticLexiconEntry(@RequestBody SemanticLexiconEntryEntity request) {
+        try {
+            request.setId(null);
+            request.setBuiltin(false);
+            return ApiResponse.success(ruleService.saveSemanticLexiconEntry(request));
+        } catch (IllegalArgumentException ex) {
+            return ApiResponse.badRequest(ex.getMessage());
+        }
+    }
+
+    @PutMapping("/lexicon/{id}")
+    @Operation(summary = "Update semantic lexicon entry")
+    public ApiResponse<SemanticLexiconEntryEntity> updateSemanticLexiconEntry(@PathVariable("id") Long id,
+                                                                              @RequestBody SemanticLexiconEntryEntity request) {
+        try {
+            request.setId(id);
+            return ApiResponse.success(ruleService.saveSemanticLexiconEntry(request));
+        } catch (IllegalArgumentException ex) {
+            return ApiResponse.badRequest(ex.getMessage());
+        }
+    }
+
+    @DeleteMapping("/lexicon/{id}")
+    @Operation(summary = "Delete semantic lexicon entry")
+    public ApiResponse<Void> deleteSemanticLexiconEntry(@PathVariable("id") Long id) {
+        try {
+            ruleService.deleteSemanticLexiconEntry(id);
+            return ApiResponse.success(null);
+        } catch (IllegalArgumentException ex) {
+            return ApiResponse.badRequest(ex.getMessage());
+        }
+    }
+
     private RetrievalRuleSummary currentSummary() {
         RetrievalRuleService.RuleSnapshot snapshot = ruleService.snapshot();
         return new RetrievalRuleSummary(
             ruleService.listIntentRules(),
             ruleService.listChunkTypeRules(),
             ruleService.listExpandRules(),
+            ruleService.listSemanticLexiconEntries(),
             ruleService.listVersions(),
             ruleService.activeVersions(),
             snapshot.refreshedAt()
@@ -208,6 +251,7 @@ public class RetrievalRuleController {
         List<QueryIntentRuleEntity> intentRules,
         List<ChunkTypeRuleEntity> chunkTypeRules,
         List<QueryExpandRuleEntity> expandRules,
+        List<SemanticLexiconEntryEntity> semanticLexiconEntries,
         List<RuleVersionEntity> versions,
         RetrievalRuleService.ActiveRuleVersions activeVersions,
         long refreshedAt

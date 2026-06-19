@@ -3,6 +3,10 @@ import {
   fetchWorkbenchShortcuts,
   removeUserFavorite
 } from "../../services/api";
+import {
+  isDocumentOnlinePreviewSupported,
+  UNSUPPORTED_DOCUMENT_PREVIEW_MESSAGE
+} from "../utils/documentPreview.js";
 
 export default {
   name: "FavoritesView",
@@ -88,7 +92,18 @@ export default {
       }
     },
     openFavorite(favorite) {
+      if (this.isUnsupportedDocumentFavorite(favorite)) {
+        this.error = UNSUPPORTED_DOCUMENT_PREVIEW_MESSAGE;
+        return;
+      }
       this.$emit("open-favorite", favorite);
+    },
+    isUnsupportedDocumentFavorite(favorite) {
+      return String(favorite?.targetType || "").toUpperCase() === "DOCUMENT"
+        && !isDocumentOnlinePreviewSupported(favorite);
+    },
+    favoritePreviewTitle(favorite) {
+      return this.isUnsupportedDocumentFavorite(favorite) ? UNSUPPORTED_DOCUMENT_PREVIEW_MESSAGE : "";
     },
     selectCategory(category) {
       this.activeCategory = category;

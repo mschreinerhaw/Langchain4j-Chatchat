@@ -30,6 +30,7 @@ const MESSAGE_FEEDBACK_PAYLOADS = {
 };
 const AGENT_TASK_POLL_TIMEOUT_MS = 5000;
 const AGENT_TASK_EVENT_LIMIT = 80;
+const MAX_VISUALIZATION_BLOCKS = 6;
 const MAX_UPLOAD_SIZE = 5 * 1024 * 1024;
 const MAX_IMAGE_UPLOAD_SIZE = 10 * 1024 * 1024;
 const RESPONSE_RENDER_CONTRACT = {
@@ -119,6 +120,10 @@ function normalizeMessages(messages, status = "") {
         traces: waitingConfirmation ? [] : normalizeMessageTraces(message),
         steps: normalizeMessageSteps(message),
         visualizationSpec: waitingConfirmation ? null : normalizeMessageVisualization(message),
+        analysisNodeId: message.analysisNodeId || message.metadata?.analysisNodeId || "",
+        analysisParentNodeId: message.analysisParentNodeId || message.metadata?.analysisParentNodeId || "",
+        analysisSourceMessageId: message.analysisSourceMessageId || message.metadata?.analysisSourceMessageId || "",
+        analysisSelection: message.analysisSelection || message.metadata?.analysisSelection || null,
         streaming,
         status: waitingConfirmation ? "waiting" : (message.status || (streaming ? "streaming" : "completed")),
         taskId: message.taskId || "",
@@ -198,6 +203,74 @@ function defaultImageForm() {
 
 function uniqueList(values) {
   return [...new Set(values.map((value) => String(value || "").trim()).filter(Boolean))];
+}
+
+function emptyAnalysisTree() {
+  return {
+    version: "analysis-tree-v1",
+    rootNodeIds: [],
+    activeNodeId: "",
+    nodes: []
+  };
+}
+
+function normalizeAnalysisTree(value) {
+  if (!value || typeof value !== "object") {
+    return emptyAnalysisTree();
+  }
+  const nodes = Array.isArray(value.nodes)
+    ? value.nodes
+        .filter((node) => node && typeof node === "object" && node.id)
+        .map((node) => ({
+          id: String(node.id),
+          parentId: node.parentId ? String(node.parentId) : "",
+          query: String(node.query || ""),
+          sourceMessageId: String(node.sourceMessageId || ""),
+          responseMessageId: String(node.responseMessageId || ""),
+          title: String(node.title || node.query || ""),
+          status: String(node.status || "completed"),
+          createdAt: Number(node.createdAt || Date.now()),
+          updatedAt: Number(node.updatedAt || node.createdAt || Date.now()),
+          selection: node.selection && typeof node.selection === "object" ? node.selection : null
+        }))
+    : [];
+  const nodeIds = new Set(nodes.map((node) => node.id));
+  const rootNodeIds = Array.isArray(value.rootNodeIds)
+    ? value.rootNodeIds.map(String).filter((id) => nodeIds.has(id))
+    : nodes.filter((node) => !node.parentId).map((node) => node.id);
+  const activeNodeId = nodeIds.has(String(value.activeNodeId || "")) ? String(value.activeNodeId) : (nodes.at(-1)?.id || "");
+  return {
+    version: "analysis-tree-v1",
+    rootNodeIds,
+    activeNodeId,
+    nodes
+  };
+}
+
+function analysisTreeFromMessages(messages = []) {
+  const nodes = [];
+  const seen = new Set();
+  messages.forEach((message) => {
+    const nodeId = message?.analysisNodeId || message?.metadata?.analysisNodeId;
+    if (!nodeId || seen.has(nodeId)) {
+      return;
+    }
+    seen.add(nodeId);
+    const response = messages.find((item) => item.role === "assistant" && item.analysisNodeId === nodeId);
+    nodes.push({
+      id: String(nodeId),
+      parentId: String(message.analysisParentNodeId || message.metadata?.analysisParentNodeId || ""),
+      query: message.role === "user" ? String(message.content || "") : "",
+      sourceMessageId: String(message.analysisSourceMessageId || message.metadata?.analysisSourceMessageId || ""),
+      responseMessageId: response?.id || "",
+      title: message.role === "user" ? compactText(message.content || "", 64) : "Analysis",
+      status: response?.status || message.status || "completed",
+      createdAt: Number(message.timestamp || Date.now()),
+      updatedAt: Number(response?.timestamp || message.timestamp || Date.now()),
+      selection: message.analysisSelection || message.metadata?.analysisSelection || null
+    });
+  });
+  return normalizeAnalysisTree({ nodes });
 }
 
 function parseJsonPayload(value) {
@@ -333,7 +406,7 @@ function normalizeVisualizationSpec(value) {
   }
   const panelType = String(spec.type || "").toLowerCase();
   if (Array.isArray(spec.blocks) || panelType === "panel" || panelType === "dashboard") {
-    const blocks = (Array.isArray(spec.blocks) ? spec.blocks : [])
+    const blocks = (Array.isArray(spec.blocks) ? spec.blocks.slice(0, MAX_VISUALIZATION_BLOCKS) : [])
       .map((block, index) => normalizeVisualizationBlock(block, index))
       .filter(Boolean);
     if (!blocks.length) {
@@ -366,6 +439,17 @@ function normalizeVisualizationSpec(value) {
         defaultView: spec.ui?.defaultView || "panel"
       },
       insight: {
+        summary: insight.summary || spec.summary || "",
+        anomaly: insight.anomaly || spec.anomaly || "",
+        trend: insight.trend || spec.trend || "",
+        drivers: Array.isArray(insight.drivers) ? insight.drivers : []
+      },
+      analysisResult: {
+        type: String(spec.analysisType || ""),
+        summary: insight.summary || spec.summary || "",
+        drivers: Array.isArray(insight.drivers) ? insight.drivers : []
+      },
+      insightSpec: {
         summary: insight.summary || spec.summary || "",
         anomaly: insight.anomaly || spec.anomaly || "",
         trend: insight.trend || spec.trend || "",
@@ -445,6 +529,17 @@ function normalizeSingleVisualizationSpec(value) {
       defaultView: spec.ui?.defaultView || (type === "table" ? "table" : "chart")
     },
     insight: {
+      summary: spec.insight?.summary || spec.summary || "",
+      anomaly: spec.insight?.anomaly || spec.anomaly || "",
+      trend: spec.insight?.trend || spec.trend || "",
+      drivers: Array.isArray(spec.insight?.drivers) ? spec.insight.drivers : []
+    },
+    analysisResult: {
+      type: String(spec.analysisType || ""),
+      summary: spec.insight?.summary || spec.summary || "",
+      drivers: Array.isArray(spec.insight?.drivers) ? spec.insight.drivers : []
+    },
+    insightSpec: {
       summary: spec.insight?.summary || spec.summary || "",
       anomaly: spec.insight?.anomaly || spec.anomaly || "",
       trend: spec.insight?.trend || spec.trend || "",
@@ -1029,6 +1124,7 @@ export default {
       conversationId: "",
       conversationStatus: "completed",
       messages: [],
+      analysisTree: emptyAnalysisTree(),
       lastResponse: { ...EMPTY_RESPONSE },
       suggestions: [],
       agents: [],
@@ -1194,6 +1290,7 @@ export default {
           this.historyId = "";
           this.conversationId = "";
           this.messages = [];
+          this.analysisTree = emptyAnalysisTree();
           this.conversationStatus = "completed";
           this.lastResponse = { ...EMPTY_RESPONSE };
         }
@@ -1242,6 +1339,52 @@ export default {
       ].filter(Boolean).join("\n");
       this.handleSend({ query, drillDown: { event, sourceMessageId: payload.message?.id || "" } });
     },
+    createAnalysisNode(query, drillDown = null) {
+      const tree = normalizeAnalysisTree(this.analysisTree);
+      const event = drillDown?.event || null;
+      const parentId = event?.blockId || drillDown?.sourceMessageId
+        ? tree.activeNodeId || ""
+        : "";
+      const node = {
+        id: uid(),
+        parentId,
+        query,
+        sourceMessageId: drillDown?.sourceMessageId || "",
+        responseMessageId: "",
+        title: compactText(event?.blockTitle || event?.title || query, 64),
+        status: "running",
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+        selection: event?.selection || null
+      };
+      tree.nodes.push(node);
+      if (!node.parentId) {
+        tree.rootNodeIds = [...new Set([...tree.rootNodeIds, node.id])];
+      }
+      tree.activeNodeId = node.id;
+      this.analysisTree = tree;
+      return node;
+    },
+    syncAnalysisNode(runContext = null, status = this.conversationStatus) {
+      const nodeId = runContext?.analysisNodeId;
+      if (!nodeId) {
+        return;
+      }
+      const tree = normalizeAnalysisTree(this.analysisTree);
+      const node = tree.nodes.find((item) => item.id === nodeId);
+      if (!node) {
+        return;
+      }
+      const responseMessage = [...(runContext.messages || [])]
+        .reverse()
+        .find((message) => message.role === "assistant" && message.analysisNodeId === nodeId);
+      node.status = status || node.status;
+      node.updatedAt = Date.now();
+      node.responseMessageId = responseMessage?.id || node.responseMessageId || "";
+      tree.activeNodeId = nodeId;
+      this.analysisTree = tree;
+      runContext.analysisTree = tree;
+    },
     async handleSend(payload) {
       const query = typeof payload === "string" ? payload.trim() : payload?.query?.trim();
       if (!query || this.loading) {
@@ -1261,15 +1404,20 @@ export default {
 
       this.errorMessage = "";
       this.conversationStatus = "running";
+      const analysisNode = this.createAnalysisNode(query, payload?.drillDown || null);
       this.messages.push({
         id: uid(),
         role: "user",
         content: query,
         timestamp: Date.now(),
         status: "completed",
-        streaming: false
+        streaming: false,
+        analysisNodeId: analysisNode.id,
+        analysisParentNodeId: analysisNode.parentId,
+        analysisSourceMessageId: analysisNode.sourceMessageId,
+        analysisSelection: analysisNode.selection
       });
-      const runContext = this.createRunContext(query);
+      const runContext = this.createRunContext(query, analysisNode);
       this.runningContexts[runContext.historyId] = runContext;
       this.question = "";
       this.loading = true;
@@ -1295,7 +1443,11 @@ export default {
           documentWorkflow: !!payload?.documentWorkflow,
           webSearch: !!payload?.webSearch,
           imageAnalysisIds,
-          responseContract: RESPONSE_RENDER_CONTRACT
+          responseContract: RESPONSE_RENDER_CONTRACT,
+          analysisTree: this.analysisTree,
+          analysisNodeId: analysisNode.id,
+          analysisParentNodeId: analysisNode.parentId,
+          drillDown: payload?.drillDown || null
         }
       };
       if (this.selectedAgentId) {
@@ -1394,7 +1546,11 @@ export default {
         assistantMessage = this.createAssistantMessage({
           content: "",
           streaming: true,
-          status: "streaming"
+          status: "streaming",
+          analysisNodeId: runContext.analysisNodeId,
+          analysisParentNodeId: runContext.analysisParentNodeId,
+          analysisSourceMessageId: runContext.analysisSourceMessageId,
+          analysisSelection: runContext.analysisSelection
         });
         runContext.messages.push(assistantMessage);
         if (this.isActiveRun(runContext)) {
@@ -1462,7 +1618,11 @@ export default {
         content: "",
         streaming: true,
         status: "streaming",
-        steps: initialExecutionSteps(runContext.agentName)
+        steps: initialExecutionSteps(runContext.agentName),
+        analysisNodeId: runContext.analysisNodeId,
+        analysisParentNodeId: runContext.analysisParentNodeId,
+        analysisSourceMessageId: runContext.analysisSourceMessageId,
+        analysisSelection: runContext.analysisSelection
       });
       if (!runContext.messages.some((message) => message.id === assistantMessage.id)) {
         runContext.messages.push(assistantMessage);
@@ -1650,6 +1810,10 @@ export default {
           sources: targetContext.lastResponse.sources,
           traces: targetContext.lastResponse.toolTraces,
           visualizationSpec: targetContext.lastResponse.visualizationSpec,
+          analysisNodeId: targetContext.analysisNodeId,
+          analysisParentNodeId: targetContext.analysisParentNodeId,
+          analysisSourceMessageId: targetContext.analysisSourceMessageId,
+          analysisSelection: targetContext.analysisSelection,
           streaming: false,
           status: "completed",
           taskId: targetContext.taskId || ""
@@ -1671,6 +1835,10 @@ export default {
         traces: [],
         steps: [],
         visualizationSpec: null,
+        analysisNodeId: "",
+        analysisParentNodeId: "",
+        analysisSourceMessageId: "",
+        analysisSelection: null,
         streaming: false,
         status: "completed",
         taskId: "",
@@ -1699,6 +1867,10 @@ export default {
       message.traces = [];
       message.steps = initialExecutionSteps(runContext?.agentName || "");
       message.visualizationSpec = null;
+      message.analysisNodeId = runContext?.analysisNodeId || "";
+      message.analysisParentNodeId = runContext?.analysisParentNodeId || "";
+      message.analysisSourceMessageId = runContext?.analysisSourceMessageId || "";
+      message.analysisSelection = runContext?.analysisSelection || null;
       message.latencyMs = undefined;
       message.timestamp = Date.now();
       message.feedbackTime = "";
@@ -1712,7 +1884,7 @@ export default {
       message.feedbackError = "";
       return message;
     },
-    createRunContext(question) {
+    createRunContext(question, analysisNode = null) {
       return {
         runId: uid(),
         historyId: this.historyId,
@@ -1723,6 +1895,11 @@ export default {
         mode: this.selectedAgentId ? "agent_chat" : "llm_chat",
         status: this.conversationStatus,
         messages: this.messages,
+        analysisNodeId: analysisNode?.id || "",
+        analysisParentNodeId: analysisNode?.parentId || "",
+        analysisSourceMessageId: analysisNode?.sourceMessageId || "",
+        analysisSelection: analysisNode?.selection || null,
+        analysisTree: this.analysisTree,
         lastResponse: { ...EMPTY_RESPONSE }
       };
     },
@@ -1758,7 +1935,11 @@ export default {
         context.messages.push(this.createAssistantMessage({
           content: message,
           streaming: false,
-          status: "cancelled"
+          status: "cancelled",
+          analysisNodeId: context.analysisNodeId,
+          analysisParentNodeId: context.analysisParentNodeId,
+          analysisSourceMessageId: context.analysisSourceMessageId,
+          analysisSelection: context.analysisSelection
         }));
       }
       context.status = "cancelled";
@@ -1813,6 +1994,10 @@ export default {
         traces: message.traces || [],
         steps: message.steps || [],
         visualizationSpec: message.visualizationSpec || null,
+        analysisNodeId: message.analysisNodeId || "",
+        analysisParentNodeId: message.analysisParentNodeId || "",
+        analysisSourceMessageId: message.analysisSourceMessageId || "",
+        analysisSelection: message.analysisSelection || null,
         streaming: !!message.streaming,
         status: message.status || (message.streaming ? "streaming" : "completed"),
         taskId: message.taskId || "",
@@ -1932,6 +2117,7 @@ export default {
       }
       this.question = "";
       this.messages = [];
+      this.analysisTree = emptyAnalysisTree();
       this.historyId = "";
       this.conversationId = "";
       this.conversationStatus = "completed";
@@ -2221,6 +2407,7 @@ export default {
     },
     emitActiveConversationSnapshot(question, status = this.conversationStatus, runContext = null) {
       const context = runContext || this.createRunContext(question);
+      this.syncAnalysisNode(context, status);
       const active = !runContext || this.isActiveRun(runContext);
       this.$emit("conversation-active", {
         id: context.historyId,
@@ -2230,6 +2417,7 @@ export default {
         skillId: context.selectedAgentId || "",
         agentName: context.agentName || "",
         status,
+        analysisTree: this.analysisTree,
         active,
         timestamp: Date.now(),
         messages: this.serializeMessages(context.messages)
@@ -2240,6 +2428,7 @@ export default {
       if (!context.historyId || !question) {
         return;
       }
+      this.syncAnalysisNode(context, status);
       const active = !runContext || this.isActiveRun(runContext);
       try {
         const history = await saveConversationHistory({
@@ -2250,6 +2439,7 @@ export default {
           mode: context.mode,
           skillId: context.selectedAgentId || "",
           status,
+          analysisTree: this.analysisTree,
           messages: this.serializeMessages(context.messages)
         });
         this.$emit("history-saved", {
@@ -2274,6 +2464,7 @@ export default {
         this.selectedAgentId = runningContext.selectedAgentId || "";
         this.conversationStatus = "running";
         this.messages = runningContext.messages;
+        this.analysisTree = normalizeAnalysisTree(runningContext.analysisTree || this.analysisTree);
         this.lastResponse = runningContext.lastResponse || { ...EMPTY_RESPONSE };
         this.errorMessage = "";
         this.loading = true;
@@ -2310,6 +2501,9 @@ export default {
       this.selectedAgentId = conversation.skillId || "";
       this.conversationStatus = normalizeStatus(status, messages);
       this.messages = messages;
+      this.analysisTree = conversation.analysisTree
+        ? normalizeAnalysisTree(conversation.analysisTree)
+        : analysisTreeFromMessages(messages);
       this.errorMessage = "";
       this.loading = false;
       this.activeRunId = "";

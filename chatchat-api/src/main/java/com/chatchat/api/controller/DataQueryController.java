@@ -312,6 +312,7 @@ public class DataQueryController {
             request.getSkillId(),
             request.getModelName(),
             request.getMode(),
+            safeMap(request.getAnalysisTree()),
             messages,
             status
         ));
@@ -354,6 +355,7 @@ public class DataQueryController {
                 null,
                 null,
                 null,
+                Map.of(),
                 request.getMessages(),
                 status
             ));
@@ -462,6 +464,7 @@ public class DataQueryController {
         private String modelName;
         private String mode;
         private String status;
+        private Map<String, Object> analysisTree;
         private List<ConversationMessage> messages;
     }
 
@@ -485,6 +488,7 @@ public class DataQueryController {
         private String skillId;
         private String modelName;
         private String mode;
+        private Map<String, Object> analysisTree;
         private List<ConversationMessage> messages;
         private String status;
     }
@@ -499,6 +503,12 @@ public class DataQueryController {
         private Long timestamp;
         private List<Map<String, Object>> sources;
         private List<Map<String, Object>> traces;
+        private List<Map<String, Object>> steps;
+        private Map<String, Object> visualizationSpec;
+        private String analysisNodeId;
+        private String analysisParentNodeId;
+        private String analysisSourceMessageId;
+        private Map<String, Object> analysisSelection;
         private Boolean streaming;
         private String status;
     }
@@ -562,6 +572,7 @@ public class DataQueryController {
             null,
             null,
             "llm_chat",
+            safeMap(conversation.getAnalysisTree()),
             messages,
             conversation.getStatus() == null || conversation.getStatus().isBlank()
                 ? resolveHistoryStatus(null, messages)
@@ -583,6 +594,12 @@ public class DataQueryController {
             toEpochMillis(message.getTimestamp()),
             safeMaps(message.getSources()),
             safeMaps(message.getTraces()),
+            safeMaps(message.getSteps()),
+            safeMap(message.getVisualizationSpec()),
+            message.getAnalysisNodeId(),
+            message.getAnalysisParentNodeId(),
+            message.getAnalysisSourceMessageId(),
+            safeMap(message.getAnalysisSelection()),
             false,
             "completed"
         );
@@ -607,6 +624,12 @@ public class DataQueryController {
                 .timestamp(fromEpochMillis(message.getTimestamp()))
                 .sources(safeMaps(message.getSources()))
                 .traces(safeMaps(message.getTraces()))
+                .steps(safeMaps(message.getSteps()))
+                .visualizationSpec(safeMap(message.getVisualizationSpec()))
+                .analysisNodeId(message.getAnalysisNodeId())
+                .analysisParentNodeId(message.getAnalysisParentNodeId())
+                .analysisSourceMessageId(message.getAnalysisSourceMessageId())
+                .analysisSelection(safeMap(message.getAnalysisSelection()))
                 .build())
             .toList();
     }
@@ -679,6 +702,13 @@ public class DataQueryController {
             .filter(value -> value != null && !value.isEmpty())
             .map(value -> (Map<String, Object>) new java.util.LinkedHashMap<>(value))
             .toList();
+    }
+
+    private Map<String, Object> safeMap(Map<String, Object> value) {
+        if (value == null || value.isEmpty()) {
+            return Map.of();
+        }
+        return new java.util.LinkedHashMap<>(value);
     }
 
     /**

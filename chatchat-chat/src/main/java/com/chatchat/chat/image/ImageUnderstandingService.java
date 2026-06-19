@@ -2,6 +2,7 @@ package com.chatchat.chat.image;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.chatchat.knowledgebase.search.DocumentTextExtractor;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -31,6 +32,7 @@ public class ImageUnderstandingService {
     private final ImageAssetRepository assetRepository;
     private final ImageAnalysisResultRepository resultRepository;
     private final ObjectMapper objectMapper;
+    private final DocumentTextExtractor documentTextExtractor;
 
     @Value("${chatchat.images.storage-dir:./data/images}")
     private String storageDir;
@@ -106,9 +108,9 @@ public class ImageUnderstandingService {
         }
         String normalizedMode = normalizeMode(mode);
         String imageType = inferImageType(asset, question, normalizedMode);
-        String extractedText = buildExtractedText(asset, imageType);
-        String summary = buildSummary(asset, question, imageType, normalizedMode);
-        Map<String, Object> structuredData = structuredData(asset, imageType, normalizedMode);
+        String extractedText = extractOcrText(asset);
+        String summary = buildSummary(asset, question, imageType, normalizedMode, extractedText);
+        Map<String, Object> structuredData = structuredData(asset, imageType, normalizedMode, extractedText);
 
         ImageAnalysisResultEntity result = new ImageAnalysisResultEntity();
         result.setFileId(asset.getFileId());
@@ -120,8 +122,8 @@ public class ImageUnderstandingService {
         result.setExtractedText(extractedText);
         result.setSummary(summary);
         result.setStructuredDataJson(writeJson(structuredData));
-        result.setConfidence(confidence(normalizedMode, imageType));
-        result.setAnalysisSource("rule");
+        result.setConfidence(confidence(normalizedMode, imageType, extractedText));
+        result.setAnalysisSource("tika_ocr");
         result.setStatus("COMPLETED");
         return resultRepository.save(result);
     }
@@ -233,6 +235,9 @@ public class ImageUnderstandingService {
             || name.endsWith(".png")
             || name.endsWith(".jpg")
             || name.endsWith(".jpeg")
+            || name.endsWith(".bmp")
+            || name.endsWith(".tif")
+            || name.endsWith(".tiff")
             || name.endsWith(".webp")
             || name.endsWith(".gif");
     }
@@ -269,25 +274,26 @@ public class ImageUnderstandingService {
         return "screenshot";
     }
 
-    private String buildExtractedText(ImageAssetEntity asset, String imageType) {
-        return "MVP local parser: OCR/vision model is not configured yet. "
-            + "Captured image metadata only. "
-            + "fileName=" + nullToEmpty(asset.getOriginalFileName())
-            + ", imageType=" + imageType
-            + ", size=" + nullToEmpty(asset.getSizeBytes())
-            + ", dimensions=" + nullToEmpty(asset.getWidth()) + "x" + nullToEmpty(asset.getHeight());
+    private String extractOcrText(ImageAssetEntity asset) {
+        if (asset == null || asset.getFilePath() == null || asset.getFilePath().isBlank()) {
+            return "";
+        }
+        String fileName = nullToEmpty(asset.getOriginalFileName());
+        if (!documentTextExtractor.supports(fileName)) {
+            return "";
+        }
+        String text = documentTextExtractor.extractText(Path.of(asset.getFilePath()), fileName);
+        return truncate(text, 16000);
     }
 
-    private String buildSummary(ImageAssetEntity asset, String question, String imageType, String mode) {
+    private String buildSummary(ImageAssetEntity asset, String question, String imageType, String mode, String extractedText) {
         StringBuilder builder = new StringBuilder();
-        builder.append("Image classified as ").append(imageType)
+        builder.append("Tika OCR completed for image classified as ").append(imageType)
             .append(" with mode ").append(mode).append(". ");
-        if ("screenshot".equals(imageType)) {
-            builder.append("Suitable for system page, error screenshot, or configuration screenshot review. ");
-        } else if ("document".equals(imageType)) {
-            builder.append("Suitable for OCR/table/document extraction once the OCR adapter is enabled. ");
-        } else if ("chart".equals(imageType)) {
-            builder.append("Suitable for chart trend and anomaly interpretation once the vision adapter is enabled. ");
+        if (extractedText == null || extractedText.isBlank()) {
+            builder.append("No OCR text was extracted; verify the image quality, language pack, and Tesseract installation. ");
+        } else {
+            builder.append("Extracted ").append(extractedText.length()).append(" characters of OCR text. ");
         }
         builder.append("Stored file ").append(asset.getFileId())
             .append(" (").append(nullToEmpty(asset.getOriginalFileName())).append(").");
@@ -297,7 +303,7 @@ public class ImageUnderstandingService {
         return builder.toString();
     }
 
-    private Map<String, Object> structuredData(ImageAssetEntity asset, String imageType, String mode) {
+    private Map<String, Object> structuredData(ImageAssetEntity asset, String imageType, String mode, String extractedText) {
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("fileId", asset.getFileId());
         data.put("fileName", asset.getOriginalFileName());
@@ -307,14 +313,27 @@ public class ImageUnderstandingService {
         data.put("width", asset.getWidth());
         data.put("height", asset.getHeight());
         data.put("sizeBytes", asset.getSizeBytes());
-        data.put("ocrEnabled", false);
+        data.put("ocrEnabled", true);
+        data.put("ocrEngine", "tika+tesseract");
+        data.put("sourceType", DocumentTextExtractor.OCR_CHUNK_TYPE);
+        data.put("textLength", extractedText == null ? 0 : extractedText.length());
+        data.put("confidenceTier", "low");
         data.put("visionModelEnabled", false);
-        data.put("nextAdapter", imageType.equals("document") ? "ocr_table_extractor" : "vision_model");
+        data.put("limitations", List.of(
+            "plain text OCR only",
+            "no table reconstruction",
+            "no visual reasoning",
+            "low confidence for complex Chinese layout, blur, skew, or handwriting"
+        ));
         return data;
     }
 
-    private double confidence(String mode, String imageType) {
-        return "auto".equals(mode) && imageType != null ? 0.46D : 0.58D;
+    private double confidence(String mode, String imageType, String extractedText) {
+        if (extractedText == null || extractedText.isBlank()) {
+            return 0.2D;
+        }
+        double base = "auto".equals(mode) && imageType != null ? 0.52D : 0.6D;
+        return Math.min(0.68D, base + Math.min(0.08D, extractedText.length() / 4000.0D));
     }
 
     private String normalizeMode(String mode) {
@@ -359,7 +378,7 @@ public class ImageUnderstandingService {
         int dot = name.lastIndexOf('.');
         if (dot >= 0 && dot < name.length() - 1) {
             String ext = name.substring(dot);
-            if (List.of(".png", ".jpg", ".jpeg", ".webp", ".gif").contains(ext)) {
+            if (List.of(".png", ".jpg", ".jpeg", ".bmp", ".tif", ".tiff", ".webp", ".gif").contains(ext)) {
                 return ext;
             }
         }
@@ -372,6 +391,12 @@ public class ImageUnderstandingService {
         }
         if (type.contains("gif")) {
             return ".gif";
+        }
+        if (type.contains("bmp")) {
+            return ".bmp";
+        }
+        if (type.contains("tiff") || type.contains("tif")) {
+            return ".tiff";
         }
         return ".jpg";
     }
@@ -409,6 +434,13 @@ public class ImageUnderstandingService {
 
     private String nullToEmpty(Object value) {
         return value == null ? "" : String.valueOf(value);
+    }
+
+    private String truncate(String value, int maxLength) {
+        if (value == null || value.length() <= maxLength) {
+            return value == null ? "" : value;
+        }
+        return value.substring(0, Math.max(0, maxLength - 3)) + "...";
     }
 
     private record ImageInfo(Integer width, Integer height) {

@@ -22,6 +22,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -1931,12 +1932,16 @@ public class AgentTaskService {
             }
             Map<String, Object> result = asMap(response);
             metadata.put("executionResult", result);
+            Object visualizationSpec = visualizationSpec(metadata);
 
             Map<String, Object> payload = new LinkedHashMap<>();
             payload.put("conversationId", response == null ? "" : response.getConversationId());
             payload.put("requestId", response == null ? "" : response.getRequestId());
             payload.put("mode", response == null ? "" : response.getMode());
             payload.put("answer", displayAnswer);
+            if (visualizationSpec != null) {
+                payload.put("visualizationSpec", visualizationSpec);
+            }
             payload.put("sources", response == null || response.getSources() == null ? List.of() : response.getSources());
             payload.put("toolTraces", response == null || response.getToolTraces() == null ? List.of() : response.getToolTraces());
             payload.put("metadata", metadata);
@@ -1955,6 +1960,10 @@ public class AgentTaskService {
             artifacts.put("finalAnswer", finalAnswer == null ? "" : finalAnswer);
             artifacts.put("tables", List.of());
             artifacts.put("metrics", Map.of());
+            Object visualizationSpec = visualizationSpec(response == null ? null : response.getMetadata());
+            if (visualizationSpec != null) {
+                artifacts.put("visualizationSpec", visualizationSpec);
+            }
             artifacts.put("traceSummary", Map.of(
                 "sourceCount", response == null || response.getSources() == null ? 0 : response.getSources().size(),
                 "toolTraceCount", response == null || response.getToolTraces() == null ? 0 : response.getToolTraces().size()
@@ -1966,6 +1975,402 @@ public class AgentTaskService {
             result.put("semanticFlags", semanticFlags == null ? Map.of() : semanticFlags);
             result.put("message", completeMessage);
             return result;
+        }
+
+        private Object visualizationSpec(Map<String, Object> metadata) {
+            if (metadata == null || metadata.isEmpty()) {
+                return null;
+            }
+            Object direct = metadata.get("visualizationSpec");
+            if (direct != null) {
+                return normalizeVisualizationSpec(direct);
+            }
+            direct = metadata.get("dataVisualization");
+            if (direct != null) {
+                return normalizeVisualizationSpec(direct);
+            }
+            Object agent = metadata.get("agent");
+            if (agent instanceof Map<?, ?> agentMap) {
+                Object nested = agentMap.get("visualizationSpec");
+                return normalizeVisualizationSpec(nested == null ? agentMap.get("dataVisualization") : nested);
+            }
+            return null;
+        }
+
+        @SuppressWarnings("unchecked")
+        private Object normalizeVisualizationSpec(Object raw) {
+            if (!(raw instanceof Map<?, ?> rawMap)) {
+                return null;
+            }
+            Object nested = firstPresent(rawMap.get("visualizationSpec"), rawMap.get("dataVisualization"));
+            if (nested instanceof Map<?, ?>) {
+                return normalizeVisualizationSpec(nested);
+            }
+            Map<String, Object> spec = new LinkedHashMap<>();
+            rawMap.forEach((key, value) -> {
+                if (key != null) {
+                    spec.put(String.valueOf(key), value);
+                }
+            });
+
+            String requestedType = firstTextValue(spec.get("type"), "").toLowerCase();
+            if (spec.get("blocks") instanceof List<?> || "panel".equals(requestedType) || "dashboard".equals(requestedType)) {
+                return normalizeVisualizationPanel(spec);
+            }
+
+            List<Map<String, Object>> rows = rows(spec);
+            if (rows.isEmpty()) {
+                rows = metricRows(spec);
+            }
+            if (rows.isEmpty()) {
+                return null;
+            }
+
+            List<String> columns = columns(rows);
+            Map<String, Object> dataset = spec.get("dataset") instanceof Map<?, ?> map
+                ? (Map<String, Object>) map
+                : Map.of();
+            String xKey = firstTextValue(dataset.get("xKey"), spec.get("xKey"), spec.get("x"), firstNonNumericColumn(columns, rows), columns.isEmpty() ? "name" : columns.get(0));
+            List<Map<String, Object>> series = series(spec, dataset, columns, rows, xKey);
+            String type = normalizeVisualizationType(String.valueOf(spec.getOrDefault("type", "")), rows, series);
+            String chartType = "chart".equals(type) ? chooseChartType(spec, rows, xKey, series) : "";
+
+            Map<String, Object> nextDataset = new LinkedHashMap<>();
+            nextDataset.put("xKey", xKey);
+            nextDataset.put("series", series);
+            nextDataset.put("rows", rows);
+
+            Map<String, Object> ui = new LinkedHashMap<>();
+            Object rawUi = spec.get("ui");
+            if (rawUi instanceof Map<?, ?> uiMap) {
+                ui.put("allowSwitch", !Boolean.FALSE.equals(uiMap.get("allowSwitch")));
+                ui.put("defaultView", firstTextValue(uiMap.get("defaultView"), "table".equals(type) ? "table" : "chart"));
+            } else {
+                ui.put("allowSwitch", true);
+                ui.put("defaultView", "table".equals(type) ? "table" : "chart");
+            }
+
+            Map<String, Object> insight = new LinkedHashMap<>();
+            Object rawInsight = spec.get("insight");
+            if (rawInsight instanceof Map<?, ?> insightMap) {
+                insight.put("summary", firstTextValue(insightMap.get("summary"), ""));
+                insight.put("anomaly", firstTextValue(insightMap.get("anomaly"), ""));
+                insight.put("trend", firstTextValue(insightMap.get("trend"), ""));
+                insight.put("drivers", insightMap.get("drivers") instanceof List<?> drivers ? drivers : List.of());
+            } else {
+                insight.put("summary", firstTextValue(spec.get("summary"), ""));
+                insight.put("anomaly", firstTextValue(spec.get("anomaly"), ""));
+                insight.put("trend", firstTextValue(spec.get("trend"), ""));
+                insight.put("drivers", List.of());
+            }
+
+            Map<String, Object> normalized = new LinkedHashMap<>();
+            normalized.put("version", "v1");
+            normalized.put("type", type);
+            normalized.put("chartType", chartType);
+            normalized.put("title", firstTextValue(spec.get("title"), spec.get("name"), "metric".equals(type) ? "Key Metrics" : "Auto Visualization"));
+            normalized.put("analysisType", firstTextValue(spec.get("analysisType"), ""));
+            normalized.put("dataset", nextDataset);
+            normalized.put("ui", ui);
+            normalized.put("insight", insight);
+            return normalized;
+        }
+
+        @SuppressWarnings("unchecked")
+        private Object normalizeVisualizationPanel(Map<String, Object> spec) {
+            List<Map<String, Object>> blocks = new ArrayList<>();
+            Object rawBlocks = spec.get("blocks");
+            if (rawBlocks instanceof List<?> list) {
+                int index = 1;
+                for (Object item : list) {
+                    if (item instanceof Map<?, ?> blockMap) {
+                        Map<String, Object> block = new LinkedHashMap<>();
+                        blockMap.forEach((key, value) -> {
+                            if (key != null) {
+                                block.put(String.valueOf(key), value);
+                            }
+                        });
+                        Object rawSpec = firstPresent(block.get("spec"), firstPresent(block.get("data"), block.get("visualizationSpec")));
+                        if (!(rawSpec instanceof Map<?, ?>)) {
+                            rawSpec = block;
+                        }
+                        Map<String, Object> rawBlockSpec = new LinkedHashMap<>();
+                        ((Map<?, ?>) rawSpec).forEach((key, value) -> {
+                            if (key != null) {
+                                rawBlockSpec.put(String.valueOf(key), value);
+                            }
+                        });
+                        rawBlockSpec.putIfAbsent("type", block.get("type"));
+                        rawBlockSpec.putIfAbsent("title", block.get("title"));
+                        Object normalizedSpec = normalizeVisualizationSpec(rawBlockSpec);
+                        if (normalizedSpec instanceof Map<?, ?> normalizedMap && !"panel".equals(String.valueOf(normalizedMap.get("type")))) {
+                            Map<String, Object> normalizedBlock = new LinkedHashMap<>();
+                            normalizedBlock.put("id", firstTextValue(block.get("id"), "block-" + index));
+                            normalizedBlock.put("type", firstTextValue(block.get("type"), normalizedMap.get("type"), "chart"));
+                            normalizedBlock.put("title", firstTextValue(block.get("title"), normalizedMap.get("title"), "Block " + index));
+                            normalizedBlock.put("spec", normalizedSpec);
+                            blocks.add(normalizedBlock);
+                        }
+                    }
+                    index++;
+                }
+            }
+            if (blocks.isEmpty()) {
+                Map<String, Object> fallbackSource = new LinkedHashMap<>(spec);
+                fallbackSource.remove("blocks");
+                fallbackSource.put("type", firstTextValue(spec.get("blockType"), "chart"));
+                Object fallback = normalizeVisualizationSpec(fallbackSource);
+                if (fallback instanceof Map<?, ?> fallbackMap && !"panel".equals(String.valueOf(fallbackMap.get("type")))) {
+                    Map<String, Object> block = new LinkedHashMap<>();
+                    block.put("id", "primary");
+                    block.put("type", fallbackMap.get("type"));
+                    block.put("title", fallbackMap.get("title"));
+                    block.put("spec", fallback);
+                    blocks.add(block);
+                }
+            }
+            if (blocks.isEmpty()) {
+                return null;
+            }
+
+            Map<String, Object> insight = new LinkedHashMap<>();
+            Object rawInsight = spec.get("insight");
+            if (rawInsight instanceof Map<?, ?> insightMap) {
+                insight.put("summary", firstTextValue(insightMap.get("summary"), ""));
+                insight.put("anomaly", firstTextValue(insightMap.get("anomaly"), ""));
+                insight.put("trend", firstTextValue(insightMap.get("trend"), ""));
+                insight.put("drivers", insightMap.get("drivers") instanceof List<?> drivers ? drivers : List.of());
+            } else {
+                insight.put("summary", firstTextValue(spec.get("summary"), ""));
+                insight.put("anomaly", firstTextValue(spec.get("anomaly"), ""));
+                insight.put("trend", firstTextValue(spec.get("trend"), ""));
+                insight.put("drivers", List.of());
+            }
+
+            String layout = firstTextValue(spec.get("layout"), "stack").toLowerCase();
+            if (!List.of("grid", "stack").contains(layout)) {
+                layout = "stack";
+            }
+            Map<String, Object> ui = new LinkedHashMap<>();
+            Object rawUi = spec.get("ui");
+            if (rawUi instanceof Map<?, ?> uiMap) {
+                ui.put("allowSwitch", !Boolean.FALSE.equals(uiMap.get("allowSwitch")));
+                ui.put("defaultView", firstTextValue(uiMap.get("defaultView"), "panel"));
+            } else {
+                ui.put("allowSwitch", true);
+                ui.put("defaultView", "panel");
+            }
+
+            Map<String, Object> normalized = new LinkedHashMap<>();
+            normalized.put("version", "v2");
+            normalized.put("type", "panel");
+            normalized.put("title", firstTextValue(spec.get("title"), spec.get("name"), "BI Panel"));
+            normalized.put("analysisType", firstTextValue(spec.get("analysisType"), ""));
+            normalized.put("layout", layout);
+            normalized.put("blocks", blocks);
+            normalized.put("ui", ui);
+            normalized.put("insight", insight);
+            return normalized;
+        }
+
+        private List<Map<String, Object>> rows(Map<String, Object> spec) {
+            Object dataset = spec.get("dataset");
+            if (dataset instanceof Map<?, ?> datasetMap && datasetMap.get("rows") instanceof List<?> datasetRows) {
+                return rowMaps(datasetRows, datasetMap.get("columns"));
+            }
+            Object data = spec.get("data");
+            return data instanceof List<?> list ? rowMaps(list, null) : List.of();
+        }
+
+        private List<Map<String, Object>> metricRows(Map<String, Object> spec) {
+            Object metrics = firstPresent(spec.get("metrics"), firstPresent(spec.get("values"), spec.get("kpis")));
+            if (metrics instanceof Map<?, ?> map) {
+                List<Map<String, Object>> rows = new ArrayList<>();
+                map.forEach((key, value) -> {
+                    Map<String, Object> row = new LinkedHashMap<>();
+                    row.put("metric", String.valueOf(key));
+                    row.put("value", value);
+                    rows.add(row);
+                });
+                return rows;
+            }
+            if (metrics instanceof List<?> list) {
+                List<Map<String, Object>> rows = new ArrayList<>();
+                int index = 1;
+                for (Object item : list) {
+                    if (item instanceof Map<?, ?> metric) {
+                        Map<String, Object> row = new LinkedHashMap<>();
+                        row.put("metric", firstTextValue(metric.get("label"), metric.get("name"), metric.get("key"), "Metric " + index));
+                        row.put("value", firstPresent(metric.get("value"), metric.get("amount")));
+                        row.put("unit", firstTextValue(metric.get("unit"), ""));
+                        rows.add(row);
+                    }
+                    index++;
+                }
+                return rows;
+            }
+            return List.of();
+        }
+
+        private List<Map<String, Object>> rowMaps(List<?> values, Object columnsValue) {
+            List<String> columns = columnsValue instanceof List<?> list ? list.stream().map(String::valueOf).toList() : List.of();
+            List<Map<String, Object>> rows = new ArrayList<>();
+            for (Object value : values) {
+                if (value instanceof Map<?, ?> map) {
+                    Map<String, Object> row = new LinkedHashMap<>();
+                    map.forEach((key, item) -> {
+                        if (key != null) {
+                            row.put(String.valueOf(key), item);
+                        }
+                    });
+                    rows.add(row);
+                } else if (value instanceof List<?> rowValues && !columns.isEmpty()) {
+                    Map<String, Object> row = new LinkedHashMap<>();
+                    for (int i = 0; i < columns.size() && i < rowValues.size(); i++) {
+                        row.put(columns.get(i), rowValues.get(i));
+                    }
+                    rows.add(row);
+                }
+            }
+            return rows;
+        }
+
+        private List<String> columns(List<Map<String, Object>> rows) {
+            List<String> columns = new ArrayList<>();
+            for (Map<String, Object> row : rows) {
+                for (String key : row.keySet()) {
+                    if (!columns.contains(key)) {
+                        columns.add(key);
+                    }
+                }
+            }
+            return columns;
+        }
+
+        private List<Map<String, Object>> series(Map<String, Object> spec,
+                                                 Map<String, Object> dataset,
+                                                 List<String> columns,
+                                                 List<Map<String, Object>> rows,
+                                                 String xKey) {
+            Object datasetSeries = dataset.get("series");
+            List<Map<String, Object>> values = new ArrayList<>();
+            if (datasetSeries instanceof List<?> list) {
+                for (Object item : list) {
+                    if (item instanceof Map<?, ?> map) {
+                        String yKey = firstTextValue(map.get("yKey"), "");
+                        if (!yKey.isBlank() && hasNumeric(rows, yKey)) {
+                            values.add(Map.of("name", firstTextValue(map.get("name"), yKey), "yKey", yKey));
+                        }
+                    }
+                }
+            }
+            if (values.isEmpty()) {
+                Object y = spec.get("y");
+                List<?> yKeys = y instanceof List<?> list ? list : (y == null ? List.of() : List.of(y));
+                for (Object item : yKeys) {
+                    String yKey = String.valueOf(item);
+                    if (!yKey.isBlank() && hasNumeric(rows, yKey)) {
+                        values.add(Map.of("name", yKey, "yKey", yKey));
+                    }
+                }
+            }
+            if (values.isEmpty()) {
+                for (String column : columns) {
+                    if (!column.equals(xKey) && hasNumeric(rows, column)) {
+                        values.add(Map.of("name", column, "yKey", column));
+                    }
+                    if (values.size() >= 4) {
+                        break;
+                    }
+                }
+            }
+            return values;
+        }
+
+        private String normalizeVisualizationType(String type, List<Map<String, Object>> rows, List<Map<String, Object>> series) {
+            String normalized = type == null ? "" : type.toLowerCase();
+            if ("metrics".equals(normalized)) {
+                return "metric";
+            }
+            if ("metric".equals(normalized) || "table".equals(normalized)) {
+                return normalized;
+            }
+            return series.isEmpty() ? (rows.isEmpty() ? "metric" : "table") : "chart";
+        }
+
+        private String chooseChartType(Map<String, Object> spec,
+                                       List<Map<String, Object>> rows,
+                                       String xKey,
+                                       List<Map<String, Object>> series) {
+            String requested = firstTextValue(spec.get("chartType"), spec.get("chart"), "").toLowerCase();
+            if (List.of("line", "bar", "pie", "scatter").contains(requested)) {
+                return requested;
+            }
+            if (series.size() >= 2 && rows.size() > 2 && !isTimeKey(xKey, rows)) {
+                return "scatter";
+            }
+            String label = (firstTextValue(spec.get("title"), "") + " " + firstTextValue(series.isEmpty() ? null : series.get(0).get("name"), "")).toLowerCase();
+            if (rows.size() > 1 && rows.size() <= 8 && (label.contains("share") || label.contains("ratio") || label.contains("percent") || label.contains("占比") || label.contains("比例"))) {
+                return "pie";
+            }
+            return isTimeKey(xKey, rows) ? "line" : "bar";
+        }
+
+        private String firstNonNumericColumn(List<String> columns, List<Map<String, Object>> rows) {
+            return columns.stream()
+                .filter(column -> !hasNumeric(rows, column))
+                .findFirst()
+                .orElse(null);
+        }
+
+        private boolean hasNumeric(List<Map<String, Object>> rows, String key) {
+            return rows.stream().anyMatch(row -> number(row.get(key)) != null);
+        }
+
+        private boolean isTimeKey(String key, List<Map<String, Object>> rows) {
+            String normalized = key == null ? "" : key.toLowerCase();
+            if (normalized.contains("date") || normalized.contains("time") || normalized.contains("month") || normalized.contains("year") || normalized.contains("day") || normalized.contains("week") || normalized.contains("quarter")) {
+                return true;
+            }
+            return rows.stream().anyMatch(row -> {
+                Object value = row.get(key);
+                if (value == null) {
+                    return false;
+                }
+                try {
+                    Instant.parse(String.valueOf(value));
+                    return true;
+                } catch (Exception ignored) {
+                    return false;
+                }
+            });
+        }
+
+        private Double number(Object value) {
+            if (value instanceof Number number) {
+                return number.doubleValue();
+            }
+            if (value == null) {
+                return null;
+            }
+            try {
+                return Double.parseDouble(String.valueOf(value).replace(",", ""));
+            } catch (NumberFormatException ex) {
+                return null;
+            }
+        }
+
+        private String firstTextValue(Object... values) {
+            for (Object value : values) {
+                if (value != null && !String.valueOf(value).isBlank()) {
+                    return String.valueOf(value).trim();
+                }
+            }
+            return "";
+        }
+
+        private Object firstPresent(Object first, Object second) {
+            return first == null ? second : first;
         }
     }
 

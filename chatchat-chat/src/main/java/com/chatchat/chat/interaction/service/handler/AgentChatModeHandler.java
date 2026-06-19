@@ -90,7 +90,10 @@ public class AgentChatModeHandler implements InteractionModeHandler {
                 request.getQuery(),
                 toolPolicy.availableTools()
             );
-        String systemPrompt = appendExperienceContext(resolveSystemPrompt(request, skill, context), experienceContext);
+        String systemPrompt = appendResponseContract(
+            appendExperienceContext(resolveSystemPrompt(request, skill, context), experienceContext),
+            request
+        );
         String modelName = skill.modelName() != null && !skill.modelName().isBlank()
             ? skill.modelName()
             : request.getModelName();
@@ -266,6 +269,31 @@ public class AgentChatModeHandler implements InteractionModeHandler {
         return builder.toString();
     }
 
+    private String appendResponseContract(String systemPrompt, InteractionRequest request) {
+        String contractPrompt = responseContractPrompt(request);
+        if (contractPrompt.isBlank()) {
+            return systemPrompt;
+        }
+        StringBuilder builder = new StringBuilder();
+        if (systemPrompt != null && !systemPrompt.isBlank()) {
+            builder.append(systemPrompt.trim()).append("\n\n");
+        }
+        builder.append(contractPrompt);
+        return builder.toString();
+    }
+
+    private String responseContractPrompt(InteractionRequest request) {
+        if (request == null || request.getToolInput() == null || request.getToolInput().isEmpty()) {
+            return "";
+        }
+        Object contract = request.getToolInput().get("responseContract");
+        if (contract instanceof Map<?, ?> contractMap) {
+            Object prompt = contractMap.get("prompt");
+            return prompt == null ? "" : String.valueOf(prompt).trim();
+        }
+        return contract == null ? "" : String.valueOf(contract).trim();
+    }
+
     /**
      * Performs the format history message operation.
      *
@@ -315,6 +343,10 @@ public class AgentChatModeHandler implements InteractionModeHandler {
             Object runId = request.getToolInput().get("__agentRunId");
             if (runId != null && !String.valueOf(runId).isBlank()) {
                 attributes.put("__agentRunId", String.valueOf(runId).trim());
+            }
+            Object responseContract = request.getToolInput().get("responseContract");
+            if (responseContract instanceof Map<?, ?>) {
+                attributes.put("responseContract", responseContract);
             }
         }
         if (skill != null && skill.workflowConfig() != null && !skill.workflowConfig().isEmpty()) {

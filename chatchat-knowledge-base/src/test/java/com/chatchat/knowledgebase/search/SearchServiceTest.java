@@ -41,7 +41,7 @@ class SearchServiceTest {
         SearchPage page = service.search("semiconductor localization", null, null, null, 10);
 
         assertThat(page.total()).isEqualTo(1);
-        assertThat(page.documentCount()).isEqualTo(1);
+        assertThat(page.documentCount()).isEqualTo(-1);
         assertThat(page.message()).isEqualTo("ok");
         assertThat(page.results()).hasSize(1);
         assertThat(page.results().get(0).detailPath()).isEqualTo("/api/v1/search/documents/doc-001");
@@ -220,6 +220,163 @@ class SearchServiceTest {
     }
 
     @Test
+    void frontendQuickSearchRequiresMeaningfulCoverageForMultiTermQueries() {
+        SearchService service = newSearchService();
+        service.createOrUpdate(SearchDocument.builder()
+            .docId("doc-specific")
+            .title("Spark SQL Broadcast Tuning")
+            .content("Spark SQL broadcast tuning uses adaptive execution and partition pruning.")
+            .source("docs")
+            .date("2024-06-10")
+            .tags(List.of("spark", "sql"))
+            .build());
+        service.createOrUpdate(SearchDocument.builder()
+            .docId("doc-spark-only")
+            .title("Spark Operations")
+            .content("Spark cluster checklist and executor sizing guidance.")
+            .source("docs")
+            .date("2024-06-11")
+            .tags(List.of("spark"))
+            .build());
+        service.createOrUpdate(SearchDocument.builder()
+            .docId("doc-sql-only")
+            .title("SQL Backup")
+            .content("SQL database backup and restore checklist.")
+            .source("docs")
+            .date("2024-06-12")
+            .tags(List.of("sql"))
+            .build());
+
+        SearchPage page = service.frontendQuickSearch(
+            "spark sql broadcast",
+            null,
+            null,
+            null,
+            null,
+            1,
+            10,
+            SearchPermissionContext.system()
+        );
+
+        assertThat(page.results()).extracting(SearchResult::docId)
+            .containsExactly("doc-specific");
+        assertThat(page.results().get(0).scoreBreakdown().baseTokenScore()).isGreaterThan(0);
+        assertThat(page.results().get(0).scoreBreakdown().fieldScores()).containsKey("bm25");
+    }
+
+    @Test
+    void frontendQuickSearchRanksDenseBm25MatchAboveSparseLongMatch() {
+        SearchService service = newSearchService();
+        service.createOrUpdate(SearchDocument.builder()
+            .docId("doc-dense")
+            .title("Runtime Notes")
+            .content("Spark execution improves SQL joins with broadcast tuning.")
+            .source("docs")
+            .date("2024-06-01")
+            .build());
+        service.createOrUpdate(SearchDocument.builder()
+            .docId("doc-sparse")
+            .title("Runtime Appendix")
+            .content("Spark " + "unrelated operational appendix ".repeat(250)
+                + "SQL " + "unrelated operational appendix ".repeat(250)
+                + "broadcast")
+            .source("docs")
+            .date("2024-06-12")
+            .build());
+
+        SearchPage page = service.frontendQuickSearch(
+            "spark sql broadcast",
+            null,
+            null,
+            null,
+            null,
+            1,
+            10,
+            SearchPermissionContext.system()
+        );
+
+        assertThat(page.results()).extracting(SearchResult::docId)
+            .containsExactly("doc-dense", "doc-sparse");
+        assertThat(page.results().get(0).scoreBreakdown().fieldScores().get("bm25"))
+            .isGreaterThan(page.results().get(1).scoreBreakdown().fieldScores().get("bm25"));
+    }
+
+    @Test
+    void semanticLexiconExpandsChineseFinanceTermsForFrontendSearch() {
+        SearchService service = newSearchService();
+        service.createOrUpdate(SearchDocument.builder()
+            .docId("doc-revenue")
+            .title("Revenue Growth Notes")
+            .content("Revenue growth improved as customer orders recovered.")
+            .source("finance")
+            .date("2024-06-12")
+            .tags(List.of("finance"))
+            .build());
+
+        SearchPage page = service.frontendQuickSearch(
+            "营收",
+            null,
+            null,
+            null,
+            null,
+            1,
+            10,
+            SearchPermissionContext.system()
+        );
+
+        assertThat(page.results()).extracting(SearchResult::docId)
+            .containsExactly("doc-revenue");
+        assertThat(page.queryTokens()).contains("营收", "revenue");
+    }
+
+    @Test
+    void tikaOcrImageSupportIsControlledBySearchProperties() {
+        SearchProperties enabled = new SearchProperties();
+        enabled.getOcr().setEnabled(true);
+        SearchProperties disabled = new SearchProperties();
+        disabled.getOcr().setEnabled(false);
+
+        assertThat(new DocumentTextExtractor(enabled).supports("scan.png")).isTrue();
+        assertThat(new DocumentTextExtractor(disabled).supports("scan.png")).isFalse();
+        assertThat(new DocumentTextExtractor(disabled).supports("policy.pdf")).isTrue();
+    }
+
+    @Test
+    void ocrMarkedChunksAreIndexedAsWeakEvidence() {
+        SearchService service = newSearchService(properties -> properties.getOcr().setScorePenalty(0.5F));
+        service.createOrUpdate(SearchDocument.builder()
+            .docId("doc-native")
+            .title("Native Evidence")
+            .content("invoice total alpha amount due")
+            .source("native")
+            .date("2024-06-11")
+            .build());
+        service.createOrUpdate(SearchDocument.builder()
+            .docId("doc-ocr")
+            .title("Scanned Evidence")
+            .content("# OCR_TEXT\ninvoice total alpha amount due")
+            .source("scan")
+            .date("2024-06-12")
+            .build());
+
+        SearchPage page = service.search("invoice total alpha", null, null, null, 10);
+
+        assertThat(page.results()).extracting(SearchResult::docId)
+            .contains("doc-native", "doc-ocr");
+        SearchResult nativeResult = page.results().stream()
+            .filter(result -> "doc-native".equals(result.docId()))
+            .findFirst()
+            .orElseThrow();
+        SearchResult ocrResult = page.results().stream()
+            .filter(result -> "doc-ocr".equals(result.docId()))
+            .findFirst()
+            .orElseThrow();
+        assertThat(ocrResult.matchedChunks().get(0).chunkType()).isEqualTo("ocr_text");
+        assertThat(nativeResult.matchedChunks().get(0).score())
+            .isGreaterThan(ocrResult.matchedChunks().get(0).score());
+    }
+
+    @Test
     void ignoresGenericSearchWordsBeforeRankingDocuments() {
         SearchService service = newSearchService();
         service.createOrUpdate(SearchDocument.builder()
@@ -300,6 +457,41 @@ class SearchServiceTest {
         assertThat(page.queryTokens()).doesNotContain("error", "exception", "failure");
         assertThat(page.results().get(0).matchedChunks().get(0).content())
             .contains("report export failed");
+    }
+
+    @Test
+    void fallbackCandidateScanIsBoundedWhenKeywordIndexMisses() {
+        SearchService service = newSearchService(properties -> {
+            properties.setLuceneEnabled(false);
+            properties.setFallbackCandidateLimit(2);
+        });
+        store.put(SearchDocument.builder()
+            .docId("doc-001")
+            .title("First")
+            .content("ordinary first content")
+            .source("manual")
+            .date("2024-06-01")
+            .build(), emptyIndex(), null);
+        store.put(SearchDocument.builder()
+            .docId("doc-002")
+            .title("Second")
+            .content("ordinary second content")
+            .source("manual")
+            .date("2024-06-02")
+            .build(), emptyIndex(), null);
+        store.put(SearchDocument.builder()
+            .docId("doc-003")
+            .title("Third")
+            .content("boundedneedle appears only after the fallback limit")
+            .source("manual")
+            .date("2024-06-03")
+            .build(), emptyIndex(), null);
+
+        SearchPage page = service.search("boundedneedle", null, null, null, 10);
+
+        assertThat(page.results()).isEmpty();
+        assertThat(page.total()).isZero();
+        assertThat(page.message()).isEqualTo("no_match");
     }
 
     @Test
@@ -456,6 +648,11 @@ class SearchServiceTest {
     }
 
     private SearchService newSearchService() {
+        return newSearchService(properties -> {
+        });
+    }
+
+    private SearchService newSearchService(java.util.function.Consumer<SearchProperties> customizer) {
         SearchProperties properties = new SearchProperties();
         properties.setStorePath(tempDir.resolve("rocksdb").toString());
         properties.setFilePath(tempDir.resolve("files").toString());
@@ -463,6 +660,7 @@ class SearchServiceTest {
         properties.setChunkSize(120);
         properties.setChunkOverlap(0);
         properties.setLuceneChunksPerDocument(3);
+        customizer.accept(properties);
 
         store = new RocksDbSearchStore(properties, new ObjectMapper());
         store.open();
@@ -478,7 +676,7 @@ class SearchServiceTest {
             keywordExtractor,
             queryExpander,
             new ChunkTypeClassifier(ruleService),
-            new ChunkReranker(),
+            new ChunkReranker(properties),
             mock(SearchFeedbackService.class)
         );
         luceneStore.open();
@@ -486,11 +684,15 @@ class SearchServiceTest {
             store,
             luceneStore,
             tokenizer,
-            new DocumentTextExtractor(),
+            new DocumentTextExtractor(properties),
             keywordExtractor,
             queryExpander,
             properties
         );
+    }
+
+    private SearchIndexData emptyIndex() {
+        return new SearchIndexData(List.of(), List.of(), List.of(), List.of());
     }
 
     private RetrievalRuleService retrievalRuleService() {
@@ -499,6 +701,7 @@ class SearchServiceTest {
             intentRules(),
             chunkRules(),
             expandRules(),
+            semanticLexiconEntries(),
             System.currentTimeMillis()
         ));
         return ruleService;
@@ -585,6 +788,22 @@ class SearchServiceTest {
                 List.of("reason", "root", "cause"),
                 1,
                 6
+            )
+        );
+    }
+
+    private List<RetrievalRuleService.SemanticLexiconEntry> semanticLexiconEntries() {
+        return List.of(
+            new RetrievalRuleService.SemanticLexiconEntry(
+                "营收",
+                "zh",
+                "revenue",
+                List.of("收入", "营业收入", "sales", "turnover"),
+                "metric",
+                "finance",
+                2,
+                10,
+                true
             )
         );
     }

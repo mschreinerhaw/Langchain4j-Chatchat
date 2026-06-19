@@ -8,6 +8,7 @@ public enum ChunkType {
     TABLE("table"),
     TROUBLESHOOTING("troubleshooting"),
     POLICY("policy"),
+    OCR_TEXT("ocr_text"),
     GENERAL("general");
 
     private final String value;

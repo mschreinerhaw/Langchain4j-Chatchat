@@ -1,6 +1,7 @@
 package com.chatchat.knowledgebase.search;
 
 import org.apache.lucene.document.Document;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -8,6 +9,17 @@ import java.util.Locale;
 
 @Component
 public class ChunkReranker {
+
+    private final SearchProperties properties;
+
+    public ChunkReranker() {
+        this(new SearchProperties());
+    }
+
+    @Autowired
+    public ChunkReranker(SearchProperties properties) {
+        this.properties = properties == null ? new SearchProperties() : properties;
+    }
 
     public float score(float bm25Score,
                        Document hit,
@@ -27,7 +39,17 @@ public class ChunkReranker {
         score += termBoost(terms, title, section, keywords, content);
         score += chunkTypeBoost(intent, chunkType);
         score += positionBoost(positionRatio, title, section, keywords, content, phrase, terms);
+        score *= evidenceSourceWeight(chunkType);
         return score;
+    }
+
+    private float evidenceSourceWeight(String chunkType) {
+        if (!DocumentTextExtractor.OCR_CHUNK_TYPE.equals(chunkType)) {
+            return 1.0F;
+        }
+        SearchProperties.Ocr config = properties.getOcr();
+        float penalty = config == null ? 0.7F : config.getScorePenalty();
+        return Math.max(0.1F, Math.min(1.0F, penalty));
     }
 
     private float phraseBoost(String phrase, String title, String section, String keywords, String content) {

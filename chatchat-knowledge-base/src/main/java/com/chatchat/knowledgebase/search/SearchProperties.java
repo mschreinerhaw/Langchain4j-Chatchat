@@ -22,6 +22,13 @@ public class SearchProperties {
     private String luceneIndexPath = "./data/search-lucene";
     private int luceneMaxHits = 500;
     private int luceneChunksPerDocument = 3;
+    private int fallbackCandidateLimit = 500;
+    private int fallbackEmptyResultLimit = 200;
+    private int fallbackExceptionLimit = 100;
+    private boolean realtimeDocumentCountEnabled = false;
+    private QueryBudget queryBudget = new QueryBudget();
+    private RetrievalControl retrievalControl = new RetrievalControl();
+    private Ocr ocr = new Ocr();
     private boolean lucenePrfEnabled = true;
     private int lucenePrfTopN = 20;
     private int lucenePrfMaxTerms = 8;
@@ -41,4 +48,37 @@ public class SearchProperties {
     private float luceneSourceBoost = 0.7F;
     private int chunkSize = 800;
     private int chunkOverlap = 120;
+
+    @Getter
+    @Setter
+    public static class QueryBudget {
+        private int maxDocScan = 1000;
+        private int maxRocksdbIter = 2000;
+    }
+
+    @Getter
+    @Setter
+    public static class RetrievalControl {
+        private boolean enabled = true;
+        private boolean queryValidationEnabled = true;
+        private boolean qualityScoringEnabled = true;
+        private int maxSearchCalls = 1;
+        private int maxAttempts = 1;
+        private long latencyMs = 100L;
+        private double minQualityScore = 20.0D;
+        private int minSpecificTokens = 2;
+    }
+
+    @Getter
+    @Setter
+    public static class Ocr {
+        private boolean enabled = true;
+        private String language = "eng+chi_sim";
+        private int timeoutSeconds = 60;
+        private boolean preserveInterwordSpacing = true;
+        private boolean imagePreprocessingEnabled = true;
+        private String pdfStrategy = "auto";
+        private String marker = "# OCR_TEXT";
+        private float scorePenalty = 0.7F;
+    }
 }

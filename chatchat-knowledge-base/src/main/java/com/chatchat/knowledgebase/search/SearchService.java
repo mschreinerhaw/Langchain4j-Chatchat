@@ -45,6 +45,16 @@ public class SearchService {
     private static final int COVERAGE_SCORE = 20;
     private static final int FRONTEND_CONTENT_SCAN_CHARS = 120_000;
     private static final int FRONTEND_SNIPPET_RADIUS = 180;
+    private static final double FRONTEND_BM25_K1 = 1.2D;
+    private static final double FRONTEND_BM25_B = 0.75D;
+    private static final double FRONTEND_TITLE_WEIGHT = 4.0D;
+    private static final double FRONTEND_KEYWORD_WEIGHT = 0.5D;
+    private static final double FRONTEND_TAG_WEIGHT = 3.0D;
+    private static final double FRONTEND_COMPANY_WEIGHT = 2.5D;
+    private static final double FRONTEND_INDUSTRY_WEIGHT = 2.0D;
+    private static final double FRONTEND_FILENAME_WEIGHT = 1.5D;
+    private static final double FRONTEND_CONTENT_WEIGHT = 1.0D;
+    private static final double FRONTEND_SOURCE_WEIGHT = 0.5D;
 
     private final RocksDbSearchStore store;
     private final LuceneDocumentIndexService luceneStore;
@@ -252,10 +262,11 @@ public class SearchService {
         long startedAt = System.nanoTime();
         int pageSize = normalizeLimit(limit);
         int pageNumber = normalizePage(page);
-        List<String> queryTokens = tokenizer.searchTokens(keyword);
-        QueryIntent queryIntent = queryExpander.classifyIntent(keyword);
-        String queryIntentName = queryExpander.classifyIntentName(keyword);
-        List<String> expandedQueryTokens = queryExpander.expandTokens(queryTokens, queryIntentName, keyword);
+        String normalizedKeyword = queryExpander.normalizeQuery(keyword);
+        List<String> queryTokens = tokenizer.searchTokens(normalizedKeyword);
+        QueryIntent queryIntent = queryExpander.classifyIntent(normalizedKeyword);
+        String queryIntentName = queryExpander.classifyIntentName(normalizedKeyword);
+        List<String> expandedQueryTokens = queryExpander.expandTokens(queryTokens, queryIntentName, normalizedKeyword);
         List<String> scopedDocumentIds = parseList(docIds);
         if (hasKeyword(keyword)
             && expandedQueryTokens.isEmpty()
@@ -263,9 +274,9 @@ public class SearchService {
             && scopedDocumentIds.isEmpty()) {
             return emptySearchPage(keyword, pageSize, pageNumber, startedAt, "no_match", context);
         }
-        List<String> significantTerms = significantQueryTerms(keyword, queryTokens);
-        SearchPage lucenePage = searchWithLucene(
-            keyword,
+        List<String> significantTerms = significantQueryTerms(normalizedKeyword, queryTokens);
+        LuceneSearchOutcome luceneOutcome = searchWithLucene(
+            normalizedKeyword,
             tag,
             company,
             industry,
@@ -277,17 +288,22 @@ public class SearchService {
             significantTerms,
             context
         );
-        if (lucenePage != null) {
-            return lucenePage;
+        if (luceneOutcome.page() != null) {
+            return luceneOutcome.page();
         }
         Map<String, Integer> scores = new HashMap<>();
         Map<String, Set<String>> matchedKeywords = new HashMap<>();
         Set<String> candidates = null;
+        int candidateLimit = fallbackCandidateLimit(luceneOutcome.fallbackMode());
 
-        if (!expandedQueryTokens.isEmpty()) {
+        if (!expandedQueryTokens.isEmpty() && candidateLimit > 0) {
             candidates = new LinkedHashSet<>();
             for (String token : expandedQueryTokens) {
-                for (String docId : store.findByKeyword(token)) {
+                int remaining = candidateLimit - candidates.size();
+                if (remaining <= 0) {
+                    break;
+                }
+                for (String docId : store.findByKeyword(token, remaining)) {
                     candidates.add(docId);
                     scores.merge(docId, scoreForToken(token), Integer::sum);
                     matchedKeywords.computeIfAbsent(docId, ignored -> new LinkedHashSet<>()).add(token);
@@ -295,16 +311,16 @@ public class SearchService {
             }
         }
 
-        candidates = applyFilter(candidates, tokenizer.splitFilter(tag), store::findByTag);
-        candidates = applyFilter(candidates, tokenizer.splitFilter(company), store::findByCompany);
-        candidates = applyFilter(candidates, tokenizer.splitFilter(industry), store::findByIndustry);
+        candidates = applyFilter(candidates, tokenizer.splitFilter(tag), term -> store.findByTag(term, candidateLimit));
+        candidates = applyFilter(candidates, tokenizer.splitFilter(company), term -> store.findByCompany(term, candidateLimit));
+        candidates = applyFilter(candidates, tokenizer.splitFilter(industry), term -> store.findByIndustry(term, candidateLimit));
         candidates = applyDocumentScope(candidates, scopedDocumentIds);
 
         if (candidates == null) {
-            candidates = new LinkedHashSet<>(store.listDocumentIds(0));
+            candidates = fallbackCandidateIds(luceneOutcome.fallbackMode());
         }
         if (candidates.isEmpty() && !expandedQueryTokens.isEmpty() && noFilters(tag, company, industry) && scopedDocumentIds.isEmpty()) {
-            candidates = new LinkedHashSet<>(store.listDocumentIds(0));
+            candidates = fallbackCandidateIds(luceneOutcome.fallbackMode());
         }
 
         List<SearchResult> allResults = candidates.stream()
@@ -312,7 +328,7 @@ public class SearchService {
             .flatMap(Optional::stream)
             .filter(this::isLatestVersion)
             .filter(document -> canAccess(document, context))
-            .map(document -> toResult(document, keyword, expandedQueryTokens, significantTerms, scores, matchedKeywords, null))
+            .map(document -> toResult(document, normalizedKeyword, expandedQueryTokens, significantTerms, scores, matchedKeywords, null))
             .filter(result -> expandedQueryTokens.isEmpty() || isRelevantResult(result, significantTerms))
             .sorted(resultComparator())
             .toList();
@@ -322,7 +338,7 @@ public class SearchService {
             .limit(pageSize)
             .toList();
 
-        int documentCount = countLatestDocuments(context);
+        int documentCount = onlineDocumentCount(context);
         int totalPages = totalPages(allResults.size(), pageSize);
         return new SearchPage(
             keyword,
@@ -352,8 +368,12 @@ public class SearchService {
         long startedAt = System.nanoTime();
         int pageSize = normalizeLimit(limit);
         int pageNumber = normalizePage(page);
-        List<String> queryTokens = tokenizer.searchTokens(keyword);
-        List<String> significantTerms = significantQueryTerms(keyword, queryTokens);
+        String normalizedKeyword = queryExpander.normalizeQuery(keyword);
+        List<String> queryTokens = tokenizer.searchTokens(normalizedKeyword);
+        String queryIntentName = queryExpander.classifyIntentName(normalizedKeyword);
+        List<String> expandedQueryTokens = queryExpander.expandTokens(queryTokens, queryIntentName, normalizedKeyword);
+        List<String> resultTokens = expandedQueryTokens.isEmpty() ? queryTokens : expandedQueryTokens;
+        List<String> significantTerms = significantQueryTerms(normalizedKeyword, queryTokens);
         List<String> scopedDocumentIds = parseList(docIds);
         List<String> tagTerms = tokenizer.splitFilter(tag);
         List<String> companyTerms = tokenizer.splitFilter(company);
@@ -361,13 +381,16 @@ public class SearchService {
         Set<String> scopedIds = scopedDocumentIds.isEmpty() ? Set.of() : new LinkedHashSet<>(scopedDocumentIds);
 
         List<SearchDocument> documents = loadLatestDocuments(context);
-        List<SearchResult> allResults = documents.stream()
+        List<SearchDocument> candidates = documents.stream()
             .filter(document -> scopedIds.isEmpty() || scopedIds.contains(document.getDocId()))
             .filter(document -> matchesQuickFilter(document.getTags(), tagTerms))
             .filter(document -> matchesQuickFilter(document.getCompanies(), companyTerms))
             .filter(document -> matchesQuickFilter(document.getIndustries(), industryTerms))
-            .map(document -> toFrontendQuickResult(document, keyword, significantTerms, queryTokens))
-            .filter(result -> !hasKeyword(keyword) || result.score() > 0)
+            .toList();
+        FrontendQuickCorpus corpus = frontendQuickCorpus(candidates);
+        List<SearchResult> allResults = candidates.stream()
+            .map(document -> toFrontendQuickResult(document, normalizedKeyword, significantTerms, resultTokens, corpus))
+            .filter(result -> !hasKeyword(keyword) || isFrontendQuickRelevant(result, significantTerms))
             .sorted(resultComparator())
             .toList();
 
@@ -488,6 +511,39 @@ public class SearchService {
         return candidates;
     }
 
+    private Set<String> fallbackCandidateIds(FallbackMode mode) {
+        int limit = fallbackCandidateLimit(mode);
+        if (limit <= 0) {
+            return new LinkedHashSet<>();
+        }
+        return new LinkedHashSet<>(store.listDocumentIds(limit));
+    }
+
+    private int fallbackCandidateLimit(FallbackMode mode) {
+        int configuredLimit = switch (mode == null ? FallbackMode.NORMAL : mode) {
+            case EMPTY_LUCENE_RESULT -> properties.getFallbackEmptyResultLimit();
+            case LUCENE_FAILURE -> properties.getFallbackExceptionLimit();
+            case NORMAL -> properties.getFallbackCandidateLimit();
+        };
+        return boundedLookupLimit(configuredLimit);
+    }
+
+    private int boundedLookupLimit(int configuredLimit) {
+        int maxDocScan = properties.getQueryBudget() == null ? configuredLimit : properties.getQueryBudget().getMaxDocScan();
+        int maxRocksDbIter = properties.getQueryBudget() == null ? configuredLimit : properties.getQueryBudget().getMaxRocksdbIter();
+        return positiveMin(configuredLimit, maxDocScan, maxRocksDbIter);
+    }
+
+    private int positiveMin(int... values) {
+        int min = Integer.MAX_VALUE;
+        for (int value : values) {
+            if (value > 0) {
+                min = Math.min(min, value);
+            }
+        }
+        return min == Integer.MAX_VALUE ? 0 : min;
+    }
+
     /**
      * Searches the with lucene.
      *
@@ -502,25 +558,28 @@ public class SearchService {
      * @param significantTerms the significant terms value
      * @return the operation result
      */
-    private SearchPage searchWithLucene(String keyword,
-                                        String tag,
-                                        String company,
-                                        String industry,
-                                        String docIds,
-                                        int pageNumber,
-                                        int pageSize,
-                                        List<String> queryTokens,
-                                        List<String> expandedQueryTokens,
-                                        List<String> significantTerms,
-                                        SearchPermissionContext permissionContext) {
+    private LuceneSearchOutcome searchWithLucene(String keyword,
+                                                 String tag,
+                                                 String company,
+                                                 String industry,
+                                                 String docIds,
+                                                 int pageNumber,
+                                                 int pageSize,
+                                                 List<String> queryTokens,
+                                                 List<String> expandedQueryTokens,
+                                                 List<String> significantTerms,
+                                                 SearchPermissionContext permissionContext) {
         if (expandedQueryTokens.isEmpty() || !luceneStore.isAvailable()) {
-            return null;
+            if (!expandedQueryTokens.isEmpty() && properties.isLuceneEnabled()) {
+                return LuceneSearchOutcome.failure();
+            }
+            return LuceneSearchOutcome.skipped();
         }
         try {
             SearchPermissionContext context = permissionContext == null ? SearchPermissionContext.system() : permissionContext;
             List<LuceneSearchHit> hits = luceneStore.search(keyword, properties.getLuceneMaxHits(), context);
             if (hits.isEmpty()) {
-                return null;
+                return LuceneSearchOutcome.emptyResult();
             }
             Map<String, List<LuceneSearchHit>> hitsByDocId = new HashMap<>();
             Map<String, Integer> scores = new HashMap<>();
@@ -538,9 +597,10 @@ public class SearchService {
                 .limit(Math.max(1, properties.getLuceneChunksPerDocument()))
                 .toList());
 
-            candidates = applyFilter(candidates, tokenizer.splitFilter(tag), store::findByTag);
-            candidates = applyFilter(candidates, tokenizer.splitFilter(company), store::findByCompany);
-            candidates = applyFilter(candidates, tokenizer.splitFilter(industry), store::findByIndustry);
+            int filterLookupLimit = boundedLookupLimit(properties.getLuceneMaxHits());
+            candidates = applyFilter(candidates, tokenizer.splitFilter(tag), term -> store.findByTag(term, filterLookupLimit));
+            candidates = applyFilter(candidates, tokenizer.splitFilter(company), term -> store.findByCompany(term, filterLookupLimit));
+            candidates = applyFilter(candidates, tokenizer.splitFilter(industry), term -> store.findByIndustry(term, filterLookupLimit));
             candidates = applyDocumentScope(candidates, parseList(docIds));
 
             Map<String, Set<String>> matchedKeywords = new HashMap<>();
@@ -559,9 +619,9 @@ public class SearchService {
                 .skip(pageOffset(pageNumber, pageSize))
                 .limit(pageSize)
                 .toList();
-            int documentCount = countLatestDocuments(context);
+            int documentCount = onlineDocumentCount(context);
             int totalPages = totalPages(allResults.size(), pageSize);
-            return new SearchPage(
+            return LuceneSearchOutcome.success(new SearchPage(
                 keyword,
                 queryTokens,
                 results,
@@ -574,10 +634,10 @@ public class SearchService {
                 0L,
                 documentCount,
                 buildSearchMessage(allResults.size(), documentCount, queryTokens)
-            );
+            ));
         } catch (Exception ex) {
             log.warn("Lucene search failed, falling back to RocksDB keyword search: {}", ex.getMessage(), ex);
-            return null;
+            return LuceneSearchOutcome.failure();
         }
     }
 
@@ -1211,7 +1271,15 @@ public class SearchService {
                                                String keyword,
                                                List<String> significantTerms,
                                                List<String> queryTokens) {
-        FrontendQuickScore scored = scoreFrontendDocument(document, keyword, significantTerms, queryTokens);
+        return toFrontendQuickResult(document, keyword, significantTerms, queryTokens, FrontendQuickCorpus.empty());
+    }
+
+    private SearchResult toFrontendQuickResult(SearchDocument document,
+                                               String keyword,
+                                               List<String> significantTerms,
+                                               List<String> queryTokens,
+                                               FrontendQuickCorpus corpus) {
+        FrontendQuickScore scored = scoreFrontendDocument(document, keyword, significantTerms, queryTokens, corpus);
         String summary = scored.bestSnippet().isBlank()
             ? buildSummary(document.getContent(), scored.matchedTerms())
             : scored.bestSnippet();
@@ -1249,6 +1317,14 @@ public class SearchService {
                                                     String keyword,
                                                     List<String> significantTerms,
                                                     List<String> queryTokens) {
+        return scoreFrontendDocument(document, keyword, significantTerms, queryTokens, FrontendQuickCorpus.empty());
+    }
+
+    private FrontendQuickScore scoreFrontendDocument(SearchDocument document,
+                                                    String keyword,
+                                                    List<String> significantTerms,
+                                                    List<String> queryTokens,
+                                                    FrontendQuickCorpus corpus) {
         List<String> scoringTerms = significantTerms == null || significantTerms.isEmpty()
             ? queryTokens
             : significantTerms;
@@ -1267,6 +1343,8 @@ public class SearchService {
         int phraseScore = 0;
         int coveredTerms = 0;
         String bestTerm = "";
+        double bm25 = frontendBm25Score(document, scoringTerms, corpus);
+        int bm25Score = (int) Math.round(Math.min(220.0D, bm25 * 60.0D));
 
         if (!phrase.isBlank()) {
             if (title.contains(phrase)) {
@@ -1343,6 +1421,7 @@ public class SearchService {
             + phraseScore
             + coverageScore;
         Map<String, Integer> fieldScores = new HashMap<>();
+        fieldScores.put("bm25", bm25Score);
         fieldScores.put("title", titleScore);
         fieldScores.put("keywords", keywordScore);
         fieldScores.put("tags", tagScore);
@@ -1352,9 +1431,9 @@ public class SearchService {
         fieldScores.put("source", sourceScore);
         fieldScores.put("phrase", phraseScore);
         fieldScores.put("coverage", coverageScore);
-        fieldScores.put("baseToken", 0);
+        fieldScores.put("baseToken", bm25Score);
         SearchScoreBreakdown breakdown = new SearchScoreBreakdown(
-            0,
+            bm25Score,
             titleScore,
             keywordScore,
             tagScore,
@@ -1369,12 +1448,125 @@ public class SearchService {
         );
         String snippet = quickSnippet(document.getContent(), bestTerm);
         return new FrontendQuickScore(
-            totalScore,
+            totalScore + bm25Score,
             matchedTerms,
             breakdown,
             snippet,
-            quickMatchedChunk(document, snippet, bestTerm, totalScore)
+            quickMatchedChunk(document, snippet, bestTerm, totalScore + bm25Score)
         );
+    }
+
+    private FrontendQuickCorpus frontendQuickCorpus(List<SearchDocument> documents) {
+        if (documents == null || documents.isEmpty()) {
+            return FrontendQuickCorpus.empty();
+        }
+        Map<String, FrontendQuickDocumentVector> vectors = new HashMap<>();
+        Map<String, Integer> documentFrequency = new HashMap<>();
+        double totalLength = 0.0D;
+        for (SearchDocument document : documents) {
+            FrontendQuickDocumentVector vector = frontendQuickVector(document);
+            vectors.put(document.getDocId(), vector);
+            totalLength += vector.length();
+            for (String term : vector.termFrequency().keySet()) {
+                documentFrequency.merge(term, 1, Integer::sum);
+            }
+        }
+        double averageLength = totalLength <= 0.0D ? 1.0D : totalLength / documents.size();
+        return new FrontendQuickCorpus(vectors, documentFrequency, documents.size(), averageLength);
+    }
+
+    private FrontendQuickDocumentVector frontendQuickVector(SearchDocument document) {
+        Map<String, Double> termFrequency = new HashMap<>();
+        addFrontendWeightedTerms(termFrequency, document.getTitle(), FRONTEND_TITLE_WEIGHT);
+        addFrontendWeightedTerms(termFrequency, document.getFileName(), FRONTEND_FILENAME_WEIGHT);
+        addFrontendWeightedTerms(termFrequency, document.getKeywords(), FRONTEND_KEYWORD_WEIGHT);
+        addFrontendWeightedTerms(termFrequency, document.getTags(), FRONTEND_TAG_WEIGHT);
+        addFrontendWeightedTerms(termFrequency, document.getCompanies(), FRONTEND_COMPANY_WEIGHT);
+        addFrontendWeightedTerms(termFrequency, document.getIndustries(), FRONTEND_INDUSTRY_WEIGHT);
+        addFrontendWeightedTerms(termFrequency, quickContentText(document.getContent()), FRONTEND_CONTENT_WEIGHT);
+        addFrontendWeightedTerms(termFrequency, document.getSource(), FRONTEND_SOURCE_WEIGHT);
+        double length = termFrequency.values().stream()
+            .mapToDouble(Double::doubleValue)
+            .sum();
+        return new FrontendQuickDocumentVector(termFrequency, Math.max(1.0D, length));
+    }
+
+    private void addFrontendWeightedTerms(Map<String, Double> termFrequency, List<String> values, double weight) {
+        if (values == null || values.isEmpty()) {
+            return;
+        }
+        for (String value : values) {
+            addFrontendWeightedTerms(termFrequency, value, weight);
+        }
+    }
+
+    private void addFrontendWeightedTerms(Map<String, Double> termFrequency, String value, double weight) {
+        if (termFrequency == null || value == null || value.isBlank() || weight <= 0.0D) {
+            return;
+        }
+        for (String token : tokenizer.searchTokens(value)) {
+            String normalized = normalizeSearchText(token);
+            if (!normalized.isBlank()) {
+                termFrequency.merge(normalized, weight, Double::sum);
+            }
+        }
+    }
+
+    private double frontendBm25Score(SearchDocument document, List<String> scoringTerms, FrontendQuickCorpus corpus) {
+        if (document == null || corpus == null || corpus.documentCount() <= 0 || scoringTerms == null || scoringTerms.isEmpty()) {
+            return 0.0D;
+        }
+        FrontendQuickDocumentVector vector = corpus.vectors().get(document.getDocId());
+        if (vector == null || vector.termFrequency().isEmpty()) {
+            return 0.0D;
+        }
+        Set<String> uniqueTerms = new LinkedHashSet<>();
+        scoringTerms.stream()
+            .filter(Objects::nonNull)
+            .map(this::normalizeSearchText)
+            .filter(term -> !term.isBlank())
+            .forEach(uniqueTerms::add);
+        double score = 0.0D;
+        double averageLength = Math.max(1.0D, corpus.averageLength());
+        for (String term : uniqueTerms) {
+            double tf = vector.termFrequency().getOrDefault(term, 0.0D);
+            if (tf <= 0.0D) {
+                continue;
+            }
+            int df = Math.max(0, corpus.documentFrequency().getOrDefault(term, 0));
+            double idf = Math.log(1.0D + (corpus.documentCount() - df + 0.5D) / (df + 0.5D));
+            double denominator = tf + FRONTEND_BM25_K1 * (1.0D - FRONTEND_BM25_B + FRONTEND_BM25_B * vector.length() / averageLength);
+            score += idf * (tf * (FRONTEND_BM25_K1 + 1.0D) / denominator);
+        }
+        return score;
+    }
+
+    private boolean isFrontendQuickRelevant(SearchResult result, List<String> significantTerms) {
+        if (result == null || result.score() <= 0 || result.scoreBreakdown() == null) {
+            return false;
+        }
+        int termCount = significantTerms == null || significantTerms.isEmpty() ? 0 : significantTerms.size();
+        if (termCount <= 1) {
+            return result.scoreBreakdown().baseTokenScore() > 0
+                || result.scoreBreakdown().titleScore() > 0
+                || result.scoreBreakdown().keywordScore() > 0
+                || result.scoreBreakdown().phraseScore() > 0;
+        }
+        return result.scoreBreakdown().coverageRatio() >= frontendQuickMinCoverageRatio(termCount)
+            && result.scoreBreakdown().baseTokenScore() > 0;
+    }
+
+    private double frontendQuickMinCoverageRatio(int termCount) {
+        if (termCount <= 1) {
+            return 1.0D;
+        }
+        if (termCount == 2) {
+            return 0.5D;
+        }
+        if (termCount <= 5) {
+            return 0.6D;
+        }
+        return 0.45D;
     }
 
     private boolean matchesQuickFilter(List<String> values, List<String> terms) {
@@ -1569,6 +1761,13 @@ public class SearchService {
             .filter(document -> !isDeleted(document))
             .filter(document -> canAccess(document, context))
             .count();
+    }
+
+    private int onlineDocumentCount(SearchPermissionContext permissionContext) {
+        if (!properties.isRealtimeDocumentCountEnabled()) {
+            return -1;
+        }
+        return countLatestDocuments(permissionContext);
     }
 
     /**
@@ -2031,7 +2230,7 @@ public class SearchService {
                                        long startedAt,
                                        String message,
                                        SearchPermissionContext permissionContext) {
-        int documentCount = countLatestDocuments(permissionContext);
+        int documentCount = onlineDocumentCount(permissionContext);
         return new SearchPage(
             keyword,
             List.of(),
@@ -2415,5 +2614,47 @@ public class SearchService {
         String bestSnippet,
         SearchMatchedChunk matchedChunk
     ) {
+    }
+
+    private record FrontendQuickCorpus(
+        Map<String, FrontendQuickDocumentVector> vectors,
+        Map<String, Integer> documentFrequency,
+        int documentCount,
+        double averageLength
+    ) {
+        private static FrontendQuickCorpus empty() {
+            return new FrontendQuickCorpus(Map.of(), Map.of(), 0, 1.0D);
+        }
+    }
+
+    private record FrontendQuickDocumentVector(
+        Map<String, Double> termFrequency,
+        double length
+    ) {
+    }
+
+    private record LuceneSearchOutcome(SearchPage page, FallbackMode fallbackMode) {
+
+        private static LuceneSearchOutcome success(SearchPage page) {
+            return new LuceneSearchOutcome(page, FallbackMode.NORMAL);
+        }
+
+        private static LuceneSearchOutcome skipped() {
+            return new LuceneSearchOutcome(null, FallbackMode.NORMAL);
+        }
+
+        private static LuceneSearchOutcome emptyResult() {
+            return new LuceneSearchOutcome(null, FallbackMode.EMPTY_LUCENE_RESULT);
+        }
+
+        private static LuceneSearchOutcome failure() {
+            return new LuceneSearchOutcome(null, FallbackMode.LUCENE_FAILURE);
+        }
+    }
+
+    private enum FallbackMode {
+        NORMAL,
+        EMPTY_LUCENE_RESULT,
+        LUCENE_FAILURE
     }
 }

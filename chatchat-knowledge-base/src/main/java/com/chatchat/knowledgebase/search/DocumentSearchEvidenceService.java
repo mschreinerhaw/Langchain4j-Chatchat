@@ -9,6 +9,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -21,8 +22,15 @@ public class DocumentSearchEvidenceService {
     private final SearchTokenizer tokenizer;
     private final QueryIntentClassifier intentClassifier;
     private final EvidenceContextFormatter contextFormatter;
+    private final SearchProperties properties;
+    private final RetrievalQueryValidator queryValidator;
+    private final RetrievalEvidenceQualityScorer qualityScorer;
 
     public DocumentSearchResult search(DocumentSearchRequest request) {
+        long startedAt = System.nanoTime();
+        String traceId = UUID.randomUUID().toString();
+        RetrievalExecutionState state = RetrievalExecutionState.started(traceId);
+        List<RetrievalEvent> events = new ArrayList<>();
         String query = requireQuery(request == null ? null : request.query());
         int topK = normalizeTopK(request == null ? null : request.topK());
         DocumentSearchFilters filters = request == null ? null : request.filters();
@@ -36,9 +44,78 @@ public class DocumentSearchEvidenceService {
         SearchPermissionContext permissionContext = request == null
             ? SearchPermissionContext.system()
             : SearchPermissionContext.of(request.tenantId(), request.userId(), request.roles());
+        String intent = intentClassifier.classifyName(query);
+        RetrievalValidationResult validation = queryValidator.validate(query, !scopedFileIds.isEmpty(), filters);
+        events.add(event(
+            traceId,
+            RetrievalControlStep.VALIDATOR,
+            validation.action(),
+            query,
+            0,
+            state.budgetUsed(),
+            state.budgetUsed(),
+            elapsedMs(startedAt),
+            validation.reason()
+        ));
+        if (validation.action() == RetrievalControlAction.REJECT || validation.action() == RetrievalControlAction.REWRITE) {
+            state = state.withAction(RetrievalControlAction.STOP);
+            events.add(event(
+                traceId,
+                RetrievalControlStep.GATE,
+                RetrievalControlAction.STOP,
+                query,
+                0,
+                state.budgetUsed(),
+                state.budgetUsed(),
+                elapsedMs(startedAt),
+                validation.reason()
+            ));
+            return controlledResult(query, intent, List.of(), state, events);
+        }
+        events.add(event(
+            traceId,
+            RetrievalControlStep.GATE,
+            RetrievalControlAction.ALLOW,
+            query,
+            0,
+            state.budgetUsed(),
+            state.budgetUsed(),
+            elapsedMs(startedAt),
+            validation.reason()
+        ));
+        if (!canReserveSearch(state)) {
+            state = state.withAction(RetrievalControlAction.STOP);
+            events.add(event(
+                traceId,
+                RetrievalControlStep.BUDGET,
+                RetrievalControlAction.STOP,
+                query,
+                0,
+                state.budgetUsed(),
+                state.budgetUsed(),
+                elapsedMs(startedAt),
+                "budget_exhausted"
+            ));
+            return controlledResult(query, intent, List.of(), state, events, elapsedMs(startedAt));
+        }
+        RetrievalBudgetUsage beforeBudget = state.budgetUsed();
+        RetrievalBudgetReservation reservation = budgetReservation();
+        state = state.withBudgetUsed(beforeBudget.plus(reservation.toUsage())).withAction(RetrievalControlAction.SEARCH);
+        events.add(event(
+            traceId,
+            RetrievalControlStep.BUDGET,
+            RetrievalControlAction.ALLOW,
+            query,
+            0,
+            beforeBudget,
+            state.budgetUsed(),
+            elapsedMs(startedAt),
+            "budget_reserved"
+        ));
 
         if (!scopedFileIds.isEmpty()) {
-            return searchScopedDocuments(query, topK, scopedFileIds, filters, debug, permissionContext);
+            DocumentSearchResult result = searchScopedDocuments(query, topK, scopedFileIds, filters, debug, permissionContext);
+            return controlledResult(result, state, events, elapsedMs(startedAt));
         }
 
         SearchPage page = searchService.search(
@@ -52,7 +129,6 @@ public class DocumentSearchEvidenceService {
             permissionContext
         );
 
-        String intent = intentClassifier.classifyName(query);
         List<DocumentEvidenceChunk> chunks = new ArrayList<>();
         for (SearchResult result : page.results()) {
             if (!matchesFileType(result, filters == null ? null : filters.fileType())) {
@@ -68,7 +144,7 @@ public class DocumentSearchEvidenceService {
                     }
                     chunks.add(toEvidence(result, chunk, query, intent, debug));
                     if (chunks.size() >= topK) {
-                        return contextFormatter.toSearchResult(query, intent, chunks);
+                        return controlledResult(query, intent, chunks, state, events, elapsedMs(startedAt));
                     }
                 }
             }
@@ -76,7 +152,7 @@ public class DocumentSearchEvidenceService {
                 break;
             }
         }
-        return contextFormatter.toSearchResult(query, intent, chunks);
+        return controlledResult(query, intent, chunks, state, events, elapsedMs(startedAt));
     }
 
     private DocumentSearchResult searchScopedDocuments(String query,
@@ -103,6 +179,89 @@ public class DocumentSearchEvidenceService {
             .limit(topK)
             .toList();
         return contextFormatter.toSearchResult(query, intent, ranked);
+    }
+
+    private DocumentSearchResult controlledResult(String query,
+                                                  String intent,
+                                                  List<DocumentEvidenceChunk> chunks,
+                                                  RetrievalExecutionState state,
+                                                  List<RetrievalEvent> events) {
+        return controlledResult(contextFormatter.toSearchResult(query, intent, chunks), state, events, 0L);
+    }
+
+    private DocumentSearchResult controlledResult(String query,
+                                                  String intent,
+                                                  List<DocumentEvidenceChunk> chunks,
+                                                  RetrievalExecutionState state,
+                                                  List<RetrievalEvent> events,
+                                                  long latencyMs) {
+        return controlledResult(contextFormatter.toSearchResult(query, intent, chunks), state, events, latencyMs);
+    }
+
+    private DocumentSearchResult controlledResult(DocumentSearchResult result,
+                                                  RetrievalExecutionState state,
+                                                  List<RetrievalEvent> events,
+                                                  long latencyMs) {
+        DocumentSearchResult safeResult = result == null
+            ? contextFormatter.toSearchResult("", "GENERAL", List.of())
+            : result;
+        RetrievalExecutionState currentState = state == null
+            ? RetrievalExecutionState.started(UUID.randomUUID().toString())
+            : state;
+        if (safeResult.results().isEmpty()) {
+            currentState = currentState.withEmptyResult().withAction(RetrievalControlAction.STOP);
+            if (currentState.budgetUsed().searchCalls() > 0) {
+                events.add(event(
+                    currentState.traceId(),
+                    RetrievalControlStep.SEARCH,
+                    RetrievalControlAction.STOP,
+                    safeResult.query(),
+                    0,
+                    currentState.budgetUsed(),
+                    currentState.budgetUsed(),
+                    latencyMs,
+                    "empty_result"
+                ));
+            }
+        } else {
+            currentState = currentState.withAction(RetrievalControlAction.SCORE);
+            events.add(event(
+                currentState.traceId(),
+                RetrievalControlStep.SEARCH,
+                RetrievalControlAction.SEARCH,
+                safeResult.query(),
+                safeResult.results().size(),
+                currentState.budgetUsed(),
+                currentState.budgetUsed(),
+                latencyMs,
+                "search_completed"
+            ));
+        }
+        RetrievalEvidenceQuality quality = qualityScorer.score(safeResult.results());
+        currentState = currentState.withQuality(quality);
+        events.add(event(
+            currentState.traceId(),
+            RetrievalControlStep.SCORER,
+            RetrievalControlAction.SCORE,
+            safeResult.query(),
+            safeResult.results().size(),
+            currentState.budgetUsed(),
+            currentState.budgetUsed(),
+            latencyMs,
+            quality.reason()
+        ));
+        return new DocumentSearchResult(
+            safeResult.contractVersion(),
+            safeResult.query(),
+            safeResult.intent(),
+            safeResult.total(),
+            safeResult.results(),
+            safeResult.context(),
+            safeResult.citations(),
+            currentState,
+            quality,
+            List.copyOf(events)
+        );
     }
 
     private List<DocumentEvidenceChunk> toScopedEvidence(SearchDocument document,
@@ -364,6 +523,57 @@ public class DocumentSearchEvidenceService {
     private Double normalizeScore(float chunkScore, int resultScore) {
         double raw = chunkScore > 0 ? chunkScore * 10.0D : resultScore;
         return Math.round(Math.max(0.0D, Math.min(100.0D, raw)) * 10.0D) / 10.0D;
+    }
+
+    private RetrievalBudgetReservation budgetReservation() {
+        SearchProperties.RetrievalControl control = properties.getRetrievalControl();
+        SearchProperties.QueryBudget queryBudget = properties.getQueryBudget();
+        int searchCalls = control == null ? 1 : Math.max(0, control.getMaxSearchCalls());
+        int candidateDocs = queryBudget == null ? 0 : Math.max(0, queryBudget.getMaxDocScan());
+        int rocksdbIter = queryBudget == null ? 0 : Math.max(0, queryBudget.getMaxRocksdbIter());
+        long latencyMs = control == null ? 0L : Math.max(0L, control.getLatencyMs());
+        return new RetrievalBudgetReservation(
+            Math.min(1, searchCalls),
+            candidateDocs,
+            rocksdbIter,
+            latencyMs
+        );
+    }
+
+    private boolean canReserveSearch(RetrievalExecutionState state) {
+        SearchProperties.RetrievalControl control = properties.getRetrievalControl();
+        if (control == null || !control.isEnabled()) {
+            return true;
+        }
+        int maxSearchCalls = Math.max(0, control.getMaxSearchCalls());
+        int usedSearchCalls = state == null || state.budgetUsed() == null ? 0 : state.budgetUsed().searchCalls();
+        return usedSearchCalls < maxSearchCalls;
+    }
+
+    private RetrievalEvent event(String traceId,
+                                 RetrievalControlStep step,
+                                 RetrievalControlAction action,
+                                 String query,
+                                 int resultSize,
+                                 RetrievalBudgetUsage before,
+                                 RetrievalBudgetUsage after,
+                                 long latencyMs,
+                                 String reason) {
+        return new RetrievalEvent(
+            traceId,
+            step,
+            action,
+            query,
+            Math.max(0, resultSize),
+            before == null ? RetrievalBudgetUsage.zero() : before,
+            after == null ? RetrievalBudgetUsage.zero() : after,
+            Math.max(0L, latencyMs),
+            reason
+        );
+    }
+
+    private long elapsedMs(long startedAtNanos) {
+        return Math.max(0L, (System.nanoTime() - startedAtNanos) / 1_000_000L);
     }
 
     private int normalizeTopK(Integer value) {

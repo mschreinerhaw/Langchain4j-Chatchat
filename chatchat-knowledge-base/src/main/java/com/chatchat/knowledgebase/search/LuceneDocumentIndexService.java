@@ -189,9 +189,10 @@ public class LuceneDocumentIndexService {
         if (!isAvailable() || keyword == null || keyword.isBlank()) {
             return List.of();
         }
-        QueryIntent intent = queryExpander.classifyIntent(keyword);
-        String intentName = queryExpander.classifyIntentName(keyword);
-        List<String> terms = queryExpander.expandTokens(tokenizer.searchTokens(keyword), intentName, keyword);
+        String normalizedKeyword = queryExpander.normalizeQuery(keyword);
+        QueryIntent intent = queryExpander.classifyIntent(normalizedKeyword);
+        String intentName = queryExpander.classifyIntentName(normalizedKeyword);
+        List<String> terms = queryExpander.expandTokens(tokenizer.searchTokens(normalizedKeyword), intentName, normalizedKeyword);
         if (terms.isEmpty()) {
             return List.of();
         }
@@ -206,21 +207,21 @@ public class LuceneDocumentIndexService {
                         searcher,
                         buildQuery(terms, List.of(), permissionContext),
                         Math.max(1, properties.getLucenePrfTopN()),
-                        keyword,
+                        normalizedKeyword,
                         terms,
                         intent
                     );
                     finalTerms = expandWithPrfTerms(terms, initialHits);
                 }
                 SearchFeedbackService.FeedbackExpansion feedbackExpansion = properties.isLuceneRocchioEnabled()
-                    ? feedbackService.expansion(keyword, finalTerms)
+                    ? feedbackService.expansion(normalizedKeyword, finalTerms)
                     : SearchFeedbackService.FeedbackExpansion.empty();
                 finalTerms = mergeTerms(finalTerms, feedbackExpansion.positiveTerms());
                 List<LuceneSearchHit> hits = executeSearch(
                     searcher,
                     buildQuery(finalTerms, feedbackExpansion.negativeTerms(), permissionContext),
                     Math.max(1, maxHits),
-                    keyword,
+                    normalizedKeyword,
                     finalTerms,
                     intent
                 );

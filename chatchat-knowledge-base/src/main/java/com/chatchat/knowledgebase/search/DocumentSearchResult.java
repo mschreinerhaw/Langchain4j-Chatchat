@@ -9,6 +9,30 @@ public record DocumentSearchResult(
     int total,
     List<DocumentEvidenceChunk> results,
     String context,
-    List<DocumentEvidenceCitation> citations
+    List<DocumentEvidenceCitation> citations,
+    RetrievalExecutionState retrievalState,
+    RetrievalEvidenceQuality evidenceQuality,
+    List<RetrievalEvent> retrievalEvents
 ) {
+
+    public DocumentSearchResult(String contractVersion,
+                                String query,
+                                String intent,
+                                int total,
+                                List<DocumentEvidenceChunk> results,
+                                String context,
+                                List<DocumentEvidenceCitation> citations) {
+        this(
+            contractVersion,
+            query,
+            intent,
+            total,
+            results,
+            context,
+            citations,
+            null,
+            null,
+            List.of()
+        );
+    }
 }

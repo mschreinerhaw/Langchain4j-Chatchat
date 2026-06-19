@@ -15,6 +15,9 @@ public class ChunkTypeClassifier {
     public String classify(SearchDocument document, TextChunker.TextChunk chunk) {
         String content = normalize(chunk == null ? "" : chunk.content());
         String section = normalize(chunk == null ? "" : chunk.section());
+        if (isOcrText(content) || isOcrText(section)) {
+            return ChunkType.OCR_TEXT.value();
+        }
         String title = normalize(document == null ? "" : document.getTitle());
         String combined = title + " " + section + " " + content;
 
@@ -63,5 +66,9 @@ public class ChunkTypeClassifier {
 
     private String normalize(String value) {
         return value == null ? "" : value.toLowerCase(Locale.ROOT).replaceAll("\\s+", " ").trim();
+    }
+
+    private boolean isOcrText(String value) {
+        return value != null && (value.startsWith("# ocr_text") || value.startsWith("ocr_text"));
     }
 }

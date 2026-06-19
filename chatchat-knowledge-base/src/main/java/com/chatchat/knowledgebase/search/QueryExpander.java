@@ -35,6 +35,7 @@ public class QueryExpander {
             addToken(expanded, token);
         }
         String normalizedQuery = normalize(query);
+        applySemanticLexicon(expanded, normalizedQuery, tokens);
         for (RetrievalRuleService.ExpandRule rule : ruleService.snapshot().expandRules()) {
             if (!intentMatches(rule.intent(), intentName) || !sourceMatches(rule.sourceWord(), normalizedQuery, tokens)) {
                 continue;
@@ -49,20 +50,41 @@ public class QueryExpander {
     }
 
     public List<String> expandQuery(String query) {
-        List<String> tokens = tokenizer.searchTokens(query);
-        return expandTokens(tokens, intentClassifier.classifyName(query, tokens), query);
+        String normalizedQuery = normalizeQuery(query);
+        List<String> tokens = tokenizer.searchTokens(normalizedQuery);
+        return expandTokens(tokens, intentClassifier.classifyName(normalizedQuery, tokens), normalizedQuery);
     }
 
     public QueryIntent classifyIntent(String query) {
-        return intentClassifier.classify(query);
+        return intentClassifier.classify(normalizeQuery(query));
     }
 
     public String classifyIntentName(String query) {
-        return intentClassifier.classifyName(query);
+        return intentClassifier.classifyName(normalizeQuery(query));
     }
 
     public String rewriteQuery(String query) {
         return String.join(" ", expandQuery(query));
+    }
+
+    public String normalizeQuery(String query) {
+        String normalized = query == null ? "" : query.trim();
+        if (normalized.isBlank()) {
+            return "";
+        }
+        Set<String> appended = new LinkedHashSet<>();
+        String normalizedText = normalize(normalized);
+        for (RetrievalRuleService.SemanticLexiconEntry entry : ruleService.snapshot().semanticLexicon()) {
+            if (!lexiconMatches(entry, normalizedText, tokenizer.searchTokens(normalizedText))) {
+                continue;
+            }
+            addRawLexiconValue(appended, entry.term(), normalizedText);
+            addRawLexiconValue(appended, entry.mappedTerm(), normalizedText);
+        }
+        if (appended.isEmpty()) {
+            return normalized;
+        }
+        return normalized + " " + String.join(" ", appended);
     }
 
     private boolean intentMatches(String ruleIntent, String intentName) {
@@ -87,6 +109,46 @@ public class QueryExpander {
             }
         }
         return false;
+    }
+
+    private void applySemanticLexicon(Set<String> expanded, String query, List<String> tokens) {
+        for (RetrievalRuleService.SemanticLexiconEntry entry : ruleService.snapshot().semanticLexicon()) {
+            if (!lexiconMatches(entry, query, tokens)) {
+                continue;
+            }
+            for (int i = 0; i < Math.max(1, entry.weight()); i++) {
+                addToken(expanded, entry.term());
+                addToken(expanded, entry.mappedTerm());
+                for (String alias : entry.aliases()) {
+                    addToken(expanded, alias);
+                }
+                addToken(expanded, entry.category());
+                addToken(expanded, entry.domain());
+            }
+        }
+    }
+
+    private boolean lexiconMatches(RetrievalRuleService.SemanticLexiconEntry entry, String query, List<String> tokens) {
+        if (entry == null) {
+            return false;
+        }
+        if (sourceMatches(entry.term(), query, tokens) || sourceMatches(entry.mappedTerm(), query, tokens)) {
+            return true;
+        }
+        for (String alias : entry.aliases()) {
+            if (sourceMatches(alias, query, tokens)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void addRawLexiconValue(Set<String> target, String value, String normalizedQuery) {
+        String normalized = normalize(value);
+        if (normalized.isBlank() || normalizedQuery.contains(normalized)) {
+            return;
+        }
+        target.add(normalized);
     }
 
     private void addToken(Set<String> target, String value) {

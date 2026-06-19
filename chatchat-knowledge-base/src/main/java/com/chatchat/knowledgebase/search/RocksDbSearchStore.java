@@ -130,6 +130,13 @@ public class RocksDbSearchStore {
         return findByIndexPrefix(KEYWORD_INDEX_PREFIX + keyword + ":");
     }
 
+    public List<String> findByKeyword(String keyword, int limit) {
+        if (limit <= 0) {
+            return List.of();
+        }
+        return findByIndexPrefix(KEYWORD_INDEX_PREFIX + keyword + ":", limit);
+    }
+
     /**
      * Finds the by tag.
      *
@@ -138,6 +145,13 @@ public class RocksDbSearchStore {
      */
     public List<String> findByTag(String tag) {
         return findByIndexPrefix(TAG_INDEX_PREFIX + tag + ":");
+    }
+
+    public List<String> findByTag(String tag, int limit) {
+        if (limit <= 0) {
+            return List.of();
+        }
+        return findByIndexPrefix(TAG_INDEX_PREFIX + tag + ":", limit);
     }
 
     /**
@@ -150,6 +164,13 @@ public class RocksDbSearchStore {
         return findByIndexPrefix(COMPANY_INDEX_PREFIX + company + ":");
     }
 
+    public List<String> findByCompany(String company, int limit) {
+        if (limit <= 0) {
+            return List.of();
+        }
+        return findByIndexPrefix(COMPANY_INDEX_PREFIX + company + ":", limit);
+    }
+
     /**
      * Finds the by industry.
      *
@@ -158,6 +179,13 @@ public class RocksDbSearchStore {
      */
     public List<String> findByIndustry(String industry) {
         return findByIndexPrefix(INDUSTRY_INDEX_PREFIX + industry + ":");
+    }
+
+    public List<String> findByIndustry(String industry, int limit) {
+        if (limit <= 0) {
+            return List.of();
+        }
+        return findByIndexPrefix(INDUSTRY_INDEX_PREFIX + industry + ":", limit);
     }
 
     /**
@@ -305,11 +333,18 @@ public class RocksDbSearchStore {
      * @return the matching by index prefix
      */
     private List<String> findByIndexPrefix(String prefix) {
+        return findByIndexPrefix(prefix, 0);
+    }
+
+    private List<String> findByIndexPrefix(String prefix, int limit) {
         ensureOpen();
         Set<String> ids = new LinkedHashSet<>();
         try (RocksIterator iterator = db.newIterator()) {
             for (iterator.seek(bytes(prefix)); iterator.isValid() && startsWith(iterator.key(), prefix); iterator.next()) {
                 ids.add(string(iterator.key()).substring(prefix.length()));
+                if (limit > 0 && ids.size() >= limit) {
+                    break;
+                }
             }
         }
         return new ArrayList<>(ids);

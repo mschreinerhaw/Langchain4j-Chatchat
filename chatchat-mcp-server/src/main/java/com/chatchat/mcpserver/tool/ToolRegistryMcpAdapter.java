@@ -28,14 +28,24 @@ public class ToolRegistryMcpAdapter {
 
     private static final String DOCUMENT_SEARCH_TOOL = "document_search";
     private static final String DOCUMENT_SEARCH_EVIDENCE_GUIDANCE = String.join(" ",
-        "Returns cited document evidence chunks for grounded answers.",
-        "Use the result context field as RAG input and keep citations with the final answer.",
+        "document_search retrieves bounded, topK document evidence chunks for grounded answers.",
+        "Treat document_search as bounded retrieval, not full dataset scanning.",
+        "Use concise, specific queries with key terms, document titles, product names, codes, dates, or domain terms when available.",
+        "Queries must include at least one concrete constraint when possible, such as entity, time, keyword, or domain.",
+        "The tool returns only topK relevant chunks and may return empty results.",
+        "Empty results do not imply permission to scan all documents or broaden search space.",
+        "If results are empty, refine or rewrite the query at most once.",
+        "If the refined query still returns empty, stop retrieval and report insufficient evidence.",
+        "Do not perform wildcard, exhaustive, or full-library search strategies.",
+        "Prefer evidence quality over broad recall.",
+        "Use returned citations and snippets as the sole grounding source for answers.",
         "The stable result contract is document_evidence_v1.",
         "Set debug=true only when retrieval diagnostics are needed."
     );
     private static final String DOCUMENT_SEARCH_QUERY_GUIDANCE = String.join(" ",
         "Question or concise retrieval query used to find document evidence.",
-        "Preserve exact document titles, product names, codes, versions, dates, and domain terms."
+        "Preserve exact document titles, product names, codes, versions, dates, and domain terms.",
+        "Avoid broad or ambiguous single generic terms; include at least one concrete constraint when possible."
     );
 
     private final ObjectMapper objectMapper;

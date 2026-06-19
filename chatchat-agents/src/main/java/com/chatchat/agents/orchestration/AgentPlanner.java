@@ -194,6 +194,15 @@ class AgentPlanner {
         prompt.append("- Set review.self_check.tool_sufficiency=true only when observations already satisfy the user request without another tool call.\n");
         prompt.append("- Runtime policy may still reject final answers when required tool or verification constraints are incomplete.\n\n");
         prompt.append("Available tools:\n").append(describeTools(availableTools, runtimeAttributes)).append("\n");
+        String resolvedDocumentSearchTool = firstNonBlank(documentSearchTool, DOCUMENT_SEARCH_TOOL);
+        if (containsTool(availableTools, resolvedDocumentSearchTool)) {
+            prompt.append("Document search contract:\n");
+            prompt.append("- Treat ").append(resolvedDocumentSearchTool)
+                .append(" as bounded topK evidence retrieval, not full-library exploration.\n");
+            prompt.append("- If the document query is broad or ambiguous, rewrite it to include at least one concrete constraint such as entity, time, keyword, document title, code, or domain.\n");
+            prompt.append("- If document retrieval returns empty, refine the query at most once; if the refined query is still empty, stop retrieval and plan an insufficient-evidence answer.\n");
+            prompt.append("- Do not plan wildcard, exhaustive, or full-dataset document search strategies.\n\n");
+        }
         String discoverySearchTool = preferredWebSearchTool(availableTools);
         String crawlerTool = preferredCrawlerTool(availableTools);
         if (discoverySearchTool != null && crawlerTool != null) {
@@ -232,9 +241,9 @@ class AgentPlanner {
             }
             prompt.append("Document workflow:\n");
             prompt.append("1. If the user asks about research material, reports, files, or document-backed facts, call ")
-                .append(firstNonBlank(documentSearchTool, DOCUMENT_SEARCH_TOOL))
+                .append(resolvedDocumentSearchTool)
                 .append(" first.\n");
-            prompt.append("2. Keep ").append(firstNonBlank(documentSearchTool, DOCUMENT_SEARCH_TOOL))
+            prompt.append("2. Keep ").append(resolvedDocumentSearchTool)
                 .append(" within the configured document_ids/tags scope.\n");
             prompt.append("3. Use retrieved evidence as the basis of the final answer; if evidence is insufficient, say what is missing.\n");
             prompt.append("4. Do not invent facts beyond retrieved documents and tool observations.\n\n");

@@ -1,16 +1,23 @@
 import { nextTick } from "vue";
+import { MoreHorizontal, Pencil, RefreshCw, Trash2 } from "@lucide/vue";
 import MarkdownIt from "markdown-it";
 import * as XLSX from "xlsx";
 import "../../styles/pages/library.css";
 import {
   addUserFavorite,
   createResearchCategory,
+  deleteResearchCategory,
   deleteSearchDocument,
   fetchDocumentFile,
+  fetchResearchCategoryReindexStatus,
   fetchResearchLibrary,
   getSearchDocument,
   getSearchDocumentVersion,
-  getSearchDocumentVersions
+  getSearchDocumentVersions,
+  reindexResearchCategory,
+  reindexSearchDocument,
+  renameResearchCategory,
+  updateSearchDocumentCategory
 } from "../../services/api.js";
 import {
   getDocumentPreviewType,
@@ -34,6 +41,12 @@ const MESSAGE_TEXT = {
 
 export default {
   name: "LibraryView",
+  components: {
+    MoreHorizontal,
+    Pencil,
+    RefreshCw,
+    Trash2
+  },
   props: {
     userId: {
       type: String,
@@ -58,9 +71,30 @@ export default {
       message: "",
       loading: false,
       creatingCategory: false,
+      editingCategoryName: "",
+      categoryDeleteDialogOpen: false,
+      categoryDeleteItem: null,
+      categoryDeleteSubmitting: false,
+      openCategoryActionName: "",
+      openDocumentActionId: "",
       favoriteSavingIds: {},
+      categorySavingNames: {},
+      categoryReindexTask: null,
+      categoryReindexStatusLoading: false,
+      categoryReindexPollTimer: null,
+      categoryReindexDialogOpen: false,
+      categoryReindexItem: null,
+      categoryReindexSubmitting: false,
+      documentCategorySavingIds: {},
+      documentReindexingIds: {},
       error: "",
       categoryDialogOpen: false,
+      documentCategoryDialogOpen: false,
+      documentCategoryItem: null,
+      selectedDocumentCategory: "",
+      documentDeleteDialogOpen: false,
+      documentDeleteItem: null,
+      documentDeleteSubmitting: false,
       viewerOpen: false,
       viewerLoading: false,
       viewerError: "",
@@ -102,6 +136,18 @@ export default {
         ? `${this.selectedVersionLabel} / 最新 v${this.latestVersionNumber}`
         : "";
     },
+    categoryDialogTitle() {
+      return this.editingCategoryName ? "修改分类" : "创建分类";
+    },
+    categorySubmitLabel() {
+      if (this.creatingCategory) {
+        return this.editingCategoryName ? "保存中" : "创建中";
+      }
+      return this.editingCategoryName ? "保存" : "创建";
+    },
+    editableCategories() {
+      return this.categories.filter((category) => this.isMutableCategory(category.name));
+    },
     pagedDocuments() {
       return this.documents;
     },
@@ -120,6 +166,9 @@ export default {
       const start = Math.max(1, Math.min(current - 2, total - 4));
       const end = Math.min(total, start + 4);
       return Array.from({ length: end - start + 1 }, (_, index) => start + index);
+    },
+    categoryReindexRunning() {
+      return Boolean(this.categoryReindexTask?.running || this.categoryReindexTask?.status === "RUNNING");
     }
   },
   watch: {
@@ -132,9 +181,17 @@ export default {
   },
   activated() {
     this.loadLibrary();
+    this.refreshCategoryReindexStatus({ silent: true });
   },
   mounted() {
     this.loadLibrary();
+    this.refreshCategoryReindexStatus({ silent: true });
+  },
+  deactivated() {
+    this.stopCategoryReindexPolling();
+  },
+  beforeUnmount() {
+    this.stopCategoryReindexPolling();
   },
   methods: {
     async loadLibrary() {
@@ -165,6 +222,8 @@ export default {
       }
     },
     async selectCategory(category) {
+      this.closeCategoryActions();
+      this.closeDocumentActions();
       this.activeCategory = category;
       this.page = 1;
       await this.loadLibrary();
@@ -189,18 +248,30 @@ export default {
       this.creatingCategory = true;
       this.error = "";
       try {
-        await createResearchCategory(name);
+        if (this.editingCategoryName) {
+          await renameResearchCategory(this.editingCategoryName, name);
+          if (this.activeCategory === this.editingCategoryName) {
+            this.activeCategory = name;
+          }
+          this.message = "分类已更新。";
+        } else {
+          await createResearchCategory(name);
+          this.message = "分类已创建。";
+        }
         this.newCategoryName = "";
+        this.editingCategoryName = "";
         this.categoryDialogOpen = false;
-        this.message = "分类已创建。";
         await this.loadLibrary();
       } catch (error) {
-        this.error = error.message || "创建分类失败";
+        this.error = error.message || (this.editingCategoryName ? "修改分类失败" : "创建分类失败");
       } finally {
         this.creatingCategory = false;
       }
     },
-    async openCategoryDialog() {
+    async openCategoryDialog(category = null) {
+      this.closeCategoryActions();
+      this.editingCategoryName = this.isMutableCategory(category?.name) ? category.name : "";
+      this.newCategoryName = this.editingCategoryName ? this.categoryLabel(this.editingCategoryName) : "";
       this.categoryDialogOpen = true;
       this.message = "";
       this.error = "";
@@ -213,6 +284,268 @@ export default {
       }
       this.categoryDialogOpen = false;
       this.newCategoryName = "";
+      this.editingCategoryName = "";
+    },
+    isMutableCategory(name) {
+      return Boolean(name) && name !== "all" && name !== "uncategorized";
+    },
+    toggleCategoryActions(name) {
+      if (!name) {
+        return;
+      }
+      this.closeDocumentActions();
+      this.openCategoryActionName = this.openCategoryActionName === name ? "" : name;
+    },
+    closeCategoryActions() {
+      this.openCategoryActionName = "";
+    },
+    toggleDocumentActions(docId) {
+      if (!docId) {
+        return;
+      }
+      this.closeCategoryActions();
+      this.openDocumentActionId = this.openDocumentActionId === docId ? "" : docId;
+    },
+    closeDocumentActions() {
+      this.openDocumentActionId = "";
+    },
+    async refreshCategoryReindexStatus(options = {}) {
+      if (this.categoryReindexStatusLoading) {
+        return;
+      }
+      this.categoryReindexStatusLoading = true;
+      try {
+        const status = await fetchResearchCategoryReindexStatus();
+        await this.applyCategoryReindexTask(status, options);
+      } catch (error) {
+        if (!options.silent) {
+          this.error = error.message || "获取分类索引重建任务状态失败";
+        }
+      } finally {
+        this.categoryReindexStatusLoading = false;
+      }
+    },
+    async applyCategoryReindexTask(status, options = {}) {
+      const previousTask = this.categoryReindexTask;
+      const wasRunning = Boolean(previousTask?.running || previousTask?.status === "RUNNING");
+      const previousTaskId = previousTask?.taskId || "";
+      this.categoryReindexTask = status || null;
+      if (this.categoryReindexRunning) {
+        this.startCategoryReindexPolling();
+        return;
+      }
+      this.stopCategoryReindexPolling();
+      if (!options.silent && wasRunning && status?.taskId && status.taskId === previousTaskId) {
+        if (status.status === "COMPLETED") {
+          const label = this.categoryLabel(status.category);
+          this.message = `分类「${label}」索引重建完成：成功 ${status.reindexedDocuments || 0} 份，失败 ${status.failedDocuments || 0} 份。`;
+          await this.loadLibrary();
+        } else if (status.status === "FAILED") {
+          this.error = status.message || "分类索引重建任务失败";
+        }
+      }
+    },
+    startCategoryReindexPolling() {
+      if (this.categoryReindexPollTimer) {
+        return;
+      }
+      this.categoryReindexPollTimer = window.setInterval(() => {
+        this.refreshCategoryReindexStatus({ silent: false });
+      }, 2500);
+    },
+    stopCategoryReindexPolling() {
+      if (!this.categoryReindexPollTimer) {
+        return;
+      }
+      window.clearInterval(this.categoryReindexPollTimer);
+      this.categoryReindexPollTimer = null;
+    },
+    isCategoryReindexTarget(name) {
+      return this.categoryReindexRunning && this.categoryReindexTask?.category === name;
+    },
+    categoryReindexButtonLabel(category) {
+      if (!this.categoryReindexRunning) {
+        return "重建索引";
+      }
+      return this.isCategoryReindexTarget(category?.name) ? "重建中" : "任务运行中";
+    },
+    categoryReindexButtonTitle(category) {
+      if (this.categoryReindexRunning) {
+        return "当前有分类索引重建任务运行中，请等待完成";
+      }
+      return Number(category?.count || 0) > 0 ? "重建该分类下文档的索引" : "当前分类暂无文档可重建";
+    },
+    openCategoryReindexDialog(category) {
+      const name = category?.name;
+      if (!name) {
+        return;
+      }
+      this.closeCategoryActions();
+      if (this.categoryReindexRunning) {
+        this.message = "当前有分类索引重建任务运行中，请等待完成。";
+        return;
+      }
+      const count = Number(category?.count || 0);
+      const label = this.categoryLabel(name);
+      if (count <= 0) {
+        this.message = `分类「${label}」暂无文档可重建。`;
+        return;
+      }
+      this.categoryReindexItem = category;
+      this.categoryReindexDialogOpen = true;
+      this.error = "";
+    },
+    closeCategoryReindexDialog() {
+      if (this.categoryReindexSubmitting) {
+        return;
+      }
+      this.categoryReindexDialogOpen = false;
+      this.categoryReindexItem = null;
+    },
+    async submitCategoryReindex() {
+      const category = this.categoryReindexItem;
+      const name = category?.name;
+      if (!name || this.categoryReindexSubmitting) {
+        return;
+      }
+      if (this.categoryReindexRunning) {
+        this.closeCategoryReindexDialog();
+        this.message = "当前有分类索引重建任务运行中，请等待完成。";
+        return;
+      }
+      const label = this.categoryLabel(name);
+      this.categoryReindexSubmitting = true;
+      this.error = "";
+      try {
+        const response = await reindexResearchCategory(name);
+        await this.applyCategoryReindexTask(response?.task, { silent: true });
+        this.categoryReindexDialogOpen = false;
+        this.categoryReindexItem = null;
+        if (response?.accepted === false) {
+          this.message = response?.task?.message || "当前有分类索引重建任务运行中，请等待完成。";
+          return;
+        }
+        this.message = `分类「${label}」索引重建任务已开始，后台会逐个重建文档索引，请等待完成。`;
+      } catch (error) {
+        this.error = error.message || "重建分类索引失败";
+      } finally {
+        this.categoryReindexSubmitting = false;
+      }
+    },
+    async reindexCategory(category) {
+      this.openCategoryReindexDialog(category);
+    },
+    async renameCategory(category) {
+      if (!this.isMutableCategory(category?.name)) {
+        return;
+      }
+      this.closeCategoryActions();
+      await this.openCategoryDialog(category);
+    },
+    async deleteCategory(category) {
+      this.openCategoryDeleteDialog(category);
+    },
+    openCategoryDeleteDialog(category) {
+      if (!this.isMutableCategory(category?.name) || this.categorySavingNames[category.name]) {
+        return;
+      }
+      this.closeCategoryActions();
+      this.categoryDeleteItem = category;
+      this.categoryDeleteDialogOpen = true;
+      this.error = "";
+    },
+    closeCategoryDeleteDialog() {
+      if (this.categoryDeleteSubmitting) {
+        return;
+      }
+      this.categoryDeleteDialogOpen = false;
+      this.categoryDeleteItem = null;
+    },
+    async submitCategoryDelete() {
+      const category = this.categoryDeleteItem;
+      if (!this.isMutableCategory(category?.name) || this.categoryDeleteSubmitting || this.categorySavingNames[category.name]) {
+        return;
+      }
+      const name = category.name;
+      this.categorySavingNames = { ...this.categorySavingNames, [category.name]: true };
+      this.categoryDeleteSubmitting = true;
+      this.error = "";
+      try {
+        await deleteResearchCategory(name);
+        this.categoryDeleteDialogOpen = false;
+        this.categoryDeleteItem = null;
+        if (this.activeCategory === name) {
+          this.activeCategory = "all";
+          this.page = 1;
+        }
+        this.message = "分类已删除。";
+        await this.loadLibrary();
+      } catch (error) {
+        this.error = error.message || "删除分类失败";
+      } finally {
+        const next = { ...this.categorySavingNames };
+        delete next[name];
+        this.categorySavingNames = next;
+        this.categoryDeleteSubmitting = false;
+      }
+    },
+    async changeDocumentCategory(item, category) {
+      const docId = item?.docId;
+      if (!docId || this.documentCategorySavingIds[docId]) {
+        return false;
+      }
+      const nextCategory = (category || "").trim();
+      if (!nextCategory) {
+        this.error = "请选择文档分类";
+        return false;
+      }
+      if (nextCategory === item.category) {
+        return true;
+      }
+      this.documentCategorySavingIds = { ...this.documentCategorySavingIds, [docId]: true };
+      this.error = "";
+      try {
+        await updateSearchDocumentCategory(docId, nextCategory);
+        this.message = "文档分类已更新。";
+        await this.loadLibrary();
+        return true;
+      } catch (error) {
+        this.error = error.message || "修改文档分类失败";
+        return false;
+      } finally {
+        const next = { ...this.documentCategorySavingIds };
+        delete next[docId];
+        this.documentCategorySavingIds = next;
+      }
+    },
+    async openDocumentCategoryDialog(item) {
+      if (!item?.docId || this.editableCategories.length === 0) {
+        return;
+      }
+      this.closeDocumentActions();
+      this.documentCategoryItem = item;
+      this.selectedDocumentCategory = this.isMutableCategory(item.category)
+        ? item.category
+        : (this.editableCategories[0]?.name || "");
+      this.documentCategoryDialogOpen = true;
+      this.error = "";
+      await nextTick();
+      this.$refs.documentCategorySelect?.focus();
+    },
+    closeDocumentCategoryDialog() {
+      const docId = this.documentCategoryItem?.docId;
+      if (docId && this.documentCategorySavingIds[docId]) {
+        return;
+      }
+      this.documentCategoryDialogOpen = false;
+      this.documentCategoryItem = null;
+      this.selectedDocumentCategory = "";
+    },
+    async submitDocumentCategory() {
+      const changed = await this.changeDocumentCategory(this.documentCategoryItem, this.selectedDocumentCategory);
+      if (changed) {
+        this.closeDocumentCategoryDialog();
+      }
     },
     canPreviewDocument(document) {
       return isDocumentOnlinePreviewSupported(document);
@@ -257,18 +590,38 @@ export default {
       }
     },
     async removeDocument(item) {
+      this.openDocumentDeleteDialog(item);
+    },
+    openDocumentDeleteDialog(item) {
       const docId = item?.docId;
       if (!docId) {
         return;
       }
-      const title = item.title || docId;
-      if (!window.confirm(`确认删除文档「${title}」？删除后不可恢复。`)) {
+      this.closeDocumentActions();
+      this.documentDeleteItem = item;
+      this.documentDeleteDialogOpen = true;
+      this.error = "";
+    },
+    closeDocumentDeleteDialog() {
+      if (this.documentDeleteSubmitting) {
         return;
       }
+      this.documentDeleteDialogOpen = false;
+      this.documentDeleteItem = null;
+    },
+    async submitDocumentDelete() {
+      const item = this.documentDeleteItem;
+      const docId = item?.docId;
+      if (!docId || this.documentDeleteSubmitting) {
+        return;
+      }
+      this.documentDeleteSubmitting = true;
       this.loading = true;
       this.error = "";
       try {
         await deleteSearchDocument(docId);
+        this.documentDeleteDialogOpen = false;
+        this.documentDeleteItem = null;
         this.message = "文档已删除。";
         if (this.viewerDocument?.docId === docId) {
           this.closeDocument();
@@ -278,6 +631,27 @@ export default {
         this.error = error.message || "删除文档失败";
       } finally {
         this.loading = false;
+        this.documentDeleteSubmitting = false;
+      }
+    },
+    async reindexDocument(item) {
+      const docId = item?.docId;
+      if (!docId || this.documentReindexingIds[docId]) {
+        return;
+      }
+      this.closeDocumentActions();
+      this.documentReindexingIds = { ...this.documentReindexingIds, [docId]: true };
+      this.error = "";
+      try {
+        await reindexSearchDocument(docId);
+        this.message = `文档「${item.title || docId}」索引已重建。`;
+        await this.loadLibrary();
+      } catch (error) {
+        this.error = error.message || "重建文档索引失败";
+      } finally {
+        const next = { ...this.documentReindexingIds };
+        delete next[docId];
+        this.documentReindexingIds = next;
       }
     },
     async favoriteDocument(item) {

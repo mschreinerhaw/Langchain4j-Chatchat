@@ -403,6 +403,41 @@
   background: rgba(37, 99, 235, 0.06);
 }
 
+.ai-search-view .upload-category-field {
+  display: grid;
+  gap: 8px;
+}
+
+.ai-search-view .upload-category-mode {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.ai-search-view .upload-dialog .upload-category-mode button {
+  min-height: 32px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.ai-search-view .upload-dialog .upload-category-mode button.active {
+  background: #fff;
+  color: var(--primary);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+}
+
+.ai-search-view .upload-dialog .upload-category-mode button:disabled {
+  opacity: 0.5;
+}
+
 .ai-search-view .upload-dialog footer button {
   min-width: 96px;
   padding: 0 18px;

@@ -515,6 +515,109 @@ class SearchServiceTest {
     }
 
     @Test
+    void uploadsSqlFileAsSearchableTextDocument() {
+        SearchService service = newSearchService();
+
+        SearchDocument document = service.upload(
+            textFile("spark-connectors.sql", """
+                -- SparkSQL connector example
+                CREATE TABLE filesystem_source USING filesystem
+                OPTIONS (path '/data/orders', format 'parquet');
+
+                CREATE TABLE mysql_sink USING jdbc
+                OPTIONS (url 'jdbc:mysql://mysql-host:3306/demo', dbtable 'orders_sink');
+                """),
+            "Spark SQL Connectors",
+            "document-library",
+            "2026-06-19",
+            "SQL",
+            null,
+            null,
+            null,
+            null,
+            null
+        );
+
+        SearchPage page = service.search("SparkSQL filesystem MySQL connector", null, null, null, 10);
+
+        assertThat(document.getDocumentType()).isEqualTo("sql");
+        assertThat(document.getContent()).contains("CREATE TABLE filesystem_source", "CREATE TABLE mysql_sink");
+        assertThat(page.results()).extracting(SearchResult::docId).contains(document.getDocId());
+    }
+
+    @Test
+    void reextractsUploadedSqlFilesWhenReindexingSqlDocuments() {
+        SearchService service = newSearchService();
+        SearchDocument document = service.upload(
+            textFile("spark-file-mysql.sql", """
+                CREATE TABLE fs_source USING filesystem OPTIONS (path '/warehouse/events');
+                CREATE TABLE mysql_target USING jdbc OPTIONS (dbtable 'events_target');
+                """),
+            "Spark File To MySQL",
+            "document-library",
+            "2026-06-19",
+            "SQL",
+            null,
+            null,
+            null,
+            null,
+            null
+        );
+        document.setContent("stale placeholder content");
+        document.setKeywords(List.of("stale"));
+        service.createOrUpdate(document);
+
+        assertThat(service.search("filesystem mysql_target", null, null, null, 10).results()).isEmpty();
+
+        SearchService.ReindexSummary summary = service.reindexUploadedSqlDocuments(SearchPermissionContext.system());
+        SearchPage page = service.search("filesystem mysql_target", null, null, null, 10);
+
+        assertThat(summary.matchedDocuments()).isEqualTo(1);
+        assertThat(summary.reindexedDocIds()).contains(document.getDocId());
+        assertThat(page.results()).extracting(SearchResult::docId).contains(document.getDocId());
+    }
+
+    @Test
+    void reextractsUploadedDocumentsWhenReindexingCategory() {
+        SearchService service = newSearchService();
+        SearchDocument first = service.upload(
+            textFile("category-one.txt", "alpha category rebuild evidence"),
+            "Category One",
+            "document-library",
+            "2026-06-19",
+            "rebuild-test",
+            null,
+            null,
+            null,
+            "text",
+            null
+        );
+        SearchDocument second = service.upload(
+            textFile("category-two.txt", "beta category rebuild evidence"),
+            "Category Two",
+            "document-library",
+            "2026-06-19",
+            "rebuild-test",
+            null,
+            null,
+            null,
+            "text",
+            null
+        );
+        first.setContent("stale first");
+        second.setContent("stale second");
+        service.createOrUpdate(first);
+        service.createOrUpdate(second);
+
+        SearchService.ReindexSummary summary = service.reindexDocumentsByCategory("rebuild-test", SearchPermissionContext.system());
+        SearchPage page = service.search("alpha beta rebuild evidence", null, null, null, 10);
+
+        assertThat(summary.matchedDocuments()).isEqualTo(2);
+        assertThat(summary.reindexedDocIds()).contains(first.getDocId(), second.getDocId());
+        assertThat(page.results()).extracting(SearchResult::docId).contains(first.getDocId(), second.getDocId());
+    }
+
+    @Test
     void intentExpansionAndChunkTypePreferHowToSteps() {
         SearchService service = newSearchService();
         service.createOrUpdate(SearchDocument.builder()

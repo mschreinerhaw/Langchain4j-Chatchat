@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <section class="feature-view ai-search-view search-workspace">
     <header>
       <p>
@@ -88,15 +88,57 @@
           <input
             ref="uploadFile"
             type="file"
-            accept=".txt,.md,.csv,.pdf,.doc,.docx,.xls,.xlsx"
+            multiple
+            accept=".txt,.md,.sql,.csv,.pdf,.doc,.docx,.xls,.xlsx"
             @change="handleFileChange"
           >
           <button type="button" class="file-picker-button" @click="triggerFilePicker">选择文件</button>
-          <span>{{ uploadForm.file?.name || "未选择文件，最大 5MB" }}</span>
+          <span>{{ uploadForm.files?.length > 1 ? `${uploadForm.files.length} 个文件` : (uploadForm.file?.name || "未选择文件，最大 5MB") }}</span>
         </div>
 
-        <input v-model="uploadForm.title" placeholder="文档标题">
+        <input v-if="(uploadForm.files?.length || 0) <= 1" v-model="uploadForm.title" placeholder="文档标题">
         <input v-model="uploadForm.source" placeholder="文档来源">
+        <section class="upload-category-field">
+          <div class="upload-category-mode" aria-label="分类方式">
+            <button
+              type="button"
+              :class="{ active: uploadForm.categoryMode === 'existing' }"
+              :disabled="uploading || uploadCategoryOptions.length === 0"
+              @click="uploadForm.categoryMode = 'existing'"
+            >
+              已有分类
+            </button>
+            <button
+              type="button"
+              :class="{ active: uploadForm.categoryMode === 'custom' }"
+              :disabled="uploading"
+              @click="uploadForm.categoryMode = 'custom'"
+            >
+              新建分类
+            </button>
+          </div>
+          <select
+            v-if="uploadForm.categoryMode === 'existing'"
+            v-model="uploadForm.category"
+            required
+            :disabled="uploading || uploadCategoriesLoading"
+          >
+            <option value="" disabled>{{ uploadCategoriesLoading ? "正在加载分类" : "选择已有分类" }}</option>
+            <option
+              v-for="category in uploadCategoryOptions"
+              :key="category.name"
+              :value="category.name"
+            >
+              {{ category.name }}
+            </option>
+          </select>
+          <input
+            v-else
+            v-model.trim="uploadForm.newCategory"
+            required
+            placeholder="输入新分类名称"
+          >
+        </section>
         <input v-model="uploadForm.date" type="date">
         <select v-model="uploadForm.documentType" class="document-type-select">
           <option v-for="option in documentTypeOptions" :key="option.value" :value="option.value">

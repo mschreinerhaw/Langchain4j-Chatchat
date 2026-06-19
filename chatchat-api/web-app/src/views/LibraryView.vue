@@ -35,17 +35,63 @@
             +
           </button>
         </div>
+        <p v-if="categoryReindexRunning" class="category-reindex-status">
+          <RefreshCw :size="13" class="spin-icon" />
+          <span>索引重建任务运行中，请等待完成</span>
+        </p>
+        <div
+          v-if="openCategoryActionName || openDocumentActionId"
+          class="category-action-backdrop"
+          @click="closeCategoryActions(); closeDocumentActions()"
+        ></div>
 
-        <button
+        <div
           v-for="category in categories"
           :key="category.name"
-          type="button"
+          class="category-row"
           :class="{ active: activeCategory === category.name }"
-          @click="selectCategory(category.name)"
         >
-          <span>{{ categoryLabel(category.name) }}</span>
-          <strong>{{ category.count }}</strong>
-        </button>
+          <button type="button" class="category-select-button" @click="selectCategory(category.name)">
+            <span>{{ categoryLabel(category.name) }}</span>
+            <strong>{{ category.count }}</strong>
+          </button>
+          <div class="category-row-actions">
+            <button
+              type="button"
+              class="category-action-trigger"
+              :disabled="categorySavingNames[category.name]"
+              title="分类操作"
+              aria-label="分类操作"
+              :aria-expanded="openCategoryActionName === category.name"
+              @click.stop="toggleCategoryActions(category.name)"
+            >
+              <MoreHorizontal :size="16" />
+            </button>
+            <div
+              v-if="openCategoryActionName === category.name"
+              class="category-action-menu"
+              @click.stop
+            >
+              <button
+                type="button"
+                :disabled="categoryReindexRunning || category.count <= 0"
+                :title="categoryReindexButtonTitle(category)"
+                @click="openCategoryReindexDialog(category)"
+              >
+                <RefreshCw :size="14" :class="{ 'spin-icon': categoryReindexRunning }" />
+                <span>{{ categoryReindexButtonLabel(category) }}</span>
+              </button>
+              <button v-if="isMutableCategory(category.name)" type="button" @click="renameCategory(category)">
+                <Pencil :size="14" />
+                <span>修改分类</span>
+              </button>
+              <button v-if="isMutableCategory(category.name)" type="button" class="danger-action" @click="deleteCategory(category)">
+                <Trash2 :size="14" />
+                <span>删除分类</span>
+              </button>
+            </div>
+          </div>
+        </div>
       </aside>
 
       <section class="library-documents">
@@ -71,7 +117,45 @@
             <button type="button" :disabled="favoriteSavingIds[item.docId]" @click="favoriteDocument(item)">
               {{ favoriteSavingIds[item.docId] ? "收藏中" : "收藏" }}
             </button>
-            <button type="button" class="danger-action" @click="removeDocument(item)">删除</button>
+            <div class="document-more-actions">
+              <button
+                type="button"
+                class="document-more-trigger"
+                title="更多操作"
+                :aria-expanded="openDocumentActionId === item.docId"
+                @click.stop="toggleDocumentActions(item.docId)"
+              >
+                更多
+              </button>
+              <div
+                v-if="openDocumentActionId === item.docId"
+                class="document-action-menu"
+                @click.stop
+              >
+                <button
+                  type="button"
+                  :disabled="documentCategorySavingIds[item.docId] || editableCategories.length === 0"
+                  :title="editableCategories.length ? '修改文档分类' : '请先创建分类'"
+                  @click="openDocumentCategoryDialog(item)"
+                >
+                  <Pencil :size="14" />
+                  <span>{{ documentCategorySavingIds[item.docId] ? "修改中" : "改分类" }}</span>
+                </button>
+                <button
+                  type="button"
+                  :disabled="documentReindexingIds[item.docId]"
+                  title="重建文档索引"
+                  @click="reindexDocument(item)"
+                >
+                  <RefreshCw :size="14" />
+                  <span>{{ documentReindexingIds[item.docId] ? "重建中" : "重建索引" }}</span>
+                </button>
+                <button type="button" class="danger-action" @click="removeDocument(item)">
+                  <Trash2 :size="14" />
+                  <span>删除</span>
+                </button>
+              </div>
+            </div>
           </div>
         </article>
 
@@ -98,12 +182,178 @@
       </section>
     </div>
 
+    <div v-if="categoryDeleteDialogOpen" class="category-dialog-backdrop" @click.self="closeCategoryDeleteDialog">
+      <section class="category-dialog delete-confirm-dialog">
+        <header>
+          <div>
+            <p>分类操作</p>
+            <h2>删除分类</h2>
+          </div>
+          <button type="button" class="viewer-close" :disabled="categoryDeleteSubmitting" @click="closeCategoryDeleteDialog">×</button>
+        </header>
+
+        <div class="reindex-confirm-body delete-confirm-body">
+          <div class="reindex-confirm-icon delete-confirm-icon">
+            <Trash2 :size="22" />
+          </div>
+          <div>
+            <p class="reindex-confirm-title">
+              确认删除分类「{{ categoryLabel(categoryDeleteItem?.name) }}」？
+            </p>
+            <p class="reindex-confirm-text">
+              删除分类后，{{ categoryDeleteItem?.count || 0 }} 份关联文档会移除该分类标记，文档本身不会被删除。
+            </p>
+          </div>
+        </div>
+
+        <div class="delete-confirm-note">
+          <span>危险操作</span>
+          <strong>删除后分类入口不可恢复，需要时只能重新创建分类。</strong>
+        </div>
+
+        <footer>
+          <button type="button" class="secondary-button" :disabled="categoryDeleteSubmitting" @click="closeCategoryDeleteDialog">取消</button>
+          <button type="button" class="danger-confirm-button" :disabled="categoryDeleteSubmitting" @click="submitCategoryDelete">
+            {{ categoryDeleteSubmitting ? "删除中" : "确认删除" }}
+          </button>
+        </footer>
+      </section>
+    </div>
+
+    <div v-if="documentDeleteDialogOpen" class="category-dialog-backdrop" @click.self="closeDocumentDeleteDialog">
+      <section class="category-dialog delete-confirm-dialog">
+        <header>
+          <div>
+            <p>文档操作</p>
+            <h2>删除文档</h2>
+          </div>
+          <button type="button" class="viewer-close" :disabled="documentDeleteSubmitting" @click="closeDocumentDeleteDialog">×</button>
+        </header>
+
+        <div class="reindex-confirm-body delete-confirm-body">
+          <div class="reindex-confirm-icon delete-confirm-icon">
+            <Trash2 :size="22" />
+          </div>
+          <div>
+            <p class="reindex-confirm-title">
+              确认删除文档「{{ documentDeleteItem?.title || documentDeleteItem?.docId || "未命名文档" }}」？
+            </p>
+            <p class="reindex-confirm-text">
+              删除后该文档将从知识库文档列表和检索索引中移除，此操作不可恢复。
+            </p>
+          </div>
+        </div>
+
+        <div class="delete-confirm-note">
+          <span>危险操作</span>
+          <strong>请确认该文档不再需要被检索或引用后再删除。</strong>
+        </div>
+
+        <footer>
+          <button type="button" class="secondary-button" :disabled="documentDeleteSubmitting" @click="closeDocumentDeleteDialog">取消</button>
+          <button type="button" class="danger-confirm-button" :disabled="documentDeleteSubmitting" @click="submitDocumentDelete">
+            {{ documentDeleteSubmitting ? "删除中" : "确认删除" }}
+          </button>
+        </footer>
+      </section>
+    </div>
+
+    <div v-if="categoryReindexDialogOpen" class="category-dialog-backdrop" @click.self="closeCategoryReindexDialog">
+      <section class="category-dialog reindex-confirm-dialog">
+        <header>
+          <div>
+            <p>索引维护</p>
+            <h2>重建分类索引</h2>
+          </div>
+          <button type="button" class="viewer-close" :disabled="categoryReindexSubmitting" @click="closeCategoryReindexDialog">×</button>
+        </header>
+
+        <div class="reindex-confirm-body">
+          <div class="reindex-confirm-icon">
+            <RefreshCw :size="22" />
+          </div>
+          <div>
+            <p class="reindex-confirm-title">
+              确认重建分类「{{ categoryLabel(categoryReindexItem?.name) }}」的索引？
+            </p>
+            <p class="reindex-confirm-text">
+              本次会在后台逐个重建该分类下 {{ categoryReindexItem?.count || 0 }} 份文档的检索索引。任务运行期间，其他分类重建会被暂时禁用。
+            </p>
+          </div>
+        </div>
+
+        <div class="reindex-confirm-note">
+          <span>后台任务</span>
+          <strong>提交后可以继续浏览文档，页面会自动刷新任务状态。</strong>
+        </div>
+
+        <footer>
+          <button type="button" class="secondary-button" :disabled="categoryReindexSubmitting" @click="closeCategoryReindexDialog">取消</button>
+          <button type="button" :disabled="categoryReindexSubmitting || categoryReindexRunning" @click="submitCategoryReindex">
+            {{ categoryReindexSubmitting ? "提交中" : "确认重建" }}
+          </button>
+        </footer>
+      </section>
+    </div>
+
+    <div v-if="documentCategoryDialogOpen" class="category-dialog-backdrop" @click.self="closeDocumentCategoryDialog">
+      <section class="category-dialog document-category-dialog">
+        <header>
+          <div>
+            <p>文档分类</p>
+            <h2>修改文档分类</h2>
+          </div>
+          <button type="button" class="viewer-close" @click="closeDocumentCategoryDialog">×</button>
+        </header>
+
+        <div class="document-category-current">
+          <span>当前文档</span>
+          <strong>{{ documentCategoryItem?.title || "未命名文档" }}</strong>
+        </div>
+
+        <label>
+          <span>选择分类</span>
+          <select
+            ref="documentCategorySelect"
+            v-model="selectedDocumentCategory"
+            :disabled="documentCategorySavingIds[documentCategoryItem?.docId]"
+          >
+            <option
+              v-for="category in editableCategories"
+              :key="category.name"
+              :value="category.name"
+            >
+              {{ categoryLabel(category.name) }}
+            </option>
+          </select>
+        </label>
+
+        <footer>
+          <button
+            type="button"
+            class="secondary-button"
+            :disabled="documentCategorySavingIds[documentCategoryItem?.docId]"
+            @click="closeDocumentCategoryDialog"
+          >
+            取消
+          </button>
+          <button
+            type="button"
+            :disabled="documentCategorySavingIds[documentCategoryItem?.docId] || !selectedDocumentCategory"
+            @click="submitDocumentCategory"
+          >
+            {{ documentCategorySavingIds[documentCategoryItem?.docId] ? "保存中" : "保存" }}
+          </button>
+        </footer>
+      </section>
+    </div>
+
     <div v-if="categoryDialogOpen" class="category-dialog-backdrop" @click.self="closeCategoryDialog">
       <section class="category-dialog">
         <header>
           <div>
             <p>文档分类</p>
-            <h2>创建分类</h2>
+            <h2>{{ categoryDialogTitle }}</h2>
           </div>
           <button type="button" class="viewer-close" @click="closeCategoryDialog">×</button>
         </header>
@@ -121,7 +371,7 @@
         <footer>
           <button type="button" class="secondary-button" :disabled="creatingCategory" @click="closeCategoryDialog">取消</button>
           <button type="button" :disabled="creatingCategory" @click="createCategory">
-            {{ creatingCategory ? "创建中" : "创建" }}
+            {{ categorySubmitLabel }}
           </button>
         </footer>
       </section>

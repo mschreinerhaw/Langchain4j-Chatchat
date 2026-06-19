@@ -2120,6 +2120,40 @@
   gap: 10px;
 }
 
+.agent-workshop-view .agent-document-batchbar {
+  min-height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border: 1px solid #dce2ec;
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: #fbfcff;
+}
+
+.agent-workshop-view .agent-document-select-current {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.agent-workshop-view .agent-document-select-current input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+}
+
+.agent-workshop-view .agent-document-batchbar strong {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
 .agent-workshop-view .compact-button {
   min-height: 32px;
   padding: 0 10px;

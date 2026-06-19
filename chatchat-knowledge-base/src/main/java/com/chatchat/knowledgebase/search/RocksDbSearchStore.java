@@ -241,6 +241,20 @@ public class RocksDbSearchStore {
     }
 
     /**
+     * Deletes the category.
+     *
+     * @param name the name value
+     */
+    public void deleteCategory(String name) {
+        ensureOpen();
+        try {
+            db.delete(bytes(CATEGORY_PREFIX + name));
+        } catch (RocksDBException ex) {
+            throw new IllegalStateException("Failed to delete library category", ex);
+        }
+    }
+
+    /**
      * Lists the categories.
      *
      * @return the categories list

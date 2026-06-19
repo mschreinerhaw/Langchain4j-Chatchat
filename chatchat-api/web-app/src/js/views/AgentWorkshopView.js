@@ -378,6 +378,20 @@ export default {
           return left.title.localeCompare(right.title);
         });
     },
+    filteredDocumentIds() {
+      return this.filteredDocuments.map((document) => document.docId).filter(Boolean);
+    },
+    selectedFilteredDocumentCount() {
+      const selected = new Set(this.selectedDocumentIds);
+      return this.filteredDocumentIds.filter((docId) => selected.has(docId)).length;
+    },
+    isFilteredDocumentsFullySelected() {
+      return this.filteredDocumentIds.length > 0
+        && this.selectedFilteredDocumentCount === this.filteredDocumentIds.length;
+    },
+    documentBatchActionLabel() {
+      return this.isFilteredDocumentsFullySelected ? "取消当前筛选" : "全选当前筛选";
+    },
     documentResultLabel() {
       if (!this.documents.length) {
         return "暂无可绑定文档";
@@ -525,6 +539,10 @@ export default {
         return "0 个";
       }
       return `${agent.resolvedToolCount} 个`;
+    },
+    documentCountLabel(agent) {
+      const count = Number(agent?.boundDocumentCount ?? (agent?.boundDocumentIds || []).length ?? 0);
+      return `${Number.isFinite(count) ? count : 0} 个`;
     },
     agentSearchText(agent) {
       const fields = [
@@ -1212,6 +1230,21 @@ export default {
       } else {
         selected.add(docId);
       }
+      this.form.boundDocumentIds = [...selected].sort().join("\n");
+    },
+    toggleFilteredDocuments() {
+      if (!this.filteredDocumentIds.length) {
+        return;
+      }
+      const selected = new Set(this.selectedDocumentIds);
+      const shouldRemove = this.filteredDocumentIds.every((docId) => selected.has(docId));
+      this.filteredDocumentIds.forEach((docId) => {
+        if (shouldRemove) {
+          selected.delete(docId);
+        } else {
+          selected.add(docId);
+        }
+      });
       this.form.boundDocumentIds = [...selected].sort().join("\n");
     },
     clearSelectedDocuments() {

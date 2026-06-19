@@ -1,10 +1,12 @@
-import "../../styles/pages/ai-search.css";
+﻿import "../../styles/pages/ai-search.css";
 import {
   deleteSearchDocument,
+  fetchResearchLibrary,
   getSearchDocument,
   recordUserActivity,
   searchDocuments,
-  uploadSearchDocument
+  uploadSearchDocument,
+  uploadSearchDocumentsInBatches
 } from "../../services/api.js";
 import {
   inferDocumentType,
@@ -27,9 +29,13 @@ function todayString() {
 function defaultUploadForm() {
   return {
     file: null,
+    files: [],
     title: "",
     source: "文档库",
     date: todayString(),
+    categoryMode: "existing",
+    category: "",
+    newCategory: "",
     tags: "",
     documentType: "auto"
   };
@@ -71,6 +77,8 @@ export default {
       showUploadDialog: false,
       error: "",
       uploadError: "",
+      uploadCategories: [],
+      uploadCategoriesLoading: false,
       uploadForm: defaultUploadForm(),
       appliedDocumentShortcutId: "",
       documentTypeOptions: [
@@ -79,6 +87,7 @@ export default {
         { value: "word", label: "Word" },
         { value: "excel", label: "Excel" },
         { value: "markdown", label: "Markdown" },
+        { value: "sql", label: "SQL" },
         { value: "text", label: "文本" }
       ]
     };
@@ -102,6 +111,11 @@ export default {
       const start = Math.max(1, Math.min(current - 2, total - 4));
       const end = Math.min(total, start + 4);
       return Array.from({ length: end - start + 1 }, (_, index) => start + index);
+    },
+    uploadCategoryOptions() {
+      return this.uploadCategories.filter((category) =>
+        category?.name && category.name !== "all" && category.name !== "uncategorized"
+      );
     }
   },
   watch: {
@@ -150,12 +164,13 @@ export default {
         this.loading = false;
       }
     },
-    openUploadDialog() {
+    async openUploadDialog() {
       this.uploadError = "";
       if (!this.uploadForm.date) {
         this.uploadForm.date = todayString();
       }
       this.showUploadDialog = true;
+      await this.loadUploadCategories();
     },
     closeUploadDialog() {
       if (this.uploading) {
@@ -164,43 +179,92 @@ export default {
       this.showUploadDialog = false;
       this.uploadError = "";
     },
+    async loadUploadCategories() {
+      this.uploadCategoriesLoading = true;
+      try {
+        const payload = await fetchResearchLibrary({ page: 1, pageSize: 1 });
+        this.uploadCategories = payload?.categories || [];
+        const options = this.uploadCategoryOptions;
+        if (options.length && this.uploadForm.categoryMode !== "custom") {
+          this.uploadForm.categoryMode = "existing";
+          if (!this.uploadForm.category || !options.some((category) => category.name === this.uploadForm.category)) {
+            this.uploadForm.category = options[0].name;
+          }
+        } else if (!options.length) {
+          this.uploadForm.categoryMode = "custom";
+          this.uploadForm.category = "";
+        }
+      } catch (error) {
+        this.uploadCategories = [];
+        this.uploadForm.categoryMode = "custom";
+      } finally {
+        this.uploadCategoriesLoading = false;
+      }
+    },
+    resolveUploadCategory() {
+      return String(
+        this.uploadForm.categoryMode === "custom"
+          ? this.uploadForm.newCategory
+          : this.uploadForm.category
+      ).trim();
+    },
     triggerFilePicker() {
       this.$refs.uploadFile?.click();
     },
     handleFileChange(event) {
-      const file = event.target.files?.[0] || null;
+      const files = Array.from(event.target.files || []);
+      const file = files[0] || null;
       this.uploadError = "";
-      if (file && file.size > MAX_UPLOAD_SIZE) {
+      const oversized = files.find((item) => item.size > MAX_UPLOAD_SIZE);
+      if (oversized) {
         this.uploadForm.file = null;
+        this.uploadForm.files = [];
         event.target.value = "";
-        this.uploadError = "文档文件不能超过 5MB";
+        this.uploadError = `文件不能超过 5MB: ${oversized.name}`;
         return;
       }
       this.uploadForm.file = file;
+      this.uploadForm.files = files;
       if (file && !this.uploadForm.title) {
         this.uploadForm.title = file.name.replace(/\.[^.]+$/, "");
       }
-      if (file) {
+      if (file && files.length === 1) {
         this.uploadForm.documentType = inferDocumentType(file.name);
+      } else if (files.length > 1) {
+        this.uploadForm.title = "";
+        this.uploadForm.documentType = "auto";
       }
     },
     async uploadDocument() {
-      if (!this.uploadForm.file) {
-        this.uploadError = "请选择要上传的文档文件";
+      const files = this.uploadForm.files?.length ? this.uploadForm.files : (this.uploadForm.file ? [this.uploadForm.file] : []);
+      const category = this.resolveUploadCategory();
+      if (!files.length) {
+        this.uploadError = "请选择要上传的文件";
+        return;
+      }
+      if (!category) {
+        this.uploadError = this.uploadForm.categoryMode === "custom" ? "请输入新分类名称" : "请选择文档分类";
         return;
       }
       this.uploading = true;
       this.uploadError = "";
       try {
         const formData = new FormData();
-        formData.append("file", this.uploadForm.file);
-        formData.append("title", this.uploadForm.title);
         formData.append("source", this.uploadForm.source);
         formData.append("date", this.uploadForm.date);
         formData.append("tags", this.uploadForm.tags);
+        formData.append("category", category);
         formData.append("documentType", this.uploadForm.documentType);
-        const document = await uploadSearchDocument(formData);
-        this.recordDocumentActivity(document, "VIEW");
+        let documents = [];
+        if (files.length > 1) {
+          documents = await uploadSearchDocumentsInBatches(formData, files);
+        } else {
+          formData.append("file", files[0]);
+          formData.append("title", this.uploadForm.title);
+          formData.set("tags", [category, this.uploadForm.tags].filter(Boolean).join(","));
+          documents = [await uploadSearchDocument(formData)];
+        }
+        (Array.isArray(documents) ? documents : [documents]).forEach((document) => this.recordDocumentActivity(document, "VIEW"));
         this.showUploadDialog = false;
         this.resetUploadForm();
         this.$emit("navigate", "library");

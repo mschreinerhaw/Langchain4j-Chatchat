@@ -39,7 +39,7 @@ spring:
   servlet:
     multipart:
       max-file-size: 5MB
-      max-request-size: 5MB
+      max-request-size: ${CHAT_MULTIPART_MAX_REQUEST_SIZE:32MB}
 
 server:
   port: 8080
@@ -51,7 +51,8 @@ server:
       max: 200
       min-spare: 10
     max-connections: 500
-    max-http-post-size: 10485760
+    max-http-form-post-size: ${CHAT_TOMCAT_MAX_HTTP_FORM_POST_SIZE:33554432}
+    max-swallow-size: ${CHAT_TOMCAT_MAX_SWALLOW_SIZE:-1}
   error:
     include-stacktrace: on-param
     include-message: always
@@ -135,6 +136,9 @@ chatchat:
     fallback-candidate-limit: ${CHAT_SEARCH_FALLBACK_CANDIDATE_LIMIT:500}
     fallback-empty-result-limit: ${CHAT_SEARCH_FALLBACK_EMPTY_RESULT_LIMIT:200}
     fallback-exception-limit: ${CHAT_SEARCH_FALLBACK_EXCEPTION_LIMIT:100}
+    lucene-max-query-terms: ${CHAT_SEARCH_LUCENE_MAX_QUERY_TERMS:80}
+    lucene-max-negative-query-terms: ${CHAT_SEARCH_LUCENE_MAX_NEGATIVE_QUERY_TERMS:24}
+    lucene-mmr-candidate-limit: ${CHAT_SEARCH_LUCENE_MMR_CANDIDATE_LIMIT:120}
     realtime-document-count-enabled: ${CHAT_SEARCH_REALTIME_DOCUMENT_COUNT_ENABLED:false}
     query-budget:
       max-doc-scan: ${CHAT_SEARCH_QUERY_BUDGET_MAX_DOC_SCAN:1000}

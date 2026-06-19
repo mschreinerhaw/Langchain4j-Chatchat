@@ -192,7 +192,10 @@ public class LuceneDocumentIndexService {
         String normalizedKeyword = queryExpander.normalizeQuery(keyword);
         QueryIntent intent = queryExpander.classifyIntent(normalizedKeyword);
         String intentName = queryExpander.classifyIntentName(normalizedKeyword);
-        List<String> terms = queryExpander.expandTokens(tokenizer.searchTokens(normalizedKeyword), intentName, normalizedKeyword);
+        List<String> terms = limitQueryTerms(
+            queryExpander.expandTokens(tokenizer.searchTokens(normalizedKeyword), intentName, normalizedKeyword),
+            properties.getLuceneMaxQueryTerms()
+        );
         if (terms.isEmpty()) {
             return List.of();
         }
@@ -216,10 +219,17 @@ public class LuceneDocumentIndexService {
                 SearchFeedbackService.FeedbackExpansion feedbackExpansion = properties.isLuceneRocchioEnabled()
                     ? feedbackService.expansion(normalizedKeyword, finalTerms)
                     : SearchFeedbackService.FeedbackExpansion.empty();
-                finalTerms = mergeTerms(finalTerms, feedbackExpansion.positiveTerms());
+                finalTerms = limitQueryTerms(
+                    mergeTerms(finalTerms, feedbackExpansion.positiveTerms()),
+                    properties.getLuceneMaxQueryTerms()
+                );
+                List<String> negativeTerms = limitQueryTerms(
+                    feedbackExpansion.negativeTerms(),
+                    properties.getLuceneMaxNegativeQueryTerms()
+                );
                 List<LuceneSearchHit> hits = executeSearch(
                     searcher,
-                    buildQuery(finalTerms, feedbackExpansion.negativeTerms(), permissionContext),
+                    buildQuery(finalTerms, negativeTerms, permissionContext),
                     Math.max(1, maxHits),
                     normalizedKeyword,
                     finalTerms,
@@ -422,6 +432,19 @@ public class LuceneDocumentIndexService {
         return new ArrayList<>(terms);
     }
 
+    private List<String> limitQueryTerms(List<String> terms, int maxTerms) {
+        if (terms == null || terms.isEmpty()) {
+            return List.of();
+        }
+        int limit = maxTerms <= 0 ? terms.size() : maxTerms;
+        return terms.stream()
+            .filter(term -> term != null && !term.isBlank())
+            .map(String::trim)
+            .distinct()
+            .limit(limit)
+            .toList();
+    }
+
     private List<String> expandWithPrfTerms(List<String> originalTerms, List<LuceneSearchHit> initialHits) {
         if (initialHits == null || initialHits.isEmpty()) {
             return originalTerms;
@@ -446,7 +469,7 @@ public class LuceneDocumentIndexService {
             .limit(Math.max(0, properties.getLucenePrfMaxTerms()))
             .map(Map.Entry::getKey)
             .forEach(expanded::add);
-        return expanded;
+        return limitQueryTerms(expanded, properties.getLuceneMaxQueryTerms());
     }
 
     private void addPrfTokens(Map<String, Float> weights, String value, float weight) {
@@ -461,10 +484,13 @@ public class LuceneDocumentIndexService {
         if (hits == null || hits.size() <= 2) {
             return hits == null ? List.of() : hits;
         }
+        int candidateLimit = Math.max(1, properties.getLuceneMmrCandidateLimit());
         List<LuceneSearchHit> remaining = new ArrayList<>(hits.stream()
             .sorted(Comparator.comparingDouble(LuceneSearchHit::score).reversed())
+            .limit(candidateLimit)
             .toList());
         List<LuceneSearchHit> selected = new ArrayList<>();
+        Map<LuceneSearchHit, Set<String>> tokenCache = new HashMap<>();
         float lambda = Math.max(0.0F, Math.min(1.0F, properties.getLuceneMmrLambda()));
         float maxScore = Math.max(0.0001F, remaining.stream()
             .map(LuceneSearchHit::score)
@@ -476,7 +502,7 @@ public class LuceneDocumentIndexService {
             for (LuceneSearchHit candidate : remaining) {
                 float relevance = candidate.score() / maxScore;
                 float redundancy = selected.stream()
-                    .map(selectedHit -> chunkSimilarity(candidate, selectedHit))
+                    .map(selectedHit -> chunkSimilarity(candidate, selectedHit, tokenCache))
                     .max(Float::compareTo)
                     .orElse(0.0F);
                 float mmrScore = lambda * relevance - (1.0F - lambda) * redundancy;
@@ -491,16 +517,14 @@ public class LuceneDocumentIndexService {
         return selected;
     }
 
-    private float chunkSimilarity(LuceneSearchHit left, LuceneSearchHit right) {
+    private float chunkSimilarity(LuceneSearchHit left,
+                                  LuceneSearchHit right,
+                                  Map<LuceneSearchHit, Set<String>> tokenCache) {
         if (left == null || right == null) {
             return 0.0F;
         }
-        Set<String> leftTokens = new LinkedHashSet<>(tokenizer.searchTokens(
-            String.join(" ", nullToEmpty(left.fileName()), nullToEmpty(left.section()), nullToEmpty(left.chunkText()))
-        ));
-        Set<String> rightTokens = new LinkedHashSet<>(tokenizer.searchTokens(
-            String.join(" ", nullToEmpty(right.fileName()), nullToEmpty(right.section()), nullToEmpty(right.chunkText()))
-        ));
+        Set<String> leftTokens = mmrTokens(left, tokenCache);
+        Set<String> rightTokens = mmrTokens(right, tokenCache);
         if (leftTokens.isEmpty() || rightTokens.isEmpty()) {
             return sameNearbyChunk(left, right) ? 0.5F : 0.0F;
         }
@@ -512,8 +536,26 @@ public class LuceneDocumentIndexService {
         return Math.max(lexical, sameNearbyChunk(left, right) ? 0.62F : 0.0F);
     }
 
+    private Set<String> mmrTokens(LuceneSearchHit hit, Map<LuceneSearchHit, Set<String>> tokenCache) {
+        return tokenCache.computeIfAbsent(hit, candidate -> new LinkedHashSet<>(tokenizer.searchTokens(
+            String.join(" ",
+                nullToEmpty(candidate.fileName()),
+                nullToEmpty(candidate.section()),
+                truncate(candidate.chunkText(), 2000)
+            )
+        )));
+    }
+
     private boolean sameNearbyChunk(LuceneSearchHit left, LuceneSearchHit right) {
         return left.docId().equals(right.docId()) && Math.abs(left.chunkIndex() - right.chunkIndex()) <= 1;
+    }
+
+    private String truncate(String value, int maxChars) {
+        String text = nullToEmpty(value);
+        if (maxChars <= 0 || text.length() <= maxChars) {
+            return text;
+        }
+        return text.substring(0, maxChars);
     }
 
     /**

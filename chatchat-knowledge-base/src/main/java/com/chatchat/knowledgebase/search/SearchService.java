@@ -649,11 +649,100 @@ public class SearchService {
      */
     public LibraryCategory createCategory(String name) {
         String category = normalizeCategory(name);
-        if (category.isEmpty() || ALL_CATEGORY.equals(category)) {
-            throw new IllegalArgumentException("category name is required");
-        }
+        validateMutableCategory(category);
         store.putCategory(category);
         return new LibraryCategory(category, countDocumentsByCategory(category));
+    }
+
+    public LibraryCategory renameCategory(String oldName, String newName) {
+        String oldCategory = normalizeCategory(oldName);
+        String newCategory = normalizeCategory(newName);
+        validateMutableCategory(oldCategory);
+        validateMutableCategory(newCategory);
+        if (oldCategory.equals(newCategory)) {
+            return new LibraryCategory(newCategory, countDocumentsByCategory(newCategory));
+        }
+
+        store.deleteCategory(oldCategory);
+        store.putCategory(newCategory);
+        loadAllDocuments().stream()
+            .filter(document -> document.getTags() != null
+                && document.getTags().stream().anyMatch(tag -> normalizeCategory(tag).equals(oldCategory)))
+            .forEach(document -> {
+                SearchIndexData oldIndexData = buildIndexData(document);
+                document.setTags(replaceCategoryTag(document.getTags(), oldCategory, newCategory));
+                document.setUpdatedAt(Instant.now().toEpochMilli());
+                store.put(document, buildIndexData(document), oldIndexData);
+                syncLuceneIndex(document);
+            });
+        return new LibraryCategory(newCategory, countDocumentsByCategory(newCategory));
+    }
+
+    public boolean deleteCategory(String name) {
+        String category = normalizeCategory(name);
+        validateMutableCategory(category);
+        store.deleteCategory(category);
+        loadAllDocuments().stream()
+            .filter(document -> document.getTags() != null
+                && document.getTags().stream().anyMatch(tag -> normalizeCategory(tag).equals(category)))
+            .forEach(document -> {
+                SearchIndexData oldIndexData = buildIndexData(document);
+                document.setTags(removeCategoryTag(document.getTags(), category));
+                document.setUpdatedAt(Instant.now().toEpochMilli());
+                store.put(document, buildIndexData(document), oldIndexData);
+                syncLuceneIndex(document);
+            });
+        return true;
+    }
+
+    public Optional<SearchDocument> updateDocumentCategory(String docId,
+                                                           String category,
+                                                           SearchPermissionContext permissionContext) {
+        String normalizedCategory = normalizeCategory(category);
+        validateMutableCategory(normalizedCategory);
+        return get(docId, permissionContext).map(document -> {
+            SearchIndexData oldIndexData = buildIndexData(document);
+            document.setTags(assignPrimaryCategory(document.getTags(), normalizedCategory));
+            document.setUpdatedAt(Instant.now().toEpochMilli());
+            store.put(document, buildIndexData(document), oldIndexData);
+            syncLuceneIndex(document);
+            store.putCategory(normalizedCategory);
+            return document;
+        });
+    }
+
+    private void validateMutableCategory(String category) {
+        if (category.isEmpty() || ALL_CATEGORY.equals(category) || UNCATEGORIZED.equals(category)) {
+            throw new IllegalArgumentException("category name is required");
+        }
+    }
+
+    private List<String> assignPrimaryCategory(List<String> tags, String category) {
+        List<String> cleaned = cleanList(tags);
+        List<String> updated = new ArrayList<>();
+        updated.add(category);
+        cleaned.stream()
+            .filter(tag -> !normalizeCategory(tag).equals(category))
+            .forEach(updated::add);
+        return updated;
+    }
+
+    private List<String> replaceCategoryTag(List<String> tags, String oldCategory, String newCategory) {
+        List<String> updated = new ArrayList<>();
+        for (String tag : cleanList(tags)) {
+            String normalized = normalizeCategory(tag);
+            String value = normalized.equals(oldCategory) ? newCategory : tag;
+            if (updated.stream().noneMatch(existing -> normalizeCategory(existing).equals(normalizeCategory(value)))) {
+                updated.add(value);
+            }
+        }
+        return updated;
+    }
+
+    private List<String> removeCategoryTag(List<String> tags, String category) {
+        return cleanList(tags).stream()
+            .filter(tag -> !normalizeCategory(tag).equals(category))
+            .toList();
     }
 
     /**
@@ -827,6 +916,7 @@ public class SearchService {
         }
         SearchDocument target = document.get();
         SearchIndexData oldIndexData = buildIndexData(target);
+        refreshDocumentContent(target);
         target.setLifecycleStatus(DocumentLifecycleStatus.INDEXED);
         target.setIndexedAt(Instant.now().toEpochMilli());
         target.setUpdatedAt(Instant.now().toEpochMilli());
@@ -835,6 +925,81 @@ public class SearchService {
         store.put(target, buildIndexData(target), oldIndexData);
         syncLuceneIndex(target);
         return Optional.of(target);
+    }
+
+    public ReindexSummary reindexDocumentsByCategory(String category, SearchPermissionContext permissionContext) {
+        SearchPermissionContext context = permissionContext == null ? SearchPermissionContext.system() : permissionContext;
+        String normalizedCategory = normalizeCategory(category);
+        List<SearchDocument> documents = loadLatestDocuments(context);
+        List<String> reindexedDocIds = new ArrayList<>();
+        List<String> failedDocIds = new ArrayList<>();
+        int matchedDocuments = 0;
+        for (SearchDocument document : documents) {
+            if (!matchesCategory(document, normalizedCategory)) {
+                continue;
+            }
+            matchedDocuments++;
+            try {
+                reindexLoadedDocument(document);
+                reindexedDocIds.add(document.getDocId());
+            } catch (Exception ex) {
+                failedDocIds.add(document.getDocId());
+                log.warn("Failed to reindex document {} in category {}: {}",
+                    document.getDocId(), normalizedCategory, ex.getMessage(), ex);
+            }
+        }
+        return new ReindexSummary(
+            documents.size(),
+            matchedDocuments,
+            reindexedDocIds.size(),
+            failedDocIds.size(),
+            reindexedDocIds,
+            failedDocIds
+        );
+    }
+
+    public ReindexSummary reindexUploadedSqlDocuments(SearchPermissionContext permissionContext) {
+        SearchPermissionContext context = permissionContext == null ? SearchPermissionContext.system() : permissionContext;
+        List<SearchDocument> documents = loadLatestDocuments(context);
+        List<String> reindexedDocIds = new ArrayList<>();
+        List<String> failedDocIds = new ArrayList<>();
+        int sqlDocuments = 0;
+        for (SearchDocument document : documents) {
+            if (!isSqlDocument(document)) {
+                continue;
+            }
+            sqlDocuments++;
+            try {
+                reindexLoadedDocument(document);
+                reindexedDocIds.add(document.getDocId());
+            } catch (Exception ex) {
+                failedDocIds.add(document.getDocId());
+                log.warn("Failed to reindex uploaded SQL document {}: {}", document.getDocId(), ex.getMessage(), ex);
+            }
+        }
+        return new ReindexSummary(documents.size(), sqlDocuments, reindexedDocIds.size(), failedDocIds.size(), reindexedDocIds, failedDocIds);
+    }
+
+    public record ReindexSummary(
+        int scannedDocuments,
+        int matchedDocuments,
+        int reindexedDocuments,
+        int failedDocuments,
+        List<String> reindexedDocIds,
+        List<String> failedDocIds
+    ) {
+    }
+
+    private void reindexLoadedDocument(SearchDocument document) {
+        SearchIndexData oldIndexData = buildIndexData(document);
+        refreshDocumentContent(document);
+        document.setLifecycleStatus(DocumentLifecycleStatus.INDEXED);
+        document.setIndexedAt(Instant.now().toEpochMilli());
+        document.setUpdatedAt(Instant.now().toEpochMilli());
+        document.setDeletedAt(null);
+        document.setErrorMessage(null);
+        store.put(document, buildIndexData(document), oldIndexData);
+        syncLuceneIndex(document);
     }
 
     /**
@@ -1135,6 +1300,32 @@ public class SearchService {
      */
     private boolean isLatestVersion(SearchDocument document) {
         return document == null || !Boolean.FALSE.equals(document.getLatestVersion());
+    }
+
+    private boolean isSqlDocument(SearchDocument document) {
+        if (document == null) {
+            return false;
+        }
+        return "sql".equals(normalizeText(document.getDocumentType()))
+            || "sql".equals(extensionOf(document.getFileName()));
+    }
+
+    private void refreshDocumentContent(SearchDocument document) {
+        String extractedContent = "";
+        if (!isBlank(document.getFilePath())) {
+            Path file = Path.of(document.getFilePath());
+            String fileName = !isBlank(document.getFileName()) ? document.getFileName() : file.getFileName().toString();
+            if (Files.exists(file) && textExtractor.supports(fileName)) {
+                extractedContent = textExtractor.extractText(file, fileName);
+            }
+        }
+        String content = !isBlank(extractedContent) ? extractedContent : nullToEmpty(document.getContent());
+        if (isBlank(content)) {
+            throw new IllegalArgumentException("document content is empty and original file is unavailable");
+        }
+        document.setContent(content);
+        document.setKeywords(keywordExtractor.mergeKeywords(cleanList(document.getKeywords()), content));
+        document.setDocumentType(resolveDocumentType(document.getDocumentType(), document.getFileName()));
     }
 
     /**
@@ -2471,7 +2662,7 @@ public class SearchService {
         String normalized = normalizeText(requestedType);
         if (!normalized.isEmpty() && !"auto".equals(normalized)) {
             return switch (normalized) {
-                case "markdown", "pdf", "word", "excel", "presentation", "text" -> normalized;
+                case "markdown", "pdf", "word", "excel", "presentation", "text", "sql" -> normalized;
                 case "md" -> "markdown";
                 case "doc", "docx" -> "word";
                 case "csv", "xls", "xlsx" -> "excel";
@@ -2493,6 +2684,7 @@ public class SearchService {
         String extension = extensionOf(fileName);
         return switch (extension) {
             case "md" -> "markdown";
+            case "sql" -> "sql";
             case "pdf" -> "pdf";
             case "doc", "docx" -> "word";
             case "csv", "xls", "xlsx" -> "excel";

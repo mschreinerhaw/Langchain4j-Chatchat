@@ -6,6 +6,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.multipart.MaxUploadSizeExceededException;
+import org.springframework.web.multipart.MultipartException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -86,6 +87,26 @@ public class GlobalExceptionHandler {
 
         return new ResponseEntity<>(
             ApiResponse.badRequest("file size exceeds 5MB limit"),
+            HttpStatus.BAD_REQUEST
+        );
+    }
+
+    /**
+     * Handles malformed or oversized multipart requests before controller binding.
+     *
+     * @param ex the ex value
+     * @param request the request value
+     * @return the operation result
+     */
+    @ExceptionHandler(MultipartException.class)
+    public ResponseEntity<ApiResponse<Void>> handleMultipartException(
+            MultipartException ex,
+            WebRequest request) {
+
+        log.warn("Multipart request failed: {}", ex.getMessage());
+
+        return new ResponseEntity<>(
+            ApiResponse.badRequest(multipartErrorMessage(ex)),
             HttpStatus.BAD_REQUEST
         );
     }
@@ -178,6 +199,26 @@ public class GlobalExceptionHandler {
             current = current.getCause();
         }
         return false;
+    }
+
+    private String multipartErrorMessage(Throwable ex) {
+        String message = nestedMessage(ex).toLowerCase();
+        if (message.contains("exceed") || message.contains("size") || message.contains("maximum")) {
+            return "文件上传请求超过大小限制：单文件不超过 5MB，批量上传会自动分批，请减少单批文件数量后重试";
+        }
+        return "文件上传请求解析失败，请减少单次上传文件数量或确认单文件不超过 5MB";
+    }
+
+    private String nestedMessage(Throwable ex) {
+        StringBuilder builder = new StringBuilder();
+        Throwable current = ex;
+        while (current != null) {
+            if (current.getMessage() != null) {
+                builder.append(current.getMessage()).append(' ');
+            }
+            current = current.getCause();
+        }
+        return builder.toString();
     }
 
     /**

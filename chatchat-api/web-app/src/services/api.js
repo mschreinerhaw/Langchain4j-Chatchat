@@ -1,7 +1,9 @@
-const API_BASE = "/api/v1";
+﻿const API_BASE = "/api/v1";
 const AUTH_SESSION_KEY = "chatchat.auth.session";
 export const AUTH_REQUIRED_EVENT = "chatchat:auth-required";
 let lastAuthRequiredEventAt = 0;
+const BATCH_UPLOAD_MAX_FILES = 5;
+const BATCH_UPLOAD_MAX_BYTES = 4 * 1024 * 1024;
 
 export function getStoredAuthSession() {
   try {
@@ -804,6 +806,12 @@ export function deleteSearchDocument(docId) {
   });
 }
 
+export function reindexSearchDocument(docId) {
+  return apiRequest(`/search/documents/${encodeURIComponent(docId)}/reindex`, {
+    method: "POST"
+  });
+}
+
 export async function fetchDocumentFile(fileUrl) {
   const session = getStoredAuthSession();
   const response = await fetch(fileUrl, {
@@ -866,6 +874,37 @@ export function createResearchCategory(name) {
   return apiRequest("/search/library/categories", {
     method: "POST",
     body: JSON.stringify({ name })
+  });
+}
+
+export function renameResearchCategory(name, nextName) {
+  return apiRequest(`/search/library/categories/${encodeURIComponent(name)}`, {
+    method: "PUT",
+    body: JSON.stringify({ name: nextName })
+  });
+}
+
+export function deleteResearchCategory(name) {
+  return apiRequest(`/search/library/categories/${encodeURIComponent(name)}`, {
+    method: "DELETE"
+  });
+}
+
+export function reindexResearchCategory(name) {
+  return apiRequest("/search/library/categories/reindex", {
+    method: "POST",
+    body: JSON.stringify({ name })
+  });
+}
+
+export function fetchResearchCategoryReindexStatus() {
+  return apiRequest("/search/library/categories/reindex/status");
+}
+
+export function updateSearchDocumentCategory(docId, category) {
+  return apiRequest(`/search/documents/${encodeURIComponent(docId)}/category`, {
+    method: "PUT",
+    body: JSON.stringify({ category })
   });
 }
 
@@ -1079,6 +1118,77 @@ export async function uploadSearchDocument(formData) {
     throw new Error(payload?.message || `请求失败：${response.status}`);
   }
   return unwrapApiPayload(payload, "/search/documents/upload");
+}
+
+export async function uploadSearchDocuments(formData) {
+  const session = getStoredAuthSession();
+  const response = await fetch(`${API_BASE}/search/documents/upload/batch`, {
+    method: "POST",
+    headers: {
+      ...(session?.token ? { Authorization: `Bearer ${session.token}` } : {})
+    },
+    body: formData
+  });
+  const payload = await readJsonSafely(response);
+  notifyAuthRequiredIfNeeded(response, payload, "/search/documents/upload/batch");
+  if (!response.ok) {
+    throw new Error(payload?.message || `请求失败：${response.status}`);
+  }
+  return unwrapApiPayload(payload, "/search/documents/upload/batch");
+}
+
+export async function uploadSearchDocumentsInBatches(formData, files, options = {}) {
+  const fileList = Array.from(files || []).filter(Boolean);
+  if (!fileList.length) {
+    return [];
+  }
+  const batches = createUploadBatches(
+    fileList,
+    options.maxFiles || BATCH_UPLOAD_MAX_FILES,
+    options.maxBytes || BATCH_UPLOAD_MAX_BYTES
+  );
+  const uploaded = [];
+  for (let index = 0; index < batches.length; index += 1) {
+    const batchFormData = cloneFormDataWithoutFiles(formData);
+    batches[index].forEach((file) => batchFormData.append("files", file));
+    try {
+      const result = await uploadSearchDocuments(batchFormData);
+      uploaded.push(...(Array.isArray(result) ? result : [result]));
+    } catch (error) {
+      throw new Error(`第 ${index + 1}/${batches.length} 批上传失败：${error.message || "上传失败"}`);
+    }
+  }
+  return uploaded;
+}
+
+function createUploadBatches(files, maxFiles, maxBytes) {
+  const batches = [];
+  let batch = [];
+  let batchBytes = 0;
+  files.forEach((file) => {
+    const fileBytes = Number(file?.size || 0);
+    if (batch.length && (batch.length >= maxFiles || batchBytes + fileBytes > maxBytes)) {
+      batches.push(batch);
+      batch = [];
+      batchBytes = 0;
+    }
+    batch.push(file);
+    batchBytes += fileBytes;
+  });
+  if (batch.length) {
+    batches.push(batch);
+  }
+  return batches;
+}
+
+function cloneFormDataWithoutFiles(formData) {
+  const cloned = new FormData();
+  for (const [key, value] of formData.entries()) {
+    if (key !== "file" && key !== "files") {
+      cloned.append(key, value);
+    }
+  }
+  return cloned;
 }
 
 export async function uploadChatImage(formData) {

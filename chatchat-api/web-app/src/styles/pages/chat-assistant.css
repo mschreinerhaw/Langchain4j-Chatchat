@@ -2029,6 +2029,38 @@
   color: #fff;
 }
 
+.chat-upload-dialog .upload-category-field {
+  display: grid;
+  gap: 8px;
+}
+
+.chat-upload-dialog .upload-category-mode {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid rgba(129, 145, 172, 0.28);
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.chat-upload-dialog .upload-category-mode button {
+  min-height: 30px;
+  border: 0;
+  border-radius: 6px;
+  padding: 0 10px;
+  background: transparent;
+  color: #6d7788;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.chat-upload-dialog .upload-category-mode button.active {
+  background: #fff;
+  color: var(--primary);
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08);
+}
+
 .chat-upload-dialog button:disabled {
   cursor: not-allowed;
   opacity: 0.55;

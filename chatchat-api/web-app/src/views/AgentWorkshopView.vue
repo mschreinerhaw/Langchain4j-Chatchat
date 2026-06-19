@@ -134,8 +134,8 @@
             <dd>{{ toolCountLabel(agent) }}</dd>
           </div>
           <div>
-            <dt>服务</dt>
-            <dd>{{ agent.boundServiceCount || 0 }} 个</dd>
+            <dt>文档</dt>
+            <dd>{{ documentCountLabel(agent) }}</dd>
           </div>
         </dl>
 
@@ -505,6 +505,17 @@
               >
                 重置
               </button>
+            </div>
+            <div v-if="documents.length && filteredDocuments.length" class="agent-document-batchbar">
+              <label class="agent-document-select-current">
+                <input
+                  type="checkbox"
+                  :checked="isFilteredDocumentsFullySelected"
+                  @change="toggleFilteredDocuments"
+                >
+                <span>{{ documentBatchActionLabel }}</span>
+              </label>
+              <strong>当前筛选 {{ selectedFilteredDocumentCount }} / {{ filteredDocuments.length }} 已选</strong>
             </div>
             <div v-if="documents.length && visibleDocuments.length" class="agent-document-checklist">
               <label

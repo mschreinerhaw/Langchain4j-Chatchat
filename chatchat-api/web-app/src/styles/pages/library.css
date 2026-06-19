@@ -100,29 +100,157 @@
   background: rgba(37, 99, 235, 0.06);
 }
 
-.library-view .library-categories > button {
+.library-view .category-reindex-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  padding: 8px 10px;
+  border: 1px solid rgba(37, 99, 235, 0.18);
+  border-radius: 8px;
+  background: rgba(37, 99, 235, 0.06);
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.library-view .spin-icon {
+  animation: library-spin 0.8s linear infinite;
+}
+
+@keyframes library-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.library-view .category-row {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
   min-height: 40px;
-  padding: 0 12px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: #fff;
   color: var(--text);
   text-align: left;
+  overflow: visible;
 }
 
-.library-view .library-categories > button.active {
+.library-view .category-row.active {
   border-color: var(--primary);
   color: var(--primary);
   background: rgba(37, 99, 235, 0.06);
 }
 
+.library-view .category-select-button {
+  flex: 1;
+  min-width: 0;
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0 12px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+}
+
 .library-view .library-categories strong {
   color: var(--muted);
   font-size: 12px;
+}
+
+.library-view .category-row-actions {
+  position: relative;
+  z-index: 12;
+  display: flex;
+  align-items: center;
+  padding-right: 6px;
+}
+
+.library-view .category-action-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  background: transparent;
+}
+
+.library-view .category-action-trigger {
+  width: 30px;
+  min-height: 30px;
+  display: inline-grid;
+  place-items: center;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+}
+
+.library-view .category-action-trigger:hover,
+.library-view .category-action-trigger[aria-expanded="true"] {
+  border-color: rgba(37, 99, 235, 0.22);
+  background: rgba(37, 99, 235, 0.06);
+  color: var(--primary);
+}
+
+.library-view .category-action-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 20;
+  width: 128px;
+  display: grid;
+  gap: 2px;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 14px 34px rgba(15, 23, 42, 0.14);
+}
+
+.library-view .category-action-menu button {
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 700;
+  text-align: left;
+}
+
+.library-view .category-action-menu button:hover:not(:disabled) {
+  background: rgba(37, 99, 235, 0.06);
+  color: var(--primary);
+}
+
+.library-view .category-action-menu button:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.library-view .category-action-menu button.danger-action {
+  color: #b42318;
+}
+
+.library-view .category-action-menu button.danger-action:hover {
+  border-color: #fda29b;
+  background: #fff3f0;
+  color: #b42318;
 }
 
 .library-view .library-documents {
@@ -169,8 +297,10 @@
 
 .library-view .library-document button {
   min-height: 32px;
-  display: inline-grid;
-  place-items: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   border: 1px solid var(--line);
   border-radius: 8px;
   color: var(--primary);
@@ -188,6 +318,67 @@
   display: grid;
   grid-template-columns: 1fr;
   gap: 8px;
+}
+
+.library-view .document-more-actions {
+  position: relative;
+  z-index: 12;
+  width: 100%;
+}
+
+.library-view .document-more-trigger {
+  width: 100%;
+}
+
+.library-view .document-more-trigger[aria-expanded="true"] {
+  border-color: rgba(37, 99, 235, 0.28);
+  background: rgba(37, 99, 235, 0.06);
+}
+
+.library-view .document-action-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 20;
+  width: 132px;
+  display: grid;
+  gap: 2px;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 14px 34px rgba(15, 23, 42, 0.14);
+}
+
+.library-view .document-action-menu button {
+  min-height: 32px;
+  justify-content: flex-start;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+}
+
+.library-view .document-action-menu button:hover {
+  background: rgba(37, 99, 235, 0.06);
+  color: var(--primary);
+}
+
+.library-view .document-action-menu button.danger-action {
+  color: #b42318;
+}
+
+.library-view .document-action-menu button.danger-action:hover {
+  background: #fff3f0;
+  color: #b42318;
+}
+
+.library-view .library-document-actions button span {
+  color: inherit;
+  font-size: inherit;
+  font-weight: inherit;
 }
 
 .library-view .library-document button.danger-action {
@@ -307,7 +498,8 @@
   font-weight: 700;
 }
 
-.library-view .category-dialog input {
+.library-view .category-dialog input,
+.library-view .category-dialog select {
   width: 100%;
   min-height: 40px;
   border: 1px solid var(--line);
@@ -316,6 +508,123 @@
   outline: none;
   background: #fff;
   color: var(--text);
+}
+
+.library-view .document-category-current {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f8fafc;
+}
+
+.library-view .document-category-current span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.library-view .document-category-current strong {
+  color: var(--text);
+  font-size: 14px;
+}
+
+.library-view .reindex-confirm-dialog {
+  width: min(480px, 100%);
+}
+
+.library-view .delete-confirm-dialog {
+  width: min(480px, 100%);
+}
+
+.library-view .reindex-confirm-body {
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr);
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid rgba(37, 99, 235, 0.16);
+  border-radius: 8px;
+  background: #f8fbff;
+}
+
+.library-view .reindex-confirm-icon {
+  width: 46px;
+  height: 46px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 8px;
+  background: rgba(37, 99, 235, 0.1);
+  color: var(--primary);
+}
+
+.library-view .delete-confirm-body {
+  border-color: #fecdca;
+  background: #fffbfa;
+}
+
+.library-view .delete-confirm-icon {
+  background: #fff3f0;
+  color: #b42318;
+}
+
+.library-view .reindex-confirm-title {
+  margin: 0 0 6px;
+  color: var(--text);
+  font-size: 15px;
+  font-weight: 800;
+  line-height: 1.5;
+}
+
+.library-view .reindex-confirm-text {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.7;
+}
+
+.library-view .reindex-confirm-note {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px solid #fedf89;
+  border-radius: 8px;
+  background: #fffbeb;
+}
+
+.library-view .reindex-confirm-note span {
+  color: #b54708;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.library-view .reindex-confirm-note strong {
+  color: #7a2e0e;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.6;
+}
+
+.library-view .delete-confirm-note {
+  display: grid;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px solid #fecdca;
+  border-radius: 8px;
+  background: #fff3f0;
+}
+
+.library-view .delete-confirm-note span {
+  color: #b42318;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.library-view .delete-confirm-note strong {
+  color: #7a271a;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.6;
 }
 
 .library-view .category-dialog footer {
@@ -338,6 +647,22 @@
   border: 1px solid var(--line);
   background: #fff;
   color: var(--text);
+}
+
+.library-view .category-dialog footer .danger-confirm-button {
+  border: 1px solid #fda29b;
+  background: #d92d20;
+  color: #fff;
+}
+
+.library-view .category-dialog footer .danger-confirm-button:hover:not(:disabled) {
+  background: #b42318;
+}
+
+.library-view .category-dialog footer button:disabled,
+.library-view .viewer-close:disabled {
+  cursor: not-allowed;
+  opacity: 0.64;
 }
 
 .library-view .document-viewer {

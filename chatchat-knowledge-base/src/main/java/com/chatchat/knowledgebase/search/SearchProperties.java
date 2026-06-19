@@ -22,6 +22,8 @@ public class SearchProperties {
     private String luceneIndexPath = "./data/search-lucene";
     private int luceneMaxHits = 500;
     private int luceneChunksPerDocument = 3;
+    private int luceneMaxQueryTerms = 80;
+    private int luceneMaxNegativeQueryTerms = 24;
     private int fallbackCandidateLimit = 500;
     private int fallbackEmptyResultLimit = 200;
     private int fallbackExceptionLimit = 100;
@@ -34,6 +36,7 @@ public class SearchProperties {
     private int lucenePrfMaxTerms = 8;
     private int lucenePrfMinTermLength = 2;
     private boolean luceneMmrEnabled = true;
+    private int luceneMmrCandidateLimit = 120;
     private float luceneMmrLambda = 0.72F;
     private boolean luceneRocchioEnabled = false;
     private int luceneRocchioMaxTerms = 6;

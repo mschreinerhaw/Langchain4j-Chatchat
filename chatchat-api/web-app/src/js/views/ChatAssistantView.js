@@ -1,9 +1,10 @@
-import ChatMessageList from "../../components/ChatMessageList.vue";
+﻿import ChatMessageList from "../../components/ChatMessageList.vue";
 import PromptComposer from "../../components/PromptComposer.vue";
 import {
   analyzeChatImage,
   apiRequest,
   fetchAgentTaskEvents,
+  fetchResearchLibrary,
   fetchAgentWorkshop,
   recordUserActivity,
   saveConversationHistory,
@@ -12,7 +13,8 @@ import {
   submitAgentTaskFeedback,
   updateWorkshopAgent,
   uploadChatImage,
-  uploadSearchDocument
+  uploadSearchDocument,
+  uploadSearchDocumentsInBatches
 } from "../../services/api";
 import "../../styles/pages/chat-assistant.css";
 import { onAgentTaskCancelled } from "../utils/agentTaskEvents";
@@ -178,15 +180,22 @@ function inferDocumentType(fileName = "") {
   if (extension === "md") {
     return "markdown";
   }
+  if (extension === "sql") {
+    return "sql";
+  }
   return "text";
 }
 
 function defaultUploadForm() {
   return {
     file: null,
+    files: [],
     title: "",
     source: "智能对话",
     date: todayString(),
+    categoryMode: "existing",
+    category: "",
+    newCategory: "",
     tags: "",
     documentType: "auto",
     enableForAgent: true
@@ -1139,6 +1148,8 @@ export default {
       uploadingDocument: false,
       uploadError: "",
       uploadNotice: "",
+      uploadCategories: [],
+      uploadCategoriesLoading: false,
       imageDialogOpen: false,
       uploadingImage: false,
       imageUploadError: "",
@@ -1166,6 +1177,7 @@ export default {
         { value: "word", label: "Word" },
         { value: "excel", label: "Excel" },
         { value: "markdown", label: "Markdown" },
+        { value: "sql", label: "SQL" },
         { value: "text", label: "文本" }
       ]
     };
@@ -1252,6 +1264,11 @@ export default {
       const minutes = Math.floor(totalSeconds / 60);
       const seconds = totalSeconds % 60;
       return `${minutes}:${String(seconds).padStart(2, "0")}`;
+    },
+    uploadCategoryOptions() {
+      return this.uploadCategories.filter((category) =>
+        category?.name && category.name !== "all" && category.name !== "uncategorized"
+      );
     }
   },
   mounted() {
@@ -2171,7 +2188,7 @@ export default {
         this.selectedAgentId = defaultAgent.id;
       }
     },
-    handleUpload() {
+    async handleUpload() {
       this.uploadError = "";
       this.uploadNotice = "";
       this.uploadForm = {
@@ -2180,6 +2197,36 @@ export default {
         enableForAgent: !!this.selectedAgentId
       };
       this.uploadDialogOpen = true;
+      await this.loadUploadCategories();
+    },
+    async loadUploadCategories() {
+      this.uploadCategoriesLoading = true;
+      try {
+        const payload = await fetchResearchLibrary({ page: 1, pageSize: 1 });
+        this.uploadCategories = payload?.categories || [];
+        const options = this.uploadCategoryOptions;
+        if (options.length && this.uploadForm.categoryMode !== "custom") {
+          this.uploadForm.categoryMode = "existing";
+          if (!this.uploadForm.category || !options.some((category) => category.name === this.uploadForm.category)) {
+            this.uploadForm.category = options[0].name;
+          }
+        } else if (!options.length) {
+          this.uploadForm.categoryMode = "custom";
+          this.uploadForm.category = "";
+        }
+      } catch (error) {
+        this.uploadCategories = [];
+        this.uploadForm.categoryMode = "custom";
+      } finally {
+        this.uploadCategoriesLoading = false;
+      }
+    },
+    resolveUploadCategory() {
+      return String(
+        this.uploadForm.categoryMode === "custom"
+          ? this.uploadForm.newCategory
+          : this.uploadForm.category
+      ).trim();
     },
     openImageDialog() {
       this.imageUploadError = "";
@@ -2295,25 +2342,38 @@ export default {
       this.$refs.chatUploadFile?.click();
     },
     handleUploadFileChange(event) {
-      const file = event.target.files?.[0] || null;
+      const files = Array.from(event.target.files || []);
+      const file = files[0] || null;
       this.uploadError = "";
-      if (file && file.size > MAX_UPLOAD_SIZE) {
+      const oversized = files.find((item) => item.size > MAX_UPLOAD_SIZE);
+      if (oversized) {
         this.uploadForm.file = null;
+        this.uploadForm.files = [];
         event.target.value = "";
-        this.uploadError = "文档文件不能超过 5MB";
+        this.uploadError = `文件不能超过 5MB: ${oversized.name}`;
         return;
       }
       this.uploadForm.file = file;
+      this.uploadForm.files = files;
       if (file && !this.uploadForm.title) {
         this.uploadForm.title = file.name.replace(/\.[^.]+$/, "");
       }
-      if (file) {
+      if (file && files.length === 1) {
         this.uploadForm.documentType = inferDocumentType(file.name);
+      } else if (files.length > 1) {
+        this.uploadForm.title = "";
+        this.uploadForm.documentType = "auto";
       }
     },
     async uploadChatDocument() {
-      if (!this.uploadForm.file) {
-        this.uploadError = "请选择要上传的文档文件";
+      const files = this.uploadForm.files?.length ? this.uploadForm.files : (this.uploadForm.file ? [this.uploadForm.file] : []);
+      const category = this.resolveUploadCategory();
+      if (!files.length) {
+        this.uploadError = "请选择要上传的文件";
+        return;
+      }
+      if (!category) {
+        this.uploadError = this.uploadForm.categoryMode === "custom" ? "请输入新分类名称" : "请选择文档分类";
         return;
       }
       this.uploadingDocument = true;
@@ -2321,25 +2381,33 @@ export default {
       this.uploadNotice = "";
       try {
         const formData = new FormData();
-        formData.append("file", this.uploadForm.file);
-        formData.append("title", this.uploadForm.title);
         formData.append("source", this.uploadForm.source);
         formData.append("date", this.uploadForm.date);
         formData.append("tags", this.uploadForm.tags);
+        formData.append("category", category);
         formData.append("documentType", this.uploadForm.documentType);
-        const uploadedDocument = await uploadSearchDocument(formData);
-        const docId = this.extractUploadedDocId(uploadedDocument);
+        let uploadedDocuments = [];
+        if (files.length > 1) {
+          uploadedDocuments = await uploadSearchDocumentsInBatches(formData, files);
+        } else {
+          formData.append("file", files[0]);
+          formData.append("title", this.uploadForm.title);
+          formData.set("tags", [category, this.uploadForm.tags].filter(Boolean).join(","));
+          uploadedDocuments = [await uploadSearchDocument(formData)];
+        }
+        const documents = Array.isArray(uploadedDocuments) ? uploadedDocuments : [uploadedDocuments];
+        const docIds = documents.map((document) => this.extractUploadedDocId(document)).filter(Boolean);
         const shouldBindAgent = this.uploadForm.enableForAgent && this.selectedAgentId;
-        if (shouldBindAgent && docId) {
+        if (shouldBindAgent && docIds.length) {
           try {
-            await this.enableDocumentForSelectedAgent(docId);
-            this.uploadNotice = `文档已上传，并已启用到当前 Agent：${this.selectedAgent?.name || this.selectedAgentId}`;
+            await Promise.all(docIds.map((docId) => this.enableDocumentForSelectedAgent(docId)));
+            this.uploadNotice = `文档已上传 ${docIds.length} 个，并已启用到当前 Agent：${this.selectedAgent?.name || this.selectedAgentId}`;
           } catch (bindError) {
             this.uploadNotice = `文档已上传到文档库，但启用到当前 Agent 失败：${bindError.message || "绑定失败"}`;
           }
         } else {
-          this.uploadNotice = docId
-            ? "文档已上传到文档库。"
+          this.uploadNotice = docIds.length
+            ? `文档已上传到文档库，共 ${docIds.length} 个。`
             : "文档已上传，但未能识别返回的文档 ID。";
         }
         this.closeAfterUpload();

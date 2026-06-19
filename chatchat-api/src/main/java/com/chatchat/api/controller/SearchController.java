@@ -1,5 +1,6 @@
 package com.chatchat.api.controller;
 
+import com.chatchat.api.search.CategoryReindexTaskService;
 import com.chatchat.knowledgebase.search.SearchDocument;
 import com.chatchat.knowledgebase.search.DocumentFileResource;
 import com.chatchat.knowledgebase.search.DocumentSearchEvidenceService;
@@ -29,6 +30,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -52,6 +54,7 @@ public class SearchController {
     private final SearchService searchService;
     private final SearchFeedbackService searchFeedbackService;
     private final DocumentSearchEvidenceService documentSearchEvidenceService;
+    private final CategoryReindexTaskService categoryReindexTaskService;
 
     /**
      * Searches the search.
@@ -187,6 +190,38 @@ public class SearchController {
         return ApiResponse.success(searchService.createCategory(request.name()), "Category created");
     }
 
+    @PutMapping("/library/categories/{name}")
+    @Operation(summary = "Rename one research library category and reclassify matching documents")
+    public ApiResponse<LibraryCategory> renameCategory(@PathVariable("name") String name,
+                                                       @RequestBody CategoryRenameRequest request) {
+        if (request == null || request.name() == null || request.name().isBlank()) {
+            return ApiResponse.badRequest("category name is required");
+        }
+        return ApiResponse.success(searchService.renameCategory(name, request.name()), "Category updated");
+    }
+
+    @DeleteMapping("/library/categories/{name}")
+    @Operation(summary = "Delete one research library category and remove it from matching documents")
+    public ApiResponse<Void> deleteCategory(@PathVariable("name") String name) {
+        searchService.deleteCategory(name);
+        return ApiResponse.success(null, "Category deleted");
+    }
+
+    @PutMapping("/documents/{docId}/category")
+    @Operation(summary = "Update one document primary category")
+    public ApiResponse<SearchDocument> updateDocumentCategory(@PathVariable("docId") String docId,
+                                                              @RequestBody DocumentCategoryUpdateRequest request,
+                                                              @RequestParam(value = "tenantId", required = false) String tenantId,
+                                                              @RequestParam(value = "userId", required = false) String userId,
+                                                              @RequestParam(value = "roles", required = false) String roles) {
+        if (request == null || request.category() == null || request.category().isBlank()) {
+            return ApiResponse.badRequest("category is required");
+        }
+        return searchService.updateDocumentCategory(docId, request.category(), permissionContext(tenantId, userId, roles))
+            .map(document -> ApiResponse.success(document, "Document category updated"))
+            .orElseGet(() -> ApiResponse.notFound("document not found: " + docId));
+    }
+
     /**
      * Performs the title exists operation.
      *
@@ -284,6 +319,50 @@ public class SearchController {
         return searchService.reindexDocument(docId, permissionContext(tenantId, userId, roles))
             .map(document -> ApiResponse.success(document, "document reindexed"))
             .orElseGet(() -> ApiResponse.notFound("document not found: " + docId));
+    }
+
+    @PostMapping("/library/categories/{name}/reindex")
+    @Operation(summary = "Start background task to re-extract and rebuild search index for documents in one category")
+    public ApiResponse<CategoryReindexTaskService.CategoryReindexTaskStartResponse> reindexCategoryDocuments(
+        @PathVariable("name") String name,
+        @RequestParam(value = "tenantId", required = false) String tenantId,
+        @RequestParam(value = "userId", required = false) String userId,
+        @RequestParam(value = "roles", required = false) String roles) {
+        return ApiResponse.success(
+            categoryReindexTaskService.start(name, permissionContext(tenantId, userId, roles)),
+            "category reindex task submitted"
+        );
+    }
+
+    @PostMapping("/library/categories/reindex")
+    @Operation(summary = "Start background task to re-extract and rebuild search index for documents in one category")
+    public ApiResponse<CategoryReindexTaskService.CategoryReindexTaskStartResponse> reindexCategoryDocumentsByRequest(
+        @RequestBody CategoryReindexRequest request,
+        @RequestParam(value = "tenantId", required = false) String tenantId,
+        @RequestParam(value = "userId", required = false) String userId,
+        @RequestParam(value = "roles", required = false) String roles) {
+        return ApiResponse.success(
+            categoryReindexTaskService.start(request == null ? "" : request.name(), permissionContext(tenantId, userId, roles)),
+            "category reindex task submitted"
+        );
+    }
+
+    @GetMapping("/library/categories/reindex/status")
+    @Operation(summary = "Get current background category reindex task status")
+    public ApiResponse<CategoryReindexTaskService.CategoryReindexTaskStatus> getCategoryReindexStatus() {
+        return ApiResponse.success(categoryReindexTaskService.status());
+    }
+
+    @PostMapping("/documents/reindex/sql")
+    @Operation(summary = "Re-extract and rebuild search index for uploaded SQL documents")
+    public ApiResponse<SearchService.ReindexSummary> reindexUploadedSqlDocuments(
+        @RequestParam(value = "tenantId", required = false) String tenantId,
+        @RequestParam(value = "userId", required = false) String userId,
+        @RequestParam(value = "roles", required = false) String roles) {
+        return ApiResponse.success(
+            searchService.reindexUploadedSqlDocuments(permissionContext(tenantId, userId, roles)),
+            "sql documents reindexed"
+        );
     }
 
     /**
@@ -390,7 +469,61 @@ public class SearchController {
         return ApiResponse.success(document, "Document uploaded and indexed");
     }
 
+    @PostMapping(value = "/documents/upload/batch", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "Upload and index multiple local documents with required category")
+    public ApiResponse<List<SearchDocument>> uploadDocuments(@RequestParam("files") List<MultipartFile> files,
+                                                            @RequestParam("category") String category,
+                                                            @RequestParam(value = "source", required = false) String source,
+                                                            @RequestParam(value = "date", required = false) String date,
+                                                            @RequestParam(value = "tags", required = false) String tags,
+                                                            @RequestParam(value = "companies", required = false) String companies,
+                                                            @RequestParam(value = "industries", required = false) String industries,
+                                                            @RequestParam(value = "keywords", required = false) String keywords,
+                                                            @RequestParam(value = "documentType", required = false) String documentType,
+                                                            @RequestParam(value = "tenantId", required = false) String tenantId,
+                                                            @RequestParam(value = "userId", required = false) String userId,
+                                                            @RequestParam(value = "roles", required = false) String roles,
+                                                            @RequestParam(value = "visibility", required = false) String visibility,
+                                                            @RequestParam(value = "permissionRoles", required = false) String permissionRoles) {
+        if (files == null || files.isEmpty() || files.stream().allMatch(file -> file == null || file.isEmpty())) {
+            return ApiResponse.badRequest("files are required");
+        }
+        if (category == null || category.isBlank()) {
+            return ApiResponse.badRequest("category is required for batch upload");
+        }
+        String mergedTags = mergeCategoryTag(category, tags);
+        SearchPermissionContext context = permissionContext(tenantId, userId, roles);
+        List<SearchDocument> documents = files.stream()
+            .filter(file -> file != null && !file.isEmpty())
+            .map(file -> searchService.upload(
+                file,
+                null,
+                source,
+                date,
+                mergedTags,
+                companies,
+                industries,
+                keywords,
+                documentType,
+                null,
+                context,
+                visibility,
+                parseCsv(permissionRoles)
+            ))
+            .toList();
+        return ApiResponse.success(documents, "Documents uploaded and indexed");
+    }
+
     public record CategoryCreateRequest(String name) {
+    }
+
+    public record CategoryRenameRequest(String name) {
+    }
+
+    public record CategoryReindexRequest(String name) {
+    }
+
+    public record DocumentCategoryUpdateRequest(String category) {
     }
 
     /**
@@ -416,6 +549,9 @@ public class SearchController {
         if ("markdown".equals(file.documentType()) || fileName.endsWith(".md")) {
             return MediaType.parseMediaType("text/markdown");
         }
+        if ("sql".equals(file.documentType()) || fileName.endsWith(".sql")) {
+            return MediaType.parseMediaType("text/x-sql");
+        }
         return MediaType.TEXT_PLAIN;
     }
 
@@ -432,6 +568,17 @@ public class SearchController {
 
     private SearchPermissionContext permissionContext(String tenantId, String userId, String roles) {
         return SearchPermissionContext.of(tenantId, userId, parseCsv(roles));
+    }
+
+    private String mergeCategoryTag(String category, String tags) {
+        List<String> values = new java.util.ArrayList<>();
+        values.add(category.trim());
+        values.addAll(parseCsv(tags));
+        return values.stream()
+            .filter(value -> value != null && !value.isBlank())
+            .map(String::trim)
+            .distinct()
+            .collect(java.util.stream.Collectors.joining(","));
     }
 
     private SearchPage lightweightSearchPage(SearchPage page) {

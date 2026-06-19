@@ -5,7 +5,7 @@ spring:
   servlet:
     multipart:
       max-file-size: 5MB
-      max-request-size: 5MB
+      max-request-size: ${CHAT_MULTIPART_MAX_REQUEST_SIZE:32MB}
   datasource:
     url: jdbc:h2:file:./data/h2/chatchat;MODE=MySQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE;DB_CLOSE_DELAY=-1
     driver-class-name: org.h2.Driver
@@ -52,7 +52,8 @@ server:
       max: 200
       min-spare: 10
     max-connections: 500
-    max-http-post-size: 10485760
+    max-http-form-post-size: ${CHAT_TOMCAT_MAX_HTTP_FORM_POST_SIZE:33554432}
+    max-swallow-size: ${CHAT_TOMCAT_MAX_SWALLOW_SIZE:-1}
   error:
     include-stacktrace: never
     include-message: never
@@ -128,6 +129,9 @@ chatchat:
     fallback-candidate-limit: 500
     fallback-empty-result-limit: 200
     fallback-exception-limit: 100
+    lucene-max-query-terms: 80
+    lucene-max-negative-query-terms: 24
+    lucene-mmr-candidate-limit: 120
     realtime-document-count-enabled: false
     query-budget:
       max-doc-scan: 1000

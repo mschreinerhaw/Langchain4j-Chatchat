@@ -51,16 +51,24 @@ import java.util.regex.Pattern;
 public class BuiltInToolsBootstrap {
 
     private static final String DOCUMENT_SEARCH_EVIDENCE_GUIDANCE = String.join(" ",
-        "Search indexed knowledge-base documents and return cited evidence chunks.",
-        "Use this when the answer should be grounded in uploaded or indexed internal documents.",
-        "The result contains contractVersion, source, section, content, score, citation, context, and citations fields.",
-        "Use context as the RAG input and keep citations with the final answer.",
+        "document_search retrieves bounded, topK document evidence chunks for grounded answers.",
+        "Treat document_search as bounded retrieval, not full dataset scanning.",
+        "Use concise, specific queries with key terms, document titles, product names, codes, dates, or domain terms when available.",
+        "Queries must include at least one concrete constraint when possible, such as entity, time, keyword, or domain.",
+        "The tool returns only topK relevant chunks and may return empty results.",
+        "Empty results do not imply permission to scan all documents or broaden search space.",
+        "If results are empty, refine or rewrite the query at most once.",
+        "If the refined query still returns empty, stop retrieval and report insufficient evidence.",
+        "Do not perform wildcard, exhaustive, or full-library search strategies.",
+        "Prefer evidence quality over broad recall.",
+        "Use returned citations and snippets as the sole grounding source for answers.",
         "Set debug=true only for retrieval diagnostics; normal agent reasoning should use the evidence fields."
     );
 
     private static final String DOCUMENT_SEARCH_QUERY_GUIDANCE = String.join(" ",
         "User question or concise retrieval query to find document evidence.",
-        "Preserve exact titles, product names, domain terms, codes, versions, dates, and aliases when present."
+        "Preserve exact titles, product names, domain terms, codes, versions, dates, and aliases when present.",
+        "Avoid broad or ambiguous single generic terms; include at least one concrete constraint when possible."
     );
 
     private final ToolRegistry toolRegistry;

@@ -49,13 +49,14 @@ class AgentAnswerFinalizer {
                                                            Map<String, Object> metadata,
                                                            List<String> observations) {
         Map<String, Object> values = metadata == null ? new LinkedHashMap<>() : metadata;
+        String finalAnswer = enforceDocumentEvidenceAnswer(answer, observations, values);
         values.put("runtimeContractVersion", "agent_runtime_v1");
         values.put("observations", observations == null ? List.of() : List.copyOf(observations));
         values.put("toolTraceCount", traces == null ? 0 : traces.size());
         attachAnswerAssemblyPolicy(values, observations);
-        attachEvidenceAnswerContract(answer, values, observations);
+        attachEvidenceAnswerContract(finalAnswer, values, observations);
         return new AgentOrchestrator.AgentExecutionResult(
-            answer,
+            finalAnswer,
             traces == null ? List.of() : List.copyOf(traces),
             values
         );
@@ -289,6 +290,192 @@ class AgentAnswerFinalizer {
                 || value.contains("web://"));
     }
 
+    private String enforceDocumentEvidenceAnswer(String answer,
+                                                 List<String> observations,
+                                                 Map<String, Object> metadata) {
+        if (Boolean.TRUE.equals(metadata == null ? null : metadata.get("confirmationRequired"))) {
+            return answer;
+        }
+        List<GroundedDocumentEvidence> documentEvidence = extractGroundedDocumentEvidence(observations);
+        if (documentEvidence.isEmpty()) {
+            return answer;
+        }
+        if (!shouldReplaceWithGroundedEvidence(answer)) {
+            return answer;
+        }
+        String groundedAnswer = groundedEvidenceAnswer(documentEvidence);
+        if (metadata != null) {
+            metadata.put("evidenceForcedAnswer", true);
+            metadata.put("evidenceForcedReason",
+                answer == null || answer.isBlank() ? "empty_answer_with_document_evidence" : "no_match_fallback_with_document_evidence");
+            metadata.put("evidenceForcedCitations", documentEvidence.stream()
+                .map(GroundedDocumentEvidence::citation)
+                .filter(value -> value != null && !value.isBlank())
+                .toList());
+        }
+        log.warn("agentEvidenceAnswerOverride reason={} evidenceCount={} originalAnswer={}",
+            metadata == null ? null : metadata.get("evidenceForcedReason"),
+            documentEvidence.size(),
+            answer == null ? "" : answer);
+        return groundedAnswer;
+    }
+
+    private boolean shouldReplaceWithGroundedEvidence(String answer) {
+        if (answer == null || answer.isBlank()) {
+            return true;
+        }
+        if (answer.contains("doc://") || answer.contains("web://")) {
+            return false;
+        }
+        String normalized = answer.toLowerCase();
+        return normalized.contains("\u672a\u80fd")
+            || normalized.contains("\u672a\u627e\u5230")
+            || normalized.contains("\u6ca1\u6709\u627e\u5230")
+            || normalized.contains("\u672a\u68c0\u7d22\u5230")
+            || normalized.contains("\u672a\u5339\u914d")
+            || normalized.contains("\u65e0\u76f8\u5173")
+            || normalized.contains("\u4fe1\u606f\u7f3a\u5931")
+            || normalized.contains("\u8bc1\u636e\u4e0d\u8db3")
+            || normalized.contains("\u65e0\u6cd5\u786e\u8ba4")
+            || normalized.contains("not found")
+            || normalized.contains("no relevant")
+            || normalized.contains("no evidence")
+            || normalized.contains("unable to find")
+            || normalized.contains("insufficient evidence");
+    }
+
+    private String groundedEvidenceAnswer(List<GroundedDocumentEvidence> evidence) {
+        StringBuilder answer = new StringBuilder();
+        answer.append("\u6839\u636e\u5df2\u68c0\u7d22\u5230\u7684\u6587\u6863\u8bc1\u636e\uff0c\u5f53\u524d\u95ee\u9898\u4e0d\u5e94\u5224\u5b9a\u4e3a\u672a\u547d\u4e2d\u3002\u53ef\u7528\u8bc1\u636e\u5982\u4e0b\uff1a\n\n");
+        int limit = Math.min(5, evidence.size());
+        for (int i = 0; i < limit; i++) {
+            GroundedDocumentEvidence item = evidence.get(i);
+            answer.append(i + 1).append(". ");
+            if (item.source() != null && !item.source().isBlank()) {
+                answer.append("\u6765\u6e90\uff1a").append(item.source()).append("\u3002");
+            }
+            if (item.section() != null && !item.section().isBlank()) {
+                answer.append("\u7ae0\u8282\uff1a").append(item.section()).append("\u3002");
+            }
+            answer.append(item.content());
+            if (item.citation() != null && !item.citation().isBlank()) {
+                answer.append(" ").append(item.citation());
+            }
+            answer.append("\n");
+        }
+        answer.append("\n\u7ed3\u8bba\uff1a\u8bf7\u57fa\u4e8e\u4e0a\u8ff0\u8bc1\u636e\u56de\u7b54\uff1b\u5982\u679c\u9700\u8981\u8865\u5145\u201c\u65b9\u6848\u76ee\u6807\u3001\u5b8c\u6574\u6d41\u7a0b\u3001\u5f02\u5e38\u5904\u7406\u201d\u7b49\u7ec6\u8282\uff0c\u53ea\u80fd\u9488\u5bf9\u8bc1\u636e\u672a\u8986\u76d6\u7684\u90e8\u5206\u6807\u6ce8\u7f3a\u53e3\u3002");
+        return answer.toString();
+    }
+
+    private List<GroundedDocumentEvidence> extractGroundedDocumentEvidence(List<String> observations) {
+        if (observations == null || observations.isEmpty()) {
+            return List.of();
+        }
+        List<GroundedDocumentEvidence> evidence = new ArrayList<>();
+        for (String observation : observations) {
+            evidence.addAll(extractGroundedDocumentEvidence(observation));
+        }
+        return evidence.stream()
+            .filter(item -> item.content() != null && !item.content().isBlank())
+            .limit(8)
+            .toList();
+    }
+
+    private List<GroundedDocumentEvidence> extractGroundedDocumentEvidence(String observation) {
+        if (observation == null || observation.isBlank()
+            || (!observation.contains("doc://") && !observation.contains(DOCUMENT_EVIDENCE_CONTRACT)
+            && !observation.contains(UNIFIED_EVIDENCE_CONTRACT))) {
+            return List.of();
+        }
+        List<GroundedDocumentEvidence> evidence = new ArrayList<>();
+        GroundedDocumentEvidenceBuilder current = null;
+        boolean capturingContent = false;
+        for (String rawLine : observation.split("\\R")) {
+            String line = rawLine == null ? "" : rawLine.trim();
+            if (line.startsWith("[Evidence ")) {
+                addGroundedEvidence(evidence, current);
+                current = new GroundedDocumentEvidenceBuilder();
+                capturingContent = false;
+                continue;
+            }
+            if (current == null) {
+                continue;
+            }
+            if (line.startsWith("type:")) {
+                current.type = line.substring("type:".length()).trim();
+                capturingContent = false;
+            } else if (line.startsWith("citation:")) {
+                current.citation = line.substring("citation:".length()).trim();
+                capturingContent = false;
+            } else if (line.startsWith("source:")) {
+                current.source = line.substring("source:".length()).trim();
+                capturingContent = false;
+            } else if (line.startsWith("section:")) {
+                current.section = line.substring("section:".length()).trim();
+                capturingContent = false;
+            } else if (line.startsWith("content:")) {
+                capturingContent = true;
+            } else if (capturingContent) {
+                if (isEvidenceContextBoundary(line)) {
+                    capturingContent = false;
+                } else if (!line.isBlank()) {
+                    if (!current.content.isEmpty()) {
+                        current.content.append(' ');
+                    }
+                    current.content.append(shortText(line, 420));
+                }
+            }
+        }
+        addGroundedEvidence(evidence, current);
+        return evidence;
+    }
+
+    private void addGroundedEvidence(List<GroundedDocumentEvidence> evidence,
+                                     GroundedDocumentEvidenceBuilder current) {
+        if (current == null) {
+            return;
+        }
+        String type = current.type == null ? "" : current.type.trim();
+        String citation = current.citation == null ? "" : current.citation.trim();
+        if (!"DOCUMENT".equalsIgnoreCase(type) && !citation.startsWith("doc://")) {
+            return;
+        }
+        String content = current.content.toString().trim();
+        if (content.isBlank()) {
+            return;
+        }
+        evidence.add(new GroundedDocumentEvidence(
+            blankToNull(citation),
+            blankToNull(current.source),
+            blankToNull(current.section),
+            content
+        ));
+    }
+
+    private boolean isEvidenceContextBoundary(String line) {
+        if (line == null || line.isBlank()) {
+            return false;
+        }
+        return line.startsWith("[Evidence ")
+            || line.startsWith("Evidence audit:")
+            || line.startsWith("Document search summary:")
+            || line.startsWith("Document evidence snippets:")
+            || line.startsWith("Citation rule:");
+    }
+
+    private String shortText(String value, int maxChars) {
+        if (value == null || value.isBlank()) {
+            return "";
+        }
+        String normalized = value.replaceAll("\\s+", " ").trim();
+        int limit = Math.max(80, maxChars);
+        return normalized.length() <= limit ? normalized : normalized.substring(0, limit);
+    }
+
+    private String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
+    }
+
     private List<Map<String, Object>> extractCitationMaps(String text) {
         if (text == null || text.isBlank()) {
             return List.of();
@@ -376,5 +563,21 @@ class AgentAnswerFinalizer {
 
     private String firstNonBlank(String first, String second) {
         return first == null || first.isBlank() ? second : first;
+    }
+
+    private record GroundedDocumentEvidence(
+        String citation,
+        String source,
+        String section,
+        String content
+    ) {
+    }
+
+    private static class GroundedDocumentEvidenceBuilder {
+        private String type;
+        private String citation;
+        private String source;
+        private String section;
+        private final StringBuilder content = new StringBuilder();
     }
 }

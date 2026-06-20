@@ -199,6 +199,12 @@ class AgentPlanner {
             prompt.append("Document search contract:\n");
             prompt.append("- Treat ").append(resolvedDocumentSearchTool)
                 .append(" as bounded topK evidence retrieval, not full-library exploration.\n");
+            prompt.append("- Preserve the user's original document title phrase in input.query. Do not rewrite a title-like query into only a bag of keywords.\n");
+            prompt.append("- Do not put document_ids, documentIds, fileIds, or file_ids into ").append(resolvedDocumentSearchTool)
+                .append(" input unless the user explicitly asks to search only those exact document ids. Bound document ids are recall hints, not hard filters.\n");
+            prompt.append("- If strict document-id scoping is explicitly required by the user, set strict_document_scope=true and explain that recall is limited to that scope.\n");
+            prompt.append("- For document explanation questions, plan retrieval followed by evidence expansion/review before final_answer when evidence is title-only, partial, or ambiguous. Do not force max_steps=2 for document retrieval.\n");
+            prompt.append("- For document retrieval plans, execution_policy.max_steps should allow retrieval plus expansion/review, normally at least 4 unless observations already contain sufficient evidence.\n");
             prompt.append("- If the document query is broad or ambiguous, rewrite it to include at least one concrete constraint such as entity, time, keyword, document title, code, or domain.\n");
             prompt.append("- If document retrieval returns empty, refine the query at most once; if the refined query is still empty, stop retrieval and plan an insufficient-evidence answer.\n");
             prompt.append("- Do not plan wildcard, exhaustive, or full-dataset document search strategies.\n\n");
@@ -232,7 +238,7 @@ class AgentPlanner {
             prompt.append("- If the user says today, latest, current, recent, \u4eca\u5929, \u6700\u65b0, \u8fd1\u671f, or \u5f53\u524d, keep that temporal wording instead of converting it to another year unless the user explicitly requested an absolute date.\n\n");
         }
         if (!boundDocumentIds.isEmpty() || !boundDocumentTags.isEmpty()) {
-            prompt.append("Knowledge document search scope:\n");
+            prompt.append("Knowledge document recall hints:\n");
             if (!boundDocumentIds.isEmpty()) {
                 prompt.append("- document_ids: ").append(boundDocumentIds).append("\n");
             }
@@ -244,7 +250,7 @@ class AgentPlanner {
                 .append(resolvedDocumentSearchTool)
                 .append(" first.\n");
             prompt.append("2. Keep ").append(resolvedDocumentSearchTool)
-                .append(" within the configured document_ids/tags scope.\n");
+                .append(" open-recall by default. Use tags as soft context when useful; do not use document_ids as a hard input filter unless the user explicitly requested exact document-id scoping.\n");
             prompt.append("3. Use retrieved evidence as the basis of the final answer; if evidence is insufficient, say what is missing.\n");
             prompt.append("4. Do not invent facts beyond retrieved documents and tool observations.\n\n");
         }

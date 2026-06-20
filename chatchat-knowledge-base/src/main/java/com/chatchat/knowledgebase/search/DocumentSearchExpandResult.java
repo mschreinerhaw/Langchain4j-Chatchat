@@ -12,6 +12,10 @@ public record DocumentSearchExpandResult(
     DocumentRetrievalSemantics retrievalSemantics,
     DocumentExpansionPolicy expansionPolicy,
     EvidenceGovernancePolicy evidenceGovernancePolicy,
+    SectionGraph sectionGraph,
+    KnowledgeRuntimeGraph knowledgeGraph,
+    KnowledgeTraversalResult traversal,
+    KnowledgeReasoningResult knowledgeReasoning,
     EvidenceReasoningResult reasoning,
     EvidenceDecisionResult decision
 ) {
@@ -21,6 +25,10 @@ public record DocumentSearchExpandResult(
         retrievalSemantics = retrievalSemantics == null ? DocumentRetrievalSemantics.evidenceBody() : retrievalSemantics;
         expansionPolicy = expansionPolicy == null ? DocumentExpansionPolicy.none() : expansionPolicy;
         evidenceGovernancePolicy = evidenceGovernancePolicy == null ? EvidenceGovernancePolicy.contentReady() : evidenceGovernancePolicy;
+        sectionGraph = sectionGraph == null ? SectionGraph.empty(docId, query) : sectionGraph;
+        knowledgeGraph = knowledgeGraph == null ? KnowledgeRuntimeGraph.empty(docId, query) : knowledgeGraph;
+        traversal = traversal == null ? KnowledgeTraversalResult.empty(query) : traversal;
+        knowledgeReasoning = knowledgeReasoning == null ? KnowledgeReasoningResult.empty(query) : knowledgeReasoning;
         reasoning = reasoning == null ? EvidenceReasoningResult.empty(query) : reasoning;
         decision = decision == null ? EvidenceDecisionResult.refuse("Decision has not been evaluated") : decision;
     }
@@ -44,6 +52,10 @@ public record DocumentSearchExpandResult(
             retrievalSemantics,
             expansionPolicy,
             evidenceGovernancePolicy,
+            null,
+            null,
+            null,
+            null,
             null,
             null
         );
@@ -69,6 +81,136 @@ public record DocumentSearchExpandResult(
             retrievalSemantics,
             expansionPolicy,
             evidenceGovernancePolicy,
+            null,
+            null,
+            null,
+            null,
+            reasoning,
+            null
+        );
+    }
+
+    public DocumentSearchExpandResult(String contractVersion,
+                                      String query,
+                                      String docId,
+                                      List<DocumentExpandedEvidenceChunk> evidenceChunks,
+                                      String context,
+                                      List<DocumentEvidenceCitation> citations,
+                                      DocumentRetrievalSemantics retrievalSemantics,
+                                      DocumentExpansionPolicy expansionPolicy,
+                                      EvidenceGovernancePolicy evidenceGovernancePolicy,
+                                      SectionGraph sectionGraph,
+                                      EvidenceReasoningResult reasoning) {
+        this(
+            contractVersion,
+            query,
+            docId,
+            evidenceChunks,
+            context,
+            citations,
+            retrievalSemantics,
+            expansionPolicy,
+            evidenceGovernancePolicy,
+            sectionGraph,
+            null,
+            null,
+            null,
+            reasoning,
+            null
+        );
+    }
+
+    public DocumentSearchExpandResult(String contractVersion,
+                                      String query,
+                                      String docId,
+                                      List<DocumentExpandedEvidenceChunk> evidenceChunks,
+                                      String context,
+                                      List<DocumentEvidenceCitation> citations,
+                                      DocumentRetrievalSemantics retrievalSemantics,
+                                      DocumentExpansionPolicy expansionPolicy,
+                                      EvidenceGovernancePolicy evidenceGovernancePolicy,
+                                      SectionGraph sectionGraph,
+                                      KnowledgeRuntimeGraph knowledgeGraph,
+                                      EvidenceReasoningResult reasoning) {
+        this(
+            contractVersion,
+            query,
+            docId,
+            evidenceChunks,
+            context,
+            citations,
+            retrievalSemantics,
+            expansionPolicy,
+            evidenceGovernancePolicy,
+            sectionGraph,
+            knowledgeGraph,
+            null,
+            null,
+            reasoning,
+            null
+        );
+    }
+
+    public DocumentSearchExpandResult(String contractVersion,
+                                      String query,
+                                      String docId,
+                                      List<DocumentExpandedEvidenceChunk> evidenceChunks,
+                                      String context,
+                                      List<DocumentEvidenceCitation> citations,
+                                      DocumentRetrievalSemantics retrievalSemantics,
+                                      DocumentExpansionPolicy expansionPolicy,
+                                      EvidenceGovernancePolicy evidenceGovernancePolicy,
+                                      SectionGraph sectionGraph,
+                                      KnowledgeRuntimeGraph knowledgeGraph,
+                                      KnowledgeTraversalResult traversal,
+                                      EvidenceReasoningResult reasoning) {
+        this(
+            contractVersion,
+            query,
+            docId,
+            evidenceChunks,
+            context,
+            citations,
+            retrievalSemantics,
+            expansionPolicy,
+            evidenceGovernancePolicy,
+            sectionGraph,
+            knowledgeGraph,
+            traversal,
+            null,
+            reasoning,
+            null
+        );
+    }
+
+    public DocumentSearchExpandResult(String contractVersion,
+                                      String query,
+                                      String docId,
+                                      List<DocumentExpandedEvidenceChunk> evidenceChunks,
+                                      String context,
+                                      List<DocumentEvidenceCitation> citations,
+                                      DocumentRetrievalSemantics retrievalSemantics,
+                                      DocumentExpansionPolicy expansionPolicy,
+                                      EvidenceGovernancePolicy evidenceGovernancePolicy,
+                                      SectionGraph sectionGraph,
+                                      KnowledgeRuntimeGraph knowledgeGraph,
+                                      KnowledgeTraversalResult traversal,
+                                      KnowledgeReasoningResult knowledgeReasoning,
+                                      EvidenceReasoningResult reasoning) {
+        this(
+            contractVersion,
+            query,
+            docId,
+            evidenceChunks,
+            context,
+            citations,
+            retrievalSemantics,
+            expansionPolicy,
+            evidenceGovernancePolicy,
+            sectionGraph,
+            knowledgeGraph,
+            traversal,
+            knowledgeReasoning,
             reasoning,
             null
         );

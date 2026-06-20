@@ -5,6 +5,7 @@ import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -29,6 +30,9 @@ public class DocumentSearchEvidenceService {
     private final TextChunker chunker;
     private final EvidenceReasoningEngine reasoningEngine = new EvidenceReasoningEngine();
     private final EvidenceDecisionEngine decisionEngine = new EvidenceDecisionEngine();
+    private final KnowledgeGraphFusionEngine knowledgeGraphFusionEngine = new KnowledgeGraphFusionEngine();
+    private final KnowledgeGraphTraversalEngine knowledgeGraphTraversalEngine = new KnowledgeGraphTraversalEngine();
+    private final KnowledgeGraphReasoningEngine knowledgeGraphReasoningEngine = new KnowledgeGraphReasoningEngine();
 
     public DocumentSearchResult search(DocumentSearchRequest request) {
         long startedAt = System.nanoTime();
@@ -122,7 +126,7 @@ public class DocumentSearchEvidenceService {
             return controlledResult(result, state, events, elapsedMs(startedAt));
         }
 
-        SearchPage page = searchService.search(
+        SearchPage page = searchService.frontendQuickSearch(
             query,
             filters == null ? null : filters.tag(),
             filters == null ? null : filters.company(),
@@ -136,11 +140,13 @@ public class DocumentSearchEvidenceService {
         List<DocumentEvidenceChunk> chunks = new ArrayList<>();
         List<DocumentSearchHit> documents = new ArrayList<>();
         List<DocumentOutlineItem> outline = new ArrayList<>();
+        List<String> queryTokens = tokenizer.searchTokens(query);
         for (SearchResult result : page.results()) {
             if (!matchesFileType(result, filters == null ? null : filters.fileType())) {
                 continue;
             }
             boolean titleOnlyHit = isTitleOnlyHit(result);
+            boolean documentAnchorHit = isDocumentAnchorHit(result, query, queryTokens);
             List<SearchMatchedChunk> matchedChunks = result.matchedChunks();
             if (matchedChunks == null || matchedChunks.isEmpty()) {
                 if (titleOnlyHit) {
@@ -149,6 +155,25 @@ public class DocumentSearchEvidenceService {
                     addSummaryEvidence(chunks, result, query, intent, debug, filters);
                 }
             } else {
+                if (documentAnchorHit && !hasText(filters == null ? null : filters.chunkType())) {
+                    addTitleOnlyDocument(documents, outline, result, permissionContext);
+                    int before = chunks.size();
+                    addDocumentAnchoredEvidence(
+                        chunks,
+                        result,
+                        query,
+                        queryTokens,
+                        topK - chunks.size(),
+                        debug,
+                        permissionContext
+                    );
+                    if (chunks.size() > before) {
+                        if (chunks.size() >= topK) {
+                            return controlledResult(toV2SearchResult(query, intent, chunks, documents, outline), state, events, elapsedMs(startedAt));
+                        }
+                        continue;
+                    }
+                }
                 if (titleOnlyHit) {
                     addTitleOnlyDocument(documents, outline, result, permissionContext);
                     continue;
@@ -198,9 +223,13 @@ public class DocumentSearchEvidenceService {
             maxTotalChars,
             Boolean.TRUE.equals(request.debug())
         );
+        SectionGraph sectionGraph = buildSectionGraph(document, query, queryTokens);
         DocumentSearchResult formatted = contextFormatter.toSearchResult(query, intent, chunks);
         EvidenceReasoningResult reasoning = reasoningEngine.reason(formatted, qualityScorer.score(formatted.results()));
         EvidenceDecisionResult decision = decisionEngine.decide(formatted, reasoning);
+        KnowledgeRuntimeGraph knowledgeGraph = knowledgeGraphFusionEngine.fuse(sectionGraph, reasoning.graph());
+        KnowledgeTraversalResult traversal = knowledgeGraphTraversalEngine.traverse(knowledgeGraph);
+        KnowledgeReasoningResult knowledgeReasoning = knowledgeGraphReasoningEngine.reason(knowledgeGraph, traversal);
         return new DocumentSearchExpandResult(
             EvidenceContextFormatter.CONTRACT_VERSION,
             query,
@@ -214,6 +243,10 @@ public class DocumentSearchEvidenceService {
             formatted.results().isEmpty()
                 ? EvidenceGovernancePolicy.noEvidence()
                 : EvidenceGovernancePolicy.needsExpansion(maxSections, maxChunks),
+            sectionGraph,
+            knowledgeGraph,
+            traversal,
+            knowledgeReasoning,
             reasoning,
             decision
         );
@@ -489,6 +522,172 @@ public class DocumentSearchEvidenceService {
         );
     }
 
+    private SectionGraph buildSectionGraph(SearchDocument document, String query, List<String> queryTokens) {
+        if (document == null || !hasText(document.getContent())) {
+            return SectionGraph.empty(document == null ? "" : document.getDocId(), query);
+        }
+        List<TextChunker.TextChunk> chunks = chunker.splitChunks(
+            document.getContent(),
+            properties.getChunkSize(),
+            properties.getChunkOverlap()
+        );
+        if (chunks.isEmpty()) {
+            return SectionGraph.empty(document.getDocId(), query);
+        }
+        List<SectionAggregation> sections = aggregateSections(document, chunks, queryTokens);
+        List<SectionNode> nodes = sections.stream().map(this::toSectionNode).toList();
+        List<SectionEdge> edges = buildSectionEdges(sections);
+        return new SectionGraph(document.getDocId(), query, nodes, edges);
+    }
+
+    private List<SectionAggregation> aggregateSections(SearchDocument document,
+                                                       List<TextChunker.TextChunk> chunks,
+                                                       List<String> queryTokens) {
+        Map<String, MutableSectionAggregation> values = new LinkedHashMap<>();
+        for (int i = 0; i < chunks.size(); i++) {
+            TextChunker.TextChunk chunk = chunks.get(i);
+            String section = sectionLabel(chunk, i);
+            String key = normalizeComparable(section);
+            if (!hasText(key)) {
+                key = "section_" + i;
+            }
+            String sectionKey = key;
+            int sectionFirstIndex = i;
+            MutableSectionAggregation aggregation = values.computeIfAbsent(
+                sectionKey,
+                ignored -> new MutableSectionAggregation(
+                    sectionKey,
+                    section,
+                    document.getDocId(),
+                    sectionEmbeddingRef(document.getDocId(), section),
+                    sectionFirstIndex
+                )
+            );
+            aggregation.addChunk(chunkId(document.getDocId(), i), i, chunk.content());
+        }
+        return values.values().stream()
+            .map(section -> section.toAggregation(queryTokens))
+            .toList();
+    }
+
+    private SectionNode toSectionNode(SectionAggregation section) {
+        return new SectionNode(
+            section.sectionId(),
+            section.documentId(),
+            section.title(),
+            section.summary(),
+            section.chunkIds(),
+            section.chunkIndexes(),
+            section.keywords(),
+            section.embeddingRef(),
+            section.score()
+        );
+    }
+
+    private List<SectionEdge> buildSectionEdges(List<SectionAggregation> sections) {
+        if (sections == null || sections.size() < 2) {
+            return List.of();
+        }
+        List<SectionEdge> edges = new ArrayList<>();
+        Set<String> edgeKeys = new LinkedHashSet<>();
+        for (int i = 0; i < sections.size() - 1; i++) {
+            addSectionEdge(edges, edgeKeys, sections.get(i), sections.get(i + 1), SectionEdgeType.CONTINUES, 0.64D, "adjacent document order");
+        }
+        for (int i = 0; i < sections.size(); i++) {
+            SectionAggregation left = sections.get(i);
+            for (int j = i + 1; j < sections.size(); j++) {
+                SectionAggregation right = sections.get(j);
+                double topicSimilarity = keywordSimilarity(left.keywords(), right.keywords());
+                if (topicSimilarity >= 0.25D) {
+                    addSectionEdge(edges, edgeKeys, left, right, SectionEdgeType.SAME_TOPIC, Math.min(0.95D, 0.55D + topicSimilarity), "section keyword overlap");
+                }
+                if (refines(left, right)) {
+                    addSectionEdge(edges, edgeKeys, right, left, SectionEdgeType.REFINES, 0.78D, "section title refines previous topic");
+                } else if (refines(right, left)) {
+                    addSectionEdge(edges, edgeKeys, left, right, SectionEdgeType.REFINES, 0.78D, "section title refines previous topic");
+                }
+                if (dependsOn(right, left)) {
+                    addSectionEdge(edges, edgeKeys, right, left, SectionEdgeType.DEPENDS_ON, 0.72D, "procedure or rule depends on background/context section");
+                } else if (dependsOn(left, right)) {
+                    addSectionEdge(edges, edgeKeys, left, right, SectionEdgeType.DEPENDS_ON, 0.72D, "procedure or rule depends on background/context section");
+                }
+                if (exampleOf(right, left)) {
+                    addSectionEdge(edges, edgeKeys, right, left, SectionEdgeType.EXAMPLE_OF, 0.7D, "example section illustrates concept section");
+                } else if (exampleOf(left, right)) {
+                    addSectionEdge(edges, edgeKeys, left, right, SectionEdgeType.EXAMPLE_OF, 0.7D, "example section illustrates concept section");
+                }
+                if (contradicts(left, right)) {
+                    addSectionEdge(edges, edgeKeys, left, right, SectionEdgeType.CONTRADICTS, 0.8D, "conflict signal detected across sections");
+                }
+            }
+        }
+        return edges;
+    }
+
+    private void addSectionEdge(List<SectionEdge> edges,
+                                Set<String> edgeKeys,
+                                SectionAggregation from,
+                                SectionAggregation to,
+                                SectionEdgeType type,
+                                double weight,
+                                String reason) {
+        if (from == null || to == null || same(from.sectionId(), to.sectionId())) {
+            return;
+        }
+        String key = from.sectionId() + "->" + to.sectionId() + ":" + type;
+        if (edgeKeys.add(key)) {
+            edges.add(new SectionEdge(from.sectionId(), to.sectionId(), type, weight, reason));
+        }
+    }
+
+    private double keywordSimilarity(List<String> left, List<String> right) {
+        Set<String> leftSet = comparableKeywordSet(left);
+        Set<String> rightSet = comparableKeywordSet(right);
+        if (leftSet.isEmpty() || rightSet.isEmpty()) {
+            return 0.0D;
+        }
+        Set<String> intersection = new LinkedHashSet<>(leftSet);
+        intersection.retainAll(rightSet);
+        Set<String> union = new LinkedHashSet<>(leftSet);
+        union.addAll(rightSet);
+        return union.isEmpty() ? 0.0D : (double) intersection.size() / union.size();
+    }
+
+    private Set<String> comparableKeywordSet(List<String> values) {
+        return safeList(values).stream()
+            .filter(this::hasText)
+            .map(this::normalizeComparable)
+            .filter(value -> value.length() >= 2)
+            .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+    }
+
+    private boolean refines(SectionAggregation detail, SectionAggregation base) {
+        String detailTitle = normalizeComparable(detail.title());
+        String baseTitle = normalizeComparable(base.title());
+        return detailTitle.length() > baseTitle.length()
+            && baseTitle.length() >= 3
+            && detailTitle.contains(baseTitle);
+    }
+
+    private boolean dependsOn(SectionAggregation candidate, SectionAggregation context) {
+        String candidateText = normalizeComparable(candidate.title() + " " + candidate.summary());
+        String contextText = normalizeComparable(context.title() + " " + context.summary());
+        return containsAny(candidateText, "rule", "rules", "process", "procedure", "workflow", "dependency", "depends", "schedule", "判断", "调度", "规则", "流程", "依赖")
+            && containsAny(contextText, "background", "overview", "source", "context", "背景", "概述", "来源", "说明");
+    }
+
+    private boolean exampleOf(SectionAggregation example, SectionAggregation concept) {
+        String exampleText = normalizeComparable(example.title() + " " + example.summary());
+        String conceptText = normalizeComparable(concept.title() + " " + concept.summary());
+        return containsAny(exampleText, "example", "case", "sample", "例如", "比如", "案例", "示例")
+            && !containsAny(conceptText, "example", "case", "sample", "例如", "比如", "案例", "示例");
+    }
+
+    private boolean contradicts(SectionAggregation left, SectionAggregation right) {
+        String combined = normalizeComparable(left.title() + " " + left.summary() + " " + right.title() + " " + right.summary());
+        return containsAny(combined, "contradict", "conflict", "inconsistent", "opposite", "冲突", "矛盾", "不一致", "相反");
+    }
+
     private List<DocumentEvidenceChunk> expandedEvidence(SearchDocument document,
                                                          String query,
                                                          List<String> queryTokens,
@@ -526,19 +725,15 @@ public class DocumentSearchEvidenceService {
                 scored.add(new ScoredTextChunk(i, sectionLabel(chunk, i), chunk.content(), Math.max(35, 70 - i)));
             }
         }
-        Set<String> allowedSections = scored.stream()
-            .sorted(Comparator.comparingDouble(ScoredTextChunk::score).reversed().thenComparingInt(ScoredTextChunk::index))
-            .map(chunk -> normalizeComparable(chunk.section()))
-            .filter(this::hasText)
-            .distinct()
-            .limit(Math.max(1, maxSections))
-            .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+        List<ScoredTextChunk> orderedChunks = structureAwareChunkOrder(
+            scored,
+            normalizedRequestedSections,
+            Math.max(1, maxSections),
+            Math.max(1, maxChunks)
+        );
         int usedChars = 0;
         List<DocumentEvidenceChunk> evidence = new ArrayList<>();
-        for (ScoredTextChunk chunk : scored.stream()
-            .filter(chunk -> allowedSections.isEmpty() || allowedSections.contains(normalizeComparable(chunk.section())))
-            .sorted(Comparator.comparingDouble(ScoredTextChunk::score).reversed().thenComparingInt(ScoredTextChunk::index))
-            .toList()) {
+        for (ScoredTextChunk chunk : orderedChunks) {
             if (evidence.size() >= maxChunks || usedChars >= maxTotalChars) {
                 break;
             }
@@ -551,6 +746,93 @@ public class DocumentSearchEvidenceService {
             usedChars += content.length();
         }
         return evidence;
+    }
+
+    private List<ScoredTextChunk> structureAwareChunkOrder(List<ScoredTextChunk> chunks,
+                                                           List<String> requestedSections,
+                                                           int maxSections,
+                                                           int maxChunks) {
+        List<ScoredSection> sections = scoreSections(chunks, requestedSections).stream()
+            .sorted(Comparator.comparingDouble(ScoredSection::score).reversed().thenComparingInt(ScoredSection::firstIndex))
+            .limit(Math.max(1, maxSections))
+            .toList();
+        if (sections.isEmpty()) {
+            return chunks.stream()
+                .sorted(Comparator.comparingDouble(ScoredTextChunk::score).reversed().thenComparingInt(ScoredTextChunk::index))
+                .limit(Math.max(1, maxChunks))
+                .toList();
+        }
+        List<ScoredTextChunk> ordered = new ArrayList<>();
+        Set<Integer> usedIndexes = new LinkedHashSet<>();
+        for (ScoredSection section : sections) {
+            section.chunks().stream()
+                .sorted(Comparator.comparingDouble(ScoredTextChunk::score).reversed().thenComparingInt(ScoredTextChunk::index))
+                .findFirst()
+                .ifPresent(chunk -> {
+                    ordered.add(chunk);
+                    usedIndexes.add(chunk.index());
+                });
+            if (ordered.size() >= maxChunks) {
+                return ordered;
+            }
+        }
+        for (ScoredSection section : sections) {
+            for (ScoredTextChunk chunk : section.chunks().stream()
+                .sorted(Comparator.comparingDouble(ScoredTextChunk::score).reversed().thenComparingInt(ScoredTextChunk::index))
+                .toList()) {
+                if (ordered.size() >= maxChunks) {
+                    return ordered;
+                }
+                if (usedIndexes.add(chunk.index())) {
+                    ordered.add(chunk);
+                }
+            }
+        }
+        return ordered;
+    }
+
+    private List<ScoredSection> scoreSections(List<ScoredTextChunk> chunks, List<String> requestedSections) {
+        Map<String, List<ScoredTextChunk>> bySection = new LinkedHashMap<>();
+        Map<String, String> sectionLabels = new LinkedHashMap<>();
+        for (ScoredTextChunk chunk : chunks) {
+            String key = normalizeComparable(chunk.section());
+            if (!hasText(key)) {
+                key = "section_" + chunk.index();
+            }
+            bySection.computeIfAbsent(key, ignored -> new ArrayList<>()).add(chunk);
+            sectionLabels.putIfAbsent(key, chunk.section());
+        }
+        List<ScoredSection> sections = new ArrayList<>();
+        for (Map.Entry<String, List<ScoredTextChunk>> entry : bySection.entrySet()) {
+            List<ScoredTextChunk> sectionChunks = entry.getValue();
+            double bestChunkScore = sectionChunks.stream()
+                .mapToDouble(ScoredTextChunk::score)
+                .max()
+                .orElse(0.0D);
+            double averageChunkScore = sectionChunks.stream()
+                .mapToDouble(ScoredTextChunk::score)
+                .average()
+                .orElse(0.0D);
+            String sectionLabel = sectionLabels.getOrDefault(entry.getKey(), "");
+            double requestedBoost = !requestedSections.isEmpty() && sectionRequested(sectionLabel, requestedSections) ? 45.0D : 0.0D;
+            double structurePrior = Math.max(0.0D, 12.0D - firstIndex(sectionChunks));
+            double sectionScore = bestChunkScore + (averageChunkScore * 0.25D) + requestedBoost + structurePrior;
+            sections.add(new ScoredSection(
+                entry.getKey(),
+                sectionLabel,
+                sectionChunks,
+                firstIndex(sectionChunks),
+                sectionScore
+            ));
+        }
+        return sections;
+    }
+
+    private int firstIndex(List<ScoredTextChunk> chunks) {
+        return chunks.stream()
+            .mapToInt(ScoredTextChunk::index)
+            .min()
+            .orElse(Integer.MAX_VALUE);
     }
 
     private DocumentEvidenceChunk toExpandedEvidence(SearchDocument document,
@@ -795,6 +1077,84 @@ public class DocumentSearchEvidenceService {
             }
         }
         return values.stream().limit(8).toList();
+    }
+
+    private void addDocumentAnchoredEvidence(List<DocumentEvidenceChunk> chunks,
+                                             SearchResult result,
+                                             String query,
+                                             List<String> queryTokens,
+                                             int remaining,
+                                             boolean debug,
+                                             SearchPermissionContext permissionContext) {
+        if (remaining <= 0 || result == null || !hasText(result.docId())) {
+            return;
+        }
+        SearchDocument document = searchService.get(result.docId(), permissionContext).orElse(null);
+        if (document == null || !hasText(document.getContent())) {
+            return;
+        }
+        List<DocumentEvidenceChunk> expanded = expandedEvidence(
+            document,
+            query,
+            queryTokens,
+            List.of(),
+            3,
+            Math.max(1, remaining),
+            6000,
+            debug
+        );
+        chunks.addAll(expanded.stream().limit(Math.max(1, remaining)).toList());
+    }
+
+    private boolean isDocumentAnchorHit(SearchResult result, String query, List<String> queryTokens) {
+        if (result == null || result.scoreBreakdown() == null || !hasText(query)) {
+            return false;
+        }
+        SearchScoreBreakdown breakdown = result.scoreBreakdown();
+        Map<String, Integer> fieldScores = breakdown.fieldScores() == null ? Map.of() : breakdown.fieldScores();
+        int titleScore = Math.max(breakdown.titleScore(), fieldScores.getOrDefault("title", 0));
+        int fileNameScore = fieldScores.getOrDefault("fileName", 0);
+        if (titleScore <= 0 && fileNameScore <= 0) {
+            return false;
+        }
+        String normalizedQuery = normalizeComparable(query);
+        String normalizedTitle = normalizeComparable(result.title());
+        String normalizedFileName = normalizeComparable(result.fileName());
+        if (normalizedQuery.length() >= 4
+            && (containsEither(normalizedTitle, normalizedQuery) || containsEither(normalizedFileName, normalizedQuery))) {
+            return true;
+        }
+        int titleTokenHits = titleTokenHits(normalizedTitle + normalizedFileName, queryTokens);
+        if (titleTokenHits >= 2) {
+            return true;
+        }
+        int matchedTitleTerms = safeList(result.matchedKeywords()).stream()
+            .filter(this::hasText)
+            .map(this::normalizeComparable)
+            .filter(term -> term.length() >= 2)
+            .filter(term -> normalizedTitle.contains(term) || normalizedFileName.contains(term))
+            .limit(3)
+            .toList()
+            .size();
+        return matchedTitleTerms >= 2;
+    }
+
+    private int titleTokenHits(String normalizedTitleAndFileName, List<String> queryTokens) {
+        if (!hasText(normalizedTitleAndFileName)) {
+            return 0;
+        }
+        return (int) safeList(queryTokens).stream()
+            .filter(this::hasText)
+            .map(this::normalizeComparable)
+            .filter(token -> token.length() >= 2)
+            .distinct()
+            .filter(normalizedTitleAndFileName::contains)
+            .limit(3)
+            .count();
+    }
+
+    private boolean containsEither(String left, String right) {
+        return hasText(left) && hasText(right) && (left.contains(right) || right.contains(left));
     }
 
     private boolean matchesFileType(SearchResult result, String fileType) {
@@ -1082,6 +1442,20 @@ public class DocumentSearchEvidenceService {
             .anyMatch(normalized::contains);
     }
 
+    private boolean containsAny(String text, String... values) {
+        if (!hasText(text) || values == null || values.length == 0) {
+            return false;
+        }
+        String normalized = normalizeComparable(text);
+        for (String value : values) {
+            String needle = normalizeComparable(value);
+            if (hasText(needle) && normalized.contains(needle)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private boolean appears(String keyword, String content) {
         if (!hasText(keyword)) {
             return false;
@@ -1117,5 +1491,96 @@ public class DocumentSearchEvidenceService {
     }
 
     private record ScoredTextChunk(int index, String section, String content, double score) {
+    }
+
+    private record ScoredSection(
+        String key,
+        String section,
+        List<ScoredTextChunk> chunks,
+        int firstIndex,
+        double score
+    ) {
+    }
+
+    private record SectionAggregation(
+        String sectionId,
+        String documentId,
+        String title,
+        String summary,
+        List<String> chunkIds,
+        List<Integer> chunkIndexes,
+        List<String> keywords,
+        String embeddingRef,
+        String content,
+        int firstIndex,
+        double score
+    ) {
+    }
+
+    private final class MutableSectionAggregation {
+        private final String key;
+        private final String title;
+        private final String documentId;
+        private final String embeddingRef;
+        private final int firstIndex;
+        private final List<String> chunkIds = new ArrayList<>();
+        private final List<Integer> chunkIndexes = new ArrayList<>();
+        private final StringBuilder content = new StringBuilder();
+
+        private MutableSectionAggregation(String key, String title, String documentId, String embeddingRef, int firstIndex) {
+            this.key = key;
+            this.title = title;
+            this.documentId = documentId;
+            this.embeddingRef = embeddingRef;
+            this.firstIndex = firstIndex;
+        }
+
+        private void addChunk(String chunkId, int chunkIndex, String chunkContent) {
+            chunkIds.add(chunkId);
+            chunkIndexes.add(chunkIndex);
+            if (hasText(chunkContent)) {
+                if (content.length() > 0) {
+                    content.append("\n\n");
+                }
+                content.append(chunkContent);
+            }
+        }
+
+        private SectionAggregation toAggregation(List<String> queryTokens) {
+            String fullContent = content.toString();
+            String summary = outlineSummary(fullContent, title);
+            List<String> keywords = sectionKeywords(title + " " + summary + " " + fullContent);
+            return new SectionAggregation(
+                "section://" + firstNonBlank(documentId, "unknown") + "#" + firstNonBlank(key, "section"),
+                documentId,
+                title,
+                summary,
+                List.copyOf(chunkIds),
+                List.copyOf(chunkIndexes),
+                keywords,
+                embeddingRef,
+                fullContent,
+                firstIndex,
+                sectionGraphScore(title, summary, fullContent, queryTokens, firstIndex)
+            );
+        }
+
+        private double sectionGraphScore(String title, String summary, String content, List<String> queryTokens, int firstIndex) {
+            String normalizedTitle = normalizeComparable(title);
+            String comparable = normalizeComparable(title + " " + summary + " " + content);
+            double score = Math.max(0.05D, 0.2D - (Math.max(0, firstIndex) * 0.01D));
+            for (String token : safeList(queryTokens)) {
+                String normalizedToken = normalizeComparable(token);
+                if (!hasText(normalizedToken)) {
+                    continue;
+                }
+                if (normalizedTitle.contains(normalizedToken)) {
+                    score += normalizedToken.length() > 2 ? 0.22D : 0.1D;
+                } else if (comparable.contains(normalizedToken)) {
+                    score += normalizedToken.length() > 2 ? 0.12D : 0.05D;
+                }
+            }
+            return Math.round(Math.min(1.0D, score) * 1000.0D) / 1000.0D;
+        }
     }
 }

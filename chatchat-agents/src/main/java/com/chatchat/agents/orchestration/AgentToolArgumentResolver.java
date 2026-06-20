@@ -4,6 +4,7 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 /**
  * Applies default arguments and runtime-bound document filters before tool execution.
@@ -26,7 +27,12 @@ class AgentToolArgumentResolver {
         if (!toolNames.isDocumentSearchToolName(toolName)) {
             return values;
         }
-        if (!boundDocumentIds.isEmpty() && !values.containsKey("document_ids")) {
+        if (!strictDocumentScope(values)) {
+            values.remove("document_ids");
+            values.remove("documentIds");
+            values.remove("fileIds");
+            values.remove("file_ids");
+        } else if (!boundDocumentIds.isEmpty() && !hasAnyKey(values, "document_ids", "documentIds", "fileIds", "file_ids")) {
             values.put("document_ids", boundDocumentIds);
         }
         if (!boundDocumentTags.isEmpty() && !values.containsKey("tags")) {
@@ -44,6 +50,8 @@ class AgentToolArgumentResolver {
         Map<String, Object> values = applyDocumentSearchDefaults(toolName, arguments, boundDocumentIds, boundDocumentTags);
         if (toolNames.isDocumentSearchToolName(toolName) && !values.containsKey("query") && query != null && !query.isBlank()) {
             values.put("query", query);
+        } else if (toolNames.isDocumentSearchToolName(toolName) && query != null && !query.isBlank()) {
+            values.put("query", mergedDocumentQuery(query, Objects.toString(values.get("query"), "")));
         }
         if (!toolNames.isWebEvidenceToolName(toolName)) {
             return values;
@@ -78,5 +86,57 @@ class AgentToolArgumentResolver {
 
     private int cappedLimit(int webSearchResultLimit) {
         return Math.max(1, Math.min(webSearchReferenceLimit, webSearchResultLimit));
+    }
+
+    private boolean strictDocumentScope(Map<String, Object> values) {
+        Object strict = firstPresent(values, "strict_document_scope", "strictDocumentScope");
+        if (strict instanceof Boolean flag) {
+            return flag;
+        }
+        Object scopeMode = firstPresent(values, "scope_mode", "scopeMode");
+        return scopeMode != null && "strict".equalsIgnoreCase(String.valueOf(scopeMode).trim());
+    }
+
+    private boolean hasAnyKey(Map<String, Object> values, String... keys) {
+        for (String key : keys) {
+            if (values.containsKey(key)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private Object firstPresent(Map<String, Object> values, String... keys) {
+        if (values == null) {
+            return null;
+        }
+        for (String key : keys) {
+            if (values.containsKey(key)) {
+                return values.get(key);
+            }
+        }
+        return null;
+    }
+
+    private String mergedDocumentQuery(String originalQuery, String plannedQuery) {
+        String original = originalQuery == null ? "" : originalQuery.trim();
+        String planned = plannedQuery == null ? "" : plannedQuery.trim();
+        if (original.isBlank()) {
+            return planned;
+        }
+        if (planned.isBlank()) {
+            return original;
+        }
+        if (compact(planned).contains(compact(original))) {
+            return planned;
+        }
+        if (compact(original).contains(compact(planned))) {
+            return original;
+        }
+        return original + " " + planned;
+    }
+
+    private String compact(String value) {
+        return value == null ? "" : value.replaceAll("\\s+", "").toLowerCase();
     }
 }

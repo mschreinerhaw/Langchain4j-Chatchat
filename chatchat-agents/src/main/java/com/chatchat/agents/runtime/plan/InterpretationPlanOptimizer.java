@@ -29,6 +29,12 @@ public class InterpretationPlanOptimizer {
         InterpretationPlan.Stability stability = plan.plan().stability();
         boolean lockedEdges = stability != null && Boolean.TRUE.equals(stability.lockedEdges());
 
+        StepInputSanitizeResult sanitized = sanitizeDocumentSearchInputs(steps);
+        steps = sanitized.steps();
+        if (sanitized.changed()) {
+            passes.add("DocumentSearchInputSanitizerPass");
+        }
+
         if (!lockedEdges) {
             RewriteState pruned = pruneNoopSteps(plan, steps, edgeContracts, bindings);
             steps = pruned.steps();
@@ -58,6 +64,11 @@ public class InterpretationPlanOptimizer {
             passes.add("ParallelHintPass");
         }
 
+        PolicyResult retrievalPolicy = retrievalPolicyGuard(plan, steps, parallel.executionPolicy());
+        if (retrievalPolicy.changed()) {
+            passes.add("RetrievalPolicyGuardPass");
+        }
+
         InterpretationPlan optimized = new InterpretationPlan(
             plan.version(),
             plan.intent(),
@@ -68,10 +79,69 @@ public class InterpretationPlanOptimizer {
                 remapBindingsForRenumber(steps, bindings),
                 remapStabilityForRenumber(steps, plan.plan().stability())
             ),
-            parallel.executionPolicy(),
+            retrievalPolicy.executionPolicy(),
             plan.review()
         );
         return new OptimizationResult(optimized, List.copyOf(passes));
+    }
+
+    private StepInputSanitizeResult sanitizeDocumentSearchInputs(List<InterpretationPlan.Step> steps) {
+        boolean changed = false;
+        List<InterpretationPlan.Step> sanitized = new ArrayList<>(steps.size());
+        for (InterpretationPlan.Step step : steps) {
+            if (step == null || !isDocumentSearchStep(step) || step.input() == null || strictDocumentScope(step.input())) {
+                sanitized.add(step);
+                continue;
+            }
+            Map<String, Object> input = new LinkedHashMap<>(step.input());
+            boolean removed = false;
+            for (String key : List.of("document_ids", "documentIds", "fileIds", "file_ids")) {
+                removed = input.remove(key) != null || removed;
+            }
+            if (!removed) {
+                sanitized.add(step);
+                continue;
+            }
+            changed = true;
+            sanitized.add(new InterpretationPlan.Step(
+                step.id(),
+                step.actionType(),
+                step.toolName(),
+                input,
+                step.dependsOn(),
+                step.outputContract(),
+                step.validation()
+            ));
+        }
+        return new StepInputSanitizeResult(sanitized, changed);
+    }
+
+    private PolicyResult retrievalPolicyGuard(InterpretationPlan plan,
+                                              List<InterpretationPlan.Step> steps,
+                                              InterpretationPlan.ExecutionPolicy policy) {
+        if (!isDocumentRetrievalPlan(plan, steps) || policy == null) {
+            return new PolicyResult(policy, false);
+        }
+        Integer maxSteps = policy.maxSteps();
+        Integer maxRewriteTimes = policy.maxRewriteTimes();
+        Integer guardedMaxSteps = maxSteps != null && maxSteps < 4 ? 4 : maxSteps;
+        Integer guardedMaxRewriteTimes = maxRewriteTimes != null && maxRewriteTimes < 2 ? 2 : maxRewriteTimes;
+        if (Objects.equals(maxSteps, guardedMaxSteps) && Objects.equals(maxRewriteTimes, guardedMaxRewriteTimes)) {
+            return new PolicyResult(policy, false);
+        }
+        return new PolicyResult(new InterpretationPlan.ExecutionPolicy(
+            guardedMaxSteps,
+            policy.allowParallel(),
+            policy.allowTool(),
+            policy.denyTool(),
+            policy.timeoutMs(),
+            guardedMaxRewriteTimes,
+            policy.fallbackMode(),
+            policy.toolPriority(),
+            policy.costBudget(),
+            policy.latencyBudgetMs(),
+            policy.accuracyVsSpeed()
+        ), true);
     }
 
     private RewriteState pruneNoopSteps(InterpretationPlan plan,
@@ -410,6 +480,39 @@ public class InterpretationPlanOptimizer {
         return value == null ? "" : value.trim().toLowerCase().replace('-', '_');
     }
 
+    private boolean isDocumentRetrievalPlan(InterpretationPlan plan, List<InterpretationPlan.Step> steps) {
+        String intentType = plan == null || plan.intent() == null ? "" : normalize(plan.intent().type());
+        if (intentType.contains("document_retrieval")) {
+            return true;
+        }
+        return steps != null && steps.stream().anyMatch(this::isDocumentSearchStep);
+    }
+
+    private boolean isDocumentSearchStep(InterpretationPlan.Step step) {
+        return step != null && step.mcpToolAction() && normalize(step.toolName()).contains("document_search");
+    }
+
+    private boolean strictDocumentScope(Map<String, Object> input) {
+        Object strict = firstPresent(input, "strict_document_scope", "strictDocumentScope");
+        if (strict instanceof Boolean flag) {
+            return flag;
+        }
+        Object scopeMode = firstPresent(input, "scope_mode", "scopeMode");
+        return scopeMode != null && "strict".equalsIgnoreCase(String.valueOf(scopeMode).trim());
+    }
+
+    private Object firstPresent(Map<String, Object> input, String... keys) {
+        if (input == null) {
+            return null;
+        }
+        for (String key : keys) {
+            if (input.containsKey(key)) {
+                return input.get(key);
+            }
+        }
+        return null;
+    }
+
     private record RewriteState(
         List<InterpretationPlan.Step> steps,
         List<InterpretationPlan.EdgeContract> edgeContracts,
@@ -424,7 +527,19 @@ public class InterpretationPlanOptimizer {
     ) {
     }
 
+    private record PolicyResult(
+        InterpretationPlan.ExecutionPolicy executionPolicy,
+        boolean changed
+    ) {
+    }
+
     private record OrderingResult(
+        List<InterpretationPlan.Step> steps,
+        boolean changed
+    ) {
+    }
+
+    private record StepInputSanitizeResult(
         List<InterpretationPlan.Step> steps,
         boolean changed
     ) {

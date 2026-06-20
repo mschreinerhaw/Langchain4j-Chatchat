@@ -82,4 +82,81 @@ class InterpretationPlanOptimizerTest {
         assertThat(result.plan().plan().edgeContracts()).singleElement()
             .satisfies(contract -> assertThat(contract.to()).isNotNull());
     }
+
+    @Test
+    void documentRetrievalPlanRemovesNonStrictDocumentIdsAndRelaxesExecutionPolicy() {
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("document_retrieval", "Explain a document", "low"),
+            new InterpretationPlan.Context(List.of(), List.of(), List.of(), List.of()),
+            new InterpretationPlan.Plan(List.of(
+                new InterpretationPlan.Step(
+                    1,
+                    "mcp_tool",
+                    "mcp_chatchat_mcp_server_document_search",
+                    Map.of(
+                        "query", "跨交易日 任务依赖 执行判断 调度方案",
+                        "document_ids", List.of("20260617_c489d851")
+                    ),
+                    List.of(),
+                    null,
+                    null
+                ),
+                new InterpretationPlan.Step(2, "final_answer", "", Map.of("answer", "done"), List.of(1), null, null)
+            )),
+            new InterpretationPlan.ExecutionPolicy(
+                2,
+                false,
+                List.of("mcp_chatchat_mcp_server_document_search"),
+                List.of(),
+                30000,
+                1,
+                "safe_answer"
+            ),
+            new InterpretationPlan.Review(new InterpretationPlan.SelfCheck(0.9, 0.2, true, List.of()), List.of())
+        );
+
+        InterpretationPlanOptimizer.OptimizationResult result = new InterpretationPlanOptimizer().optimize(plan);
+
+        assertThat(result.appliedPasses())
+            .contains("DocumentSearchInputSanitizerPass", "RetrievalPolicyGuardPass");
+        assertThat(result.plan().steps().get(0).input())
+            .containsEntry("query", "跨交易日 任务依赖 执行判断 调度方案")
+            .doesNotContainKey("document_ids");
+        assertThat(result.plan().executionPolicy().maxSteps()).isEqualTo(4);
+        assertThat(result.plan().executionPolicy().maxRewriteTimes()).isEqualTo(2);
+    }
+
+    @Test
+    void documentRetrievalPlanKeepsStrictDocumentIds() {
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("document_retrieval", "Explain a scoped document", "low"),
+            new InterpretationPlan.Context(List.of(), List.of(), List.of(), List.of()),
+            new InterpretationPlan.Plan(List.of(
+                new InterpretationPlan.Step(
+                    1,
+                    "mcp_tool",
+                    "document_search",
+                    Map.of(
+                        "query", "跨交易日任务依赖执行判断与调度方案",
+                        "document_ids", List.of("20260617_c489d851"),
+                        "strict_document_scope", true
+                    ),
+                    List.of(),
+                    null,
+                    null
+                )
+            )),
+            new InterpretationPlan.ExecutionPolicy(4, false, List.of("document_search"), List.of(), 30000, 2, "safe_answer"),
+            new InterpretationPlan.Review(new InterpretationPlan.SelfCheck(0.9, 0.2, true, List.of()), List.of())
+        );
+
+        InterpretationPlanOptimizer.OptimizationResult result = new InterpretationPlanOptimizer().optimize(plan);
+
+        assertThat(result.appliedPasses()).doesNotContain("DocumentSearchInputSanitizerPass");
+        assertThat(result.plan().steps().get(0).input())
+            .containsEntry("document_ids", List.of("20260617_c489d851"))
+            .containsEntry("strict_document_scope", true);
+    }
 }

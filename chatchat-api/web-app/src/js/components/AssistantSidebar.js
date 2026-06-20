@@ -84,7 +84,9 @@ export default {
   ],
   data() {
     return {
-      collapsedGroups: {},
+      collapsedGroups: {
+        platform: true
+      },
       agentRuntimeLogo: "/agent-runtime-logo.svg",
       historyKeyword: "",
       showAllHistory: false

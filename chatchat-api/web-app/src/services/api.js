@@ -788,6 +788,22 @@ export function searchDocuments(filters = {}) {
   return apiRequest(`/search/frontend${query ? `?${query}` : ""}`);
 }
 
+export function debugDocumentDecision(payload = {}) {
+  return apiRequest("/search/document-search", {
+    method: "POST",
+    body: JSON.stringify({
+      query: payload.query || "",
+      topK: payload.topK || 8,
+      filters: payload.filters || null,
+      fileIds: payload.fileIds || [],
+      tenantId: payload.tenantId || "",
+      userId: payload.userId || "",
+      roles: payload.roles || [],
+      debug: payload.debug === true
+    })
+  });
+}
+
 export function getSearchDocument(docId) {
   return apiRequest(`/search/documents/${encodeURIComponent(docId)}`);
 }

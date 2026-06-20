@@ -20,6 +20,7 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @Component
 @RequiredArgsConstructor
@@ -180,7 +181,7 @@ public class ToolRegistryMcpAdapter {
                 errorText(output),
                 ToolLogSummarizer.summarize(output == null ? null : output.getData()));
         }
-        return toCallToolResult(output);
+        return toCallToolResult(toolName, output);
     }
 
     /**
@@ -269,10 +270,13 @@ public class ToolRegistryMcpAdapter {
      * @param output the output value
      * @return the converted call tool result
      */
-    private McpSchema.CallToolResult toCallToolResult(ToolOutput output) {
+    private McpSchema.CallToolResult toCallToolResult(String toolName, ToolOutput output) {
         boolean failed = output == null || !output.isSuccess();
         Object structuredContent = structuredContent(output, failed);
-        String text = failed ? errorText(output) : successText(output);
+        if (isDocumentSearchToolName(toolName)) {
+            structuredContent = sanitizeDocumentSearchContent(structuredContent);
+        }
+        String text = failed ? errorText(output) : successText(output, structuredContent);
 
         Map<String, Object> meta = new LinkedHashMap<>();
         if (output != null && output.getExecutionTimeMs() != null) {
@@ -399,13 +403,67 @@ public class ToolRegistryMcpAdapter {
      * @return the operation result
      */
     private String successText(ToolOutput output) {
+        return successText(output, output == null ? null : output.getData());
+    }
+
+    private String successText(ToolOutput output, Object content) {
         if (output == null) {
             return "";
         }
         if (output.getMessage() != null && !output.getMessage().isBlank()) {
             return output.getMessage();
         }
-        return stringify(output.getData());
+        return stringify(content);
+    }
+
+    private Object sanitizeDocumentSearchContent(Object value) {
+        Object normalized = value;
+        if (value != null
+            && !(value instanceof Map<?, ?>)
+            && !(value instanceof List<?>)
+            && !(value instanceof String)
+            && !(value instanceof Number)
+            && !(value instanceof Boolean)) {
+            normalized = objectMapper.convertValue(value, Object.class);
+        }
+        return sanitizeDocumentSearchValue(normalized);
+    }
+
+    private Object sanitizeDocumentSearchValue(Object value) {
+        if (value instanceof Map<?, ?> map) {
+            Map<String, Object> sanitized = new LinkedHashMap<>();
+            map.forEach((key, item) -> {
+                if (key == null || isDocumentSearchInternalSignalKey(String.valueOf(key))) {
+                    return;
+                }
+                sanitized.put(String.valueOf(key), sanitizeDocumentSearchValue(item));
+            });
+            return sanitized;
+        }
+        if (value instanceof List<?> list) {
+            return list.stream()
+                .map(this::sanitizeDocumentSearchValue)
+                .toList();
+        }
+        return value;
+    }
+
+    private boolean isDocumentSearchInternalSignalKey(String key) {
+        if (key == null || key.isBlank()) {
+            return false;
+        }
+        String normalized = key.trim().toLowerCase().replace("_", "").replace("-", "");
+        return Set.of(
+            "matchedkeywords",
+            "fieldscores",
+            "scorebreakdown",
+            "querytokens",
+            "expandedtokens",
+            "significantterms",
+            "memoryrecallraw",
+            "memoryrecall",
+            "trace"
+        ).contains(normalized);
     }
 
     /**

@@ -1,5 +1,7 @@
 package com.chatchat.agents.orchestration;
 
+import com.chatchat.agents.evidence.AnswerAssemblyEngine;
+import com.chatchat.agents.evidence.AnswerAssemblyPolicy;
 import com.chatchat.agents.evidence.EvidenceAnswerGroundingGuard;
 import com.chatchat.agents.runtime.AgentAnswerReview;
 import com.chatchat.agents.runtime.AgentAnswerReviewer;
@@ -35,6 +37,7 @@ class AgentAnswerFinalizer {
     private final AgentAnswerReviewer answerReviewer;
     private final AgentRuntimeGuard runtimeGuard;
     private final EvidenceAnswerGroundingGuard groundingGuard = new EvidenceAnswerGroundingGuard();
+    private final AnswerAssemblyEngine answerAssemblyEngine = new AnswerAssemblyEngine();
 
     AgentAnswerFinalizer(AgentAnswerReviewer answerReviewer, AgentRuntimeGuard runtimeGuard) {
         this.answerReviewer = answerReviewer;
@@ -49,6 +52,7 @@ class AgentAnswerFinalizer {
         values.put("runtimeContractVersion", "agent_runtime_v1");
         values.put("observations", observations == null ? List.of() : List.copyOf(observations));
         values.put("toolTraceCount", traces == null ? 0 : traces.size());
+        attachAnswerAssemblyPolicy(values, observations);
         attachEvidenceAnswerContract(answer, values, observations);
         return new AgentOrchestrator.AgentExecutionResult(
             answer,
@@ -157,6 +161,10 @@ class AgentAnswerFinalizer {
         prompt.append("If observations include web citation labels such as [缃戦〉1], append the matching label immediately after every sentence that relies on that web source.\n");
         prompt.append("Do not invent citations or cite URLs that are not listed in the observations.\n");
         prompt.append("If an Evidence trust policy asks for more evidence, avoid strong claims and say that trusted evidence is insufficient.\n");
+        if (containsEvidence(observations == null ? List.of() : observations)) {
+            AnswerAssemblyPolicy assemblyPolicy = answerAssemblyEngine.plan(observations);
+            prompt.append(answerAssemblyEngine.promptInstructions(assemblyPolicy)).append("\n");
+        }
         if (observations == null || observations.isEmpty()) {
             prompt.append("No external tool observation is available.\n");
         } else {
@@ -255,6 +263,21 @@ class AgentAnswerFinalizer {
         metadata.put("evidenceAnswer", result.evidenceAnswer().toMap());
         metadata.put("availableEvidenceCitations", result.availableCitations());
         metadata.put("groundingStatus", result.groundingStatus());
+    }
+
+    private void attachAnswerAssemblyPolicy(Map<String, Object> metadata, List<String> observations) {
+        if (metadata == null) {
+            return;
+        }
+        if (!containsEvidence(observations == null ? List.of() : observations)) {
+            return;
+        }
+        AnswerAssemblyPolicy policy = answerAssemblyEngine.plan(observations);
+        metadata.put("answerAssemblyPolicy", policy.toMap());
+        metadata.put("answerAssemblyMode", policy.mode().name());
+        if (!policy.missingInfo().isEmpty()) {
+            metadata.put("answerAssemblyMissingInfo", policy.missingInfo());
+        }
     }
 
     private boolean containsEvidence(List<String> observations) {

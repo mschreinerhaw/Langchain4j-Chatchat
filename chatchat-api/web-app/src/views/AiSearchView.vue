@@ -50,8 +50,8 @@
             </div>
           </div>
           <p>{{ result.summary }}</p>
-          <div v-if="result.matchedKeywords?.length" class="result-tags">
-            <span v-for="term in result.matchedKeywords" :key="term">{{ term }}</span>
+          <div v-if="visibleResultTags(result).length" class="result-tags">
+            <span v-for="tag in visibleResultTags(result)" :key="tag">{{ tag }}</span>
           </div>
         </article>
 

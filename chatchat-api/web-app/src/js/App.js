@@ -11,6 +11,7 @@ import AgentWorkshopView from "../views/AgentWorkshopView.vue";
 import AgentScheduleView from "../views/AgentScheduleView.vue";
 import AgentRuntimeView from "../views/AgentRuntimeView.vue";
 import RetrievalRulesView from "../views/RetrievalRulesView.vue";
+import EvidenceDebuggerView from "../views/EvidenceDebuggerView.vue";
 import SystemManagementView from "../views/SystemManagementView.vue";
 import TasksView from "../views/TasksView.vue";
 import {
@@ -48,6 +49,7 @@ const views = {
   schedules: AgentScheduleView,
   runtime: AgentRuntimeView,
   rules: RetrievalRulesView,
+  debugger: EvidenceDebuggerView,
   tasks: TasksView,
   system: SystemManagementView
 };
@@ -126,6 +128,7 @@ export default {
             { id: "agents", label: "Agent管理", icon: "agent" },
             { id: "schedules", label: "Agent调度", icon: "schedule" },
             { id: "rules", label: "关键词规则", icon: "search" },
+            { id: "debugger", label: "证据调试", icon: "tasks" },
             { id: "tasks", label: "运行监控", icon: "tasks" },
             { id: "system", label: "系统管理", icon: "gear" }
           ]

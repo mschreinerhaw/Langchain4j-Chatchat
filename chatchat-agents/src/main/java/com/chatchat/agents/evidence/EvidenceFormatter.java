@@ -31,6 +31,10 @@ public class EvidenceFormatter {
             builder.append("[Evidence ").append(i + 1).append("]\n");
             builder.append("type: ").append(chunk.evidenceType()).append('\n');
             builder.append("citation: ").append(citationBinder.refId(chunk, i + 1)).append('\n');
+            Object evidenceGrade = chunk.citation() == null ? null : chunk.citation().get("evidenceGrade");
+            if (evidenceGrade != null) {
+                builder.append("evidenceGrade: ").append(evidenceGrade).append('\n');
+            }
             EvidenceSource source = chunk.source();
             if (source != null) {
                 appendLine(builder, "source", source.name());

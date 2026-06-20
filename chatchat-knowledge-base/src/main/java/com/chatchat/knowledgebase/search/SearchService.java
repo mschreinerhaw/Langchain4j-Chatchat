@@ -33,9 +33,20 @@ public class SearchService {
     private static final String ALL_CATEGORY = "all";
     private static final String UNCATEGORIZED = "uncategorized";
     private static final int TITLE_PHRASE_SCORE = 45;
+    private static final int FILENAME_PHRASE_SCORE = 40;
+    private static final int TITLE_MEMORY_PHRASE_RECALL_SCORE = 90;
+    private static final int FILENAME_MEMORY_PHRASE_RECALL_SCORE = 80;
+    private static final int TITLE_MEMORY_TERM_RECALL_SCORE = 18;
+    private static final int FILENAME_MEMORY_TERM_RECALL_SCORE = 16;
+    private static final int TITLE_MEMORY_RECALL_SCORE_CAP = 60;
+    private static final int TITLE_MEMORY_RECALL_WEAK_LEXICAL_CAP = 36;
+    private static final int TITLE_MEMORY_RECALL_STRONG_LEXICAL_CAP = 16;
+    private static final int TITLE_MEMORY_WEAK_LEXICAL_THRESHOLD = 12;
+    private static final int TITLE_MEMORY_STRONG_LEXICAL_THRESHOLD = 40;
     private static final int KEYWORD_PHRASE_SCORE = 36;
     private static final int CONTENT_PHRASE_SCORE = 20;
     private static final int TITLE_TERM_SCORE = 12;
+    private static final int FILENAME_TERM_SCORE = 11;
     private static final int KEYWORD_TERM_SCORE = 10;
     private static final int TAG_TERM_SCORE = 14;
     private static final int COMPANY_TERM_SCORE = 10;
@@ -275,6 +286,17 @@ public class SearchService {
             return emptySearchPage(keyword, pageSize, pageNumber, startedAt, "no_match", context);
         }
         List<String> significantTerms = significantQueryTerms(normalizedKeyword, queryTokens);
+        QueryRecallMode recallMode = routeQueryRecall(normalizedKeyword, significantTerms);
+        Map<String, Integer> titleMemoryScores = titleMemoryCandidateScores(normalizedKeyword, significantTerms, context);
+        log.info(
+            "search_route query='{}' mode={} queryTokens={} expandedTokens={} significantTerms={} memoryCandidates={}",
+            safeLogQuery(normalizedKeyword),
+            recallMode,
+            queryTokens,
+            expandedQueryTokens,
+            significantTerms,
+            titleMemoryScores.size()
+        );
         LuceneSearchOutcome luceneOutcome = searchWithLucene(
             normalizedKeyword,
             tag,
@@ -286,12 +308,15 @@ public class SearchService {
             queryTokens,
             expandedQueryTokens,
             significantTerms,
+            titleMemoryScores,
             context
         );
         if (luceneOutcome.page() != null) {
             return luceneOutcome.page();
         }
         Map<String, Integer> scores = new HashMap<>();
+        Map<String, Integer> titleMemoryRawScores = new HashMap<>();
+        Map<String, Integer> titleMemoryCalibratedScores = new HashMap<>();
         Map<String, Set<String>> matchedKeywords = new HashMap<>();
         Set<String> candidates = null;
         int candidateLimit = fallbackCandidateLimit(luceneOutcome.fallbackMode());
@@ -310,6 +335,17 @@ public class SearchService {
                 }
             }
         }
+        int keywordCandidateCount = candidates == null ? 0 : candidates.size();
+
+        candidates = injectTitleMemoryCandidates(
+            candidates,
+            scores,
+            matchedKeywords,
+            titleMemoryScores,
+            titleMemoryRawScores,
+            titleMemoryCalibratedScores,
+            normalizedKeyword
+        );
 
         candidates = applyFilter(candidates, tokenizer.splitFilter(tag), term -> store.findByTag(term, candidateLimit));
         candidates = applyFilter(candidates, tokenizer.splitFilter(company), term -> store.findByCompany(term, candidateLimit));
@@ -322,16 +358,42 @@ public class SearchService {
         if (candidates.isEmpty() && !expandedQueryTokens.isEmpty() && noFilters(tag, company, industry) && scopedDocumentIds.isEmpty()) {
             candidates = fallbackCandidateIds(luceneOutcome.fallbackMode());
         }
+        log.info(
+            "search_candidate_union query='{}' mode={} fallbackMode={} keywordCandidates={} memoryCandidates={} finalCandidates={}",
+            safeLogQuery(normalizedKeyword),
+            recallMode,
+            luceneOutcome.fallbackMode(),
+            keywordCandidateCount,
+            titleMemoryScores.size(),
+            candidates.size()
+        );
 
         List<SearchResult> allResults = candidates.stream()
             .map(store::get)
             .flatMap(Optional::stream)
             .filter(this::isLatestVersion)
             .filter(document -> canAccess(document, context))
-            .map(document -> toResult(document, normalizedKeyword, expandedQueryTokens, significantTerms, scores, matchedKeywords, null))
+            .map(document -> toResult(
+                document,
+                normalizedKeyword,
+                expandedQueryTokens,
+                significantTerms,
+                scores,
+                matchedKeywords,
+                null,
+                titleMemoryRawScores,
+                titleMemoryCalibratedScores
+            ))
             .filter(result -> expandedQueryTokens.isEmpty() || isRelevantResult(result, significantTerms))
             .sorted(resultComparator())
             .toList();
+        log.info(
+            "search_result query='{}' mode={} finalCandidates={} resultTotal={}",
+            safeLogQuery(normalizedKeyword),
+            recallMode,
+            candidates.size(),
+            allResults.size()
+        );
 
         List<SearchResult> results = allResults.stream()
             .skip(pageOffset(pageNumber, pageSize))
@@ -374,6 +436,18 @@ public class SearchService {
         List<String> expandedQueryTokens = queryExpander.expandTokens(queryTokens, queryIntentName, normalizedKeyword);
         List<String> resultTokens = expandedQueryTokens.isEmpty() ? queryTokens : expandedQueryTokens;
         List<String> significantTerms = significantQueryTerms(normalizedKeyword, queryTokens);
+        QueryRecallMode recallMode = routeQueryRecall(normalizedKeyword, significantTerms);
+        Map<String, Integer> titleMemoryScores = shouldRunTitleMemoryRecall(recallMode, normalizedKeyword)
+            ? titleMemoryCandidateScores(normalizedKeyword, significantTerms, context)
+            : Map.of();
+        log.info(
+            "frontend_search_route query='{}' mode={} queryTokens={} significantTerms={} memoryCandidates={}",
+            safeLogQuery(normalizedKeyword),
+            recallMode,
+            queryTokens,
+            significantTerms,
+            titleMemoryScores.size()
+        );
         List<String> scopedDocumentIds = parseList(docIds);
         List<String> tagTerms = tokenizer.splitFilter(tag);
         List<String> companyTerms = tokenizer.splitFilter(company);
@@ -389,10 +463,57 @@ public class SearchService {
             .toList();
         FrontendQuickCorpus corpus = frontendQuickCorpus(candidates);
         List<SearchResult> allResults = candidates.stream()
-            .map(document -> toFrontendQuickResult(document, normalizedKeyword, significantTerms, resultTokens, corpus))
-            .filter(result -> !hasKeyword(keyword) || isFrontendQuickRelevant(result, significantTerms))
+            .map(document -> toFrontendQuickResult(
+                document,
+                normalizedKeyword,
+                significantTerms,
+                resultTokens,
+                corpus,
+                titleMemoryScores
+            ))
+            .filter(result -> !hasKeyword(keyword) || isFrontendQuickRelevant(result, significantTerms, recallMode))
             .sorted(resultComparator())
             .toList();
+
+        if (hasKeyword(keyword) && allResults.isEmpty()) {
+            log.info(
+                "frontend_search_fallback query='{}' mode={} filteredCandidates={} memoryCandidates={} reason=quick_zero_results",
+                safeLogQuery(normalizedKeyword),
+                recallMode,
+                candidates.size(),
+                titleMemoryScores.size()
+            );
+            SearchPage fallbackPage = search(
+                keyword,
+                tag,
+                company,
+                industry,
+                docIds,
+                page,
+                pageSize,
+                context
+            );
+            log.info(
+                "frontend_search_fallback_result query='{}' mode={} fallbackResults={} fallbackTotal={}",
+                safeLogQuery(normalizedKeyword),
+                recallMode,
+                fallbackPage.results() == null ? 0 : fallbackPage.results().size(),
+                fallbackPage.total()
+            );
+            if (fallbackPage.total() > 0) {
+                return fallbackPage;
+            }
+        }
+
+        log.info(
+            "frontend_search_result query='{}' mode={} filteredCandidates={} memoryCandidates={} quickResults={} quickTotal={}",
+            safeLogQuery(normalizedKeyword),
+            recallMode,
+            candidates.size(),
+            titleMemoryScores.size(),
+            Math.min(allResults.size(), pageSize),
+            allResults.size()
+        );
 
         List<SearchResult> results = allResults.stream()
             .skip(pageOffset(pageNumber, pageSize))
@@ -457,14 +578,14 @@ public class SearchService {
         int pageSize = normalizeLimit(limit);
         int pageNumber = normalizePage(page);
         String normalizedCategory = normalizeCategory(category);
-        String normalizedTitle = normalizeText(title);
+        String normalizedTitle = normalizeSearchText(title);
         SearchPermissionContext context = permissionContext == null ? SearchPermissionContext.system() : permissionContext;
         List<SearchDocument> allDocuments = loadLatestDocuments(context);
         List<LibraryCategory> categories = buildCategories(allDocuments);
 
         List<SearchDocument> matchedDocuments = allDocuments.stream()
             .filter(document -> matchesCategory(document, normalizedCategory))
-            .filter(document -> normalizedTitle.isEmpty() || contains(document.getTitle(), normalizedTitle))
+            .filter(document -> matchesLibraryTitle(document, normalizedTitle))
             .sorted(documentComparator())
             .toList();
 
@@ -509,6 +630,136 @@ public class SearchService {
         }
         candidates.retainAll(scope);
         return candidates;
+    }
+
+    private Set<String> injectTitleMemoryCandidates(Set<String> candidates,
+                                                    Map<String, Integer> scores,
+                                                    Map<String, Set<String>> matchedKeywords,
+                                                    Map<String, Integer> titleMemoryScores,
+                                                    Map<String, Integer> titleMemoryRawScores,
+                                                    Map<String, Integer> titleMemoryCalibratedScores,
+                                                    String keyword) {
+        if (titleMemoryScores == null || titleMemoryScores.isEmpty()) {
+            return candidates;
+        }
+        Set<String> merged = candidates == null ? new LinkedHashSet<>() : candidates;
+        String normalizedKeyword = normalizeSearchText(keyword);
+        for (Map.Entry<String, Integer> entry : titleMemoryScores.entrySet()) {
+            String docId = entry.getKey();
+            if (docId == null || docId.isBlank()) {
+                continue;
+            }
+            merged.add(docId);
+            int rawMemoryScore = Math.max(1, entry.getValue());
+            int lexicalScore = scores == null ? 0 : scores.getOrDefault(docId, 0);
+            int calibratedMemoryScore = calibrateTitleMemoryScore(rawMemoryScore, lexicalScore);
+            if (titleMemoryRawScores != null) {
+                titleMemoryRawScores.merge(docId, rawMemoryScore, Math::max);
+            }
+            if (titleMemoryCalibratedScores != null) {
+                titleMemoryCalibratedScores.merge(docId, calibratedMemoryScore, Math::max);
+            }
+            if (scores != null) {
+                scores.merge(docId, calibratedMemoryScore, Math::max);
+            }
+            if (matchedKeywords != null && !normalizedKeyword.isBlank()) {
+                matchedKeywords.computeIfAbsent(docId, ignored -> new LinkedHashSet<>()).add(normalizedKeyword);
+            }
+        }
+        return merged;
+    }
+
+    private int calibrateTitleMemoryScore(int memoryScore, int lexicalScore) {
+        int cappedMemoryScore = Math.min(Math.max(1, memoryScore), TITLE_MEMORY_RECALL_SCORE_CAP);
+        if (lexicalScore >= TITLE_MEMORY_STRONG_LEXICAL_THRESHOLD) {
+            return Math.max(1, Math.min(TITLE_MEMORY_RECALL_STRONG_LEXICAL_CAP,
+                Math.round(cappedMemoryScore * 0.25F)));
+        }
+        if (lexicalScore >= TITLE_MEMORY_WEAK_LEXICAL_THRESHOLD) {
+            return Math.max(1, Math.min(TITLE_MEMORY_RECALL_WEAK_LEXICAL_CAP,
+                Math.round(cappedMemoryScore * 0.6F)));
+        }
+        return cappedMemoryScore;
+    }
+
+    private Map<String, Integer> titleMemoryCandidateScores(String keyword,
+                                                            List<String> significantTerms,
+                                                            SearchPermissionContext permissionContext) {
+        String phrase = normalizeSearchText(keyword);
+        if (phrase.isBlank() || !TitleAwareTerms.containsCjk(phrase)) {
+            return Map.of();
+        }
+        List<String> recallTerms = titleMemoryRecallTerms(phrase, significantTerms);
+        if (recallTerms.isEmpty()) {
+            return Map.of();
+        }
+        SearchPermissionContext context = permissionContext == null ? SearchPermissionContext.system() : permissionContext;
+        Map<String, Integer> scores = new HashMap<>();
+        for (SearchDocument document : loadLatestDocuments(context)) {
+            int score = titleMemoryScore(document, phrase, recallTerms);
+            if (score > 0) {
+                scores.put(document.getDocId(), score);
+            }
+        }
+        return scores;
+    }
+
+    private List<String> titleMemoryRecallTerms(String phrase, List<String> significantTerms) {
+        Set<String> terms = new LinkedHashSet<>();
+        String compact = normalizeSearchText(phrase).replace(" ", "");
+        if (!compact.isBlank()) {
+            terms.add(compact);
+        }
+        if (significantTerms != null) {
+            significantTerms.stream()
+                .filter(term -> term != null && normalizeSearchText(term).length() >= 2)
+                .map(this::normalizeSearchText)
+                .forEach(terms::add);
+        }
+        tokenizer.searchTokens(phrase).stream()
+            .filter(term -> term != null && term.length() >= 2)
+            .forEach(terms::add);
+        return new ArrayList<>(terms);
+    }
+
+    private int titleMemoryScore(SearchDocument document, String phrase, List<String> recallTerms) {
+        if (document == null || document.getDocId() == null || document.getDocId().isBlank()) {
+            return 0;
+        }
+        int score = 0;
+        boolean phraseMatched = false;
+        if (containsNormalizedCompact(document.getTitle(), phrase)) {
+            score += TITLE_MEMORY_PHRASE_RECALL_SCORE;
+            phraseMatched = true;
+        }
+        if (containsNormalizedCompact(document.getFileName(), phrase)) {
+            score += FILENAME_MEMORY_PHRASE_RECALL_SCORE;
+            phraseMatched = true;
+        }
+        if (phraseMatched) {
+            return score;
+        }
+
+        int matchedTerms = 0;
+        for (String term : recallTerms == null ? List.<String>of() : recallTerms) {
+            String normalizedTerm = normalizeSearchText(term);
+            if (normalizedTerm.isBlank() || normalizedTerm.length() < 2 || normalizedTerm.equals(phrase)) {
+                continue;
+            }
+            boolean matched = false;
+            if (containsNormalizedCompact(document.getTitle(), normalizedTerm)) {
+                score += TITLE_MEMORY_TERM_RECALL_SCORE;
+                matched = true;
+            }
+            if (containsNormalizedCompact(document.getFileName(), normalizedTerm)) {
+                score += FILENAME_MEMORY_TERM_RECALL_SCORE;
+                matched = true;
+            }
+            if (matched) {
+                matchedTerms++;
+            }
+        }
+        return matchedTerms >= 2 ? score : 0;
     }
 
     private Set<String> fallbackCandidateIds(FallbackMode mode) {
@@ -568,6 +819,7 @@ public class SearchService {
                                                  List<String> queryTokens,
                                                  List<String> expandedQueryTokens,
                                                  List<String> significantTerms,
+                                                 Map<String, Integer> titleMemoryScores,
                                                  SearchPermissionContext permissionContext) {
         if (expandedQueryTokens.isEmpty() || !luceneStore.isAvailable()) {
             if (!expandedQueryTokens.isEmpty() && properties.isLuceneEnabled()) {
@@ -578,17 +830,25 @@ public class SearchService {
         try {
             SearchPermissionContext context = permissionContext == null ? SearchPermissionContext.system() : permissionContext;
             List<LuceneSearchHit> hits = luceneStore.search(keyword, properties.getLuceneMaxHits(), context);
-            if (hits.isEmpty()) {
+            Map<String, Integer> safeTitleMemoryScores = titleMemoryScores == null ? Map.of() : titleMemoryScores;
+            if (hits.isEmpty() && safeTitleMemoryScores.isEmpty()) {
+                log.info(
+                    "lucene_candidate_union query='{}' luceneHits=0 luceneDocCandidates=0 memoryCandidates=0 unionCandidates=0",
+                    safeLogQuery(keyword)
+                );
                 return LuceneSearchOutcome.emptyResult();
             }
             Map<String, List<LuceneSearchHit>> hitsByDocId = new HashMap<>();
             Map<String, Integer> scores = new HashMap<>();
+            Map<String, Integer> titleMemoryRawScores = new HashMap<>();
+            Map<String, Integer> titleMemoryCalibratedScores = new HashMap<>();
             Set<String> candidates = new LinkedHashSet<>();
             for (LuceneSearchHit hit : hits) {
                 candidates.add(hit.docId());
                 hitsByDocId.computeIfAbsent(hit.docId(), ignored -> new ArrayList<>()).add(hit);
                 scores.merge(hit.docId(), Math.max(1, Math.round(hit.score() * 10)), Math::max);
             }
+            int luceneDocCandidateCount = candidates.size();
             hitsByDocId.replaceAll((docId, docHits) -> docHits.stream()
                 .sorted(Comparator
                     .comparingDouble(LuceneSearchHit::score)
@@ -597,24 +857,64 @@ public class SearchService {
                 .limit(Math.max(1, properties.getLuceneChunksPerDocument()))
                 .toList());
 
+            candidates = injectTitleMemoryCandidates(
+                candidates,
+                scores,
+                null,
+                safeTitleMemoryScores,
+                titleMemoryRawScores,
+                titleMemoryCalibratedScores,
+                keyword
+            );
+            int unionCandidateCount = candidates.size();
+            log.info(
+                "lucene_candidate_union query='{}' luceneHits={} luceneDocCandidates={} memoryCandidates={} unionCandidates={}",
+                safeLogQuery(keyword),
+                hits.size(),
+                luceneDocCandidateCount,
+                safeTitleMemoryScores.size(),
+                candidates.size()
+            );
+
             int filterLookupLimit = boundedLookupLimit(properties.getLuceneMaxHits());
             candidates = applyFilter(candidates, tokenizer.splitFilter(tag), term -> store.findByTag(term, filterLookupLimit));
             candidates = applyFilter(candidates, tokenizer.splitFilter(company), term -> store.findByCompany(term, filterLookupLimit));
             candidates = applyFilter(candidates, tokenizer.splitFilter(industry), term -> store.findByIndustry(term, filterLookupLimit));
             candidates = applyDocumentScope(candidates, parseList(docIds));
+            int postHardFilterCandidateCount = candidates.size();
 
             Map<String, Set<String>> matchedKeywords = new HashMap<>();
             candidates.forEach(docId -> matchedKeywords.put(docId, new LinkedHashSet<>(expandedQueryTokens)));
 
-            List<SearchResult> allResults = candidates.stream()
+            List<SearchResult> rankedCandidates = candidates.stream()
                 .map(store::get)
                 .flatMap(Optional::stream)
                 .filter(this::isLatestVersion)
                 .filter(document -> canAccess(document, context))
-                .map(document -> toResult(document, keyword, expandedQueryTokens, significantTerms, scores, matchedKeywords, hitsByDocId.get(document.getDocId())))
+                .map(document -> toResult(
+                    document,
+                    keyword,
+                    expandedQueryTokens,
+                    significantTerms,
+                    scores,
+                    matchedKeywords,
+                    hitsByDocId.get(document.getDocId()),
+                    titleMemoryRawScores,
+                    titleMemoryCalibratedScores
+                ))
+                .toList();
+            List<SearchResult> allResults = rankedCandidates.stream()
                 .filter(result -> isRelevantResult(result, significantTerms))
                 .sorted(resultComparator())
                 .toList();
+            log.info(
+                "lucene_search_result query='{}' unionCandidates={} postHardFilterCandidates={} scoredCandidates={} relevanceResults={}",
+                safeLogQuery(keyword),
+                unionCandidateCount,
+                postHardFilterCandidateCount,
+                rankedCandidates.size(),
+                allResults.size()
+            );
             List<SearchResult> results = allResults.stream()
                 .skip(pageOffset(pageNumber, pageSize))
                 .limit(pageSize)
@@ -1336,7 +1636,7 @@ public class SearchService {
      */
     private SearchIndexData buildIndexData(SearchDocument document) {
         Set<String> keywords = new LinkedHashSet<>();
-        keywords.addAll(tokenizer.tokenize(document.getTitle()));
+        keywords.addAll(TitleAwareTerms.extract(tokenizer, document.getTitle(), document.getFileName()));
         keywords.addAll(tokenizer.tokenize(document.getContent()));
         keywords.addAll(tokenizer.tokenize(document.getSource()));
         keywords.addAll(tokenizer.normalizeTerms(document.getKeywords()));
@@ -1416,12 +1716,26 @@ public class SearchService {
                                   List<String> significantTerms,
                                   Map<String, Integer> baseScores,
                                   Map<String, Set<String>> matchedKeywords,
-                                  List<LuceneSearchHit> luceneHits) {
+                                  List<LuceneSearchHit> luceneHits,
+                                  Map<String, Integer> titleMemoryRawScores,
+                                  Map<String, Integer> titleMemoryCalibratedScores) {
         String docId = document.getDocId();
         int baseScore = baseScores.getOrDefault(docId, 0);
         Set<String> matches = new LinkedHashSet<>(matchedKeywords.getOrDefault(docId, Set.of()));
+        int titleMemoryRawScore = titleMemoryRawScores == null ? 0 : titleMemoryRawScores.getOrDefault(docId, 0);
+        int titleMemoryCalibratedScore = titleMemoryCalibratedScores == null
+            ? 0
+            : titleMemoryCalibratedScores.getOrDefault(docId, 0);
 
-        ScoredDocument scored = scoreDocument(document, keyword, significantTerms, queryTokens, baseScore);
+        ScoredDocument scored = scoreDocument(
+            document,
+            keyword,
+            significantTerms,
+            queryTokens,
+            baseScore,
+            titleMemoryRawScore,
+            titleMemoryCalibratedScore
+        );
         matches.addAll(scored.matchedTerms());
         LuceneSearchHit bestHit = firstHit(luceneHits);
         List<SearchMatchedChunk> matchedChunks = toMatchedChunks(luceneHits);
@@ -1470,7 +1784,23 @@ public class SearchService {
                                                List<String> significantTerms,
                                                List<String> queryTokens,
                                                FrontendQuickCorpus corpus) {
-        FrontendQuickScore scored = scoreFrontendDocument(document, keyword, significantTerms, queryTokens, corpus);
+        return toFrontendQuickResult(document, keyword, significantTerms, queryTokens, corpus, Map.of());
+    }
+
+    private SearchResult toFrontendQuickResult(SearchDocument document,
+                                               String keyword,
+                                               List<String> significantTerms,
+                                               List<String> queryTokens,
+                                               FrontendQuickCorpus corpus,
+                                               Map<String, Integer> titleMemoryScores) {
+        FrontendQuickScore scored = scoreFrontendDocument(
+            document,
+            keyword,
+            significantTerms,
+            queryTokens,
+            corpus,
+            titleMemoryScores == null ? 0 : titleMemoryScores.getOrDefault(document.getDocId(), 0)
+        );
         String summary = scored.bestSnippet().isBlank()
             ? buildSummary(document.getContent(), scored.matchedTerms())
             : scored.bestSnippet();
@@ -1516,15 +1846,28 @@ public class SearchService {
                                                     List<String> significantTerms,
                                                     List<String> queryTokens,
                                                     FrontendQuickCorpus corpus) {
+        return scoreFrontendDocument(document, keyword, significantTerms, queryTokens, corpus, 0);
+    }
+
+    private FrontendQuickScore scoreFrontendDocument(SearchDocument document,
+                                                    String keyword,
+                                                    List<String> significantTerms,
+                                                    List<String> queryTokens,
+                                                    FrontendQuickCorpus corpus,
+                                                    int titleMemoryRawScore) {
         List<String> scoringTerms = significantTerms == null || significantTerms.isEmpty()
             ? queryTokens
             : significantTerms;
         String phrase = normalizeSearchText(keyword);
         String title = normalizeSearchText(document.getTitle());
+        String fileName = normalizeSearchText(document.getFileName());
+        Set<String> titleTerms = titleAwareTermSet(document.getTitle());
+        Set<String> fileNameTerms = titleAwareTermSet(document.getFileName());
         String source = normalizeSearchText(document.getSource());
         String content = quickContentText(document.getContent());
         Set<String> matchedTerms = new LinkedHashSet<>();
         int titleScore = 0;
+        int fileNameScore = 0;
         int keywordScore = 0;
         int tagScore = 0;
         int companyScore = 0;
@@ -1538,8 +1881,13 @@ public class SearchService {
         int bm25Score = (int) Math.round(Math.min(220.0D, bm25 * 60.0D));
 
         if (!phrase.isBlank()) {
-            if (title.contains(phrase)) {
+            if (containsNormalizedCompact(document.getTitle(), phrase) || containsTitleAwareTerm(titleTerms, phrase)) {
                 phraseScore += TITLE_PHRASE_SCORE;
+                matchedTerms.add(phrase);
+                bestTerm = phrase;
+            }
+            if (containsNormalizedCompact(document.getFileName(), phrase) || containsTitleAwareTerm(fileNameTerms, phrase)) {
+                phraseScore += FILENAME_PHRASE_SCORE;
                 matchedTerms.add(phrase);
                 bestTerm = phrase;
             }
@@ -1561,8 +1909,12 @@ public class SearchService {
                 continue;
             }
             boolean matched = false;
-            if (title.contains(normalizedTerm)) {
+            if (containsNormalizedCompact(document.getTitle(), normalizedTerm) || containsTitleAwareTerm(titleTerms, normalizedTerm)) {
                 titleScore += TITLE_TERM_SCORE;
+                matched = true;
+            }
+            if (containsNormalizedCompact(document.getFileName(), normalizedTerm) || containsTitleAwareTerm(fileNameTerms, normalizedTerm)) {
+                fileNameScore += FILENAME_TERM_SCORE;
                 matched = true;
             }
             if (listContainsNormalized(document.getKeywords(), normalizedTerm)) {
@@ -1603,6 +1955,7 @@ public class SearchService {
             : (double) coveredTerms / scoringTerms.size();
         int coverageScore = (int) Math.round(coverageRatio * COVERAGE_SCORE);
         int totalScore = titleScore
+            + fileNameScore
             + keywordScore
             + tagScore
             + companyScore
@@ -1611,9 +1964,14 @@ public class SearchService {
             + sourceScore
             + phraseScore
             + coverageScore;
+        int titleMemoryCalibratedScore = titleMemoryRawScore <= 0
+            ? 0
+            : calibrateTitleMemoryScore(titleMemoryRawScore, totalScore + bm25Score);
+        totalScore += titleMemoryCalibratedScore;
         Map<String, Integer> fieldScores = new HashMap<>();
         fieldScores.put("bm25", bm25Score);
         fieldScores.put("title", titleScore);
+        fieldScores.put("fileName", fileNameScore);
         fieldScores.put("keywords", keywordScore);
         fieldScores.put("tags", tagScore);
         fieldScores.put("companies", companyScore);
@@ -1623,6 +1981,8 @@ public class SearchService {
         fieldScores.put("phrase", phraseScore);
         fieldScores.put("coverage", coverageScore);
         fieldScores.put("baseToken", bm25Score);
+        fieldScores.put("memoryRecallRaw", Math.max(0, titleMemoryRawScore));
+        fieldScores.put("memoryRecall", titleMemoryCalibratedScore);
         SearchScoreBreakdown breakdown = new SearchScoreBreakdown(
             bm25Score,
             titleScore,
@@ -1669,7 +2029,9 @@ public class SearchService {
     private FrontendQuickDocumentVector frontendQuickVector(SearchDocument document) {
         Map<String, Double> termFrequency = new HashMap<>();
         addFrontendWeightedTerms(termFrequency, document.getTitle(), FRONTEND_TITLE_WEIGHT);
+        addFrontendWeightedIndexTerms(termFrequency, TitleAwareTerms.extract(tokenizer, document.getTitle()), FRONTEND_TITLE_WEIGHT);
         addFrontendWeightedTerms(termFrequency, document.getFileName(), FRONTEND_FILENAME_WEIGHT);
+        addFrontendWeightedIndexTerms(termFrequency, TitleAwareTerms.extract(tokenizer, document.getFileName()), FRONTEND_FILENAME_WEIGHT);
         addFrontendWeightedTerms(termFrequency, document.getKeywords(), FRONTEND_KEYWORD_WEIGHT);
         addFrontendWeightedTerms(termFrequency, document.getTags(), FRONTEND_TAG_WEIGHT);
         addFrontendWeightedTerms(termFrequency, document.getCompanies(), FRONTEND_COMPANY_WEIGHT);
@@ -1688,6 +2050,18 @@ public class SearchService {
         }
         for (String value : values) {
             addFrontendWeightedTerms(termFrequency, value, weight);
+        }
+    }
+
+    private void addFrontendWeightedIndexTerms(Map<String, Double> termFrequency, List<String> terms, double weight) {
+        if (termFrequency == null || terms == null || terms.isEmpty() || weight <= 0.0D) {
+            return;
+        }
+        for (String term : terms) {
+            String normalized = normalizeSearchText(term);
+            if (!normalized.isBlank()) {
+                termFrequency.merge(normalized, weight, Double::sum);
+            }
         }
     }
 
@@ -1733,8 +2107,21 @@ public class SearchService {
     }
 
     private boolean isFrontendQuickRelevant(SearchResult result, List<String> significantTerms) {
+        return isFrontendQuickRelevant(result, significantTerms, QueryRecallMode.HYBRID);
+    }
+
+    private boolean isFrontendQuickRelevant(SearchResult result,
+                                            List<String> significantTerms,
+                                            QueryRecallMode recallMode) {
         if (result == null || result.score() <= 0 || result.scoreBreakdown() == null) {
             return false;
+        }
+        if (hasStrongTitleSignal(result.scoreBreakdown())) {
+            return true;
+        }
+        if (hasMemoryRecallSignal(result.scoreBreakdown())) {
+            return recallMode == QueryRecallMode.MEMORY_FIRST
+                || result.scoreBreakdown().coverageRatio() >= 0.5D;
         }
         int termCount = significantTerms == null || significantTerms.isEmpty() ? 0 : significantTerms.size();
         if (termCount <= 1) {
@@ -1745,6 +2132,39 @@ public class SearchService {
         }
         return result.scoreBreakdown().coverageRatio() >= frontendQuickMinCoverageRatio(termCount)
             && result.scoreBreakdown().baseTokenScore() > 0;
+    }
+
+    private boolean hasStrongTitleSignal(SearchScoreBreakdown breakdown) {
+        if (breakdown == null || breakdown.phraseScore() <= 0) {
+            return false;
+        }
+        int fileNameScore = breakdown.fieldScores() == null
+            ? 0
+            : breakdown.fieldScores().getOrDefault("fileName", 0);
+        return breakdown.titleScore() > 0 || fileNameScore > 0;
+    }
+
+    private boolean hasMemoryRecallSignal(SearchScoreBreakdown breakdown) {
+        return breakdown != null
+            && breakdown.fieldScores() != null
+            && breakdown.fieldScores().getOrDefault("memoryRecall", 0) > 0;
+    }
+
+    private QueryRecallMode routeQueryRecall(String keyword, List<String> significantTerms) {
+        String compact = normalizeSearchText(keyword).replace(" ", "");
+        if (compact.isBlank() || !TitleAwareTerms.containsCjk(compact)) {
+            return QueryRecallMode.LEXICAL_FIRST;
+        }
+        int termCount = significantTerms == null ? 0 : significantTerms.size();
+        if (compact.length() <= 8 || termCount <= 4) {
+            return QueryRecallMode.MEMORY_FIRST;
+        }
+        return QueryRecallMode.HYBRID;
+    }
+
+    private boolean shouldRunTitleMemoryRecall(QueryRecallMode recallMode, String keyword) {
+        return recallMode != QueryRecallMode.LEXICAL_FIRST
+            || TitleAwareTerms.containsCjk(normalizeSearchText(keyword));
     }
 
     private double frontendQuickMinCoverageRatio(int termCount) {
@@ -2025,6 +2445,14 @@ public class SearchService {
             && document.getTags().stream().anyMatch(tag -> normalizeCategory(tag).equals(category));
     }
 
+    private boolean matchesLibraryTitle(SearchDocument document, String normalizedTitle) {
+        if (normalizedTitle == null || normalizedTitle.isBlank()) {
+            return true;
+        }
+        return containsNormalizedCompact(document.getTitle(), normalizedTitle)
+            || containsNormalizedCompact(document.getFileName(), normalizedTitle);
+    }
+
     /**
      * Resolves the primary category.
      *
@@ -2052,12 +2480,17 @@ public class SearchService {
                                          String keyword,
                                          List<String> significantTerms,
                                          List<String> queryTokens,
-                                         int baseTokenScore) {
+                                         int baseTokenScore,
+                                         int titleMemoryRawScore,
+                                         int titleMemoryCalibratedScore) {
         List<String> scoringTerms = significantTerms == null || significantTerms.isEmpty()
             ? queryTokens
             : significantTerms;
         String phrase = normalizeSearchText(keyword);
+        Set<String> titleTerms = titleAwareTermSet(document.getTitle());
+        Set<String> fileNameTerms = titleAwareTermSet(document.getFileName());
         int titleScore = 0;
+        int fileNameScore = 0;
         int keywordScore = 0;
         int tagScore = 0;
         int companyScore = 0;
@@ -2069,8 +2502,12 @@ public class SearchService {
         Set<String> matchedTerms = new LinkedHashSet<>();
 
         if (!phrase.isBlank()) {
-            if (containsNormalized(document.getTitle(), phrase)) {
+            if (containsNormalized(document.getTitle(), phrase) || containsTitleAwareTerm(titleTerms, phrase)) {
                 phraseScore += TITLE_PHRASE_SCORE;
+                matchedTerms.add(phrase);
+            }
+            if (containsNormalized(document.getFileName(), phrase) || containsTitleAwareTerm(fileNameTerms, phrase)) {
+                phraseScore += FILENAME_PHRASE_SCORE;
                 matchedTerms.add(phrase);
             }
             if (listContainsNormalized(document.getKeywords(), phrase)) {
@@ -2089,8 +2526,12 @@ public class SearchService {
                 continue;
             }
             boolean matched = false;
-            if (containsNormalized(document.getTitle(), normalizedTerm)) {
+            if (containsNormalized(document.getTitle(), normalizedTerm) || containsTitleAwareTerm(titleTerms, normalizedTerm)) {
                 titleScore += TITLE_TERM_SCORE;
+                matched = true;
+            }
+            if (containsNormalized(document.getFileName(), normalizedTerm) || containsTitleAwareTerm(fileNameTerms, normalizedTerm)) {
+                fileNameScore += FILENAME_TERM_SCORE;
                 matched = true;
             }
             if (listContainsNormalized(document.getKeywords(), normalizedTerm)) {
@@ -2129,6 +2570,7 @@ public class SearchService {
         int coverageScore = (int) Math.round(coverageRatio * COVERAGE_SCORE);
         int totalScore = baseTokenScore
             + titleScore
+            + fileNameScore
             + keywordScore
             + tagScore
             + companyScore
@@ -2139,6 +2581,7 @@ public class SearchService {
             + coverageScore;
         Map<String, Integer> fieldScores = new HashMap<>();
         fieldScores.put("title", titleScore);
+        fieldScores.put("fileName", fileNameScore);
         fieldScores.put("keywords", keywordScore);
         fieldScores.put("tags", tagScore);
         fieldScores.put("companies", companyScore);
@@ -2148,6 +2591,8 @@ public class SearchService {
         fieldScores.put("phrase", phraseScore);
         fieldScores.put("coverage", coverageScore);
         fieldScores.put("baseToken", baseTokenScore);
+        fieldScores.put("memoryRecallRaw", titleMemoryRawScore);
+        fieldScores.put("memoryRecall", titleMemoryCalibratedScore);
         SearchScoreBreakdown breakdown = new SearchScoreBreakdown(
             baseTokenScore,
             titleScore,
@@ -2191,6 +2636,9 @@ public class SearchService {
             return true;
         }
         if (breakdown.phraseScore() > 0) {
+            return true;
+        }
+        if (hasMemoryRecallSignal(breakdown)) {
             return true;
         }
         if (breakdown.coverageRatio() <= 0.0D
@@ -2240,10 +2688,27 @@ public class SearchService {
         if (queryTokens == null || queryTokens.isEmpty()) {
             return List.of();
         }
+        List<String> compactCjkTerms = compactCjkSignificantTerms(keyword);
+        if (!compactCjkTerms.isEmpty()) {
+            return compactCjkTerms;
+        }
         Set<String> terms = new LinkedHashSet<>();
         queryTokens.stream()
             .filter(token -> token != null && token.length() >= 2)
             .forEach(terms::add);
+        return new ArrayList<>(terms);
+    }
+
+    private List<String> compactCjkSignificantTerms(String keyword) {
+        String compact = normalizeSearchText(keyword).replace(" ", "");
+        if (!TitleAwareTerms.containsCjk(compact) || compact.length() < 4 || compact.length() > 8) {
+            return List.of();
+        }
+        Set<String> terms = new LinkedHashSet<>();
+        terms.add(compact);
+        for (int i = 0; i + 1 < compact.length(); i += 2) {
+            terms.add(compact.substring(i, i + 2));
+        }
         return new ArrayList<>(terms);
     }
 
@@ -2255,7 +2720,40 @@ public class SearchService {
      * @return whether the condition is satisfied
      */
     private boolean containsNormalized(String value, String token) {
-        return token != null && !token.isBlank() && normalizeSearchText(value).contains(token);
+        return containsNormalizedCompact(value, token);
+    }
+
+    private boolean containsNormalizedCompact(String value, String token) {
+        if (token == null || token.isBlank()) {
+            return false;
+        }
+        String normalizedValue = normalizeSearchText(value);
+        String normalizedToken = normalizeSearchText(token);
+        if (normalizedValue.isBlank() || normalizedToken.isBlank()) {
+            return false;
+        }
+        return normalizedValue.contains(normalizedToken)
+            || normalizedValue.replace(" ", "").contains(normalizedToken.replace(" ", ""));
+    }
+
+    private Set<String> titleAwareTermSet(String value) {
+        Set<String> terms = new LinkedHashSet<>();
+        for (String term : TitleAwareTerms.extract(tokenizer, value)) {
+            String normalized = normalizeSearchText(term);
+            if (!normalized.isBlank()) {
+                terms.add(normalized);
+                terms.add(normalized.replace(" ", ""));
+            }
+        }
+        return terms;
+    }
+
+    private boolean containsTitleAwareTerm(Set<String> terms, String token) {
+        if (terms == null || terms.isEmpty() || token == null || token.isBlank()) {
+            return false;
+        }
+        String normalized = normalizeSearchText(token);
+        return terms.contains(normalized) || terms.contains(normalized.replace(" ", ""));
     }
 
     /**
@@ -2283,7 +2781,7 @@ public class SearchService {
      * @return the operation result
      */
     private String normalizeSearchText(String value) {
-        return value == null ? "" : value.toLowerCase(Locale.ROOT).replaceAll("\\s+", " ").trim();
+        return TitleAwareTerms.normalize(value);
     }
 
     /**
@@ -2446,6 +2944,11 @@ public class SearchService {
      */
     private boolean hasKeyword(String keyword) {
         return keyword != null && !keyword.isBlank();
+    }
+
+    private String safeLogQuery(String keyword) {
+        String value = keyword == null ? "" : keyword.replaceAll("[\\r\\n\\t]+", " ").trim();
+        return value.length() <= 80 ? value : value.substring(0, 80);
     }
 
     /**
@@ -2848,5 +3351,11 @@ public class SearchService {
         NORMAL,
         EMPTY_LUCENE_RESULT,
         LUCENE_FAILURE
+    }
+
+    private enum QueryRecallMode {
+        MEMORY_FIRST,
+        HYBRID,
+        LEXICAL_FIRST
     }
 }

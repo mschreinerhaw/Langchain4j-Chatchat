@@ -327,6 +327,13 @@ export default {
     canPreviewResult(result) {
       return isDocumentOnlinePreviewSupported(result);
     },
+    visibleResultTags(result) {
+      if (!Array.isArray(result?.tags)) {
+        return [];
+      }
+      return [...new Set(result.tags.map((tag) => String(tag || "").trim()).filter(Boolean))]
+        .slice(0, 12);
+    },
     documentPreviewTitle(result) {
       return this.canPreviewResult(result) ? "" : UNSUPPORTED_DOCUMENT_PREVIEW_MESSAGE;
     },

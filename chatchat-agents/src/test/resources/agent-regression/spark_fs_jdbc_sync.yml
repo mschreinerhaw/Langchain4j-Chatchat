@@ -1,0 +1,30 @@
+id: spark_fs_jdbc_sync
+name: Spark FileSystem + JDBC sync
+tags: [spark, jdbc, filesystem, regression]
+
+input:
+  query: "Spark SQL FileSystem + JDBC 同步到 MySQL 示例"
+
+expected:
+  retrieval:
+    mustContain:
+      - Spark SQL Reference
+      - jdbc
+      - filesystem
+  evidence:
+    minChunks: 2
+    minScore: 0.5
+    mustContainKeywords:
+      - connector
+      - jdbc
+      - filesystem
+  review:
+    mustPass: true
+    allowPartialEvidence: true
+    maxRejectRate: 0.1
+    minScore: 0.6
+  answer:
+    mustContainAny:
+      - INSERT INTO
+      - DataFrame
+      - jdbc.write

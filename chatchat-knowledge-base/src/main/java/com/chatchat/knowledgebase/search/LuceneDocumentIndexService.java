@@ -193,7 +193,10 @@ public class LuceneDocumentIndexService {
         QueryIntent intent = queryExpander.classifyIntent(normalizedKeyword);
         String intentName = queryExpander.classifyIntentName(normalizedKeyword);
         List<String> terms = limitQueryTerms(
-            queryExpander.expandTokens(tokenizer.searchTokens(normalizedKeyword), intentName, normalizedKeyword),
+            mergeTerms(
+                queryExpander.expandTokens(tokenizer.searchTokens(normalizedKeyword), intentName, normalizedKeyword),
+                cjkTitleAwareQueryTerms(normalizedKeyword)
+            ),
             properties.getLuceneMaxQueryTerms()
         );
         if (terms.isEmpty()) {
@@ -345,10 +348,10 @@ public class LuceneDocumentIndexService {
         luceneDocument.add(new StoredField(UPLOAD_TIME, document.getUploadedAt() == null ? 0L : document.getUploadedAt()));
         luceneDocument.add(new StoredField(POSITION_RATIO, positionRatio));
         luceneDocument.add(new TextField(TITLE_TEXT, nullToEmpty(document.getTitle()), Field.Store.YES));
+        luceneDocument.add(new TextField(TITLE_TEXT, nullToEmpty(document.getFileName()), Field.Store.NO));
         luceneDocument.add(new TextField(SECTION, section, Field.Store.YES));
         luceneDocument.add(new TextField(KEYWORDS_TEXT, keywordText, Field.Store.YES));
-        addTokenField(luceneDocument, TITLE, document.getTitle());
-        addTokenField(luceneDocument, TITLE, document.getFileName());
+        addTokenField(luceneDocument, TITLE, TitleAwareTerms.extract(tokenizer, document.getTitle(), document.getFileName()));
         addTokenField(luceneDocument, SECTION, section);
         addTokenField(luceneDocument, KEYWORDS_TEXT, keywordText);
         addTokenField(luceneDocument, CONTENT_TOKENS, chunkText);
@@ -430,6 +433,13 @@ public class LuceneDocumentIndexService {
                 .forEach(terms::add);
         }
         return new ArrayList<>(terms);
+    }
+
+    private List<String> cjkTitleAwareQueryTerms(String keyword) {
+        if (!TitleAwareTerms.containsCjk(keyword)) {
+            return List.of();
+        }
+        return TitleAwareTerms.extract(tokenizer, keyword);
     }
 
     private List<String> limitQueryTerms(List<String> terms, int maxTerms) {

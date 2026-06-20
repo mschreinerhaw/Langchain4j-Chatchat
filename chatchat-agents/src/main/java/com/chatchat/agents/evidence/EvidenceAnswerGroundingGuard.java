@@ -11,6 +11,8 @@ import java.util.regex.Pattern;
 
 public class EvidenceAnswerGroundingGuard {
 
+    private static final Pattern EVIDENCE_GRADE_PATTERN =
+        Pattern.compile("(?i)(?:^|[^A-Za-z])(?:evidenceGrade|evidence grade|grade)\\s*[:=]\\s*\"?([ABC])\"?");
     public static final String EVIDENCE_ANSWER_CONTRACT = "evidence_answer_v1";
     private static final String INSUFFICIENT_EVIDENCE_ANSWER = "根据当前证据不足，无法确认。";
     private static final Pattern DOCUMENT_REF_PATTERN =
@@ -35,6 +37,14 @@ public class EvidenceAnswerGroundingGuard {
         }
         if (hasUnknownCitation(answerCitations, availableCitations)) {
             missingInfo.add("answer cites evidence not returned by evidence tools");
+        }
+        EvidenceGovernance governance = governance(safeObservations, availableCitations);
+        if (governance.requiresMinGrade() && !answerCitations.isEmpty()
+            && !citesAtLeastGrade(answerCitations, availableCitations, governance.minAnswerEvidenceGrade())) {
+            missingInfo.add("answer must cite at least one " + governance.minAnswerEvidenceGrade() + "-grade evidence");
+        }
+        if (governance.conflictDetected()) {
+            missingInfo.add("evidence conflict requires review before answer assembly");
         }
 
         String confidence = missingInfo.isEmpty()
@@ -85,6 +95,10 @@ public class EvidenceAnswerGroundingGuard {
             citation.put("fileName", null);
             citation.put("section", null);
             citation.put("chunkIndex", parseInteger(chunkValue));
+            String evidenceGrade = gradeNear(text, documentMatcher.start(), documentMatcher.end());
+            if (evidenceGrade != null) {
+                citation.put("evidenceGrade", evidenceGrade);
+            }
             citations.add(citation);
         }
 
@@ -104,6 +118,78 @@ public class EvidenceAnswerGroundingGuard {
             citations.add(citation);
         }
         return List.copyOf(citations);
+    }
+
+    private EvidenceGovernance governance(List<String> observations, List<Map<String, Object>> availableCitations) {
+        String joined = observations == null ? "" : String.join("\n", observations);
+        boolean hasGovernancePolicy = joined.contains("evidenceGovernancePolicy")
+            || joined.contains("minAnswerEvidenceGrade")
+            || joined.contains("citationRequired");
+        boolean hasGrades = availableCitations.stream().anyMatch(citation -> citation.containsKey("evidenceGrade"));
+        String minGrade = firstGradeAfter(joined, "minAnswerEvidenceGrade");
+        if (minGrade == null && (hasGovernancePolicy || hasGrades)) {
+            minGrade = "A";
+        }
+        boolean conflictDetected = joined.matches("(?is).*\"?conflictDetected\"?\\s*[:=]\\s*true.*")
+            || joined.matches("(?is).*\"?evidenceConflict\"?\\s*[:=]\\s*true.*")
+            || joined.matches("(?is).*\"?conflictPolicy\"?\\s*[:=]\\s*\"?review_on_conflict\"?.*(supports|contradicts).*");
+        return new EvidenceGovernance(minGrade != null, minGrade == null ? "A" : minGrade, conflictDetected);
+    }
+
+    private boolean citesAtLeastGrade(List<Map<String, Object>> answerCitations,
+                                      List<Map<String, Object>> availableCitations,
+                                      String minGrade) {
+        Set<String> answerRefIds = new LinkedHashSet<>();
+        for (Map<String, Object> citation : answerCitations == null ? List.<Map<String, Object>>of() : answerCitations) {
+            Object refId = citation.get("refId");
+            if (refId != null) {
+                answerRefIds.add(String.valueOf(refId));
+            }
+        }
+        for (Map<String, Object> citation : availableCitations == null ? List.<Map<String, Object>>of() : availableCitations) {
+            Object refId = citation.get("refId");
+            if (refId == null || !answerRefIds.contains(String.valueOf(refId))) {
+                continue;
+            }
+            Object grade = citation.get("evidenceGrade");
+            if (grade != null && gradeRank(String.valueOf(grade)) <= gradeRank(minGrade)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private String gradeNear(String text, int start, int end) {
+        if (text == null || text.isBlank()) {
+            return null;
+        }
+        int afterEnd = Math.min(text.length(), end + 220);
+        Matcher afterMatcher = EVIDENCE_GRADE_PATTERN.matcher(text.substring(end, afterEnd));
+        if (afterMatcher.find()) {
+            return afterMatcher.group(1).toUpperCase();
+        }
+        int windowStart = Math.max(0, start - 160);
+        Matcher matcher = EVIDENCE_GRADE_PATTERN.matcher(text.substring(windowStart, start));
+        return matcher.find() ? matcher.group(1).toUpperCase() : null;
+    }
+
+    private String firstGradeAfter(String text, String field) {
+        if (text == null || text.isBlank()) {
+            return null;
+        }
+        Pattern pattern = Pattern.compile("(?i)\"?" + Pattern.quote(field) + "\"?\\s*[:=]\\s*\"?([ABC])\"?");
+        Matcher matcher = pattern.matcher(text);
+        return matcher.find() ? matcher.group(1).toUpperCase() : null;
+    }
+
+    private int gradeRank(String grade) {
+        if ("A".equalsIgnoreCase(grade)) {
+            return 1;
+        }
+        if ("B".equalsIgnoreCase(grade)) {
+            return 2;
+        }
+        return 3;
     }
 
     private boolean hasUnknownCitation(List<Map<String, Object>> answerCitations,
@@ -161,5 +247,12 @@ public class EvidenceAnswerGroundingGuard {
                     .toList();
             groundingStatus = groundingStatus == null || groundingStatus.isBlank() ? "needs_review" : groundingStatus;
         }
+    }
+
+    private record EvidenceGovernance(
+        boolean requiresMinGrade,
+        String minAnswerEvidenceGrade,
+        boolean conflictDetected
+    ) {
     }
 }

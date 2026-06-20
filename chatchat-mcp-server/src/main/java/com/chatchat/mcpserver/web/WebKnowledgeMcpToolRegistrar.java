@@ -1070,7 +1070,7 @@ public class WebKnowledgeMcpToolRegistrar implements McpServerToolRegistrar {
         if (!hasText(template)) {
             return null;
         }
-        String encoded = URLEncoder.encode(firstNonBlank(keyword, ""), StandardCharsets.UTF_8);
+        String encoded = encodeQueryValue(keyword);
         return template.contains("{q}") ? template.replace("{q}", encoded) : template;
     }
 
@@ -1091,7 +1091,7 @@ public class WebKnowledgeMcpToolRegistrar implements McpServerToolRegistrar {
             return;
         }
         if (!hasAny(parameters, "seed_urls", "selected_urls", "urls", "candidate_results", "target_url")) {
-            String keyword = String.valueOf(parameters.getOrDefault("site_search_query", "")).trim();
+            String keyword = blankToEmpty(stringValue(parameters.get("site_search_query")));
             List<String> seedUrls = targets.stream()
                 .map(target -> financeSiteSeedUrl(target, keyword))
                 .filter(this::hasText)
@@ -1152,7 +1152,7 @@ public class WebKnowledgeMcpToolRegistrar implements McpServerToolRegistrar {
         if (!hasText(template)) {
             return target.getHomepageUrl();
         }
-        String encodedKeyword = URLEncoder.encode(firstNonBlank(keyword, ""), StandardCharsets.UTF_8);
+        String encodedKeyword = encodeQueryValue(keyword);
         if (template.contains("{keyword}")) {
             return template.replace("{keyword}", encodedKeyword);
         }
@@ -1447,6 +1447,14 @@ public class WebKnowledgeMcpToolRegistrar implements McpServerToolRegistrar {
 
     private String stringValue(Object value) {
         return value == null ? null : String.valueOf(value);
+    }
+
+    private String blankToEmpty(String value) {
+        return value == null || value.isBlank() ? "" : value.trim();
+    }
+
+    private String encodeQueryValue(String value) {
+        return URLEncoder.encode(blankToEmpty(value), StandardCharsets.UTF_8);
     }
 
     private double numberValue(Object value, double fallback) {

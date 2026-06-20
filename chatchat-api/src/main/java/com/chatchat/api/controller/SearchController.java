@@ -3,6 +3,8 @@ package com.chatchat.api.controller;
 import com.chatchat.api.search.CategoryReindexTaskService;
 import com.chatchat.knowledgebase.search.SearchDocument;
 import com.chatchat.knowledgebase.search.DocumentFileResource;
+import com.chatchat.knowledgebase.search.DocumentSearchExpandRequest;
+import com.chatchat.knowledgebase.search.DocumentSearchExpandResult;
 import com.chatchat.knowledgebase.search.DocumentSearchEvidenceService;
 import com.chatchat.knowledgebase.search.DocumentSearchRequest;
 import com.chatchat.knowledgebase.search.DocumentSearchResult;
@@ -131,6 +133,16 @@ public class SearchController {
     public ApiResponse<DocumentSearchResult> documentSearch(@RequestBody DocumentSearchRequest request) {
         try {
             return ApiResponse.success(documentSearchEvidenceService.search(request));
+        } catch (IllegalArgumentException ex) {
+            return ApiResponse.badRequest(ex.getMessage());
+        }
+    }
+
+    @PostMapping("/document-search/expand")
+    @Operation(summary = "Expand one document search hit into evidence-ready chunks")
+    public ApiResponse<DocumentSearchExpandResult> documentSearchExpand(@RequestBody DocumentSearchExpandRequest request) {
+        try {
+            return ApiResponse.success(documentSearchEvidenceService.expand(request));
         } catch (IllegalArgumentException ex) {
             return ApiResponse.badRequest(ex.getMessage());
         }
@@ -618,8 +630,8 @@ public class SearchController {
             result.companies(),
             result.industries(),
             result.score(),
-            result.scoreBreakdown(),
-            result.matchedKeywords(),
+            null,
+            List.of(),
             lightweightMatchedChunks(result.matchedChunks()),
             result.versionGroupId(),
             result.version(),

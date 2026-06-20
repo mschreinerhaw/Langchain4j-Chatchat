@@ -8,6 +8,7 @@ import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
@@ -25,6 +26,9 @@ public class DocumentSearchEvidenceService {
     private final SearchProperties properties;
     private final RetrievalQueryValidator queryValidator;
     private final RetrievalEvidenceQualityScorer qualityScorer;
+    private final TextChunker chunker;
+    private final EvidenceReasoningEngine reasoningEngine = new EvidenceReasoningEngine();
+    private final EvidenceDecisionEngine decisionEngine = new EvidenceDecisionEngine();
 
     public DocumentSearchResult search(DocumentSearchRequest request) {
         long startedAt = System.nanoTime();
@@ -130,21 +134,32 @@ public class DocumentSearchEvidenceService {
         );
 
         List<DocumentEvidenceChunk> chunks = new ArrayList<>();
+        List<DocumentSearchHit> documents = new ArrayList<>();
+        List<DocumentOutlineItem> outline = new ArrayList<>();
         for (SearchResult result : page.results()) {
             if (!matchesFileType(result, filters == null ? null : filters.fileType())) {
                 continue;
             }
+            boolean titleOnlyHit = isTitleOnlyHit(result);
             List<SearchMatchedChunk> matchedChunks = result.matchedChunks();
             if (matchedChunks == null || matchedChunks.isEmpty()) {
-                addSummaryEvidence(chunks, result, query, intent, debug, filters);
+                if (titleOnlyHit) {
+                    addTitleOnlyDocument(documents, outline, result, permissionContext);
+                } else {
+                    addSummaryEvidence(chunks, result, query, intent, debug, filters);
+                }
             } else {
+                if (titleOnlyHit) {
+                    addTitleOnlyDocument(documents, outline, result, permissionContext);
+                    continue;
+                }
                 for (SearchMatchedChunk chunk : matchedChunks) {
                     if (!matchesChunkType(chunk, filters == null ? null : filters.chunkType())) {
                         continue;
                     }
                     chunks.add(toEvidence(result, chunk, query, intent, debug));
                     if (chunks.size() >= topK) {
-                        return controlledResult(query, intent, chunks, state, events, elapsedMs(startedAt));
+                        return controlledResult(toV2SearchResult(query, intent, chunks, documents, outline), state, events, elapsedMs(startedAt));
                     }
                 }
             }
@@ -152,7 +167,56 @@ public class DocumentSearchEvidenceService {
                 break;
             }
         }
-        return controlledResult(query, intent, chunks, state, events, elapsedMs(startedAt));
+        return controlledResult(toV2SearchResult(query, intent, chunks, documents, outline), state, events, elapsedMs(startedAt));
+    }
+
+    public DocumentSearchExpandResult expand(DocumentSearchExpandRequest request) {
+        String query = requireQuery(request == null ? null : request.query());
+        String intent = intentClassifier.classifyName(query);
+        String docId = request == null ? null : request.docId();
+        if (!hasText(docId)) {
+            throw new IllegalArgumentException("docId is required");
+        }
+        SearchPermissionContext permissionContext = SearchPermissionContext.of(
+            request.tenantId(),
+            request.userId(),
+            request.roles()
+        );
+        SearchDocument document = searchService.get(docId.trim(), permissionContext)
+            .orElseThrow(() -> new IllegalArgumentException("document not found: " + docId.trim()));
+        int maxChunks = normalizeExpansionMax(request.maxChunks(), request.topK(), 6, 20);
+        int maxSections = normalizeExpansionMax(request.maxSections(), null, 3, 10);
+        int maxTotalChars = normalizeExpansionMax(request.maxTotalChars(), null, 6000, 20000);
+        List<String> queryTokens = tokenizer.searchTokens(query);
+        List<DocumentEvidenceChunk> chunks = expandedEvidence(
+            document,
+            query,
+            queryTokens,
+            safeList(request.sections()),
+            maxSections,
+            maxChunks,
+            maxTotalChars,
+            Boolean.TRUE.equals(request.debug())
+        );
+        DocumentSearchResult formatted = contextFormatter.toSearchResult(query, intent, chunks);
+        EvidenceReasoningResult reasoning = reasoningEngine.reason(formatted, qualityScorer.score(formatted.results()));
+        EvidenceDecisionResult decision = decisionEngine.decide(formatted, reasoning);
+        return new DocumentSearchExpandResult(
+            EvidenceContextFormatter.CONTRACT_VERSION,
+            query,
+            docId.trim(),
+            formatted.results().stream().map(DocumentExpandedEvidenceChunk::from).toList(),
+            formatted.context(),
+            formatted.citations(),
+            formatted.results().isEmpty() ? DocumentRetrievalSemantics.noHit() : DocumentRetrievalSemantics.evidenceBody(),
+            new DocumentExpansionPolicy(false, maxSections, maxChunks, maxTotalChars, "DOCUMENT_EXPAND")
+                .withQueryContext(query, intent),
+            formatted.results().isEmpty()
+                ? EvidenceGovernancePolicy.noEvidence()
+                : EvidenceGovernancePolicy.needsExpansion(maxSections, maxChunks),
+            reasoning,
+            decision
+        );
     }
 
     private DocumentSearchResult searchScopedDocuments(String query,
@@ -208,7 +272,9 @@ public class DocumentSearchEvidenceService {
         RetrievalExecutionState currentState = state == null
             ? RetrievalExecutionState.started(UUID.randomUUID().toString())
             : state;
-        if (safeResult.results().isEmpty()) {
+        boolean hasEvidence = !safeResult.results().isEmpty();
+        boolean hasDocumentHits = !safeResult.documents().isEmpty();
+        if (!hasEvidence && !hasDocumentHits) {
             currentState = currentState.withEmptyResult().withAction(RetrievalControlAction.STOP);
             if (currentState.budgetUsed().searchCalls() > 0) {
                 events.add(event(
@@ -230,7 +296,7 @@ public class DocumentSearchEvidenceService {
                 RetrievalControlStep.SEARCH,
                 RetrievalControlAction.SEARCH,
                 safeResult.query(),
-                safeResult.results().size(),
+                hasEvidence ? safeResult.results().size() : safeResult.documents().size(),
                 currentState.budgetUsed(),
                 currentState.budgetUsed(),
                 latencyMs,
@@ -250,6 +316,8 @@ public class DocumentSearchEvidenceService {
             latencyMs,
             quality.reason()
         ));
+        EvidenceReasoningResult reasoning = reasoningEngine.reason(safeResult, quality);
+        EvidenceDecisionResult decision = decisionEngine.decide(safeResult, reasoning);
         return new DocumentSearchResult(
             safeResult.contractVersion(),
             safeResult.query(),
@@ -260,9 +328,264 @@ public class DocumentSearchEvidenceService {
             safeResult.citations(),
             currentState,
             quality,
-            List.copyOf(events)
+            List.copyOf(events),
+            safeResult.matchType(),
+            safeResult.retrievalSemantics(),
+            safeResult.documents(),
+            safeResult.outline(),
+            safeResult.outlineSource(),
+            safeResult.expansionPolicy(),
+            safeResult.evidenceGovernancePolicy(),
+            reasoning,
+            decision
         );
     }
+
+    private DocumentSearchResult toV2SearchResult(String query,
+                                                  String intent,
+                                                  List<DocumentEvidenceChunk> chunks,
+                                                  List<DocumentSearchHit> documents,
+                                                  List<DocumentOutlineItem> outline) {
+        List<DocumentEvidenceChunk> safeChunks = chunks == null ? List.of() : chunks;
+        List<DocumentSearchHit> safeDocuments = documents == null ? List.of() : documents;
+        List<DocumentOutlineItem> safeOutline = outline == null ? List.of() : outline;
+        DocumentSearchMatchType matchType = matchType(safeChunks, safeDocuments);
+        DocumentSearchResult base = contextFormatter.toSearchResult(query, intent, safeChunks);
+        return new DocumentSearchResult(
+            base.contractVersion(),
+            base.query(),
+            base.intent(),
+            safeChunks.isEmpty() ? safeDocuments.size() : base.total() + safeDocuments.size(),
+            base.results(),
+            base.context(),
+            base.citations(),
+            base.retrievalState(),
+            base.evidenceQuality(),
+            base.retrievalEvents(),
+            matchType,
+            semantics(matchType),
+            safeDocuments,
+            safeOutline,
+            outlineSource(safeOutline),
+            expansionPolicy(matchType).withQueryContext(query, intent),
+            governancePolicy(matchType)
+        );
+    }
+
+    private boolean isTitleOnlyHit(SearchResult result) {
+        if (result == null || result.scoreBreakdown() == null) {
+            return false;
+        }
+        SearchScoreBreakdown breakdown = result.scoreBreakdown();
+        Map<String, Integer> fieldScores = breakdown.fieldScores() == null ? Map.of() : breakdown.fieldScores();
+        int titleScore = Math.max(breakdown.titleScore(), fieldScores.getOrDefault("title", 0));
+        int fileNameScore = fieldScores.getOrDefault("fileName", 0);
+        int contentScore = Math.max(breakdown.contentScore(), fieldScores.getOrDefault("content", 0));
+        return (titleScore > 0 || fileNameScore > 0) && contentScore <= 0;
+    }
+
+    private void addTitleOnlyDocument(List<DocumentSearchHit> documents,
+                                      List<DocumentOutlineItem> outline,
+                                      SearchResult result,
+                                      SearchPermissionContext permissionContext) {
+        if (result == null || documents.stream().anyMatch(document -> same(document.docId(), result.docId()))) {
+            return;
+        }
+        documents.add(toSearchHit(result));
+        outline.addAll(outlineFor(result, permissionContext));
+    }
+
+    private DocumentSearchHit toSearchHit(SearchResult result) {
+        return new DocumentSearchHit(
+            result.docId(),
+            result.title(),
+            result.fileName(),
+            result.documentType(),
+            (double) result.score(),
+            safeList(result.tags())
+        );
+    }
+
+    private List<DocumentOutlineItem> outlineFor(SearchResult result, SearchPermissionContext permissionContext) {
+        if (result == null || !hasText(result.docId())) {
+            return List.of();
+        }
+        SearchDocument document = searchService.get(result.docId(), permissionContext).orElse(null);
+        if (document != null && hasText(document.getContent())) {
+            return outlineForDocument(document, 20);
+        }
+        String summary = truncate(firstNonBlank(result.summary(), result.title(), result.fileName()), 260);
+        if (!hasText(summary)) {
+            return List.of();
+        }
+        return List.of(new DocumentOutlineItem(
+            result.docId(),
+            firstNonBlank(result.title(), result.fileName(), "Document"),
+            summary,
+            List.of(),
+            List.of(),
+            DocumentOutlineSource.SYNTHETIC,
+            sectionKeywords(firstNonBlank(result.title(), result.fileName(), summary)),
+            sectionEmbeddingRef(result.docId(), firstNonBlank(result.title(), result.fileName(), "Document"))
+        ));
+    }
+
+    private List<DocumentOutlineItem> outlineForDocument(SearchDocument document, int maxItems) {
+        List<TextChunker.TextChunk> chunks = chunker.splitChunks(
+            document.getContent(),
+            properties.getChunkSize(),
+            properties.getChunkOverlap()
+        );
+        if (chunks.isEmpty()) {
+            return List.of();
+        }
+        boolean hasStructuredSections = chunks.stream().anyMatch(chunk -> hasText(chunk.section()));
+        DocumentOutlineSource source = hasStructuredSections ? DocumentOutlineSource.DOC_STRUCTURE : DocumentOutlineSource.CLUSTERED;
+        List<DocumentOutlineItem> items = new ArrayList<>();
+        String currentSection = null;
+        String currentSummary = "";
+        List<String> chunkIds = new ArrayList<>();
+        List<Integer> chunkIndexes = new ArrayList<>();
+        for (int i = 0; i < chunks.size(); i++) {
+            TextChunker.TextChunk chunk = chunks.get(i);
+            String section = sectionLabel(chunk, i);
+            if (currentSection != null && !currentSection.equals(section)) {
+                items.add(outlineItem(document.getDocId(), currentSection, currentSummary, chunkIds, chunkIndexes, source));
+                chunkIds = new ArrayList<>();
+                chunkIndexes = new ArrayList<>();
+                currentSummary = "";
+                if (items.size() >= Math.max(1, maxItems)) {
+                    break;
+                }
+            }
+            currentSection = section;
+            if (!hasText(currentSummary)) {
+                currentSummary = outlineSummary(chunk.content(), section);
+            }
+            chunkIds.add(chunkId(document.getDocId(), i));
+            chunkIndexes.add(i);
+        }
+        if (currentSection != null && items.size() < Math.max(1, maxItems)) {
+            items.add(outlineItem(document.getDocId(), currentSection, currentSummary, chunkIds, chunkIndexes, source));
+        }
+        return items;
+    }
+
+    private DocumentOutlineItem outlineItem(String docId,
+                                            String section,
+                                            String summary,
+                                            List<String> chunkIds,
+                                            List<Integer> chunkIndexes,
+                                            DocumentOutlineSource source) {
+        return new DocumentOutlineItem(
+            docId,
+            section,
+            summary,
+            List.copyOf(chunkIds),
+            List.copyOf(chunkIndexes),
+            source,
+            sectionKeywords(section + " " + summary),
+            sectionEmbeddingRef(docId, section)
+        );
+    }
+
+    private List<DocumentEvidenceChunk> expandedEvidence(SearchDocument document,
+                                                         String query,
+                                                         List<String> queryTokens,
+                                                         List<String> requestedSections,
+                                                         int maxSections,
+                                                         int maxChunks,
+                                                         int maxTotalChars,
+                                                         boolean debug) {
+        List<TextChunker.TextChunk> chunks = chunker.splitChunks(
+            document.getContent(),
+            properties.getChunkSize(),
+            properties.getChunkOverlap()
+        );
+        if (chunks.isEmpty()) {
+            return List.of();
+        }
+        List<String> normalizedRequestedSections = requestedSections.stream()
+            .filter(this::hasText)
+            .map(this::normalizeComparable)
+            .distinct()
+            .toList();
+        List<ScoredTextChunk> scored = new ArrayList<>();
+        for (int i = 0; i < chunks.size(); i++) {
+            TextChunker.TextChunk chunk = chunks.get(i);
+            String section = sectionLabel(chunk, i);
+            if (!normalizedRequestedSections.isEmpty() && !sectionRequested(section, normalizedRequestedSections)) {
+                continue;
+            }
+            double score = expansionScore(chunk, section, queryTokens, normalizedRequestedSections, i);
+            scored.add(new ScoredTextChunk(i, section, chunk.content(), score));
+        }
+        if (scored.isEmpty()) {
+            for (int i = 0; i < Math.min(chunks.size(), maxChunks); i++) {
+                TextChunker.TextChunk chunk = chunks.get(i);
+                scored.add(new ScoredTextChunk(i, sectionLabel(chunk, i), chunk.content(), Math.max(35, 70 - i)));
+            }
+        }
+        Set<String> allowedSections = scored.stream()
+            .sorted(Comparator.comparingDouble(ScoredTextChunk::score).reversed().thenComparingInt(ScoredTextChunk::index))
+            .map(chunk -> normalizeComparable(chunk.section()))
+            .filter(this::hasText)
+            .distinct()
+            .limit(Math.max(1, maxSections))
+            .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+        int usedChars = 0;
+        List<DocumentEvidenceChunk> evidence = new ArrayList<>();
+        for (ScoredTextChunk chunk : scored.stream()
+            .filter(chunk -> allowedSections.isEmpty() || allowedSections.contains(normalizeComparable(chunk.section())))
+            .sorted(Comparator.comparingDouble(ScoredTextChunk::score).reversed().thenComparingInt(ScoredTextChunk::index))
+            .toList()) {
+            if (evidence.size() >= maxChunks || usedChars >= maxTotalChars) {
+                break;
+            }
+            int remaining = maxTotalChars - usedChars;
+            String content = truncate(chunk.content(), remaining);
+            if (!hasText(content)) {
+                continue;
+            }
+            evidence.add(toExpandedEvidence(document, query, queryTokens, chunk, content, debug));
+            usedChars += content.length();
+        }
+        return evidence;
+    }
+
+    private DocumentEvidenceChunk toExpandedEvidence(SearchDocument document,
+                                                     String query,
+                                                     List<String> queryTokens,
+                                                     ScoredTextChunk chunk,
+                                                     String content,
+                                                     boolean debug) {
+        String fileId = firstNonBlank(document.getDocId(), "unknown");
+        String fileName = firstNonBlank(document.getFileName(), document.getTitle(), fileId);
+        return new DocumentEvidenceChunk(
+            refId(fileId, chunk.index()),
+            chunkId(fileId, chunk.index()),
+            fileId,
+            fileName,
+            chunk.section(),
+            chunk.index(),
+            "expanded_evidence",
+            Math.round(Math.min(100.0D, Math.max(0.0D, chunk.score())) * 10.0D) / 10.0D,
+            content,
+            highlights(query, queryTokens, content),
+            citation(fileName, chunk.section(), chunk.index()),
+            debug ? new SearchTrace(
+                highlights(query, queryTokens, content),
+                intentClassifier.classifyName(query),
+                List.of(),
+                "document-scoped expansion evidence"
+            ) : null,
+            document.getTenantId(),
+            document.getUserId(),
+            document.getVisibility(),
+            safeList(document.getPermissionRoles())
+        );
+    }
+
 
     private List<DocumentEvidenceChunk> toScopedEvidence(SearchDocument document,
                                                          String query,
@@ -583,6 +906,153 @@ public class DocumentSearchEvidenceService {
         return Math.max(1, Math.min(MAX_TOP_K, value));
     }
 
+    private int normalizeExpansionMax(Integer primary, Integer fallback, int defaultValue, int maxValue) {
+        Integer value = primary == null ? fallback : primary;
+        if (value == null) {
+            return defaultValue;
+        }
+        return Math.max(1, Math.min(maxValue, value));
+    }
+
+    private DocumentSearchMatchType matchType(List<DocumentEvidenceChunk> chunks, List<DocumentSearchHit> documents) {
+        boolean hasChunks = chunks != null && !chunks.isEmpty();
+        boolean hasDocuments = documents != null && !documents.isEmpty();
+        if (hasChunks && hasDocuments) {
+            return DocumentSearchMatchType.MIXED_HIT;
+        }
+        if (hasChunks) {
+            return DocumentSearchMatchType.CONTENT_HIT;
+        }
+        if (hasDocuments) {
+            return DocumentSearchMatchType.TITLE_ONLY_HIT;
+        }
+        return DocumentSearchMatchType.NO_HIT;
+    }
+
+    private DocumentRetrievalSemantics semantics(DocumentSearchMatchType matchType) {
+        return switch (matchType) {
+            case CONTENT_HIT -> DocumentRetrievalSemantics.evidenceBody();
+            case MIXED_HIT -> DocumentRetrievalSemantics.partialEvidence();
+            case TITLE_ONLY_HIT -> DocumentRetrievalSemantics.titleOnly();
+            case NO_HIT -> DocumentRetrievalSemantics.noHit();
+        };
+    }
+
+    private DocumentExpansionPolicy expansionPolicy(DocumentSearchMatchType matchType) {
+        return switch (matchType) {
+            case TITLE_ONLY_HIT -> DocumentExpansionPolicy.titleOnly();
+            case MIXED_HIT -> DocumentExpansionPolicy.mixed();
+            case CONTENT_HIT, NO_HIT -> DocumentExpansionPolicy.none();
+        };
+    }
+
+    private EvidenceGovernancePolicy governancePolicy(DocumentSearchMatchType matchType) {
+        return switch (matchType) {
+            case CONTENT_HIT, MIXED_HIT -> EvidenceGovernancePolicy.contentReady();
+            case TITLE_ONLY_HIT -> EvidenceGovernancePolicy.needsExpansion(
+                DocumentExpansionPolicy.titleOnly().maxSections(),
+                DocumentExpansionPolicy.titleOnly().maxChunks()
+            );
+            case NO_HIT -> EvidenceGovernancePolicy.noEvidence();
+        };
+    }
+
+    private DocumentOutlineSource outlineSource(List<DocumentOutlineItem> outline) {
+        if (outline == null || outline.isEmpty()) {
+            return null;
+        }
+        return outline.get(0).source();
+    }
+
+    private String sectionLabel(TextChunker.TextChunk chunk, int index) {
+        String section = chunk == null ? "" : chunk.section();
+        return hasText(section) ? section.trim() : "Section " + (index + 1);
+    }
+
+    private String outlineSummary(String content, String section) {
+        String summary = nullToEmpty(content).replace('\n', ' ').replaceAll("\\s+", " ").trim();
+        if (hasText(section) && summary.startsWith(section)) {
+            summary = summary.substring(section.length()).trim();
+        }
+        return truncate(summary, 260);
+    }
+
+    private boolean sectionRequested(String section, List<String> normalizedRequestedSections) {
+        String normalizedSection = normalizeComparable(section);
+        return normalizedRequestedSections.stream()
+            .anyMatch(requested -> normalizedSection.contains(requested) || requested.contains(normalizedSection));
+    }
+
+    private double expansionScore(TextChunker.TextChunk chunk,
+                                  String section,
+                                  List<String> queryTokens,
+                                  List<String> requestedSections,
+                                  int index) {
+        String content = chunk == null ? "" : chunk.content();
+        String normalizedContent = normalizeComparable(content);
+        String normalizedSection = normalizeComparable(section);
+        double score = Math.max(10, 50 - index);
+        if (!requestedSections.isEmpty() && sectionRequested(section, requestedSections)) {
+            score += 35;
+        }
+        for (String token : safeList(queryTokens)) {
+            String normalizedToken = normalizeComparable(token);
+            if (!hasText(normalizedToken)) {
+                continue;
+            }
+            if (normalizedSection.contains(normalizedToken)) {
+                score += normalizedToken.length() > 2 ? 24 : 12;
+            }
+            if (normalizedContent.contains(normalizedToken)) {
+                score += normalizedToken.length() > 2 ? 18 : 8;
+            }
+        }
+        return score;
+    }
+
+    private String chunkId(String fileId, int chunkIndex) {
+        return firstNonBlank(fileId, "unknown") + "_" + chunkIndex;
+    }
+
+    private List<String> sectionKeywords(String text) {
+        return tokenizer.searchTokens(text).stream()
+            .filter(this::hasText)
+            .map(String::trim)
+            .distinct()
+            .limit(12)
+            .toList();
+    }
+
+    private String sectionEmbeddingRef(String docId, String section) {
+        String normalizedDocId = firstNonBlank(docId, "unknown");
+        String normalizedSection = normalizeComparable(section);
+        if (!hasText(normalizedSection)) {
+            normalizedSection = "section";
+        }
+        return "section://" + normalizedDocId + "#" + normalizedSection;
+    }
+
+    private boolean same(String left, String right) {
+        return nullToEmpty(left).equals(nullToEmpty(right));
+    }
+
+    private String normalizeComparable(String value) {
+        return nullToEmpty(value)
+            .toLowerCase(Locale.ROOT)
+            .replaceAll("[\\s\\p{Punct}\\u3000-\\u303F\\uFF00-\\uFFEF]+", "");
+    }
+
+    private String truncate(String value, int maxChars) {
+        if (!hasText(value)) {
+            return "";
+        }
+        int safeMax = Math.max(0, maxChars);
+        if (value.length() <= safeMax) {
+            return value;
+        }
+        return value.substring(0, safeMax).trim();
+    }
+
     private String requireQuery(String query) {
         if (!hasText(query)) {
             throw new IllegalArgumentException("query is required");
@@ -644,5 +1114,8 @@ public class DocumentSearchEvidenceService {
     }
 
     private record ScopedExcerpt(int index, String text, Double score) {
+    }
+
+    private record ScoredTextChunk(int index, String section, String content, double score) {
     }
 }

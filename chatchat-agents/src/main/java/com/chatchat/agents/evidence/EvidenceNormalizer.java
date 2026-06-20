@@ -117,6 +117,10 @@ public class EvidenceNormalizer {
         if (hasText(refId)) {
             citation.put("refId", refId);
         }
+        Object evidenceGrade = firstObject(item.get("evidenceGrade"), item.get("grade"), citation.get("evidenceGrade"));
+        if (evidenceGrade != null) {
+            citation.put("evidenceGrade", String.valueOf(evidenceGrade));
+        }
         EvidenceSource source = new EvidenceSource(
             firstNonBlank(
                 firstNonBlank(stringValue(item.get("fileName")), stringValue(item.get("title"))),
@@ -132,8 +136,11 @@ public class EvidenceNormalizer {
             EvidenceChunk.CONTRACT_VERSION,
             source,
             firstNonBlank(
-                firstNonBlank(stringValue(item.get("content")), stringValue(item.get("contentExcerpt"))),
-                firstNonBlank(stringValue(item.get("excerpt")), firstNonBlank(stringValue(item.get("snippet")), stringValue(item.get("summary"))))
+                firstNonBlank(stringValue(item.get("content")), stringValue(item.get("text"))),
+                firstNonBlank(
+                    stringValue(item.get("contentExcerpt")),
+                    firstNonBlank(stringValue(item.get("excerpt")), firstNonBlank(stringValue(item.get("snippet")), stringValue(item.get("summary"))))
+                )
             ),
             doubleValue(firstObject(item.get("score"), item.get("relevanceScore"))),
             citation,
@@ -211,6 +218,8 @@ public class EvidenceNormalizer {
         List<Map<String, Object>> values = new ArrayList<>();
         if (type == EvidenceType.DOCUMENT) {
             addCandidateList(values, root.get("results"));
+            addCandidateList(values, root.get("evidenceChunks"));
+            addCandidateList(values, root.get("evidence_chunks"));
             addCandidateList(values, root.get("evidenceSnippets"));
             addCandidateList(values, root.get("items"));
             addCandidateList(values, root.get("records"));

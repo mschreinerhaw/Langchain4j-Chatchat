@@ -78,6 +78,290 @@ class SearchServiceTest {
     }
 
     @Test
+    void listsLibraryByPartialChineseTitleOrFileName() {
+        SearchService service = newSearchService();
+        service.createOrUpdate(SearchDocument.builder()
+            .docId("doc-title-cn")
+            .title("大数据平台实时计算与数据资产管理建设项目")
+            .content("project overview body")
+            .source("document-library")
+            .date("2026-06-20")
+            .build());
+        SearchDocument fileNameDocument = service.upload(
+            textFile("大数据平台实时计算与数据资产管理建设项目说明.txt", "project appendix body"),
+            "项目说明",
+            "document-library",
+            "2026-06-20",
+            null,
+            null,
+            null,
+            null,
+            "text",
+            null
+        );
+
+        LibraryPage page = service.listLibrary("all", "数据资产管理建设项目", 20);
+
+        assertThat(page.total()).isEqualTo(2);
+        assertThat(page.documents()).extracting(LibraryDocumentItem::docId)
+            .containsExactlyInAnyOrder("doc-title-cn", fileNameDocument.getDocId());
+    }
+
+    @Test
+    void searchesByPartialChineseDocumentTitle() {
+        SearchService service = newSearchService();
+        service.createOrUpdate(SearchDocument.builder()
+            .docId("doc-cn-title")
+            .title("大数据平台实时计算与数据资产管理建设项目")
+            .content("unrelated project overview body")
+            .source("document-library")
+            .date("2026-06-20")
+            .build());
+
+        SearchPage page = service.search("数据资产管理建设项目", null, null, null, 10);
+
+        assertThat(page.results()).extracting(SearchResult::docId)
+            .containsExactly("doc-cn-title");
+        assertThat(page.results().get(0).scoreBreakdown().phraseScore())
+            .isGreaterThan(0);
+        assertThat(page.results().get(0).scoreBreakdown().fieldScores().get("title"))
+            .isGreaterThan(0);
+    }
+
+    @Test
+    void frontendQuickSearchMatchesShortChineseTitlePhrase() {
+        SearchService service = newSearchService();
+        service.createOrUpdate(SearchDocument.builder()
+            .docId("doc-quality-title")
+            .title("数据质量核查报告")
+            .content("quality report body")
+            .source("document-library")
+            .date("2026-06-20")
+            .build());
+
+        SearchPage page = service.frontendQuickSearch(
+            "数据质量",
+            null,
+            null,
+            null,
+            null,
+            1,
+            10,
+            SearchPermissionContext.system()
+        );
+
+        assertThat(page.results()).extracting(SearchResult::docId)
+            .containsExactly("doc-quality-title");
+        assertThat(page.results().get(0).scoreBreakdown().phraseScore())
+            .isGreaterThan(0);
+        assertThat(page.results().get(0).scoreBreakdown().fieldScores().get("title"))
+            .isGreaterThan(0);
+    }
+
+    @Test
+    void frontendQuickSearchMatchesRememberedChineseTitleKeywords() {
+        SearchService service = newSearchService();
+        service.createOrUpdate(SearchDocument.builder()
+            .docId("doc-quality-keywords")
+            .title("数据资产质量管理报告")
+            .content("quality report body")
+            .source("document-library")
+            .date("2026-06-20")
+            .build());
+
+        SearchPage page = service.frontendQuickSearch(
+            "数据质量",
+            null,
+            null,
+            null,
+            null,
+            1,
+            10,
+            SearchPermissionContext.system()
+        );
+
+        assertThat(page.results()).extracting(SearchResult::docId)
+            .containsExactly("doc-quality-keywords");
+        assertThat(page.results().get(0).scoreBreakdown().coverageRatio())
+            .isGreaterThanOrEqualTo(0.6D);
+    }
+
+    @Test
+    void frontendQuickSearchRoutesShortChineseTitleFragmentToMemoryRecall() {
+        SearchService service = newSearchService();
+        service.createOrUpdate(SearchDocument.builder()
+            .docId("doc-data-asset-project")
+            .title("\u56fd\u90fd\u8bc1\u5238\u5927\u6570\u636e\u5e73\u53f0\u5b9e\u65f6\u8ba1\u7b97\u4e0e\u6570\u636e\u8d44\u4ea7\u7ba1\u7406\u5efa\u8bbe\u9879\u76ee\u7acb\u9879\u62a5\u544av2")
+            .content("project approval introduction without the user remembered title words")
+            .source("document-library")
+            .date("2026-06-20")
+            .build());
+
+        SearchPage page = service.frontendQuickSearch(
+            "\u6570\u636e\u8d44\u4ea7\u7ba1\u7406",
+            null,
+            null,
+            null,
+            null,
+            1,
+            10,
+            SearchPermissionContext.system()
+        );
+
+        assertThat(page.results()).extracting(SearchResult::docId)
+            .containsExactly("doc-data-asset-project");
+        assertThat(page.results().get(0).scoreBreakdown().fieldScores().get("memoryRecall"))
+            .isGreaterThan(0);
+        assertThat(page.results().get(0).scoreBreakdown().fieldScores().get("memoryRecallRaw"))
+            .isGreaterThanOrEqualTo(page.results().get(0).scoreBreakdown().fieldScores().get("memoryRecall"));
+    }
+
+    @Test
+    void frontendQuickSearchRoutesLongChineseTitleFragmentToMemoryRecall() {
+        SearchService service = newSearchService();
+        service.createOrUpdate(SearchDocument.builder()
+            .docId("doc-realtime-project")
+            .title("\u56fd\u90fd\u8bc1\u5238\u5927\u6570\u636e\u5e73\u53f0\u5b9e\u65f6\u8ba1\u7b97\u4e0e\u6570\u636e\u8d44\u4ea7\u7ba1\u7406\u5efa\u8bbe\u9879\u76ee\u7acb\u9879\u62a5\u544av2")
+            .content("project approval introduction without the user remembered title words")
+            .source("document-library")
+            .date("2026-06-20")
+            .build());
+
+        SearchPage page = service.frontendQuickSearch(
+            "\u5927\u6570\u636e\u5e73\u53f0\u5b9e\u65f6\u8ba1\u7b97",
+            null,
+            null,
+            null,
+            null,
+            1,
+            10,
+            SearchPermissionContext.system()
+        );
+
+        assertThat(page.results()).extracting(SearchResult::docId)
+            .containsExactly("doc-realtime-project");
+        assertThat(page.results().get(0).scoreBreakdown().fieldScores().get("memoryRecall"))
+            .isGreaterThan(0);
+    }
+
+    @Test
+    void frontendQuickSearchKeepsDocumentTagsSeparateFromMatchedKeywords() {
+        SearchService service = newSearchService();
+        service.createOrUpdate(SearchDocument.builder()
+            .docId("doc-visible-tags")
+            .title("\u56fd\u90fd\u8bc1\u5238\u5927\u6570\u636e\u5e73\u53f0\u5b9e\u65f6\u8ba1\u7b97\u4e0e\u6570\u636e\u8d44\u4ea7\u7ba1\u7406\u5efa\u8bbe\u9879\u76ee\u7acb\u9879\u62a5\u544av2")
+            .content("project approval introduction without the user remembered title words")
+            .source("document-library")
+            .date("2026-06-20")
+            .tags(List.of("\u7acb\u9879\u62a5\u544a", "\u56fd\u90fd\u8bc1\u5238"))
+            .build());
+
+        SearchPage page = service.frontendQuickSearch(
+            "\u6570\u636e\u8d44\u4ea7\u7ba1\u7406\u5efa",
+            null,
+            null,
+            null,
+            null,
+            1,
+            10,
+            SearchPermissionContext.system()
+        );
+
+        SearchResult result = page.results().get(0);
+        assertThat(result.tags())
+            .containsExactly("\u7acb\u9879\u62a5\u544a", "\u56fd\u90fd\u8bc1\u5238");
+        assertThat(result.matchedKeywords())
+            .contains("\u6570\u636e\u8d44\u4ea7\u7ba1\u7406\u5efa")
+            .doesNotContain("\u7acb\u9879\u62a5\u544a");
+    }
+
+    @Test
+    void searchHardIncludesChineseTitleMemoryCandidates() {
+        SearchService service = newSearchService();
+        service.createOrUpdate(SearchDocument.builder()
+            .docId("doc-title-memory")
+            .title("数据资产质量管理报告")
+            .content("unrelated body without the query phrase")
+            .source("document-library")
+            .date("2026-06-20")
+            .tags(List.of("quality"))
+            .build());
+
+        SearchPage page = service.search("数据质量", null, null, null, 10);
+
+        assertThat(page.results()).extracting(SearchResult::docId)
+            .containsExactly("doc-title-memory");
+        assertThat(page.results().get(0).scoreBreakdown().baseTokenScore())
+            .isGreaterThan(0);
+        assertThat(page.results().get(0).scoreBreakdown().fieldScores().get("memoryRecall"))
+            .isGreaterThan(0);
+        assertThat(page.results().get(0).scoreBreakdown().fieldScores().get("memoryRecallRaw"))
+            .isGreaterThanOrEqualTo(page.results().get(0).scoreBreakdown().fieldScores().get("memoryRecall"));
+        assertThat(page.results().get(0).scoreBreakdown().fieldScores().get("title"))
+            .isGreaterThan(0);
+    }
+
+    @Test
+    void searchKeepsMemoryRecallCandidateThroughRelevanceFilter() {
+        SearchService service = newSearchService();
+        service.createOrUpdate(SearchDocument.builder()
+            .docId("doc-memory-relevance")
+            .title("\u56fd\u90fd\u8bc1\u5238\u5927\u6570\u636e\u5e73\u53f0\u5b9e\u65f6\u8ba1\u7b97\u4e0e\u6570\u636e\u8d44\u4ea7\u7ba1\u7406\u5efa\u8bbe\u9879\u76ee\u7acb\u9879\u62a5\u544av2")
+            .content("project approval introduction without the user remembered title words")
+            .source("document-library")
+            .date("2026-06-20")
+            .build());
+
+        SearchPage page = service.search("\u6570\u636e\u8d44\u4ea7\u7ba1\u7406", null, null, null, 10);
+
+        assertThat(page.results()).extracting(SearchResult::docId)
+            .containsExactly("doc-memory-relevance");
+        assertThat(page.results().get(0).scoreBreakdown().fieldScores().get("memoryRecall"))
+            .isGreaterThan(0);
+    }
+
+    @Test
+    void titleMemoryRecallIsCappedBeforeRankingWhenLuceneIsDisabled() {
+        SearchService service = newSearchService(properties -> properties.setLuceneEnabled(false));
+        service.createOrUpdate(SearchDocument.builder()
+            .docId("doc-title-memory-cap")
+            .title("\u6570\u636e\u8d28\u91cf\u6838\u67e5\u62a5\u544a")
+            .content("unrelated body without the query phrase")
+            .source("document-library")
+            .date("2026-06-20")
+            .build());
+
+        SearchPage page = service.search("\u6570\u636e\u8d28\u91cf", null, null, null, 10);
+
+        assertThat(page.results()).extracting(SearchResult::docId)
+            .containsExactly("doc-title-memory-cap");
+        assertThat(page.results().get(0).scoreBreakdown().fieldScores().get("memoryRecallRaw"))
+            .isEqualTo(90);
+        assertThat(page.results().get(0).scoreBreakdown().fieldScores().get("memoryRecall"))
+            .isLessThan(90)
+            .isLessThanOrEqualTo(60);
+        assertThat(page.results().get(0).scoreBreakdown().baseTokenScore())
+            .isGreaterThanOrEqualTo(page.results().get(0).scoreBreakdown().fieldScores().get("memoryRecall"));
+    }
+
+    @Test
+    void titleMemoryCandidatesStillRespectFilters() {
+        SearchService service = newSearchService();
+        service.createOrUpdate(SearchDocument.builder()
+            .docId("doc-quality-filtered")
+            .title("数据资产质量管理报告")
+            .content("quality report body")
+            .source("document-library")
+            .date("2026-06-20")
+            .tags(List.of("quality"))
+            .build());
+
+        SearchPage page = service.search("数据质量", "operations", null, null, 10);
+
+        assertThat(page.results()).isEmpty();
+    }
+
+    @Test
     void uploadsSameTitleAsDocumentVersionsAndSearchesLatestOnly() {
         SearchService service = newSearchService();
 
@@ -512,6 +796,74 @@ class SearchServiceTest {
         );
 
         assertThat(document.getKeywords()).contains("latency", "database", "queue");
+    }
+
+    @Test
+    void searchesUploadedDocumentsByFileNameWhenLuceneIsDisabled() {
+        SearchService service = newSearchService(properties -> properties.setLuceneEnabled(false));
+
+        SearchDocument document = service.upload(
+            textFile("模型日资产数据核对报告2026-06.txt", "daily reconciliation values only"),
+            "资产日报",
+            "document-library",
+            "2026-06-20",
+            null,
+            null,
+            null,
+            null,
+            "text",
+            null
+        );
+
+        SearchPage page = service.search("模型日资产数据核对报告", null, null, null, 10);
+
+        assertThat(page.results()).extracting(SearchResult::docId)
+            .containsExactly(document.getDocId());
+        assertThat(page.results().get(0).scoreBreakdown().fieldScores().get("fileName"))
+            .isGreaterThan(0);
+
+        SearchPage dateTagPage = service.search("202606", null, null, null, 10);
+
+        assertThat(dateTagPage.results()).extracting(SearchResult::docId)
+            .containsExactly(document.getDocId());
+        assertThat(dateTagPage.results().get(0).scoreBreakdown().fieldScores().get("fileName"))
+            .isGreaterThan(0);
+    }
+
+    @Test
+    void frontendQuickSearchScoresUploadedDocumentsByFileName() {
+        SearchService service = newSearchService();
+
+        SearchDocument document = service.upload(
+            textFile("model-daily-asset-check-report.txt", "daily reconciliation values only"),
+            "Asset Daily",
+            "document-library",
+            "2026-06-20",
+            null,
+            null,
+            null,
+            null,
+            "text",
+            null
+        );
+
+        SearchPage page = service.frontendQuickSearch(
+            "model daily asset check report",
+            null,
+            null,
+            null,
+            null,
+            1,
+            10,
+            SearchPermissionContext.system()
+        );
+
+        assertThat(page.results()).extracting(SearchResult::docId)
+            .containsExactly(document.getDocId());
+        assertThat(page.results().get(0).scoreBreakdown().fieldScores().get("fileName"))
+            .isGreaterThan(0);
+        assertThat(page.results().get(0).scoreBreakdown().phraseScore())
+            .isGreaterThan(0);
     }
 
     @Test

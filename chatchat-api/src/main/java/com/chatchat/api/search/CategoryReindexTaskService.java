@@ -50,6 +50,13 @@ public class CategoryReindexTaskService {
                 "分类索引重建任务已开始"
             );
             currentTask.set(running);
+            log.info(
+                "category_reindex_task_submitted taskId={} category={} tenantId={} userId={}",
+                taskId,
+                normalizedCategory,
+                permissionContext == null ? SearchPermissionContext.DEFAULT_TENANT : permissionContext.tenantId(),
+                permissionContext == null ? SearchPermissionContext.ANONYMOUS_USER : permissionContext.userId()
+            );
             executor.submit(() -> runTask(taskId, normalizedCategory, permissionContext));
             return new CategoryReindexTaskStartResponse(true, running);
         }
@@ -65,8 +72,20 @@ public class CategoryReindexTaskService {
     }
 
     private void runTask(String taskId, String category, SearchPermissionContext permissionContext) {
+        long startedAt = System.nanoTime();
+        log.info("category_reindex_task_start taskId={} category={}", taskId, category);
         try {
             SearchService.ReindexSummary summary = searchService.reindexDocumentsByCategory(category, permissionContext);
+            log.info(
+                "category_reindex_task_complete taskId={} category={} scanned={} matched={} reindexed={} failed={} durationMs={}",
+                taskId,
+                category,
+                summary.scannedDocuments(),
+                summary.matchedDocuments(),
+                summary.reindexedDocuments(),
+                summary.failedDocuments(),
+                elapsedMs(startedAt)
+            );
             currentTask.set(new CategoryReindexTaskStatus(
                 taskId,
                 category,
@@ -81,7 +100,14 @@ public class CategoryReindexTaskService {
                 "分类索引重建任务已完成"
             ));
         } catch (Exception ex) {
-            log.warn("Category reindex task {} failed for category {}: {}", taskId, category, ex.getMessage(), ex);
+            log.warn(
+                "category_reindex_task_failed taskId={} category={} durationMs={} error={}",
+                taskId,
+                category,
+                elapsedMs(startedAt),
+                ex.getMessage(),
+                ex
+            );
             currentTask.set(new CategoryReindexTaskStatus(
                 taskId,
                 category,
@@ -104,6 +130,10 @@ public class CategoryReindexTaskService {
 
     private static boolean hasText(String value) {
         return value != null && !value.isBlank();
+    }
+
+    private static long elapsedMs(long startedAt) {
+        return (System.nanoTime() - startedAt) / 1_000_000;
     }
 
     public record CategoryReindexTaskStartResponse(

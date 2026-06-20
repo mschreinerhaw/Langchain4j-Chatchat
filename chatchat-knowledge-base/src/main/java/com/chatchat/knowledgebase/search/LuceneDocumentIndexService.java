@@ -68,6 +68,7 @@ public class LuceneDocumentIndexService {
     private static final String USER_ID = "userId";
     private static final String VISIBILITY = "visibility";
     private static final String PERMISSION_ROLE = "permissionRole";
+    private static final int REBUILD_PROGRESS_INTERVAL = 100;
 
     private final SearchProperties properties;
     private final SearchTokenizer tokenizer;
@@ -113,10 +114,24 @@ public class LuceneDocumentIndexService {
         if (!isAvailable() || document == null || document.getDocId() == null || document.getDocId().isBlank()) {
             return;
         }
+        long startedAt = System.nanoTime();
         try {
+            log.info(
+                "lucene_index_document_start docId={} title={} fileName={} latestVersion={} contentChars={}",
+                document.getDocId(),
+                safeLogValue(document.getTitle(), 80),
+                safeLogValue(document.getFileName(), 80),
+                document.getLatestVersion(),
+                lengthOf(document.getContent())
+            );
             writer.deleteDocuments(new Term(FILE_ID, document.getDocId()));
             if (Boolean.FALSE.equals(document.getLatestVersion())) {
                 writer.commit();
+                log.info(
+                    "lucene_index_document_deleted_non_latest docId={} durationMs={}",
+                    document.getDocId(),
+                    elapsedMs(startedAt)
+                );
                 return;
             }
             List<TextChunker.TextChunk> chunks = chunks(document.getContent());
@@ -124,7 +139,20 @@ public class LuceneDocumentIndexService {
                 writer.addDocument(toLuceneDocument(document, chunks.get(i), i, chunks.size()));
             }
             writer.commit();
+            log.info(
+                "lucene_index_document_complete docId={} chunks={} durationMs={}",
+                document.getDocId(),
+                chunks.size(),
+                elapsedMs(startedAt)
+            );
         } catch (IOException ex) {
+            log.warn(
+                "lucene_index_document_failed docId={} durationMs={} error={}",
+                document.getDocId(),
+                elapsedMs(startedAt),
+                ex.getMessage(),
+                ex
+            );
             throw new IllegalStateException("Failed to index document into Lucene: " + document.getDocId(), ex);
         }
     }
@@ -155,7 +183,12 @@ public class LuceneDocumentIndexService {
         if (!isAvailable()) {
             return;
         }
+        long startedAt = System.nanoTime();
+        int scannedDocuments = documents == null ? 0 : documents.size();
+        int indexedDocuments = 0;
+        int indexedChunks = 0;
         try {
+            log.info("lucene_rebuild_start scannedDocuments={}", scannedDocuments);
             writer.deleteAll();
             if (documents != null) {
                 for (SearchDocument document : documents) {
@@ -164,12 +197,37 @@ public class LuceneDocumentIndexService {
                         for (int i = 0; i < chunks.size(); i++) {
                             writer.addDocument(toLuceneDocument(document, chunks.get(i), i, chunks.size()));
                         }
+                        indexedDocuments++;
+                        indexedChunks += chunks.size();
+                        if (indexedDocuments % REBUILD_PROGRESS_INTERVAL == 0) {
+                            log.info(
+                                "lucene_rebuild_progress indexedDocuments={} indexedChunks={} elapsedMs={}",
+                                indexedDocuments,
+                                indexedChunks,
+                                elapsedMs(startedAt)
+                            );
+                        }
                     }
                 }
             }
             writer.commit();
-            log.info("Lucene search index rebuilt with {} latest documents", documents == null ? 0 : documents.size());
+            log.info(
+                "lucene_rebuild_complete scannedDocuments={} indexedDocuments={} indexedChunks={} durationMs={}",
+                scannedDocuments,
+                indexedDocuments,
+                indexedChunks,
+                elapsedMs(startedAt)
+            );
         } catch (IOException ex) {
+            log.warn(
+                "lucene_rebuild_failed scannedDocuments={} indexedDocuments={} indexedChunks={} durationMs={} error={}",
+                scannedDocuments,
+                indexedDocuments,
+                indexedChunks,
+                elapsedMs(startedAt),
+                ex.getMessage(),
+                ex
+            );
             throw new IllegalStateException("Failed to rebuild Lucene search index", ex);
         }
     }
@@ -732,5 +790,19 @@ public class LuceneDocumentIndexService {
             return 0.0F;
         }
         return (float) chunkIndex / (float) (chunkCount - 1);
+    }
+
+    private String safeLogValue(String value, int maxLength) {
+        String normalized = value == null ? "" : value.replaceAll("[\\r\\n\\t]+", " ").trim();
+        int limit = Math.max(1, maxLength);
+        return normalized.length() <= limit ? normalized : normalized.substring(0, limit);
+    }
+
+    private long elapsedMs(long startedAt) {
+        return (System.nanoTime() - startedAt) / 1_000_000;
+    }
+
+    private int lengthOf(String value) {
+        return value == null ? 0 : value.length();
     }
 }

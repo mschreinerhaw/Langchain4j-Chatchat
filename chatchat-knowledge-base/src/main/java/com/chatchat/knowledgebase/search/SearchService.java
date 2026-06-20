@@ -66,6 +66,7 @@ public class SearchService {
     private static final double FRONTEND_FILENAME_WEIGHT = 1.5D;
     private static final double FRONTEND_CONTENT_WEIGHT = 1.0D;
     private static final double FRONTEND_SOURCE_WEIGHT = 0.5D;
+    private static final int REINDEX_PROGRESS_INTERVAL = 20;
 
     private final RocksDbSearchStore store;
     private final LuceneDocumentIndexService luceneStore;
@@ -81,12 +82,17 @@ public class SearchService {
     @PostConstruct
     public void rebuildLuceneIndex() {
         if (!luceneStore.isAvailable()) {
+            log.info("search_rebuild_lucene_skipped reason=lucene_unavailable");
             return;
         }
+        long startedAt = System.nanoTime();
         try {
-            luceneStore.rebuildLatest(loadLatestDocuments());
+            List<SearchDocument> documents = loadLatestDocuments();
+            log.info("search_rebuild_lucene_start documents={}", documents.size());
+            luceneStore.rebuildLatest(documents);
+            log.info("search_rebuild_lucene_complete documents={} durationMs={}", documents.size(), elapsedMs(startedAt));
         } catch (Exception ex) {
-            log.warn("Failed to rebuild Lucene search index from RocksDB: {}", ex.getMessage(), ex);
+            log.warn("search_rebuild_lucene_failed durationMs={} error={}", elapsedMs(startedAt), ex.getMessage(), ex);
         }
     }
 
@@ -1210,27 +1216,72 @@ public class SearchService {
     }
 
     public Optional<SearchDocument> reindexDocument(String docId, SearchPermissionContext permissionContext) {
-        Optional<SearchDocument> document = get(docId, permissionContext);
+        SearchPermissionContext context = permissionContext == null ? SearchPermissionContext.system() : permissionContext;
+        long startedAt = System.nanoTime();
+        log.info(
+            "search_reindex_document_start docId={} tenantId={} userId={}",
+            docId,
+            context.tenantId(),
+            context.userId()
+        );
+        Optional<SearchDocument> document = get(docId, context);
         if (document.isEmpty()) {
+            log.info(
+                "search_reindex_document_not_found docId={} tenantId={} userId={} durationMs={}",
+                docId,
+                context.tenantId(),
+                context.userId(),
+                elapsedMs(startedAt)
+            );
             return Optional.empty();
         }
         SearchDocument target = document.get();
-        SearchIndexData oldIndexData = buildIndexData(target);
-        refreshDocumentContent(target);
-        target.setLifecycleStatus(DocumentLifecycleStatus.INDEXED);
-        target.setIndexedAt(Instant.now().toEpochMilli());
-        target.setUpdatedAt(Instant.now().toEpochMilli());
-        target.setDeletedAt(null);
-        target.setErrorMessage(null);
-        store.put(target, buildIndexData(target), oldIndexData);
-        syncLuceneIndex(target);
-        return Optional.of(target);
+        try {
+            SearchIndexData oldIndexData = buildIndexData(target);
+            refreshDocumentContent(target);
+            target.setLifecycleStatus(DocumentLifecycleStatus.INDEXED);
+            target.setIndexedAt(Instant.now().toEpochMilli());
+            target.setUpdatedAt(Instant.now().toEpochMilli());
+            target.setDeletedAt(null);
+            target.setErrorMessage(null);
+            store.put(target, buildIndexData(target), oldIndexData);
+            syncLuceneIndex(target);
+            log.info(
+                "search_reindex_document_complete docId={} title={} fileName={} contentChars={} keywords={} durationMs={}",
+                target.getDocId(),
+                safeLogValue(target.getTitle(), 80),
+                safeLogValue(target.getFileName(), 80),
+                lengthOf(target.getContent()),
+                cleanList(target.getKeywords()).size(),
+                elapsedMs(startedAt)
+            );
+            return Optional.of(target);
+        } catch (RuntimeException ex) {
+            log.warn(
+                "search_reindex_document_failed docId={} title={} fileName={} durationMs={} error={}",
+                target.getDocId(),
+                safeLogValue(target.getTitle(), 80),
+                safeLogValue(target.getFileName(), 80),
+                elapsedMs(startedAt),
+                ex.getMessage(),
+                ex
+            );
+            throw ex;
+        }
     }
 
     public ReindexSummary reindexDocumentsByCategory(String category, SearchPermissionContext permissionContext) {
         SearchPermissionContext context = permissionContext == null ? SearchPermissionContext.system() : permissionContext;
         String normalizedCategory = normalizeCategory(category);
         List<SearchDocument> documents = loadLatestDocuments(context);
+        long startedAt = System.nanoTime();
+        log.info(
+            "search_reindex_category_start category={} tenantId={} userId={} scannedCandidates={}",
+            normalizedCategory,
+            context.tenantId(),
+            context.userId(),
+            documents.size()
+        );
         List<String> reindexedDocIds = new ArrayList<>();
         List<String> failedDocIds = new ArrayList<>();
         int matchedDocuments = 0;
@@ -1239,15 +1290,59 @@ public class SearchService {
                 continue;
             }
             matchedDocuments++;
+            long documentStartedAt = System.nanoTime();
+            log.info(
+                "search_reindex_document_start scope=category category={} ordinal={} docId={} title={} fileName={}",
+                normalizedCategory,
+                matchedDocuments,
+                document.getDocId(),
+                safeLogValue(document.getTitle(), 80),
+                safeLogValue(document.getFileName(), 80)
+            );
             try {
                 reindexLoadedDocument(document);
                 reindexedDocIds.add(document.getDocId());
+                log.info(
+                    "search_reindex_document_complete scope=category category={} ordinal={} docId={} contentChars={} keywords={} durationMs={}",
+                    normalizedCategory,
+                    matchedDocuments,
+                    document.getDocId(),
+                    lengthOf(document.getContent()),
+                    cleanList(document.getKeywords()).size(),
+                    elapsedMs(documentStartedAt)
+                );
             } catch (Exception ex) {
                 failedDocIds.add(document.getDocId());
-                log.warn("Failed to reindex document {} in category {}: {}",
-                    document.getDocId(), normalizedCategory, ex.getMessage(), ex);
+                log.warn(
+                    "search_reindex_document_failed scope=category category={} ordinal={} docId={} durationMs={} error={}",
+                    normalizedCategory,
+                    matchedDocuments,
+                    document.getDocId(),
+                    elapsedMs(documentStartedAt),
+                    ex.getMessage(),
+                    ex
+                );
+            }
+            if (matchedDocuments % REINDEX_PROGRESS_INTERVAL == 0) {
+                log.info(
+                    "search_reindex_category_progress category={} matched={} reindexed={} failed={} elapsedMs={}",
+                    normalizedCategory,
+                    matchedDocuments,
+                    reindexedDocIds.size(),
+                    failedDocIds.size(),
+                    elapsedMs(startedAt)
+                );
             }
         }
+        log.info(
+            "search_reindex_category_complete category={} scanned={} matched={} reindexed={} failed={} durationMs={}",
+            normalizedCategory,
+            documents.size(),
+            matchedDocuments,
+            reindexedDocIds.size(),
+            failedDocIds.size(),
+            elapsedMs(startedAt)
+        );
         return new ReindexSummary(
             documents.size(),
             matchedDocuments,
@@ -1261,6 +1356,13 @@ public class SearchService {
     public ReindexSummary reindexUploadedSqlDocuments(SearchPermissionContext permissionContext) {
         SearchPermissionContext context = permissionContext == null ? SearchPermissionContext.system() : permissionContext;
         List<SearchDocument> documents = loadLatestDocuments(context);
+        long startedAt = System.nanoTime();
+        log.info(
+            "search_reindex_sql_start tenantId={} userId={} scannedCandidates={}",
+            context.tenantId(),
+            context.userId(),
+            documents.size()
+        );
         List<String> reindexedDocIds = new ArrayList<>();
         List<String> failedDocIds = new ArrayList<>();
         int sqlDocuments = 0;
@@ -1269,14 +1371,54 @@ public class SearchService {
                 continue;
             }
             sqlDocuments++;
+            long documentStartedAt = System.nanoTime();
+            log.info(
+                "search_reindex_document_start scope=sql ordinal={} docId={} title={} fileName={}",
+                sqlDocuments,
+                document.getDocId(),
+                safeLogValue(document.getTitle(), 80),
+                safeLogValue(document.getFileName(), 80)
+            );
             try {
                 reindexLoadedDocument(document);
                 reindexedDocIds.add(document.getDocId());
+                log.info(
+                    "search_reindex_document_complete scope=sql ordinal={} docId={} contentChars={} keywords={} durationMs={}",
+                    sqlDocuments,
+                    document.getDocId(),
+                    lengthOf(document.getContent()),
+                    cleanList(document.getKeywords()).size(),
+                    elapsedMs(documentStartedAt)
+                );
             } catch (Exception ex) {
                 failedDocIds.add(document.getDocId());
-                log.warn("Failed to reindex uploaded SQL document {}: {}", document.getDocId(), ex.getMessage(), ex);
+                log.warn(
+                    "search_reindex_document_failed scope=sql ordinal={} docId={} durationMs={} error={}",
+                    sqlDocuments,
+                    document.getDocId(),
+                    elapsedMs(documentStartedAt),
+                    ex.getMessage(),
+                    ex
+                );
+            }
+            if (sqlDocuments % REINDEX_PROGRESS_INTERVAL == 0) {
+                log.info(
+                    "search_reindex_sql_progress matched={} reindexed={} failed={} elapsedMs={}",
+                    sqlDocuments,
+                    reindexedDocIds.size(),
+                    failedDocIds.size(),
+                    elapsedMs(startedAt)
+                );
             }
         }
+        log.info(
+            "search_reindex_sql_complete scanned={} matched={} reindexed={} failed={} durationMs={}",
+            documents.size(),
+            sqlDocuments,
+            reindexedDocIds.size(),
+            failedDocIds.size(),
+            elapsedMs(startedAt)
+        );
         return new ReindexSummary(documents.size(), sqlDocuments, reindexedDocIds.size(), failedDocIds.size(), reindexedDocIds, failedDocIds);
     }
 
@@ -1611,21 +1753,55 @@ public class SearchService {
     }
 
     private void refreshDocumentContent(SearchDocument document) {
+        long startedAt = System.nanoTime();
         String extractedContent = "";
         if (!isBlank(document.getFilePath())) {
             Path file = Path.of(document.getFilePath());
             String fileName = !isBlank(document.getFileName()) ? document.getFileName() : file.getFileName().toString();
-            if (Files.exists(file) && textExtractor.supports(fileName)) {
+            boolean fileExists = Files.exists(file);
+            boolean supported = textExtractor.supports(fileName);
+            log.info(
+                "search_reindex_extract_start docId={} title={} fileName={} fileExists={} extractorSupported={}",
+                document.getDocId(),
+                safeLogValue(document.getTitle(), 80),
+                safeLogValue(fileName, 80),
+                fileExists,
+                supported
+            );
+            if (fileExists && supported) {
                 extractedContent = textExtractor.extractText(file, fileName);
             }
+        } else {
+            log.info(
+                "search_reindex_extract_start docId={} title={} fileName={} fileExists=false extractorSupported=false source=stored_content",
+                document.getDocId(),
+                safeLogValue(document.getTitle(), 80),
+                safeLogValue(document.getFileName(), 80)
+            );
         }
         String content = !isBlank(extractedContent) ? extractedContent : nullToEmpty(document.getContent());
         if (isBlank(content)) {
+            log.warn(
+                "search_reindex_extract_failed docId={} title={} fileName={} durationMs={} error=empty_content",
+                document.getDocId(),
+                safeLogValue(document.getTitle(), 80),
+                safeLogValue(document.getFileName(), 80),
+                elapsedMs(startedAt)
+            );
             throw new IllegalArgumentException("document content is empty and original file is unavailable");
         }
         document.setContent(content);
         document.setKeywords(keywordExtractor.mergeKeywords(cleanList(document.getKeywords()), content));
         document.setDocumentType(resolveDocumentType(document.getDocumentType(), document.getFileName()));
+        log.info(
+            "search_reindex_extract_complete docId={} extractedChars={} finalContentChars={} keywords={} documentType={} durationMs={}",
+            document.getDocId(),
+            lengthOf(extractedContent),
+            lengthOf(content),
+            cleanList(document.getKeywords()).size(),
+            safeLogValue(document.getDocumentType(), 40),
+            elapsedMs(startedAt)
+        );
     }
 
     /**
@@ -2949,6 +3125,20 @@ public class SearchService {
     private String safeLogQuery(String keyword) {
         String value = keyword == null ? "" : keyword.replaceAll("[\\r\\n\\t]+", " ").trim();
         return value.length() <= 80 ? value : value.substring(0, 80);
+    }
+
+    private String safeLogValue(String value, int maxLength) {
+        String normalized = value == null ? "" : value.replaceAll("[\\r\\n\\t]+", " ").trim();
+        int limit = Math.max(1, maxLength);
+        return normalized.length() <= limit ? normalized : normalized.substring(0, limit);
+    }
+
+    private long elapsedMs(long startedAt) {
+        return (System.nanoTime() - startedAt) / 1_000_000;
+    }
+
+    private int lengthOf(String value) {
+        return value == null ? 0 : value.length();
     }
 
     /**

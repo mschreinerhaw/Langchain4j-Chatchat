@@ -62,10 +62,6 @@
             上传图片
           </button>
         </div>
-        <button type="button" class="tool-button clear" @click="$emit('clear')">
-          <Trash2 class="tool-icon" :size="16" stroke-width="1.9" />
-          新建对话
-        </button>
       </div>
 
       <button

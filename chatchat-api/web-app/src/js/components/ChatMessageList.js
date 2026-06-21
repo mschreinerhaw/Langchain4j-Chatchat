@@ -217,6 +217,21 @@ export default {
     },
     renderMarkdown(content, message = {}) {
       const prepared = this.prepareMarkdownContent(String(content ?? ""), message);
+      const reasoning = this.parseEvidenceReasoning(prepared.content);
+      if (reasoning?.fallback) {
+        return this.renderEvidenceReasoningFallback(prepared.content, new Set(prepared.citationUrls));
+      }
+      if (reasoning) {
+        return this.renderEvidenceReasoning(reasoning, new Set(prepared.citationUrls));
+      }
+      const executionAnswer = this.parseEvidenceExecutionAnswer(prepared.content);
+      if (executionAnswer) {
+        return this.renderEvidenceExecutionAnswer(executionAnswer, new Set(prepared.citationUrls));
+      }
+      const evidenceAnswer = this.parseEvidenceAnswer(prepared.content);
+      if (evidenceAnswer) {
+        return this.renderEvidenceAnswer(evidenceAnswer, new Set(prepared.citationUrls));
+      }
       return markdown.render(prepared.content, {
         webCitationUrls: new Set(prepared.citationUrls)
       });
@@ -406,6 +421,353 @@ export default {
     },
     escapeMarkdownTitle(value) {
       return String(value || "").replace(/"/g, "&quot;");
+    },
+    parseEvidenceReasoning(content) {
+      const text = String(content || "");
+      const fencePattern = /```(?:json)?\s*([\s\S]*?)```/gi;
+      let match;
+      while ((match = fencePattern.exec(text)) !== null) {
+        try {
+          const parsed = JSON.parse(match[1]);
+          if (parsed?.type === "evidence_reasoning_v2" || (parsed?.executionSpec && parsed?.evidence && parsed?.executionDag)) {
+            return parsed;
+          }
+        } catch (error) {
+          if (/evidence_reasoning_v2|executionSpec|executionDag/.test(match[1] || "")) {
+            return { fallback: true };
+          }
+        }
+      }
+      return null;
+    },
+    renderEvidenceReasoningFallback(content, citationUrls) {
+      const env = { webCitationUrls: citationUrls };
+      const cleaned = this.stripEvidenceReasoningJson(content);
+      const fallback = this.parseEvidenceExecutionAnswer(cleaned);
+      const body = fallback
+        ? this.renderEvidenceExecutionAnswer(fallback, citationUrls)
+        : markdown.render(cleaned, env);
+      return [
+        '<p class="evidence-structure-fallback">v2 structure fallback</p>',
+        body
+      ].join("");
+    },
+    stripEvidenceReasoningJson(content) {
+      return String(content || "").replace(/```(?:json)?\s*([\s\S]*?)```/gi, (match, body) => (
+        /evidence_reasoning_v2|executionSpec|executionDag/.test(body || "") ? "" : match
+      )).trim();
+    },
+    renderEvidenceReasoning(reasoning, citationUrls) {
+      const env = { webCitationUrls: citationUrls };
+      const steps = Array.isArray(reasoning?.executionSpec?.steps) ? reasoning.executionSpec.steps : [];
+      const evidence = reasoning?.evidence || {};
+      const dag = reasoning?.executionDag || {};
+      const nodes = Array.isArray(dag.nodes) ? dag.nodes : [];
+      const edges = Array.isArray(dag.edges) ? dag.edges : [];
+      const stepItems = steps.length
+        ? steps.map((step) => this.renderReasoningStep(step, env)).join("")
+        : `<li>${escapeHtml("\u672a\u63d0\u4f9b\u663e\u5f0f\u6267\u884c\u6b65\u9aa4")}</li>`;
+
+      return [
+        '<section class="evidence-reasoning-card">',
+        '<header class="evidence-reasoning-header">',
+        '<div>',
+        '<span>Evidence Reasoning Engine v2</span>',
+        `<p>${escapeHtml(reasoning?.executable ? "\u56de\u7b54\u5df2\u7531\u53ef\u8ffd\u6eaf\u6267\u884c\u56fe\u9501\u5b9a" : "\u5f53\u524d\u8bc1\u636e\u56fe\u672a\u5f62\u6210\u53ef\u6267\u884c\u8def\u5f84")}</p>`,
+        '</div>',
+        `<strong>${escapeHtml(reasoning?.decision || "Evidence-locked")}</strong>`,
+        '</header>',
+        '<section class="evidence-path-section reasoning-path-section">',
+        `<strong>${escapeHtml("\u6267\u884c\u89c4\u683c")}</strong>`,
+        `<ol>${stepItems}</ol>`,
+        '</section>',
+        '<section class="reasoning-evidence-section">',
+        `<strong>${escapeHtml("\u8bc1\u636e\u5206\u5c42")}</strong>`,
+        '<div>',
+        this.renderEvidenceTier("Direct Evidence", evidence.direct, true, env),
+        this.renderEvidenceTier("Supporting Evidence", evidence.supporting, false, env),
+        this.renderEvidenceTier("Context Evidence", evidence.context, false, env),
+        '</div>',
+        '</section>',
+        '<footer class="reasoning-contract-footer">',
+        `<span>${escapeHtml(`DAG ${nodes.length} nodes / ${edges.length} edges`)}</span>`,
+        reasoning?.contractHash ? `<span>${escapeHtml(`contract ${String(reasoning.contractHash).slice(0, 10)}`)}</span>` : "",
+        reasoning?.graphViewHash ? `<span>${escapeHtml(`graph ${String(reasoning.graphViewHash).slice(0, 10)}`)}</span>` : "",
+        '</footer>',
+        '</section>'
+      ].filter(Boolean).join("");
+    },
+    renderReasoningStep(step = {}, env) {
+      const action = step.action || step.text || step.nodeId || "";
+      const source = step.source || step.refId || "";
+      const confidence = this.formatConfidencePercent(step.confidence);
+      return [
+        '<li>',
+        `<span>${markdown.renderInline(String(action || "\u672a\u547d\u540d\u6b65\u9aa4"), env)}</span>`,
+        '<small>',
+        source ? `<b class="doc-link">${escapeHtml(source)}</b>` : "",
+        confidence ? `<em>${escapeHtml(confidence)}</em>` : "",
+        '</small>',
+        '</li>'
+      ].join("");
+    },
+    renderEvidenceTier(label, items, open, env) {
+      const rows = Array.isArray(items) ? items : [];
+      const content = rows.length
+        ? rows.map((item) => this.renderEvidenceItem(item, env)).join("")
+        : `<li class="empty">${escapeHtml("\u6682\u65e0\u8bc1\u636e")}</li>`;
+      return [
+        `<details class="reasoning-evidence-tier"${open ? " open" : ""}>`,
+        `<summary><span>${escapeHtml(label)}</span><small>${rows.length}</small></summary>`,
+        `<ul>${content}</ul>`,
+        '</details>'
+      ].join("");
+    },
+    renderEvidenceItem(item = {}, env) {
+      const refId = item.refId || item.source || "";
+      const text = this.shortUiText(item.text || item.content || item.action || "", 180);
+      const confidence = this.formatConfidencePercent(item.confidence);
+      return [
+        '<li>',
+        '<div>',
+        refId ? `<span class="doc-link">${escapeHtml(refId)}</span>` : "",
+        item.type ? `<small>${escapeHtml(item.type)}</small>` : "",
+        confidence ? `<small>${escapeHtml(confidence)}</small>` : "",
+        '</div>',
+        text ? `<p>${markdown.renderInline(text, env)}</p>` : "",
+        '</li>'
+      ].join("");
+    },
+    formatConfidencePercent(value) {
+      const number = Number(value);
+      if (!Number.isFinite(number) || number <= 0) {
+        return "";
+      }
+      return `${Math.round(number * 100)}%`;
+    },
+    shortUiText(value, maxLength = 160) {
+      const text = String(value || "").replace(/\s+/g, " ").trim();
+      return text.length <= maxLength ? text : `${text.slice(0, maxLength)}...`;
+    },
+    parseEvidenceExecutionAnswer(content) {
+      const text = String(content || "").replace(/\r\n/g, "\n").trim();
+      if (!text || !/doc:\/\/|Evidence Execution Contract|\u5f15\u7528\u6765\u6e90|\u4e8b\u5b9e\u4f9d\u636e|\u6267\u884c\u7ea6\u675f/.test(text)) {
+        return null;
+      }
+
+      const sourceRe = /\u5f15\u7528\u6765\u6e90\s*[:\uff1a]/;
+      const factRe = /\u4e8b\u5b9e\u4f9d\u636e\s*[:\uff1a]/;
+      const constraintRe = /\u6267\u884c\u7ea6\u675f\s*[:\uff1a]/;
+      const sourceMatch = sourceRe.exec(text);
+      const factMatch = factRe.exec(text);
+      const constraintMatch = constraintRe.exec(text);
+      if (!factMatch || (!sourceMatch && !constraintMatch && !text.includes("doc://"))) {
+        return null;
+      }
+
+      const firstMarker = Math.min(
+        ...[sourceMatch?.index, factMatch?.index, constraintMatch?.index]
+          .filter((value) => Number.isInteger(value))
+      );
+      const intro = text.slice(0, firstMarker).trim();
+      const sourceText = sourceMatch
+        ? text.slice(sourceMatch.index + sourceMatch[0].length, factMatch.index).trim()
+        : "";
+      const factEnd = constraintMatch?.index ?? text.length;
+      const factText = text.slice(factMatch.index + factMatch[0].length, factEnd).trim();
+      const constraintText = constraintMatch
+        ? text.slice(constraintMatch.index + constraintMatch[0].length).trim()
+        : "";
+      const refs = this.extractDocRefs([sourceText, factText].join("\n"));
+      const steps = this.extractEvidenceSteps(factText);
+
+      if (!factText && !refs.length) {
+        return null;
+      }
+
+      return {
+        conclusion: intro || "\u672c\u7b54\u6848\u5df2\u57fa\u4e8e\u53ef\u8ffd\u6eaf\u8bc1\u636e\u751f\u6210\u3002",
+        refs,
+        steps,
+        evidenceSummary: this.evidenceSummary(factText),
+        constraint: constraintText
+      };
+    },
+    extractDocRefs(value) {
+      const refs = new Set();
+      const matcher = String(value || "").matchAll(/doc:\/\/[^\s)\]\uff09\uff1b;,\uff0c\u3002]+/g);
+      for (const match of matcher) {
+        refs.add(match[0].replace(/[.\u3002]+$/, ""));
+      }
+      return [...refs];
+    },
+    cleanEvidenceText(value) {
+      return String(value || "")
+        .replace(/\[?doc:\/\/[^\s)\]\uff09\uff1b;,\uff0c\u3002]+\]?/g, " ")
+        .replace(/^\s*[-*]\s+/gm, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+    },
+    extractEvidenceSteps(value) {
+      const text = this.cleanEvidenceText(value);
+      const lower = text.toLowerCase();
+      const steps = [];
+      const add = (condition, label) => {
+        if (condition && !steps.includes(label)) {
+          steps.push(label);
+        }
+      };
+
+      add(/livedata.*\u6570\u636e\u7f16\u7ec7\u6a21\u5757|\u6570\u636e\u7f16\u7ec7\u6a21\u5757/.test(lower), "\u8fdb\u5165 livedata \u6570\u636e\u7f16\u7ec7\u6a21\u5757");
+      add(/\u7ef4\u62a4.*\u6570\u636e\u6e90|\u9009\u62e9\u6dfb\u52a0\u6570\u636e\u76ee\u5f55|\u6570\u636e\u6e90\u8fde\u63a5/.test(text), "\u7ef4\u62a4\u5e76\u9009\u62e9\u5206\u6790\u6570\u636e\u6e90");
+      add(/\u62a5\u8868\s*SQL|SQL\s*\u67e5\u8be2|SQL\s*\u5f00\u53d1/i.test(text), "\u5f00\u53d1\u62a5\u8868 SQL");
+      add(/\u4fdd\u5b58\s*SQL\s*\u6570\u636e\u96c6|\u4fdd\u5b58\u6570\u636e\u96c6|\u6570\u636e\u96c6\u914d\u7f6e/.test(text), "\u4fdd\u5b58\u6570\u636e\u96c6\u914d\u7f6e");
+      add(/\u6d4b\u8bd5\u8fde\u63a5|\u9884\u89c8\u6570\u636e|\u89c2\u5bdf\u6570\u636e\u6e90/.test(text), "\u6d4b\u8bd5\u8fde\u63a5\u5e76\u9884\u89c8\u6570\u636e");
+      add(/\u53ef\u89c6\u5316\u56fe\u8868|\u5c55\u793a\u65b9\u5f0f|\u65b0\u5efa.*\u62a5\u8868\u5f00\u53d1/.test(text), "\u914d\u7f6e\u62a5\u8868\u53ef\u89c6\u5316");
+      add(/\u53d1\u5e03\u62a5\u8868|BI\s*\u53d1\u5e03\u7cfb\u7edf|\u76ee\u5f55\u7ba1\u7406|\u6dfb\u52a0\u6a21\u677f/i.test(text), "\u9884\u89c8\u5e76\u53d1\u5e03\u62a5\u8868");
+
+      if (steps.length) {
+        return steps;
+      }
+
+      return text
+        .split(/(?:^|\s)(?:\d+[.)\u3001]|[\u4e00\u4e8c\u4e09\u56db\u4e94\u516d\u4e03\u516b\u4e5d\u5341]+[\u3001.])\s*/)
+        .map((item) => item.trim())
+        .filter((item) => item.length > 8)
+        .map((item) => item.length > 72 ? `${item.slice(0, 72)}...` : item)
+        .slice(0, 8);
+    },
+    evidenceSummary(value) {
+      const text = this.cleanEvidenceText(value)
+        .replace(/(?:^|\s)\d+[.)]\s*/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+      if (!text) {
+        return "";
+      }
+      return text.length > 180 ? `${text.slice(0, 180)}...` : text;
+    },
+    renderEvidenceExecutionAnswer(answer, citationUrls) {
+      const env = { webCitationUrls: citationUrls };
+      const stepItems = answer.steps.length
+        ? answer.steps.map((step) => `<li>${markdown.renderInline(step, env)}</li>`).join("")
+        : `<li>${markdown.renderInline(answer.evidenceSummary || "\u8bc1\u636e\u5df2\u6536\u5f55\uff0c\u672a\u62bd\u53d6\u5230\u53ef\u5206\u6b65\u5c55\u793a\u7684\u8def\u5f84\u3002", env)}</li>`;
+      const refItems = answer.refs.length
+        ? answer.refs.map((ref) => `<li><span class="doc-link">${escapeHtml(ref)}</span></li>`).join("")
+        : `<li class="empty">${escapeHtml("\u6682\u65e0 doc \u5f15\u7528")}</li>`;
+      const docCount = answer.refs.length;
+      const constraintTitle = answer.constraint ? ` title="${escapeHtml(answer.constraint)}"` : "";
+
+      return [
+        '<section class="evidence-execution-card">',
+        '<header class="evidence-execution-header">',
+        '<div>',
+        `<span>${escapeHtml("\u7ed3\u8bba")}</span>`,
+        `<p>${markdown.renderInline(answer.conclusion, env)}</p>`,
+        '</div>',
+        `<strong${constraintTitle}>Evidence-locked</strong>`,
+        '</header>',
+        '<section class="evidence-path-section">',
+        `<strong>${escapeHtml("\u6267\u884c\u8def\u5f84")}</strong>`,
+        `<ol>${stepItems}</ol>`,
+        '</section>',
+        '<details class="execution-evidence-details">',
+        `<summary><span>${escapeHtml("\u67e5\u770b\u8bc1\u636e")}</span><small>doc ${docCount} ${escapeHtml("\u6761")}</small></summary>`,
+        '<div class="execution-evidence-body">',
+        `<ul>${refItems}</ul>`,
+        answer.evidenceSummary ? `<p>${markdown.renderInline(answer.evidenceSummary, env)}</p>` : "",
+        '</div>',
+        '</details>',
+        answer.constraint ? `<footer><span>${escapeHtml("\u2713 Evidence Execution Contract")}</span></footer>` : "",
+        '</section>'
+      ].filter(Boolean).join("");
+    },
+    parseEvidenceAnswer(content) {
+      const lines = String(content || "").replace(/\r\n/g, "\n").split("\n");
+      const titleIndex = lines.findIndex((line) => /^\s*#{0,6}\s*EvidenceAnswer\s*$/i.test(line));
+      if (titleIndex < 0) {
+        return null;
+      }
+
+      const fields = {};
+      let activeKey = "";
+      for (const rawLine of lines.slice(titleIndex + 1)) {
+        const line = String(rawLine || "");
+        const fieldMatch = line.match(/^\s*[-*]\s+\*{0,2}(answer|citations|confidence|missingInfo)\*{0,2}\s*[:：]\s*(.*)$/i);
+        if (fieldMatch) {
+          activeKey = fieldMatch[1].toLowerCase();
+          fields[activeKey] = fieldMatch[2].trim();
+          continue;
+        }
+        if (activeKey && line.trim()) {
+          fields[activeKey] = `${fields[activeKey] || ""} ${line.trim()}`.trim();
+        }
+      }
+
+      if (!fields.answer && !fields.citations && !fields.confidence && !fields.missinginfo) {
+        return null;
+      }
+
+      return {
+        answer: fields.answer || "",
+        citations: this.splitEvidenceCitationText(fields.citations || ""),
+        confidence: fields.confidence || "",
+        missingInfo: fields.missinginfo || ""
+      };
+    },
+    splitEvidenceCitationText(value) {
+      return String(value || "")
+        .split(/[；;]\s*/)
+        .map((item) => item.trim())
+        .filter(Boolean);
+    },
+    renderEvidenceAnswer(evidenceAnswer, citationUrls) {
+      const env = { webCitationUrls: citationUrls };
+      const confidence = evidenceAnswer.confidence || "";
+      const confidenceLabel = confidence.split(/\s+[—-]\s+|[:：]/)[0]?.trim() || confidence.trim();
+      const confidenceClass = this.evidenceConfidenceClass(confidenceLabel);
+      const citationItems = evidenceAnswer.citations.length
+        ? evidenceAnswer.citations
+            .map((item) => `<li>${markdown.renderInline(item, env)}</li>`)
+            .join("")
+        : `<li class="empty">${escapeHtml("\u6682\u65e0\u5f15\u7528")}</li>`;
+
+      return [
+        '<section class="evidence-answer-card">',
+        '<header class="evidence-answer-header">',
+        '<div>',
+        '<span class="evidence-answer-kicker">EvidenceAnswer</span>',
+        `<strong>${escapeHtml("\u8bc1\u636e\u56de\u7b54")}</strong>`,
+        '</div>',
+        confidenceLabel ? `<span class="evidence-confidence-badge ${confidenceClass}">${markdown.renderInline(confidenceLabel, env)}</span>` : "",
+        '</header>',
+        this.renderEvidenceSection("\u56de\u7b54", evidenceAnswer.answer, env),
+        `<section class="evidence-answer-section evidence-citations"><strong>${escapeHtml("\u8bc1\u636e\u5f15\u7528")}</strong><ol>${citationItems}</ol></section>`,
+        this.renderEvidenceSection("\u53ef\u4fe1\u5ea6", confidence, env),
+        this.renderEvidenceSection("\u4fe1\u606f\u7f3a\u53e3", evidenceAnswer.missingInfo, env),
+        '</section>'
+      ].filter(Boolean).join("");
+    },
+    renderEvidenceSection(label, value, env) {
+      if (!String(value || "").trim()) {
+        return "";
+      }
+      return [
+        '<section class="evidence-answer-section">',
+        `<strong>${escapeHtml(label)}</strong>`,
+        `<p>${markdown.renderInline(String(value || "").trim(), env)}</p>`,
+        '</section>'
+      ].join("");
+    },
+    evidenceConfidenceClass(value) {
+      const normalized = String(value || "").toLowerCase();
+      if (normalized.includes("high") || normalized.includes("\u9ad8")) {
+        return "high";
+      }
+      if (normalized.includes("low") || normalized.includes("\u4f4e")) {
+        return "low";
+      }
+      return "medium";
     },
     async handleMarkdownClick(event) {
       const button = event.target?.closest?.("[data-code-copy]");

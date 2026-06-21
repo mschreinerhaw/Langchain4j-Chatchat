@@ -17,12 +17,14 @@
     @navigate="handleNavigate"
     @delete-conversation="deleteConversation"
     @favorite-conversation="favoriteConversation"
+    @new-conversation="handleNewConversation"
     @refresh-history="loadConversationHistory"
     @select-conversation="selectConversation"
     @logout="handleLogout"
   >
     <KeepAlive>
       <component
+        ref="activeViewComponent"
         :is="activeComponent"
         v-bind="activeComponentProps"
         @conversation-active="handleConversationActive"

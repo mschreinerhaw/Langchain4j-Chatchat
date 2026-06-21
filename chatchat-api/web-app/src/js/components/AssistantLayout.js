@@ -55,6 +55,7 @@ export default {
     "favorite-conversation",
     "logout",
     "navigate",
+    "new-conversation",
     "refresh-history",
     "select-conversation"
   ],

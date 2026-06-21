@@ -506,6 +506,15 @@ export default {
     handleNavigate(view) {
       this.navigateToView(view);
     },
+    handleNewConversation() {
+      this.selectedConversation = null;
+      this.activeHistoryId = "";
+      this.pendingChatDraft = null;
+      this.navigateToView("chat");
+      this.$nextTick(() => {
+        this.$refs.activeViewComponent?.clearChat?.();
+      });
+    },
     handleAskAiFromSearch(payload) {
       if (!payload?.prompt) {
         return;

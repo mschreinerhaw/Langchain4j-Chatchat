@@ -42,6 +42,14 @@ public class DefaultAgentAnswerReviewer implements AgentAnswerReviewer {
             if (accepted) {
                 return new AgentAnswerReview(AgentAnswerReview.ACCEPTED, answer, feedback);
             }
+            if (containsObservableEvidence(observations) && reviewerClaimsEvidenceInvisible(feedback, revisedAnswer)) {
+                return new AgentAnswerReview(
+                    AgentAnswerReview.ACCEPTED,
+                    answer,
+                    "Reviewer downgrade blocked: canonical evidence content is present in observations. Reviewer feedback: "
+                        + firstNonBlank(feedback, "none")
+                );
+            }
             if (revisedAnswer != null && !revisedAnswer.isBlank()) {
                 return new AgentAnswerReview(AgentAnswerReview.REVISED, revisedAnswer, feedback);
             }
@@ -63,6 +71,9 @@ public class DefaultAgentAnswerReviewer implements AgentAnswerReviewer {
         prompt.append("If both document_search and web_search observations are available, the answer must distinguish internal document evidence from web verification evidence and explicitly handle conflicts.\n");
         prompt.append("If an observation says a tool failed, the answer must not claim that the failed tool provided supporting evidence.\n");
         prompt.append("If an observation says the Evidence trust policy requests more evidence, reject answers that present unsupported strong claims.\n");
+        prompt.append("If observations include evidence_canonical_v1 Canonical evidence store, treat rawContent and normalizedContent as observable tool evidence; do not claim observations lack actual content unless every canonical evidence item is empty.\n");
+        prompt.append("If observations include evidence_graph_v1 Evidence graph execution, treat graph nodes, valid paths, and sqlLineage as traceable evidence; do not downgrade SQL answers when TRUSTED_SQL paths are present.\n");
+        prompt.append("If observations include evidence_os_execution_v2, enforce its decision and answerContract: ANSWER_ALLOWED may answer only from evidencePath, EMPTY_RESULT must not be replaced with generic knowledge, and SQL requires EXECUTION_VERIFIED.\n");
         prompt.append("If observations include evidence_v1 Unified evidence context, reject answers that rely on EvidenceChunk content but omit the matching doc:// or web:// citation.\n");
         prompt.append("If observations include evidence_v1, reject answers that cannot be represented as EvidenceAnswer with answer, citations, confidence, and missingInfo.\n");
         prompt.append("If observations include document_evidence_v1, document evidence context, or document citations, reject and revise answers that rely on document evidence but omit the matching document citation.\n");
@@ -121,5 +132,37 @@ public class DefaultAgentAnswerReviewer implements AgentAnswerReviewer {
 
     private String firstNonBlank(String first, String second) {
         return first == null || first.isBlank() ? second : first;
+    }
+
+    private boolean containsObservableEvidence(List<String> observations) {
+        if (observations == null || observations.isEmpty()) {
+            return false;
+        }
+        return observations.stream()
+            .filter(value -> value != null && !value.isBlank())
+            .anyMatch(value -> (value.contains("Canonical evidence store (contractVersion=evidence_canonical_v1)")
+                && (value.contains("rawContent:") || value.contains("normalizedContent:")))
+                || (value.contains("Evidence graph execution (contractVersion=evidence_graph_v1)")
+                && (value.contains("Valid evidence paths:") || value.contains("TRUSTED_SQL")))
+                || (value.contains("Evidence OS execution (contractVersion=evidence_os_execution_v2)")
+                && value.contains("decision: ANSWER_ALLOWED"))
+                || (value.contains("Unified evidence context (contractVersion=evidence_v1)")
+                && value.contains("content:"))
+                || value.contains("doc://")
+                || value.contains("web://"));
+    }
+
+    private boolean reviewerClaimsEvidenceInvisible(String feedback, String revisedAnswer) {
+        String text = ((feedback == null ? "" : feedback) + "\n" + (revisedAnswer == null ? "" : revisedAnswer)).toLowerCase();
+        return text.contains("observations do not contain actual content")
+            || text.contains("do not contain actual content")
+            || text.contains("no actual content")
+            || text.contains("not contain the actual content")
+            || (text.contains("tool output")
+            && (text.contains("unavailable") || text.contains("missing") || text.contains("not returned")))
+            || text.contains("\u672a\u8fd4\u56de\u4efb\u4f55\u6587\u6863\u6587\u672c")
+            || text.contains("\u6ca1\u6709\u5b9e\u9645\u5185\u5bb9")
+            || text.contains("\u65e0\u6cd5\u83b7\u53d6")
+            || text.contains("\u672a\u83b7\u53d6");
     }
 }

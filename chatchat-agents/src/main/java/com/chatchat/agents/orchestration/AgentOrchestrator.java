@@ -1583,6 +1583,11 @@ public class AgentOrchestrator {
                 traces.add(step.toolExecution().trace());
             }
             observations.add(planStepObservation(stage, step));
+            String canonicalEvidenceObservation = canonicalEvidenceObservation(step);
+            if (canonicalEvidenceObservation != null && !canonicalEvidenceObservation.isBlank()) {
+                observations.add(canonicalEvidenceObservation);
+                record.put("canonicalEvidenceObservation", true);
+            }
         }
         metadata.put("interpretationPlan" + capitalize(stage) + "Status", result.status());
         metadata.put("interpretationPlan" + capitalize(stage) + "Success", result.success());
@@ -1693,6 +1698,28 @@ public class AgentOrchestrator {
         return "InterpretationPlan " + stage + " step " + step.stepId() + " "
             + firstNonBlank(step.toolName(), step.actionType()) + " failed: "
             + firstNonBlank(step.errorMessage(), "unknown error");
+    }
+
+    private String canonicalEvidenceObservation(InterpretationPlanRuntime.StepExecution step) {
+        if (step == null || !step.success() || step.toolExecution() == null || step.toolExecution().output() == null) {
+            return null;
+        }
+        String observation = toolObservationBuilder.buildSuccessObservation(
+            step.toolName(),
+            step.toolExecution().output(),
+            stringify(step.output())
+        );
+        return hasCanonicalEvidence(observation) ? observation : null;
+    }
+
+    private boolean hasCanonicalEvidence(String observation) {
+        return observation != null
+            && (observation.contains("Canonical evidence store (contractVersion=evidence_canonical_v1)")
+            || observation.contains("Evidence graph execution (contractVersion=evidence_graph_v1)")
+            || observation.contains("Evidence OS execution (contractVersion=evidence_os_execution_v2)")
+            || observation.contains("Unified evidence context (contractVersion=evidence_v1)")
+            || observation.contains("doc://")
+            || observation.contains("web://"));
     }
 
     private InterpretationPlan.Step failedStep(InterpretationPlan plan, InterpretationPlanRuntime.ExecutionResult result) {

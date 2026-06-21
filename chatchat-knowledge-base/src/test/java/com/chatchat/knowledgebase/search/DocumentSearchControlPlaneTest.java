@@ -108,6 +108,59 @@ class DocumentSearchControlPlaneTest {
     }
 
     @Test
+    void documentVisibilityConstraintReturnsOnlySelectedDocuments() {
+        SearchService searchService = mock(SearchService.class);
+        when(searchService.frontendQuickSearch(
+            eq("ACME 2025 revenue policy"),
+            any(),
+            any(),
+            any(),
+            eq("doc-1"),
+            eq(1),
+            eq(8),
+            any(SearchPermissionContext.class)
+        )).thenReturn(new SearchPage(
+            "ACME 2025 revenue policy",
+            List.of("acme", "2025", "revenue", "policy"),
+            List.of(searchResult(), blockedSearchResult()),
+            2,
+            8,
+            1,
+            8,
+            1,
+            false,
+            7L,
+            -1,
+            null
+        ));
+        DocumentSearchEvidenceService service = newEvidenceService(searchService);
+
+        DocumentSearchResult result = service.search(new DocumentSearchRequest(
+            "ACME 2025 revenue policy",
+            8,
+            null,
+            null,
+            List.of("doc-1"),
+            true,
+            null,
+            null,
+            null,
+            null,
+            false
+        ));
+
+        assertThat(result.results())
+            .extracting(DocumentEvidenceChunk::fileId)
+            .containsExactly("doc-1");
+        assertThat(result.results())
+            .extracting(DocumentEvidenceChunk::content)
+            .doesNotContain("Blocked private evidence should never be returned.");
+        assertThat(result.retrievalEvents())
+            .extracting(RetrievalEvent::reason)
+            .anyMatch(reason -> reason.contains("document_visibility_enforced"));
+    }
+
+    @Test
     void titleOnlyHitReturnsDocumentOutlineWithoutEvidenceBody() {
         SearchService searchService = mock(SearchService.class);
         when(searchService.frontendQuickSearch(
@@ -456,6 +509,52 @@ class DocumentSearchControlPlaneTest {
                 List.of()
             )),
             "vg-1",
+            1,
+            true,
+            SearchPermissionContext.DEFAULT_TENANT,
+            SearchPermissionContext.ANONYMOUS_USER,
+            "public",
+            List.of(),
+            "active",
+            System.currentTimeMillis(),
+            null,
+            null
+        );
+    }
+
+    private SearchResult blockedSearchResult() {
+        return new SearchResult(
+            "doc-blocked",
+            "ACME Blocked Document",
+            "Blocked private evidence should not be visible",
+            "upload",
+            "2025-01-02",
+            "blocked.pdf",
+            "pdf",
+            null,
+            List.of("finance"),
+            List.of("ACME"),
+            List.of("software"),
+            99,
+            null,
+            List.of("ACME", "blocked"),
+            List.of(new SearchMatchedChunk(
+                "doc-blocked",
+                "blocked.pdf",
+                "Private",
+                "policy",
+                "blocked-chunk",
+                1,
+                0.1F,
+                "Blocked private evidence should never be returned.",
+                "Blocked private evidence should never be returned.",
+                9.9F,
+                SearchPermissionContext.ANONYMOUS_USER,
+                SearchPermissionContext.ANONYMOUS_USER,
+                "public",
+                List.of()
+            )),
+            "vg-blocked",
             1,
             true,
             SearchPermissionContext.DEFAULT_TENANT,

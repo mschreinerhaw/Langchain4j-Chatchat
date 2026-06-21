@@ -1,9 +1,16 @@
 package com.chatchat.agents.orchestration;
 
 import com.chatchat.agents.evidence.EvidenceAudit;
+import com.chatchat.agents.evidence.EvidenceCanonicalFormatter;
 import com.chatchat.agents.evidence.EvidenceChunk;
+import com.chatchat.agents.evidence.DocumentSelectionContext;
 import com.chatchat.agents.evidence.EvidenceFormatter;
+import com.chatchat.agents.evidence.EvidenceGraph;
+import com.chatchat.agents.evidence.EvidenceGraphExecutionEngine;
+import com.chatchat.agents.evidence.EvidenceGraphFormatter;
 import com.chatchat.agents.evidence.EvidenceNormalizer;
+import com.chatchat.agents.evidence.EvidenceOsV2Formatter;
+import com.chatchat.agents.evidence.EvidencePathExecutor;
 import com.chatchat.common.tool.ToolOutput;
 
 import java.util.ArrayList;
@@ -27,6 +34,11 @@ class ToolObservationBuilder {
     private final EvidenceTrustEvaluator evidenceTrustEvaluator;
     private final EvidenceNormalizer evidenceNormalizer = new EvidenceNormalizer();
     private final EvidenceFormatter evidenceFormatter = new EvidenceFormatter();
+    private final EvidenceCanonicalFormatter evidenceCanonicalFormatter = new EvidenceCanonicalFormatter();
+    private final EvidenceGraphExecutionEngine evidenceGraphExecutionEngine = new EvidenceGraphExecutionEngine();
+    private final EvidenceGraphFormatter evidenceGraphFormatter = new EvidenceGraphFormatter();
+    private final EvidencePathExecutor evidencePathExecutor = new EvidencePathExecutor();
+    private final EvidenceOsV2Formatter evidenceOsV2Formatter = new EvidenceOsV2Formatter();
 
     ToolObservationBuilder(EvidenceTrustEvaluator evidenceTrustEvaluator) {
         this.evidenceTrustEvaluator = evidenceTrustEvaluator == null ? new EvidenceTrustEvaluator() : evidenceTrustEvaluator;
@@ -194,7 +206,23 @@ class ToolObservationBuilder {
 
     private void appendUnifiedEvidence(StringBuilder observation, String toolName, Object data) {
         Object evidenceData = trustedUnifiedEvidenceData(toolName, data);
-        List<EvidenceChunk> chunks = evidenceNormalizer.normalize(toolName, evidenceData, WEB_SEARCH_REFERENCE_LIMIT);
+        DocumentSelectionContext selectionContext = isDocumentSearchToolName(toolName)
+            ? DocumentSelectionContext.fromToolData(evidenceData)
+            : DocumentSelectionContext.unrestricted();
+        List<EvidenceChunk> normalizedChunks = evidenceNormalizer.normalize(toolName, evidenceData, WEB_SEARCH_REFERENCE_LIMIT);
+        DocumentSelectionContext.FilterResult visibility = selectionContext.filter(normalizedChunks);
+        List<EvidenceChunk> chunks = visibility.visibleChunks();
+        if (selectionContext.active()) {
+            observation.append("\nDocument visibility constraint (contractVersion=")
+                .append(selectionContext.contractVersion())
+                .append("): enforced=true, allowedDocuments=")
+                .append(selectionContext.allowedDocumentIds().size())
+                .append(", discardedEvidence=")
+                .append(visibility.discardedChunks())
+                .append(", visibleEvidence=")
+                .append(chunks.size())
+                .append(". Unselected documents must not be used as answer evidence.\n");
+        }
         if (chunks.isEmpty()) {
             return;
         }
@@ -203,6 +231,19 @@ class ToolObservationBuilder {
             return;
         }
         observation.append('\n').append(context).append('\n');
+        String canonicalStore = evidenceCanonicalFormatter.formatStore(chunks);
+        if (canonicalStore != null && !canonicalStore.isBlank()) {
+            observation.append(canonicalStore).append('\n');
+        }
+        EvidenceGraph graph = evidenceGraphExecutionEngine.build("tool:" + firstNonBlank(toolName, "unknown"), chunks, selectionContext);
+        String graphContext = evidenceGraphFormatter.format(graph);
+        if (graphContext != null && !graphContext.isBlank()) {
+            observation.append(graphContext).append('\n');
+        }
+        String osContext = evidenceOsV2Formatter.format(evidencePathExecutor.execute(graph, null, selectionContext));
+        if (osContext != null && !osContext.isBlank()) {
+            observation.append(osContext).append('\n');
+        }
         List<EvidenceAudit> audits = evidenceNormalizer.audits(toolName, data, chunks);
         if (!audits.isEmpty()) {
             long documentCount = chunks.stream().filter(chunk -> chunk.evidenceType() != null && "DOCUMENT".equals(chunk.evidenceType().name())).count();

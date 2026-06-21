@@ -75,6 +75,113 @@ class DefaultAgentAnswerReviewerTest {
         assertThat(review.feedback()).isEqualTo("No concrete evidence was produced");
     }
 
+    @Test
+    void blocksReviewerDowngradeWhenCanonicalEvidenceHasContent() {
+        DefaultAgentAnswerReviewer reviewer = new DefaultAgentAnswerReviewer(new ObjectMapper());
+        QueueChatModel chatModel = new QueueChatModel(
+            """
+                {"accepted":false,
+                 "feedback":"Observations do not contain actual content",
+                 "revisedAnswer":"Unable to get the SQL content from tool output."}
+                """
+        );
+
+        AgentAnswerReview review = reviewer.review(
+            chatModel,
+            "Show the SQL",
+            null,
+            List.of("""
+                Canonical evidence store (contractVersion=evidence_canonical_v1):
+                [CanonicalEvidence 1]
+                evidenceId: evidence:1
+                type: SQL
+                sourceRef: doc://file-1#chunk=0
+                trustLevel: high
+                rawContent:
+                select * from gdp_ads.ads_ids_sys_data_qlty_rpt_d_i
+                normalizedContent:
+                select * from gdp_ads.ads_ids_sys_data_qlty_rpt_d_i
+                """),
+            "SQL: select * from gdp_ads.ads_ids_sys_data_qlty_rpt_d_i"
+        );
+
+        assertThat(review.status()).isEqualTo(AgentAnswerReview.ACCEPTED);
+        assertThat(review.answer()).contains("select * from gdp_ads");
+        assertThat(review.feedback()).contains("Reviewer downgrade blocked");
+    }
+
+    @Test
+    void blocksReviewerDowngradeWhenEvidenceGraphHasTrustedSqlPath() {
+        DefaultAgentAnswerReviewer reviewer = new DefaultAgentAnswerReviewer(new ObjectMapper());
+        QueueChatModel chatModel = new QueueChatModel(
+            """
+                {"accepted":false,
+                 "feedback":"Observations do not contain actual content",
+                 "revisedAnswer":"Unable to get the SQL content from tool output."}
+                """
+        );
+
+        AgentAnswerReview review = reviewer.review(
+            chatModel,
+            "Show the SQL lineage",
+            null,
+            List.of("""
+                Evidence graph execution (contractVersion=evidence_graph_v1):
+                queryId: tool:document_search
+                nodeCount: 4
+                edgeCount: 3
+                sqlLineage: gdp_ads.ads_ids_sys_data_qlty_rpt_d_i
+                Nodes:
+                [Node evidence:1:sql_trusted]
+                type: TRUSTED_SQL
+                sourceRef: doc://file-1#chunk=0
+                confidence: 0.99
+                contentPreview: select * from gdp_ads.ads_ids_sys_data_qlty_rpt_d_i
+                Valid evidence paths:
+                [Path 1]
+                nodes: evidence:1:chunk -> evidence:1:sql_fragment -> evidence:1:sql_normalized -> evidence:1:sql_trusted
+                score: 0.88
+                sqlLineage: gdp_ads.ads_ids_sys_data_qlty_rpt_d_i
+                """),
+            "SQL lineage: gdp_ads.ads_ids_sys_data_qlty_rpt_d_i"
+        );
+
+        assertThat(review.status()).isEqualTo(AgentAnswerReview.ACCEPTED);
+        assertThat(review.answer()).contains("gdp_ads.ads_ids_sys_data_qlty_rpt_d_i");
+    }
+
+    @Test
+    void blocksReviewerDowngradeWhenEvidenceOsAllowsAnswer() {
+        DefaultAgentAnswerReviewer reviewer = new DefaultAgentAnswerReviewer(new ObjectMapper());
+        QueueChatModel chatModel = new QueueChatModel(
+            """
+                {"accepted":false,
+                 "feedback":"Observations do not contain actual content",
+                 "revisedAnswer":"Unable to get the SQL content from tool output."}
+                """
+        );
+
+        AgentAnswerReview review = reviewer.review(
+            chatModel,
+            "Show the SQL lineage",
+            null,
+            List.of("""
+                Evidence OS execution (contractVersion=evidence_os_execution_v2):
+                decision: ANSWER_ALLOWED
+                answerContract: evidence_answer_contract_v2
+                fromGraphOnly: true
+                executable: true
+                evidencePath: evidence:1:chunk -> evidence:1:sql_fragment -> evidence:1:sql_normalized -> evidence:1:sql_trusted
+                sqlLineage: gdp_ads.ads_ids_sys_data_qlty_rpt_d_i
+                runtimeRules: answer must be derived from evidencePath; no external generation; no SQL answer unless EXECUTION_VERIFIED.
+                """),
+            "SQL lineage: gdp_ads.ads_ids_sys_data_qlty_rpt_d_i"
+        );
+
+        assertThat(review.status()).isEqualTo(AgentAnswerReview.ACCEPTED);
+        assertThat(review.answer()).contains("gdp_ads.ads_ids_sys_data_qlty_rpt_d_i");
+    }
+
     private static final class QueueChatModel implements ChatModel {
         private final Queue<String> responses = new ArrayDeque<>();
         private final List<String> messages = new java.util.ArrayList<>();

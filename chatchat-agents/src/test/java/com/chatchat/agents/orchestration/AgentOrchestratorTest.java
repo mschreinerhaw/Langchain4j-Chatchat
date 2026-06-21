@@ -162,7 +162,8 @@ class AgentOrchestratorTest {
                 Map<String, Object> stepMetadata = (Map<String, Object>) step.get("metadata");
                 assertThat(step)
                     .containsEntry("toolName", "document_search")
-                    .containsEntry("success", true);
+                    .containsEntry("success", true)
+                    .containsEntry("canonicalEvidenceObservation", true);
                 assertThat(stepMetadata)
                     .containsEntry("toolResultReviewSatisfied", true)
                     .containsEntry("toolResultReviewAutoAccepted", true)

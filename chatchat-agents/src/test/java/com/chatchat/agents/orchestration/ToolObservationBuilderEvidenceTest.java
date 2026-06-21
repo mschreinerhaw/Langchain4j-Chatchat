@@ -28,6 +28,10 @@ class ToolObservationBuilderEvidenceTest {
 
         assertThat(observation)
             .contains("Unified evidence context (contractVersion=evidence_v1)")
+            .contains("Canonical evidence store (contractVersion=evidence_canonical_v1)")
+            .contains("evidenceId: evidence:1")
+            .contains("rawContent:")
+            .contains("normalizedContent:")
             .contains("type: DOCUMENT")
             .contains("citation: doc://file-1#chunk=3")
             .contains("Evidence audit: toolName=document_search");
@@ -70,7 +74,69 @@ class ToolObservationBuilderEvidenceTest {
 
         assertThat(observation)
             .contains("citation: doc://file-1#chunk=4")
+            .contains("sourceRef: doc://file-1#chunk=4")
             .contains("evidenceGrade: A")
             .contains("threshold is 1bp");
+    }
+
+    @Test
+    void canonicalStoreMarksSqlEvidence() {
+        ToolOutput output = ToolOutput.success(Map.of(
+            "contractVersion", "document_evidence_v1",
+            "results", List.of(Map.of(
+                "fileId", "file-1",
+                "fileName", "ads.sql",
+                "chunkIndex", 0,
+                "content", "select * from gdp_ads.ads_ids_sys_data_qlty_rpt_d_i where data_date = 20260101"
+            ))
+        ), "ok");
+
+        String observation = builder.buildSuccessObservation("document_search", output, "");
+
+        assertThat(observation)
+            .contains("Canonical evidence store (contractVersion=evidence_canonical_v1)")
+            .contains("Evidence graph execution (contractVersion=evidence_graph_v1)")
+            .contains("Evidence OS execution (contractVersion=evidence_os_execution_v2)")
+            .contains("decision: ANSWER_ALLOWED")
+            .contains("answerContract: evidence_answer_contract_v2")
+            .contains("Valid evidence paths:")
+            .contains("type: SQL")
+            .contains("type: TRUSTED_SQL")
+            .contains("executionVerified: true")
+            .contains("sqlLineage: gdp_ads.ads_ids_sys_data_qlty_rpt_d_i")
+            .contains("sourceRef: doc://file-1#chunk=0")
+            .contains("select * from gdp_ads.ads_ids_sys_data_qlty_rpt_d_i");
+    }
+
+    @Test
+    void documentVisibilityConstraintFiltersUnselectedEvidenceBeforeObservation() {
+        ToolOutput output = ToolOutput.success(Map.of(
+            "contractVersion", "document_evidence_v1",
+            "selectedDocumentIds", List.of("doc-allowed"),
+            "documentVisibilityEnforced", true,
+            "results", List.of(
+                Map.of(
+                    "fileId", "doc-allowed",
+                    "fileName", "allowed.docx",
+                    "chunkIndex", 0,
+                    "content", "visible selected document evidence"
+                ),
+                Map.of(
+                    "fileId", "doc-blocked",
+                    "fileName", "blocked.docx",
+                    "chunkIndex", 0,
+                    "content", "blocked unselected document evidence"
+                )
+            )
+        ), "ok");
+
+        String observation = builder.buildSuccessObservation("document_search", output, "");
+
+        assertThat(observation)
+            .contains("Document visibility constraint (contractVersion=document_visibility_v1)")
+            .contains("allowedDocuments=1")
+            .contains("discardedEvidence=1")
+            .contains("visible selected document evidence")
+            .doesNotContain("blocked unselected document evidence");
     }
 }

@@ -32,6 +32,9 @@ class AgentToolArgumentResolverTest {
             .doesNotContainKey("documentIds")
             .doesNotContainKey("fileIds")
             .doesNotContainKey("file_ids");
+        assertThat(result)
+            .containsEntry("selectedDocumentIds", List.of("20260617_c489d851"))
+            .containsEntry("documentVisibilityEnforced", true);
         assertThat(result.get("query").toString())
             .contains("跨交易日任务依赖执行判断与调度方案")
             .contains("跨交易日 任务依赖 执行判断 调度方案");

@@ -124,8 +124,8 @@ public class InterpretationPlanOptimizer {
         }
         Integer maxSteps = policy.maxSteps();
         Integer maxRewriteTimes = policy.maxRewriteTimes();
-        Integer guardedMaxSteps = maxSteps != null && maxSteps < 4 ? 4 : maxSteps;
-        Integer guardedMaxRewriteTimes = maxRewriteTimes != null && maxRewriteTimes < 2 ? 2 : maxRewriteTimes;
+        Integer guardedMaxSteps = maxSteps != null && maxSteps < 4 ? Integer.valueOf(4) : maxSteps;
+        Integer guardedMaxRewriteTimes = maxRewriteTimes != null && maxRewriteTimes < 2 ? Integer.valueOf(2) : maxRewriteTimes;
         if (Objects.equals(maxSteps, guardedMaxSteps) && Objects.equals(maxRewriteTimes, guardedMaxRewriteTimes)) {
             return new PolicyResult(policy, false);
         }

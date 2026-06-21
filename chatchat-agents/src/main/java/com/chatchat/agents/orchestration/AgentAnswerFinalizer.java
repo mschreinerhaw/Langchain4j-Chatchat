@@ -2,6 +2,7 @@ package com.chatchat.agents.orchestration;
 
 import com.chatchat.agents.evidence.AnswerAssemblyEngine;
 import com.chatchat.agents.evidence.AnswerAssemblyPolicy;
+import com.chatchat.agents.evidence.DeterministicAnswerCompiler;
 import com.chatchat.agents.evidence.EvidenceAnswerGroundingGuard;
 import com.chatchat.agents.runtime.AgentAnswerReview;
 import com.chatchat.agents.runtime.AgentAnswerReviewer;
@@ -28,6 +29,7 @@ class AgentAnswerFinalizer {
     private static final String DOCUMENT_EVIDENCE_CONTRACT = "document_evidence_v1";
     private static final String UNIFIED_EVIDENCE_CONTRACT = "evidence_v1";
     private static final String EVIDENCE_ANSWER_CONTRACT = "evidence_answer_v1";
+    private static final String EXECUTION_CONTRACT = "evidence_execution_contract_v2_2";
     private static final String INSUFFICIENT_EVIDENCE_ANSWER = "根据当前文档证据不足，无法确认。";
     private static final Pattern DOCUMENT_REF_PATTERN =
         Pattern.compile("doc://([^\\s\"',;\\]\\)}]+)#chunk=([^\\s\"',;\\]\\)}]+)");
@@ -159,6 +161,7 @@ class AgentAnswerFinalizer {
         prompt.append("When both internal document and web search observations are available, separate internal document evidence from web verification evidence and explain conflicts instead of merging them silently.\n");
         prompt.append("If observations include document_evidence_v1, document evidence context, or document citations, keep the matching document citation near every claim that relies on that evidence.\n");
         prompt.append("If observations include evidence_v1 or document_evidence_v1, final output must follow EvidenceAnswer: answer, citations, confidence, and missingInfo.\n");
+        prompt.append("If observations include evidence_execution_contract_v2_2 Deterministic answer lock, reproduce the lockedAnswer exactly; do not reinterpret the graph or replace it with fallback text.\n");
         prompt.append("If observations include web citation labels such as [缃戦〉1], append the matching label immediately after every sentence that relies on that web source.\n");
         prompt.append("Do not invent citations or cite URLs that are not listed in the observations.\n");
         prompt.append("If an Evidence trust policy asks for more evidence, avoid strong claims and say that trusted evidence is insufficient.\n");
@@ -286,6 +289,7 @@ class AgentAnswerFinalizer {
             .filter(value -> value != null)
             .anyMatch(value -> value.contains(UNIFIED_EVIDENCE_CONTRACT)
                 || value.contains(DOCUMENT_EVIDENCE_CONTRACT)
+                || value.contains(EXECUTION_CONTRACT)
                 || value.contains("doc://")
                 || value.contains("web://"));
     }
@@ -295,6 +299,24 @@ class AgentAnswerFinalizer {
                                                  Map<String, Object> metadata) {
         if (Boolean.TRUE.equals(metadata == null ? null : metadata.get("confirmationRequired"))) {
             return answer;
+        }
+        DeterministicLockedAnswer lockedAnswer = extractDeterministicLockedAnswer(observations);
+        if (lockedAnswer != null && lockedAnswer.answer() != null && !lockedAnswer.answer().isBlank()) {
+            if (metadata != null) {
+                metadata.put("deterministicAnswerLocked", true);
+                metadata.put("deterministicAnswerContractVersion", EXECUTION_CONTRACT);
+                if (lockedAnswer.contractHash() != null && !lockedAnswer.contractHash().isBlank()) {
+                    metadata.put("deterministicAnswerContractHash", lockedAnswer.contractHash());
+                }
+                if (lockedAnswer.graphViewHash() != null && !lockedAnswer.graphViewHash().isBlank()) {
+                    metadata.put("deterministicAnswerGraphViewHash", lockedAnswer.graphViewHash());
+                }
+            }
+            log.warn("agentDeterministicAnswerLockApplied contractHash={} graphViewHash={} originalAnswer={}",
+                lockedAnswer.contractHash(),
+                lockedAnswer.graphViewHash(),
+                answer == null ? "" : answer);
+            return lockedAnswer.answer();
         }
         List<GroundedDocumentEvidence> documentEvidence = extractGroundedDocumentEvidence(observations);
         if (documentEvidence.isEmpty()) {
@@ -318,6 +340,53 @@ class AgentAnswerFinalizer {
             documentEvidence.size(),
             answer == null ? "" : answer);
         return groundedAnswer;
+    }
+
+    private DeterministicLockedAnswer extractDeterministicLockedAnswer(List<String> observations) {
+        if (observations == null || observations.isEmpty()) {
+            return null;
+        }
+        for (String observation : observations) {
+            DeterministicLockedAnswer lockedAnswer = extractDeterministicLockedAnswer(observation);
+            if (lockedAnswer != null) {
+                return lockedAnswer;
+            }
+        }
+        return null;
+    }
+
+    private DeterministicLockedAnswer extractDeterministicLockedAnswer(String observation) {
+        if (observation == null || observation.isBlank() || !observation.contains(EXECUTION_CONTRACT)) {
+            return null;
+        }
+        int begin = observation.indexOf(DeterministicAnswerCompiler.BEGIN_LOCKED_ANSWER);
+        int end = observation.indexOf(DeterministicAnswerCompiler.END_LOCKED_ANSWER);
+        if (begin < 0 || end <= begin) {
+            return null;
+        }
+        int answerStart = begin + DeterministicAnswerCompiler.BEGIN_LOCKED_ANSWER.length();
+        String lockedAnswer = observation.substring(answerStart, end).trim();
+        if (lockedAnswer.isBlank()) {
+            return null;
+        }
+        return new DeterministicLockedAnswer(
+            lockedAnswer,
+            extractLineValue(observation, "contractHash:"),
+            extractLineValue(observation, "graphViewHash:")
+        );
+    }
+
+    private String extractLineValue(String text, String prefix) {
+        if (text == null || prefix == null) {
+            return null;
+        }
+        for (String rawLine : text.split("\\R")) {
+            String line = rawLine == null ? "" : rawLine.trim();
+            if (line.startsWith(prefix)) {
+                return line.substring(prefix.length()).trim();
+            }
+        }
+        return null;
     }
 
     private boolean shouldReplaceWithGroundedEvidence(String answer) {
@@ -563,6 +632,13 @@ class AgentAnswerFinalizer {
 
     private String firstNonBlank(String first, String second) {
         return first == null || first.isBlank() ? second : first;
+    }
+
+    private record DeterministicLockedAnswer(
+        String answer,
+        String contractHash,
+        String graphViewHash
+    ) {
     }
 
     private record GroundedDocumentEvidence(

@@ -97,7 +97,12 @@ class ToolObservationBuilderEvidenceTest {
             .contains("Canonical evidence store (contractVersion=evidence_canonical_v1)")
             .contains("Evidence graph execution (contractVersion=evidence_graph_v1)")
             .contains("Evidence OS execution (contractVersion=evidence_os_execution_v2)")
+            .contains("Deterministic answer lock (contractVersion=evidence_execution_contract_v2_2)")
             .contains("decision: ANSWER_ALLOWED")
+            .contains("contractHash:")
+            .contains("graphViewHash:")
+            .contains("---BEGIN_LOCKED_ANSWER---")
+            .contains("---END_LOCKED_ANSWER---")
             .contains("answerContract: evidence_answer_contract_v2")
             .contains("Valid evidence paths:")
             .contains("type: SQL")
@@ -138,5 +143,36 @@ class ToolObservationBuilderEvidenceTest {
             .contains("discardedEvidence=1")
             .contains("visible selected document evidence")
             .doesNotContain("blocked unselected document evidence");
+    }
+
+    @Test
+    void superAdminBypassesDocumentVisibilityFilteringInObservation() {
+        ToolOutput output = ToolOutput.success(Map.of(
+            "contractVersion", "document_evidence_v1",
+            "selectedDocumentIds", List.of("doc-allowed"),
+            "documentVisibilityEnforced", true,
+            "roles", List.of("ROLE_SUPER_ADMIN"),
+            "results", List.of(
+                Map.of(
+                    "fileId", "doc-allowed",
+                    "fileName", "allowed.docx",
+                    "chunkIndex", 0,
+                    "content", "visible selected document evidence"
+                ),
+                Map.of(
+                    "fileId", "doc-blocked",
+                    "fileName", "blocked.docx",
+                    "chunkIndex", 0,
+                    "content", "super admin can inspect unselected document evidence"
+                )
+            )
+        ), "ok");
+
+        String observation = builder.buildSuccessObservation("document_search", output, "");
+
+        assertThat(observation)
+            .doesNotContain("Document visibility constraint (contractVersion=document_visibility_v1)")
+            .contains("visible selected document evidence")
+            .contains("super admin can inspect unselected document evidence");
     }
 }

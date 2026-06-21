@@ -44,12 +44,16 @@ public class DocumentSearchEvidenceService {
         String query = requireQuery(request == null ? null : request.query());
         int topK = normalizeTopK(request == null ? null : request.topK());
         DocumentSearchFilters filters = request == null ? null : request.filters();
-        DocumentVisibilityContext visibilityContext = visibilityContext(request);
         List<String> scopedFileIds = request == null ? List.of() : safeList(request.fileIds()).stream()
             .filter(this::hasText)
             .map(String::trim)
             .distinct()
             .toList();
+        boolean debug = request != null && Boolean.TRUE.equals(request.debug());
+        SearchPermissionContext permissionContext = request == null
+            ? SearchPermissionContext.system()
+            : SearchPermissionContext.of(request.tenantId(), request.userId(), request.roles());
+        DocumentVisibilityContext visibilityContext = visibilityContext(request, permissionContext);
         List<String> effectiveScopedFileIds = visibilityContext.active()
             ? visibilityContext.filterIds(scopedFileIds)
             : scopedFileIds;
@@ -57,10 +61,6 @@ public class DocumentSearchEvidenceService {
             ? List.copyOf(visibilityContext.allowedFileIds())
             : effectiveScopedFileIds;
         String fileIds = joinValues(visibilityScopeIds);
-        boolean debug = request != null && Boolean.TRUE.equals(request.debug());
-        SearchPermissionContext permissionContext = request == null
-            ? SearchPermissionContext.system()
-            : SearchPermissionContext.of(request.tenantId(), request.userId(), request.roles());
         String intent = intentClassifier.classifyName(query);
         RetrievalValidationResult validation = queryValidator.validate(query, !visibilityScopeIds.isEmpty(), filters);
         events.add(event(
@@ -154,6 +154,23 @@ public class DocumentSearchEvidenceService {
             if (visibilityScopeIds.isEmpty()) {
                 return controlledResult(query, intent, List.of(), state, events, elapsedMs(startedAt));
             }
+        } else if (visibilityRequested(request) && permissionContext.isSuperAdmin()) {
+            log.info(
+                "document_visibility_bypass query='{}' reason=super_admin roles={}",
+                safeLogQuery(query),
+                permissionContext.roles()
+            );
+            events.add(event(
+                traceId,
+                RetrievalControlStep.GATE,
+                RetrievalControlAction.ALLOW,
+                query,
+                scopedFileIds.size(),
+                state.budgetUsed(),
+                state.budgetUsed(),
+                elapsedMs(startedAt),
+                "document_visibility_bypassed reason=super_admin"
+            ));
         }
 
         if (!effectiveScopedFileIds.isEmpty()) {
@@ -243,15 +260,23 @@ public class DocumentSearchEvidenceService {
         if (!hasText(docId)) {
             throw new IllegalArgumentException("docId is required");
         }
-        DocumentVisibilityContext visibilityContext = visibilityContext(request);
-        if (visibilityContext.active() && !visibilityContext.allows(docId.trim())) {
-            throw new IllegalArgumentException("document is not visible in current selection: " + docId.trim());
-        }
         SearchPermissionContext permissionContext = SearchPermissionContext.of(
             request.tenantId(),
             request.userId(),
             request.roles()
         );
+        DocumentVisibilityContext visibilityContext = visibilityContext(request, permissionContext);
+        if (visibilityContext.active() && !visibilityContext.allows(docId.trim())) {
+            throw new IllegalArgumentException("document is not visible in current selection: " + docId.trim());
+        }
+        if (!visibilityContext.active() && visibilityRequested(request) && permissionContext.isSuperAdmin()) {
+            log.info(
+                "document_visibility_bypass_expand query='{}' docId={} reason=super_admin roles={}",
+                safeLogQuery(query),
+                docId.trim(),
+                permissionContext.roles()
+            );
+        }
         SearchDocument document = searchService.get(docId.trim(), permissionContext)
             .orElseThrow(() -> new IllegalArgumentException("document not found: " + docId.trim()));
         int maxChunks = normalizeExpansionMax(request.maxChunks(), request.topK(), 6, 20);
@@ -495,8 +520,11 @@ public class DocumentSearchEvidenceService {
             .toList();
     }
 
-    private DocumentVisibilityContext visibilityContext(DocumentSearchRequest request) {
+    private DocumentVisibilityContext visibilityContext(DocumentSearchRequest request, SearchPermissionContext permissionContext) {
         if (request == null) {
+            return DocumentVisibilityContext.unrestricted();
+        }
+        if (permissionContext != null && permissionContext.isSuperAdmin() && visibilityRequested(request)) {
             return DocumentVisibilityContext.unrestricted();
         }
         List<String> selected = !safeList(request.selectedDocumentIds()).isEmpty()
@@ -505,14 +533,31 @@ public class DocumentSearchEvidenceService {
         return DocumentVisibilityContext.of(selected, request.documentVisibilityEnforced());
     }
 
-    private DocumentVisibilityContext visibilityContext(DocumentSearchExpandRequest request) {
+    private DocumentVisibilityContext visibilityContext(DocumentSearchExpandRequest request, SearchPermissionContext permissionContext) {
         if (request == null) {
+            return DocumentVisibilityContext.unrestricted();
+        }
+        if (permissionContext != null && permissionContext.isSuperAdmin() && visibilityRequested(request)) {
             return DocumentVisibilityContext.unrestricted();
         }
         List<String> selected = !safeList(request.selectedDocumentIds()).isEmpty()
             ? safeList(request.selectedDocumentIds())
             : safeList(request.selectedFileIds());
         return DocumentVisibilityContext.of(selected, request.documentVisibilityEnforced());
+    }
+
+    private boolean visibilityRequested(DocumentSearchRequest request) {
+        return request != null
+            && (!safeList(request.selectedDocumentIds()).isEmpty()
+                || !safeList(request.selectedFileIds()).isEmpty()
+                || Boolean.TRUE.equals(request.documentVisibilityEnforced()));
+    }
+
+    private boolean visibilityRequested(DocumentSearchExpandRequest request) {
+        return request != null
+            && (!safeList(request.selectedDocumentIds()).isEmpty()
+                || !safeList(request.selectedFileIds()).isEmpty()
+                || Boolean.TRUE.equals(request.documentVisibilityEnforced()));
     }
 
     private boolean isTitleOnlyHit(SearchResult result) {

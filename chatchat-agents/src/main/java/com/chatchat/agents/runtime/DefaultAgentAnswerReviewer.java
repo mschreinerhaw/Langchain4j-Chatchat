@@ -74,6 +74,7 @@ public class DefaultAgentAnswerReviewer implements AgentAnswerReviewer {
         prompt.append("If observations include evidence_canonical_v1 Canonical evidence store, treat rawContent and normalizedContent as observable tool evidence; do not claim observations lack actual content unless every canonical evidence item is empty.\n");
         prompt.append("If observations include evidence_graph_v1 Evidence graph execution, treat graph nodes, valid paths, and sqlLineage as traceable evidence; do not downgrade SQL answers when TRUSTED_SQL paths are present.\n");
         prompt.append("If observations include evidence_os_execution_v2, enforce its decision and answerContract: ANSWER_ALLOWED may answer only from evidencePath, EMPTY_RESULT must not be replaced with generic knowledge, and SQL requires EXECUTION_VERIFIED.\n");
+        prompt.append("If observations include evidence_execution_contract_v2_2 Deterministic answer lock, accept answers that reproduce the lockedAnswer and never claim the observations lack actual content.\n");
         prompt.append("If observations include evidence_v1 Unified evidence context, reject answers that rely on EvidenceChunk content but omit the matching doc:// or web:// citation.\n");
         prompt.append("If observations include evidence_v1, reject answers that cannot be represented as EvidenceAnswer with answer, citations, confidence, and missingInfo.\n");
         prompt.append("If observations include document_evidence_v1, document evidence context, or document citations, reject and revise answers that rely on document evidence but omit the matching document citation.\n");
@@ -146,6 +147,8 @@ public class DefaultAgentAnswerReviewer implements AgentAnswerReviewer {
                 && (value.contains("Valid evidence paths:") || value.contains("TRUSTED_SQL")))
                 || (value.contains("Evidence OS execution (contractVersion=evidence_os_execution_v2)")
                 && value.contains("decision: ANSWER_ALLOWED"))
+                || (value.contains("Deterministic answer lock (contractVersion=evidence_execution_contract_v2_2)")
+                && value.contains("---BEGIN_LOCKED_ANSWER---"))
                 || (value.contains("Unified evidence context (contractVersion=evidence_v1)")
                 && value.contains("content:"))
                 || value.contains("doc://")

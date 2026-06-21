@@ -182,6 +182,38 @@ class DefaultAgentAnswerReviewerTest {
         assertThat(review.answer()).contains("gdp_ads.ads_ids_sys_data_qlty_rpt_d_i");
     }
 
+    @Test
+    void blocksReviewerDowngradeWhenDeterministicAnswerLockExists() {
+        DefaultAgentAnswerReviewer reviewer = new DefaultAgentAnswerReviewer(new ObjectMapper());
+        QueueChatModel chatModel = new QueueChatModel(
+            """
+                {"accepted":false,
+                 "feedback":"Observations do not contain actual content",
+                 "revisedAnswer":"Unable to get the SQL content from tool output."}
+                """
+        );
+
+        AgentAnswerReview review = reviewer.review(
+            chatModel,
+            "Show the SQL",
+            null,
+            List.of("""
+                Deterministic answer lock (contractVersion=evidence_execution_contract_v2_2):
+                decision: ANSWER_ALLOWED
+                contractHash: abc123
+                graphViewHash: def456
+                lockedAnswer:
+                ---BEGIN_LOCKED_ANSWER---
+                SQL: select * from gdp_ads.ads_ids_sys_data_qlty_rpt_d_i doc://file-1#chunk=0
+                ---END_LOCKED_ANSWER---
+                """),
+            "SQL: select * from gdp_ads.ads_ids_sys_data_qlty_rpt_d_i doc://file-1#chunk=0"
+        );
+
+        assertThat(review.status()).isEqualTo(AgentAnswerReview.ACCEPTED);
+        assertThat(review.feedback()).contains("Reviewer downgrade blocked");
+    }
+
     private static final class QueueChatModel implements ChatModel {
         private final Queue<String> responses = new ArrayDeque<>();
         private final List<String> messages = new java.util.ArrayList<>();

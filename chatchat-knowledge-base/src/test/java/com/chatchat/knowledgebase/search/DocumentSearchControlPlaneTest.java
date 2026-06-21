@@ -161,6 +161,56 @@ class DocumentSearchControlPlaneTest {
     }
 
     @Test
+    void superAdminBypassesDocumentVisibilityConstraint() {
+        SearchService searchService = mock(SearchService.class);
+        when(searchService.frontendQuickSearch(
+            eq("ACME 2025 revenue policy"),
+            any(),
+            any(),
+            any(),
+            any(),
+            eq(1),
+            eq(8),
+            any(SearchPermissionContext.class)
+        )).thenReturn(new SearchPage(
+            "ACME 2025 revenue policy",
+            List.of("acme", "2025", "revenue", "policy"),
+            List.of(searchResult(), blockedSearchResult()),
+            2,
+            8,
+            1,
+            8,
+            1,
+            false,
+            7L,
+            -1,
+            null
+        ));
+        DocumentSearchEvidenceService service = newEvidenceService(searchService);
+
+        DocumentSearchResult result = service.search(new DocumentSearchRequest(
+            "ACME 2025 revenue policy",
+            8,
+            null,
+            null,
+            List.of("doc-1"),
+            true,
+            null,
+            null,
+            "admin-user",
+            List.of("ROLE_SUPER_ADMIN"),
+            false
+        ));
+
+        assertThat(result.results())
+            .extracting(DocumentEvidenceChunk::fileId)
+            .containsExactlyInAnyOrder("doc-blocked", "doc-1");
+        assertThat(result.retrievalEvents())
+            .extracting(RetrievalEvent::reason)
+            .anyMatch(reason -> reason.contains("document_visibility_bypassed reason=super_admin"));
+    }
+
+    @Test
     void titleOnlyHitReturnsDocumentOutlineWithoutEvidenceBody() {
         SearchService searchService = mock(SearchService.class);
         when(searchService.frontendQuickSearch(

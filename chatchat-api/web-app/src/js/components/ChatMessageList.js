@@ -112,6 +112,7 @@ export default {
       copiedMessageId: "",
       copiedResetTimer: null,
       codeCopyResetTimers: new Set(),
+      reasoningModal: null,
       feedbackOptions: [
         { value: "useful", label: "\u6709\u7528" },
         { value: "adopted", label: "\u91c7\u7eb3" },
@@ -143,8 +144,7 @@ export default {
   },
   methods: {
     shouldShowSteps(message = {}) {
-      return message.role === "assistant"
-        && ((Array.isArray(message.steps) && message.steps.length > 0) || this.isExecutionRunning(message));
+      return message.role === "assistant" && this.isExecutionRunning(message);
     },
     isExecutionRunning(message = {}) {
       const status = String(message.status || "").toLowerCase();
@@ -219,7 +219,7 @@ export default {
       const prepared = this.prepareMarkdownContent(String(content ?? ""), message);
       const reasoning = this.parseEvidenceReasoning(prepared.content);
       if (reasoning?.fallback) {
-        return this.renderEvidenceReasoningFallback(prepared.content, new Set(prepared.citationUrls));
+        return this.renderEvidenceReasoningFallback(prepared.content, new Set(prepared.citationUrls), reasoning.errors || []);
       }
       if (reasoning) {
         return this.renderEvidenceReasoning(reasoning, new Set(prepared.citationUrls));
@@ -424,78 +424,425 @@ export default {
     },
     parseEvidenceReasoning(content) {
       const text = String(content || "");
-      const fencePattern = /```(?:json)?\s*([\s\S]*?)```/gi;
-      let match;
-      while ((match = fencePattern.exec(text)) !== null) {
-        try {
-          const parsed = JSON.parse(match[1]);
-          if (parsed?.type === "evidence_reasoning_v2" || (parsed?.executionSpec && parsed?.evidence && parsed?.executionDag)) {
-            return parsed;
-          }
-        } catch (error) {
-          if (/evidence_reasoning_v2|executionSpec|executionDag/.test(match[1] || "")) {
-            return { fallback: true };
-          }
+      const candidates = this.extractEvidenceReasoningCandidates(text);
+      let sawV2Shape = false;
+      for (const candidate of candidates) {
+        if (!/evidence_reasoning_v2|executionSpec|executionDag|contractHash|graphViewHash/.test(candidate || "")) {
+          continue;
         }
+        sawV2Shape = true;
+        try {
+          const parsed = JSON.parse(candidate);
+          const normalized = this.normalizeEvidenceReasoning(parsed);
+          if (!normalized) {
+            continue;
+          }
+          const validation = this.validateEvidenceReasoning(normalized);
+          return validation.valid
+            ? normalized
+            : {
+                fallback: true,
+                errors: validation.errors,
+                parsed: normalized
+              };
+        } catch (error) {
+          // Keep scanning other candidates; a markdown answer can contain unrelated JSON first.
+        }
+      }
+      if (sawV2Shape) {
+        return { fallback: true, errors: ["v2 JSON parse failed"] };
       }
       return null;
     },
-    renderEvidenceReasoningFallback(content, citationUrls) {
+    extractEvidenceReasoningCandidates(content) {
+      const text = String(content || "").trim();
+      const candidates = [];
+      const fencePattern = /```(?:json)?\s*([\s\S]*?)```/gi;
+      let match;
+      while ((match = fencePattern.exec(text)) !== null) {
+        candidates.push(String(match[1] || "").trim());
+      }
+      const lockedMatch = text.match(/---BEGIN_LOCKED_ANSWER---([\s\S]*?)---END_LOCKED_ANSWER---/i);
+      if (lockedMatch?.[1]) {
+        candidates.push(...this.extractEvidenceReasoningCandidates(lockedMatch[1]));
+      }
+      if (text.startsWith("{") && text.endsWith("}")) {
+        candidates.push(text);
+      }
+      const inlineJson = this.extractBalancedEvidenceJson(text);
+      if (inlineJson) {
+        candidates.push(inlineJson);
+      }
+      return [...new Set(candidates.filter(Boolean))];
+    },
+    extractBalancedEvidenceJson(content) {
+      const text = String(content || "");
+      const marker = text.indexOf('"type"');
+      const typeMarker = text.indexOf("evidence_reasoning_v2");
+      const anchor = marker >= 0 ? marker : typeMarker;
+      if (anchor < 0) {
+        return "";
+      }
+      const start = text.lastIndexOf("{", anchor);
+      if (start < 0) {
+        return "";
+      }
+      let depth = 0;
+      let inString = false;
+      let escaped = false;
+      for (let index = start; index < text.length; index += 1) {
+        const char = text[index];
+        if (escaped) {
+          escaped = false;
+          continue;
+        }
+        if (char === "\\") {
+          escaped = inString;
+          continue;
+        }
+        if (char === '"') {
+          inString = !inString;
+          continue;
+        }
+        if (inString) {
+          continue;
+        }
+        if (char === "{") {
+          depth += 1;
+        } else if (char === "}") {
+          depth -= 1;
+          if (depth === 0) {
+            return text.slice(start, index + 1).trim();
+          }
+        }
+      }
+      return "";
+    },
+    normalizeEvidenceReasoning(value) {
+      if (!value || typeof value !== "object") {
+        return null;
+      }
+      const hasReasoningShape = value.type === "evidence_reasoning_v2"
+        || (value.executionSpec && value.evidence && value.executionDag);
+      if (!hasReasoningShape) {
+        return null;
+      }
+      const evidence = value.evidence || {};
+      const dag = value.executionDag || {};
+      return {
+        ...value,
+        type: value.type || "evidence_reasoning_v2",
+        contractHash: String(value.contractHash || "").trim(),
+        graphViewHash: String(value.graphViewHash || value.graphHash || "").trim(),
+        pathState: String(value.pathState || "").trim(),
+        decision: String(value.decision || "").trim(),
+        fromGraphOnly: value.fromGraphOnly === true,
+        executable: value.executable === true,
+        executionSpec: {
+          type: value.executionSpec?.type || "execution_spec",
+          steps: Array.isArray(value.executionSpec?.steps) ? value.executionSpec.steps : []
+        },
+        evidence: {
+          direct: Array.isArray(evidence.direct) ? evidence.direct : [],
+          supporting: Array.isArray(evidence.supporting) ? evidence.supporting : [],
+          context: Array.isArray(evidence.context) ? evidence.context : []
+        },
+        executionDag: {
+          nodes: Array.isArray(dag.nodes) ? dag.nodes : [],
+          edges: Array.isArray(dag.edges) ? dag.edges : []
+        },
+        trustedSql: Array.isArray(value.trustedSql) ? value.trustedSql : [],
+        deterministicFacts: Array.isArray(value.deterministicFacts) ? value.deterministicFacts : [],
+        result: value.result && typeof value.result === "object" ? value.result : null,
+        reasoningTrace: value.reasoningTrace && typeof value.reasoningTrace === "object" ? value.reasoningTrace : null
+      };
+    },
+    validateEvidenceReasoning(reasoning = {}) {
+      const errors = [];
+      const steps = Array.isArray(reasoning.executionSpec?.steps) ? reasoning.executionSpec.steps : [];
+      const nodes = Array.isArray(reasoning.executionDag?.nodes) ? reasoning.executionDag.nodes : [];
+      const evidence = reasoning.evidence || {};
+      const evidenceItems = [
+        ...(Array.isArray(evidence.direct) ? evidence.direct : []),
+        ...(Array.isArray(evidence.supporting) ? evidence.supporting : []),
+        ...(Array.isArray(evidence.context) ? evidence.context : [])
+      ];
+      const nodeIds = new Set(nodes.map((node) => String(node?.id || "").trim()).filter(Boolean));
+      const refs = new Set(evidenceItems.map((item) => String(item?.refId || item?.source || "").trim()).filter(Boolean));
+
+      if (!reasoning.contractHash) {
+        errors.push("missing contractHash");
+      }
+      if (!reasoning.graphViewHash) {
+        errors.push("missing graphViewHash");
+      }
+      steps.forEach((step, index) => {
+        const label = `step ${step?.id || index + 1}`;
+        const nodeId = String(step?.nodeId || "").trim();
+        const source = String(step?.source || step?.refId || "").trim();
+        const confidence = Number(step?.confidence);
+        if (!nodeId || !nodeIds.has(nodeId)) {
+          errors.push(`${label} missing DAG node`);
+        }
+        if (!source || !refs.has(source)) {
+          errors.push(`${label} missing evidence binding`);
+        }
+        if (!Number.isFinite(confidence) || confidence < 0 || confidence > 1) {
+          errors.push(`${label} confidence out of 0..1`);
+        }
+      });
+      return {
+        valid: errors.length === 0,
+        errors
+      };
+    },
+    renderEvidenceReasoningFallback(content, citationUrls, errors = []) {
       const env = { webCitationUrls: citationUrls };
       const cleaned = this.stripEvidenceReasoningJson(content);
       const fallback = this.parseEvidenceExecutionAnswer(cleaned);
       const body = fallback
         ? this.renderEvidenceExecutionAnswer(fallback, citationUrls)
         : markdown.render(cleaned, env);
+      const reason = Array.isArray(errors) && errors.length
+        ? `<span>${escapeHtml(errors.slice(0, 3).join("；"))}</span>`
+        : "";
       return [
-        '<p class="evidence-structure-fallback">v2 structure fallback</p>',
+        `<p class="evidence-structure-fallback">v2 structure fallback${reason}</p>`,
         body
       ].join("");
     },
     stripEvidenceReasoningJson(content) {
-      return String(content || "").replace(/```(?:json)?\s*([\s\S]*?)```/gi, (match, body) => (
+      const withoutFences = String(content || "").replace(/```(?:json)?\s*([\s\S]*?)```/gi, (match, body) => (
         /evidence_reasoning_v2|executionSpec|executionDag/.test(body || "") ? "" : match
-      )).trim();
+      ));
+      const withoutLocks = withoutFences
+        .replace(/---BEGIN_LOCKED_ANSWER---/gi, "")
+        .replace(/---END_LOCKED_ANSWER---/gi, "");
+      const inlineJson = this.extractBalancedEvidenceJson(withoutLocks);
+      const cleaned = inlineJson && /evidence_reasoning_v2|executionSpec|executionDag/.test(inlineJson)
+        ? withoutLocks.replace(inlineJson, "")
+        : withoutLocks;
+      return cleaned.trim() || "\u7ed3\u6784\u5316\u534f\u8bae\u672a\u901a\u8fc7\u524d\u7aef\u6821\u9a8c\uff0c\u5df2\u9690\u85cf\u539f\u59cb JSON\u3002";
     },
     renderEvidenceReasoning(reasoning, citationUrls) {
       const env = { webCitationUrls: citationUrls };
-      const steps = Array.isArray(reasoning?.executionSpec?.steps) ? reasoning.executionSpec.steps : [];
       const evidence = reasoning?.evidence || {};
-      const dag = reasoning?.executionDag || {};
-      const nodes = Array.isArray(dag.nodes) ? dag.nodes : [];
-      const edges = Array.isArray(dag.edges) ? dag.edges : [];
-      const stepItems = steps.length
-        ? steps.map((step) => this.renderReasoningStep(step, env)).join("")
-        : `<li>${escapeHtml("\u672a\u63d0\u4f9b\u663e\u5f0f\u6267\u884c\u6b65\u9aa4")}</li>`;
+      const topEvidence = this.topEvidenceItems(evidence);
+      const evidenceCount = this.evidenceCount(evidence);
+      const confidence = this.reasoningConfidence(reasoning);
+      const topEvidenceItems = topEvidence.length
+        ? topEvidence.map((item, index) => this.renderTopEvidenceItem(item, env, index)).join("")
+        : `<li class="empty">${escapeHtml("\u6682\u65e0\u53ef\u5c55\u793a\u8bc1\u636e")}</li>`;
+      const pathState = this.reasoningPathState(reasoning);
+      const decisionClass = pathState === "STRONG_PATH" ? "locked" : (pathState === "NO_PATH" ? "blocked" : "warning");
+      const answer = this.reasoningResultText(reasoning);
 
       return [
         '<section class="evidence-reasoning-card">',
         '<header class="evidence-reasoning-header">',
         '<div>',
-        '<span>Evidence Reasoning Engine v2</span>',
-        `<p>${escapeHtml(reasoning?.executable ? "\u56de\u7b54\u5df2\u7531\u53ef\u8ffd\u6eaf\u6267\u884c\u56fe\u9501\u5b9a" : "\u5f53\u524d\u8bc1\u636e\u56fe\u672a\u5f62\u6210\u53ef\u6267\u884c\u8def\u5f84")}</p>`,
+        `<span>${escapeHtml("\u5206\u6790\u7ed3\u679c")}</span>`,
+        `<p>${markdown.renderInline(answer, env)}</p>`,
         '</div>',
-        `<strong>${escapeHtml(reasoning?.decision || "Evidence-locked")}</strong>`,
+        `<strong class="${decisionClass}">${escapeHtml(this.reasoningPathStateLabel(pathState))}</strong>`,
         '</header>',
-        '<section class="evidence-path-section reasoning-path-section">',
-        `<strong>${escapeHtml("\u6267\u884c\u89c4\u683c")}</strong>`,
-        `<ol>${stepItems}</ol>`,
+        '<section class="answer-result-summary">',
+        `<span>${escapeHtml("\u53ef\u4fe1\u5ea6")} <b>${escapeHtml(confidence || "\u5f85\u786e\u8ba4")}</b></span>`,
+        `<span>${escapeHtml("\u4f9d\u636e\u5145\u8db3\u5ea6")} <b>${escapeHtml(this.reasoningEvidenceLevel(reasoning))}</b></span>`,
         '</section>',
-        '<section class="reasoning-evidence-section">',
-        `<strong>${escapeHtml("\u8bc1\u636e\u5206\u5c42")}</strong>`,
+        '</section>',
+        '<section class="response-references compact answer-evidence-reference-group">',
+        '<details class="answer-evidence-details">',
+        `<summary><span>${escapeHtml("\u67e5\u770b\u8bc1\u636e\u6765\u6e90")}</span><small>${escapeHtml(`${evidenceCount} \u6761`)}</small></summary>`,
         '<div>',
-        this.renderEvidenceTier("Direct Evidence", evidence.direct, true, env),
-        this.renderEvidenceTier("Supporting Evidence", evidence.supporting, false, env),
-        this.renderEvidenceTier("Context Evidence", evidence.context, false, env),
-        '</div>',
+        '<section class="answer-top-evidence">',
+        `<ul>${topEvidenceItems}</ul>`,
         '</section>',
-        '<footer class="reasoning-contract-footer">',
-        `<span>${escapeHtml(`DAG ${nodes.length} nodes / ${edges.length} edges`)}</span>`,
-        reasoning?.contractHash ? `<span>${escapeHtml(`contract ${String(reasoning.contractHash).slice(0, 10)}`)}</span>` : "",
-        reasoning?.graphViewHash ? `<span>${escapeHtml(`graph ${String(reasoning.graphViewHash).slice(0, 10)}`)}</span>` : "",
-        '</footer>',
+        '</div>',
+        '</details>',
         '</section>'
       ].filter(Boolean).join("");
+    },
+    topEvidenceItems(evidence = {}) {
+      return [
+        ...(Array.isArray(evidence.direct) ? evidence.direct : []),
+        ...(Array.isArray(evidence.supporting) ? evidence.supporting : []),
+        ...(Array.isArray(evidence.context) ? evidence.context : [])
+      ].slice(0, 3);
+    },
+    evidenceCount(evidence = {}) {
+      return ["direct", "supporting", "context"]
+        .map((key) => Array.isArray(evidence[key]) ? evidence[key].length : 0)
+        .reduce((sum, value) => sum + value, 0);
+    },
+    reasoningConfidence(reasoning = {}) {
+      const formatted = this.formatConfidencePercent(this.reasoningConfidenceValue(reasoning));
+      if (formatted) {
+        return formatted;
+      }
+      return "";
+    },
+    reasoningConfidenceValue(reasoning = {}) {
+      const resultConfidence = Number(reasoning?.result?.confidence);
+      if (Number.isFinite(resultConfidence) && resultConfidence > 0) {
+        return resultConfidence;
+      }
+      const coherence = Number(reasoning?.reasoningTrace?.pathDecision?.pathCoherence);
+      if (Number.isFinite(coherence) && coherence > 0) {
+        return coherence;
+      }
+      const steps = Array.isArray(reasoning?.executionSpec?.steps) ? reasoning.executionSpec.steps : [];
+      return steps.length
+        ? steps.reduce((sum, step) => sum + Number(step.confidence || 0), 0) / steps.length
+        : 0;
+    },
+    reasoningEvidenceLevel(reasoning = {}) {
+      const evidence = reasoning.evidence || {};
+      const direct = Array.isArray(evidence.direct) ? evidence.direct.length : 0;
+      const supporting = Array.isArray(evidence.supporting) ? evidence.supporting.length : 0;
+      const context = Array.isArray(evidence.context) ? evidence.context.length : 0;
+      if (reasoning.executable && direct >= 2 && supporting + context >= 2) {
+        return "\u8f83\u5145\u5206";
+      }
+      if (direct > 0 && supporting + context > 0) {
+        return "\u6709\u9650\u652f\u6301";
+      }
+      if (direct > 0) {
+        return "\u5355\u4e00\u4f9d\u636e";
+      }
+      return "\u4e0d\u8db3";
+    },
+    reasoningResultText(reasoning = {}) {
+      if (reasoning?.result?.exists === true && String(reasoning.result.answer || "").trim()) {
+        return this.shortUiText(reasoning.result.answer, 220);
+      }
+      const pathState = this.reasoningPathState(reasoning);
+      if (pathState === "WEAK_PATH") {
+        return "\u5df2\u8bc6\u522b\u8bc1\u636e\u8def\u5f84\uff0c\u4f46\u8def\u5f84\u7a33\u5b9a\u6027\u4e0d\u8db3\uff0c\u5f53\u524d\u672a\u8fbe\u5230\u751f\u6210\u786e\u5b9a\u7ed3\u8bba\u7684\u9608\u503c\u3002";
+      }
+      if (pathState === "CONFLICTED_PATH") {
+        return "\u5df2\u8bc6\u522b\u5019\u9009\u8bc1\u636e\u8def\u5f84\uff0c\u4f46\u8bc1\u636e\u4e4b\u95f4\u5b58\u5728\u51b2\u7a81\uff0c\u5f53\u524d\u65e0\u6cd5\u751f\u6210\u786e\u5b9a\u7ed3\u8bba\u3002";
+      }
+      if (pathState === "NO_PATH") {
+        return "\u5f53\u524d\u672a\u627e\u5230\u8db3\u591f\u8bc1\u636e\u6765\u6e90\uff0c\u6682\u65e0\u6cd5\u751f\u6210\u53ef\u9760\u7ed3\u8bba\u3002";
+      }
+      const fact = Array.isArray(reasoning.deterministicFacts) ? reasoning.deterministicFacts[0] : null;
+      if (fact?.content) {
+        return this.shortUiText(fact.content, 180);
+      }
+      return "\u5df2\u57fa\u4e8e\u53ef\u8ffd\u6eaf\u8bc1\u636e\u8def\u5f84\u751f\u6210\u9501\u5b9a\u5206\u6790\u7ed3\u679c\u3002";
+    },
+    reasoningPathState(reasoning = {}) {
+      const protocolState = String(reasoning.pathState || "").trim().toUpperCase();
+      if (["STRONG_PATH", "WEAK_PATH", "CONFLICTED_PATH", "NO_PATH"].includes(protocolState)) {
+        return protocolState;
+      }
+      if (reasoning.executable) {
+        return "STRONG_PATH";
+      }
+      const trace = reasoning.reasoningTrace || {};
+      const dag = reasoning.executionDag || {};
+      const nodes = Array.isArray(dag.nodes) ? dag.nodes : [];
+      const edges = Array.isArray(dag.edges) ? dag.edges : [];
+      const selectedPath = Array.isArray(trace.pathDecision?.selectedPath) ? trace.pathDecision.selectedPath : [];
+      const conflicts = Array.isArray(trace.conflictResolutions) ? trace.conflictResolutions : [];
+      const hasEvidence = this.evidenceCount(reasoning.evidence || {}) > 0;
+      const hasCandidatePath = selectedPath.length > 0
+        || edges.length > 0
+        || nodes.length > 0
+        || this.reasoningConfidenceValue(reasoning) > 0
+        || hasEvidence;
+      if (conflicts.length && hasCandidatePath) {
+        return "CONFLICTED_PATH";
+      }
+      if (hasCandidatePath) {
+        return "WEAK_PATH";
+      }
+      return "NO_PATH";
+    },
+    reasoningPathStateLabel(state) {
+      if (state === "STRONG_PATH") {
+        return "\u5df2\u6821\u9a8c";
+      }
+      if (state === "WEAK_PATH") {
+        return "\u9700\u590d\u6838";
+      }
+      if (state === "CONFLICTED_PATH") {
+        return "\u5b58\u5728\u51b2\u7a81";
+      }
+      return "\u65e0\u6cd5\u786e\u8ba4";
+    },
+    reasoningModalPayload(reasoning = {}) {
+      const trace = reasoning.reasoningTrace || {};
+      const decision = trace.pathDecision || {};
+      const dag = reasoning.executionDag || {};
+      const nodes = Array.isArray(dag.nodes) ? dag.nodes : [];
+      const edges = Array.isArray(dag.edges) ? dag.edges : [];
+      const selectedPath = Array.isArray(decision.selectedPath) ? decision.selectedPath : [];
+      const nodeById = new Map(nodes.map((node) => [node.id, node]));
+      const selectedPairs = new Set();
+      selectedPath.forEach((nodeId, index) => {
+        if (index < selectedPath.length - 1) {
+          selectedPairs.add(`${nodeId}->${selectedPath[index + 1]}`);
+        }
+      });
+      return {
+        title: reasoning.executable ? "Selected evidence path" : "Evidence path unavailable",
+        metrics: [
+          { label: "coherence", value: this.formatTraceNumber(decision.pathCoherence) },
+          { label: "weakest link", value: this.formatTraceNumber(decision.weakestLink) },
+          { label: "bottleneck", value: this.formatTraceNumber(decision.bottleneckPenalty) }
+        ].filter((item) => item.value),
+        pathNodes: selectedPath.map((nodeId) => {
+          const node = nodeById.get(nodeId) || {};
+          return {
+            id: nodeId,
+            confidence: this.formatTraceNumber(node.confidence),
+            type: node.type || "",
+            source: node.source || ""
+          };
+        }),
+        pathEdges: edges
+          .filter((edge) => selectedPairs.has(`${edge.from}->${edge.to}`))
+          .map((edge) => ({
+            from: edge.from || "",
+            to: edge.to || "",
+            type: edge.type || "",
+            confidence: this.formatTraceNumber(edge.confidence),
+            reasoning: edge.reasoning || ""
+          })),
+        conflicts: (Array.isArray(trace.conflictResolutions) ? trace.conflictResolutions : []).map((item) => ({
+          edge: item.edge || "",
+          confidence: this.formatTraceNumber(item.confidence),
+          decision: item.decision || "",
+          reason: item.reason || ""
+        })),
+        explanation: Array.isArray(trace.explanation) ? trace.explanation : []
+      };
+    },
+    renderTopEvidenceItem(item = {}, env, index = 0) {
+      const text = this.semanticEvidenceText(item);
+      return [
+        '<li>',
+        '<div>',
+        `<small>${escapeHtml(`\u6765\u6e90 ${index + 1}`)}</small>`,
+        '</div>',
+        text ? `<p>${markdown.renderInline(text, env)}</p>` : "",
+        '</li>'
+      ].join("");
+    },
+    semanticEvidenceText(item = {}) {
+      const raw = String(item.text || item.content || item.action || "")
+        .replace(/doc:\/\/\S+/g, "")
+        .replace(/chunk[-=]\d+/gi, "")
+        .replace(/DOC_CHUNK/gi, "")
+        .replace(/[@#*_`]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+      return this.shortUiText(raw, 160);
+    },
+    reasoningConclusion(reasoning = {}) {
+      return this.reasoningResultText(reasoning);
     },
     renderReasoningStep(step = {}, env) {
       const action = step.action || step.text || step.nodeId || "";
@@ -505,11 +852,129 @@ export default {
         '<li>',
         `<span>${markdown.renderInline(String(action || "\u672a\u547d\u540d\u6b65\u9aa4"), env)}</span>`,
         '<small>',
+        step.nodeId ? `<i>${escapeHtml(step.nodeId)}</i>` : "",
         source ? `<b class="doc-link">${escapeHtml(source)}</b>` : "",
         confidence ? `<em>${escapeHtml(confidence)}</em>` : "",
         '</small>',
         '</li>'
       ].join("");
+    },
+    renderReasoningFacts(facts, env) {
+      const rows = facts.slice(0, 6).map((fact) => {
+        const source = fact.sourceRef || fact.source || "";
+        const text = this.shortUiText(fact.content || fact.text || "", 220);
+        return [
+          '<li>',
+          '<div>',
+          fact.nodeId ? `<small>${escapeHtml(fact.nodeId)}</small>` : "",
+          source ? `<span class="doc-link">${escapeHtml(source)}</span>` : "",
+          fact.nodeType ? `<small>${escapeHtml(fact.nodeType)}</small>` : "",
+          this.formatConfidencePercent(fact.confidence) ? `<small>${escapeHtml(this.formatConfidencePercent(fact.confidence))}</small>` : "",
+          '</div>',
+          text ? `<p>${markdown.renderInline(text, env)}</p>` : "",
+          '</li>'
+        ].join("");
+      }).join("");
+      return [
+        '<section class="reasoning-facts-section">',
+        `<strong>${escapeHtml("\u4e8b\u5b9e\u4f9d\u636e")}</strong>`,
+        `<ul>${rows}</ul>`,
+        '</section>'
+      ].join("");
+    },
+    renderTrustedSqlFacts(items) {
+      const rows = items.slice(0, 4).map((item) => [
+        '<li>',
+        '<div>',
+        item.nodeId ? `<small>${escapeHtml(item.nodeId)}</small>` : "",
+        item.sourceRef ? `<span class="doc-link">${escapeHtml(item.sourceRef)}</span>` : "",
+        item.sqlType ? `<small>${escapeHtml(item.sqlType)}</small>` : "",
+        `<small>${escapeHtml(item.executionVerified ? "EXECUTION_VERIFIED" : "NOT_VERIFIED")}</small>`,
+        Number.isFinite(Number(item.validationScore)) ? `<small>${escapeHtml(`score ${item.validationScore}`)}</small>` : "",
+        '</div>',
+        item.normalizedSql ? `<pre>${escapeHtml(this.shortUiText(item.normalizedSql, 360))}</pre>` : "",
+        '</li>'
+      ].join("")).join("");
+      return [
+        '<section class="reasoning-facts-section reasoning-sql-section">',
+        `<strong>${escapeHtml("\u53ef\u4fe1 SQL")}</strong>`,
+        `<ul>${rows}</ul>`,
+        '</section>'
+      ].join("");
+    },
+    renderReasoningDag(dag = {}, env) {
+      const nodes = Array.isArray(dag.nodes) ? dag.nodes : [];
+      const edges = Array.isArray(dag.edges) ? dag.edges : [];
+      const nodeRows = nodes.slice(0, 10).map((node) => [
+        '<li>',
+        '<div>',
+        node.id ? `<small>${escapeHtml(node.id)}</small>` : "",
+        node.type ? `<small>${escapeHtml(node.type)}</small>` : "",
+        this.formatConfidencePercent(node.confidence) ? `<small>${escapeHtml(this.formatConfidencePercent(node.confidence))}</small>` : "",
+        '</div>',
+        node.text ? `<p>${markdown.renderInline(this.shortUiText(node.text, 120), env)}</p>` : "",
+        '</li>'
+      ].join("")).join("");
+      const edgeRows = edges.slice(0, 12).map((edge) => [
+        '<li>',
+        `<span>${escapeHtml(`${edge.from || "?"} -> ${edge.to || "?"}`)}</span>`,
+        edge.type ? `<small>${escapeHtml(edge.type)}</small>` : "",
+        this.formatConfidencePercent(edge.confidence) ? `<small>${escapeHtml(this.formatConfidencePercent(edge.confidence))}</small>` : "",
+        edge.reasoning ? `<p>${markdown.renderInline(this.shortUiText(edge.reasoning, 120), env)}</p>` : "",
+        '</li>'
+      ].join("")).join("");
+      return [
+        '<details class="reasoning-dag-details">',
+        `<summary><span>${escapeHtml("\u6267\u884c DAG")}</span><small>${escapeHtml(`${nodes.length} nodes / ${edges.length} edges`)}</small></summary>`,
+        '<div>',
+        nodeRows ? `<section><strong>${escapeHtml("Nodes")}</strong><ul>${nodeRows}</ul></section>` : "",
+        edgeRows ? `<section><strong>${escapeHtml("Edges")}</strong><ul>${edgeRows}</ul></section>` : "",
+        '</div>',
+        '</details>'
+      ].filter(Boolean).join("");
+    },
+    renderReasoningTrace(trace = {}, env) {
+      const decision = trace.pathDecision || {};
+      const conflicts = Array.isArray(trace.conflictResolutions) ? trace.conflictResolutions : [];
+      const explanation = Array.isArray(trace.explanation) ? trace.explanation : [];
+      const metrics = [
+        this.metricChip("coherence", decision.pathCoherence),
+        this.metricChip("weakest", decision.weakestLink),
+        this.metricChip("bottleneck", decision.bottleneckPenalty)
+      ].filter(Boolean).join("");
+      const conflictRows = conflicts.length
+        ? conflicts.slice(0, 6).map((item) => [
+            '<li>',
+            `<span>${escapeHtml(item.edge || "")}</span>`,
+            item.confidence !== undefined ? `<small>${escapeHtml(this.formatTraceNumber(item.confidence))}</small>` : "",
+            item.decision ? `<p>${markdown.renderInline(String(item.decision), env)}</p>` : "",
+            item.reason ? `<p>${markdown.renderInline(this.shortUiText(item.reason, 140), env)}</p>` : "",
+            '</li>'
+          ].join("")).join("")
+        : `<li class="empty">${escapeHtml("\u672a\u68c0\u6d4b\u5230\u51b2\u7a81\u8bc1\u636e")}</li>`;
+      const explanationRows = explanation.length
+        ? explanation.map((item) => `<li>${markdown.renderInline(String(item), env)}</li>`).join("")
+        : `<li class="empty">${escapeHtml("\u6682\u65e0\u8def\u5f84\u89e3\u91ca")}</li>`;
+      return [
+        '<details class="reasoning-trace-details" open>',
+        `<summary><span>${escapeHtml("\u8def\u5f84\u89e3\u91ca")}</span><small>${escapeHtml(trace.type || "reasoning_trace")}</small></summary>`,
+        '<div>',
+        `<section><strong>${escapeHtml("\u51b3\u7b56\u6307\u6807")}</strong><div class="reasoning-trace-metrics">${metrics}</div><p>${markdown.renderInline(String(decision.decision || ""), env)}</p></section>`,
+        `<section><strong>${escapeHtml("\u89e3\u91ca")}</strong><ul>${explanationRows}</ul></section>`,
+        `<section><strong>${escapeHtml("\u51b2\u7a81\u5904\u7406")}</strong><ul>${conflictRows}</ul></section>`,
+        '</div>',
+        '</details>'
+      ].join("");
+    },
+    metricChip(label, value) {
+      if (value === undefined || value === null || value === "") {
+        return "";
+      }
+      return `<span>${escapeHtml(label)} <b>${escapeHtml(this.formatTraceNumber(value))}</b></span>`;
+    },
+    formatTraceNumber(value) {
+      const number = Number(value);
+      return Number.isFinite(number) ? String(Math.round(number * 1000) / 1000) : String(value || "");
     },
     renderEvidenceTier(label, items, open, env) {
       const rows = Array.isArray(items) ? items : [];
@@ -770,6 +1235,13 @@ export default {
       return "medium";
     },
     async handleMarkdownClick(event) {
+      const reasoningButton = event.target?.closest?.("[data-reasoning-path]");
+      if (reasoningButton) {
+        event.preventDefault();
+        event.stopPropagation();
+        this.openReasoningModal(reasoningButton.dataset.reasoningPayload || "");
+        return;
+      }
       const button = event.target?.closest?.("[data-code-copy]");
       if (!button) {
         return;
@@ -796,6 +1268,16 @@ export default {
       } catch (error) {
         console.warn("Copy code block failed", error);
       }
+    },
+    openReasoningModal(payload) {
+      try {
+        this.reasoningModal = JSON.parse(decodeURIComponent(payload || ""));
+      } catch (error) {
+        console.warn("Open reasoning path failed", error);
+      }
+    },
+    closeReasoningModal() {
+      this.reasoningModal = null;
     },
     async copyMessage(message) {
       const text = this.buildCopyText(message);

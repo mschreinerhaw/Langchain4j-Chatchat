@@ -29,13 +29,17 @@ public class SqlAdminController {
 
     @PostMapping("/datasources")
     public ApiResponse<SqlDatasourceConfig> createDatasource(@RequestBody SqlDatasourceConfig request) {
-        return ApiResponse.success(datasourceConfigService.create(request), "SQL datasource created");
+        SqlDatasourceConfig saved = datasourceConfigService.create(request);
+        publisher.refresh();
+        return ApiResponse.success(saved, "SQL datasource created");
     }
 
     @PutMapping("/datasources/{id}")
     public ApiResponse<SqlDatasourceConfig> updateDatasource(@PathVariable("id") String id,
                                                              @RequestBody SqlDatasourceConfig request) {
-        return ApiResponse.success(datasourceConfigService.update(id, request), "SQL datasource updated");
+        SqlDatasourceConfig saved = datasourceConfigService.update(id, request);
+        publisher.refresh();
+        return ApiResponse.success(saved, "SQL datasource updated");
     }
 
     @GetMapping("/templates")

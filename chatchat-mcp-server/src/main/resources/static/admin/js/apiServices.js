@@ -64,6 +64,7 @@ function toPayload(service) {
         headers: service.headers,
         bodyTemplate: service.bodyTemplate,
         inputSchema: service.inputSchema,
+        governance: service.governance,
         enabled: service.enabled,
         timeoutMs: service.timeoutMs,
         cacheEnabled: service.cacheEnabled,

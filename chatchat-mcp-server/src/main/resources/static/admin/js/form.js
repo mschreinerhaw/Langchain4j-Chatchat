@@ -5,6 +5,8 @@ const DEFAULT_SCHEMA = {
     additionalProperties: false
 };
 
+const DEFAULT_MASK_FIELDS = ['phone', 'id_card', 'account_no'];
+
 export function readServiceForm() {
     const microserviceConfig = readMicroserviceConfig();
     return {
@@ -17,6 +19,7 @@ export function readServiceForm() {
         headers: microserviceConfig?.headers || parseJsonField('headersJson', {}),
         bodyTemplate: microserviceConfig?.bodyTemplate || value('bodyTemplate') || null,
         inputSchema: parseJsonField('inputSchemaJson', DEFAULT_SCHEMA),
+        governance: parseJsonField('governanceJson', defaultApiGovernance()),
         enabled: value('enabled') === 'true',
         timeoutMs: Number(value('timeoutMs') || 20000),
         cacheEnabled: value('cacheEnabled') === 'true',
@@ -34,6 +37,7 @@ export function fillServiceForm(service) {
     setValue('headersJson', stringify(service?.headers || {}));
     setValue('bodyTemplate', service?.bodyTemplate || '');
     setValue('inputSchemaJson', stringify(service?.inputSchema || DEFAULT_SCHEMA));
+    setValue('governanceJson', stringify(service?.governance || defaultApiGovernance(service)));
     setValue('enabled', String(service?.enabled ?? true));
     setValue('timeoutMs', String(service?.timeoutMs || 20000));
     setValue('cacheEnabled', String(service?.cacheEnabled ?? false));
@@ -129,6 +133,48 @@ function parseJsonField(id, fallback) {
     } catch (error) {
         throw new Error(`${labelFor(id)} 不是合法 JSON`);
     }
+}
+
+function defaultApiGovernance(service = {}) {
+    const operationType = operationTypeForMethod(service?.method || value('method') || 'GET');
+    return {
+        category: 'external_api',
+        operation_type: operationType,
+        risk_level: operationType === 'read' ? 'medium' : 'high',
+        data_scope: 'external_service',
+        user_visible: true,
+        confirmation: {
+            default: 'ask_before_execute',
+            allow_user_override: true
+        },
+        permission: {
+            roles: []
+        },
+        input_policy: {
+            must_show_parameters: true,
+            sensitive_params: [],
+            parameter_rules: {}
+        },
+        output_policy: {
+            mask_fields: DEFAULT_MASK_FIELDS
+        },
+        audit: {
+            enabled: true,
+            log_params: true,
+            log_result_summary: true
+        }
+    };
+}
+
+function operationTypeForMethod(method) {
+    const value = String(method || 'GET').toUpperCase();
+    if (value === 'GET') {
+        return 'read';
+    }
+    if (value === 'DELETE') {
+        return 'delete';
+    }
+    return 'write';
 }
 
 function tryParseJson(text) {

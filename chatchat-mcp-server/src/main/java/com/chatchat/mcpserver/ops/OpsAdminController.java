@@ -30,13 +30,17 @@ public class OpsAdminController {
 
     @PostMapping("/ssh-hosts")
     public ApiResponse<SshHostConfig> createHost(@RequestBody SshHostConfig request) {
-        return ApiResponse.success(hostConfigService.create(request), "SSH host created");
+        SshHostConfig saved = hostConfigService.create(request);
+        publisher.refresh();
+        return ApiResponse.success(saved, "SSH host created");
     }
 
     @PutMapping("/ssh-hosts/{id}")
     public ApiResponse<SshHostConfig> updateHost(@PathVariable("id") String id,
                                                  @RequestBody SshHostConfig request) {
-        return ApiResponse.success(hostConfigService.update(id, request), "SSH host updated");
+        SshHostConfig saved = hostConfigService.update(id, request);
+        publisher.refresh();
+        return ApiResponse.success(saved, "SSH host updated");
     }
 
     @GetMapping("/http-endpoints")
@@ -46,13 +50,17 @@ public class OpsAdminController {
 
     @PostMapping("/http-endpoints")
     public ApiResponse<HttpEndpointConfig> createHttpEndpoint(@RequestBody HttpEndpointConfig request) {
-        return ApiResponse.success(httpEndpointConfigService.create(request), "HTTP endpoint created");
+        HttpEndpointConfig saved = httpEndpointConfigService.create(request);
+        publisher.refresh();
+        return ApiResponse.success(saved, "HTTP endpoint created");
     }
 
     @PutMapping("/http-endpoints/{id}")
     public ApiResponse<HttpEndpointConfig> updateHttpEndpoint(@PathVariable("id") String id,
                                                               @RequestBody HttpEndpointConfig request) {
-        return ApiResponse.success(httpEndpointConfigService.update(id, request), "HTTP endpoint updated");
+        HttpEndpointConfig saved = httpEndpointConfigService.update(id, request);
+        publisher.refresh();
+        return ApiResponse.success(saved, "HTTP endpoint updated");
     }
 
     @GetMapping("/command-templates")

@@ -120,6 +120,71 @@
         </div>
       </div>
     </article>
+
+    <div
+      v-if="reasoningModal"
+      class="reasoning-modal-backdrop"
+      role="presentation"
+      @click.self="closeReasoningModal"
+    >
+      <section class="reasoning-modal" role="dialog" aria-modal="true" aria-label="Reasoning path">
+        <header>
+          <div>
+            <span>Reasoning Path</span>
+            <h2>{{ reasoningModal.title }}</h2>
+          </div>
+          <button type="button" aria-label="关闭" @click="closeReasoningModal">×</button>
+        </header>
+
+        <div class="reasoning-modal-metrics">
+          <span v-for="metric in reasoningModal.metrics" :key="metric.label">
+            {{ metric.label }} <b>{{ metric.value }}</b>
+          </span>
+        </div>
+
+        <section class="reasoning-modal-section">
+          <strong>Selected path</strong>
+          <div class="reasoning-modal-path">
+            <span v-for="(node, index) in reasoningModal.pathNodes" :key="node.id">
+              <b>{{ node.id }}</b>
+              <small>{{ node.confidence }}</small>
+              <i v-if="index < reasoningModal.pathNodes.length - 1">→</i>
+            </span>
+          </div>
+        </section>
+
+        <section class="reasoning-modal-section">
+          <strong>Path edges</strong>
+          <ul>
+            <li v-for="edge in reasoningModal.pathEdges" :key="`${edge.from}-${edge.to}-${edge.type}`">
+              <span>{{ edge.from }} → {{ edge.to }}</span>
+              <small>{{ edge.type }} · {{ edge.confidence }}</small>
+              <p v-if="edge.reasoning">{{ edge.reasoning }}</p>
+            </li>
+            <li v-if="!reasoningModal.pathEdges.length" class="empty">No path edge available.</li>
+          </ul>
+        </section>
+
+        <section class="reasoning-modal-section">
+          <strong>Conflict resolution</strong>
+          <ul>
+            <li v-for="item in reasoningModal.conflicts" :key="item.edge">
+              <span>{{ item.edge }}</span>
+              <small>{{ item.confidence }}</small>
+              <p>{{ item.decision }}</p>
+            </li>
+            <li v-if="!reasoningModal.conflicts.length" class="empty">No conflict evidence participated in the selected path.</li>
+          </ul>
+        </section>
+
+        <section class="reasoning-modal-section">
+          <strong>Decision trace</strong>
+          <ul>
+            <li v-for="item in reasoningModal.explanation" :key="item">{{ item }}</li>
+          </ul>
+        </section>
+      </section>
+    </div>
   </section>
 </template>
 

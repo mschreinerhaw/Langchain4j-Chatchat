@@ -74,6 +74,10 @@ public class SqlDatasourceConfig {
     @Column
     private String allowedTablesJson;
 
+    @Lob
+    @Column
+    private String governanceJson;
+
     @Column(nullable = false)
     private Instant createdAt;
 

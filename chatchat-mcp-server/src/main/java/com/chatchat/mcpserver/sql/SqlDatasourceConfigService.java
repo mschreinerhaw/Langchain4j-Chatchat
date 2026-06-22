@@ -10,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.regex.Pattern;
 
 @Service
@@ -61,6 +62,7 @@ public class SqlDatasourceConfigService {
         config.setSensitiveTablesJson(normalizeJsonArray(request.getSensitiveTablesJson(), "sensitiveTables"));
         config.setSensitiveFieldsJson(normalizeJsonArray(request.getSensitiveFieldsJson(), "sensitiveFields"));
         config.setAllowedTablesJson(normalizeJsonArray(request.getAllowedTablesJson(), "allowedTables"));
+        config.setGovernanceJson(normalizeJsonObject(request.getGovernanceJson(), "governance"));
         normalize(config, id);
         return repository.save(config);
     }
@@ -103,6 +105,7 @@ public class SqlDatasourceConfigService {
         config.setSensitiveTablesJson(normalizeJsonArray(config.getSensitiveTablesJson(), "sensitiveTables"));
         config.setSensitiveFieldsJson(normalizeJsonArray(config.getSensitiveFieldsJson(), "sensitiveFields"));
         config.setAllowedTablesJson(normalizeJsonArray(config.getAllowedTablesJson(), "allowedTables"));
+        config.setGovernanceJson(normalizeJsonObject(config.getGovernanceJson(), "governance"));
     }
 
     private String normalizeToolName(String value) {
@@ -144,6 +147,19 @@ public class SqlDatasourceConfigService {
             return objectMapper.writeValueAsString(items);
         } catch (Exception ex) {
             throw new IllegalArgumentException(field + " must be a JSON string array");
+        }
+    }
+
+    private String normalizeJsonObject(String json, String field) {
+        String value = blankToNull(json);
+        if (value == null) {
+            return null;
+        }
+        try {
+            Map<String, Object> parsed = objectMapper.readValue(value, new TypeReference<>() {});
+            return objectMapper.writeValueAsString(parsed);
+        } catch (Exception ex) {
+            throw new IllegalArgumentException(field + " must be a JSON object");
         }
     }
 

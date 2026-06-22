@@ -123,13 +123,15 @@ public class OpsMcpToolPublisher {
         governance.put("user_visible", true);
         governance.put("confirmation", mutableMap("default", "auto_execute", "allow_user_override", true));
         governance.put("audit", mutableMap("enabled", true, "log_params", true, "log_result_summary", true));
-        Map<String, Object> meta = new LinkedHashMap<>(governanceFactory.toMeta("http_asset", endpoint.getId(), governance));
+        Map<String, Object> meta = new LinkedHashMap<>(
+            governanceFactory.toMeta("http_asset", endpoint.getId(), governance, endpoint.getGovernanceJson()));
         meta.put("runtime_action", endpoint.getRuntimeAction());
         meta.put("runtimeAction", endpoint.getRuntimeAction());
         meta.put("endpointId", endpoint.getId());
         meta.put("endpointName", endpoint.getName());
         meta.put("environment", endpoint.getEnvironment());
-        meta.put("category", endpoint.getCategory());
+        meta.put("assetCategory", endpoint.getCategory());
+        meta.put("endpointCategory", endpoint.getCategory());
         meta.put("method", endpoint.getMethod());
         meta.put("mcp_tool_limit", concurrencyManager.limitMeta(endpoint.getToolName(), "http"));
         return meta;
@@ -148,9 +150,10 @@ public class OpsMcpToolPublisher {
             "required_preview_params", List.of("template", "parameters", "reason", "sourceTaskId")
         ));
         governance.put("audit", mutableMap("enabled", true, "log_params", true, "log_result_summary", true));
-        Map<String, Object> meta = new LinkedHashMap<>(governanceFactory.toMeta("host_asset", host.getId(), governance));
-        meta.put("runtime_action", "confirm_required");
-        meta.put("runtimeAction", "confirm_required");
+        Map<String, Object> meta = new LinkedHashMap<>(
+            governanceFactory.toMeta("host_asset", host.getId(), governance, host.getGovernanceJson()));
+        meta.put("runtime_action", host.getRuntimeAction());
+        meta.put("runtimeAction", host.getRuntimeAction());
         meta.put("hostId", host.getId());
         meta.put("hostName", host.getName());
         meta.put("environment", host.getEnvironment());

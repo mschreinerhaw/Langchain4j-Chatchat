@@ -130,6 +130,7 @@ let auditLogPage = 1;
 let auditLogPageSize = 20;
 
 const SERVICE_PAGE_SIZE = 12;
+const GOVERNANCE_MASK_FIELDS = ['phone', 'id_card', 'account_no'];
 
 document.addEventListener('DOMContentLoaded', async () => {
     try {
@@ -1776,6 +1777,7 @@ function readSshAssetForm() {
         environment: value('sshAssetEnvironment'),
         tags: value('sshAssetTags'),
         allowedCommandsJson: stringifyJsonArray('sshAssetAllowedCommandsJson'),
+        governanceJson: stringifyJsonObject('sshAssetGovernanceJson'),
         connectTimeoutMs: Number(value('sshAssetConnectTimeoutMs') || 10000),
         commandTimeoutMs: Number(value('sshAssetCommandTimeoutMs') || 30000)
     };
@@ -1800,6 +1802,7 @@ function fillSshAssetForm(asset) {
     setValue('sshAssetEnvironment', asset?.environment || 'DEV');
     setValue('sshAssetTags', asset?.tags || '');
     setValue('sshAssetAllowedCommandsJson', prettyJsonArray(asset?.allowedCommandsJson));
+    setValue('sshAssetGovernanceJson', prettyJsonObject(asset?.governanceJson, defaultSshGovernance(asset)));
     setValue('sshAssetConnectTimeoutMs', String(asset?.connectTimeoutMs || 10000));
     setValue('sshAssetCommandTimeoutMs', String(asset?.commandTimeoutMs || 30000));
 }
@@ -1821,7 +1824,8 @@ function readSqlAssetForm() {
         defaultMaxRows: Number(value('sqlAssetDefaultMaxRows') || 1000),
         allowedTablesJson: stringifyJsonArray('sqlAssetAllowedTablesJson'),
         sensitiveTablesJson: stringifyJsonArray('sqlAssetSensitiveTablesJson'),
-        sensitiveFieldsJson: stringifyJsonArray('sqlAssetSensitiveFieldsJson')
+        sensitiveFieldsJson: stringifyJsonArray('sqlAssetSensitiveFieldsJson'),
+        governanceJson: stringifyJsonObject('sqlAssetGovernanceJson')
     };
 }
 
@@ -1843,6 +1847,7 @@ function fillSqlAssetForm(asset) {
     setValue('sqlAssetAllowedTablesJson', prettyJsonArray(asset?.allowedTablesJson));
     setValue('sqlAssetSensitiveTablesJson', prettyJsonArray(asset?.sensitiveTablesJson));
     setValue('sqlAssetSensitiveFieldsJson', prettyJsonArray(asset?.sensitiveFieldsJson));
+    setValue('sqlAssetGovernanceJson', prettyJsonObject(asset?.governanceJson, defaultSqlDatasourceGovernance(asset)));
 }
 
 function readHttpAssetForm() {
@@ -1857,6 +1862,7 @@ function readHttpAssetForm() {
         headersJson: stringifyJsonObject('httpAssetHeadersJson'),
         bodyTemplate: document.getElementById('httpAssetBodyTemplate').value.trim(),
         inputSchemaJson: stringifyJsonObject('httpAssetInputSchemaJson'),
+        governanceJson: stringifyJsonObject('httpAssetGovernanceJson'),
         enabled: document.getElementById('httpAssetEnabled').value === 'true',
         environment: value('httpAssetEnvironment'),
         category: value('httpAssetCategory'),
@@ -1882,11 +1888,93 @@ function fillHttpAssetForm(asset) {
         required: [],
         additionalProperties: true
     }));
+    setValue('httpAssetGovernanceJson', prettyJsonObject(asset?.governanceJson, defaultHttpGovernance(asset)));
     setValue('httpAssetEnabled', String(asset?.enabled ?? false));
     setValue('httpAssetEnvironment', asset?.environment || 'DEV');
     setValue('httpAssetCategory', asset?.category || 'business_api');
     setValue('httpAssetTags', asset?.tags || '');
     setValue('httpAssetTimeoutMs', String(asset?.timeoutMs || 10000));
+}
+
+function defaultDatabaseQueryGovernance(query = {}) {
+    const governance = baseGovernance('database_query', 'read', 'medium', dataScope('database_query', query?.title || query?.toolName));
+    governance.output_policy.max_rows_without_confirm = 100;
+    if ((query?.maxRows || 50) > 100) {
+        governance.confirmation.default = 'ask_before_execute';
+    }
+    return governance;
+}
+
+function defaultSshGovernance(asset = {}) {
+    const governance = baseGovernance('host_asset', 'execute_template', 'high', dataScope('host', asset?.name), 'ask_before_execute', false);
+    governance.input_policy.required_preview_params = ['template', 'parameters', 'reason', 'sourceTaskId'];
+    return governance;
+}
+
+function defaultSqlDatasourceGovernance(asset = {}) {
+    const governance = baseGovernance('sql_query', 'read_sql', 'high', dataScope('database', asset?.name), 'ask_before_execute', false);
+    governance.input_policy.required_preview_params = ['sql', 'template', 'parameters', 'timeoutSeconds', 'maxRows', 'purpose', 'sourceTaskId'];
+    return governance;
+}
+
+function defaultHttpGovernance(asset = {}) {
+    const operationType = methodOperationType(asset?.method || valueOr('httpAssetMethod', 'GET'));
+    const riskLevel = operationType === 'read' ? 'low' : 'medium';
+    const confirmation = riskLevel === 'low' ? 'auto_execute' : 'ask_before_execute';
+    return baseGovernance('http_asset', operationType === 'read' ? 'request' : operationType, riskLevel,
+        dataScope('http', asset?.name), confirmation, true);
+}
+
+function baseGovernance(category, operationType, riskLevel, dataScopeValue, confirmationDefault, allowUserOverride = true) {
+    const confirmation = confirmationDefault || (riskLevel === 'low' ? 'auto_execute' : 'ask_before_execute');
+    return {
+        category,
+        operation_type: operationType,
+        risk_level: riskLevel,
+        data_scope: dataScopeValue,
+        user_visible: true,
+        confirmation: {
+            default: confirmation,
+            allow_user_override: allowUserOverride
+        },
+        permission: {
+            roles: []
+        },
+        input_policy: {
+            must_show_parameters: true,
+            sensitive_params: [],
+            parameter_rules: {}
+        },
+        output_policy: {
+            mask_fields: GOVERNANCE_MASK_FIELDS
+        },
+        audit: {
+            enabled: true,
+            log_params: true,
+            log_result_summary: true
+        }
+    };
+}
+
+function methodOperationType(method) {
+    const value = String(method || 'GET').toUpperCase();
+    if (value === 'GET') {
+        return 'read';
+    }
+    if (value === 'DELETE') {
+        return 'delete';
+    }
+    return 'write';
+}
+
+function dataScope(prefix, name) {
+    const normalized = String(name || '').trim();
+    return `${prefix}:${normalized || 'asset'}`;
+}
+
+function valueOr(id, fallback) {
+    const element = document.getElementById(id);
+    return element ? element.value.trim() || fallback : fallback;
 }
 
 function prettyJsonArray(value) {
@@ -1977,6 +2065,7 @@ function readDatabaseQueryRegistrationForm() {
         description: value('databaseDescriptionInput'),
         sqlTemplate: value('databaseSqlInput'),
         inputSchema: readJsonObject('databaseInputSchemaJson'),
+        governance: readJsonObject('databaseGovernanceJson'),
         maxRows: Number(value('databaseMaxRowsInput') || 50),
         jdbcUrl: value('databaseJdbcUrlInput'),
         driverClass: value('databaseDriverClassInput'),
@@ -2004,6 +2093,7 @@ function fillDatabaseQueryForm(query) {
         required: [],
         additionalProperties: false
     }, null, 2));
+    setValue('databaseGovernanceJson', JSON.stringify(query?.governance || defaultDatabaseQueryGovernance(query), null, 2));
     setValue('databaseJdbcUrlInput', query?.jdbcUrl || '');
     setValue('databaseDriverClassInput', query?.driverClass || '');
     setValue('databaseUsernameInput', query?.username || '');

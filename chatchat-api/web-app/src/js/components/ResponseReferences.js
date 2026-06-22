@@ -34,7 +34,7 @@ export default {
   },
   computed: {
     hasDetails() {
-      return this.sources.length || this.toolTraces.length;
+      return this.documentReferenceRows.length || this.webPageRows.length || this.toolTraceRows.length;
     },
     webPageRows() {
       return extractWebSearchPagesFromTraces(this.toolTraces);
@@ -47,7 +47,10 @@ export default {
       return this.uniqueDocumentRows([...sourceRows, ...this.documentPageRows]);
     },
     toolTraceRows() {
-      return this.toolTraces.map((trace) => ({
+      const traces = this.compact
+        ? this.toolTraces.filter((trace) => trace?.success === false || this.isConfirmationRequired(trace))
+        : this.toolTraces;
+      return traces.map((trace) => ({
         ...trace,
         confirmationRequired: this.isConfirmationRequired(trace),
         statusText: this.traceStatusText(trace),

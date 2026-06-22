@@ -73,6 +73,10 @@ public class SshHostConfig {
     @Column
     private String allowedCommandsJson;
 
+    @Lob
+    @Column
+    private String governanceJson;
+
     @Column(nullable = false, length = 32)
     private String runtimeAction = "confirm_required";
 

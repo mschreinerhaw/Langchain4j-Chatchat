@@ -98,9 +98,10 @@ public class SqlMcpToolPublisher {
             "required_preview_params", List.of("sql", "template", "parameters", "timeoutSeconds", "maxRows", "purpose", "sourceTaskId")
         ));
         governance.put("audit", mutableMap("enabled", true, "log_params", true, "log_result_summary", true));
-        Map<String, Object> meta = new LinkedHashMap<>(governanceFactory.toMeta("sql_datasource", datasource.getId(), governance));
-        meta.put("runtime_action", "confirm_required");
-        meta.put("runtimeAction", "confirm_required");
+        Map<String, Object> meta = new LinkedHashMap<>(
+            governanceFactory.toMeta("sql_datasource", datasource.getId(), governance, datasource.getGovernanceJson()));
+        meta.put("runtime_action", datasource.getRuntimeAction());
+        meta.put("runtimeAction", datasource.getRuntimeAction());
         meta.put("datasourceId", datasource.getId());
         meta.put("datasourceName", datasource.getName());
         meta.put("environment", datasource.getEnvironment());

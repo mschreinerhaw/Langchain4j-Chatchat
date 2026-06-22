@@ -55,6 +55,7 @@ public class SshHostConfigService {
         config.setEnvironment(firstText(request.getEnvironment(), config.getEnvironment()));
         config.setTags(request.getTags());
         config.setAllowedCommandsJson(normalizeJsonArray(request.getAllowedCommandsJson(), "allowedCommands"));
+        config.setGovernanceJson(normalizeJsonObject(request.getGovernanceJson(), "governance"));
         config.setRuntimeAction("confirm_required");
         config.setConnectTimeoutMs(request.getConnectTimeoutMs());
         config.setCommandTimeoutMs(request.getCommandTimeoutMs());
@@ -93,6 +94,7 @@ public class SshHostConfigService {
         config.setEnvironment(normalizeEnvironment(config.getEnvironment()));
         config.setRuntimeAction("confirm_required");
         config.setAllowedCommandsJson(normalizeJsonArray(config.getAllowedCommandsJson(), "allowedCommands"));
+        config.setGovernanceJson(normalizeJsonObject(config.getGovernanceJson(), "governance"));
         config.setConnectTimeoutMs(Math.max(1000, config.getConnectTimeoutMs()));
         config.setCommandTimeoutMs(Math.max(1000, config.getCommandTimeoutMs()));
     }
@@ -158,6 +160,24 @@ public class SshHostConfigService {
                 .toList());
         } catch (Exception ex) {
             throw new IllegalArgumentException(field + " must be a JSON string array");
+        }
+    }
+
+    private String normalizeJsonObject(String json, String field) {
+        String value = blankToNull(json);
+        if (value == null) {
+            return null;
+        }
+        try {
+            Object parsed = objectMapper.readValue(value, Object.class);
+            if (!(parsed instanceof java.util.Map<?, ?> map)) {
+                throw new IllegalArgumentException(field + " must be a JSON object");
+            }
+            return objectMapper.writeValueAsString(map);
+        } catch (IllegalArgumentException ex) {
+            throw ex;
+        } catch (Exception ex) {
+            throw new IllegalArgumentException(field + " must be a JSON object");
         }
     }
 }

@@ -218,6 +218,13 @@ public class AgentRuntimeGovernanceFactory {
         }
     }
 
+    public Map<String, Object> toMeta(String source, String sourceId, Map<String, Object> governance,
+                                      String governanceJson) {
+        Map<String, Object> merged = new LinkedHashMap<>(governance == null ? Map.of() : governance);
+        mergeGovernanceJson(merged, governanceJson);
+        return toMeta(source, sourceId, merged);
+    }
+
     /**
      * Performs the deep merge operation.
      *

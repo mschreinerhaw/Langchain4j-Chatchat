@@ -53,6 +53,10 @@ public class HttpEndpointConfig {
     @Column
     private String inputSchemaJson;
 
+    @Lob
+    @Column
+    private String governanceJson;
+
     @Column(nullable = false)
     private boolean enabled = false;
 

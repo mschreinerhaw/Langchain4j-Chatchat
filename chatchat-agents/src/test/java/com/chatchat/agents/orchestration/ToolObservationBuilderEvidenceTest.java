@@ -80,6 +80,121 @@ class ToolObservationBuilderEvidenceTest {
     }
 
     @Test
+    void modelEvidenceEvaluationFiltersDocumentEvidenceBeforeGraph() {
+        ToolOutput output = ToolOutput.success(Map.of(
+            "contractVersion", "document_evidence_v1",
+            "results", List.of(
+                Map.of(
+                    "fileId", "livedata-report",
+                    "fileName", "基于livedata数据编织的报表开发.docx",
+                    "chunkIndex", 0,
+                    "content", "基于livedata数据编织的报表开发，说明如何维护分析数据源、开发报表SQL、保存数据集并发布报表。"
+                ),
+                Map.of(
+                    "fileId", "governance",
+                    "fileName", "数据开发治理一体化运营系统需求说明.docx",
+                    "chunkIndex", 0,
+                    "content", "数据开发治理一体化运营系统需求及相关说明，请提供需求响应表。"
+                )
+            )
+        ), "ok");
+        Map<String, Object> metadata = Map.of(
+            "evidenceEvaluation", Map.of(
+                "contractVersion", "evidence_evaluation_contract_v1",
+                "usefulRefs", List.of("doc://livedata-report#chunk=0"),
+                "rejectedRefs", List.of("doc://governance#chunk=0")
+            )
+        );
+
+        String observation = builder.buildSuccessObservation("document_search", output, "", metadata);
+
+        assertThat(observation)
+            .contains("Evidence evaluation selection (contractVersion=evidence_evaluation_contract_v1)")
+            .contains("selectedEvidence=1")
+            .contains("doc://livedata-report#chunk=0")
+            .contains("基于livedata数据编织的报表开发")
+            .doesNotContain("sourceRef: doc://governance#chunk=0")
+            .doesNotContain("citation: doc://governance#chunk=0")
+            .doesNotContain("数据开发治理一体化运营系统需求");
+    }
+
+    @Test
+    void executionLockAcceptedRefsFilterDocumentEvidenceBeforeGraph() {
+        ToolOutput output = ToolOutput.success(Map.of(
+            "contractVersion", "document_evidence_v1",
+            "results", List.of(
+                Map.of(
+                    "fileId", "locked-doc",
+                    "fileName", "locked.docx",
+                    "chunkIndex", 0,
+                    "content", "locked evidence should drive graph claims"
+                ),
+                Map.of(
+                    "fileId", "retry-doc",
+                    "fileName", "retry.docx",
+                    "chunkIndex", 0,
+                    "content", "retry evidence must be excluded after lock"
+                )
+            )
+        ), "ok");
+        Map<String, Object> metadata = Map.of(
+            "executionLock", Map.of(
+                "lockVersion", "evidence_execution_lock_v1",
+                "status", "LOCKED",
+                "lockedState", Map.of(
+                    "accepted_refs", List.of("doc://locked-doc#chunk=0"),
+                    "rejected_refs", List.of("doc://retry-doc#chunk=0"),
+                    "evaluation", Map.of("relevance", 0.95, "answerability", 0.95, "usefulness", "HIGH")
+                ),
+                "executionConstraints", Map.of(
+                    "immutable_steps", List.of(1),
+                    "blocked_tools", List.of("document_search"),
+                    "allow_only", List.of("final_answer")
+                ),
+                "lockGraph", Map.of(
+                    "lockGraphVersion", "evidence_execution_lock_v2",
+                    "locks", List.of(Map.of(
+                        "lockId", "L1",
+                        "weight", 0.9,
+                        "type", "HARD",
+                        "refs", List.of("doc://locked-doc#chunk=0"),
+                        "sourceStepId", 1
+                    )),
+                    "conflicts", List.of(),
+                    "propagation", Map.of(
+                        "nodeWeights", Map.of("doc://locked-doc#chunk=0", 0.81),
+                        "nodeLocks", Map.of("doc://locked-doc#chunk=0", List.of("L1")),
+                        "claimWeights", Map.of("doc://locked-doc#chunk=0", 0.94)
+                    ),
+                    "dagFreeze", Map.of(
+                        "status", "FULLY_FROZEN",
+                        "freezeScore", 0.9,
+                        "blockedTools", List.of("document_search"),
+                        "allowedActions", List.of("claim_assembly", "final_answer")
+                    )
+                )
+            )
+        );
+
+        String observation = builder.buildSuccessObservation("document_search", output, "", metadata);
+
+        assertThat(observation)
+            .contains("Evidence execution lock (lockVersion=evidence_execution_lock_v1)")
+            .contains("Graph and claims must use locked accepted_refs only")
+            .contains("lockGraphVersion=evidence_execution_lock_v2")
+            .contains("dagFreeze=FULLY_FROZEN")
+            .contains("propagatedNodes=1")
+            .contains("nodeWeights={doc://locked-doc#chunk=0=0.81}")
+            .contains("selectedEvidence=1")
+            .contains("sourceRef: doc://locked-doc#chunk=0")
+            .contains("score: 0.917")
+            .contains("lockRef")
+            .contains("supportWeight")
+            .doesNotContain("sourceRef: doc://retry-doc#chunk=0")
+            .doesNotContain("retry evidence must be excluded after lock");
+    }
+
+    @Test
     void canonicalStoreMarksSqlEvidence() {
         ToolOutput output = ToolOutput.success(Map.of(
             "contractVersion", "document_evidence_v1",

@@ -431,6 +431,117 @@ class InterpretationPlanRuntimeTest {
             .isTrue();
     }
 
+    @Test
+    void doesNotReplayExecutionLockedStepAfterRewrite() {
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool("document_search")).thenReturn(true);
+        when(toolRegistry.getToolMetadata("document_search")).thenReturn(ToolMetadata.builder().riskLevel("low").build());
+        ToolRuntimeService toolRuntimeService = mock(ToolRuntimeService.class);
+        when(toolRuntimeService.execute(any())).thenReturn(new ToolRuntimeExecution(
+            ToolOutput.success(Map.of("results", List.of("locked evidence"))),
+            ToolMetadata.builder().id("document_search").build(),
+            null,
+            "success",
+            Map.of()
+        ));
+        InMemoryAgentRunStore runStore = new InMemoryAgentRunStore();
+        InterpretationPlanRuntime.StepResultReviewer reviewer = request -> InterpretationPlanRuntime.StepReview.accepted(
+            "sufficient evidence",
+            Map.of("evidenceEvaluation", Map.of(
+                "relevance", 0.95,
+                "answerability", 0.95,
+                "usefulness", "HIGH"
+            ))
+        );
+        AtomicInteger firstDecision = new AtomicInteger();
+        InterpretationPlanRuntime firstRuntime = new InterpretationPlanRuntime(
+            toolRuntimeService,
+            new InterpretationPlanValidator(),
+            runStore,
+            reviewer,
+            request -> firstDecision.incrementAndGet() == 1
+                ? InterpretationPlanRuntime.DagDecision.executeStep(1, "collect evidence")
+                : InterpretationPlanRuntime.DagDecision.rewritePlan("rewrite after locked evidence")
+        );
+
+        InterpretationPlanRuntime.ExecutionResult rewriteRequested = firstRuntime.execute(new InterpretationPlanRuntime.ExecutionRequest(
+            serialPlan(),
+            toolRegistry,
+            List.of("document_search"),
+            "tenant-1",
+            "req-lock-rewrite",
+            "conv-lock-rewrite",
+            "user-1",
+            Map.of("__agentRunId", "run-lock-rewrite")
+        ));
+
+        assertThat(rewriteRequested.success()).isFalse();
+        assertThat(rewriteRequested.status()).isEqualTo("DAG_REWRITE_REQUESTED");
+        assertThat(rewriteRequested.steps()).extracting(InterpretationPlanRuntime.StepExecution::stepId)
+            .containsExactly(1);
+        Map<?, ?> executionLock = (Map<?, ?>) rewriteRequested.steps().get(0).metadata().get("executionLock");
+        assertThat(executionLock.get("contractVersion")).isEqualTo("evidence_execution_lock_v1");
+        assertThat(executionLock.get("lock")).isEqualTo(true);
+        assertThat(executionLock.get("lockLevel")).isEqualTo("HARD");
+        assertThat(executionLock.get("reason")).isEqualTo("sufficient_evidence");
+        assertThat(executionLock.get("lockedSteps")).isEqualTo(List.of(1));
+        assertThat(((Map<?, ?>) executionLock.get("executionConstraints")).get("blocked_tools"))
+            .isEqualTo(List.of("document_search"));
+        assertThat(((Map<?, ?>) executionLock.get("executionConstraints")).get("allow_only"))
+            .isEqualTo(List.of("final_answer"));
+        Map<?, ?> lockGraph = (Map<?, ?>) executionLock.get("lockGraph");
+        assertThat(lockGraph.get("lockGraphVersion")).isEqualTo("evidence_execution_lock_v2");
+        assertThat((List<?>) lockGraph.get("locks")).hasSize(1);
+        assertThat(((Map<?, ?>) ((List<?>) lockGraph.get("locks")).get(0)).get("type")).isEqualTo("HARD");
+        assertThat(((Map<?, ?>) lockGraph.get("dagFreeze")).get("status")).isEqualTo("FULLY_FROZEN");
+        assertThat(((Map<?, ?>) lockGraph.get("propagation")).get("nodeWeights")).isInstanceOf(Map.class);
+
+        InterpretationPlanRuntime secondRuntime = new InterpretationPlanRuntime(
+            toolRuntimeService,
+            new InterpretationPlanValidator(),
+            runStore,
+            reviewer,
+            request -> {
+                assertThat(request.completedStepIds()).contains(1);
+                assertThat(request.remainingStepIds()).doesNotContain(1);
+                assertThat(request.remainingStepIds()).containsExactly(3);
+                return InterpretationPlanRuntime.DagDecision.executeStep(3, "continue from locked evidence");
+            }
+        );
+
+        InterpretationPlanRuntime.ExecutionResult completed = secondRuntime.execute(new InterpretationPlanRuntime.ExecutionRequest(
+            rewrittenPlanWithRepeatedSearch(),
+            toolRegistry,
+            List.of("document_search"),
+            "tenant-1",
+            "req-lock-rewrite-2",
+            "conv-lock-rewrite",
+            "user-1",
+            Map.of("__agentRunId", "run-lock-rewrite")
+        ));
+
+        assertThat(completed.success()).isTrue();
+        assertThat(completed.finalAnswer()).isEqualTo("done");
+        assertThat(completed.steps()).extracting(InterpretationPlanRuntime.StepExecution::stepId)
+            .containsExactly(3);
+        verify(toolRuntimeService, times(1)).execute(any());
+    }
+
+    private InterpretationPlan rewrittenPlanWithRepeatedSearch() {
+        return new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("document_retrieval", "Collect internal evidence", "low"),
+            context(),
+            new InterpretationPlan.Plan(List.of(
+                new InterpretationPlan.Step(1, "mcp_tool", "document_search", Map.of("query", "internal"), List.of(), null, null),
+                new InterpretationPlan.Step(3, "mcp_tool", "document_search", Map.of("query", "internal retry"), List.of(), null, null),
+                new InterpretationPlan.Step(2, "final_answer", "", Map.of("answer", "done"), List.of(1), null, null)
+            )),
+            new InterpretationPlan.ExecutionPolicy(3, false, List.of("document_search"), List.of(), 30000),
+            review()
+        );
+    }
+
     private InterpretationPlan parallelPlan() {
         return new InterpretationPlan(
             "1.0",

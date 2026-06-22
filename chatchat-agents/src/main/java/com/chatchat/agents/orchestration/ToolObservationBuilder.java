@@ -53,9 +53,13 @@ class ToolObservationBuilder {
     }
 
     String buildSuccessObservation(String toolName, ToolOutput output, String outputText) {
+        return buildSuccessObservation(toolName, output, outputText, Map.of());
+    }
+
+    String buildSuccessObservation(String toolName, ToolOutput output, String outputText, Map<String, Object> reviewMetadata) {
         Object data = output == null ? null : output.getData();
         if (isDocumentSearchToolName(toolName)) {
-            return buildDocumentSearchObservation(toolName, output, data, outputText);
+            return buildDocumentSearchObservation(toolName, output, data, outputText, reviewMetadata);
         }
 
         StringBuilder observation = new StringBuilder("Tool ")
@@ -78,7 +82,7 @@ class ToolObservationBuilder {
             observation.append(" Message: ").append(shortObservationText(message, 400));
         }
         Map<String, Object> root = asMap(data);
-        appendUnifiedEvidence(observation, toolName, data);
+        appendUnifiedEvidence(observation, toolName, data, reviewMetadata);
         if (!root.isEmpty()) {
             observation.append("\nWeb search summary: query=")
                 .append(firstNonBlank(stringValue(root.get("query")), "unknown"))
@@ -159,7 +163,11 @@ class ToolObservationBuilder {
         return extractWebCitations(Map.of("evidenceSnippets", trustResult.usableEvidence()));
     }
 
-    private String buildDocumentSearchObservation(String toolName, ToolOutput output, Object data, String outputText) {
+    private String buildDocumentSearchObservation(String toolName,
+                                                  ToolOutput output,
+                                                  Object data,
+                                                  String outputText,
+                                                  Map<String, Object> reviewMetadata) {
         StringBuilder observation = new StringBuilder("Tool ")
             .append(toolName)
             .append(" succeeded.");
@@ -169,7 +177,7 @@ class ToolObservationBuilder {
         }
 
         Map<String, Object> root = asMap(data);
-        appendUnifiedEvidence(observation, toolName, data);
+        appendUnifiedEvidence(observation, toolName, data, reviewMetadata);
         if (!root.isEmpty()) {
             List<Map<String, Object>> results = new ArrayList<>();
             addCandidateList(results, root.get("results"));
@@ -212,12 +220,15 @@ class ToolObservationBuilder {
         return observation.toString();
     }
 
-    private void appendUnifiedEvidence(StringBuilder observation, String toolName, Object data) {
+    private void appendUnifiedEvidence(StringBuilder observation, String toolName, Object data, Map<String, Object> reviewMetadata) {
         Object evidenceData = trustedUnifiedEvidenceData(toolName, data);
         DocumentSelectionContext selectionContext = isDocumentSearchToolName(toolName)
             ? DocumentSelectionContext.fromToolData(evidenceData)
             : DocumentSelectionContext.unrestricted();
         List<EvidenceChunk> normalizedChunks = evidenceNormalizer.normalize(toolName, evidenceData, WEB_SEARCH_REFERENCE_LIMIT);
+        List<EvidenceChunk> evaluatedChunks = applyEvidenceEvaluationSelection(normalizedChunks, reviewMetadata);
+        appendEvidenceEvaluationSelection(observation, normalizedChunks, evaluatedChunks, reviewMetadata);
+        normalizedChunks = applyLockPropagation(evaluatedChunks, reviewMetadata);
         EvidenceGraph fullGraph = evidenceGraphExecutionEngine.build("tool:" + firstNonBlank(toolName, "unknown"), normalizedChunks);
         DocumentSelectionContext.FilterResult visibility = selectionContext.filter(normalizedChunks);
         List<EvidenceChunk> chunks = visibility.visibleChunks();
@@ -279,6 +290,215 @@ class ToolObservationBuilder {
                 .append(blockedCount)
                 .append(".\n");
         }
+    }
+
+    private List<EvidenceChunk> applyEvidenceEvaluationSelection(List<EvidenceChunk> chunks,
+                                                                 Map<String, Object> reviewMetadata) {
+        if (chunks == null || chunks.isEmpty() || reviewMetadata == null || reviewMetadata.isEmpty()) {
+            return chunks == null ? List.of() : chunks;
+        }
+        Set<String> usefulRefs = evidenceRefs(reviewMetadata, "usefulEvidenceRefs", "usefulRefs");
+        Set<String> rejectedRefs = evidenceRefs(reviewMetadata, "rejectedEvidenceRefs", "rejectedRefs");
+        if (usefulRefs.isEmpty() && rejectedRefs.isEmpty()) {
+            return chunks;
+        }
+        List<EvidenceChunk> selected = new ArrayList<>();
+        for (EvidenceChunk chunk : chunks) {
+            String ref = evidenceRef(chunk);
+            if (!usefulRefs.isEmpty()) {
+                if (usefulRefs.contains(ref)) {
+                    selected.add(chunk);
+                }
+                continue;
+            }
+            if (!rejectedRefs.contains(ref)) {
+                selected.add(chunk);
+            }
+        }
+        return List.copyOf(selected);
+    }
+
+    private void appendEvidenceEvaluationSelection(StringBuilder observation,
+                                                   List<EvidenceChunk> originalChunks,
+                                                   List<EvidenceChunk> selectedChunks,
+                                                   Map<String, Object> reviewMetadata) {
+        if (observation == null || reviewMetadata == null || reviewMetadata.isEmpty()) {
+            return;
+        }
+        Object evaluation = reviewMetadata.get("evidenceEvaluation");
+        Object executionLock = reviewMetadata.get("executionLock");
+        Set<String> usefulRefs = evidenceRefs(reviewMetadata, "usefulEvidenceRefs", "usefulRefs");
+        Set<String> rejectedRefs = evidenceRefs(reviewMetadata, "rejectedEvidenceRefs", "rejectedRefs");
+        if (evaluation == null && executionLock == null && usefulRefs.isEmpty() && rejectedRefs.isEmpty()) {
+            return;
+        }
+        appendExecutionLockSelection(observation, executionLock);
+        observation.append("\nEvidence evaluation selection (contractVersion=evidence_evaluation_contract_v1): originalEvidence=")
+            .append(originalChunks == null ? 0 : originalChunks.size())
+            .append(", selectedEvidence=")
+            .append(selectedChunks == null ? 0 : selectedChunks.size())
+            .append(", usefulRefs=")
+            .append(usefulRefs)
+            .append(", rejectedRefs=")
+            .append(rejectedRefs)
+            .append(". Graph and claims must use selectedEvidence only.\n");
+    }
+
+    private Set<String> evidenceRefs(Map<String, Object> metadata, String directKey, String evaluationKey) {
+        Set<String> refs = new LinkedHashSet<>(stringSet(metadata == null ? null : metadata.get(directKey)));
+        Object evaluation = metadata == null ? null : metadata.get("evidenceEvaluation");
+        if (evaluation instanceof Map<?, ?> map) {
+            refs.addAll(stringSet(map.get(evaluationKey)));
+        }
+        Object executionLock = metadata == null ? null : metadata.get("executionLock");
+        if (executionLock instanceof Map<?, ?> lockMap) {
+            Object lockedState = lockMap.get("lockedState");
+            if (lockedState instanceof Map<?, ?> state) {
+                if ("usefulRefs".equals(evaluationKey)) {
+                    refs.addAll(stringSet(state.get("accepted_refs")));
+                    refs.addAll(stringSet(state.get("acceptedRefs")));
+                } else if ("rejectedRefs".equals(evaluationKey)) {
+                    refs.addAll(stringSet(state.get("rejected_refs")));
+                    refs.addAll(stringSet(state.get("rejectedRefs")));
+                }
+            }
+            Object lockGraph = lockMap.get("lockGraph");
+            if ("usefulRefs".equals(evaluationKey) && lockGraph instanceof Map<?, ?> graphMap) {
+                Object locks = graphMap.get("locks");
+                if (locks instanceof Iterable<?> iterable) {
+                    for (Object item : iterable) {
+                        Map<String, Object> lock = asMap(item);
+                        refs.addAll(stringSet(lock.get("refs")));
+                    }
+                }
+            }
+        }
+        return refs;
+    }
+
+    private void appendExecutionLockSelection(StringBuilder observation, Object executionLock) {
+        if (!(executionLock instanceof Map<?, ?> lockMap)) {
+            return;
+        }
+        Object status = lockMap.get("status");
+        if (status != null && !"LOCKED".equalsIgnoreCase(String.valueOf(status))) {
+            return;
+        }
+        Map<String, Object> constraints = asMap(lockMap.get("executionConstraints"));
+        Map<String, Object> state = asMap(lockMap.get("lockedState"));
+        Map<String, Object> lockGraph = asMap(lockMap.get("lockGraph"));
+        Map<String, Object> dagFreeze = asMap(lockGraph.get("dagFreeze"));
+        Map<String, Object> propagation = asMap(lockGraph.get("propagation"));
+        observation.append("\nEvidence execution lock (lockVersion=")
+            .append(firstNonBlank(stringValue(lockMap.get("lockVersion")), "evidence_execution_lock_v1"))
+            .append("): status=LOCKED, acceptedRefs=")
+            .append(stringSet(state.get("accepted_refs")))
+            .append(", rejectedRefs=")
+            .append(stringSet(state.get("rejected_refs")))
+            .append(", blockedTools=")
+            .append(stringSet(constraints.get("blocked_tools")))
+            .append(", allowOnly=")
+            .append(stringSet(constraints.get("allow_only")))
+            .append(", lockGraphVersion=")
+            .append(firstNonBlank(stringValue(lockGraph.get("lockGraphVersion")), "none"))
+            .append(", dagFreeze=")
+            .append(firstNonBlank(stringValue(dagFreeze.get("status")), "UNFROZEN"))
+            .append(", propagatedNodes=")
+            .append(asMap(propagation.get("nodeWeights")).size())
+            .append(", nodeWeights=")
+            .append(asMap(propagation.get("nodeWeights")))
+            .append(". Graph and claims must use locked accepted_refs only.\n");
+    }
+
+    private List<EvidenceChunk> applyLockPropagation(List<EvidenceChunk> chunks, Map<String, Object> reviewMetadata) {
+        if (chunks == null || chunks.isEmpty() || reviewMetadata == null || reviewMetadata.isEmpty()) {
+            return chunks == null ? List.of() : chunks;
+        }
+        Map<String, Object> executionLock = asMap(reviewMetadata.get("executionLock"));
+        Map<String, Object> lockGraph = asMap(executionLock.get("lockGraph"));
+        Map<String, Object> propagation = asMap(lockGraph.get("propagation"));
+        Map<String, Object> nodeWeights = asMap(propagation.get("nodeWeights"));
+        Map<String, Object> nodeLocks = asMap(propagation.get("nodeLocks"));
+        if (nodeWeights.isEmpty()) {
+            return chunks;
+        }
+        List<EvidenceChunk> values = new ArrayList<>(chunks.size());
+        for (EvidenceChunk chunk : chunks) {
+            String ref = evidenceRef(chunk);
+            double propagatedWeight = doubleValue(nodeWeights.get(ref));
+            if (propagatedWeight <= 0.0) {
+                values.add(chunk);
+                continue;
+            }
+            double baseScore = chunk.score() == null ? 0.82 : chunk.score();
+            if (baseScore > 1.0) {
+                baseScore = baseScore / 100.0;
+            }
+            double boostedScore = Math.max(baseScore, Math.min(1.0, baseScore + propagatedWeight * 0.12));
+            Map<String, Object> citation = new LinkedHashMap<>(chunk.citation());
+            citation.put("lockWeight", round(propagatedWeight));
+            citation.put("lockGraphVersion", firstNonBlank(stringValue(lockGraph.get("lockGraphVersion")), "evidence_execution_lock_v2"));
+            Map<String, Object> trace = new LinkedHashMap<>(chunk.trace());
+            trace.put("lockPropagationWeight", round(propagatedWeight));
+            trace.put("lockIds", stringSet(nodeLocks.get(ref)));
+            values.add(new EvidenceChunk(
+                chunk.evidenceType(),
+                chunk.contractVersion(),
+                chunk.source(),
+                chunk.content(),
+                round(boostedScore),
+                citation,
+                chunk.governance(),
+                trace
+            ));
+        }
+        return List.copyOf(values);
+    }
+
+    private Set<String> stringSet(Object value) {
+        Set<String> values = new LinkedHashSet<>();
+        if (value instanceof Collection<?> collection) {
+            for (Object item : collection) {
+                String text = stringValue(item);
+                if (text != null && !text.isBlank()) {
+                    values.add(text.trim());
+                }
+            }
+            return values;
+        }
+        String text = stringValue(value);
+        if (text == null || text.isBlank()) {
+            return values;
+        }
+        for (String item : text.split("[,;\\n]")) {
+            if (!item.isBlank()) {
+                values.add(item.trim());
+            }
+        }
+        return values;
+    }
+
+    private String evidenceRef(EvidenceChunk chunk) {
+        Object refId = chunk == null || chunk.citation() == null ? null : chunk.citation().get("refId");
+        return refId == null ? "" : String.valueOf(refId);
+    }
+
+    private double doubleValue(Object value) {
+        if (value instanceof Number number) {
+            return number.doubleValue();
+        }
+        if (value == null) {
+            return 0.0;
+        }
+        try {
+            return Double.parseDouble(String.valueOf(value));
+        } catch (NumberFormatException ex) {
+            return 0.0;
+        }
+    }
+
+    private double round(double value) {
+        return Math.round(value * 1000.0) / 1000.0;
     }
 
     private Object trustedUnifiedEvidenceData(String toolName, Object data) {

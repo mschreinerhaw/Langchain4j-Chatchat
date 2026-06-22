@@ -1101,6 +1101,7 @@ public class AgentOrchestrator {
             .append("\n");
         prompt.append("Rules:\n");
         prompt.append("- Select only step ids from remaining_step_ids.\n");
+        prompt.append("- completed_step_ids and executionLock are authoritative runtime state. Never re-run or override a completed/locked step, even if you think the state is contradictory.\n");
         prompt.append("- Do not select a step until all of its depends_on steps are in completed_step_ids.\n");
         prompt.append("- Use execute_parallel_steps only when execution_policy.allow_parallel is true and every selected step is independently ready.\n");
         prompt.append("- Select the final_answer step only after its dependencies are complete and evidence is sufficient.\n");
@@ -1361,9 +1362,21 @@ public class AgentOrchestrator {
         if (!selectedUrls.isEmpty()) {
             metadata.put("selectedUrls", selectedUrls);
         }
+        List<String> usefulRefs = stringList(firstObject(payload, "useful_refs", "usefulRefs", "selected_refs", "selectedRefs"));
+        if (!usefulRefs.isEmpty()) {
+            metadata.put("usefulEvidenceRefs", usefulRefs);
+        }
+        List<String> rejectedRefs = stringList(firstObject(payload, "rejected_refs", "rejectedRefs", "irrelevant_refs", "irrelevantRefs"));
+        if (!rejectedRefs.isEmpty()) {
+            metadata.put("rejectedEvidenceRefs", rejectedRefs);
+        }
         Object confidence = firstObject(payload, "confidence", "score");
         if (confidence != null) {
             metadata.put("toolResultReviewConfidence", confidence);
+        }
+        Map<String, Object> evidenceEvaluation = evidenceEvaluationContract(payload, satisfied, reason, usefulRefs, rejectedRefs, confidence);
+        if (!evidenceEvaluation.isEmpty()) {
+            metadata.put("evidenceEvaluation", evidenceEvaluation);
         }
         if (!satisfied && !selectedUrls.isEmpty() && isWebDiscoveryTool(request.execution().toolName())) {
             satisfied = true;
@@ -1374,17 +1387,6 @@ public class AgentOrchestrator {
                 request.execution().toolName(),
                 request.step() == null ? null : request.step().id(),
                 selectedUrls);
-        }
-        if (!satisfied
-            && isDocumentSearchTool(request.execution().toolName())
-            && hasUsableDocumentEvidence(request.execution().output())) {
-            satisfied = true;
-            metadata.put("toolResultReviewAutoAccepted", true);
-            metadata.put("toolResultReviewAutoAcceptReason", "document search returned usable partial evidence");
-            reason = "Document search returned usable partial evidence for synthesis; continue to dependent steps. Reviewer note: " + reason;
-            log.info("Tool result review auto-accepted document evidence step tool={} stepId={}",
-                request.execution().toolName(),
-                request.step() == null ? null : request.step().id());
         }
         return satisfied
             ? InterpretationPlanRuntime.StepReview.accepted(reason, metadata)
@@ -1400,7 +1402,7 @@ public class AgentOrchestrator {
         }
         prompt.append("You are the runtime reviewer for one completed MCP tool call.\n");
         prompt.append("Return strict JSON only with this shape:\n");
-        prompt.append("{\"satisfied\":true|false,\"reason\":\"short reason\",\"selected_urls\":[\"https://...\"],\"confidence\":0.0}\n");
+        prompt.append("{\"satisfied\":true|false,\"reason\":\"short reason\",\"selected_urls\":[\"https://...\"],\"useful_refs\":[\"doc://...#chunk=0\"],\"rejected_refs\":[\"doc://...#chunk=1\"],\"relevance\":0.0,\"answerability\":0.0,\"supportsQuestionAspect\":[\"process\"],\"missingAspects\":[\"constraints\"],\"usefulness\":\"HIGH|MEDIUM|LOW\",\"shouldExpandQuery\":true|false,\"confidence\":0.0}\n");
         prompt.append("Rules:\n");
         prompt.append("- Decide whether this tool output is sufficient for the current plan step and user request.\n");
         prompt.append("- If satisfied=false, the DAG must not continue to dependent steps.\n");
@@ -1410,6 +1412,8 @@ public class AgentOrchestrator {
         prompt.append("- For document_search, judge whether the result contains relevant document evidence that can support later synthesis. Do not require one chunk to contain the complete final answer or every requested example.\n");
         prompt.append("- Accept document_search when multiple chunks collectively mention relevant entities, APIs, tables, citations, or snippets, even if the final answer must combine them and state missing pieces.\n");
         prompt.append("- Reject document_search only when it failed, returned no useful results, violated an explicit source constraint, or is unrelated to the request.\n");
+        prompt.append("- For document_search, evaluate each returned document/chunk against the current user request. Put useful doc:// refs in useful_refs and unrelated or misleading refs in rejected_refs. Do not infer usefulness from retrieval rank alone.\n");
+        prompt.append("- Treat retrieval score as a weak prior only. Your semantic evidence evaluation must state relevance, answerability, supported aspects, missing aspects, usefulness, and whether another query expansion is needed.\n");
         prompt.append("- If the user required an official source, reject results that do not satisfy that source constraint.\n");
         prompt.append("- Do not answer the user here; only review the tool result.\n\n");
         prompt.append("Attempt: ").append(request.attempt()).append('/').append(request.maxAttempts()).append("\n");
@@ -1424,6 +1428,86 @@ public class AgentOrchestrator {
         prompt.append("Tool output:\n")
             .append(shortObservationText(stringify(request.execution().output()), 9000));
         return prompt.toString();
+    }
+
+    private Map<String, Object> evidenceEvaluationContract(Map<String, Object> payload,
+                                                           boolean satisfied,
+                                                           String reason,
+                                                           List<String> usefulRefs,
+                                                           List<String> rejectedRefs,
+                                                           Object confidence) {
+        if (payload == null || payload.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, Object> value = new LinkedHashMap<>();
+        value.put("contractVersion", "evidence_evaluation_contract_v1");
+        value.put("satisfied", satisfied);
+        value.put("relevance", scoreValue(firstObject(payload, "relevance", "relevanceScore", "semantic_relevance")));
+        value.put("answerability", scoreValue(firstObject(payload, "answerability", "answerabilityScore", "can_answer_score")));
+        value.put("supportsQuestionAspect", stringList(firstObject(
+            payload,
+            "supportsQuestionAspect",
+            "supports_question_aspect",
+            "supportedAspects",
+            "supported_aspects"
+        )));
+        value.put("missingAspects", stringList(firstObject(
+            payload,
+            "missingAspects",
+            "missing_aspects",
+            "unsupportedAspects",
+            "unsupported_aspects"
+        )));
+        value.put("usefulness", usefulnessValue(firstObject(payload, "usefulness", "utility", "usefulnessLevel")));
+        value.put("usefulRefs", usefulRefs == null ? List.of() : usefulRefs);
+        value.put("rejectedRefs", rejectedRefs == null ? List.of() : rejectedRefs);
+        value.put("shouldExpandQuery", booleanObject(firstObject(
+            payload,
+            "shouldExpandQuery",
+            "should_expand_query",
+            "expandQuery",
+            "expand_query"
+        )));
+        value.put("confidence", scoreValue(confidence));
+        value.put("reason", firstNonBlank(reason, stringValue(firstObject(payload, "reason", "feedback", "analysis"))));
+        return value;
+    }
+
+    private double scoreValue(Object value) {
+        if (value instanceof Number number) {
+            return clampScore(number.doubleValue());
+        }
+        if (value == null) {
+            return 0.0;
+        }
+        try {
+            return clampScore(Double.parseDouble(String.valueOf(value).trim()));
+        } catch (NumberFormatException ex) {
+            return 0.0;
+        }
+    }
+
+    private double clampScore(double value) {
+        if (value > 1.0) {
+            value = value / 100.0;
+        }
+        return Math.max(0.0, Math.min(1.0, Math.round(value * 1000.0) / 1000.0));
+    }
+
+    private String usefulnessValue(Object value) {
+        String text = stringValue(value);
+        if (text == null || text.isBlank()) {
+            return "LOW";
+        }
+        String normalized = text.trim().toUpperCase(Locale.ROOT).replace('-', '_');
+        if ("HIGH".equals(normalized) || "MEDIUM".equals(normalized) || "LOW".equals(normalized)) {
+            return normalized;
+        }
+        return switch (normalized) {
+            case "STRONG", "USEFUL", "RELEVANT" -> "HIGH";
+            case "PARTIAL", "SOME", "WEAK" -> "MEDIUM";
+            default -> "LOW";
+        };
     }
 
     private boolean isWebDiscoveryTool(String toolName) {
@@ -1448,68 +1532,6 @@ public class AgentOrchestrator {
         return semantic.equals("document_search")
             || semantic.endsWith("_document_search")
             || (semantic.contains("document") && semantic.contains("search"));
-    }
-
-    private boolean hasUsableDocumentEvidence(Object output) {
-        if (output == null) {
-            return false;
-        }
-        Map<String, Object> root = asMap(output);
-        if (!root.isEmpty()) {
-            if (hasUsableDocumentEvidenceMap(root)) {
-                return true;
-            }
-            Object nested = firstObject(root, "output", "data", "result", "body");
-            if (nested != null && nested != output) {
-                return hasUsableDocumentEvidence(nested);
-            }
-        }
-        if (!(output instanceof String text) || text.isBlank()) {
-            return false;
-        }
-        Map<String, Object> parsed = parseJsonObject(text);
-        if (!parsed.isEmpty()) {
-            return hasUsableDocumentEvidence(parsed);
-        }
-        String compact = text.replaceAll("\\s+", "").toLowerCase(Locale.ROOT);
-        if (compact.contains("\"total\":0") || compact.contains("\"count\":0")) {
-            return false;
-        }
-        return compact.contains("document_evidence_v1")
-            && (compact.contains("\"results\":[{")
-                || compact.contains("\"citations\":[{")
-                || compact.contains("\"evidencesnippets\":[{")
-                || compact.contains("doc://")
-                || compact.contains("documentevidencesnippets"));
-    }
-
-    private boolean hasUsableDocumentEvidenceMap(Map<String, Object> root) {
-        if (root == null || root.isEmpty()) {
-            return false;
-        }
-        if (candidateListPresent(root, "results")
-            || candidateListPresent(root, "items")
-            || candidateListPresent(root, "records")
-            || candidateListPresent(root, "citations")
-            || candidateListPresent(root, "evidenceSnippets")
-            || candidateListPresent(root, "evidence_snippets")
-            || candidateListPresent(root, "evidence_chunks")) {
-            return true;
-        }
-        String contractVersion = stringValue(firstObject(root, "contractVersion", "contract_version"));
-        if (contractVersion != null && "document_evidence_v1".equalsIgnoreCase(contractVersion)) {
-            Integer total = firstInteger(
-                firstObject(root, "total", "totalCount", "count", "returned", "resultCount"),
-                0
-            );
-            return total > 0;
-        }
-        return false;
-    }
-
-    private boolean candidateListPresent(Map<String, Object> root, String key) {
-        Object value = root == null ? null : root.get(key);
-        return value instanceof List<?> list && !list.isEmpty();
     }
 
     private String toolSemanticKey(String toolName) {
@@ -1583,6 +1605,10 @@ public class AgentOrchestrator {
                 traces.add(step.toolExecution().trace());
             }
             observations.add(planStepObservation(stage, step));
+            String evidenceEvaluationObservation = evidenceEvaluationObservation(step);
+            if (evidenceEvaluationObservation != null && !evidenceEvaluationObservation.isBlank()) {
+                observations.add(evidenceEvaluationObservation);
+            }
             String canonicalEvidenceObservation = canonicalEvidenceObservation(step);
             if (canonicalEvidenceObservation != null && !canonicalEvidenceObservation.isBlank()) {
                 observations.add(canonicalEvidenceObservation);
@@ -1707,9 +1733,22 @@ public class AgentOrchestrator {
         String observation = toolObservationBuilder.buildSuccessObservation(
             step.toolName(),
             step.toolExecution().output(),
-            stringify(step.output())
+            stringify(step.output()),
+            step.metadata()
         );
         return hasCanonicalEvidence(observation) ? observation : null;
+    }
+
+    private String evidenceEvaluationObservation(InterpretationPlanRuntime.StepExecution step) {
+        if (step == null || step.metadata() == null || step.metadata().isEmpty()) {
+            return null;
+        }
+        Object evaluation = step.metadata().get("evidenceEvaluation");
+        if (!(evaluation instanceof Map<?, ?> evaluationMap) || evaluationMap.isEmpty()) {
+            return null;
+        }
+        return "Evidence evaluation (contractVersion=evidence_evaluation_contract_v1): "
+            + shortObservationText(stringify(evaluationMap), 1600);
     }
 
     private boolean hasCanonicalEvidence(String observation) {

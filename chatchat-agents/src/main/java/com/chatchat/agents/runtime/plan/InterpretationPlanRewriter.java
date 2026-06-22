@@ -76,6 +76,7 @@ public class InterpretationPlanRewriter {
         prompt.append("Output exactly one valid InterpretationPlan JSON object. No markdown, comments, code fences, or natural language.\n");
         prompt.append("Rewrite rules:\n");
         prompt.append("- Preserve the user's original goal and already successful evidence.\n");
+        prompt.append("- Treat completed steps and evidence_execution_lock_v1 observations as immutable execution state; do not re-add them as runnable tool steps.\n");
         prompt.append("- Do not repeat a failed MCP tool step unless the failure reason is transient and no safer alternative exists.\n");
         prompt.append("- Remove impossible dependencies and keep the result as a DAG.\n");
         prompt.append("- Use only available tools. If no safe tool remains, produce a final_answer step explaining what is missing.\n");

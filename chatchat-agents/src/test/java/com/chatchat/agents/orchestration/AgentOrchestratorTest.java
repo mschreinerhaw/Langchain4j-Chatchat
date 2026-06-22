@@ -99,7 +99,7 @@ class AgentOrchestratorTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    void interpretationPlanAcceptsDocumentSearchPartialEvidenceWhenModelReviewIsTooStrict() {
+    void interpretationPlanLetsModelRejectDocumentSearchEvenWhenChunksExist() {
         StrictDocumentReviewChatModel chatModel = new StrictDocumentReviewChatModel(
             """
                 {
@@ -116,7 +116,9 @@ class AgentOrchestratorTest {
                   "review": {"self_check": {"completeness_score": 0.8, "hallucination_risk": 0.2, "tool_sufficiency": true, "missing_steps": []}, "fallback_plan": []}
                 }
                 """,
-            "{\"accepted\":true,\"feedback\":\"The answer honestly uses partial document evidence.\",\"revisedAnswer\":\"\"}"
+            "{\"accepted\":true,\"feedback\":\"The answer honestly uses partial document evidence.\",\"revisedAnswer\":\"\"}",
+            "模型评估当前检索结果不足以支撑该步骤，已停止继续生成原计划结论。",
+            "{\"accepted\":true,\"feedback\":\"The refusal to continue is grounded in the model review.\",\"revisedAnswer\":\"\"}"
         );
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         when(toolRegistry.hasTool("document_search")).thenReturn(true);
@@ -153,7 +155,7 @@ class AgentOrchestratorTest {
         );
 
         assertThat(result.answer())
-            .isEqualTo("Use the retrieved JDBC and Filesystem chunks, and state that the combined sync example is missing.");
+            .isNotEqualTo("Use the retrieved JDBC and Filesystem chunks, and state that the combined sync example is missing.");
         assertThat(result.toolTraces()).extracting(InteractionToolTrace::getToolName)
             .containsExactly("document_search");
         List<Map<String, Object>> steps = (List<Map<String, Object>>) result.metadata().get("interpretationPlanStepExecutions");
@@ -162,12 +164,24 @@ class AgentOrchestratorTest {
                 Map<String, Object> stepMetadata = (Map<String, Object>) step.get("metadata");
                 assertThat(step)
                     .containsEntry("toolName", "document_search")
-                    .containsEntry("success", true)
-                    .containsEntry("canonicalEvidenceObservation", true);
+                    .containsEntry("success", false);
                 assertThat(stepMetadata)
-                    .containsEntry("toolResultReviewSatisfied", true)
-                    .containsEntry("toolResultReviewAutoAccepted", true)
-                    .containsEntry("toolResultReviewAutoAcceptReason", "document search returned usable partial evidence");
+                    .containsEntry("toolResultReviewSatisfied", false);
+                assertThat(stepMetadata)
+                    .containsEntry("rejectedEvidenceRefs", List.of("doc://spark#chunk=159", "doc://spark#chunk=155"));
+                Map<String, Object> evaluation = (Map<String, Object>) stepMetadata.get("evidenceEvaluation");
+                assertThat(evaluation)
+                    .containsEntry("contractVersion", "evidence_evaluation_contract_v1")
+                    .containsEntry("satisfied", false)
+                    .containsEntry("usefulness", "MEDIUM")
+                    .containsEntry("shouldExpandQuery", true)
+                    .containsEntry("rejectedRefs", List.of("doc://spark#chunk=159", "doc://spark#chunk=155"));
+                assertThat((Double) evaluation.get("relevance")).isEqualTo(0.72);
+                assertThat((Double) evaluation.get("answerability")).isEqualTo(0.38);
+                assertThat((List<String>) evaluation.get("supportsQuestionAspect")).containsExactly("JDBC", "Filesystem");
+                assertThat((List<String>) evaluation.get("missingAspects")).containsExactly("combined sync SQL example");
+                assertThat(stepMetadata)
+                    .doesNotContainKeys("toolResultReviewAutoAccepted", "toolResultReviewAutoAcceptReason");
             });
     }
 
@@ -1757,6 +1771,14 @@ class AgentOrchestratorTest {
                       "satisfied": false,
                       "reason": "The chunks mention JDBC and Filesystem separately but do not contain a complete combined sync SQL example.",
                       "selected_urls": [],
+                      "useful_refs": [],
+                      "rejected_refs": ["doc://spark#chunk=159", "doc://spark#chunk=155"],
+                      "relevance": 0.72,
+                      "answerability": 0.38,
+                      "supportsQuestionAspect": ["JDBC", "Filesystem"],
+                      "missingAspects": ["combined sync SQL example"],
+                      "usefulness": "MEDIUM",
+                      "shouldExpandQuery": true,
                       "confidence": 0.8
                     }
                     """;

@@ -1,5 +1,7 @@
 package com.chatchat.agents.runtime.plan;
 
+import com.chatchat.agents.evidence.EvidenceExecutionLock;
+import com.chatchat.agents.evidence.EvidenceLockGraph;
 import com.chatchat.agents.runtime.AgentObservation;
 import com.chatchat.agents.runtime.AgentRunEvent;
 import com.chatchat.agents.runtime.AgentRunEventType;
@@ -148,6 +150,12 @@ public class InterpretationPlanRuntime {
             InterpretationPlanEventState eventState = eventState(runId, completed.keySet());
             Set<Integer> completedStepIds = new LinkedHashSet<>(completed.keySet());
             completedStepIds.addAll(eventState.completedStepIds());
+            completedStepIds.addAll(eventState.immutableStepIds());
+            remaining.removeAll(completedStepIds);
+            remaining.removeAll(lockedBlockedStepIds(remaining, stepsById, eventState));
+            if (remaining.isEmpty()) {
+                break;
+            }
             DagDecision decision = dagExecutionController.decide(new DagDecisionRequest(
                 executablePlan,
                 new LinkedHashSet<>(remaining),
@@ -499,6 +507,9 @@ public class InterpretationPlanRuntime {
         if (runStore == null || runId == null || runId.isBlank()) {
             return new InterpretationPlanEventState(
                 fallbackCompletedStepIds == null ? Set.of() : new LinkedHashSet<>(fallbackCompletedStepIds),
+                Set.of(),
+                Set.of(),
+                Set.of(),
                 Set.of()
             );
         }
@@ -561,6 +572,10 @@ public class InterpretationPlanRuntime {
                 metadata.put("toolResultReviewAttempts", attempt);
                 metadata.putAll(lastReview.metadata() == null ? Map.of() : lastReview.metadata());
                 if (lastReview.satisfied()) {
+                    Map<String, Object> lock = executionLock(step, lastReview);
+                    if (!lock.isEmpty()) {
+                        metadata.put("executionLock", lock);
+                    }
                     return execution.withMetadata(metadata, elapsed(startedAt));
                 }
             }
@@ -597,6 +612,53 @@ public class InterpretationPlanRuntime {
             }
         }
         return 3;
+    }
+
+    private Map<String, Object> executionLock(InterpretationPlan.Step step, StepReview review) {
+        if (review == null || review.metadata() == null || !review.metadata().containsKey("evidenceEvaluation")) {
+            return Map.of();
+        }
+        EvidenceExecutionLock lock = EvidenceExecutionLock.fromReview(
+            step == null ? null : step.id(),
+            step == null ? "" : step.toolName(),
+            review.reason(),
+            review.metadata()
+        );
+        EvidenceLockGraph lockGraph = EvidenceLockGraph.fromReview(
+            step == null ? null : step.id(),
+            step == null ? "" : step.toolName(),
+            review.metadata(),
+            lock
+        );
+        Map<String, Object> value = new LinkedHashMap<>(lock.toMetadata());
+        value.put("lockGraph", lockGraph.toMetadata());
+        value.put("reviewSatisfied", review.satisfied());
+        return value;
+    }
+
+    private Set<Integer> lockedBlockedStepIds(Set<Integer> remaining,
+                                              Map<Integer, InterpretationPlan.Step> stepsById,
+                                              InterpretationPlanEventState eventState) {
+        if (remaining == null || remaining.isEmpty() || stepsById == null || stepsById.isEmpty() || eventState == null) {
+            return Set.of();
+        }
+        Set<Integer> blocked = new LinkedHashSet<>();
+        for (Integer stepId : remaining) {
+            InterpretationPlan.Step step = stepsById.get(stepId);
+            if (step == null) {
+                continue;
+            }
+            if (!eventState.allowOnlyActions().isEmpty()
+                && step.actionType() != null
+                && !eventState.allowOnlyActions().contains(step.actionType())) {
+                blocked.add(stepId);
+                continue;
+            }
+            if (step.toolName() != null && eventState.blockedTools().contains(step.toolName())) {
+                blocked.add(stepId);
+            }
+        }
+        return blocked;
     }
 
     private Map<String, Object> resolvedStepInput(InterpretationPlan.Step step,

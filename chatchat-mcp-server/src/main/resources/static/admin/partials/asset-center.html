@@ -197,6 +197,7 @@
                         <div class="col-md-3"><label class="form-label" for="sshAssetCommandTimeoutMs">命令超时 ms</label><input id="sshAssetCommandTimeoutMs" class="form-control" type="number" min="1000" value="30000"></div>
                         <div class="col-md-6"><label class="form-label" for="sshAssetTags">标签</label><input id="sshAssetTags" class="form-control" placeholder="hive,prod"></div>
                         <div class="col-md-6"><label class="form-label" for="sshAssetAllowedCommandsJson">允许命令模板 JSON</label><textarea id="sshAssetAllowedCommandsJson" class="form-control codebox" rows="4" spellcheck="false">[]</textarea></div>
+                        <div class="col-12"><label class="form-label" for="sshAssetGovernanceJson">Governance JSON</label><textarea id="sshAssetGovernanceJson" class="form-control codebox" rows="10" spellcheck="false"></textarea></div>
                     </div>
                 </form>
             </div>
@@ -234,6 +235,7 @@
   "required": [],
   "additionalProperties": true
 }</textarea></div>
+                        <div class="col-12"><label class="form-label" for="httpAssetGovernanceJson">Governance JSON</label><textarea id="httpAssetGovernanceJson" class="form-control codebox" rows="10" spellcheck="false"></textarea></div>
                         <div class="col-12"><label class="form-label" for="httpAssetBodyTemplate">Body 模板</label><textarea id="httpAssetBodyTemplate" class="form-control codebox" rows="6" spellcheck="false" placeholder='{"name":"{{name}}"}'></textarea></div>
                     </div>
                 </form>
@@ -269,6 +271,7 @@
                         <div class="col-md-4"><label class="form-label" for="sqlAssetAllowedTablesJson">允许表 JSON</label><textarea id="sqlAssetAllowedTablesJson" class="form-control codebox" rows="5" spellcheck="false">[]</textarea></div>
                         <div class="col-md-4"><label class="form-label" for="sqlAssetSensitiveTablesJson">敏感表 JSON</label><textarea id="sqlAssetSensitiveTablesJson" class="form-control codebox" rows="5" spellcheck="false">[]</textarea></div>
                         <div class="col-md-4"><label class="form-label" for="sqlAssetSensitiveFieldsJson">敏感字段 JSON</label><textarea id="sqlAssetSensitiveFieldsJson" class="form-control codebox" rows="5" spellcheck="false">[]</textarea></div>
+                        <div class="col-12"><label class="form-label" for="sqlAssetGovernanceJson">Governance JSON</label><textarea id="sqlAssetGovernanceJson" class="form-control codebox" rows="10" spellcheck="false"></textarea></div>
                     </div>
                 </form>
             </div>

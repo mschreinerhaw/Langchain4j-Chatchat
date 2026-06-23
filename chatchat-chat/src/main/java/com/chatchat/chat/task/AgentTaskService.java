@@ -35,6 +35,8 @@ import java.util.concurrent.CancellationException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.BooleanSupplier;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Slf4j
 @Service
@@ -46,6 +48,10 @@ public class AgentTaskService {
     private static final List<String> TERMINAL_STATUSES = List.of("SUCCESS", "PARTIAL", "EMPTY", "FAILED", "CANCELLED", "REJECTED", "TIMEOUT_CANCELLED", "KILLED");
     private static final int MAX_IDLE_POLLS = 3;
     private static final int MAX_CONFIRMATION_ROUNDS = 20;
+    private static final int DEBUG_TEXT_LIMIT = 8000;
+    private static final int UI_CITATION_PREMISE_LIMIT = 900;
+    private static final int UI_ANSWER_LIMIT = 6000;
+    private static final Pattern JSON_FENCE_PATTERN = Pattern.compile("```(?:json)?\\s*([\\s\\S]*?)```", Pattern.CASE_INSENSITIVE);
 
     private final AgentEventBus eventBus;
     private final AgentEventStore eventStore;
@@ -678,6 +684,16 @@ public class AgentTaskService {
                 completePayload.put("mode", response.getMode());
                 completePayload.put("handler", metadataValue(response.getMetadata(), "handler"));
                 completePayload.put("toolTraceCount", response.getToolTraces() == null ? 0 : response.getToolTraces().size());
+                completePayload.put("contractVersion", resultContract.contractVersion());
+                completePayload.put("status", resultContract.status());
+                completePayload.put("answer", resultContract.answerSummary());
+                completePayload.put("citations", resultContract.citations());
+                completePayload.put("evidencePremises", resultContract.evidencePremises());
+                completePayload.put("confidence", resultContract.confidence());
+                completePayload.put("evidenceSummary", resultContract.evidenceSummary());
+                completePayload.put("visualization", resultContract.visualization());
+                completePayload.put("uiResponse", resultContract.uiResponseView());
+                completePayload.put("debug", resultContract.debugView());
                 completePayload.put("executionResult", resultContract.asMap(response));
                 AgentEvent completeEvent = copyEvent(question, "COMPLETE", resultContract.status(), writePayload(completePayload));
                 completeEvent.setSequence(nextSequence(question));
@@ -1807,8 +1823,8 @@ public class AgentTaskService {
         };
         String displayAnswer = switch (status) {
             case "SUCCESS" -> answer;
-            case "PARTIAL" -> "本次执行已完成，并获取到部分工具结果或中间产物，但没有生成最终回答。请查看执行步骤、引用来源或工具轨迹，必要时可补充要求后重试。";
-            case "EMPTY" -> "本次执行已结束，但没有产生可展示的回答或结果产物。请检查 Agent 配置、模型服务或换一种问法后重试。";
+            case "PARTIAL" -> "本次执行已完成，并获取到部分工具结果或中间产物，但没有生成最终回答。请查看执行步骤、引用来源或工具轨迹，必要时补充要求后重试。";
+            case "EMPTY" -> "本次执行已结束，但没有产生可展示的回答或结果产物。请检查 Agent 配置、模型服务，或换一种问法后重试。";
             default -> answer;
         };
         Map<String, Object> flags = new LinkedHashMap<>();
@@ -1817,7 +1833,454 @@ public class AgentTaskService {
         flags.put("hasToolOutput", hasToolOutput);
         flags.put("hasSources", hasSources);
         flags.put("hasArtifact", hasArtifact);
-        return new ExecutionResultContract(status, displayAnswer, answer, message, flags);
+        Map<String, Object> reasoningPayload = evidenceReasoningPayload(response, answer);
+        UiResponseContract uiResponse = uiResponse(status, displayAnswer, response, reasoningPayload);
+        Map<String, Object> debug = debugPayload(response, reasoningPayload);
+        return new ExecutionResultContract(status, message, flags, uiResponse, debug);
+    }
+
+    private UiResponseContract uiResponse(String status,
+                                          String fallbackAnswer,
+                                          InteractionResponse response,
+                                          Map<String, Object> reasoningPayload) {
+        Map<String, Object> result = asStringMap(reasoningPayload.get("result"));
+        Object visualizationSpec = ExecutionResultContract.visualizationSpec(response == null ? null : response.getMetadata());
+        String evidenceSummary = firstTextValue(
+            result.get("evidenceSummary"),
+            reasoningPayload.get("evidenceSummary"),
+            ""
+        );
+        List<Map<String, Object>> citations = citations(response, reasoningPayload);
+        List<Map<String, Object>> evidencePremises = evidencePremises(citations);
+        Double confidence = firstDouble(
+            result.get("confidence"),
+            valueAt(reasoningPayload, "reasoningTrace", "pathDecision", "pathCoherence")
+        );
+        String answer = firstTextValue(
+            structuredUiAnswer(fallbackAnswer),
+            plainAnswer(fallbackAnswer),
+            fallbackAnswer,
+            result.get("answer"),
+            result.get("conclusion")
+        );
+        Map<String, Object> visualization = visualization(visualizationSpec, reasoningPayload);
+        return new UiResponseContract(
+            "ui_response_v1",
+            status,
+            firstText(cleanDisplayAnswer(answer), ""),
+            citations,
+            evidencePremises,
+            confidence,
+            evidenceSummary == null ? "" : evidenceSummary,
+            visualization,
+            visualizationSpec
+        );
+    }
+
+    private List<Map<String, Object>> evidencePremises(List<Map<String, Object>> citations) {
+        if (citations == null || citations.isEmpty()) {
+            return List.of();
+        }
+        List<Map<String, Object>> premises = new ArrayList<>();
+        for (Map<String, Object> citation : citations) {
+            String text = compactCitationText(firstTextValue(citation.get("text"), ""));
+            if (text.isBlank()) {
+                continue;
+            }
+            Map<String, Object> premise = new LinkedHashMap<>();
+            premise.put("rank", premises.size() + 1);
+            premise.put("text", text);
+            premises.add(premise);
+            if (premises.size() >= 6) {
+                break;
+            }
+        }
+        return List.copyOf(premises);
+    }
+
+    private String compactCitationText(String value) {
+        if (value == null || value.isBlank()) {
+            return "";
+        }
+        String text = value.replaceAll("\\s+", " ").trim();
+        return text.length() <= UI_CITATION_PREMISE_LIMIT ? text : text.substring(0, UI_CITATION_PREMISE_LIMIT) + "...";
+    }
+
+    private boolean isProtocolLikeAnswer(String value) {
+        if (value == null || value.isBlank()) {
+            return false;
+        }
+        String text = value.trim();
+        String lower = text.toLowerCase();
+        return ((text.startsWith("{") || text.startsWith("[") || lower.startsWith("```json"))
+            && (lower.contains("\"uiresponse\"")
+            || lower.contains("\"executionresult\"")
+            || lower.contains("\"finalanswer\"")
+            || lower.contains("\"reasoningtrace\"")
+            || lower.contains("\"trustedsql\"")
+            || lower.contains("\"deterministicfacts\"")))
+            || lower.contains("evidence_reasoning_v2")
+            || lower.contains("reasoningpayload:")
+            || lower.contains("lockedanswer:")
+            || lower.contains("deterministic answer lock")
+            || lower.contains("evidence_execution_contract");
+    }
+
+    private String structuredUiAnswer(String rawAnswer) {
+        if (rawAnswer == null || rawAnswer.isBlank() || !isProtocolLikeAnswer(rawAnswer)) {
+            return "";
+        }
+        String json = extractJsonObject(rawAnswer);
+        if (json.isBlank()) {
+            return "";
+        }
+        try {
+            @SuppressWarnings("unchecked")
+            Map<String, Object> root = objectMapper.readValue(json, Map.class);
+            Map<String, Object> uiResponse = asStringMap(root.get("uiResponse"));
+            Map<String, Object> nestedExecution = asStringMap(root.get("executionResult"));
+            Map<String, Object> nestedUiResponse = asStringMap(nestedExecution.get("uiResponse"));
+            return firstTextValue(
+                uiResponse.get("answer"),
+                nestedUiResponse.get("answer"),
+                root.get("answer"),
+                ""
+            );
+        } catch (Exception ex) {
+            log.debug("Failed to extract structured ui answer", ex);
+            return "";
+        }
+    }
+
+    private String extractJsonObject(String rawAnswer) {
+        String text = rawAnswer == null ? "" : rawAnswer.trim();
+        Matcher fenceMatcher = JSON_FENCE_PATTERN.matcher(text);
+        while (fenceMatcher.find()) {
+            String body = fenceMatcher.group(1);
+            if (body != null && (body.contains("uiResponse") || body.contains("executionResult"))) {
+                return body.trim();
+            }
+        }
+        int start = text.indexOf('{');
+        int end = text.lastIndexOf('}');
+        if (start >= 0 && end > start) {
+            return text.substring(start, end + 1).trim();
+        }
+        return "";
+    }
+
+    private String cleanDisplayAnswer(String value) {
+        if (value == null || value.isBlank()) {
+            return "";
+        }
+        String text = JSON_FENCE_PATTERN.matcher(value).replaceAll("").trim();
+        text = text.replaceAll("(?is)reasoningPayload:\\s*```json\\s*.*?\\s*```", "").trim();
+        return text.length() <= UI_ANSWER_LIMIT ? text : text.substring(0, UI_ANSWER_LIMIT);
+    }
+
+    private Map<String, Object> debugPayload(InteractionResponse response, Map<String, Object> reasoningPayload) {
+        Map<String, Object> debug = new LinkedHashMap<>();
+        if (reasoningPayload != null && !reasoningPayload.isEmpty()) {
+            putIfPresent(debug, "executionSpec", reasoningPayload.get("executionSpec"));
+            putIfPresent(debug, "evidence", reasoningPayload.get("evidence"));
+            putIfPresent(debug, "executionDag", reasoningPayload.get("executionDag"));
+            putIfPresent(debug, "reasoningTrace", reasoningPayload.get("reasoningTrace"));
+            putIfPresent(debug, "trustedSql", reasoningPayload.get("trustedSql"));
+            putIfPresent(debug, "deterministicFacts", reasoningPayload.get("deterministicFacts"));
+            putIfPresent(debug, "result", reasoningPayload.get("result"));
+            putIfPresent(debug, "contractHash", reasoningPayload.get("contractHash"));
+            putIfPresent(debug, "graphViewHash", reasoningPayload.get("graphViewHash"));
+            putIfPresent(debug, "pathState", reasoningPayload.get("pathState"));
+            putIfPresent(debug, "decision", reasoningPayload.get("decision"));
+        }
+        Map<String, Object> metadata = response == null ? Map.of() : response.getMetadata();
+        Object agent = metadata == null ? null : metadata.get("agent");
+        if (agent instanceof Map<?, ?> agentMap) {
+            Map<String, Object> agentDebug = new LinkedHashMap<>();
+            putIfPresent(agentDebug, "plannerSteps", agentMap.get("plannerSteps"));
+            putIfPresent(agentDebug, "observations", agentMap.get("observations"));
+            putIfPresent(agentDebug, "events", agentMap.get("events"));
+            if (!agentDebug.isEmpty()) {
+                debug.put("agent", agentDebug);
+            }
+        }
+        return debug;
+    }
+
+    private Map<String, Object> evidenceReasoningPayload(InteractionResponse response, String answer) {
+        Map<String, Object> fromAnswer = evidenceReasoningPayload(answer);
+        if (!fromAnswer.isEmpty()) {
+            return fromAnswer;
+        }
+        Map<String, Object> metadata = response == null ? Map.of() : response.getMetadata();
+        Map<String, Object> fromObservations = evidenceReasoningPayloadFromObservations(metadata == null ? null : metadata.get("observations"));
+        if (!fromObservations.isEmpty()) {
+            return fromObservations;
+        }
+        Object agent = metadata == null ? null : metadata.get("agent");
+        if (agent instanceof Map<?, ?> agentMap) {
+            return evidenceReasoningPayloadFromObservations(agentMap.get("observations"));
+        }
+        return Map.of();
+    }
+
+    private Map<String, Object> evidenceReasoningPayloadFromObservations(Object observations) {
+        if (!(observations instanceof List<?> values)) {
+            return Map.of();
+        }
+        for (Object value : values) {
+            Map<String, Object> payload = evidenceReasoningPayload(value == null ? "" : String.valueOf(value));
+            if (!payload.isEmpty()) {
+                return payload;
+            }
+        }
+        return Map.of();
+    }
+
+    private Map<String, Object> evidenceReasoningPayload(String answer) {
+        if (answer == null || answer.isBlank()) {
+            return Map.of();
+        }
+        for (String candidate : jsonCandidates(answer)) {
+            if (!candidate.contains("evidence_reasoning_v2")
+                && !candidate.contains("\"executionDag\"")
+                && !candidate.contains("\"reasoningTrace\"")) {
+                continue;
+            }
+            try {
+                Object parsed = objectMapper.readValue(candidate, Object.class);
+                Map<String, Object> map = asStringMap(parsed);
+                if (!map.isEmpty()) {
+                    return map;
+                }
+            } catch (Exception ignored) {
+                // Keep scanning other candidates.
+            }
+        }
+        return Map.of();
+    }
+
+    private List<String> jsonCandidates(String answer) {
+        List<String> candidates = new ArrayList<>();
+        Matcher matcher = JSON_FENCE_PATTERN.matcher(answer);
+        while (matcher.find()) {
+            String body = matcher.group(1);
+            if (body != null && !body.isBlank()) {
+                candidates.add(body.trim());
+            }
+        }
+        String balanced = balancedJson(answer);
+        if (balanced != null && !balanced.isBlank()) {
+            candidates.add(balanced);
+        }
+        String trimmed = answer.trim();
+        if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+            candidates.add(trimmed);
+        }
+        return candidates.stream().distinct().toList();
+    }
+
+    private String balancedJson(String text) {
+        int marker = text.indexOf("\"type\"");
+        int typeMarker = text.indexOf("evidence_reasoning_v2");
+        int anchor = marker >= 0 ? marker : typeMarker;
+        if (anchor < 0) {
+            return null;
+        }
+        int start = text.lastIndexOf('{', anchor);
+        if (start < 0) {
+            return null;
+        }
+        int depth = 0;
+        boolean inString = false;
+        boolean escaped = false;
+        for (int index = start; index < text.length(); index++) {
+            char ch = text.charAt(index);
+            if (escaped) {
+                escaped = false;
+                continue;
+            }
+            if (ch == '\\') {
+                escaped = inString;
+                continue;
+            }
+            if (ch == '"') {
+                inString = !inString;
+                continue;
+            }
+            if (inString) {
+                continue;
+            }
+            if (ch == '{') {
+                depth++;
+            } else if (ch == '}') {
+                depth--;
+                if (depth == 0) {
+                    return text.substring(start, index + 1).trim();
+                }
+            }
+        }
+        return null;
+    }
+
+    private String plainAnswer(String answer) {
+        if (answer == null || answer.isBlank()) {
+            return "";
+        }
+        String stripped = JSON_FENCE_PATTERN.matcher(answer).replaceAll("").trim();
+        if (stripped.isBlank()) {
+            return "";
+        }
+        return stripped.length() <= DEBUG_TEXT_LIMIT ? stripped : stripped.substring(0, DEBUG_TEXT_LIMIT);
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<Map<String, Object>> citations(InteractionResponse response, Map<String, Object> reasoningPayload) {
+        List<Map<String, Object>> values = new ArrayList<>();
+        addEvidenceCitations(values, asStringMap(reasoningPayload.get("evidence")).get("direct"), "direct");
+        addEvidenceCitations(values, asStringMap(reasoningPayload.get("evidence")).get("supporting"), "supporting");
+        addEvidenceCitations(values, asStringMap(reasoningPayload.get("evidence")).get("context"), "context");
+        if (response != null && response.getSources() != null) {
+            int rank = values.size() + 1;
+            for (Object source : response.getSources()) {
+                Map<String, Object> map = objectMapper.convertValue(source, Map.class);
+                Map<String, Object> citation = new LinkedHashMap<>();
+                citation.put("rank", rank++);
+                citation.put("sourceRef", firstTextValue(map.get("source"), map.get("docId"), map.get("url"), ""));
+                citation.put("title", firstTextValue(map.get("title"), map.get("source"), ""));
+                citation.put("text", firstTextValue(map.get("snippet"), map.get("content"), ""));
+                values.add(citation);
+            }
+        }
+        return dedupeCitations(values).stream().limit(12).toList();
+    }
+
+    private void addEvidenceCitations(List<Map<String, Object>> values, Object rawItems, String tier) {
+        if (!(rawItems instanceof List<?> items)) {
+            return;
+        }
+        for (Object raw : items) {
+            Map<String, Object> item = asStringMap(raw);
+            if (item.isEmpty()) {
+                continue;
+            }
+            Map<String, Object> citation = new LinkedHashMap<>();
+            citation.put("rank", values.size() + 1);
+            citation.put("sourceRef", firstTextValue(item.get("refId"), item.get("source"), ""));
+            citation.put("title", firstTextValue(item.get("title"), item.get("type"), tier));
+            citation.put("text", firstTextValue(item.get("text"), item.get("content"), item.get("summary"), ""));
+            citation.put("confidence", firstDouble(item.get("confidence")));
+            citation.put("tier", tier);
+            values.add(citation);
+        }
+    }
+
+    private List<Map<String, Object>> dedupeCitations(List<Map<String, Object>> citations) {
+        List<Map<String, Object>> values = new ArrayList<>();
+        List<String> seen = new ArrayList<>();
+        for (Map<String, Object> citation : citations) {
+            String key = firstTextValue(citation.get("sourceRef"), "") + "|" + firstTextValue(citation.get("text"), "");
+            if (!seen.contains(key)) {
+                seen.add(key);
+                values.add(citation);
+            }
+        }
+        return values;
+    }
+
+    private Map<String, Object> visualization(Object visualizationSpec, Map<String, Object> reasoningPayload) {
+        Map<String, Object> visualization = new LinkedHashMap<>();
+        if (visualizationSpec instanceof Map<?, ?> spec) {
+            visualization.put("type", firstTextValue(spec.get("type"), "table"));
+            visualization.put("spec", visualizationSpec);
+            return visualization;
+        }
+        Map<String, Object> dag = asStringMap(reasoningPayload.get("executionDag"));
+        if (dag.get("nodes") instanceof List<?> nodes && !nodes.isEmpty()) {
+            visualization.put("type", "graph");
+            visualization.put("available", true);
+            return visualization;
+        }
+        visualization.put("type", "none");
+        return visualization;
+    }
+
+    private void putIfPresent(Map<String, Object> target, String key, Object value) {
+        if (value == null) {
+            return;
+        }
+        if (value instanceof String text && text.isBlank()) {
+            return;
+        }
+        if (value instanceof Collection<?> collection && collection.isEmpty()) {
+            return;
+        }
+        if (value instanceof Map<?, ?> map && map.isEmpty()) {
+            return;
+        }
+        target.put(key, value);
+    }
+
+    private Object valueAt(Map<String, Object> source, String... path) {
+        Object current = source;
+        for (String key : path) {
+            if (!(current instanceof Map<?, ?> map)) {
+                return null;
+            }
+            current = map.get(key);
+        }
+        return current;
+    }
+
+    private Map<String, Object> asStringMap(Object value) {
+        if (!(value instanceof Map<?, ?> map)) {
+            return Map.of();
+        }
+        Map<String, Object> values = new LinkedHashMap<>();
+        map.forEach((key, item) -> {
+            if (key != null) {
+                values.put(String.valueOf(key), item);
+            }
+        });
+        return values;
+    }
+
+    private Double firstDouble(Object... values) {
+        if (values == null) {
+            return null;
+        }
+        for (Object value : values) {
+            if (value instanceof Number number && Double.isFinite(number.doubleValue())) {
+                return number.doubleValue();
+            }
+            if (value != null) {
+                try {
+                    double parsed = Double.parseDouble(String.valueOf(value));
+                    if (Double.isFinite(parsed)) {
+                        return parsed;
+                    }
+                } catch (NumberFormatException ignored) {
+                    // Try the next candidate.
+                }
+            }
+        }
+        return null;
+    }
+
+    private String firstTextValue(Object... values) {
+        if (values == null) {
+            return null;
+        }
+        for (Object value : values) {
+            if (value == null) {
+                continue;
+            }
+            String text = String.valueOf(value).trim();
+            if (!text.isBlank()) {
+                return text;
+            }
+        }
+        return null;
     }
 
     private boolean metadataList(Map<String, Object> metadata, String key) {
@@ -1911,10 +2374,10 @@ public class AgentTaskService {
 
     private record ExecutionResultContract(
         String status,
-        String displayAnswer,
-        String finalAnswer,
         String completeMessage,
-        Map<String, Object> semanticFlags
+        Map<String, Object> semanticFlags,
+        UiResponseContract uiResponse,
+        Map<String, Object> debug
     ) {
 
         private static final int MAX_VISUALIZATION_BLOCKS = 6;
@@ -1924,23 +2387,58 @@ public class AgentTaskService {
         }
 
         private String answerSummary() {
-            return "SUCCESS".equals(status) ? finalAnswer : displayAnswer;
+            return uiResponse == null ? "" : uiResponse.answer();
+        }
+
+        private String contractVersion() {
+            return uiResponse == null ? "ui_response_v1" : uiResponse.contractVersion();
+        }
+
+        private List<Map<String, Object>> citations() {
+            return uiResponse == null ? List.of() : uiResponse.citations();
+        }
+
+        private List<Map<String, Object>> evidencePremises() {
+            return uiResponse == null ? List.of() : uiResponse.evidencePremises();
+        }
+
+        private Double confidence() {
+            return uiResponse == null ? null : uiResponse.confidence();
+        }
+
+        private String evidenceSummary() {
+            return uiResponse == null ? "" : uiResponse.evidenceSummary();
+        }
+
+        private Map<String, Object> visualization() {
+            return uiResponse == null ? Map.of("type", "none") : uiResponse.visualization();
+        }
+
+        private Map<String, Object> debugView() {
+            return debug == null ? Map.of() : debug;
+        }
+
+        private Map<String, Object> uiResponseView() {
+            return uiResponse == null ? Map.of() : uiResponse.asMap();
         }
 
         private Map<String, Object> payload(InteractionResponse response) {
-            Map<String, Object> metadata = new LinkedHashMap<>();
-            if (response != null && response.getMetadata() != null) {
-                metadata.putAll(response.getMetadata());
-            }
+            Map<String, Object> metadata = safeMetadata(response == null ? null : response.getMetadata());
             Map<String, Object> result = asMap(response);
-            metadata.put("executionResult", result);
-            Object visualizationSpec = visualizationSpec(metadata);
 
             Map<String, Object> payload = new LinkedHashMap<>();
+            payload.put("contractVersion", contractVersion());
             payload.put("conversationId", response == null ? "" : response.getConversationId());
             payload.put("requestId", response == null ? "" : response.getRequestId());
             payload.put("mode", response == null ? "" : response.getMode());
-            payload.put("answer", displayAnswer);
+            payload.put("status", status);
+            payload.put("answer", answerSummary());
+            payload.put("citations", citations());
+            payload.put("evidencePremises", evidencePremises());
+            payload.put("confidence", confidence());
+            payload.put("evidenceSummary", evidenceSummary());
+            payload.put("visualization", visualization());
+            Object visualizationSpec = uiResponse == null ? null : uiResponse.visualizationSpec();
             if (visualizationSpec != null) {
                 payload.put("visualizationSpec", visualizationSpec);
             }
@@ -1949,7 +2447,9 @@ public class AgentTaskService {
             payload.put("metadata", metadata);
             payload.put("latencyMs", response == null ? null : response.getLatencyMs());
             payload.put("timestamp", response == null || response.getTimestamp() == null ? System.currentTimeMillis() : response.getTimestamp());
+            payload.put("uiResponse", uiResponseView());
             payload.put("executionResult", result);
+            payload.put("debug", debugView());
             return payload;
         }
 
@@ -1958,28 +2458,43 @@ public class AgentTaskService {
         }
 
         private Map<String, Object> asMap(InteractionResponse response) {
-            Map<String, Object> artifacts = new LinkedHashMap<>();
-            artifacts.put("finalAnswer", finalAnswer == null ? "" : finalAnswer);
-            artifacts.put("tables", List.of());
-            artifacts.put("metrics", Map.of());
-            Object visualizationSpec = visualizationSpec(response == null ? null : response.getMetadata());
-            if (visualizationSpec != null) {
-                artifacts.put("visualizationSpec", visualizationSpec);
-            }
-            artifacts.put("traceSummary", Map.of(
+            Map<String, Object> result = new LinkedHashMap<>();
+            result.put("status", status);
+            result.put("uiResponse", uiResponseView());
+            result.put("semanticFlags", semanticFlags == null ? Map.of() : semanticFlags);
+            result.put("message", completeMessage);
+            result.put("traceSummary", Map.of(
                 "sourceCount", response == null || response.getSources() == null ? 0 : response.getSources().size(),
                 "toolTraceCount", response == null || response.getToolTraces() == null ? 0 : response.getToolTraces().size()
             ));
-
-            Map<String, Object> result = new LinkedHashMap<>();
-            result.put("status", status);
-            result.put("artifacts", artifacts);
-            result.put("semanticFlags", semanticFlags == null ? Map.of() : semanticFlags);
-            result.put("message", completeMessage);
+            result.put("debug", debugView());
             return result;
         }
 
-        private Object visualizationSpec(Map<String, Object> metadata) {
+        private static Map<String, Object> safeMetadata(Map<String, Object> metadata) {
+            if (metadata == null || metadata.isEmpty()) {
+                return Map.of();
+            }
+            Map<String, Object> safe = new LinkedHashMap<>();
+            copyMetadataValue(safe, metadata, "availableTools");
+            copyMetadataValue(safe, metadata, "requiredTools");
+            copyMetadataValue(safe, metadata, "toolIntents");
+            copyMetadataValue(safe, metadata, "handler");
+            copyMetadataValue(safe, metadata, "skillId");
+            copyMetadataValue(safe, metadata, "modelName");
+            copyMetadataValue(safe, metadata, "historyUsed");
+            copyMetadataValue(safe, metadata, "summaryUsed");
+            copyMetadataValue(safe, metadata, "experienceHintsUsed");
+            return safe;
+        }
+
+        private static void copyMetadataValue(Map<String, Object> target, Map<String, Object> metadata, String key) {
+            if (metadata.containsKey(key)) {
+                target.put(key, metadata.get(key));
+            }
+        }
+
+        private static Object visualizationSpec(Map<String, Object> metadata) {
             if (metadata == null || metadata.isEmpty()) {
                 return null;
             }
@@ -2000,7 +2515,7 @@ public class AgentTaskService {
         }
 
         @SuppressWarnings("unchecked")
-        private Object normalizeVisualizationSpec(Object raw) {
+        private static Object normalizeVisualizationSpec(Object raw) {
             if (!(raw instanceof Map<?, ?> rawMap)) {
                 return null;
             }
@@ -2081,7 +2596,7 @@ public class AgentTaskService {
         }
 
         @SuppressWarnings("unchecked")
-        private Object normalizeVisualizationPanel(Map<String, Object> spec) {
+        private static Object normalizeVisualizationPanel(Map<String, Object> spec) {
             List<Map<String, Object>> blocks = new ArrayList<>();
             Object rawBlocks = spec.get("blocks");
             if (rawBlocks instanceof List<?> list) {
@@ -2182,7 +2697,7 @@ public class AgentTaskService {
             return normalized;
         }
 
-        private Map<String, Object> analysisResult(Map<String, Object> spec, Map<String, Object> insight) {
+        private static Map<String, Object> analysisResult(Map<String, Object> spec, Map<String, Object> insight) {
             Map<String, Object> result = new LinkedHashMap<>();
             result.put("type", firstTextValue(spec.get("analysisType"), ""));
             result.put("summary", firstTextValue(insight.get("summary"), ""));
@@ -2190,7 +2705,7 @@ public class AgentTaskService {
             return result;
         }
 
-        private List<Map<String, Object>> rows(Map<String, Object> spec) {
+        private static List<Map<String, Object>> rows(Map<String, Object> spec) {
             Object dataset = spec.get("dataset");
             if (dataset instanceof Map<?, ?> datasetMap && datasetMap.get("rows") instanceof List<?> datasetRows) {
                 return rowMaps(datasetRows, datasetMap.get("columns"));
@@ -2199,7 +2714,7 @@ public class AgentTaskService {
             return data instanceof List<?> list ? rowMaps(list, null) : List.of();
         }
 
-        private List<Map<String, Object>> metricRows(Map<String, Object> spec) {
+        private static List<Map<String, Object>> metricRows(Map<String, Object> spec) {
             Object metrics = firstPresent(spec.get("metrics"), firstPresent(spec.get("values"), spec.get("kpis")));
             if (metrics instanceof Map<?, ?> map) {
                 List<Map<String, Object>> rows = new ArrayList<>();
@@ -2229,7 +2744,7 @@ public class AgentTaskService {
             return List.of();
         }
 
-        private List<Map<String, Object>> rowMaps(List<?> values, Object columnsValue) {
+        private static List<Map<String, Object>> rowMaps(List<?> values, Object columnsValue) {
             List<String> columns = columnsValue instanceof List<?> list ? list.stream().map(String::valueOf).toList() : List.of();
             List<Map<String, Object>> rows = new ArrayList<>();
             for (Object value : values) {
@@ -2252,7 +2767,7 @@ public class AgentTaskService {
             return rows;
         }
 
-        private List<String> columns(List<Map<String, Object>> rows) {
+        private static List<String> columns(List<Map<String, Object>> rows) {
             List<String> columns = new ArrayList<>();
             for (Map<String, Object> row : rows) {
                 for (String key : row.keySet()) {
@@ -2264,7 +2779,7 @@ public class AgentTaskService {
             return columns;
         }
 
-        private List<Map<String, Object>> series(Map<String, Object> spec,
+        private static List<Map<String, Object>> series(Map<String, Object> spec,
                                                  Map<String, Object> dataset,
                                                  List<String> columns,
                                                  List<Map<String, Object>> rows,
@@ -2304,7 +2819,7 @@ public class AgentTaskService {
             return values;
         }
 
-        private String normalizeVisualizationType(String type, List<Map<String, Object>> rows, List<Map<String, Object>> series) {
+        private static String normalizeVisualizationType(String type, List<Map<String, Object>> rows, List<Map<String, Object>> series) {
             String normalized = type == null ? "" : type.toLowerCase();
             if ("metrics".equals(normalized)) {
                 return "metric";
@@ -2315,7 +2830,7 @@ public class AgentTaskService {
             return series.isEmpty() ? (rows.isEmpty() ? "metric" : "table") : "chart";
         }
 
-        private String chooseChartType(Map<String, Object> spec,
+        private static String chooseChartType(Map<String, Object> spec,
                                        List<Map<String, Object>> rows,
                                        String xKey,
                                        List<Map<String, Object>> series) {
@@ -2327,24 +2842,24 @@ public class AgentTaskService {
                 return "scatter";
             }
             String label = (firstTextValue(spec.get("title"), "") + " " + firstTextValue(series.isEmpty() ? null : series.get(0).get("name"), "")).toLowerCase();
-            if (rows.size() > 1 && rows.size() <= 8 && (label.contains("share") || label.contains("ratio") || label.contains("percent") || label.contains("占比") || label.contains("比例"))) {
+            if (rows.size() > 1 && rows.size() <= 8 && (label.contains("share") || label.contains("ratio") || label.contains("percent") || label.contains("鍗犳瘮") || label.contains("姣斾緥"))) {
                 return "pie";
             }
             return isTimeKey(xKey, rows) ? "line" : "bar";
         }
 
-        private String firstNonNumericColumn(List<String> columns, List<Map<String, Object>> rows) {
+        private static String firstNonNumericColumn(List<String> columns, List<Map<String, Object>> rows) {
             return columns.stream()
                 .filter(column -> !hasNumeric(rows, column))
                 .findFirst()
                 .orElse(null);
         }
 
-        private boolean hasNumeric(List<Map<String, Object>> rows, String key) {
+        private static boolean hasNumeric(List<Map<String, Object>> rows, String key) {
             return rows.stream().anyMatch(row -> number(row.get(key)) != null);
         }
 
-        private boolean isTimeKey(String key, List<Map<String, Object>> rows) {
+        private static boolean isTimeKey(String key, List<Map<String, Object>> rows) {
             String normalized = key == null ? "" : key.toLowerCase();
             if (normalized.contains("date") || normalized.contains("time") || normalized.contains("month") || normalized.contains("year") || normalized.contains("day") || normalized.contains("week") || normalized.contains("quarter")) {
                 return true;
@@ -2363,7 +2878,7 @@ public class AgentTaskService {
             });
         }
 
-        private Double number(Object value) {
+        private static Double number(Object value) {
             if (value instanceof Number number) {
                 return number.doubleValue();
             }
@@ -2377,7 +2892,7 @@ public class AgentTaskService {
             }
         }
 
-        private String firstTextValue(Object... values) {
+        private static String firstTextValue(Object... values) {
             for (Object value : values) {
                 if (value != null && !String.valueOf(value).isBlank()) {
                     return String.valueOf(value).trim();
@@ -2386,8 +2901,41 @@ public class AgentTaskService {
             return "";
         }
 
-        private Object firstPresent(Object first, Object second) {
+        private static Object firstPresent(Object first, Object second) {
             return first == null ? second : first;
+        }
+    }
+
+    private record UiResponseContract(
+        String contractVersion,
+        String status,
+        String answer,
+        List<Map<String, Object>> citations,
+        List<Map<String, Object>> evidencePremises,
+        Double confidence,
+        String evidenceSummary,
+        Map<String, Object> visualization,
+        Object visualizationSpec
+    ) {
+
+        private Map<String, Object> asMap() {
+            Map<String, Object> values = new LinkedHashMap<>();
+            values.put("contractVersion", firstText(contractVersion, "ui_response_v1"));
+            values.put("status", firstText(status, "UNKNOWN"));
+            values.put("answer", firstText(answer, ""));
+            values.put("citations", citations == null ? List.of() : citations);
+            values.put("evidencePremises", evidencePremises == null ? List.of() : evidencePremises);
+            values.put("confidence", confidence);
+            values.put("evidenceSummary", firstText(evidenceSummary, ""));
+            values.put("visualization", visualization == null ? Map.of("type", "none") : visualization);
+            if (visualizationSpec != null) {
+                values.put("visualizationSpec", visualizationSpec);
+            }
+            return values;
+        }
+
+        private static String firstText(String value, String fallback) {
+            return value == null || value.isBlank() ? fallback : value.trim();
         }
     }
 

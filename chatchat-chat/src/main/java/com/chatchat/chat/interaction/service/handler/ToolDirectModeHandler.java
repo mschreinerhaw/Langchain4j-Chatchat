@@ -14,6 +14,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -58,6 +59,15 @@ public class ToolDirectModeHandler implements InteractionModeHandler {
             Object confirmation = parameters.remove("mcpConfirmation");
             if (confirmation instanceof Map<?, ?>) {
                 attributes.put("mcpConfirmation", confirmation);
+            }
+            Object executionContext = parameters.remove("mcpExecutionContext");
+            if (!(executionContext instanceof Map<?, ?>)) {
+                executionContext = parameters.remove("executionContext");
+            } else {
+                parameters.remove("executionContext");
+            }
+            if (executionContext instanceof Map<?, ?> executionContextMap) {
+                attributes.put("mcpExecutionContext", sanitizeExecutionContext(executionContextMap));
             }
         }
         bindQueryAsDefaultParameter(request.getToolName(), request.getQuery(), parameters);
@@ -122,6 +132,39 @@ public class ToolDirectModeHandler implements InteractionModeHandler {
             return;
         }
         params.put("input", query);
+    }
+
+    private Map<String, Object> sanitizeExecutionContext(Map<?, ?> rawContext) {
+        if (rawContext == null || rawContext.isEmpty()) {
+            return Map.of();
+        }
+        List<String> allowedKeys = List.of(
+            "env",
+            "environment",
+            "cluster",
+            "namespace",
+            "target",
+            "targetType",
+            "target_type",
+            "hostSelector",
+            "host_selector",
+            "tenant",
+            "businessUnit",
+            "business_unit",
+            "database",
+            "databaseRole",
+            "database_role",
+            "service",
+            "labels"
+        );
+        Map<String, Object> sanitized = new LinkedHashMap<>();
+        rawContext.forEach((key, value) -> {
+            if (key == null || value == null || !allowedKeys.contains(String.valueOf(key))) {
+                return;
+            }
+            sanitized.put(String.valueOf(key), value);
+        });
+        return sanitized.isEmpty() ? Map.of() : sanitized;
     }
 
 }

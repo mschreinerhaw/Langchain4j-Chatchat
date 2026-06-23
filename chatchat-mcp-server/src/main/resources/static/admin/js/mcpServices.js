@@ -39,6 +39,11 @@ function toPayload(service) {
         serviceToken: service.serviceToken,
         serviceType: service.serviceType,
         permissionGroup: service.permissionGroup,
+        environment: service.environment,
+        routingLabelsJson: service.routingLabelsJson,
+        routingLabels: service.routingLabels,
+        capabilitiesJson: service.capabilitiesJson,
+        capabilities: service.capabilities,
         enabled: service.enabled,
         status: service.status
     };

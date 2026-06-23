@@ -12,6 +12,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -23,7 +25,7 @@ import java.util.regex.Pattern;
 public class DatabaseQueryConfigService {
 
     private static final Pattern TOOL_NAME_PATTERN = Pattern.compile("^[A-Za-z0-9_-]{1,128}$");
-    private static final Set<String> RESERVED_TOOL_NAMES = Set.of("database_query");
+    private static final Set<String> RESERVED_TOOL_NAMES = Set.of("database_query", "database_query_execute");
 
     private final DatabaseQueryConfigRepository repository;
     private final ApiServiceConfigRepository apiServiceConfigRepository;
@@ -97,6 +99,10 @@ public class DatabaseQueryConfigService {
         current.setSqlTemplate(draft.getSqlTemplate());
         current.setInputSchemaJson(draft.getInputSchemaJson());
         current.setGovernanceJson(draft.getGovernanceJson());
+        current.setRoutingLabelsJson(draft.getRoutingLabelsJson());
+        current.setRoutingLabels(draft.getRoutingLabels());
+        current.setCapabilitiesJson(draft.getCapabilitiesJson());
+        current.setCapabilities(draft.getCapabilities());
         current.setMaxRows(draft.getMaxRows());
         current.setJdbcUrl(draft.getJdbcUrl());
         current.setDriverClass(draft.getDriverClass());
@@ -188,6 +194,14 @@ public class DatabaseQueryConfigService {
         config.setSqlTemplate(normalizeRequired(config.getSqlTemplate(), "sql"));
         config.setInputSchemaJson(normalizeJsonObject(config.getInputSchemaJson()));
         config.setGovernanceJson(normalizeJsonObject(config.getGovernanceJson(), "governance"));
+        config.setRoutingLabelsJson(normalizeJsonArray(
+            mergedProtocolValues(config.getRoutingLabelsJson(), config.getRoutingLabels()),
+            "routingLabels"
+        ));
+        config.setCapabilitiesJson(firstText(
+            normalizeJsonArray(mergedProtocolValues(config.getCapabilitiesJson(), config.getCapabilities()), "capabilities"),
+            ModelProtocolJson.compact(List.of("database_query", "sql_query_execute", "jdbc"))
+        ));
         config.setMaxRows(config.getMaxRows() <= 0 ? 50 : Math.min(500, config.getMaxRows()));
         if (config.getDatasourceId() != null) {
             datasourceConfigService.getEnabled(config.getDatasourceId());
@@ -234,6 +248,51 @@ public class DatabaseQueryConfigService {
         }
     }
 
+    private String normalizeJsonArray(String json, String fieldName) {
+        String value = blankToNull(json);
+        if (value == null) {
+            return null;
+        }
+        try {
+            List<String> items = objectMapper.readValue(value, new TypeReference<>() {});
+            List<String> normalized = items.stream()
+                .filter(item -> item != null && !item.isBlank())
+                .map(String::trim)
+                .distinct()
+                .toList();
+            return normalized.isEmpty() ? null : ModelProtocolJson.compact(normalized);
+        } catch (Exception ex) {
+            throw new IllegalArgumentException(fieldName + " must be a JSON string array");
+        }
+    }
+
+    private String mergedProtocolValues(String json, List<String> values) {
+        LinkedHashSet<String> merged = new LinkedHashSet<>();
+        readJsonArray(json).forEach(merged::add);
+        if (values != null) {
+            values.stream()
+                .filter(value -> value != null && !value.isBlank())
+                .map(String::trim)
+                .forEach(merged::add);
+        }
+        return merged.isEmpty() ? null : ModelProtocolJson.compact(new ArrayList<>(merged));
+    }
+
+    private List<String> readJsonArray(String json) {
+        if (json == null || json.isBlank()) {
+            return List.of();
+        }
+        try {
+            return objectMapper.readValue(json, new TypeReference<List<String>>() {}).stream()
+                .filter(item -> item != null && !item.isBlank())
+                .map(String::trim)
+                .distinct()
+                .toList();
+        } catch (Exception ignored) {
+            return List.of();
+        }
+    }
+
     /**
      * Normalizes the required.
      *
@@ -247,6 +306,10 @@ public class DatabaseQueryConfigService {
             throw new IllegalArgumentException(fieldName + " is required");
         }
         return normalized;
+    }
+
+    private String firstText(String value, String fallback) {
+        return value == null || value.isBlank() ? fallback : value.trim();
     }
 
     /**

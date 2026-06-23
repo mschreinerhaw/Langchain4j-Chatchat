@@ -4,6 +4,7 @@ import com.chatchat.mcpserver.audit.InvocationAuditService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.sql.Connection;
@@ -20,10 +21,15 @@ import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class SqlQueryExecuteService {
+
+    private static final int LOG_SQL_LIMIT = 4000;
+    private static final int LOG_ROWS_LIMIT = 20;
 
     private final SqlDatasourceConfigService datasourceConfigService;
     private final SqlSafetyService safetyService;
@@ -41,11 +47,15 @@ public class SqlQueryExecuteService {
         int maxRows = 1000;
         try {
             datasource = datasourceConfigService.getEnabled(text(request, "datasourceId"));
+            assertExecutionCapability(datasource);
             timeoutSeconds = normalizeTimeout(request.get("timeoutSeconds"), datasource.getDefaultTimeoutSeconds());
             maxRows = normalizeMaxRows(request.get("maxRows"), datasource.getDefaultMaxRows());
             String sql = resolveSql(request);
             normalizedSql = safetyService.validateAndNormalize(sql, maxRows);
             validateAllowedTables(datasource, normalizedSql);
+            log.info("MCP SQL query execution requested: datasourceId={}, datasourceName={}, env={}, tool={}, timeoutSeconds={}, maxRows={}, purpose={}, sourceTaskId={}, sql={}",
+                datasource.getId(), datasource.getName(), datasource.getEnvironment(), datasource.getToolName(),
+                timeoutSeconds, maxRows, text(request, "purpose"), text(request, "sourceTaskId"), truncateSql(normalizedSql));
             result = query(datasource, sql, normalizedSql, timeoutSeconds, maxRows,
                 text(request, "purpose"), text(request, "sourceTaskId"), startedAt);
         } catch (Exception ex) {
@@ -69,7 +79,10 @@ public class SqlQueryExecuteService {
                 text(request, "sourceTaskId"),
                 ex.getMessage()
             );
+            log.warn("MCP SQL query execution failed before/while running: datasourceId={}, durationMs={}, error={}, sql={}",
+                result.datasourceId(), durationMs, ex.getMessage(), truncateSql(normalizedSql));
         }
+        logSqlResult(result);
         auditService.recordSqlQueryCall(datasource, result);
         return result;
     }
@@ -78,6 +91,71 @@ public class SqlQueryExecuteService {
         Map<String, Object> request = new LinkedHashMap<>(arguments == null ? Map.of() : arguments);
         request.put("datasourceId", datasource.getId());
         return execute(request);
+    }
+
+    public SqlQueryResult testConnection(SqlDatasourceConfig datasource) {
+        long startedAt = System.currentTimeMillis();
+        int timeoutSeconds = Math.max(1, Math.min(datasource.getDefaultTimeoutSeconds(), 60));
+        log.info("MCP SQL execution capability probe started: datasourceName={}, tool={}, env={}, jdbcUrl={}, timeoutSeconds={}",
+            datasource.getName(), datasource.getToolName(), datasource.getEnvironment(), redactJdbcUrl(datasource.getJdbcUrl()), timeoutSeconds);
+        try {
+            assertExecutionCapability(datasource);
+            if (datasource.getDriverClass() != null && !datasource.getDriverClass().isBlank()) {
+                Class.forName(datasource.getDriverClass().trim());
+            }
+            try (Connection connection = DriverManager.getConnection(
+                datasource.getJdbcUrl(), datasource.getUsername(), datasource.getPassword());
+                 Statement statement = connection.createStatement()) {
+                connection.setReadOnly(true);
+                statement.setQueryTimeout(timeoutSeconds);
+                ProbeQueryResult probe = executeProbeQuery(statement);
+                long durationMs = Math.max(0, System.currentTimeMillis() - startedAt);
+                SqlQueryResult result = new SqlQueryResult(
+                    true,
+                    datasource.getId(),
+                    datasource.getName(),
+                    datasource.getToolName(),
+                    datasource.getEnvironment(),
+                    probe.sql(),
+                    probe.sql(),
+                    timeoutSeconds,
+                    1,
+                    List.of("probe"),
+                    List.of(Map.of("probe", probe.value())),
+                    1,
+                    false,
+                    durationMs,
+                    "asset_connection_test",
+                    "asset-center",
+                    null
+                );
+                logSqlResult(result);
+                return result;
+            }
+        } catch (Exception ex) {
+            long durationMs = Math.max(0, System.currentTimeMillis() - startedAt);
+            SqlQueryResult result = new SqlQueryResult(
+                false,
+                datasource.getId(),
+                datasource.getName(),
+                datasource.getToolName(),
+                datasource.getEnvironment(),
+                "connection_test",
+                null,
+                timeoutSeconds,
+                1,
+                List.of(),
+                List.of(),
+                0,
+                false,
+                durationMs,
+                "asset_connection_test",
+                "asset-center",
+                ex.getMessage()
+            );
+            logSqlResult(result);
+            return result;
+        }
     }
 
     private String resolveSql(Map<String, Object> request) {
@@ -104,6 +182,9 @@ public class SqlQueryExecuteService {
             connection.setReadOnly(true);
             statement.setQueryTimeout(timeoutSeconds);
             statement.setMaxRows(maxRows);
+            log.info("MCP SQL query JDBC connected: datasourceId={}, datasourceName={}, env={}, jdbcUrl={}, readOnly=true, timeoutSeconds={}, maxRows={}",
+                datasource.getId(), datasource.getName(), datasource.getEnvironment(), redactJdbcUrl(datasource.getJdbcUrl()),
+                timeoutSeconds, maxRows);
             try (ResultSet resultSet = statement.executeQuery(sql)) {
                 ResultSetMetaData metaData = resultSet.getMetaData();
                 List<String> columns = columns(metaData);
@@ -141,6 +222,88 @@ public class SqlQueryExecuteService {
                 );
             }
         }
+    }
+
+    private void assertExecutionCapability(SqlDatasourceConfig datasource) {
+        if (datasource.getCapabilitiesJson() == null || datasource.getCapabilitiesJson().isBlank()) {
+            log.warn("MCP SQL datasource has no protocol capabilities configured; allowing legacy execution: datasourceId={}, datasourceName={}, tool={}",
+                datasource.getId(), datasource.getName(), datasource.getToolName());
+            return;
+        }
+        Set<String> capabilities;
+        try {
+            capabilities = objectMapper.readValue(datasource.getCapabilitiesJson(), new TypeReference<List<String>>() {}).stream()
+                .filter(value -> value != null && !value.isBlank())
+                .map(value -> value.trim().toLowerCase(Locale.ROOT))
+                .collect(Collectors.toSet());
+        } catch (Exception ex) {
+            throw new IllegalArgumentException("SQL datasource capabilities config is invalid");
+        }
+        if (capabilities.stream().noneMatch(value -> value.equals("sql_query_execute")
+            || value.equals("sql_exec")
+            || value.equals("sql")
+            || value.equals("jdbc"))) {
+            throw new IllegalArgumentException("SQL datasource does not declare SQL query execution capability: " + datasource.getToolName());
+        }
+    }
+
+    private ProbeQueryResult executeProbeQuery(Statement statement) throws Exception {
+        List<String> probes = List.of("SELECT 1", "SELECT 1 FROM DUAL");
+        Exception lastError = null;
+        for (String sql : probes) {
+            try (ResultSet resultSet = statement.executeQuery(sql)) {
+                Object value = resultSet.next() ? resultSet.getObject(1) : null;
+                return new ProbeQueryResult(sql, value);
+            } catch (Exception ex) {
+                lastError = ex;
+            }
+        }
+        throw lastError == null ? new IllegalStateException("No SQL probe query configured") : lastError;
+    }
+
+    private void logSqlResult(SqlQueryResult result) {
+        if (result == null) {
+            return;
+        }
+        Map<String, Object> rowPreview = new LinkedHashMap<>();
+        rowPreview.put("columns", result.columns());
+        rowPreview.put("rowCount", result.rowCount());
+        rowPreview.put("possiblyTruncated", result.possiblyTruncated());
+        rowPreview.put("rows", result.rows() == null ? List.of() : result.rows().stream().limit(LOG_ROWS_LIMIT).toList());
+        String message = "MCP SQL query execution result: success={}, datasourceId={}, datasourceName={}, tool={}, env={}, timeoutSeconds={}, maxRows={}, rowCount={}, durationMs={}, sql={}, output={}, error={}";
+        if (result.success()) {
+            log.info(message,
+                result.success(), result.datasourceId(), result.datasourceName(), result.toolName(), result.environment(),
+                result.timeoutSeconds(), result.maxRows(), result.rowCount(), result.durationMs(),
+                truncateSql(result.normalizedSql() == null ? result.sql() : result.normalizedSql()), rowPreview, result.errorMessage());
+        } else {
+            log.warn(message,
+                result.success(), result.datasourceId(), result.datasourceName(), result.toolName(), result.environment(),
+                result.timeoutSeconds(), result.maxRows(), result.rowCount(), result.durationMs(),
+                truncateSql(result.normalizedSql() == null ? result.sql() : result.normalizedSql()), rowPreview, result.errorMessage());
+        }
+    }
+
+    private String truncateSql(String value) {
+        if (value == null) {
+            return null;
+        }
+        String normalized = value.replace("\r", "\\r").replace("\n", "\\n");
+        if (normalized.length() <= LOG_SQL_LIMIT) {
+            return normalized;
+        }
+        return normalized.substring(0, LOG_SQL_LIMIT) + "...<truncated>";
+    }
+
+    private String redactJdbcUrl(String jdbcUrl) {
+        if (jdbcUrl == null || jdbcUrl.isBlank()) {
+            return jdbcUrl;
+        }
+        return jdbcUrl.replaceAll("(?i)(password|pwd)=([^;&]+)", "$1=***")
+            .replaceAll("(?i)(user|username)=([^;&]+)", "$1=***");
+    }
+
+    private record ProbeQueryResult(String sql, Object value) {
     }
 
     private List<String> columns(ResultSetMetaData metaData) throws Exception {

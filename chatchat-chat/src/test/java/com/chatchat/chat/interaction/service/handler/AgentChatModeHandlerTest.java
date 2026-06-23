@@ -23,6 +23,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
@@ -538,6 +539,197 @@ class AgentChatModeHandlerTest {
 
         assertThat(availableTools.getValue())
             .containsExactly("mcp_alpha_1", "mcp_alpha_2", "mcp_alpha_3", "mcp_alpha_4", "mcp_alpha_5");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void mcpExecutionContextConstrainsPromptAndRuntimeAttributes() {
+        AgentOrchestrator orchestrator = mock(AgentOrchestrator.class);
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        SkillCatalogService skillCatalogService = mock(SkillCatalogService.class);
+        McpToolRegistryBridge mcpToolRegistryBridge = mock(McpToolRegistryBridge.class);
+        AgentToolPolicyResolver toolPolicyResolver = new AgentToolPolicyResolver(
+            toolRegistry,
+            skillCatalogService,
+            mcpToolRegistryBridge
+        );
+        AgentChatModeHandler handler = new AgentChatModeHandler(
+            orchestrator,
+            skillCatalogService,
+            toolPolicyResolver
+        );
+
+        when(skillCatalogService.resolve("ops")).thenReturn(skillWithoutWebSearch());
+        when(mcpToolRegistryBridge.listRegisteredTools()).thenReturn(List.of());
+        when(orchestrator.executeAgent(
+            anyString(),
+            isNull(),
+            anyList(),
+            anyString(),
+            isNull(),
+            anyList(),
+            anyList(),
+            anyString(),
+            anyString(),
+            anyString(),
+            anyString(),
+            anyInt(),
+            anyList(),
+            anyBoolean(),
+            anyMap()
+        )).thenReturn(agentResult("ok"));
+
+        InteractionRequest request = InteractionRequest.builder()
+            .mode("agent_chat")
+            .skillId("ops")
+            .query("检查 datanode 磁盘")
+            .userId("u1")
+            .toolInput(Map.of("executionContext", Map.of(
+                "env", "prod",
+                "cluster", "hadoop-prod-01",
+                "targetType", "datanode",
+                "hostSelector", Map.of("type", "label", "value", "datanode"),
+                "hostId", "server-01"
+            )))
+            .build();
+        InteractionContext context = InteractionContext.builder()
+            .requestId("req")
+            .conversationId("conv")
+            .mode(InteractionMode.AGENT_CHAT)
+            .history(List.of())
+            .build();
+
+        handler.handle(request, context);
+
+        ArgumentCaptor<String> systemPrompt = ArgumentCaptor.forClass(String.class);
+        ArgumentCaptor<Map<String, Object>> attributes = ArgumentCaptor.forClass(Map.class);
+        verify(orchestrator).executeAgent(
+            anyString(),
+            isNull(),
+            anyList(),
+            systemPrompt.capture(),
+            isNull(),
+            anyList(),
+            anyList(),
+            anyString(),
+            anyString(),
+            anyString(),
+            anyString(),
+            anyInt(),
+            anyList(),
+            anyBoolean(),
+            attributes.capture()
+        );
+
+        assertThat(systemPrompt.getValue())
+            .contains("MCP execution target policy")
+            .contains("targetType=datanode")
+            .contains("cluster=hadoop-prod-01")
+            .doesNotContain("server-01")
+            .doesNotContain("hostId");
+
+        Map<String, Object> executionContext = (Map<String, Object>) attributes.getValue().get("mcpExecutionContext");
+        assertThat(executionContext)
+            .containsEntry("env", "prod")
+            .containsEntry("targetType", "datanode")
+            .doesNotContainKey("hostId");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void mcpExecutionContextReplacesConcreteAssetToolsWithGateway() {
+        AgentOrchestrator orchestrator = mock(AgentOrchestrator.class);
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        SkillCatalogService skillCatalogService = mock(SkillCatalogService.class);
+        McpToolRegistryBridge mcpToolRegistryBridge = mock(McpToolRegistryBridge.class);
+        AgentToolPolicyResolver toolPolicyResolver = new AgentToolPolicyResolver(
+            toolRegistry,
+            skillCatalogService,
+            mcpToolRegistryBridge
+        );
+        AgentChatModeHandler handler = new AgentChatModeHandler(
+            orchestrator,
+            skillCatalogService,
+            toolPolicyResolver
+        );
+
+        when(skillCatalogService.resolve("ops")).thenReturn(skillWithoutWebSearch());
+        when(mcpToolRegistryBridge.listRegisteredTools()).thenReturn(List.of(
+            new McpToolRegistryBridge.RegisteredMcpTool(
+                "mcp_ops_ssh_dn_a_01",
+                "svc-ops",
+                "Ops MCP",
+                "ssh_dn_a_01",
+                "SSH host tool"
+            ),
+            new McpToolRegistryBridge.RegisteredMcpTool(
+                "mcp_ops_linux_command_execute",
+                "svc-ops",
+                "Ops MCP",
+                "linux_command_execute",
+                "Linux command gateway"
+            )
+        ));
+        when(toolRegistry.hasTool("mcp_ops_linux_command_execute")).thenReturn(true);
+        when(orchestrator.executeAgent(
+            anyString(),
+            isNull(),
+            anyList(),
+            anyString(),
+            isNull(),
+            anyList(),
+            anyList(),
+            anyString(),
+            anyString(),
+            anyString(),
+            anyString(),
+            anyInt(),
+            anyList(),
+            anyBoolean(),
+            anyMap()
+        )).thenReturn(agentResult("ok"));
+
+        InteractionRequest request = InteractionRequest.builder()
+            .mode("agent_chat")
+            .skillId("ops")
+            .query("检查 datanode 磁盘")
+            .userId("u1")
+            .availableTools(List.of("mcp_ops_ssh_dn_a_01"))
+            .toolInput(Map.of("executionContext", Map.of(
+                "env", "prod",
+                "targetType", "datanode"
+            )))
+            .build();
+        InteractionContext context = InteractionContext.builder()
+            .requestId("req")
+            .conversationId("conv")
+            .mode(InteractionMode.AGENT_CHAT)
+            .history(List.of())
+            .build();
+
+        handler.handle(request, context);
+
+        ArgumentCaptor<List<String>> availableTools = ArgumentCaptor.forClass(List.class);
+        verify(orchestrator).executeAgent(
+            anyString(),
+            isNull(),
+            availableTools.capture(),
+            anyString(),
+            isNull(),
+            anyList(),
+            anyList(),
+            anyString(),
+            anyString(),
+            anyString(),
+            anyString(),
+            anyInt(),
+            anyList(),
+            anyBoolean(),
+            anyMap()
+        );
+
+        assertThat(availableTools.getValue())
+            .containsExactly("mcp_ops_linux_command_execute");
     }
 
     private SkillDefinition skillWithWebSearch() {

@@ -230,6 +230,22 @@ public class DocumentSearchEvidenceService {
                     addTitleOnlyDocument(documents, outline, result, permissionContext);
                     continue;
                 }
+                if (shouldExpandCodeExample(query, result, matchedChunks, filters)) {
+                    int before = chunks.size();
+                    addCodeExampleExpandedEvidence(
+                        chunks,
+                        result,
+                        query,
+                        queryTokens,
+                        matchedChunks,
+                        topK - chunks.size(),
+                        debug,
+                        permissionContext
+                    );
+                    if (chunks.size() > before && chunks.size() >= topK) {
+                        return controlledResult(visibleResult(query, intent, chunks, documents, outline, visibilityContext), state, events, elapsedMs(startedAt));
+                    }
+                }
                 for (SearchMatchedChunk chunk : matchedChunks) {
                     if (!matchesChunkType(chunk, filters == null ? null : filters.chunkType())) {
                         continue;
@@ -1259,6 +1275,211 @@ public class DocumentSearchEvidenceService {
             debug
         );
         chunks.addAll(expanded.stream().limit(Math.max(1, remaining)).toList());
+    }
+
+    private void addCodeExampleExpandedEvidence(List<DocumentEvidenceChunk> chunks,
+                                                SearchResult result,
+                                                String query,
+                                                List<String> queryTokens,
+                                                List<SearchMatchedChunk> matchedChunks,
+                                                int remaining,
+                                                boolean debug,
+                                                SearchPermissionContext permissionContext) {
+        if (remaining <= 0 || result == null || !hasText(result.docId())) {
+            return;
+        }
+        SearchDocument document = searchService.get(result.docId(), permissionContext).orElse(null);
+        if (document == null || !hasText(document.getContent())) {
+            return;
+        }
+        List<String> excerpts = sqlStatementExcerpts(document.getContent(), query, queryTokens, matchedChunks, Math.min(remaining, 3));
+        int added = 0;
+        for (int i = 0; i < excerpts.size() && added < remaining; i++) {
+            String content = excerpts.get(i);
+            if (!hasText(content)) {
+                continue;
+            }
+            int syntheticIndex = 100_000 + i;
+            chunks.add(toCodeExampleEvidence(document, query, queryTokens, content, syntheticIndex, debug));
+            added++;
+        }
+    }
+
+    private DocumentEvidenceChunk toCodeExampleEvidence(SearchDocument document,
+                                                        String query,
+                                                        List<String> queryTokens,
+                                                        String content,
+                                                        int chunkIndex,
+                                                        boolean debug) {
+        String fileId = firstNonBlank(document.getDocId(), "unknown");
+        String fileName = firstNonBlank(document.getFileName(), document.getTitle(), fileId);
+        List<String> highlights = highlights(query, queryTokens, content);
+        return new DocumentEvidenceChunk(
+            refId(fileId, chunkIndex),
+            chunkId(fileId, chunkIndex),
+            fileId,
+            fileName,
+            "SQL/code example",
+            chunkIndex,
+            "code_example_expanded",
+            96.0D,
+            content,
+            highlights,
+            citation(fileName, "SQL/code example", chunkIndex),
+            debug ? new SearchTrace(
+                highlights,
+                intentClassifier.classifyName(query),
+                List.of(),
+                "code example expanded from full document around matched SQL statement"
+            ) : null,
+            document.getTenantId(),
+            document.getUserId(),
+            document.getVisibility(),
+            safeList(document.getPermissionRoles())
+        );
+    }
+
+    private List<String> sqlStatementExcerpts(String content,
+                                              String query,
+                                              List<String> queryTokens,
+                                              List<SearchMatchedChunk> matchedChunks,
+                                              int limit) {
+        if (!hasText(content) || limit <= 0) {
+            return List.of();
+        }
+        String normalizedContent = content.toLowerCase(Locale.ROOT);
+        List<String> needles = codeExampleNeedles(query, queryTokens, matchedChunks);
+        List<String> excerpts = new ArrayList<>();
+        Set<String> seen = new LinkedHashSet<>();
+        for (String needle : needles) {
+            if (!hasText(needle)) {
+                continue;
+            }
+            int from = 0;
+            String normalizedNeedle = needle.toLowerCase(Locale.ROOT);
+            while (from < normalizedContent.length() && excerpts.size() < limit) {
+                int hit = normalizedContent.indexOf(normalizedNeedle, from);
+                if (hit < 0) {
+                    break;
+                }
+                String excerpt = sqlStatementAround(content, normalizedContent, hit);
+                String key = normalizeComparable(excerpt);
+                if (hasText(excerpt) && seen.add(key)) {
+                    excerpts.add(excerpt);
+                }
+                from = Math.max(hit + normalizedNeedle.length(), hit + 1);
+            }
+            if (excerpts.size() >= limit) {
+                break;
+            }
+        }
+        return List.copyOf(excerpts);
+    }
+
+    private List<String> codeExampleNeedles(String query,
+                                            List<String> queryTokens,
+                                            List<SearchMatchedChunk> matchedChunks) {
+        Set<String> needles = new LinkedHashSet<>();
+        for (String token : safeList(queryTokens)) {
+            String value = nullToEmpty(token).trim();
+            if (value.length() >= 2 && !containsAny(value, "sql", "ddl", "sample", "example", "示例", "样例", "例子", "代码", "建表")) {
+                needles.add(value);
+            }
+        }
+        String normalizedQuery = nullToEmpty(query).toLowerCase(Locale.ROOT);
+        if (normalizedQuery.contains("ftp")) {
+            needles.add("ftp");
+        }
+        if (normalizedQuery.contains("jdbc")) {
+            needles.add("jdbc");
+        }
+        for (SearchMatchedChunk chunk : matchedChunks == null ? List.<SearchMatchedChunk>of() : matchedChunks) {
+            String text = firstNonBlank(chunk.content(), chunk.text());
+            for (String connector : connectorValues(text)) {
+                needles.add(connector);
+            }
+        }
+        needles.add("create table");
+        return needles.stream()
+            .filter(this::hasText)
+            .limit(8)
+            .toList();
+    }
+
+    private List<String> connectorValues(String text) {
+        if (!hasText(text)) {
+            return List.of();
+        }
+        List<String> values = new ArrayList<>();
+        java.util.regex.Matcher matcher = java.util.regex.Pattern
+            .compile("(?i)['\"]connector['\"]\\s*=\\s*['\"]([^'\"]+)['\"]")
+            .matcher(text);
+        while (matcher.find() && values.size() < 4) {
+            values.add(matcher.group(1));
+        }
+        return values;
+    }
+
+    private String sqlStatementAround(String content, String normalizedContent, int hit) {
+        int start = nearestSqlStatementStart(normalizedContent, hit);
+        int end = nearestSqlStatementEnd(normalizedContent, hit);
+        if (end <= start) {
+            end = Math.min(content.length(), start + 2000);
+        }
+        String excerpt = content.substring(start, end).trim();
+        return truncate(excerpt, 6000);
+    }
+
+    private int nearestSqlStatementStart(String normalizedContent, int hit) {
+        int create = normalizedContent.lastIndexOf("create table", hit);
+        int insert = normalizedContent.lastIndexOf("insert into", hit);
+        int select = normalizedContent.lastIndexOf("select ", hit);
+        int set = normalizedContent.lastIndexOf("set ", hit);
+        int start = Math.max(Math.max(create, insert), Math.max(select, set));
+        if (start >= 0) {
+            return start;
+        }
+        int previousSemicolon = normalizedContent.lastIndexOf(';', hit);
+        return previousSemicolon >= 0 ? previousSemicolon + 1 : 0;
+    }
+
+    private int nearestSqlStatementEnd(String normalizedContent, int hit) {
+        int semicolon = normalizedContent.indexOf(';', hit);
+        if (semicolon >= 0) {
+            return semicolon + 1;
+        }
+        int nextCreate = normalizedContent.indexOf("create table", hit + 1);
+        if (nextCreate >= 0) {
+            return nextCreate;
+        }
+        return normalizedContent.length();
+    }
+
+    private boolean shouldExpandCodeExample(String query,
+                                            SearchResult result,
+                                            List<SearchMatchedChunk> matchedChunks,
+                                            DocumentSearchFilters filters) {
+        if (filters != null && hasText(filters.chunkType())) {
+            return false;
+        }
+        String request = normalizeComparable(query);
+        boolean asksForCodeExample = containsAny(request,
+            "sql", "ddl", "createtable", "建表", "样例", "示例", "例子", "代码", "建表语句"
+        );
+        if (!asksForCodeExample) {
+            return false;
+        }
+        String descriptor = normalizeComparable(firstNonBlank(result == null ? null : result.fileName(), result == null ? null : result.title(), result == null ? null : result.documentType()));
+        if (containsAny(descriptor, "sql")) {
+            return true;
+        }
+        for (SearchMatchedChunk chunk : matchedChunks == null ? List.<SearchMatchedChunk>of() : matchedChunks) {
+            String text = firstNonBlank(chunk.content(), chunk.text(), chunk.chunkType(), chunk.section());
+            if (containsAny(text, "create table", "connector", "with (", "insert into", "select ")) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private boolean isDocumentAnchorHit(SearchResult result, String query, List<String> queryTokens) {

@@ -22,6 +22,9 @@ import {
     setMcpEnabled
 } from './mcpServices.js';
 import {
+    deleteHttpAsset,
+    deleteSqlAsset,
+    deleteSshAsset,
     listHttpAssets,
     listSqlAssets,
     listSshAssets,
@@ -29,7 +32,10 @@ import {
     refreshSqlTools,
     saveHttpAsset,
     saveSqlAsset,
-    saveSshAsset
+    saveSshAsset,
+    testHttpAsset,
+    testSqlAsset,
+    testSshAsset
 } from './assetCenter.js';
 import { getAuditLog, listAuditLogs } from './auditLogs.js';
 import {
@@ -195,6 +201,9 @@ function bindEvents() {
     document.getElementById('sshAssetForm').addEventListener('submit', handleSshAssetSave);
     document.getElementById('sqlAssetForm').addEventListener('submit', handleSqlAssetSave);
     bindOptional('httpAssetForm', 'submit', handleHttpAssetSave);
+    document.getElementById('testSshAssetBtn').addEventListener('click', handleSshAssetTest);
+    document.getElementById('testSqlAssetBtn').addEventListener('click', handleSqlAssetTest);
+    bindOptional('testHttpAssetBtn', 'click', handleHttpAssetTest);
     document.getElementById('refreshOpsAssetToolsBtn').addEventListener('click', handleOpsAssetRefresh);
     document.getElementById('refreshSqlAssetToolsBtn').addEventListener('click', handleSqlAssetRefresh);
     document.querySelectorAll('[data-asset-tab]').forEach(button => {
@@ -800,13 +809,20 @@ async function removeMcpService(service) {
 }
 
 function readMcpForm() {
+    const id = value('mcpServiceId');
+    const existing = id ? mcpServices.find(service => service.id === id) || {} : {};
     return {
-        id: value('mcpServiceId'),
+        id,
         name: value('mcpName'),
         endpoint: value('mcpEndpoint'),
         serviceToken: value('mcpServiceToken'),
         serviceType: value('mcpServiceType'),
         permissionGroup: value('mcpPermissionGroup'),
+        environment: existing.environment,
+        routingLabelsJson: existing.routingLabelsJson,
+        routingLabels: existing.routingLabels,
+        capabilitiesJson: existing.capabilitiesJson,
+        capabilities: existing.capabilities,
         enabled: value('mcpEnabled') === 'true',
         status: value('mcpStatus')
     };
@@ -1187,9 +1203,13 @@ function renderSshAssets() {
             </div>
             <div class="btn-group btn-group-sm mt-3" role="group">
                 <button class="btn btn-outline-secondary" data-action="edit">编辑</button>
+                <button class="btn btn-outline-secondary" data-action="test">测试</button>
+                <button class="btn btn-outline-danger" data-action="delete">删除</button>
             </div>
         `;
         item.querySelector('[data-action="edit"]').addEventListener('click', () => selectSshAsset(asset));
+        item.querySelector('[data-action="test"]').addEventListener('click', () => testSshAssetFromCard(asset));
+        item.querySelector('[data-action="delete"]').addEventListener('click', () => removeSshAsset(asset));
         list.appendChild(item);
     }
 }
@@ -1222,9 +1242,13 @@ function renderSqlAssets() {
             </div>
             <div class="btn-group btn-group-sm mt-3" role="group">
                 <button class="btn btn-outline-secondary" data-action="edit">编辑</button>
+                <button class="btn btn-outline-secondary" data-action="test">测试</button>
+                <button class="btn btn-outline-danger" data-action="delete">删除</button>
             </div>
         `;
         item.querySelector('[data-action="edit"]').addEventListener('click', () => selectSqlAsset(asset));
+        item.querySelector('[data-action="test"]').addEventListener('click', () => testSqlAssetFromCard(asset));
+        item.querySelector('[data-action="delete"]').addEventListener('click', () => removeSqlAsset(asset));
         list.appendChild(item);
     }
 }
@@ -1261,9 +1285,13 @@ function renderHttpAssets() {
             </div>
             <div class="btn-group btn-group-sm mt-3" role="group">
                 <button class="btn btn-outline-secondary" data-action="edit">编辑</button>
+                <button class="btn btn-outline-secondary" data-action="test">测试</button>
+                <button class="btn btn-outline-danger" data-action="delete">删除</button>
             </div>
         `;
         item.querySelector('[data-action="edit"]').addEventListener('click', () => selectHttpAsset(asset));
+        item.querySelector('[data-action="test"]').addEventListener('click', () => testHttpAssetFromCard(asset));
+        item.querySelector('[data-action="delete"]').addEventListener('click', () => removeHttpAsset(asset));
         list.appendChild(item);
     }
 }
@@ -1504,6 +1532,141 @@ async function handleHttpAssetSave(event) {
         selectedHttpAssetId = saved.id;
         notify('保存成功', `${saved.toolName} 已保存为 HTTP 请求资产。`);
         hideHttpAssetModal();
+        await loadAssets();
+    } catch (error) {
+        handleError(error);
+    }
+}
+
+async function handleSshAssetTest() {
+    const form = document.getElementById('sshAssetForm');
+    if (!form.reportValidity()) {
+        return;
+    }
+    try {
+        const result = await testSshAsset(readSshAssetForm());
+        notify(result.success ? '测试成功' : '测试失败', result.success ? 'SSH 连接认证通过。' : (result.errorMessage || 'SSH 连接失败。'));
+        showResult(result, {
+            title: `${value('sshAssetToolName') || value('sshAssetName') || '服务器资产'} 测试结果`,
+            subtitle: '使用当前表单内容测试 SSH 连接与认证，不保存配置'
+        });
+    } catch (error) {
+        handleError(error);
+    }
+}
+
+async function handleSqlAssetTest() {
+    const form = document.getElementById('sqlAssetForm');
+    if (!form.reportValidity()) {
+        return;
+    }
+    try {
+        const result = await testSqlAsset(readSqlAssetForm());
+        notify(result.success ? '测试成功' : '测试失败', result.success ? '数据库连接有效。' : (result.errorMessage || '数据库连接失败。'));
+        showResult(result, {
+            title: `${value('sqlAssetToolName') || value('sqlAssetName') || '数据库资产'} 测试结果`,
+            subtitle: '使用当前表单内容测试 JDBC 连接，不保存配置'
+        });
+    } catch (error) {
+        handleError(error);
+    }
+}
+
+async function handleHttpAssetTest() {
+    const form = document.getElementById('httpAssetForm');
+    if (!form?.reportValidity()) {
+        return;
+    }
+    try {
+        const result = await testHttpAsset(readHttpAssetForm());
+        notify(result.success ? '测试成功' : '测试失败', result.success ? `HTTP ${result.statusCode} 请求成功。` : (result.errorMessage || `HTTP ${result.statusCode || '-'} 请求失败。`));
+        showResult(result, {
+            title: `${value('httpAssetToolName') || value('httpAssetName') || 'HTTP 请求资产'} 测试结果`,
+            subtitle: '使用当前表单内容发起一次 HTTP 请求，不保存配置'
+        });
+    } catch (error) {
+        handleError(error);
+    }
+}
+
+async function testSshAssetFromCard(asset) {
+    try {
+        const result = await testSshAsset(asset);
+        notify(result.success ? '测试成功' : '测试失败', result.success ? 'SSH 连接认证通过。' : (result.errorMessage || 'SSH 连接失败。'));
+        showResult(result, {
+            title: `${asset.toolName || asset.name || '服务器资产'} 测试结果`,
+            subtitle: '使用当前保存的资产配置测试 SSH 连接与认证'
+        });
+    } catch (error) {
+        handleError(error);
+    }
+}
+
+async function testSqlAssetFromCard(asset) {
+    try {
+        const result = await testSqlAsset(asset);
+        notify(result.success ? '测试成功' : '测试失败', result.success ? '数据库连接有效。' : (result.errorMessage || '数据库连接失败。'));
+        showResult(result, {
+            title: `${asset.toolName || asset.name || '数据库资产'} 测试结果`,
+            subtitle: '使用当前保存的资产配置测试 JDBC 连接'
+        });
+    } catch (error) {
+        handleError(error);
+    }
+}
+
+async function testHttpAssetFromCard(asset) {
+    try {
+        const result = await testHttpAsset(asset);
+        notify(result.success ? '测试成功' : '测试失败', result.success ? `HTTP ${result.statusCode} 请求成功。` : (result.errorMessage || `HTTP ${result.statusCode || '-'} 请求失败。`));
+        showResult(result, {
+            title: `${asset.toolName || asset.name || 'HTTP 请求资产'} 测试结果`,
+            subtitle: '使用当前保存的资产配置发起一次 HTTP 请求'
+        });
+    } catch (error) {
+        handleError(error);
+    }
+}
+
+async function removeSshAsset(asset) {
+    if (!window.confirm(`确定删除 ${asset.toolName || asset.name || '该服务器资产'} 吗？`)) return;
+    try {
+        await deleteSshAsset(asset.id);
+        if (selectedSshAssetId === asset.id) {
+            selectedSshAssetId = '';
+            hideSshAssetModal();
+        }
+        notify('删除成功', `${asset.toolName || asset.name} 已删除。`);
+        await loadAssets();
+    } catch (error) {
+        handleError(error);
+    }
+}
+
+async function removeSqlAsset(asset) {
+    if (!window.confirm(`确定删除 ${asset.toolName || asset.name || '该数据库资产'} 吗？`)) return;
+    try {
+        await deleteSqlAsset(asset.id);
+        if (selectedSqlAssetId === asset.id) {
+            selectedSqlAssetId = '';
+            hideSqlAssetModal();
+        }
+        notify('删除成功', `${asset.toolName || asset.name} 已删除。`);
+        await loadAssets();
+    } catch (error) {
+        handleError(error);
+    }
+}
+
+async function removeHttpAsset(asset) {
+    if (!window.confirm(`确定删除 ${asset.toolName || asset.name || '该 HTTP 请求资产'} 吗？`)) return;
+    try {
+        await deleteHttpAsset(asset.id);
+        if (selectedHttpAssetId === asset.id) {
+            selectedHttpAssetId = '';
+            hideHttpAssetModal();
+        }
+        notify('删除成功', `${asset.toolName || asset.name} 已删除。`);
         await loadAssets();
     } catch (error) {
         handleError(error);
@@ -1851,8 +2014,10 @@ function fillSqlAssetForm(asset) {
 }
 
 function readHttpAssetForm() {
+    const id = value('httpAssetId');
+    const existing = id ? httpAssets.find(asset => asset.id === id) || {} : {};
     return {
-        id: value('httpAssetId'),
+        id,
         name: value('httpAssetName'),
         toolName: value('httpAssetToolName'),
         title: value('httpAssetTitle'),
@@ -1867,6 +2032,10 @@ function readHttpAssetForm() {
         environment: value('httpAssetEnvironment'),
         category: value('httpAssetCategory'),
         tags: value('httpAssetTags'),
+        routingLabelsJson: existing.routingLabelsJson,
+        routingLabels: existing.routingLabels,
+        capabilitiesJson: existing.capabilitiesJson,
+        capabilities: existing.capabilities,
         timeoutMs: Number(value('httpAssetTimeoutMs') || 10000)
     };
 }
@@ -2066,6 +2235,10 @@ function readDatabaseQueryRegistrationForm() {
         sqlTemplate: value('databaseSqlInput'),
         inputSchema: readJsonObject('databaseInputSchemaJson'),
         governance: readJsonObject('databaseGovernanceJson'),
+        routingLabelsJson: current?.routingLabelsJson,
+        routingLabels: current?.routingLabels,
+        capabilitiesJson: current?.capabilitiesJson,
+        capabilities: current?.capabilities,
         maxRows: Number(value('databaseMaxRowsInput') || 50),
         jdbcUrl: value('databaseJdbcUrlInput'),
         driverClass: value('databaseDriverClassInput'),

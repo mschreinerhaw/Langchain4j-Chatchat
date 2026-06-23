@@ -3,11 +3,15 @@ package com.chatchat.mcpserver.mcp;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
+import jakarta.persistence.Lob;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -32,6 +36,23 @@ public class McpServiceRegistration {
 
     @Column(length = 128)
     private String permissionGroup;
+
+    @Column(nullable = false, length = 32)
+    private String environment = "DEV";
+
+    @Lob
+    @Column
+    private String routingLabelsJson;
+
+    @Lob
+    @Column
+    private String capabilitiesJson;
+
+    @Transient
+    private List<String> routingLabels = new ArrayList<>();
+
+    @Transient
+    private List<String> capabilities = new ArrayList<>();
 
     @Column(nullable = false)
     private boolean enabled = true;
@@ -175,6 +196,46 @@ public class McpServiceRegistration {
      */
     public void setPermissionGroup(String permissionGroup) {
         this.permissionGroup = permissionGroup;
+    }
+
+    public String getEnvironment() {
+        return environment;
+    }
+
+    public void setEnvironment(String environment) {
+        this.environment = environment;
+    }
+
+    public String getRoutingLabelsJson() {
+        return routingLabelsJson;
+    }
+
+    public void setRoutingLabelsJson(String routingLabelsJson) {
+        this.routingLabelsJson = routingLabelsJson;
+    }
+
+    public String getCapabilitiesJson() {
+        return capabilitiesJson;
+    }
+
+    public void setCapabilitiesJson(String capabilitiesJson) {
+        this.capabilitiesJson = capabilitiesJson;
+    }
+
+    public List<String> getRoutingLabels() {
+        return routingLabels;
+    }
+
+    public void setRoutingLabels(List<String> routingLabels) {
+        this.routingLabels = routingLabels == null ? new ArrayList<>() : routingLabels;
+    }
+
+    public List<String> getCapabilities() {
+        return capabilities;
+    }
+
+    public void setCapabilities(List<String> capabilities) {
+        this.capabilities = capabilities == null ? new ArrayList<>() : capabilities;
     }
 
     /**

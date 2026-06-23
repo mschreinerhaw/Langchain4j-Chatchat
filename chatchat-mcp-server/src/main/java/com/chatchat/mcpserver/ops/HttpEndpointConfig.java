@@ -7,10 +7,13 @@ import jakarta.persistence.Lob;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 import lombok.Getter;
 import lombok.Setter;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 @Getter
@@ -68,6 +71,20 @@ public class HttpEndpointConfig {
 
     @Column(length = 1000)
     private String tags;
+
+    @Lob
+    @Column
+    private String routingLabelsJson;
+
+    @Lob
+    @Column
+    private String capabilitiesJson;
+
+    @Transient
+    private List<String> routingLabels = new ArrayList<>();
+
+    @Transient
+    private List<String> capabilities = new ArrayList<>();
 
     @Column(nullable = false, length = 32)
     private String runtimeAction = "readonly";

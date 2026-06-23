@@ -2,6 +2,7 @@ package com.chatchat.mcpserver.sql;
 
 import com.chatchat.common.response.ApiResponse;
 import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -21,6 +22,7 @@ public class SqlAdminController {
     private final SqlDatasourceConfigService datasourceConfigService;
     private final SqlTemplateService templateService;
     private final SqlMcpToolPublisher publisher;
+    private final SqlQueryExecuteService queryExecuteService;
 
     @GetMapping("/datasources")
     public ApiResponse<List<SqlDatasourceConfig>> listDatasources() {
@@ -40,6 +42,18 @@ public class SqlAdminController {
         SqlDatasourceConfig saved = datasourceConfigService.update(id, request);
         publisher.refresh();
         return ApiResponse.success(saved, "SQL datasource updated");
+    }
+
+    @DeleteMapping("/datasources/{id}")
+    public ApiResponse<Void> deleteDatasource(@PathVariable("id") String id) {
+        datasourceConfigService.delete(id);
+        publisher.refresh();
+        return ApiResponse.success(null, "SQL datasource deleted");
+    }
+
+    @PostMapping("/datasources/test")
+    public ApiResponse<SqlQueryResult> testDatasource(@RequestBody SqlDatasourceConfig request) {
+        return ApiResponse.success(queryExecuteService.testConnection(request), "SQL datasource tested");
     }
 
     @GetMapping("/templates")

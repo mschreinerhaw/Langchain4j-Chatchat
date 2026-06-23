@@ -1,11 +1,16 @@
 package com.chatchat.mcpserver.mcp;
 
+import com.chatchat.agents.protocol.ModelProtocolJson;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.net.URI;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 
@@ -15,6 +20,7 @@ public class McpServiceRegistryService {
 
     private final McpServiceRegistrationRepository repository;
     private final McpTokenGenerator tokenGenerator;
+    private final ObjectMapper objectMapper;
 
     /**
      * Lists the all.
@@ -85,6 +91,11 @@ public class McpServiceRegistryService {
         current.setServiceToken(draft.getServiceToken());
         current.setServiceType(draft.getServiceType());
         current.setPermissionGroup(draft.getPermissionGroup());
+        current.setEnvironment(draft.getEnvironment());
+        current.setRoutingLabelsJson(draft.getRoutingLabelsJson());
+        current.setRoutingLabels(draft.getRoutingLabels());
+        current.setCapabilitiesJson(draft.getCapabilitiesJson());
+        current.setCapabilities(draft.getCapabilities());
         current.setEnabled(draft.isEnabled());
         current.setStatus(draft.getStatus());
         validate(current);
@@ -178,8 +189,70 @@ public class McpServiceRegistryService {
         service.setServiceToken(normalizeToken(service.getServiceToken()));
         service.setServiceType(defaultText(service.getServiceType(), "DATA").toUpperCase(Locale.ROOT));
         service.setPermissionGroup(defaultText(service.getPermissionGroup(), "default"));
+        service.setEnvironment(normalizeEnvironment(service.getEnvironment()));
+        service.setRoutingLabelsJson(normalizeStringArray(
+            mergedProtocolValues(service.getRoutingLabelsJson(), service.getRoutingLabels()),
+            "routingLabels"
+        ));
+        service.setCapabilitiesJson(normalizeStringArray(
+            mergedProtocolValues(service.getCapabilitiesJson(), service.getCapabilities()),
+            "capabilities"
+        ));
         service.setStatus(defaultText(service.getStatus(), service.isEnabled() ? "ACTIVE" : "DISABLED")
             .toUpperCase(Locale.ROOT));
+    }
+
+    private String normalizeEnvironment(String value) {
+        String normalized = defaultText(value, "DEV").toUpperCase(Locale.ROOT);
+        return switch (normalized) {
+            case "DEV", "TEST", "UAT", "PROD" -> normalized;
+            default -> "DEV";
+        };
+    }
+
+    private String normalizeStringArray(String json, String field) {
+        String value = json == null || json.isBlank() ? null : json.trim();
+        if (value == null) {
+            return null;
+        }
+        try {
+            List<String> items = objectMapper.readValue(value, new TypeReference<>() {});
+            List<String> normalized = items.stream()
+                .filter(item -> item != null && !item.isBlank())
+                .map(String::trim)
+                .distinct()
+                .toList();
+            return normalized.isEmpty() ? null : ModelProtocolJson.compact(normalized);
+        } catch (Exception ex) {
+            throw new IllegalArgumentException(field + " must be a JSON string array");
+        }
+    }
+
+    private String mergedProtocolValues(String json, List<String> values) {
+        LinkedHashSet<String> merged = new LinkedHashSet<>();
+        readJsonArray(json).forEach(merged::add);
+        if (values != null) {
+            values.stream()
+                .filter(value -> value != null && !value.isBlank())
+                .map(String::trim)
+                .forEach(merged::add);
+        }
+        return merged.isEmpty() ? null : ModelProtocolJson.compact(new ArrayList<>(merged));
+    }
+
+    private List<String> readJsonArray(String json) {
+        if (json == null || json.isBlank()) {
+            return List.of();
+        }
+        try {
+            return objectMapper.readValue(json, new TypeReference<List<String>>() {}).stream()
+                .filter(item -> item != null && !item.isBlank())
+                .map(String::trim)
+                .distinct()
+                .toList();
+        } catch (Exception ignored) {
+            return List.of();
+        }
     }
 
     /**

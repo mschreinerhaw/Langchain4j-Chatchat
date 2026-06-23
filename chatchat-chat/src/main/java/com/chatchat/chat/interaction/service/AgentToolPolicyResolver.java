@@ -51,6 +51,7 @@ public class AgentToolPolicyResolver {
             availableTools = discoverDefaultTools(request.getSkillId());
         }
         availableTools = normalizeToolNames(availableTools);
+        availableTools = applyExecutionContextRouting(request, availableTools);
 
         boolean documentWorkflowRequested = isDocumentWorkflowRequested(request, skill);
         if (documentWorkflowRequested) {
@@ -99,6 +100,85 @@ public class AgentToolPolicyResolver {
                 .add(tool.localToolName())
         );
         return skillCatalogService.resolveTools(skillId, agentVisibleToolNames(), mcpToolsByServiceId);
+    }
+
+    private List<String> applyExecutionContextRouting(InteractionRequest request, List<String> availableTools) {
+        if (!hasExecutionContext(request)) {
+            return availableTools;
+        }
+        List<McpToolRegistryBridge.RegisteredMcpTool> registeredTools = mcpToolRegistryBridge.listRegisteredTools();
+        if (registeredTools.isEmpty()) {
+            return availableTools;
+        }
+        Map<String, McpToolRegistryBridge.RegisteredMcpTool> toolsByLocalName = new LinkedHashMap<>();
+        for (McpToolRegistryBridge.RegisteredMcpTool tool : registeredTools) {
+            toolsByLocalName.put(tool.localToolName(), tool);
+        }
+        String linuxGateway = registeredTools.stream()
+            .filter(tool -> "linux_command_execute".equals(tool.remoteToolName()))
+            .map(McpToolRegistryBridge.RegisteredMcpTool::localToolName)
+            .filter(toolRegistry::hasTool)
+            .findFirst()
+            .orElse(null);
+        String sqlGateway = registeredTools.stream()
+            .filter(tool -> "sql_query_execute".equals(tool.remoteToolName()))
+            .map(McpToolRegistryBridge.RegisteredMcpTool::localToolName)
+            .filter(toolRegistry::hasTool)
+            .findFirst()
+            .orElse(null);
+        String httpGateway = registeredTools.stream()
+            .filter(tool -> "http_request_execute".equals(tool.remoteToolName()))
+            .map(McpToolRegistryBridge.RegisteredMcpTool::localToolName)
+            .filter(toolRegistry::hasTool)
+            .findFirst()
+            .orElse(null);
+        if (linuxGateway == null && sqlGateway == null && httpGateway == null) {
+            return availableTools;
+        }
+
+        LinkedHashSet<String> routed = new LinkedHashSet<>();
+        boolean removedLinuxAsset = false;
+        boolean removedSqlAsset = false;
+        boolean removedHttpAsset = false;
+        for (String toolName : normalizeToolNames(availableTools)) {
+            McpToolRegistryBridge.RegisteredMcpTool registered = toolsByLocalName.get(toolName);
+            String remoteToolName = registered == null ? "" : normalizeToolName(registered.remoteToolName());
+            if (linuxGateway != null && remoteToolName.startsWith("ssh_")) {
+                removedLinuxAsset = true;
+                continue;
+            }
+            if (sqlGateway != null && remoteToolName.startsWith("db_query_")) {
+                removedSqlAsset = true;
+                continue;
+            }
+            if (httpGateway != null && remoteToolName.startsWith("http_")
+                && !"http_request_execute".equals(remoteToolName)) {
+                removedHttpAsset = true;
+                continue;
+            }
+            routed.add(toolName);
+        }
+        if (removedLinuxAsset && linuxGateway != null) {
+            routed.add(linuxGateway);
+        }
+        if (removedSqlAsset && sqlGateway != null) {
+            routed.add(sqlGateway);
+        }
+        if (removedHttpAsset && httpGateway != null) {
+            routed.add(httpGateway);
+        }
+        return new ArrayList<>(routed);
+    }
+
+    private boolean hasExecutionContext(InteractionRequest request) {
+        if (request == null || request.getToolInput() == null) {
+            return false;
+        }
+        Object context = request.getToolInput().get("mcpExecutionContext");
+        if (!(context instanceof Map<?, ?>)) {
+            context = request.getToolInput().get("executionContext");
+        }
+        return context instanceof Map<?, ?> map && !map.isEmpty();
     }
 
     /**
@@ -559,6 +639,12 @@ public class AgentToolPolicyResolver {
             .map(String::trim)
             .distinct()
             .toList();
+    }
+
+    private String normalizeToolName(String toolName) {
+        return toolName == null || toolName.isBlank()
+            ? ""
+            : toolName.trim().toLowerCase(Locale.ROOT);
     }
 
     /**

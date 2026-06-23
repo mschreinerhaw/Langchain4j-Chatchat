@@ -22,26 +22,15 @@ public class DatabaseQueryMcpToolPublisher {
     private final DatabaseQueryToolSpecFactory toolSpecFactory;
     private final Set<String> managedToolNames = ConcurrentHashMap.newKeySet();
 
-    /**
-     * Performs the on application ready operation.
-     */
     @Order(Ordered.LOWEST_PRECEDENCE)
     @EventListener(ApplicationReadyEvent.class)
     public void onApplicationReady() {
         refresh();
     }
 
-    /**
-     * Performs the refresh operation.
-     */
     public synchronized void refresh() {
-        managedToolNames.forEach(toolName -> {
-            try {
-                mcpSyncServer.removeTool(toolName);
-            } catch (Exception ex) {
-                log.debug("Failed to remove old database query MCP tool {}: {}", toolName, ex.getMessage());
-            }
-        });
+        remove("database_query_execute");
+        managedToolNames.forEach(this::remove);
         managedToolNames.clear();
 
         for (DatabaseQueryConfig config : configService.listEnabled()) {
@@ -54,6 +43,14 @@ public class DatabaseQueryMcpToolPublisher {
         }
 
         mcpSyncServer.notifyToolsListChanged();
-        log.info("Database query MCP tools refreshed, registered {}", managedToolNames.size());
+        log.info("Database query MCP business tools refreshed, registered {}", managedToolNames.size());
+    }
+
+    private void remove(String toolName) {
+        try {
+            mcpSyncServer.removeTool(toolName);
+        } catch (Exception ex) {
+            log.debug("Database query MCP tool {} was not registered: {}", toolName, ex.getMessage());
+        }
     }
 }

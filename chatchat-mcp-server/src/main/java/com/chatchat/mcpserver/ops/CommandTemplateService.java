@@ -79,6 +79,22 @@ public class CommandTemplateService {
                 repository.save(config);
             }
         }
+        ensureDefault(systemOverviewTemplate());
+    }
+
+    private void ensureDefault(DefaultTemplate template) {
+        if (repository.findByCode(template.code()).isPresent()) {
+            return;
+        }
+        CommandTemplateConfig config = new CommandTemplateConfig();
+        config.setCode(template.code());
+        config.setTitle(template.title());
+        config.setDescription(template.description());
+        config.setCommandTemplate(template.command());
+        config.setParameterSchemaJson(writeJson(template.schema()));
+        config.setRuntimeAction("confirm_required");
+        config.setEnabled(true);
+        repository.save(config);
     }
 
     private void normalize(CommandTemplateConfig config) {
@@ -123,6 +139,23 @@ public class CommandTemplateService {
             new DefaultTemplate("CHECK_JAVA_PROCESS", "Java 进程", "查询 Java 进程。", "jps -lv", empty),
             new DefaultTemplate("CHECK_SERVICE_STATUS", "服务状态", "查询 systemd 服务状态。", "systemctl status {{service}}", serviceSchema),
             new DefaultTemplate("TAIL_LOG", "日志尾部", "读取日志尾部。", "tail -n {{lines}} {{path}}", logSchema)
+        );
+    }
+
+    private DefaultTemplate systemOverviewTemplate() {
+        Map<String, Object> empty = Map.of("type", "object", "properties", Map.of(), "required", List.of());
+        String command = "echo '=== 系统负载 ==='; uptime; "
+            + "echo '=== 详细负载 ==='; cat /proc/loadavg; "
+            + "echo '=== 内存使用 ==='; free -h; "
+            + "echo '=== 磁盘使用 ==='; df -h / /boot /var /tmp 2>/dev/null; "
+            + "echo '=== CPU/内存占用前20进程 ==='; top -bn1 -o %CPU | head -20; "
+            + "echo '=== Docker容器状态 ==='; docker ps -a --format 'table {{.ID}}\\t{{.Image}}\\t{{.Status}}\\t{{.Names}}'";
+        return new DefaultTemplate(
+            "CHECK_SYSTEM_OVERVIEW",
+            "System overview",
+            "Read-only host load, memory, disk, process and Docker status overview.",
+            command,
+            empty
         );
     }
 

@@ -11,10 +11,12 @@ public class LinuxCommandSafetyService {
 
     private static final List<String> ALLOWED_PREFIXES = List.of(
         "hostname", "uptime", "date", "whoami", "uname",
+        "echo",
         "top", "mpstat", "sar", "free", "vmstat",
         "df", "du", "lsblk", "ping", "netstat", "ss", "ip addr", "curl",
         "ps", "jps", "pgrep", "systemctl status",
-        "tail", "head", "grep", "cat", "less", "journalctl"
+        "tail", "head", "grep", "cat", "less", "journalctl",
+        "docker ps"
     );
 
     private static final List<Pattern> DANGEROUS_PATTERNS = List.of(
@@ -41,32 +43,91 @@ public class LinuxCommandSafetyService {
         if (normalized.isBlank()) {
             throw new IllegalArgumentException("Command cannot be empty");
         }
-        if (containsShellControl(normalized)) {
+        if (containsBlockedShellControl(normalized)) {
             throw new IllegalArgumentException("Command contains blocked shell control characters");
+        }
+        for (String segment : splitOutsideQuotes(normalized, ';')) {
+            assertSafeSegment(segment);
+        }
+    }
+
+    private void assertSafeSegment(String segment) {
+        String normalized = stripAllowedStderrRedirect(segment == null ? "" : segment.trim());
+        if (normalized.isBlank()) {
+            return;
+        }
+        List<String> pipeline = splitOutsideQuotes(normalized, '|').stream()
+            .map(String::trim)
+            .filter(value -> !value.isBlank())
+            .toList();
+        if (pipeline.isEmpty() || pipeline.size() > 2) {
+            throw new IllegalArgumentException("Command pipeline is not allowed by runtime safety policy");
+        }
+        assertSafeSimpleCommand(pipeline.get(0), false);
+        if (pipeline.size() == 2) {
+            assertSafeSimpleCommand(pipeline.get(1), true);
+        }
+    }
+
+    private void assertSafeSimpleCommand(String command, boolean pipelineTail) {
+        String normalized = stripAllowedStderrRedirect(command == null ? "" : command.trim());
+        if (normalized.isBlank()) {
+            return;
         }
         for (Pattern pattern : DANGEROUS_PATTERNS) {
             if (pattern.matcher(normalized).find()) {
                 throw new IllegalArgumentException("Command is blocked by runtime safety policy");
             }
         }
-        boolean allowed = ALLOWED_PREFIXES.stream().anyMatch(prefix ->
+        List<String> prefixes = pipelineTail ? List.of("head", "tail", "grep", "cat") : ALLOWED_PREFIXES;
+        boolean allowed = prefixes.stream().anyMatch(prefix ->
             normalized.equals(prefix) || normalized.startsWith(prefix + " "));
         if (!allowed) {
             throw new IllegalArgumentException("Command is not in runtime allowlist");
         }
     }
 
-    private boolean containsShellControl(String command) {
+    private boolean containsBlockedShellControl(String command) {
         return command.contains("\n")
             || command.contains("\r")
-            || command.contains(";")
             || command.contains("&&")
             || command.contains("||")
-            || command.contains("|")
             || command.contains("`")
             || command.contains("$(")
-            || command.contains(">")
-            || command.contains("<");
+            || command.contains("<")
+            || containsBlockedRedirect(command);
+    }
+
+    private boolean containsBlockedRedirect(String command) {
+        String withoutAllowed = command.replaceAll("\\s+2>\\s*/dev/null\\b", " ");
+        return withoutAllowed.contains(">");
+    }
+
+    private String stripAllowedStderrRedirect(String command) {
+        return command.replaceAll("\\s+2>\\s*/dev/null\\b", " ").trim();
+    }
+
+    private List<String> splitOutsideQuotes(String command, char delimiter) {
+        java.util.ArrayList<String> parts = new java.util.ArrayList<>();
+        StringBuilder current = new StringBuilder();
+        boolean singleQuoted = false;
+        boolean doubleQuoted = false;
+        for (int index = 0; index < command.length(); index++) {
+            char ch = command.charAt(index);
+            if (ch == '\'' && !doubleQuoted) {
+                singleQuoted = !singleQuoted;
+            } else if (ch == '"' && !singleQuoted) {
+                doubleQuoted = !doubleQuoted;
+            }
+            if (ch == delimiter && !singleQuoted && !doubleQuoted) {
+                parts.add(current.toString());
+                current.setLength(0);
+            } else {
+                current.append(ch);
+            }
+        }
+        parts.add(current.toString());
+        return parts;
     }
 
     private String normalize(String command) {

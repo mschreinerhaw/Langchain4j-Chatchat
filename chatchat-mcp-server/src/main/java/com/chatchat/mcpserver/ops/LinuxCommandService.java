@@ -4,6 +4,7 @@ import com.chatchat.mcpserver.audit.InvocationAuditService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.sshd.client.SshClient;
 import org.apache.sshd.client.channel.ClientChannel;
 import org.apache.sshd.client.channel.ClientChannelEvent;
@@ -29,11 +30,13 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class LinuxCommandService {
 
-    private static final Pattern TEMPLATE_TOKEN = Pattern.compile("\\{\\{\\s*([A-Za-z0-9_.-]+)\\s*}}");
+    private static final Pattern TEMPLATE_TOKEN = Pattern.compile("\\{\\{\\s*([A-Za-z0-9_][A-Za-z0-9_.-]*)\\s*}}");
+    private static final int LOG_OUTPUT_LIMIT = 4000;
 
     private final SshHostConfigService hostConfigService;
     private final CommandTemplateService templateService;
@@ -49,10 +52,14 @@ public class LinuxCommandService {
         LinuxCommandResult result;
         try {
             host = hostConfigService.getEnabled(text(request, "hostId"));
+            assertExecutionCapability(host);
             CommandTemplateConfig template = templateService.getByCode(text(request, "template"));
             assertTemplateAllowed(host, template.getCode());
             command = renderCommand(template.getCommandTemplate(), mapValue(request.get("parameters")));
             safetyService.assertSafe(command);
+            log.info("MCP Linux command execution requested: hostId={}, hostName={}, endpoint={}:{}, env={}, tool={}, template={}, sourceTaskId={}, reason={}",
+                host.getId(), host.getName(), host.getHostname(), normalizePort(host.getPort()), host.getEnvironment(),
+                host.getToolName(), template.getCode(), request.get("sourceTaskId"), request.get("reason"));
             result = executeSsh(host, template.getCode(), command, request, startedAt);
         } catch (Exception ex) {
             long durationMs = Math.max(0, System.currentTimeMillis() - startedAt);
@@ -71,7 +78,10 @@ public class LinuxCommandService {
                 ex.getMessage(),
                 request
             );
+            log.warn("MCP Linux command execution failed before/while running: hostId={}, template={}, durationMs={}, error={}",
+                result.hostId(), result.template(), durationMs, ex.getMessage());
         }
+        logLinuxResult(result);
         auditService.recordLinuxCommandCall(host, result);
         return result;
     }
@@ -82,21 +92,99 @@ public class LinuxCommandService {
         return execute(request);
     }
 
+    public LinuxCommandResult testConnection(SshHostConfig host) {
+        long startedAt = System.currentTimeMillis();
+        Map<String, Object> request = new LinkedHashMap<>();
+        request.put("host", host.getHostname());
+        request.put("port", host.getPort());
+        request.put("username", host.getUsername());
+        request.put("authType", host.getAuthType());
+        log.info("MCP SSH execution capability probe started: hostName={}, endpoint={}:{}, env={}, authType={}",
+            host.getName(), host.getHostname(), normalizePort(host.getPort()), host.getEnvironment(), host.getAuthType());
+        try (SshClient client = SshClient.setUpDefaultClient()) {
+            assertExecutionCapability(host);
+            client.setServerKeyVerifier((session, remoteAddress, serverKey) -> verifyHostKey(host, serverKey));
+            client.start();
+            try (ClientSession session = client.connect(host.getUsername(), host.getHostname(), normalizePort(host.getPort()))
+                .verify(Duration.ofMillis(connectTimeoutMs(host)))
+                .getSession()) {
+                authenticate(session, host);
+                String probeCommand = "echo MCP_SSH_EXECUTION_PROBE";
+                try (ByteArrayOutputStream stdout = new ByteArrayOutputStream();
+                     ByteArrayOutputStream stderr = new ByteArrayOutputStream();
+                     ClientChannel channel = session.createExecChannel(probeCommand)) {
+                    channel.setOut(stdout);
+                    channel.setErr(stderr);
+                    channel.open().verify(Duration.ofMillis(connectTimeoutMs(host)));
+                    channel.waitFor(EnumSet.of(ClientChannelEvent.CLOSED), Duration.ofMillis(host.getCommandTimeoutMs()));
+                    int exitCode = channel.getExitStatus() == null ? -1 : channel.getExitStatus();
+                    if (exitCode != 0) {
+                        throw new IllegalStateException("SSH probe command exited with code " + exitCode
+                            + ": " + truncate(stderr.toString(StandardCharsets.UTF_8)));
+                    }
+                }
+                long durationMs = Math.max(0, System.currentTimeMillis() - startedAt);
+                LinuxCommandResult result = new LinuxCommandResult(
+                    true,
+                    host.getId(),
+                    host.getHostname(),
+                    host.getToolName(),
+                    host.getEnvironment(),
+                    "connection_test",
+                    "echo MCP_SSH_EXECUTION_PROBE",
+                    0,
+                    "SSH connection authenticated and probe command executed successfully.",
+                    "",
+                    durationMs,
+                    null,
+                    request
+                );
+                logLinuxResult(result);
+                return result;
+            } finally {
+                client.stop();
+            }
+        } catch (Exception ex) {
+            long durationMs = Math.max(0, System.currentTimeMillis() - startedAt);
+            LinuxCommandResult result = new LinuxCommandResult(
+                false,
+                host.getId(),
+                host.getHostname(),
+                host.getToolName(),
+                host.getEnvironment(),
+                "connection_test",
+                null,
+                -1,
+                "",
+                "",
+                durationMs,
+                ex.getMessage(),
+                request
+            );
+            logLinuxResult(result);
+            return result;
+        }
+    }
+
     private LinuxCommandResult executeSsh(SshHostConfig host, String template, String command,
                                           Map<String, Object> request, long startedAt) throws Exception {
         try (SshClient client = SshClient.setUpDefaultClient()) {
             client.setServerKeyVerifier((session, remoteAddress, serverKey) -> verifyHostKey(host, serverKey));
             client.start();
-            try (ClientSession session = client.connect(host.getUsername(), host.getHostname(), host.getPort())
-                .verify(Duration.ofMillis(host.getConnectTimeoutMs()))
+            try (ClientSession session = client.connect(host.getUsername(), host.getHostname(), normalizePort(host.getPort()))
+                .verify(Duration.ofMillis(connectTimeoutMs(host)))
                 .getSession()) {
+                log.info("MCP Linux command SSH connected: hostId={}, hostName={}, endpoint={}:{}, env={}, template={}",
+                    host.getId(), host.getName(), host.getHostname(), normalizePort(host.getPort()), host.getEnvironment(), template);
                 authenticate(session, host);
+                log.info("MCP Linux command SSH authenticated: hostId={}, hostName={}, authType={}, template={}",
+                    host.getId(), host.getName(), host.getAuthType(), template);
                 try (ByteArrayOutputStream stdout = new ByteArrayOutputStream();
                      ByteArrayOutputStream stderr = new ByteArrayOutputStream();
                      ClientChannel channel = session.createExecChannel(command)) {
                     channel.setOut(stdout);
                     channel.setErr(stderr);
-                    channel.open().verify(Duration.ofMillis(host.getConnectTimeoutMs()));
+                    channel.open().verify(Duration.ofMillis(connectTimeoutMs(host)));
                     channel.waitFor(EnumSet.of(ClientChannelEvent.CLOSED), Duration.ofMillis(host.getCommandTimeoutMs()));
                     Integer exitStatus = channel.getExitStatus();
                     long durationMs = Math.max(0, System.currentTimeMillis() - startedAt);
@@ -121,6 +209,58 @@ public class LinuxCommandService {
                 client.stop();
             }
         }
+    }
+
+    private void assertExecutionCapability(SshHostConfig host) {
+        if (host.getCapabilitiesJson() == null || host.getCapabilitiesJson().isBlank()) {
+            log.warn("MCP SSH asset has no protocol capabilities configured; allowing legacy execution: hostId={}, hostName={}, tool={}",
+                host.getId(), host.getName(), host.getToolName());
+            return;
+        }
+        Set<String> capabilities;
+        try {
+            capabilities = objectMapper.readValue(host.getCapabilitiesJson(), new TypeReference<List<String>>() {}).stream()
+                .filter(value -> value != null && !value.isBlank())
+                .map(value -> value.trim().toLowerCase(Locale.ROOT))
+                .collect(Collectors.toSet());
+        } catch (Exception ex) {
+            throw new IllegalArgumentException("SSH host capabilities config is invalid");
+        }
+        if (capabilities.stream().noneMatch(value -> value.equals("linux_command_execute")
+            || value.equals("ssh_exec")
+            || value.equals("ssh")
+            || value.equals("shell_exec"))) {
+            throw new IllegalArgumentException("SSH host does not declare Linux command execution capability: " + host.getToolName());
+        }
+    }
+
+    private void logLinuxResult(LinuxCommandResult result) {
+        if (result == null) {
+            return;
+        }
+        String levelMessage = "MCP Linux command execution result: success={}, hostId={}, host={}, tool={}, env={}, template={}, exitCode={}, durationMs={}, command={}, stdout={}, stderr={}, error={}";
+        if (result.success()) {
+            log.info(levelMessage,
+                result.success(), result.hostId(), result.host(), result.toolName(), result.environment(), result.template(),
+                result.exitCode(), result.durationMs(), result.command(), truncate(result.stdout()), truncate(result.stderr()),
+                result.errorMessage());
+        } else {
+            log.warn(levelMessage,
+                result.success(), result.hostId(), result.host(), result.toolName(), result.environment(), result.template(),
+                result.exitCode(), result.durationMs(), result.command(), truncate(result.stdout()), truncate(result.stderr()),
+                result.errorMessage());
+        }
+    }
+
+    private String truncate(String value) {
+        if (value == null) {
+            return null;
+        }
+        String normalized = value.replace("\r", "\\r").replace("\n", "\\n");
+        if (normalized.length() <= LOG_OUTPUT_LIMIT) {
+            return normalized;
+        }
+        return normalized.substring(0, LOG_OUTPUT_LIMIT) + "...<truncated>";
     }
 
     private boolean verifyHostKey(SshHostConfig host, java.security.PublicKey serverKey) {
@@ -153,7 +293,15 @@ public class LinuxCommandService {
         } else {
             session.addPasswordIdentity(host.getPassword());
         }
-        session.auth().verify(Duration.ofMillis(host.getConnectTimeoutMs()));
+        session.auth().verify(Duration.ofMillis(connectTimeoutMs(host)));
+    }
+
+    private int normalizePort(int port) {
+        return port <= 0 ? 22 : Math.min(port, 65535);
+    }
+
+    private int connectTimeoutMs(SshHostConfig host) {
+        return Math.max(1000, host.getConnectTimeoutMs());
     }
 
     private Map<String, Object> normalizeRequest(Map<String, Object> arguments) {

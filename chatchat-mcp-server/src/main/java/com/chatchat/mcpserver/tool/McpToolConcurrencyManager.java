@@ -430,10 +430,12 @@ public class McpToolConcurrencyManager {
         if (name.equals("linux_command_execute") || name.startsWith("ssh_")) {
             return "ssh";
         }
-        if (name.equals("sql_query_execute") || name.startsWith("sql_") || name.startsWith("db_query_")) {
+        if (name.equals("sql_query_execute") || name.equals("database_query_execute")
+            || name.startsWith("sql_") || name.startsWith("db_query_")) {
             return "sql";
         }
-        if (name.equals("http_request") || name.startsWith("http_") || name.startsWith("livedata_")) {
+        if (name.equals("http_request") || name.equals("http_request_execute")
+            || name.startsWith("http_") || name.startsWith("livedata_")) {
             return "http";
         }
         if (name.contains("notification") || name.startsWith("notify_") || name.startsWith("mail_")

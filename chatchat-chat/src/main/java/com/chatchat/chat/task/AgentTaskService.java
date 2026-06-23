@@ -51,7 +51,7 @@ public class AgentTaskService {
     private static final int DEBUG_TEXT_LIMIT = 8000;
     private static final int UI_CITATION_PREMISE_LIMIT = 900;
     private static final int UI_ANSWER_LIMIT = 6000;
-    private static final Pattern JSON_FENCE_PATTERN = Pattern.compile("```(?:json)?\\s*([\\s\\S]*?)```", Pattern.CASE_INSENSITIVE);
+    private static final Pattern JSON_FENCE_PATTERN = Pattern.compile("```json\\s*([\\s\\S]*?)```", Pattern.CASE_INSENSITIVE);
 
     private final AgentEventBus eventBus;
     private final AgentEventStore eventStore;
@@ -1969,7 +1969,7 @@ public class AgentTaskService {
         return "";
     }
 
-    private String cleanDisplayAnswer(String value) {
+    static String cleanDisplayAnswer(String value) {
         if (value == null || value.isBlank()) {
             return "";
         }

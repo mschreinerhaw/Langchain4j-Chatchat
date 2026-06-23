@@ -1,6 +1,8 @@
 package com.chatchat.mcpserver.mcp;
 
 import com.chatchat.common.response.ApiResponse;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -22,6 +24,7 @@ import java.util.Map;
 public class McpServiceController {
 
     private final McpServiceRegistryService registryService;
+    private final ObjectMapper objectMapper;
 
     /**
      * Lists the list.
@@ -127,6 +130,11 @@ public class McpServiceController {
         service.setServiceToken(request.serviceToken());
         service.setServiceType(request.serviceType());
         service.setPermissionGroup(request.permissionGroup());
+        service.setEnvironment(request.environment());
+        service.setRoutingLabelsJson(request.routingLabelsJson());
+        service.setRoutingLabels(request.routingLabels());
+        service.setCapabilitiesJson(request.capabilitiesJson());
+        service.setCapabilities(request.capabilities());
         service.setEnabled(request.enabled() == null || request.enabled());
         service.setStatus(request.status());
         return service;
@@ -146,6 +154,11 @@ public class McpServiceController {
             service.getServiceToken(),
             service.getServiceType(),
             service.getPermissionGroup(),
+            service.getEnvironment(),
+            service.getRoutingLabelsJson(),
+            readJsonArray(service.getRoutingLabelsJson()),
+            service.getCapabilitiesJson(),
+            readJsonArray(service.getCapabilitiesJson()),
             service.isEnabled(),
             service.getStatus(),
             service.getLastHeartbeatAt() == null ? null : service.getLastHeartbeatAt().toEpochMilli(),
@@ -168,12 +181,32 @@ public class McpServiceController {
         return token.trim();
     }
 
+    private List<String> readJsonArray(String json) {
+        if (json == null || json.isBlank()) {
+            return List.of();
+        }
+        try {
+            return objectMapper.readValue(json, new TypeReference<List<String>>() {}).stream()
+                .filter(item -> item != null && !item.isBlank())
+                .map(String::trim)
+                .distinct()
+                .toList();
+        } catch (Exception ignored) {
+            return List.of();
+        }
+    }
+
     public record McpServiceUpsertRequest(
         String name,
         String endpoint,
         String serviceToken,
         String serviceType,
         String permissionGroup,
+        String environment,
+        String routingLabelsJson,
+        List<String> routingLabels,
+        String capabilitiesJson,
+        List<String> capabilities,
         Boolean enabled,
         String status
     ) {
@@ -186,6 +219,11 @@ public class McpServiceController {
         String serviceToken,
         String serviceType,
         String permissionGroup,
+        String environment,
+        String routingLabelsJson,
+        List<String> routingLabels,
+        String capabilitiesJson,
+        List<String> capabilities,
         boolean enabled,
         String status,
         Long lastHeartbeatAt,

@@ -6,13 +6,19 @@ import com.chatchat.common.tool.ToolLogSummarizer;
 import com.chatchat.common.tool.ToolOutput;
 import com.chatchat.mcpserver.sql.SqlDatasourceConfig;
 import com.chatchat.mcpserver.sql.SqlDatasourceConfigService;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -23,6 +29,7 @@ public class DatabaseQueryInvokeService {
 
     private final ToolRegistry toolRegistry;
     private final SqlDatasourceConfigService datasourceConfigService;
+    private final ObjectMapper objectMapper;
 
     /**
      * Performs the invoke operation.
@@ -32,6 +39,7 @@ public class DatabaseQueryInvokeService {
      * @return the operation result
      */
     public ToolOutput invoke(DatabaseQueryConfig config, Map<String, Object> arguments) {
+        assertExecutionCapability(config);
         log.info("Database query invoke started databaseQueryId={} tool={} maxRows={} sql={} args={}",
             config.getId(),
             config.getToolName(),
@@ -39,6 +47,31 @@ public class DatabaseQueryInvokeService {
             config.getSqlTemplate(),
             ToolLogSummarizer.summarize(arguments));
         return invoke(toParameters(config, arguments == null ? Map.of() : arguments));
+    }
+
+    private void assertExecutionCapability(DatabaseQueryConfig config) {
+        if (config.getCapabilitiesJson() == null || config.getCapabilitiesJson().isBlank()) {
+            log.warn("MCP database query has no protocol capabilities configured; allowing legacy execution: databaseQueryId={}, tool={}",
+                config.getId(), config.getToolName());
+            return;
+        }
+        Set<String> capabilities;
+        try {
+            capabilities = objectMapper.readValue(config.getCapabilitiesJson(), new TypeReference<List<String>>() {}).stream()
+                .filter(value -> value != null && !value.isBlank())
+                .map(value -> value.trim().toLowerCase(Locale.ROOT))
+                .collect(Collectors.toSet());
+        } catch (Exception ex) {
+            throw new IllegalArgumentException("Database query capabilities config is invalid");
+        }
+        if (capabilities.stream().noneMatch(value -> value.equals("database_query")
+            || value.equals("sql_query_execute")
+            || value.equals("sql_exec")
+            || value.equals("sql")
+            || value.equals("jdbc"))) {
+            throw new IllegalArgumentException("Database query does not declare SQL execution capability: "
+                + config.getToolName());
+        }
     }
 
     /**

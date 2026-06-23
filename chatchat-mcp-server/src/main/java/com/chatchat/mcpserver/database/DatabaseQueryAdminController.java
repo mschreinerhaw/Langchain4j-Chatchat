@@ -162,6 +162,10 @@ public class DatabaseQueryAdminController {
         config.setSqlTemplate(request.sqlTemplate());
         config.setInputSchemaJson(writeJson(request.inputSchema()));
         config.setGovernanceJson(writeJson(request.governance()));
+        config.setRoutingLabelsJson(request.routingLabelsJson());
+        config.setRoutingLabels(request.routingLabels());
+        config.setCapabilitiesJson(request.capabilitiesJson());
+        config.setCapabilities(request.capabilities());
         config.setMaxRows(request.maxRows() == null ? 50 : request.maxRows());
         config.setJdbcUrl(request.jdbcUrl());
         config.setDriverClass(request.driverClass());
@@ -188,6 +192,10 @@ public class DatabaseQueryAdminController {
             config.getSqlTemplate(),
             readJsonMap(config.getInputSchemaJson()),
             readJsonMap(config.getGovernanceJson()),
+            config.getRoutingLabelsJson(),
+            readJsonArray(config.getRoutingLabelsJson()),
+            config.getCapabilitiesJson(),
+            readJsonArray(config.getCapabilitiesJson()),
             config.getMaxRows(),
             config.getJdbcUrl(),
             config.getDriverClass(),
@@ -264,6 +272,21 @@ public class DatabaseQueryAdminController {
         }
     }
 
+    private List<String> readJsonArray(String json) {
+        if (json == null || json.isBlank()) {
+            return List.of();
+        }
+        try {
+            return objectMapper.readValue(json, new TypeReference<List<String>>() {}).stream()
+                .filter(item -> item != null && !item.isBlank())
+                .map(String::trim)
+                .distinct()
+                .toList();
+        } catch (Exception ex) {
+            return List.of();
+        }
+    }
+
     /**
      * Stores the if present.
      *
@@ -327,6 +350,10 @@ public class DatabaseQueryAdminController {
         String sqlTemplate,
         Map<String, Object> inputSchema,
         Map<String, Object> governance,
+        String routingLabelsJson,
+        List<String> routingLabels,
+        String capabilitiesJson,
+        List<String> capabilities,
         Integer maxRows,
         String jdbcUrl,
         String driverClass,
@@ -349,6 +376,10 @@ public class DatabaseQueryAdminController {
         String sqlTemplate,
         Map<String, Object> inputSchema,
         Map<String, Object> governance,
+        String routingLabelsJson,
+        List<String> routingLabels,
+        String capabilitiesJson,
+        List<String> capabilities,
         int maxRows,
         String jdbcUrl,
         String driverClass,

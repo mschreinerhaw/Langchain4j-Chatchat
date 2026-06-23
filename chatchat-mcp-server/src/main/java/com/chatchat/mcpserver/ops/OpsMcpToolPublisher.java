@@ -2,6 +2,7 @@ package com.chatchat.mcpserver.ops;
 
 import com.chatchat.mcpserver.tool.AgentRuntimeGovernanceFactory;
 import com.chatchat.mcpserver.tool.McpToolConcurrencyManager;
+import com.chatchat.mcpserver.routing.ExecutionTargetRouter;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.modelcontextprotocol.server.McpServerFeatures;
@@ -31,6 +32,7 @@ public class OpsMcpToolPublisher {
     private final HttpEndpointConfigService httpEndpointConfigService;
     private final HttpRequestToolService httpRequestToolService;
     private final LinuxCommandService linuxCommandService;
+    private final ExecutionTargetRouter executionTargetRouter;
     private final AgentRuntimeGovernanceFactory governanceFactory;
     private final McpToolConcurrencyManager concurrencyManager;
     private final ObjectMapper objectMapper;
@@ -45,30 +47,18 @@ public class OpsMcpToolPublisher {
 
     public synchronized void refresh() {
         remove("linux_command_execute");
+        remove("http_request_execute");
+        httpEndpointConfigService.listAll().forEach(endpoint -> remove(endpoint.getToolName()));
+        hostConfigService.listAll().forEach(host -> remove(host.getToolName()));
         managedHttpToolNames.forEach(this::remove);
         managedHttpToolNames.clear();
         managedSshToolNames.forEach(this::remove);
         managedSshToolNames.clear();
 
-        for (HttpEndpointConfig endpoint : httpEndpointConfigService.listEnabled()) {
-            try {
-                mcpSyncServer.addTool(httpEndpointTool(endpoint));
-                managedHttpToolNames.add(endpoint.getToolName());
-            } catch (Exception ex) {
-                log.warn("Skip HTTP MCP tool {}: {}", endpoint.getToolName(), ex.getMessage());
-            }
-        }
-        for (SshHostConfig host : hostConfigService.listEnabled()) {
-            try {
-                mcpSyncServer.addTool(sshTool(host));
-                managedSshToolNames.add(host.getToolName());
-            } catch (Exception ex) {
-                log.warn("Skip SSH MCP tool {}: {}", host.getToolName(), ex.getMessage());
-            }
-        }
+        mcpSyncServer.addTool(linuxCommandGatewayTool());
+        mcpSyncServer.addTool(httpRequestGatewayTool());
         mcpSyncServer.notifyToolsListChanged();
-        log.info("Ops MCP asset tools refreshed: {} HTTP asset tools and {} SSH asset tools",
-            managedHttpToolNames.size(), managedSshToolNames.size());
+        log.info("Ops MCP gateway tools refreshed: linux_command_execute, http_request_execute");
     }
 
     private McpServerFeatures.SyncToolSpecification httpEndpointTool(HttpEndpointConfig endpoint) {
@@ -89,6 +79,66 @@ public class OpsMcpToolPublisher {
             .build();
     }
 
+    private McpServerFeatures.SyncToolSpecification linuxCommandGatewayTool() {
+        McpSchema.Tool tool = McpSchema.Tool.builder()
+            .name("linux_command_execute")
+            .title("Linux command execution gateway")
+            .description("Execute a runtime-registered Linux command template on a routed logical host target. "
+                + "Do not pass hostId, hostname, IP address, or any concrete machine identifier.")
+            .inputSchema(new McpSchema.JsonSchema("object", Map.of(
+                "template", Map.of("type", "string", "description", "Command template id, for example CHECK_CPU, CHECK_DISK, CHECK_SERVICE_STATUS"),
+                "parameters", Map.of("type", "object", "additionalProperties", true),
+                "executionContext", Map.of(
+                    "type", "object",
+                    "description", "Logical target context such as env, cluster, targetType, target, service, hostSelector, or labels"
+                ),
+                "reason", Map.of("type", "string", "description", "Execution reason for user confirmation and audit"),
+                "sourceTaskId", Map.of("type", "string")
+            ), List.of("template", "executionContext"), false, null, null))
+            .meta(linuxCommandGatewayMeta())
+            .build();
+        return McpServerFeatures.SyncToolSpecification.builder()
+            .tool(tool)
+            .callHandler((exchange, request) -> concurrencyManager.execute(
+                "linux_command_execute",
+                "ssh",
+                request.arguments(),
+                () -> toCallToolResult(linuxCommandService.execute(
+                    executionTargetRouter.routeLinuxCommand(request.arguments())))))
+            .build();
+    }
+
+    private McpServerFeatures.SyncToolSpecification httpRequestGatewayTool() {
+        McpSchema.Tool tool = McpSchema.Tool.builder()
+            .name("http_request_execute")
+            .title("HTTP request execution gateway")
+            .description("Execute a configured HTTP endpoint through logical target routing. "
+                + "Do not pass endpointId, URL, host, IP address, or any concrete endpoint identifier.")
+            .inputSchema(new McpSchema.JsonSchema("object", Map.of(
+                "executionContext", Map.of(
+                    "type", "object",
+                    "description", "Logical endpoint context such as env, cluster, targetType, target, service, or labels"
+                ),
+                "parameters", Map.of("type", "object", "additionalProperties", true),
+                "sourceTaskId", Map.of("type", "string"),
+                "reason", Map.of("type", "string", "description", "Execution reason for confirmation and audit")
+            ), List.of("executionContext"), true, null, null))
+            .meta(httpRequestGatewayMeta())
+            .build();
+        return McpServerFeatures.SyncToolSpecification.builder()
+            .tool(tool)
+            .callHandler((exchange, request) -> concurrencyManager.execute(
+                "http_request_execute",
+                "http",
+                request.arguments(),
+                () -> {
+                    ExecutionTargetRouter.RoutedHttpEndpoint routed = executionTargetRouter.routeHttpRequest(request.arguments());
+                    return toCallToolResult(httpRequestToolService.execute(
+                        routed.endpoint(),
+                        httpGatewayArguments(routed.arguments())));
+                }))
+            .build();
+    }
 
     private McpServerFeatures.SyncToolSpecification sshTool(SshHostConfig host) {
         McpSchema.Tool tool = McpSchema.Tool.builder()
@@ -160,6 +210,53 @@ public class OpsMcpToolPublisher {
         meta.put("templateRegistryRequired", true);
         meta.put("allowedCommands", allowedCommands(host));
         meta.put("mcp_tool_limit", concurrencyManager.limitMeta(host.getToolName(), "ssh"));
+        return meta;
+    }
+
+    private Map<String, Object> linuxCommandGatewayMeta() {
+        Map<String, Object> governance = new LinkedHashMap<>();
+        governance.put("category", "host_gateway");
+        governance.put("operation_type", "execute_template");
+        governance.put("risk_level", "high");
+        governance.put("data_scope", "host:routed");
+        governance.put("user_visible", true);
+        governance.put("confirmation", mutableMap("default", "ask_before_execute", "allow_user_override", false));
+        governance.put("input_policy", mutableMap(
+            "must_show_parameters", true,
+            "required_preview_params", List.of("template", "parameters", "executionContext", "reason", "sourceTaskId")
+        ));
+        governance.put("audit", mutableMap("enabled", true, "log_params", true, "log_result_summary", true));
+        Map<String, Object> meta = new LinkedHashMap<>(
+            governanceFactory.toMeta("host_gateway", "linux_command_execute", governance, null));
+        meta.put("runtime_action", "confirm_required");
+        meta.put("runtimeAction", "confirm_required");
+        meta.put("templateRegistryRequired", true);
+        meta.put("targetRoutingRequired", true);
+        meta.put("forbiddenTargetFields", List.of("hostId", "host", "hostname", "ip", "ipAddress", "address"));
+        meta.put("mcp_tool_limit", concurrencyManager.limitMeta("linux_command_execute", "ssh"));
+        return meta;
+    }
+
+    private Map<String, Object> httpRequestGatewayMeta() {
+        Map<String, Object> governance = new LinkedHashMap<>();
+        governance.put("category", "http_gateway");
+        governance.put("operation_type", "request");
+        governance.put("risk_level", "high");
+        governance.put("data_scope", "http:routed");
+        governance.put("user_visible", true);
+        governance.put("confirmation", mutableMap("default", "ask_before_execute", "allow_user_override", false));
+        governance.put("input_policy", mutableMap(
+            "must_show_parameters", true,
+            "required_preview_params", List.of("executionContext", "parameters", "reason", "sourceTaskId")
+        ));
+        governance.put("audit", mutableMap("enabled", true, "log_params", true, "log_result_summary", true));
+        Map<String, Object> meta = new LinkedHashMap<>(
+            governanceFactory.toMeta("http_gateway", "http_request_execute", governance, null));
+        meta.put("runtime_action", "confirm_required");
+        meta.put("runtimeAction", "confirm_required");
+        meta.put("targetRoutingRequired", true);
+        meta.put("forbiddenTargetFields", List.of("endpointId", "url", "uri", "host", "hostname", "ip", "ipAddress", "address"));
+        meta.put("mcp_tool_limit", concurrencyManager.limitMeta("http_request_execute", "http"));
         return meta;
     }
 
@@ -237,6 +334,17 @@ public class OpsMcpToolPublisher {
             map.put(String.valueOf(values[index]), values[index + 1]);
         }
         return map;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> httpGatewayArguments(Map<String, Object> arguments) {
+        Map<String, Object> values = new LinkedHashMap<>(arguments == null ? Map.of() : arguments);
+        Object parameters = values.remove("parameters");
+        if (parameters instanceof Map<?, ?> map) {
+            ((Map<String, Object>) map).forEach(values::putIfAbsent);
+        }
+        values.remove("reason");
+        return values;
     }
 
     private void remove(String toolName) {

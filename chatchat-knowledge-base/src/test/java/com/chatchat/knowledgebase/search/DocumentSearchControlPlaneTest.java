@@ -373,6 +373,61 @@ class DocumentSearchControlPlaneTest {
     }
 
     @Test
+    void sqlExampleQueryExpandsCompleteStatementAroundMatchedConnectorChunk() {
+        SearchService searchService = mock(SearchService.class);
+        when(searchService.frontendQuickSearch(
+            eq("ftp SQL 样例"),
+            any(),
+            any(),
+            any(),
+            any(),
+            eq(1),
+            eq(8),
+            any(SearchPermissionContext.class)
+        )).thenReturn(new SearchPage(
+            "ftp SQL 样例",
+            List.of("ftp", "sql", "样例"),
+            List.of(sqlExampleSearchResult()),
+            1,
+            8,
+            1,
+            8,
+            1,
+            false,
+            4L,
+            -1,
+            null
+        ));
+        when(searchService.get(eq("doc-sql-1"), any(SearchPermissionContext.class))).thenReturn(java.util.Optional.of(sqlExampleDocument()));
+        DocumentSearchEvidenceService service = newEvidenceService(searchService);
+
+        DocumentSearchResult result = service.search(new DocumentSearchRequest(
+            "ftp SQL 样例",
+            8,
+            null,
+            null,
+            null,
+            null,
+            null,
+            false
+        ));
+
+        assertThat(result.results())
+            .extracting(DocumentEvidenceChunk::chunkType)
+            .contains("code_example_expanded");
+        DocumentEvidenceChunk expanded = result.results().stream()
+            .filter(chunk -> "code_example_expanded".equals(chunk.chunkType()))
+            .findFirst()
+            .orElseThrow();
+        assertThat(expanded.content())
+            .contains("create table t_dm_ads_cust_marg_d_tgt")
+            .contains("'connector' = 'ftp'")
+            .contains("'host' = '192.168.195.226'")
+            .contains("'password' = 'apexsoft#123'")
+            .endsWith(";");
+    }
+
+    @Test
     void expandReturnsEvidenceReadyChunksInsideOneDocument() {
         SearchService searchService = mock(SearchService.class);
         when(searchService.get(eq("doc-title-1"), any(SearchPermissionContext.class))).thenReturn(java.util.Optional.of(outlinedDocument()));
@@ -721,6 +776,52 @@ class DocumentSearchControlPlaneTest {
         );
     }
 
+    private SearchResult sqlExampleSearchResult() {
+        return new SearchResult(
+            "doc-sql-1",
+            "FTP SQL example",
+            "FTP connector SQL example.",
+            "upload",
+            "2026-06-23",
+            "ftp.sql",
+            "sql",
+            null,
+            List.of("ftp.sql"),
+            List.of(),
+            List.of(),
+            94,
+            null,
+            List.of("ftp", "sql"),
+            List.of(new SearchMatchedChunk(
+                "doc-sql-1",
+                "ftp.sql",
+                "",
+                "sql",
+                "doc-sql-1_2",
+                2,
+                0.6F,
+                "'connector' = 'ftp', 'host' = '192.168.195.226', 'port' = '15230'",
+                "'connector' = 'ftp', 'host' = '192.168.195.226', 'port' = '15230'",
+                9.6F,
+                SearchPermissionContext.DEFAULT_TENANT,
+                SearchPermissionContext.ANONYMOUS_USER,
+                "public",
+                List.of()
+            )),
+            "vg-sql-1",
+            1,
+            true,
+            SearchPermissionContext.DEFAULT_TENANT,
+            SearchPermissionContext.ANONYMOUS_USER,
+            "public",
+            List.of(),
+            "active",
+            System.currentTimeMillis(),
+            null,
+            null
+        );
+    }
+
     private SearchDocument outlinedDocument() {
         return SearchDocument.builder()
             .docId("doc-title-1")
@@ -736,6 +837,48 @@ class DocumentSearchControlPlaneTest {
 
                 3. Exception Handling
                 Exceptions are routed to operations with owner, reason, and expected close date.
+                """)
+            .tenantId(SearchPermissionContext.DEFAULT_TENANT)
+            .userId(SearchPermissionContext.ANONYMOUS_USER)
+            .visibility("public")
+            .permissionRoles(List.of())
+            .build();
+    }
+
+    private SearchDocument sqlExampleDocument() {
+        return SearchDocument.builder()
+            .docId("doc-sql-1")
+            .title("FTP SQL example")
+            .fileName("ftp.sql")
+            .documentType("sql")
+            .content("""
+                set spark.sql.debug.maxToStringFields=200;
+
+                CREATE TABLE src_table (
+                  fake string
+                ) WITH (
+                  'connector' = 'jdbc',
+                  'type' = 'source',
+                  'url' = 'jdbc:mysql://192.168.191.11:3306/LiveDOP?useSSL=false',
+                  'username' = 'root',
+                  'password' = 'Apex@2022',
+                  'table-name' = 'test_stream.proc_src_tuser',
+                  'properties.query' = 'select user_id,user_name from test_stream.proc_src_tuser'
+                );
+                src_table.print;
+
+                create table t_dm_ads_cust_marg_d_tgt (
+                  user_id int,
+                  user_name string
+                ) WITH (
+                  'connector' = 'ftp',
+                  'type' = 'sink',
+                  'host' = '192.168.195.226',
+                  'protocol' = 'ftp',
+                  'port' = '15230',
+                  'username' = 'apex',
+                  'password' = 'apexsoft#123'
+                );
                 """)
             .tenantId(SearchPermissionContext.DEFAULT_TENANT)
             .userId(SearchPermissionContext.ANONYMOUS_USER)

@@ -1,0 +1,581 @@
+package com.chatchat.mcpserver.routing;
+
+import com.chatchat.mcpserver.database.DatabaseQueryConfig;
+import com.chatchat.mcpserver.database.DatabaseQueryConfigService;
+import com.chatchat.mcpserver.ops.HttpEndpointConfig;
+import com.chatchat.mcpserver.ops.HttpEndpointConfigService;
+import com.chatchat.mcpserver.ops.SshHostConfig;
+import com.chatchat.mcpserver.ops.SshHostConfigService;
+import com.chatchat.mcpserver.sql.SqlDatasourceConfig;
+import com.chatchat.mcpserver.sql.SqlDatasourceConfigService;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
+
+@Service
+@RequiredArgsConstructor
+public class ExecutionTargetRouter {
+
+    private static final List<String> EXECUTION_CONTEXT_KEYS = List.of("mcpExecutionContext", "executionContext");
+    private static final List<String> LOGICAL_CONTEXT_KEYS = List.of(
+        "env",
+        "environment",
+        "cluster",
+        "namespace",
+        "target",
+        "targetType",
+        "target_type",
+        "hostSelector",
+        "host_selector",
+        "database",
+        "databaseRole",
+        "database_role",
+        "service",
+        "labels"
+    );
+
+    private final SshHostConfigService hostConfigService;
+    private final SqlDatasourceConfigService datasourceConfigService;
+    private final HttpEndpointConfigService httpEndpointConfigService;
+    private final DatabaseQueryConfigService databaseQueryConfigService;
+    private final ExecutionTargetService executionTargetService;
+    private final ObjectMapper objectMapper;
+
+    public Map<String, Object> routeLinuxCommand(Map<String, Object> arguments) {
+        Map<String, Object> request = copyArguments(arguments);
+        rejectConcreteTarget(request, "hostId", "host", "hostname", "ip", "ipAddress", "address");
+        SshHostConfig host = resolveSshHost(request);
+        removeExecutionContext(request);
+        request.put("hostId", host.getId());
+        request.put("routedTarget", Map.of(
+            "type", "ssh_host",
+            "hostId", host.getId(),
+            "hostName", firstText(host.getName(), host.getToolName()),
+            "environment", host.getEnvironment()
+        ));
+        return request;
+    }
+
+    public Map<String, Object> routeSqlQuery(Map<String, Object> arguments) {
+        Map<String, Object> request = copyArguments(arguments);
+        rejectConcreteTarget(request, "datasourceId", "jdbcUrl", "url", "connectionString");
+        SqlDatasourceConfig datasource = resolveSqlDatasource(request);
+        removeExecutionContext(request);
+        request.put("datasourceId", datasource.getId());
+        request.put("routedTarget", Map.of(
+            "type", "sql_datasource",
+            "datasourceId", datasource.getId(),
+            "datasourceName", firstText(datasource.getName(), datasource.getToolName()),
+            "environment", datasource.getEnvironment()
+        ));
+        return request;
+    }
+
+    public RoutedHttpEndpoint routeHttpRequest(Map<String, Object> arguments) {
+        Map<String, Object> request = copyArguments(arguments);
+        rejectConcreteTarget(request, "endpointId", "url", "uri", "host", "hostname", "ip", "ipAddress", "address");
+        HttpEndpointConfig endpoint = resolveHttpEndpoint(request);
+        removeExecutionContext(request);
+        request.put("routedTarget", Map.of(
+            "type", "http_endpoint",
+            "endpointId", endpoint.getId(),
+            "endpointName", firstText(endpoint.getName(), endpoint.getToolName()),
+            "environment", endpoint.getEnvironment()
+        ));
+        return new RoutedHttpEndpoint(endpoint, request);
+    }
+
+    public RoutedDatabaseQuery routeDatabaseQuery(Map<String, Object> arguments) {
+        Map<String, Object> request = copyArguments(arguments);
+        rejectConcreteTarget(request, "databaseQueryId", "queryId", "toolName");
+        DatabaseQueryConfig query = resolveDatabaseQuery(request);
+        removeExecutionContext(request);
+        request.put("routedTarget", Map.of(
+            "type", "database_query",
+            "databaseQueryId", query.getId(),
+            "queryName", firstText(query.getTitle(), query.getToolName())
+        ));
+        return new RoutedDatabaseQuery(query, request);
+    }
+
+    public SshHostConfig resolveSshHost(Map<String, Object> arguments) {
+        Map<String, Object> context = executionContext(arguments);
+        List<SshHostConfig> candidates = hostConfigService.listEnabled();
+        ExecutionTargetConfig target = resolveConfiguredTarget(context, ExecutionTargetService.ASSET_TYPE_SSH_HOST);
+        if (target != null) {
+            candidates = filterByConfiguredTarget(candidates, target, this::sshLabels, SshHostConfig::getEnvironment);
+            return singleTarget(candidates, "SSH host", context);
+        }
+        candidates = filterByEnvironment(candidates, context, SshHostConfig::getEnvironment);
+        candidates = filterBySelector(candidates, context, this::sshLabels);
+        candidates = filterByLogicalTokens(candidates, context, this::sshLabels,
+            "cluster", "namespace", "target", "targetType", "target_type", "service");
+        return singleTarget(candidates, "SSH host", context);
+    }
+
+    public SqlDatasourceConfig resolveSqlDatasource(Map<String, Object> arguments) {
+        Map<String, Object> context = executionContext(arguments);
+        List<SqlDatasourceConfig> candidates = datasourceConfigService.listEnabled();
+        ExecutionTargetConfig target = resolveConfiguredTarget(context, ExecutionTargetService.ASSET_TYPE_SQL_DATASOURCE);
+        if (target != null) {
+            candidates = filterByConfiguredTarget(candidates, target, this::sqlLabels, SqlDatasourceConfig::getEnvironment);
+            return singleTarget(candidates, "SQL datasource", context);
+        }
+        candidates = filterByEnvironment(candidates, context, SqlDatasourceConfig::getEnvironment);
+        candidates = filterByLogicalTokens(candidates, context, this::sqlLabels,
+            "cluster", "namespace", "target", "targetType", "target_type", "database", "databaseRole",
+            "database_role", "service");
+        return singleTarget(candidates, "SQL datasource", context);
+    }
+
+    public HttpEndpointConfig resolveHttpEndpoint(Map<String, Object> arguments) {
+        Map<String, Object> context = executionContext(arguments);
+        List<HttpEndpointConfig> candidates = httpEndpointConfigService.listEnabled();
+        ExecutionTargetConfig target = resolveConfiguredTarget(context, ExecutionTargetService.ASSET_TYPE_HTTP_ENDPOINT);
+        if (target != null) {
+            candidates = filterByConfiguredTarget(candidates, target, this::httpLabels, HttpEndpointConfig::getEnvironment);
+            return singleTarget(candidates, "HTTP endpoint", context);
+        }
+        candidates = filterByEnvironment(candidates, context, HttpEndpointConfig::getEnvironment);
+        candidates = filterByLogicalTokens(candidates, context, this::httpLabels,
+            "cluster", "namespace", "target", "targetType", "target_type", "service");
+        return singleTarget(candidates, "HTTP endpoint", context);
+    }
+
+    public DatabaseQueryConfig resolveDatabaseQuery(Map<String, Object> arguments) {
+        Map<String, Object> context = executionContext(arguments);
+        List<DatabaseQueryConfig> candidates = databaseQueryConfigService.listEnabled();
+        ExecutionTargetConfig target = resolveConfiguredTarget(context, ExecutionTargetService.ASSET_TYPE_DATABASE_QUERY);
+        if (target != null) {
+            candidates = filterByConfiguredTarget(candidates, target, this::databaseQueryLabels, ignored -> null);
+            return singleTarget(candidates, "database query", context);
+        }
+        candidates = filterByLogicalTokens(candidates, context, this::databaseQueryLabels,
+            "cluster", "namespace", "target", "targetType", "target_type", "database", "databaseRole",
+            "database_role", "service");
+        return singleTarget(candidates, "database query", context);
+    }
+
+    private ExecutionTargetConfig resolveConfiguredTarget(Map<String, Object> context, String assetType) {
+        List<String> tokens = contextTokens(context,
+            "target",
+            "targetType",
+            "target_type",
+            "database",
+            "databaseRole",
+            "database_role",
+            "service"
+        );
+        if (tokens.isEmpty()) {
+            return null;
+        }
+        List<ExecutionTargetConfig> targets = executionTargetService.listEnabledByAssetType(assetType).stream()
+            .filter(target -> targetMatchesContext(target, tokens, context))
+            .toList();
+        if (targets.isEmpty()) {
+            return null;
+        }
+        int bestPriority = targets.get(0).getPriority();
+        List<ExecutionTargetConfig> best = targets.stream()
+            .filter(target -> target.getPriority() == bestPriority)
+            .toList();
+        if (best.size() > 1) {
+            throw new IllegalArgumentException("Ambiguous execution target model for context: "
+                + compactContext(context) + ", matched=" + best.size());
+        }
+        return best.get(0);
+    }
+
+    private boolean targetMatchesContext(ExecutionTargetConfig target,
+                                         List<String> tokens,
+                                         Map<String, Object> context) {
+        String env = firstContextText(context, "env", "environment");
+        if (env != null && target.getEnvironment() != null && !equalsNormalized(target.getEnvironment(), env)) {
+            return false;
+        }
+        Set<String> labels = targetLabels(target);
+        return tokens.stream().anyMatch(token -> labels.contains(normalize(token)));
+    }
+
+    private <T> List<T> filterByConfiguredTarget(List<T> candidates,
+                                                 ExecutionTargetConfig target,
+                                                 LabelsExtractor<T> labelsExtractor,
+                                                 ValueExtractor<T> environmentExtractor) {
+        List<T> filtered = candidates;
+        if (target.getEnvironment() != null) {
+            filtered = filtered.stream()
+                .filter(candidate -> equalsNormalized(environmentExtractor.value(candidate), target.getEnvironment()))
+                .toList();
+        }
+        String selectorType = target.getSelectorType();
+        String selectorValue = target.getSelectorValue();
+        return filtered.stream()
+            .filter(candidate -> matchesSelector(labelsExtractor.labels(candidate), selectorType, selectorValue))
+            .toList();
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> executionContext(Map<String, Object> arguments) {
+        Map<String, Object> context = new LinkedHashMap<>();
+        if (arguments == null || arguments.isEmpty()) {
+            return context;
+        }
+        for (String key : EXECUTION_CONTEXT_KEYS) {
+            Object value = arguments.get(key);
+            if (value instanceof Map<?, ?> map) {
+                context.putAll((Map<String, Object>) map);
+            }
+        }
+        for (String key : LOGICAL_CONTEXT_KEYS) {
+            Object value = arguments.get(key);
+            if (value != null) {
+                context.putIfAbsent(key, value);
+            }
+        }
+        return context;
+    }
+
+    private void rejectConcreteTarget(Map<String, Object> arguments, String... keys) {
+        if (arguments == null || keys == null) {
+            return;
+        }
+        for (String key : keys) {
+            Object value = arguments.get(key);
+            if (value != null && !String.valueOf(value).isBlank()) {
+                throw new IllegalArgumentException(
+                    "Concrete execution target is not allowed in gateway calls: " + key);
+            }
+        }
+    }
+
+    private void removeExecutionContext(Map<String, Object> request) {
+        EXECUTION_CONTEXT_KEYS.forEach(request::remove);
+        LOGICAL_CONTEXT_KEYS.forEach(request::remove);
+    }
+
+    private <T> List<T> filterByEnvironment(List<T> candidates,
+                                            Map<String, Object> context,
+                                            ValueExtractor<T> extractor) {
+        String env = firstContextText(context, "env", "environment");
+        if (env == null) {
+            return candidates;
+        }
+        return candidates.stream()
+            .filter(candidate -> equalsNormalized(extractor.value(candidate), env))
+            .toList();
+    }
+
+    @SuppressWarnings("unchecked")
+    private <T> List<T> filterBySelector(List<T> candidates,
+                                         Map<String, Object> context,
+                                         LabelsExtractor<T> extractor) {
+        Object rawSelector = firstContextObject(context, "hostSelector", "host_selector");
+        if (!(rawSelector instanceof Map<?, ?> selector)) {
+            return candidates;
+        }
+        Object rawValue = firstObject((Map<String, Object>) selector, "value", "label", "name", "toolName");
+        String value = text(rawValue);
+        if (value == null) {
+            return candidates;
+        }
+        String type = text(firstObject((Map<String, Object>) selector, "type", "match"));
+        return candidates.stream()
+            .filter(candidate -> matchesSelector(extractor.labels(candidate), type, value))
+            .toList();
+    }
+
+    private <T> List<T> filterByLogicalTokens(List<T> candidates,
+                                              Map<String, Object> context,
+                                              LabelsExtractor<T> extractor,
+                                              String... keys) {
+        List<String> tokens = contextTokens(context, keys);
+        if (tokens.isEmpty()) {
+            return candidates;
+        }
+        List<T> filtered = candidates;
+        for (String token : tokens) {
+            filtered = filtered.stream()
+                .filter(candidate -> extractor.labels(candidate).contains(normalize(token)))
+                .toList();
+        }
+        return filtered;
+    }
+
+    private boolean matchesSelector(Set<String> labels, String type, String value) {
+        String normalizedValue = normalize(value);
+        String normalizedType = normalize(type);
+        if (normalizedType == null || normalizedType.equals("label")) {
+            return labels.contains(normalizedValue);
+        }
+        if (normalizedType.equals("name")) {
+            return labels.contains("name:" + normalizedValue) || labels.contains(normalizedValue);
+        }
+        if (normalizedType.equals("toolname") || normalizedType.equals("tool_name")) {
+            return labels.contains("tool:" + normalizedValue) || labels.contains(normalizedValue);
+        }
+        return labels.contains(normalizedValue);
+    }
+
+    private <T> T singleTarget(List<T> candidates, String targetType, Map<String, Object> context) {
+        if (candidates == null || candidates.isEmpty()) {
+            throw new IllegalArgumentException("No " + targetType + " matched execution context: " + compactContext(context));
+        }
+        if (candidates.size() > 1) {
+            throw new IllegalArgumentException("Ambiguous " + targetType + " execution context: "
+                + compactContext(context) + ", matched=" + candidates.size());
+        }
+        return candidates.get(0);
+    }
+
+    private Set<String> sshLabels(SshHostConfig host) {
+        Set<String> labels = new LinkedHashSet<>();
+        addLabel(labels, host.getEnvironment());
+        addLabel(labels, host.getName());
+        addLabel(labels, "name:" + host.getName());
+        addLabel(labels, host.getToolName());
+        addLabel(labels, "tool:" + host.getToolName());
+        addLabel(labels, host.getTitle());
+        addJsonLabels(labels, host.getRoutingLabelsJson());
+        addJsonLabels(labels, host.getCapabilitiesJson());
+        addDelimited(labels, host.getTags());
+        addGovernanceLabels(labels, host.getGovernanceJson());
+        return labels;
+    }
+
+    private Set<String> sqlLabels(SqlDatasourceConfig datasource) {
+        Set<String> labels = new LinkedHashSet<>();
+        addLabel(labels, datasource.getEnvironment());
+        addLabel(labels, datasource.getName());
+        addLabel(labels, "name:" + datasource.getName());
+        addLabel(labels, datasource.getToolName());
+        addLabel(labels, "tool:" + datasource.getToolName());
+        addLabel(labels, datasource.getTitle());
+        addJsonLabels(labels, datasource.getRoutingLabelsJson());
+        addJsonLabels(labels, datasource.getCapabilitiesJson());
+        addGovernanceLabels(labels, datasource.getGovernanceJson());
+        return labels;
+    }
+
+    private Set<String> httpLabels(HttpEndpointConfig endpoint) {
+        Set<String> labels = new LinkedHashSet<>();
+        addLabel(labels, endpoint.getEnvironment());
+        addLabel(labels, endpoint.getName());
+        addLabel(labels, "name:" + endpoint.getName());
+        addLabel(labels, endpoint.getToolName());
+        addLabel(labels, "tool:" + endpoint.getToolName());
+        addLabel(labels, endpoint.getTitle());
+        addLabel(labels, endpoint.getCategory());
+        addJsonLabels(labels, endpoint.getRoutingLabelsJson());
+        addJsonLabels(labels, endpoint.getCapabilitiesJson());
+        addDelimited(labels, endpoint.getTags());
+        addGovernanceLabels(labels, endpoint.getGovernanceJson());
+        return labels;
+    }
+
+    private Set<String> databaseQueryLabels(DatabaseQueryConfig query) {
+        Set<String> labels = new LinkedHashSet<>();
+        addLabel(labels, query.getTitle());
+        addLabel(labels, query.getToolName());
+        addLabel(labels, "tool:" + query.getToolName());
+        addLabel(labels, query.getDatasourceId());
+        addJsonLabels(labels, query.getRoutingLabelsJson());
+        addJsonLabels(labels, query.getCapabilitiesJson());
+        addGovernanceLabels(labels, query.getGovernanceJson());
+        return labels;
+    }
+
+    private Set<String> targetLabels(ExecutionTargetConfig target) {
+        Set<String> labels = new LinkedHashSet<>();
+        addLabel(labels, target.getTargetKey());
+        addLabel(labels, target.getName());
+        addLabel(labels, target.getSelectorValue());
+        addLabel(labels, target.getEnvironment());
+        if (target.getLabelsJson() != null && !target.getLabelsJson().isBlank()) {
+            try {
+                List<String> configured = objectMapper.readValue(target.getLabelsJson(), new TypeReference<>() {});
+                configured.forEach(item -> addLabel(labels, item));
+            } catch (Exception ignored) {
+                // ExecutionTargetService validates labelsJson; routing ignores invalid stale values defensively.
+            }
+        }
+        return labels;
+    }
+
+    private void addDelimited(Set<String> labels, String value) {
+        if (value == null || value.isBlank()) {
+            return;
+        }
+        for (String item : value.split("[,;\\s]+")) {
+            addLabel(labels, item);
+            if (item.contains(":")) {
+                addLabel(labels, item.substring(item.indexOf(':') + 1));
+            }
+        }
+    }
+
+    private void addJsonLabels(Set<String> labels, String json) {
+        if (json == null || json.isBlank()) {
+            return;
+        }
+        try {
+            List<String> configured = objectMapper.readValue(json, new TypeReference<>() {});
+            configured.forEach(item -> addLabel(labels, item));
+        } catch (Exception ignored) {
+            // Asset services validate protocol JSON; routing ignores invalid stale values defensively.
+        }
+    }
+
+    private void addGovernanceLabels(Set<String> labels, String governanceJson) {
+        if (governanceJson == null || governanceJson.isBlank()) {
+            return;
+        }
+        try {
+            Map<String, Object> governance = objectMapper.readValue(governanceJson, new TypeReference<>() {});
+            addLabel(labels, governance.get("cluster"));
+            addLabel(labels, governance.get("namespace"));
+            addLabel(labels, governance.get("target"));
+            addLabel(labels, firstObject(governance, "targetType", "target_type"));
+            addLabel(labels, firstObject(governance, "databaseRole", "database_role", "role"));
+            addLabels(labels, governance.get("labels"));
+            addLabels(labels, governance.get("roles"));
+        } catch (Exception ignored) {
+            // Invalid governance JSON is handled by config validation paths; routing treats it as no extra labels.
+        }
+    }
+
+    private List<String> contextTokens(Map<String, Object> context, String... keys) {
+        List<String> tokens = new ArrayList<>();
+        if (context == null || keys == null) {
+            return tokens;
+        }
+        for (String key : keys) {
+            Object value = context.get(key);
+            if (value instanceof List<?> list) {
+                list.forEach(item -> addToken(tokens, item));
+            } else {
+                addToken(tokens, value);
+            }
+        }
+        Object labels = context.get("labels");
+        if (labels instanceof List<?> list) {
+            list.forEach(item -> addToken(tokens, item));
+        }
+        return tokens.stream().distinct().toList();
+    }
+
+    private void addLabels(Set<String> labels, Object value) {
+        if (value instanceof List<?> list) {
+            list.forEach(item -> addLabel(labels, item));
+            return;
+        }
+        addLabel(labels, value);
+    }
+
+    private void addLabel(Set<String> labels, Object value) {
+        String normalized = normalize(value == null ? null : String.valueOf(value));
+        if (normalized != null) {
+            labels.add(normalized);
+        }
+    }
+
+    private void addToken(List<String> tokens, Object value) {
+        String token = normalize(value == null ? null : String.valueOf(value));
+        if (token != null) {
+            tokens.add(token);
+        }
+    }
+
+    private Map<String, Object> copyArguments(Map<String, Object> arguments) {
+        return new LinkedHashMap<>(arguments == null ? Map.of() : arguments);
+    }
+
+    private String firstContextText(Map<String, Object> context, String... keys) {
+        return text(firstContextObject(context, keys));
+    }
+
+    private Object firstContextObject(Map<String, Object> context, String... keys) {
+        if (context == null || keys == null) {
+            return null;
+        }
+        for (String key : keys) {
+            Object value = context.get(key);
+            if (value != null && !String.valueOf(value).isBlank()) {
+                return value;
+            }
+        }
+        return null;
+    }
+
+    private Object firstObject(Map<String, Object> map, String... keys) {
+        if (map == null || keys == null) {
+            return null;
+        }
+        for (String key : keys) {
+            Object value = map.get(key);
+            if (value != null && !String.valueOf(value).isBlank()) {
+                return value;
+            }
+        }
+        return null;
+    }
+
+    private String firstText(String value, String fallback) {
+        return value == null || value.isBlank() ? fallback : value.trim();
+    }
+
+    private String text(Object value) {
+        return value == null || String.valueOf(value).isBlank() ? null : String.valueOf(value).trim();
+    }
+
+    private boolean equalsNormalized(String first, String second) {
+        String left = normalize(first);
+        String right = normalize(second);
+        return left != null && left.equals(right);
+    }
+
+    private String normalize(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private String compactContext(Map<String, Object> context) {
+        if (context == null || context.isEmpty()) {
+            return "{}";
+        }
+        Map<String, Object> compact = new LinkedHashMap<>();
+        for (String key : LOGICAL_CONTEXT_KEYS) {
+            Object value = context.get(key);
+            if (value != null) {
+                compact.put(key, value);
+            }
+        }
+        return compact.toString();
+    }
+
+    @FunctionalInterface
+    private interface ValueExtractor<T> {
+        String value(T target);
+    }
+
+    @FunctionalInterface
+    private interface LabelsExtractor<T> {
+        Set<String> labels(T target);
+    }
+
+    public record RoutedHttpEndpoint(HttpEndpointConfig endpoint, Map<String, Object> arguments) {
+    }
+
+    public record RoutedDatabaseQuery(DatabaseQueryConfig query, Map<String, Object> arguments) {
+    }
+}

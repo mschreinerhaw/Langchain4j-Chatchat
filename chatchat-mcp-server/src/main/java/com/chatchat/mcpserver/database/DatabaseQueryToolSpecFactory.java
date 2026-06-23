@@ -39,7 +39,9 @@ public class DatabaseQueryToolSpecFactory {
             .title(config.getTitle())
             .description(config.getDescription() == null ? "Read-only database query" : config.getDescription())
             .inputSchema(toInputSchema(config.getInputSchemaJson()))
-            .meta(withLimitMeta(withLegacyId(governanceFactory.metaForDatabaseQuery(config), "databaseQueryId", config.getId()),
+            .meta(withLimitMeta(withProtocolMeta(
+                    withLegacyId(governanceFactory.metaForDatabaseQuery(config), "databaseQueryId", config.getId()),
+                    config),
                 config.getToolName(), "sql"))
             .build();
 
@@ -186,5 +188,29 @@ public class DatabaseQueryToolSpecFactory {
         Map<String, Object> values = new LinkedHashMap<>(meta == null ? Map.of() : meta);
         values.put("mcp_tool_limit", concurrencyManager.limitMeta(toolName, runtimeLevel));
         return values;
+    }
+
+    private Map<String, Object> withProtocolMeta(Map<String, Object> meta, DatabaseQueryConfig config) {
+        Map<String, Object> values = new LinkedHashMap<>(meta == null ? Map.of() : meta);
+        values.put("assetType", "database_query");
+        values.put("targetRoutingRequired", false);
+        values.put("routingLabels", readJsonList(config.getRoutingLabelsJson()));
+        values.put("capabilities", readJsonList(config.getCapabilitiesJson()));
+        return values;
+    }
+
+    private List<String> readJsonList(String json) {
+        if (json == null || json.isBlank()) {
+            return List.of();
+        }
+        try {
+            return objectMapper.readValue(json, new TypeReference<List<String>>() {}).stream()
+                .filter(item -> item != null && !item.isBlank())
+                .map(String::trim)
+                .distinct()
+                .toList();
+        } catch (Exception ex) {
+            return List.of();
+        }
     }
 }

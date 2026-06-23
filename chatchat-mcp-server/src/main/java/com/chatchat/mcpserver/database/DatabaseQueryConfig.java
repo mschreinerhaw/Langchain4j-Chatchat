@@ -7,8 +7,11 @@ import jakarta.persistence.Lob;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 @Entity
@@ -42,6 +45,20 @@ public class DatabaseQueryConfig {
     @Lob
     @Column
     private String governanceJson;
+
+    @Lob
+    @Column
+    private String routingLabelsJson;
+
+    @Lob
+    @Column
+    private String capabilitiesJson;
+
+    @Transient
+    private List<String> routingLabels = new ArrayList<>();
+
+    @Transient
+    private List<String> capabilities = new ArrayList<>();
 
     @Column(nullable = false)
     private int maxRows = 50;
@@ -107,6 +124,14 @@ public class DatabaseQueryConfig {
     public void setInputSchemaJson(String inputSchemaJson) { this.inputSchemaJson = inputSchemaJson; }
     public String getGovernanceJson() { return governanceJson; }
     public void setGovernanceJson(String governanceJson) { this.governanceJson = governanceJson; }
+    public String getRoutingLabelsJson() { return routingLabelsJson; }
+    public void setRoutingLabelsJson(String routingLabelsJson) { this.routingLabelsJson = routingLabelsJson; }
+    public String getCapabilitiesJson() { return capabilitiesJson; }
+    public void setCapabilitiesJson(String capabilitiesJson) { this.capabilitiesJson = capabilitiesJson; }
+    public List<String> getRoutingLabels() { return routingLabels; }
+    public void setRoutingLabels(List<String> routingLabels) { this.routingLabels = routingLabels == null ? new ArrayList<>() : routingLabels; }
+    public List<String> getCapabilities() { return capabilities; }
+    public void setCapabilities(List<String> capabilities) { this.capabilities = capabilities == null ? new ArrayList<>() : capabilities; }
     public int getMaxRows() { return maxRows; }
     public void setMaxRows(int maxRows) { this.maxRows = maxRows; }
     public String getJdbcUrl() { return jdbcUrl; }

@@ -21,8 +21,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -84,6 +86,7 @@ public class AgentChatModeHandler implements InteractionModeHandler {
     public InteractionResponse handle(InteractionRequest request, InteractionContext context) {
         SkillDefinition skill = skillCatalogService.resolve(request.getSkillId());
         AgentToolPolicyResolver.ToolPolicy toolPolicy = toolPolicyResolver.resolve(request, skill);
+        Map<String, Object> executionContext = mcpExecutionContext(request, skill);
         String experienceContext = learningService == null ? "" : learningService.buildRuntimeExperienceContext(
                 request.getTenantId(),
                 skill == null ? request.getSkillId() : skill.id(),
@@ -91,14 +94,17 @@ public class AgentChatModeHandler implements InteractionModeHandler {
                 toolPolicy.availableTools()
             );
         String systemPrompt = appendResponseContract(
-            appendExperienceContext(resolveSystemPrompt(request, skill, context), experienceContext),
+            appendMcpExecutionContext(
+                appendExperienceContext(resolveSystemPrompt(request, skill, context), experienceContext),
+                executionContext
+            ),
             request
         );
         String modelName = skill.modelName() != null && !skill.modelName().isBlank()
             ? skill.modelName()
             : request.getModelName();
 
-        Map<String, Object> runtimeAttributes = runtimeAttributes(request, skill);
+        Map<String, Object> runtimeAttributes = runtimeAttributes(request, skill, executionContext);
         AgentRunResult result = executeThroughRuntime(
             request,
             context,
@@ -124,6 +130,9 @@ public class AgentChatModeHandler implements InteractionModeHandler {
         metadata.put("historyUsed", context.history() == null ? 0 : context.history().size());
         metadata.put("summaryUsed", context.conversationSummary() != null && !context.conversationSummary().isBlank());
         metadata.put("experienceHintsUsed", !experienceContext.isBlank());
+        if (!executionContext.isEmpty()) {
+            metadata.put("mcpExecutionContext", executionContext);
+        }
 
         return InteractionResponse.builder()
             .answer(result.answer())
@@ -282,6 +291,24 @@ public class AgentChatModeHandler implements InteractionModeHandler {
         return builder.toString();
     }
 
+    private String appendMcpExecutionContext(String systemPrompt, Map<String, Object> executionContext) {
+        if (executionContext == null || executionContext.isEmpty()) {
+            return systemPrompt;
+        }
+        StringBuilder builder = new StringBuilder();
+        if (systemPrompt != null && !systemPrompt.isBlank()) {
+            builder.append(systemPrompt.trim()).append("\n\n");
+        }
+        builder.append("MCP execution target policy.\n")
+            .append("- Decide what operation to perform and which logical target type/scope is needed.\n")
+            .append("- Do not invent, request, or specify concrete hostnames, host IDs, IP addresses, JDBC URLs, or physical database endpoints.\n")
+            .append("- Concrete machines, database endpoints, and execution nodes are selected by the system routing layer from the bound execution context.\n")
+            .append("- Use only logical target values exposed in this execution context: ")
+            .append(formatExecutionContext(executionContext))
+            .append("\n");
+        return builder.toString();
+    }
+
     private String responseContractPrompt(InteractionRequest request) {
         if (request == null || request.getToolInput() == null || request.getToolInput().isEmpty()) {
             return "";
@@ -327,7 +354,9 @@ public class AgentChatModeHandler implements InteractionModeHandler {
      * @param skill the skill value
      * @return the operation result
      */
-    private Map<String, Object> runtimeAttributes(InteractionRequest request, SkillDefinition skill) {
+    private Map<String, Object> runtimeAttributes(InteractionRequest request,
+                                                  SkillDefinition skill,
+                                                  Map<String, Object> executionContext) {
         Map<String, Object> attributes = new LinkedHashMap<>();
         if (request != null && request.getToolInput() != null && !request.getToolInput().isEmpty()) {
             Object confirmation = request.getToolInput().get("mcpConfirmation");
@@ -353,6 +382,9 @@ public class AgentChatModeHandler implements InteractionModeHandler {
         }
         if (skill != null && skill.workflowConfig() != null && !skill.workflowConfig().isEmpty()) {
             attributes.put("mcpWorkflow", skill.workflowConfig());
+        }
+        if (executionContext != null && !executionContext.isEmpty()) {
+            attributes.put("mcpExecutionContext", executionContext);
         }
         List<Map<String, Object>> toolConfigs = toolConfigAttributes(skill);
         if (!toolConfigs.isEmpty()) {
@@ -395,6 +427,98 @@ public class AgentChatModeHandler implements InteractionModeHandler {
         values.put("callWeight", config.callWeight());
         values.put("enabled", config.enabled());
         return values;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> mcpExecutionContext(InteractionRequest request, SkillDefinition skill) {
+        Map<String, Object> context = new LinkedHashMap<>();
+        if (skill != null && skill.workflowConfig() != null) {
+            Object skillContext = firstPresent(
+                skill.workflowConfig().get("mcpExecutionContext"),
+                skill.workflowConfig().get("executionContext")
+            );
+            if (skillContext instanceof Map<?, ?> map) {
+                context.putAll(sanitizeExecutionContext((Map<String, Object>) map));
+            }
+        }
+        if (request != null && request.getToolInput() != null) {
+            Object requestContext = firstPresent(
+                request.getToolInput().get("mcpExecutionContext"),
+                request.getToolInput().get("executionContext")
+            );
+            if (requestContext instanceof Map<?, ?> map) {
+                context.putAll(sanitizeExecutionContext((Map<String, Object>) map));
+            }
+        }
+        return context.isEmpty() ? Map.of() : Map.copyOf(context);
+    }
+
+    private Map<String, Object> sanitizeExecutionContext(Map<String, Object> rawContext) {
+        if (rawContext == null || rawContext.isEmpty()) {
+            return Map.of();
+        }
+        Set<String> allowedKeys = new LinkedHashSet<>(List.of(
+            "env",
+            "environment",
+            "cluster",
+            "namespace",
+            "target",
+            "targetType",
+            "target_type",
+            "hostSelector",
+            "host_selector",
+            "tenant",
+            "businessUnit",
+            "business_unit",
+            "database",
+            "databaseRole",
+            "database_role",
+            "service",
+            "labels"
+        ));
+        Map<String, Object> sanitized = new LinkedHashMap<>();
+        rawContext.forEach((key, value) -> {
+            if (key == null || value == null || !allowedKeys.contains(key)) {
+                return;
+            }
+            sanitized.put(key, sanitizeExecutionContextValue(value));
+        });
+        return sanitized.isEmpty() ? Map.of() : sanitized;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Object sanitizeExecutionContextValue(Object value) {
+        if (value instanceof Map<?, ?> map) {
+            Map<String, Object> sanitized = new LinkedHashMap<>();
+            map.forEach((key, item) -> {
+                if (key != null && item != null) {
+                    sanitized.put(String.valueOf(key), simpleExecutionContextValue(item));
+                }
+            });
+            return sanitized;
+        }
+        if (value instanceof List<?> list) {
+            return list.stream()
+                .map(this::simpleExecutionContextValue)
+                .toList();
+        }
+        return simpleExecutionContextValue(value);
+    }
+
+    private Object simpleExecutionContextValue(Object value) {
+        if (value instanceof Number || value instanceof Boolean) {
+            return value;
+        }
+        return value == null ? null : String.valueOf(value).trim();
+    }
+
+    private String formatExecutionContext(Map<String, Object> executionContext) {
+        if (executionContext == null || executionContext.isEmpty()) {
+            return "{}";
+        }
+        return executionContext.entrySet().stream()
+            .map(entry -> entry.getKey() + "=" + entry.getValue())
+            .collect(Collectors.joining(", "));
     }
 
     private String runtimeId(Map<String, Object> runtimeAttributes, String fallback) {

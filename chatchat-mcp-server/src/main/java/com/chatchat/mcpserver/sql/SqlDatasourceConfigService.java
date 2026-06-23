@@ -2,6 +2,8 @@ package com.chatchat.mcpserver.sql;
 
 import com.chatchat.agents.protocol.ModelProtocolJson;
 
+import com.chatchat.mcpserver.routing.AssetExecutionTargetBinding;
+import com.chatchat.mcpserver.routing.ExecutionTargetService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -9,7 +11,10 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -23,6 +28,7 @@ public class SqlDatasourceConfigService {
 
     private final SqlDatasourceConfigRepository repository;
     private final ObjectMapper objectMapper;
+    private final ExecutionTargetService executionTargetService;
 
     @Value("${spring.datasource.url:}")
     private String applicationJdbcUrl;
@@ -42,7 +48,9 @@ public class SqlDatasourceConfigService {
     @Transactional
     public SqlDatasourceConfig create(SqlDatasourceConfig config) {
         normalize(config, null);
-        return repository.save(config);
+        SqlDatasourceConfig saved = repository.save(config);
+        syncExecutionTargets(saved, config.getExecutionTargets());
+        return saved;
     }
 
     @Transactional
@@ -59,6 +67,10 @@ public class SqlDatasourceConfigService {
         config.setEnabled(request.isEnabled());
         config.setEnvironment(firstText(request.getEnvironment(), config.getEnvironment()));
         config.setRuntimeAction("confirm_required");
+        config.setRoutingLabelsJson(request.getRoutingLabelsJson());
+        config.setRoutingLabels(request.getRoutingLabels());
+        config.setCapabilitiesJson(request.getCapabilitiesJson());
+        config.setCapabilities(request.getCapabilities());
         config.setDefaultTimeoutSeconds(request.getDefaultTimeoutSeconds());
         config.setDefaultMaxRows(request.getDefaultMaxRows());
         config.setSensitiveTablesJson(normalizeJsonArray(request.getSensitiveTablesJson(), "sensitiveTables"));
@@ -66,7 +78,9 @@ public class SqlDatasourceConfigService {
         config.setAllowedTablesJson(normalizeJsonArray(request.getAllowedTablesJson(), "allowedTables"));
         config.setGovernanceJson(normalizeJsonObject(request.getGovernanceJson(), "governance"));
         normalize(config, id);
-        return repository.save(config);
+        SqlDatasourceConfig saved = repository.save(config);
+        syncExecutionTargets(saved, request.getExecutionTargets());
+        return saved;
     }
 
     public SqlDatasourceConfig getEnabled(String id) {
@@ -83,6 +97,12 @@ public class SqlDatasourceConfigService {
     public SqlDatasourceConfig getById(String id) {
         return repository.findById(requireText(id, "datasourceId is required"))
             .orElseThrow(() -> new IllegalArgumentException("SQL datasource not found: " + id));
+    }
+
+    @Transactional
+    public void delete(String id) {
+        SqlDatasourceConfig config = getById(id);
+        repository.delete(config);
     }
 
     private void normalize(SqlDatasourceConfig config, String currentId) {
@@ -102,12 +122,38 @@ public class SqlDatasourceConfigService {
         }
         config.setEnvironment(normalizeEnvironment(config.getEnvironment()));
         config.setRuntimeAction("confirm_required");
+        config.setRoutingLabelsJson(normalizeJsonArray(mergedProtocolValues(config.getRoutingLabelsJson(), config.getRoutingLabels()), "routingLabels"));
+        config.setCapabilitiesJson(firstText(
+            normalizeJsonArray(mergedProtocolValues(config.getCapabilitiesJson(), config.getCapabilities()), "capabilities"),
+            ModelProtocolJson.compact(List.of("jdbc", "sql_query_execute"))
+        ));
         config.setDefaultTimeoutSeconds(Math.max(1, Math.min(config.getDefaultTimeoutSeconds(), 60)));
         config.setDefaultMaxRows(Math.max(1, Math.min(config.getDefaultMaxRows(), 5000)));
         config.setSensitiveTablesJson(normalizeJsonArray(config.getSensitiveTablesJson(), "sensitiveTables"));
         config.setSensitiveFieldsJson(normalizeJsonArray(config.getSensitiveFieldsJson(), "sensitiveFields"));
         config.setAllowedTablesJson(normalizeJsonArray(config.getAllowedTablesJson(), "allowedTables"));
-        config.setGovernanceJson(normalizeJsonObject(config.getGovernanceJson(), "governance"));
+        config.setGovernanceJson(normalizeJsonObject(
+            mergeGovernanceLabels(config.getGovernanceJson(), config.getRoutingLabelsJson(), config.getCapabilitiesJson()),
+            "governance"
+        ));
+    }
+
+    private void syncExecutionTargets(SqlDatasourceConfig asset, List<AssetExecutionTargetBinding> bindings) {
+        if (asset == null || bindings == null || bindings.isEmpty()) {
+            return;
+        }
+        for (AssetExecutionTargetBinding binding : bindings) {
+            if (binding == null || binding.targetKey() == null || binding.targetKey().isBlank()) {
+                continue;
+            }
+            executionTargetService.upsertAssetBinding(
+                binding,
+                ExecutionTargetService.ASSET_TYPE_SQL_DATASOURCE,
+                asset.getEnvironment(),
+                "TOOL_NAME",
+                asset.getToolName()
+            );
+        }
     }
 
     private String normalizeToolName(String value) {
@@ -149,6 +195,70 @@ public class SqlDatasourceConfigService {
             return ModelProtocolJson.compact(items);
         } catch (Exception ex) {
             throw new IllegalArgumentException(field + " must be a JSON string array");
+        }
+    }
+
+    private String mergedProtocolValues(String json, List<String> values) {
+        LinkedHashSet<String> merged = new LinkedHashSet<>();
+        readJsonArray(json).forEach(merged::add);
+        if (values != null) {
+            values.stream()
+                .filter(value -> value != null && !value.isBlank())
+                .map(String::trim)
+                .forEach(merged::add);
+        }
+        return merged.isEmpty() ? null : ModelProtocolJson.compact(new ArrayList<>(merged));
+    }
+
+    private String mergeGovernanceLabels(String governanceJson, String routingLabelsJson, String capabilitiesJson) {
+        Map<String, Object> governance = new LinkedHashMap<>();
+        if (governanceJson != null && !governanceJson.isBlank()) {
+            try {
+                governance.putAll(objectMapper.readValue(governanceJson, new TypeReference<Map<String, Object>>() {}));
+            } catch (Exception ex) {
+                throw new IllegalArgumentException("governance must be a JSON object");
+            }
+        }
+        LinkedHashSet<String> labels = new LinkedHashSet<>();
+        labels.addAll(stringValues(governance.get("labels")));
+        readJsonArray(routingLabelsJson).forEach(labels::add);
+        if (!labels.isEmpty()) {
+            governance.put("labels", new ArrayList<>(labels));
+        }
+        LinkedHashSet<String> capabilities = new LinkedHashSet<>();
+        capabilities.addAll(stringValues(governance.get("capabilities")));
+        readJsonArray(capabilitiesJson).forEach(capabilities::add);
+        if (!capabilities.isEmpty()) {
+            governance.put("capabilities", new ArrayList<>(capabilities));
+        }
+        return governance.isEmpty() ? null : ModelProtocolJson.compact(governance);
+    }
+
+    private List<String> stringValues(Object value) {
+        if (value instanceof List<?> list) {
+            return list.stream()
+                .filter(item -> item != null && !String.valueOf(item).isBlank())
+                .map(item -> String.valueOf(item).trim())
+                .toList();
+        }
+        if (value == null || String.valueOf(value).isBlank()) {
+            return List.of();
+        }
+        return List.of(String.valueOf(value).trim());
+    }
+
+    private List<String> readJsonArray(String json) {
+        if (json == null || json.isBlank()) {
+            return List.of();
+        }
+        try {
+            return objectMapper.readValue(json, new TypeReference<List<String>>() {}).stream()
+                .filter(item -> item != null && !item.isBlank())
+                .map(String::trim)
+                .distinct()
+                .toList();
+        } catch (Exception ignored) {
+            return List.of();
         }
     }
 

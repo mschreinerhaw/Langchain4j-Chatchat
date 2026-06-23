@@ -1,5 +1,6 @@
 package com.chatchat.mcpserver.sql;
 
+import com.chatchat.mcpserver.routing.AssetExecutionTargetBinding;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
@@ -7,10 +8,13 @@ import jakarta.persistence.Lob;
 import jakarta.persistence.PrePersist;
 import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 import lombok.Getter;
 import lombok.Setter;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.UUID;
 
 @Getter
@@ -55,6 +59,23 @@ public class SqlDatasourceConfig {
 
     @Column(nullable = false, length = 32)
     private String runtimeAction = "confirm_required";
+
+    @Lob
+    @Column
+    private String routingLabelsJson;
+
+    @Lob
+    @Column
+    private String capabilitiesJson;
+
+    @Transient
+    private List<String> routingLabels = new ArrayList<>();
+
+    @Transient
+    private List<String> capabilities = new ArrayList<>();
+
+    @Transient
+    private List<AssetExecutionTargetBinding> executionTargets = new ArrayList<>();
 
     @Column(nullable = false)
     private int defaultTimeoutSeconds = 30;

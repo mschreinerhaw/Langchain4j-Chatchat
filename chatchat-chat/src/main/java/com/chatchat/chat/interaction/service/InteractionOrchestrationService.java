@@ -115,7 +115,14 @@ public class InteractionOrchestrationService {
         }
 
         if (response.getAnswer() != null && !response.getAnswer().isBlank()) {
-            memoryService.append(conversationId, "assistant", response.getAnswer(), response.getSources(), response.getToolTraces());
+            memoryService.append(
+                conversationId,
+                "assistant",
+                response.getAnswer(),
+                response.getSources(),
+                response.getToolTraces(),
+                memoryService.responseMemoryContext(response)
+            );
             memoryService.maybeRefreshSummary(conversationId);
         }
 

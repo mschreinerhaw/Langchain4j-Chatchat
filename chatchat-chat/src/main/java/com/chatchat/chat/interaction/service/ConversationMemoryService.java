@@ -3,8 +3,10 @@ package com.chatchat.chat.interaction.service;
 import com.chatchat.chat.conversation.Conversation;
 import com.chatchat.chat.conversation.ConversationSummary;
 import com.chatchat.chat.conversation.ConversationService;
+import com.chatchat.chat.interaction.model.InteractionResponse;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.chatchat.common.interaction.InteractionToolTrace;
 import dev.langchain4j.model.chat.ChatModel;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.ObjectProvider;
@@ -12,6 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -78,22 +81,80 @@ public class ConversationMemoryService {
      * @param content the content value
      */
     public void append(String conversationId, String role, String content) {
-        append(conversationId, role, content, List.of(), List.of());
+        append(conversationId, role, content, List.of(), List.of(), Map.of());
     }
 
     public void append(String conversationId, String role, String content, Object sources, Object traces) {
+        append(conversationId, role, content, sources, traces, Map.of());
+    }
+
+    public void append(String conversationId, String role, String content, Object sources, Object traces, Object memoryContext) {
         if (content == null || content.isBlank()) {
             return;
         }
-        conversationService.appendMessage(conversationId, role, content, toMaps(sources), toMaps(traces));
+        conversationService.appendMessage(conversationId, role, content, toMaps(sources), toMaps(traces), toMap(memoryContext));
     }
 
     private List<Map<String, Object>> toMaps(Object value) {
         if (value == null) {
             return List.of();
         }
-        return objectMapper.convertValue(value, new TypeReference<List<Map<String, Object>>>() {
-        });
+        try {
+            return objectMapper.convertValue(value, new TypeReference<List<Map<String, Object>>>() {
+            });
+        } catch (IllegalArgumentException ex) {
+            return List.of();
+        }
+    }
+
+    private Map<String, Object> toMap(Object value) {
+        if (value == null) {
+            return Map.of();
+        }
+        try {
+            Map<String, Object> map = objectMapper.convertValue(value, new TypeReference<Map<String, Object>>() {
+            });
+            return map == null ? Map.of() : map;
+        } catch (IllegalArgumentException ex) {
+            return Map.of();
+        }
+    }
+
+    public Map<String, Object> responseMemoryContext(InteractionResponse response) {
+        if (response == null) {
+            return Map.of();
+        }
+        Map<String, Object> metadata = safeMap(response.getMetadata());
+        Map<String, Object> agent = safeMap(metadata.get("agent"));
+        Map<String, Object> context = new LinkedHashMap<>();
+        context.put("contractVersion", "conversation_memory_context_v1");
+        copyIfPresent(context, metadata, "handler");
+        copyIfPresent(context, metadata, "skillId");
+        copyIfPresent(context, metadata, "modelName");
+        copyIfPresent(context, agent, "groundingStatus");
+        copyIfPresent(context, agent, "answerDecision");
+        copyIfPresent(context, agent, "answerDecisionReason");
+        copyIfPresent(context, agent, "answerRewriteSource");
+        copyIfPresent(context, agent, "answerQualitySelectedId");
+        copyIfPresent(context, agent, "answerQualitySelectedSource");
+
+        List<Map<String, Object>> sources = limitMaps(toMaps(response.getSources()), 8);
+        if (!sources.isEmpty()) {
+            context.put("sources", sources);
+        }
+        List<Map<String, Object>> citations = citations(agent, sources);
+        if (!citations.isEmpty()) {
+            context.put("citations", citations);
+        }
+        Map<String, Object> evidenceAnswer = compactEvidenceAnswer(safeMap(agent.get("evidenceAnswer")));
+        if (!evidenceAnswer.isEmpty()) {
+            context.put("evidenceAnswer", evidenceAnswer);
+        }
+        List<Map<String, Object>> tools = compactTools(response.getToolTraces());
+        if (!tools.isEmpty()) {
+            context.put("tools", tools);
+        }
+        return context.size() <= 1 ? Map.of() : Map.copyOf(context);
     }
 
     /**
@@ -179,6 +240,10 @@ public class ConversationMemoryService {
                 continue;
             }
             lines.add(formatRole(message.getRole()) + ": " + limit(message.getContent().trim(), 220));
+            String memory = memoryContextText(message.getMemoryContext());
+            if (!memory.isBlank()) {
+                lines.add("  context: " + limit(memory, 320));
+            }
         }
         return limit(String.join("\n", lines), properties.getSummaryMaxChars());
     }
@@ -189,7 +254,11 @@ public class ConversationMemoryService {
         }
         return messages.stream()
             .filter(message -> message != null && message.getContent() != null && !message.getContent().isBlank())
-            .map(message -> formatRole(message.getRole()) + ": " + limit(message.getContent().trim(), contentLimit))
+            .map(message -> {
+                String line = formatRole(message.getRole()) + ": " + limit(message.getContent().trim(), contentLimit);
+                String memory = memoryContextText(message.getMemoryContext());
+                return memory.isBlank() ? line : line + "\n  context: " + limit(memory, 420);
+            })
             .collect(Collectors.joining("\n"));
     }
 
@@ -221,9 +290,252 @@ public class ConversationMemoryService {
         long timestamp = message.getTimestamp() == null
             ? System.currentTimeMillis()
             : message.getTimestamp().atZone(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli();
-        return new MessageSnapshot(message.getRole(), message.getContent(), timestamp);
+        return new MessageSnapshot(message.getRole(), message.getContent(), timestamp, toMap(message.getMemoryContext()));
     }
 
-    public record MessageSnapshot(String role, String content, long timestamp) {
+    private Map<String, Object> safeMap(Object value) {
+        if (!(value instanceof Map<?, ?> map) || map.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, Object> copy = new LinkedHashMap<>();
+        map.forEach((key, item) -> {
+            if (key != null && item != null) {
+                copy.put(String.valueOf(key), item);
+            }
+        });
+        return copy;
+    }
+
+    private void copyIfPresent(Map<String, Object> target, Map<String, Object> source, String key) {
+        if (target == null || source == null || key == null) {
+            return;
+        }
+        Object value = source.get(key);
+        if (value != null && !String.valueOf(value).isBlank()) {
+            target.put(key, value);
+        }
+    }
+
+    private List<Map<String, Object>> citations(Map<String, Object> agent, List<Map<String, Object>> sources) {
+        List<Map<String, Object>> citations = new ArrayList<>();
+        citations.addAll(limitMaps(toMaps(firstNonNull(
+            nested(agent, "evidenceAnswer", "citations"),
+            agent.get("availableEvidenceCitations"),
+            agent.get("evidenceForcedCitations")
+        )), 8));
+        if (citations.isEmpty() && sources != null) {
+            citations.addAll(limitMaps(sources, 8));
+        }
+        return List.copyOf(citations);
+    }
+
+    private Map<String, Object> compactEvidenceAnswer(Map<String, Object> evidenceAnswer) {
+        if (evidenceAnswer.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, Object> compact = new LinkedHashMap<>();
+        copyIfPresent(compact, evidenceAnswer, "confidence");
+        copyIfPresent(compact, evidenceAnswer, "groundingStatus");
+        Object answer = evidenceAnswer.get("answer");
+        if (answer != null && !String.valueOf(answer).isBlank()) {
+            compact.put("summary", limit(String.valueOf(answer).replaceAll("\\s+", " ").trim(), 500));
+        }
+        List<Map<String, Object>> citations = limitMaps(toMaps(evidenceAnswer.get("citations")), 8);
+        if (!citations.isEmpty()) {
+            compact.put("citations", citations);
+        }
+        return Map.copyOf(compact);
+    }
+
+    private List<Map<String, Object>> compactTools(List<InteractionToolTrace> traces) {
+        if (traces == null || traces.isEmpty()) {
+            return List.of();
+        }
+        return traces.stream()
+            .limit(8)
+            .map(trace -> {
+                Map<String, Object> item = new LinkedHashMap<>();
+                item.put("tool", trace.getToolName());
+                item.put("success", trace.isSuccess());
+                if (trace.getErrorMessage() != null && !trace.getErrorMessage().isBlank()) {
+                    item.put("error", limit(trace.getErrorMessage(), 180));
+                }
+                return item;
+            })
+            .toList();
+    }
+
+    private List<Map<String, Object>> limitMaps(List<Map<String, Object>> values, int limit) {
+        if (values == null || values.isEmpty()) {
+            return List.of();
+        }
+        return values.stream()
+            .filter(value -> value != null && !value.isEmpty())
+            .limit(Math.max(1, limit))
+            .map(value -> {
+                Map<String, Object> compact = new LinkedHashMap<>();
+                copyIfPresent(compact, value, "refId");
+                copyIfPresent(compact, value, "sourceRef");
+                copyIfPresent(compact, value, "source");
+                copyIfPresent(compact, value, "section");
+                copyIfPresent(compact, value, "fileId");
+                copyIfPresent(compact, value, "rank");
+                copyIfPresent(compact, value, "snippet");
+                copyIfPresent(compact, value, "text");
+                return compact.isEmpty() ? new LinkedHashMap<>(value) : compact;
+            })
+            .toList();
+    }
+
+    private Object nested(Map<String, Object> map, String parent, String child) {
+        Object value = map == null ? null : map.get(parent);
+        if (value instanceof Map<?, ?> nested) {
+            return nested.get(child);
+        }
+        return null;
+    }
+
+    private Object firstNonNull(Object... values) {
+        if (values == null) {
+            return null;
+        }
+        for (Object value : values) {
+            if (value != null) {
+                return value;
+            }
+        }
+        return null;
+    }
+
+    public String memoryContextText(Map<String, Object> memoryContext) {
+        if (memoryContext == null || memoryContext.isEmpty()) {
+            return "";
+        }
+        List<String> parts = new ArrayList<>();
+        addPart(parts, "grounding", memoryContext.get("groundingStatus"));
+        addPart(parts, "decision", memoryContext.get("answerDecision"));
+        addPart(parts, "rewrite", memoryContext.get("answerRewriteSource"));
+        addPart(parts, "qualityWinner", memoryContext.get("answerQualitySelectedId"));
+        String citations = citationRefs(memoryContext.get("citations"));
+        if (!citations.isBlank()) {
+            parts.add("citations=" + citations);
+        }
+        String tools = toolNames(memoryContext.get("tools"));
+        if (!tools.isBlank()) {
+            parts.add("tools=" + tools);
+        }
+        Object evidenceAnswer = nested(memoryContext, "evidenceAnswer", "summary");
+        if (evidenceAnswer != null && !String.valueOf(evidenceAnswer).isBlank()) {
+            parts.add("evidenceSummary=" + limit(String.valueOf(evidenceAnswer), 260));
+        }
+        return String.join("; ", parts);
+    }
+
+    private void addPart(List<String> parts, String label, Object value) {
+        if (value != null && !String.valueOf(value).isBlank()) {
+            parts.add(label + "=" + value);
+        }
+    }
+
+    private String citationRefs(Object value) {
+        List<Map<String, Object>> values = toMaps(value);
+        return values.stream()
+            .map(item -> firstNonBlank(
+                stringValue(item.get("refId")),
+                firstNonBlank(stringValue(item.get("sourceRef")), stringValue(item.get("source")))
+            ))
+            .filter(ref -> ref != null && !ref.isBlank())
+            .distinct()
+            .limit(6)
+            .collect(Collectors.joining(", "));
+    }
+
+    private String toolNames(Object value) {
+        List<Map<String, Object>> values = toMaps(value);
+        return values.stream()
+            .map(item -> stringValue(item.get("tool")))
+            .filter(tool -> tool != null && !tool.isBlank())
+            .distinct()
+            .limit(6)
+            .collect(Collectors.joining(", "));
+    }
+
+    private String stringValue(Object value) {
+        return value == null ? null : String.valueOf(value);
+    }
+
+    private String firstNonBlank(String first, String second) {
+        return first == null || first.isBlank() ? second : first;
+    }
+
+    public record MessageSnapshot(String role, String content, long timestamp, Map<String, Object> memoryContext) {
+        public MessageSnapshot(String role, String content, long timestamp) {
+            this(role, content, timestamp, Map.of());
+        }
+
+        public String compactContext() {
+            if (memoryContext == null || memoryContext.isEmpty()) {
+                return "";
+            }
+            List<String> parts = new ArrayList<>();
+            add(parts, "grounding", memoryContext.get("groundingStatus"));
+            add(parts, "decision", memoryContext.get("answerDecision"));
+            add(parts, "rewrite", memoryContext.get("answerRewriteSource"));
+            add(parts, "qualityWinner", memoryContext.get("answerQualitySelectedId"));
+            String citations = refs(memoryContext.get("citations"));
+            if (!citations.isBlank()) {
+                parts.add("citations=" + citations);
+            }
+            String tools = tools(memoryContext.get("tools"));
+            if (!tools.isBlank()) {
+                parts.add("tools=" + tools);
+            }
+            return String.join("; ", parts);
+        }
+
+        private static void add(List<String> parts, String label, Object value) {
+            if (value != null && !String.valueOf(value).isBlank()) {
+                parts.add(label + "=" + value);
+            }
+        }
+
+        private static String refs(Object value) {
+            if (!(value instanceof List<?> list)) {
+                return "";
+            }
+            return list.stream()
+                .filter(Map.class::isInstance)
+                .map(Map.class::cast)
+                .map(item -> first(
+                    string(item.get("refId")),
+                    first(string(item.get("sourceRef")), string(item.get("source")))
+                ))
+                .filter(ref -> ref != null && !ref.isBlank())
+                .distinct()
+                .limit(6)
+                .collect(Collectors.joining(", "));
+        }
+
+        private static String tools(Object value) {
+            if (!(value instanceof List<?> list)) {
+                return "";
+            }
+            return list.stream()
+                .filter(Map.class::isInstance)
+                .map(Map.class::cast)
+                .map(item -> string(item.get("tool")))
+                .filter(tool -> tool != null && !tool.isBlank())
+                .distinct()
+                .limit(6)
+                .collect(Collectors.joining(", "));
+        }
+
+        private static String string(Object value) {
+            return value == null ? null : String.valueOf(value);
+        }
+
+        private static String first(String first, String second) {
+            return first == null || first.isBlank() ? second : first;
+        }
     }
 }

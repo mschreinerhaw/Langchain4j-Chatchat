@@ -82,6 +82,9 @@ class AgentAnswerFinalizerEvidenceAnswerTest {
             .doesNotContain("\u672a\u80fd\u5728\u5f53\u524d\u77e5\u8bc6\u5e93\u4e2d\u68c0\u7d22\u5230");
         assertThat(result.metadata())
             .containsEntry("evidenceForcedAnswer", true)
+            .containsEntry("answerDecisionContractVersion", AnswerDecisionEngine.CONTRACT_VERSION)
+            .containsEntry("answerDecision", AnswerDecisionEngine.DOCUMENT_EVIDENCE_REWRITE)
+            .containsEntry("answerRewriteSource", "evidence_guard")
             .containsEntry("groundingStatus", "grounded");
     }
 
@@ -121,6 +124,8 @@ class AgentAnswerFinalizerEvidenceAnswerTest {
         assertThat(result.metadata())
             .containsEntry("deterministicAnswerAvailable", true)
             .containsEntry("deterministicAnswerUsedAsEvidence", true)
+            .containsEntry("answerDecision", AnswerDecisionEngine.NO_REWRITE)
+            .containsEntry("answerRewriteSource", "none")
             .containsEntry("deterministicAnswerContractVersion", "evidence_execution_contract_v2_2")
             .containsEntry("deterministicAnswerContractHash", "abc123")
             .containsEntry("deterministicAnswerGraphViewHash", "def456");
@@ -157,7 +162,9 @@ class AgentAnswerFinalizerEvidenceAnswerTest {
             .doesNotContain("\u672a\u80fd\u83b7\u53d6SQL\u5185\u5bb9");
         assertThat(result.metadata())
             .containsEntry("deterministicAnswerAvailable", true)
-            .containsEntry("deterministicAnswerFallbackApplied", true);
+            .containsEntry("deterministicAnswerFallbackApplied", true)
+            .containsEntry("answerDecision", AnswerDecisionEngine.DETERMINISTIC_EVIDENCE_REWRITE)
+            .containsEntry("answerRewriteSource", "evidence_guard");
     }
 
     @Test
@@ -200,11 +207,87 @@ class AgentAnswerFinalizerEvidenceAnswerTest {
         );
 
         assertThat(result.answer())
-            .contains("uiResponse")
+            .contains("\u7ed3\u8bba\uff1a\u6839\u636e\u5df2\u68c0\u7d22\u6587\u6863")
             .contains("doc://ads#chunk=2")
-            .contains("reasoningTrace");
+            .doesNotContain("uiResponse")
+            .doesNotContain("reasoningTrace")
+            .doesNotContain("debug");
         assertThat(result.metadata())
+            .containsEntry("answerDecision", AnswerDecisionEngine.NO_REWRITE)
+            .containsEntry("answerRewriteSource", "none")
             .doesNotContainKey("finalMarkdownSummaryApplied")
             .doesNotContainKey("finalMarkdownSummaryReason");
+    }
+
+    @Test
+    void reviewerRevisionDoesNotOverrideFinalAnswerByDefault() {
+        AgentAnswerReviewer reviewer = (chatModel, query, systemPrompt, observations, answer) ->
+            new AgentAnswerReview(
+                AgentAnswerReview.REVISED,
+                "Reviewer rewritten answer that should stay diagnostic only.",
+                "Reviewer suggested a rewrite"
+            );
+        AgentAnswerFinalizer finalizer = new AgentAnswerFinalizer(
+            reviewer,
+            new AgentRuntimeGuard(12, "cancelled", "maxSteps", "maxToolCalls", "timeoutMs", "deadlineAt")
+        );
+        Map<String, Object> metadata = new java.util.LinkedHashMap<>();
+
+        AgentOrchestrator.AgentExecutionResult result = finalizer.finishReviewedAnswer(
+            null,
+            "question",
+            null,
+            List.of(),
+            metadata,
+            List.of("observation"),
+            "Original final answer from the agent.",
+            () -> false,
+            "final_answer"
+        );
+
+        assertThat(result.answer()).isEqualTo("Original final answer from the agent.");
+        assertThat(result.metadata())
+            .containsEntry("answerReviewStatus", AgentAnswerReview.REVISED)
+            .containsEntry("answerDecision", AnswerDecisionEngine.NO_REWRITE)
+            .containsEntry("answerRewriteSource", "none")
+            .containsEntry("answerReviewRewriteSuggested", true)
+            .containsEntry("answerReviewRewriteApplied", false)
+            .containsEntry("answerReviewRewriteSkippedReason", "reviewer_rewrite_disabled");
+    }
+
+    @Test
+    void reviewerRevisionCanOverrideFinalAnswerWhenExplicitlyEnabled() {
+        AgentAnswerReviewer reviewer = (chatModel, query, systemPrompt, observations, answer) ->
+            new AgentAnswerReview(
+                AgentAnswerReview.REVISED,
+                "Reviewer rewritten answer that is explicitly allowed.",
+                "Reviewer suggested a rewrite"
+            );
+        AgentAnswerFinalizer finalizer = new AgentAnswerFinalizer(
+            reviewer,
+            new AgentRuntimeGuard(12, "cancelled", "maxSteps", "maxToolCalls", "timeoutMs", "deadlineAt")
+        );
+        Map<String, Object> metadata = new java.util.LinkedHashMap<>();
+        metadata.put("allowReviewerRewrite", true);
+
+        AgentOrchestrator.AgentExecutionResult result = finalizer.finishReviewedAnswer(
+            null,
+            "question",
+            null,
+            List.of(),
+            metadata,
+            List.of("observation"),
+            "Original final answer from the agent.",
+            () -> false,
+            "final_answer"
+        );
+
+        assertThat(result.answer()).isEqualTo("Reviewer rewritten answer that is explicitly allowed.");
+        assertThat(result.metadata())
+            .containsEntry("answerReviewStatus", AgentAnswerReview.REVISED)
+            .containsEntry("answerDecision", AnswerDecisionEngine.REVIEWER_REWRITE)
+            .containsEntry("answerRewriteSource", "reviewer")
+            .containsEntry("answerReviewRewriteSuggested", true)
+            .containsEntry("answerReviewRewriteApplied", true);
     }
 }

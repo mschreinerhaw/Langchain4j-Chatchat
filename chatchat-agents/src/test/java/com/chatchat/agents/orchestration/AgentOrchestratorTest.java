@@ -244,31 +244,10 @@ class AgentOrchestratorTest {
     @Test
     @SuppressWarnings("unchecked")
     void plannerAttributionSelectsBestPlanAfterThreeInvalidRepairs() {
-        QueueChatModel chatModel = new QueueChatModel(
+        CapturingQueueChatModel chatModel = new CapturingQueueChatModel(
             invalidToolPlan("missing_tool_a"),
             invalidToolPlan("missing_tool_b"),
-            invalidToolPlan("missing_tool_c"),
-            """
-                {
-                  "analysis": "All three candidates failed because their selected tools were unavailable. Candidate C has the simplest structure and is the safest base for minimal repair.",
-                  "scores": {"A": 20, "B": 25, "C": 55},
-                  "selected": "C",
-                  "reason": "Candidate C is structurally smallest, so only the unavailable tool needs minimal replacement with the available document_search tool.",
-                  "plan": {
-                    "version": "1.0",
-                    "intent": {"type": "document_retrieval", "goal": "Use the selected candidate with available document evidence", "risk_level": "low"},
-                    "context": {"key_facts": ["Previous candidates used unavailable tools"], "assumptions": [], "missing_info": [], "constraints": ["Use available tools"]},
-                    "plan": {
-                      "steps": [
-                        {"id": 1, "action_type": "mcp_tool", "tool_name": "document_search", "input": {"query": "internal definition"}, "depends_on": []},
-                        {"id": 2, "action_type": "final_answer", "tool_name": "", "input": {"answer": "Attribution selected the document-backed plan."}, "depends_on": [1]}
-                      ]
-                    },
-                    "execution_policy": {"max_steps": 2, "allow_parallel": false, "allow_tool": ["document_search"], "deny_tool": [], "timeout_ms": 30000},
-                    "review": {"self_check": {"completeness_score": 0.9, "hallucination_risk": 0.1, "tool_sufficiency": true, "missing_steps": []}, "fallback_plan": []}
-                  }
-                }
-                """,
+            invalidToolPlan("missing_tool_c", "Attribution selected the document-backed plan."),
             "{\"accepted\":true,\"feedback\":\"The answer follows the attributed plan.\",\"revisedAnswer\":\"\"}"
         );
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
@@ -313,11 +292,87 @@ class AgentOrchestratorTest {
         assertThat(plannerSteps)
             .anySatisfy(step -> assertThat((Map<String, Object>) step.get("executionPlan"))
                 .containsEntry("plannerAttributionSelection", true)
+                .containsEntry("plannerAttributionSource", "deterministic_java")
                 .containsEntry("plannerAttributionCandidateCount", 3)
                 .containsEntry("plannerAttributionSelected", "C")
+                .containsEntry("plannerAttributionSelectedAttempt", 3)
                 .containsEntry("plannerAttributionFailurePattern", "TOOL_MISSING")
+                .containsEntry("plannerGenerationLimit", 3)
+                .containsEntry("plannerGenerationCount", 3)
+                .containsEntry("plannerAttributionRepairApplied", true)
                 .containsKey("plannerAttributionScores")
+                .containsKey("plannerAttributionCandidates")
                 .containsKey("plannerAttributionCandidateFingerprints"));
+        assertThat(chatModel.messages().stream()
+            .filter(message -> message.contains("You are an agent planner."))
+            .count()).isEqualTo(3);
+        assertThat(chatModel.messages())
+            .noneMatch(message -> message.contains("bounded attribution selection mode"));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void plannerAttributionCoveragePrefersEvidenceBackedCandidateOverShortFinalPlan() {
+        CapturingQueueChatModel chatModel = new CapturingQueueChatModel(
+            finalOnlyPlan("Short unsupported answer."),
+            invalidToolPlan("missing_tool_b", "Coverage selected the evidence-backed plan."),
+            finalOnlyPlan("Another short unsupported answer."),
+            "{\"accepted\":true,\"feedback\":\"The coverage-selected answer follows evidence.\",\"revisedAnswer\":\"\"}"
+        );
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool("document_search")).thenReturn(true);
+        when(toolRegistry.getToolMetadata("document_search")).thenReturn(ToolMetadata.builder()
+            .id("document_search")
+            .title("Document Search")
+            .description("Search internal documents")
+            .riskLevel("low")
+            .build());
+        when(toolRegistry.executeEnhancedTool(eq("document_search"), any())).thenReturn(documentSearchOutput());
+        AgentOrchestrator orchestrator = new AgentOrchestrator(
+            chatModel,
+            toolRegistry,
+            new ToolRuntimeService(toolRegistry, new ObjectMapper(), toolRuntimeProperties(), List.of(), List.of()),
+            new ObjectMapper(),
+            new ModelsConfig()
+        );
+
+        AgentOrchestrator.AgentExecutionResult result = orchestrator.executeAgent(
+            "Use the internal document to explain the definition.",
+            "tenant-1",
+            List.of("document_search"),
+            "Use internal evidence.",
+            null,
+            List.of(),
+            List.of(),
+            "research",
+            "req-plan-coverage",
+            "conv-plan-coverage",
+            "user-1",
+            10,
+            List.of("document_search"),
+            true,
+            Map.of("plannerMaxRepairAttempts", 9)
+        );
+
+        assertThat(result.answer()).isEqualTo("Coverage selected the evidence-backed plan.");
+        assertThat(result.toolTraces()).extracting(InteractionToolTrace::getToolName)
+            .containsExactly("document_search");
+        List<Map<String, Object>> plannerSteps = (List<Map<String, Object>>) result.metadata().get("plannerSteps");
+        Map<String, Object> attribution = plannerSteps.stream()
+            .map(step -> (Map<String, Object>) step.get("executionPlan"))
+            .filter(plan -> Boolean.TRUE.equals(plan.get("plannerAttributionSelection")))
+            .findFirst()
+            .orElseThrow();
+        assertThat(attribution)
+            .containsEntry("plannerAttributionSelected", "B")
+            .containsEntry("plannerAttributionRepairApplied", true);
+        List<Map<String, Object>> candidates = (List<Map<String, Object>>) attribution.get("plannerAttributionCandidates");
+        Map<String, Object> candidateA = candidates.get(0);
+        Map<String, Object> candidateB = candidates.get(1);
+        Map<String, Object> detailsA = (Map<String, Object>) candidateA.get("scoreDetails");
+        Map<String, Object> detailsB = (Map<String, Object>) candidateB.get("scoreDetails");
+        assertThat(detailsB.get("coverageScore")).isNotNull();
+        assertThat((Integer) detailsB.get("coverageScore")).isGreaterThan((Integer) detailsA.get("coverageScore"));
     }
 
     @Test
@@ -846,10 +901,11 @@ class AgentOrchestratorTest {
     }
 
     @Test
-    void revisesFinalAnswerWhenReviewerRejectsIt() {
+    void keepsFinalAnswerWhenReviewerSuggestsRevisionByDefault() {
         QueueChatModel chatModel = new QueueChatModel(
             "{\"action\":\"final\",\"answer\":\"Please check the MySQL setup section in the deployment document.\"}",
-            "{\"accepted\":false,\"feedback\":\"The answer did not directly provide the initialization steps.\",\"revisedAnswer\":\"Initialize LiveData by creating the MySQL database and user, then import schema.sql, update the datasource config, and restart the service to verify connectivity.\"}"
+            "{\"accepted\":false,\"feedback\":\"The answer did not directly provide the initialization steps.\",\"revisedAnswer\":\"Initialize LiveData by creating the MySQL database and user, then import schema.sql, update the datasource config, and restart the service to verify connectivity.\"}",
+            "{\"selectedId\":\"candidate\",\"reason\":\"The original candidate is safer because no supporting observations were available.\",\"candidates\":[{\"id\":\"candidate\",\"score\":0.7,\"accuracy\":0.7,\"grounding\":0.7,\"completeness\":0.4,\"citation\":1.0,\"usefulness\":0.4,\"issues\":[]},{\"id\":\"reviewer_suggestion\",\"score\":0.3,\"accuracy\":0.2,\"grounding\":0.2,\"completeness\":0.9,\"citation\":1.0,\"usefulness\":0.8,\"issues\":[\"unsupported concrete steps\"]}]}"
         );
         AgentOrchestrator orchestrator = newOrchestrator(chatModel);
 
@@ -870,10 +926,58 @@ class AgentOrchestratorTest {
             false
         );
 
-        assertThat(result.answer()).contains("schema.sql");
+        assertThat(result.answer()).isEqualTo("Please check the MySQL setup section in the deployment document.");
         assertThat(result.metadata())
             .containsEntry("answerReviewStatus", "revised")
-            .containsEntry("answerReviewFeedback", "The answer did not directly provide the initialization steps.");
+            .containsEntry("answerReviewFeedback", "The answer did not directly provide the initialization steps.")
+            .containsEntry("answerDecisionContractVersion", AnswerDecisionEngine.CONTRACT_VERSION)
+            .containsEntry("answerQualityAvailable", true)
+            .containsEntry("answerQualityLlmSelectedId", "candidate")
+            .containsEntry("answerQualityAggregationVersion", AnswerDecisionEngine.QUALITY_AGGREGATION_VERSION)
+            .containsEntry("answerQualitySelectedId", "candidate")
+            .containsEntry("answerDecision", AnswerDecisionEngine.NO_REWRITE)
+            .containsEntry("answerRewriteSource", "none")
+            .containsEntry("answerReviewRewriteSuggested", true)
+            .containsEntry("answerReviewRewriteApplied", false)
+            .containsEntry("answerReviewRewriteSkippedReason", "quality_aggregation_selected_original_candidate");
+    }
+
+    @Test
+    void selectsHighestQualityAnswerCandidateAfterReview() {
+        QueueChatModel chatModel = new QueueChatModel(
+            "{\"action\":\"final\",\"answer\":\"Please check the MySQL setup section in the deployment document.\"}",
+            "{\"accepted\":false,\"feedback\":\"The answer did not directly provide the initialization steps.\",\"revisedAnswer\":\"Initialize LiveData by creating the MySQL database and user, then import schema.sql, update the datasource config, and restart the service to verify connectivity.\"}",
+            "{\"selectedId\":\"reviewer_suggestion\",\"reason\":\"The reviewer suggestion directly answers the requested procedure.\",\"candidates\":[{\"id\":\"candidate\",\"score\":0.35,\"accuracy\":0.7,\"grounding\":0.4,\"completeness\":0.2,\"citation\":1.0,\"usefulness\":0.2,\"issues\":[\"does not answer directly\"]},{\"id\":\"reviewer_suggestion\",\"score\":0.88,\"accuracy\":0.8,\"grounding\":0.7,\"completeness\":0.95,\"citation\":1.0,\"usefulness\":0.95,\"issues\":[]}]}"
+        );
+        AgentOrchestrator orchestrator = newOrchestrator(chatModel);
+
+        AgentOrchestrator.AgentExecutionResult result = orchestrator.executeAgent(
+            "How do I initialize the LiveData database?",
+            "tenant-1",
+            List.of(),
+            "You are the LiveData Studio operations assistant.",
+            null,
+            List.of(),
+            List.of(),
+            "livedata_ops",
+            "req-quality-1",
+            "conv-quality-1",
+            "user-1",
+            10,
+            List.of(),
+            false
+        );
+
+        assertThat(result.answer()).contains("schema.sql");
+        assertThat(result.metadata())
+            .containsEntry("answerQualityAvailable", true)
+            .containsEntry("answerQualityLlmSelectedId", "reviewer_suggestion")
+            .containsEntry("answerQualityAggregationVersion", AnswerDecisionEngine.QUALITY_AGGREGATION_VERSION)
+            .containsEntry("answerQualitySelectedId", "reviewer_suggestion")
+            .containsEntry("answerQualitySelectedSource", AnswerQualityEvaluator.REVIEWER_SUGGESTION)
+            .containsEntry("answerDecision", AnswerDecisionEngine.QUALITY_SELECTED_ANSWER)
+            .containsEntry("answerRewriteSource", "quality_aggregator")
+            .containsEntry("answerReviewRewriteApplied", true);
     }
 
     @Test
@@ -1707,6 +1811,10 @@ class AgentOrchestratorTest {
     }
 
     private static String invalidToolPlan(String toolName) {
+        return invalidToolPlan(toolName, "Invalid unavailable tool plan.");
+    }
+
+    private static String invalidToolPlan(String toolName, String answer) {
         return """
             {
               "version": "1.0",
@@ -1715,13 +1823,30 @@ class AgentOrchestratorTest {
               "plan": {
                 "steps": [
                   {"id": 1, "action_type": "mcp_tool", "tool_name": "%s", "input": {"query": "internal definition"}, "depends_on": []},
-                  {"id": 2, "action_type": "final_answer", "tool_name": "", "input": {"answer": "Invalid unavailable tool plan."}, "depends_on": [1]}
+                  {"id": 2, "action_type": "final_answer", "tool_name": "", "input": {"answer": "%s"}, "depends_on": [1]}
                 ]
               },
               "execution_policy": {"max_steps": 2, "allow_parallel": false, "allow_tool": ["%s"], "deny_tool": [], "timeout_ms": 30000},
               "review": {"self_check": {"completeness_score": 0.4, "hallucination_risk": 0.4, "tool_sufficiency": false, "missing_steps": []}, "fallback_plan": []}
             }
-            """.formatted(jsonEscape(toolName), jsonEscape(toolName));
+            """.formatted(jsonEscape(toolName), jsonEscape(answer), jsonEscape(toolName));
+    }
+
+    private static String finalOnlyPlan(String answer) {
+        return """
+            {
+              "version": "1.0",
+              "intent": {"type": "document_retrieval", "goal": "Answer without evidence", "risk_level": "low"},
+              "context": {"key_facts": [], "assumptions": [], "missing_info": [], "constraints": ["Use internal evidence"]},
+              "plan": {
+                "steps": [
+                  {"id": 1, "action_type": "final_answer", "tool_name": "", "input": {"answer": "%s"}, "depends_on": []}
+                ]
+              },
+              "execution_policy": {"max_steps": 1, "allow_parallel": false, "allow_tool": [], "deny_tool": [], "timeout_ms": 30000},
+              "review": {"self_check": {"completeness_score": 0.4, "hallucination_risk": 0.4, "tool_sufficiency": false, "missing_steps": ["document_search"]}, "fallback_plan": []}
+            }
+            """.formatted(jsonEscape(answer));
     }
 
     private static String jsonEscape(String value) {

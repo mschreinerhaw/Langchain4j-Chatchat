@@ -86,11 +86,18 @@ public class LlmChatModeHandler implements InteractionModeHandler {
         }
         if (!context.history().isEmpty()) {
             String history = context.history().stream()
-                .map(message -> message.role() + ": " + message.content())
+                .map(this::formatHistoryMessage)
                 .collect(Collectors.joining("\n"));
             builder.append("Conversation History:\n").append(history).append("\n\n");
         }
         builder.append("User: ").append(request.getQuery());
         return builder.toString();
+    }
+
+    private String formatHistoryMessage(ConversationMemoryService.MessageSnapshot message) {
+        String role = message.role() == null || message.role().isBlank() ? "unknown" : message.role().trim();
+        String line = role + ": " + message.content();
+        String memory = message.compactContext();
+        return memory.isBlank() ? line : line + "\n  context: " + memory;
     }
 }

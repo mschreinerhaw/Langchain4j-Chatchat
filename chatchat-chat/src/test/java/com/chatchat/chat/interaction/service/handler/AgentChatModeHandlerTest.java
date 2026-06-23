@@ -114,6 +114,89 @@ class AgentChatModeHandlerTest {
 
     @Test
     @SuppressWarnings("unchecked")
+    void agentPromptIncludesConversationMemoryContext() {
+        AgentOrchestrator orchestrator = mock(AgentOrchestrator.class);
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        SkillCatalogService skillCatalogService = mock(SkillCatalogService.class);
+        McpToolRegistryBridge mcpToolRegistryBridge = mock(McpToolRegistryBridge.class);
+        AgentToolPolicyResolver toolPolicyResolver = new AgentToolPolicyResolver(
+            toolRegistry,
+            skillCatalogService,
+            mcpToolRegistryBridge
+        );
+        AgentChatModeHandler handler = new AgentChatModeHandler(
+            orchestrator,
+            skillCatalogService,
+            toolPolicyResolver
+        );
+
+        when(skillCatalogService.resolve("ops")).thenReturn(skillWithoutWebSearch());
+        when(mcpToolRegistryBridge.listRegisteredTools()).thenReturn(List.of());
+        when(orchestrator.executeAgent(
+            anyString(),
+            isNull(),
+            anyList(),
+            anyString(),
+            isNull(),
+            anyList(),
+            anyList(),
+            anyString(),
+            anyString(),
+            anyString(),
+            anyString(),
+            anyInt(),
+            anyList(),
+            anyBoolean()
+        )).thenReturn(agentResult("ok"));
+
+        InteractionRequest request = InteractionRequest.builder()
+            .mode("agent_chat")
+            .skillId("ops")
+            .query("continue")
+            .userId("u1")
+            .build();
+        InteractionContext context = InteractionContext.builder()
+            .requestId("req")
+            .conversationId("conv")
+            .mode(InteractionMode.AGENT_CHAT)
+            .history(List.of(
+                new ConversationMemoryService.MessageSnapshot("assistant", "Previous answer", 2L, Map.of(
+                    "groundingStatus", "grounded",
+                    "answerDecision", "quality_selected_answer",
+                    "citations", List.of(Map.of("refId", "doc://kafka#chunk=1"))
+                ))
+            ))
+            .build();
+
+        handler.handle(request, context);
+
+        ArgumentCaptor<String> systemPrompt = ArgumentCaptor.forClass(String.class);
+        verify(orchestrator).executeAgent(
+            anyString(),
+            isNull(),
+            anyList(),
+            systemPrompt.capture(),
+            isNull(),
+            anyList(),
+            anyList(),
+            anyString(),
+            anyString(),
+            anyString(),
+            anyString(),
+            anyInt(),
+            anyList(),
+            anyBoolean()
+        );
+
+        assertThat(systemPrompt.getValue())
+            .contains("assistant: Previous answer")
+            .contains("context: grounding=grounded")
+            .contains("decision=quality_selected_answer")
+            .contains("citations=doc://kafka#chunk=1");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
     void webSearchToggleRequiresRegisteredMcpWebSearchTool() {
         AgentOrchestrator orchestrator = mock(AgentOrchestrator.class);
         ToolRegistry toolRegistry = mock(ToolRegistry.class);

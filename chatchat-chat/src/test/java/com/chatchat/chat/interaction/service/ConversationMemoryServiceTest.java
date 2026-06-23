@@ -2,6 +2,9 @@ package com.chatchat.chat.interaction.service;
 
 import com.chatchat.chat.conversation.Conversation;
 import com.chatchat.chat.conversation.ConversationService;
+import com.chatchat.chat.interaction.model.InteractionResponse;
+import com.chatchat.chat.interaction.model.InteractionSource;
+import com.chatchat.common.interaction.InteractionToolTrace;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.langchain4j.model.chat.ChatModel;
 import org.junit.jupiter.api.Test;
@@ -9,8 +12,10 @@ import org.springframework.beans.factory.ObjectProvider;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -66,6 +71,64 @@ class ConversationMemoryServiceTest {
         memoryService.maybeRefreshSummary("conv-1");
 
         verify(conversationService, never()).saveSummary(anyString(), anyString(), anyString(), anyString());
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void responseMemoryContextKeepsEvidenceSignalsButDropsDebugPayload() {
+        ConversationService conversationService = mock(ConversationService.class);
+        ConversationMemoryService memoryService = new ConversationMemoryService(
+            conversationService,
+            new ObjectMapper(),
+            null,
+            new ConversationContextProperties()
+        );
+
+        InteractionResponse response = InteractionResponse.builder()
+            .answer("final answer")
+            .sources(List.of(InteractionSource.builder()
+                .rank(1)
+                .source("doc://file-1#chunk=2")
+                .snippet("important fact")
+                .build()))
+            .toolTraces(List.of(InteractionToolTrace.builder()
+                .toolName("document_search")
+                .success(true)
+                .build()))
+            .metadata(Map.of(
+                "handler", "AgentChatModeHandler",
+                "skillId", "ops",
+                "agent", Map.of(
+                    "groundingStatus", "grounded",
+                    "answerDecision", "quality_selected_answer",
+                    "answerRewriteSource", "quality_aggregator",
+                    "answerQualitySelectedId", "candidate",
+                    "answerDecisionTrace", Map.of("debug", true),
+                    "observations", List.of("large raw observation"),
+                    "evidenceAnswer", Map.of(
+                        "confidence", "high",
+                        "answer", "Evidence-backed summary",
+                        "citations", List.of(Map.of("refId", "doc://file-1#chunk=2"))
+                    )
+                )
+            ))
+            .build();
+
+        Map<String, Object> memoryContext = memoryService.responseMemoryContext(response);
+
+        assertThat(memoryContext)
+            .containsEntry("contractVersion", "conversation_memory_context_v1")
+            .containsEntry("groundingStatus", "grounded")
+            .containsEntry("answerDecision", "quality_selected_answer")
+            .containsEntry("answerRewriteSource", "quality_aggregator")
+            .doesNotContainKeys("answerDecisionTrace", "observations");
+        assertThat((List<Map<String, Object>>) memoryContext.get("citations"))
+            .extracting(item -> item.get("refId"))
+            .contains("doc://file-1#chunk=2");
+        assertThat(memoryService.memoryContextText(memoryContext))
+            .contains("grounding=grounded")
+            .contains("citations=doc://file-1#chunk=2")
+            .contains("tools=document_search");
     }
 
     private List<Conversation.Message> messages(int count) {

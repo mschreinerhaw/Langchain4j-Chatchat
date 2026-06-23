@@ -302,7 +302,9 @@ public class AgentChatModeHandler implements InteractionModeHandler {
      */
     private String formatHistoryMessage(ConversationMemoryService.MessageSnapshot message) {
         String role = message.role() == null || message.role().isBlank() ? "unknown" : message.role().trim();
-        return role + ": " + message.content().trim();
+        String line = role + ": " + message.content().trim();
+        String memory = message.compactContext();
+        return memory.isBlank() ? line : line + "\n  context: " + memory;
     }
 
     /**

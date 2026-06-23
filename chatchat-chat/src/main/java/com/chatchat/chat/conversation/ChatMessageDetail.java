@@ -32,6 +32,7 @@ public class ChatMessageDetail {
     private Map<String, Object> visualizationSpec;
     private Map<String, Object> uiResponse;
     private List<Map<String, Object>> evidencePremises;
+    private Map<String, Object> memoryContext;
     private String agentName;
     private String modelName;
     private String analysisNodeId;

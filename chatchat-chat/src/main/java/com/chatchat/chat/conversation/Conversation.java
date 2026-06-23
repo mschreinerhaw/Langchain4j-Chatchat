@@ -73,6 +73,7 @@ public class Conversation {
         private Map<String, Object> visualizationSpec;
         private Map<String, Object> uiResponse;
         private List<Map<String, Object>> evidencePremises;
+        private Map<String, Object> memoryContext;
         private String agentName;
         private String modelName;
         private String analysisNodeId;
@@ -150,6 +151,7 @@ public class Conversation {
             this.visualizationSpec = builder.visualizationSpec;
             this.uiResponse = builder.uiResponse;
             this.evidencePremises = builder.evidencePremises;
+            this.memoryContext = builder.memoryContext;
             this.agentName = builder.agentName;
             this.modelName = builder.modelName;
             this.analysisNodeId = builder.analysisNodeId;
@@ -310,6 +312,7 @@ public class Conversation {
         private Map<String, Object> visualizationSpec;
         private Map<String, Object> uiResponse;
         private List<Map<String, Object>> evidencePremises;
+        private Map<String, Object> memoryContext;
         private String agentName;
         private String modelName;
         private String analysisNodeId;
@@ -425,6 +428,11 @@ public class Conversation {
 
         public MessageBuilder evidencePremises(List<Map<String, Object>> evidencePremises) {
             this.evidencePremises = evidencePremises;
+            return this;
+        }
+
+        public MessageBuilder memoryContext(Map<String, Object> memoryContext) {
+            this.memoryContext = memoryContext;
             return this;
         }
 

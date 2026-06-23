@@ -8,6 +8,8 @@ import com.chatchat.agents.protocol.ModelProtocolJson;
 import com.chatchat.agents.runtime.AgentAnswerReview;
 import com.chatchat.agents.runtime.AgentAnswerReviewer;
 import com.chatchat.common.interaction.InteractionToolTrace;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.langchain4j.model.chat.ChatModel;
 import lombok.extern.slf4j.Slf4j;
 
@@ -41,6 +43,9 @@ class AgentAnswerFinalizer {
     private final AgentRuntimeGuard runtimeGuard;
     private final EvidenceAnswerGroundingGuard groundingGuard = new EvidenceAnswerGroundingGuard();
     private final AnswerAssemblyEngine answerAssemblyEngine = new AnswerAssemblyEngine();
+    private final AnswerDecisionEngine answerDecisionEngine = new AnswerDecisionEngine();
+    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final AnswerQualityEvaluator answerQualityEvaluator = new AnswerQualityEvaluator(objectMapper);
 
     AgentAnswerFinalizer(AgentAnswerReviewer answerReviewer, AgentRuntimeGuard runtimeGuard) {
         this.answerReviewer = answerReviewer;
@@ -51,8 +56,36 @@ class AgentAnswerFinalizer {
                                                            List<InteractionToolTrace> traces,
                                                            Map<String, Object> metadata,
                                                            List<String> observations) {
+        return finishWithDecision(answer, null, null, null, traces, metadata, observations);
+    }
+
+    private AgentOrchestrator.AgentExecutionResult finishWithDecision(String candidateAnswer,
+                                                                      AgentAnswerReview review,
+                                                                      AnswerDecisionEngine.EvidenceSignal evidenceSignal,
+                                                                      AnswerQualityEvaluator.QualityReport qualityReport,
+                                                                      List<InteractionToolTrace> traces,
+                                                                      Map<String, Object> metadata,
+                                                                      List<String> observations) {
         Map<String, Object> values = metadata == null ? new LinkedHashMap<>() : metadata;
-        String finalAnswer = enforceDocumentEvidenceAnswer(answer, observations, values);
+        AnswerDecisionEngine.EvidenceSignal signal = evidenceSignal == null
+            ? evidenceSignal(candidateAnswer, observations, values)
+            : evidenceSignal;
+        AnswerDecisionEngine.AnswerDecision decision = answerDecisionEngine.decide(
+            new AnswerDecisionEngine.AnswerDecisionRequest(
+                candidateAnswer,
+                review,
+                signal,
+                qualityReport,
+                values
+            )
+        );
+        values.putAll(decision.metadata());
+        String finalAnswer = sanitizeFinalMarkdown(decision.finalAnswer());
+        if (!finalAnswer.equals(decision.finalAnswer())) {
+            values.put("finalAnswerSanitized", true);
+            values.put("finalAnswerPreview", shortText(finalAnswer, 1000));
+        }
+        logAnswerDecision(decision, values);
         values.put("runtimeContractVersion", "agent_runtime_v1");
         values.put("observations", observations == null ? List.of() : List.copyOf(observations));
         values.put("toolTraceCount", traces == null ? 0 : traces.size());
@@ -96,7 +129,17 @@ class AgentAnswerFinalizer {
         runtimeGuard.checkCancelled(cancellationCheck);
         recordAnswerReview(metadata, review);
         metadata.put("stopReason", "tool_budget_exceeded");
-        return finishExecution(reviewedAnswer(review, metadata), traces, metadata, observations);
+        AnswerDecisionEngine.EvidenceSignal signal = evidenceSignal(finalAnswer, observations, metadata);
+        AnswerQualityEvaluator.QualityReport quality = evaluateAnswerQuality(
+            activeChatModel,
+            query,
+            systemPrompt,
+            observations,
+            finalAnswer,
+            review,
+            signal
+        );
+        return finishWithDecision(finalAnswer, review, signal, quality, traces, metadata, observations);
     }
 
     AgentOrchestrator.AgentExecutionResult finishReviewedSummary(ChatModel activeChatModel,
@@ -114,7 +157,17 @@ class AgentAnswerFinalizer {
         runtimeGuard.checkCancelled(cancellationCheck);
         recordAnswerReview(metadata, review);
         metadata.put("stopReason", stopReason);
-        return finishExecution(reviewedAnswer(review, metadata), traces, metadata, observations);
+        AnswerDecisionEngine.EvidenceSignal signal = evidenceSignal(finalAnswer, observations, metadata);
+        AnswerQualityEvaluator.QualityReport quality = evaluateAnswerQuality(
+            activeChatModel,
+            query,
+            systemPrompt,
+            observations,
+            finalAnswer,
+            review,
+            signal
+        );
+        return finishWithDecision(finalAnswer, review, signal, quality, traces, metadata, observations);
     }
 
     AgentOrchestrator.AgentExecutionResult finishReviewedAnswer(ChatModel activeChatModel,
@@ -132,7 +185,81 @@ class AgentAnswerFinalizer {
         runtimeGuard.checkCancelled(cancellationCheck);
         recordAnswerReview(metadata, review);
         metadata.put("stopReason", stopReason);
-        return finishExecution(reviewedAnswer(review, metadata), traces, metadata, observations);
+        AnswerDecisionEngine.EvidenceSignal signal = evidenceSignal(finalAnswer, observations, metadata);
+        AnswerQualityEvaluator.QualityReport quality = evaluateAnswerQuality(
+            activeChatModel,
+            query,
+            systemPrompt,
+            observations,
+            finalAnswer,
+            review,
+            signal
+        );
+        return finishWithDecision(finalAnswer, review, signal, quality, traces, metadata, observations);
+    }
+
+    private AnswerQualityEvaluator.QualityReport evaluateAnswerQuality(ChatModel activeChatModel,
+                                                                       String query,
+                                                                       String systemPrompt,
+                                                                       List<String> observations,
+                                                                       String candidateAnswer,
+                                                                       AgentAnswerReview review,
+                                                                       AnswerDecisionEngine.EvidenceSignal signal) {
+        List<AnswerQualityEvaluator.AnswerCandidate> candidates = answerCandidates(candidateAnswer, review, signal);
+        if (candidates.size() <= 1) {
+            return null;
+        }
+        return answerQualityEvaluator.evaluate(
+            activeChatModel,
+            new AnswerQualityEvaluator.QualityRequest(
+                query,
+                systemPrompt,
+                observations == null ? List.of() : List.copyOf(observations),
+                candidates
+            )
+        );
+    }
+
+    private List<AnswerQualityEvaluator.AnswerCandidate> answerCandidates(String candidateAnswer,
+                                                                          AgentAnswerReview review,
+                                                                          AnswerDecisionEngine.EvidenceSignal signal) {
+        List<AnswerQualityEvaluator.AnswerCandidate> candidates = new ArrayList<>();
+        if (candidateAnswer != null && !candidateAnswer.isBlank()) {
+            candidates.add(new AnswerQualityEvaluator.AnswerCandidate(
+                AnswerQualityEvaluator.CANDIDATE,
+                AnswerQualityEvaluator.CANDIDATE,
+                candidateAnswer
+            ));
+        }
+        if (review != null
+            && AgentAnswerReview.REVISED.equals(review.status())
+            && review.answer() != null
+            && !review.answer().isBlank()) {
+            candidates.add(new AnswerQualityEvaluator.AnswerCandidate(
+                AnswerQualityEvaluator.REVIEWER_SUGGESTION,
+                AnswerQualityEvaluator.REVIEWER_SUGGESTION,
+                review.answer()
+            ));
+        }
+        if (signal != null && signal.shouldReplaceWithGroundedEvidence()) {
+            if (signal.lockedAnswer() != null
+                && signal.lockedAnswer().answer() != null
+                && !signal.lockedAnswer().answer().isBlank()) {
+                candidates.add(new AnswerQualityEvaluator.AnswerCandidate(
+                    AnswerQualityEvaluator.DETERMINISTIC_EVIDENCE,
+                    AnswerQualityEvaluator.DETERMINISTIC_EVIDENCE,
+                    signal.lockedAnswer().answer()
+                ));
+            }
+            if (signal.groundedDocumentAnswer() != null && !signal.groundedDocumentAnswer().isBlank()) {
+                candidates.add(new AnswerQualityEvaluator.AnswerCandidate(
+                    AnswerQualityEvaluator.DOCUMENT_EVIDENCE,
+                    AnswerQualityEvaluator.DOCUMENT_EVIDENCE,
+                    signal.groundedDocumentAnswer()
+                ));
+            }
+        }
+        return List.copyOf(candidates);
     }
 
     private String safeAnswer(ChatModel activeChatModel,
@@ -219,7 +346,16 @@ class AgentAnswerFinalizer {
         if (locked != null && !locked.isBlank()) {
             text = locked.trim();
         }
+        text = stripOuterFenceIfPresent(text, "json");
+        String jsonAnswer = extractUserAnswerFromJson(text);
+        if (jsonAnswer != null && !jsonAnswer.isBlank()) {
+            text = jsonAnswer.trim();
+        } else if (looksLikeJson(text)) {
+            text = "已完成分析，但模型返回的是内部调试 JSON，已隐藏原始结构化内容。";
+        }
         text = text.replaceAll("(?is)reasoningPayload:\\s*```json\\s*.*?\\s*```", "").trim();
+        text = text.replaceAll("(?is)```json\\s*.*?\\s*```", "").trim();
+        text = text.replaceAll("(?im)^\\s*(reasoningPayload|executionDag|reasoningTrace|trustedSql|deterministicFacts)\\s*:\\s*$", "").trim();
         text = text.replace(DeterministicAnswerCompiler.BEGIN_LOCKED_ANSWER, "")
             .replace(DeterministicAnswerCompiler.END_LOCKED_ANSWER, "")
             .trim();
@@ -229,6 +365,95 @@ class AgentAnswerFinalizer {
             text = stripOuterFence(text, "```md");
         }
         return text.trim();
+    }
+
+    @SuppressWarnings("unchecked")
+    private String extractUserAnswerFromJson(String text) {
+        if (!looksLikeJson(text)) {
+            return null;
+        }
+        try {
+            Map<String, Object> payload = objectMapper.readValue(text, new TypeReference<>() {
+            });
+            Object uiResponse = payload.get("uiResponse");
+            if (uiResponse instanceof Map<?, ?> uiMap) {
+                String answer = stringValue(((Map<String, Object>) uiMap).get("answer"));
+                String citations = citationsText(((Map<String, Object>) uiMap).get("citations"));
+                if (answer != null && !answer.isBlank()) {
+                    return appendCitations(answer, citations);
+                }
+            }
+            String answer = stringValue(payload.get("answer"));
+            String citations = citationsText(payload.get("citations"));
+            if (answer != null && !answer.isBlank()) {
+                return appendCitations(answer, citations);
+            }
+            String summary = stringValue(payload.get("evidenceSummary"));
+            if (summary != null && !summary.isBlank()) {
+                return summary;
+            }
+        } catch (Exception ignored) {
+            return null;
+        }
+        return null;
+    }
+
+    private String appendCitations(String answer, String citations) {
+        if (citations == null || citations.isBlank()) {
+            return answer;
+        }
+        if (answer.contains(citations)) {
+            return answer;
+        }
+        return answer.trim() + "\n\n引用：" + citations;
+    }
+
+    private String citationsText(Object value) {
+        if (!(value instanceof List<?> citations) || citations.isEmpty()) {
+            return "";
+        }
+        List<String> refs = new ArrayList<>();
+        for (Object item : citations) {
+            if (item instanceof Map<?, ?> map) {
+                String ref = firstNonBlank(
+                    stringValue(map.get("sourceRef")),
+                    firstNonBlank(stringValue(map.get("refId")), stringValue(map.get("citation")))
+                );
+                if (ref != null && !ref.isBlank()) {
+                    refs.add(ref);
+                }
+            } else if (item != null) {
+                refs.add(String.valueOf(item));
+            }
+        }
+        return refs.stream()
+            .filter(ref -> ref != null && !ref.isBlank())
+            .distinct()
+            .toList()
+            .stream()
+            .reduce((left, right) -> left + "；" + right)
+            .orElse("");
+    }
+
+    private boolean looksLikeJson(String text) {
+        if (text == null) {
+            return false;
+        }
+        String trimmed = text.trim();
+        return (trimmed.startsWith("{") && trimmed.endsWith("}"))
+            || (trimmed.startsWith("[") && trimmed.endsWith("]"));
+    }
+
+    private String stripOuterFenceIfPresent(String text, String language) {
+        if (text == null || language == null) {
+            return text;
+        }
+        String trimmed = text.trim();
+        String openingFence = "```" + language;
+        if (trimmed.regionMatches(true, 0, openingFence, 0, openingFence.length())) {
+            return stripOuterFence(trimmed, trimmed.substring(0, openingFence.length()));
+        }
+        return text;
     }
 
     private String stripOuterFence(String text, String openingFence) {
@@ -299,18 +524,23 @@ class AgentAnswerFinalizer {
         if (review.feedback() != null && !review.feedback().isBlank()) {
             metadata.put("answerReviewFeedback", review.feedback());
         }
+        if (AgentAnswerReview.REVISED.equals(review.status())
+            && review.answer() != null
+            && !review.answer().isBlank()) {
+            metadata.put("answerReviewRewriteSuggested", true);
+            metadata.put("answerReviewSuggestedAnswerPreview", shortText(review.answer(), 1000));
+        }
     }
 
-    private String reviewedAnswer(AgentAnswerReview review, Map<String, Object> metadata) {
-        String answer = review == null ? "" : review.answer();
-        if (answer != null && !answer.isBlank()) {
-            return answer;
+    private void logAnswerDecision(AnswerDecisionEngine.AnswerDecision decision, Map<String, Object> metadata) {
+        if (decision == null || AnswerDecisionEngine.NO_REWRITE.equals(decision.action())) {
+            return;
         }
-        if (metadata != null) {
-            metadata.put("emptyAnswer", true);
-            metadata.put("emptyAnswerReason", review == null ? "answer_review_unavailable" : review.feedback());
-        }
-        return "";
+        log.warn("agentAnswerDecision action={} source={} reason={} finalAnswerPreview={}",
+            decision.action(),
+            decision.rewriteSource(),
+            decision.reason(),
+            metadata == null ? null : metadata.get("finalAnswerPreview"));
     }
 
     private void attachEvidenceAnswerContract(String answer,
@@ -352,69 +582,56 @@ class AgentAnswerFinalizer {
                 || value.contains("web://"));
     }
 
-    private String enforceDocumentEvidenceAnswer(String answer,
-                                                 List<String> observations,
-                                                 Map<String, Object> metadata) {
+    private AnswerDecisionEngine.EvidenceSignal evidenceSignal(String answer,
+                                                               List<String> observations,
+                                                               Map<String, Object> metadata) {
         if (Boolean.TRUE.equals(metadata == null ? null : metadata.get("confirmationRequired"))) {
-            return answer;
+            return new AnswerDecisionEngine.EvidenceSignal(
+                true,
+                null,
+                null,
+                List.of(),
+                null,
+                false,
+                null
+            );
         }
-        DeterministicLockedAnswer lockedAnswer = extractDeterministicLockedAnswer(observations);
+        AnswerDecisionEngine.DeterministicLockedAnswer lockedAnswer = extractDeterministicLockedAnswer(observations);
         if (lockedAnswer != null && lockedAnswer.answer() != null && !lockedAnswer.answer().isBlank()) {
-            if (metadata != null) {
-                metadata.put("deterministicAnswerAvailable", true);
-                metadata.put("deterministicAnswerContractVersion", EXECUTION_CONTRACT);
-                if (lockedAnswer.contractHash() != null && !lockedAnswer.contractHash().isBlank()) {
-                    metadata.put("deterministicAnswerContractHash", lockedAnswer.contractHash());
-                }
-                if (lockedAnswer.graphViewHash() != null && !lockedAnswer.graphViewHash().isBlank()) {
-                    metadata.put("deterministicAnswerGraphViewHash", lockedAnswer.graphViewHash());
-                }
-            }
-            if (shouldReplaceWithGroundedEvidence(answer)) {
-                if (metadata != null) {
-                    metadata.put("deterministicAnswerFallbackApplied", true);
-                }
-                log.warn("agentDeterministicAnswerFallbackApplied contractHash={} graphViewHash={} originalAnswer={}",
-                    lockedAnswer.contractHash(),
-                    lockedAnswer.graphViewHash(),
-                    answer == null ? "" : answer);
-                return lockedAnswer.answer();
-            }
-            if (metadata != null) {
-                metadata.put("deterministicAnswerUsedAsEvidence", true);
-            }
-            return answer;
+            return new AnswerDecisionEngine.EvidenceSignal(
+                false,
+                EXECUTION_CONTRACT,
+                lockedAnswer,
+                List.of(),
+                null,
+                shouldReplaceWithGroundedEvidence(answer),
+                null
+            );
         }
-        List<GroundedDocumentEvidence> documentEvidence = extractGroundedDocumentEvidence(observations);
+        List<AnswerDecisionEngine.GroundedDocumentEvidence> documentEvidence = extractGroundedDocumentEvidence(observations);
         if (documentEvidence.isEmpty()) {
-            return answer;
+            return AnswerDecisionEngine.EvidenceSignal.empty();
         }
-        if (!shouldReplaceWithGroundedEvidence(answer)) {
-            return answer;
-        }
-        String groundedAnswer = groundedEvidenceAnswer(documentEvidence);
-        if (metadata != null) {
-            metadata.put("evidenceForcedAnswer", true);
-            metadata.put("evidenceForcedReason",
-                answer == null || answer.isBlank() ? "empty_answer_with_document_evidence" : "no_match_fallback_with_document_evidence");
-            metadata.put("evidenceForcedCitations", documentEvidence.stream()
-                .map(GroundedDocumentEvidence::citation)
-                .filter(value -> value != null && !value.isBlank())
-                .toList());
-        }
-        log.warn("agentEvidenceAnswerOverride reason={} evidenceCount={} originalAnswer={}",
-            metadata == null ? null : metadata.get("evidenceForcedReason"),
-            documentEvidence.size(),
-            answer == null ? "" : answer);
-        return groundedAnswer;
+        boolean shouldReplace = shouldReplaceWithGroundedEvidence(answer);
+        return new AnswerDecisionEngine.EvidenceSignal(
+            false,
+            null,
+            null,
+            documentEvidence,
+            groundedEvidenceAnswer(documentEvidence),
+            shouldReplace,
+            shouldReplace
+                ? (answer == null || answer.isBlank() ? "empty_answer_with_document_evidence" : "no_match_fallback_with_document_evidence")
+                : null
+        );
     }
 
-    private DeterministicLockedAnswer extractDeterministicLockedAnswer(List<String> observations) {
+    private AnswerDecisionEngine.DeterministicLockedAnswer extractDeterministicLockedAnswer(List<String> observations) {
         if (observations == null || observations.isEmpty()) {
             return null;
         }
         for (String observation : observations) {
-            DeterministicLockedAnswer lockedAnswer = extractDeterministicLockedAnswer(observation);
+            AnswerDecisionEngine.DeterministicLockedAnswer lockedAnswer = extractDeterministicLockedAnswer(observation);
             if (lockedAnswer != null) {
                 return lockedAnswer;
             }
@@ -422,7 +639,7 @@ class AgentAnswerFinalizer {
         return null;
     }
 
-    private DeterministicLockedAnswer extractDeterministicLockedAnswer(String observation) {
+    private AnswerDecisionEngine.DeterministicLockedAnswer extractDeterministicLockedAnswer(String observation) {
         if (observation == null || observation.isBlank() || !observation.contains(EXECUTION_CONTRACT)) {
             return null;
         }
@@ -436,7 +653,7 @@ class AgentAnswerFinalizer {
         if (lockedAnswer.isBlank()) {
             return null;
         }
-        return new DeterministicLockedAnswer(
+        return new AnswerDecisionEngine.DeterministicLockedAnswer(
             lockedAnswer,
             extractLineValue(observation, "contractHash:"),
             extractLineValue(observation, "graphViewHash:")
@@ -480,12 +697,12 @@ class AgentAnswerFinalizer {
             || normalized.contains("insufficient evidence");
     }
 
-    private String groundedEvidenceAnswer(List<GroundedDocumentEvidence> evidence) {
+    private String groundedEvidenceAnswer(List<AnswerDecisionEngine.GroundedDocumentEvidence> evidence) {
         StringBuilder answer = new StringBuilder();
         answer.append("\u6839\u636e\u5df2\u68c0\u7d22\u5230\u7684\u6587\u6863\u8bc1\u636e\uff0c\u5f53\u524d\u95ee\u9898\u4e0d\u5e94\u5224\u5b9a\u4e3a\u672a\u547d\u4e2d\u3002\u53ef\u7528\u8bc1\u636e\u5982\u4e0b\uff1a\n\n");
         int limit = Math.min(5, evidence.size());
         for (int i = 0; i < limit; i++) {
-            GroundedDocumentEvidence item = evidence.get(i);
+            AnswerDecisionEngine.GroundedDocumentEvidence item = evidence.get(i);
             answer.append(i + 1).append(". ");
             if (item.source() != null && !item.source().isBlank()) {
                 answer.append("\u6765\u6e90\uff1a").append(item.source()).append("\u3002");
@@ -503,11 +720,11 @@ class AgentAnswerFinalizer {
         return answer.toString();
     }
 
-    private List<GroundedDocumentEvidence> extractGroundedDocumentEvidence(List<String> observations) {
+    private List<AnswerDecisionEngine.GroundedDocumentEvidence> extractGroundedDocumentEvidence(List<String> observations) {
         if (observations == null || observations.isEmpty()) {
             return List.of();
         }
-        List<GroundedDocumentEvidence> evidence = new ArrayList<>();
+        List<AnswerDecisionEngine.GroundedDocumentEvidence> evidence = new ArrayList<>();
         for (String observation : observations) {
             evidence.addAll(extractGroundedDocumentEvidence(observation));
         }
@@ -517,13 +734,13 @@ class AgentAnswerFinalizer {
             .toList();
     }
 
-    private List<GroundedDocumentEvidence> extractGroundedDocumentEvidence(String observation) {
+    private List<AnswerDecisionEngine.GroundedDocumentEvidence> extractGroundedDocumentEvidence(String observation) {
         if (observation == null || observation.isBlank()
             || (!observation.contains("doc://") && !observation.contains(DOCUMENT_EVIDENCE_CONTRACT)
             && !observation.contains(UNIFIED_EVIDENCE_CONTRACT))) {
             return List.of();
         }
-        List<GroundedDocumentEvidence> evidence = new ArrayList<>();
+        List<AnswerDecisionEngine.GroundedDocumentEvidence> evidence = new ArrayList<>();
         GroundedDocumentEvidenceBuilder current = null;
         boolean capturingContent = false;
         for (String rawLine : observation.split("\\R")) {
@@ -566,7 +783,7 @@ class AgentAnswerFinalizer {
         return evidence;
     }
 
-    private void addGroundedEvidence(List<GroundedDocumentEvidence> evidence,
+    private void addGroundedEvidence(List<AnswerDecisionEngine.GroundedDocumentEvidence> evidence,
                                      GroundedDocumentEvidenceBuilder current) {
         if (current == null) {
             return;
@@ -580,7 +797,7 @@ class AgentAnswerFinalizer {
         if (content.isBlank()) {
             return;
         }
-        evidence.add(new GroundedDocumentEvidence(
+        evidence.add(new AnswerDecisionEngine.GroundedDocumentEvidence(
             blankToNull(citation),
             blankToNull(current.source),
             blankToNull(current.section),
@@ -699,21 +916,6 @@ class AgentAnswerFinalizer {
 
     private String firstNonBlank(String first, String second) {
         return first == null || first.isBlank() ? second : first;
-    }
-
-    private record DeterministicLockedAnswer(
-        String answer,
-        String contractHash,
-        String graphViewHash
-    ) {
-    }
-
-    private record GroundedDocumentEvidence(
-        String citation,
-        String source,
-        String section,
-        String content
-    ) {
     }
 
     private static class GroundedDocumentEvidenceBuilder {

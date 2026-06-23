@@ -74,7 +74,8 @@ class AgentPlanner {
             requireDocumentWebVerification,
             documentSearchTool,
             verificationWebSearchTool,
-            normalizeList(availableTools)
+            normalizeList(availableTools),
+            query
         );
         String runId = stringValue(runtimeAttributes == null ? null : runtimeAttributes.get("__agentRunId"));
         int maxAttempts = plannerRepairAttempts(runtimeAttributes);
@@ -109,13 +110,21 @@ class AgentPlanner {
             } else {
                 logPlannerDecision(logRunId, attempt, maxAttempts, decision);
             }
-            if (decision != null && !plannerPlanInvalid(decision)) {
-                return decision;
-            }
             if (decision != null) {
                 lastDecision = decision;
             }
             candidates.add(planCandidate(attempt, raw, lastDecision, validationContext));
+            if (decision != null && !plannerPlanInvalid(decision)) {
+                PlanRewriteContext rewriteContext = planRewriteContext(candidates);
+                return withAttributionMetadata(
+                    decision,
+                    candidates.get(candidates.size() - 1),
+                    rewriteContext,
+                    "Selected the first runtime-valid plan candidate.",
+                    false,
+                    List.of()
+                );
+            }
             if (attempt < maxAttempts && shouldRepairPlan(lastDecision, validationContext)) {
                 currentPrompt = buildPlannerRepairPrompt(prompt, raw, lastDecision, attempt + 1, maxAttempts);
                 continue;
@@ -123,17 +132,9 @@ class AgentPlanner {
             break;
         }
         PlanRewriteContext rewriteContext = planRewriteContext(candidates);
-        if (rewriteContext.rewriteCount() >= MAX_PLAN_REPAIR_ATTEMPTS) {
-            AgentDecision attributionDecision = attributeAndSelectBestPlan(
-                activeChatModel,
-                prompt,
-                rewriteContext,
-                validationContext,
-                logRunId
-            );
-            if (attributionDecision != null) {
-                return attributionDecision;
-            }
+        AgentDecision attributionDecision = attributeAndSelectBestPlan(rewriteContext, validationContext, logRunId);
+        if (attributionDecision != null) {
+            return attributionDecision;
         }
         return lastDecision == null
             ? invalidPlannerDecision(lastRaw, "non_json_response", "Planner did not return valid JSON.")
@@ -891,8 +892,9 @@ class AgentPlanner {
         String label = String.valueOf((char) ('A' + Math.max(0, attempt - 1)));
         String failurePattern = failurePattern(decision);
         String fingerprint = planFingerprint(decision);
-        int score = deterministicPlanScore(decision, validationContext);
-        return new PlanCandidate(attempt, label, raw, decision, failurePattern, fingerprint, score);
+        Map<String, Object> scoreDetails = deterministicPlanScoreDetails(decision, validationContext);
+        int score = ((Number) scoreDetails.getOrDefault("total", 0)).intValue();
+        return new PlanCandidate(attempt, label, raw, decision, failurePattern, fingerprint, score, scoreDetails);
     }
 
     private String dominantFailurePattern(List<PlanCandidate> candidates) {
@@ -958,16 +960,38 @@ class AgentPlanner {
     }
 
     private int deterministicPlanScore(AgentDecision decision, PlannerValidationContext validationContext) {
+        Map<String, Object> details = deterministicPlanScoreDetails(decision, validationContext);
+        return ((Number) details.getOrDefault("total", 0)).intValue();
+    }
+
+    private Map<String, Object> deterministicPlanScoreDetails(AgentDecision decision,
+                                                              PlannerValidationContext validationContext) {
         InterpretationPlan plan = decision == null ? null : decision.interpretationPlan();
         if (plan == null) {
-            return 0;
+            return Map.of(
+                "toolAvailability", 0,
+                "dagValidity", 0,
+                "executionCost", 0,
+                "runtimePolicyFit", 0,
+                "total", 0
+            );
         }
-        int score = 0;
-        score += toolAvailabilityScore(plan, validationContext);
-        score += dagValidityScore(decision);
-        score += executionCostScore(plan);
-        score += runtimePolicyFitScore(plan, decision, validationContext);
-        return Math.max(0, Math.min(100, score));
+        int toolAvailability = toolAvailabilityScore(plan, validationContext);
+        int dagValidity = dagValidityScore(decision);
+        int executionCost = executionCostScore(plan);
+        int runtimePolicyFit = runtimePolicyFitScore(plan, decision, validationContext);
+        Map<String, Object> coverage = coverageScoreDetails(plan, validationContext);
+        int coverageScore = ((Number) coverage.getOrDefault("coverageScore", 0)).intValue();
+        int total = Math.max(0, Math.min(100, toolAvailability + dagValidity + executionCost + runtimePolicyFit + coverageScore));
+        Map<String, Object> details = new LinkedHashMap<>();
+        details.put("toolAvailability", toolAvailability);
+        details.put("dagValidity", dagValidity);
+        details.put("executionCost", executionCost);
+        details.put("runtimePolicyFit", runtimePolicyFit);
+        details.put("coverageScore", coverageScore);
+        details.put("coverage", coverage);
+        details.put("total", total);
+        return details;
     }
 
     private int toolAvailabilityScore(InterpretationPlan plan, PlannerValidationContext validationContext) {
@@ -1015,116 +1039,392 @@ class AgentPlanner {
         if (toolSteps <= 0) {
             return 0;
         }
-        return (int) Math.max(5, 20 - Math.max(0, toolSteps - 1) * 3);
+        return (int) Math.max(3, 15 - Math.max(0, toolSteps - 1) * 3);
     }
 
     private int runtimePolicyFitScore(InterpretationPlan plan,
                                       AgentDecision decision,
                                       PlannerValidationContext validationContext) {
-        int score = 25;
+        int score = 20;
         List<String> issues = plannerIssues(decision);
-        score -= Math.min(15, issues.size() * 5);
+        score -= Math.min(12, issues.size() * 4);
         List<String> mandatoryTools = validationContext == null ? List.of() : normalizeList(validationContext.mandatoryTools());
         for (String mandatoryTool : mandatoryTools) {
             boolean present = plan.steps().stream()
                 .anyMatch(step -> step.mcpToolAction() && sameToolName(step.toolName(), mandatoryTool));
             if (!present) {
-                score -= 10;
+                score -= 8;
             }
         }
         return Math.max(0, score);
     }
 
-    private AgentDecision attributeAndSelectBestPlan(ChatModel activeChatModel,
-                                                     String originalPrompt,
-                                                     PlanRewriteContext rewriteContext,
+    private Map<String, Object> coverageScoreDetails(InterpretationPlan plan,
+                                                     PlannerValidationContext validationContext) {
+        List<String> matched = new ArrayList<>();
+        List<String> missing = new ArrayList<>();
+        if (plan == null) {
+            return Map.of(
+                "coverageScore", 0,
+                "matchedCapabilities", matched,
+                "missingCapabilities", missing
+            );
+        }
+        List<InterpretationPlan.Step> steps = plan.steps();
+        Map<Integer, InterpretationPlan.Step> stepsById = stepsById(steps);
+        InterpretationPlan.Step finalStep = finalStep(steps);
+        List<InterpretationPlan.Step> toolSteps = steps.stream()
+            .filter(step -> step != null && step.mcpToolAction())
+            .toList();
+
+        int mandatoryCoverage = mandatoryCoverageScore(toolSteps, validationContext, matched, missing);
+        int evidenceDependency = evidenceDependencyScore(plan, finalStep, toolSteps, stepsById, validationContext, matched, missing);
+        int workflowCoverage = workflowCoverageScore(finalStep, stepsById, toolSteps, validationContext, matched, missing);
+        int stageCoverage = stageCoverageScore(steps, toolSteps, finalStep, matched, missing);
+        int goalCoverage = goalCoverageScore(plan, validationContext, matched, missing);
+        int total = Math.max(0, Math.min(25, mandatoryCoverage + evidenceDependency + workflowCoverage + stageCoverage + goalCoverage));
+
+        Map<String, Object> details = new LinkedHashMap<>();
+        details.put("coverageScore", total);
+        details.put("mandatoryCoverage", mandatoryCoverage);
+        details.put("evidenceDependency", evidenceDependency);
+        details.put("workflowCoverage", workflowCoverage);
+        details.put("stageCoverage", stageCoverage);
+        details.put("goalCoverage", goalCoverage);
+        details.put("matchedCapabilities", matched.stream().distinct().toList());
+        details.put("missingCapabilities", missing.stream().distinct().toList());
+        return details;
+    }
+
+    private int mandatoryCoverageScore(List<InterpretationPlan.Step> toolSteps,
+                                       PlannerValidationContext validationContext,
+                                       List<String> matched,
+                                       List<String> missing) {
+        List<String> mandatoryTools = validationContext == null ? List.of() : normalizeList(validationContext.mandatoryTools());
+        if (mandatoryTools.isEmpty()) {
+            matched.add("no_mandatory_tool_gap");
+            return 5;
+        }
+        long present = mandatoryTools.stream()
+            .filter(tool -> toolSteps.stream().anyMatch(step -> sameToolName(step.toolName(), tool)))
+            .peek(tool -> matched.add("mandatory_tool:" + tool))
+            .count();
+        mandatoryTools.stream()
+            .filter(tool -> toolSteps.stream().noneMatch(step -> sameToolName(step.toolName(), tool)))
+            .forEach(tool -> missing.add("mandatory_tool:" + tool));
+        return (int) Math.round(7.0 * present / mandatoryTools.size());
+    }
+
+    private int evidenceDependencyScore(InterpretationPlan plan,
+                                        InterpretationPlan.Step finalStep,
+                                        List<InterpretationPlan.Step> toolSteps,
+                                        Map<Integer, InterpretationPlan.Step> stepsById,
+                                        PlannerValidationContext validationContext,
+                                        List<String> matched,
+                                        List<String> missing) {
+        boolean evidenceExpected = expectsToolEvidence(plan, validationContext);
+        if (!evidenceExpected) {
+            matched.add("direct_answer_allowed");
+            return 5;
+        }
+        if (!toolSteps.isEmpty() && finalDependsOnAnyTool(finalStep, toolSteps, stepsById)) {
+            matched.add("final_answer_depends_on_tool_evidence");
+            return 5;
+        }
+        if (toolSteps.isEmpty()) {
+            missing.add("tool_evidence_step");
+        } else {
+            missing.add("final_answer_tool_dependency");
+        }
+        return 0;
+    }
+
+    private int workflowCoverageScore(InterpretationPlan.Step finalStep,
+                                      Map<Integer, InterpretationPlan.Step> stepsById,
+                                      List<InterpretationPlan.Step> toolSteps,
+                                      PlannerValidationContext validationContext,
+                                      List<String> matched,
+                                      List<String> missing) {
+        if (validationContext != null && validationContext.requireDocumentWebVerification()) {
+            boolean documentCovered = finalDependsOnTool(finalStep, validationContext.documentSearchTool(), stepsById, toolSteps);
+            boolean webCovered = finalDependsOnTool(finalStep, validationContext.verificationWebSearchTool(), stepsById, toolSteps);
+            if (documentCovered && webCovered) {
+                matched.add("document_web_verification_chain");
+                return 5;
+            }
+            if (!documentCovered) {
+                missing.add("document_verification_chain");
+            }
+            if (!webCovered) {
+                missing.add("web_verification_chain");
+            }
+            return documentCovered || webCovered ? 2 : 0;
+        }
+
+        int score = 0;
+        if (expectsDocumentEvidence(validationContext)
+            && finalDependsOnTool(finalStep, validationContext.documentSearchTool(), stepsById, toolSteps)) {
+            matched.add("document_evidence_chain");
+            score += 3;
+        } else if (expectsDocumentEvidence(validationContext)) {
+            missing.add("document_evidence_chain");
+        }
+
+        if (expectsWebEvidence(validationContext)) {
+            boolean webCovered = toolSteps.stream().anyMatch(step -> isWebDiscoveryTool(step.toolName()))
+                && finalDependsOnAnyTool(finalStep, toolSteps.stream().filter(step -> isWebDiscoveryTool(step.toolName())).toList(), stepsById);
+            if (webCovered) {
+                matched.add("web_evidence_chain");
+                score += 2;
+            } else {
+                missing.add("web_evidence_chain");
+            }
+        }
+        return Math.min(5, score);
+    }
+
+    private int stageCoverageScore(List<InterpretationPlan.Step> steps,
+                                   List<InterpretationPlan.Step> toolSteps,
+                                   InterpretationPlan.Step finalStep,
+                                   List<String> matched,
+                                   List<String> missing) {
+        int score = 0;
+        if (finalStep != null) {
+            matched.add("final_answer_stage");
+            score += 2;
+        } else {
+            missing.add("final_answer_stage");
+        }
+        if (!toolSteps.isEmpty()) {
+            matched.add("tool_execution_stage");
+            score += 2;
+        }
+        boolean hasIntermediateStage = steps.stream()
+            .filter(step -> step != null && !step.mcpToolAction() && !step.finalAnswerAction())
+            .anyMatch(step -> !normalize(step.actionType()).isBlank());
+        if (hasIntermediateStage || toolSteps.size() > 1) {
+            matched.add("multi_stage_plan");
+            score += 1;
+        }
+        return Math.min(5, score);
+    }
+
+    private int goalCoverageScore(InterpretationPlan plan,
+                                  PlannerValidationContext validationContext,
+                                  List<String> matched,
+                                  List<String> missing) {
+        List<String> goalTerms = significantGoalTerms(validationContext == null ? null : validationContext.query());
+        if (goalTerms.isEmpty()) {
+            matched.add("no_goal_keyword_gap");
+            return 3;
+        }
+        String planText = normalize(planText(plan));
+        long covered = goalTerms.stream()
+            .filter(term -> planText.contains(normalize(term)))
+            .peek(term -> matched.add("goal_term:" + term))
+            .count();
+        goalTerms.stream()
+            .filter(term -> !planText.contains(normalize(term)))
+            .forEach(term -> missing.add("goal_term:" + term));
+        return (int) Math.round(3.0 * covered / goalTerms.size());
+    }
+
+    private Map<Integer, InterpretationPlan.Step> stepsById(List<InterpretationPlan.Step> steps) {
+        Map<Integer, InterpretationPlan.Step> values = new LinkedHashMap<>();
+        for (InterpretationPlan.Step step : steps == null ? List.<InterpretationPlan.Step>of() : steps) {
+            if (step != null && step.id() != null) {
+                values.put(step.id(), step);
+            }
+        }
+        return values;
+    }
+
+    private InterpretationPlan.Step finalStep(List<InterpretationPlan.Step> steps) {
+        if (steps == null) {
+            return null;
+        }
+        return steps.stream()
+            .filter(step -> step != null && step.finalAnswerAction())
+            .findFirst()
+            .orElse(null);
+    }
+
+    private boolean finalDependsOnAnyTool(InterpretationPlan.Step finalStep,
+                                          List<InterpretationPlan.Step> toolSteps,
+                                          Map<Integer, InterpretationPlan.Step> stepsById) {
+        if (finalStep == null || toolSteps == null || toolSteps.isEmpty()) {
+            return false;
+        }
+        return toolSteps.stream()
+            .anyMatch(step -> step != null && dependsOnStep(finalStep.id(), step.id(), stepsById, new LinkedHashSet<>()));
+    }
+
+    private boolean finalDependsOnTool(InterpretationPlan.Step finalStep,
+                                       String toolName,
+                                       Map<Integer, InterpretationPlan.Step> stepsById,
+                                       List<InterpretationPlan.Step> toolSteps) {
+        if (finalStep == null || toolName == null || toolName.isBlank()) {
+            return false;
+        }
+        return toolSteps.stream()
+            .filter(step -> step != null && sameToolName(step.toolName(), toolName))
+            .anyMatch(step -> dependsOnStep(finalStep.id(), step.id(), stepsById, new LinkedHashSet<>()));
+    }
+
+    private boolean expectsToolEvidence(InterpretationPlan plan, PlannerValidationContext validationContext) {
+        return validationContext != null
+            && (validationContext.requireToolBeforeFinal()
+            || validationContext.requireDocumentWebVerification()
+            || !normalizeList(validationContext.mandatoryTools()).isEmpty()
+            || expectsDocumentEvidence(validationContext)
+            || expectsWebEvidence(validationContext))
+            || plan != null && plan.steps().stream().anyMatch(InterpretationPlan.Step::mcpToolAction);
+    }
+
+    private boolean expectsDocumentEvidence(PlannerValidationContext validationContext) {
+        String text = requestText(validationContext);
+        return containsAny(text, "document", "doc", "file", "report", "paper", "knowledge", "internal",
+            "文档", "文件", "报告", "论文", "知识库", "内部", "资料");
+    }
+
+    private boolean expectsWebEvidence(PlannerValidationContext validationContext) {
+        String text = requestText(validationContext);
+        return containsAny(text, "web", "website", "site", "online", "internet", "current", "latest", "today", "recent",
+            "网页", "网站", "联网", "互联网", "当前", "最新", "今天", "近期");
+    }
+
+    private String requestText(PlannerValidationContext validationContext) {
+        return validationContext == null || validationContext.query() == null
+            ? ""
+            : validationContext.query().toLowerCase(Locale.ROOT);
+    }
+
+    private boolean containsAny(String text, String... tokens) {
+        if (text == null || text.isBlank() || tokens == null) {
+            return false;
+        }
+        for (String token : tokens) {
+            if (token != null && !token.isBlank() && text.contains(token.toLowerCase(Locale.ROOT))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private List<String> significantGoalTerms(String query) {
+        if (query == null || query.isBlank()) {
+            return List.of();
+        }
+        Set<String> terms = new LinkedHashSet<>();
+        String normalized = query.toLowerCase(Locale.ROOT)
+            .replaceAll("[^\\p{IsHan}a-z0-9_]+", " ")
+            .trim();
+        for (String term : normalized.split("\\s+")) {
+            if (term.length() >= 4 && !isStopword(term)) {
+                terms.add(term);
+            }
+        }
+        for (String keyword : List.of("文档", "文件", "报告", "论文", "知识库", "内部", "搜索", "检索", "联网", "最新", "今天", "分析", "汇总", "验证")) {
+            if (query.contains(keyword)) {
+                terms.add(keyword);
+            }
+        }
+        return terms.stream().limit(6).toList();
+    }
+
+    private boolean isStopword(String term) {
+        return Set.of(
+            "what", "with", "from", "that", "this", "into", "about", "please", "using",
+            "the", "and", "for", "are", "how"
+        ).contains(term);
+    }
+
+    private String planText(InterpretationPlan plan) {
+        if (plan == null) {
+            return "";
+        }
+        StringBuilder builder = new StringBuilder();
+        if (plan.intent() != null) {
+            builder.append(plan.intent().type()).append(' ')
+                .append(plan.intent().goal()).append(' ')
+                .append(plan.intent().riskLevel()).append(' ');
+        }
+        if (plan.context() != null) {
+            builder.append(plan.context().keyFacts()).append(' ')
+                .append(plan.context().assumptions()).append(' ')
+                .append(plan.context().missingInfo()).append(' ')
+                .append(plan.context().constraints()).append(' ');
+        }
+        for (InterpretationPlan.Step step : plan.steps()) {
+            if (step == null) {
+                continue;
+            }
+            builder.append(step.actionType()).append(' ')
+                .append(step.toolName()).append(' ')
+                .append(step.input()).append(' ');
+        }
+        return builder.toString();
+    }
+
+    private AgentDecision attributeAndSelectBestPlan(PlanRewriteContext rewriteContext,
                                                      PlannerValidationContext validationContext,
                                                      String runId) {
-        if (activeChatModel == null || rewriteContext == null || rewriteContext.candidates().isEmpty()) {
+        if (rewriteContext == null || rewriteContext.candidates().isEmpty()) {
             return null;
         }
-        String prompt = buildAttributionSelectionPrompt(originalPrompt, rewriteContext);
-        long startedAt = System.currentTimeMillis();
-        log.info("agentModelRequest phase=planner_attribution runId={} candidateCount={} promptChars={}",
-            runId == null ? "" : runId,
-            rewriteContext.candidates().size(),
-            prompt.length());
-        String raw = activeChatModel.chat(prompt);
-        log.info("agentModelResponse phase=planner_attribution runId={} durationMs={} responseChars={}",
-            runId == null ? "" : runId,
-            System.currentTimeMillis() - startedAt,
-            raw == null ? 0 : raw.length());
-        log.info("agentModelRawOutput phase=planner_attribution runId={} raw=\n{}",
-            runId == null ? "" : runId,
-            ModelProtocolJson.prettyJsonForLog(raw));
-        AttributionSelection selection = parseAttributionSelection(raw, validationContext);
-        if (selection.decision() == null) {
+        PlanCandidate selected = selectBestCandidate(rewriteContext.candidates());
+        if (selected == null || selected.decision() == null) {
             return null;
         }
-        AgentDecision attributed = withAttributionMetadata(selection, raw, rewriteContext);
-        logPlannerDecision(runId == null ? "" : runId, rewriteContext.rewriteCount() + 1, rewriteContext.rewriteCount() + 1, attributed);
-        return plannerPlanInvalid(attributed) ? null : attributed;
+        GuardRepairResult repair = deterministicGuardRepair(selected.decision(), validationContext);
+        AgentDecision selectedDecision = repair.decision();
+        String reason = attributionReason(selected, repair);
+        AgentDecision attributed = withAttributionMetadata(
+            selectedDecision,
+            selected,
+            rewriteContext,
+            reason,
+            repair.applied(),
+            repair.notes()
+        );
+        log.info("agentPlannerAttribution phase=planner_attribution runId={} source=deterministic selected={} score={} repairApplied={} candidateCount={}",
+            runId == null ? "" : runId,
+            selected.label(),
+            selected.deterministicScore(),
+            repair.applied(),
+            rewriteContext.candidates().size());
+        logPlannerDecision(runId == null ? "" : runId, rewriteContext.rewriteCount(), rewriteContext.rewriteCount(), attributed);
+        return attributed;
     }
 
-    private String buildAttributionSelectionPrompt(String originalPrompt, PlanRewriteContext rewriteContext) {
-        StringBuilder prompt = new StringBuilder();
-        prompt.append(originalPrompt).append("\n\n");
-        prompt.append("The planner has regenerated a plan exactly 3 times, and no candidate passed runtime validation.\n");
-        prompt.append("You are now in bounded attribution selection mode, not free regeneration mode.\n");
-        prompt.append("Root failure pattern: ").append(rewriteContext.failurePattern()).append("\n");
-        prompt.append("Last failure reason: ").append(rewriteContext.lastFailureReason()).append("\n\n");
-        prompt.append("Task:\n");
-        prompt.append("1. Identify failure patterns across candidates A/B/C.\n");
-        prompt.append("2. Score each candidate from 0 to 100.\n");
-        prompt.append("3. Select exactly one candidate label: A, B, or C.\n");
-        prompt.append("4. Return an executable InterpretationPlan in the plan field, based on the selected candidate only.\n");
-        prompt.append("5. Apply only minimal guard-required repairs; do not invent a fourth unrelated plan.\n\n");
-        prompt.append("Deterministic scoring bias to respect:\n");
-        prompt.append("- tool availability: 30%\n");
-        prompt.append("- DAG validity: 25%\n");
-        prompt.append("- execution cost: 20%\n");
-        prompt.append("- runtime policy fit / success-history similarity: 25%\n\n");
-        prompt.append("Output strict JSON only with this shape:\n");
-        prompt.append("{\"analysis\":\"...\",\"scores\":{\"A\":0,\"B\":0,\"C\":0},\"selected\":\"A|B|C\",\"reason\":\"...\",\"plan\":{InterpretationPlan JSON}}\n\n");
-        prompt.append("Failed planner candidates:\n");
-        for (PlanCandidate candidate : rewriteContext.candidates()) {
-            prompt.append("\nCandidate ").append(candidate.label()).append(" (attempt ").append(candidate.attempt()).append("):\n");
-            prompt.append("Deterministic pre-score: ").append(candidate.deterministicScore()).append("/100\n");
-            prompt.append("Failure pattern: ").append(candidate.failurePattern()).append("\n");
-            prompt.append("Fingerprint: ").append(candidate.fingerprint()).append("\n");
-            prompt.append("Validation issues:\n");
-            List<String> issues = plannerIssues(candidate.decision());
-            if (issues.isEmpty()) {
-                prompt.append("- Unknown planner/runtime validation failure\n");
-            } else {
-                issues.forEach(issue -> prompt.append("- ").append(issue).append("\n"));
+    private PlanCandidate selectBestCandidate(List<PlanCandidate> candidates) {
+        PlanCandidate best = null;
+        for (PlanCandidate candidate : candidates == null ? List.<PlanCandidate>of() : candidates) {
+            if (candidate == null || candidate.decision() == null) {
+                continue;
             }
-            prompt.append("Raw output:\n").append(candidate.raw() == null ? "" : candidate.raw()).append("\n");
+            if (best == null || betterCandidate(candidate, best)) {
+                best = candidate;
+            }
         }
-        return prompt.toString();
+        return best;
     }
 
-    @SuppressWarnings("unchecked")
-    private AttributionSelection parseAttributionSelection(String raw, PlannerValidationContext validationContext) {
-        if (raw == null || raw.isBlank()) {
-            return new AttributionSelection(null, null, null, Map.of(), null);
+    private boolean betterCandidate(PlanCandidate candidate, PlanCandidate currentBest) {
+        if (candidate.deterministicScore() != currentBest.deterministicScore()) {
+            return candidate.deterministicScore() > currentBest.deterministicScore();
         }
-        try {
-            Map<String, Object> payload = objectMapper.readValue(extractJson(raw), Map.class);
-            String selected = stringValue(payload.get("selected"));
-            String analysis = stringValue(payload.get("analysis"));
-            String reason = stringValue(payload.get("reason"));
-            Map<String, Object> scores = asMap(payload.get("scores"));
-            Map<String, Object> plan = asMap(payload.get("plan"));
-            if (!plan.isEmpty()) {
-                AgentDecision decision = parseDecision(ModelProtocolJson.compact(plan), validationContext);
-                return new AttributionSelection(decision, selected, analysis, scores, reason);
-            }
-        } catch (Exception ex) {
-            log.debug("Failed to parse attribution selection wrapper: {}", raw, ex);
+        boolean candidateValid = !plannerPlanInvalid(candidate.decision());
+        boolean bestValid = !plannerPlanInvalid(currentBest.decision());
+        if (candidateValid != bestValid) {
+            return candidateValid;
         }
-        AgentDecision decision = parseDecision(raw, validationContext);
-        return new AttributionSelection(decision, null, null, Map.of(), null);
+        int candidateIssueCount = plannerIssues(candidate.decision()).size();
+        int bestIssueCount = plannerIssues(currentBest.decision()).size();
+        if (candidateIssueCount != bestIssueCount) {
+            return candidateIssueCount < bestIssueCount;
+        }
+        return candidate.attempt() > currentBest.attempt();
     }
 
     private List<String> plannerIssues(AgentDecision decision) {
@@ -1146,20 +1446,181 @@ class AgentPlanner {
             .toList();
     }
 
-    private AgentDecision withAttributionMetadata(AttributionSelection selection,
-                                                  String raw,
-                                                  PlanRewriteContext rewriteContext) {
-        AgentDecision decision = selection == null ? null : selection.decision();
+    private GuardRepairResult deterministicGuardRepair(AgentDecision decision,
+                                                       PlannerValidationContext validationContext) {
+        InterpretationPlan plan = decision == null ? null : decision.interpretationPlan();
+        if (plan == null) {
+            return new GuardRepairResult(decision, false, List.of());
+        }
+        List<String> unavailableTools = plan.steps().stream()
+            .filter(InterpretationPlan.Step::mcpToolAction)
+            .map(InterpretationPlan.Step::toolName)
+            .filter(tool -> tool != null && !tool.isBlank())
+            .filter(tool -> !toolAvailable(tool, validationContext))
+            .distinct()
+            .toList();
+        if (unavailableTools.isEmpty()) {
+            return new GuardRepairResult(decision, false, List.of());
+        }
+        List<String> replacements = candidateReplacementTools(validationContext);
+        if (replacements.size() != 1) {
+            return new GuardRepairResult(decision, false, List.of("Skipped repair because replacement tool was ambiguous."));
+        }
+        String replacement = replacements.get(0);
+        if (!toolAvailable(replacement, validationContext)) {
+            return new GuardRepairResult(decision, false, List.of("Skipped repair because replacement tool is unavailable."));
+        }
+        Map<String, String> toolReplacements = new LinkedHashMap<>();
+        unavailableTools.forEach(tool -> toolReplacements.put(tool, replacement));
+        InterpretationPlan repairedPlan = replaceUnavailableTools(plan, toolReplacements);
+        AgentDecision repairedDecision = parseInterpretationPlanDecision(objectMapper.convertValue(repairedPlan, Map.class), validationContext);
+        if (repairedDecision == null || plannerPlanInvalid(repairedDecision)) {
+            return new GuardRepairResult(decision, false, List.of("Skipped repair because repaired plan did not pass validation."));
+        }
+        List<String> notes = unavailableTools.stream()
+            .map(tool -> "Replaced unavailable tool " + tool + " with " + replacement + ".")
+            .toList();
+        return new GuardRepairResult(repairedDecision, true, notes);
+    }
+
+    private List<String> candidateReplacementTools(PlannerValidationContext validationContext) {
+        List<String> mandatoryTools = validationContext == null ? List.of() : normalizeList(validationContext.mandatoryTools());
+        List<String> availableTools = validationContext == null ? List.of() : normalizeList(validationContext.availableTools());
+        List<String> mandatoryAvailable = mandatoryTools.stream()
+            .filter(tool -> toolAvailable(tool, validationContext))
+            .distinct()
+            .toList();
+        if (mandatoryAvailable.size() == 1) {
+            return mandatoryAvailable;
+        }
+        List<String> registeredAvailable = availableTools.stream()
+            .filter(tool -> toolAvailable(tool, validationContext))
+            .distinct()
+            .toList();
+        if (registeredAvailable.size() == 1) {
+            return registeredAvailable;
+        }
+        String documentTool = validationContext == null ? null : validationContext.documentSearchTool();
+        if (documentTool != null && !documentTool.isBlank() && toolAvailable(documentTool, validationContext)) {
+            return List.of(documentTool);
+        }
+        return registeredAvailable;
+    }
+
+    private InterpretationPlan replaceUnavailableTools(InterpretationPlan plan, Map<String, String> toolReplacements) {
+        List<InterpretationPlan.Step> steps = plan.steps().stream()
+            .map(step -> {
+                if (step == null || !step.mcpToolAction()) {
+                    return step;
+                }
+                String replacement = toolReplacements.get(step.toolName());
+                if (replacement == null) {
+                    return step;
+                }
+                return new InterpretationPlan.Step(
+                    step.id(),
+                    step.actionType(),
+                    replacement,
+                    step.input(),
+                    step.dependsOn(),
+                    step.outputContract(),
+                    step.validation()
+                );
+            })
+            .toList();
+        InterpretationPlan.Plan originalPlan = plan.plan();
+        InterpretationPlan.Plan repairedInnerPlan = new InterpretationPlan.Plan(
+            steps,
+            originalPlan == null ? List.of() : originalPlan.edgeContracts(),
+            originalPlan == null ? List.of() : originalPlan.bindings(),
+            originalPlan == null ? null : originalPlan.stability()
+        );
+        return new InterpretationPlan(
+            plan.version(),
+            plan.intent(),
+            plan.context(),
+            repairedInnerPlan,
+            replacePolicyTools(plan.executionPolicy(), toolReplacements),
+            plan.review()
+        );
+    }
+
+    private InterpretationPlan.ExecutionPolicy replacePolicyTools(InterpretationPlan.ExecutionPolicy policy,
+                                                                  Map<String, String> toolReplacements) {
+        if (policy == null) {
+            return null;
+        }
+        return new InterpretationPlan.ExecutionPolicy(
+            policy.maxSteps(),
+            policy.allowParallel(),
+            replaceToolList(policy.allowTool(), toolReplacements),
+            replaceToolList(policy.denyTool(), toolReplacements),
+            policy.timeoutMs(),
+            policy.maxRewriteTimes(),
+            policy.fallbackMode(),
+            replaceToolPriority(policy.toolPriority(), toolReplacements),
+            policy.costBudget(),
+            policy.latencyBudgetMs(),
+            policy.accuracyVsSpeed()
+        );
+    }
+
+    private List<String> replaceToolList(List<String> tools, Map<String, String> toolReplacements) {
+        if (tools == null) {
+            return List.of();
+        }
+        return tools.stream()
+            .map(tool -> toolReplacements.getOrDefault(tool, tool))
+            .filter(tool -> tool != null && !tool.isBlank())
+            .distinct()
+            .toList();
+    }
+
+    private Map<String, Double> replaceToolPriority(Map<String, Double> priorities,
+                                                    Map<String, String> toolReplacements) {
+        if (priorities == null || priorities.isEmpty()) {
+            return priorities;
+        }
+        Map<String, Double> values = new LinkedHashMap<>();
+        priorities.forEach((tool, priority) -> values.put(toolReplacements.getOrDefault(tool, tool), priority));
+        return values;
+    }
+
+    private String attributionReason(PlanCandidate selected, GuardRepairResult repair) {
+        StringBuilder reason = new StringBuilder();
+        reason.append("Selected candidate ")
+            .append(selected.label())
+            .append(" by deterministic attribution score ")
+            .append(selected.deterministicScore())
+            .append("/100.");
+        if (repair != null && repair.applied()) {
+            reason.append(" Applied guard repair for verifiable unavailable-tool mapping.");
+        }
+        return reason.toString();
+    }
+
+    private AgentDecision withAttributionMetadata(AgentDecision decision,
+                                                  PlanCandidate selected,
+                                                  PlanRewriteContext rewriteContext,
+                                                  String reason,
+                                                  boolean repairApplied,
+                                                  List<String> repairNotes) {
         if (decision == null) {
             return null;
         }
         Map<String, Object> executionPlan = new LinkedHashMap<>(decision.executionPlan() == null ? Map.of() : decision.executionPlan());
         executionPlan.put("plannerAttributionSelection", true);
+        executionPlan.put("plannerAttributionSource", "deterministic_java");
+        executionPlan.put("plannerAttributionContractVersion", "plan_attribution_v1");
+        executionPlan.put("plannerGenerationLimit", MAX_PLAN_REPAIR_ATTEMPTS);
+        executionPlan.put("plannerGenerationCount", rewriteContext == null ? 0 : rewriteContext.candidates().size());
         executionPlan.put("plannerAttributionCandidateCount", rewriteContext == null ? 0 : rewriteContext.candidates().size());
-        executionPlan.put("plannerAttributionSelected", selection.selected());
-        executionPlan.put("plannerAttributionReason", selection.reason());
-        executionPlan.put("plannerAttributionAnalysis", abbreviate(selection.analysis(), 2000));
-        executionPlan.put("plannerAttributionScores", selection.scores() == null ? Map.of() : selection.scores());
+        executionPlan.put("plannerAttributionSelected", selected == null ? null : selected.label());
+        executionPlan.put("plannerAttributionSelectedAttempt", selected == null ? null : selected.attempt());
+        executionPlan.put("plannerAttributionReason", reason);
+        executionPlan.put("plannerAttributionAnalysis", reason);
+        executionPlan.put("plannerAttributionScores", plannerAttributionScores(rewriteContext));
+        executionPlan.put("plannerAttributionCandidates", plannerAttributionCandidates(rewriteContext));
         executionPlan.put("plannerAttributionFailurePattern", rewriteContext == null ? "UNKNOWN" : rewriteContext.failurePattern());
         executionPlan.put("plannerAttributionCandidateFingerprints", rewriteContext == null ? List.of() : rewriteContext.candidates().stream()
             .map(candidate -> Map.of(
@@ -1169,7 +1630,8 @@ class AgentPlanner {
                 "deterministicScore", candidate.deterministicScore()
             ))
             .toList());
-        executionPlan.put("plannerAttributionRaw", abbreviate(raw, 2000));
+        executionPlan.put("plannerAttributionRepairApplied", repairApplied);
+        executionPlan.put("plannerAttributionRepairNotes", repairNotes == null ? List.of() : repairNotes);
         return new AgentDecision(
             decision.action(),
             decision.toolName(),
@@ -1180,6 +1642,37 @@ class AgentPlanner {
             decision.sufficient(),
             decision.interpretationPlan()
         );
+    }
+
+    private Map<String, Object> plannerAttributionScores(PlanRewriteContext rewriteContext) {
+        Map<String, Object> scores = new LinkedHashMap<>();
+        if (rewriteContext == null || rewriteContext.candidates() == null) {
+            return scores;
+        }
+        for (PlanCandidate candidate : rewriteContext.candidates()) {
+            scores.put(candidate.label(), candidate.deterministicScore());
+        }
+        return scores;
+    }
+
+    private List<Map<String, Object>> plannerAttributionCandidates(PlanRewriteContext rewriteContext) {
+        if (rewriteContext == null || rewriteContext.candidates() == null) {
+            return List.of();
+        }
+        return rewriteContext.candidates().stream()
+            .map(candidate -> {
+                Map<String, Object> record = new LinkedHashMap<>();
+                record.put("label", candidate.label());
+                record.put("attempt", candidate.attempt());
+                record.put("failurePattern", candidate.failurePattern());
+                record.put("fingerprint", candidate.fingerprint());
+                record.put("deterministicScore", candidate.deterministicScore());
+                record.put("scoreDetails", candidate.deterministicScoreDetails());
+                record.put("issues", plannerIssues(candidate.decision()));
+                record.put("valid", candidate.decision() != null && !plannerPlanInvalid(candidate.decision()));
+                return record;
+            })
+            .toList();
     }
 
     private int plannerRepairAttempts(Map<String, Object> runtimeAttributes) {
@@ -1224,6 +1717,10 @@ class AgentPlanner {
             return text.substring(firstBrace, lastBrace + 1);
         }
         return text;
+    }
+
+    private String normalize(String value) {
+        return value == null ? "" : value.trim().toLowerCase(Locale.ROOT).replace('-', '_');
     }
 
     private boolean sameToolName(String first, String second) {
@@ -1335,7 +1832,8 @@ record PlannerValidationContext(
     boolean requireDocumentWebVerification,
     String documentSearchTool,
     String verificationWebSearchTool,
-    List<String> availableTools
+    List<String> availableTools,
+    String query
 ) {
 }
 
@@ -1375,15 +1873,14 @@ record PlanCandidate(
     AgentDecision decision,
     String failurePattern,
     String fingerprint,
-    int deterministicScore
+    int deterministicScore,
+    Map<String, Object> deterministicScoreDetails
 ) {
 }
 
-record AttributionSelection(
+record GuardRepairResult(
     AgentDecision decision,
-    String selected,
-    String analysis,
-    Map<String, Object> scores,
-    String reason
+    boolean applied,
+    List<String> notes
 ) {
 }

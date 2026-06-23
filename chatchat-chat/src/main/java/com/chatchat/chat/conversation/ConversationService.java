@@ -225,6 +225,16 @@ public class ConversationService {
                                               String content,
                                               List<Map<String, Object>> sources,
                                               List<Map<String, Object>> traces) {
+        return appendMessage(conversationId, role, content, sources, traces, Map.of());
+    }
+
+    @Transactional
+    public Conversation.Message appendMessage(String conversationId,
+                                              String role,
+                                              String content,
+                                              List<Map<String, Object>> sources,
+                                              List<Map<String, Object>> traces,
+                                              Map<String, Object> memoryContext) {
         if (content == null || content.isBlank()) {
             throw new IllegalArgumentException("Message content cannot be empty");
         }
@@ -242,6 +252,7 @@ public class ConversationService {
             .createdAt(createdAt)
             .sources(copyMaps(sources))
             .traces(copyMaps(traces))
+            .memoryContext(copyMap(memoryContext))
             .build();
         String rocksKey = detailStore.put(detail);
 
@@ -399,6 +410,7 @@ public class ConversationService {
             .visualizationSpec(copyMap(detail.getVisualizationSpec()))
             .uiResponse(copyMap(detail.getUiResponse()))
             .evidencePremises(copyMaps(detail.getEvidencePremises()))
+            .memoryContext(copyMap(detail.getMemoryContext()))
             .agentName(detail.getAgentName())
             .modelName(detail.getModelName())
             .analysisNodeId(detail.getAnalysisNodeId())
@@ -449,6 +461,7 @@ public class ConversationService {
             .visualizationSpec(copyMap(message.getVisualizationSpec()))
             .uiResponse(copyMap(message.getUiResponse()))
             .evidencePremises(copyMaps(message.getEvidencePremises()))
+            .memoryContext(copyMap(message.getMemoryContext()))
             .agentName(message.getAgentName())
             .modelName(message.getModelName())
             .analysisNodeId(message.getAnalysisNodeId())

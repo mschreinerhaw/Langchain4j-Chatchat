@@ -1,5 +1,7 @@
 package com.chatchat.mcpserver.notification;
 
+import com.chatchat.agents.protocol.ModelProtocolJson;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -228,7 +230,7 @@ public class NotificationChannelConfigService {
 
     private String writeJson(Map<String, Object> value) {
         try {
-            return objectMapper.writeValueAsString(value);
+            return ModelProtocolJson.compact(value);
         } catch (Exception ex) {
             return "{}";
         }

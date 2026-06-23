@@ -1,5 +1,7 @@
 package com.chatchat.mcpserver.ops;
 
+import com.chatchat.agents.protocol.ModelProtocolJson;
+
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -149,7 +151,7 @@ public class HttpEndpointConfigService {
         }
         try {
             Map<String, Object> parsed = objectMapper.readValue(value, new TypeReference<>() {});
-            return objectMapper.writeValueAsString(parsed);
+            return ModelProtocolJson.compact(parsed);
         } catch (Exception ex) {
             throw new IllegalArgumentException(field + " must be a JSON object");
         }

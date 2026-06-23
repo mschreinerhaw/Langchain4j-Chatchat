@@ -1,5 +1,18 @@
 <template>
   <section v-if="hasDetails" class="response-references" :class="{ compact }">
+    <details v-if="evidencePremiseRows.length">
+      <summary>证据链条（{{ evidencePremiseRows.length }}）</summary>
+      <article
+        v-for="(premise, index) in evidencePremiseRows"
+        :key="premise.rank + premise.text + index"
+        class="reference-row evidence-premise-row"
+      >
+        <strong>
+          <span class="reference-badge">依据 {{ premise.rank || index + 1 }}</span>
+        </strong>
+        <p>{{ premise.text }}</p>
+      </article>
+    </details>
     <details v-if="documentReferenceRows.length">
       <summary>引用文档（{{ documentReferenceRows.length }}）</summary>
       <article
@@ -19,8 +32,7 @@
           </a>
           <span v-else>{{ source.title || source.docId || "引用文档" }}</span>
         </strong>
-        <small v-if="source.docId">{{ source.docId }}</small>
-        <small v-else-if="source.url">{{ displayUrl(source.url) }}</small>
+        <small v-if="source.url">{{ displayUrl(source.url) }}</small>
         <p>{{ source.snippet || "暂无摘要" }}</p>
       </article>
     </details>

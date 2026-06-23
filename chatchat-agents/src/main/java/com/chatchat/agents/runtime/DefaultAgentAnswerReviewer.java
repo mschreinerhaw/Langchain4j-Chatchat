@@ -1,5 +1,6 @@
 package com.chatchat.agents.runtime;
 
+import com.chatchat.agents.protocol.ModelProtocolJson;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.langchain4j.model.chat.ChatModel;
 import lombok.extern.slf4j.Slf4j;
@@ -32,7 +33,7 @@ public class DefaultAgentAnswerReviewer implements AgentAnswerReviewer {
         }
 
         String raw = chatModel.chat(buildPrompt(query, systemPrompt, observations, answer));
-        log.info("agentModelRawOutput phase=review raw=\n{}", raw == null ? "" : raw);
+        log.info("agentModelRawOutput phase=review raw=\n{}", ModelProtocolJson.prettyJsonForLog(raw));
         try {
             @SuppressWarnings("unchecked")
             Map<String, Object> payload = objectMapper.readValue(extractJson(raw), Map.class);
@@ -82,7 +83,8 @@ public class DefaultAgentAnswerReviewer implements AgentAnswerReviewer {
         prompt.append("If observations include answer_assembly_policy_v1, enforce its mode, citation placement, partial-answer, conflict-handling, and missingInfo requirements.\n");
         prompt.append("If observations include web citation labels such as [网页1], web-derived claims in the answer must keep the matching labels; reject and revise answers that omit those labels.\n");
         prompt.append("Do not remove citation markers that prove which web page supports a statement.\n");
-        prompt.append("If the user's request is in Chinese, the revised answer must be in Chinese.\n\n");
+        prompt.append("If the user's request is in Chinese, the revised answer must be in Chinese.\n");
+        prompt.append("If you provide revisedAnswer, it must be a polished Markdown document, not a single plain paragraph. Do not wrap it in code fences.\n\n");
         if (systemPrompt != null && !systemPrompt.isBlank()) {
             prompt.append("System instruction:\n").append(systemPrompt).append("\n\n");
         }
@@ -95,7 +97,7 @@ public class DefaultAgentAnswerReviewer implements AgentAnswerReviewer {
         }
         prompt.append("\nCandidate answer:\n").append(answer).append("\n\n");
         prompt.append("Respond with strict JSON only:\n");
-        prompt.append("{\"accepted\":true|false,\"feedback\":\"brief reason\",\"revisedAnswer\":\"if rejected, provide the improved final answer; otherwise empty string\"}");
+        prompt.append("{\"accepted\":true|false,\"feedback\":\"brief reason\",\"revisedAnswer\":\"if rejected, provide the improved final Markdown answer; otherwise empty string\"}");
         return prompt.toString();
     }
 

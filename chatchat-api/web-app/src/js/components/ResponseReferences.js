@@ -7,10 +7,23 @@ import {
   extractWebSearchPagesFromTraces
 } from "../utils/webReferences.js";
 
+const INTERNAL_DOCUMENT_REF_RE = /[\uFF08(]?\s*doc:\/\/[^\s\uFF09)\]}\>\uFF0C\u3002\uFF1B;]+[\uFF09)]?\s*[:\uFF1A]?/gi;
+
+function cleanReferenceText(value) {
+  return String(value || "")
+    .replace(INTERNAL_DOCUMENT_REF_RE, "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 export default {
   name: "ResponseReferences",
   props: {
     sources: {
+      type: Array,
+      default: () => []
+    },
+    evidencePremises: {
       type: Array,
       default: () => []
     },
@@ -34,7 +47,18 @@ export default {
   },
   computed: {
     hasDetails() {
-      return this.documentReferenceRows.length || this.webPageRows.length || this.toolTraceRows.length;
+      return this.evidencePremiseRows.length
+        || this.documentReferenceRows.length
+        || this.webPageRows.length
+        || this.toolTraceRows.length;
+    },
+    evidencePremiseRows() {
+      return this.evidencePremises
+        .map((item, index) => ({
+          rank: item?.rank || index + 1,
+          text: cleanReferenceText(item?.text || item?.snippet || item?.content || "")
+        }))
+        .filter((item) => item.text);
     },
     webPageRows() {
       return extractWebSearchPagesFromTraces(this.toolTraces);
@@ -89,7 +113,7 @@ export default {
         docId,
         title: documentReferenceTitle(source, docId),
         url: this.sourceUrl(source),
-        snippet: source.snippet || source.content || source.summary || ""
+        snippet: cleanReferenceText(source.snippet || source.content || source.summary || "")
       };
     },
     uniqueDocumentRows(rows = []) {

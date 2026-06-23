@@ -1,5 +1,6 @@
 package com.chatchat.agents.orchestration;
 
+import com.chatchat.agents.protocol.ModelProtocolJson;
 import com.chatchat.agents.runtime.AgentAnswerReviewer;
 import com.chatchat.agents.runtime.AgentObservation;
 import com.chatchat.agents.runtime.AgentObservationPipeline;
@@ -28,7 +29,6 @@ import com.chatchat.common.tool.ToolInput;
 import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolOutput;
 import com.chatchat.common.config.ModelsConfig;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.langchain4j.model.chat.ChatModel;
 import lombok.extern.slf4j.Slf4j;
@@ -1041,7 +1041,7 @@ public class AgentOrchestrator {
             raw == null ? 0 : raw.length());
         log.info("agentModelRawOutput phase=interpretation_plan_dag_decision decisionCount={} raw=\n{}",
             request.decisionCount(),
-            raw == null ? "" : raw);
+            ModelProtocolJson.prettyJsonForLog(raw));
         Map<String, Object> payload = parseJsonObject(raw);
         if (payload.isEmpty()) {
             return new InterpretationPlanRuntime.DagDecision(
@@ -1195,7 +1195,7 @@ public class AgentOrchestrator {
         log.info("agentModelOutput phase=interpretation_plan_summary runId={} stage={} answer=\n{}",
             firstNonBlank(runId, ""),
             stage,
-            answer == null ? "" : answer);
+            ModelProtocolJson.prettyJsonForLog(answer));
         if (metadata != null) {
             metadata.put("interpretationPlanSummaryGenerated", true);
             metadata.put("interpretationPlanSummaryStage", stage);
@@ -1229,6 +1229,8 @@ public class AgentOrchestrator {
         }
         prompt.append("You are the final step-by-step answer synthesizer for a completed MCP InterpretationPlan.\n");
         prompt.append("Answer the user in Chinese using only the executed step records, model review decisions, and stored observations.\n");
+        prompt.append("Return a polished Markdown document, not a single plain paragraph. Use concise headings and lists when they improve readability.\n");
+        prompt.append("Do not wrap the Markdown in code fences and do not output JSON.\n");
         prompt.append("Workflow contract:\n");
         prompt.append("- Treat every tool step as evidence only if it succeeded and the model review marked it satisfied.\n");
         prompt.append("- Use each step's review reason as the premise for later steps.\n");
@@ -1290,7 +1292,7 @@ public class AgentOrchestrator {
                 .append(shortObservationText(observation, 1000))
                 .append("\n"));
         }
-        prompt.append("\nReturn only the final user-facing answer, no JSON.");
+        prompt.append("\nReturn only the final user-facing Markdown answer, no JSON.");
         return prompt.toString();
     }
 
@@ -1343,7 +1345,7 @@ public class AgentOrchestrator {
             request.execution().toolName(),
             request.attempt(),
             request.maxAttempts(),
-            raw == null ? "" : raw);
+            ModelProtocolJson.prettyJsonForLog(raw));
         Map<String, Object> payload = parseJsonObject(raw);
         if (payload.isEmpty()) {
             return InterpretationPlanRuntime.StepReview.rejected(
@@ -2398,11 +2400,7 @@ public class AgentOrchestrator {
         if (data instanceof String s) {
             return s;
         }
-        try {
-            return objectMapper.writeValueAsString(data);
-        } catch (JsonProcessingException e) {
-            return String.valueOf(data);
-        }
+        return ModelProtocolJson.compact(data);
     }
 
     /**

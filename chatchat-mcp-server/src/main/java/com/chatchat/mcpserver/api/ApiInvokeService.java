@@ -1,5 +1,7 @@
 package com.chatchat.mcpserver.api;
 
+import com.chatchat.agents.protocol.ModelProtocolJson;
+
 import com.chatchat.mcpserver.audit.InvocationAuditService;
 import com.chatchat.mcpserver.cache.ApiResponseCacheService;
 import com.chatchat.mcpserver.livedata.LivedataSessionService;
@@ -303,7 +305,7 @@ public class ApiInvokeService {
         if (args.isEmpty()) {
             return null;
         }
-        return objectMapper.writeValueAsString(args);
+        return ModelProtocolJson.compact(args);
     }
 
     /**
@@ -510,12 +512,7 @@ public class ApiInvokeService {
      * @return the operation result
      */
     private String escapeJsonString(String value) {
-        try {
-            String json = objectMapper.writeValueAsString(value);
-            return json.substring(1, json.length() - 1);
-        } catch (Exception ignored) {
-            return value;
-        }
+        return ModelProtocolJson.jsonStringContent(value);
     }
 
     /**

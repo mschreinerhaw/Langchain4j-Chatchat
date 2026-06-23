@@ -1,7 +1,8 @@
 package com.chatchat.mcpserver.notification;
 
+import com.chatchat.agents.protocol.ModelProtocolJson;
+
 import com.chatchat.common.response.ApiResponse;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -163,8 +164,8 @@ public class NotificationAdminController {
             return null;
         }
         try {
-            return objectMapper.writeValueAsString(map);
-        } catch (JsonProcessingException e) {
+            return ModelProtocolJson.compact(map);
+        } catch (RuntimeException e) {
             throw new IllegalArgumentException("headers JSON is invalid");
         }
     }

@@ -1,5 +1,6 @@
 package com.chatchat.agents.orchestration;
 
+import com.chatchat.agents.protocol.ModelProtocolJson;
 import com.chatchat.agents.runtime.plan.InterpretationPlan;
 import com.chatchat.agents.runtime.plan.InterpretationPlanJsonSchema;
 import com.chatchat.agents.runtime.plan.InterpretationPlanValidator;
@@ -165,6 +166,7 @@ class AgentPlanner {
         prompt.append("- The plan is declarative. Do not claim that a tool has already run unless it appears in Observations so far.\n");
         prompt.append("- Use integer step ids starting at 1. Keep depends_on as explicit arrays of prior step ids.\n");
         prompt.append("- Include exactly one final_answer step. Put the user-facing answer in final_answer.input.answer only when observations are sufficient.\n");
+        prompt.append("- final_answer.input.answer MUST be a polished Chinese Markdown document string, not a single plain paragraph. Do not wrap it in code fences.\n");
         prompt.append("- For mcp_tool steps, tool_name MUST be one of the available tools and input MUST be the exact tool payload.\n");
         prompt.append("- If the user specifies an official source or website, preserve that source constraint in the relevant tool input.\n");
         prompt.append("- Use execution_policy.allow_tool only for tools intentionally approved by policy context; use deny_tool for tools that must never run.\n");
@@ -192,6 +194,7 @@ class AgentPlanner {
         prompt.append(InterpretationPlanJsonSchema.SCHEMA).append("\n\n");
         prompt.append("Final answer policy:\n");
         prompt.append("- Set review.self_check.tool_sufficiency=true only when observations already satisfy the user request without another tool call.\n");
+        prompt.append("- When action is final_answer, write input.answer as Markdown with concise headings/lists where useful.\n");
         prompt.append("- Runtime policy may still reject final answers when required tool or verification constraints are incomplete.\n\n");
         prompt.append("Available tools:\n").append(describeTools(availableTools, runtimeAttributes)).append("\n");
         String resolvedDocumentSearchTool = firstNonBlank(documentSearchTool, DOCUMENT_SEARCH_TOOL);
@@ -762,7 +765,7 @@ class AgentPlanner {
             attempt,
             maxAttempts,
             raw == null ? 0 : raw.length(),
-            raw == null ? "" : raw);
+            ModelProtocolJson.prettyJsonForLog(raw));
     }
 
     private void logPlannerDecision(String runId, int attempt, int maxAttempts, AgentDecision decision) {
@@ -815,14 +818,7 @@ class AgentPlanner {
     }
 
     private String prettyJson(Object value) {
-        if (value == null) {
-            return "";
-        }
-        try {
-            return objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(value);
-        } catch (Exception ignored) {
-            return String.valueOf(value);
-        }
+        return ModelProtocolJson.pretty(value);
     }
 
     private String abbreviate(String value, int maxChars) {
@@ -1058,7 +1054,9 @@ class AgentPlanner {
             runId == null ? "" : runId,
             System.currentTimeMillis() - startedAt,
             raw == null ? 0 : raw.length());
-        log.info("agentModelRawOutput phase=planner_attribution runId={} raw=\n{}", runId == null ? "" : runId, raw == null ? "" : raw);
+        log.info("agentModelRawOutput phase=planner_attribution runId={} raw=\n{}",
+            runId == null ? "" : runId,
+            ModelProtocolJson.prettyJsonForLog(raw));
         AttributionSelection selection = parseAttributionSelection(raw, validationContext);
         if (selection.decision() == null) {
             return null;
@@ -1119,7 +1117,7 @@ class AgentPlanner {
             Map<String, Object> scores = asMap(payload.get("scores"));
             Map<String, Object> plan = asMap(payload.get("plan"));
             if (!plan.isEmpty()) {
-                AgentDecision decision = parseDecision(objectMapper.writeValueAsString(plan), validationContext);
+                AgentDecision decision = parseDecision(ModelProtocolJson.compact(plan), validationContext);
                 return new AttributionSelection(decision, selected, analysis, scores, reason);
             }
         } catch (Exception ex) {

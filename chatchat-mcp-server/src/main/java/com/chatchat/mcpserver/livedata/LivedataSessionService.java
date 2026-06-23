@@ -1,5 +1,6 @@
 package com.chatchat.mcpserver.livedata;
 
+import com.chatchat.agents.protocol.ModelProtocolJson;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -93,7 +94,7 @@ public class LivedataSessionService {
     private SessionState login() {
         try {
             String loginUrl = loginUrl();
-            String requestBody = objectMapper.writeValueAsString(Map.of(
+            String requestBody = ModelProtocolJson.compact(Map.of(
                 "loginId", properties.getLoginId(),
                 "loginPwd", properties.getLoginPwd()
             ));

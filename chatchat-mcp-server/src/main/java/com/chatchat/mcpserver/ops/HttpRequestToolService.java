@@ -1,5 +1,7 @@
 package com.chatchat.mcpserver.ops;
 
+import com.chatchat.agents.protocol.ModelProtocolJson;
+
 import com.chatchat.mcpserver.audit.InvocationAuditService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -125,7 +127,7 @@ public class HttpRequestToolService {
         if (body instanceof String text) {
             return text;
         }
-        return objectMapper.writeValueAsString(body);
+        return ModelProtocolJson.compact(body);
     }
 
     private Map<String, Object> toRequest(HttpEndpointConfig config, Map<String, Object> arguments) {

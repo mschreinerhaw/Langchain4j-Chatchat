@@ -1,5 +1,6 @@
 package com.chatchat.agents.runtime.plan;
 
+import com.chatchat.agents.protocol.ModelProtocolJson;
 import com.chatchat.agents.tool.ToolRegistry;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.langchain4j.model.chat.ChatModel;
@@ -50,7 +51,8 @@ public class InterpretationPlanRewriter {
         log.info("agentModelResponse phase=interpretation_plan_rewrite durationMs={} responseChars={}",
             System.currentTimeMillis() - startedAt,
             raw == null ? 0 : raw.length());
-        log.info("agentModelRawOutput phase=interpretation_plan_rewrite raw=\n{}", raw == null ? "" : raw);
+        log.info("agentModelRawOutput phase=interpretation_plan_rewrite raw=\n{}",
+            ModelProtocolJson.prettyJsonForLog(raw));
         try {
             InterpretationPlan rewrittenPlan = objectMapper.readValue(extractJson(raw), InterpretationPlan.class);
             InterpretationPlanValidator.ValidationResult validation = validator.validate(
@@ -109,11 +111,7 @@ public class InterpretationPlanRewriter {
     }
 
     private String toJson(Object value) {
-        try {
-            return objectMapper.writeValueAsString(value);
-        } catch (Exception ex) {
-            return String.valueOf(value);
-        }
+        return ModelProtocolJson.compact(value);
     }
 
     private String extractJson(String raw) {

@@ -1,5 +1,7 @@
 package com.chatchat.mcpserver.ops;
 
+import com.chatchat.agents.protocol.ModelProtocolJson;
+
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -154,7 +156,7 @@ public class SshHostConfigService {
         }
         try {
             List<String> items = objectMapper.readValue(value, new TypeReference<>() {});
-            return objectMapper.writeValueAsString(items.stream()
+            return ModelProtocolJson.compact(items.stream()
                 .filter(item -> item != null && !item.isBlank())
                 .map(item -> item.trim().toUpperCase(Locale.ROOT))
                 .toList());
@@ -173,7 +175,7 @@ public class SshHostConfigService {
             if (!(parsed instanceof java.util.Map<?, ?> map)) {
                 throw new IllegalArgumentException(field + " must be a JSON object");
             }
-            return objectMapper.writeValueAsString(map);
+            return ModelProtocolJson.compact(map);
         } catch (IllegalArgumentException ex) {
             throw ex;
         } catch (Exception ex) {

@@ -1224,6 +1224,72 @@
   background: #ffffff;
 }
 
+.message-markdown .ui-render-contract-card {
+  border-left-color: #2563eb;
+}
+
+.message-markdown .ui-render-answer-block > :first-child {
+  margin-top: 0;
+}
+
+.message-markdown .ui-render-answer-block > :last-child {
+  margin-bottom: 0;
+}
+
+.message-markdown .ui-render-evidence-summary {
+  margin: 0;
+  color: #4e5969;
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.message-markdown .ui-render-steps,
+.message-markdown .ui-render-warnings {
+  display: grid;
+  gap: 8px;
+  padding-top: 4px;
+}
+
+.message-markdown .ui-render-steps h4,
+.message-markdown .ui-render-warnings h4 {
+  margin: 0;
+  color: #172033;
+  font-size: 14px;
+  font-weight: 850;
+}
+
+.message-markdown .ui-render-steps ol,
+.message-markdown .ui-render-warnings ul {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding-left: 20px;
+}
+
+.message-markdown .ui-render-steps li,
+.message-markdown .ui-render-warnings li {
+  color: #344054;
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.message-markdown .ui-render-steps li strong {
+  color: #1f2937;
+  font-weight: 780;
+}
+
+.message-markdown .ui-render-steps li p {
+  display: inline;
+  margin: 0 0 0 4px;
+}
+
+.message-markdown .ui-render-warnings {
+  padding: 10px 12px;
+  border: 1px solid #f7d89c;
+  border-radius: 8px;
+  background: #fff9ec;
+}
+
 .message-markdown .evidence-structure-fallback {
   margin: 0 0 8px;
   color: #8a8f99;

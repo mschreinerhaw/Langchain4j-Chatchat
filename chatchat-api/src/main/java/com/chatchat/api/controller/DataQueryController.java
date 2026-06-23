@@ -301,7 +301,16 @@ public class DataQueryController {
         if (conversationId == null) {
             return ApiResponse.badRequest("conversationId is required");
         }
-        conversationService.updateConversationSummary(conversationId, userId, request.getQuestion(), status);
+        conversationService.updateConversationSummary(
+            conversationId,
+            userId,
+            request.getQuestion(),
+            status,
+            request.getSkillId(),
+            request.getModelName(),
+            request.getMode(),
+            request.getAgentName()
+        );
         conversationService.replaceMessages(conversationId, userId, toConversationMessages(messages));
         List<HistoryItem> history = loadPersistentHistory(userId, null, null, 30);
         replaceCurrentHistorySnapshot(history, new HistoryItem(
@@ -312,6 +321,7 @@ public class DataQueryController {
             request.getSkillId(),
             request.getModelName(),
             request.getMode(),
+            request.getAgentName(),
             safeMap(request.getAnalysisTree()),
             messages,
             status
@@ -352,9 +362,10 @@ public class DataQueryController {
                 conversation.getTitle(),
                 System.currentTimeMillis(),
                 conversationId,
-                null,
-                null,
-                null,
+                conversation.getSkillId(),
+                conversation.getModelName(),
+                conversation.getMode(),
+                conversation.getAgentName(),
                 Map.of(),
                 request.getMessages(),
                 status
@@ -463,6 +474,7 @@ public class DataQueryController {
         private String skillId;
         private String modelName;
         private String mode;
+        private String agentName;
         private String status;
         private Map<String, Object> analysisTree;
         private List<ConversationMessage> messages;
@@ -488,6 +500,7 @@ public class DataQueryController {
         private String skillId;
         private String modelName;
         private String mode;
+        private String agentName;
         private Map<String, Object> analysisTree;
         private List<ConversationMessage> messages;
         private String status;
@@ -505,12 +518,17 @@ public class DataQueryController {
         private List<Map<String, Object>> traces;
         private List<Map<String, Object>> steps;
         private Map<String, Object> visualizationSpec;
+        private Map<String, Object> uiResponse;
+        private List<Map<String, Object>> evidencePremises;
+        private String agentName;
+        private String modelName;
         private String analysisNodeId;
         private String analysisParentNodeId;
         private String analysisSourceMessageId;
         private Map<String, Object> analysisSelection;
         private Boolean streaming;
         private String status;
+        private String taskId;
     }
 
     /**
@@ -569,9 +587,10 @@ public class DataQueryController {
             question,
             toEpochMillis(conversation.getUpdatedAt()),
             conversation.getId(),
-            null,
-            null,
-            "llm_chat",
+            conversation.getSkillId(),
+            conversation.getModelName(),
+            conversation.getMode() == null || conversation.getMode().isBlank() ? "llm_chat" : conversation.getMode(),
+            conversation.getAgentName(),
             safeMap(conversation.getAnalysisTree()),
             messages,
             conversation.getStatus() == null || conversation.getStatus().isBlank()
@@ -596,12 +615,17 @@ public class DataQueryController {
             safeMaps(message.getTraces()),
             safeMaps(message.getSteps()),
             safeMap(message.getVisualizationSpec()),
+            safeMap(message.getUiResponse()),
+            safeMaps(message.getEvidencePremises()),
+            message.getAgentName(),
+            message.getModelName(),
             message.getAnalysisNodeId(),
             message.getAnalysisParentNodeId(),
             message.getAnalysisSourceMessageId(),
             safeMap(message.getAnalysisSelection()),
-            false,
-            "completed"
+            message.getStreaming(),
+            message.getStatus(),
+            message.getTaskId()
         );
     }
 
@@ -626,10 +650,17 @@ public class DataQueryController {
                 .traces(safeMaps(message.getTraces()))
                 .steps(safeMaps(message.getSteps()))
                 .visualizationSpec(safeMap(message.getVisualizationSpec()))
+                .uiResponse(safeMap(message.getUiResponse()))
+                .evidencePremises(safeMaps(message.getEvidencePremises()))
+                .agentName(message.getAgentName())
+                .modelName(message.getModelName())
                 .analysisNodeId(message.getAnalysisNodeId())
                 .analysisParentNodeId(message.getAnalysisParentNodeId())
                 .analysisSourceMessageId(message.getAnalysisSourceMessageId())
                 .analysisSelection(safeMap(message.getAnalysisSelection()))
+                .streaming(message.getStreaming())
+                .status(message.getStatus())
+                .taskId(message.getTaskId())
                 .build())
             .toList();
     }

@@ -4,6 +4,7 @@ import {
   analyzeChatImage,
   apiRequest,
   fetchAgentTaskEvents,
+  fetchAgentRuntimeSummary,
   fetchResearchLibrary,
   fetchAgentWorkshop,
   recordUserActivity,
@@ -18,11 +19,20 @@ import {
 } from "../../services/api";
 import "../../styles/pages/chat-assistant.css";
 import { onAgentTaskCancelled } from "../utils/agentTaskEvents";
+import {
+  clearChatRuntimeState,
+  isRuntimeStateActiveStatus,
+  mergeChatRuntimeState,
+  upsertChatRuntimeState
+} from "../utils/chatRuntimeState";
 
 const EMPTY_RESPONSE = {
   sources: [],
   toolTraces: [],
-  visualizationSpec: null
+  visualizationSpec: null,
+  uiResponse: null,
+  evidencePremises: [],
+  debug: null
 };
 const MESSAGE_FEEDBACK_PAYLOADS = {
   useful: { useful: true },
@@ -32,6 +42,7 @@ const MESSAGE_FEEDBACK_PAYLOADS = {
 };
 const AGENT_TASK_POLL_TIMEOUT_MS = 5000;
 const AGENT_TASK_EVENT_LIMIT = 80;
+const RESTORE_RUNNING_WINDOW_MS = 10 * 60 * 1000;
 const MAX_VISUALIZATION_BLOCKS = 6;
 const MAX_UPLOAD_SIZE = 5 * 1024 * 1024;
 const MAX_IMAGE_UPLOAD_SIZE = 10 * 1024 * 1024;
@@ -102,7 +113,7 @@ function normalizeMessages(messages, status = "") {
     return [];
   }
   const allowEmptyAssistant = status === "running" || status === "pending";
-  return messages
+  return collapseDuplicateRestoredTurns(dedupeAdjacentUserMessages(messages
     .filter((message) => {
       if (!message || !message.role) {
         return false;
@@ -122,6 +133,10 @@ function normalizeMessages(messages, status = "") {
         traces: waitingConfirmation ? [] : normalizeMessageTraces(message),
         steps: normalizeMessageSteps(message),
         visualizationSpec: waitingConfirmation ? null : normalizeMessageVisualization(message),
+        uiResponse: waitingConfirmation ? null : (message.uiResponse || message.metadata?.uiResponse || null),
+        evidencePremises: waitingConfirmation ? [] : firstArray(message.evidencePremises, message.metadata?.evidencePremises),
+        agentName: message.agentName || message.metadata?.agentName || "",
+        modelName: message.modelName || message.model || message.metadata?.modelName || "",
         analysisNodeId: message.analysisNodeId || message.metadata?.analysisNodeId || "",
         analysisParentNodeId: message.analysisParentNodeId || message.metadata?.analysisParentNodeId || "",
         analysisSourceMessageId: message.analysisSourceMessageId || message.metadata?.analysisSourceMessageId || "",
@@ -139,11 +154,101 @@ function normalizeMessages(messages, status = "") {
         feedbackSubmitting: false,
         feedbackError: ""
       };
-    });
+    })));
+}
+
+function dedupeAdjacentUserMessages(messages = []) {
+  const deduped = [];
+  for (const message of messages) {
+    const previous = deduped[deduped.length - 1];
+    const duplicateUser = previous?.role === "user"
+      && message?.role === "user"
+      && String(previous.content || "").trim() === String(message.content || "").trim()
+      && Math.abs(Number(previous.timestamp || 0) - Number(message.timestamp || 0)) <= 3000;
+    if (duplicateUser) {
+      continue;
+    }
+    deduped.push(message);
+  }
+  return deduped;
+}
+
+function isEmptyRestoredAssistant(message = {}) {
+  return message?.role === "assistant"
+    && !String(message.content || "").trim()
+    && !(Array.isArray(message.sources) && message.sources.length)
+    && !(Array.isArray(message.traces) && message.traces.length)
+    && !(Array.isArray(message.steps) && message.steps.length);
+}
+
+function collapseDuplicateRestoredTurns(messages = []) {
+  const collapsed = [];
+  for (const message of messages) {
+    const previousUserIndex = [...collapsed]
+      .reverse()
+      .findIndex((item) => item?.role === "user" && String(item.content || "").trim() === String(message.content || "").trim());
+    const realPreviousUserIndex = previousUserIndex < 0 ? -1 : collapsed.length - 1 - previousUserIndex;
+    const duplicateUser = message?.role === "user"
+      && realPreviousUserIndex >= 0
+      && collapsed.slice(realPreviousUserIndex + 1).every(isEmptyRestoredAssistant);
+    if (duplicateUser) {
+      collapsed.splice(realPreviousUserIndex);
+    }
+    collapsed.push(message);
+  }
+  return collapsed;
 }
 
 function isRunningStatus(status) {
   return status === "running" || status === "pending" || status === "streaming";
+}
+
+function restorableTaskId(messages = []) {
+  return [...(Array.isArray(messages) ? messages : [])]
+    .reverse()
+    .find((message) => message?.role === "assistant" && message.taskId)
+    ?.taskId || "";
+}
+
+function isRecentConversationTimestamp(timestamp) {
+  const value = Number(timestamp || 0);
+  return Number.isFinite(value) && value > 0 && Date.now() - value <= RESTORE_RUNNING_WINDOW_MS;
+}
+
+function isActiveAgentTaskStatus(status = "") {
+  return ["PENDING", "RUNNING", "WAIT_TOOL", "WAIT_MODEL", "WAIT_CONFIRMATION", "WAITING_CONFIRM", "CONFIRMED"]
+    .includes(String(status || "").toUpperCase());
+}
+
+function stripStaleRunningMessages(messages = []) {
+  return messages
+    .filter((message) => {
+      const staleEmptyAssistant = message?.role === "assistant"
+        && !String(message.content || "").trim()
+        && (message.streaming || message.status === "running" || message.status === "streaming" || message.restored);
+      return !staleEmptyAssistant;
+    })
+    .map((message) => {
+      if (message?.role !== "assistant") {
+        return message;
+      }
+      if (message.streaming || message.status === "running" || message.status === "streaming") {
+        return {
+          ...message,
+          streaming: false,
+          status: String(message.content || "").trim() ? "completed" : "empty",
+          steps: []
+        };
+      }
+      return message;
+    });
+}
+
+function resolvedRestoreStatus(status, messages = [], hasRunningContext = false, recentConversation = false) {
+  if (!isRunningStatus(status) || hasRunningContext) {
+    return status;
+  }
+  return restorableTaskId(messages) || recentConversation ? status : "completed";
 }
 
 function shouldFallbackToDirect(error) {
@@ -1034,22 +1139,43 @@ function mergeExecutionSteps(previousSteps = [], events = []) {
 
 function normalizeResponsePayload(response = {}) {
   const payload = response?.data && typeof response.data === "object" ? response.data : response;
+  const uiResponse = firstObject(
+    payload?.uiResponse,
+    payload?.metadata?.uiResponse,
+    payload?.executionResult?.uiResponse,
+    payload?.metadata?.executionResult?.uiResponse
+  );
   const visualizationSpec = firstVisualizationSpec(
+    uiResponse?.visualizationSpec,
     payload?.visualizationSpec,
     payload?.dataVisualization,
     payload?.metadata?.visualizationSpec,
     payload?.metadata?.dataVisualization,
     payload?.metadata?.agent?.visualizationSpec,
-    payload?.metadata?.executionResult?.visualizationSpec,
-    payload?.metadata?.executionResult?.artifacts?.visualizationSpec,
-    visualizationSpecFromAnswer(payload?.answer)
+    payload?.metadata?.executionResult?.visualizationSpec
   );
   return {
     ...payload,
+    answer: uiResponse?.answer || payload?.answer || "",
+    confidence: uiResponse?.confidence ?? payload?.confidence ?? null,
+    evidenceSummary: uiResponse?.evidenceSummary || payload?.evidenceSummary || "",
+    evidencePremises: firstArray(
+      uiResponse?.evidencePremises,
+      payload?.evidencePremises,
+      payload?.metadata?.evidencePremises
+    ),
+    citations: firstArray(
+      uiResponse?.citations,
+      payload?.citations,
+      payload?.references
+    ),
+    uiResponse,
+    debug: firstObject(payload?.debug, payload?.metadata?.debug, payload?.executionResult?.debug),
     visualizationSpec,
     sources: firstArray(
       payload?.sources,
       payload?.references,
+      uiResponse?.citations,
       payload?.citations,
       payload?.metadata?.sources
     ),
@@ -1422,18 +1548,20 @@ export default {
       this.errorMessage = "";
       this.conversationStatus = "running";
       const analysisNode = this.createAnalysisNode(query, payload?.drillDown || null);
-      this.messages.push({
-        id: uid(),
-        role: "user",
-        content: query,
-        timestamp: Date.now(),
-        status: "completed",
-        streaming: false,
-        analysisNodeId: analysisNode.id,
-        analysisParentNodeId: analysisNode.parentId,
-        analysisSourceMessageId: analysisNode.sourceMessageId,
-        analysisSelection: analysisNode.selection
-      });
+      if (!this.isDuplicatePendingUserQuestion(query)) {
+        this.messages.push({
+          id: uid(),
+          role: "user",
+          content: query,
+          timestamp: Date.now(),
+          status: "completed",
+          streaming: false,
+          analysisNodeId: analysisNode.id,
+          analysisParentNodeId: analysisNode.parentId,
+          analysisSourceMessageId: analysisNode.sourceMessageId,
+          analysisSelection: analysisNode.selection
+        });
+      }
       const runContext = this.createRunContext(query, analysisNode);
       this.runningContexts[runContext.historyId] = runContext;
       this.question = "";
@@ -1531,6 +1659,12 @@ export default {
         }
       }
     },
+    isDuplicatePendingUserQuestion(query = "") {
+      const lastMessage = this.messages[this.messages.length - 1];
+      return lastMessage?.role === "user"
+        && String(lastMessage.content || "").trim() === String(query || "").trim()
+        && Date.now() - Number(lastMessage.timestamp || 0) <= 5000;
+    },
     async recordAgentUse(agentId, title, summary = "") {
       if (!agentId) {
         return;
@@ -1564,6 +1698,8 @@ export default {
           content: "",
           streaming: true,
           status: "streaming",
+          agentName: runContext.agentName || "",
+          modelName: runContext.modelName || "",
           analysisNodeId: runContext.analysisNodeId,
           analysisParentNodeId: runContext.analysisParentNodeId,
           analysisSourceMessageId: runContext.analysisSourceMessageId,
@@ -1590,6 +1726,8 @@ export default {
               assistantMessage.sources = runContext.lastResponse.sources;
               assistantMessage.traces = runContext.lastResponse.toolTraces;
               assistantMessage.visualizationSpec = runContext.lastResponse.visualizationSpec;
+              assistantMessage.uiResponse = runContext.lastResponse.uiResponse;
+              assistantMessage.evidencePremises = runContext.lastResponse.evidencePremises;
             }
             this.emitActiveConversationSnapshot(query, "running", runContext);
           },
@@ -1636,6 +1774,8 @@ export default {
         streaming: true,
         status: "streaming",
         steps: initialExecutionSteps(runContext.agentName),
+        agentName: runContext.agentName || "",
+        modelName: runContext.modelName || "",
         analysisNodeId: runContext.analysisNodeId,
         analysisParentNodeId: runContext.analysisParentNodeId,
         analysisSourceMessageId: runContext.analysisSourceMessageId,
@@ -1669,6 +1809,8 @@ export default {
       runContext.taskId = task?.taskId || "";
       assistantMessage.taskId = runContext.taskId;
       assistantMessage.steps = initialExecutionSteps(runContext.agentName);
+      this.emitActiveConversationSnapshot(query, "running", runContext);
+      await this.saveHistory(query, "running", runContext);
 
       const refreshSteps = () => this.refreshAgentTaskSteps(runContext.taskId, this.userId, runContext, assistantMessage, query);
       await refreshSteps();
@@ -1732,9 +1874,10 @@ export default {
 
       if (eventType === "RESULT" || eventStatus === "PARTIAL" || eventStatus === "EMPTY") {
         const response = eventPayload || {};
+        const normalizedResponse = normalizeResponsePayload(response);
         const resultStatus = eventStatus === "EMPTY" ? "empty" : "partial";
         this.applyResponseMetadata(response, runContext);
-        assistantMessage.content = response.answer || (resultStatus === "empty"
+        assistantMessage.content = normalizedResponse.answer || (resultStatus === "empty"
           ? "\u672c\u6b21\u6267\u884c\u5df2\u7ed3\u675f\uff0c\u4f46\u6ca1\u6709\u4ea7\u751f\u53ef\u5c55\u793a\u7684\u56de\u7b54\u6216\u7ed3\u679c\u4ea7\u7269\u3002"
           : "\u672c\u6b21\u6267\u884c\u5df2\u5b8c\u6210\uff0c\u5e76\u83b7\u53d6\u5230\u90e8\u5206\u5de5\u5177\u7ed3\u679c\u6216\u4e2d\u95f4\u4ea7\u7269\uff0c\u4f46\u6ca1\u6709\u751f\u6210\u6700\u7ec8\u56de\u7b54\u3002");
         assistantMessage.timestamp = response.timestamp || event?.createTime || Date.now();
@@ -1742,6 +1885,8 @@ export default {
         assistantMessage.sources = runContext.lastResponse.sources;
         assistantMessage.traces = runContext.lastResponse.toolTraces;
         assistantMessage.visualizationSpec = runContext.lastResponse.visualizationSpec;
+        assistantMessage.uiResponse = runContext.lastResponse.uiResponse;
+        assistantMessage.evidencePremises = runContext.lastResponse.evidencePremises;
         await refreshSteps();
         assistantMessage.streaming = false;
         assistantMessage.status = resultStatus;
@@ -1754,14 +1899,17 @@ export default {
       }
 
       const response = eventPayload || {};
+      const normalizedResponse = normalizeResponsePayload(response);
       this.applyResponseMetadata(response, runContext);
       this.captureMcpConfirmation(response, query, requestPayload, runContext.taskId);
-      assistantMessage.content = response.answer || "\u540e\u7aef\u6ca1\u6709\u8fd4\u56de\u6709\u6548\u56de\u7b54\uff0c\u8bf7\u68c0\u67e5\u6a21\u578b\u670d\u52a1\u6216 Agent \u914d\u7f6e\u540e\u91cd\u8bd5\u3002";
+      assistantMessage.content = normalizedResponse.answer || "\u540e\u7aef\u6ca1\u6709\u8fd4\u56de\u6709\u6548\u56de\u7b54\uff0c\u8bf7\u68c0\u67e5\u6a21\u578b\u670d\u52a1\u6216 Agent \u914d\u7f6e\u540e\u91cd\u8bd5\u3002";
       assistantMessage.timestamp = response.timestamp || event?.createTime || Date.now();
       assistantMessage.latencyMs = response.latencyMs;
       assistantMessage.sources = runContext.lastResponse.sources;
       assistantMessage.traces = runContext.lastResponse.toolTraces;
       assistantMessage.visualizationSpec = runContext.lastResponse.visualizationSpec;
+      assistantMessage.uiResponse = runContext.lastResponse.uiResponse;
+      assistantMessage.evidencePremises = runContext.lastResponse.evidencePremises;
       await refreshSteps();
       assistantMessage.streaming = false;
       assistantMessage.status = "completed";
@@ -1817,16 +1965,21 @@ export default {
     },
     appendDirectAssistantMessage(response, runContext = null) {
       const targetContext = runContext || this.createRunContext("");
+      const normalizedResponse = normalizeResponsePayload(response);
       this.applyResponseMetadata(response, targetContext);
       this.captureMcpConfirmation(response, targetContext.question || "", null, targetContext.taskId || "");
       targetContext.messages.push(
         this.createAssistantMessage({
-          content: response?.answer || "服务端没有返回内容。",
+          content: normalizedResponse.answer || "服务端没有返回内容。",
           timestamp: response?.timestamp || Date.now(),
           latencyMs: response?.latencyMs,
           sources: targetContext.lastResponse.sources,
           traces: targetContext.lastResponse.toolTraces,
           visualizationSpec: targetContext.lastResponse.visualizationSpec,
+          uiResponse: targetContext.lastResponse.uiResponse,
+          evidencePremises: targetContext.lastResponse.evidencePremises,
+          agentName: targetContext.agentName || "",
+          modelName: targetContext.modelName || "",
           analysisNodeId: targetContext.analysisNodeId,
           analysisParentNodeId: targetContext.analysisParentNodeId,
           analysisSourceMessageId: targetContext.analysisSourceMessageId,
@@ -1852,6 +2005,10 @@ export default {
         traces: [],
         steps: [],
         visualizationSpec: null,
+        uiResponse: null,
+        evidencePremises: [],
+        agentName: "",
+        modelName: "",
         analysisNodeId: "",
         analysisParentNodeId: "",
         analysisSourceMessageId: "",
@@ -1884,6 +2041,8 @@ export default {
       message.traces = [];
       message.steps = initialExecutionSteps(runContext?.agentName || "");
       message.visualizationSpec = null;
+      message.uiResponse = null;
+      message.evidencePremises = [];
       message.analysisNodeId = runContext?.analysisNodeId || "";
       message.analysisParentNodeId = runContext?.analysisParentNodeId || "";
       message.analysisSourceMessageId = runContext?.analysisSourceMessageId || "";
@@ -1909,9 +2068,10 @@ export default {
         conversationId: this.conversationId,
         selectedAgentId: this.selectedAgentId || "",
         agentName: this.selectedAgent?.name || "",
+        modelName: this.selectedAgent?.modelName || this.defaultModelName || "",
         mode: this.selectedAgentId ? "agent_chat" : "llm_chat",
         status: this.conversationStatus,
-        messages: this.messages,
+        messages: [...this.messages],
         analysisNodeId: analysisNode?.id || "",
         analysisParentNodeId: analysisNode?.parentId || "",
         analysisSourceMessageId: analysisNode?.sourceMessageId || "",
@@ -1965,6 +2125,10 @@ export default {
     async handleAgentTaskCancelled(task = {}) {
       const taskId = task?.taskId || "";
       const sessionId = task?.sessionId || task?.conversationId || "";
+      clearChatRuntimeState({
+        conversationId: sessionId,
+        taskId
+      });
       const context = this.findRunContextForTask(task);
       const previousHistoryId = context?.historyId || "";
       const pendingMatches = taskId && (this.pendingMcpTaskId === taskId || this.pendingMcpRequest?.taskId === taskId);
@@ -2011,6 +2175,10 @@ export default {
         traces: message.traces || [],
         steps: message.steps || [],
         visualizationSpec: message.visualizationSpec || null,
+        uiResponse: message.uiResponse || null,
+        evidencePremises: message.evidencePremises || [],
+        agentName: message.agentName || "",
+        modelName: message.modelName || "",
         analysisNodeId: message.analysisNodeId || "",
         analysisParentNodeId: message.analysisParentNodeId || "",
         analysisSourceMessageId: message.analysisSourceMessageId || "",
@@ -2097,7 +2265,10 @@ export default {
       const nextResponse = {
         sources: normalizedResponse.sources,
         toolTraces: normalizedResponse.toolTraces,
-        visualizationSpec: normalizedResponse.visualizationSpec
+        visualizationSpec: normalizedResponse.visualizationSpec,
+        uiResponse: normalizedResponse.uiResponse,
+        evidencePremises: normalizedResponse.evidencePremises,
+        debug: normalizedResponse.debug
       };
       if (runContext) {
         const previousHistoryId = runContext.historyId;
@@ -2477,19 +2648,46 @@ export default {
       const context = runContext || this.createRunContext(question);
       this.syncAnalysisNode(context, status);
       const active = !runContext || this.isActiveRun(runContext);
+      const messages = this.serializeMessages(context.messages);
+      this.syncChatRuntimeState(context, question, status, messages);
       this.$emit("conversation-active", {
         id: context.historyId,
         question,
         conversationId: context.conversationId,
         mode: context.mode,
         skillId: context.selectedAgentId || "",
+        modelName: context.modelName || "",
         agentName: context.agentName || "",
         status,
         analysisTree: this.analysisTree,
         active,
         timestamp: Date.now(),
-        messages: this.serializeMessages(context.messages)
+        messages
       });
+    },
+    syncChatRuntimeState(context = {}, question = "", status = "", messages = []) {
+      const conversationId = context.conversationId || context.historyId || "";
+      const assistantMessage = [...(Array.isArray(messages) ? messages : [])].reverse()
+        .find((message) => message?.role === "assistant" && (message.taskId || message.streaming || isRuntimeStateActiveStatus(message.status)));
+      const taskId = context.taskId || assistantMessage?.taskId || "";
+      if (!conversationId && !taskId && !assistantMessage?.id) {
+        return;
+      }
+      const entry = {
+        conversationId,
+        messageId: assistantMessage?.id || "",
+        taskId,
+        question,
+        agentName: context.agentName || assistantMessage?.agentName || "",
+        modelName: context.modelName || assistantMessage?.modelName || "",
+        status,
+        streaming: !!assistantMessage?.streaming || isRuntimeStateActiveStatus(status)
+      };
+      if (isRuntimeStateActiveStatus(status)) {
+        upsertChatRuntimeState(entry);
+        return;
+      }
+      clearChatRuntimeState(entry);
     },
     async saveHistory(question, status = this.conversationStatus, runContext = null) {
       const context = runContext || this.createRunContext(question);
@@ -2498,6 +2696,8 @@ export default {
       }
       this.syncAnalysisNode(context, status);
       const active = !runContext || this.isActiveRun(runContext);
+      const messages = this.serializeMessages(context.messages);
+      this.syncChatRuntimeState(context, question, status, messages);
       try {
         const history = await saveConversationHistory({
           historyId: context.conversationId || context.historyId,
@@ -2506,9 +2706,11 @@ export default {
           conversationId: context.conversationId,
           mode: context.mode,
           skillId: context.selectedAgentId || "",
+          modelName: context.modelName || "",
+          agentName: context.agentName || "",
           status,
           analysisTree: this.analysisTree,
-          messages: this.serializeMessages(context.messages)
+          messages
         });
         this.$emit("history-saved", {
           history,
@@ -2524,6 +2726,7 @@ export default {
       }
     },
     restoreConversation(conversation) {
+      conversation = mergeChatRuntimeState(conversation || {});
       const runningContext = conversation?.id ? this.runningContexts[conversation.id] : null;
       if (runningContext) {
         this.question = "";
@@ -2561,8 +2764,12 @@ export default {
         this.loading = false;
       }
 
-      const status = normalizeStatus(conversation.status, Array.isArray(conversation.messages) ? conversation.messages : []);
-      const messages = this.ensureRunningAssistantMessage(normalizeMessages(conversation.messages, status), status);
+      const rawStatus = normalizeStatus(conversation.status, Array.isArray(conversation.messages) ? conversation.messages : []);
+      const normalizedMessages = normalizeMessages(conversation.messages, rawStatus);
+      const status = resolvedRestoreStatus(rawStatus, normalizedMessages, false, isRecentConversationTimestamp(conversation.timestamp));
+      const messages = isRunningStatus(status)
+        ? this.ensureRunningAssistantMessage(normalizedMessages, status)
+        : stripStaleRunningMessages(normalizedMessages);
       this.question = "";
       this.historyId = conversation.id || "";
       this.conversationId = conversation.conversationId || "";
@@ -2575,14 +2782,199 @@ export default {
       this.errorMessage = "";
       this.loading = false;
       this.activeRunId = "";
-      this.restoredRunning = isRunningStatus(this.conversationStatus);
+      this.restoredRunning = false;
       const lastAssistantMessage = [...messages].reverse().find((message) => message.role === "assistant");
       this.lastResponse = {
         sources: Array.isArray(lastAssistantMessage?.sources) ? lastAssistantMessage.sources : [],
         toolTraces: Array.isArray(lastAssistantMessage?.traces) ? lastAssistantMessage.traces : []
       };
-      this.$emit("conversation-active", { id: this.historyId });
+      const restoredQuestion = conversation.question || this.lastUserQuestion(messages);
+      this.$emit("conversation-active", {
+        id: this.historyId,
+        question: restoredQuestion,
+        conversationId: this.conversationId,
+        mode: this.selectedAgentId ? "agent_chat" : "llm_chat",
+        skillId: this.selectedAgentId || "",
+        modelName: conversation.modelName || lastAssistantMessage?.modelName || "",
+        agentName: lastAssistantMessage?.agentName || "",
+        status: this.conversationStatus,
+        analysisTree: this.analysisTree,
+        active: true,
+        timestamp: Date.now(),
+        messages: this.serializeMessages(messages)
+      });
+      if (isRunningStatus(status)) {
+        this.resumeRestoredConversationRun(conversation, messages, restoredQuestion);
+      }
       this.scrollMessages();
+    },
+    resumeRestoredConversationRun(conversation = {}, messages = [], question = "") {
+      const assistantMessage = [...messages].reverse().find((message) => message.role === "assistant" && (message.taskId || message.streaming || message.status === "running" || message.status === "streaming"));
+      if (!assistantMessage) {
+        return;
+      }
+      const runContext = {
+        runId: uid(),
+        historyId: conversation.id || this.historyId,
+        question: question || conversation.question || this.lastUserQuestion(messages),
+        conversationId: conversation.conversationId || conversation.id || this.conversationId,
+        selectedAgentId: conversation.skillId || this.selectedAgentId || "",
+        agentName: assistantMessage.agentName || conversation.agentName || "",
+        modelName: assistantMessage.modelName || conversation.modelName || "",
+        mode: conversation.mode || (conversation.skillId ? "agent_chat" : "llm_chat"),
+        status: "running",
+        messages,
+        analysisNodeId: assistantMessage.analysisNodeId || "",
+        analysisParentNodeId: assistantMessage.analysisParentNodeId || "",
+        analysisSourceMessageId: assistantMessage.analysisSourceMessageId || "",
+        analysisSelection: assistantMessage.analysisSelection || null,
+        analysisTree: this.analysisTree,
+        lastResponse: {
+          sources: Array.isArray(assistantMessage.sources) ? assistantMessage.sources : [],
+          toolTraces: Array.isArray(assistantMessage.traces) ? assistantMessage.traces : [],
+          visualizationSpec: assistantMessage.visualizationSpec || null,
+          uiResponse: assistantMessage.uiResponse || null,
+          evidencePremises: Array.isArray(assistantMessage.evidencePremises) ? assistantMessage.evidencePremises : [],
+          debug: assistantMessage.debug || null
+        },
+        taskId: assistantMessage.taskId || restorableTaskId(messages)
+      };
+      this.runningContexts[runContext.historyId] = runContext;
+      this.loading = true;
+      this.activeRunId = runContext.runId;
+      this.conversationStatus = "running";
+      assistantMessage.streaming = true;
+      assistantMessage.status = "running";
+      assistantMessage.steps = assistantMessage.steps?.length ? assistantMessage.steps : initialExecutionSteps(runContext.agentName);
+      this.messages = [...messages];
+      this.resumeRestoredAgentTask(runContext, assistantMessage);
+    },
+    async findActiveTaskIdForRestoredRun(runContext = {}) {
+      try {
+        const summary = await fetchAgentRuntimeSummary({
+          tenantId: this.userId,
+          latestLimit: 50
+        });
+        const tasks = Array.isArray(summary?.latestTasks) ? summary.latestTasks : [];
+        const sessionIds = new Set([runContext.conversationId, runContext.historyId].filter(Boolean));
+        const question = String(runContext.question || "").trim();
+        const sessionTask = tasks.find((item) =>
+          item?.taskId
+          && isActiveAgentTaskStatus(item.status)
+          && sessionIds.has(item.sessionId)
+        );
+        const task = sessionTask || tasks.find((item) =>
+          item?.taskId
+          && isActiveAgentTaskStatus(item.status)
+          && question
+          && String(item.question || "").trim() === question
+        );
+        return task?.taskId || "";
+      } catch (error) {
+        return "";
+      }
+    },
+    async resumeRestoredAgentTask(runContext, assistantMessage) {
+      const query = runContext.question || this.lastUserQuestion(runContext.messages);
+      let taskId = runContext.taskId || assistantMessage.taskId || "";
+      if (!taskId) {
+        taskId = await this.findActiveTaskIdForRestoredRun(runContext);
+      }
+      if (!taskId) {
+        assistantMessage.streaming = false;
+        assistantMessage.status = String(assistantMessage.content || "").trim() ? "completed" : "empty";
+        if (this.isActiveRun(runContext)) {
+          this.loading = false;
+          this.activeRunId = "";
+          this.conversationStatus = "completed";
+          this.messages = [...runContext.messages];
+        }
+        delete this.runningContexts[runContext.historyId];
+        await this.saveHistory(query, "completed", runContext);
+        return;
+      }
+      runContext.taskId = taskId;
+      assistantMessage.taskId = taskId;
+      this.emitActiveConversationSnapshot(query, "running", runContext);
+      await this.saveHistory(query, "running", runContext);
+      const refreshSteps = () => this.refreshAgentTaskSteps(taskId, this.userId, runContext, assistantMessage, query);
+      try {
+        await refreshSteps();
+        const event = await this.waitForAgentTaskResult(
+          taskId,
+          this.userId,
+          refreshSteps,
+          () => this.isActiveRun(runContext)
+        );
+        await refreshSteps();
+        const finalStatus = await this.applyRestoredAgentTaskEvent(event, runContext, assistantMessage, query);
+        await this.saveHistory(query, finalStatus, runContext);
+      } catch (error) {
+        if (this.isActiveRun(runContext)) {
+          this.errorMessage = error.message || "恢复运行状态失败";
+        }
+      } finally {
+        if (!this.pendingMcpConfirmation) {
+          delete this.runningContexts[runContext.historyId];
+        }
+        if (this.isActiveRun(runContext)) {
+          this.loading = false;
+          this.activeRunId = "";
+          this.scrollMessages();
+        }
+      }
+    },
+    async applyRestoredAgentTaskEvent(event, runContext, assistantMessage, query = "") {
+      const eventPayload = parseJsonPayload(event?.payload);
+      const eventType = String(event?.type || "").toUpperCase();
+      const eventStatus = String(event?.status || "").toUpperCase();
+      const response = eventPayload || {};
+      const normalizedResponse = normalizeResponsePayload(response);
+      let finalStatus = "completed";
+
+      if (eventType === "NEEDS_CONFIRMATION" || eventStatus === "WAIT_CONFIRMATION") {
+        this.applyResponseMetadata(response, runContext);
+        this.captureMcpConfirmation(response, query, null, runContext.taskId || "");
+        assistantMessage.content = "已完成执行计划，等待权限确认后继续。";
+        assistantMessage.status = "waiting";
+        finalStatus = "pending";
+      } else if (eventStatus === "CANCELLED") {
+        assistantMessage.content = response.message || "Agent task cancelled";
+        assistantMessage.status = "cancelled";
+        finalStatus = "cancelled";
+      } else if (eventType === "ERROR" || eventStatus === "FAILED") {
+        assistantMessage.content = response.message || "Agent task failed";
+        assistantMessage.status = "failed";
+        finalStatus = "failed";
+      } else if (eventType === "RESULT" || eventStatus === "PARTIAL" || eventStatus === "EMPTY") {
+        const resultStatus = eventStatus === "EMPTY" ? "empty" : "partial";
+        this.applyResponseMetadata(response, runContext);
+        assistantMessage.content = normalizedResponse.answer || (resultStatus === "empty"
+          ? "本次执行已结束，但没有产生可展示的回答或结果产物。"
+          : "本次执行已完成，并获取到部分工具结果或中间产物，但没有生成最终回答。");
+        assistantMessage.status = resultStatus;
+        finalStatus = resultStatus;
+      } else {
+        this.applyResponseMetadata(response, runContext);
+        assistantMessage.content = normalizedResponse.answer || response.answer || response.message || "后端没有返回有效回答，请检查模型服务或 Agent 配置后重试。";
+        assistantMessage.status = "completed";
+      }
+
+      assistantMessage.timestamp = response.timestamp || event?.createTime || Date.now();
+      assistantMessage.latencyMs = response.latencyMs || event?.latencyMs;
+      assistantMessage.sources = runContext.lastResponse.sources;
+      assistantMessage.traces = runContext.lastResponse.toolTraces;
+      assistantMessage.visualizationSpec = runContext.lastResponse.visualizationSpec;
+      assistantMessage.uiResponse = runContext.lastResponse.uiResponse;
+      assistantMessage.evidencePremises = runContext.lastResponse.evidencePremises;
+      assistantMessage.streaming = false;
+      if (this.isActiveRun(runContext)) {
+        this.conversationStatus = finalStatus;
+        this.messages = [...runContext.messages];
+        this.emitActiveConversationSnapshot(query, finalStatus, runContext);
+        this.scrollMessages();
+      }
+      return finalStatus;
     },
     scrollMessages() {
       this.$nextTick(() => {

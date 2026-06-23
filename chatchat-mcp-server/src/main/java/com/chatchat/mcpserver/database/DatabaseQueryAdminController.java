@@ -1,11 +1,11 @@
 package com.chatchat.mcpserver.database;
 
+import com.chatchat.agents.protocol.ModelProtocolJson;
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.response.ApiResponse;
 import com.chatchat.common.tool.ToolOutput;
 import com.chatchat.mcpserver.sql.SqlDatasourceConfig;
 import com.chatchat.mcpserver.sql.SqlDatasourceConfigService;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -241,8 +241,8 @@ public class DatabaseQueryAdminController {
             return null;
         }
         try {
-            return objectMapper.writeValueAsString(map);
-        } catch (JsonProcessingException e) {
+            return ModelProtocolJson.compact(map);
+        } catch (RuntimeException e) {
             throw new IllegalArgumentException("inputSchema is invalid");
         }
     }

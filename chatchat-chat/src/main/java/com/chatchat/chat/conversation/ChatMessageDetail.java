@@ -30,8 +30,15 @@ public class ChatMessageDetail {
     private List<Map<String, Object>> traces;
     private List<Map<String, Object>> steps;
     private Map<String, Object> visualizationSpec;
+    private Map<String, Object> uiResponse;
+    private List<Map<String, Object>> evidencePremises;
+    private String agentName;
+    private String modelName;
     private String analysisNodeId;
     private String analysisParentNodeId;
     private String analysisSourceMessageId;
     private Map<String, Object> analysisSelection;
+    private Boolean streaming;
+    private String status;
+    private String taskId;
 }

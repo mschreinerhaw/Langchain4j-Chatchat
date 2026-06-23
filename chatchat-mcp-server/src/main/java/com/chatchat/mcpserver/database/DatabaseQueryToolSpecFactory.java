@@ -1,5 +1,7 @@
 package com.chatchat.mcpserver.database;
 
+import com.chatchat.agents.protocol.ModelProtocolJson;
+
 import com.chatchat.common.tool.ToolOutput;
 import com.chatchat.mcpserver.tool.AgentRuntimeGovernanceFactory;
 import com.chatchat.mcpserver.tool.McpToolConcurrencyManager;
@@ -142,7 +144,7 @@ public class DatabaseQueryToolSpecFactory {
             summary.put("columns", map.get("columns"));
             summary.put("rows", map.get("rows"));
             try {
-                return objectMapper.writeValueAsString(summary);
+                return ModelProtocolJson.compact(summary);
             } catch (Exception ignored) {
                 return String.valueOf(data);
             }

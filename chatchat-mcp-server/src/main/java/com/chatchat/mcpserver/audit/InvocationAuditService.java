@@ -1,5 +1,7 @@
 package com.chatchat.mcpserver.audit;
 
+import com.chatchat.agents.protocol.ModelProtocolJson;
+
 import com.chatchat.mcpserver.api.ApiInvokeResult;
 import com.chatchat.mcpserver.api.ApiServiceConfig;
 import com.chatchat.mcpserver.cache.McpRocksDbStore;
@@ -640,7 +642,7 @@ public class InvocationAuditService {
      */
     private String toJsonSummary(Object value) {
         try {
-            return limit(objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(value));
+            return limit(ModelProtocolJson.pretty(value));
         } catch (Exception ex) {
             return limit(String.valueOf(value));
         }

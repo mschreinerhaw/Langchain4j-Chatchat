@@ -1,5 +1,6 @@
 package com.chatchat.mcpserver.tool;
 
+import com.chatchat.agents.protocol.ModelProtocolJson;
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.tool.ToolInput;
 import com.chatchat.common.tool.ToolLogSummarizer;
@@ -7,7 +8,6 @@ import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolOutput;
 import com.chatchat.common.tool.ToolParameter;
 import com.chatchat.mcpserver.config.ChatChatMcpServerProperties;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.modelcontextprotocol.server.McpServerFeatures;
 import io.modelcontextprotocol.spec.McpSchema;
@@ -516,8 +516,8 @@ public class ToolRegistryMcpAdapter {
             return text;
         }
         try {
-            return objectMapper.writeValueAsString(value);
-        } catch (JsonProcessingException e) {
+            return ModelProtocolJson.compact(value);
+        } catch (RuntimeException e) {
             return String.valueOf(value);
         }
     }

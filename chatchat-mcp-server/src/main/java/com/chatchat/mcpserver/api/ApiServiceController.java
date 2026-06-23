@@ -1,7 +1,8 @@
 package com.chatchat.mcpserver.api;
 
+import com.chatchat.agents.protocol.ModelProtocolJson;
+
 import com.chatchat.common.response.ApiResponse;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -196,8 +197,8 @@ public class ApiServiceController {
             return null;
         }
         try {
-            return objectMapper.writeValueAsString(map);
-        } catch (JsonProcessingException e) {
+            return ModelProtocolJson.compact(map);
+        } catch (RuntimeException e) {
             throw new IllegalArgumentException("JSON map is invalid");
         }
     }

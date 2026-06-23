@@ -1,5 +1,7 @@
 package com.chatchat.mcpserver.api;
 
+import com.chatchat.agents.protocol.ModelProtocolJson;
+
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.chatchat.mcpserver.tool.AgentRuntimeGovernanceFactory;
@@ -148,7 +150,7 @@ public class ApiToolSpecFactory {
             return rawBody;
         }
         try {
-            return objectMapper.writeValueAsString(body);
+            return ModelProtocolJson.compact(body);
         } catch (Exception ex) {
             return String.valueOf(body);
         }

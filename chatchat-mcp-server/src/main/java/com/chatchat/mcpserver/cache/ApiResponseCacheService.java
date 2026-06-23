@@ -1,5 +1,7 @@
 package com.chatchat.mcpserver.cache;
 
+import com.chatchat.agents.protocol.ModelProtocolJson;
+
 import com.chatchat.mcpserver.api.ApiInvokeResult;
 import com.chatchat.mcpserver.api.ApiServiceConfig;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -138,7 +140,7 @@ public class ApiResponseCacheService {
     private String key(ApiServiceConfig config, Map<String, Object> arguments) {
         try {
             Object canonical = normalize(arguments == null ? Map.of() : arguments);
-            String canonicalJson = objectMapper.writeValueAsString(canonical);
+            String canonicalJson = ModelProtocolJson.compact(canonical);
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             byte[] hash = digest.digest(canonicalJson.getBytes(StandardCharsets.UTF_8));
             return KEY_PREFIX + sanitize(config.getToolName()) + ":" + HexFormat.of().formatHex(hash);

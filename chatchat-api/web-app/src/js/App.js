@@ -20,20 +20,24 @@ import {
   AUTH_REQUIRED_EVENT,
   clearAuthSession,
   deleteConversationHistory,
+  fetchAgentRuntimeSummary,
   fetchAgentTodos,
   fetchConversationHistory,
   fetchWorkbenchShortcuts,
   getStoredAuthSession,
   killRuntimeTask,
-  loginEnterpriseWithEmbedToken
+  loginEnterpriseWithEmbedToken,
+  updateConversationHistoryStatus
 } from "../services/api";
 import { notifyAgentTaskCancelled, onAgentTaskCancelled } from "./utils/agentTaskEvents";
+import { clearChatRuntimeState, mergeChatRuntimeState } from "./utils/chatRuntimeState";
 
 const USER_ID = "mx_48991534";
 const IDLE_LOGOUT_MS = 30 * 60 * 1000;
 const ACTIVITY_THROTTLE_MS = 1000;
 const TODO_REFRESH_MS = 30000;
 const ACTIVITY_EVENTS = ["click", "keydown", "mousemove", "mousedown", "scroll", "touchstart", "wheel"];
+const ACTIVE_AGENT_TASK_STATUSES = new Set(["PENDING", "RUNNING", "WAIT_TOOL", "WAIT_MODEL", "WAIT_CONFIRMATION", "WAITING_CONFIRM", "CONFIRMED"]);
 const DEFAULT_VIEW = "chat";
 const LOGIN_ROUTE = "login";
 const REDIRECT_VIEW_KEY = "chatchat.auth.redirectView";
@@ -153,7 +157,7 @@ export default {
           };
     },
     recentConversations() {
-      return this.conversationHistory;
+      return this.conversationHistory.map((conversation) => this.normalizeHistoryConversationStatus(conversation));
     }
   },
   watch: {
@@ -409,7 +413,8 @@ export default {
           limit: 30,
           ...historyFilters
         });
-        this.conversationHistory = Array.isArray(history) ? history : [];
+        const nextHistory = Array.isArray(history) ? history : [];
+        this.conversationHistory = await this.verifyRuntimeHistory(nextHistory);
       } catch (error) {
         this.conversationHistory = [];
         if (suppressError) {
@@ -419,6 +424,126 @@ export default {
       } finally {
         this.historyLoading = false;
       }
+    },
+    async verifyRuntimeHistory(history = []) {
+      const mergedHistory = history.map((conversation) => mergeChatRuntimeState(conversation));
+      try {
+        const summary = await fetchAgentRuntimeSummary({
+          tenantId: this.userId,
+          latestLimit: 50
+        });
+        const tasks = Array.isArray(summary?.latestTasks) ? summary.latestTasks : [];
+        const verified = mergedHistory.map((conversation) => this.applyRuntimeTaskSnapshot(conversation, tasks));
+        this.persistVerifiedHistoryStatus(verified);
+        return verified.map(({ __runtimeStatusChanged, ...conversation }) => conversation);
+      } catch (error) {
+        return mergedHistory;
+      }
+    },
+    applyRuntimeTaskSnapshot(conversation = {}, tasks = []) {
+      const messages = Array.isArray(conversation.messages) ? conversation.messages : [];
+      const conversationIds = new Set([conversation.id, conversation.conversationId].filter(Boolean));
+      const taskIds = new Set(messages.map((message) => message?.taskId).filter(Boolean));
+      const task = tasks.find((item) =>
+        item?.taskId
+        && (
+          taskIds.has(item.taskId)
+          || (item.sessionId && conversationIds.has(item.sessionId))
+        )
+      );
+      if (!task) {
+        return conversation;
+      }
+      const status = this.conversationStatusFromRuntimeTask(task);
+      const active = ACTIVE_AGENT_TASK_STATUSES.has(String(task.status || "").toUpperCase());
+      if (!active) {
+        clearChatRuntimeState({
+          conversationId: task.sessionId || conversation.conversationId || conversation.id || "",
+          taskId: task.taskId
+        });
+      }
+      const nextMessages = this.mergeRuntimeTaskIntoMessages(messages, task, status, active, conversation);
+      const changed = String(conversation.status || "").toLowerCase() !== status;
+      return {
+        ...conversation,
+        status,
+        conversationId: conversation.conversationId || task.sessionId || "",
+        messages: nextMessages,
+        __runtimeStatusChanged: changed && !active
+      };
+    },
+    conversationStatusFromRuntimeTask(task = {}) {
+      const status = String(task.status || "").toUpperCase();
+      if (ACTIVE_AGENT_TASK_STATUSES.has(status)) {
+        return status === "WAIT_CONFIRMATION" || status === "WAITING_CONFIRM" ? "pending" : "running";
+      }
+      if (status === "SUCCESS") {
+        return "completed";
+      }
+      if (status === "PARTIAL") {
+        return "partial";
+      }
+      if (status === "EMPTY") {
+        return "empty";
+      }
+      if (["CANCELLED", "KILLED", "REJECTED", "TIMEOUT_CANCELLED"].includes(status)) {
+        return "cancelled";
+      }
+      if (status === "FAILED") {
+        return "failed";
+      }
+      return "completed";
+    },
+    mergeRuntimeTaskIntoMessages(messages = [], task = {}, status = "running", active = false, conversation = {}) {
+      const index = [...messages].reverse().findIndex((message) =>
+        message?.role === "assistant"
+        && (message.taskId === task.taskId || message.streaming || ["running", "streaming", "pending", "waiting"].includes(String(message.status || "").toLowerCase()))
+      );
+      const realIndex = index < 0 ? -1 : messages.length - 1 - index;
+      if (realIndex >= 0) {
+        return messages.map((message, messageIndex) => messageIndex === realIndex
+          ? {
+              ...message,
+              taskId: message.taskId || task.taskId || "",
+              agentName: message.agentName || conversation.agentName || "",
+              modelName: message.modelName || conversation.modelName || "",
+              streaming: active,
+              status: active ? (status === "pending" ? "waiting" : "running") : status,
+              content: message.content || (!active ? (task.answerSummary || task.errorMessage || "") : "")
+            }
+          : message);
+      }
+      if (!active) {
+        return messages;
+      }
+      return [
+        ...messages,
+        {
+          id: `${task.taskId}-runtime`,
+          role: "assistant",
+          content: "",
+          timestamp: task.updateTime ? new Date(task.updateTime).getTime() : Date.now(),
+          sources: [],
+          traces: [],
+          steps: [],
+          streaming: true,
+          status: status === "pending" ? "waiting" : "running",
+          taskId: task.taskId || "",
+          agentName: conversation.agentName || "",
+          modelName: conversation.modelName || ""
+        }
+      ];
+    },
+    persistVerifiedHistoryStatus(verifiedHistory = []) {
+      verifiedHistory
+        .filter((conversation) => conversation.__runtimeStatusChanged && conversation.id)
+        .forEach((conversation) => {
+          updateConversationHistoryStatus(this.userId, conversation.id, {
+            conversationId: conversation.conversationId || conversation.id,
+            status: conversation.status,
+            messages: conversation.messages || []
+          }).catch(() => {});
+        });
     },
     async loadFavoriteConversationIds() {
       if (!this.authSession || !this.userId) {
@@ -677,22 +802,59 @@ export default {
     },
     applyActiveConversationStatus(history, activeHistoryId, activeStatus) {
       if (!activeHistoryId || !activeStatus) {
-        return history;
+        return history.map((item) => this.normalizeHistoryConversationStatus(item));
       }
       return history.map((item) =>
         item.id === activeHistoryId
-          ? {
+          ? this.normalizeHistoryConversationStatus({
               ...item,
               status: activeStatus
-            }
-          : item
+            })
+          : this.normalizeHistoryConversationStatus(item)
       );
+    },
+    normalizeHistoryConversationStatus(conversation = {}) {
+      const mergedConversation = mergeChatRuntimeState(conversation);
+      const status = String(mergedConversation.status || "").toLowerCase();
+      if (!["running", "streaming", "pending"].includes(status)) {
+        return mergedConversation;
+      }
+      const messages = Array.isArray(mergedConversation.messages) ? mergedConversation.messages : [];
+      const hasRestorableTask = messages.some((message) => message?.role === "assistant" && message.taskId);
+      const recentRunning = Date.now() - Number(mergedConversation.timestamp || 0) <= 10 * 60 * 1000;
+      if (hasRestorableTask || recentRunning) {
+        return mergedConversation;
+      }
+      const hasLiveAssistant = messages.some((message) =>
+        message?.role === "assistant"
+        && (message.streaming || message.status === "streaming" || message.status === "running")
+        && (
+          String(message.content || "").trim()
+          || Date.now() - Number(message.timestamp || mergedConversation.timestamp || 0) <= 120000
+        )
+      );
+      if (hasLiveAssistant) {
+        return mergedConversation;
+      }
+      return {
+        ...mergedConversation,
+        status: "completed",
+        messages: messages.map((message) =>
+          message?.role === "assistant" && (message.streaming || message.status === "streaming" || message.status === "running")
+            ? { ...message, streaming: false, status: String(message.content || "").trim() ? "completed" : "empty" }
+            : message
+        )
+      };
     },
     handleAgentTaskCancelled(task = {}) {
       const sessionId = task.sessionId || task.conversationId || "";
       if (!sessionId) {
         return;
       }
+      clearChatRuntimeState({
+        conversationId: sessionId,
+        taskId: task.taskId || ""
+      });
       const applyCancelled = (item) =>
         item && (item.id === sessionId || item.conversationId === sessionId)
           ? {
@@ -730,6 +892,7 @@ export default {
         conversationId: conversation.conversationId || "",
         mode: conversation.mode || "llm_chat",
         skillId: conversation.skillId || "",
+        modelName: conversation.modelName || "",
         agentName: conversation.agentName || "",
         status: conversation.status || "running",
         messages: Array.isArray(conversation.messages)

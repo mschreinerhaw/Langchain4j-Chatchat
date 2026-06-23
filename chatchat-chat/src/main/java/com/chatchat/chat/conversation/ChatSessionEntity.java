@@ -48,6 +48,18 @@ public class ChatSessionEntity {
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
 
+    @Column(name = "skill_id", length = 128)
+    private String skillId;
+
+    @Column(name = "model_name", length = 128)
+    private String modelName;
+
+    @Column(length = 64)
+    private String mode;
+
+    @Column(name = "agent_name", length = 256)
+    private String agentName;
+
     /**
      * Performs the on create operation.
      */

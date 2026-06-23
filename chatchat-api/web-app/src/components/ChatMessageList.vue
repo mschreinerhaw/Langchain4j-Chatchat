@@ -16,11 +16,11 @@
       <div class="message-avatar">{{ message.role === "user" ? userAvatarLabel : "AI" }}</div>
       <div class="message-bubble">
         <div class="message-meta">
-          <strong>{{ message.role === "user" ? displayUserId : assistantDisplayName }}</strong>
+          <strong>{{ message.role === "user" ? displayUserId : assistantName(message) }}</strong>
           <div class="message-actions">
             <time>{{ formatTime(message.timestamp) }}</time>
             <button
-              v-if="message.content"
+              v-if="messageHasRenderableContent(message)"
               type="button"
               class="message-copy-button"
               :title="copiedMessageId === message.id ? '已复制' : '复制回答'"
@@ -63,7 +63,7 @@
           </div>
         </div>
         <div
-          v-if="message.content"
+          v-if="messageHasRenderableContent(message)"
           class="message-markdown"
           v-html="renderMarkdown(message.content, message)"
           @click="handleMarkdownClick"
@@ -77,6 +77,7 @@
         <ResponseReferences
           v-if="message.role === 'assistant' && !message.streaming && !isExecutionRunning(message) && message.status !== 'waiting'"
           :sources="message.sources || []"
+          :evidence-premises="message.evidencePremises || []"
           :tool-traces="message.traces || []"
           compact
         />

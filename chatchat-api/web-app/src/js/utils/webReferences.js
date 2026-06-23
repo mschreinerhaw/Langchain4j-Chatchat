@@ -131,9 +131,9 @@ export function documentReferenceTitle(item = {}, docId = "") {
     normalizedDocId
   ];
   const title = candidates
-    .map((value) => String(value || "").trim())
+    .map((value) => cleanInternalDocumentRefs(value))
     .find((value) => isReadableDocumentTitle(value, normalizedDocId, fileId));
-  return title || normalizedDocId || "\u5f15\u7528\u6587\u6863";
+  return title || "\u5f15\u7528\u6587\u6863";
 }
 
 export function displayUrl(url) {
@@ -196,11 +196,17 @@ function uniqueDocumentPages(pages) {
 }
 
 function shortSnippet(value) {
-  const normalized = String(value || "").replace(/\s+/g, " ").trim();
+  const normalized = cleanInternalDocumentRefs(value).replace(/\s+/g, " ").trim();
   if (!normalized) {
     return "";
   }
   return normalized.length > 120 ? `${normalized.slice(0, 120)}...` : normalized;
+}
+
+function cleanInternalDocumentRefs(value) {
+  return String(value || "")
+    .replace(/[\uFF08(]?\s*doc:\/\/[^\s\uFF09)\]}\>\uFF0C\u3002\uFF1B;]+[\uFF09)]?\s*[:\uFF1A]?/gi, "")
+    .trim();
 }
 
 function documentIdFromRef(refId) {

@@ -54,6 +54,12 @@
             <artifactId>jackson-databind</artifactId>
         </dependency>
 
+        <!-- Gson for model protocol JSON rendering -->
+        <dependency>
+            <groupId>com.google.code.gson</groupId>
+            <artifactId>gson</artifactId>
+        </dependency>
+
         <!-- YAML regression case DSL -->
         <dependency>
             <groupId>org.yaml</groupId>

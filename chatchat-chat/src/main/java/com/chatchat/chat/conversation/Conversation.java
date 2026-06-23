@@ -17,6 +17,10 @@ public class Conversation {
     private String userId;
     private String title;
     private String status;
+    private String skillId;
+    private String modelName;
+    private String mode;
+    private String agentName;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
     private Map<String, Object> analysisTree;
@@ -32,6 +36,10 @@ public class Conversation {
         this.userId = builder.userId;
         this.title = builder.title;
         this.status = builder.status;
+        this.skillId = builder.skillId;
+        this.modelName = builder.modelName;
+        this.mode = builder.mode;
+        this.agentName = builder.agentName;
         this.createdAt = builder.createdAt;
         this.updatedAt = builder.updatedAt;
         this.analysisTree = builder.analysisTree;
@@ -63,10 +71,17 @@ public class Conversation {
         private List<Map<String, Object>> traces;
         private List<Map<String, Object>> steps;
         private Map<String, Object> visualizationSpec;
+        private Map<String, Object> uiResponse;
+        private List<Map<String, Object>> evidencePremises;
+        private String agentName;
+        private String modelName;
         private String analysisNodeId;
         private String analysisParentNodeId;
         private String analysisSourceMessageId;
         private Map<String, Object> analysisSelection;
+        private Boolean streaming;
+        private String status;
+        private String taskId;
 
         /**
          * Creates a new Conversation instance.
@@ -133,10 +148,17 @@ public class Conversation {
             this.traces = builder.traces;
             this.steps = builder.steps;
             this.visualizationSpec = builder.visualizationSpec;
+            this.uiResponse = builder.uiResponse;
+            this.evidencePremises = builder.evidencePremises;
+            this.agentName = builder.agentName;
+            this.modelName = builder.modelName;
             this.analysisNodeId = builder.analysisNodeId;
             this.analysisParentNodeId = builder.analysisParentNodeId;
             this.analysisSourceMessageId = builder.analysisSourceMessageId;
             this.analysisSelection = builder.analysisSelection;
+            this.streaming = builder.streaming;
+            this.status = builder.status;
+            this.taskId = builder.taskId;
         }
 
         /**
@@ -154,6 +176,10 @@ public class Conversation {
         private String userId;
         private String title;
         private String status;
+        private String skillId;
+        private String modelName;
+        private String mode;
+        private String agentName;
         private LocalDateTime createdAt;
         private LocalDateTime updatedAt;
         private Map<String, Object> analysisTree;
@@ -200,6 +226,26 @@ public class Conversation {
          */
         public ConversationBuilder status(String status) {
             this.status = status;
+            return this;
+        }
+
+        public ConversationBuilder skillId(String skillId) {
+            this.skillId = skillId;
+            return this;
+        }
+
+        public ConversationBuilder modelName(String modelName) {
+            this.modelName = modelName;
+            return this;
+        }
+
+        public ConversationBuilder mode(String mode) {
+            this.mode = mode;
+            return this;
+        }
+
+        public ConversationBuilder agentName(String agentName) {
+            this.agentName = agentName;
             return this;
         }
 
@@ -262,10 +308,17 @@ public class Conversation {
         private List<Map<String, Object>> traces;
         private List<Map<String, Object>> steps;
         private Map<String, Object> visualizationSpec;
+        private Map<String, Object> uiResponse;
+        private List<Map<String, Object>> evidencePremises;
+        private String agentName;
+        private String modelName;
         private String analysisNodeId;
         private String analysisParentNodeId;
         private String analysisSourceMessageId;
         private Map<String, Object> analysisSelection;
+        private Boolean streaming;
+        private String status;
+        private String taskId;
 
         /**
          * Performs the id operation.
@@ -365,6 +418,26 @@ public class Conversation {
             return this;
         }
 
+        public MessageBuilder uiResponse(Map<String, Object> uiResponse) {
+            this.uiResponse = uiResponse;
+            return this;
+        }
+
+        public MessageBuilder evidencePremises(List<Map<String, Object>> evidencePremises) {
+            this.evidencePremises = evidencePremises;
+            return this;
+        }
+
+        public MessageBuilder agentName(String agentName) {
+            this.agentName = agentName;
+            return this;
+        }
+
+        public MessageBuilder modelName(String modelName) {
+            this.modelName = modelName;
+            return this;
+        }
+
         public MessageBuilder analysisNodeId(String analysisNodeId) {
             this.analysisNodeId = analysisNodeId;
             return this;
@@ -382,6 +455,21 @@ public class Conversation {
 
         public MessageBuilder analysisSelection(Map<String, Object> analysisSelection) {
             this.analysisSelection = analysisSelection;
+            return this;
+        }
+
+        public MessageBuilder streaming(Boolean streaming) {
+            this.streaming = streaming;
+            return this;
+        }
+
+        public MessageBuilder status(String status) {
+            this.status = status;
+            return this;
+        }
+
+        public MessageBuilder taskId(String taskId) {
+            this.taskId = taskId;
             return this;
         }
 

@@ -1,5 +1,7 @@
 package com.chatchat.mcpserver.database;
 
+import com.chatchat.agents.protocol.ModelProtocolJson;
+
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.mcpserver.api.ApiServiceConfigRepository;
 import com.chatchat.mcpserver.sql.SqlDatasourceConfigService;
@@ -226,7 +228,7 @@ public class DatabaseQueryConfigService {
         }
         try {
             Map<String, Object> map = objectMapper.readValue(value, new TypeReference<>() {});
-            return objectMapper.writeValueAsString(map);
+            return ModelProtocolJson.compact(map);
         } catch (Exception ex) {
             throw new IllegalArgumentException(fieldName + " must be a valid JSON object");
         }

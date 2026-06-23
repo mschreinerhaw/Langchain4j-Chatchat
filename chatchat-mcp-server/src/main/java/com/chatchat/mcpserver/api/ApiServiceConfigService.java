@@ -1,5 +1,7 @@
 package com.chatchat.mcpserver.api;
 
+import com.chatchat.agents.protocol.ModelProtocolJson;
+
 import com.chatchat.agents.tool.ToolRegistry;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -276,7 +278,7 @@ public class ApiServiceConfigService {
         }
         try {
             Map<String, Object> map = objectMapper.readValue(value, new TypeReference<>() {});
-            return objectMapper.writeValueAsString(map);
+            return ModelProtocolJson.compact(map);
         } catch (JsonProcessingException ex) {
             throw new IllegalArgumentException(fieldName + " must be a valid JSON object");
         }

@@ -122,6 +122,18 @@ public class ConversationService {
      */
     @Transactional
     public Conversation updateConversationSummary(String conversationId, String userId, String title, String status) {
+        return updateConversationSummary(conversationId, userId, title, status, null, null, null, null);
+    }
+
+    @Transactional
+    public Conversation updateConversationSummary(String conversationId,
+                                                  String userId,
+                                                  String title,
+                                                  String status,
+                                                  String skillId,
+                                                  String modelName,
+                                                  String mode,
+                                                  String agentName) {
         String normalizedConversationId = ensureConversationId(conversationId, userId);
         ChatSessionEntity session = sessionRepository.findById(normalizedConversationId)
             .orElseThrow(() -> new IllegalArgumentException("Conversation not found: " + normalizedConversationId));
@@ -130,6 +142,18 @@ public class ConversationService {
         }
         if (status != null && !status.isBlank()) {
             session.setStatus(status.trim());
+        }
+        if (skillId != null) {
+            session.setSkillId(blankToNull(skillId));
+        }
+        if (modelName != null) {
+            session.setModelName(blankToNull(modelName));
+        }
+        if (mode != null) {
+            session.setMode(blankToNull(mode));
+        }
+        if (agentName != null) {
+            session.setAgentName(blankToNull(agentName));
         }
         return toConversation(sessionRepository.save(session), listMessageDetails(normalizedConversationId));
     }
@@ -345,6 +369,10 @@ public class ConversationService {
             .userId(session.getUserId())
             .title(session.getTitle())
             .status(session.getStatus())
+            .skillId(session.getSkillId())
+            .modelName(session.getModelName())
+            .mode(session.getMode())
+            .agentName(session.getAgentName())
             .createdAt(toLocalDateTime(session.getCreatedAt()))
             .updatedAt(toLocalDateTime(session.getUpdatedAt()))
             .messages(messages)
@@ -369,10 +397,17 @@ public class ConversationService {
             .traces(copyMaps(detail.getTraces()))
             .steps(copyMaps(detail.getSteps()))
             .visualizationSpec(copyMap(detail.getVisualizationSpec()))
+            .uiResponse(copyMap(detail.getUiResponse()))
+            .evidencePremises(copyMaps(detail.getEvidencePremises()))
+            .agentName(detail.getAgentName())
+            .modelName(detail.getModelName())
             .analysisNodeId(detail.getAnalysisNodeId())
             .analysisParentNodeId(detail.getAnalysisParentNodeId())
             .analysisSourceMessageId(detail.getAnalysisSourceMessageId())
             .analysisSelection(copyMap(detail.getAnalysisSelection()))
+            .streaming(detail.getStreaming())
+            .status(detail.getStatus())
+            .taskId(detail.getTaskId())
             .build();
     }
 
@@ -412,10 +447,17 @@ public class ConversationService {
             .traces(copyMaps(message.getTraces()))
             .steps(copyMaps(message.getSteps()))
             .visualizationSpec(copyMap(message.getVisualizationSpec()))
+            .uiResponse(copyMap(message.getUiResponse()))
+            .evidencePremises(copyMaps(message.getEvidencePremises()))
+            .agentName(message.getAgentName())
+            .modelName(message.getModelName())
             .analysisNodeId(message.getAnalysisNodeId())
             .analysisParentNodeId(message.getAnalysisParentNodeId())
             .analysisSourceMessageId(message.getAnalysisSourceMessageId())
             .analysisSelection(copyMap(message.getAnalysisSelection()))
+            .streaming(message.getStreaming())
+            .status(message.getStatus())
+            .taskId(message.getTaskId())
             .build();
         String rocksKey = detailStore.put(detail);
 
@@ -495,6 +537,10 @@ public class ConversationService {
             return fallback;
         }
         return value.trim();
+    }
+
+    private String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
     }
 
     /**

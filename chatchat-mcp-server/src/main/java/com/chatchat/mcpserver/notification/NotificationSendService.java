@@ -1,5 +1,7 @@
 package com.chatchat.mcpserver.notification;
 
+import com.chatchat.agents.protocol.ModelProtocolJson;
+
 import com.chatchat.common.tool.ToolLogSummarizer;
 import com.chatchat.mcpserver.audit.InvocationAuditService;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -328,11 +330,6 @@ public class NotificationSendService {
     }
 
     private String escapeJsonString(String value) {
-        try {
-            String json = objectMapper.writeValueAsString(value);
-            return json.substring(1, json.length() - 1);
-        } catch (Exception ignored) {
-            return value;
-        }
+        return ModelProtocolJson.jsonStringContent(value);
     }
 }

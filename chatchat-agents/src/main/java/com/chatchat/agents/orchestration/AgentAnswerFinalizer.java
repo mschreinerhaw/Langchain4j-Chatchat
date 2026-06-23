@@ -4,6 +4,7 @@ import com.chatchat.agents.evidence.AnswerAssemblyEngine;
 import com.chatchat.agents.evidence.AnswerAssemblyPolicy;
 import com.chatchat.agents.evidence.DeterministicAnswerCompiler;
 import com.chatchat.agents.evidence.EvidenceAnswerGroundingGuard;
+import com.chatchat.agents.protocol.ModelProtocolJson;
 import com.chatchat.agents.runtime.AgentAnswerReview;
 import com.chatchat.agents.runtime.AgentAnswerReviewer;
 import com.chatchat.common.interaction.InteractionToolTrace;
@@ -141,7 +142,7 @@ class AgentAnswerFinalizer {
                               String systemPrompt,
                               Map<String, Object> metadata) {
         if (answer != null && !answer.isBlank()) {
-            return answer;
+            return sanitizeFinalMarkdown(answer);
         }
         return summarizeWithObservations(activeChatModel, query, systemPrompt, observations, metadata);
     }
@@ -151,18 +152,29 @@ class AgentAnswerFinalizer {
                                              String systemPrompt,
                                              List<String> observations,
                                              Map<String, Object> metadata) {
+        if (activeChatModel == null) {
+            if (metadata != null) {
+                metadata.put("summarySkipped", "chat_model_unavailable");
+            }
+            return "";
+        }
         StringBuilder prompt = new StringBuilder();
         if (systemPrompt != null && !systemPrompt.isBlank()) {
             prompt.append("System instruction: ").append(systemPrompt).append("\n\n");
         }
-        prompt.append("Use the observations below and answer the user question in Chinese.\n");
+        prompt.append("Use the observations below and answer the user question in Chinese, like a high-quality ChatGPT answer.\n");
+        prompt.append("Return a polished Markdown document, not a single plain paragraph. Use concise headings and lists when they improve readability.\n");
+        prompt.append("Do not wrap the Markdown in code fences and do not output JSON.\n");
+        prompt.append("First understand the user's intent, then synthesize the evidence into a clear explanation instead of copying tool output or internal execution reports.\n");
+        prompt.append("For document QA, use natural Chinese section titles such as phenomenon summary, key evidence, troubleshooting steps, fix suggestions, and risk notes when they are relevant.\n");
+        prompt.append("Use SQL snippets and document citations as support, but do not let raw SQL or chunk titles replace the actual explanation.\n");
         prompt.append("If any tool observation reports failure, explicitly state that this source was unavailable and do not treat it as evidence.\n");
         prompt.append("If observations include evidence_v1 Unified evidence context, use only those EvidenceChunk entries as grounded evidence and keep the matching citation near every claim that relies on that evidence.\n");
         prompt.append("When both internal document and web search observations are available, separate internal document evidence from web verification evidence and explain conflicts instead of merging them silently.\n");
         prompt.append("If observations include document_evidence_v1, document evidence context, or document citations, keep the matching document citation near every claim that relies on that evidence.\n");
-        prompt.append("If observations include evidence_v1 or document_evidence_v1, final output must follow EvidenceAnswer: answer, citations, confidence, and missingInfo.\n");
-        prompt.append("If observations include evidence_execution_contract_v2_2 Deterministic answer lock, reproduce the lockedAnswer exactly; do not reinterpret the graph or replace it with fallback text.\n");
-        prompt.append("If observations include web citation labels such as [缃戦〉1], append the matching label immediately after every sentence that relies on that web source.\n");
+        prompt.append("If observations include evidence_v1 or document_evidence_v1, use the evidence to write Markdown; do not emit an EvidenceAnswer object.\n");
+        prompt.append("If observations include evidence_execution_contract_v2_2 Deterministic answer lock, treat lockedAnswer and reasoningPayload as grounded evidence constraints, not as text to copy verbatim.\n");
+        prompt.append("If observations include web citation labels, append the matching label immediately after every sentence that relies on that web source.\n");
         prompt.append("Do not invent citations or cite URLs that are not listed in the observations.\n");
         prompt.append("If an Evidence trust policy asks for more evidence, avoid strong claims and say that trusted evidence is insufficient.\n");
         if (containsEvidence(observations == null ? List.of() : observations)) {
@@ -190,8 +202,54 @@ class AgentAnswerFinalizer {
             answer == null ? 0 : answer.length());
         log.info("agentModelOutput phase=summary runId={} answer=\n{}",
             firstNonBlank(runId, ""),
-            answer == null ? "" : answer);
-        return answer;
+            ModelProtocolJson.prettyJsonForLog(answer));
+        return sanitizeFinalMarkdown(answer);
+    }
+
+    private String sanitizeFinalMarkdown(String answer) {
+        if (answer == null || answer.isBlank()) {
+            return "";
+        }
+        String text = answer.trim();
+        String locked = extractBetween(
+            text,
+            DeterministicAnswerCompiler.BEGIN_LOCKED_ANSWER,
+            DeterministicAnswerCompiler.END_LOCKED_ANSWER
+        );
+        if (locked != null && !locked.isBlank()) {
+            text = locked.trim();
+        }
+        text = text.replaceAll("(?is)reasoningPayload:\\s*```json\\s*.*?\\s*```", "").trim();
+        text = text.replace(DeterministicAnswerCompiler.BEGIN_LOCKED_ANSWER, "")
+            .replace(DeterministicAnswerCompiler.END_LOCKED_ANSWER, "")
+            .trim();
+        if (text.startsWith("```markdown")) {
+            text = stripOuterFence(text, "```markdown");
+        } else if (text.startsWith("```md")) {
+            text = stripOuterFence(text, "```md");
+        }
+        return text.trim();
+    }
+
+    private String stripOuterFence(String text, String openingFence) {
+        int start = openingFence.length();
+        int end = text.lastIndexOf("```");
+        if (end <= start) {
+            return text;
+        }
+        return text.substring(start, end).trim();
+    }
+
+    private String extractBetween(String text, String beginMarker, String endMarker) {
+        if (text == null || beginMarker == null || endMarker == null) {
+            return null;
+        }
+        int begin = text.indexOf(beginMarker);
+        int end = text.indexOf(endMarker);
+        if (begin < 0 || end <= begin) {
+            return null;
+        }
+        return text.substring(begin + beginMarker.length(), end);
     }
 
     private AgentAnswerReview reviewAnswer(ChatModel activeChatModel,
@@ -224,7 +282,7 @@ class AgentAnswerFinalizer {
         log.info("agentModelOutput phase=review runId={} status={} answer=\n{}",
             firstNonBlank(runId, ""),
             review == null ? null : review.status(),
-            review == null || review.answer() == null ? "" : review.answer());
+            ModelProtocolJson.prettyJsonForLog(review == null ? null : review.answer()));
         if (review != null && AgentAnswerReview.REJECTED.equals(review.status())) {
             log.warn("agentModelReviewRejected runId={} feedback={}",
                 firstNonBlank(runId, ""),
@@ -303,7 +361,7 @@ class AgentAnswerFinalizer {
         DeterministicLockedAnswer lockedAnswer = extractDeterministicLockedAnswer(observations);
         if (lockedAnswer != null && lockedAnswer.answer() != null && !lockedAnswer.answer().isBlank()) {
             if (metadata != null) {
-                metadata.put("deterministicAnswerLocked", true);
+                metadata.put("deterministicAnswerAvailable", true);
                 metadata.put("deterministicAnswerContractVersion", EXECUTION_CONTRACT);
                 if (lockedAnswer.contractHash() != null && !lockedAnswer.contractHash().isBlank()) {
                     metadata.put("deterministicAnswerContractHash", lockedAnswer.contractHash());
@@ -312,11 +370,20 @@ class AgentAnswerFinalizer {
                     metadata.put("deterministicAnswerGraphViewHash", lockedAnswer.graphViewHash());
                 }
             }
-            log.warn("agentDeterministicAnswerLockApplied contractHash={} graphViewHash={} originalAnswer={}",
-                lockedAnswer.contractHash(),
-                lockedAnswer.graphViewHash(),
-                answer == null ? "" : answer);
-            return lockedAnswer.answer();
+            if (shouldReplaceWithGroundedEvidence(answer)) {
+                if (metadata != null) {
+                    metadata.put("deterministicAnswerFallbackApplied", true);
+                }
+                log.warn("agentDeterministicAnswerFallbackApplied contractHash={} graphViewHash={} originalAnswer={}",
+                    lockedAnswer.contractHash(),
+                    lockedAnswer.graphViewHash(),
+                    answer == null ? "" : answer);
+                return lockedAnswer.answer();
+            }
+            if (metadata != null) {
+                metadata.put("deterministicAnswerUsedAsEvidence", true);
+            }
+            return answer;
         }
         List<GroundedDocumentEvidence> documentEvidence = extractGroundedDocumentEvidence(observations);
         if (documentEvidence.isEmpty()) {

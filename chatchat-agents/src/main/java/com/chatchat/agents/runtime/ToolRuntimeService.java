@@ -1,11 +1,11 @@
 package com.chatchat.agents.runtime;
 
+import com.chatchat.agents.protocol.ModelProtocolJson;
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.interaction.InteractionToolTrace;
 import com.chatchat.common.tool.ToolInput;
 import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolOutput;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
@@ -2712,11 +2712,7 @@ public class ToolRuntimeService {
         if (data instanceof String text) {
             return text;
         }
-        try {
-            return objectMapper.writeValueAsString(data);
-        } catch (JsonProcessingException ex) {
-            return String.valueOf(data);
-        }
+        return ModelProtocolJson.compact(data);
     }
 
     /**

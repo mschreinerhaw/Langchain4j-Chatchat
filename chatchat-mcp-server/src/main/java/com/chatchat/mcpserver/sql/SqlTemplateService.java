@@ -1,5 +1,7 @@
 package com.chatchat.mcpserver.sql;
 
+import com.chatchat.agents.protocol.ModelProtocolJson;
+
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -134,7 +136,7 @@ public class SqlTemplateService {
 
     private String writeJson(Object value) {
         try {
-            return objectMapper.writeValueAsString(value);
+            return ModelProtocolJson.compact(value);
         } catch (Exception ex) {
             return "{}";
         }

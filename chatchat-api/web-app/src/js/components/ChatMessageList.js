@@ -15,6 +15,7 @@ const SQL_START_RE = /^\s*(CREATE|WITH|SELECT|INSERT|UPDATE|DELETE|MERGE|ALTER|D
 const SQL_CONTINUATION_RE = /^\s*(USING|OPTIONS\s*\(|PARTITIONED\s+BY|TBLPROPERTIES\s*\(|LOCATION\b|COMMENT\b|AS\b|FROM\b|WHERE\b|JOIN\b|LEFT\b|RIGHT\b|INNER\b|OUTER\b|ON\b|GROUP\b|ORDER\b|HAVING\b|LIMIT\b|VALUES\b|URL\b|DBTABLE\b|USER\b|PASSWORD\b|DRIVER\b|PARTITIONCOLUMN\b|LOWERBOUND\b|UPPERBOUND\b|NUMPARTITIONS\b|FETCHSIZE\b|SESSIONINITSTATEMENT\b|\)|;|,)/i;
 const SECTION_BOUNDARY_RE = /^\s*(#{1,6}\s+|[-*]\s+\d+[.)]\s+|\d+[.)]\s+|[\[(].+[\])]\s*$)/;
 const JSON_START_RE = /^\s*[{[]\s*$/;
+const INTERNAL_DOCUMENT_REF_RE = /[\uFF08(]?\s*doc:\/\/[^\s\uFF09)\]}\>\uFF0C\u3002\uFF1B;]+[\uFF09)]?\s*[:\uFF1A]?/gi;
 
 function escapeHtml(value) {
   return String(value || "")
@@ -146,6 +147,9 @@ export default {
     shouldShowSteps(message = {}) {
       return message.role === "assistant" && this.isExecutionRunning(message);
     },
+    messageHasRenderableContent(message = {}) {
+      return !!String(message.content || "").trim() || !!this.extractUiResponse(message)?.answer;
+    },
     isExecutionRunning(message = {}) {
       const status = String(message.status || "").toLowerCase();
       const runningStatus = ["running", "streaming", "processing", "executing"].includes(status);
@@ -202,39 +206,257 @@ export default {
         return "\u5df2\u505c\u6b62\u672c\u6b21\u6267\u884c";
       }
       if (message.streaming || this.isExecutionRunning(message)) {
-        return `\u6b63\u5728\u6267\u884c${this.activeAgent?.name ? `: ${this.activeAgent.name}` : ""}`;
+        const name = message.agentName || this.activeAgent?.name || "";
+        return `\u6b63\u5728\u6267\u884c${name ? `: ${name}` : ""}`;
       }
       return "\u6267\u884c\u6b65\u9aa4";
     },
     canShowEvaluation(message = {}) {
       const status = String(message.status || "").toLowerCase();
       return message.role === "assistant"
-        && !!message.content
+        && (!!message.content || !!this.extractUiResponse(message)?.answer)
         && !!message.taskId
         && !message.streaming
         && !message.feedbackTime
         && !["waiting", "cancelled", "failed", "streaming", "running"].includes(status);
     },
+    assistantName(message = {}) {
+      return message.agentName || this.assistantDisplayName;
+    },
     renderMarkdown(content, message = {}) {
       const prepared = this.prepareMarkdownContent(String(content ?? ""), message);
-      const reasoning = this.parseEvidenceReasoning(prepared.content);
-      if (reasoning?.fallback) {
-        return this.renderEvidenceReasoningFallback(prepared.content, new Set(prepared.citationUrls), reasoning.errors || []);
-      }
-      if (reasoning) {
-        return this.renderEvidenceReasoning(reasoning, new Set(prepared.citationUrls));
-      }
-      const executionAnswer = this.parseEvidenceExecutionAnswer(prepared.content);
-      if (executionAnswer) {
-        return this.renderEvidenceExecutionAnswer(executionAnswer, new Set(prepared.citationUrls));
-      }
-      const evidenceAnswer = this.parseEvidenceAnswer(prepared.content);
-      if (evidenceAnswer) {
-        return this.renderEvidenceAnswer(evidenceAnswer, new Set(prepared.citationUrls));
+      const uiContract = this.uiRenderContract(message, prepared.content);
+      if (uiContract) {
+        return this.renderUiRenderContract(uiContract, new Set(prepared.citationUrls));
       }
       return markdown.render(prepared.content, {
         webCitationUrls: new Set(prepared.citationUrls)
       });
+    },
+    extractUiResponse(message = {}) {
+      const candidates = [
+        message.uiResponse,
+        message.metadata?.uiResponse,
+        message.executionResult?.uiResponse,
+        message.metadata?.executionResult?.uiResponse
+      ];
+      const explicit = candidates.find((candidate) => candidate && typeof candidate === "object");
+      if (explicit) {
+        return explicit;
+      }
+      const citations = message.citations || message.sources || [];
+      const evidencePremises = message.evidencePremises || [];
+      const hasProtocolMetadata = message.confidence !== undefined
+        || (Array.isArray(citations) && citations.length > 0)
+        || (Array.isArray(evidencePremises) && evidencePremises.length > 0);
+      if (!hasProtocolMetadata) {
+        return null;
+      }
+      return {
+        contractVersion: "ui_response_v1",
+        status: message.status || "",
+        answer: message.content || "",
+        citations,
+        evidencePremises,
+        confidence: message.confidence ?? null,
+        evidenceSummary: message.evidenceSummary || ""
+      };
+    },
+    uiRenderContract(message = {}, fallbackContent = "") {
+      const uiResponse = this.extractUiResponse(message);
+      if (!uiResponse) {
+        return null;
+      }
+      const answerBlocks = this.normalizeUiAnswerBlocks(uiResponse, fallbackContent);
+      const citations = this.normalizeUiCitations(uiResponse.citations || message.sources || []);
+      const steps = [];
+      const warnings = this.normalizeUiWarnings(uiResponse);
+      const evidenceSummary = this.cleanUiProtocolText(uiResponse.evidenceSummary || "");
+      const confidence = this.normalizeUiConfidence(uiResponse.confidence);
+      const hasRenderableContent = answerBlocks.length || citations.length || warnings.length || evidenceSummary || confidence !== null;
+      if (!hasRenderableContent) {
+        return null;
+      }
+      return {
+        contractVersion: uiResponse.uiRenderContractVersion || "ui_render_contract_v1",
+        sourceContractVersion: uiResponse.contractVersion || "",
+        status: String(uiResponse.status || message.status || "").trim(),
+        answerBlocks,
+        citations,
+        steps,
+        confidence,
+        warnings,
+        evidenceSummary
+      };
+    },
+    normalizeUiAnswerBlocks(uiResponse = {}, fallbackContent = "") {
+      const rawBlocks = Array.isArray(uiResponse.answerBlocks) ? uiResponse.answerBlocks : [];
+      const blocks = rawBlocks
+        .map((block) => {
+          if (typeof block === "string") {
+            return { type: "markdown", text: this.cleanUiProtocolText(block) };
+          }
+          if (!block || typeof block !== "object") {
+            return null;
+          }
+          return {
+            type: String(block.type || "markdown").trim().toLowerCase(),
+            text: this.cleanUiProtocolText(block.text || block.content || block.answer || "")
+          };
+        })
+        .filter((block) => block?.text);
+      if (blocks.length) {
+        return blocks;
+      }
+      const answer = this.cleanUiProtocolText(uiResponse.answer || fallbackContent);
+      return answer ? [{ type: "markdown", text: answer }] : [];
+    },
+    normalizeUiCitations(citations = []) {
+      if (!Array.isArray(citations)) {
+        return [];
+      }
+      return citations
+        .map((citation, index) => {
+          if (!citation || typeof citation !== "object") {
+            return null;
+          }
+          const sourceRef = String(citation.sourceRef || citation.refId || citation.docId || citation.source || "").trim();
+          const rawTitle = String(citation.title || citation.name || citation.sourceTitle || citation.documentName || "").trim();
+          const title = this.cleanUiCitationTitle(rawTitle || sourceRef, index);
+          const text = this.cleanUiProtocolText(citation.text || citation.snippet || citation.content || citation.summary || "");
+          const url = String(citation.url || citation.link || citation.href || "").trim();
+          return { title, text, url, sourceRef };
+        })
+        .filter(Boolean);
+    },
+    cleanUiCitationTitle(value, index = 0) {
+      const text = String(value || "").trim();
+      if (!text || /^doc:\/\//i.test(text) || /^\d{8}_[a-f0-9]{6,}$/i.test(text)) {
+        return `\u6587\u6863 ${index + 1}`;
+      }
+      return this.cleanUiProtocolText(text) || `\u6587\u6863 ${index + 1}`;
+    },
+    normalizeUiSteps(steps = []) {
+      if (!Array.isArray(steps)) {
+        return [];
+      }
+      return steps
+        .map((step, index) => {
+          if (typeof step === "string") {
+            const text = this.cleanUiProtocolText(step);
+            return text ? { title: `\u6b65\u9aa4 ${index + 1}`, text } : null;
+          }
+          if (!step || typeof step !== "object") {
+            return null;
+          }
+          const title = this.cleanUiProtocolText(step.title || step.name || step.label || `\u6b65\u9aa4 ${index + 1}`);
+          const text = this.cleanUiProtocolText(step.text || step.content || step.summary || step.action || step.claim || "");
+          return title || text ? { title, text } : null;
+        })
+        .filter(Boolean);
+    },
+    normalizeUiWarnings(uiResponse = {}) {
+      const rawWarnings = Array.isArray(uiResponse.warnings) ? uiResponse.warnings : [];
+      const warnings = rawWarnings
+        .map((warning) => this.cleanUiProtocolText(warning?.message || warning?.text || warning))
+        .filter(Boolean);
+      const status = String(uiResponse.status || "").trim().toUpperCase();
+      if (["FAILED", "PARTIAL", "EMPTY", "CONFLICTED"].includes(status) && !warnings.length) {
+        warnings.push(this.uiStatusWarning(status));
+      }
+      return warnings.filter(Boolean);
+    },
+    uiStatusWarning(status) {
+      if (status === "FAILED") {
+        return "\u672c\u6b21\u6267\u884c\u672a\u5b8c\u6210\uff0c\u7ed3\u679c\u53ef\u80fd\u4e0d\u5b8c\u6574\u3002";
+      }
+      if (status === "EMPTY") {
+        return "\u672a\u627e\u5230\u53ef\u76f4\u63a5\u5c55\u793a\u7684\u7ed3\u679c\u3002";
+      }
+      if (status === "CONFLICTED") {
+        return "\u8bc1\u636e\u4e4b\u95f4\u5b58\u5728\u51b2\u7a81\uff0c\u5df2\u4fdd\u7559\u8fb9\u754c\u8bf4\u660e\u3002";
+      }
+      return "\u4ec5\u90e8\u5206\u8bc1\u636e\u53ef\u7528\uff0c\u7ed3\u679c\u9700\u7ed3\u5408\u4e0b\u65b9\u5f15\u7528\u6838\u5bf9\u3002";
+    },
+    normalizeUiConfidence(value) {
+      const confidence = Number(value);
+      return Number.isFinite(confidence) ? confidence : null;
+    },
+    cleanUiProtocolText(value) {
+      return this.stripResidualUncertaintyBlocks(this.stripInternalDocumentRefs(String(value || ""))).trim();
+    },
+    stripResidualUncertaintyBlocks(content) {
+      return String(content || "")
+        .replace(/(?:^|\n)\s*#{1,6}\s*(?:\u4e0d\u786e\u5b9a\u6027\u8bf4\u660e|uncertainty)\s*\n*(?=(?:\n\s*#{1,6}\s)|$)/gi, "\n")
+        .replace(/(?:^|\n)\s*(?:\u4e0d\u786e\u5b9a\u6027\u8bf4\u660e|uncertainty)\s*[:\uFF1A]?\s*(?=\n|$)/gi, "\n");
+    },
+    renderUiRenderContract(contract = {}, citationUrls = new Set()) {
+      const env = { webCitationUrls: citationUrls };
+      const answerHtml = (contract.answerBlocks || [])
+        .map((block) => {
+          const text = this.cleanUiProtocolText(block?.text || "");
+          if (!text) {
+            return "";
+          }
+          return `<section class="ui-render-answer-block">${markdown.render(text, env)}</section>`;
+        })
+        .join("");
+      const confidence = this.formatConfidencePercent(contract.confidence);
+      const metrics = [
+        confidence ? `<span>${escapeHtml("\u53ef\u4fe1\u5ea6")} <b>${escapeHtml(confidence)}</b></span>` : "",
+        contract.citations?.length ? `<span>${escapeHtml("\u5f15\u7528")} <b>${escapeHtml(`${contract.citations.length} \u6761`)}</b></span>` : ""
+      ].filter(Boolean).join("");
+      const summary = contract.evidenceSummary
+        ? `<p class="ui-render-evidence-summary">${markdown.renderInline(contract.evidenceSummary, env)}</p>`
+        : "";
+      const warnings = this.renderUiContractWarnings(contract.warnings || []);
+
+      return [
+        '<section class="evidence-reasoning-card ui-render-contract-card">',
+        answerHtml || summary || `<p>${escapeHtml("\u6682\u65e0\u53ef\u5c55\u793a\u7ed3\u679c\u3002")}</p>`,
+        metrics ? `<section class="answer-result-summary">${metrics}</section>` : "",
+        warnings,
+        '</section>'
+      ].filter(Boolean).join("");
+    },
+    renderUiContractSteps(steps = []) {
+      const items = steps
+        .map((step) => {
+          const title = this.cleanUiProtocolText(step?.title || "");
+          const text = this.cleanUiProtocolText(step?.text || "");
+          if (!title && !text) {
+            return "";
+          }
+          const body = text ? `<p>${markdown.renderInline(text)}</p>` : "";
+          return `<li><strong>${escapeHtml(title || "\u6b65\u9aa4")}</strong>${body}</li>`;
+        })
+        .filter(Boolean)
+        .join("");
+      if (!items) {
+        return "";
+      }
+      return [
+        '<section class="ui-render-steps">',
+        `<h4>${escapeHtml("\u6267\u884c\u6b65\u9aa4")}</h4>`,
+        `<ol>${items}</ol>`,
+        '</section>'
+      ].join("");
+    },
+    renderUiContractWarnings(warnings = []) {
+      const items = warnings
+        .map((warning) => this.cleanUiProtocolText(warning))
+        .filter(Boolean)
+        .map((warning) => `<li>${markdown.renderInline(warning)}</li>`)
+        .join("");
+      if (!items) {
+        return "";
+      }
+      return [
+        '<section class="ui-render-warnings">',
+        `<h4>${escapeHtml("\u8fb9\u754c\u8bf4\u660e")}</h4>`,
+        `<ul>${items}</ul>`,
+        '</section>'
+      ].join("");
     },
     handleVisualizationDrillDown(message, event = {}) {
       this.$emit("visualization-drill-down", {
@@ -259,7 +481,9 @@ export default {
       ];
     },
     prepareMarkdownContent(content, message = {}) {
-      const displayContent = this.stripVisualizationSpecBlocks(content);
+      const displayContent = this.stripInternalDocumentRefs(
+        this.stripInternalProtocolBlocks(this.stripVisualizationSpecBlocks(content))
+      );
       const normalizedContent = this.normalizeRenderContractBlocks(displayContent);
       const pages = extractWebSearchPagesFromTraces(message.traces || []);
       if (!pages.length) {
@@ -301,6 +525,36 @@ export default {
         }
       );
       return { content: nextContent, citationUrls };
+    },
+    stripInternalDocumentRefs(content) {
+      return String(content || "")
+        .replace(INTERNAL_DOCUMENT_REF_RE, "")
+        .replace(/[ \t]*[\(（]\s*(?:confidence|missingInfo)\s*[\)）]/gi, "")
+        .replace(/[ \t]*[\[\uFF3B][ \t]*[\]\uFF3D][ \t]*/g, " ")
+        .replace(/[ \t]+([,.;:!?\uFF0C\u3002\uFF1B\uFF1A])/g, "$1")
+        .replace(/([,.;:!?\uFF0C\u3002\uFF1B\uFF1A])[ \t]*[\[\uFF3B][ \t]*[\]\uFF3D]/g, "$1")
+        .replace(/^[ \t]*[:\uFF1A][ \t]*$/gm, "")
+        .replace(/[ \t]{2,}/g, " ")
+        .replace(/\n[ \t]+\n/g, "\n\n")
+        .replace(/\n{3,}/g, "\n\n")
+        .trim();
+    },
+    stripInternalProtocolBlocks(content) {
+      let text = String(content || "");
+      const lockedMatch = text.match(/---BEGIN_LOCKED_ANSWER---([\s\S]*?)---END_LOCKED_ANSWER---/i);
+      if (lockedMatch?.[1]) {
+        text = lockedMatch[1];
+      }
+      text = text.replace(/reasoningPayload:\s*```json\s*[\s\S]*?```/gi, "");
+      text = text.replace(/```json\s*([\s\S]*?)```/gi, (match, body) => {
+        return /"?(uiResponse|executionResult|reasoningTrace|trustedSql|deterministicFacts|contractVersion)"?\s*:/i.test(body || "")
+          ? ""
+          : match;
+      });
+      return text
+        .replace(/Deterministic answer lock\s*\([^)]+\):[\s\S]*?lockedAnswer:\s*/i, "")
+        .replace(/---BEGIN_LOCKED_ANSWER---|---END_LOCKED_ANSWER---/gi, "")
+        .trim();
     },
     stripVisualizationSpecBlocks(content) {
       return String(content || "").replace(/```json\s*([\s\S]*?)```/gi, (match, body) => {
@@ -714,7 +968,7 @@ export default {
     },
     reasoningResultText(reasoning = {}) {
       if (reasoning?.result?.exists === true && String(reasoning.result.answer || "").trim()) {
-        return this.shortUiText(reasoning.result.answer, 220);
+        return this.shortUiText(this.stripInternalDocumentRefs(reasoning.result.answer), 220);
       }
       const pathState = this.reasoningPathState(reasoning);
       if (pathState === "WEAK_PATH") {
@@ -728,7 +982,7 @@ export default {
       }
       const fact = Array.isArray(reasoning.deterministicFacts) ? reasoning.deterministicFacts[0] : null;
       if (fact?.content) {
-        return this.shortUiText(fact.content, 180);
+        return this.shortUiText(this.stripInternalDocumentRefs(fact.content), 180);
       }
       return "\u5df2\u57fa\u4e8e\u53ef\u8ffd\u6eaf\u8bc1\u636e\u8def\u5f84\u751f\u6210\u9501\u5b9a\u5206\u6790\u7ed3\u679c\u3002";
     },
@@ -1299,7 +1553,10 @@ export default {
       }
     },
     buildCopyText(message = {}) {
-      const content = String(message.content || "").trim();
+      const uiContract = this.uiRenderContract(message, String(message.content || ""));
+      const content = uiContract
+        ? this.copyUiRenderContractText(uiContract)
+        : this.stripInternalDocumentRefs(String(message.content || "").trim());
       const sections = content ? [content] : [];
       const sourceLines = this.copySourceLines(message.sources || []);
       const documentLines = this.copyDocumentPageLines(extractDocumentSearchPagesFromTraces(message.traces || []));
@@ -1316,12 +1573,40 @@ export default {
       }
       return sections.join("\n\n").trim();
     },
+    copyUiRenderContractText(contract = {}) {
+      const sections = [];
+      const answer = (contract.answerBlocks || [])
+        .map((block) => this.cleanUiProtocolText(block?.text || ""))
+        .filter(Boolean)
+        .join("\n\n")
+        .trim();
+      if (answer) {
+        sections.push(answer);
+      }
+      const steps = (contract.steps || [])
+        .map((step, index) => {
+          const title = this.cleanUiProtocolText(step?.title || `\u6b65\u9aa4 ${index + 1}`);
+          const text = this.cleanUiProtocolText(step?.text || "");
+          return [title, text].filter(Boolean).join(": ");
+        })
+        .filter(Boolean);
+      if (steps.length) {
+        sections.push(["\u6267\u884c\u6b65\u9aa4", ...steps.map((step, index) => `${index + 1}. ${step}`)].join("\n"));
+      }
+      const warnings = (contract.warnings || [])
+        .map((warning) => this.cleanUiProtocolText(warning))
+        .filter(Boolean);
+      if (warnings.length) {
+        sections.push(["\u8fb9\u754c\u8bf4\u660e", ...warnings.map((warning) => `- ${warning}`)].join("\n"));
+      }
+      return sections.join("\n\n").trim();
+    },
     copySourceLines(sources = []) {
       return sources
         .map((source, index) => {
           const rank = source?.rank || index + 1;
-          const title = source?.source || source?.title || "来源";
-          const snippet = source?.snippet || source?.content || "";
+          const title = this.cleanUiCitationTitle(source?.source || source?.title || "", index);
+          const snippet = this.cleanUiProtocolText(source?.snippet || source?.content || "");
           const url = source?.url || source?.link || source?.href || source?.sourceUrl || "";
           return [`${rank}. ${title}`, url, snippet].filter(Boolean).join(" - ");
         })
@@ -1331,11 +1616,10 @@ export default {
       return pages
         .map((page, index) => {
           const rank = page?.rank || index + 1;
-          const title = page?.title || page?.docId || "引用文档";
-          const docId = page?.docId || "";
+          const title = this.cleanUiCitationTitle(page?.title || page?.docId || "", index);
           const url = page?.url || "";
-          const snippet = page?.snippet || "";
-          return [`文档 ${rank}: ${title}`, docId, url, snippet].filter(Boolean).join(" - ");
+          const snippet = this.cleanUiProtocolText(page?.snippet || "");
+          return [`文档 ${rank}: ${title}`, url, snippet].filter(Boolean).join(" - ");
         })
         .filter(Boolean);
     },

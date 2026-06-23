@@ -1,5 +1,7 @@
 package com.chatchat.mcpserver.livedata;
 
+import com.chatchat.agents.protocol.ModelProtocolJson;
+
 import com.chatchat.mcpserver.api.ApiServiceConfig;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -380,7 +382,7 @@ public class LivedataApiConfigMapper {
      */
     private String writeJson(Object value) {
         try {
-            return objectMapper.writeValueAsString(value);
+            return ModelProtocolJson.compact(value);
         } catch (Exception ex) {
             throw new IllegalArgumentException("Failed to build livedata API JSON config", ex);
         }

@@ -1,6 +1,6 @@
 package com.chatchat.agents.runtime.evaluation;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
+import com.chatchat.agents.protocol.ModelProtocolJson;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.langchain4j.model.chat.ChatModel;
 import org.springframework.stereotype.Component;
@@ -85,11 +85,7 @@ public class AgentRegressionLlmEvaluator {
         if (value == null) {
             return "{}";
         }
-        try {
-            return objectMapper.writeValueAsString(value);
-        } catch (JsonProcessingException ex) {
-            return String.valueOf(value);
-        }
+        return ModelProtocolJson.compact(value);
     }
 
     private double decimal(Object value, double fallback) {

@@ -1,5 +1,7 @@
 package com.chatchat.mcpserver.sql;
 
+import com.chatchat.agents.protocol.ModelProtocolJson;
+
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -144,7 +146,7 @@ public class SqlDatasourceConfigService {
         }
         try {
             List<String> items = objectMapper.readValue(value, new TypeReference<>() {});
-            return objectMapper.writeValueAsString(items);
+            return ModelProtocolJson.compact(items);
         } catch (Exception ex) {
             throw new IllegalArgumentException(field + " must be a JSON string array");
         }
@@ -157,7 +159,7 @@ public class SqlDatasourceConfigService {
         }
         try {
             Map<String, Object> parsed = objectMapper.readValue(value, new TypeReference<>() {});
-            return objectMapper.writeValueAsString(parsed);
+            return ModelProtocolJson.compact(parsed);
         } catch (Exception ex) {
             throw new IllegalArgumentException(field + " must be a JSON object");
         }

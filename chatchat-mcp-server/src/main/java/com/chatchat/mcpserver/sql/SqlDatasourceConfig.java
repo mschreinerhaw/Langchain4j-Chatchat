@@ -45,6 +45,9 @@ public class SqlDatasourceConfig {
     @Column(length = 500)
     private String driverClass;
 
+    @Column(length = 64)
+    private String databaseType = "generic";
+
     @Column(length = 500)
     private String username;
 
@@ -94,6 +97,10 @@ public class SqlDatasourceConfig {
     @Lob
     @Column
     private String allowedTablesJson;
+
+    @Lob
+    @Column
+    private String allowedTemplatesJson;
 
     @Lob
     @Column

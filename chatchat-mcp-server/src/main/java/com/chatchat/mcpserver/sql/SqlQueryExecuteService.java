@@ -50,7 +50,7 @@ public class SqlQueryExecuteService {
             assertExecutionCapability(datasource);
             timeoutSeconds = normalizeTimeout(request.get("timeoutSeconds"), datasource.getDefaultTimeoutSeconds());
             maxRows = normalizeMaxRows(request.get("maxRows"), datasource.getDefaultMaxRows());
-            String sql = resolveSql(request);
+            String sql = resolveSql(request, datasource);
             normalizedSql = safetyService.validateAndNormalize(sql, maxRows);
             validateAllowedTables(datasource, normalizedSql);
             log.info("MCP SQL query execution requested: datasourceId={}, datasourceName={}, env={}, tool={}, timeoutSeconds={}, maxRows={}, purpose={}, sourceTaskId={}, sql={}",
@@ -158,7 +158,7 @@ public class SqlQueryExecuteService {
         }
     }
 
-    private String resolveSql(Map<String, Object> request) {
+    private String resolveSql(Map<String, Object> request, SqlDatasourceConfig datasource) {
         String sql = text(request, "sql");
         String template = text(request, "template");
         if (sql != null && !sql.isBlank()) {
@@ -167,7 +167,7 @@ public class SqlQueryExecuteService {
         if (template == null || template.isBlank()) {
             throw new IllegalArgumentException("Either sql or template is required");
         }
-        return templateService.render(template, mapValue(request.get("parameters")));
+        return templateService.render(template, mapValue(request.get("parameters")), datasource);
     }
 
     private SqlQueryResult query(SqlDatasourceConfig datasource, String originalSql, String sql,

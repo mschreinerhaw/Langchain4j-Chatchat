@@ -489,6 +489,13 @@ body {
     margin: -4px 0 14px;
 }
 
+.template-create-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
 .audit-toolbar {
     display: grid;
     grid-template-columns: minmax(220px, 1fr) 150px 130px 130px auto auto;
@@ -512,8 +519,9 @@ body {
     display: flex;
     align-items: center;
     justify-content: flex-end;
-    gap: 12px;
-    margin-top: 16px;
+    gap: 8px;
+    margin-top: 12px;
+    width: 100%;
 }
 
 .service-card {
@@ -829,6 +837,102 @@ body {
     flex-wrap: wrap;
     gap: 6px;
     margin-top: auto;
+}
+
+.template-picker-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 14px;
+    margin-bottom: 8px;
+    width: 100%;
+}
+
+.template-picker-page-status {
+    margin-right: auto;
+}
+
+.template-icon-btn {
+    display: inline-grid;
+    place-items: center;
+    width: 28px;
+    height: 28px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    background: #fff;
+    color: var(--text-muted);
+    font-size: 15px;
+    line-height: 1;
+}
+
+.template-icon-btn:hover {
+    border-color: #86b7fe;
+    color: #0d6efd;
+    background: #f7fbff;
+}
+
+.template-picker {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #fff;
+    max-height: 340px;
+    overflow: auto;
+}
+
+.template-picker-table {
+    width: 100%;
+    table-layout: fixed;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.template-picker-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: #f7f9fc;
+    border-bottom: 1px solid var(--line);
+    color: var(--text-muted);
+    font-weight: 600;
+    padding: 7px 8px;
+}
+
+.template-picker-table td {
+    border-bottom: 1px solid var(--line);
+    padding: 7px 8px;
+    vertical-align: middle;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.template-picker-table tbody tr:last-child td {
+    border-bottom: 0;
+}
+
+.template-picker-check {
+    width: 40px;
+    text-align: center;
+}
+
+.template-picker-code {
+    width: 170px;
+    font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
+    font-weight: 600;
+}
+
+.template-picker-title {
+    width: 180px;
+    font-weight: 600;
+}
+
+.template-picker-category {
+    width: 140px;
+}
+
+.template-picker-meta {
+    width: 130px;
 }
 
 .codebox,

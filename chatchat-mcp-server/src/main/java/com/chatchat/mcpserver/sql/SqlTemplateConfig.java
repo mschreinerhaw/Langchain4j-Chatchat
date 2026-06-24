@@ -40,6 +40,26 @@ public class SqlTemplateConfig {
     @Column
     private String parameterSchemaJson;
 
+    @Column(length = 32)
+    private String riskLevel = "MEDIUM";
+
+    @Column(length = 100)
+    private String category = "sql_diagnostic";
+
+    @Column(length = 64)
+    private String databaseType = "generic";
+
+    @Column(length = 64)
+    private String datasourceId;
+
+    @Lob
+    @Column
+    private String routingLabelsJson;
+
+    @Lob
+    @Column
+    private String intentSignalsJson;
+
     @Column(nullable = false)
     private boolean enabled = true;
 

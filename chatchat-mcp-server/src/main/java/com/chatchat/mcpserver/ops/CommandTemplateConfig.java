@@ -39,6 +39,16 @@ public class CommandTemplateConfig {
     @Column
     private String parameterSchemaJson;
 
+    @Column(length = 32)
+    private String riskLevel = "LOW";
+
+    @Column(length = 100)
+    private String category = "system_diagnostic";
+
+    @Lob
+    @Column
+    private String intentSignalsJson;
+
     @Column(nullable = false)
     private boolean enabled = true;
 

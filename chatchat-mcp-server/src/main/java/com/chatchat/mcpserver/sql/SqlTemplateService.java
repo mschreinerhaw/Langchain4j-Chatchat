@@ -45,16 +45,44 @@ public class SqlTemplateService {
         config.setDescription(request.getDescription());
         config.setSqlTemplate(firstText(request.getSqlTemplate(), config.getSqlTemplate()));
         config.setParameterSchemaJson(request.getParameterSchemaJson());
+        config.setRiskLevel(firstText(request.getRiskLevel(), config.getRiskLevel()));
+        config.setCategory(firstText(request.getCategory(), config.getCategory()));
+        config.setDatabaseType(firstText(request.getDatabaseType(), config.getDatabaseType()));
+        config.setDatasourceId(blankToNull(request.getDatasourceId()));
+        config.setRoutingLabelsJson(request.getRoutingLabelsJson());
+        config.setIntentSignalsJson(request.getIntentSignalsJson());
         config.setEnabled(request.isEnabled());
         normalize(config);
         return repository.save(config);
     }
 
+    @Transactional
+    public void delete(String id) {
+        SqlTemplateConfig config = getById(id);
+        if (isDefaultCode(config.getCode())) {
+            config.setEnabled(false);
+            repository.save(config);
+            return;
+        }
+        repository.delete(config);
+    }
+
+    @Transactional
+    public List<SqlTemplateConfig> listEnabled() {
+        ensureDefaults();
+        return repository.findByEnabledTrueOrderByCodeAsc();
+    }
+
     public String render(String code, Map<String, Object> parameters) {
+        return render(code, parameters, null);
+    }
+
+    public String render(String code, Map<String, Object> parameters, SqlDatasourceConfig datasource) {
         ensureDefaults();
         SqlTemplateConfig config = repository.findByCode(requireText(code, "SQL template code is required").toUpperCase(Locale.ROOT))
             .filter(SqlTemplateConfig::isEnabled)
             .orElseThrow(() -> new IllegalArgumentException("SQL template not found or disabled: " + code));
+        assertCompatible(config, datasource);
         Matcher matcher = TOKEN.matcher(config.getSqlTemplate());
         StringBuffer buffer = new StringBuffer();
         while (matcher.find()) {
@@ -72,6 +100,15 @@ public class SqlTemplateService {
             .orElseThrow(() -> new IllegalArgumentException("SQL template not found: " + id));
     }
 
+    public boolean isCompatible(SqlTemplateConfig template, SqlDatasourceConfig datasource) {
+        try {
+            assertCompatible(template, datasource);
+            return true;
+        } catch (IllegalArgumentException ex) {
+            return false;
+        }
+    }
+
     @Transactional
     public void ensureDefaults() {
         for (DefaultTemplate template : defaults()) {
@@ -82,6 +119,10 @@ public class SqlTemplateService {
                 config.setDescription(template.description());
                 config.setSqlTemplate(template.sql());
                 config.setParameterSchemaJson(writeJson(template.schema()));
+                config.setRiskLevel("MEDIUM");
+                config.setCategory(categoryFromCode(template.code()));
+                config.setDatabaseType("generic");
+                config.setIntentSignalsJson(writeJson(List.of(template.code(), template.title(), template.description())));
                 config.setEnabled(true);
                 repository.save(config);
             }
@@ -95,6 +136,115 @@ public class SqlTemplateService {
         }
         config.setTitle(firstText(config.getTitle(), config.getCode()));
         config.setSqlTemplate(requireText(config.getSqlTemplate(), "SQL template is required"));
+        config.setRiskLevel(normalizeRisk(config.getRiskLevel()));
+        config.setCategory(normalizeCategory(config.getCategory(), config.getCode()));
+        config.setDatabaseType(SqlDatasourceConfigService.normalizeDatabaseTypeToken(config.getDatabaseType()));
+        config.setDatasourceId(blankToNull(config.getDatasourceId()));
+        config.setRoutingLabelsJson(normalizeJsonArray(config.getRoutingLabelsJson()));
+        config.setParameterSchemaJson(normalizeJsonObject(config.getParameterSchemaJson()));
+        config.setIntentSignalsJson(normalizeJsonArray(config.getIntentSignalsJson()));
+    }
+
+    private void assertCompatible(SqlTemplateConfig template, SqlDatasourceConfig datasource) {
+        if (template == null || datasource == null) {
+            return;
+        }
+        String templateType = SqlDatasourceConfigService.normalizeDatabaseTypeToken(template.getDatabaseType());
+        String datasourceType = SqlDatasourceConfigService.normalizeDatabaseTypeToken(datasource.getDatabaseType());
+        if (!"generic".equals(templateType) && !templateType.equals(datasourceType)) {
+            throw new IllegalArgumentException("SQL template " + template.getCode()
+                + " requires databaseType=" + templateType + ", but datasource "
+                + datasource.getName() + " is databaseType=" + datasourceType);
+        }
+        String boundDatasourceId = blankToNull(template.getDatasourceId());
+        if (boundDatasourceId != null && !boundDatasourceId.equals(datasource.getId())) {
+            throw new IllegalArgumentException("SQL template " + template.getCode()
+                + " is bound to another datasource asset");
+        }
+        List<String> allowedTemplates = readTemplateAllowlist(datasource.getAllowedTemplatesJson());
+        if (!allowedTemplates.isEmpty()
+            && !allowedTemplates.contains(template.getCode().trim().toUpperCase(Locale.ROOT))) {
+            throw new IllegalArgumentException("SQL template " + template.getCode()
+                + " is not allowed by datasource asset " + datasource.getName());
+        }
+    }
+
+    private List<String> readTemplateAllowlist(String json) {
+        if (json == null || json.isBlank()) {
+            return List.of();
+        }
+        try {
+            Object value = objectMapper.readValue(json, Object.class);
+            if (value instanceof List<?> list) {
+                return list.stream()
+                    .map(item -> item == null ? null : String.valueOf(item).trim().toUpperCase(Locale.ROOT))
+                    .filter(item -> item != null && !item.isBlank())
+                    .distinct()
+                    .toList();
+            }
+        } catch (Exception ignored) {
+            // Invalid stale allowlists are treated as legacy unconfigured assets.
+        }
+        return List.of();
+    }
+
+    private String normalizeRisk(String riskLevel) {
+        String normalized = firstText(riskLevel, "MEDIUM").trim().toUpperCase(Locale.ROOT);
+        return switch (normalized) {
+            case "LOW", "MEDIUM", "HIGH", "CRITICAL" -> normalized;
+            default -> "MEDIUM";
+        };
+    }
+
+    private String normalizeCategory(String category, String code) {
+        String value = firstText(category, categoryFromCode(code));
+        return value.trim().toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9_\\-]", "_");
+    }
+
+    private String categoryFromCode(String code) {
+        String value = code == null ? "" : code.toLowerCase(Locale.ROOT);
+        if (value.contains("count")) {
+            return "sql_count";
+        }
+        if (value.contains("recent") || value.contains("data")) {
+            return "sql_sample";
+        }
+        return "sql_diagnostic";
+    }
+
+    private boolean isDefaultCode(String code) {
+        String normalized = code == null ? "" : code.trim().toUpperCase(Locale.ROOT);
+        return defaults().stream().anyMatch(template -> template.code().equals(normalized));
+    }
+
+    private String normalizeJsonObject(String json) {
+        if (json == null || json.isBlank()) {
+            return writeJson(Map.of("type", "object", "properties", Map.of(), "required", List.of()));
+        }
+        try {
+            Object value = objectMapper.readValue(json, Object.class);
+            if (value instanceof Map<?, ?>) {
+                return ModelProtocolJson.compact(value);
+            }
+        } catch (Exception ignored) {
+            // Fall through to safe default.
+        }
+        return writeJson(Map.of("type", "object", "properties", Map.of(), "required", List.of()));
+    }
+
+    private String normalizeJsonArray(String json) {
+        if (json == null || json.isBlank()) {
+            return writeJson(List.of());
+        }
+        try {
+            Object value = objectMapper.readValue(json, Object.class);
+            if (value instanceof List<?>) {
+                return ModelProtocolJson.compact(value);
+            }
+        } catch (Exception ignored) {
+            // Fall through to safe default.
+        }
+        return writeJson(List.of());
     }
 
     private String safeSqlLiteral(String name, Object value) {
@@ -151,6 +301,10 @@ public class SqlTemplateService {
 
     private String firstText(String value, String fallback) {
         return value == null || value.isBlank() ? fallback : value.trim();
+    }
+
+    private String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
     }
 
     private record DefaultTemplate(String code, String title, String description, String sql, Map<String, Object> schema) {

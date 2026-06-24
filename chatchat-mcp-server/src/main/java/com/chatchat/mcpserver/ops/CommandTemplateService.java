@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 @Service
@@ -46,10 +47,24 @@ public class CommandTemplateService {
         config.setDescription(request.getDescription());
         config.setCommandTemplate(firstText(request.getCommandTemplate(), config.getCommandTemplate()));
         config.setParameterSchemaJson(request.getParameterSchemaJson());
+        config.setRiskLevel(firstText(request.getRiskLevel(), config.getRiskLevel()));
+        config.setCategory(firstText(request.getCategory(), config.getCategory()));
+        config.setIntentSignalsJson(request.getIntentSignalsJson());
         config.setEnabled(request.isEnabled());
         config.setRuntimeAction(firstText(request.getRuntimeAction(), "confirm_required"));
         normalize(config);
         return repository.save(config);
+    }
+
+    @Transactional
+    public void delete(String id) {
+        CommandTemplateConfig config = getById(id);
+        if (isDefaultCode(config.getCode())) {
+            config.setEnabled(false);
+            repository.save(config);
+            return;
+        }
+        repository.delete(config);
     }
 
     public CommandTemplateConfig getById(String id) {
@@ -74,6 +89,9 @@ public class CommandTemplateService {
                 config.setDescription(template.description());
                 config.setCommandTemplate(template.command());
                 config.setParameterSchemaJson(writeJson(template.schema()));
+                config.setRiskLevel("LOW");
+                config.setCategory(categoryFromCode(template.code()));
+                config.setIntentSignalsJson(writeJson(List.of(template.code(), template.title(), template.description())));
                 config.setRuntimeAction("confirm_required");
                 config.setEnabled(true);
                 repository.save(config);
@@ -92,6 +110,9 @@ public class CommandTemplateService {
         config.setDescription(template.description());
         config.setCommandTemplate(template.command());
         config.setParameterSchemaJson(writeJson(template.schema()));
+        config.setRiskLevel("LOW");
+        config.setCategory(categoryFromCode(template.code()));
+        config.setIntentSignalsJson(writeJson(List.of(template.code(), template.title(), template.description())));
         config.setRuntimeAction("confirm_required");
         config.setEnabled(true);
         repository.save(config);
@@ -104,7 +125,76 @@ public class CommandTemplateService {
         }
         config.setTitle(firstText(config.getTitle(), config.getCode()));
         config.setCommandTemplate(requireText(config.getCommandTemplate(), "Command template cannot be empty"));
+        config.setRiskLevel(normalizeRisk(config.getRiskLevel()));
+        config.setCategory(normalizeCategory(config.getCategory(), config.getCode()));
+        config.setParameterSchemaJson(normalizeJsonObject(config.getParameterSchemaJson()));
+        config.setIntentSignalsJson(normalizeJsonArray(config.getIntentSignalsJson()));
         config.setRuntimeAction("confirm_required");
+    }
+
+    private String normalizeRisk(String riskLevel) {
+        String normalized = firstText(riskLevel, "LOW").trim().toUpperCase(Locale.ROOT);
+        return switch (normalized) {
+            case "LOW", "MEDIUM", "HIGH", "CRITICAL" -> normalized;
+            default -> "LOW";
+        };
+    }
+
+    private String normalizeCategory(String category, String code) {
+        String value = firstText(category, categoryFromCode(code));
+        return value.trim().toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9_\\-]", "_");
+    }
+
+    private String categoryFromCode(String code) {
+        String value = code == null ? "" : code.toLowerCase(Locale.ROOT);
+        if (value.contains("log")) {
+            return "log_diagnostic";
+        }
+        if (value.contains("service")) {
+            return "service_diagnostic";
+        }
+        if (value.contains("disk") || value.contains("memory") || value.contains("cpu") || value.contains("system")) {
+            return "system_diagnostic";
+        }
+        return "host_diagnostic";
+    }
+
+    private boolean isDefaultCode(String code) {
+        String normalized = code == null ? "" : code.trim().toUpperCase(Locale.ROOT);
+        if (systemOverviewTemplate().code().equals(normalized)) {
+            return true;
+        }
+        return defaults().stream().anyMatch(template -> template.code().equals(normalized));
+    }
+
+    private String normalizeJsonObject(String json) {
+        if (json == null || json.isBlank()) {
+            return writeJson(Map.of("type", "object", "properties", Map.of(), "required", List.of()));
+        }
+        try {
+            Object value = objectMapper.readValue(json, Object.class);
+            if (value instanceof Map<?, ?>) {
+                return ModelProtocolJson.compact(value);
+            }
+        } catch (Exception ignored) {
+            // Fall through to safe default.
+        }
+        return writeJson(Map.of("type", "object", "properties", Map.of(), "required", List.of()));
+    }
+
+    private String normalizeJsonArray(String json) {
+        if (json == null || json.isBlank()) {
+            return writeJson(List.of());
+        }
+        try {
+            Object value = objectMapper.readValue(json, Object.class);
+            if (value instanceof List<?>) {
+                return ModelProtocolJson.compact(value);
+            }
+        } catch (Exception ignored) {
+            // Fall through to safe default.
+        }
+        return writeJson(List.of());
     }
 
     private List<DefaultTemplate> defaults() {
@@ -150,6 +240,14 @@ public class CommandTemplateService {
             + "echo '=== 磁盘使用 ==='; df -h / /boot /var /tmp 2>/dev/null; "
             + "echo '=== CPU/内存占用前20进程 ==='; top -bn1 -o %CPU | head -20; "
             + "echo '=== Docker容器状态 ==='; docker ps -a --format 'table {{.ID}}\\t{{.Image}}\\t{{.Status}}\\t{{.Names}}'";
+        command = writeJson(List.of(
+            "echo '=== system load ==='; uptime",
+            "echo '=== load details ==='; cat /proc/loadavg",
+            "echo '=== memory usage ==='; free -h",
+            "echo '=== disk usage ==='; df -h / /boot /var /tmp 2>/dev/null",
+            "echo '=== top cpu processes ==='; top -bn1 -o %CPU | head -20",
+            "echo '=== docker containers ==='; docker ps -a --format 'table {{.ID}}\\t{{.Image}}\\t{{.Status}}\\t{{.Names}}'"
+        ));
         return new DefaultTemplate(
             "CHECK_SYSTEM_OVERVIEW",
             "System overview",

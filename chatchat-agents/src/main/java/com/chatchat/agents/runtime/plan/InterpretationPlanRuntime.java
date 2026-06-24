@@ -12,6 +12,7 @@ import com.chatchat.agents.runtime.ToolRuntimeRequest;
 import com.chatchat.agents.runtime.ToolRuntimeService;
 import com.chatchat.common.tool.ToolOutput;
 import com.chatchat.common.tool.ToolInput;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -26,6 +27,7 @@ import java.util.stream.Collectors;
 /**
  * Executes validated InterpretationPlan DAGs against the MCP tool runtime.
  */
+@Slf4j
 public class InterpretationPlanRuntime {
 
     private static final String AGENT_RUN_ID_ATTRIBUTE = "__agentRunId";
@@ -156,22 +158,33 @@ public class InterpretationPlanRuntime {
             if (remaining.isEmpty()) {
                 break;
             }
-            DagDecision decision = dagExecutionController.decide(new DagDecisionRequest(
+            int currentDecisionCount = ++decisionCount;
+            DagDecision decision = deterministicReadyToolDecision(
                 executablePlan,
-                new LinkedHashSet<>(remaining),
-                Map.copyOf(completed),
-                List.copyOf(executions),
+                remaining,
+                stepsById,
                 completedStepIds,
-                ++decisionCount,
-                InterpretationExecutionProtocol.VERSION,
-                executionTraceId,
-                finalAnswer
-            ));
+                currentDecisionCount,
+                executionTraceId
+            );
+            if (decision == null) {
+                decision = dagExecutionController.decide(new DagDecisionRequest(
+                    executablePlan,
+                    new LinkedHashSet<>(remaining),
+                    Map.copyOf(completed),
+                    List.copyOf(executions),
+                    completedStepIds,
+                    currentDecisionCount,
+                    InterpretationExecutionProtocol.VERSION,
+                    executionTraceId,
+                    finalAnswer
+                ));
+            }
             DecisionValidation decisionValidation = validateDecision(decision, executablePlan, remaining, stepsById, completedStepIds);
             recordControllerDecision(
                 executableRequest,
                 executionTraceId,
-                decisionCount,
+                currentDecisionCount,
                 decision,
                 decisionValidation,
                 remaining,
@@ -187,7 +200,7 @@ public class InterpretationPlanRuntime {
                         "executionTraceId", executionTraceId,
                         "remainingStepIds", new ArrayList<>(remaining),
                         "completedStepIds", new ArrayList<>(completedStepIds),
-                        "decisionCount", decisionCount,
+                        "decisionCount", currentDecisionCount,
                         "controllerDecision", decision == null ? Map.of() : decisionMetadata(decision),
                         "guardResult", guardResultMetadata(decisionValidation)
                     ),
@@ -205,7 +218,7 @@ public class InterpretationPlanRuntime {
                         "executionTraceId", executionTraceId,
                         "remainingStepIds", new ArrayList<>(remaining),
                         "completedStepIds", new ArrayList<>(completedStepIds),
-                        "decisionCount", decisionCount,
+                        "decisionCount", currentDecisionCount,
                         "controllerDecision", decisionMetadata(decision),
                         "guardResult", guardResultMetadata(decisionValidation)
                     ),
@@ -223,7 +236,7 @@ public class InterpretationPlanRuntime {
                         "executionTraceId", executionTraceId,
                         "remainingStepIds", new ArrayList<>(remaining),
                         "completedStepIds", new ArrayList<>(completedStepIds),
-                        "decisionCount", decisionCount,
+                        "decisionCount", currentDecisionCount,
                         "controllerDecision", decisionMetadata(decision),
                         "guardResult", guardResultMetadata(decisionValidation)
                     ),
@@ -297,6 +310,44 @@ public class InterpretationPlanRuntime {
         );
     }
 
+    private DagDecision deterministicReadyToolDecision(InterpretationPlan plan,
+                                                       Set<Integer> remaining,
+                                                       Map<Integer, InterpretationPlan.Step> stepsById,
+                                                       Set<Integer> completedStepIds,
+                                                       int decisionCount,
+                                                       String executionTraceId) {
+        if (remaining == null || remaining.isEmpty() || stepsById == null || stepsById.isEmpty()) {
+            return null;
+        }
+        List<Integer> readyToolStepIds = remaining.stream()
+            .filter(stepId -> stepId != null)
+            .sorted()
+            .map(stepsById::get)
+            .filter(step -> step != null && step.mcpToolAction())
+            .filter(step -> completedStepIds != null && completedStepIds.containsAll(safeIntegerList(step.dependsOn())))
+            .map(InterpretationPlan.Step::id)
+            .toList();
+        if (readyToolStepIds.isEmpty()) {
+            return null;
+        }
+        List<Integer> selected = allowParallel(plan) ? readyToolStepIds : List.of(readyToolStepIds.get(0));
+        String action = selected.size() > 1 ? "execute_parallel_steps" : "execute_step";
+        log.info("InterpretationPlan deterministic tool scheduling: traceId={}, decisionCount={}, action={}, stepIds={}",
+            executionTraceId, decisionCount, action, selected);
+        return new DagDecision(
+            InterpretationExecutionProtocol.VERSION,
+            action,
+            selected,
+            "Runtime selected ready mcp_tool step(s) deterministically; required tool execution must not be skipped.",
+            null,
+            mapOf(
+                "runtimeDeterministicScheduling", true,
+                "decisionCount", decisionCount,
+                "executionTraceId", executionTraceId
+            )
+        );
+    }
+
     private List<StepExecution> executeWave(List<InterpretationPlan.Step> ready,
                                             ExecutionRequest request,
                                             Map<Integer, StepExecution> completed) {
@@ -319,6 +370,11 @@ public class InterpretationPlanRuntime {
         if (step.mcpToolAction()) {
             try {
                 Map<String, Object> resolvedInput = resolvedStepInput(step, request.plan(), completed);
+                log.info("InterpretationPlan step resolved input: traceId={}, stepId={}, tool={}, input={}",
+                    executionTraceId(request),
+                    step.id(),
+                    step.toolName(),
+                    summarize(resolvedInput));
                 ToolRuntimeExecution execution = toolRuntimeService.execute(ToolRuntimeRequest.builder()
                     .toolName(step.toolName())
                     .runtimeMode("interpretation_plan")
@@ -336,6 +392,14 @@ public class InterpretationPlanRuntime {
                     .attributes(attributesForStep(request, step, completed, resolvedInput))
                     .build());
                 boolean success = execution != null && execution.output() != null && execution.output().isSuccess();
+                log.info("InterpretationPlan step tool completed: traceId={}, stepId={}, tool={}, success={}, durationMs={}, error={}, output={}",
+                    executionTraceId(request),
+                    step.id(),
+                    step.toolName(),
+                    success,
+                    elapsed(startedAt),
+                    execution == null || execution.output() == null ? null : execution.output().getErrorMessage(),
+                    summarize(execution == null || execution.output() == null ? null : execution.output().getData()));
                 StepExecution result = new StepExecution(
                     step.id(),
                     step.actionType(),
@@ -353,6 +417,11 @@ public class InterpretationPlanRuntime {
                 recordPlanObservation(request, result, execution == null ? null : execution.output());
                 return result;
             } catch (RuntimeException ex) {
+                log.warn("InterpretationPlan step failed before tool execution: traceId={}, stepId={}, tool={}, error={}",
+                    executionTraceId(request),
+                    step.id(),
+                    step.toolName(),
+                    ex.getMessage());
                 StepExecution result = new StepExecution(
                     step.id(),
                     step.actionType(),
@@ -541,6 +610,30 @@ public class InterpretationPlanRuntime {
                                            StepExecution execution,
                                            Map<Integer, StepExecution> completed,
                                            long startedAt) {
+        StepReview localReview = localToolResultReview(step, execution);
+        if (localReview != null) {
+            Map<String, Object> metadata = new LinkedHashMap<>(execution.metadata());
+            metadata.put("toolResultReviewEnabled", stepResultReviewer != null);
+            metadata.put("localDecisionPhase", "local_decision");
+            metadata.put("toolResultReviewSatisfied", localReview.satisfied());
+            metadata.put("toolResultReviewReason", localReview.reason());
+            metadata.putAll(localReview.metadata() == null ? Map.of() : localReview.metadata());
+            if (localReview.satisfied()) {
+                return execution.withMetadata(metadata, elapsed(startedAt));
+            }
+            return new StepExecution(
+                execution.stepId(),
+                execution.actionType(),
+                execution.toolName(),
+                false,
+                execution.output(),
+                "Tool result rejected by local review: " + localReview.reason(),
+                execution.toolExecution(),
+                execution.finalAnswer(),
+                elapsed(startedAt),
+                metadata
+            );
+        }
         if (stepResultReviewer == null) {
             return execution;
         }
@@ -595,6 +688,62 @@ public class InterpretationPlanRuntime {
             elapsed(startedAt),
             metadata
         );
+    }
+
+    private StepReview localToolResultReview(InterpretationPlan.Step step, StepExecution execution) {
+        if (execution == null || !execution.success()) {
+            return null;
+        }
+        if (isAssetDiscoveryTool(execution.toolName())) {
+            int returnedCount = discoveredAssetCount(execution.output(), "assets");
+            if (returnedCount <= 0) {
+                return null;
+            }
+            return StepReview.accepted(
+                "Asset discovery returned " + returnedCount + " candidate asset(s); continue to dependent execution step.",
+                mapOf(
+                    "toolResultReviewAutoAccepted", true,
+                    "toolResultReviewAutoAcceptReason", "asset_query returned non-empty asset metadata",
+                    "assetDiscoveryReturnedCount", returnedCount,
+                    "assetDiscoveryStepId", step == null ? null : step.id()
+                )
+            );
+        }
+        if (isTemplateDiscoveryTool(execution.toolName())) {
+            int returnedCount = discoveredAssetCount(execution.output(), "templates");
+            if (returnedCount <= 0) {
+                return null;
+            }
+            return StepReview.accepted(
+                "Template discovery returned " + returnedCount + " candidate template(s); continue to dependent execution step.",
+                mapOf(
+                    "toolResultReviewAutoAccepted", true,
+                    "toolResultReviewAutoAcceptReason", "template_query returned non-empty template metadata",
+                    "templateDiscoveryReturnedCount", returnedCount,
+                    "templateDiscoveryStepId", step == null ? null : step.id()
+                )
+            );
+        }
+        return null;
+    }
+
+    private int discoveredAssetCount(Object output, String listKey) {
+        if (!(output instanceof Map<?, ?> map)) {
+            return 0;
+        }
+        Integer returnedCount = integerValue(firstMapValue(map, "returnedCount", "returned_count", "count"));
+        if (returnedCount != null) {
+            return Math.max(0, returnedCount);
+        }
+        int explicit = listSize(firstMapValue(map, listKey));
+        if (explicit > 0) {
+            return explicit;
+        }
+        return 0;
+    }
+
+    private int listSize(Object value) {
+        return value instanceof List<?> list ? list.size() : 0;
     }
 
     private int toolResultReviewMaxAttempts(ExecutionRequest request) {
@@ -722,10 +871,12 @@ public class InterpretationPlanRuntime {
         for (int i = 0; i < tokens.size() - 1; i++) {
             String token = tokens.get(i);
             Object child = current.get(token);
-            if (!(child instanceof Map<?, ?>)) {
+            if (child instanceof Map<?, ?> map) {
+                child = new LinkedHashMap<>(map);
+            } else {
                 child = new LinkedHashMap<String, Object>();
-                current.put(token, child);
             }
+            current.put(token, child);
             current = (Map<String, Object>) child;
         }
         current.put(tokens.get(tokens.size() - 1), value);
@@ -833,6 +984,14 @@ public class InterpretationPlanRuntime {
             || semantic.contains("generic_web_site_search")
             || semantic.equals("web_site_search")
             || (semantic.contains("site_search") && !semantic.contains("search_and_extract"));
+    }
+
+    private boolean isAssetDiscoveryTool(String toolName) {
+        return "asset_query".equals(toolSemanticKey(toolName));
+    }
+
+    private boolean isTemplateDiscoveryTool(String toolName) {
+        return "template_query".equals(toolSemanticKey(toolName));
     }
 
     private boolean isCrawlerTool(String toolName) {
@@ -1161,6 +1320,20 @@ public class InterpretationPlanRuntime {
         return value == null ? null : String.valueOf(value);
     }
 
+    private Integer integerValue(Object value) {
+        if (value instanceof Number number) {
+            return number.intValue();
+        }
+        if (value == null || String.valueOf(value).isBlank()) {
+            return null;
+        }
+        try {
+            return Integer.parseInt(String.valueOf(value));
+        } catch (NumberFormatException ignored) {
+            return null;
+        }
+    }
+
     private String firstText(String first, String second) {
         return first != null && !first.isBlank() ? first : second;
     }
@@ -1176,6 +1349,21 @@ public class InterpretationPlanRuntime {
         String normalized = value.replaceAll("\\s+", " ").trim();
         int limit = Math.max(80, maxChars);
         return normalized.length() <= limit ? normalized : normalized.substring(0, limit);
+    }
+
+    private String summarize(Object value) {
+        if (value == null) {
+            return null;
+        }
+        return shortText(String.valueOf(value), 3000);
+    }
+
+    private Map<String, Object> mapOf(Object... values) {
+        Map<String, Object> map = new LinkedHashMap<>();
+        for (int index = 0; index + 1 < values.length; index += 2) {
+            map.put(String.valueOf(values[index]), values[index + 1]);
+        }
+        return map;
     }
 
     private long elapsed(long startedAt) {

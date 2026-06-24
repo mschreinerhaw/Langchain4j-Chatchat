@@ -323,6 +323,125 @@ class InterpretationPlanRuntimeTest {
     }
 
     @Test
+    void acceptsAssetDiscoveryLocallyAndExecutesDependentLinuxCommand() {
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool("mcp_chatchat_mcp_server_asset_query")).thenReturn(true);
+        when(toolRegistry.hasTool("mcp_chatchat_mcp_server_linux_command_execute")).thenReturn(true);
+        when(toolRegistry.getToolMetadata("mcp_chatchat_mcp_server_asset_query"))
+            .thenReturn(ToolMetadata.builder().id("mcp_chatchat_mcp_server_asset_query").riskLevel("low").build());
+        when(toolRegistry.getToolMetadata("mcp_chatchat_mcp_server_linux_command_execute"))
+            .thenReturn(ToolMetadata.builder()
+                .id("mcp_chatchat_mcp_server_linux_command_execute")
+                .riskLevel("medium")
+                .parameters(List.of(
+                    ToolParameter.builder().name("template").type("string").required(true).build(),
+                    ToolParameter.builder().name("executionContext").type("object").required(true).build()
+                ))
+                .build());
+        ToolRuntimeService toolRuntimeService = mock(ToolRuntimeService.class);
+        when(toolRuntimeService.execute(any())).thenAnswer(invocation -> {
+            ToolRuntimeRequest request = invocation.getArgument(0);
+            if ("mcp_chatchat_mcp_server_asset_query".equals(request.getToolName())) {
+                return new ToolRuntimeExecution(
+                    ToolOutput.success(Map.of(
+                        "schemaVersion", "asset_query_result.v1",
+                        "success", true,
+                        "returnedCount", 1,
+                        "assets", List.of(Map.of(
+                            "asset", Map.of(
+                                "name", "docker_service",
+                                "environment", "DEV",
+                                "toolName", "ssh_docker_service"
+                            ),
+                            "capabilities", Map.of(
+                                "allowedCommandTemplates", List.of("CHECK_SYSTEM_OVERVIEW")
+                            )
+                        ))
+                    )),
+                    ToolMetadata.builder().id(request.getToolName()).build(),
+                    null,
+                    "success",
+                    Map.of()
+                );
+            }
+            return new ToolRuntimeExecution(
+                ToolOutput.success(Map.of("status", "ok")),
+                ToolMetadata.builder().id(request.getToolName()).build(),
+                null,
+                "success",
+                Map.of()
+            );
+        });
+        AtomicInteger assetReviewCalls = new AtomicInteger();
+        InterpretationPlanRuntime.StepResultReviewer reviewer = request -> {
+            if ("mcp_chatchat_mcp_server_asset_query".equals(request.execution().toolName())) {
+                assetReviewCalls.incrementAndGet();
+                return InterpretationPlanRuntime.StepReview.rejected("asset discovery has no load metrics", Map.of());
+            }
+            return InterpretationPlanRuntime.StepReview.accepted("command output usable", Map.of());
+        };
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("system_operation", "Analyze docker_service load", "medium"),
+            context(),
+            new InterpretationPlan.Plan(
+                List.of(
+                    new InterpretationPlan.Step(1, "mcp_tool", "mcp_chatchat_mcp_server_asset_query",
+                        Map.of("filters", Map.of("assetName", "docker_service"), "limit", 10), List.of(), null, null),
+                    new InterpretationPlan.Step(2, "mcp_tool", "mcp_chatchat_mcp_server_linux_command_execute",
+                        Map.of("template", "CHECK_SYSTEM_OVERVIEW", "executionContext", Map.of()), List.of(1), null, null),
+                    new InterpretationPlan.Step(3, "final_answer", "", Map.of("answer", "done"), List.of(2), null, null)
+                ),
+                List.of(),
+                List.of(
+                    new InterpretationPlan.Binding(1, "$.assets[0].asset.environment", 2, "executionContext.env", "jsonpath", true),
+                    new InterpretationPlan.Binding(1, "$.assets[0].asset.name", 2, "executionContext.assetName", "jsonpath", true)
+                ),
+                null
+            ),
+            new InterpretationPlan.ExecutionPolicy(
+                3,
+                false,
+                List.of("mcp_chatchat_mcp_server_asset_query", "mcp_chatchat_mcp_server_linux_command_execute"),
+                List.of(),
+                30000
+            ),
+            review()
+        );
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            toolRuntimeService,
+            new InterpretationPlanValidator(),
+            null,
+            reviewer,
+            scriptedController(List.of(List.of(1), List.of(2), List.of(3)))
+        );
+
+        InterpretationPlanRuntime.ExecutionResult result = runtime.execute(new InterpretationPlanRuntime.ExecutionRequest(
+            plan,
+            toolRegistry,
+            List.of("mcp_chatchat_mcp_server_asset_query", "mcp_chatchat_mcp_server_linux_command_execute"),
+            "tenant-1",
+            "req-asset-linux",
+            "conv-asset-linux",
+            "user-1",
+            Map.of()
+        ));
+
+        assertThat(result.success())
+            .as(result.status() + ": " + result.errorMessage() + " steps=" + result.steps())
+            .isTrue();
+        ArgumentCaptor<ToolRuntimeRequest> captor = ArgumentCaptor.forClass(ToolRuntimeRequest.class);
+        verify(toolRuntimeService, times(2)).execute(captor.capture());
+        Map<?, ?> linuxParameters = captor.getAllValues().get(1).getToolInput().getParameters();
+        Map<?, ?> executionContext = (Map<?, ?>) linuxParameters.get("executionContext");
+        assertThat(assetReviewCalls).hasValue(0);
+        assertThat(captor.getAllValues().get(1).getToolName()).isEqualTo("mcp_chatchat_mcp_server_linux_command_execute");
+        assertThat(linuxParameters.get("template")).isEqualTo("CHECK_SYSTEM_OVERVIEW");
+        assertThat(executionContext.get("assetName")).isEqualTo("docker_service");
+        assertThat(executionContext.get("env")).isEqualTo("DEV");
+    }
+
+    @Test
     void failsWhenEdgeContractRequiredFieldIsMissing() {
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         when(toolRegistry.hasTool("document_search")).thenReturn(true);

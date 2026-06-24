@@ -2,6 +2,8 @@ package com.chatchat.mcpserver.ops;
 
 import com.chatchat.mcpserver.tool.AgentRuntimeGovernanceFactory;
 import com.chatchat.mcpserver.tool.McpToolConcurrencyManager;
+import com.chatchat.mcpserver.tool.StandardToolExecutionResultFactory;
+import com.chatchat.mcpserver.routing.AssetMetadataFactory;
 import com.chatchat.mcpserver.routing.ExecutionTargetRouter;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -33,8 +35,10 @@ public class OpsMcpToolPublisher {
     private final HttpRequestToolService httpRequestToolService;
     private final LinuxCommandService linuxCommandService;
     private final ExecutionTargetRouter executionTargetRouter;
+    private final AssetMetadataFactory assetMetadataFactory;
     private final AgentRuntimeGovernanceFactory governanceFactory;
     private final McpToolConcurrencyManager concurrencyManager;
+    private final StandardToolExecutionResultFactory standardResultFactory;
     private final ObjectMapper objectMapper;
     private final Set<String> managedSshToolNames = ConcurrentHashMap.newKeySet();
     private final Set<String> managedHttpToolNames = ConcurrentHashMap.newKeySet();
@@ -119,6 +123,7 @@ public class OpsMcpToolPublisher {
                     "type", "object",
                     "description", "Logical endpoint context such as env, cluster, targetType, target, service, or labels"
                 ),
+                "template", Map.of("type", "string", "description", "HTTP template id returned by template_query; this is a logical selector, not a URL"),
                 "parameters", Map.of("type", "object", "additionalProperties", true),
                 "sourceTaskId", Map.of("type", "string"),
                 "reason", Map.of("type", "string", "description", "Execution reason for confirmation and audit")
@@ -183,6 +188,7 @@ public class OpsMcpToolPublisher {
         meta.put("assetCategory", endpoint.getCategory());
         meta.put("endpointCategory", endpoint.getCategory());
         meta.put("method", endpoint.getMethod());
+        meta.put("assetMetadata", assetMetadataFactory.httpEndpoint(endpoint));
         meta.put("mcp_tool_limit", concurrencyManager.limitMeta(endpoint.getToolName(), "http"));
         return meta;
     }
@@ -209,6 +215,7 @@ public class OpsMcpToolPublisher {
         meta.put("environment", host.getEnvironment());
         meta.put("templateRegistryRequired", true);
         meta.put("allowedCommands", allowedCommands(host));
+        meta.put("assetMetadata", assetMetadataFactory.sshAsset(host));
         meta.put("mcp_tool_limit", concurrencyManager.limitMeta(host.getToolName(), "ssh"));
         return meta;
     }
@@ -233,6 +240,11 @@ public class OpsMcpToolPublisher {
         meta.put("templateRegistryRequired", true);
         meta.put("targetRoutingRequired", true);
         meta.put("forbiddenTargetFields", List.of("hostId", "host", "hostname", "ip", "ipAddress", "address"));
+        meta.put("assetMetadata", assetMetadataFactory.gateway(
+            "ssh_host",
+            hostConfigService.listEnabled().stream().map(assetMetadataFactory::sshAsset).toList(),
+            List.of("hostId", "host", "hostname", "ip", "ipAddress", "address")
+        ));
         meta.put("mcp_tool_limit", concurrencyManager.limitMeta("linux_command_execute", "ssh"));
         return meta;
     }
@@ -247,7 +259,7 @@ public class OpsMcpToolPublisher {
         governance.put("confirmation", mutableMap("default", "ask_before_execute", "allow_user_override", false));
         governance.put("input_policy", mutableMap(
             "must_show_parameters", true,
-            "required_preview_params", List.of("executionContext", "parameters", "reason", "sourceTaskId")
+            "required_preview_params", List.of("template", "executionContext", "parameters", "reason", "sourceTaskId")
         ));
         governance.put("audit", mutableMap("enabled", true, "log_params", true, "log_result_summary", true));
         Map<String, Object> meta = new LinkedHashMap<>(
@@ -256,6 +268,11 @@ public class OpsMcpToolPublisher {
         meta.put("runtimeAction", "confirm_required");
         meta.put("targetRoutingRequired", true);
         meta.put("forbiddenTargetFields", List.of("endpointId", "url", "uri", "host", "hostname", "ip", "ipAddress", "address"));
+        meta.put("assetMetadata", assetMetadataFactory.gateway(
+            "http_endpoint",
+            httpEndpointConfigService.listEnabled().stream().map(assetMetadataFactory::httpEndpoint).toList(),
+            List.of("endpointId", "url", "uri", "host", "hostname", "ip", "ipAddress", "address")
+        ));
         meta.put("mcp_tool_limit", concurrencyManager.limitMeta("http_request_execute", "http"));
         return meta;
     }
@@ -304,14 +321,17 @@ public class OpsMcpToolPublisher {
 
     private McpSchema.CallToolResult toCallToolResult(Object result) {
         boolean success = true;
+        Object structured = objectMapper.convertValue(result, Map.class);
         if (result instanceof HttpRequestToolResult http) {
             success = http.success();
+            structured = standardResultFactory.fromHttp(http);
         } else if (result instanceof LinuxCommandResult linux) {
             success = linux.success();
+            structured = standardResultFactory.fromLinuxCommand(linux);
         }
         return McpSchema.CallToolResult.builder()
             .addTextContent(success ? "Operation completed" : "Operation failed")
-            .structuredContent(objectMapper.convertValue(result, Map.class))
+            .structuredContent(structured)
             .isError(!success)
             .build();
     }
@@ -343,6 +363,9 @@ public class OpsMcpToolPublisher {
         if (parameters instanceof Map<?, ?> map) {
             ((Map<String, Object>) map).forEach(values::putIfAbsent);
         }
+        values.remove("template");
+        values.remove("templateId");
+        values.remove("template_id");
         values.remove("reason");
         return values;
     }

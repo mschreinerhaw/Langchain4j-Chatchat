@@ -62,6 +62,7 @@ public class SqlDatasourceConfigService {
         config.setDescription(blankToNull(request.getDescription()));
         config.setJdbcUrl(firstText(request.getJdbcUrl(), config.getJdbcUrl()));
         config.setDriverClass(blankToNull(request.getDriverClass()));
+        config.setDatabaseType(firstText(request.getDatabaseType(), config.getDatabaseType()));
         config.setUsername(blankToNull(request.getUsername()));
         config.setPassword(blankToNull(request.getPassword()));
         config.setEnabled(request.isEnabled());
@@ -76,6 +77,7 @@ public class SqlDatasourceConfigService {
         config.setSensitiveTablesJson(normalizeJsonArray(request.getSensitiveTablesJson(), "sensitiveTables"));
         config.setSensitiveFieldsJson(normalizeJsonArray(request.getSensitiveFieldsJson(), "sensitiveFields"));
         config.setAllowedTablesJson(normalizeJsonArray(request.getAllowedTablesJson(), "allowedTables"));
+        config.setAllowedTemplatesJson(normalizeJsonArray(request.getAllowedTemplatesJson(), "allowedTemplates"));
         config.setGovernanceJson(normalizeJsonObject(request.getGovernanceJson(), "governance"));
         normalize(config, id);
         SqlDatasourceConfig saved = repository.save(config);
@@ -120,6 +122,7 @@ public class SqlDatasourceConfigService {
         if (isApplicationJdbcUrl(config.getJdbcUrl())) {
             throw new IllegalArgumentException("Local configuration datasource is forbidden");
         }
+        config.setDatabaseType(normalizeDatabaseType(config.getDatabaseType(), config.getJdbcUrl(), config.getDriverClass()));
         config.setEnvironment(normalizeEnvironment(config.getEnvironment()));
         config.setRuntimeAction("confirm_required");
         config.setRoutingLabelsJson(normalizeJsonArray(mergedProtocolValues(config.getRoutingLabelsJson(), config.getRoutingLabels()), "routingLabels"));
@@ -132,6 +135,7 @@ public class SqlDatasourceConfigService {
         config.setSensitiveTablesJson(normalizeJsonArray(config.getSensitiveTablesJson(), "sensitiveTables"));
         config.setSensitiveFieldsJson(normalizeJsonArray(config.getSensitiveFieldsJson(), "sensitiveFields"));
         config.setAllowedTablesJson(normalizeJsonArray(config.getAllowedTablesJson(), "allowedTables"));
+        config.setAllowedTemplatesJson(normalizeJsonArray(config.getAllowedTemplatesJson(), "allowedTemplates"));
         config.setGovernanceJson(normalizeJsonObject(
             mergeGovernanceLabels(config.getGovernanceJson(), config.getRoutingLabelsJson(), config.getCapabilitiesJson()),
             "governance"
@@ -183,6 +187,60 @@ public class SqlDatasourceConfigService {
             case "DEV", "TEST", "UAT", "PROD" -> normalized;
             default -> "DEV";
         };
+    }
+
+    public static String normalizeDatabaseType(String value, String jdbcUrl, String driverClass) {
+        String explicit = blankToNullStatic(value);
+        if (explicit != null && !"generic".equalsIgnoreCase(explicit)) {
+            return normalizeDatabaseTypeToken(explicit);
+        }
+        String inferred = inferDatabaseType(jdbcUrl, driverClass);
+        return inferred == null ? "generic" : inferred;
+    }
+
+    public static String normalizeDatabaseTypeToken(String value) {
+        String normalized = blankToNullStatic(value);
+        if (normalized == null) {
+            return "generic";
+        }
+        normalized = normalized.trim().toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9_\\-]", "_");
+        return normalized.isBlank() ? "generic" : normalized;
+    }
+
+    private static String inferDatabaseType(String jdbcUrl, String driverClass) {
+        String probe = ((jdbcUrl == null ? "" : jdbcUrl) + " " + (driverClass == null ? "" : driverClass))
+            .toLowerCase(Locale.ROOT);
+        if (probe.contains("jdbc:mysql") || probe.contains("mysql")) {
+            return "mysql";
+        }
+        if (probe.contains("jdbc:postgresql") || probe.contains("postgresql") || probe.contains("postgres")) {
+            return "postgresql";
+        }
+        if (probe.contains("jdbc:oracle") || probe.contains("oracle")) {
+            return "oracle";
+        }
+        if (probe.contains("jdbc:hive2") || probe.contains("hive")) {
+            return "hive";
+        }
+        if (probe.contains("inceptor")) {
+            return "inceptor";
+        }
+        if (probe.contains("goldendb")) {
+            return "goldendb";
+        }
+        if (probe.contains("jdbc:dm") || probe.contains("dm.jdbc") || probe.contains("dameng")) {
+            return "dm";
+        }
+        if (probe.contains("jdbc:sqlserver") || probe.contains("sqlserver")) {
+            return "sqlserver";
+        }
+        if (probe.contains("jdbc:mariadb") || probe.contains("mariadb")) {
+            return "mariadb";
+        }
+        if (probe.contains("jdbc:clickhouse") || probe.contains("clickhouse")) {
+            return "clickhouse";
+        }
+        return null;
     }
 
     private String normalizeJsonArray(String json, String field) {
@@ -294,6 +352,10 @@ public class SqlDatasourceConfigService {
     }
 
     private String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
+    }
+
+    private static String blankToNullStatic(String value) {
         return value == null || value.isBlank() ? null : value.trim();
     }
 }

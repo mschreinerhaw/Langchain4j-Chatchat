@@ -20,6 +20,9 @@
         <li class="nav-item" role="presentation">
             <button id="httpAssetTabBtn" class="nav-link" type="button" data-asset-tab="http">HTTP 请求</button>
         </li>
+        <li class="nav-item" role="presentation">
+            <button id="commandTemplateTabBtn" class="nav-link" type="button" data-asset-tab="template">执行模板</button>
+        </li>
     </ul>
 
     <div id="sshAssetPane">
@@ -65,6 +68,11 @@
             </div>
         </div>
         <div id="sshAssetList" class="api-service-grid"></div>
+        <div class="service-pagination">
+            <button id="sshAssetPrevPageBtn" class="btn btn-outline-secondary btn-sm" type="button">上一页</button>
+            <span id="sshAssetPageText" class="small text-secondary"></span>
+            <button id="sshAssetNextPageBtn" class="btn btn-outline-secondary btn-sm" type="button">下一页</button>
+        </div>
     </div>
 
     <div id="sqlAssetPane" class="d-none">
@@ -111,6 +119,11 @@
             </div>
         </div>
         <div id="sqlAssetList" class="api-service-grid"></div>
+        <div class="service-pagination">
+            <button id="sqlAssetPrevPageBtn" class="btn btn-outline-secondary btn-sm" type="button">上一页</button>
+            <span id="sqlAssetPageText" class="small text-secondary"></span>
+            <button id="sqlAssetNextPageBtn" class="btn btn-outline-secondary btn-sm" type="button">下一页</button>
+        </div>
     </div>
 
     <div id="httpAssetPane" class="d-none">
@@ -165,6 +178,49 @@
             </div>
         </div>
         <div id="httpAssetList" class="api-service-grid"></div>
+        <div class="service-pagination">
+            <button id="httpAssetPrevPageBtn" class="btn btn-outline-secondary btn-sm" type="button">上一页</button>
+            <span id="httpAssetPageText" class="small text-secondary"></span>
+            <button id="httpAssetNextPageBtn" class="btn btn-outline-secondary btn-sm" type="button">下一页</button>
+        </div>
+    </div>
+
+    <div id="commandTemplatePane" class="d-none">
+        <div class="bulk-toolbar">
+            <div class="fw-semibold">执行模板 <span class="text-secondary small">显示 <span id="commandTemplateFilteredCount">0</span> / 共 <span id="commandTemplateCount">0</span> 个</span></div>
+            <div class="template-create-actions">
+                <button id="newCommandTemplateBtn" class="btn btn-sm btn-outline-primary" type="button">新增 SSH 模板</button>
+                <button id="newSqlTemplateBtn" class="btn btn-sm btn-outline-primary" type="button">新增 SQL 查询模板</button>
+                <button id="newHttpTemplateBtn" class="btn btn-sm btn-outline-primary" type="button">新增 HTTP 请求资产</button>
+            </div>
+        </div>
+        <div class="row g-2 align-items-end mb-3">
+            <div class="col-md-5">
+                <label class="form-label small text-secondary" for="commandTemplateSearchInput">检索</label>
+                <input id="commandTemplateSearchInput" class="form-control" placeholder="模板编号、名称、描述、意图信号">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small text-secondary" for="commandTemplateTypeFilter">类型</label>
+                <select id="commandTemplateTypeFilter" class="form-select">
+                    <option value="">全部类型</option>
+                    <option value="ssh">SSH 命令</option>
+                    <option value="sql">SQL 查询</option>
+                    <option value="http">HTTP 资产</option>
+                </select>
+            </div>
+            <div class="col-md-4">
+                <label class="form-label small text-secondary" for="commandTemplateCategoryFilter">分类</label>
+                <select id="commandTemplateCategoryFilter" class="form-select">
+                    <option value="">全部分类</option>
+                </select>
+            </div>
+        </div>
+        <div id="commandTemplateList" class="api-service-grid"></div>
+        <div class="service-pagination">
+            <button id="commandTemplatePrevPageBtn" class="btn btn-outline-secondary btn-sm" type="button">上一页</button>
+            <span id="commandTemplatePageText" class="small text-secondary"></span>
+            <button id="commandTemplateNextPageBtn" class="btn btn-outline-secondary btn-sm" type="button">下一页</button>
+        </div>
     </div>
 </section>
 
@@ -196,6 +252,20 @@
                         <div class="col-md-3"><label class="form-label" for="sshAssetConnectTimeoutMs">连接超时 ms</label><input id="sshAssetConnectTimeoutMs" class="form-control" type="number" min="1000" value="10000"></div>
                         <div class="col-md-3"><label class="form-label" for="sshAssetCommandTimeoutMs">命令超时 ms</label><input id="sshAssetCommandTimeoutMs" class="form-control" type="number" min="1000" value="30000"></div>
                         <div class="col-md-6"><label class="form-label" for="sshAssetTags">标签</label><input id="sshAssetTags" class="form-control" placeholder="hive,prod"></div>
+                        <div class="col-12">
+                            <label class="form-label">命令模板</label>
+                            <input id="sshAssetTemplateSearchInput" class="form-control mb-2" placeholder="Search template code, name, description">
+                            <div id="sshAssetCommandTemplateList" class="template-picker"></div>
+                            <div class="template-picker-actions">
+                                <span id="sshAssetTemplatePageText" class="template-picker-page-status small text-secondary"></span>
+                                <button id="sshAssetTemplatePrevPageBtn" class="template-icon-btn" type="button" title="上一页" aria-label="上一页">&lt;</button>
+                                <button id="sshAssetTemplateNextPageBtn" class="template-icon-btn" type="button" title="下一页" aria-label="下一页">&gt;</button>
+                                <span id="sshAssetTemplateSelectionSummary" class="small text-secondary"></span>
+                                <button id="sshAssetTemplateSelectVisibleBtn" class="template-icon-btn" type="button" title="选择当前筛选模板" aria-label="选择当前筛选模板">✓</button>
+                                <button id="sshAssetTemplateClearVisibleBtn" class="template-icon-btn" type="button" title="清除当前筛选模板" aria-label="清除当前筛选模板">×</button>
+                            </div>
+                            <div class="form-text">勾选结果会写入允许命令模板 JSON；需要自定义时可直接编辑下方 JSON。</div>
+                        </div>
                         <div class="col-md-6"><label class="form-label" for="sshAssetAllowedCommandsJson">允许命令模板 JSON</label><textarea id="sshAssetAllowedCommandsJson" class="form-control codebox" rows="4" spellcheck="false">[]</textarea></div>
                         <div class="col-12"><label class="form-label" for="sshAssetGovernanceJson">Governance JSON</label><textarea id="sshAssetGovernanceJson" class="form-control codebox" rows="10" spellcheck="false"></textarea></div>
                     </div>
@@ -204,6 +274,43 @@
             <div class="modal-footer">
                 <button id="testSshAssetBtn" class="btn btn-outline-secondary" type="button">测试连接</button>
                 <button class="btn btn-primary" type="submit" form="sshAssetForm">保存服务器</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="commandTemplateModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="commandTemplateFormTitle" class="modal-title fs-5">Command Template</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="commandTemplateForm" class="service-form">
+                    <input id="commandTemplateId" type="hidden">
+                    <div class="row g-3">
+                        <div class="col-md-4"><label class="form-label" for="commandTemplateCode">Template ID</label><input id="commandTemplateCode" class="form-control" placeholder="CHECK_DOCKER_STATUS" required></div>
+                        <div class="col-md-4"><label class="form-label" for="commandTemplateTitle">Name</label><input id="commandTemplateTitle" class="form-control" required></div>
+                        <div class="col-md-2"><label class="form-label" for="commandTemplateRiskLevel">Risk</label><select id="commandTemplateRiskLevel" class="form-select"><option>LOW</option><option>MEDIUM</option><option>HIGH</option><option>CRITICAL</option></select></div>
+                        <div class="col-md-2"><label class="form-label" for="commandTemplateEnabled">Status</label><select id="commandTemplateEnabled" class="form-select"><option value="true">Enabled</option><option value="false">Disabled</option></select></div>
+                        <div class="col-md-4"><label class="form-label" for="commandTemplateCategory">Category</label><input id="commandTemplateCategory" class="form-control" placeholder="system_diagnostic"></div>
+                        <div class="col-md-3 sql-template-field d-none"><label class="form-label" for="commandTemplateDatabaseType">Database Type</label><select id="commandTemplateDatabaseType" class="form-select"><option value="generic">generic</option><option value="mysql">mysql</option><option value="postgresql">postgresql</option><option value="oracle">oracle</option><option value="hive">hive</option><option value="inceptor">inceptor</option><option value="goldendb">goldendb</option><option value="dm">dm</option><option value="sqlserver">sqlserver</option><option value="mariadb">mariadb</option><option value="clickhouse">clickhouse</option></select></div>
+                        <div class="col-md-5 sql-template-field d-none"><label class="form-label" for="commandTemplateDatasourceId">Bound Database Asset</label><select id="commandTemplateDatasourceId" class="form-select"><option value="">Any compatible datasource</option></select></div>
+                        <div class="col-md-8"><label class="form-label" for="commandTemplateIntentSignalsJson">Model-visible intent signals JSON</label><textarea id="commandTemplateIntentSignalsJson" class="form-control codebox" rows="3" spellcheck="false">[]</textarea></div>
+                        <div class="col-12 sql-template-field d-none"><label class="form-label" for="commandTemplateRoutingLabelsJson">Template routing labels JSON</label><textarea id="commandTemplateRoutingLabelsJson" class="form-control codebox" rows="3" spellcheck="false">[]</textarea></div>
+                        <div class="col-12"><label class="form-label" for="commandTemplateDescription">Model-visible description</label><textarea id="commandTemplateDescription" class="form-control" rows="2"></textarea></div>
+                        <div class="col-md-6"><label class="form-label" for="commandTemplateParameterSchemaJson">Parameter Schema JSON</label><textarea id="commandTemplateParameterSchemaJson" class="form-control codebox" rows="8" spellcheck="false">{
+  "type": "object",
+  "properties": {},
+  "required": []
+}</textarea></div>
+                        <div class="col-md-6"><label id="commandTemplateBodyLabel" class="form-label" for="commandTemplateCommand">Internal command / JSON steps</label><textarea id="commandTemplateCommand" class="form-control codebox" rows="8" spellcheck="false" required></textarea></div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" type="submit" form="commandTemplateForm">Save Template</button>
             </div>
         </div>
     </div>
@@ -268,6 +375,7 @@
                         <div class="col-12"><label class="form-label" for="sqlAssetDescription">工具描述</label><textarea id="sqlAssetDescription" class="form-control" rows="2"></textarea></div>
                         <div class="col-12"><label class="form-label" for="sqlAssetJdbcUrl">JDBC URL</label><input id="sqlAssetJdbcUrl" class="form-control" required></div>
                         <div class="col-md-4"><label class="form-label" for="sqlAssetDriverClass">Driver Class</label><input id="sqlAssetDriverClass" class="form-control"></div>
+                        <div class="col-md-2"><label class="form-label" for="sqlAssetDatabaseType">Database Type</label><select id="sqlAssetDatabaseType" class="form-select"><option value="generic">generic</option><option value="mysql">mysql</option><option value="postgresql">postgresql</option><option value="oracle">oracle</option><option value="hive">hive</option><option value="inceptor">inceptor</option><option value="goldendb">goldendb</option><option value="dm">dm</option><option value="sqlserver">sqlserver</option><option value="mariadb">mariadb</option><option value="clickhouse">clickhouse</option></select></div>
                         <div class="col-md-3"><label class="form-label" for="sqlAssetUsername">只读账号</label><input id="sqlAssetUsername" class="form-control"></div>
                         <div class="col-md-3"><label class="form-label" for="sqlAssetPassword">密码</label><input id="sqlAssetPassword" class="form-control" type="password" autocomplete="new-password"></div>
                         <div class="col-md-2"><label class="form-label" for="sqlAssetEnvironment">环境</label><select id="sqlAssetEnvironment" class="form-select"><option>DEV</option><option>TEST</option><option>UAT</option><option>PROD</option></select></div>
@@ -275,6 +383,21 @@
                         <div class="col-md-3"><label class="form-label" for="sqlAssetDefaultTimeoutSeconds">默认超时秒</label><input id="sqlAssetDefaultTimeoutSeconds" class="form-control" type="number" min="1" max="60" value="30"></div>
                         <div class="col-md-3"><label class="form-label" for="sqlAssetDefaultMaxRows">默认最大行数</label><input id="sqlAssetDefaultMaxRows" class="form-control" type="number" min="1" max="5000" value="1000"></div>
                         <div class="col-md-4"><label class="form-label" for="sqlAssetAllowedTablesJson">允许表 JSON</label><textarea id="sqlAssetAllowedTablesJson" class="form-control codebox" rows="5" spellcheck="false">[]</textarea></div>
+                        <div class="col-12">
+                            <label class="form-label">SQL Query Templates</label>
+                            <input id="sqlAssetTemplateSearchInput" class="form-control mb-2" placeholder="Search template code, name, description">
+                            <div id="sqlAssetTemplateList" class="template-picker"></div>
+                            <div class="template-picker-actions">
+                                <span id="sqlAssetTemplatePageText" class="template-picker-page-status small text-secondary"></span>
+                                <button id="sqlAssetTemplatePrevPageBtn" class="template-icon-btn" type="button" title="上一页" aria-label="上一页">&lt;</button>
+                                <button id="sqlAssetTemplateNextPageBtn" class="template-icon-btn" type="button" title="下一页" aria-label="下一页">&gt;</button>
+                                <span id="sqlAssetTemplateSelectionSummary" class="small text-secondary"></span>
+                                <button id="sqlAssetTemplateSelectVisibleBtn" class="template-icon-btn" type="button" title="选择当前筛选模板" aria-label="选择当前筛选模板">✓</button>
+                                <button id="sqlAssetTemplateClearVisibleBtn" class="template-icon-btn" type="button" title="清除当前筛选模板" aria-label="清除当前筛选模板">×</button>
+                            </div>
+                            <div class="form-text">Checked templates are written to allowed SQL templates JSON. Database type and datasource binding are respected.</div>
+                        </div>
+                        <div class="col-md-4"><label class="form-label" for="sqlAssetAllowedTemplatesJson">Allowed SQL Templates JSON</label><textarea id="sqlAssetAllowedTemplatesJson" class="form-control codebox" rows="5" spellcheck="false">[]</textarea></div>
                         <div class="col-md-4"><label class="form-label" for="sqlAssetSensitiveTablesJson">敏感表 JSON</label><textarea id="sqlAssetSensitiveTablesJson" class="form-control codebox" rows="5" spellcheck="false">[]</textarea></div>
                         <div class="col-md-4"><label class="form-label" for="sqlAssetSensitiveFieldsJson">敏感字段 JSON</label><textarea id="sqlAssetSensitiveFieldsJson" class="form-control codebox" rows="5" spellcheck="false">[]</textarea></div>
                         <div class="col-12"><label class="form-label" for="sqlAssetGovernanceJson">Governance JSON</label><textarea id="sqlAssetGovernanceJson" class="form-control codebox" rows="10" spellcheck="false"></textarea></div>

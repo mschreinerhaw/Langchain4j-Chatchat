@@ -8,6 +8,36 @@ export function listSshAssets() {
     return apiFetch(`${OPS_URL}/ssh-hosts`);
 }
 
+export function listCommandTemplates() {
+    return apiFetch(`${OPS_URL}/command-templates`);
+}
+
+export function saveCommandTemplate(template) {
+    const method = template.id ? 'PUT' : 'POST';
+    const url = template.id
+        ? `${OPS_URL}/command-templates/${encodeURIComponent(template.id)}`
+        : `${OPS_URL}/command-templates`;
+    return apiFetch(url, { method, body: JSON.stringify(template) });
+}
+
+export function deleteCommandTemplate(id) {
+    return apiFetch(`${OPS_URL}/command-templates/${encodeURIComponent(id)}`, { method: 'DELETE' });
+}
+
+export function listSqlTemplates() {
+    return apiFetch(`${SQL_URL}/templates`);
+}
+
+export function saveSqlTemplate(template) {
+    const method = template.id ? 'PUT' : 'POST';
+    const url = template.id ? `${SQL_URL}/templates/${encodeURIComponent(template.id)}` : `${SQL_URL}/templates`;
+    return apiFetch(url, { method, body: JSON.stringify(template) });
+}
+
+export function deleteSqlTemplate(id) {
+    return apiFetch(`${SQL_URL}/templates/${encodeURIComponent(id)}`, { method: 'DELETE' });
+}
+
 export function listHttpAssets() {
     return apiFetch(`${OPS_URL}/http-endpoints`);
 }

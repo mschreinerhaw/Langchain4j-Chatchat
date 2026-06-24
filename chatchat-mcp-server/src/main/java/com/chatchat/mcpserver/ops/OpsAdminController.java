@@ -106,6 +106,12 @@ public class OpsAdminController {
         return ApiResponse.success(templateService.update(id, request), "Command template updated");
     }
 
+    @DeleteMapping("/command-templates/{id}")
+    public ApiResponse<Void> deleteTemplate(@PathVariable("id") String id) {
+        templateService.delete(id);
+        return ApiResponse.success(null, "Command template deleted");
+    }
+
     @PostMapping("/refresh-tools")
     public ApiResponse<Map<String, Object>> refreshTools() {
         publisher.refresh();

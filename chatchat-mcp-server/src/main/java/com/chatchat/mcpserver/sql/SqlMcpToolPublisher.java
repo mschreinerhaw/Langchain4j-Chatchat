@@ -2,6 +2,8 @@ package com.chatchat.mcpserver.sql;
 
 import com.chatchat.mcpserver.tool.AgentRuntimeGovernanceFactory;
 import com.chatchat.mcpserver.tool.McpToolConcurrencyManager;
+import com.chatchat.mcpserver.tool.StandardToolExecutionResultFactory;
+import com.chatchat.mcpserver.routing.AssetMetadataFactory;
 import com.chatchat.mcpserver.routing.ExecutionTargetRouter;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.modelcontextprotocol.server.McpServerFeatures;
@@ -30,8 +32,10 @@ public class SqlMcpToolPublisher {
     private final SqlDatasourceConfigService datasourceConfigService;
     private final SqlQueryExecuteService executeService;
     private final ExecutionTargetRouter executionTargetRouter;
+    private final AssetMetadataFactory assetMetadataFactory;
     private final AgentRuntimeGovernanceFactory governanceFactory;
     private final McpToolConcurrencyManager concurrencyManager;
+    private final StandardToolExecutionResultFactory standardResultFactory;
     private final ObjectMapper objectMapper;
     private final Set<String> managedToolNames = ConcurrentHashMap.newKeySet();
 
@@ -139,6 +143,7 @@ public class SqlMcpToolPublisher {
         meta.put("environment", datasource.getEnvironment());
         meta.put("allowedStatements", List.of("SELECT", "SHOW", "DESCRIBE", "EXPLAIN"));
         meta.put("templateRegistrySupported", true);
+        meta.put("assetMetadata", assetMetadataFactory.sqlDatasource(datasource));
         meta.put("mcp_tool_limit", concurrencyManager.limitMeta(datasource.getToolName(), "sql"));
         return meta;
     }
@@ -164,6 +169,11 @@ public class SqlMcpToolPublisher {
         meta.put("templateRegistrySupported", true);
         meta.put("targetRoutingRequired", true);
         meta.put("forbiddenTargetFields", List.of("datasourceId", "jdbcUrl", "url", "connectionString"));
+        meta.put("assetMetadata", assetMetadataFactory.gateway(
+            "sql_datasource",
+            datasourceConfigService.listEnabled().stream().map(assetMetadataFactory::sqlDatasource).toList(),
+            List.of("datasourceId", "jdbcUrl", "url", "connectionString")
+        ));
         meta.put("mcp_tool_limit", concurrencyManager.limitMeta("sql_query_execute", "sql"));
         return meta;
     }
@@ -179,7 +189,7 @@ public class SqlMcpToolPublisher {
     private McpSchema.CallToolResult toCallToolResult(SqlQueryResult result) {
         return McpSchema.CallToolResult.builder()
             .addTextContent(result.success() ? "SQL query completed" : result.errorMessage())
-            .structuredContent(objectMapper.convertValue(result, Map.class))
+            .structuredContent(standardResultFactory.fromSql(result))
             .isError(!result.success())
             .build();
     }

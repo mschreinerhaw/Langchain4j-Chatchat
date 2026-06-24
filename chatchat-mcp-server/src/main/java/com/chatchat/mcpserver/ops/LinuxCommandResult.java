@@ -1,5 +1,6 @@
 package com.chatchat.mcpserver.ops;
 
+import java.util.List;
 import java.util.Map;
 
 public record LinuxCommandResult(
@@ -10,6 +11,10 @@ public record LinuxCommandResult(
     String environment,
     String template,
     String command,
+    String commandHash,
+    List<LinuxCommandStepResult> steps,
+    Integer failedStepIndex,
+    String failedCommand,
     int exitCode,
     String stdout,
     String stderr,

@@ -11,6 +11,7 @@ import com.chatchat.mcpserver.sql.SqlDatasourceConfigService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -23,6 +24,7 @@ import java.util.Set;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class ExecutionTargetRouter {
 
     private static final List<String> EXECUTION_CONTEXT_KEYS = List.of("mcpExecutionContext", "executionContext");
@@ -34,9 +36,15 @@ public class ExecutionTargetRouter {
         "target",
         "targetType",
         "target_type",
+        "assetName",
+        "asset_name",
+        "name",
         "hostSelector",
         "host_selector",
         "database",
+        "databaseType",
+        "dbType",
+        "dialect",
         "databaseRole",
         "database_role",
         "service",
@@ -53,57 +61,124 @@ public class ExecutionTargetRouter {
     public Map<String, Object> routeLinuxCommand(Map<String, Object> arguments) {
         Map<String, Object> request = copyArguments(arguments);
         rejectConcreteTarget(request, "hostId", "host", "hostname", "ip", "ipAddress", "address");
+        Map<String, Object> context = executionContext(request);
+        requireExecutionContext(context, "linux_command_execute");
         SshHostConfig host = resolveSshHost(request);
+        log.info("MCP execution routing selected SSH host: tool=linux_command_execute, context={}, hostId={}, assetName={}, hostTool={}, env={}",
+            compactContext(context), host.getId(), host.getName(), host.getToolName(), host.getEnvironment());
+        Map<String, Object> routingDecisionLog = routingTrace(
+            "ssh_host",
+            context,
+            hostConfigService.listEnabled(),
+            host.getId(),
+            SshHostConfig::getId,
+            hostConfig -> firstText(hostConfig.getName(), hostConfig.getToolName()),
+            SshHostConfig::getEnvironment,
+            this::sshLabels,
+            "ssh",
+            "linux_command_execute"
+        );
         removeExecutionContext(request);
         request.put("hostId", host.getId());
-        request.put("routedTarget", Map.of(
+        request.put("routedTarget", mapOf(
             "type", "ssh_host",
             "hostId", host.getId(),
             "hostName", firstText(host.getName(), host.getToolName()),
             "environment", host.getEnvironment()
         ));
+        request.put("routingDecisionLog", routingDecisionLog);
         return request;
     }
 
     public Map<String, Object> routeSqlQuery(Map<String, Object> arguments) {
         Map<String, Object> request = copyArguments(arguments);
         rejectConcreteTarget(request, "datasourceId", "jdbcUrl", "url", "connectionString");
+        Map<String, Object> context = executionContext(request);
+        requireExecutionContext(context, "sql_query_execute");
         SqlDatasourceConfig datasource = resolveSqlDatasource(request);
+        Map<String, Object> routingDecisionLog = routingTrace(
+            "sql_datasource",
+            context,
+            datasourceConfigService.listEnabled(),
+            datasource.getId(),
+            SqlDatasourceConfig::getId,
+            datasourceConfig -> firstText(datasourceConfig.getName(), datasourceConfig.getToolName()),
+            SqlDatasourceConfig::getEnvironment,
+            this::sqlLabels,
+            "sql",
+            "sql_query_execute"
+        );
         removeExecutionContext(request);
         request.put("datasourceId", datasource.getId());
-        request.put("routedTarget", Map.of(
+        request.put("routedTarget", mapOf(
             "type", "sql_datasource",
             "datasourceId", datasource.getId(),
             "datasourceName", firstText(datasource.getName(), datasource.getToolName()),
             "environment", datasource.getEnvironment()
         ));
+        request.put("routingDecisionLog", routingDecisionLog);
         return request;
     }
 
     public RoutedHttpEndpoint routeHttpRequest(Map<String, Object> arguments) {
         Map<String, Object> request = copyArguments(arguments);
         rejectConcreteTarget(request, "endpointId", "url", "uri", "host", "hostname", "ip", "ipAddress", "address");
+        Map<String, Object> context = executionContext(request);
+        String template = firstText(text(request.get("template")), text(request.get("templateId")));
+        template = firstText(template, text(request.get("template_id")));
+        if (template != null) {
+            context.putIfAbsent("assetName", template);
+        }
+        requireExecutionContext(context, "http_request_execute");
         HttpEndpointConfig endpoint = resolveHttpEndpoint(request);
+        Map<String, Object> routingDecisionLog = routingTrace(
+            "http_endpoint",
+            context,
+            httpEndpointConfigService.listEnabled(),
+            endpoint.getId(),
+            HttpEndpointConfig::getId,
+            endpointConfig -> firstText(endpointConfig.getName(), endpointConfig.getToolName()),
+            HttpEndpointConfig::getEnvironment,
+            this::httpLabels,
+            "http",
+            "http_request_execute"
+        );
         removeExecutionContext(request);
-        request.put("routedTarget", Map.of(
+        request.put("routedTarget", mapOf(
             "type", "http_endpoint",
             "endpointId", endpoint.getId(),
             "endpointName", firstText(endpoint.getName(), endpoint.getToolName()),
             "environment", endpoint.getEnvironment()
         ));
+        request.put("routingDecisionLog", routingDecisionLog);
         return new RoutedHttpEndpoint(endpoint, request);
     }
 
     public RoutedDatabaseQuery routeDatabaseQuery(Map<String, Object> arguments) {
         Map<String, Object> request = copyArguments(arguments);
         rejectConcreteTarget(request, "databaseQueryId", "queryId", "toolName");
+        Map<String, Object> context = executionContext(request);
+        requireExecutionContext(context, "database_query_execute");
         DatabaseQueryConfig query = resolveDatabaseQuery(request);
+        Map<String, Object> routingDecisionLog = routingTrace(
+            "database_query",
+            context,
+            databaseQueryConfigService.listEnabled(),
+            query.getId(),
+            DatabaseQueryConfig::getId,
+            queryConfig -> firstText(queryConfig.getTitle(), queryConfig.getToolName()),
+            ignored -> null,
+            this::databaseQueryLabels,
+            "database_query",
+            "sql"
+        );
         removeExecutionContext(request);
-        request.put("routedTarget", Map.of(
+        request.put("routedTarget", mapOf(
             "type", "database_query",
             "databaseQueryId", query.getId(),
             "queryName", firstText(query.getTitle(), query.getToolName())
         ));
+        request.put("routingDecisionLog", routingDecisionLog);
         return new RoutedDatabaseQuery(query, request);
     }
 
@@ -116,6 +191,7 @@ public class ExecutionTargetRouter {
             return singleTarget(candidates, "SSH host", context);
         }
         candidates = filterByEnvironment(candidates, context, SshHostConfig::getEnvironment);
+        candidates = filterByAssetName(candidates, context, this::sshLabels);
         candidates = filterBySelector(candidates, context, this::sshLabels);
         candidates = filterByLogicalTokens(candidates, context, this::sshLabels,
             "cluster", "namespace", "target", "targetType", "target_type", "service");
@@ -131,9 +207,10 @@ public class ExecutionTargetRouter {
             return singleTarget(candidates, "SQL datasource", context);
         }
         candidates = filterByEnvironment(candidates, context, SqlDatasourceConfig::getEnvironment);
+        candidates = filterByAssetName(candidates, context, this::sqlLabels);
         candidates = filterByLogicalTokens(candidates, context, this::sqlLabels,
             "cluster", "namespace", "target", "targetType", "target_type", "database", "databaseRole",
-            "database_role", "service");
+            "database_role", "databaseType", "dbType", "dialect", "service");
         return singleTarget(candidates, "SQL datasource", context);
     }
 
@@ -146,6 +223,7 @@ public class ExecutionTargetRouter {
             return singleTarget(candidates, "HTTP endpoint", context);
         }
         candidates = filterByEnvironment(candidates, context, HttpEndpointConfig::getEnvironment);
+        candidates = filterByAssetName(candidates, context, this::httpLabels);
         candidates = filterByLogicalTokens(candidates, context, this::httpLabels,
             "cluster", "namespace", "target", "targetType", "target_type", "service");
         return singleTarget(candidates, "HTTP endpoint", context);
@@ -159,6 +237,7 @@ public class ExecutionTargetRouter {
             candidates = filterByConfiguredTarget(candidates, target, this::databaseQueryLabels, ignored -> null);
             return singleTarget(candidates, "database query", context);
         }
+        candidates = filterByAssetName(candidates, context, this::databaseQueryLabels);
         candidates = filterByLogicalTokens(candidates, context, this::databaseQueryLabels,
             "cluster", "namespace", "target", "targetType", "target_type", "database", "databaseRole",
             "database_role", "service");
@@ -257,6 +336,41 @@ public class ExecutionTargetRouter {
         }
     }
 
+    private void requireExecutionContext(Map<String, Object> context, String toolName) {
+        if (!hasExecutionScope(context)) {
+            throw new IllegalArgumentException("INVALID_EXECUTION_CONTEXT: " + toolName
+                + " requires non-empty logical executionContext with at least one of "
+                + "assetName, env, cluster, service, target, database, databaseRole, labels, or hostSelector");
+        }
+    }
+
+    private boolean hasExecutionScope(Map<String, Object> context) {
+        if (context == null || context.isEmpty()) {
+            return false;
+        }
+        return firstContextObject(context,
+            "assetName",
+            "asset_name",
+            "env",
+            "environment",
+            "cluster",
+            "namespace",
+            "target",
+            "targetType",
+            "target_type",
+            "hostSelector",
+            "host_selector",
+            "database",
+            "databaseType",
+            "dbType",
+            "dialect",
+            "databaseRole",
+            "database_role",
+            "service",
+            "labels"
+        ) != null;
+    }
+
     private void removeExecutionContext(Map<String, Object> request) {
         EXECUTION_CONTEXT_KEYS.forEach(request::remove);
         LOGICAL_CONTEXT_KEYS.forEach(request::remove);
@@ -290,6 +404,25 @@ public class ExecutionTargetRouter {
         String type = text(firstObject((Map<String, Object>) selector, "type", "match"));
         return candidates.stream()
             .filter(candidate -> matchesSelector(extractor.labels(candidate), type, value))
+            .toList();
+    }
+
+    private <T> List<T> filterByAssetName(List<T> candidates,
+                                          Map<String, Object> context,
+                                          LabelsExtractor<T> extractor) {
+        String assetName = firstContextText(context, "assetName", "asset_name", "name");
+        if (assetName == null) {
+            return candidates;
+        }
+        String normalized = normalize(assetName);
+        return candidates.stream()
+            .filter(candidate -> {
+                Set<String> labels = extractor.labels(candidate);
+                return labels.contains(normalized)
+                    || labels.contains("name:" + normalized)
+                    || labels.contains("title:" + normalized)
+                    || labels.contains("tool:" + normalized);
+            })
             .toList();
     }
 
@@ -336,6 +469,112 @@ public class ExecutionTargetRouter {
         return candidates.get(0);
     }
 
+    private <T> Map<String, Object> routingTrace(String assetType,
+                                                 Map<String, Object> context,
+                                                 List<T> candidates,
+                                                 String winnerId,
+                                                 ValueExtractor<T> idExtractor,
+                                                 ValueExtractor<T> nameExtractor,
+                                                 ValueExtractor<T> environmentExtractor,
+                                                 LabelsExtractor<T> labelsExtractor,
+                                                 String... capabilityTokens) {
+        List<Map<String, Object>> candidateTraces = new ArrayList<>();
+        if (candidates != null) {
+            for (T candidate : candidates) {
+                String assetId = idExtractor.value(candidate);
+                Set<String> labels = labelsExtractor.labels(candidate);
+                Map<String, Object> score = scoreBreakdown(
+                    context,
+                    environmentExtractor.value(candidate),
+                    labels,
+                    capabilityTokens
+                );
+                candidateTraces.add(mapOf(
+                    "assetId", assetId,
+                    "assetName", nameExtractor.value(candidate),
+                    "environment", environmentExtractor.value(candidate),
+                    "labels", new ArrayList<>(labels),
+                    "scoreBreakdown", score,
+                    "finalScore", score.get("finalScore"),
+                    "selected", equalsNormalized(assetId, winnerId)
+                ));
+            }
+        }
+        return mapOf(
+            "schemaVersion", AssetMetadataFactory.ROUTING_TRACE_SCHEMA,
+            "routingPolicyVersion", AssetMetadataFactory.ROUTING_POLICY_VERSION,
+            "assetType", assetType,
+            "context", compactContextMap(context),
+            "decisionMode", "clear",
+            "winner", winnerId,
+            "reason", "unique candidate selected after policy filters",
+            "candidates", candidateTraces
+        );
+    }
+
+    private Map<String, Object> scoreBreakdown(Map<String, Object> context,
+                                               String candidateEnvironment,
+                                               Set<String> labels,
+                                               String... capabilityTokens) {
+        double envMatch = environmentScore(context, candidateEnvironment);
+        double labelMatch = tokenScore(labels, contextTokens(context,
+            "cluster", "namespace", "target", "targetType", "target_type", "database", "databaseRole",
+            "database_role", "databaseType", "dbType", "dialect", "service"
+        ));
+        double serviceAffinity = tokenScore(labels, contextTokens(context,
+            "service", "target", "targetType", "target_type", "database", "databaseRole", "database_role",
+            "databaseType", "dbType", "dialect"
+        ));
+        double capabilityMatch = capabilityScore(labels, capabilityTokens);
+        double finalScore = roundScore(
+            envMatch * 0.50
+                + labelMatch * 0.30
+                + serviceAffinity * 0.15
+                + capabilityMatch * 0.05
+        );
+        return mapOf(
+            "envMatch", envMatch,
+            "labelMatch", labelMatch,
+            "serviceAffinity", serviceAffinity,
+            "capabilityMatch", capabilityMatch,
+            "finalScore", finalScore
+        );
+    }
+
+    private double environmentScore(Map<String, Object> context, String candidateEnvironment) {
+        String env = firstContextText(context, "env", "environment");
+        if (env == null) {
+            return 0.0;
+        }
+        return equalsNormalized(candidateEnvironment, env) ? 1.0 : 0.0;
+    }
+
+    private double tokenScore(Set<String> labels, List<String> tokens) {
+        if (tokens == null || tokens.isEmpty()) {
+            return 0.0;
+        }
+        long matched = tokens.stream()
+            .filter(token -> labels.contains(normalize(token)))
+            .count();
+        return roundScore((double) matched / tokens.size());
+    }
+
+    private double capabilityScore(Set<String> labels, String... capabilityTokens) {
+        if (capabilityTokens == null || capabilityTokens.length == 0) {
+            return 0.0;
+        }
+        for (String token : capabilityTokens) {
+            if (labels.contains(normalize(token))) {
+                return 1.0;
+            }
+        }
+        return 0.0;
+    }
+
+    private double roundScore(double value) {
+        return Math.round(value * 10000.0) / 10000.0;
+    }
+
     private Set<String> sshLabels(SshHostConfig host) {
         Set<String> labels = new LinkedHashSet<>();
         addLabel(labels, host.getEnvironment());
@@ -344,6 +583,7 @@ public class ExecutionTargetRouter {
         addLabel(labels, host.getToolName());
         addLabel(labels, "tool:" + host.getToolName());
         addLabel(labels, host.getTitle());
+        addLabel(labels, "title:" + host.getTitle());
         addJsonLabels(labels, host.getRoutingLabelsJson());
         addJsonLabels(labels, host.getCapabilitiesJson());
         addDelimited(labels, host.getTags());
@@ -354,11 +594,13 @@ public class ExecutionTargetRouter {
     private Set<String> sqlLabels(SqlDatasourceConfig datasource) {
         Set<String> labels = new LinkedHashSet<>();
         addLabel(labels, datasource.getEnvironment());
+        addLabel(labels, databaseType(datasource));
         addLabel(labels, datasource.getName());
         addLabel(labels, "name:" + datasource.getName());
         addLabel(labels, datasource.getToolName());
         addLabel(labels, "tool:" + datasource.getToolName());
         addLabel(labels, datasource.getTitle());
+        addLabel(labels, "title:" + datasource.getTitle());
         addJsonLabels(labels, datasource.getRoutingLabelsJson());
         addJsonLabels(labels, datasource.getCapabilitiesJson());
         addGovernanceLabels(labels, datasource.getGovernanceJson());
@@ -373,6 +615,7 @@ public class ExecutionTargetRouter {
         addLabel(labels, endpoint.getToolName());
         addLabel(labels, "tool:" + endpoint.getToolName());
         addLabel(labels, endpoint.getTitle());
+        addLabel(labels, "title:" + endpoint.getTitle());
         addLabel(labels, endpoint.getCategory());
         addJsonLabels(labels, endpoint.getRoutingLabelsJson());
         addJsonLabels(labels, endpoint.getCapabilitiesJson());
@@ -384,6 +627,7 @@ public class ExecutionTargetRouter {
     private Set<String> databaseQueryLabels(DatabaseQueryConfig query) {
         Set<String> labels = new LinkedHashSet<>();
         addLabel(labels, query.getTitle());
+        addLabel(labels, "title:" + query.getTitle());
         addLabel(labels, query.getToolName());
         addLabel(labels, "tool:" + query.getToolName());
         addLabel(labels, query.getDatasourceId());
@@ -408,6 +652,11 @@ public class ExecutionTargetRouter {
             }
         }
         return labels;
+    }
+
+    private String databaseType(SqlDatasourceConfig datasource) {
+        String value = datasource == null ? null : datasource.getDatabaseType();
+        return value == null || value.isBlank() ? "generic" : value.trim().toLowerCase(Locale.ROOT);
     }
 
     private void addDelimited(Set<String> labels, String value) {
@@ -550,8 +799,12 @@ public class ExecutionTargetRouter {
     }
 
     private String compactContext(Map<String, Object> context) {
+        return compactContextMap(context).toString();
+    }
+
+    private Map<String, Object> compactContextMap(Map<String, Object> context) {
         if (context == null || context.isEmpty()) {
-            return "{}";
+            return Map.of();
         }
         Map<String, Object> compact = new LinkedHashMap<>();
         for (String key : LOGICAL_CONTEXT_KEYS) {
@@ -560,7 +813,15 @@ public class ExecutionTargetRouter {
                 compact.put(key, value);
             }
         }
-        return compact.toString();
+        return compact;
+    }
+
+    private Map<String, Object> mapOf(Object... values) {
+        Map<String, Object> map = new LinkedHashMap<>();
+        for (int index = 0; index + 1 < values.length; index += 2) {
+            map.put(String.valueOf(values[index]), values[index + 1]);
+        }
+        return map;
     }
 
     @FunctionalInterface

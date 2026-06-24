@@ -175,6 +175,8 @@ class AgentPlanner {
         prompt.append("- Use execution_policy.fallback_mode as safe_answer or partial_result when tools may fail.\n");
         prompt.append("- Do not set execution_policy.timeout_ms for MCP tools that may search, crawl, query data, or otherwise run for a long time; omit timeout_ms unless runtime policy explicitly provides one.\n");
         prompt.append("- Use execution_policy.tool_priority, cost_budget, latency_budget_ms, and accuracy_vs_speed when policy context constrains cost, latency, or quality.\n");
+        prompt.append("- Every execution_policy.tool_priority value MUST be a number from 0.0 to 1.0. Higher priority means closer to 1.0; never use rank numbers such as 2.0.\n");
+        prompt.append("- execution_policy.accuracy_vs_speed MUST also be from 0.0 to 1.0.\n");
         prompt.append("- Use plan.stability to lock critical nodes/tools/edges that optimizer and rewriter must preserve.\n");
         prompt.append("- Add plan.edge_contracts when a later step needs a typed field from an earlier tool output.\n");
         prompt.append("- If information is missing, add missing_info and plan the smallest safe retrieval/tool step instead of inventing facts.\n\n");
@@ -188,6 +190,7 @@ class AgentPlanner {
             prompt.append("- Tools listed in the same workflow parallel stage may be represented as independent steps with the same dependencies.\n");
             prompt.append("- If the user request is analytical, portfolio-related, market-related, data-driven, or requires validation, include the mandatory tools before final_answer.\n\n");
         }
+        appendMcpControlPlaneToolContracts(prompt, availableTools);
         prompt.append("Respond with strict JSON only.\n");
         prompt.append("You MUST output ONLY a valid InterpretationPlan JSON following schema. No natural language.\n");
         prompt.append("If you cannot produce a valid plan, output a final_answer step whose input.answer explains the missing requirement.\n");
@@ -272,12 +275,69 @@ class AgentPlanner {
             prompt.append("Observations so far:\n");
             observations.forEach(ob -> prompt.append("- ").append(ob).append("\n"));
             prompt.append("Citation requirement:\n");
-            prompt.append("- If observations include web citation labels such as [缃戦〉1], cite web-derived statements with the matching label immediately after the sentence.\n");
+            prompt.append("- If observations include web citation labels such as [\u7f51\u98751], cite web-derived statements with the matching label immediately after the sentence.\n");
             prompt.append("- Do not cite web facts without a matching citation label from the observations.\n");
             prompt.append("\n");
         }
         prompt.append("User query:\n").append(query);
         return prompt.toString();
+    }
+
+    private void appendMcpControlPlaneToolContracts(StringBuilder prompt, List<String> availableTools) {
+        if (availableTools == null || availableTools.isEmpty()) {
+            return;
+        }
+        String assetQueryTool = matchingAvailableTool(availableTools, "asset_query");
+        if (assetQueryTool != null) {
+            prompt.append("Asset discovery tool contract:\n");
+            prompt.append("- Use ").append(assetQueryTool)
+                .append(" only for read-only discovery of redacted asset metadata.\n");
+            prompt.append("- ").append(assetQueryTool)
+                .append(" input MUST contain filters or executionContext, never a bare context string.\n");
+            prompt.append("- Asset names and routing labels are exact-match. Do not rely on token splitting; docker must not be assumed to match docker_service.\n");
+            prompt.append("- Valid input example when the asset name is known: {\"filters\":{\"assetName\":\"docker_service\"},\"limit\":10}.\n");
+            prompt.append("- Valid input example when using labels: {\"filters\":{\"env\":\"prod\",\"service\":\"service:docker\"},\"limit\":10}, only if that explicit label exists.\n");
+            prompt.append("- The response contains the single canonical asset view in assets[]. Use assets[0].asset.environment, assets[0].asset.name, assets[0].asset.toolName, and assets[0].capabilities.allowedCommandTemplates for downstream bindings.\n");
+            prompt.append("- Do not pass hostname, host, ip, url, jdbcUrl, datasourceId, endpointId, or other concrete target fields.\n\n");
+            prompt.append("- Do not replace ").append(assetQueryTool)
+                .append(" with a reasoning step that guesses env, service, cluster, or target. If asset discovery is required, call the tool; if it fails, ask the user for logical context.\n\n");
+        }
+        String templateQueryTool = matchingAvailableTool(availableTools, "template_query");
+        if (templateQueryTool != null) {
+            prompt.append("Template discovery tool contract:\n");
+            prompt.append("- Use ").append(templateQueryTool)
+                .append(" only for read-only discovery of registered execution templates.\n");
+            prompt.append("- ").append(templateQueryTool)
+                .append(" returns the single canonical template view in templates[]. It never returns raw shell commands or executionSpec.\n");
+            prompt.append("- Query it after asset discovery when execution requires choosing a template. Prefer filters.assetName and filters.env from asset_query data[].\n");
+            prompt.append("- Valid input example: {\"assetType\":\"ssh_host\",\"filters\":{\"assetName\":\"docker_service\",\"env\":\"DEV\",\"intent\":\"system_load_analysis\"},\"limit\":10}.\n");
+            prompt.append("- Use templates[0].templateId as linux_command_execute.template only when the template matches the user intent and asset type.\n");
+            prompt.append("- Do not invent template ids if ").append(templateQueryTool)
+                .append(" returns no suitable template; ask the user/admin to register or allow one.\n\n");
+        }
+        String linuxCommandTool = matchingAvailableTool(availableTools, "linux_command_execute");
+        if (linuxCommandTool != null) {
+            prompt.append("Linux command gateway contract:\n");
+            prompt.append("- Use ").append(linuxCommandTool)
+                .append(" only with a registered template id and logical executionContext.\n");
+            prompt.append("- Input MUST use field template, not command, command_template, shell, host, hostname, or ip.\n");
+            prompt.append("- The template value MUST be copied exactly from asset_query assets[0].capabilities.allowedCommandTemplates or template_query templates[].templateId. Never synthesize aliases such as CHECK_DISK_SPACE when the registered id is CHECK_DISK.\n");
+            prompt.append("- Prefer executionContext.assetName from asset discovery for exact routing, plus env when available. Example: {\"template\":\"CHECK_SYSTEM_OVERVIEW\",\"executionContext\":{\"assetName\":\"docker_service\",\"env\":\"DEV\"},\"reason\":\"inspect docker host load\"}.\n");
+            if (templateQueryTool != null) {
+                prompt.append("- Required execution flow for live host analysis: ")
+                    .append(assetQueryTool == null ? "asset_query" : assetQueryTool)
+                    .append(" -> ")
+                    .append(templateQueryTool)
+                    .append(" -> ")
+                    .append(linuxCommandTool)
+                    .append(". Do not stop after discovery when the user asked for live system analysis.\n");
+            } else {
+                prompt.append("- If asset_query returns allowedCommandTemplates, choose the safest matching registered template from that list and then call ")
+                    .append(linuxCommandTool)
+                    .append("; do not stop after discovery when the user asked for live system analysis.\n");
+            }
+            prompt.append("- If no suitable command template is known or returned, produce a final answer asking the user/admin to register a safe template; do not invent raw shell commands.\n\n");
+        }
     }
 
     private String describeTools(List<String> availableTools, Map<String, Object> runtimeAttributes) {
@@ -396,6 +456,7 @@ class AgentPlanner {
         if (payload == null || !payload.containsKey("plan") || !payload.containsKey("intent")) {
             return null;
         }
+        payload = normalizeInterpretationPlanPayload(payload);
         InterpretationPlan interpretationPlan = objectMapper.convertValue(payload, InterpretationPlan.class);
         InterpretationPlanValidator.ValidationResult validation =
             interpretationPlanValidator.validate(
@@ -473,6 +534,206 @@ class AgentPlanner {
             null,
             interpretationPlan
         );
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> normalizeInterpretationPlanPayload(Map<String, Object> payload) {
+        Map<String, Object> normalized = new LinkedHashMap<>(payload);
+        alias(normalized, "executionPolicy", "execution_policy");
+
+        Map<String, Object> plan = mutableMap(normalized.get("plan"));
+        if (!plan.isEmpty()) {
+            alias(plan, "edgeContracts", "edge_contracts");
+            Object rawSteps = plan.get("steps");
+            if (rawSteps instanceof List<?> steps) {
+                List<Object> normalizedSteps = new ArrayList<>();
+                for (Object rawStep : steps) {
+                    Map<String, Object> step = mutableMap(rawStep);
+                    if (step.isEmpty()) {
+                        normalizedSteps.add(rawStep);
+                        continue;
+                    }
+                    alias(step, "actionType", "action_type");
+                    alias(step, "toolName", "tool_name");
+                    alias(step, "dependsOn", "depends_on");
+                    alias(step, "outputContract", "output_contract");
+                    Map<String, Object> outputContract = mutableMap(step.get("output_contract"));
+                    if (!outputContract.isEmpty()) {
+                        alias(outputContract, "schemaHint", "schema_hint");
+                        step.put("output_contract", outputContract);
+                    }
+                    step.put("input", normalizeStepInput(stringValue(step.get("tool_name")), step.get("input")));
+                    normalizedSteps.add(step);
+                }
+                plan.put("steps", normalizedSteps);
+            }
+            Map<String, Object> stability = mutableMap(plan.get("stability"));
+            if (!stability.isEmpty()) {
+                alias(stability, "stableNodes", "stable_nodes");
+                alias(stability, "criticalTools", "critical_tools");
+                alias(stability, "lockedEdges", "locked_edges");
+                alias(stability, "mutableActionTypes", "mutable_action_types");
+                plan.put("stability", stability);
+            }
+            normalized.put("plan", plan);
+        }
+
+        Map<String, Object> policy = mutableMap(normalized.get("execution_policy"));
+        if (!policy.isEmpty()) {
+            alias(policy, "maxSteps", "max_steps");
+            alias(policy, "allowParallel", "allow_parallel");
+            alias(policy, "allowTool", "allow_tool");
+            alias(policy, "denyTool", "deny_tool");
+            alias(policy, "timeoutMs", "timeout_ms");
+            alias(policy, "maxRewriteTimes", "max_rewrite_times");
+            alias(policy, "fallbackMode", "fallback_mode");
+            alias(policy, "toolPriority", "tool_priority");
+            alias(policy, "costBudget", "cost_budget");
+            alias(policy, "latencyBudgetMs", "latency_budget_ms");
+            alias(policy, "accuracyVsSpeed", "accuracy_vs_speed");
+            policy.put("tool_priority", clampPriorityMap(policy.get("tool_priority")));
+            policy.put("accuracy_vs_speed", clampNullableDouble(policy.get("accuracy_vs_speed"), 0.0, 1.0));
+            normalized.put("execution_policy", policy);
+        }
+
+        Map<String, Object> intent = mutableMap(normalized.get("intent"));
+        if (!intent.isEmpty()) {
+            alias(intent, "riskLevel", "risk_level");
+            normalized.put("intent", intent);
+        }
+
+        Map<String, Object> context = mutableMap(normalized.get("context"));
+        if (!context.isEmpty()) {
+            alias(context, "keyFacts", "key_facts");
+            alias(context, "missingInfo", "missing_info");
+            normalized.put("context", context);
+        }
+
+        Map<String, Object> review = mutableMap(normalized.get("review"));
+        if (!review.isEmpty()) {
+            alias(review, "selfCheck", "self_check");
+            Map<String, Object> selfCheck = mutableMap(review.get("self_check"));
+            if (!selfCheck.isEmpty()) {
+                alias(selfCheck, "completenessScore", "completeness_score");
+                alias(selfCheck, "hallucinationRisk", "hallucination_risk");
+                alias(selfCheck, "toolSufficiency", "tool_sufficiency");
+                alias(selfCheck, "missingSteps", "missing_steps");
+                review.put("self_check", selfCheck);
+            }
+            alias(review, "fallbackPlan", "fallback_plan");
+            normalized.put("review", review);
+        }
+        return normalized;
+    }
+
+    private Map<String, Object> normalizeStepInput(String toolName, Object rawInput) {
+        Map<String, Object> input = mutableMap(rawInput);
+        if (input.isEmpty()) {
+            return input;
+        }
+        String semanticTool = toolSemanticKey(toolName);
+        if ("asset_query".equals(semanticTool)) {
+            normalizeDiscoveryQueryInput(input);
+        }
+        if ("template_query".equals(semanticTool)) {
+            normalizeDiscoveryQueryInput(input);
+        }
+        if ("linux_command_execute".equals(semanticTool)) {
+            alias(input, "command_template", "template");
+            alias(input, "commandTemplate", "template");
+            alias(input, "templateCode", "template");
+            alias(input, "context", "executionContext");
+        }
+        return input;
+    }
+
+    private void normalizeDiscoveryQueryInput(Map<String, Object> input) {
+        Object context = input.remove("context");
+        if (context instanceof Map<?, ?> map) {
+            input.putIfAbsent("filters", map);
+            return;
+        }
+        if (context != null && !String.valueOf(context).isBlank()) {
+            String text = String.valueOf(context).trim();
+            Map<String, Object> filters = mutableMap(input.get("filters"));
+            if (looksLikeAssetName(text)) {
+                filters.putIfAbsent("assetName", text);
+            } else {
+                filters.putIfAbsent("service", text);
+            }
+            input.put("filters", filters);
+        }
+    }
+
+    private boolean looksLikeAssetName(String value) {
+        if (value == null || value.isBlank()) {
+            return false;
+        }
+        String text = value.trim();
+        String normalized = text.toLowerCase(Locale.ROOT);
+        return normalized.contains("_")
+            || normalized.contains(":")
+            || normalized.startsWith("ssh_")
+            || normalized.startsWith("sql_")
+            || normalized.startsWith("http_");
+    }
+
+    private Map<String, Double> clampPriorityMap(Object value) {
+        Map<String, Object> raw = mutableMap(value);
+        if (raw.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, Double> clamped = new LinkedHashMap<>();
+        raw.forEach((tool, priority) -> {
+            Double number = doubleValue(priority);
+            if (tool != null && !tool.isBlank() && number != null) {
+                clamped.put(tool, clamp(number, 0.0, 1.0));
+            }
+        });
+        return clamped;
+    }
+
+    private Double clampNullableDouble(Object value, double min, double max) {
+        Double number = doubleValue(value);
+        return number == null ? null : clamp(number, min, max);
+    }
+
+    private double clamp(double value, double min, double max) {
+        return Math.max(min, Math.min(max, value));
+    }
+
+    private Double doubleValue(Object value) {
+        if (value instanceof Number number) {
+            return number.doubleValue();
+        }
+        if (value == null || String.valueOf(value).isBlank()) {
+            return null;
+        }
+        try {
+            return Double.parseDouble(String.valueOf(value));
+        } catch (NumberFormatException ignored) {
+            return null;
+        }
+    }
+
+    private void alias(Map<String, Object> values, String alias, String canonical) {
+        if (values == null || !values.containsKey(alias) || values.containsKey(canonical)) {
+            return;
+        }
+        values.put(canonical, values.remove(alias));
+    }
+
+    private Map<String, Object> mutableMap(Object value) {
+        if (!(value instanceof Map<?, ?> map)) {
+            return new LinkedHashMap<>();
+        }
+        Map<String, Object> values = new LinkedHashMap<>();
+        map.forEach((key, item) -> {
+            if (key != null) {
+                values.put(String.valueOf(key), item);
+            }
+        });
+        return values;
     }
 
     private InterpretationPlan.Step nextExecutableStep(InterpretationPlan interpretationPlan) {
@@ -585,8 +846,42 @@ class AgentPlanner {
                 issues.add("final_answer must depend on web verification evidence.");
             }
         }
+        validateAssetDiscoveryIsNotGuessed(plan, context, toolStepIds, issues);
         validateWebSearchCrawlerSplit(plan, context, stepsById, toolStepIds, finalStep, issues);
         return issues;
+    }
+
+    private void validateAssetDiscoveryIsNotGuessed(InterpretationPlan plan,
+                                                    PlannerValidationContext context,
+                                                    Map<String, List<Integer>> toolStepIds,
+                                                    List<String> issues) {
+        if (plan == null || context == null || issues == null
+            || matchingAvailableTool(context.availableTools(), "asset_query") == null) {
+            return;
+        }
+        boolean hasAssetQueryStep = toolStepIds.keySet().stream()
+            .anyMatch(tool -> "asset_query".equals(toolSemanticKey(tool)));
+        for (InterpretationPlan.Step step : plan.steps()) {
+            if (step == null || !"reasoning".equals(step.actionType())) {
+                continue;
+            }
+            String text = normalize(step.input() == null ? "" : step.input().toString());
+            boolean mentionsAssetQueryFailure = text.contains("asset_query")
+                && (text.contains("reject") || text.contains("rejected") || text.contains("refuse")
+                    || text.contains("denied") || text.contains("confirmation") || text.contains("failed")
+                    || text.contains("失败") || text.contains("拒绝") || text.contains("确认"));
+            boolean guessesTargetContext = text.contains("assume") || text.contains("default")
+                || text.contains("prod") || text.contains("docker") || text.contains("env")
+                || text.contains("假设") || text.contains("默认");
+            if (mentionsAssetQueryFailure && guessesTargetContext) {
+                issues.add("Do not use a reasoning step to replace asset_query or guess env/service after discovery failure; call asset_query or ask the user for logical executionContext.");
+                return;
+            }
+            if (!hasAssetQueryStep && guessesTargetContext && text.contains("service") && text.contains("env")) {
+                issues.add("Asset routing context must come from asset_query, user-provided executionContext, or observations; reasoning steps must not invent env/service defaults.");
+                return;
+            }
+        }
     }
 
     private void validateWebSearchCrawlerSplit(InterpretationPlan plan,
@@ -864,16 +1159,29 @@ class AgentPlanner {
         Object runtimeIssues = invalidDecision == null || invalidDecision.executionPlan() == null
             ? null
             : invalidDecision.executionPlan().get("interpretationPlanRuntimeIssues");
+        Object schemaIssues = invalidDecision == null || invalidDecision.executionPlan() == null
+            ? null
+            : invalidDecision.executionPlan().get("interpretationPlanIssues");
+        boolean issueWritten = false;
+        if (schemaIssues instanceof List<?> issues && !issues.isEmpty()) {
+            for (Object issue : issues) {
+                prompt.append("- ").append(issue).append("\n");
+                issueWritten = true;
+            }
+        }
         if (runtimeIssues instanceof List<?> issues && !issues.isEmpty()) {
             for (Object issue : issues) {
                 prompt.append("- ").append(issue).append("\n");
+                issueWritten = true;
             }
-        } else {
+        }
+        if (!issueWritten) {
             prompt.append("- ").append(invalidDecision == null ? "Invalid planner output" : invalidDecision.reason()).append("\n");
         }
         prompt.append("Rejected output:\n").append(previousOutput == null ? "" : previousOutput).append("\n\n");
         prompt.append("Regenerate the entire response as strict InterpretationPlan JSON only. ");
-        prompt.append("Do not omit any mandatory MCP tool and do not return legacy action JSON.");
+        prompt.append("Do not omit any mandatory MCP tool and do not return legacy action JSON. ");
+        prompt.append("Keep tool_priority and accuracy_vs_speed values within 0.0 to 1.0.");
         return prompt.toString();
     }
 
@@ -1750,6 +2058,18 @@ class AgentPlanner {
             return "search_and_extract";
         }
         return toolName.trim();
+    }
+
+    private String matchingAvailableTool(List<String> availableTools, String semanticToolName) {
+        if (availableTools == null || semanticToolName == null) {
+            return null;
+        }
+        for (String availableTool : availableTools) {
+            if (semanticToolName.equals(toolSemanticKey(availableTool))) {
+                return availableTool;
+            }
+        }
+        return null;
     }
 
     private String toolSemanticKey(String toolName) {

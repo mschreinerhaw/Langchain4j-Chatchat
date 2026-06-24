@@ -19,8 +19,11 @@ import java.io.ByteArrayOutputStream;
 import java.io.ByteArrayInputStream;
 import java.nio.charset.StandardCharsets;
 import java.security.KeyPair;
+import java.security.MessageDigest;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.EnumSet;
+import java.util.HexFormat;
 import java.util.List;
 import java.util.LinkedHashMap;
 import java.util.Locale;
@@ -41,6 +44,7 @@ public class LinuxCommandService {
     private final SshHostConfigService hostConfigService;
     private final CommandTemplateService templateService;
     private final LinuxCommandSafetyService safetyService;
+    private final SafetyKernelService safetyKernelService;
     private final InvocationAuditService auditService;
     private final ObjectMapper objectMapper;
 
@@ -49,18 +53,21 @@ public class LinuxCommandService {
         Map<String, Object> request = normalizeRequest(arguments);
         SshHostConfig host = null;
         String command = null;
+        List<String> commands = List.of();
         LinuxCommandResult result;
         try {
             host = hostConfigService.getEnabled(text(request, "hostId"));
             assertExecutionCapability(host);
-            CommandTemplateConfig template = templateService.getByCode(text(request, "template"));
+            CommandTemplateConfig template = getAllowedTemplate(host, text(request, "template"));
             assertTemplateAllowed(host, template.getCode());
             command = renderCommand(template.getCommandTemplate(), mapValue(request.get("parameters")));
-            safetyService.assertSafe(command);
+            commands = parseCommands(command);
+            commands.forEach(safetyService::assertSafe);
+            commands.forEach(safetyKernelService::assertAllowed);
             log.info("MCP Linux command execution requested: hostId={}, hostName={}, endpoint={}:{}, env={}, tool={}, template={}, sourceTaskId={}, reason={}",
                 host.getId(), host.getName(), host.getHostname(), normalizePort(host.getPort()), host.getEnvironment(),
                 host.getToolName(), template.getCode(), request.get("sourceTaskId"), request.get("reason"));
-            result = executeSsh(host, template.getCode(), command, request, startedAt);
+            result = executeSsh(host, template.getCode(), commands, request, startedAt);
         } catch (Exception ex) {
             long durationMs = Math.max(0, System.currentTimeMillis() - startedAt);
             result = new LinuxCommandResult(
@@ -70,7 +77,11 @@ public class LinuxCommandService {
                 host == null ? null : host.getToolName(),
                 host == null ? null : host.getEnvironment(),
                 text(request, "template"),
-                command,
+                commands.isEmpty() ? command : String.join(System.lineSeparator(), commands),
+                commandHash(commands),
+                List.of(),
+                null,
+                null,
                 -1,
                 "",
                 "",
@@ -132,6 +143,19 @@ public class LinuxCommandService {
                     host.getEnvironment(),
                     "connection_test",
                     "echo MCP_SSH_EXECUTION_PROBE",
+                    sha256("echo MCP_SSH_EXECUTION_PROBE"),
+                    List.of(new LinuxCommandStepResult(
+                        1,
+                        "echo MCP_SSH_EXECUTION_PROBE",
+                        sha256("echo MCP_SSH_EXECUTION_PROBE"),
+                        0,
+                        "SSH connection authenticated and probe command executed successfully.",
+                        "",
+                        durationMs,
+                        true
+                    )),
+                    null,
+                    null,
                     0,
                     "SSH connection authenticated and probe command executed successfully.",
                     "",
@@ -154,6 +178,10 @@ public class LinuxCommandService {
                 host.getEnvironment(),
                 "connection_test",
                 null,
+                null,
+                List.of(),
+                null,
+                null,
                 -1,
                 "",
                 "",
@@ -166,19 +194,83 @@ public class LinuxCommandService {
         }
     }
 
-    private LinuxCommandResult executeSsh(SshHostConfig host, String template, String command,
+    private LinuxCommandResult executeSsh(SshHostConfig host, String template, List<String> commands,
                                           Map<String, Object> request, long startedAt) throws Exception {
+        List<LinuxCommandStepResult> steps = new ArrayList<>();
+        StringBuilder stdoutAll = new StringBuilder();
+        StringBuilder stderrAll = new StringBuilder();
+        int lastExitCode = 0;
+        for (int index = 0; index < commands.size(); index++) {
+            String current = commands.get(index);
+            log.info("MCP Linux command SSH exec command: hostId={}, template={}, step={}/{}, command={}",
+                host.getId(), template, index + 1, commands.size(), current);
+            LinuxCommandStepResult step = executeSingleSshCommand(host, current, index + 1);
+            steps.add(step);
+            lastExitCode = step.exitCode();
+            log.info("MCP Linux command SSH step completed: hostId={}, hostName={}, template={}, step={}/{}, exitCode={}, success={}, durationMs={}, stdout={}, stderr={}",
+                host.getId(), host.getName(), template, step.stepIndex(), commands.size(), step.exitCode(), step.success(),
+                step.durationMs(), truncate(step.stdout()), truncate(step.stderr()));
+            appendCommandOutput(stdoutAll, step.stepIndex(), step.command(), step.stdout());
+            appendCommandOutput(stderrAll, step.stepIndex(), step.command(), step.stderr());
+            if (!step.success()) {
+                long durationMs = Math.max(0, System.currentTimeMillis() - startedAt);
+                return new LinuxCommandResult(
+                    false,
+                    host.getId(),
+                    host.getHostname(),
+                    host.getToolName(),
+                    host.getEnvironment(),
+                    template,
+                    String.join(System.lineSeparator(), commands),
+                    commandHash(commands),
+                    steps,
+                    step.stepIndex(),
+                    step.command(),
+                    step.exitCode(),
+                    stdoutAll.toString(),
+                    stderrAll.toString(),
+                    durationMs,
+                    "SSH command step " + step.stepIndex() + " exited with code " + step.exitCode()
+                        + ": " + truncate(step.stderr()),
+                    request
+                );
+            }
+        }
+        long durationMs = Math.max(0, System.currentTimeMillis() - startedAt);
+        return new LinuxCommandResult(
+            true,
+            host.getId(),
+            host.getHostname(),
+            host.getToolName(),
+            host.getEnvironment(),
+            template,
+            String.join(System.lineSeparator(), commands),
+            commandHash(commands),
+            steps,
+            null,
+            null,
+            lastExitCode,
+            stdoutAll.toString(),
+            stderrAll.toString(),
+            durationMs,
+            null,
+            request
+        );
+    }
+
+    private LinuxCommandStepResult executeSingleSshCommand(SshHostConfig host, String command, int stepIndex) throws Exception {
+        long startedAt = System.currentTimeMillis();
         try (SshClient client = SshClient.setUpDefaultClient()) {
             client.setServerKeyVerifier((session, remoteAddress, serverKey) -> verifyHostKey(host, serverKey));
             client.start();
             try (ClientSession session = client.connect(host.getUsername(), host.getHostname(), normalizePort(host.getPort()))
                 .verify(Duration.ofMillis(connectTimeoutMs(host)))
                 .getSession()) {
-                log.info("MCP Linux command SSH connected: hostId={}, hostName={}, endpoint={}:{}, env={}, template={}",
-                    host.getId(), host.getName(), host.getHostname(), normalizePort(host.getPort()), host.getEnvironment(), template);
+                log.info("MCP Linux command SSH connected: hostId={}, hostName={}, endpoint={}:{}, env={}, step={}, command={}",
+                    host.getId(), host.getName(), host.getHostname(), normalizePort(host.getPort()), host.getEnvironment(), stepIndex, command);
                 authenticate(session, host);
-                log.info("MCP Linux command SSH authenticated: hostId={}, hostName={}, authType={}, template={}",
-                    host.getId(), host.getName(), host.getAuthType(), template);
+                log.info("MCP Linux command SSH authenticated: hostId={}, hostName={}, authType={}, step={}",
+                    host.getId(), host.getName(), host.getAuthType(), stepIndex);
                 try (ByteArrayOutputStream stdout = new ByteArrayOutputStream();
                      ByteArrayOutputStream stderr = new ByteArrayOutputStream();
                      ClientChannel channel = session.createExecChannel(command)) {
@@ -187,22 +279,17 @@ public class LinuxCommandService {
                     channel.open().verify(Duration.ofMillis(connectTimeoutMs(host)));
                     channel.waitFor(EnumSet.of(ClientChannelEvent.CLOSED), Duration.ofMillis(host.getCommandTimeoutMs()));
                     Integer exitStatus = channel.getExitStatus();
-                    long durationMs = Math.max(0, System.currentTimeMillis() - startedAt);
                     int exitCode = exitStatus == null ? -1 : exitStatus;
-                    return new LinuxCommandResult(
-                        exitCode == 0,
-                        host.getId(),
-                        host.getHostname(),
-                        host.getToolName(),
-                        host.getEnvironment(),
-                        template,
+                    long durationMs = Math.max(0, System.currentTimeMillis() - startedAt);
+                    return new LinuxCommandStepResult(
+                        stepIndex,
                         command,
+                        sha256(command),
                         exitCode,
                         stdout.toString(StandardCharsets.UTF_8),
                         stderr.toString(StandardCharsets.UTF_8),
                         durationMs,
-                        exitCode == 0 ? null : "SSH command exited with code " + exitCode,
-                        request
+                        exitCode == 0
                     );
                 }
             } finally {
@@ -315,9 +402,28 @@ public class LinuxCommandService {
     }
 
     private void assertTemplateAllowed(SshHostConfig host, String templateCode) {
+        allowedTemplateCodes(host, true);
+        String normalizedTemplateCode = templateCode == null ? "" : templateCode.toUpperCase(Locale.ROOT);
+        if (!allowedTemplateCodes(host, false).contains(normalizedTemplateCode)) {
+            throw new IllegalArgumentException("Command template is not allowed for this host: " + templateCode
+                + ". Allowed templates: " + allowedTemplateCodes(host, false));
+        }
+    }
+
+    private CommandTemplateConfig getAllowedTemplate(SshHostConfig host, String requestedCode) {
+        String code = requireText(requestedCode, "template is required").trim().toUpperCase(Locale.ROOT);
+        try {
+            return templateService.getByCode(code);
+        } catch (IllegalArgumentException ex) {
+            throw new IllegalArgumentException(ex.getMessage()
+                + ". Allowed templates for host " + host.getToolName() + ": " + allowedTemplateCodes(host, false));
+        }
+    }
+
+    private Set<String> allowedTemplateCodes(SshHostConfig host, boolean failWhenEmpty) {
         String json = host.getAllowedCommandsJson();
         if (json == null || json.isBlank()) {
-            return;
+            throw new IllegalArgumentException("No command templates are allowed for this host: " + host.getToolName());
         }
         try {
             List<String> commands = objectMapper.readValue(json, new TypeReference<>() {});
@@ -325,9 +431,10 @@ public class LinuxCommandService {
                 .filter(value -> value != null && !value.isBlank())
                 .map(value -> value.trim().toUpperCase(Locale.ROOT))
                 .collect(Collectors.toSet());
-            if (!allowed.isEmpty() && !allowed.contains(templateCode.toUpperCase(Locale.ROOT))) {
-                throw new IllegalArgumentException("Command template is not allowed for this host: " + templateCode);
+            if (allowed.isEmpty() && failWhenEmpty) {
+                throw new IllegalArgumentException("No command templates are allowed for this host: " + host.getToolName());
             }
+            return allowed;
         } catch (IllegalArgumentException ex) {
             throw ex;
         } catch (Exception ex) {
@@ -345,6 +452,88 @@ public class LinuxCommandService {
         }
         matcher.appendTail(buffer);
         return buffer.toString().trim();
+    }
+
+    private List<String> parseCommands(String command) {
+        String text = command == null ? "" : command.trim();
+        if (text.startsWith("[")) {
+            try {
+                List<String> jsonCommands = objectMapper.readValue(text, new TypeReference<>() {});
+                List<String> commands = jsonCommands.stream()
+                    .filter(value -> value != null && !value.isBlank())
+                    .map(String::trim)
+                    .toList();
+                if (commands.isEmpty()) {
+                    throw new IllegalArgumentException("Command steps cannot be empty");
+                }
+                return commands;
+            } catch (IllegalArgumentException ex) {
+                throw ex;
+            } catch (Exception ex) {
+                throw new IllegalArgumentException("Command steps JSON array is invalid");
+            }
+        }
+        List<String> commands = splitLinesOutsideQuotes(text).stream()
+            .map(String::trim)
+            .filter(value -> !value.isBlank())
+            .toList();
+        if (commands.isEmpty()) {
+            throw new IllegalArgumentException("Command cannot be empty");
+        }
+        return commands;
+    }
+
+    private List<String> splitLinesOutsideQuotes(String command) {
+        List<String> parts = new ArrayList<>();
+        StringBuilder current = new StringBuilder();
+        boolean singleQuoted = false;
+        boolean doubleQuoted = false;
+        for (int index = 0; index < command.length(); index++) {
+            char ch = command.charAt(index);
+            if (ch == '\'' && !doubleQuoted) {
+                singleQuoted = !singleQuoted;
+            } else if (ch == '"' && !singleQuoted) {
+                doubleQuoted = !doubleQuoted;
+            }
+            if ((ch == '\n' || ch == '\r') && !singleQuoted && !doubleQuoted) {
+                parts.add(current.toString());
+                current.setLength(0);
+            } else {
+                current.append(ch);
+            }
+        }
+        parts.add(current.toString());
+        return parts;
+    }
+
+    private String commandHash(List<String> commands) {
+        if (commands == null || commands.isEmpty()) {
+            return null;
+        }
+        return sha256(String.join("\n", commands));
+    }
+
+    private String sha256(String value) {
+        if (value == null) {
+            return null;
+        }
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            return HexFormat.of().formatHex(digest.digest(value.getBytes(StandardCharsets.UTF_8)));
+        } catch (Exception ex) {
+            throw new IllegalStateException("Unable to calculate command hash", ex);
+        }
+    }
+
+    private void appendCommandOutput(StringBuilder output, int step, String command, String text) {
+        if (text == null || text.isEmpty()) {
+            return;
+        }
+        output.append(">>> [").append(step).append("] ").append(command).append(System.lineSeparator());
+        output.append(text);
+        if (!text.endsWith("\n") && !text.endsWith("\r")) {
+            output.append(System.lineSeparator());
+        }
     }
 
     private String safeParameter(String name, Object value) {

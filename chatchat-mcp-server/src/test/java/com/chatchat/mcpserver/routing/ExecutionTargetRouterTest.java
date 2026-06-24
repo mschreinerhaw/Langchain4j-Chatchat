@@ -41,11 +41,27 @@ class ExecutionTargetRouterTest {
                 "targetType", "datanode"
             )
         ));
+        Map<?, ?> routedTarget = (Map<?, ?>) routed.get("routedTarget");
+        Map<?, ?> routingTrace = (Map<?, ?>) routed.get("routingDecisionLog");
+        List<?> tracedCandidates = (List<?>) routingTrace.get("candidates");
+        Map<?, ?> selectedCandidate = (Map<?, ?>) tracedCandidates.stream()
+            .filter(candidate -> Boolean.TRUE.equals(((Map<?, ?>) candidate).get("selected")))
+            .findFirst()
+            .orElseThrow();
+        Map<?, ?> scoreBreakdown = (Map<?, ?>) selectedCandidate.get("scoreBreakdown");
 
         assertThat(routed)
             .containsEntry("hostId", "host-1")
             .containsEntry("template", "CHECK_DISK")
             .doesNotContainKey("executionContext");
+        assertThat(routedTarget.containsKey("routingTrace")).isFalse();
+        assertThat(routingTrace.get("schemaVersion")).isEqualTo(AssetMetadataFactory.ROUTING_TRACE_SCHEMA);
+        assertThat(routingTrace.get("routingPolicyVersion")).isEqualTo(AssetMetadataFactory.ROUTING_POLICY_VERSION);
+        assertThat(routingTrace.get("winner")).isEqualTo("host-1");
+        assertThat(selectedCandidate.get("assetId")).isEqualTo("host-1");
+        assertThat(selectedCandidate.get("selected")).isEqualTo(true);
+        assertThat(scoreBreakdown.keySet().stream().map(String::valueOf).toList())
+            .contains("envMatch", "labelMatch", "serviceAffinity", "capabilityMatch", "finalScore");
     }
 
     @Test
@@ -66,6 +82,77 @@ class ExecutionTargetRouterTest {
         )))
             .isInstanceOf(IllegalArgumentException.class)
             .hasMessageContaining("Concrete execution target is not allowed");
+    }
+
+    @Test
+    void rejectsEmptyLinuxExecutionContext() {
+        ExecutionTargetRouter router = new ExecutionTargetRouter(
+            mock(SshHostConfigService.class),
+            mock(SqlDatasourceConfigService.class),
+            mock(HttpEndpointConfigService.class),
+            mock(DatabaseQueryConfigService.class),
+            mock(ExecutionTargetService.class),
+            new ObjectMapper()
+        );
+
+        assertThatThrownBy(() -> router.routeLinuxCommand(Map.of(
+            "template", "CHECK_SYSTEM_OVERVIEW",
+            "executionContext", Map.of()
+        )))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("INVALID_EXECUTION_CONTEXT")
+            .hasMessageContaining("linux_command_execute");
+    }
+
+    @Test
+    void rejectsBlankLinuxExecutionContext() {
+        ExecutionTargetRouter router = new ExecutionTargetRouter(
+            mock(SshHostConfigService.class),
+            mock(SqlDatasourceConfigService.class),
+            mock(HttpEndpointConfigService.class),
+            mock(DatabaseQueryConfigService.class),
+            mock(ExecutionTargetService.class),
+            new ObjectMapper()
+        );
+
+        assertThatThrownBy(() -> router.routeLinuxCommand(Map.of(
+            "template", "CHECK_SYSTEM_OVERVIEW",
+            "executionContext", Map.of("env", " ")
+        )))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("INVALID_EXECUTION_CONTEXT");
+    }
+
+    @Test
+    void rejectsEmptySqlHttpAndDatabaseExecutionContext() {
+        ExecutionTargetRouter router = new ExecutionTargetRouter(
+            mock(SshHostConfigService.class),
+            mock(SqlDatasourceConfigService.class),
+            mock(HttpEndpointConfigService.class),
+            mock(DatabaseQueryConfigService.class),
+            mock(ExecutionTargetService.class),
+            new ObjectMapper()
+        );
+
+        assertThatThrownBy(() -> router.routeSqlQuery(Map.of(
+            "sql", "select 1",
+            "executionContext", Map.of()
+        )))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("INVALID_EXECUTION_CONTEXT")
+            .hasMessageContaining("sql_query_execute");
+        assertThatThrownBy(() -> router.routeHttpRequest(Map.of(
+            "executionContext", Map.of()
+        )))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("INVALID_EXECUTION_CONTEXT")
+            .hasMessageContaining("http_request_execute");
+        assertThatThrownBy(() -> router.routeDatabaseQuery(Map.of(
+            "executionContext", Map.of()
+        )))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("INVALID_EXECUTION_CONTEXT")
+            .hasMessageContaining("database_query_execute");
     }
 
     @Test
@@ -141,6 +228,31 @@ class ExecutionTargetRouterTest {
         ));
 
         assertThat(routed).containsEntry("hostId", "host-1");
+    }
+
+    @Test
+    void routesLinuxCommandByExactAssetNameOnly() {
+        SshHostConfigService hostService = mock(SshHostConfigService.class);
+        SqlDatasourceConfigService datasourceService = mock(SqlDatasourceConfigService.class);
+        ExecutionTargetService targetService = mock(ExecutionTargetService.class);
+        ExecutionTargetRouter router = router(hostService, datasourceService, targetService);
+        when(targetService.listEnabledByAssetType(ExecutionTargetService.ASSET_TYPE_SSH_HOST)).thenReturn(List.of());
+        SshHostConfig docker = host("host-1", "docker_service", "ssh_docker_service", "DEV", null);
+        docker.setTitle("docker_service_host");
+        when(hostService.listEnabled()).thenReturn(List.of(docker));
+
+        Map<String, Object> routed = router.routeLinuxCommand(Map.of(
+            "template", "CHECK_SYSTEM_OVERVIEW",
+            "executionContext", Map.of("assetName", "docker_service")
+        ));
+
+        assertThat(routed).containsEntry("hostId", "host-1");
+        assertThatThrownBy(() -> router.routeLinuxCommand(Map.of(
+            "template", "CHECK_SYSTEM_OVERVIEW",
+            "executionContext", Map.of("service", "docker")
+        )))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("No SSH host matched execution context");
     }
 
     @Test

@@ -9,10 +9,19 @@ target/
 /data/
 /h2/
 /logs/
+/run/
+*.log
+*.pid
 **/config/env.local
 /chatchat-api/data/
 /chatchat-api/h2/
 /chatchat-api/logs/
+/chatchat-mcp-server/data/
+/chatchat-mcp-server/h2/
+/chatchat-mcp-server/logs/
+
+### Local browser/runtime caches ###
+/playwright-browsers/
 
 ### IntelliJ IDEA ###
 .idea/modules.xml

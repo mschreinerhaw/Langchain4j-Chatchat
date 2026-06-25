@@ -5,6 +5,7 @@ import com.chatchat.mcpserver.tool.McpToolConcurrencyManager;
 import com.chatchat.mcpserver.tool.StandardToolExecutionResultFactory;
 import com.chatchat.mcpserver.routing.AssetMetadataFactory;
 import com.chatchat.mcpserver.routing.ExecutionTargetRouter;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.modelcontextprotocol.server.McpServerFeatures;
 import io.modelcontextprotocol.server.McpSyncServer;
@@ -30,6 +31,7 @@ public class SqlMcpToolPublisher {
 
     private final McpSyncServer mcpSyncServer;
     private final SqlDatasourceConfigService datasourceConfigService;
+    private final SqlTemplateService sqlTemplateService;
     private final SqlQueryExecuteService executeService;
     private final ExecutionTargetRouter executionTargetRouter;
     private final AssetMetadataFactory assetMetadataFactory;
@@ -78,7 +80,8 @@ public class SqlMcpToolPublisher {
             .name("sql_query_execute")
             .title("SQL query execution gateway")
             .description("Execute a read-only SQL query or SQL template on a routed logical datasource target. "
-                + "Do not pass datasourceId, JDBC URL, or any concrete database endpoint.")
+                + "When using template, the value must be an existing templateId returned by template_query for the same logical datasource. "
+                + "Do not invent template names and do not pass datasourceId, JDBC URL, or any concrete database endpoint.")
             .inputSchema(gatewayInputSchema())
             .meta(gatewayMeta())
             .build();
@@ -96,8 +99,12 @@ public class SqlMcpToolPublisher {
     private McpSchema.JsonSchema inputSchema() {
         return new McpSchema.JsonSchema("object", Map.of(
             "sql", Map.of("type", "string", "description", "只读 SQL。禁止多语句和注释。"),
-            "template", Map.of("type", "string", "description", "SQL 模板编号，例如 CHECK_TABLE_COUNT、CHECK_RECENT_DATA"),
-            "parameters", Map.of("type", "object", "additionalProperties", true),
+            "template", Map.of("type", "string", "description", "Existing SQL templateId from this datasource asset's authorizedSqlTemplates/template_query result. Do not invent names."),
+            "parameters", Map.of(
+                "type", "object",
+                "description", "Template parameters object. Use exactly the fields required by template_query.templates[].parameterSchema; do not put template parameters at the top level.",
+                "additionalProperties", true
+            ),
             "timeoutSeconds", Map.of("type", "integer", "minimum", 1, "maximum", 60),
             "maxRows", Map.of("type", "integer", "minimum", 1, "maximum", 5000),
             "purpose", Map.of("type", "string", "description", "查询目的，必须展示给用户确认并写入审计"),
@@ -108,8 +115,12 @@ public class SqlMcpToolPublisher {
     private McpSchema.JsonSchema gatewayInputSchema() {
         return new McpSchema.JsonSchema("object", Map.of(
             "sql", Map.of("type", "string", "description", "Read-only SQL. Multi-statement, comments, writes, DDL, and permission changes are forbidden."),
-            "template", Map.of("type", "string", "description", "SQL template id, for example CHECK_TABLE_COUNT or CHECK_RECENT_DATA"),
-            "parameters", Map.of("type", "object", "additionalProperties", true),
+            "template", Map.of("type", "string", "description", "Existing SQL templateId from template_query.templates[].templateId for the selected datasource. Do not invent names."),
+            "parameters", Map.of(
+                "type", "object",
+                "description", "Template parameters object. Use exactly the fields required by template_query.templates[].parameterSchema; do not put template parameters at the top level.",
+                "additionalProperties", true
+            ),
             "executionContext", Map.of(
                 "type", "object",
                 "description", "Logical datasource context such as env, cluster, database, databaseRole, targetType, service, or labels"
@@ -143,6 +154,8 @@ public class SqlMcpToolPublisher {
         meta.put("environment", datasource.getEnvironment());
         meta.put("allowedStatements", List.of("SELECT", "SHOW", "DESCRIBE", "EXPLAIN"));
         meta.put("templateRegistrySupported", true);
+        meta.put("authorizedSqlTemplates", authorizedSqlTemplates(datasource));
+        meta.put("templateSelectionPolicy", templateSelectionPolicy());
         meta.put("assetMetadata", assetMetadataFactory.sqlDatasource(datasource));
         meta.put("mcp_tool_limit", concurrencyManager.limitMeta(datasource.getToolName(), "sql"));
         return meta;
@@ -168,6 +181,8 @@ public class SqlMcpToolPublisher {
         meta.put("allowedStatements", List.of("SELECT", "SHOW", "DESCRIBE", "EXPLAIN"));
         meta.put("templateRegistrySupported", true);
         meta.put("targetRoutingRequired", true);
+        meta.put("authorizedSqlTemplatesByAsset", authorizedSqlTemplatesByAsset());
+        meta.put("templateSelectionPolicy", templateSelectionPolicy());
         meta.put("forbiddenTargetFields", List.of("datasourceId", "jdbcUrl", "url", "connectionString"));
         meta.put("assetMetadata", assetMetadataFactory.gateway(
             "sql_datasource",
@@ -192,6 +207,124 @@ public class SqlMcpToolPublisher {
             .structuredContent(standardResultFactory.fromSql(result))
             .isError(!result.success())
             .build();
+    }
+
+    private List<Map<String, Object>> authorizedSqlTemplatesByAsset() {
+        return datasourceConfigService.listEnabled().stream()
+            .map(datasource -> mutableMap(
+                "assetId", datasource.getId(),
+                "assetName", datasource.getName(),
+                "toolName", datasource.getToolName(),
+                "environment", datasource.getEnvironment(),
+                "databaseType", SqlDatasourceConfigService.normalizeDatabaseTypeToken(datasource.getDatabaseType()),
+                "templates", authorizedSqlTemplates(datasource)
+            ))
+            .toList();
+    }
+
+    private List<Map<String, Object>> authorizedSqlTemplates(SqlDatasourceConfig datasource) {
+        List<String> allowed = allowedTemplateCodes(datasource);
+        String datasourceType = SqlDatasourceConfigService.normalizeDatabaseTypeToken(datasource.getDatabaseType());
+        return sqlTemplateService.listEnabled().stream()
+            .filter(template -> allowed.isEmpty() || allowed.contains(normalizeCode(template.getCode())))
+            .filter(template -> compatibleTemplate(template, datasource, datasourceType))
+            .map(this::templateSummary)
+            .toList();
+    }
+
+    private boolean compatibleTemplate(SqlTemplateConfig template, SqlDatasourceConfig datasource, String datasourceType) {
+        String templateType = SqlDatasourceConfigService.normalizeDatabaseTypeToken(template.getDatabaseType());
+        if (!"generic".equals(templateType) && !templateType.equals(datasourceType)) {
+            return false;
+        }
+        String boundDatasourceId = blankToNull(template.getDatasourceId());
+        return boundDatasourceId == null || boundDatasourceId.equals(datasource.getId());
+    }
+
+    private Map<String, Object> templateSummary(SqlTemplateConfig template) {
+        return mutableMap(
+            "templateId", template.getCode(),
+            "name", firstText(template.getTitle(), template.getCode()),
+            "description", firstText(template.getDescription(), ""),
+            "category", firstText(template.getCategory(), "sql_diagnostic"),
+            "riskLevel", firstText(template.getRiskLevel(), "MEDIUM"),
+            "databaseType", SqlDatasourceConfigService.normalizeDatabaseTypeToken(template.getDatabaseType()),
+            "binding", mutableMap("datasourceId", blankToNull(template.getDatasourceId())),
+            "intentSignals", readStringList(template.getIntentSignalsJson()),
+            "parameterSchema", readJsonObject(template.getParameterSchemaJson()),
+            "rawExecutionSpecReturned", false
+        );
+    }
+
+    private List<String> allowedTemplateCodes(SqlDatasourceConfig datasource) {
+        String json = datasource.getAllowedTemplatesJson();
+        if (json == null || json.isBlank()) {
+            return List.of();
+        }
+        try {
+            return objectMapper.readValue(json, new TypeReference<List<String>>() {}).stream()
+                .filter(value -> value != null && !value.isBlank())
+                .map(this::normalizeCode)
+                .distinct()
+                .toList();
+        } catch (Exception ignored) {
+            return List.of();
+        }
+    }
+
+    private Map<String, Object> templateSelectionPolicy() {
+        return mutableMap(
+            "source", "template_query.templates[].templateId",
+            "allowedSet", "authorizedSqlTemplates[].templateId or authorizedSqlTemplatesByAsset[].templates[].templateId",
+            "selectionFields", List.of("templateId", "name", "description", "databaseType", "intentSignals", "parameterSchema"),
+            "mustUseDiscoveredTemplate", true,
+            "onNoMatch", "call template_query with assetType=sql_datasource and executionContext; if no authorized template is returned, either use explicit read-only sql when policy permits or explain that no existing authorized template can satisfy the request",
+            "doNotInventTemplateNames", true,
+            "rawSqlTemplateReturned", false
+        );
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> readJsonObject(String json) {
+        if (json == null || json.isBlank()) {
+            return Map.of("type", "object", "properties", Map.of(), "required", List.of());
+        }
+        try {
+            Object value = objectMapper.readValue(json, Object.class);
+            if (value instanceof Map<?, ?> map) {
+                return (Map<String, Object>) map;
+            }
+        } catch (Exception ignored) {
+            // Fall through to stable empty schema.
+        }
+        return Map.of("type", "object", "properties", Map.of(), "required", List.of());
+    }
+
+    private List<String> readStringList(String json) {
+        if (json == null || json.isBlank()) {
+            return List.of();
+        }
+        try {
+            return objectMapper.readValue(json, new TypeReference<List<String>>() {}).stream()
+                .filter(value -> value != null && !value.isBlank())
+                .map(String::trim)
+                .distinct()
+                .toList();
+        } catch (Exception ignored) {
+            return List.of();
+        }
+    }
+
+    private String normalizeCode(String value) {
+        return value == null ? "" : value.trim().toUpperCase();
+    }
+
+    private String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
+    }
+
+    private String firstText(String value, String fallback) {
+        return value == null || value.isBlank() ? fallback : value.trim();
     }
 
     private Map<String, Object> mutableMap(Object... values) {

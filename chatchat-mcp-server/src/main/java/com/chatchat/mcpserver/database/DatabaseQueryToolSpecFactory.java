@@ -5,6 +5,7 @@ import com.chatchat.agents.protocol.ModelProtocolJson;
 import com.chatchat.common.tool.ToolOutput;
 import com.chatchat.mcpserver.tool.AgentRuntimeGovernanceFactory;
 import com.chatchat.mcpserver.tool.McpToolConcurrencyManager;
+import com.chatchat.mcpserver.tool.StandardToolExecutionResultFactory;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.modelcontextprotocol.server.McpServerFeatures;
@@ -26,6 +27,7 @@ public class DatabaseQueryToolSpecFactory {
     private final ObjectMapper objectMapper;
     private final AgentRuntimeGovernanceFactory governanceFactory;
     private final McpToolConcurrencyManager concurrencyManager;
+    private final StandardToolExecutionResultFactory standardResultFactory;
 
     /**
      * Converts the value to tool specification.
@@ -56,7 +58,7 @@ public class DatabaseQueryToolSpecFactory {
                     config.getToolName(),
                     config.getId(),
                     argumentKeys(request.arguments()));
-                return toCallToolResult(invokeService.invoke(config, request.arguments()));
+                return toCallToolResult(config, request.arguments(), invokeService.invoke(config, request.arguments()));
             }))
             .build();
     }
@@ -91,15 +93,17 @@ public class DatabaseQueryToolSpecFactory {
      * @param output the output value
      * @return the converted call tool result
      */
-    private McpSchema.CallToolResult toCallToolResult(ToolOutput output) {
-        Object structured = output.getData();
-        String text = output.isSuccess()
+    private McpSchema.CallToolResult toCallToolResult(DatabaseQueryConfig config, Map<String, Object> arguments,
+                                                      ToolOutput output) {
+        Object structured = standardResultFactory.fromDatabaseQuery(config, arguments, output);
+        boolean success = output != null && output.isSuccess();
+        String text = success
             ? summarizeData(output.getData())
-            : output.getErrorMessage();
+            : output == null ? "database_query returned no output" : output.getErrorMessage();
         return McpSchema.CallToolResult.builder()
             .addTextContent(text == null ? "" : text)
             .structuredContent(structured)
-            .isError(!output.isSuccess())
+            .isError(!success)
             .build();
     }
 

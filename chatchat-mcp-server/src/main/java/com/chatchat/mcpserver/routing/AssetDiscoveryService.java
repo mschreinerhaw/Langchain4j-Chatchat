@@ -11,6 +11,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.regex.Pattern;
 
 @Service
 @RequiredArgsConstructor
@@ -65,10 +66,7 @@ public class AssetDiscoveryService {
     public Map<String, Object> query(Map<String, Object> arguments) {
         Map<String, Object> filters = filters(arguments);
         rejectConcreteTargetFields(filters);
-        if (!hasContextFilter(filters)) {
-            throw new IllegalArgumentException("asset_query requires at least one logical context filter: "
-                + "assetName, env, cluster, service, target, database, databaseRole, or labels");
-        }
+        boolean broadDiscovery = !hasContextFilter(filters);
 
         String assetType = text(firstValue(arguments, "assetType", "type"));
         int limit = limit(arguments);
@@ -76,6 +74,8 @@ public class AssetDiscoveryService {
             .filter(asset -> matches(asset, filters))
             .limit(limit)
             .toList();
+        List<Map<String, Object>> unavailableMatched = unavailableAssets(assetType, filters, limit);
+        Map<String, Object> compactFilters = compactFilters(filters);
 
         return mapOf(
             "schemaVersion", RESULT_SCHEMA_VERSION,
@@ -85,31 +85,84 @@ public class AssetDiscoveryService {
             "routingPolicyVersion", AssetMetadataFactory.ROUTING_POLICY_VERSION,
             "discoveryPolicy", mapOf(
                 "readOnly", true,
-                "requiresContextFilter", true,
+                "requiresContextFilter", false,
+                "broadDiscovery", "allowed_redacted_candidates_only",
                 "maxResults", MAX_LIMIT,
                 "redaction", "concrete target fields are never returned"
             ),
-            "filters", compactFilters(filters),
+            "filters", compactFilters,
             "assetType", assetType,
             "limit", limit,
             "returnedCount", matched.size(),
+            "unavailableCount", unavailableMatched.size(),
             "possiblyTruncated", allAssets(assetType).stream().filter(asset -> matches(asset, filters)).count() > limit,
-            "assets", matched
+            "broadDiscovery", broadDiscovery,
+            "broadDiscoveryAdvice", broadDiscovery ? broadDiscoveryAdvice(matched.size()) : null,
+            "emptyResultAdvice", matched.isEmpty() ? emptyResultAdvice(compactFilters, unavailableMatched) : null,
+            "assets", matched,
+            "unavailableAssets", unavailableMatched
         );
     }
 
     private List<Map<String, Object>> allAssets(String assetType) {
         List<Map<String, Object>> assets = new ArrayList<>();
         if (assetType == null || equalsNormalized(assetType, "ssh_host")) {
-            assets.addAll(hostConfigService.listEnabled().stream().map(assetMetadataFactory::sshAsset).toList());
+            assets.addAll(safeList(hostConfigService.listEnabled()).stream().map(assetMetadataFactory::sshAsset).toList());
         }
         if (assetType == null || equalsNormalized(assetType, "sql_datasource")) {
-            assets.addAll(datasourceConfigService.listEnabled().stream().map(assetMetadataFactory::sqlDatasource).toList());
+            assets.addAll(safeList(datasourceConfigService.listEnabled()).stream().map(assetMetadataFactory::sqlDatasource).toList());
         }
         if (assetType == null || equalsNormalized(assetType, "http_endpoint")) {
-            assets.addAll(httpEndpointConfigService.listEnabled().stream().map(assetMetadataFactory::httpEndpoint).toList());
+            assets.addAll(safeList(httpEndpointConfigService.listEnabled()).stream().map(assetMetadataFactory::httpEndpoint).toList());
         }
         return assets;
+    }
+
+    private List<Map<String, Object>> allRegisteredAssets(String assetType) {
+        List<Map<String, Object>> assets = new ArrayList<>();
+        if (assetType == null || equalsNormalized(assetType, "ssh_host")) {
+            assets.addAll(safeList(hostConfigService.listAll()).stream().map(assetMetadataFactory::sshAsset).toList());
+        }
+        if (assetType == null || equalsNormalized(assetType, "sql_datasource")) {
+            assets.addAll(safeList(datasourceConfigService.listAll()).stream().map(assetMetadataFactory::sqlDatasource).toList());
+        }
+        if (assetType == null || equalsNormalized(assetType, "http_endpoint")) {
+            assets.addAll(safeList(httpEndpointConfigService.listAll()).stream().map(assetMetadataFactory::httpEndpoint).toList());
+        }
+        return assets;
+    }
+
+    private List<Map<String, Object>> unavailableAssets(String assetType, Map<String, Object> filters, int limit) {
+        if (!hasContextFilter(filters)) {
+            return List.of();
+        }
+        return allRegisteredAssets(assetType).stream()
+            .filter(asset -> matches(asset, filters))
+            .filter(asset -> {
+                Object assetNode = asset.get("asset");
+                return assetNode instanceof Map<?, ?> map && !Boolean.TRUE.equals(map.get("enabled"));
+            })
+            .limit(limit)
+            .map(this::unavailableAssetSummary)
+            .toList();
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> unavailableAssetSummary(Map<String, Object> metadata) {
+        Map<String, Object> asset = metadata == null || !(metadata.get("asset") instanceof Map<?, ?> map)
+            ? Map.of()
+            : new LinkedHashMap<>((Map<String, Object>) map);
+        return mapOf(
+            "schemaVersion", AssetMetadataFactory.SCHEMA_VERSION,
+            "kind", "asset_unavailable",
+            "assetType", metadata == null ? null : metadata.get("assetType"),
+            "asset", asset,
+            "availability", mapOf(
+                "available", false,
+                "reason", "registered_but_disabled_or_not_published",
+                "nextAction", "Enable and publish this asset before executing tools against it."
+            )
+        );
     }
 
     @SuppressWarnings("unchecked")
@@ -213,7 +266,20 @@ public class AssetDiscoveryService {
         }
         return equalsNormalized(assetName, asset.get("name"))
             || equalsNormalized(assetName, asset.get("displayName"))
-            || equalsNormalized(assetName, asset.get("toolName"));
+            || equalsNormalized(assetName, asset.get("toolName"))
+            || assetNameAppearsInQuery(assetName, asset.get("name"))
+            || assetNameAppearsInQuery(assetName, asset.get("displayName"))
+            || assetNameAppearsInQuery(assetName, asset.get("toolName"));
+    }
+
+    private boolean assetNameAppearsInQuery(String queryValue, Object assetValue) {
+        String query = normalize(queryValue);
+        String assetName = normalize(assetValue == null ? null : String.valueOf(assetValue));
+        if (query == null || assetName == null || assetName.length() < 3 || query.equals(assetName)) {
+            return false;
+        }
+        Pattern pattern = Pattern.compile("(^|[^a-z0-9_-])" + Pattern.quote(assetName) + "($|[^a-z0-9_-])");
+        return pattern.matcher(query).find();
     }
 
     private String view(Map<String, Object> arguments) {
@@ -253,6 +319,30 @@ public class AssetDiscoveryService {
         return compact;
     }
 
+    private Map<String, Object> emptyResultAdvice(Map<String, Object> filters, List<Map<String, Object>> unavailableAssets) {
+        boolean hasUnavailable = unavailableAssets != null && !unavailableAssets.isEmpty();
+        return mapOf(
+            "reason", hasUnavailable
+                ? "A registered asset matched the filters, but it is disabled or not published."
+                : "No enabled and published asset matched the exact logical filters.",
+            "doNotConclude", "Do not conclude the requested system/service does not exist solely from this empty result; it may be registered but disabled or not published.",
+            "doNotInvent", "Do not invent or transform service labels such as service:<topic> from the user's natural-language intent.",
+            "nextAction", hasUnavailable
+                ? "Tell the user the matching asset exists but must be enabled/published before query or command execution."
+                : "Ask the user to confirm the exact assetName/env/cluster/service label and whether the asset is enabled/published, or retry only with values explicitly provided by the user or returned by prior tool observations.",
+            "receivedFilters", filters == null ? Map.of() : filters
+        );
+    }
+
+    private Map<String, Object> broadDiscoveryAdvice(int returnedCount) {
+        return mapOf(
+            "reason", "No exact logical context filter was supplied, so asset_query returned redacted candidate assets.",
+            "selectionPolicy", "Select an asset only when its asset.name/environment/capabilities clearly match the user request; otherwise ask for assetName/env/cluster/service.",
+            "templateHint", "For execution-template questions, prefer assets whose capabilities.allowedCommandTemplates[].templateId, allowedCommandTemplateIds[], authorizedSqlTemplates[], or authorizedHttpTemplates[] contains a matching registered template id.",
+            "returnedCount", returnedCount
+        );
+    }
+
     private Object firstValue(Map<String, Object> map, String... keys) {
         if (map == null || keys == null) {
             return null;
@@ -288,6 +378,10 @@ public class AssetDiscoveryService {
             return null;
         }
         return value.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private <T> List<T> safeList(List<T> values) {
+        return values == null ? List.of() : values;
     }
 
     private Map<String, Object> mapOf(Object... values) {

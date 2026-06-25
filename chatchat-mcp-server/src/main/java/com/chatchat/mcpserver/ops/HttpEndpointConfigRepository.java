@@ -9,5 +9,7 @@ public interface HttpEndpointConfigRepository extends JpaRepository<HttpEndpoint
 
     List<HttpEndpointConfig> findByEnabledTrueOrderByNameAsc();
 
+    Optional<HttpEndpointConfig> findByNameIgnoreCase(String name);
+
     Optional<HttpEndpointConfig> findByToolNameIgnoreCase(String toolName);
 }

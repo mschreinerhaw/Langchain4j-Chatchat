@@ -99,6 +99,7 @@ public class SshHostConfigService {
 
     private void normalize(SshHostConfig config, String currentId) {
         config.setName(firstText(config.getName(), config.getHostname()));
+        assertUniqueName(config.getName(), currentId);
         config.setToolName(normalizeToolName(firstText(config.getToolName(), defaultToolName(config))));
         repository.findByToolNameIgnoreCase(config.getToolName())
             .filter(existing -> currentId == null || !existing.getId().equals(currentId))
@@ -124,6 +125,15 @@ public class SshHostConfigService {
         config.setGovernanceJson(normalizeJsonObject(config.getGovernanceJson(), "governance"));
         config.setConnectTimeoutMs(Math.max(1000, config.getConnectTimeoutMs()));
         config.setCommandTimeoutMs(Math.max(1000, config.getCommandTimeoutMs()));
+    }
+
+    private void assertUniqueName(String name, String currentId) {
+        String normalized = requireText(name, "SSH host name cannot be empty");
+        repository.findByNameIgnoreCase(normalized)
+            .filter(existing -> currentId == null || !existing.getId().equals(currentId))
+            .ifPresent(existing -> {
+                throw new IllegalArgumentException("SSH host name already exists: " + normalized);
+            });
     }
 
     private void syncExecutionTargets(SshHostConfig asset, List<AssetExecutionTargetBinding> bindings) {

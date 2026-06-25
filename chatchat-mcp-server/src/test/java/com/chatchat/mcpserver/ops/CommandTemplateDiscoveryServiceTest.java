@@ -45,8 +45,59 @@ class CommandTemplateDiscoveryServiceTest {
             .containsEntry("schemaVersion", CommandTemplateDiscoveryService.RESULT_SCHEMA_VERSION)
             .containsEntry("returnedCount", 1);
         assertThat(first.get("templateId")).isEqualTo("CHECK_SYSTEM_OVERVIEW");
+        Map<?, ?> selectionPolicy = (Map<?, ?>) result.get("templateSelectionPolicy");
+        assertThat(selectionPolicy.get("mustUseReturnedTemplateId")).isEqualTo(true);
+        assertThat(selectionPolicy.get("doNotInventTemplateNames")).isEqualTo(true);
         assertThat(result).doesNotContainKey("data");
         assertThat(result.toString()).doesNotContain("commandTemplate", "uptime", "df -h");
+    }
+
+    @Test
+    void ranksTemplatesByConfiguredSynonymsAndIntentSignalsInsteadOfRepositoryOrder() {
+        CommandTemplateService templateService = mock(CommandTemplateService.class);
+        SshHostConfigService hostService = mock(SshHostConfigService.class);
+        TemplateDiscoveryProperties properties = new TemplateDiscoveryProperties();
+        properties.setIntentSynonyms(Map.of(
+            "container", List.of("containers", "\u5bb9\u5668"),
+            "count", List.of("number", "\u591a\u5c11", "\u6570\u91cf"),
+            "running", List.of("active", "\u8fd0\u884c")
+        ));
+        CommandTemplateDiscoveryService service = service(templateService, hostService, properties);
+        when(templateService.listEnabled()).thenReturn(List.of(
+            template(
+                "DOCKER_STATS",
+                "docker stats --no-stream",
+                "Docker resource stats",
+                "Read Docker container resource usage.",
+                "[\"docker\",\"container\",\"stats\"]"
+            ),
+            template(
+                "LIST_DOCKER_CONTAINERS",
+                "docker ps",
+                "Running container count",
+                "Read currently running container count.",
+                "[\"docker\",\"container count\",\"running containers\"]"
+            )
+        ));
+        when(hostService.listEnabled()).thenReturn(List.of());
+
+        Map<String, Object> result = service.query(Map.of(
+            "assetType", "ssh_host",
+            "filters", Map.of("intent", "\u5f53\u524d\u670d\u52a1\u6709\u591a\u5c11\u4e2a\u5bb9\u5668\u5728\u8fd0\u884c"),
+            "limit", 10
+        ));
+
+        List<?> templates = (List<?>) result.get("templates");
+        Map<?, ?> first = (Map<?, ?>) templates.get(0);
+        Map<?, ?> second = (Map<?, ?>) templates.get(1);
+
+        assertThat(first.get("templateId")).isEqualTo("LIST_DOCKER_CONTAINERS");
+        assertThat((Integer) first.get("relevanceScore")).isGreaterThan((Integer) second.get("relevanceScore"));
+        assertThat(first.get("matchReasons").toString()).contains("container", "count", "running");
+        Map<?, ?> selectionPolicy = (Map<?, ?>) result.get("templateSelectionPolicy");
+        assertThat(selectionPolicy.get("orderedBy").toString()).contains("relevanceScore");
+        assertThat(selectionPolicy.get("intentSynonymSource").toString())
+            .contains("chatchat.mcp.template-discovery.intent-synonyms");
     }
 
     @Test
@@ -57,7 +108,8 @@ class CommandTemplateDiscoveryServiceTest {
             mock(SqlTemplateService.class),
             mock(SqlDatasourceConfigService.class),
             mock(HttpEndpointConfigService.class),
-            new ObjectMapper()
+            new ObjectMapper(),
+            new TemplateDiscoveryProperties()
         );
 
         assertThatThrownBy(() -> service.query(Map.of(
@@ -124,12 +176,19 @@ class CommandTemplateDiscoveryServiceTest {
 
     private CommandTemplateDiscoveryService service(CommandTemplateService templateService,
                                                     SshHostConfigService hostService) {
+        return service(templateService, hostService, new TemplateDiscoveryProperties());
+    }
+
+    private CommandTemplateDiscoveryService service(CommandTemplateService templateService,
+                                                    SshHostConfigService hostService,
+                                                    TemplateDiscoveryProperties properties) {
         return service(
             templateService,
             hostService,
             mock(SqlTemplateService.class),
             mock(SqlDatasourceConfigService.class),
-            mock(HttpEndpointConfigService.class)
+            mock(HttpEndpointConfigService.class),
+            properties
         );
     }
 
@@ -138,24 +197,45 @@ class CommandTemplateDiscoveryServiceTest {
                                                     SqlTemplateService sqlTemplateService,
                                                     SqlDatasourceConfigService datasourceService,
                                                     HttpEndpointConfigService httpService) {
+        return service(templateService, hostService, sqlTemplateService, datasourceService, httpService, new TemplateDiscoveryProperties());
+    }
+
+    private CommandTemplateDiscoveryService service(CommandTemplateService templateService,
+                                                    SshHostConfigService hostService,
+                                                    SqlTemplateService sqlTemplateService,
+                                                    SqlDatasourceConfigService datasourceService,
+                                                    HttpEndpointConfigService httpService,
+                                                    TemplateDiscoveryProperties properties) {
         return new CommandTemplateDiscoveryService(
             templateService,
             hostService,
             sqlTemplateService,
             datasourceService,
             httpService,
-            new ObjectMapper()
+            new ObjectMapper(),
+            properties
         );
     }
 
     private CommandTemplateConfig template(String code, String command) {
+        return template(code, command, code, "Read-only system diagnostic template", null);
+    }
+
+    private CommandTemplateConfig template(String code,
+                                           String command,
+                                           String title,
+                                           String description,
+                                           String intentSignalsJson) {
         CommandTemplateConfig template = new CommandTemplateConfig();
         template.setId(code);
         template.setCode(code);
-        template.setTitle(code);
-        template.setDescription("Read-only system diagnostic template");
+        template.setTitle(title);
+        template.setDescription(description);
         template.setCommandTemplate(command);
         template.setParameterSchemaJson("{\"type\":\"object\",\"properties\":{},\"required\":[]}");
+        template.setRiskLevel("LOW");
+        template.setCategory("system_diagnostic");
+        template.setIntentSignalsJson(intentSignalsJson);
         template.setEnabled(true);
         return template;
     }

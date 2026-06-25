@@ -1,6 +1,7 @@
 package com.chatchat.mcpserver.ops;
 
 import com.chatchat.mcpserver.audit.InvocationAuditService;
+import com.chatchat.mcpserver.template.TemplateParameterValidator;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -47,6 +48,7 @@ public class LinuxCommandService {
     private final SafetyKernelService safetyKernelService;
     private final InvocationAuditService auditService;
     private final ObjectMapper objectMapper;
+    private final TemplateParameterValidator parameterValidator;
 
     public LinuxCommandResult execute(Map<String, Object> arguments) {
         long startedAt = System.currentTimeMillis();
@@ -58,9 +60,20 @@ public class LinuxCommandService {
         try {
             host = hostConfigService.getEnabled(text(request, "hostId"));
             assertExecutionCapability(host);
-            CommandTemplateConfig template = getAllowedTemplate(host, text(request, "template"));
-            assertTemplateAllowed(host, template.getCode());
-            command = renderCommand(template.getCommandTemplate(), mapValue(request.get("parameters")));
+            String requestedTemplate = assertTemplateAllowed(host, text(request, "template"));
+            CommandTemplateConfig template = getAllowedTemplate(host, requestedTemplate);
+            Map<String, Object> collectedParameters = parameterValidator.collect(
+                template.getParameterSchemaJson(),
+                mapValue(request.get("parameters")),
+                request
+            );
+            Map<String, Object> parameters = parameterValidator.validate(
+                template.getCode(),
+                template.getParameterSchemaJson(),
+                collectedParameters
+            );
+            request.put("parameters", parameters);
+            command = renderCommand(template.getCommandTemplate(), parameters);
             commands = parseCommands(command);
             commands.forEach(safetyService::assertSafe);
             commands.forEach(safetyKernelService::assertAllowed);
@@ -70,6 +83,7 @@ public class LinuxCommandService {
             result = executeSsh(host, template.getCode(), commands, request, startedAt);
         } catch (Exception ex) {
             long durationMs = Math.max(0, System.currentTimeMillis() - startedAt);
+            List<LinuxCommandStepResult> failedSteps = commandFailureSteps(commands, command, ex.getMessage(), durationMs);
             result = new LinuxCommandResult(
                 false,
                 host == null ? text(request, "hostId") : host.getId(),
@@ -79,12 +93,12 @@ public class LinuxCommandService {
                 text(request, "template"),
                 commands.isEmpty() ? command : String.join(System.lineSeparator(), commands),
                 commandHash(commands),
-                List.of(),
-                null,
-                null,
+                failedSteps,
+                failedSteps.isEmpty() ? null : failedSteps.get(0).stepIndex(),
+                failedSteps.isEmpty() ? null : failedSteps.get(0).command(),
                 -1,
                 "",
-                "",
+                ex.getMessage(),
                 durationMs,
                 ex.getMessage(),
                 request
@@ -204,7 +218,14 @@ public class LinuxCommandService {
             String current = commands.get(index);
             log.info("MCP Linux command SSH exec command: hostId={}, template={}, step={}/{}, command={}",
                 host.getId(), template, index + 1, commands.size(), current);
-            LinuxCommandStepResult step = executeSingleSshCommand(host, current, index + 1);
+            long stepStartedAt = System.currentTimeMillis();
+            LinuxCommandStepResult step;
+            try {
+                step = executeSingleSshCommand(host, current, index + 1);
+            } catch (Exception ex) {
+                step = failedCommandStep(current, index + 1, ex.getMessage(),
+                    Math.max(0, System.currentTimeMillis() - stepStartedAt));
+            }
             steps.add(step);
             lastExitCode = step.exitCode();
             log.info("MCP Linux command SSH step completed: hostId={}, hostName={}, template={}, step={}/{}, exitCode={}, success={}, durationMs={}, stdout={}, stderr={}",
@@ -266,14 +287,16 @@ public class LinuxCommandService {
             try (ClientSession session = client.connect(host.getUsername(), host.getHostname(), normalizePort(host.getPort()))
                 .verify(Duration.ofMillis(connectTimeoutMs(host)))
                 .getSession()) {
-                log.info("MCP Linux command SSH connected: hostId={}, hostName={}, endpoint={}:{}, env={}, step={}, command={}",
-                    host.getId(), host.getName(), host.getHostname(), normalizePort(host.getPort()), host.getEnvironment(), stepIndex, command);
+                String sshCommand = sshLoginShellCommand(command);
+                log.info("MCP Linux command SSH connected: hostId={}, hostName={}, endpoint={}:{}, env={}, step={}, command={}, sshCommand={}",
+                    host.getId(), host.getName(), host.getHostname(), normalizePort(host.getPort()), host.getEnvironment(),
+                    stepIndex, command, sshCommand);
                 authenticate(session, host);
                 log.info("MCP Linux command SSH authenticated: hostId={}, hostName={}, authType={}, step={}",
                     host.getId(), host.getName(), host.getAuthType(), stepIndex);
                 try (ByteArrayOutputStream stdout = new ByteArrayOutputStream();
                      ByteArrayOutputStream stderr = new ByteArrayOutputStream();
-                     ClientChannel channel = session.createExecChannel(command)) {
+                     ClientChannel channel = session.createExecChannel(sshCommand)) {
                     channel.setOut(stdout);
                     channel.setErr(stderr);
                     channel.open().verify(Duration.ofMillis(connectTimeoutMs(host)));
@@ -296,6 +319,54 @@ public class LinuxCommandService {
                 client.stop();
             }
         }
+    }
+
+    String sshLoginShellCommand(String command) {
+        String original = command == null ? "" : command;
+        String prelude = "if [ -f ~/.bashrc ]; then . ~/.bashrc >/dev/null 2>&1 || true; fi; ";
+        return "bash -lc " + shellSingleQuote(prelude + original);
+    }
+
+    private String shellSingleQuote(String value) {
+        return "'" + (value == null ? "" : value).replace("'", "'\\''") + "'";
+    }
+
+    private List<LinuxCommandStepResult> commandFailureSteps(List<String> commands, String command,
+                                                             String errorMessage, long durationMs) {
+        List<String> values = commands == null || commands.isEmpty()
+            ? parseFallbackCommand(command)
+            : commands;
+        if (values.isEmpty()) {
+            return List.of();
+        }
+        List<LinuxCommandStepResult> steps = new ArrayList<>();
+        for (int index = 0; index < values.size(); index++) {
+            steps.add(failedCommandStep(values.get(index), index + 1, errorMessage, index == 0 ? durationMs : 0L));
+        }
+        return steps;
+    }
+
+    private LinuxCommandStepResult failedCommandStep(String command, int stepIndex, String errorMessage, long durationMs) {
+        return new LinuxCommandStepResult(
+            stepIndex,
+            command,
+            sha256(command),
+            -1,
+            "",
+            errorMessage == null ? "" : errorMessage,
+            durationMs,
+            false
+        );
+    }
+
+    private List<String> parseFallbackCommand(String command) {
+        if (command == null || command.isBlank()) {
+            return List.of();
+        }
+        return command.lines()
+            .map(String::trim)
+            .filter(value -> !value.isBlank())
+            .toList();
     }
 
     private void assertExecutionCapability(SshHostConfig host) {
@@ -401,13 +472,15 @@ public class LinuxCommandService {
         return request;
     }
 
-    private void assertTemplateAllowed(SshHostConfig host, String templateCode) {
-        allowedTemplateCodes(host, true);
+    private String assertTemplateAllowed(SshHostConfig host, String templateCode) {
+        Set<String> allowed = allowedTemplateCodes(host, true);
         String normalizedTemplateCode = templateCode == null ? "" : templateCode.toUpperCase(Locale.ROOT);
-        if (!allowedTemplateCodes(host, false).contains(normalizedTemplateCode)) {
-            throw new IllegalArgumentException("Command template is not allowed for this host: " + templateCode
-                + ". Allowed templates: " + allowedTemplateCodes(host, false));
+        if (!allowed.contains(normalizedTemplateCode)) {
+            throw new IllegalArgumentException("Command template is not authorized for this host: " + templateCode
+                + ". Use only an existing templateId returned by template_query for this asset. Allowed templates: " + allowed
+                + ". Do not invent template names.");
         }
+        return normalizedTemplateCode;
     }
 
     private CommandTemplateConfig getAllowedTemplate(SshHostConfig host, String requestedCode) {
@@ -415,8 +488,9 @@ public class LinuxCommandService {
         try {
             return templateService.getByCode(code);
         } catch (IllegalArgumentException ex) {
-            throw new IllegalArgumentException(ex.getMessage()
-                + ". Allowed templates for host " + host.getToolName() + ": " + allowedTemplateCodes(host, false));
+            throw new IllegalArgumentException("Authorized command template is not registered or is disabled: " + code
+                + ". This asset allowed the template, but the template registry cannot load it. Ask an administrator to repair the existing allowlist/template registry entry. Allowed templates for host "
+                + host.getToolName() + ": " + allowedTemplateCodes(host, false));
         }
     }
 

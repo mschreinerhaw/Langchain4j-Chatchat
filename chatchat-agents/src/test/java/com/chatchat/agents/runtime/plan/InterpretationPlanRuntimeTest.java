@@ -491,6 +491,46 @@ class InterpretationPlanRuntimeTest {
     }
 
     @Test
+    void acceptsAssetTypeEdgeContractFromAssetEnvelopeWhenQueryScopeOmitted() throws Exception {
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            mock(ToolRuntimeService.class),
+            new InterpretationPlanValidator(),
+            scriptedController(List.of())
+        );
+        Map<String, Object> output = Map.of(
+            "schemaVersion", "asset_query_result.v1",
+            "success", true,
+            "returnedCount", 1,
+            "assets", List.of(Map.of(
+                "schemaVersion", "asset_metadata.v1",
+                "kind", "asset",
+                "asset", Map.of(
+                    "type", "ssh_host",
+                    "name", "TDH scheduler server"
+                ),
+                "capabilities", Map.of(
+                    "allowedCommandTemplateIds", List.of("CHECK_JAVA_PROCESS")
+                )
+            ))
+        );
+        var method = InterpretationPlanRuntime.class.getDeclaredMethod(
+            "checkContract",
+            InterpretationPlan.EdgeContract.class,
+            Object.class
+        );
+        method.setAccessible(true);
+        Object check = method.invoke(
+            runtime,
+            new InterpretationPlan.EdgeContract(1, 2, "assetType", "string", true),
+            output
+        );
+        var success = check.getClass().getDeclaredMethod("success");
+        success.setAccessible(true);
+
+        assertThat(success.invoke(check)).isEqualTo(true);
+    }
+
+    @Test
     void recordsStructuredEventsForDagStepsWhenRunIdIsAvailable() {
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         when(toolRegistry.hasTool("document_search")).thenReturn(true);

@@ -83,6 +83,7 @@ public class HttpEndpointConfigService {
 
     private void normalize(HttpEndpointConfig config, String currentId) {
         config.setName(firstText(config.getName(), config.getToolName()));
+        assertUniqueName(config.getName(), currentId);
         config.setToolName(normalizeToolName(firstText(config.getToolName(), defaultToolName(config))));
         repository.findByToolNameIgnoreCase(config.getToolName())
             .filter(existing -> currentId == null || !existing.getId().equals(currentId))
@@ -106,6 +107,15 @@ public class HttpEndpointConfigService {
         config.setTags(mergeTags(config.getTags(), config.getRoutingLabelsJson(), config.getCapabilitiesJson()));
         config.setRuntimeAction("readonly");
         config.setTimeoutMs(Math.max(1000, Math.min(config.getTimeoutMs(), 60000)));
+    }
+
+    private void assertUniqueName(String name, String currentId) {
+        String normalized = requireText(name, "HTTP endpoint name cannot be empty");
+        repository.findByNameIgnoreCase(normalized)
+            .filter(existing -> currentId == null || !existing.getId().equals(currentId))
+            .ifPresent(existing -> {
+                throw new IllegalArgumentException("HTTP endpoint name already exists: " + normalized);
+            });
     }
 
     private String normalizeToolName(String value) {

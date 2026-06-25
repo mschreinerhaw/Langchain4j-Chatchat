@@ -9,5 +9,7 @@ public interface SqlDatasourceConfigRepository extends JpaRepository<SqlDatasour
 
     List<SqlDatasourceConfig> findByEnabledTrueOrderByNameAsc();
 
+    Optional<SqlDatasourceConfig> findByNameIgnoreCase(String name);
+
     Optional<SqlDatasourceConfig> findByToolNameIgnoreCase(String toolName);
 }

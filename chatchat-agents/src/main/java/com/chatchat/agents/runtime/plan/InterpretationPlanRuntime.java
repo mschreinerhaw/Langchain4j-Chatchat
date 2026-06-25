@@ -1139,7 +1139,7 @@ public class InterpretationPlanRuntime {
     }
 
     private ContractCheck checkContract(InterpretationPlan.EdgeContract contract, Object output) {
-        Object value = valueAtPath(output, contract.field());
+        Object value = contractValue(output, contract.field());
         boolean required = contract.required() == null || contract.required();
         if (value == null) {
             return required
@@ -1164,6 +1164,71 @@ public class InterpretationPlanRuntime {
         return new ContractCheck(true, null);
     }
 
+    private Object contractValue(Object output, String field) {
+        Object value = valueAtPath(output, field);
+        if (value != null || field == null || field.isBlank()) {
+            return value;
+        }
+        String key = contractFieldKey(field);
+        if ("assettype".equals(key) || "asset.type".equals(key)) {
+            return firstValueAtAnyPath(
+                output,
+                "assetType",
+                "data.assetType",
+                "asset.type",
+                "data.asset.type",
+                "assets[0].assetType",
+                "data.assets[0].assetType",
+                "assets[0].asset.type",
+                "data.assets[0].asset.type"
+            );
+        }
+        if ("allowedcommandtemplates".equals(key)) {
+            return firstValueAtAnyPath(
+                output,
+                "capabilities.allowedCommandTemplates",
+                "assets[0].capabilities.allowedCommandTemplates",
+                "data.assets[0].capabilities.allowedCommandTemplates"
+            );
+        }
+        if ("allowedcommandtemplateids".equals(key)) {
+            return firstValueAtAnyPath(
+                output,
+                "capabilities.allowedCommandTemplateIds",
+                "assets[0].capabilities.allowedCommandTemplateIds",
+                "data.assets[0].capabilities.allowedCommandTemplateIds"
+            );
+        }
+        return null;
+    }
+
+    private Object firstValueAtAnyPath(Object output, String... paths) {
+        if (paths == null) {
+            return null;
+        }
+        for (String path : paths) {
+            Object value = valueAtPath(output, path);
+            if (value != null) {
+                return value;
+            }
+        }
+        return null;
+    }
+
+    private String contractFieldKey(String field) {
+        List<String> tokens = pathTokens(field).stream()
+            .filter(token -> !"data".equals(token))
+            .toList();
+        if (tokens.isEmpty()) {
+            return "";
+        }
+        String last = tokens.get(tokens.size() - 1);
+        if ("type".equals(last) && tokens.size() >= 2 && "asset".equals(tokens.get(tokens.size() - 2))) {
+            return "asset.type";
+        }
+        return last.replace("_", "").replace("-", "").toLowerCase(Locale.ROOT);
+    }
+
     private Object valueAtPath(Object output, String path) {
         if (output == null || path == null || path.isBlank()) {
             return output;
@@ -1184,10 +1249,20 @@ public class InterpretationPlanRuntime {
                     return null;
                 }
             } else {
+                if (isTemplateIdAlias(part) && current instanceof String) {
+                    return current;
+                }
                 return null;
             }
         }
         return current;
+    }
+
+    private boolean isTemplateIdAlias(String part) {
+        return "templateId".equals(part)
+            || "template_id".equals(part)
+            || "templateCode".equals(part)
+            || "code".equals(part);
     }
 
     private List<String> pathTokens(String path) {

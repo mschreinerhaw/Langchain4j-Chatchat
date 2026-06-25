@@ -1,13 +1,17 @@
 package com.chatchat.mcpserver.ops;
 
 import com.chatchat.mcpserver.audit.InvocationAuditService;
+import com.chatchat.mcpserver.template.TemplateParameterValidator;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class LinuxCommandServiceTest {
@@ -15,13 +19,15 @@ class LinuxCommandServiceTest {
     private final SshHostConfigService hostConfigService = mock(SshHostConfigService.class);
     private final CommandTemplateService templateService = mock(CommandTemplateService.class);
     private final InvocationAuditService auditService = mock(InvocationAuditService.class);
+    private final ObjectMapper objectMapper = new ObjectMapper();
     private final LinuxCommandService linuxCommandService = new LinuxCommandService(
         hostConfigService,
         templateService,
         new LinuxCommandSafetyService(),
         new SafetyKernelService(),
         auditService,
-        new ObjectMapper()
+        objectMapper,
+        new TemplateParameterValidator(objectMapper)
     );
 
     @Test
@@ -54,6 +60,60 @@ class LinuxCommandServiceTest {
 
         assertThat(result.success()).isFalse();
         assertThat(result.errorMessage()).contains("safety kernel");
+        Map<?, ?> execution = result.execution();
+        Map<?, ?> step = (Map<?, ?>) ((List<?>) execution.get("steps")).get(0);
+        Map<?, ?> input = (Map<?, ?>) step.get("input");
+        Map<?, ?> output = (Map<?, ?>) step.get("output");
+        assertThat(execution.get("schemaVersion")).isEqualTo("execution_unit.v1");
+        assertThat(step.get("stepType")).isEqualTo("command");
+        assertThat(input.get("command")).isEqualTo("rm -rf /");
+        assertThat(output.get("exitCode")).isEqualTo(-1);
+        assertThat(output.get("stderr")).asString().contains("safety kernel");
+    }
+
+    @Test
+    void rejectsInventedTemplateNamesBeforeRegistryLookup() {
+        SshHostConfig host = host("host-1", "[\"CHECK_SYSTEM_OVERVIEW\"]");
+        when(hostConfigService.getEnabled("host-1")).thenReturn(host);
+
+        LinuxCommandResult result = linuxCommandService.execute(Map.of(
+            "hostId", "host-1",
+            "template", "DOCKER_PS"
+        ));
+
+        assertThat(result.success()).isFalse();
+        assertThat(result.errorMessage()).contains("not authorized", "template_query", "CHECK_SYSTEM_OVERVIEW", "Do not invent");
+        verify(templateService, never()).getByCode("DOCKER_PS");
+    }
+
+    @Test
+    void validatesTemplateParametersBeforeRenderingCommand() {
+        SshHostConfig host = host("host-1", "[\"TAIL_LOG\"]");
+        CommandTemplateConfig template = template("TAIL_LOG", "tail -n {{lines}} {{path}}");
+        template.setParameterSchemaJson("""
+            {"type":"object","properties":{"lines":{"type":"integer","minimum":1,"maximum":1000},"path":{"type":"string","pattern":"^[A-Za-z0-9_./:-]{1,300}$"}},"required":["lines","path"]}
+            """);
+        when(hostConfigService.getEnabled("host-1")).thenReturn(host);
+        when(templateService.getByCode("TAIL_LOG")).thenReturn(template);
+
+        LinuxCommandResult result = linuxCommandService.execute(Map.of(
+            "hostId", "host-1",
+            "template", "TAIL_LOG",
+            "parameters", Map.of("path", "/var/log/app.log")
+        ));
+
+        assertThat(result.success()).isFalse();
+        assertThat(result.errorMessage()).contains("Template parameter is required: lines", "parameters.lines");
+    }
+
+    @Test
+    void wrapsSshCommandsInLoginShellSoProfileEnvironmentIsAvailable() {
+        String command = linuxCommandService.sshLoginShellCommand("jps -l | grep 'MainApp'");
+
+        assertThat(command).startsWith("bash -lc ");
+        assertThat(command).contains(". ~/.bashrc");
+        assertThat(command).contains("jps -l");
+        assertThat(command).contains("grep '\\''MainApp'\\'''");
     }
 
     private SshHostConfig host(String id, String allowedCommandsJson) {

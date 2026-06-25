@@ -10,6 +10,7 @@ import com.chatchat.mcpserver.notification.NotificationSendResult;
 import com.chatchat.mcpserver.ops.HttpRequestToolResult;
 import com.chatchat.mcpserver.ops.LinuxCommandResult;
 import com.chatchat.mcpserver.ops.SshHostConfig;
+import com.chatchat.mcpserver.mcp.McpInvocationContext;
 import com.chatchat.mcpserver.sql.SqlDatasourceConfig;
 import com.chatchat.mcpserver.sql.SqlQueryResult;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -131,12 +132,14 @@ public class InvocationAuditService {
         log.setTargetId(config.getId());
         log.setTargetName(config.getToolName());
         log.setToolName(config.getToolName());
-        log.setCaller("mcp-tool");
+        log.setCaller(auditCaller(arguments));
         log.setSuccess(result.success());
         log.setStatusCode(result.statusCode());
         log.setDurationMs(durationMs);
         log.setErrorMessage(limit(result.errorMessage()));
-        log.setRequestSummary(toJsonSummary(redact(arguments)));
+        Map<String, Object> request = new LinkedHashMap<>(arguments == null ? Map.of() : arguments);
+        request.put("auditContext", auditContext(arguments));
+        log.setRequestSummary(toJsonSummary(redact(request)));
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("statusCode", result.statusCode());
         response.put("cacheHit", result.cacheHit());
@@ -158,7 +161,7 @@ public class InvocationAuditService {
         log.setTargetId(config.getId());
         log.setTargetName(config.getTitle());
         log.setToolName(config.getToolName());
-        log.setCaller("mcp-tool");
+        log.setCaller(auditCaller(arguments));
         log.setSuccess(result.success());
         log.setStatusCode(result.statusCode());
         log.setDurationMs(durationMs);
@@ -171,6 +174,7 @@ public class InvocationAuditService {
         request.put("level", arguments == null ? null : arguments.get("level"));
         request.put("sourceTaskId", arguments == null ? null : arguments.get("sourceTaskId"));
         request.put("content", arguments == null ? null : arguments.get("content"));
+        request.put("auditContext", auditContext(arguments));
         log.setRequestSummary(toJsonSummary(redact(request)));
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("statusCode", result.statusCode());
@@ -192,12 +196,14 @@ public class InvocationAuditService {
         log.setTargetId(result.url());
         log.setTargetName(result.method() + " " + result.url());
         log.setToolName("http_request");
-        log.setCaller("mcp-tool");
+        log.setCaller(auditCaller(arguments));
         log.setSuccess(result.success());
         log.setStatusCode(result.statusCode());
         log.setDurationMs(result.durationMs());
         log.setErrorMessage(limit(result.errorMessage()));
-        log.setRequestSummary(toJsonSummary(redact(arguments)));
+        Map<String, Object> request = new LinkedHashMap<>(arguments == null ? Map.of() : arguments);
+        request.put("auditContext", auditContext(arguments));
+        log.setRequestSummary(toJsonSummary(redact(request)));
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("statusCode", result.statusCode());
         response.put("headers", result.headers());
@@ -218,7 +224,7 @@ public class InvocationAuditService {
         log.setTargetId(result.hostId());
         log.setTargetName((host == null ? result.host() : host.getName()) + " / " + result.template());
         log.setToolName(result.toolName() == null ? "linux_command_execute" : result.toolName());
-        log.setCaller("mcp-tool");
+        log.setCaller(auditCaller(result.request()));
         log.setSuccess(result.success());
         log.setStatusCode(result.exitCode());
         log.setDurationMs(result.durationMs());
@@ -234,6 +240,7 @@ public class InvocationAuditService {
         request.put("failedCommand", result.failedCommand());
         request.put("sourceTaskId", result.request() == null ? null : result.request().get("sourceTaskId"));
         request.put("reason", result.request() == null ? null : result.request().get("reason"));
+        request.put("auditContext", auditContext(result.request()));
         log.setRequestSummary(toJsonSummary(redact(request)));
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("exitCode", result.exitCode());
@@ -247,16 +254,23 @@ public class InvocationAuditService {
     }
 
     public void recordSqlQueryCall(SqlDatasourceConfig datasource, SqlQueryResult result) {
+        recordSqlQueryCall(datasource, Map.of(), result);
+    }
+
+    public void recordSqlQueryCall(SqlDatasourceConfig datasource, Map<String, Object> arguments, SqlQueryResult result) {
         if (!rocksDbStore.isUsable()) {
             return;
         }
+        String template = textValue(arguments, "template");
         InvocationAuditLog log = new InvocationAuditLog();
         log.setId(UUID.randomUUID().toString());
         log.setTargetType("SQL_QUERY");
         log.setTargetId(result.datasourceId());
-        log.setTargetName((datasource == null ? result.datasourceName() : datasource.getName()) + " / " + result.environment());
+        log.setTargetName((datasource == null ? result.datasourceName() : datasource.getName())
+            + " / " + result.environment()
+            + (template == null ? "" : " / " + template));
         log.setToolName(result.toolName() == null ? "sql_query_execute" : result.toolName());
-        log.setCaller("mcp-tool");
+        log.setCaller(auditCaller(arguments));
         log.setSuccess(result.success());
         log.setStatusCode(result.success() ? 200 : 0);
         log.setDurationMs(result.durationMs());
@@ -269,11 +283,15 @@ public class InvocationAuditService {
         request.put("normalizedSql", result.normalizedSql());
         request.put("timeoutSeconds", result.timeoutSeconds());
         request.put("maxRows", result.maxRows());
+        request.put("template", template);
+        request.put("parameters", arguments == null ? null : arguments.get("parameters"));
         request.put("purpose", result.purpose());
         request.put("sourceTaskId", result.sourceTaskId());
+        request.put("auditContext", auditContext(arguments));
         log.setRequestSummary(toJsonSummary(redact(request)));
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("columns", result.columns());
+        response.put("columnMetadata", result.columnMetadata());
         response.put("rowCount", result.rowCount());
         response.put("possiblyTruncated", result.possiblyTruncated());
         response.put("errorMessage", result.errorMessage());
@@ -308,7 +326,8 @@ public class InvocationAuditService {
         log.setTargetId(uri);
         log.setTargetName((method == null || method.isBlank() ? "MCP" : method.toUpperCase(Locale.ROOT)) + " " + uri);
         log.setToolName(toolName);
-        log.setCaller(caller);
+        McpInvocationContext.Context context = McpInvocationContext.current();
+        log.setCaller(firstNonBlank(context == null ? null : context.caller(), caller, "mcp-transport"));
         log.setSuccess(errorMessage == null && statusCode != null && statusCode < 400);
         log.setStatusCode(statusCode);
         log.setDurationMs(durationMs);
@@ -318,8 +337,11 @@ public class InvocationAuditService {
         request.put("uri", uri);
         request.put("queryString", redactQueryString(queryString));
         request.put("toolName", toolName);
-        request.put("remoteAddr", caller);
+        request.put("caller", log.getCaller());
+        request.put("remoteAddr", firstNonBlank(context == null ? null : context.remoteAddr(), caller));
         request.put("userAgent", userAgent);
+        request.put("requestId", context == null ? null : context.requestId());
+        request.put("clientId", context == null ? null : context.clientId());
         log.setRequestSummary(toJsonSummary(redact(request)));
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("statusCode", statusCode);
@@ -377,6 +399,40 @@ public class InvocationAuditService {
             textValue(params == null ? null : params.get("toolName")),
             textValue(params == null ? null : params.get("tool_name"))
         );
+    }
+
+    private String auditCaller(Map<String, Object> arguments) {
+        McpInvocationContext.Context context = McpInvocationContext.current();
+        return firstNonBlank(
+            context == null ? null : context.caller(),
+            textValue(arguments, "operatorUserId"),
+            textValue(arguments, "operator"),
+            textValue(arguments, "userId"),
+            textValue(arguments, "user_id"),
+            textValue(arguments, "username"),
+            textValue(arguments, "caller"),
+            "mcp-tool"
+        );
+    }
+
+    private Map<String, Object> auditContext(Map<String, Object> arguments) {
+        McpInvocationContext.Context context = McpInvocationContext.current();
+        Map<String, Object> value = new LinkedHashMap<>();
+        value.put("caller", auditCaller(arguments));
+        value.put("remoteAddr", context == null ? null : context.remoteAddr());
+        value.put("userAgent", context == null ? null : context.userAgent());
+        value.put("requestId", context == null ? null : context.requestId());
+        value.put("clientId", context == null ? null : context.clientId());
+        return value;
+    }
+
+    private String textValue(Map<String, Object> arguments, String key) {
+        Object value = arguments == null ? null : arguments.get(key);
+        if (value == null) {
+            return null;
+        }
+        String text = String.valueOf(value);
+        return text.isBlank() ? null : text.trim();
     }
 
     /**
@@ -613,7 +669,8 @@ public class InvocationAuditService {
             || normalized.contains("secret")
             || normalized.contains("authorization")
             || normalized.contains("apikey")
-            || normalized.contains("api_key");
+            || normalized.contains("api_key")
+            || normalized.contains("cookie");
     }
 
     /**

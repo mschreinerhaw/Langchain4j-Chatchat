@@ -83,11 +83,14 @@ public class DatabaseQueryInvokeService {
     public ToolOutput invoke(Map<String, Object> parameters) {
         long startedAt = System.currentTimeMillis();
         if (!toolRegistry.hasTool(TOOL_NAME)) {
+            long durationMs = Math.max(0L, System.currentTimeMillis() - startedAt);
             log.warn("Database query invoke failed tool={} durationMs={} error={}",
                 TOOL_NAME,
-                Math.max(0L, System.currentTimeMillis() - startedAt),
+                durationMs,
                 "database_query tool is not registered");
-            return ToolOutput.failure("database_query tool is not registered");
+            ToolOutput output = ToolOutput.failure("database_query tool is not registered");
+            output.setExecutionTimeMs(durationMs);
+            return output;
         }
         ToolInput input = ToolInput.builder()
             .requestId(UUID.randomUUID().toString())
@@ -96,6 +99,10 @@ public class DatabaseQueryInvokeService {
             .build();
         ToolOutput output = toolRegistry.executeEnhancedTool(TOOL_NAME, input);
         long durationMs = Math.max(0L, System.currentTimeMillis() - startedAt);
+        if (output == null) {
+            output = ToolOutput.failure("database_query tool returned no output");
+        }
+        output.setExecutionTimeMs(durationMs);
         if (output.isSuccess()) {
             log.info("Database query invoke succeeded tool={} durationMs={} result={}",
                 TOOL_NAME,

@@ -46,6 +46,12 @@ chatchat:
     security:
       require-mcp-token: ${CHAT_MCP_REQUIRE_TOKEN:true}
       invocation-token: ${CHAT_MCP_INVOCATION_TOKEN:}
+    command-templates:
+      # Agent OS default: do not seed scenario-specific execution templates.
+      seed-defaults-enabled: ${CHAT_MCP_SEED_COMMAND_TEMPLATES:false}
+    sql-templates:
+      # Agent OS default: do not seed scenario-specific SQL templates.
+      seed-defaults-enabled: ${CHAT_MCP_SEED_SQL_TEMPLATES:false}
     cache:
       enabled: ${CHAT_MCP_CACHE_ENABLED:true}
       path: ./data/mcp-cache-rocksdb

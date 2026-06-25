@@ -54,6 +54,8 @@ public class McpInvocationLoggingFilter extends OncePerRequestFilter {
 
         long startedAt = System.currentTimeMillis();
         ContentCachingRequestWrapper wrappedRequest = new ContentCachingRequestWrapper(request);
+        McpInvocationContext.Context invocationContext = invocationContext(wrappedRequest);
+        McpInvocationContext.Scope scope = McpInvocationContext.open(invocationContext);
         try {
             filterChain.doFilter(wrappedRequest, response);
             long durationMs = Math.max(0L, System.currentTimeMillis() - startedAt);
@@ -80,7 +82,36 @@ public class McpInvocationLoggingFilter extends OncePerRequestFilter {
                 ex);
             recordAudit(wrappedRequest, response, durationMs, ex.getMessage());
             throw ex;
+        } finally {
+            scope.close();
         }
+    }
+
+    private McpInvocationContext.Context invocationContext(HttpServletRequest request) {
+        return new McpInvocationContext.Context(
+            firstText(
+                request.getHeader("X-User-Id"),
+                request.getHeader("X-User-Name"),
+                request.getHeader("X-Username"),
+                request.getHeader("X-Caller"),
+                request.getHeader("X-Operator-Id"),
+                request.getHeader("X-Operator"),
+                request.getHeader("X-Forwarded-User"),
+                request.getRemoteUser(),
+                request.getRemoteAddr()
+            ),
+            request.getRemoteAddr(),
+            request.getHeader("User-Agent"),
+            firstText(
+                request.getHeader("X-Request-Id"),
+                request.getHeader("X-Correlation-Id"),
+                request.getHeader("Traceparent")
+            ),
+            firstText(
+                request.getHeader("X-Client-Id"),
+                request.getHeader("MCP-Client-Id")
+            )
+        );
     }
 
     /**
@@ -96,13 +127,18 @@ public class McpInvocationLoggingFilter extends OncePerRequestFilter {
             request.getMethod(),
             request.getRequestURI(),
             request.getQueryString(),
-            request.getRemoteAddr(),
+            invocationCaller(request),
             request.getHeader("User-Agent"),
             response.getStatus(),
             durationMs,
             errorMessage,
             requestBody(request)
         );
+    }
+
+    private String invocationCaller(HttpServletRequest request) {
+        McpInvocationContext.Context context = McpInvocationContext.current();
+        return firstText(context == null ? null : context.caller(), request.getRemoteAddr());
     }
 
     /**
@@ -200,6 +236,18 @@ public class McpInvocationLoggingFilter extends OncePerRequestFilter {
     private String firstText(JsonNode... nodes) {
         JsonNode node = firstNode(nodes);
         return text(node);
+    }
+
+    private String firstText(String... values) {
+        if (values == null) {
+            return null;
+        }
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value.trim();
+            }
+        }
+        return null;
     }
 
     /**

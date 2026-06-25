@@ -43,6 +43,7 @@ public class AssetMetadataFactory {
     private final ObjectMapper objectMapper;
 
     public Map<String, Object> sshAsset(SshHostConfig host) {
+        List<String> allowedCommandTemplateIds = readArray(host.getAllowedCommandsJson());
         return assetEnvelope(
             "ssh_host",
             host.getId(),
@@ -56,17 +57,20 @@ public class AssetMetadataFactory {
             mapOf(
                 "protocols", readArray(host.getCapabilitiesJson()),
                 "operations", List.of("ssh.command_steps"),
-                "allowedCommandTemplates", readArray(host.getAllowedCommandsJson())
+                "allowedCommandTemplateIds", allowedCommandTemplateIds,
+                "allowedCommandTemplates", templateRefs(allowedCommandTemplateIds)
             ),
             mapOf(
                 "runtimeAction", host.getRuntimeAction(),
                 "requiresTemplateAllowlist", true,
+                "templateSelectionPolicy", templateSelectionPolicy(),
                 "forbiddenConcreteTargetFields", List.of("hostId", "host", "hostname", "ip", "ipAddress", "address")
             )
         );
     }
 
     public Map<String, Object> sqlDatasource(SqlDatasourceConfig datasource) {
+        List<String> allowedQueryTemplateIds = readArray(datasource.getAllowedTemplatesJson());
         return assetEnvelope(
             "sql_datasource",
             datasource.getId(),
@@ -81,7 +85,8 @@ public class AssetMetadataFactory {
                 "protocols", readArray(datasource.getCapabilitiesJson()),
                 "operations", List.of("sql.query"),
                 "databaseType", databaseType(datasource),
-                "allowedQueryTemplates", readArray(datasource.getAllowedTemplatesJson()),
+                "allowedQueryTemplateIds", allowedQueryTemplateIds,
+                "allowedQueryTemplates", templateRefs(allowedQueryTemplateIds),
                 "allowedStatements", List.of("SELECT", "SHOW", "DESCRIBE", "EXPLAIN"),
                 "allowedTables", readArray(datasource.getAllowedTablesJson())
             ),
@@ -90,6 +95,7 @@ public class AssetMetadataFactory {
                 "defaultTimeoutSeconds", datasource.getDefaultTimeoutSeconds(),
                 "defaultMaxRows", datasource.getDefaultMaxRows(),
                 "modelReturnedRowsLimit", 50,
+                "templateSelectionPolicy", sqlTemplateSelectionPolicy(),
                 "forbiddenConcreteTargetFields", List.of("datasourceId", "jdbcUrl", "url", "connectionString")
             )
         );
@@ -162,6 +168,7 @@ public class AssetMetadataFactory {
         Map<String, Object> metadata = new LinkedHashMap<>();
         metadata.put("schemaVersion", SCHEMA_VERSION);
         metadata.put("kind", "asset");
+        metadata.put("assetType", assetType);
         metadata.put("asset", mapOf(
             "type", assetType,
             "id", id,
@@ -194,6 +201,43 @@ public class AssetMetadataFactory {
             "tieBreaker", "reject_as_ambiguous",
             "minimumRequired", List.of("asset.enabled == true", "forbiddenConcreteTargetFields absent")
         );
+    }
+
+    private Map<String, Object> templateSelectionPolicy() {
+        return mapOf(
+            "source", "template_query.templates[].templateId",
+            "allowedSetPath", "capabilities.allowedCommandTemplates",
+            "mustUseAllowedTemplate", true,
+            "doNotInventTemplateNames", true,
+            "onNoMatchingTemplate", "report that no existing authorized command template matches the request; do not suggest a new template name unless the user asks to administer templates"
+        );
+    }
+
+    private Map<String, Object> sqlTemplateSelectionPolicy() {
+        return mapOf(
+            "source", "template_query.templates[].templateId",
+            "allowedSetPath", "capabilities.allowedQueryTemplates",
+            "mustUseAllowedTemplate", true,
+            "doNotInventTemplateNames", true,
+            "rawSqlTemplateReturned", false,
+            "onNoMatchingTemplate", "use explicit read-only SQL only when policy permits; otherwise report that no existing authorized SQL template matches the request"
+        );
+    }
+
+    private List<Map<String, Object>> templateRefs(List<String> templateIds) {
+        if (templateIds == null || templateIds.isEmpty()) {
+            return List.of();
+        }
+        return templateIds.stream()
+            .filter(value -> value != null && !value.isBlank())
+            .map(value -> {
+                String templateId = value.trim();
+                return mapOf(
+                    "templateId", templateId,
+                    "templateCode", templateId
+                );
+            })
+            .toList();
     }
 
     private Map<String, Object> routingDecisionMode() {

@@ -48,21 +48,34 @@ class AssetDiscoveryServiceTest {
             .containsEntry("schemaVersion", AssetDiscoveryService.RESULT_SCHEMA_VERSION)
             .containsEntry("success", true)
             .containsEntry("returnedCount", 1);
+        assertThat(metadata.get("assetType")).isEqualTo("ssh_host");
         assertThat(asset.get("id")).isEqualTo("host-1");
         assertThat(result.toString()).doesNotContain("10.0.0.1", ".internal", "jdbc:", "https://");
     }
 
     @Test
-    void rejectsQueryWithoutLogicalContext() {
-        AssetDiscoveryService service = service(
-            mock(SshHostConfigService.class),
-            mock(SqlDatasourceConfigService.class),
-            mock(HttpEndpointConfigService.class)
-        );
+    void returnsRedactedCandidateAssetsWithoutLogicalContext() {
+        SshHostConfigService hostService = mock(SshHostConfigService.class);
+        SqlDatasourceConfigService datasourceService = mock(SqlDatasourceConfigService.class);
+        HttpEndpointConfigService httpService = mock(HttpEndpointConfigService.class);
+        AssetDiscoveryService service = service(hostService, datasourceService, httpService);
+        SshHostConfig dockerHost = sshHost("host-1", "ops-host", "DEV", null);
+        dockerHost.setAllowedCommandsJson("[\"LIST_DOCKER_CONTAINERS\"]");
+        when(hostService.listEnabled()).thenReturn(List.of(dockerHost));
+        when(datasourceService.listEnabled()).thenReturn(List.of());
+        when(httpService.listEnabled()).thenReturn(List.of());
 
-        assertThatThrownBy(() -> service.query(Map.of("assetType", "ssh_host")))
-            .isInstanceOf(IllegalArgumentException.class)
-            .hasMessageContaining("requires at least one logical context filter");
+        Map<String, Object> result = service.query(Map.of("assetType", "ssh_host"));
+
+        assertThat(result)
+            .containsEntry("returnedCount", 1)
+            .containsEntry("broadDiscovery", true);
+        assertThat((List<?>) result.get("assets")).hasSize(1);
+        Map<?, ?> advice = (Map<?, ?>) result.get("broadDiscoveryAdvice");
+        assertThat(advice.get("templateHint"))
+            .isEqualTo("For execution-template questions, prefer assets whose capabilities.allowedCommandTemplates[].templateId, allowedCommandTemplateIds[], authorizedSqlTemplates[], or authorizedHttpTemplates[] contains a matching registered template id.");
+        assertThat(result.toString()).contains("LIST_DOCKER_CONTAINERS");
+        assertThat(result.toString()).doesNotContain("10.0.0.1");
     }
 
     @Test
@@ -104,6 +117,10 @@ class AssetDiscoveryServiceTest {
 
         assertThat((List<?>) result.get("assets")).isEmpty();
         assertThat(result).containsEntry("returnedCount", 0);
+        Map<?, ?> advice = (Map<?, ?>) result.get("emptyResultAdvice");
+        assertThat(advice.get("reason")).isEqualTo("No enabled and published asset matched the exact logical filters.");
+        assertThat(advice.get("doNotInvent"))
+            .isEqualTo("Do not invent or transform service labels such as service:<topic> from the user's natural-language intent.");
         assertThat(result.toString()).doesNotContain("10.0.0.1");
     }
 
@@ -135,9 +152,66 @@ class AssetDiscoveryServiceTest {
         assertThat(asset.get("name")).isEqualTo("docker_service");
         assertThat(asset.get("environment")).isEqualTo("DEV");
         assertThat(asset.get("toolName")).isEqualTo("ssh_docker_service");
-        assertThat(capabilities.get("allowedCommandTemplates")).isEqualTo(List.of("CHECK_SYSTEM_OVERVIEW"));
+        assertThat(capabilities.get("allowedCommandTemplateIds")).isEqualTo(List.of("CHECK_SYSTEM_OVERVIEW"));
+        List<?> templates = (List<?>) capabilities.get("allowedCommandTemplates");
+        assertThat(((Map<?, ?>) templates.get(0)).get("templateId")).isEqualTo("CHECK_SYSTEM_OVERVIEW");
         assertThat(result).doesNotContainKey("data");
         assertThat(result.toString()).doesNotContain("10.0.0.1");
+    }
+
+    @Test
+    void matchesAssetNameWhenUserAddsGenericDescriptorWords() {
+        SshHostConfigService hostService = mock(SshHostConfigService.class);
+        SqlDatasourceConfigService datasourceService = mock(SqlDatasourceConfigService.class);
+        HttpEndpointConfigService httpService = mock(HttpEndpointConfigService.class);
+        AssetDiscoveryService service = service(hostService, datasourceService, httpService);
+        SqlDatasourceConfig mysql = datasource("ds-1", "MySQL248", "DEV", "[\"mysql\"]");
+        when(hostService.listEnabled()).thenReturn(List.of());
+        when(datasourceService.listEnabled()).thenReturn(List.of(mysql));
+        when(httpService.listEnabled()).thenReturn(List.of());
+
+        Map<String, Object> result = service.query(Map.of(
+            "assetType", "sql_datasource",
+            "filters", Map.of("assetName", "MySQL248 服务器")
+        ));
+
+        assertThat((List<?>) result.get("assets")).hasSize(1);
+        Map<?, ?> metadata = (Map<?, ?>) ((List<?>) result.get("assets")).get(0);
+        Map<?, ?> asset = (Map<?, ?>) metadata.get("asset");
+        assertThat(asset.get("name")).isEqualTo("MySQL248");
+    }
+
+    @Test
+    void returnsUnavailableAssetWhenExactMatchIsRegisteredButDisabled() {
+        SshHostConfigService hostService = mock(SshHostConfigService.class);
+        SqlDatasourceConfigService datasourceService = mock(SqlDatasourceConfigService.class);
+        HttpEndpointConfigService httpService = mock(HttpEndpointConfigService.class);
+        AssetDiscoveryService service = service(hostService, datasourceService, httpService);
+        SqlDatasourceConfig mysql = datasource("ds-1", "MySQL248", "DEV", "[\"mysql\"]");
+        mysql.setEnabled(false);
+        when(hostService.listEnabled()).thenReturn(List.of());
+        when(hostService.listAll()).thenReturn(List.of());
+        when(datasourceService.listEnabled()).thenReturn(List.of());
+        when(datasourceService.listAll()).thenReturn(List.of(mysql));
+        when(httpService.listEnabled()).thenReturn(List.of());
+        when(httpService.listAll()).thenReturn(List.of());
+
+        Map<String, Object> result = service.query(Map.of(
+            "filters", Map.of("assetName", "MySQL248"),
+            "limit", 10
+        ));
+
+        assertThat((List<?>) result.get("assets")).isEmpty();
+        assertThat(result).containsEntry("returnedCount", 0).containsEntry("unavailableCount", 1);
+        List<?> unavailableAssets = (List<?>) result.get("unavailableAssets");
+        Map<?, ?> unavailable = (Map<?, ?>) unavailableAssets.get(0);
+        Map<?, ?> asset = (Map<?, ?>) unavailable.get("asset");
+        Map<?, ?> availability = (Map<?, ?>) unavailable.get("availability");
+        assertThat(unavailable.get("kind")).isEqualTo("asset_unavailable");
+        assertThat(asset.get("name")).isEqualTo("MySQL248");
+        assertThat(availability.get("reason")).isEqualTo("registered_but_disabled_or_not_published");
+        assertThat(((Map<?, ?>) result.get("emptyResultAdvice")).get("reason"))
+            .isEqualTo("A registered asset matched the filters, but it is disabled or not published.");
     }
 
     @Test

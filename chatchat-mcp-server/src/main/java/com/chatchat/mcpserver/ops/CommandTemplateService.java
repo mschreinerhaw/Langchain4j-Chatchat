@@ -1,7 +1,6 @@
 package com.chatchat.mcpserver.ops;
 
 import com.chatchat.agents.protocol.ModelProtocolJson;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -18,6 +17,7 @@ public class CommandTemplateService {
 
     private final CommandTemplateConfigRepository repository;
     private final ObjectMapper objectMapper;
+    private final CommandTemplateSeedProperties seedProperties;
 
     @Transactional
     public List<CommandTemplateConfig> listAll() {
@@ -81,21 +81,11 @@ public class CommandTemplateService {
 
     @Transactional
     public void ensureDefaults() {
+        if (seedProperties == null || !seedProperties.isSeedDefaultsEnabled()) {
+            return;
+        }
         for (DefaultTemplate template : defaults()) {
-            if (repository.findByCode(template.code()).isEmpty()) {
-                CommandTemplateConfig config = new CommandTemplateConfig();
-                config.setCode(template.code());
-                config.setTitle(template.title());
-                config.setDescription(template.description());
-                config.setCommandTemplate(template.command());
-                config.setParameterSchemaJson(writeJson(template.schema()));
-                config.setRiskLevel("LOW");
-                config.setCategory(categoryFromCode(template.code()));
-                config.setIntentSignalsJson(writeJson(List.of(template.code(), template.title(), template.description())));
-                config.setRuntimeAction("confirm_required");
-                config.setEnabled(true);
-                repository.save(config);
-            }
+            ensureDefault(template);
         }
         ensureDefault(systemOverviewTemplate());
     }
@@ -119,7 +109,7 @@ public class CommandTemplateService {
     }
 
     private void normalize(CommandTemplateConfig config) {
-        config.setCode(requireText(config.getCode(), "Template code cannot be empty").trim().toUpperCase());
+        config.setCode(requireText(config.getCode(), "Template code cannot be empty").trim().toUpperCase(Locale.ROOT));
         if (!config.getCode().matches("[A-Z0-9_\\-]{2,128}")) {
             throw new IllegalArgumentException("Template code only supports uppercase letters, numbers, underscore and dash");
         }
@@ -213,45 +203,38 @@ public class CommandTemplateService {
             "required", List.of("lines", "path")
         );
         return List.of(
-            new DefaultTemplate("CHECK_HOSTNAME", "主机名", "查询主机名。", "hostname", empty),
-            new DefaultTemplate("CHECK_UPTIME", "运行时长", "查询系统运行时间。", "uptime", empty),
-            new DefaultTemplate("CHECK_DATE", "系统时间", "查询系统时间。", "date", empty),
-            new DefaultTemplate("CHECK_WHOAMI", "当前用户", "查询 SSH 执行用户。", "whoami", empty),
-            new DefaultTemplate("CHECK_UNAME", "内核信息", "查询内核和系统信息。", "uname -a", empty),
-            new DefaultTemplate("CHECK_CPU", "CPU 状态", "使用 top 查询 CPU 状态。", "top -b -n 1", empty),
-            new DefaultTemplate("CHECK_MEMORY", "内存状态", "查询内存使用。", "free -m", empty),
-            new DefaultTemplate("CHECK_VMSTAT", "VMStat", "查询 vmstat。", "vmstat", empty),
-            new DefaultTemplate("CHECK_DISK", "磁盘状态", "查询磁盘空间。", "df -h", empty),
-            new DefaultTemplate("CHECK_BLOCK", "块设备", "查询块设备。", "lsblk", empty),
-            new DefaultTemplate("CHECK_IP_ADDR", "网络地址", "查询网络地址。", "ip addr", empty),
-            new DefaultTemplate("CHECK_SOCKET", "Socket 状态", "查询 socket 状态。", "ss -tulnp", empty),
-            new DefaultTemplate("CHECK_PROCESS", "进程状态", "查询进程列表。", "ps aux", empty),
-            new DefaultTemplate("CHECK_JAVA_PROCESS", "Java 进程", "查询 Java 进程。", "jps -lv", empty),
-            new DefaultTemplate("CHECK_SERVICE_STATUS", "服务状态", "查询 systemd 服务状态。", "systemctl status {{service}}", serviceSchema),
-            new DefaultTemplate("TAIL_LOG", "日志尾部", "读取日志尾部。", "tail -n {{lines}} {{path}}", logSchema)
+            new DefaultTemplate("CHECK_HOSTNAME", "Hostname", "Read host name.", "hostname", empty),
+            new DefaultTemplate("CHECK_UPTIME", "Uptime", "Read system uptime.", "uptime", empty),
+            new DefaultTemplate("CHECK_DATE", "System time", "Read system date and time.", "date", empty),
+            new DefaultTemplate("CHECK_WHOAMI", "Current user", "Read execution user.", "whoami", empty),
+            new DefaultTemplate("CHECK_UNAME", "Kernel information", "Read kernel and system information.", "uname -a", empty),
+            new DefaultTemplate("CHECK_CPU", "CPU status", "Read CPU status.", "top -b -n 1", empty),
+            new DefaultTemplate("CHECK_MEMORY", "Memory status", "Read memory usage.", "free -m", empty),
+            new DefaultTemplate("CHECK_VMSTAT", "VMStat", "Read vmstat.", "vmstat", empty),
+            new DefaultTemplate("CHECK_DISK", "Disk status", "Read disk space.", "df -h", empty),
+            new DefaultTemplate("CHECK_BLOCK", "Block devices", "Read block devices.", "lsblk", empty),
+            new DefaultTemplate("CHECK_IP_ADDR", "Network addresses", "Read network addresses.", "ip addr", empty),
+            new DefaultTemplate("CHECK_SOCKET", "Socket status", "Read socket status.", "ss -tulnp", empty),
+            new DefaultTemplate("CHECK_PROCESS", "Process status", "Read process list.", "ps aux", empty),
+            new DefaultTemplate("CHECK_JAVA_PROCESS", "Java process", "Read Java processes.", "jps -lv", empty),
+            new DefaultTemplate("CHECK_SERVICE_STATUS", "Service status", "Read systemd service status.", "systemctl status {{service}}", serviceSchema),
+            new DefaultTemplate("TAIL_LOG", "Log tail", "Read log tail.", "tail -n {{lines}} {{path}}", logSchema)
         );
     }
 
     private DefaultTemplate systemOverviewTemplate() {
         Map<String, Object> empty = Map.of("type", "object", "properties", Map.of(), "required", List.of());
-        String command = "echo '=== 系统负载 ==='; uptime; "
-            + "echo '=== 详细负载 ==='; cat /proc/loadavg; "
-            + "echo '=== 内存使用 ==='; free -h; "
-            + "echo '=== 磁盘使用 ==='; df -h / /boot /var /tmp 2>/dev/null; "
-            + "echo '=== CPU/内存占用前20进程 ==='; top -bn1 -o %CPU | head -20; "
-            + "echo '=== Docker容器状态 ==='; docker ps -a --format 'table {{.ID}}\\t{{.Image}}\\t{{.Status}}\\t{{.Names}}'";
-        command = writeJson(List.of(
+        String command = writeJson(List.of(
             "echo '=== system load ==='; uptime",
             "echo '=== load details ==='; cat /proc/loadavg",
             "echo '=== memory usage ==='; free -h",
             "echo '=== disk usage ==='; df -h / /boot /var /tmp 2>/dev/null",
-            "echo '=== top cpu processes ==='; top -bn1 -o %CPU | head -20",
-            "echo '=== docker containers ==='; docker ps -a --format 'table {{.ID}}\\t{{.Image}}\\t{{.Status}}\\t{{.Names}}'"
+            "echo '=== top cpu processes ==='; top -bn1 -o %CPU | head -20"
         ));
         return new DefaultTemplate(
             "CHECK_SYSTEM_OVERVIEW",
             "System overview",
-            "Read-only host load, memory, disk, process and Docker status overview.",
+            "Read-only host load, memory, disk and process overview.",
             command,
             empty
         );

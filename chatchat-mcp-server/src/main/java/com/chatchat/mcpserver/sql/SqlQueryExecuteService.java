@@ -8,6 +8,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.sql.Connection;
+import java.sql.DatabaseMetaData;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
@@ -53,9 +54,10 @@ public class SqlQueryExecuteService {
             String sql = resolveSql(request, datasource);
             normalizedSql = safetyService.validateAndNormalize(sql, maxRows);
             validateAllowedTables(datasource, normalizedSql);
-            log.info("MCP SQL query execution requested: datasourceId={}, datasourceName={}, env={}, tool={}, timeoutSeconds={}, maxRows={}, purpose={}, sourceTaskId={}, sql={}",
+            log.info("MCP SQL query execution requested: datasourceId={}, datasourceName={}, env={}, tool={}, template={}, timeoutSeconds={}, maxRows={}, purpose={}, sourceTaskId={}, sql={}",
                 datasource.getId(), datasource.getName(), datasource.getEnvironment(), datasource.getToolName(),
-                timeoutSeconds, maxRows, text(request, "purpose"), text(request, "sourceTaskId"), truncateSql(normalizedSql));
+                text(request, "template"), timeoutSeconds, maxRows, text(request, "purpose"), text(request, "sourceTaskId"),
+                truncateSql(normalizedSql));
             result = query(datasource, sql, normalizedSql, timeoutSeconds, maxRows,
                 text(request, "purpose"), text(request, "sourceTaskId"), startedAt);
         } catch (Exception ex) {
@@ -83,7 +85,7 @@ public class SqlQueryExecuteService {
                 result.datasourceId(), durationMs, ex.getMessage(), truncateSql(normalizedSql));
         }
         logSqlResult(result);
-        auditService.recordSqlQueryCall(datasource, result);
+        auditService.recordSqlQueryCall(datasource, request, result);
         return result;
     }
 
@@ -167,7 +169,7 @@ public class SqlQueryExecuteService {
         if (template == null || template.isBlank()) {
             throw new IllegalArgumentException("Either sql or template is required");
         }
-        return templateService.render(template, mapValue(request.get("parameters")), datasource);
+        return templateService.render(template, mapValue(request.get("parameters")), datasource, request);
     }
 
     private SqlQueryResult query(SqlDatasourceConfig datasource, String originalSql, String sql,
@@ -188,9 +190,10 @@ public class SqlQueryExecuteService {
             try (ResultSet resultSet = statement.executeQuery(sql)) {
                 ResultSetMetaData metaData = resultSet.getMetaData();
                 List<String> columns = columns(metaData);
-                List<Map<String, Object>> rows = new ArrayList<>();
                 Set<String> sensitiveFields = sensitiveFields(datasource);
                 boolean maskAll = matchesSensitiveTable(datasource, sql);
+                List<Map<String, Object>> columnMetadata = columnMetadata(connection, metaData, columns, sensitiveFields, maskAll);
+                List<Map<String, Object>> rows = new ArrayList<>();
                 while (resultSet.next() && rows.size() < maxRows) {
                     Map<String, Object> row = new LinkedHashMap<>();
                     for (int index = 1; index <= metaData.getColumnCount(); index++) {
@@ -212,6 +215,7 @@ public class SqlQueryExecuteService {
                     timeoutSeconds,
                     maxRows,
                     columns,
+                    columnMetadata,
                     rows,
                     rows.size(),
                     rows.size() >= maxRows,
@@ -313,6 +317,62 @@ public class SqlQueryExecuteService {
             columns.add(label == null || label.isBlank() ? metaData.getColumnName(index) : label);
         }
         return columns;
+    }
+
+    private List<Map<String, Object>> columnMetadata(Connection connection, ResultSetMetaData metaData,
+                                                     List<String> labels, Set<String> sensitiveFields,
+                                                     boolean maskAll) throws Exception {
+        List<Map<String, Object>> columns = new ArrayList<>();
+        DatabaseMetaData databaseMetaData = connection.getMetaData();
+        for (int index = 1; index <= metaData.getColumnCount(); index++) {
+            String name = metaData.getColumnName(index);
+            String label = labels.get(index - 1);
+            String tableName = blankToNull(metaData.getTableName(index));
+            String schemaName = blankToNull(metaData.getSchemaName(index));
+            String catalogName = blankToNull(metaData.getCatalogName(index));
+            boolean masked = maskAll || shouldMask(label, sensitiveFields) || shouldMask(name, sensitiveFields);
+            Map<String, Object> column = new LinkedHashMap<>();
+            column.put("name", firstText(name, label));
+            column.put("label", label);
+            column.put("comment", columnComment(databaseMetaData, catalogName, schemaName, tableName, name));
+            column.put("tableName", tableName);
+            column.put("schemaName", schemaName);
+            column.put("catalogName", catalogName);
+            column.put("jdbcType", metaData.getColumnType(index));
+            column.put("typeName", metaData.getColumnTypeName(index));
+            column.put("displaySize", metaData.getColumnDisplaySize(index));
+            column.put("nullable", metaData.isNullable(index) != ResultSetMetaData.columnNoNulls);
+            column.put("masked", masked);
+            columns.add(column);
+        }
+        return columns;
+    }
+
+    private String columnComment(DatabaseMetaData databaseMetaData, String catalogName, String schemaName,
+                                 String tableName, String columnName) {
+        if (databaseMetaData == null || tableName == null || columnName == null || columnName.isBlank()) {
+            return null;
+        }
+        String[] schemaCandidates = schemaName == null ? new String[] { null } : new String[] { schemaName, null };
+        String[] tableCandidates = new String[] { tableName, tableName.toUpperCase(Locale.ROOT), tableName.toLowerCase(Locale.ROOT) };
+        String[] columnCandidates = new String[] { columnName, columnName.toUpperCase(Locale.ROOT), columnName.toLowerCase(Locale.ROOT) };
+        for (String schema : schemaCandidates) {
+            for (String table : tableCandidates) {
+                for (String column : columnCandidates) {
+                    try (ResultSet columns = databaseMetaData.getColumns(catalogName, schema, table, column)) {
+                        if (columns.next()) {
+                            String remarks = columns.getString("REMARKS");
+                            if (remarks != null && !remarks.isBlank()) {
+                                return remarks;
+                            }
+                        }
+                    } catch (Exception ignored) {
+                        return null;
+                    }
+                }
+            }
+        }
+        return null;
     }
 
     private boolean shouldMask(String column, Set<String> sensitiveFields) {
@@ -418,5 +478,21 @@ public class SqlQueryExecuteService {
     private String text(Map<String, Object> map, String key) {
         Object value = map == null ? null : map.get(key);
         return value == null ? null : String.valueOf(value).trim();
+    }
+
+    private String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value;
+    }
+
+    private String firstText(String... values) {
+        if (values == null) {
+            return null;
+        }
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value;
+            }
+        }
+        return null;
     }
 }

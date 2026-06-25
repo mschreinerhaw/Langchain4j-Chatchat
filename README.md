@@ -468,3 +468,132 @@ mvn -pl chatchat-mcp-server -am spring-boot:run
 ```
 
 默认行为是：进入 Git 仓库根目录，`git add -A` 指定路径，生成提交；不传 `-Push` 就只本地提交。`-DryRun` 我已经验证过了，会列出将被考虑提交的文件，不会 stage 或 commit。
+
+## 日志查看
+
+Windows 有很多种方式，取决于你是在 **CMD、PowerShell 还是 Git Bash**。
+
+1. PowerShell（推荐，最接近 `tail -f`）
+
+实时查看日志：
+
+```powershell
+Get-Content .\app.log -Wait
+```
+
+相当于：
+
+```bash
+tail -f app.log
+```
+
+查看最后 100 行并持续跟踪：
+
+```powershell
+Get-Content .\app.log -Tail 100 -Wait
+```
+
+相当于：
+
+```bash
+tail -n 100 -f app.log
+```
+
+------
+
+2. CMD（原生命令没有 tail）
+
+CMD 没有类似 `tail` 的命令。
+
+可以：
+
+```cmd
+type app.log
+```
+
+或者
+
+```cmd
+more app.log
+```
+
+但都不能实时刷新。
+
+------
+
+3. Git Bash（如果安装了 Git for Windows）
+
+直接支持：
+
+```bash
+tail -f app.log
+```
+
+查看最后 200 行：
+
+```bash
+tail -n 200 -f app.log
+```
+
+这是 Linux 的原生命令。
+
+------
+
+4. WSL（Windows Subsystem for Linux）
+
+如果安装了 WSL：
+
+```bash
+tail -f app.log
+```
+
+与 Linux 完全一致。
+
+------
+
+5. 实时过滤日志（PowerShell）
+
+例如只看 ERROR：
+
+```powershell
+Get-Content .\app.log -Wait | Select-String "ERROR"
+```
+
+或者多个关键字：
+
+```powershell
+Get-Content .\app.log -Wait |
+    Select-String "ERROR|WARN|Exception"
+```
+
+------
+
+6. 如果是 Java/Spring Boot 日志（推荐）
+
+例如：
+
+```powershell
+Get-Content .\logs\application.log -Tail 200 -Wait
+```
+
+过滤异常：
+
+```powershell
+Get-Content .\logs\application.log -Tail 200 -Wait |
+    Select-String "Exception|ERROR"
+```
+
+过滤某个类：
+
+```powershell
+Get-Content .\logs\application.log -Wait |
+    Select-String "AgentPlanner"
+```
+
+如果你做 Java 开发（尤其是像你现在在做 MCP、Agent Runtime），最方便的是：
+
+- **PowerShell**：`Get-Content -Tail 200 -Wait`
+- **Git Bash**：直接 `tail -f`
+- **WSL**：直接 `tail -f`
+
+其中 **PowerShell 的 `Get-Content -Tail 200 -Wait`** 就是 Windows 原生环境下最接近 Linux `tail -n 200 -f` 的方案。

@@ -1,5 +1,7 @@
 package com.chatchat.mcpserver.tool;
 
+import com.chatchat.common.tool.ToolOutput;
+import com.chatchat.mcpserver.database.DatabaseQueryConfig;
 import com.chatchat.mcpserver.ops.HttpRequestToolResult;
 import com.chatchat.mcpserver.ops.LinuxCommandResult;
 import com.chatchat.mcpserver.ops.LinuxCommandStepResult;
@@ -10,6 +12,7 @@ import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 @Component
 public class StandardToolExecutionResultFactory {
@@ -43,18 +46,50 @@ public class StandardToolExecutionResultFactory {
         List<Map<String, Object>> rows = result.rows() == null
             ? List.of()
             : result.rows().stream().limit(SQL_RESULT_ROW_LIMIT).toList();
-        payload.put("limits", mapOf(
+        Map<String, Object> limits = mapOf(
             "maxRowsRequested", result.maxRows(),
             "maxRowsReturnedToModel", SQL_RESULT_ROW_LIMIT,
             "truncationStrategy", "LIMIT_50"
-        ));
-        payload.put("data", mapOf(
+        );
+        payload.put("limits", limits);
+        Map<String, Object> data = mapOf(
             "columns", result.columns(),
+            "columnMetadata", result.columnMetadata(),
             "rows", rows,
             "rowCount", result.rowCount(),
             "returnedRowCount", rows.size(),
             "possiblyTruncated", result.possiblyTruncated() || result.rowCount() > rows.size(),
-            "truncationStrategy", "LIMIT_50"
+            "truncationStrategy", "LIMIT_50",
+            "governance", sqlOutputGovernance(result, rows.size())
+        );
+        payload.put("data", data);
+        payload.put("execution", execution(
+            result.toolName(),
+            result.durationMs(),
+            List.of(step(
+                1,
+                "sql",
+                mapOf(
+                    "statement", result.normalizedSql() == null ? result.sql() : result.normalizedSql(),
+                    "timeoutSeconds", result.timeoutSeconds(),
+                    "purpose", result.purpose(),
+                    "sourceTaskId", result.sourceTaskId()
+                ),
+                mapOf(
+                    "columns", result.columns(),
+                    "columnMetadata", result.columnMetadata(),
+                    "rows", rows,
+                    "rowCount", result.rowCount(),
+                    "returnedRowCount", rows.size(),
+                    "possiblyTruncated", data.get("possiblyTruncated"),
+                    "governance", data.get("governance"),
+                    "meta", limits
+                ),
+                result.success(),
+                result.durationMs(),
+                result.errorMessage(),
+                mapOf("rowCount", result.rowCount())
+            ))
         ));
         payload.put("executionGraph", graph(
             List.of(graphNode("sql_query", "sql.query", result.success(), result.durationMs())),
@@ -76,6 +111,9 @@ public class StandardToolExecutionResultFactory {
             "type", "server",
             "id", result.hostId(),
             "name", result.host(),
+            "address", result.host(),
+            "addressType", serverAddressType(result.host()),
+            "ipAddress", serverIpAddress(result.host()),
             "toolName", result.toolName(),
             "environment", result.environment()
         ));
@@ -95,6 +133,7 @@ public class StandardToolExecutionResultFactory {
             "stdout", result.stdout(),
             "stderr", result.stderr()
         ));
+        payload.put("execution", result.execution());
         payload.put("executionGraph", graph(stepGraphNodes(result.steps()), stepGraphEdges(result.steps())));
         return payload;
     }
@@ -120,14 +159,116 @@ public class StandardToolExecutionResultFactory {
             "method", result.method(),
             "url", result.url()
         ));
-        payload.put("data", mapOf(
+        Map<String, Object> data = mapOf(
             "statusCode", result.statusCode(),
             "headers", result.headers(),
             "body", result.body(),
             "rawBody", result.rawBody()
+        );
+        payload.put("data", data);
+        payload.put("execution", execution(
+            "http_request",
+            result.durationMs(),
+            List.of(step(
+                1,
+                "http",
+                mapOf(
+                    "method", result.method(),
+                    "url", result.url()
+                ),
+                data,
+                result.success(),
+                result.durationMs(),
+                result.errorMessage(),
+                mapOf("statusCode", result.statusCode())
+            ))
         ));
         payload.put("executionGraph", graph(
             List.of(graphNode("http_request", "http.request", result.success(), result.durationMs())),
+            List.of()
+        ));
+        return payload;
+    }
+
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> fromDatabaseQuery(DatabaseQueryConfig config, Map<String, Object> arguments,
+                                                ToolOutput output) {
+        boolean success = output != null && output.isSuccess();
+        long durationMs = output == null || output.getExecutionTimeMs() == null
+            ? 0L
+            : Math.max(0L, output.getExecutionTimeMs());
+        Object rawData = output == null ? null : output.getData();
+        Map<String, Object> resultData = rawData instanceof Map<?, ?> map
+            ? new LinkedHashMap<>((Map<String, Object>) map)
+            : mapOf("value", rawData);
+        resultData.putIfAbsent("columnMetadata", databaseQueryColumnMetadata(resultData));
+        String statement = firstText(
+            stringValue(resultData.get("sql")),
+            config == null ? null : config.getSqlTemplate()
+        );
+        String toolName = firstText(config == null ? null : config.getToolName(), "database_query");
+        String errorMessage = output == null ? "database_query returned no output" : output.getErrorMessage();
+        Map<String, Object> payload = base(
+            "sql_query",
+            "sql_result.v1",
+            "structured",
+            success,
+            durationMs,
+            errorMessage
+        );
+        payload.put("target", mapOf(
+            "type", "database",
+            "id", config == null ? null : firstText(config.getDatasourceId(), config.getId()),
+            "name", config == null ? null : config.getTitle(),
+            "toolName", toolName,
+            "environment", null
+        ));
+        payload.put("operation", mapOf(
+            "type", "sql.query",
+            "statement", statement,
+            "timeoutSeconds", null,
+            "purpose", arguments == null ? null : arguments.get("purpose"),
+            "sourceTaskId", arguments == null ? null : arguments.get("sourceTaskId")
+        ));
+        payload.put("limits", mapOf(
+            "maxRowsRequested", resultData.get("maxRows"),
+            "maxRowsReturnedToModel", resultData.get("maxRows"),
+            "truncationStrategy", "DATABASE_QUERY_MAX_ROWS"
+        ));
+        payload.put("data", resultData);
+        payload.put("execution", execution(
+            toolName,
+            durationMs,
+            List.of(step(
+                1,
+                "sql",
+                mapOf(
+                    "statement", statement,
+                    "parameters", arguments == null ? Map.of() : arguments,
+                    "sourceTaskId", arguments == null ? null : arguments.get("sourceTaskId")
+                ),
+                mapOf(
+                    "columns", resultData.get("columns"),
+                    "columnMetadata", resultData.get("columnMetadata"),
+                    "rows", resultData.get("rows"),
+                    "rowCount", resultData.get("rowCount"),
+                    "returnedRowCount", resultData.get("rowCount"),
+                    "possiblyTruncated", resultData.get("possiblyTruncated"),
+                    "readOnly", resultData.get("readOnly"),
+                    "governance", sqlOutputGovernance(resultData),
+                    "meta", mapOf(
+                        "maxRows", resultData.get("maxRows"),
+                        "dataSource", resultData.get("dataSource")
+                    )
+                ),
+                success,
+                durationMs,
+                errorMessage,
+                mapOf("rowCount", resultData.get("rowCount"))
+            ))
+        ));
+        payload.put("executionGraph", graph(
+            List.of(graphNode("sql_query", "sql.query", success, durationMs)),
             List.of()
         ));
         return payload;
@@ -210,6 +351,95 @@ public class StandardToolExecutionResultFactory {
         );
     }
 
+    private Map<String, Object> sqlOutputGovernance(SqlQueryResult result, int returnedRowCount) {
+        return mapOf(
+            "schemaVersion", "sql_output_governance.v1",
+            "readOnly", true,
+            "rowCount", result.rowCount(),
+            "returnedRowCount", returnedRowCount,
+            "possiblyTruncated", result.possiblyTruncated() || result.rowCount() > returnedRowCount,
+            "truncationStrategy", "LIMIT_50",
+            "maskedColumns", maskedColumns(result.columnMetadata()),
+            "columnCommentsIncluded", hasColumnComments(result.columnMetadata())
+        );
+    }
+
+    private Map<String, Object> sqlOutputGovernance(Map<String, Object> resultData) {
+        List<Map<String, Object>> columnMetadata = listOfMaps(resultData.get("columnMetadata"));
+        return mapOf(
+            "schemaVersion", "sql_output_governance.v1",
+            "readOnly", resultData.get("readOnly"),
+            "rowCount", resultData.get("rowCount"),
+            "returnedRowCount", resultData.get("rowCount"),
+            "possiblyTruncated", resultData.get("possiblyTruncated"),
+            "truncationStrategy", "DATABASE_QUERY_MAX_ROWS",
+            "maskedColumns", maskedColumns(columnMetadata),
+            "columnCommentsIncluded", hasColumnComments(columnMetadata)
+        );
+    }
+
+    private List<Map<String, Object>> databaseQueryColumnMetadata(Map<String, Object> resultData) {
+        List<Map<String, Object>> existing = listOfMaps(resultData.get("columnMetadata"));
+        if (!existing.isEmpty()) {
+            return existing;
+        }
+        Map<String, Object> comments = new LinkedHashMap<>();
+        if (resultData.get("columnComments") instanceof Map<?, ?> map) {
+            map.forEach((key, value) -> comments.put(String.valueOf(key), value));
+        }
+        Object columns = resultData.get("columns");
+        if (!(columns instanceof List<?> list)) {
+            return List.of();
+        }
+        return list.stream()
+            .map(String::valueOf)
+            .map(column -> {
+                Map<String, Object> metadata = new LinkedHashMap<>();
+                metadata.put("name", column);
+                metadata.put("label", column);
+                metadata.put("comment", comments.get(column));
+                metadata.put("masked", false);
+                return metadata;
+            })
+            .toList();
+    }
+
+    private Map<String, Object> execution(String toolName, long durationMs, List<Map<String, Object>> steps) {
+        Instant finishedAt = Instant.now();
+        Instant startedAt = finishedAt.minusMillis(Math.max(0L, durationMs));
+        List<Map<String, Object>> safeSteps = steps == null ? List.of() : steps;
+        return mapOf(
+            "schemaVersion", "execution_unit.v1",
+            "executionId", UUID.randomUUID().toString(),
+            "toolName", toolName,
+            "startedAt", startedAt.toString(),
+            "finishedAt", finishedAt.toString(),
+            "durationMs", durationMs,
+            "stepCount", safeSteps.size(),
+            "steps", safeSteps
+        );
+    }
+
+    private Map<String, Object> step(int stepIndex, String stepType, Map<String, Object> input,
+                                     Map<String, Object> output, boolean success, long durationMs,
+                                     String errorMessage, Map<String, Object> attributes) {
+        Map<String, Object> value = mapOf(
+            "stepIndex", stepIndex,
+            "stepId", stepType + "_" + stepIndex,
+            "stepType", stepType,
+            "input", input == null ? Map.of() : input,
+            "output", output == null ? Map.of() : output,
+            "success", success,
+            "status", success ? "success" : "failed",
+            "durationMs", durationMs,
+            "error", errorMessage == null || errorMessage.isBlank() ? null : mapOf("message", errorMessage)
+        );
+        if (attributes != null) {
+            value.putAll(attributes);
+        }
+        return value;
+    }
+
     private Map<String, Object> graphNode(String id, String type, boolean success, long durationMs) {
         return graphNode(id, type, success, durationMs, Map.of());
     }
@@ -231,5 +461,71 @@ public class StandardToolExecutionResultFactory {
             map.put(String.valueOf(values[index]), values[index + 1]);
         }
         return map;
+    }
+
+    private String stringValue(Object value) {
+        return value == null ? null : String.valueOf(value);
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<Map<String, Object>> listOfMaps(Object value) {
+        if (value instanceof List<?> list) {
+            return list.stream()
+                .filter(Map.class::isInstance)
+                .map(item -> (Map<String, Object>) item)
+                .toList();
+        }
+        return List.of();
+    }
+
+    private List<String> maskedColumns(List<Map<String, Object>> columnMetadata) {
+        if (columnMetadata == null) {
+            return List.of();
+        }
+        return columnMetadata.stream()
+            .filter(column -> Boolean.TRUE.equals(column.get("masked")))
+            .map(column -> firstText(stringValue(column.get("label")), stringValue(column.get("name"))))
+            .filter(value -> value != null && !value.isBlank())
+            .toList();
+    }
+
+    private boolean hasColumnComments(List<Map<String, Object>> columnMetadata) {
+        if (columnMetadata == null) {
+            return false;
+        }
+        return columnMetadata.stream()
+            .map(column -> stringValue(column.get("comment")))
+            .anyMatch(value -> value != null && !value.isBlank());
+    }
+
+    private String firstText(String... values) {
+        if (values == null) {
+            return null;
+        }
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value;
+            }
+        }
+        return null;
+    }
+
+    private String serverAddressType(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        String text = value.trim();
+        if (text.matches("\\d{1,3}(\\.\\d{1,3}){3}")) {
+            return "ipv4";
+        }
+        if (text.contains(":") && text.matches("[0-9a-fA-F:]+")) {
+            return "ipv6";
+        }
+        return "hostname";
+    }
+
+    private String serverIpAddress(String value) {
+        String type = serverAddressType(value);
+        return "ipv4".equals(type) || "ipv6".equals(type) ? value.trim() : null;
     }
 }

@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -55,6 +56,7 @@ public class CommandTemplateDiscoveryService {
     private final SqlDatasourceConfigService datasourceConfigService;
     private final HttpEndpointConfigService httpEndpointConfigService;
     private final ObjectMapper objectMapper;
+    private final TemplateDiscoveryProperties properties;
 
     public Map<String, Object> query(Map<String, Object> arguments) {
         Map<String, Object> filters = filters(arguments);
@@ -79,18 +81,13 @@ public class CommandTemplateDiscoveryService {
     private Map<String, Object> querySshTemplates(String assetType, Map<String, Object> filters, int limit) {
         Set<String> allowedByAsset = allowedTemplatesForAssets(filters);
         boolean assetScoped = hasAssetScope(filters);
-        List<CommandTemplateConfig> matched = templateService.listEnabled().stream()
+        List<ScoredTemplate<CommandTemplateConfig>> matched = templateService.listEnabled().stream()
             .filter(template -> !assetScoped || allowedByAsset.contains(normalize(template.getCode())))
-            .filter(template -> matchesIntent(template, filters))
-            .limit(limit)
+            .map(template -> new ScoredTemplate<>(template, relevance(template, filters)))
+            .filter(this::matchesIntent)
+            .sorted(scoredComparator(scored -> scored.template().getCode()))
             .toList();
-        long total = templateService.listEnabled().stream()
-            .filter(template -> !assetScoped || allowedByAsset.contains(normalize(template.getCode())))
-            .filter(template -> matchesIntent(template, filters))
-            .count();
-        return result(assetType, filters, limit, matched.stream()
-            .map(template -> templateMetadata(template, assetType))
-            .toList(), total > limit);
+        return result(assetType, filters, limit, sshTemplateMetadata(matched, assetType, limit), matched.size() > limit);
     }
 
     private Map<String, Object> querySqlTemplates(String assetType, Map<String, Object> filters, int limit) {
@@ -99,33 +96,23 @@ public class CommandTemplateDiscoveryService {
         if (assetScoped && datasources.isEmpty()) {
             return result(assetType, filters, limit, List.of(), false);
         }
-        List<SqlTemplateConfig> matched = sqlTemplateService.listEnabled().stream()
+        List<ScoredTemplate<SqlTemplateConfig>> matched = sqlTemplateService.listEnabled().stream()
             .filter(template -> matchesSqlTemplateBinding(template, filters, datasources, assetScoped))
-            .filter(template -> matchesIntent(template, filters))
-            .limit(limit)
+            .map(template -> new ScoredTemplate<>(template, relevance(template, filters)))
+            .filter(this::matchesIntent)
+            .sorted(scoredComparator(scored -> scored.template().getCode()))
             .toList();
-        long total = sqlTemplateService.listEnabled().stream()
-            .filter(template -> matchesSqlTemplateBinding(template, filters, datasources, assetScoped))
-            .filter(template -> matchesIntent(template, filters))
-            .count();
-        return result(assetType, filters, limit, matched.stream()
-            .map(template -> templateMetadata(template, assetType))
-            .toList(), total > limit);
+        return result(assetType, filters, limit, sqlTemplateMetadata(matched, assetType, limit), matched.size() > limit);
     }
 
     private Map<String, Object> queryHttpTemplates(String assetType, Map<String, Object> filters, int limit) {
-        List<HttpEndpointConfig> matched = httpEndpointConfigService.listEnabled().stream()
+        List<ScoredTemplate<HttpEndpointConfig>> matched = httpEndpointConfigService.listEnabled().stream()
             .filter(endpoint -> matchesHttpEndpoint(endpoint, filters))
-            .filter(endpoint -> matchesIntent(endpoint, filters))
-            .limit(limit)
+            .map(endpoint -> new ScoredTemplate<>(endpoint, relevance(endpoint, filters)))
+            .filter(this::matchesIntent)
+            .sorted(scoredComparator(scored -> firstText(scored.template().getToolName(), scored.template().getName())))
             .toList();
-        long total = httpEndpointConfigService.listEnabled().stream()
-            .filter(endpoint -> matchesHttpEndpoint(endpoint, filters))
-            .filter(endpoint -> matchesIntent(endpoint, filters))
-            .count();
-        return result(assetType, filters, limit, matched.stream()
-            .map(endpoint -> templateMetadata(endpoint, assetType))
-            .toList(), total > limit);
+        return result(assetType, filters, limit, httpTemplateMetadata(matched, assetType, limit), matched.size() > limit);
     }
 
     private Map<String, Object> result(String assetType,
@@ -143,17 +130,65 @@ public class CommandTemplateDiscoveryService {
             "limit", limit,
             "returnedCount", templateMetadata.size(),
             "possiblyTruncated", possiblyTruncated,
+            "templateSelectionPolicy", mapOf(
+                "templateIdSource", "templates[].templateId",
+                "mustUseReturnedTemplateId", true,
+                "doNotInventTemplateNames", true,
+                "orderedBy", "templates[] is ranked by relevanceScore desc, then lower risk, then templateId",
+                "intentSynonymSource", "chatchat.mcp.template-discovery.intent-synonyms plus template intentSignals",
+                "selectionHint", "Choose the returned template whose name, description, intentSignals, relevanceScore, and matchReasons best match the user intent; do not use asset allowed template order as semantic ranking.",
+                "onEmptyResult", "No existing authorized template matched the request. Do not suggest a new template name unless the user asks to administer templates."
+            ),
             "templates", templateMetadata
         );
     }
 
-    private Map<String, Object> templateMetadata(CommandTemplateConfig template, String assetType) {
+    private List<Map<String, Object>> sshTemplateMetadata(List<ScoredTemplate<CommandTemplateConfig>> scored,
+                                                          String assetType,
+                                                          int limit) {
+        List<Map<String, Object>> metadata = new ArrayList<>();
+        for (int index = 0; index < Math.min(limit, scored.size()); index++) {
+            ScoredTemplate<CommandTemplateConfig> item = scored.get(index);
+            metadata.add(templateMetadata(item.template(), assetType, item.relevance(), index + 1));
+        }
+        return metadata;
+    }
+
+    private List<Map<String, Object>> sqlTemplateMetadata(List<ScoredTemplate<SqlTemplateConfig>> scored,
+                                                          String assetType,
+                                                          int limit) {
+        List<Map<String, Object>> metadata = new ArrayList<>();
+        for (int index = 0; index < Math.min(limit, scored.size()); index++) {
+            ScoredTemplate<SqlTemplateConfig> item = scored.get(index);
+            metadata.add(templateMetadata(item.template(), assetType, item.relevance(), index + 1));
+        }
+        return metadata;
+    }
+
+    private List<Map<String, Object>> httpTemplateMetadata(List<ScoredTemplate<HttpEndpointConfig>> scored,
+                                                           String assetType,
+                                                           int limit) {
+        List<Map<String, Object>> metadata = new ArrayList<>();
+        for (int index = 0; index < Math.min(limit, scored.size()); index++) {
+            ScoredTemplate<HttpEndpointConfig> item = scored.get(index);
+            metadata.add(templateMetadata(item.template(), assetType, item.relevance(), index + 1));
+        }
+        return metadata;
+    }
+
+    private Map<String, Object> templateMetadata(CommandTemplateConfig template,
+                                                 String assetType,
+                                                 Relevance relevance,
+                                                 int rank) {
         List<String> signals = intentSignals(template);
         return mapOf(
             "schemaVersion", TEMPLATE_SCHEMA_VERSION,
             "templateId", template.getCode(),
             "name", firstText(template.getTitle(), template.getCode()),
             "description", firstText(template.getDescription(), ""),
+            "rank", rank,
+            "relevanceScore", relevance.score(),
+            "matchReasons", relevance.reasons(),
             "category", category(template),
             "riskLevel", riskLevel(template),
             "supportedAssetTypes", List.of(assetType),
@@ -167,13 +202,19 @@ public class CommandTemplateDiscoveryService {
         );
     }
 
-    private Map<String, Object> templateMetadata(SqlTemplateConfig template, String assetType) {
+    private Map<String, Object> templateMetadata(SqlTemplateConfig template,
+                                                 String assetType,
+                                                 Relevance relevance,
+                                                 int rank) {
         List<String> signals = intentSignals(template);
         return mapOf(
             "schemaVersion", TEMPLATE_SCHEMA_VERSION,
             "templateId", template.getCode(),
             "name", firstText(template.getTitle(), template.getCode()),
             "description", firstText(template.getDescription(), ""),
+            "rank", rank,
+            "relevanceScore", relevance.score(),
+            "matchReasons", relevance.reasons(),
             "category", category(template),
             "riskLevel", riskLevel(template),
             "databaseType", SqlDatasourceConfigService.normalizeDatabaseTypeToken(template.getDatabaseType()),
@@ -189,7 +230,10 @@ public class CommandTemplateDiscoveryService {
         );
     }
 
-    private Map<String, Object> templateMetadata(HttpEndpointConfig endpoint, String assetType) {
+    private Map<String, Object> templateMetadata(HttpEndpointConfig endpoint,
+                                                 String assetType,
+                                                 Relevance relevance,
+                                                 int rank) {
         List<String> signals = intentSignals(endpoint);
         String templateId = firstText(endpoint.getToolName(), firstText(endpoint.getName(), endpoint.getId()));
         return mapOf(
@@ -197,6 +241,9 @@ public class CommandTemplateDiscoveryService {
             "templateId", templateId,
             "name", firstText(endpoint.getTitle(), templateId),
             "description", firstText(endpoint.getDescription(), ""),
+            "rank", rank,
+            "relevanceScore", relevance.score(),
+            "matchReasons", relevance.reasons(),
             "category", firstText(endpoint.getCategory(), "http_request"),
             "riskLevel", httpRiskLevel(endpoint),
             "supportedAssetTypes", List.of(assetType),
@@ -210,8 +257,8 @@ public class CommandTemplateDiscoveryService {
         );
     }
 
-    private boolean matchesIntent(CommandTemplateConfig template, Map<String, Object> filters) {
-        return matchesIntentText(
+    private Relevance relevance(CommandTemplateConfig template, Map<String, Object> filters) {
+        return relevanceText(
             template.getCode(),
             template.getTitle(),
             template.getDescription(),
@@ -221,8 +268,8 @@ public class CommandTemplateDiscoveryService {
         );
     }
 
-    private boolean matchesIntent(SqlTemplateConfig template, Map<String, Object> filters) {
-        return matchesIntentText(
+    private Relevance relevance(SqlTemplateConfig template, Map<String, Object> filters) {
+        return relevanceText(
             template.getCode(),
             template.getTitle(),
             template.getDescription(),
@@ -232,8 +279,8 @@ public class CommandTemplateDiscoveryService {
         );
     }
 
-    private boolean matchesIntent(HttpEndpointConfig endpoint, Map<String, Object> filters) {
-        return matchesIntentText(
+    private Relevance relevance(HttpEndpointConfig endpoint, Map<String, Object> filters) {
+        return relevanceText(
             firstText(endpoint.getToolName(), endpoint.getName()),
             endpoint.getTitle(),
             endpoint.getDescription(),
@@ -243,23 +290,100 @@ public class CommandTemplateDiscoveryService {
         );
     }
 
-    private boolean matchesIntentText(String code,
-                                      String title,
-                                      String description,
-                                      String category,
-                                      List<String> signals,
-                                      Map<String, Object> filters) {
+    private Relevance relevanceText(String code,
+                                    String title,
+                                    String description,
+                                    String category,
+                                    List<String> signals,
+                                    Map<String, Object> filters) {
         List<String> tokens = intentTokens(filters);
         if (tokens.isEmpty()) {
-            return true;
+            return new Relevance(0, List.of("no_intent_filter"));
         }
-        Set<String> haystack = new LinkedHashSet<>();
-        addWords(haystack, code);
-        addWords(haystack, title);
-        addWords(haystack, description);
-        addWords(haystack, category);
-        signals.forEach(signal -> addWords(haystack, signal));
-        return tokens.stream().anyMatch(haystack::contains);
+        Map<String, Integer> weightedFields = new LinkedHashMap<>();
+        weightedFields.put(firstText(code, ""), 35);
+        weightedFields.put(firstText(title, ""), 30);
+        weightedFields.put(firstText(description, ""), 24);
+        weightedFields.put(firstText(category, ""), 14);
+        signals.forEach(signal -> weightedFields.put(signal, 28));
+        int score = 0;
+        Set<String> reasons = new LinkedHashSet<>();
+        for (String token : tokens) {
+            int bestWeight = 0;
+            String bestField = null;
+            for (Map.Entry<String, Integer> entry : weightedFields.entrySet()) {
+                MatchStrength strength = matchStrength(entry.getKey(), token);
+                if (strength == MatchStrength.NONE) {
+                    continue;
+                }
+                int weight = strength == MatchStrength.WORD ? entry.getValue() : Math.max(1, entry.getValue() / 2);
+                if (weight > bestWeight) {
+                    bestWeight = weight;
+                    bestField = entry.getKey();
+                }
+            }
+            if (bestWeight > 0) {
+                score += bestWeight;
+                reasons.add("matched intent token '" + token + "' in '" + truncateReason(bestField) + "'");
+            }
+        }
+        return new Relevance(score, reasons.stream().limit(8).toList());
+    }
+
+    private boolean matchesIntent(ScoredTemplate<?> scored) {
+        return scored.relevance().score() > 0 || scored.relevance().reasons().contains("no_intent_filter");
+    }
+
+    private <T> Comparator<ScoredTemplate<T>> scoredComparator(java.util.function.Function<ScoredTemplate<T>, String> idExtractor) {
+        return Comparator
+            .<ScoredTemplate<T>>comparingInt(scored -> scored.relevance().score()).reversed()
+            .thenComparingInt(scored -> riskPriority(riskLevelOf(scored.template())))
+            .thenComparing(scored -> firstText(idExtractor.apply(scored), ""));
+    }
+
+    private MatchStrength matchStrength(String fieldText, String token) {
+        String normalizedToken = normalize(token);
+        String normalizedField = normalize(fieldText);
+        if (normalizedToken == null || normalizedField == null) {
+            return MatchStrength.NONE;
+        }
+        Set<String> words = new LinkedHashSet<>();
+        addWords(words, normalizedField);
+        if (words.contains(normalizedToken)) {
+            return MatchStrength.WORD;
+        }
+        if (normalizedToken.length() >= 2 && normalizedField.contains(normalizedToken)) {
+            return MatchStrength.SUBSTRING;
+        }
+        return MatchStrength.NONE;
+    }
+
+    private String truncateReason(String value) {
+        String text = firstText(value, "");
+        return text.length() <= 80 ? text : text.substring(0, 77) + "...";
+    }
+
+    private String riskLevelOf(Object template) {
+        if (template instanceof CommandTemplateConfig commandTemplate) {
+            return riskLevel(commandTemplate);
+        }
+        if (template instanceof SqlTemplateConfig sqlTemplate) {
+            return riskLevel(sqlTemplate);
+        }
+        if (template instanceof HttpEndpointConfig endpoint) {
+            return httpRiskLevel(endpoint);
+        }
+        return "LOW";
+    }
+
+    private int riskPriority(String riskLevel) {
+        return switch (firstText(riskLevel, "LOW").toUpperCase(Locale.ROOT)) {
+            case "LOW" -> 0;
+            case "MEDIUM" -> 1;
+            case "HIGH" -> 2;
+            case "CRITICAL" -> 3;
+            default -> 4;
+        };
     }
 
     private Set<String> allowedTemplatesForAssets(Map<String, Object> filters) {
@@ -783,6 +907,50 @@ public class CommandTemplateDiscoveryService {
                 words.add(token);
             }
         }
+        addConfiguredIntentSynonyms(words, text);
+    }
+
+    private void addConfiguredIntentSynonyms(java.util.Collection<String> words, String text) {
+        if (properties == null || properties.getIntentSynonyms() == null || properties.getIntentSynonyms().isEmpty()) {
+            return;
+        }
+        for (Map.Entry<String, List<String>> entry : properties.getIntentSynonyms().entrySet()) {
+            List<String> values = entry.getValue();
+            if (!containsAny(text, entry.getKey()) && !containsAny(text, values == null ? List.of() : values)) {
+                continue;
+            }
+            addNormalizedWord(words, entry.getKey());
+            if (values != null) {
+                values.forEach(value -> addNormalizedWord(words, value));
+            }
+        }
+    }
+
+    private boolean containsAny(String text, List<String> probes) {
+        if (probes == null || probes.isEmpty()) {
+            return false;
+        }
+        return containsAny(text, probes.toArray(String[]::new));
+    }
+
+    private boolean containsAny(String text, String... probes) {
+        if (text == null || probes == null) {
+            return false;
+        }
+        for (String probe : probes) {
+            String normalized = normalize(probe);
+            if (normalized != null && text.contains(normalized)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void addNormalizedWord(java.util.Collection<String> words, Object value) {
+        String normalized = normalize(value == null ? null : String.valueOf(value));
+        if (normalized != null) {
+            words.add(normalized);
+        }
     }
 
     private String normalize(String value) {
@@ -798,5 +966,17 @@ public class CommandTemplateDiscoveryService {
             map.put(String.valueOf(values[index]), values[index + 1]);
         }
         return map;
+    }
+
+    private record ScoredTemplate<T>(T template, Relevance relevance) {
+    }
+
+    private record Relevance(int score, List<String> reasons) {
+    }
+
+    private enum MatchStrength {
+        NONE,
+        SUBSTRING,
+        WORD
     }
 }

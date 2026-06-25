@@ -2,6 +2,7 @@ package com.chatchat.mcpserver.tool;
 
 import com.chatchat.mcpserver.config.ChatChatMcpServerProperties;
 import com.chatchat.mcpserver.config.ChatChatMcpServerProperties.LimitProperties;
+import com.chatchat.mcpserver.mcp.McpInvocationContext;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.modelcontextprotocol.spec.McpSchema;
@@ -102,20 +103,10 @@ public class McpToolConcurrencyManager {
             }
         }
 
+        McpInvocationContext.Context invocationContext = McpInvocationContext.current();
         Future<McpSchema.CallToolResult> future = executor.submit(() -> {
-            try {
-                McpSchema.CallToolResult result = executeWithRetry(supplier, toolLimit);
-                if (Boolean.TRUE.equals(result.isError())) {
-                    circuit.recordFailure(toolLimit);
-                } else {
-                    circuit.recordSuccess();
-                }
-                return enforceMaxOutput(toolName, normalizedLevel, result, toolLimit);
-            } catch (Throwable throwable) {
-                circuit.recordFailure(toolLimit);
-                throw throwable;
-            } finally {
-                release(permits);
+            try (McpInvocationContext.Scope ignored = McpInvocationContext.open(invocationContext)) {
+                return executeInsideWorker(toolName, normalizedLevel, supplier, toolLimit, circuit, permits);
             }
         });
 
@@ -142,6 +133,26 @@ public class McpToolConcurrencyManager {
             Throwable cause = ex.getCause() == null ? ex : ex.getCause();
             return limitResult("FAILED", toolName, normalizedLevel,
                 cause.getClass().getSimpleName() + ": " + cause.getMessage());
+        }
+    }
+
+    private McpSchema.CallToolResult executeInsideWorker(String toolName, String normalizedLevel,
+                                                         Supplier<McpSchema.CallToolResult> supplier,
+                                                         LimitProperties toolLimit, CircuitState circuit,
+                                                         List<Permit> permits) {
+        try {
+            McpSchema.CallToolResult result = executeWithRetry(supplier, toolLimit);
+            if (Boolean.TRUE.equals(result.isError())) {
+                circuit.recordFailure(toolLimit);
+            } else {
+                circuit.recordSuccess();
+            }
+            return enforceMaxOutput(toolName, normalizedLevel, result, toolLimit);
+        } catch (Throwable throwable) {
+            circuit.recordFailure(toolLimit);
+            throw throwable;
+        } finally {
+            release(permits);
         }
     }
 

@@ -19,6 +19,35 @@ import static org.assertj.core.api.Assertions.assertThat;
 class AgentPlannerTest {
 
     @Test
+    void mcpControlPlanePromptDoesNotTeachInventedDockerServiceLabels() throws Exception {
+        AgentPlanner planner = new AgentPlanner(new TestToolRegistry(), new ObjectMapper());
+        Method method = AgentPlanner.class.getDeclaredMethod(
+            "appendMcpControlPlaneToolContracts",
+            StringBuilder.class,
+            List.class
+        );
+        method.setAccessible(true);
+        StringBuilder prompt = new StringBuilder();
+
+        method.invoke(planner, prompt, List.of(
+            "mcp_chatchat_mcp_server_asset_query",
+            "mcp_chatchat_mcp_server_template_query",
+            "mcp_chatchat_mcp_server_linux_command_execute"
+        ));
+
+        assertThat(prompt.toString())
+            .doesNotContain("service:docker", "docker_service")
+            .contains("Do not invent service labels such as service:<topic>")
+            .contains("{\"filters\":{},\"limit\":10}")
+            .contains("<existing-service-label>")
+            .contains("<asset-name-from-asset-query>")
+            .contains("templates[] is ranked by relevanceScore")
+            .contains("not as semantic ranking")
+            .contains("Follow the dependency order configured by the user/runtime")
+            .doesNotContain("Required execution flow for live host analysis");
+    }
+
+    @Test
     void normalizesRecoverableInterpretationPlanBeforeValidation() throws Exception {
         AgentPlanner planner = new AgentPlanner(new TestToolRegistry(), new ObjectMapper());
         List<String> requiredTools = List.of(

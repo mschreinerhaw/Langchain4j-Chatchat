@@ -162,16 +162,7 @@ const SERVICE_PAGE_SIZE = 12;
 const ASSET_PAGE_SIZE = 12;
 const COMMAND_TEMPLATE_PAGE_SIZE = 12;
 const GOVERNANCE_MASK_FIELDS = ['phone', 'id_card', 'account_no'];
-const DEFAULT_SSH_COMMAND_TEMPLATE_CODES = [
-    'CHECK_HOSTNAME',
-    'CHECK_UPTIME',
-    'CHECK_DATE',
-    'CHECK_WHOAMI',
-    'CHECK_UNAME',
-    'CHECK_CPU',
-    'CHECK_MEMORY',
-    'CHECK_DISK'
-];
+const DEFAULT_SSH_COMMAND_TEMPLATE_CODES = [];
 
 document.addEventListener('DOMContentLoaded', async () => {
     try {

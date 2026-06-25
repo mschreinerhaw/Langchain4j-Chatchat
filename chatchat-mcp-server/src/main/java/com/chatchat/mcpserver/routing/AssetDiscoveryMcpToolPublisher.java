@@ -43,8 +43,8 @@ public class AssetDiscoveryMcpToolPublisher {
             .name(TOOL_NAME)
             .title("Asset metadata discovery")
             .description("Read-only discovery tool for querying redacted asset metadata and routing hints. "
-                + "It requires logical context filters and never returns hostnames, IP addresses, JDBC URLs, or endpoint URLs. "
-                + "The result returns a single canonical redacted assets[] view.")
+                + "Prefer logical context filters when known; if none are known it can return capped redacted candidate assets. "
+                + "It never returns hostnames, IP addresses, JDBC URLs, or endpoint URLs. The result returns a single canonical redacted assets[] view.")
             .inputSchema(inputSchema())
             .meta(meta())
             .build();
@@ -78,7 +78,7 @@ public class AssetDiscoveryMcpToolPublisher {
             ),
             "filters", Map.of(
                 "type", "object",
-                "description", "Required logical context filters such as assetName, env, cluster, service, target, database, databaseRole, or labels. Asset names and labels are exact-match; no token splitting is applied.",
+                "description", "Optional logical context filters such as assetName, env, cluster, service, target, database, databaseRole, or labels. Asset names and labels are exact-match; no token splitting is applied. Omit or pass {} only when the user has not provided exact logical context.",
                 "additionalProperties", true
             ),
             "executionContext", Map.of(
@@ -110,16 +110,24 @@ public class AssetDiscoveryMcpToolPublisher {
             "risk_level", "low",
             "riskLevel", "low",
             "confirmation", mapOf("default", "auto_execute", "allow_user_override", false),
-            "requiresContextFilter", true,
+            "requiresContextFilter", false,
             "matchPolicy", "exact_asset_name_or_explicit_label",
+            "broadDiscovery", mapOf(
+                "enabled", true,
+                "maxResults", AssetDiscoveryService.MAX_LIMIT,
+                "redactedCandidatesOnly", true,
+                "useWhen", "no exact assetName/env/cluster/service/target/database label is known"
+            ),
             "maxResults", AssetDiscoveryService.MAX_LIMIT,
             "routingPolicyVersion", AssetMetadataFactory.ROUTING_POLICY_VERSION,
             "resultShape", mapOf(
                 "canonical", "assets[]",
                 "assetEnvironmentPath", "assets[].asset.environment",
                 "assetNamePath", "assets[].asset.name",
-                "commandTemplatesPath", "assets[].capabilities.allowedCommandTemplates",
-                "sqlTemplatesPath", "assets[].capabilities.allowedQueryTemplates"
+                "commandTemplatesPath", "assets[].capabilities.allowedCommandTemplates[].templateId",
+                "commandTemplateIdsPath", "assets[].capabilities.allowedCommandTemplateIds[]",
+                "sqlTemplatesPath", "assets[].capabilities.allowedQueryTemplates[].templateId",
+                "sqlTemplateIdsPath", "assets[].capabilities.allowedQueryTemplateIds[]"
             ),
             "forbiddenConcreteTargetFields", List.of(
                 "hostId",

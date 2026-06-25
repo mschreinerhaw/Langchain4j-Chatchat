@@ -9,5 +9,7 @@ public interface SshHostConfigRepository extends JpaRepository<SshHostConfig, St
 
     List<SshHostConfig> findByEnabledTrueOrderByNameAsc();
 
+    Optional<SshHostConfig> findByNameIgnoreCase(String name);
+
     Optional<SshHostConfig> findByToolNameIgnoreCase(String toolName);
 }

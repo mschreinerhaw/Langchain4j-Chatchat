@@ -293,14 +293,16 @@ class AgentPlanner {
             prompt.append("- Use ").append(assetQueryTool)
                 .append(" only for read-only discovery of redacted asset metadata.\n");
             prompt.append("- ").append(assetQueryTool)
-                .append(" input MUST contain filters or executionContext, never a bare context string.\n");
-            prompt.append("- Asset names and routing labels are exact-match. Do not rely on token splitting; docker must not be assumed to match docker_service.\n");
-            prompt.append("- Valid input example when the asset name is known: {\"filters\":{\"assetName\":\"docker_service\"},\"limit\":10}.\n");
-            prompt.append("- Valid input example when using labels: {\"filters\":{\"env\":\"prod\",\"service\":\"service:docker\"},\"limit\":10}, only if that explicit label exists.\n");
-            prompt.append("- The response contains the single canonical asset view in assets[]. Use assets[0].asset.environment, assets[0].asset.name, assets[0].asset.toolName, and assets[0].capabilities.allowedCommandTemplates for downstream bindings.\n");
+                .append(" input should contain filters or executionContext when exact logical context is known; use {\"filters\":{},\"limit\":10} for capped redacted candidate discovery when the user did not provide assetName/env/cluster/service.\n");
+            prompt.append("- Asset names and routing labels are exact-match. Do not derive assetName, service, cluster, target, or labels from the user intent unless the user explicitly provided that exact value or a prior tool observation returned it.\n");
+            prompt.append("- Do not invent service labels such as service:<topic> from natural-language topic words until an asset/tool observation proves they are registered routing labels.\n");
+            prompt.append("- Valid input example when no exact asset context is known: {\"filters\":{},\"limit\":10}.\n");
+            prompt.append("- Valid input example when the asset name is explicitly known: {\"filters\":{\"assetName\":\"<existing-asset-name>\"},\"limit\":10}.\n");
+            prompt.append("- Valid input example when using labels already returned by asset metadata or explicitly provided by the user: {\"filters\":{\"env\":\"<existing-env>\",\"service\":\"<existing-service-label>\"},\"limit\":10}.\n");
+            prompt.append("- The response contains the single canonical asset view in assets[]. Use assets[0].asset.type for asset type, assets[0].asset.environment, assets[0].asset.name, assets[0].asset.toolName, and assets[0].capabilities.allowedCommandTemplates[].templateId or allowedCommandTemplateIds[] only as authorization context, not as semantic ranking. Do not require top-level assetType because it is query scope and may be null when the request did not preselect an asset type.\n");
             prompt.append("- Do not pass hostname, host, ip, url, jdbcUrl, datasourceId, endpointId, or other concrete target fields.\n\n");
             prompt.append("- Do not replace ").append(assetQueryTool)
-                .append(" with a reasoning step that guesses env, service, cluster, or target. If asset discovery is required, call the tool; if it fails, ask the user for logical context.\n\n");
+                .append(" with a reasoning step that guesses env, service, cluster, or target. If broad discovery returns multiple plausible assets, ask the user for logical context.\n\n");
         }
         String templateQueryTool = matchingAvailableTool(availableTools, "template_query");
         if (templateQueryTool != null) {
@@ -309,9 +311,11 @@ class AgentPlanner {
                 .append(" only for read-only discovery of registered execution templates.\n");
             prompt.append("- ").append(templateQueryTool)
                 .append(" returns the single canonical template view in templates[]. It never returns raw shell commands or executionSpec.\n");
-            prompt.append("- Query it after asset discovery when execution requires choosing a template. Prefer filters.assetName and filters.env from asset_query data[].\n");
-            prompt.append("- Valid input example: {\"assetType\":\"ssh_host\",\"filters\":{\"assetName\":\"docker_service\",\"env\":\"DEV\",\"intent\":\"system_load_analysis\"},\"limit\":10}.\n");
-            prompt.append("- Use templates[0].templateId as linux_command_execute.template only when the template matches the user intent and asset type.\n");
+            prompt.append("- Query it when the plan/user-configured dependency requires template discovery before execution. Prefer filters.assetName and filters.env from asset_query data[].\n");
+            prompt.append("- If the user asks for a capability and no exact asset context is known, you may query by the user's intent first, for example {\"assetType\":\"ssh_host\",\"filters\":{\"intent\":\"<user-capability-intent>\"},\"limit\":10}; still use a returned templateId exactly.\n");
+            prompt.append("- Valid input example: {\"assetType\":\"ssh_host\",\"filters\":{\"assetName\":\"<asset-name-from-asset-query>\",\"env\":\"<env-from-asset-query>\",\"intent\":\"<user-capability-intent>\"},\"limit\":10}.\n");
+            prompt.append("- templates[] is ranked by relevanceScore. Choose the returned template whose name, description, intentSignals, matchReasons, and asset type best match the user intent; do not blindly bind the first asset allowedCommandTemplates item.\n");
+            prompt.append("- If the selected template's parameterSchema.required is non-empty, include a parameters object in the execution tool input with exactly those required fields; never place template parameters at the top level.\n");
             prompt.append("- Do not invent template ids if ").append(templateQueryTool)
                 .append(" returns no suitable template; ask the user/admin to register or allow one.\n\n");
         }
@@ -321,21 +325,13 @@ class AgentPlanner {
             prompt.append("- Use ").append(linuxCommandTool)
                 .append(" only with a registered template id and logical executionContext.\n");
             prompt.append("- Input MUST use field template, not command, command_template, shell, host, hostname, or ip.\n");
-            prompt.append("- The template value MUST be copied exactly from asset_query assets[0].capabilities.allowedCommandTemplates or template_query templates[].templateId. Never synthesize aliases such as CHECK_DISK_SPACE when the registered id is CHECK_DISK.\n");
-            prompt.append("- Prefer executionContext.assetName from asset discovery for exact routing, plus env when available. Example: {\"template\":\"CHECK_SYSTEM_OVERVIEW\",\"executionContext\":{\"assetName\":\"docker_service\",\"env\":\"DEV\"},\"reason\":\"inspect docker host load\"}.\n");
-            if (templateQueryTool != null) {
-                prompt.append("- Required execution flow for live host analysis: ")
-                    .append(assetQueryTool == null ? "asset_query" : assetQueryTool)
-                    .append(" -> ")
-                    .append(templateQueryTool)
-                    .append(" -> ")
-                    .append(linuxCommandTool)
-                    .append(". Do not stop after discovery when the user asked for live system analysis.\n");
-            } else {
-                prompt.append("- If asset_query returns allowedCommandTemplates, choose the safest matching registered template from that list and then call ")
-                    .append(linuxCommandTool)
-                    .append("; do not stop after discovery when the user asked for live system analysis.\n");
-            }
+            prompt.append("- The template value MUST be copied exactly from configured template metadata: template_query templates[].templateId when that tool is part of the plan, otherwise asset_query allowedCommandTemplates[].templateId or allowedCommandTemplateIds[]. Never synthesize aliases or alternate names.\n");
+            prompt.append("- Template arguments MUST be passed under parameters and must satisfy the selected template's parameterSchema, for example {\"template\":\"<templateId>\",\"parameters\":{\"<requiredParam>\":\"<value>\"},\"executionContext\":{\"assetName\":\"<asset>\"}}.\n");
+            prompt.append("- Prefer executionContext.assetName from asset discovery for exact routing, plus env when available. Example: {\"template\":\"<templateId-from-template-query>\",\"executionContext\":{\"assetName\":\"<asset-name-from-asset-query>\",\"env\":\"<env-from-asset-query>\"},\"reason\":\"inspect host state\"}.\n");
+            prompt.append("- Follow the dependency order configured by the user/runtime. Do not insert a hard-coded template_query step unless the plan needs template discovery or configured dependencies require it.\n");
+            prompt.append("- If asset_query returns allowedCommandTemplates and no template_query step is configured, choose the safest matching registered template from that authorized list and then call ")
+                .append(linuxCommandTool)
+                .append("; do not stop after discovery when the user asked for live system analysis.\n");
             prompt.append("- If no suitable command template is known or returned, produce a final answer asking the user/admin to register a safe template; do not invent raw shell commands.\n\n");
         }
     }
@@ -871,7 +867,7 @@ class AgentPlanner {
                     || text.contains("denied") || text.contains("confirmation") || text.contains("failed")
                     || text.contains("失败") || text.contains("拒绝") || text.contains("确认"));
             boolean guessesTargetContext = text.contains("assume") || text.contains("default")
-                || text.contains("prod") || text.contains("docker") || text.contains("env")
+                || text.contains("env") || text.contains("service") || text.contains("cluster") || text.contains("target")
                 || text.contains("假设") || text.contains("默认");
             if (mentionsAssetQueryFailure && guessesTargetContext) {
                 issues.add("Do not use a reasoning step to replace asset_query or guess env/service after discovery failure; call asset_query or ask the user for logical executionContext.");

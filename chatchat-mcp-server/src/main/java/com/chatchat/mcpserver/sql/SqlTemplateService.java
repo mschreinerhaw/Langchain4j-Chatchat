@@ -1,7 +1,7 @@
 package com.chatchat.mcpserver.sql;
 
 import com.chatchat.agents.protocol.ModelProtocolJson;
-
+import com.chatchat.mcpserver.template.TemplateParameterValidator;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -22,6 +22,8 @@ public class SqlTemplateService {
 
     private final SqlTemplateConfigRepository repository;
     private final ObjectMapper objectMapper;
+    private final TemplateParameterValidator parameterValidator;
+    private final SqlTemplateSeedProperties seedProperties;
 
     @Transactional
     public List<SqlTemplateConfig> listAll() {
@@ -78,16 +80,31 @@ public class SqlTemplateService {
     }
 
     public String render(String code, Map<String, Object> parameters, SqlDatasourceConfig datasource) {
+        return render(code, parameters, datasource, parameters);
+    }
+
+    public String render(String code, Map<String, Object> parameters, SqlDatasourceConfig datasource,
+                         Map<String, Object> source) {
         ensureDefaults();
         SqlTemplateConfig config = repository.findByCode(requireText(code, "SQL template code is required").toUpperCase(Locale.ROOT))
             .filter(SqlTemplateConfig::isEnabled)
             .orElseThrow(() -> new IllegalArgumentException("SQL template not found or disabled: " + code));
         assertCompatible(config, datasource);
+        Map<String, Object> collectedParameters = parameterValidator.collect(
+            config.getParameterSchemaJson(),
+            parameters,
+            source
+        );
+        Map<String, Object> validatedParameters = parameterValidator.validate(
+            config.getCode(),
+            config.getParameterSchemaJson(),
+            collectedParameters
+        );
         Matcher matcher = TOKEN.matcher(config.getSqlTemplate());
         StringBuffer buffer = new StringBuffer();
         while (matcher.find()) {
             String name = matcher.group(1);
-            Object value = parameters == null ? null : parameters.get(name);
+            Object value = validatedParameters.get(name);
             String replacement = safeSqlLiteral(name, value);
             matcher.appendReplacement(buffer, Matcher.quoteReplacement(replacement));
         }
@@ -111,6 +128,9 @@ public class SqlTemplateService {
 
     @Transactional
     public void ensureDefaults() {
+        if (seedProperties == null || !seedProperties.isSeedDefaultsEnabled()) {
+            return;
+        }
         for (DefaultTemplate template : defaults()) {
             if (repository.findByCode(template.code()).isEmpty()) {
                 SqlTemplateConfig config = new SqlTemplateConfig();
@@ -275,12 +295,8 @@ public class SqlTemplateService {
             "required", List.of("table")
         );
         return List.of(
-            new DefaultTemplate("CHECK_TABLE_COUNT", "表行数", "查询指定表行数。", "SELECT COUNT(*) AS total_count FROM {{table}}", tableSchema),
-            new DefaultTemplate("CHECK_RECENT_DATA", "最近数据", "查询指定表最近数据。", "SELECT * FROM {{table}} LIMIT 100", tableSchema),
-            new DefaultTemplate("CHECK_TASK_RESULT", "任务结果", "按任务 ID 查询结果。", "SELECT * FROM task_result WHERE task_id = {{taskId}} LIMIT 100",
-                Map.of("type", "object", "properties", Map.of("taskId", Map.of("type", "string")), "required", List.of("taskId"))),
-            new DefaultTemplate("CHECK_CUSTOMER_ASSET", "客户资产", "按客户 ID 查询资产。", "SELECT * FROM customer_asset WHERE customer_id = {{customerId}} LIMIT 100",
-                Map.of("type", "object", "properties", Map.of("customerId", Map.of("type", "string")), "required", List.of("customerId")))
+            new DefaultTemplate("CHECK_TABLE_COUNT", "Table row count", "Read row count for a selected table.", "SELECT COUNT(*) AS total_count FROM {{table}}", tableSchema),
+            new DefaultTemplate("CHECK_RECENT_DATA", "Recent table rows", "Read recent rows from a selected table.", "SELECT * FROM {{table}} LIMIT 100", tableSchema)
         );
     }
 

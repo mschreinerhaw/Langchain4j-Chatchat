@@ -109,6 +109,7 @@ public class SqlDatasourceConfigService {
 
     private void normalize(SqlDatasourceConfig config, String currentId) {
         config.setName(firstText(config.getName(), config.getJdbcUrl()));
+        assertUniqueName(config.getName(), currentId);
         config.setToolName(normalizeToolName(firstText(config.getToolName(), defaultToolName(config))));
         repository.findByToolNameIgnoreCase(config.getToolName())
             .filter(existing -> currentId == null || !existing.getId().equals(currentId))
@@ -140,6 +141,15 @@ public class SqlDatasourceConfigService {
             mergeGovernanceLabels(config.getGovernanceJson(), config.getRoutingLabelsJson(), config.getCapabilitiesJson()),
             "governance"
         ));
+    }
+
+    private void assertUniqueName(String name, String currentId) {
+        String normalized = requireText(name, "SQL datasource name cannot be empty");
+        repository.findByNameIgnoreCase(normalized)
+            .filter(existing -> currentId == null || !existing.getId().equals(currentId))
+            .ifPresent(existing -> {
+                throw new IllegalArgumentException("SQL datasource name already exists: " + normalized);
+            });
     }
 
     private void syncExecutionTargets(SqlDatasourceConfig asset, List<AssetExecutionTargetBinding> bindings) {

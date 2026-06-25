@@ -229,11 +229,15 @@ public class InvocationAuditService {
         request.put("environment", result.environment());
         request.put("template", result.template());
         request.put("command", result.command());
+        request.put("commandHash", result.commandHash());
+        request.put("failedStepIndex", result.failedStepIndex());
+        request.put("failedCommand", result.failedCommand());
         request.put("sourceTaskId", result.request() == null ? null : result.request().get("sourceTaskId"));
         request.put("reason", result.request() == null ? null : result.request().get("reason"));
         log.setRequestSummary(toJsonSummary(redact(request)));
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("exitCode", result.exitCode());
+        response.put("steps", result.steps());
         response.put("stdout", result.stdout());
         response.put("stderr", result.stderr());
         response.put("errorMessage", result.errorMessage());

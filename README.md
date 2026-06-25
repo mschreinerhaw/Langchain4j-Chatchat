@@ -420,3 +420,51 @@ mvn -pl chatchat-mcp-server -am spring-boot:run
 | ChatChat 主应用 | `8080` | `http://localhost:8080` |
 | MCP Server | `8090` | `http://localhost:8090/admin` |
 | MCP Endpoint | `8090` | `http://localhost:8090/mcp` |
+
+## 测试脚本
+
+已在 Maven 项目根目录加好：
+
+- [run-chat-api-mcp.ps1](D:/IdeaProjects/LangChain4j-AIChat/Langchain4j-Chatchat/run-chat-api-mcp.ps1)
+- [run-chat-api-mcp.bat](D:/IdeaProjects/LangChain4j-AIChat/Langchain4j-Chatchat/run-chat-api-mcp.bat)
+
+默认执行：
+
+```
+.\run-chat-api-mcp.bat
+```
+
+会先停止脚本托管的旧进程，然后构建 `chatchat-api,chatchat-mcp-server`，再按顺序启动：
+
+1. MCP Server: `http://localhost:8090/admin`
+2. Chat API: `http://localhost:8080`
+
+常用命令：
+
+```
+.\run-chat-api-mcp.bat -Action status
+.\run-chat-api-mcp.bat -Action stop
+.\run-chat-api-mcp.bat -SkipBuild
+.\run-chat-api-mcp.bat -Clean
+.\run-chat-api-mcp.bat -WithTests
+```
+
+日志在 `logs/local-dev/`，PID 在 `run/local-dev/`。我已验证 `status` 和 `.bat` 包装器能正常运行；没有跑完整构建/启动，避免直接拉起服务占端口。
+
+## git自动提交
+
+已加好自动提交脚本：
+
+- [git-auto-commit.ps1](D:/IdeaProjects/LangChain4j-AIChat/Langchain4j-Chatchat/git-auto-commit.ps1)
+- [git-auto-commit.bat](D:/IdeaProjects/LangChain4j-AIChat/Langchain4j-Chatchat/git-auto-commit.bat)
+
+用法：
+
+```
+.\git-auto-commit.bat -DryRun
+.\git-auto-commit.bat -Message "chore: update local scripts"
+.\git-auto-commit.bat -Path .gitignore run-chat-api-mcp.ps1 -Message "chore: update gitignore and scripts"
+.\git-auto-commit.bat -Message "chore: update project" -Push
+```
+
+默认行为是：进入 Git 仓库根目录，`git add -A` 指定路径，生成提交；不传 `-Push` 就只本地提交。`-DryRun` 我已经验证过了，会列出将被考虑提交的文件，不会 stage 或 commit。

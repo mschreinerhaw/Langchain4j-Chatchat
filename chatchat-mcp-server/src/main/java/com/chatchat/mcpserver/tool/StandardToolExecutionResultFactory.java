@@ -221,7 +221,14 @@ public class StandardToolExecutionResultFactory {
             "id", config == null ? null : firstText(config.getDatasourceId(), config.getId()),
             "name", config == null ? null : config.getTitle(),
             "toolName", toolName,
-            "environment", null
+            "environment", null,
+            "template", config == null ? null : mapOf(
+                "templateId", config.getToolName(),
+                "intent", firstText(config.getTemplateIntent(), "general_query"),
+                "databaseType", firstText(config.getDatabaseType(), "generic"),
+                "riskLevel", firstText(config.getRiskLevel(), "read_only"),
+                "owner", firstText(config.getOwner(), "admin")
+            )
         ));
         payload.put("operation", mapOf(
             "type", "sql.query",

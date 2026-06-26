@@ -1,8 +1,8 @@
 <section id="databaseMcpView" class="panel api-service-view d-none">
     <div class="panel-head api-service-head">
         <div>
-            <h2>已注册数据库查询</h2>
-            <div class="text-secondary small">共 <span id="databaseQueryTotalCount">0</span> 个查询，匹配 <span id="databaseQueryFilteredCount">0</span> 个，当前显示 <span id="databaseQueryCount">0</span> 个</div>
+            <h2>已注册业务数据库查询</h2>
+            <div class="text-secondary small">面向业务分析的只读查询。共 <span id="databaseQueryTotalCount">0</span> 个查询，匹配 <span id="databaseQueryFilteredCount">0</span> 个，当前显示 <span id="databaseQueryCount">0</span> 个</div>
         </div>
         <div class="api-search">
             <input id="databaseQuerySearchInput" class="form-control" type="search" placeholder="搜索工具名称、显示名称、描述或 SQL">
@@ -30,7 +30,7 @@
     <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
-                <h2 id="databaseQueryFormTitle" class="modal-title fs-5">新增数据库查询</h2>
+                <h2 id="databaseQueryFormTitle" class="modal-title fs-5">新增业务数据库查询</h2>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="关闭"></button>
             </div>
             <div class="modal-body">
@@ -51,38 +51,8 @@
                         </div>
                         <div class="col-12">
                             <label class="form-label" for="databaseDatasourceSelect">数据库资产</label>
-                            <select id="databaseDatasourceSelect" class="form-select"></select>
-                            <div class="form-text">推荐直接引用资产中心里的数据库资产。旧 JDBC 字段仅作为兼容兜底。</div>
-                        </div>
-                        <div class="col-12">
-                            <div class="microservice-box">
-                                <div class="fw-semibold mb-2">兼容 JDBC 数据源</div>
-                                <div class="form-text mb-3">未选择数据库资产时才需要填写外部 JDBC 连接；禁止访问本地配置库。</div>
-                                <div id="databaseExternalFields" class="row g-3">
-                                    <div class="col-12">
-                                        <label class="form-label" for="databaseJdbcUrlInput">JDBC URL</label>
-                                        <input id="databaseJdbcUrlInput" class="form-control" placeholder="jdbc:mysql://127.0.0.1:3306/demo">
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label" for="databaseDriverClassInput">Driver Class</label>
-                                        <input id="databaseDriverClassInput" class="form-control" placeholder="com.mysql.cj.jdbc.Driver">
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label" for="databaseUsernameInput">用户名</label>
-                                        <input id="databaseUsernameInput" class="form-control" autocomplete="off">
-                                    </div>
-                                    <div class="col-md-6">
-                                        <label class="form-label" for="databasePasswordInput">密码</label>
-                                        <input id="databasePasswordInput" class="form-control" type="password" autocomplete="new-password">
-                                    </div>
-                                    <div class="col-md-6 database-reload-wrap">
-                                        <label class="form-check">
-                                            <input id="databaseReloadDrivers" class="form-check-input" type="checkbox">
-                                            <span class="form-check-label">执行前重新加载驱动</span>
-                                        </label>
-                                    </div>
-                                </div>
-                            </div>
+                            <select id="databaseDatasourceSelect" class="form-select" required></select>
+                            <div class="form-text">只能选择资产中心已维护并启用的数据库资产。</div>
                         </div>
                         <div class="col-12">
                             <label class="form-label" for="databaseSqlInput">SQL 模板</label>

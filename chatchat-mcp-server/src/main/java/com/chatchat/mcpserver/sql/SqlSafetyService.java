@@ -1,8 +1,5 @@
 package com.chatchat.mcpserver.sql;
 
-import net.sf.jsqlparser.parser.CCJSqlParserUtil;
-import net.sf.jsqlparser.statement.Statement;
-import net.sf.jsqlparser.statement.select.Select;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -30,27 +27,7 @@ public class SqlSafetyService {
         if (!ALLOWED_FIRST_TOKENS.contains(firstToken)) {
             throw new IllegalArgumentException("Only SELECT, SHOW, DESCRIBE and EXPLAIN SQL are allowed");
         }
-        validateAst(normalized, firstToken);
-        if ("SELECT".equals(firstToken) && !hasLimit(normalized)) {
-            return normalized + " LIMIT " + maxRows;
-        }
         return normalized;
-    }
-
-    private void validateAst(String sql, String firstToken) {
-        if (!"SELECT".equals(firstToken)) {
-            return;
-        }
-        try {
-            Statement statement = CCJSqlParserUtil.parse(sql);
-            if (!(statement instanceof Select)) {
-                throw new IllegalArgumentException("Only SELECT statements are allowed");
-            }
-        } catch (IllegalArgumentException ex) {
-            throw ex;
-        } catch (Exception ex) {
-            throw new IllegalArgumentException("SQL parse failed: " + ex.getMessage());
-        }
     }
 
     private void rejectComments(String sql) {
@@ -78,12 +55,6 @@ public class SqlSafetyService {
                 throw new IllegalArgumentException("SQL contains forbidden keyword: " + token);
             }
         }
-    }
-
-    private boolean hasLimit(String sql) {
-        return TOKEN_PATTERN.matcher(sql).results()
-            .map(match -> match.group().toUpperCase(Locale.ROOT))
-            .anyMatch("LIMIT"::equals);
     }
 
     private String firstToken(String sql) {

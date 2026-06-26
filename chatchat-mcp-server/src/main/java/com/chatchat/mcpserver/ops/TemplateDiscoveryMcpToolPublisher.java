@@ -1,5 +1,6 @@
 package com.chatchat.mcpserver.ops;
 
+import com.chatchat.mcpserver.routing.TargetKindRegistry;
 import io.modelcontextprotocol.server.McpServerFeatures;
 import io.modelcontextprotocol.server.McpSyncServer;
 import io.modelcontextprotocol.spec.McpSchema;
@@ -42,8 +43,10 @@ public class TemplateDiscoveryMcpToolPublisher {
         McpSchema.Tool tool = McpSchema.Tool.builder()
             .name(TOOL_NAME)
             .title("Execution template discovery")
-            .description("Read-only discovery tool for querying registered SSH, SQL, and HTTP execution templates. "
-                + "It returns template metadata, risk level, parameter schema and routing hints, but never returns raw commands, SQL, URLs, or bodies.")
+            .description("Read-only MCP Template Retrieval Engine v2 for querying registered SSH, SQL, HTTP, and business database query templates. "
+                + "It resolves assets, normalizes intent, ranks authorized templates with no-vector feature scoring, "
+                + "and returns queryIr/resolutionTrace plus template metadata, risk level, parameter schema and routing hints. "
+                + "It never returns raw commands, SQL, URLs, or bodies.")
             .inputSchema(inputSchema())
             .meta(meta())
             .build();
@@ -57,6 +60,12 @@ public class TemplateDiscoveryMcpToolPublisher {
                         .structuredContent(result)
                         .isError(false)
                         .build();
+                } catch (TargetKindRegistry.TargetKindException ex) {
+                    return McpSchema.CallToolResult.builder()
+                        .addTextContent(ex.getMessage())
+                        .structuredContent(errorResult(ex))
+                        .isError(true)
+                        .build();
                 } catch (Exception ex) {
                     return McpSchema.CallToolResult.builder()
                         .addTextContent(ex.getMessage())
@@ -69,11 +78,41 @@ public class TemplateDiscoveryMcpToolPublisher {
     }
 
     private McpSchema.JsonSchema inputSchema() {
-        return new McpSchema.JsonSchema("object", Map.of(
+        return new McpSchema.JsonSchema("object", mapOf(
             "schemaVersion", Map.of("type", "string", "description", CommandTemplateDiscoveryService.QUERY_SCHEMA_VERSION),
             "assetType", Map.of(
                 "type", "string",
-                "description", "Template target asset type: ssh_host, sql_datasource, or http_endpoint."
+                "description", "Template target asset type derived from targetKind: ssh_host, sql_datasource, http_endpoint, or database_query."
+            ),
+            "targetKind", Map.of(
+                "type", "string",
+                "description", "Legacy single semantic target marker. Prefer candidates[] + finalDecision in Routing Spec v1.1."
+            ),
+            "finalDecision", Map.of(
+                "type", "string",
+                "description", "Runtime-selected targetKind from candidates[]: host, database, http, business_database_query, or document. document must use document_search instead of template_query."
+            ),
+            "candidates", Map.of(
+                "type", "array",
+                "description", "Routing candidate set proposed by planner/model; runtime validates feasibility and scores candidates before accepting finalDecision.",
+                "items", Map.of(
+                    "type", "object",
+                    "properties", Map.of(
+                        "targetKind", Map.of("type", "string"),
+                        "confidence", Map.of("type", "number", "minimum", 0, "maximum", 1)
+                    ),
+                    "required", List.of("targetKind", "confidence")
+                )
+            ),
+            "confidence", Map.of(
+                "type", "number",
+                "minimum", 0,
+                "maximum", 1,
+                "description", "Model confidence for targetKind. Values below 0.6 return REVIEW_REQUIRED and do not retrieve templates."
+            ),
+            "filtersSchemaVersion", Map.of(
+                "type", "string",
+                "description", TargetKindRegistry.FILTERS_SCHEMA_VERSION
             ),
             "filters", Map.of(
                 "type", "object",
@@ -83,6 +122,11 @@ public class TemplateDiscoveryMcpToolPublisher {
             "executionContext", Map.of(
                 "type", "object",
                 "description", "Alias for logical filters; concrete target fields and raw commands are forbidden",
+                "additionalProperties", true
+            ),
+            "trace", Map.of(
+                "type", "object",
+                "description", "Required replay trace such as plannerVersion, model, promptVersion, or taskId",
                 "additionalProperties", true
             ),
             "limit", Map.of(
@@ -95,7 +139,7 @@ public class TemplateDiscoveryMcpToolPublisher {
                 "type", "string",
                 "description", "Optional response view: model or system. v1 always returns the canonical templates[] representation without raw execution spec."
             )
-        ), List.of(), false, null, null);
+        ), List.of("filters", "trace"), false, null, null);
     }
 
     private Map<String, Object> meta() {
@@ -111,7 +155,32 @@ public class TemplateDiscoveryMcpToolPublisher {
             "confirmation", mapOf("default", "auto_execute", "allow_user_override", false),
             "resultShape", mapOf(
                 "canonical", "templates[]",
-                "templateIdPath", "templates[].templateId"
+                "templateIdPath", "templates[].templateId",
+                "queryIrPath", "queryIr",
+                "decisionTracePath", "resolutionTrace"
+            ),
+            "decisionEngine", "mcp_template_lucene_decision_v2_no_vector",
+            "routingProtocol", mapOf(
+                "requiredMarker", "finalDecision",
+                "legacyMarker", "targetKind",
+                "preferredMarker", "finalDecision",
+                "filtersSchemaVersion", TargetKindRegistry.FILTERS_SCHEMA_VERSION,
+                "confidenceThreshold", TargetKindRegistry.MIN_CONFIDENCE,
+                "candidateSet", mapOf(
+                    "candidates", "candidates[]",
+                    "finalDecision", "finalDecision",
+                    "feasibilityLayer", List.of("schema_match", "tool_permission"),
+                    "scoringLayer", List.of("confidence", "latency_estimate", "historical_success_rate")
+                ),
+                "allowedTargetKinds", List.of("host", "database", "http", "business_database_query"),
+                "targetKindToAssetType", mapOf(
+                    "host", "ssh_host",
+                    "database", "sql_datasource",
+                    "http", "http_endpoint",
+                    "business_database_query", "database_query",
+                    "document", "document_search"
+                ),
+                "doNotInferFromKeywords", true
             ),
             "forbiddenConcreteTargetFields", List.of(
                 "hostId",
@@ -141,7 +210,23 @@ public class TemplateDiscoveryMcpToolPublisher {
             "schemaVersion", CommandTemplateDiscoveryService.RESULT_SCHEMA_VERSION,
             "querySchemaVersion", CommandTemplateDiscoveryService.QUERY_SCHEMA_VERSION,
             "success", false,
-            "error", message
+            "error", message,
+            "errorDetail", mapOf(
+                "code", "TEMPLATE_QUERY_REJECTED",
+                "message", message,
+                "required_fields", List.of("candidates", "finalDecision", "filters", "trace"),
+                "filtersSchemaVersion", TargetKindRegistry.FILTERS_SCHEMA_VERSION
+            )
+        );
+    }
+
+    private Map<String, Object> errorResult(TargetKindRegistry.TargetKindException ex) {
+        return mapOf(
+            "schemaVersion", CommandTemplateDiscoveryService.RESULT_SCHEMA_VERSION,
+            "querySchemaVersion", CommandTemplateDiscoveryService.QUERY_SCHEMA_VERSION,
+            "success", false,
+            "error", ex.getMessage(),
+            "errorDetail", ex.details()
         );
     }
 

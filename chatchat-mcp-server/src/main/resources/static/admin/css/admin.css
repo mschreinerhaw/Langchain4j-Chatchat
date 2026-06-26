@@ -839,6 +839,35 @@ body {
     margin-top: auto;
 }
 
+.command-template-card {
+    min-width: 0;
+    overflow: hidden;
+}
+
+.command-template-card .api-card-main {
+    min-width: 0;
+    padding-right: 0;
+}
+
+.command-template-card h3,
+.command-template-card p {
+    overflow-wrap: anywhere;
+}
+
+.command-template-card .service-meta {
+    min-width: 0;
+    align-items: flex-start;
+    overflow: hidden;
+}
+
+.command-template-card .badge {
+    max-width: 100%;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
 .template-picker-actions {
     display: flex;
     align-items: center;

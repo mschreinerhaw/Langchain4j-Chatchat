@@ -1,5 +1,7 @@
 package com.chatchat.agents.orchestration;
 
+import com.chatchat.agents.tool.ToolRegistry;
+
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -13,10 +15,17 @@ class AgentToolArgumentResolver {
 
     private final AgentToolNameResolver toolNames;
     private final int webSearchReferenceLimit;
+    private final ToolRegistry toolRegistry;
+    private final McpParamBindingResolver mcpParamBindingResolver = new McpParamBindingResolver();
 
     AgentToolArgumentResolver(AgentToolNameResolver toolNames, int webSearchReferenceLimit) {
+        this(toolNames, webSearchReferenceLimit, null);
+    }
+
+    AgentToolArgumentResolver(AgentToolNameResolver toolNames, int webSearchReferenceLimit, ToolRegistry toolRegistry) {
         this.toolNames = toolNames;
         this.webSearchReferenceLimit = webSearchReferenceLimit;
+        this.toolRegistry = toolRegistry;
     }
 
     Map<String, Object> applyDocumentSearchDefaults(String toolName,
@@ -58,7 +67,7 @@ class AgentToolArgumentResolver {
             values.put("query", mergedDocumentQuery(query, Objects.toString(values.get("query"), "")));
         }
         if (!toolNames.isWebEvidenceToolName(toolName)) {
-            return values;
+            return applyMcpParamBinding(toolName, values, query);
         }
         if (!values.containsKey("query") && query != null && !query.isBlank()) {
             values.put("query", query);
@@ -66,7 +75,7 @@ class AgentToolArgumentResolver {
         if (!values.containsKey("num_results")) {
             values.put("num_results", cappedLimit(webSearchResultLimit));
         }
-        return values;
+        return applyMcpParamBinding(toolName, values, query);
     }
 
     Map<String, Object> defaultToolArguments(String toolName, String query, int webSearchResultLimit) {
@@ -86,6 +95,15 @@ class AgentToolArgumentResolver {
             return Map.of("query", query);
         }
         return Map.of("input", query);
+    }
+
+    private Map<String, Object> applyMcpParamBinding(String toolName, Map<String, Object> arguments, String query) {
+        return mcpParamBindingResolver.resolve(
+            toolName,
+            toolRegistry == null ? null : toolRegistry.getToolMetadata(toolName),
+            arguments,
+            query
+        );
     }
 
     private int cappedLimit(int webSearchResultLimit) {

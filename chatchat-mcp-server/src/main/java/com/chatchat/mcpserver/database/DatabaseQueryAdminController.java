@@ -4,12 +4,12 @@ import com.chatchat.agents.protocol.ModelProtocolJson;
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.response.ApiResponse;
 import com.chatchat.common.tool.ToolOutput;
+import com.chatchat.mcpserver.search.McpTemplateLuceneIndexService;
 import com.chatchat.mcpserver.sql.SqlDatasourceConfig;
 import com.chatchat.mcpserver.sql.SqlDatasourceConfigService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -35,11 +35,9 @@ public class DatabaseQueryAdminController {
     private final DatabaseQueryConfigService configService;
     private final DatabaseQueryInvokeService invokeService;
     private final DatabaseQueryMcpToolPublisher publisher;
+    private final McpTemplateLuceneIndexService templateIndexService;
     private final ObjectMapper objectMapper;
     private final SqlDatasourceConfigService datasourceConfigService;
-
-    @Value("${spring.datasource.url:}")
-    private String applicationJdbcUrl;
 
     /**
      * Lists the list.
@@ -60,7 +58,7 @@ public class DatabaseQueryAdminController {
     @PostMapping
     public ApiResponse<DatabaseQueryView> create(@RequestBody DatabaseQueryUpsertRequest request) {
         DatabaseQueryConfig saved = configService.create(fromRequest(request));
-        publisher.refresh();
+        refreshPublishedTemplates();
         return ApiResponse.success(toView(saved), "Database query registered");
     }
 
@@ -75,7 +73,7 @@ public class DatabaseQueryAdminController {
     public ApiResponse<DatabaseQueryView> update(@PathVariable("id") String id,
                                                  @RequestBody DatabaseQueryUpsertRequest request) {
         DatabaseQueryConfig saved = configService.update(id, fromRequest(request));
-        publisher.refresh();
+        refreshPublishedTemplates();
         return ApiResponse.success(toView(saved), "Database query updated");
     }
 
@@ -88,7 +86,7 @@ public class DatabaseQueryAdminController {
     @DeleteMapping("/{id}")
     public ApiResponse<Void> delete(@PathVariable("id") String id) {
         configService.delete(id);
-        publisher.refresh();
+        refreshPublishedTemplates();
         return ApiResponse.success(null, "Database query deleted");
     }
 
@@ -101,7 +99,7 @@ public class DatabaseQueryAdminController {
     @PostMapping("/batch-delete")
     public ApiResponse<Map<String, Object>> batchDelete(@RequestBody BatchDeleteRequest request) {
         int deleted = configService.deleteAll(request.ids());
-        publisher.refresh();
+        refreshPublishedTemplates();
         return ApiResponse.success(Map.of("deleted", deleted), "Database queries deleted");
     }
 
@@ -116,8 +114,13 @@ public class DatabaseQueryAdminController {
     public ApiResponse<DatabaseQueryView> setEnabled(@PathVariable("id") String id,
                                                      @RequestParam("enabled") boolean enabled) {
         DatabaseQueryConfig saved = configService.setEnabled(id, enabled);
-        publisher.refresh();
+        refreshPublishedTemplates();
         return ApiResponse.success(toView(saved), "Database query status updated");
+    }
+
+    private void refreshPublishedTemplates() {
+        publisher.refresh();
+        templateIndexService.refreshAll();
     }
 
     /**
@@ -166,12 +169,19 @@ public class DatabaseQueryAdminController {
         config.setRoutingLabels(request.routingLabels());
         config.setCapabilitiesJson(request.capabilitiesJson());
         config.setCapabilities(request.capabilities());
+        config.setTemplateIntent(request.intent());
+        config.setDatabaseType(request.dbType());
+        config.setTagsJson(writeJsonArray(request.tags()));
+        config.setRiskLevel(request.riskLevel());
+        config.setOwner(request.owner());
+        config.setRating(request.rating() == null ? 0.0 : request.rating());
+        config.setUsageCount(request.usageCount() == null ? 0L : request.usageCount());
         config.setMaxRows(request.maxRows() == null ? 50 : request.maxRows());
-        config.setJdbcUrl(request.jdbcUrl());
-        config.setDriverClass(request.driverClass());
-        config.setUsername(request.username());
-        config.setPassword(request.password());
-        config.setReloadDrivers(request.reloadDrivers() != null && request.reloadDrivers());
+        config.setJdbcUrl(null);
+        config.setDriverClass(null);
+        config.setUsername(null);
+        config.setPassword(null);
+        config.setReloadDrivers(false);
         config.setEnabled(request.enabled() == null || request.enabled());
         return config;
     }
@@ -196,12 +206,19 @@ public class DatabaseQueryAdminController {
             readJsonArray(config.getRoutingLabelsJson()),
             config.getCapabilitiesJson(),
             readJsonArray(config.getCapabilitiesJson()),
+            config.getTemplateIntent(),
+            config.getDatabaseType(),
+            readJsonArray(config.getTagsJson()),
+            config.getRiskLevel(),
+            config.getOwner(),
+            config.getRating(),
+            config.getUsageCount(),
             config.getMaxRows(),
-            config.getJdbcUrl(),
-            config.getDriverClass(),
-            config.getUsername(),
-            config.getPassword(),
-            config.isReloadDrivers(),
+            null,
+            null,
+            null,
+            null,
+            false,
             config.isEnabled(),
             config.getCreatedAt() == null ? null : config.getCreatedAt().toEpochMilli(),
             config.getUpdatedAt() == null ? null : config.getUpdatedAt().toEpochMilli()
@@ -219,22 +236,17 @@ public class DatabaseQueryAdminController {
         parameters.put("sql", request.sql());
         parameters.put("params", request.params() == null ? Map.of() : request.params());
         parameters.put("max_rows", request.maxRows());
-        if (request.datasourceId() != null && !request.datasourceId().isBlank()) {
-            SqlDatasourceConfig datasource = datasourceConfigService.getEnabled(request.datasourceId());
-            parameters.put("jdbc_url", datasource.getJdbcUrl());
-            putIfPresent(parameters, "driver_class", datasource.getDriverClass());
-            putIfPresent(parameters, "username", datasource.getUsername());
-            putIfPresent(parameters, "password", datasource.getPassword());
-            parameters.put("datasource_id", datasource.getId());
-            parameters.put("datasource_name", datasource.getName());
-            parameters.put("reload_drivers", false);
-        } else {
-            parameters.put("jdbc_url", requireJdbcUrl(request.jdbcUrl()));
-            putIfPresent(parameters, "driver_class", request.driverClass());
-            putIfPresent(parameters, "username", request.username());
-            putIfPresent(parameters, "password", request.password());
-            parameters.put("reload_drivers", request.reloadDrivers() != null && request.reloadDrivers());
+        if (request.datasourceId() == null || request.datasourceId().isBlank()) {
+            throw new IllegalArgumentException("datasourceId is required");
         }
+        SqlDatasourceConfig datasource = datasourceConfigService.getEnabled(request.datasourceId());
+        parameters.put("jdbc_url", datasource.getJdbcUrl());
+        putIfPresent(parameters, "driver_class", datasource.getDriverClass());
+        putIfPresent(parameters, "username", datasource.getUsername());
+        putIfPresent(parameters, "password", datasource.getPassword());
+        parameters.put("datasource_id", datasource.getId());
+        parameters.put("datasource_name", datasource.getName());
+        parameters.put("reload_drivers", false);
         return parameters;
     }
 
@@ -252,6 +264,21 @@ public class DatabaseQueryAdminController {
             return ModelProtocolJson.compact(map);
         } catch (RuntimeException e) {
             throw new IllegalArgumentException("inputSchema is invalid");
+        }
+    }
+
+    private String writeJsonArray(List<String> values) {
+        if (values == null || values.isEmpty()) {
+            return null;
+        }
+        try {
+            return ModelProtocolJson.compact(values.stream()
+                .filter(item -> item != null && !item.isBlank())
+                .map(String::trim)
+                .distinct()
+                .toList());
+        } catch (RuntimeException e) {
+            throw new IllegalArgumentException("tags is invalid");
         }
     }
 
@@ -300,35 +327,6 @@ public class DatabaseQueryAdminController {
         }
     }
 
-    /**
-     * Performs the require jdbc url operation.
-     *
-     * @param value the value value
-     * @return the operation result
-     */
-    private String requireJdbcUrl(String value) {
-        if (value == null || value.isBlank()) {
-            throw new IllegalArgumentException("jdbcUrl is required; local configuration database queries are forbidden");
-        }
-        String jdbcUrl = value.trim();
-        if (isApplicationJdbcUrl(jdbcUrl)) {
-            throw new IllegalArgumentException("local configuration database queries are forbidden");
-        }
-        return jdbcUrl;
-    }
-
-    /**
-     * Returns whether is application jdbc url.
-     *
-     * @param jdbcUrl the jdbc url value
-     * @return whether the condition is satisfied
-     */
-    private boolean isApplicationJdbcUrl(String jdbcUrl) {
-        return applicationJdbcUrl != null
-            && !applicationJdbcUrl.isBlank()
-            && applicationJdbcUrl.trim().equalsIgnoreCase(jdbcUrl.trim());
-    }
-
     public record DatabaseQueryTestRequest(
         String sql,
         Map<String, Object> params,
@@ -354,6 +352,13 @@ public class DatabaseQueryAdminController {
         List<String> routingLabels,
         String capabilitiesJson,
         List<String> capabilities,
+        String intent,
+        String dbType,
+        List<String> tags,
+        String riskLevel,
+        String owner,
+        Double rating,
+        Long usageCount,
         Integer maxRows,
         String jdbcUrl,
         String driverClass,
@@ -380,6 +385,13 @@ public class DatabaseQueryAdminController {
         List<String> routingLabels,
         String capabilitiesJson,
         List<String> capabilities,
+        String intent,
+        String dbType,
+        List<String> tags,
+        String riskLevel,
+        String owner,
+        double rating,
+        long usageCount,
         int maxRows,
         String jdbcUrl,
         String driverClass,

@@ -198,9 +198,25 @@ public class DatabaseQueryToolSpecFactory {
         Map<String, Object> values = new LinkedHashMap<>(meta == null ? Map.of() : meta);
         values.put("assetType", "database_query");
         values.put("targetRoutingRequired", false);
+        values.put("templateId", config.getToolName());
+        values.put("intent", firstText(config.getTemplateIntent(), "general_query"));
+        values.put("databaseType", firstText(config.getDatabaseType(), "generic"));
+        values.put("tags", readJsonList(config.getTagsJson()));
+        values.put("riskLevel", firstText(config.getRiskLevel(), "read_only"));
+        values.put("owner", firstText(config.getOwner(), "admin"));
+        values.put("rating", config.getRating());
+        values.put("usageCount", config.getUsageCount());
+        values.put("marketplace", Map.of(
+            "registry", "business_database_query",
+            "publishMode", "template_to_mcp_tool"
+        ));
         values.put("routingLabels", readJsonList(config.getRoutingLabelsJson()));
         values.put("capabilities", readJsonList(config.getCapabilitiesJson()));
         return values;
+    }
+
+    private String firstText(String value, String fallback) {
+        return value == null || value.isBlank() ? fallback : value.trim();
     }
 
     private List<String> readJsonList(String json) {

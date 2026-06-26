@@ -130,22 +130,17 @@ public class DatabaseQueryInvokeService {
         parameters.put("sql", config.getSqlTemplate());
         parameters.put("params", arguments);
         parameters.put("max_rows", config.getMaxRows());
-        if (config.getDatasourceId() != null && !config.getDatasourceId().isBlank()) {
-            SqlDatasourceConfig datasource = datasourceConfigService.getEnabled(config.getDatasourceId());
-            putIfPresent(parameters, "jdbc_url", datasource.getJdbcUrl());
-            putIfPresent(parameters, "driver_class", datasource.getDriverClass());
-            putIfPresent(parameters, "username", datasource.getUsername());
-            putIfPresent(parameters, "password", datasource.getPassword());
-            parameters.put("datasource_id", datasource.getId());
-            parameters.put("datasource_name", datasource.getName());
-            parameters.put("reload_drivers", false);
-        } else {
-            putIfPresent(parameters, "jdbc_url", config.getJdbcUrl());
-            putIfPresent(parameters, "driver_class", config.getDriverClass());
-            putIfPresent(parameters, "username", config.getUsername());
-            putIfPresent(parameters, "password", config.getPassword());
-            parameters.put("reload_drivers", config.isReloadDrivers());
+        if (config.getDatasourceId() == null || config.getDatasourceId().isBlank()) {
+            throw new IllegalArgumentException("database query requires an enabled datasource asset");
         }
+        SqlDatasourceConfig datasource = datasourceConfigService.getEnabled(config.getDatasourceId());
+        putIfPresent(parameters, "jdbc_url", datasource.getJdbcUrl());
+        putIfPresent(parameters, "driver_class", datasource.getDriverClass());
+        putIfPresent(parameters, "username", datasource.getUsername());
+        putIfPresent(parameters, "password", datasource.getPassword());
+        parameters.put("datasource_id", datasource.getId());
+        parameters.put("datasource_name", datasource.getName());
+        parameters.put("reload_drivers", false);
         return parameters;
     }
 

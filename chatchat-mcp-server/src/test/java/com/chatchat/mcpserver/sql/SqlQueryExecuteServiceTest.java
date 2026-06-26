@@ -10,6 +10,8 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyMap;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -64,5 +66,29 @@ class SqlQueryExecuteServiceTest {
         assertThat(result.columnMetadata().get(1)).containsEntry("comment", "Customer Name");
         assertThat(result.columnMetadata().get(2)).containsEntry("comment", "Phone number");
         assertThat(result.columnMetadata().get(2)).containsEntry("masked", true);
+    }
+
+    @Test
+    void rejectsNonSqlTemplateIdAliasInsteadOfRunningParameterSql() {
+        SqlDatasourceConfig datasource = new SqlDatasourceConfig();
+        datasource.setId("ds-1");
+        datasource.setName("customer-db");
+        datasource.setToolName("sql_customer");
+        datasource.setJdbcUrl("jdbc:h2:mem:unused");
+        datasource.setDefaultMaxRows(10);
+        datasource.setDefaultTimeoutSeconds(5);
+        when(datasourceConfigService.getEnabled("ds-1")).thenReturn(datasource);
+        when(templateService.render(eq("CHECK_CPU"), anyMap(), eq(datasource), anyMap()))
+            .thenThrow(new IllegalArgumentException("SQL template not found or disabled: CHECK_CPU"));
+
+        SqlQueryResult result = service.execute(Map.of(
+            "datasourceId", "ds-1",
+            "templateId", "CHECK_CPU",
+            "parameters", Map.of("sql", "SELECT version()")
+        ));
+
+        assertThat(result.success()).isFalse();
+        assertThat(result.errorMessage()).contains("SQL template not found or disabled: CHECK_CPU");
+        assertThat(result.sql()).isNull();
     }
 }

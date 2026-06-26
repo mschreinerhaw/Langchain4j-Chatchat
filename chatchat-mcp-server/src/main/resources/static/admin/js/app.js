@@ -286,7 +286,6 @@ function bindEvents() {
     document.getElementById('databaseQuerySelectVisibleBtn').addEventListener('click', selectVisibleDatabaseQueries);
     document.getElementById('databaseQueryClearSelectionBtn').addEventListener('click', clearDatabaseQuerySelection);
     document.getElementById('databaseQueryBatchDeleteBtn').addEventListener('click', removeSelectedDatabaseQueries);
-    document.getElementById('databaseDatasourceSelect').addEventListener('change', toggleDatabaseExternalFields);
     document.getElementById('notificationSearchInput').addEventListener('input', handleNotificationSearch);
     document.getElementById('refreshNotificationToolsBtn').addEventListener('click', handleNotificationRefresh);
     document.getElementById('notificationChannelForm').addEventListener('submit', handleNotificationSave);
@@ -1019,8 +1018,7 @@ function filterDatabaseQueries() {
         query.toolName,
         query.title,
         query.description,
-        query.sqlTemplate,
-        query.jdbcUrl
+        query.sqlTemplate
     ].some(value => String(value || '').toLowerCase().includes(keyword)));
 }
 
@@ -1492,12 +1490,12 @@ function renderCommandTemplates() {
     updateCommandTemplatePager(totalPages, filteredTemplates.length);
     list.innerHTML = '';
     if (!filteredTemplates.length) {
-        list.innerHTML = '<div class="api-empty text-secondary small">No matching command templates.</div>';
+        list.innerHTML = '<div class="api-empty text-secondary small">No matching execution templates.</div>';
         return;
     }
     for (const template of visibleTemplates) {
         const item = document.createElement('article');
-        item.className = `service-card api-card ${template.catalogId === selectedCommandTemplateId ? 'active' : ''}`;
+        item.className = `service-card api-card command-template-card ${template.catalogId === selectedCommandTemplateId ? 'active' : ''}`;
         const code = String(template.code || '').trim();
         const signals = parseJsonArrayValue(template.intentSignalsJson)
             .map(signal => String(signal || '').trim())
@@ -1563,7 +1561,7 @@ function templateCatalogRows() {
         ...sqlTemplates.map(template => ({
             ...template,
             scope: 'sql',
-            scopeLabel: 'SQL Query',
+            scopeLabel: 'SQL Ops Query',
             catalogId: `sql:${template.id}`,
             commandTemplate: template.sqlTemplate
         })),
@@ -2355,12 +2353,12 @@ function readCommandTemplateForm() {
 }
 
 function fillCommandTemplateForm(template) {
-    const scopeLabel = editingTemplateScope === 'sql' ? 'SQL Query Template' : 'SSH Command Template';
+    const scopeLabel = editingTemplateScope === 'sql' ? 'SQL Ops Template' : 'SSH Command Template';
     document.getElementById('commandTemplateFormTitle').textContent = template ? `Edit ${template.code || template.title}` : `New ${scopeLabel}`;
     const bodyLabel = document.getElementById('commandTemplateBodyLabel');
     if (bodyLabel) {
         bodyLabel.textContent = editingTemplateScope === 'sql'
-            ? 'SQL query template'
+            ? 'SQL ops query template'
             : 'Internal command / JSON steps';
     }
     setValue('commandTemplateId', template?.id || '');
@@ -2368,7 +2366,7 @@ function fillCommandTemplateForm(template) {
     setValue('commandTemplateTitle', template?.title || '');
     setValue('commandTemplateDescription', template?.description || '');
     setValue('commandTemplateRiskLevel', template?.riskLevel || 'LOW');
-    setValue('commandTemplateCategory', template?.category || (editingTemplateScope === 'sql' ? 'sql_diagnostic' : 'system_diagnostic'));
+    setValue('commandTemplateCategory', template?.category || (editingTemplateScope === 'sql' ? 'maintenance_performance' : 'system_diagnostic'));
     setValue('commandTemplateEnabled', String(template?.enabled ?? true));
     setValue('commandTemplateIntentSignalsJson', prettyJsonArray(template?.intentSignalsJson || '[]'));
     setValue('commandTemplateParameterSchemaJson', prettyJsonObject(template?.parameterSchemaJson, defaultTemplateParameterSchema()));
@@ -2405,13 +2403,8 @@ function defaultTemplateParameterSchema() {
     if (editingTemplateScope === 'sql') {
         return {
             type: 'object',
-            properties: {
-                table: {
-                    type: 'string',
-                    description: 'Allowed table name'
-                }
-            },
-            required: ['table']
+            properties: {},
+            required: []
         };
     }
     return {
@@ -2422,7 +2415,7 @@ function defaultTemplateParameterSchema() {
 }
 
 function defaultTemplateBody() {
-    return editingTemplateScope === 'sql' ? 'SELECT * FROM {{table}} LIMIT 50' : '';
+    return editingTemplateScope === 'sql' ? 'SELECT 1' : '';
 }
 
 function notificationDefaultReceiverValue() {
@@ -2733,7 +2726,7 @@ function renderSqlTemplateOptions() {
             rowClass: compatible ? '' : 'opacity-50',
             checkboxAttr: `data-sql-template-code="${escapeHtml(code)}"`,
             title: template.title || code,
-            category: template.category || 'sql_diagnostic',
+            category: template.category || 'maintenance_performance',
             meta: `${type} / ${bound}`,
             detail: template.description || ''
         });
@@ -3085,12 +3078,7 @@ function readDatabaseQueryForm() {
         sql: value('databaseSqlInput'),
         params: readJsonObject('databaseParamsJson'),
         maxRows: Number(value('databaseMaxRowsInput') || 50),
-        datasourceId: value('databaseDatasourceSelect'),
-        jdbcUrl: value('databaseJdbcUrlInput'),
-        driverClass: value('databaseDriverClassInput'),
-        username: value('databaseUsernameInput'),
-        password: document.getElementById('databasePasswordInput').value,
-        reloadDrivers: document.getElementById('databaseReloadDrivers').checked
+        datasourceId: value('databaseDatasourceSelect')
     };
 }
 
@@ -3111,11 +3099,6 @@ function readDatabaseQueryRegistrationForm() {
         capabilitiesJson: current?.capabilitiesJson,
         capabilities: current?.capabilities,
         maxRows: Number(value('databaseMaxRowsInput') || 50),
-        jdbcUrl: value('databaseJdbcUrlInput'),
-        driverClass: value('databaseDriverClassInput'),
-        username: value('databaseUsernameInput'),
-        password: document.getElementById('databasePasswordInput').value,
-        reloadDrivers: document.getElementById('databaseReloadDrivers').checked,
         enabled: current?.enabled ?? true
     };
 }
@@ -3138,12 +3121,6 @@ function fillDatabaseQueryForm(query) {
         additionalProperties: false
     }, null, 2));
     setValue('databaseGovernanceJson', JSON.stringify(query?.governance || defaultDatabaseQueryGovernance(query), null, 2));
-    setValue('databaseJdbcUrlInput', query?.jdbcUrl || '');
-    setValue('databaseDriverClassInput', query?.driverClass || '');
-    setValue('databaseUsernameInput', query?.username || '');
-    document.getElementById('databasePasswordInput').value = query?.password || '';
-    document.getElementById('databaseReloadDrivers').checked = Boolean(query?.reloadDrivers);
-    toggleDatabaseExternalFields();
     renderDatabaseQueryPreview(null);
 }
 
@@ -3154,19 +3131,13 @@ function renderDatabaseDatasourceOptions(selected = value('databaseDatasourceSel
     }
     const enabledAssets = sqlAssets.filter(asset => asset.enabled);
     select.innerHTML = [
-        '<option value="">不使用资产，手动填写 JDBC</option>',
+        '<option value="">请选择数据库资产</option>',
         ...enabledAssets.map(asset => `
             <option value="${escapeHtml(asset.id)}" ${asset.id === selected ? 'selected' : ''}>
                 ${escapeHtml(asset.toolName || asset.name)} / ${escapeHtml(asset.environment || 'DEV')}
             </option>
         `)
     ].join('');
-}
-
-function toggleDatabaseExternalFields() {
-    const useAsset = Boolean(value('databaseDatasourceSelect'));
-    document.getElementById('databaseExternalFields').classList.toggle('opacity-50', useAsset);
-    document.getElementById('databaseJdbcUrlInput').required = !useAsset;
 }
 
 function resetDatabaseQueryForm() {

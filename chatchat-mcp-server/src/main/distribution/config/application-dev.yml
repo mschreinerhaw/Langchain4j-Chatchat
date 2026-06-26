@@ -45,6 +45,14 @@ chatchat:
     security:
       require-mcp-token: true
       invocation-token: 
+    command-templates:
+      seed-defaults-enabled: false
+    sql-templates:
+      seed-defaults-enabled: true
+    lucene:
+      enabled: true
+      index-dir: ./data/lucene/mcp
+      max-results: 50
     cache:
       enabled: true
       path: ./data/mcp-cache-rocksdb

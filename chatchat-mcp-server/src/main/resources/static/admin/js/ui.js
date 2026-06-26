@@ -350,7 +350,7 @@ export function renderDatabaseQueries(queries, selectedId, handlers, paging = {}
     const list = document.getElementById('databaseQueryList');
     list.innerHTML = '';
     if (!queries.length) {
-        list.innerHTML = '<div class="api-empty text-secondary small">暂无数据库查询注册。</div>';
+        list.innerHTML = '<div class="api-empty text-secondary small">暂无业务数据库查询注册。</div>';
         return;
     }
     for (const query of visibleQueries) {
@@ -366,7 +366,7 @@ export function renderDatabaseQueries(queries, selectedId, handlers, paging = {}
             </div>
             <div class="service-meta">
                 <span class="badge ${query.enabled ? 'text-bg-success' : 'text-bg-secondary'}">${query.enabled ? '启用' : '停用'}</span>
-                <span class="badge ${query.datasourceId ? 'text-bg-info' : 'text-bg-light'}">${query.datasourceId ? '资产' : 'JDBC'}</span>
+                <span class="badge ${query.datasourceId ? 'text-bg-info' : 'text-bg-warning'}">${query.datasourceId ? '资产' : '未绑定资产'}</span>
                 <span class="badge text-bg-light">${escapeHtml(query.toolName)}</span>
                 <span class="badge text-bg-light">最多 ${escapeHtml(query.maxRows || 50)} 行</span>
             </div>
@@ -591,7 +591,7 @@ export function switchView(name) {
         apiServices: ['API 服务', '注册标准 HTTP API，并将其发布为 MCP 工具。'],
         mcpServices: ['MCP 服务', '注册 MCP 服务、管理服务 Token，并查看心跳状态。'],
         assetCenter: ['资产中心', '管理服务器和数据库资产，并自动发布为 MCP 工具。'],
-        databaseMcp: ['数据库查询', '注册只读 SQL 查询，并将其发布为 MCP 工具。'],
+        databaseMcp: ['业务数据库查询', '注册面向业务分析的只读 SQL 查询，并将其发布为 MCP 工具。'],
         notificationChannels: ['通知告警', '配置邮件、短信、企业微信和钉钉 MCP 通知工具。'],
         auditLogs: ['调用审计', '查看最近的 MCP 与 API 调用记录。'],
         settings: ['系统设置', '查看连接端点和注册接口路径。']

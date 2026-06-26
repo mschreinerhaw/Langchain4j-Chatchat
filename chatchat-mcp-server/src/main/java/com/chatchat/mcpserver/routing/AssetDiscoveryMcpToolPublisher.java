@@ -58,6 +58,12 @@ public class AssetDiscoveryMcpToolPublisher {
                         .structuredContent(result)
                         .isError(false)
                         .build();
+                } catch (TargetKindRegistry.TargetKindException ex) {
+                    return McpSchema.CallToolResult.builder()
+                        .addTextContent(ex.getMessage())
+                        .structuredContent(errorResult(ex))
+                        .isError(true)
+                        .build();
                 } catch (Exception ex) {
                     return McpSchema.CallToolResult.builder()
                         .addTextContent(ex.getMessage())
@@ -70,11 +76,41 @@ public class AssetDiscoveryMcpToolPublisher {
     }
 
     private McpSchema.JsonSchema inputSchema() {
-        return new McpSchema.JsonSchema("object", Map.of(
+        return new McpSchema.JsonSchema("object", mapOf(
             "schemaVersion", Map.of("type", "string", "description", AssetDiscoveryService.QUERY_SCHEMA_VERSION),
             "assetType", Map.of(
                 "type", "string",
-                "description", "Optional asset type: ssh_host, sql_datasource, or http_endpoint"
+                "description", "Asset type derived from targetKind: ssh_host, sql_datasource, or http_endpoint"
+            ),
+            "targetKind", Map.of(
+                "type", "string",
+                "description", "Legacy single semantic target marker. Prefer candidates[] + finalDecision in Routing Spec v1.1."
+            ),
+            "finalDecision", Map.of(
+                "type", "string",
+                "description", "Runtime-selected targetKind from candidates[]: host, database, http, or document. document must use document_search instead of asset_query."
+            ),
+            "candidates", Map.of(
+                "type", "array",
+                "description", "Routing candidate set proposed by planner/model; runtime validates feasibility and scores candidates before accepting finalDecision.",
+                "items", Map.of(
+                    "type", "object",
+                    "properties", Map.of(
+                        "targetKind", Map.of("type", "string"),
+                        "confidence", Map.of("type", "number", "minimum", 0, "maximum", 1)
+                    ),
+                    "required", List.of("targetKind", "confidence")
+                )
+            ),
+            "confidence", Map.of(
+                "type", "number",
+                "minimum", 0,
+                "maximum", 1,
+                "description", "Model confidence for targetKind. Values below 0.6 return REVIEW_REQUIRED and do not retrieve assets."
+            ),
+            "filtersSchemaVersion", Map.of(
+                "type", "string",
+                "description", TargetKindRegistry.FILTERS_SCHEMA_VERSION
             ),
             "filters", Map.of(
                 "type", "object",
@@ -84,6 +120,11 @@ public class AssetDiscoveryMcpToolPublisher {
             "executionContext", Map.of(
                 "type", "object",
                 "description", "Alias for filters; concrete target fields are forbidden",
+                "additionalProperties", true
+            ),
+            "trace", Map.of(
+                "type", "object",
+                "description", "Required replay trace such as plannerVersion, model, promptVersion, or taskId",
                 "additionalProperties", true
             ),
             "limit", Map.of(
@@ -96,7 +137,7 @@ public class AssetDiscoveryMcpToolPublisher {
                 "type", "string",
                 "description", "Optional response view: model or system. v1 always returns the canonical redacted assets[] representation."
             )
-        ), List.of(), false, null, null);
+        ), List.of("filters", "trace"), false, null, null);
     }
 
     private Map<String, Object> meta() {
@@ -120,6 +161,27 @@ public class AssetDiscoveryMcpToolPublisher {
             ),
             "maxResults", AssetDiscoveryService.MAX_LIMIT,
             "routingPolicyVersion", AssetMetadataFactory.ROUTING_POLICY_VERSION,
+            "routingProtocol", mapOf(
+                "requiredMarker", "finalDecision",
+                "legacyMarker", "targetKind",
+                "preferredMarker", "finalDecision",
+                "filtersSchemaVersion", TargetKindRegistry.FILTERS_SCHEMA_VERSION,
+                "confidenceThreshold", TargetKindRegistry.MIN_CONFIDENCE,
+                "candidateSet", mapOf(
+                    "candidates", "candidates[]",
+                    "finalDecision", "finalDecision",
+                    "feasibilityLayer", List.of("schema_match", "tool_permission"),
+                    "scoringLayer", List.of("confidence", "latency_estimate", "historical_success_rate")
+                ),
+                "allowedTargetKinds", List.of("host", "database", "http"),
+                "targetKindToAssetType", mapOf(
+                    "host", "ssh_host",
+                    "database", "sql_datasource",
+                    "http", "http_endpoint",
+                    "document", "document_search"
+                ),
+                "doNotInferFromKeywords", true
+            ),
             "resultShape", mapOf(
                 "canonical", "assets[]",
                 "assetEnvironmentPath", "assets[].asset.environment",
@@ -151,7 +213,23 @@ public class AssetDiscoveryMcpToolPublisher {
             "schemaVersion", AssetDiscoveryService.RESULT_SCHEMA_VERSION,
             "querySchemaVersion", AssetDiscoveryService.QUERY_SCHEMA_VERSION,
             "success", false,
-            "error", message
+            "error", message,
+            "errorDetail", mapOf(
+                "code", "ASSET_QUERY_REJECTED",
+                "message", message,
+                "required_fields", List.of("candidates", "finalDecision", "filters", "trace"),
+                "filtersSchemaVersion", TargetKindRegistry.FILTERS_SCHEMA_VERSION
+            )
+        );
+    }
+
+    private Map<String, Object> errorResult(TargetKindRegistry.TargetKindException ex) {
+        return mapOf(
+            "schemaVersion", AssetDiscoveryService.RESULT_SCHEMA_VERSION,
+            "querySchemaVersion", AssetDiscoveryService.QUERY_SCHEMA_VERSION,
+            "success", false,
+            "error", ex.getMessage(),
+            "errorDetail", ex.details()
         );
     }
 

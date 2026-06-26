@@ -54,6 +54,28 @@ public class DatabaseQueryConfig {
     @Column
     private String capabilitiesJson;
 
+    @Column(length = 128)
+    private String templateIntent;
+
+    @Column(length = 64)
+    private String databaseType = "generic";
+
+    @Lob
+    @Column
+    private String tagsJson;
+
+    @Column(length = 32)
+    private String riskLevel = "read_only";
+
+    @Column(length = 128)
+    private String owner = "admin";
+
+    @Column(nullable = false)
+    private double rating = 0.0;
+
+    @Column(nullable = false)
+    private long usageCount = 0L;
+
     @Transient
     private List<String> routingLabels = new ArrayList<>();
 
@@ -128,6 +150,20 @@ public class DatabaseQueryConfig {
     public void setRoutingLabelsJson(String routingLabelsJson) { this.routingLabelsJson = routingLabelsJson; }
     public String getCapabilitiesJson() { return capabilitiesJson; }
     public void setCapabilitiesJson(String capabilitiesJson) { this.capabilitiesJson = capabilitiesJson; }
+    public String getTemplateIntent() { return templateIntent; }
+    public void setTemplateIntent(String templateIntent) { this.templateIntent = templateIntent; }
+    public String getDatabaseType() { return databaseType; }
+    public void setDatabaseType(String databaseType) { this.databaseType = databaseType; }
+    public String getTagsJson() { return tagsJson; }
+    public void setTagsJson(String tagsJson) { this.tagsJson = tagsJson; }
+    public String getRiskLevel() { return riskLevel; }
+    public void setRiskLevel(String riskLevel) { this.riskLevel = riskLevel; }
+    public String getOwner() { return owner; }
+    public void setOwner(String owner) { this.owner = owner; }
+    public double getRating() { return rating; }
+    public void setRating(double rating) { this.rating = rating; }
+    public long getUsageCount() { return usageCount; }
+    public void setUsageCount(long usageCount) { this.usageCount = usageCount; }
     public List<String> getRoutingLabels() { return routingLabels; }
     public void setRoutingLabels(List<String> routingLabels) { this.routingLabels = routingLabels == null ? new ArrayList<>() : routingLabels; }
     public List<String> getCapabilities() { return capabilities; }

@@ -4,11 +4,12 @@ import com.chatchat.agents.protocol.ModelProtocolJson;
 
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.mcpserver.api.ApiServiceConfigRepository;
+import com.chatchat.mcpserver.search.LuceneMcpSearchService;
+import com.chatchat.mcpserver.sql.SqlDatasourceConfig;
 import com.chatchat.mcpserver.sql.SqlDatasourceConfigService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import lombok.RequiredArgsConstructor;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,7 +22,6 @@ import java.util.Set;
 import java.util.regex.Pattern;
 
 @Service
-@RequiredArgsConstructor
 public class DatabaseQueryConfigService {
 
     private static final Pattern TOOL_NAME_PATTERN = Pattern.compile("^[A-Za-z0-9_-]{1,128}$");
@@ -32,9 +32,30 @@ public class DatabaseQueryConfigService {
     private final ToolRegistry toolRegistry;
     private final ObjectMapper objectMapper;
     private final SqlDatasourceConfigService datasourceConfigService;
+    private final LuceneMcpSearchService luceneSearchService;
 
-    @Value("${spring.datasource.url:}")
-    private String applicationJdbcUrl;
+    public DatabaseQueryConfigService(DatabaseQueryConfigRepository repository,
+                                      ApiServiceConfigRepository apiServiceConfigRepository,
+                                      ToolRegistry toolRegistry,
+                                      ObjectMapper objectMapper,
+                                      SqlDatasourceConfigService datasourceConfigService) {
+        this(repository, apiServiceConfigRepository, toolRegistry, objectMapper, datasourceConfigService, null);
+    }
+
+    @Autowired
+    public DatabaseQueryConfigService(DatabaseQueryConfigRepository repository,
+                                      ApiServiceConfigRepository apiServiceConfigRepository,
+                                      ToolRegistry toolRegistry,
+                                      ObjectMapper objectMapper,
+                                      SqlDatasourceConfigService datasourceConfigService,
+                                      LuceneMcpSearchService luceneSearchService) {
+        this.repository = repository;
+        this.apiServiceConfigRepository = apiServiceConfigRepository;
+        this.toolRegistry = toolRegistry;
+        this.objectMapper = objectMapper;
+        this.datasourceConfigService = datasourceConfigService;
+        this.luceneSearchService = luceneSearchService;
+    }
 
     /**
      * Lists the all.
@@ -44,6 +65,35 @@ public class DatabaseQueryConfigService {
     @Transactional(readOnly = true)
     public List<DatabaseQueryConfig> listAll() {
         return repository.findAllByOrderByToolNameAsc();
+    }
+
+    @Transactional(readOnly = true)
+    public List<DatabaseQueryConfig> search(String query) {
+        String keyword = blankToNull(query);
+        if (keyword == null) {
+            return listAll();
+        }
+        List<DatabaseQueryConfig> all = listAll();
+        if (luceneSearchService == null || !luceneSearchService.enabled()) {
+            return List.of();
+        }
+        List<DatabaseQueryConfig> indexable = all.stream()
+            .filter(item -> item.getId() != null && !item.getId().isBlank())
+            .toList();
+        Map<String, DatabaseQueryConfig> byId = indexable.stream()
+            .collect(java.util.stream.Collectors.toMap(
+                DatabaseQueryConfig::getId,
+                item -> item,
+                (first, ignored) -> first,
+                java.util.LinkedHashMap::new
+            ));
+        return luceneSearchService.searchTemplates(
+                indexable.stream().map(this::templateDoc).toList(),
+                new LuceneMcpSearchService.TemplateSearchRequest("database_query", null, keyword, 50)
+            ).stream()
+            .map(hit -> byId.get(hit.id()))
+            .filter(item -> item != null)
+            .toList();
     }
 
     /**
@@ -103,6 +153,13 @@ public class DatabaseQueryConfigService {
         current.setRoutingLabels(draft.getRoutingLabels());
         current.setCapabilitiesJson(draft.getCapabilitiesJson());
         current.setCapabilities(draft.getCapabilities());
+        current.setTemplateIntent(draft.getTemplateIntent());
+        current.setDatabaseType(draft.getDatabaseType());
+        current.setTagsJson(draft.getTagsJson());
+        current.setRiskLevel(draft.getRiskLevel());
+        current.setOwner(draft.getOwner());
+        current.setRating(draft.getRating());
+        current.setUsageCount(draft.getUsageCount());
         current.setMaxRows(draft.getMaxRows());
         current.setJdbcUrl(draft.getJdbcUrl());
         current.setDriverClass(draft.getDriverClass());
@@ -125,7 +182,7 @@ public class DatabaseQueryConfigService {
     public DatabaseQueryConfig setEnabled(String id, boolean enabled) {
         DatabaseQueryConfig current = getById(id);
         if (enabled && !hasUsableDatasource(current)) {
-            throw new IllegalArgumentException("database query requires an enabled datasource asset or external jdbcUrl");
+            throw new IllegalArgumentException("database query requires an enabled datasource asset");
         }
         current.setEnabled(enabled);
         return repository.save(current);
@@ -203,19 +260,22 @@ public class DatabaseQueryConfigService {
             ModelProtocolJson.compact(List.of("database_query", "sql_query_execute", "jdbc"))
         ));
         config.setMaxRows(config.getMaxRows() <= 0 ? 50 : Math.min(500, config.getMaxRows()));
-        if (config.getDatasourceId() != null) {
-            datasourceConfigService.getEnabled(config.getDatasourceId());
-            config.setJdbcUrl(blankToNull(config.getJdbcUrl()));
-        } else {
-            String jdbcUrl = normalizeRequired(config.getJdbcUrl(), "jdbcUrl");
-            if (isApplicationJdbcUrl(jdbcUrl)) {
-                throw new IllegalArgumentException("local configuration database queries are forbidden");
-            }
-            config.setJdbcUrl(jdbcUrl);
+        if (config.getDatasourceId() == null) {
+            throw new IllegalArgumentException("datasourceId is required");
         }
-        config.setDriverClass(blankToNull(config.getDriverClass()));
-        config.setUsername(blankToNull(config.getUsername()));
-        config.setPassword(blankToNull(config.getPassword()));
+        SqlDatasourceConfig datasource = datasourceConfigService.getEnabled(config.getDatasourceId());
+        config.setDatabaseType(normalizeDatabaseType(firstText(explicitDatabaseType(config.getDatabaseType()), datasource.getDatabaseType())));
+        config.setTemplateIntent(normalizeIntent(firstText(config.getTemplateIntent(), governanceString(config.getGovernanceJson(), "intent"))));
+        config.setTagsJson(normalizeJsonArray(mergedProtocolValues(config.getTagsJson(), governanceTags(config.getGovernanceJson())), "tags"));
+        config.setRiskLevel(normalizeMarketplaceRisk(firstText(explicitRiskLevel(config.getRiskLevel()), governanceString(config.getGovernanceJson(), "riskLevel"))));
+        config.setOwner(firstText(explicitOwner(config.getOwner()), governanceString(config.getGovernanceJson(), "owner"), "admin"));
+        config.setRating(Math.max(0.0, Math.min(5.0, config.getRating())));
+        config.setUsageCount(Math.max(0L, config.getUsageCount()));
+        config.setJdbcUrl(null);
+        config.setDriverClass(null);
+        config.setUsername(null);
+        config.setPassword(null);
+        config.setReloadDrivers(false);
     }
 
     /**
@@ -293,6 +353,151 @@ public class DatabaseQueryConfigService {
         }
     }
 
+    private LuceneMcpSearchService.TemplateDoc templateDoc(DatabaseQueryConfig config) {
+        List<String> labels = new ArrayList<>();
+        labels.addAll(readJsonArray(config.getRoutingLabelsJson()));
+        labels.addAll(readJsonArray(config.getCapabilitiesJson()));
+        labels.addAll(readJsonArray(config.getTagsJson()));
+        labels.addAll(governanceSearchTerms(config.getGovernanceJson()));
+        labels.add(firstText(config.getTemplateIntent(), ""));
+        labels.add(firstText(config.getDatabaseType(), ""));
+        labels.add(firstText(config.getRiskLevel(), ""));
+        labels.add(firstText(config.getOwner(), ""));
+        labels.add(firstText(config.getToolName(), ""));
+        labels.add(firstText(config.getTitle(), ""));
+        labels.add(firstText(config.getSqlTemplate(), ""));
+        return new LuceneMcpSearchService.TemplateDoc(
+            config.getId(),
+            "database_query",
+            firstText(config.getTitle(), config.getToolName()),
+            firstText(config.getDescription(), "") + " " + firstText(config.getSqlTemplate(), ""),
+            "sql_template_registry",
+            normalizeDatabaseType(config.getDatabaseType()),
+            String.join(" ", labels),
+            firstText(config.getRiskLevel(), "read_only"),
+            labels,
+            "database_query_registry"
+        );
+    }
+
+    private List<String> governanceSearchTerms(String json) {
+        if (json == null || json.isBlank()) {
+            return List.of();
+        }
+        try {
+            Map<String, Object> map = objectMapper.readValue(json, new TypeReference<>() {});
+            List<String> terms = new ArrayList<>();
+            flattenValues(terms, map);
+            return terms;
+        } catch (Exception ignored) {
+            return List.of();
+        }
+    }
+
+    private String governanceString(String json, String key) {
+        if (json == null || json.isBlank()) {
+            return null;
+        }
+        try {
+            Map<String, Object> map = objectMapper.readValue(json, new TypeReference<>() {});
+            Object value = map.get(key);
+            if (value == null && "riskLevel".equals(key)) {
+                value = map.get("risk_level");
+            }
+            return value == null || String.valueOf(value).isBlank() ? null : String.valueOf(value).trim();
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private List<String> governanceTags(String json) {
+        if (json == null || json.isBlank()) {
+            return List.of();
+        }
+        try {
+            Map<String, Object> map = objectMapper.readValue(json, new TypeReference<>() {});
+            Object value = map.get("tags");
+            if (value instanceof List<?> list) {
+                return list.stream()
+                    .filter(item -> item != null && !String.valueOf(item).isBlank())
+                    .map(item -> String.valueOf(item).trim())
+                    .toList();
+            }
+            if (value instanceof String text && !text.isBlank()) {
+                return List.of(text.trim());
+            }
+        } catch (Exception ignored) {
+            return List.of();
+        }
+        return List.of();
+    }
+
+    private String normalizeIntent(String value) {
+        String normalized = blankToNull(value);
+        if (normalized == null) {
+            return "general_query";
+        }
+        return normalized.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9_\\-]", "_");
+    }
+
+    private String normalizeDatabaseType(String value) {
+        return SqlDatasourceConfigService.normalizeDatabaseTypeToken(value);
+    }
+
+    private String explicitDatabaseType(String value) {
+        String normalized = blankToNull(value);
+        if (normalized == null || "generic".equalsIgnoreCase(normalized)) {
+            return null;
+        }
+        return normalized;
+    }
+
+    private String explicitRiskLevel(String value) {
+        String normalized = blankToNull(value);
+        if (normalized == null || "read_only".equalsIgnoreCase(normalized)) {
+            return null;
+        }
+        return normalized;
+    }
+
+    private String explicitOwner(String value) {
+        String normalized = blankToNull(value);
+        if (normalized == null || "admin".equalsIgnoreCase(normalized)) {
+            return null;
+        }
+        return normalized;
+    }
+
+    private String normalizeMarketplaceRisk(String riskLevel) {
+        String normalized = firstText(riskLevel, "read_only").trim().toLowerCase(Locale.ROOT);
+        return switch (normalized) {
+            case "read_only", "readonly", "read" -> "read_only";
+            case "safe", "low" -> "safe";
+            case "dangerous", "high", "critical" -> "dangerous";
+            default -> "read_only";
+        };
+    }
+
+    @SuppressWarnings("unchecked")
+    private void flattenValues(List<String> terms, Object value) {
+        if (value instanceof Map<?, ?> map) {
+            map.forEach((key, item) -> {
+                if (key != null) {
+                    terms.add(String.valueOf(key));
+                }
+                flattenValues(terms, item);
+            });
+            return;
+        }
+        if (value instanceof List<?> list) {
+            list.forEach(item -> flattenValues(terms, item));
+            return;
+        }
+        if (value != null && !String.valueOf(value).isBlank()) {
+            terms.add(String.valueOf(value));
+        }
+    }
+
     /**
      * Normalizes the required.
      *
@@ -308,8 +513,16 @@ public class DatabaseQueryConfigService {
         return normalized;
     }
 
-    private String firstText(String value, String fallback) {
-        return value == null || value.isBlank() ? fallback : value.trim();
+    private String firstText(String... values) {
+        if (values == null || values.length == 0) {
+            return null;
+        }
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value.trim();
+            }
+        }
+        return null;
     }
 
     /**
@@ -322,18 +535,6 @@ public class DatabaseQueryConfigService {
         return value == null || value.isBlank() ? null : value.trim();
     }
 
-    /**
-     * Returns whether is application jdbc url.
-     *
-     * @param jdbcUrl the jdbc url value
-     * @return whether the condition is satisfied
-     */
-    private boolean isApplicationJdbcUrl(String jdbcUrl) {
-        return applicationJdbcUrl != null
-            && !applicationJdbcUrl.isBlank()
-            && applicationJdbcUrl.trim().equalsIgnoreCase(jdbcUrl.trim());
-    }
-
     private boolean hasUsableDatasource(DatabaseQueryConfig config) {
         if (blankToNull(config.getDatasourceId()) != null) {
             try {
@@ -343,6 +544,6 @@ public class DatabaseQueryConfigService {
                 return false;
             }
         }
-        return blankToNull(config.getJdbcUrl()) != null && !isApplicationJdbcUrl(config.getJdbcUrl());
+        return false;
     }
 }

@@ -19,6 +19,14 @@ import java.util.regex.Pattern;
 public class SqlTemplateService {
 
     private static final Pattern TOKEN = Pattern.compile("\\{\\{\\s*([A-Za-z0-9_.-]+)\\s*}}");
+    private static final List<String> RETIRED_DEFAULT_CODES = List.of(
+        "CHECK_TABLE_COUNT",
+        "CHECK_RECENT_DATA",
+        "TASK_RESULT",
+        "CHECK_TASK_RESULT",
+        "TASK_RESULT_QUERY",
+        "QUERY_TASK_RESULT"
+    );
 
     private final SqlTemplateConfigRepository repository;
     private final ObjectMapper objectMapper;
@@ -131,6 +139,7 @@ public class SqlTemplateService {
         if (seedProperties == null || !seedProperties.isSeedDefaultsEnabled()) {
             return;
         }
+        removeRetiredDefaults();
         for (DefaultTemplate template : defaults()) {
             if (repository.findByCode(template.code()).isEmpty()) {
                 SqlTemplateConfig config = new SqlTemplateConfig();
@@ -139,13 +148,20 @@ public class SqlTemplateService {
                 config.setDescription(template.description());
                 config.setSqlTemplate(template.sql());
                 config.setParameterSchemaJson(writeJson(template.schema()));
-                config.setRiskLevel("MEDIUM");
-                config.setCategory(categoryFromCode(template.code()));
-                config.setDatabaseType("generic");
-                config.setIntentSignalsJson(writeJson(List.of(template.code(), template.title(), template.description())));
+                config.setRiskLevel(template.riskLevel());
+                config.setCategory(template.category());
+                config.setDatabaseType(template.databaseType());
+                config.setRoutingLabelsJson(writeJson(template.routingLabels()));
+                config.setIntentSignalsJson(writeJson(template.intentSignals()));
                 config.setEnabled(true);
                 repository.save(config);
             }
+        }
+    }
+
+    private void removeRetiredDefaults() {
+        for (String code : RETIRED_DEFAULT_CODES) {
+            repository.findByCode(code).ifPresent(repository::delete);
         }
     }
 
@@ -289,15 +305,203 @@ public class SqlTemplateService {
     }
 
     private List<DefaultTemplate> defaults() {
-        Map<String, Object> tableSchema = Map.of(
-            "type", "object",
-            "properties", Map.of("table", Map.of("type", "string")),
-            "required", List.of("table")
-        );
         return List.of(
-            new DefaultTemplate("CHECK_TABLE_COUNT", "Table row count", "Read row count for a selected table.", "SELECT COUNT(*) AS total_count FROM {{table}}", tableSchema),
-            new DefaultTemplate("CHECK_RECENT_DATA", "Recent table rows", "Read recent rows from a selected table.", "SELECT * FROM {{table}} LIMIT 100", tableSchema)
+            maintenanceTemplate("MYSQL_SHOW_PROCESSLIST", "MySQL current connections",
+                "Show current MySQL sessions and running statements.",
+                "mysql", "connection",
+                "SHOW PROCESSLIST",
+                List.of("connection", "session", "processlist", "connection_overflow", "performance_issue")),
+            maintenanceTemplate("MYSQL_SHOW_STATUS", "MySQL status variables",
+                "Show MySQL server status counters for health and performance inspection.",
+                "mysql", "instance",
+                "SHOW STATUS",
+                List.of("status", "instance", "health", "performance", "performance_issue")),
+            maintenanceTemplate("MYSQL_INNODB_STATUS", "MySQL InnoDB engine status",
+                "Show InnoDB engine status for lock and deadlock troubleshooting.",
+                "mysql", "lock",
+                "SHOW ENGINE INNODB STATUS",
+                List.of("innodb", "lock", "deadlock", "transaction", "lock_check")),
+            maintenanceTemplate("MYSQL_INNODB_TRX", "MySQL InnoDB transactions",
+                "Read active InnoDB transaction metadata.",
+                "mysql", "lock",
+                "SELECT * FROM information_schema.INNODB_TRX",
+                List.of("transaction", "lock", "innodb trx", "long transaction", "lock_check")),
+            maintenanceTemplate("MYSQL_DATABASE_SIZE", "MySQL database size",
+                "Summarize MySQL database size by schema in megabytes.",
+                "mysql", "storage",
+                "SELECT table_schema AS db, SUM(data_length + index_length)/1024/1024 AS size_mb FROM information_schema.tables GROUP BY table_schema",
+                List.of("database size", "storage", "schema size", "space", "storage_check")),
+            metadataTemplate("MYSQL_TABLE_METADATA", "MySQL table metadata",
+                "Read MySQL column metadata for a table in the current database.",
+                "mysql",
+                "SELECT column_name, column_type, is_nullable, column_default, column_key, extra, column_comment FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = {{tableName}} ORDER BY ordinal_position",
+                List.of("table metadata", "column metadata", "table schema", "describe table", "metadata_query")),
+
+            maintenanceTemplate("ORACLE_SESSION_OVERVIEW", "Oracle current sessions",
+                "Read Oracle session metadata from v$session.",
+                "oracle", "connection",
+                "SELECT * FROM v$session",
+                List.of("session", "connection", "active session", "connection_overflow")),
+            maintenanceTemplate("ORACLE_INSTANCE_STATUS", "Oracle instance status",
+                "Read Oracle instance name and status.",
+                "oracle", "instance",
+                "SELECT instance_name, status FROM v$instance",
+                List.of("instance", "status", "health", "database status")),
+            maintenanceTemplate("ORACLE_LOCKS", "Oracle lock view",
+                "Read Oracle lock metadata from v$lock.",
+                "oracle", "lock",
+                "SELECT * FROM v$lock",
+                List.of("lock", "blocking", "wait", "lock_check")),
+            maintenanceTemplate("ORACLE_SYSTEM_EVENTS", "Oracle system wait events",
+                "Read Oracle system wait event counters for performance analysis.",
+                "oracle", "performance",
+                "SELECT * FROM v$system_event",
+                List.of("wait event", "performance", "cpu", "system event", "performance_issue")),
+            maintenanceTemplate("ORACLE_TABLESPACE_SIZE", "Oracle tablespace size",
+                "Summarize Oracle tablespace size in megabytes.",
+                "oracle", "storage",
+                "SELECT tablespace_name, SUM(bytes)/1024/1024 AS size_mb FROM dba_data_files GROUP BY tablespace_name",
+                List.of("tablespace", "storage", "space", "database size", "storage_check")),
+            metadataTemplate("ORACLE_TABLE_METADATA", "Oracle table metadata",
+                "Read Oracle column metadata for a table accessible to the current user.",
+                "oracle",
+                "SELECT column_name, data_type, data_length, data_precision, data_scale, nullable, data_default FROM user_tab_columns WHERE table_name = UPPER({{tableName}}) ORDER BY column_id",
+                List.of("table metadata", "column metadata", "table schema", "describe table", "metadata_query")),
+
+            maintenanceTemplate("POSTGRES_ACTIVITY", "PostgreSQL current activity",
+                "Read PostgreSQL sessions and active queries from pg_stat_activity.",
+                "postgresql", "connection",
+                "SELECT * FROM pg_stat_activity",
+                List.of("activity", "connection", "session", "active query", "connection_overflow")),
+            maintenanceTemplate("POSTGRES_DATABASE_SIZE", "PostgreSQL database size",
+                "Read PostgreSQL database sizes.",
+                "postgresql", "storage",
+                "SELECT pg_database.datname, pg_size_pretty(pg_database_size(pg_database.datname)) AS size FROM pg_database",
+                List.of("database size", "storage", "space", "storage_check")),
+            maintenanceTemplate("POSTGRES_TABLE_SIZE_RANKING", "PostgreSQL table size ranking",
+                "Rank user tables by total relation size.",
+                "postgresql", "storage",
+                "SELECT relname AS table_name, pg_size_pretty(pg_total_relation_size(relid)) AS size FROM pg_catalog.pg_statio_user_tables ORDER BY pg_total_relation_size(relid) DESC",
+                List.of("table size", "storage", "ranking", "largest table", "storage_check")),
+            maintenanceTemplate("POSTGRES_LOCKS", "PostgreSQL locks",
+                "Read PostgreSQL lock metadata from pg_locks.",
+                "postgresql", "lock",
+                "SELECT * FROM pg_locks",
+                List.of("lock", "blocking", "pg_locks", "lock_check")),
+            maintenanceTemplate("POSTGRES_LONG_TRANSACTIONS", "PostgreSQL long running transactions",
+                "Read non-idle PostgreSQL activity ordered by query start time.",
+                "postgresql", "performance",
+                "SELECT * FROM pg_stat_activity WHERE state != 'idle' ORDER BY query_start",
+                List.of("long transaction", "slow query", "active query", "performance_issue", "transaction")),
+            metadataTemplate("POSTGRES_TABLE_METADATA", "PostgreSQL table metadata",
+                "Read PostgreSQL column metadata for a table in the current schema.",
+                "postgresql",
+                "SELECT column_name, data_type, is_nullable, column_default, character_maximum_length, numeric_precision, numeric_scale FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = {{tableName}} ORDER BY ordinal_position",
+                List.of("table metadata", "column metadata", "table schema", "describe table", "metadata_query")),
+
+            maintenanceTemplate("SQLSERVER_SESSIONS", "SQL Server current sessions",
+                "Read SQL Server session metadata.",
+                "sqlserver", "connection",
+                "SELECT * FROM sys.dm_exec_sessions",
+                List.of("session", "connection", "dm_exec_sessions", "connection_overflow")),
+            maintenanceTemplate("SQLSERVER_REQUESTS", "SQL Server current requests",
+                "Read SQL Server active requests for blocking and performance analysis.",
+                "sqlserver", "performance",
+                "SELECT * FROM sys.dm_exec_requests",
+                List.of("request", "blocking", "performance", "dm_exec_requests", "performance_issue")),
+            maintenanceTemplate("SQLSERVER_DATABASE_SIZE", "SQL Server database size",
+                "Summarize SQL Server database file size in megabytes.",
+                "sqlserver", "storage",
+                "SELECT DB_NAME(database_id) AS database_name, SUM(size) * 8.0 / 1024 AS size_mb FROM sys.master_files GROUP BY database_id",
+                List.of("database size", "storage", "space", "master_files", "storage_check")),
+            maintenanceTemplate("SQLSERVER_LOCKS", "SQL Server locks",
+                "Read SQL Server lock metadata.",
+                "sqlserver", "lock",
+                "SELECT * FROM sys.dm_tran_locks",
+                List.of("lock", "blocking", "dm_tran_locks", "lock_check")),
+            maintenanceTemplate("SQLSERVER_IO_STATS", "SQL Server IO virtual file stats",
+                "Read SQL Server virtual file IO statistics.",
+                "sqlserver", "performance",
+                "SELECT * FROM sys.dm_io_virtual_file_stats(NULL, NULL)",
+                List.of("io", "performance", "file stats", "dm_io_virtual_file_stats", "performance_issue")),
+            metadataTemplate("SQLSERVER_TABLE_METADATA", "SQL Server table metadata",
+                "Read SQL Server column metadata for a table in the current schema.",
+                "sqlserver",
+                "SELECT column_name, data_type, is_nullable, column_default, character_maximum_length, numeric_precision, numeric_scale FROM information_schema.columns WHERE table_name = {{tableName}} ORDER BY ordinal_position",
+                List.of("table metadata", "column metadata", "table schema", "describe table", "metadata_query"))
         );
+    }
+
+    private DefaultTemplate maintenanceTemplate(String code,
+                                                String title,
+                                                String description,
+                                                String databaseType,
+                                                String maintenanceCategory,
+                                                String sql,
+                                                List<String> intentSignals) {
+        return new DefaultTemplate(
+            code,
+            title,
+            description,
+            sql,
+            emptySchema(),
+            "LOW",
+            "maintenance_" + maintenanceCategory,
+            databaseType,
+            List.of(databaseType, "maintenance", maintenanceCategory),
+            templateSignals(code, title, description, intentSignals)
+        );
+    }
+
+    private Map<String, Object> emptySchema() {
+        return Map.of("type", "object", "properties", Map.of(), "required", List.of());
+    }
+
+    private DefaultTemplate metadataTemplate(String code,
+                                             String title,
+                                             String description,
+                                             String databaseType,
+                                             String sql,
+                                             List<String> intentSignals) {
+        return new DefaultTemplate(
+            code,
+            title,
+            description,
+            sql,
+            tableNameSchema(),
+            "LOW",
+            "maintenance_metadata",
+            databaseType,
+            List.of(databaseType, "maintenance", "metadata"),
+            templateSignals(code, title, description, intentSignals)
+        );
+    }
+
+    private Map<String, Object> tableNameSchema() {
+        return Map.of(
+            "type", "object",
+            "properties", Map.of(
+                "tableName", Map.of(
+                    "type", "string",
+                    "description", "Table name to inspect in the current schema/database",
+                    "minLength", 1,
+                    "maxLength", 128,
+                    "pattern", "[A-Za-z_][A-Za-z0-9_]*"
+                )
+            ),
+            "required", List.of("tableName")
+        );
+    }
+
+    private List<String> templateSignals(String code, String title, String description, List<String> extraSignals) {
+        return java.util.stream.Stream.concat(
+                java.util.stream.Stream.of(code, title, description),
+                extraSignals == null ? java.util.stream.Stream.empty() : extraSignals.stream()
+            )
+            .filter(value -> value != null && !value.isBlank())
+            .map(String::trim)
+            .distinct()
+            .toList();
     }
 
     private String writeJson(Object value) {
@@ -323,6 +527,15 @@ public class SqlTemplateService {
         return value == null || value.isBlank() ? null : value.trim();
     }
 
-    private record DefaultTemplate(String code, String title, String description, String sql, Map<String, Object> schema) {
+    private record DefaultTemplate(String code,
+                                   String title,
+                                   String description,
+                                   String sql,
+                                   Map<String, Object> schema,
+                                   String riskLevel,
+                                   String category,
+                                   String databaseType,
+                                   List<String> routingLabels,
+                                   List<String> intentSignals) {
     }
 }

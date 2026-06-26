@@ -2,8 +2,9 @@ package com.chatchat.mcpserver.routing;
 
 import com.chatchat.mcpserver.ops.HttpEndpointConfigService;
 import com.chatchat.mcpserver.ops.SshHostConfigService;
+import com.chatchat.mcpserver.search.LuceneMcpSearchService;
 import com.chatchat.mcpserver.sql.SqlDatasourceConfigService;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -14,7 +15,6 @@ import java.util.Map;
 import java.util.regex.Pattern;
 
 @Service
-@RequiredArgsConstructor
 public class AssetDiscoveryService {
 
     public static final String QUERY_SCHEMA_VERSION = "asset_query.v1";
@@ -62,18 +62,52 @@ public class AssetDiscoveryService {
     private final SqlDatasourceConfigService datasourceConfigService;
     private final HttpEndpointConfigService httpEndpointConfigService;
     private final AssetMetadataFactory assetMetadataFactory;
+    private final LuceneMcpSearchService luceneSearchService;
+    private final TargetKindRegistry targetKindRegistry;
+
+    public AssetDiscoveryService(SshHostConfigService hostConfigService,
+                                 SqlDatasourceConfigService datasourceConfigService,
+                                 HttpEndpointConfigService httpEndpointConfigService,
+                                 AssetMetadataFactory assetMetadataFactory) {
+        this(hostConfigService, datasourceConfigService, httpEndpointConfigService, assetMetadataFactory, null, new TargetKindRegistry());
+    }
+
+    @Autowired
+    public AssetDiscoveryService(SshHostConfigService hostConfigService,
+                                 SqlDatasourceConfigService datasourceConfigService,
+                                 HttpEndpointConfigService httpEndpointConfigService,
+                                 AssetMetadataFactory assetMetadataFactory,
+                                 LuceneMcpSearchService luceneSearchService,
+                                 TargetKindRegistry targetKindRegistry) {
+        this.hostConfigService = hostConfigService;
+        this.datasourceConfigService = datasourceConfigService;
+        this.httpEndpointConfigService = httpEndpointConfigService;
+        this.assetMetadataFactory = assetMetadataFactory;
+        this.luceneSearchService = luceneSearchService;
+        this.targetKindRegistry = targetKindRegistry == null ? new TargetKindRegistry() : targetKindRegistry;
+    }
 
     public Map<String, Object> query(Map<String, Object> arguments) {
+        long startedAt = System.nanoTime();
         Map<String, Object> filters = filters(arguments);
         rejectConcreteTargetFields(filters);
         boolean broadDiscovery = !hasContextFilter(filters);
 
-        String assetType = text(firstValue(arguments, "assetType", "type"));
+        TargetKindRegistry.Resolution target = targetKindRegistry.resolveForTool(
+            "asset_query",
+            firstValue(arguments, "assetType", "type"),
+            arguments,
+            filters
+        );
+        String assetType = target.definition().assetType();
+        filters.putIfAbsent("filtersSchemaVersion", target.filtersSchemaVersion());
         int limit = limit(arguments);
-        List<Map<String, Object>> matched = allAssets(assetType).stream()
-            .filter(asset -> matches(asset, filters))
-            .limit(limit)
-            .toList();
+        if (target.reviewRequired()) {
+            return reviewResult(target, filters, limit, startedAt);
+        }
+        List<Map<String, Object>> allAssets = allAssets(assetType);
+        List<Map<String, Object>> matchedAll = matchingAssetsFromLucene(allAssets, assetType, filters, Math.max(limit + 1, MAX_LIMIT));
+        List<Map<String, Object>> matched = matchedAll.stream().limit(limit).toList();
         List<Map<String, Object>> unavailableMatched = unavailableAssets(assetType, filters, limit);
         Map<String, Object> compactFilters = compactFilters(filters);
 
@@ -83,6 +117,8 @@ public class AssetDiscoveryService {
             "success", true,
             "view", view(arguments),
             "routingPolicyVersion", AssetMetadataFactory.ROUTING_POLICY_VERSION,
+            "targetKind", target.definition().targetKind(),
+            "filtersSchemaVersion", target.filtersSchemaVersion(),
             "discoveryPolicy", mapOf(
                 "readOnly", true,
                 "requiresContextFilter", false,
@@ -95,13 +131,152 @@ public class AssetDiscoveryService {
             "limit", limit,
             "returnedCount", matched.size(),
             "unavailableCount", unavailableMatched.size(),
-            "possiblyTruncated", allAssets(assetType).stream().filter(asset -> matches(asset, filters)).count() > limit,
+            "possiblyTruncated", matchedAll.size() > limit,
             "broadDiscovery", broadDiscovery,
             "broadDiscoveryAdvice", broadDiscovery ? broadDiscoveryAdvice(matched.size()) : null,
             "emptyResultAdvice", matched.isEmpty() ? emptyResultAdvice(compactFilters, unavailableMatched) : null,
+            "routingDecision", routingDecision(target, startedAt),
             "assets", matched,
             "unavailableAssets", unavailableMatched
         );
+    }
+
+    private Map<String, Object> reviewResult(TargetKindRegistry.Resolution target,
+                                             Map<String, Object> filters,
+                                             int limit,
+                                             long startedAt) {
+        return mapOf(
+            "schemaVersion", RESULT_SCHEMA_VERSION,
+            "querySchemaVersion", QUERY_SCHEMA_VERSION,
+            "success", false,
+            "status", TargetKindRegistry.DECISION_REVIEW_REQUIRED,
+            "reason", "LOW_CONFIDENCE_TARGET_KIND",
+            "targetKind", target.definition().targetKind(),
+            "assetType", target.definition().assetType(),
+            "filtersSchemaVersion", target.filtersSchemaVersion(),
+            "filters", compactFilters(filters),
+            "limit", limit,
+            "returnedCount", 0,
+            "assets", List.of(),
+            "unavailableAssets", List.of(),
+            "routingDecision", routingDecision(target, startedAt),
+            "review", mapOf(
+                "required", true,
+                "reason", "confidence below routing threshold",
+                "threshold", TargetKindRegistry.MIN_CONFIDENCE,
+                "confidence", target.confidence()
+            )
+        );
+    }
+
+    private Map<String, Object> routingDecision(TargetKindRegistry.Resolution target, long startedAt) {
+        return mapOf(
+            "routingDecision", target.definition().targetKind() + " -> " + target.definition().assetType(),
+            "targetKind", target.definition().targetKind(),
+            "finalDecision", target.finalDecision(),
+            "assetType", target.definition().assetType(),
+            "confidence", target.confidence(),
+            "threshold", TargetKindRegistry.MIN_CONFIDENCE,
+            "latencyMs", elapsedMs(startedAt),
+            "decision", target.decision(),
+            "candidateSet", mapOf(
+                "finalDecision", target.finalDecision(),
+                "candidates", routingCandidates(target)
+            ),
+            "trace", target.trace()
+        );
+    }
+
+    private List<Map<String, Object>> routingCandidates(TargetKindRegistry.Resolution target) {
+        return target.candidates().stream()
+            .map(candidate -> mapOf(
+                "targetKind", candidate.targetKind(),
+                "assetType", candidate.assetType(),
+                "confidence", candidate.confidence(),
+                "feasible", candidate.feasible(),
+                "feasibilityReasons", candidate.feasibilityReasons(),
+                "latencyEstimateMs", candidate.latencyEstimateMs(),
+                "historicalSuccessRate", candidate.historicalSuccessRate(),
+                "score", candidate.score()
+            ))
+            .toList();
+    }
+
+    private long elapsedMs(long startedAt) {
+        return Math.max(0L, (System.nanoTime() - startedAt) / 1_000_000L);
+    }
+
+    private List<Map<String, Object>> matchingAssetsFromLucene(List<Map<String, Object>> assets,
+                                                               String assetType,
+                                                               Map<String, Object> filters,
+                                                               int limit) {
+        if (luceneSearchService == null || !luceneSearchService.enabled()) {
+            return assets.stream()
+                .filter(asset -> matches(asset, filters))
+                .limit(limit)
+                .toList();
+        }
+        Map<String, Map<String, Object>> byId = new LinkedHashMap<>();
+        assets.forEach(asset -> {
+            String id = assetId(asset);
+            if (id != null) {
+                byId.put(id, asset);
+            }
+        });
+        List<LuceneMcpSearchService.SearchHit> hits = luceneSearchService.searchAssets(
+            assets.stream().map(this::assetDoc).toList(),
+            assetSearchRequest(assetType, filters, limit)
+        );
+        return hits.stream()
+            .map(hit -> byId.get(hit.id()))
+            .filter(asset -> asset != null)
+            .limit(limit)
+            .toList();
+    }
+
+    private LuceneMcpSearchService.AssetSearchRequest assetSearchRequest(String assetType,
+                                                                         Map<String, Object> filters,
+                                                                         int limit) {
+        return new LuceneMcpSearchService.AssetSearchRequest(
+            normalize(assetType),
+            text(firstValue(filters, "assetName", "asset_name", "name")),
+            text(firstValue(filters, "env", "environment")),
+            text(firstValue(filters, "databaseType", "dbType", "dialect")),
+            contextTokens(filters),
+            limit
+        );
+    }
+
+    @SuppressWarnings("unchecked")
+    private LuceneMcpSearchService.AssetDoc assetDoc(Map<String, Object> metadata) {
+        Map<String, Object> asset = metadata == null || !(metadata.get("asset") instanceof Map<?, ?> map)
+            ? Map.of()
+            : (Map<String, Object>) map;
+        Map<String, Object> routingHints = metadata == null || !(metadata.get("routingHints") instanceof Map<?, ?> map)
+            ? Map.of()
+            : (Map<String, Object>) map;
+        Map<String, Object> capabilities = metadata == null || !(metadata.get("capabilities") instanceof Map<?, ?> map)
+            ? Map.of()
+            : (Map<String, Object>) map;
+        return new LuceneMcpSearchService.AssetDoc(
+            text(asset.get("id")),
+            text(metadata == null ? null : metadata.get("assetType")),
+            text(asset.get("name")),
+            text(asset.get("displayName")),
+            text(asset.get("toolName")),
+            text(asset.get("environment")),
+            text(capabilities.get("databaseType")),
+            labels(routingHints.get("labels")),
+            "asset_query"
+        );
+    }
+
+    @SuppressWarnings("unchecked")
+    private String assetId(Map<String, Object> metadata) {
+        if (metadata == null || !(metadata.get("asset") instanceof Map<?, ?> map)) {
+            return null;
+        }
+        return text(((Map<String, Object>) map).get("id"));
     }
 
     private List<Map<String, Object>> allAssets(String assetType) {
@@ -365,6 +540,18 @@ public class AssetDiscoveryService {
 
     private String text(Object value) {
         return value == null || String.valueOf(value).isBlank() ? null : String.valueOf(value).trim();
+    }
+
+    private String firstText(String... values) {
+        if (values == null) {
+            return null;
+        }
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value.trim();
+            }
+        }
+        return null;
     }
 
     private boolean equalsNormalized(Object first, Object second) {

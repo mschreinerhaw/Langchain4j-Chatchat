@@ -171,7 +171,7 @@ public class AgentOrchestrator {
         this.toolObservationBuilder = new ToolObservationBuilder(this.evidenceTrustEvaluator);
         this.chatModelResolver = new AgentChatModelResolver(chatModel, modelsConfig);
         this.toolNames = new AgentToolNameResolver();
-        this.toolArguments = new AgentToolArgumentResolver(this.toolNames, WEB_SEARCH_REFERENCE_LIMIT);
+        this.toolArguments = new AgentToolArgumentResolver(this.toolNames, WEB_SEARCH_REFERENCE_LIMIT, this.toolRegistry);
         this.workflowTools = new AgentWorkflowToolResolver(this.toolNames);
         this.answerFinalizer = new AgentAnswerFinalizer(resolvedAnswerReviewer, this.runtimeGuard);
         this.interpretationPlanStore = interpretationPlanStore == null && this.runStore instanceof InterpretationPlanStore store
@@ -672,11 +672,13 @@ public class AgentOrchestrator {
         if (requireToolBeforeFinal && traces.isEmpty()) {
             runtimeGuard.checkCancelled(cancellationCheck);
             String fallbackTool = mandatoryTools.get(0);
-            Map<String, Object> fallbackArguments = toolArguments.applyDocumentSearchDefaults(
+            Map<String, Object> fallbackArguments = toolArguments.applyToolDefaults(
                 fallbackTool,
                 toolArguments.defaultToolArguments(fallbackTool, query, webSearchResultLimit),
                 documentIds,
-                documentTags
+                documentTags,
+                query,
+                webSearchResultLimit
             );
             if (answerFinalizer.markToolBudgetExceeded(fallbackTool, maxToolCalls, traces, metadata, observations)) {
                 return answerFinalizer.finishBudgetedSummary(activeChatModel, query, systemPrompt, traces, metadata, observations, cancellationCheck);

@@ -50,8 +50,12 @@ chatchat:
       # Agent OS default: do not seed scenario-specific execution templates.
       seed-defaults-enabled: false
     sql-templates:
-      # Agent OS default: do not seed scenario-specific SQL templates.
-      seed-defaults-enabled: false
+      # Seed built-in read-only database maintenance templates.
+      seed-defaults-enabled: true
+    lucene:
+      enabled: true
+      index-dir: ./data/lucene/mcp
+      max-results: 50
     cache:
       enabled: true
       path: ./data/mcp-cache-rocksdb

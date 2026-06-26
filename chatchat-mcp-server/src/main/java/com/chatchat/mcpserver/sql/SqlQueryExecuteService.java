@@ -162,7 +162,10 @@ public class SqlQueryExecuteService {
 
     private String resolveSql(Map<String, Object> request, SqlDatasourceConfig datasource) {
         String sql = text(request, "sql");
-        String template = text(request, "template");
+        String template = firstText(text(request, "template"), text(request, "templateId"), text(request, "template_id"));
+        if (sql != null && template != null) {
+            throw new IllegalArgumentException("Use either sql or SQL template, not both");
+        }
         if (sql != null && !sql.isBlank()) {
             return sql;
         }

@@ -190,7 +190,7 @@
             <div class="fw-semibold">执行模板 <span class="text-secondary small">显示 <span id="commandTemplateFilteredCount">0</span> / 共 <span id="commandTemplateCount">0</span> 个</span></div>
             <div class="template-create-actions">
                 <button id="newCommandTemplateBtn" class="btn btn-sm btn-outline-primary" type="button">新增 SSH 模板</button>
-                <button id="newSqlTemplateBtn" class="btn btn-sm btn-outline-primary" type="button">新增 SQL 查询模板</button>
+                <button id="newSqlTemplateBtn" class="btn btn-sm btn-outline-primary" type="button">新增 SQL 运维模板</button>
                 <button id="newHttpTemplateBtn" class="btn btn-sm btn-outline-primary" type="button">新增 HTTP 请求资产</button>
             </div>
         </div>
@@ -204,7 +204,7 @@
                 <select id="commandTemplateTypeFilter" class="form-select">
                     <option value="">全部类型</option>
                     <option value="ssh">SSH 命令</option>
-                    <option value="sql">SQL 查询</option>
+                    <option value="sql">SQL 运维查询</option>
                     <option value="http">HTTP 资产</option>
                 </select>
             </div>
@@ -384,8 +384,8 @@
                         <div class="col-md-3"><label class="form-label" for="sqlAssetDefaultMaxRows">默认最大行数</label><input id="sqlAssetDefaultMaxRows" class="form-control" type="number" min="1" max="5000" value="1000"></div>
                         <div class="col-md-4"><label class="form-label" for="sqlAssetAllowedTablesJson">允许表 JSON</label><textarea id="sqlAssetAllowedTablesJson" class="form-control codebox" rows="5" spellcheck="false">[]</textarea></div>
                         <div class="col-12">
-                            <label class="form-label">SQL Query Templates</label>
-                            <input id="sqlAssetTemplateSearchInput" class="form-control mb-2" placeholder="Search template code, name, description">
+                            <label class="form-label">SQL 运维模板</label>
+                            <input id="sqlAssetTemplateSearchInput" class="form-control mb-2" placeholder="搜索模板编号、名称、描述">
                             <div id="sqlAssetTemplateList" class="template-picker"></div>
                             <div class="template-picker-actions">
                                 <span id="sqlAssetTemplatePageText" class="template-picker-page-status small text-secondary"></span>
@@ -395,9 +395,9 @@
                                 <button id="sqlAssetTemplateSelectVisibleBtn" class="template-icon-btn" type="button" title="选择当前筛选模板" aria-label="选择当前筛选模板">✓</button>
                                 <button id="sqlAssetTemplateClearVisibleBtn" class="template-icon-btn" type="button" title="清除当前筛选模板" aria-label="清除当前筛选模板">×</button>
                             </div>
-                            <div class="form-text">Checked templates are written to allowed SQL templates JSON. Database type and datasource binding are respected.</div>
+                            <div class="form-text">勾选结果会写入允许 SQL 运维模板 JSON，并按数据库类型和绑定资产过滤。</div>
                         </div>
-                        <div class="col-md-4"><label class="form-label" for="sqlAssetAllowedTemplatesJson">Allowed SQL Templates JSON</label><textarea id="sqlAssetAllowedTemplatesJson" class="form-control codebox" rows="5" spellcheck="false">[]</textarea></div>
+                        <div class="col-md-4"><label class="form-label" for="sqlAssetAllowedTemplatesJson">允许 SQL 运维模板 JSON</label><textarea id="sqlAssetAllowedTemplatesJson" class="form-control codebox" rows="5" spellcheck="false">[]</textarea></div>
                         <div class="col-md-4"><label class="form-label" for="sqlAssetSensitiveTablesJson">敏感表 JSON</label><textarea id="sqlAssetSensitiveTablesJson" class="form-control codebox" rows="5" spellcheck="false">[]</textarea></div>
                         <div class="col-md-4"><label class="form-label" for="sqlAssetSensitiveFieldsJson">敏感字段 JSON</label><textarea id="sqlAssetSensitiveFieldsJson" class="form-control codebox" rows="5" spellcheck="false">[]</textarea></div>
                         <div class="col-12"><label class="form-label" for="sqlAssetGovernanceJson">Governance JSON</label><textarea id="sqlAssetGovernanceJson" class="form-control codebox" rows="10" spellcheck="false"></textarea></div>

@@ -32,12 +32,14 @@ class AssetDiscoveryServiceTest {
         when(httpService.listEnabled()).thenReturn(List.of());
 
         Map<String, Object> result = service.query(Map.of(
-            "assetType", "ssh_host",
+            "targetKind", "host",
+            "confidence", 0.9,
             "filters", Map.of(
                 "env", "prod",
                 "cluster", "hadoop-prod",
                 "targetType", "datanode"
             ),
+            "trace", trace(),
             "limit", 10
         ));
         List<?> assets = (List<?>) result.get("assets");
@@ -65,7 +67,12 @@ class AssetDiscoveryServiceTest {
         when(datasourceService.listEnabled()).thenReturn(List.of());
         when(httpService.listEnabled()).thenReturn(List.of());
 
-        Map<String, Object> result = service.query(Map.of("assetType", "ssh_host"));
+        Map<String, Object> result = service.query(Map.of(
+            "targetKind", "host",
+            "confidence", 0.9,
+            "filters", Map.of(),
+            "trace", trace()
+        ));
 
         assertThat(result)
             .containsEntry("returnedCount", 1)
@@ -89,7 +96,10 @@ class AssetDiscoveryServiceTest {
         when(httpService.listEnabled()).thenReturn(List.of());
 
         Map<String, Object> result = service.query(Map.of(
-            "assetType", "ssh_host",
+            "targetKind", "host",
+            "confidence", 0.9,
+            "filters", Map.of(),
+            "trace", trace(),
             "context", "docker"
         ));
 
@@ -111,8 +121,10 @@ class AssetDiscoveryServiceTest {
         when(httpService.listEnabled()).thenReturn(List.of());
 
         Map<String, Object> result = service.query(Map.of(
-            "assetType", "ssh_host",
-            "filters", Map.of("service", "docker")
+            "targetKind", "host",
+            "confidence", 0.9,
+            "filters", Map.of("service", "docker"),
+            "trace", trace()
         ));
 
         assertThat((List<?>) result.get("assets")).isEmpty();
@@ -139,8 +151,10 @@ class AssetDiscoveryServiceTest {
         when(httpService.listEnabled()).thenReturn(List.of());
 
         Map<String, Object> result = service.query(Map.of(
-            "assetType", "ssh_host",
-            "filters", Map.of("assetName", "docker_service")
+            "targetKind", "host",
+            "confidence", 0.9,
+            "filters", Map.of("assetName", "docker_service"),
+            "trace", trace()
         ));
 
         assertThat((List<?>) result.get("assets")).hasSize(1);
@@ -171,8 +185,10 @@ class AssetDiscoveryServiceTest {
         when(httpService.listEnabled()).thenReturn(List.of());
 
         Map<String, Object> result = service.query(Map.of(
-            "assetType", "sql_datasource",
-            "filters", Map.of("assetName", "MySQL248 服务器")
+            "targetKind", "database",
+            "confidence", 0.9,
+            "filters", Map.of("assetName", "MySQL248 database"),
+            "trace", trace()
         ));
 
         assertThat((List<?>) result.get("assets")).hasSize(1);
@@ -197,7 +213,10 @@ class AssetDiscoveryServiceTest {
         when(httpService.listAll()).thenReturn(List.of());
 
         Map<String, Object> result = service.query(Map.of(
+            "targetKind", "database",
+            "confidence", 0.9,
             "filters", Map.of("assetName", "MySQL248"),
+            "trace", trace(),
             "limit", 10
         ));
 
@@ -233,6 +252,58 @@ class AssetDiscoveryServiceTest {
     }
 
     @Test
+    void rejectsAssetQueryWithoutTargetKindOrAssetType() {
+        AssetDiscoveryService service = service(
+            mock(SshHostConfigService.class),
+            mock(SqlDatasourceConfigService.class),
+            mock(HttpEndpointConfigService.class)
+        );
+
+        assertThatThrownBy(() -> service.query(Map.of(
+            "filters", Map.of("assetName", "MySQL248")
+        )))
+            .isInstanceOf(TargetKindRegistry.TargetKindException.class)
+            .hasMessageContaining("asset_query requires finalDecision or explicit targetKind");
+    }
+
+    @Test
+    void rejectsDocumentTargetKindForAssetQuery() {
+        AssetDiscoveryService service = service(
+            mock(SshHostConfigService.class),
+            mock(SqlDatasourceConfigService.class),
+            mock(HttpEndpointConfigService.class)
+        );
+
+        assertThatThrownBy(() -> service.query(Map.of(
+            "targetKind", "document",
+            "confidence", 0.9,
+            "filters", Map.of("intent", "read docs"),
+            "trace", trace()
+        )))
+            .isInstanceOf(TargetKindRegistry.TargetKindException.class)
+            .hasMessageContaining("not allowed for asset_query");
+    }
+
+    @Test
+    void rejectsAssetTypeConflictWithTargetKind() {
+        AssetDiscoveryService service = service(
+            mock(SshHostConfigService.class),
+            mock(SqlDatasourceConfigService.class),
+            mock(HttpEndpointConfigService.class)
+        );
+
+        assertThatThrownBy(() -> service.query(Map.of(
+            "targetKind", "database",
+            "confidence", 0.9,
+            "assetType", "ssh_host",
+            "filters", Map.of("assetName", "MySQL248"),
+            "trace", trace()
+        )))
+            .isInstanceOf(TargetKindRegistry.TargetKindException.class)
+            .hasMessageContaining("maps to assetType=sql_datasource");
+    }
+
+    @Test
     void capsLimitAtTwenty() {
         SshHostConfigService hostService = mock(SshHostConfigService.class);
         SqlDatasourceConfigService datasourceService = mock(SqlDatasourceConfigService.class);
@@ -246,8 +317,10 @@ class AssetDiscoveryServiceTest {
         when(httpService.listEnabled()).thenReturn(List.of());
 
         Map<String, Object> result = service.query(Map.of(
-            "assetType", "ssh_host",
+            "targetKind", "host",
+            "confidence", 0.9,
             "filters", Map.of("env", "prod", "service", "hadoop"),
+            "trace", trace(),
             "limit", 100
         ));
 
@@ -266,6 +339,10 @@ class AssetDiscoveryServiceTest {
             httpService,
             new AssetMetadataFactory(new ObjectMapper())
         );
+    }
+
+    private Map<String, Object> trace() {
+        return Map.of("plannerVersion", "v1.0", "model", "unit-test");
     }
 
     private SshHostConfig sshHost(String id, String name, String env, String routingLabelsJson) {

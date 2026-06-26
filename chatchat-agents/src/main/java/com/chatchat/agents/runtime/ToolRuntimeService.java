@@ -181,6 +181,13 @@ public class ToolRuntimeService {
 
         ToolMetadata metadata = toolRegistry.getToolMetadata(toolName);
         ToolInput toolInput = request.getToolInput() == null ? new ToolInput() : request.getToolInput();
+        if (isParamBindingDenied(toolInput)) {
+            return deniedExecution(toolName, request, metadata,
+                firstText(paramBindingError(toolInput), "Tool parameter binding was denied by runtime policy"),
+                firstText(paramBindingCode(toolInput), "MCP_PARAM_BINDING_DENIED"),
+                null,
+                null);
+        }
         ToolRuntimePolicy policy = resolvePolicy(request, metadata);
         ToolExecutionPlan executionPlan = buildExecutionPlan(toolName, request, metadata, toolInput);
         ToolPolicyDecision policyDecision = decideMcpPolicy(toolName, request, metadata, toolInput, policy, executionPlan);
@@ -583,6 +590,28 @@ public class ToolRuntimeService {
             .filter(value -> value != null && !value.isBlank())
             .map(String::trim)
             .noneMatch(toolName::equals);
+    }
+
+    private boolean isParamBindingDenied(ToolInput toolInput) {
+        Map<String, Object> parameters = toolInput == null ? null : toolInput.getParameters();
+        Object status = parameters == null ? null : parameters.get("__runtimeParamBindingStatus");
+        if (status == null) {
+            return false;
+        }
+        String normalized = String.valueOf(status).trim();
+        return "DENIED".equalsIgnoreCase(normalized) || "REVIEW_REQUIRED".equalsIgnoreCase(normalized);
+    }
+
+    private String paramBindingError(ToolInput toolInput) {
+        Map<String, Object> parameters = toolInput == null ? null : toolInput.getParameters();
+        Object value = parameters == null ? null : parameters.get("__runtimeParamBindingError");
+        return value == null ? null : String.valueOf(value);
+    }
+
+    private String paramBindingCode(ToolInput toolInput) {
+        Map<String, Object> parameters = toolInput == null ? null : toolInput.getParameters();
+        Object value = parameters == null ? null : parameters.get("__runtimeParamBindingCode");
+        return value == null ? null : String.valueOf(value);
     }
 
     /**

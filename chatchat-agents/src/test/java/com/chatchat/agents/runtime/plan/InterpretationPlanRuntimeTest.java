@@ -13,6 +13,7 @@ import com.chatchat.common.tool.ToolOutput;
 import org.mockito.ArgumentCaptor;
 import org.junit.jupiter.api.Test;
 
+import java.lang.reflect.Method;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -153,6 +154,62 @@ class InterpretationPlanRuntimeTest {
         assertThat(result.steps().get(0).metadata())
             .containsEntry("toolResultReviewSatisfied", false)
             .containsEntry("reviewed", true);
+    }
+
+    @Test
+    void autoAcceptsTemplateDiscoveryWhenMcpResultIsJsonString() throws Exception {
+        String templateQueryResult = """
+            {
+              "success": true,
+              "returnedCount": 1,
+              "templates": [
+                {
+                  "templateId": "MYSQL_INNODB_STATUS",
+                  "name": "MySQL InnoDB engine status"
+                }
+              ]
+            }
+            """;
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            mock(ToolRuntimeService.class),
+            new InterpretationPlanValidator(),
+            mock(InterpretationPlanRuntime.DagExecutionController.class)
+        );
+        Method method = InterpretationPlanRuntime.class.getDeclaredMethod(
+            "localToolResultReview",
+            InterpretationPlan.Step.class,
+            InterpretationPlanRuntime.StepExecution.class
+        );
+        method.setAccessible(true);
+        InterpretationPlan.Step step = new InterpretationPlan.Step(
+            1,
+            "mcp_tool",
+            "mcp_chatchat_mcp_server_template_query",
+            Map.of("filters", Map.of("intent", "InnoDB status"), "limit", 5),
+            List.of(),
+            null,
+            null
+        );
+        InterpretationPlanRuntime.StepExecution execution = new InterpretationPlanRuntime.StepExecution(
+            1,
+            "mcp_tool",
+            "mcp_chatchat_mcp_server_template_query",
+            true,
+            templateQueryResult,
+            null,
+            null,
+            null,
+            5
+        );
+
+        InterpretationPlanRuntime.StepReview review =
+            (InterpretationPlanRuntime.StepReview) method.invoke(runtime, step, execution);
+
+        assertThat(review).isNotNull();
+        assertThat(review.satisfied()).isTrue();
+        assertThat(review.metadata())
+            .containsEntry("toolResultReviewAutoAccepted", true)
+            .containsEntry("templateDiscoveryReturnedCount", 1);
     }
 
     @Test

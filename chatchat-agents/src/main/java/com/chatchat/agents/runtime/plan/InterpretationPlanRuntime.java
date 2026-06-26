@@ -12,6 +12,8 @@ import com.chatchat.agents.runtime.ToolRuntimeRequest;
 import com.chatchat.agents.runtime.ToolRuntimeService;
 import com.chatchat.common.tool.ToolOutput;
 import com.chatchat.common.tool.ToolInput;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayList;
@@ -31,6 +33,7 @@ import java.util.stream.Collectors;
 public class InterpretationPlanRuntime {
 
     private static final String AGENT_RUN_ID_ATTRIBUTE = "__agentRunId";
+    private static final ObjectMapper RESULT_OBJECT_MAPPER = new ObjectMapper();
 
     private final ToolRuntimeService toolRuntimeService;
     private final InterpretationPlanValidator validator;
@@ -728,8 +731,19 @@ public class InterpretationPlanRuntime {
     }
 
     private int discoveredAssetCount(Object output, String listKey) {
-        if (!(output instanceof Map<?, ?> map)) {
+        return discoveredAssetCount(output, listKey, 0);
+    }
+
+    private int discoveredAssetCount(Object output, String listKey, int depth) {
+        if (output == null || depth > 6) {
             return 0;
+        }
+        Object normalized = normalizeDiscoveryOutput(output);
+        if (normalized != output) {
+            return discoveredAssetCount(normalized, listKey, depth + 1);
+        }
+        if (!(output instanceof Map<?, ?> map)) {
+            return output instanceof List<?> list ? list.size() : 0;
         }
         Integer returnedCount = integerValue(firstMapValue(map, "returnedCount", "returned_count", "count"));
         if (returnedCount != null) {
@@ -739,7 +753,61 @@ public class InterpretationPlanRuntime {
         if (explicit > 0) {
             return explicit;
         }
+        Object explicitValue = firstMapValue(map, listKey);
+        if (explicitValue != null) {
+            int nestedExplicit = discoveredAssetCount(explicitValue, listKey, depth + 1);
+            if (nestedExplicit > 0) {
+                return nestedExplicit;
+            }
+        }
+        for (String key : List.of("structuredContent", "structured_content", "data", "result", "payload", "body", "output")) {
+            Object nested = firstMapValue(map, key);
+            if (nested != null) {
+                int nestedCount = discoveredAssetCount(nested, listKey, depth + 1);
+                if (nestedCount > 0) {
+                    return nestedCount;
+                }
+            }
+        }
+        Object content = firstMapValue(map, "content");
+        if (content instanceof List<?> list) {
+            for (Object item : list) {
+                Object text = item instanceof Map<?, ?> itemMap ? firstMapValue(itemMap, "text", "content", "data") : item;
+                int nestedCount = discoveredAssetCount(text, listKey, depth + 1);
+                if (nestedCount > 0) {
+                    return nestedCount;
+                }
+            }
+        }
         return 0;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Object normalizeDiscoveryOutput(Object output) {
+        if (output instanceof String text) {
+            String trimmed = text.trim();
+            if (trimmed.isEmpty()) {
+                return output;
+            }
+            try {
+                if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+                    return RESULT_OBJECT_MAPPER.readValue(trimmed, new TypeReference<Map<String, Object>>() {
+                    });
+                }
+                if (trimmed.startsWith("[") && trimmed.endsWith("]")) {
+                    return RESULT_OBJECT_MAPPER.readValue(trimmed, new TypeReference<List<Object>>() {
+                    });
+                }
+            } catch (RuntimeException ignored) {
+                return output;
+            } catch (Exception ignored) {
+                return output;
+            }
+        }
+        if (output instanceof Map<?, ?> map && !(output instanceof LinkedHashMap<?, ?>)) {
+            return new LinkedHashMap<>((Map<Object, Object>) map);
+        }
+        return output;
     }
 
     private int listSize(Object value) {

@@ -213,6 +213,75 @@ class InterpretationPlanRuntimeTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    void injectsRoutingTraceForDiscoveryToolWhenPlannerOmittedIt() throws Exception {
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            mock(ToolRuntimeService.class),
+            new InterpretationPlanValidator(),
+            mock(InterpretationPlanRuntime.DagExecutionController.class)
+        );
+        InterpretationPlan.Step step = new InterpretationPlan.Step(
+            1,
+            "mcp_tool",
+            "mcp_chatchat_mcp_server_asset_query",
+            Map.of(
+                "candidates", List.of(Map.of("targetKind", "database", "confidence", 0.9)),
+                "finalDecision", "database",
+                "filters", Map.of("assetName", "248测试数据库"),
+                "limit", 10
+            ),
+            List.of(),
+            null,
+            null
+        );
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("sql_query", "Analyze InnoDB", "medium"),
+            context(),
+            new InterpretationPlan.Plan(List.of(
+                step,
+                new InterpretationPlan.Step(2, "final_answer", "", Map.of("answer", "done"), List.of(1), null, null)
+            )),
+            new InterpretationPlan.ExecutionPolicy(
+                2,
+                false,
+                List.of("mcp_chatchat_mcp_server_asset_query"),
+                List.of(),
+                30000
+            ),
+            review()
+        );
+        InterpretationPlanRuntime.ExecutionRequest request = new InterpretationPlanRuntime.ExecutionRequest(
+            plan,
+            mock(ToolRegistry.class),
+            List.of("mcp_chatchat_mcp_server_asset_query"),
+            "tenant-1",
+            "req-routing-trace",
+            "conv-routing-trace",
+            "user-1",
+            Map.of("executionTraceId", "trace-runtime-1")
+        );
+        Method method = InterpretationPlanRuntime.class.getDeclaredMethod(
+            "resolvedStepInput",
+            InterpretationPlan.Step.class,
+            InterpretationPlanRuntime.ExecutionRequest.class,
+            Map.class
+        );
+        method.setAccessible(true);
+
+        Map<String, Object> resolved = (Map<String, Object>) method.invoke(runtime, step, request, Map.of());
+
+        assertThat(resolved).containsEntry("filtersSchemaVersion", "target_filters.v1");
+        assertThat(resolved.get("trace")).isInstanceOf(Map.class);
+        Map<String, Object> trace = (Map<String, Object>) resolved.get("trace");
+        assertThat(trace)
+            .containsEntry("schemaVersion", "routing_trace.v1")
+            .containsEntry("source", "interpretation_plan_runtime")
+            .containsEntry("executionTraceId", "trace-runtime-1")
+            .containsEntry("stepId", 1);
+    }
+
+    @Test
     void feedsReviewedWebSearchUrlIntoCrawlerStep() {
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         when(toolRegistry.hasTool("web_search")).thenReturn(true);

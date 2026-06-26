@@ -372,7 +372,7 @@ public class InterpretationPlanRuntime {
         recordPlanStep(request, step, completed);
         if (step.mcpToolAction()) {
             try {
-                Map<String, Object> resolvedInput = resolvedStepInput(step, request.plan(), completed);
+                Map<String, Object> resolvedInput = resolvedStepInput(step, request, completed);
                 log.info("InterpretationPlan step resolved input: traceId={}, stepId={}, tool={}, input={}",
                     executionTraceId(request),
                     step.id(),
@@ -879,10 +879,12 @@ public class InterpretationPlanRuntime {
     }
 
     private Map<String, Object> resolvedStepInput(InterpretationPlan.Step step,
-                                                  InterpretationPlan plan,
+                                                  ExecutionRequest request,
                                                   Map<Integer, StepExecution> completed) {
         Map<String, Object> input = new LinkedHashMap<>(step.input() == null ? Map.of() : step.input());
+        InterpretationPlan plan = request == null ? null : request.plan();
         applyBindings(step, plan, completed, input);
+        normalizeDiscoveryRoutingInput(step, request, input);
         if (!isCrawlerTool(step.toolName())) {
             return input;
         }
@@ -892,6 +894,40 @@ public class InterpretationPlanRuntime {
         }
         input.put("url", selectedUrls.get(0));
         return input;
+    }
+
+    @SuppressWarnings("unchecked")
+    private void normalizeDiscoveryRoutingInput(InterpretationPlan.Step step,
+                                                ExecutionRequest request,
+                                                Map<String, Object> input) {
+        if (step == null || input == null || !isRoutingDiscoveryTool(step.toolName())) {
+            return;
+        }
+        Object filters = firstMapValue(input, "filters", "executionContext", "mcpExecutionContext");
+        if (!(filters instanceof Map<?, ?>)) {
+            input.put("filters", new LinkedHashMap<>());
+        }
+        input.putIfAbsent("filtersSchemaVersion", "target_filters.v1");
+        Object trace = firstMapValue(input, "trace", "routingTrace", "routing_trace");
+        if (trace instanceof Map<?, ?> traceMap && !traceMap.isEmpty()) {
+            if (!input.containsKey("trace")) {
+                input.put("trace", new LinkedHashMap<>((Map<String, Object>) traceMap));
+            }
+            return;
+        }
+        input.put("trace", routingTraceForStep(step, request));
+    }
+
+    private Map<String, Object> routingTraceForStep(InterpretationPlan.Step step, ExecutionRequest request) {
+        Map<String, Object> trace = new LinkedHashMap<>();
+        trace.put("schemaVersion", "routing_trace.v1");
+        trace.put("plannerVersion", request == null || request.plan() == null ? "unknown" : request.plan().version());
+        trace.put("model", "runtime");
+        trace.put("source", "interpretation_plan_runtime");
+        trace.put("executionTraceId", executionTraceId(request));
+        trace.put("stepId", step == null ? null : step.id());
+        trace.put("toolName", step == null ? null : step.toolName());
+        return trace;
     }
 
     private void applyBindings(InterpretationPlan.Step step,
@@ -1060,6 +1096,10 @@ public class InterpretationPlanRuntime {
 
     private boolean isTemplateDiscoveryTool(String toolName) {
         return "template_query".equals(toolSemanticKey(toolName));
+    }
+
+    private boolean isRoutingDiscoveryTool(String toolName) {
+        return isAssetDiscoveryTool(toolName) || isTemplateDiscoveryTool(toolName);
     }
 
     private boolean isCrawlerTool(String toolName) {

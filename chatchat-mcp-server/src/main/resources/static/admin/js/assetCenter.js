@@ -3,6 +3,7 @@ import { apiFetch } from './http.js';
 
 const OPS_URL = `${API_BASE}/ops`;
 const SQL_URL = `${API_BASE}/sql`;
+const SEARCH_INDEX_URL = `${API_BASE}/mcp-search-index`;
 
 export function listSshAssets() {
     return apiFetch(`${OPS_URL}/ssh-hosts`);
@@ -94,4 +95,12 @@ export function testSqlAsset(asset) {
 
 export function refreshSqlTools() {
     return apiFetch(`${SQL_URL}/refresh-tools`, { method: 'POST' });
+}
+
+export function rebuildAssetIndex() {
+    return apiFetch(`${SEARCH_INDEX_URL}/assets/rebuild`, { method: 'POST' });
+}
+
+export function rebuildTemplateIndex() {
+    return apiFetch(`${SEARCH_INDEX_URL}/templates/rebuild`, { method: 'POST' });
 }

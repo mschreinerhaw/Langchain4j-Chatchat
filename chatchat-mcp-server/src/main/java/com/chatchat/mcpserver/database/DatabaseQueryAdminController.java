@@ -58,7 +58,7 @@ public class DatabaseQueryAdminController {
     @PostMapping
     public ApiResponse<DatabaseQueryView> create(@RequestBody DatabaseQueryUpsertRequest request) {
         DatabaseQueryConfig saved = configService.create(fromRequest(request));
-        refreshPublishedTemplates();
+        refreshPublishedTemplates(saved);
         return ApiResponse.success(toView(saved), "Database query registered");
     }
 
@@ -73,7 +73,7 @@ public class DatabaseQueryAdminController {
     public ApiResponse<DatabaseQueryView> update(@PathVariable("id") String id,
                                                  @RequestBody DatabaseQueryUpsertRequest request) {
         DatabaseQueryConfig saved = configService.update(id, fromRequest(request));
-        refreshPublishedTemplates();
+        refreshPublishedTemplates(saved);
         return ApiResponse.success(toView(saved), "Database query updated");
     }
 
@@ -114,13 +114,18 @@ public class DatabaseQueryAdminController {
     public ApiResponse<DatabaseQueryView> setEnabled(@PathVariable("id") String id,
                                                      @RequestParam("enabled") boolean enabled) {
         DatabaseQueryConfig saved = configService.setEnabled(id, enabled);
-        refreshPublishedTemplates();
+        refreshPublishedTemplates(saved);
         return ApiResponse.success(toView(saved), "Database query status updated");
     }
 
     private void refreshPublishedTemplates() {
         publisher.refresh();
         templateIndexService.refreshAll();
+    }
+
+    private void refreshPublishedTemplates(DatabaseQueryConfig saved) {
+        publisher.refresh();
+        templateIndexService.upsertDatabaseQueryTemplates(List.of(saved));
     }
 
     /**

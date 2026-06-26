@@ -24,6 +24,8 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
@@ -34,6 +36,7 @@ public class InterpretationPlanRuntime {
 
     private static final String AGENT_RUN_ID_ATTRIBUTE = "__agentRunId";
     private static final ObjectMapper RESULT_OBJECT_MAPPER = new ObjectMapper();
+    private static final Pattern DATABASE_ASSET_PHRASE = Pattern.compile("([0-9A-Za-z_-]{1,32}[^\\s,，。；;:：]{0,24}数据库)");
 
     private final ToolRuntimeService toolRuntimeService;
     private final InterpretationPlanValidator validator;
@@ -738,7 +741,7 @@ public class InterpretationPlanRuntime {
         if (output == null || depth > 6) {
             return 0;
         }
-        Object normalized = normalizeDiscoveryOutput(output);
+        Object normalized = normalizeToolProtocolPayload(output);
         if (normalized != output) {
             return discoveredAssetCount(normalized, listKey, depth + 1);
         }
@@ -783,7 +786,7 @@ public class InterpretationPlanRuntime {
     }
 
     @SuppressWarnings("unchecked")
-    private Object normalizeDiscoveryOutput(Object output) {
+    private Object normalizeToolProtocolPayload(Object output) {
         if (output instanceof String text) {
             String trimmed = text.trim();
             if (trimmed.isEmpty()) {
@@ -906,6 +909,18 @@ public class InterpretationPlanRuntime {
         Object filters = firstMapValue(input, "filters", "executionContext", "mcpExecutionContext");
         if (!(filters instanceof Map<?, ?>)) {
             input.put("filters", new LinkedHashMap<>());
+            filters = input.get("filters");
+        }
+        if (filters instanceof Map<?, ?> filterMap && !hasAssetConstraint(filterMap)) {
+            String inferred = inferAssetNameFromPlan(request == null ? null : request.plan());
+            if (inferred != null && !inferred.isBlank()) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> mutableFilters = filterMap instanceof LinkedHashMap<?, ?>
+                    ? (Map<String, Object>) filterMap
+                    : new LinkedHashMap<>((Map<String, Object>) filterMap);
+                mutableFilters.putIfAbsent("assetName", inferred);
+                input.put("filters", mutableFilters);
+            }
         }
         input.putIfAbsent("filtersSchemaVersion", "target_filters.v1");
         Object trace = firstMapValue(input, "trace", "routingTrace", "routing_trace");
@@ -928,6 +943,60 @@ public class InterpretationPlanRuntime {
         trace.put("stepId", step == null ? null : step.id());
         trace.put("toolName", step == null ? null : step.toolName());
         return trace;
+    }
+
+    private boolean hasAssetConstraint(Map<?, ?> filters) {
+        if (filters == null || filters.isEmpty()) {
+            return false;
+        }
+        for (String key : List.of("assetName", "asset_name", "name", "env", "environment", "cluster", "service",
+            "target", "database", "databaseType", "dbType", "dialect", "databaseRole", "database_role", "labels")) {
+            Object value = filters.get(key);
+            if (value != null && !String.valueOf(value).isBlank()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private String inferAssetNameFromPlan(InterpretationPlan plan) {
+        String text = planText(plan);
+        if (text == null || text.isBlank()) {
+            return null;
+        }
+        Matcher matcher = DATABASE_ASSET_PHRASE.matcher(text.replaceAll("\\s+", ""));
+        return matcher.find() ? matcher.group(1) : null;
+    }
+
+    private String planText(InterpretationPlan plan) {
+        if (plan == null) {
+            return "";
+        }
+        StringBuilder text = new StringBuilder();
+        if (plan.intent() != null) {
+            appendText(text, plan.intent().goal());
+            appendText(text, plan.intent().type());
+        }
+        if (plan.context() != null) {
+            appendText(text, plan.context().keyFacts());
+            appendText(text, plan.context().assumptions());
+            appendText(text, plan.context().missingInfo());
+            appendText(text, plan.context().constraints());
+        }
+        return text.toString();
+    }
+
+    private void appendText(StringBuilder builder, Object value) {
+        if (builder == null || value == null) {
+            return;
+        }
+        if (value instanceof Iterable<?> iterable) {
+            for (Object item : iterable) {
+                appendText(builder, item);
+            }
+            return;
+        }
+        builder.append(' ').append(value);
     }
 
     private void applyBindings(InterpretationPlan.Step step,
@@ -1338,9 +1407,49 @@ public class InterpretationPlanRuntime {
     }
 
     private Object valueAtPath(Object output, String path) {
+        return valueAtPath(output, path, 0);
+    }
+
+    private Object valueAtPath(Object output, String path, int depth) {
         if (output == null || path == null || path.isBlank()) {
             return output;
         }
+        if (depth > 6) {
+            return null;
+        }
+        Object normalized = normalizeToolProtocolPayload(output);
+        if (normalized != output) {
+            return valueAtPath(normalized, path, depth + 1);
+        }
+        Object direct = valueAtPathDirect(output, path);
+        if (direct != null) {
+            return direct;
+        }
+        if (output instanceof Map<?, ?> map) {
+            for (String wrapper : List.of("structuredContent", "structured_content", "data", "result", "payload", "body", "output")) {
+                Object nested = firstMapValue(map, wrapper);
+                if (nested != null) {
+                    Object value = valueAtPath(nested, path, depth + 1);
+                    if (value != null) {
+                        return value;
+                    }
+                }
+            }
+            Object content = firstMapValue(map, "content");
+            if (content instanceof List<?> list) {
+                for (Object item : list) {
+                    Object text = item instanceof Map<?, ?> itemMap ? firstMapValue(itemMap, "text", "content", "data") : item;
+                    Object value = valueAtPath(text, path, depth + 1);
+                    if (value != null) {
+                        return value;
+                    }
+                }
+            }
+        }
+        return null;
+    }
+
+    private Object valueAtPathDirect(Object output, String path) {
         Object current = output;
         List<String> parts = pathTokens(path);
         int start = parts.size() > 1 && "data".equals(parts.get(0)) && !(current instanceof Map<?, ?> map && map.containsKey("data"))

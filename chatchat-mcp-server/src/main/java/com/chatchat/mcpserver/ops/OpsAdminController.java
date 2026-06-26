@@ -1,6 +1,7 @@
 package com.chatchat.mcpserver.ops;
 
 import com.chatchat.common.response.ApiResponse;
+import com.chatchat.mcpserver.search.McpAssetLuceneIndexService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -25,6 +26,7 @@ public class OpsAdminController {
     private final OpsMcpToolPublisher publisher;
     private final LinuxCommandService linuxCommandService;
     private final HttpRequestToolService httpRequestToolService;
+    private final McpAssetLuceneIndexService assetLuceneIndexService;
 
     @GetMapping("/ssh-hosts")
     public ApiResponse<List<SshHostConfig>> listHosts() {
@@ -35,6 +37,7 @@ public class OpsAdminController {
     public ApiResponse<SshHostConfig> createHost(@RequestBody SshHostConfig request) {
         SshHostConfig saved = hostConfigService.create(request);
         publisher.refresh();
+        assetLuceneIndexService.refreshAll();
         return ApiResponse.success(saved, "SSH host created");
     }
 
@@ -43,6 +46,7 @@ public class OpsAdminController {
                                                  @RequestBody SshHostConfig request) {
         SshHostConfig saved = hostConfigService.update(id, request);
         publisher.refresh();
+        assetLuceneIndexService.refreshAll();
         return ApiResponse.success(saved, "SSH host updated");
     }
 
@@ -50,6 +54,7 @@ public class OpsAdminController {
     public ApiResponse<Void> deleteHost(@PathVariable("id") String id) {
         hostConfigService.delete(id);
         publisher.refresh();
+        assetLuceneIndexService.refreshAll();
         return ApiResponse.success(null, "SSH host deleted");
     }
 
@@ -67,6 +72,7 @@ public class OpsAdminController {
     public ApiResponse<HttpEndpointConfig> createHttpEndpoint(@RequestBody HttpEndpointConfig request) {
         HttpEndpointConfig saved = httpEndpointConfigService.create(request);
         publisher.refresh();
+        assetLuceneIndexService.refreshAll();
         return ApiResponse.success(saved, "HTTP endpoint created");
     }
 
@@ -75,6 +81,7 @@ public class OpsAdminController {
                                                               @RequestBody HttpEndpointConfig request) {
         HttpEndpointConfig saved = httpEndpointConfigService.update(id, request);
         publisher.refresh();
+        assetLuceneIndexService.refreshAll();
         return ApiResponse.success(saved, "HTTP endpoint updated");
     }
 
@@ -82,6 +89,7 @@ public class OpsAdminController {
     public ApiResponse<Void> deleteHttpEndpoint(@PathVariable("id") String id) {
         httpEndpointConfigService.delete(id);
         publisher.refresh();
+        assetLuceneIndexService.refreshAll();
         return ApiResponse.success(null, "HTTP endpoint deleted");
     }
 
@@ -115,6 +123,7 @@ public class OpsAdminController {
     @PostMapping("/refresh-tools")
     public ApiResponse<Map<String, Object>> refreshTools() {
         publisher.refresh();
-        return ApiResponse.success(Map.of("refreshed", true), "Ops MCP tools refreshed");
+        Map<String, Object> indexSummary = assetLuceneIndexService.refreshAll();
+        return ApiResponse.success(Map.of("refreshed", true, "assetIndex", indexSummary), "Ops MCP tools refreshed");
     }
 }

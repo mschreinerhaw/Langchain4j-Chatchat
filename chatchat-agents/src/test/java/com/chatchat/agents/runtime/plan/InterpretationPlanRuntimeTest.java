@@ -282,6 +282,75 @@ class InterpretationPlanRuntimeTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    void infersDatabaseAssetNameForDiscoveryWhenPlannerOmittedFilter() throws Exception {
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            mock(ToolRuntimeService.class),
+            new InterpretationPlanValidator(),
+            mock(InterpretationPlanRuntime.DagExecutionController.class)
+        );
+        InterpretationPlan.Step step = new InterpretationPlan.Step(
+            1,
+            "mcp_tool",
+            "mcp_chatchat_mcp_server_asset_query",
+            Map.of(
+                "candidates", List.of(Map.of("targetKind", "database", "confidence", 0.85)),
+                "finalDecision", "database",
+                "filters", Map.of(),
+                "limit", 10
+            ),
+            List.of(),
+            null,
+            null
+        );
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("data_query", "分析248测试数据库的当前连接", "low"),
+            new InterpretationPlan.Context(
+                List.of("用户提及248测试数据库"),
+                List.of(),
+                List.of(),
+                List.of()
+            ),
+            new InterpretationPlan.Plan(List.of(
+                step,
+                new InterpretationPlan.Step(2, "final_answer", "", Map.of("answer", "done"), List.of(1), null, null)
+            )),
+            new InterpretationPlan.ExecutionPolicy(
+                2,
+                false,
+                List.of("mcp_chatchat_mcp_server_asset_query"),
+                List.of(),
+                30000
+            ),
+            review()
+        );
+        InterpretationPlanRuntime.ExecutionRequest request = new InterpretationPlanRuntime.ExecutionRequest(
+            plan,
+            mock(ToolRegistry.class),
+            List.of("mcp_chatchat_mcp_server_asset_query"),
+            "tenant-1",
+            "req-routing-asset-name",
+            "conv-routing-asset-name",
+            "user-1",
+            Map.of("executionTraceId", "trace-runtime-asset")
+        );
+        Method method = InterpretationPlanRuntime.class.getDeclaredMethod(
+            "resolvedStepInput",
+            InterpretationPlan.Step.class,
+            InterpretationPlanRuntime.ExecutionRequest.class,
+            Map.class
+        );
+        method.setAccessible(true);
+
+        Map<String, Object> resolved = (Map<String, Object>) method.invoke(runtime, step, request, Map.of());
+
+        Map<String, Object> filters = (Map<String, Object>) resolved.get("filters");
+        assertThat(filters).containsEntry("assetName", "248测试数据库");
+        assertThat(resolved.get("trace")).isInstanceOf(Map.class);
+    }
+
+    @Test
     void feedsReviewedWebSearchUrlIntoCrawlerStep() {
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         when(toolRegistry.hasTool("web_search")).thenReturn(true);

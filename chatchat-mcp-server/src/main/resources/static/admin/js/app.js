@@ -32,6 +32,8 @@ import {
     listSqlAssets,
     listSqlTemplates,
     listSshAssets,
+    rebuildAssetIndex,
+    rebuildTemplateIndex,
     refreshOpsTools,
     refreshSqlTools,
     saveCommandTemplate,
@@ -236,6 +238,8 @@ function bindEvents() {
     bindOptional('testHttpAssetBtn', 'click', handleHttpAssetTest);
     document.getElementById('refreshOpsAssetToolsBtn').addEventListener('click', handleOpsAssetRefresh);
     document.getElementById('refreshSqlAssetToolsBtn').addEventListener('click', handleSqlAssetRefresh);
+    bindOptional('rebuildAssetIndexBtn', 'click', handleAssetIndexRebuild);
+    bindOptional('rebuildTemplateIndexBtn', 'click', handleTemplateIndexRebuild);
     document.querySelectorAll('[data-asset-tab]').forEach(button => {
         button.addEventListener('click', () => switchAssetTab(button.dataset.assetTab));
     });
@@ -2101,6 +2105,24 @@ async function handleSqlAssetRefresh() {
     try {
         await refreshSqlTools();
         notify('刷新完成', '数据库资产工具已重新发布。');
+    } catch (error) {
+        handleError(error);
+    }
+}
+
+async function handleAssetIndexRebuild() {
+    try {
+        const result = await rebuildAssetIndex();
+        notify('Asset index rebuilt', `Indexed ${result.indexed ?? 0} assets.`);
+    } catch (error) {
+        handleError(error);
+    }
+}
+
+async function handleTemplateIndexRebuild() {
+    try {
+        await rebuildTemplateIndex();
+        notify('Template index rebuilt', 'MCP template Lucene index has been rebuilt.');
     } catch (error) {
         handleError(error);
     }

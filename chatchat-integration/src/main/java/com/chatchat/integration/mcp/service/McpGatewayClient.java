@@ -638,7 +638,7 @@ public class McpGatewayClient {
         params.put("arguments", arguments == null ? Map.of() : arguments);
         try {
             Object result = stdioProxyService.callForResult(config, "tools/call", params);
-            return new McpToolInvokeResult(true, result, "MCP call success", null);
+            return normalizeInvokeResult(result);
         } catch (Exception ex) {
             log.warn("Failed to invoke MCP tool {} via stdio proxy for {}: {}", toolName, config.getName(),
                 ex.getMessage());

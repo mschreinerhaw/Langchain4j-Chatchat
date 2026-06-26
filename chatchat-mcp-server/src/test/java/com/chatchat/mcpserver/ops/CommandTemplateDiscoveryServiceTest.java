@@ -531,6 +531,65 @@ class CommandTemplateDiscoveryServiceTest {
     }
 
     @Test
+    void ranksMysqlProcesslistForCurrentConnectionsIntent() {
+        SqlTemplateService sqlTemplateService = mock(SqlTemplateService.class);
+        SqlDatasourceConfigService datasourceService = mock(SqlDatasourceConfigService.class);
+        LuceneMcpSearchService lucene = mock(LuceneMcpSearchService.class);
+        CommandTemplateDiscoveryService service = new CommandTemplateDiscoveryService(
+            mock(CommandTemplateService.class),
+            mock(SshHostConfigService.class),
+            sqlTemplateService,
+            datasourceService,
+            mock(HttpEndpointConfigService.class),
+            new ObjectMapper(),
+            new TemplateDiscoveryProperties(),
+            lucene
+        );
+        SqlDatasourceConfig datasource = datasource("ds-248", "\u0032\u0034\u0038\u6d4b\u8bd5\u6570\u636e\u5e93", "DEV");
+        datasource.setDatabaseType("mysql");
+        datasource.setAllowedTemplatesJson("[\"MYSQL_SHOW_PROCESSLIST\",\"MYSQL_SHOW_STATUS\"]");
+        when(datasourceService.listEnabled()).thenReturn(List.of(datasource));
+        when(sqlTemplateService.listEnabled()).thenReturn(List.of(
+            sqlTemplate(
+                "MYSQL_SHOW_PROCESSLIST",
+                "SHOW PROCESSLIST",
+                "MySQL current connections",
+                "Show current MySQL sessions and running statements.",
+                "mysql",
+                "maintenance_connection",
+                "[\"connection\",\"session\",\"processlist\",\"connection_check\"]"
+            ),
+            sqlTemplate(
+                "MYSQL_SHOW_STATUS",
+                "SHOW STATUS",
+                "MySQL status variables",
+                "Show MySQL server status counters for health and performance inspection.",
+                "mysql",
+                "maintenance_instance",
+                "[\"db_status\",\"status\",\"health\",\"instance\"]"
+            )
+        ));
+        when(lucene.enabled()).thenReturn(true);
+        when(lucene.searchTemplates(anyList(), any())).thenReturn(List.of());
+
+        Map<String, Object> result = service.query(Map.of(
+            "candidates", List.of(Map.of("targetKind", "database", "confidence", 0.85)),
+            "finalDecision", "database",
+            "filters", Map.of(
+                "assetName", "\u0032\u0034\u0038\u6d4b\u8bd5\u6570\u636e\u5e93",
+                "env", "DEV",
+                "intent", "current connections connection count session status"
+            ),
+            "trace", trace(),
+            "limit", 5
+        ));
+
+        List<?> templates = (List<?>) result.get("templates");
+        assertThat(result).containsEntry("returnedCount", 2);
+        assertThat(((Map<?, ?>) templates.get(0)).get("templateId")).isEqualTo("MYSQL_SHOW_PROCESSLIST");
+    }
+
+    @Test
     void queriesHttpTemplatesWithoutConcreteUrl() {
         HttpEndpointConfigService httpService = mock(HttpEndpointConfigService.class);
         CommandTemplateDiscoveryService service = service(

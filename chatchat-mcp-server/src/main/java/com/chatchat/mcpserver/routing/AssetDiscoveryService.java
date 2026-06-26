@@ -6,6 +6,7 @@ import com.chatchat.mcpserver.search.LuceneMcpSearchService;
 import com.chatchat.mcpserver.sql.SqlDatasourceConfigService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -15,6 +16,7 @@ import java.util.Map;
 import java.util.regex.Pattern;
 
 @Service
+@Slf4j
 public class AssetDiscoveryService {
 
     public static final String QUERY_SCHEMA_VERSION = "asset_query.v1";
@@ -211,10 +213,13 @@ public class AssetDiscoveryService {
                                                                Map<String, Object> filters,
                                                                int limit) {
         if (luceneSearchService == null || !luceneSearchService.enabled()) {
-            return assets.stream()
+            List<Map<String, Object>> fallback = assets.stream()
                 .filter(asset -> matches(asset, filters))
                 .limit(limit)
                 .toList();
+            log.info("asset_query registry search assetType={} filters={} registryCandidates={} returned={} reason=lucene_disabled",
+                assetType, compactFilters(filters), assets.size(), fallback.size());
+            return fallback;
         }
         Map<String, Map<String, Object>> byId = new LinkedHashMap<>();
         assets.forEach(asset -> {
@@ -223,15 +228,26 @@ public class AssetDiscoveryService {
                 byId.put(id, asset);
             }
         });
-        List<LuceneMcpSearchService.SearchHit> hits = luceneSearchService.searchAssets(
-            assets.stream().map(this::assetDoc).toList(),
-            assetSearchRequest(assetType, filters, limit)
-        );
-        return hits.stream()
+        LuceneMcpSearchService.AssetSearchRequest request = assetSearchRequest(assetType, filters, limit);
+        List<LuceneMcpSearchService.SearchHit> hits = luceneSearchService.searchAssets(request);
+        List<Map<String, Object>> luceneMatched = hits.stream()
             .map(hit -> byId.get(hit.id()))
             .filter(asset -> asset != null)
             .limit(limit)
             .toList();
+        if (!luceneMatched.isEmpty()) {
+            log.info("asset_query lucene search assetType={} filters={} registryCandidates={} luceneHits={} returned={} hitIds={}",
+                assetType, compactFilters(filters), assets.size(), hits.size(), luceneMatched.size(),
+                hits.stream().map(LuceneMcpSearchService.SearchHit::id).limit(limit).toList());
+            return luceneMatched;
+        }
+        List<Map<String, Object>> fallback = assets.stream()
+            .filter(asset -> matches(asset, filters))
+            .limit(limit)
+            .toList();
+        log.info("asset_query lucene empty fallback assetType={} filters={} registryCandidates={} luceneHits=0 fallbackReturned={}",
+            assetType, compactFilters(filters), assets.size(), fallback.size());
+        return fallback;
     }
 
     private LuceneMcpSearchService.AssetSearchRequest assetSearchRequest(String assetType,

@@ -10,6 +10,7 @@ import com.chatchat.mcpserver.sql.SqlTemplateConfig;
 import com.chatchat.mcpserver.sql.SqlTemplateService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -23,6 +24,7 @@ import java.util.Map;
 import java.util.Set;
 
 @Service
+@Slf4j
 public class CommandTemplateDiscoveryService {
 
     public static final String QUERY_SCHEMA_VERSION = "template_query.v1";
@@ -188,6 +190,9 @@ public class CommandTemplateDiscoveryService {
             .toList();
         List<ScoredTemplate<CommandTemplateConfig>> matched = rankAndFallback(candidates, intent, scored -> scored.template().getCode());
         boolean fallbackUsed = fallbackUsed(candidates, matched, intent);
+        log.info("template_query ssh search assetType={} filters={} normalizedIntent={} registryTemplates={} candidates={} luceneHits={} returned={} fallbackUsed={}",
+            assetType, compactFilters(filters), intent.type(), templates.size(), candidates.size(), luceneHits.size(),
+            Math.min(matched.size(), limit), fallbackUsed);
         return result(assetType, filters, intent, sshAssetMetadata(hosts, filters, assetScoped), limit,
             sshTemplateMetadata(matched, assetType, limit), matched.size() > limit, fallbackUsed, templateSignal(luceneHits));
     }
@@ -221,6 +226,9 @@ public class CommandTemplateDiscoveryService {
             .toList();
         List<ScoredTemplate<SqlTemplateConfig>> matched = rankAndFallback(candidates, intent, scored -> scored.template().getCode());
         boolean fallbackUsed = fallbackUsed(candidates, matched, intent);
+        log.info("template_query sql search assetType={} dbType={} filters={} normalizedIntent={} datasources={} registryTemplates={} candidates={} luceneHits={} returned={} fallbackUsed={} hitIds={}",
+            assetType, dbType, compactFilters(filters), intent.type(), datasources.size(), templates.size(), candidates.size(),
+            luceneHits.size(), Math.min(matched.size(), limit), fallbackUsed, luceneHits.keySet().stream().limit(limit).toList());
         return result(assetType, filters, intent, sqlAssetMetadata(datasources, filters, assetScoped), limit,
             sqlTemplateMetadata(matched, assetType, limit), matched.size() > limit, fallbackUsed, templateSignal(luceneHits));
     }
@@ -253,6 +261,9 @@ public class CommandTemplateDiscoveryService {
             scored -> firstText(scored.template().getToolName(), scored.template().getName())
         );
         boolean fallbackUsed = fallbackUsed(candidates, matched, intent);
+        log.info("template_query http search assetType={} filters={} normalizedIntent={} endpoints={} candidates={} luceneHits={} returned={} fallbackUsed={}",
+            assetType, compactFilters(filters), intent.type(), endpoints.size(), candidates.size(), luceneHits.size(),
+            Math.min(matched.size(), limit), fallbackUsed);
         return result(assetType, filters, intent, httpAssetMetadata(endpoints, filters, hasAssetScope(filters)), limit,
             httpTemplateMetadata(matched, assetType, limit), matched.size() > limit, fallbackUsed, templateSignal(luceneHits));
     }
@@ -285,6 +296,9 @@ public class CommandTemplateDiscoveryService {
         List<ScoredTemplate<DatabaseQueryConfig>> matched = rankAndFallback(candidates, intent,
             scored -> scored.template().getToolName());
         boolean fallbackUsed = fallbackUsed(candidates, matched, intent);
+        log.info("template_query database-query search assetType={} dbType={} filters={} normalizedIntent={} registryTemplates={} candidates={} luceneHits={} returned={} fallbackUsed={} hitIds={}",
+            assetType, requestedDatabaseType(filters), compactFilters(filters), intent.type(), templates.size(), candidates.size(),
+            luceneHits.size(), Math.min(matched.size(), limit), fallbackUsed, luceneHits.keySet().stream().limit(limit).toList());
         return result(assetType, filters, intent, List.of(), limit,
             databaseQueryTemplateMetadata(matched, assetType, limit), matched.size() > limit, fallbackUsed, templateSignal(luceneHits));
     }

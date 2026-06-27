@@ -25,7 +25,7 @@ class AgentWorkflowDecisionEngine {
         if (tools == null || tools.isEmpty() || runtimeAttributes == null || runtimeAttributes.isEmpty()) {
             return new WorkflowMandatoryResolution(List.of(), List.of());
         }
-        Map<String, Object> workflow = asMap(runtimeAttributes.get("mcpWorkflow"));
+        Map<String, Object> workflow = workflowConfigMap(runtimeAttributes.get("mcpWorkflow"));
         if (workflow.isEmpty()) {
             return new WorkflowMandatoryResolution(List.of(), List.of());
         }
@@ -171,7 +171,7 @@ class AgentWorkflowDecisionEngine {
         if (booleanValue(firstObject(runtimeAttributes, "allowEarlyFinal", "allowEarlyExit", "policyAllowEarlyFinal"))) {
             return true;
         }
-        Map<String, Object> workflow = asMap(runtimeAttributes.get("mcpWorkflow"));
+        Map<String, Object> workflow = workflowConfigMap(runtimeAttributes.get("mcpWorkflow"));
         Map<String, Object> policy = asMap(firstObject(workflow, "policy", "executionPolicy"));
         return booleanValue(firstObject(policy, "allowEarlyFinal", "allowEarlyExit"));
     }
@@ -263,6 +263,16 @@ class AgentWorkflowDecisionEngine {
             context.put("query", query);
         }
         return context;
+    }
+
+    private Map<String, Object> workflowConfigMap(Object rawWorkflow) {
+        if (rawWorkflow instanceof List<?> list) {
+            Map<String, Object> workflow = new LinkedHashMap<>();
+            workflow.put("enabled", true);
+            workflow.put("steps", list);
+            return workflow;
+        }
+        return asMap(rawWorkflow);
     }
 
     private boolean conditionMatches(String condition, Map<String, Object> context) {

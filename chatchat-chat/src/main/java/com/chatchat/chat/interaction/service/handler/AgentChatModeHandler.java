@@ -123,6 +123,7 @@ public class AgentChatModeHandler implements InteractionModeHandler {
         metadata.put("hasMcpBinding", toolPolicy.hasMcpBinding());
         metadata.put("selectedCandidateTools", toolPolicy.selectedCandidateTools());
         metadata.put("skippedToolReasons", toolPolicy.skippedToolReasons());
+        metadata.put("workflowAutoAddedTools", toolPolicy.workflowAutoAddedTools());
         metadata.put("skillId", request.getSkillId() == null ? "general" : request.getSkillId());
         metadata.put("modelName", modelName);
         metadata.put("agent", result.metadata());
@@ -381,7 +382,8 @@ public class AgentChatModeHandler implements InteractionModeHandler {
             }
         }
         if (skill != null && skill.workflowConfig() != null && !skill.workflowConfig().isEmpty()) {
-            attributes.put("mcpWorkflow", skill.workflowConfig());
+            Object explicitWorkflow = skill.workflowConfig().get("mcpWorkflow");
+            attributes.put("mcpWorkflow", explicitWorkflow == null ? skill.workflowConfig() : explicitWorkflow);
         }
         if (executionContext != null && !executionContext.isEmpty()) {
             attributes.put("mcpExecutionContext", executionContext);

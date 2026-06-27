@@ -187,9 +187,11 @@ class AgentPlanner {
             prompt.append("- Required tools are ordered by workflow or runtime policy: ").append(mandatoryTools).append("\n");
             prompt.append("- If no required tool has been observed yet, include the first required tool as the first executable mcp_tool step.\n");
             prompt.append("- Do not place a tool from a later workflow stage before earlier required stages have succeeded.\n");
+            prompt.append("- Each later required tool step MUST depend_on the immediately previous required tool step, preserving the configured Agent workflow order.\n");
             prompt.append("- Tools listed in the same workflow parallel stage may be represented as independent steps with the same dependencies.\n");
             prompt.append("- If the user request is analytical, portfolio-related, market-related, data-driven, or requires validation, include the mandatory tools before final_answer.\n\n");
         }
+        appendMcpWorkflowOrchestrationContract(prompt, runtimeAttributes);
         appendMcpControlPlaneToolContracts(prompt, availableTools);
         prompt.append("Respond with strict JSON only.\n");
         prompt.append("You MUST output ONLY a valid InterpretationPlan JSON following schema. No natural language.\n");
@@ -281,6 +283,70 @@ class AgentPlanner {
         }
         prompt.append("User query:\n").append(query);
         return prompt.toString();
+    }
+
+    private void appendMcpWorkflowOrchestrationContract(StringBuilder prompt, Map<String, Object> runtimeAttributes) {
+        Map<String, Object> workflow = workflowConfigMap(runtimeAttributes == null ? null : runtimeAttributes.get("mcpWorkflow"));
+        if (workflow.isEmpty()) {
+            return;
+        }
+        Object enabled = workflow.get("enabled");
+        if (enabled instanceof Boolean bool && !bool) {
+            return;
+        }
+        Object steps = firstObject(workflow, "steps", "workflowSteps");
+        if (!(steps instanceof List<?> list) || list.isEmpty()) {
+            return;
+        }
+        prompt.append("MCP tool orchestration contract from current Agent Runtime OS:\n");
+        prompt.append("- Treat this workflow as a mandatory reasoning and execution graph, not a loose tool suggestion.\n");
+        prompt.append("- The InterpretationPlan MUST preserve every required step, dependency, condition, and confirmation node from this workflow.\n");
+        prompt.append("- When a workflow step has dependsOn, the matching plan step MUST depend_on the referenced prior workflow tool step.\n");
+        prompt.append("- When a workflow step has confirmation, keep that tool as its own mcp_tool step so runtime can request/record confirmation at that node.\n");
+        int index = 1;
+        for (Object item : list) {
+            Map<String, Object> step = asMap(item);
+            if (step.isEmpty()) {
+                index++;
+                continue;
+            }
+            String tool = stringValue(firstObject(step, "tool", "toolName"));
+            List<String> parallelSteps = stringList(firstObject(step, "parallelSteps", "parallel_steps"));
+            if ((tool == null || tool.isBlank()) && parallelSteps.isEmpty()) {
+                index++;
+                continue;
+            }
+            String order = stringValue(firstObject(step, "step", "order"));
+            Boolean required = booleanObject(step.get("required"));
+            List<String> dependsOn = stringList(firstObject(step, "dependsOn", "depends_on"));
+            String condition = stringValue(step.get("condition"));
+            String confirmation = stringValue(step.get("confirmation"));
+            prompt.append("  step ").append(firstNonBlank(order, String.valueOf(index))).append(": ");
+            if (tool != null && !tool.isBlank()) {
+                prompt.append("tool=").append(tool);
+            }
+            if (!parallelSteps.isEmpty()) {
+                prompt.append(tool == null || tool.isBlank() ? "" : ", ")
+                    .append("parallelSteps=").append(parallelSteps);
+            }
+            prompt.append(", required=").append(!Boolean.FALSE.equals(required));
+            if (!dependsOn.isEmpty()) {
+                prompt.append(", dependsOn=").append(dependsOn);
+            }
+            if (condition != null && !condition.isBlank()) {
+                prompt.append(", condition=").append(condition);
+            }
+            if (confirmation != null && !confirmation.isBlank()) {
+                prompt.append(", confirmation=").append(confirmation);
+            }
+            prompt.append("\n");
+            index++;
+        }
+        Map<String, Object> executionStrategy = asMap(firstObject(workflow, "executionStrategy", "execution_strategy"));
+        if (!executionStrategy.isEmpty()) {
+            prompt.append("- executionStrategy=").append(executionStrategy).append("\n");
+        }
+        prompt.append("\n");
     }
 
     private void appendMcpControlPlaneToolContracts(StringBuilder prompt, List<String> availableTools) {
@@ -819,6 +885,10 @@ class AgentPlanner {
             if (previousMandatoryStepId != null && mandatoryStepId <= previousMandatoryStepId) {
                 issues.add("Mandatory tools must appear in configured order: " + mandatoryTool);
             }
+            if (previousMandatoryStepId != null
+                && !dependsOnStep(mandatoryStepId, previousMandatoryStepId, stepsById, new LinkedHashSet<>())) {
+                issues.add("Mandatory tool must depend on previous configured workflow step: " + mandatoryTool);
+            }
             if (finalStep == null || !dependsOnStep(finalStep.id(), mandatoryStepId, stepsById, new LinkedHashSet<>())) {
                 issues.add("final_answer must depend on mandatory tool before answering: " + mandatoryTool);
             }
@@ -862,6 +932,10 @@ class AgentPlanner {
         }
         boolean hasAssetQueryStep = toolStepIds.keySet().stream()
             .anyMatch(tool -> "asset_query".equals(toolSemanticKey(tool)));
+        if (!hasAssetQueryStep && contextClaimsGuessedAssetRouting(plan.context())) {
+            issues.add("Asset routing context must come from asset_query, user-provided executionContext, or observations; plan context must not assume assetName/env/datasource registration.");
+            return;
+        }
         for (InterpretationPlan.Step step : plan.steps()) {
             if (step == null || !"reasoning".equals(step.actionType())) {
                 continue;
@@ -883,6 +957,33 @@ class AgentPlanner {
                 return;
             }
         }
+    }
+
+    private boolean contextClaimsGuessedAssetRouting(InterpretationPlan.Context context) {
+        if (context == null) {
+            return false;
+        }
+        String text = normalize(String.join(" ",
+            safeTextList(context.keyFacts()),
+            safeTextList(context.assumptions()),
+            safeTextList(context.constraints())
+        ));
+        if (text.isBlank()) {
+            return false;
+        }
+        boolean assetRouting = containsAny(text,
+            "asset", "assetname", "datasource", "data source", "env", "environment", "service", "cluster",
+            "资产", "数据源", "环境", "服务", "集群"
+        );
+        boolean guessed = containsAny(text,
+            "assume", "assumption", "default", "registered", "known", "already known",
+            "假设", "默认", "已注册", "已知", "当前工具链不包含", "工具缺失", "不可用", "直接通过"
+        );
+        return assetRouting && guessed;
+    }
+
+    private String safeTextList(List<String> values) {
+        return values == null ? "" : String.join(" ", values);
     }
 
     private void validateWebSearchCrawlerSplit(InterpretationPlan plan,
@@ -2124,6 +2225,32 @@ class AgentPlanner {
             return null;
         }
         return Boolean.parseBoolean(String.valueOf(value));
+    }
+
+    private Map<String, Object> workflowConfigMap(Object rawWorkflow) {
+        if (rawWorkflow instanceof List<?> list) {
+            Map<String, Object> workflow = new LinkedHashMap<>();
+            workflow.put("enabled", true);
+            workflow.put("steps", list);
+            return workflow;
+        }
+        return asMap(rawWorkflow);
+    }
+
+    private List<String> stringList(Object value) {
+        if (value instanceof List<?> list) {
+            return list.stream()
+                .map(this::stringValue)
+                .filter(item -> item != null && !item.isBlank())
+                .map(String::trim)
+                .distinct()
+                .toList();
+        }
+        if (value == null) {
+            return List.of();
+        }
+        String text = String.valueOf(value).trim();
+        return text.isBlank() ? List.of() : List.of(text);
     }
 
     private Object firstObject(Map<String, Object> values, String... keys) {

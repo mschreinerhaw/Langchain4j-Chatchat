@@ -872,6 +872,10 @@ public class SkillCatalogService {
         Object enabled = config.get("enabled");
         normalized.put("enabled", !(enabled instanceof Boolean bool) || bool);
         putText(normalized, "workflow", firstObject(config, "workflow", "workflowId", "id", "name"));
+        Object mcpWorkflow = config.get("mcpWorkflow");
+        if (mcpWorkflow instanceof List<?> || mcpWorkflow instanceof Map<?, ?>) {
+            normalized.put("mcpWorkflow", mcpWorkflow);
+        }
         Object strategy = firstObject(config, "executionStrategy", "execution_strategy");
         if (strategy instanceof Map<?, ?> strategyMap) {
             normalized.put("executionStrategy", new LinkedHashMap<>((Map<String, Object>) strategyMap));

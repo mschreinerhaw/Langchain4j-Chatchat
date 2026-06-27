@@ -516,22 +516,36 @@ public class AgentOrchestrator {
 
             if (decision.interpretationPlan() != null
                 && Boolean.TRUE.equals(decision.executionPlan().get("interpretationPlanValid"))) {
-                return executeInterpretationPlanPipeline(
-                    decision.interpretationPlan(),
-                    activeChatModel,
-                    query,
-                    systemPrompt,
-                    tenantId,
-                    requestId,
-                    conversationId,
-                    userId,
-                    tools,
-                    workflowStateTracker.attributesWithCompletedTools(requestRuntimeAttributes, completedWorkflowTools),
-                    traces,
-                    observations,
-                    metadata,
-                    cancellationCheck
+                Set<String> eventCompletedTools = completedWorkflowToolsFromEvents(
+                    requestRuntimeAttributes,
+                    completedWorkflowToolsWithTraces(completedWorkflowTools, traces)
                 );
+                String nextMandatoryTool = workflowTools.nextMandatoryTool(mandatoryTools, eventCompletedTools);
+                if (requireToolBeforeFinal
+                    && nextMandatoryTool != null
+                    && !toolNames.sameToolName(nextMandatoryTool, plannedToolName)) {
+                    observations.add("Planner produced an InterpretationPlan starting with " + plannedToolName
+                        + " but MCP workflow requires " + nextMandatoryTool
+                        + " next. Runtime will follow the Agent tool orchestration.");
+                    workflowTools.recordWorkflowOverride(metadata, plannedToolName, nextMandatoryTool, decision.reason());
+                } else {
+                    return executeInterpretationPlanPipeline(
+                        decision.interpretationPlan(),
+                        activeChatModel,
+                        query,
+                        systemPrompt,
+                        tenantId,
+                        requestId,
+                        conversationId,
+                        userId,
+                        tools,
+                        workflowStateTracker.attributesWithCompletedTools(requestRuntimeAttributes, completedWorkflowTools),
+                        traces,
+                        observations,
+                        metadata,
+                        cancellationCheck
+                    );
+                }
             }
 
             if (FINAL.equals(decision.action())) {

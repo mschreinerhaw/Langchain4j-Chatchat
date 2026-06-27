@@ -590,6 +590,121 @@ class CommandTemplateDiscoveryServiceTest {
     }
 
     @Test
+    void ranksChineseTemplateSignalsForEnglishIntent() {
+        SqlTemplateService sqlTemplateService = mock(SqlTemplateService.class);
+        SqlDatasourceConfigService datasourceService = mock(SqlDatasourceConfigService.class);
+        CommandTemplateDiscoveryService service = service(
+            mock(CommandTemplateService.class),
+            mock(SshHostConfigService.class),
+            sqlTemplateService,
+            datasourceService,
+            mock(HttpEndpointConfigService.class)
+        );
+        SqlDatasourceConfig datasource = datasource("ds-cn", "orders_db", "DEV");
+        datasource.setDatabaseType("mysql");
+        datasource.setAllowedTemplatesJson("[\"MYSQL_CN_STATUS\",\"MYSQL_CN_STORAGE\"]");
+        when(datasourceService.listEnabled()).thenReturn(List.of(datasource));
+        when(sqlTemplateService.listEnabled()).thenReturn(List.of(
+            sqlTemplate(
+                "MYSQL_CN_STORAGE",
+                "SELECT table_schema AS db FROM information_schema.tables",
+                "\u6570\u636e\u5e93\u7a7a\u95f4",
+                "\u6c47\u603b MySQL \u6570\u636e\u5e93\u5bb9\u91cf\u548c\u7a7a\u95f4\u4f7f\u7528\u3002",
+                "mysql",
+                "maintenance_storage",
+                "[\"\u7a7a\u95f4\",\"\u5bb9\u91cf\",\"\u5b58\u50a8\"]"
+            ),
+            sqlTemplate(
+                "MYSQL_CN_STATUS",
+                "SHOW STATUS",
+                "\u6570\u636e\u5e93\u72b6\u6001",
+                "\u67e5\u770b MySQL \u670d\u52a1\u5668\u72b6\u6001\u548c\u5065\u5eb7\u6307\u6807\u3002",
+                "mysql",
+                "maintenance_instance",
+                "[\"\u72b6\u6001\",\"\u5065\u5eb7\",\"\u5b9e\u4f8b\"]"
+            )
+        ));
+
+        Map<String, Object> result = service.query(Map.of(
+            "targetKind", "database",
+            "confidence", 0.9,
+            "language", "en",
+            "filters", Map.of("assetName", "orders_db", "intent", "database health status"),
+            "trace", trace(),
+            "limit", 10
+        ));
+
+        List<?> templates = (List<?>) result.get("templates");
+        Map<?, ?> first = (Map<?, ?>) templates.get(0);
+        Map<?, ?> queryIr = (Map<?, ?>) result.get("queryIr");
+        Map<?, ?> intent = (Map<?, ?>) queryIr.get("intent");
+        assertThat(first.get("templateId")).isEqualTo("MYSQL_CN_STATUS");
+        assertThat(first.get("matchReasons").toString()).contains("status", "health");
+        assertThat(intent.get("type")).isEqualTo("db_status");
+        assertThat(result.get("templateSelectionPolicy").toString()).contains("Chinese and English");
+    }
+
+    @Test
+    void usesModelGeneratedBilingualRetrievalTermsWhenIntentIsAbsent() {
+        SqlTemplateService sqlTemplateService = mock(SqlTemplateService.class);
+        SqlDatasourceConfigService datasourceService = mock(SqlDatasourceConfigService.class);
+        CommandTemplateDiscoveryService service = service(
+            mock(CommandTemplateService.class),
+            mock(SshHostConfigService.class),
+            sqlTemplateService,
+            datasourceService,
+            mock(HttpEndpointConfigService.class)
+        );
+        SqlDatasourceConfig datasource = datasource("ds-bi", "billing_db", "DEV");
+        datasource.setDatabaseType("mysql");
+        datasource.setAllowedTemplatesJson("[\"MYSQL_SHOW_STATUS\",\"MYSQL_DATABASE_SIZE\"]");
+        when(datasourceService.listEnabled()).thenReturn(List.of(datasource));
+        when(sqlTemplateService.listEnabled()).thenReturn(List.of(
+            sqlTemplate(
+                "MYSQL_DATABASE_SIZE",
+                "SELECT table_schema AS db FROM information_schema.tables",
+                "MySQL database size",
+                "Summarize MySQL database size by schema.",
+                "mysql",
+                "maintenance_storage",
+                "[\"storage\",\"space\",\"capacity\"]"
+            ),
+            sqlTemplate(
+                "MYSQL_SHOW_STATUS",
+                "SHOW STATUS",
+                "MySQL status variables",
+                "Show MySQL server status counters for health inspection.",
+                "mysql",
+                "maintenance_instance",
+                "[\"status\",\"health\",\"instance\"]"
+            )
+        ));
+
+        Map<String, Object> result = service.query(Map.of(
+            "targetKind", "database",
+            "confidence", 0.9,
+            "filters", Map.of(
+                "assetName", "billing_db",
+                "bilingualIntent", List.of("\u6570\u636e\u5e93\u72b6\u6001", "database health status")
+            ),
+            "trace", trace(),
+            "limit", 10
+        ));
+
+        List<?> templates = (List<?>) result.get("templates");
+        Map<?, ?> first = (Map<?, ?>) templates.get(0);
+        Map<?, ?> queryIr = (Map<?, ?>) result.get("queryIr");
+        Map<?, ?> intent = (Map<?, ?>) queryIr.get("intent");
+        Map<?, ?> bilingualRetrieval = (Map<?, ?>) intent.get("bilingualRetrieval");
+
+        assertThat(first.get("templateId")).isEqualTo("MYSQL_SHOW_STATUS");
+        assertThat(intent.get("type")).isEqualTo("db_status");
+        assertThat(bilingualRetrieval.get("modelGenerated").toString())
+            .contains("\u6570\u636e\u5e93\u72b6\u6001", "database health status");
+        assertThat(bilingualRetrieval.get("fields").toString()).contains("bilingualIntent", "intentZh", "intentEn");
+    }
+
+    @Test
     void queriesHttpTemplatesWithoutConcreteUrl() {
         HttpEndpointConfigService httpService = mock(HttpEndpointConfigService.class);
         CommandTemplateDiscoveryService service = service(

@@ -517,6 +517,99 @@ class ToolRuntimeServiceTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    void agentWorkflowArrayDeniesDatabaseExecuteUntilDependenciesAndConfirmation() {
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        for (String tool : List.of("asset_query", "template_query", "database_query", "database_execute")) {
+            when(toolRegistry.getToolMetadata(tool)).thenReturn(ToolMetadata.builder()
+                .id(tool)
+                .title(tool)
+                .riskLevel("low")
+                .operationType("database_execute".equals(tool) ? "write" : "read")
+                .categories(List.of("mcp"))
+                .build());
+        }
+        when(toolRegistry.executeEnhancedTool(any(), any())).thenReturn(ToolOutput.success("ok"));
+
+        ToolRuntimeService service = new ToolRuntimeService(
+            toolRegistry,
+            new ObjectMapper(),
+            properties(),
+            new McpPolicyProperties(),
+            new McpWorkflowProperties(),
+            List.of(),
+            List.of()
+        );
+
+        List<Map<String, Object>> workflow = List.of(
+            Map.of("step", "asset_discovery", "tool", "asset_query", "required", true, "dependsOn", List.of(),
+                "confirmation", "none", "executionStrategy", "deterministic_first"),
+            Map.of("step", "template_retrieval", "tool", "template_query", "required", true,
+                "dependsOn", List.of("asset_discovery"), "confirmation", "none", "executionStrategy", "retrieve_rank_then_plan"),
+            Map.of("step", "database_diagnosis", "tool", "database_query", "required", true,
+                "dependsOn", List.of("asset_discovery", "template_retrieval"), "confirmation", "none", "executionStrategy", "read_only_query"),
+            Map.of("step", "database_change", "tool", "database_execute", "required", false,
+                "dependsOn", List.of("asset_discovery", "template_retrieval", "database_diagnosis"),
+                "confirmation", "required_for_write", "executionStrategy", "confirm_then_execute")
+        );
+        List<String> tools = List.of("asset_query", "template_query", "database_query", "database_execute");
+
+        ToolRuntimeExecution denied = service.execute(agentWorkflowRequest(
+            "database_execute",
+            workflow,
+            tools,
+            "req-db-workflow",
+            "conv-db-workflow"
+        ));
+        assertThat(denied.output().isSuccess()).isFalse();
+        assertThat(denied.output().getErrorMessage())
+            .contains("required previous steps")
+            .contains("asset_query", "template_query", "database_query");
+
+        assertThat(service.execute(agentWorkflowRequest("asset_query", workflow, tools,
+            "req-db-workflow", "conv-db-workflow")).output().isSuccess()).isTrue();
+        assertThat(service.execute(agentWorkflowRequest("template_query", workflow, tools,
+            "req-db-workflow", "conv-db-workflow")).output().isSuccess()).isTrue();
+        assertThat(service.execute(agentWorkflowRequest("database_query", workflow, tools,
+            "req-db-workflow", "conv-db-workflow")).output().isSuccess()).isTrue();
+
+        ToolRuntimeExecution needsConfirmation = service.execute(agentWorkflowRequest(
+            "database_execute",
+            workflow,
+            tools,
+            "req-db-workflow",
+            "conv-db-workflow"
+        ));
+        assertThat(needsConfirmation.outcome()).isEqualTo("confirmation_required");
+        assertThat(needsConfirmation.audit().get("matchedPolicyRules").toString())
+            .contains("workflow.agent_workflow.database_execute.confirmation=ask_before_execute");
+        Map<String, Object> confirmation = (Map<String, Object>) needsConfirmation.audit().get("confirmation");
+        String token = String.valueOf(confirmation.get("token"));
+
+        ToolRuntimeExecution confirmed = service.execute(ToolRuntimeRequest.builder()
+            .toolName("database_execute")
+            .runtimeMode("agent_chat")
+            .requestId("req-db-workflow")
+            .conversationId("conv-db-workflow")
+            .tenantId("tenant-1")
+            .userId("user-agent-workflow")
+            .allowedTools(tools)
+            .toolInput(ToolInput.builder().userId("user-agent-workflow").parameters(Map.of()).build())
+            .attributes(Map.of(
+                "mcpWorkflow", workflow,
+                "mcpConfirmation", Map.of(
+                    "token", token,
+                    "approved", true,
+                    "decision", "allow_once"
+                )
+            ))
+            .build());
+
+        assertThat(confirmed.output().isSuccess()).isTrue();
+        verify(toolRegistry, times(4)).executeEnhancedTool(any(), any());
+    }
+
+    @Test
     void agentWorkflowAutoExecuteOverridesParameterConfirmation() {
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         when(toolRegistry.getToolMetadata("document_search")).thenReturn(ToolMetadata.builder()
@@ -723,16 +816,16 @@ class ToolRuntimeServiceTest {
             .build();
     }
 
-    private ToolRuntimeRequest agentWorkflowRequest(String toolName, Map<String, Object> workflowConfig) {
+    private ToolRuntimeRequest agentWorkflowRequest(String toolName, Object workflowConfig) {
         return agentWorkflowRequest(toolName, workflowConfig, List.of("query_customer_basic_info", "query_customer_asset_summary"));
     }
 
-    private ToolRuntimeRequest agentWorkflowRequest(String toolName, Map<String, Object> workflowConfig, List<String> allowedTools) {
+    private ToolRuntimeRequest agentWorkflowRequest(String toolName, Object workflowConfig, List<String> allowedTools) {
         return agentWorkflowRequest(toolName, workflowConfig, allowedTools, "req-agent-workflow", "conv-agent-workflow");
     }
 
     private ToolRuntimeRequest agentWorkflowRequest(String toolName,
-                                                    Map<String, Object> workflowConfig,
+                                                    Object workflowConfig,
                                                     List<String> allowedTools,
                                                     String requestId,
                                                     String conversationId) {

@@ -35,14 +35,69 @@ function Assert-ProjectRoot {
 }
 
 function Get-JavaCommand {
-    if ($env:JAVA_HOME) {
-        $JavaFromHome = Join-Path $env:JAVA_HOME "bin\java.exe"
-        if (Test-Path $JavaFromHome) {
-            return $JavaFromHome
+    $Candidates = @()
+    foreach ($HomeVar in @("JAVA_HOME", "JAVA17_HOME", "JDK_HOME")) {
+        $JavaHomeValue = [Environment]::GetEnvironmentVariable($HomeVar)
+        if ($JavaHomeValue) {
+            $Candidates += Join-Path $JavaHomeValue "bin\java.exe"
+        }
+    }
+    $Candidates += @(
+        "$env:USERPROFILE\.jdks\corretto-17.0.15\bin\java.exe",
+        "$env:USERPROFILE\.jdks\corretto-21.0.8\bin\java.exe"
+    )
+    $Candidates += Get-ChildItem -Path "C:\Program Files\Java", "$env:USERPROFILE\.jdks" -Filter "java.exe" -Recurse -ErrorAction SilentlyContinue |
+        Select-Object -ExpandProperty FullName
+
+    foreach ($Candidate in ($Candidates | Where-Object { $_ } | Select-Object -Unique)) {
+        if ((Test-Path $Candidate) -and (Get-JavaMajorVersion -JavaPath $Candidate) -ge 17) {
+            return $Candidate
         }
     }
 
-    return "java"
+    $PathJava = "java"
+    if ((Get-JavaMajorVersion -JavaPath $PathJava) -ge 17) {
+        return $PathJava
+    }
+
+    throw "Java 17+ is required. Current JAVA_HOME is '$env:JAVA_HOME'. Set JAVA_HOME to a JDK 17+ installation."
+}
+
+function Get-JavaMajorVersion {
+    param([string]$JavaPath)
+
+    try {
+        if ($JavaPath -eq "java") {
+            $VersionOutput = cmd /c "java -version 2>&1"
+        }
+        else {
+            $VersionOutput = cmd /c "`"$JavaPath`" -version 2>&1"
+        }
+        $VersionOutput = $VersionOutput | Out-String
+    }
+    catch {
+        return 0
+    }
+
+    if ($VersionOutput -match 'version "1\.(\d+)') {
+        return [int]$Matches[1]
+    }
+    if ($VersionOutput -match 'version "(\d+)') {
+        return [int]$Matches[1]
+    }
+    if ($VersionOutput -match 'openjdk (\d+)') {
+        return [int]$Matches[1]
+    }
+    return 0
+}
+
+function Get-JavaHomeFromCommand {
+    param([string]$JavaPath)
+
+    if ($JavaPath -eq "java") {
+        return $null
+    }
+    return Split-Path -Parent (Split-Path -Parent $JavaPath)
 }
 
 function Get-ManagedProcess {
@@ -129,6 +184,13 @@ function Invoke-Build {
 
     Push-Location $ProjectRoot
     try {
+        $Java = Get-JavaCommand
+        $JavaHome = Get-JavaHomeFromCommand -JavaPath $Java
+        if ($JavaHome) {
+            $env:JAVA_HOME = $JavaHome
+            $env:Path = (Join-Path $JavaHome "bin") + ";" + $env:Path
+            Write-Host "Using JAVA_HOME=$JavaHome"
+        }
         Write-Host "Building modules: mvn $($MavenArgs -join ' ')"
         & mvn @MavenArgs
         if ($LASTEXITCODE -ne 0) {

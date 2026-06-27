@@ -1390,13 +1390,51 @@ public class ToolRuntimeService {
 
         ToolRuntimeAction action = currentStep == null
             ? null
-            : ToolRuntimeAction.from(currentStep.getConfirmation(), null);
+            : workflowConfirmationAction(currentStep.getConfirmation(), executionPlan);
         if (action != null) {
             matchedRules.add("workflow." + workflowName + "." + toolName + ".confirmation=" + action.code());
         }
         return new WorkflowDecision(true, workflowName, stateKey, action,
             "MCP workflow resolved action " + (action == null ? "inherit_policy" : action.code()),
             matchedRules);
+    }
+
+    private ToolRuntimeAction workflowConfirmationAction(String confirmation, ToolExecutionPlan executionPlan) {
+        if (confirmation == null || confirmation.isBlank()) {
+            return null;
+        }
+        String value = normalizePolicyKey(confirmation);
+        return switch (value) {
+            case "none", "no", "false", "auto", "auto_execute" -> ToolRuntimeAction.AUTO_EXECUTE;
+            case "required_always", "required", "always", "ask_before_execute", "confirm_required", "confirmation_required" ->
+                ToolRuntimeAction.ASK_BEFORE_EXECUTE;
+            case "required_for_write", "write" -> workflowRequiresWriteConfirmation(executionPlan)
+                ? ToolRuntimeAction.ASK_BEFORE_EXECUTE
+                : null;
+            case "required_for_risky_command", "risky_command", "risky" -> workflowRequiresRiskyConfirmation(executionPlan)
+                ? ToolRuntimeAction.ASK_BEFORE_EXECUTE
+                : null;
+            default -> ToolRuntimeAction.from(confirmation, null);
+        };
+    }
+
+    private boolean workflowRequiresWriteConfirmation(ToolExecutionPlan executionPlan) {
+        String operation = normalizePolicyKey(executionPlan == null ? null : executionPlan.operationType());
+        return "write".equals(operation)
+            || "send".equals(operation)
+            || "delete".equals(operation)
+            || "update".equals(operation)
+            || "execute".equals(operation)
+            || "permission_change".equals(operation);
+    }
+
+    private boolean workflowRequiresRiskyConfirmation(ToolExecutionPlan executionPlan) {
+        String risk = normalizePolicyKey(executionPlan == null ? null : executionPlan.riskLevel());
+        String operation = normalizePolicyKey(executionPlan == null ? null : executionPlan.operationType());
+        return "medium".equals(risk)
+            || "high".equals(risk)
+            || "forbidden".equals(risk)
+            || (!operation.isBlank() && !"read".equals(operation) && !"readonly".equals(operation) && !"read_only".equals(operation));
     }
 
     /**
@@ -1750,9 +1788,10 @@ public class ToolRuntimeService {
      * @return the operation result
      */
     private Map<String, Object> agentWorkflowConfig(ToolRuntimeRequest request) {
-        Map<String, Object> workflow = asMap(request == null || request.getAttributes() == null
+        Object rawWorkflow = request == null || request.getAttributes() == null
             ? null
-            : request.getAttributes().get("mcpWorkflow"));
+            : request.getAttributes().get("mcpWorkflow");
+        Map<String, Object> workflow = workflowConfigMap(rawWorkflow);
         if (workflow.isEmpty()) {
             return Map.of();
         }
@@ -1761,6 +1800,16 @@ public class ToolRuntimeService {
             return Map.of();
         }
         return workflow;
+    }
+
+    private Map<String, Object> workflowConfigMap(Object rawWorkflow) {
+        if (rawWorkflow instanceof List<?> list) {
+            Map<String, Object> workflow = new LinkedHashMap<>();
+            workflow.put("enabled", true);
+            workflow.put("steps", list);
+            return workflow;
+        }
+        return asMap(rawWorkflow);
     }
 
     /**
@@ -1855,6 +1904,7 @@ public class ToolRuntimeService {
             return List.of();
         }
         List<McpWorkflowProperties.WorkflowStep> steps = new ArrayList<>();
+        Map<String, String> stepKeyToTool = new LinkedHashMap<>();
         int index = 1;
         for (Object item : list) {
             Map<String, Object> rawStep = asMap(item);
@@ -1864,7 +1914,10 @@ public class ToolRuntimeService {
                 continue;
             }
             McpWorkflowProperties.WorkflowStep step = new McpWorkflowProperties.WorkflowStep();
-            step.setName(stringValue(rawStep.get("name")));
+            Object stepValue = firstPresent(rawStep.get("step"), rawStep.get("order"));
+            String stepText = stringValue(stepValue);
+            step.setName(firstText(stringValue(rawStep.get("name")),
+                stepText != null && integerValue(stepText) == null ? stepText : null));
             step.setStep(firstInteger(firstPresent(rawStep.get("step"), rawStep.get("order")), index));
             step.setTool(tool == null || tool.isBlank() ? null : tool.trim());
             step.setParallelSteps(parallelSteps);
@@ -1874,9 +1927,39 @@ public class ToolRuntimeService {
             step.setConfirmation(stringValue(rawStep.get("confirmation")));
             step.setDependsOn(stringList(firstPresent(rawStep.get("dependsOn"), rawStep.get("depends_on"))));
             steps.add(step);
+            for (String key : workflowStepKeys(step, stepText)) {
+                stepKeyToTool.putIfAbsent(normalizePolicyKey(key), step.getTool());
+            }
             index++;
         }
+        for (McpWorkflowProperties.WorkflowStep step : steps) {
+            step.setDependsOn(step.getDependsOn() == null ? List.of() : step.getDependsOn().stream()
+                .map(dependency -> firstText(stepKeyToTool.get(normalizePolicyKey(dependency)), dependency))
+                .filter(dependency -> dependency != null && !dependency.isBlank())
+                .distinct()
+                .toList());
+        }
         return steps;
+    }
+
+    private List<String> workflowStepKeys(McpWorkflowProperties.WorkflowStep step, String rawStepValue) {
+        if (step == null) {
+            return List.of();
+        }
+        List<String> keys = new ArrayList<>();
+        if (step.getName() != null && !step.getName().isBlank()) {
+            keys.add(step.getName());
+        }
+        if (rawStepValue != null && !rawStepValue.isBlank()) {
+            keys.add(rawStepValue);
+        }
+        if (step.getStep() != null) {
+            keys.add(String.valueOf(step.getStep()));
+        }
+        if (step.getTool() != null && !step.getTool().isBlank()) {
+            keys.add(step.getTool());
+        }
+        return keys;
     }
 
     /**

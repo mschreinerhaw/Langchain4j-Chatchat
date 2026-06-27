@@ -344,8 +344,9 @@ public class CommandTemplateDiscoveryService {
                 "doNotInventTemplateNames", true,
                 "engine", "mcp_template_lucene_decision_v2_no_vector",
                 "orderedBy", "templates[] is recalled by Lucene BM25, then ranked by decisionScore desc from intentMatch, lexicalScore, typeMatch, popularity, safetyScore",
-                "intentSynonymSource", "chatchat.mcp.template-discovery.intent-synonyms plus template intentSignals",
-                "selectionHint", "Choose the returned template whose name, description, intentSignals, relevanceScore, and matchReasons best match the user intent; do not use asset allowed template order as semantic ranking.",
+                "intentSynonymSource", "built-in zh/en intent synonyms plus chatchat.mcp.template-discovery.intent-synonyms and template intentSignals",
+                "languageSupport", "Models should generate bilingual Chinese and English retrieval terms in bilingualIntent, bilingualQuery, intentZh, or intentEn; the engine expands them into shared bilingual signals before retrieval and ranking.",
+                "selectionHint", "Generate and use bilingual Chinese and English retrieval terms, then choose the returned template whose name, description, intentSignals, relevanceScore, and matchReasons best match the user intent; do not use asset allowed template order as semantic ranking.",
                 "fallback", "If authorized candidates exist but intent ranking returns no match, the engine broadens intent and marks resolutionTrace[].fallbackUsed=true.",
                 "onEmptyResult", "No existing authorized template matched the request after asset, type and authorization filters. Do not suggest a new template name unless the user asks to administer templates."
             ),
@@ -434,7 +435,8 @@ public class CommandTemplateDiscoveryService {
                 "type", intent.type(),
                 "lane", intent.lane(),
                 "tags", intent.tags(),
-                "confidence", intent.confidence()
+                "confidence", intent.confidence(),
+                "bilingualRetrieval", bilingualRetrieval(filters, intent)
             )
         );
     }
@@ -456,7 +458,8 @@ public class CommandTemplateDiscoveryService {
                 "stage", "intent_normalization",
                 "intent", intent.type(),
                 "tags", intent.tags(),
-                "confidence", intent.confidence()
+                "confidence", intent.confidence(),
+                "bilingualRetrieval", bilingualRetrieval(filters, intent)
             ),
             mapOf(
                 "stage", "template_retrieval",
@@ -541,6 +544,7 @@ public class CommandTemplateDiscoveryService {
 
     private String luceneIntentText(Map<String, Object> filters, NormalizedIntent intent) {
         LinkedHashSet<String> values = new LinkedHashSet<>(intentTokens(filters));
+        values.addAll(bilingualIntentTokens(filters));
         if (intent != null && !"unknown".equals(intent.type())) {
             values.add(intent.type());
             values.addAll(intent.tags());
@@ -808,26 +812,28 @@ public class CommandTemplateDiscoveryService {
     }
 
     private NormalizedIntent normalizeIntent(Map<String, Object> filters) {
-        List<String> tokens = intentTokens(filters);
+        List<String> tokens = new ArrayList<>(intentTokens(filters));
+        tokens.addAll(bilingualIntentTokens(filters));
+        tokens = tokens.stream().distinct().toList();
         if (tokens.isEmpty()) {
             return new NormalizedIntent("unknown", List.of(), "ops", 0.0);
         }
-        if (containsAnyToken(tokens, "metadata", "schema", "column", "元数据", "表结构", "字段", "列")) {
+        if (containsAnyToken(tokens, "metadata", "schema", "column", "field", "\u5143\u6570\u636e", "\u8868\u7ed3\u6784", "\u5b57\u6bb5", "\u5217")) {
             return new NormalizedIntent("metadata_query", List.of("metadata", "schema", "column"), "ops", 0.88);
         }
-        if (containsAnyToken(tokens, "lock", "blocking", "deadlock", "锁", "阻塞", "等待", "死锁")) {
+        if (containsAnyToken(tokens, "lock", "blocking", "deadlock", "wait", "\u9501", "\u963b\u585e", "\u7b49\u5f85", "\u6b7b\u9501")) {
             return new NormalizedIntent("lock_check", List.of("lock", "blocking", "deadlock"), "ops", 0.88);
         }
-        if (containsAnyToken(tokens, "storage", "size", "space", "空间", "容量", "大小", "存储")) {
+        if (containsAnyToken(tokens, "storage", "size", "space", "capacity", "\u7a7a\u95f4", "\u5bb9\u91cf", "\u5927\u5c0f", "\u5b58\u50a8")) {
             return new NormalizedIntent("storage_check", List.of("storage", "size", "space"), "ops", 0.86);
         }
-        if (containsAnyToken(tokens, "connection", "session", "processlist", "连接", "会话", "连接数")) {
+        if (containsAnyToken(tokens, "connection", "connections", "session", "processlist", "\u8fde\u63a5", "\u4f1a\u8bdd", "\u8fde\u63a5\u6570")) {
             return new NormalizedIntent("connection_check", List.of("connection", "session", "processlist"), "ops", 0.86);
         }
-        if (containsAnyToken(tokens, "performance", "slow", "cpu", "卡", "卡顿", "慢", "性能", "性能分析")) {
+        if (containsAnyToken(tokens, "performance", "slow", "latency", "cpu", "\u5361", "\u5361\u987f", "\u6162", "\u6027\u80fd", "\u6027\u80fd\u5206\u6790", "\u6162\u67e5\u8be2")) {
             return new NormalizedIntent("performance_issue", List.of("performance", "slow", "health"), "ops", 0.84);
         }
-        if (containsAnyToken(tokens, "status", "health", "instance", "状态", "数据库状态", "状态分析")) {
+        if (containsAnyToken(tokens, "status", "health", "instance", "\u72b6\u6001", "\u6570\u636e\u5e93\u72b6\u6001", "\u72b6\u6001\u5206\u6790")) {
             return new NormalizedIntent("db_status", List.of("status", "health", "instance"), "ops", 0.9);
         }
         return new NormalizedIntent(firstText(tokens.get(0), "general_query"), tokens.stream().limit(6).toList(), "ops", 0.55);
@@ -846,6 +852,7 @@ public class CommandTemplateDiscoveryService {
             values.add(intent.type());
             values.addAll(intent.tags());
         }
+        values.addAll(bilingualIntentValues(filters));
         if (!values.isEmpty()) {
             merged.put("intent", values);
         }
@@ -1417,6 +1424,54 @@ public class CommandTemplateDiscoveryService {
         return tokens.stream().distinct().toList();
     }
 
+    private List<String> bilingualIntentTokens(Map<String, Object> filters) {
+        List<String> tokens = new ArrayList<>();
+        bilingualIntentValues(filters).forEach(value -> addWords(tokens, value));
+        return tokens.stream().distinct().toList();
+    }
+
+    private List<Object> bilingualIntentValues(Map<String, Object> filters) {
+        List<Object> values = new ArrayList<>();
+        for (String key : List.of(
+            "bilingualIntent",
+            "bilingualQuery",
+            "bilingualSearch",
+            "queryTerms",
+            "searchTerms",
+            "intentZh",
+            "intentEn"
+        )) {
+            Object value = filters.get(key);
+            if (value instanceof List<?> list) {
+                values.addAll(list);
+            } else if (value != null && !String.valueOf(value).isBlank()) {
+                values.add(value);
+            }
+        }
+        return values;
+    }
+
+    private Map<String, Object> bilingualRetrieval(Map<String, Object> filters, NormalizedIntent intent) {
+        List<String> modelGenerated = bilingualIntentValues(filters).stream()
+            .map(value -> value == null ? null : String.valueOf(value).trim())
+            .filter(value -> value != null && !value.isBlank())
+            .distinct()
+            .toList();
+        LinkedHashSet<String> generated = new LinkedHashSet<>();
+        if (intent != null && !"unknown".equals(intent.type())) {
+            generated.add(intent.type());
+            generated.addAll(intent.tags());
+        }
+        generated.addAll(bilingualIntentTokens(filters));
+        return mapOf(
+            "required", true,
+            "modelGenerated", modelGenerated,
+            "generatedByEngine", generated.stream().toList(),
+            "fields", List.of("bilingualIntent", "bilingualQuery", "intentZh", "intentEn"),
+            "languages", List.of("zh", "en")
+        );
+    }
+
     @SuppressWarnings("unchecked")
     private Map<String, Object> filters(Map<String, Object> arguments) {
         Map<String, Object> filters = new LinkedHashMap<>();
@@ -1444,6 +1499,13 @@ public class CommandTemplateDiscoveryService {
             "target_type",
             "labels",
             "intent",
+            "bilingualIntent",
+            "bilingualQuery",
+            "bilingualSearch",
+            "queryTerms",
+            "searchTerms",
+            "intentZh",
+            "intentEn",
             "goal",
             "category",
             "database",
@@ -1455,7 +1517,10 @@ public class CommandTemplateDiscoveryService {
             "template",
             "templateId",
             "template_id",
-            "view"
+            "view",
+            "language",
+            "queryLanguage",
+            "locale"
         )) {
             Object value = arguments.get(key);
             if (value != null) {
@@ -1890,12 +1955,12 @@ public class CommandTemplateDiscoveryService {
     }
 
     private void addBuiltinIntentSynonyms(java.util.Collection<String> words, String text) {
-        addBuiltinIntentSynonyms(words, text, "status", List.of("状态", "数据库状态", "状态分析", "status", "health", "instance"));
-        addBuiltinIntentSynonyms(words, text, "performance", List.of("性能", "卡", "卡顿", "慢", "性能分析", "performance", "slow"));
-        addBuiltinIntentSynonyms(words, text, "lock", List.of("锁", "阻塞", "等待", "死锁", "lock", "blocking", "deadlock"));
-        addBuiltinIntentSynonyms(words, text, "storage", List.of("空间", "容量", "大小", "存储", "storage", "size", "space"));
-        addBuiltinIntentSynonyms(words, text, "metadata", List.of("元数据", "表结构", "字段", "列", "metadata", "schema", "column"));
-        addBuiltinIntentSynonyms(words, text, "connection", List.of("连接", "会话", "连接数", "session", "connection", "processlist"));
+        addBuiltinIntentSynonyms(words, text, "status", List.of("\u72b6\u6001", "\u6570\u636e\u5e93\u72b6\u6001", "\u72b6\u6001\u5206\u6790", "status", "health", "instance"));
+        addBuiltinIntentSynonyms(words, text, "performance", List.of("\u6027\u80fd", "\u5361", "\u5361\u987f", "\u6162", "\u6027\u80fd\u5206\u6790", "\u6162\u67e5\u8be2", "performance", "slow", "latency", "cpu"));
+        addBuiltinIntentSynonyms(words, text, "lock", List.of("\u9501", "\u963b\u585e", "\u7b49\u5f85", "\u6b7b\u9501", "lock", "blocking", "deadlock", "wait"));
+        addBuiltinIntentSynonyms(words, text, "storage", List.of("\u7a7a\u95f4", "\u5bb9\u91cf", "\u5927\u5c0f", "\u5b58\u50a8", "storage", "size", "space", "capacity"));
+        addBuiltinIntentSynonyms(words, text, "metadata", List.of("\u5143\u6570\u636e", "\u8868\u7ed3\u6784", "\u5b57\u6bb5", "\u5217", "metadata", "schema", "column", "field"));
+        addBuiltinIntentSynonyms(words, text, "connection", List.of("\u8fde\u63a5", "\u4f1a\u8bdd", "\u8fde\u63a5\u6570", "session", "connection", "connections", "processlist"));
     }
 
     private void addBuiltinIntentSynonyms(java.util.Collection<String> words,

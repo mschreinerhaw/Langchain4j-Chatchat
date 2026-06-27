@@ -53,6 +53,9 @@ public class AgentToolPolicyResolver {
         availableTools = normalizeToolNames(availableTools);
         availableTools = applyExecutionContextRouting(request, availableTools);
 
+        WorkflowToolResolution workflowTools = resolveRequiredWorkflowTools(skill, availableTools);
+        availableTools = mergeToolNames(availableTools, workflowTools.autoAddedTools());
+
         boolean documentWorkflowRequested = isDocumentWorkflowRequested(request, skill);
         if (documentWorkflowRequested) {
             availableTools = withAvailableTool(availableTools, DOCUMENT_SEARCH_TOOL);
@@ -68,13 +71,16 @@ public class AgentToolPolicyResolver {
             ));
         }
         activations.addAll(resolveToolActivations(requestedIntents, skill));
-        List<String> requiredTools = activations.stream()
+        List<String> activatedRequiredTools = activations.stream()
             .map(ToolActivation::localToolName)
             .distinct()
             .toList();
+        List<String> requiredTools = mergeToolNames(workflowTools.requiredTools(), activatedRequiredTools);
         availableTools = mergeRequestedTools(availableTools, requiredTools, requestedIntents);
         ToolSelection selection = selectRelevantTools(request, skill, availableTools, requiredTools);
         boolean hasMcpBinding = hasMcpBinding(skill);
+        Map<String, String> skippedToolReasons = new LinkedHashMap<>(workflowTools.skippedToolReasons());
+        skippedToolReasons.putAll(selection.skippedToolReasons());
 
         return new ToolPolicy(
             selection.availableTools(),
@@ -83,7 +89,8 @@ public class AgentToolPolicyResolver {
             !requiredTools.isEmpty(),
             activations.stream().map(ToolActivation::intentName).toList(),
             selection.selectedCandidateTools(),
-            selection.skippedToolReasons()
+            skippedToolReasons,
+            workflowTools.autoAddedTools()
         );
     }
 
@@ -247,6 +254,142 @@ public class AgentToolPolicyResolver {
             return new ArrayList<>(tools);
         }
         return normalized;
+    }
+
+    private WorkflowToolResolution resolveRequiredWorkflowTools(SkillDefinition skill, List<String> availableTools) {
+        List<Map<String, Object>> steps = workflowSteps(skill);
+        if (steps.isEmpty()) {
+            return new WorkflowToolResolution(List.of(), List.of(), Map.of());
+        }
+        List<McpToolRegistryBridge.RegisteredMcpTool> registeredTools = mcpToolRegistryBridge.listRegisteredTools();
+        LinkedHashSet<String> requiredTools = new LinkedHashSet<>();
+        LinkedHashSet<String> autoAddedTools = new LinkedHashSet<>();
+        Map<String, String> skipped = new LinkedHashMap<>();
+        List<String> normalizedAvailableTools = normalizeToolNames(availableTools);
+
+        for (Map<String, Object> step : steps) {
+            if (step == null || !workflowStepRequired(step)) {
+                continue;
+            }
+            String configuredTool = firstText(step.get("tool"), step.get("toolName"));
+            if (configuredTool == null || configuredTool.isBlank()) {
+                continue;
+            }
+            String localTool = resolveWorkflowLocalTool(configuredTool, registeredTools);
+            if (localTool == null) {
+                skipped.put(configuredTool, "required workflow tool is not registered in MCP registry");
+                continue;
+            }
+            requiredTools.add(localTool);
+            if (!normalizedAvailableTools.contains(localTool)) {
+                autoAddedTools.add(localTool);
+                normalizedAvailableTools = mergeToolNames(normalizedAvailableTools, List.of(localTool));
+            }
+        }
+        return new WorkflowToolResolution(
+            new ArrayList<>(requiredTools),
+            new ArrayList<>(autoAddedTools),
+            skipped
+        );
+    }
+
+    private List<Map<String, Object>> workflowSteps(SkillDefinition skill) {
+        if (skill == null || skill.workflowConfig() == null || skill.workflowConfig().isEmpty()) {
+            return List.of();
+        }
+        Object workflow = skill.workflowConfig().get("mcpWorkflow");
+        if (workflow == null) {
+            workflow = skill.workflowConfig().get("steps");
+        }
+        if (workflow == null) {
+            workflow = skill.workflowConfig();
+        }
+        if (workflow instanceof List<?> list) {
+            return list.stream()
+                .filter(Map.class::isInstance)
+                .map(item -> mapOf(item))
+                .toList();
+        }
+        if (workflow instanceof Map<?, ?> map) {
+            Object nested = map.get("mcpWorkflow");
+            if (nested == null) {
+                nested = map.get("steps");
+            }
+            if (nested instanceof List<?> list) {
+                return list.stream()
+                    .filter(Map.class::isInstance)
+                    .map(item -> mapOf(item))
+                    .toList();
+            }
+        }
+        return List.of();
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> mapOf(Object value) {
+        return (Map<String, Object>) value;
+    }
+
+    private boolean workflowStepRequired(Map<String, Object> step) {
+        Object required = step.get("required");
+        if (required == null) {
+            return false;
+        }
+        if (required instanceof Boolean bool) {
+            return bool;
+        }
+        return Boolean.parseBoolean(String.valueOf(required));
+    }
+
+    private String resolveWorkflowLocalTool(String configuredTool,
+                                            List<McpToolRegistryBridge.RegisteredMcpTool> registeredTools) {
+        String normalized = normalizeToolName(configuredTool);
+        if (normalized.isBlank()) {
+            return null;
+        }
+        if (toolRegistry.hasTool(configuredTool)) {
+            return configuredTool.trim();
+        }
+        if (registeredTools == null || registeredTools.isEmpty()) {
+            return null;
+        }
+        for (McpToolRegistryBridge.RegisteredMcpTool registeredTool : registeredTools) {
+            if (registeredTool == null || !toolRegistry.hasTool(registeredTool.localToolName())) {
+                continue;
+            }
+            if (normalized.equals(normalizeToolName(registeredTool.localToolName()))
+                || normalized.equals(normalizeToolName(registeredTool.remoteToolName()))) {
+                return registeredTool.localToolName();
+            }
+        }
+        List<String> aliases = workflowToolAliases(normalized);
+        for (McpToolRegistryBridge.RegisteredMcpTool registeredTool : registeredTools) {
+            if (registeredTool == null || !toolRegistry.hasTool(registeredTool.localToolName())) {
+                continue;
+            }
+            String remote = normalizeToolName(registeredTool.remoteToolName());
+            String local = normalizeToolName(registeredTool.localToolName());
+            for (String alias : aliases) {
+                if (alias.equals(remote) || local.endsWith("_" + alias)) {
+                    return registeredTool.localToolName();
+                }
+            }
+        }
+        return null;
+    }
+
+    private List<String> workflowToolAliases(String normalizedToolName) {
+        return switch (normalizedToolName) {
+            case "asset_query", "asset_discovery" -> List.of("asset_query");
+            case "template_query", "template_retrieval" -> List.of("template_query");
+            case "database_query", "database_diagnosis", "sql_query" ->
+                List.of("database_query", "sql_query_execute");
+            case "database_execute", "sql_execute", "database_change" ->
+                List.of("database_execute", "sql_execute", "sql_write_execute");
+            case "host_diagnosis", "linux_command", "linux_command_execute" ->
+                List.of("linux_command_execute");
+            default -> List.of(normalizedToolName);
+        };
     }
 
     /**
@@ -641,10 +784,26 @@ public class AgentToolPolicyResolver {
             .toList();
     }
 
+    private List<String> mergeToolNames(List<String> first, List<String> second) {
+        LinkedHashSet<String> merged = new LinkedHashSet<>();
+        normalizeToolNames(first).forEach(merged::add);
+        normalizeToolNames(second).forEach(merged::add);
+        return new ArrayList<>(merged);
+    }
+
     private String normalizeToolName(String toolName) {
         return toolName == null || toolName.isBlank()
             ? ""
             : toolName.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private String firstText(Object first, Object second) {
+        String firstValue = first == null ? null : String.valueOf(first).trim();
+        if (firstValue != null && !firstValue.isBlank()) {
+            return firstValue;
+        }
+        String secondValue = second == null ? null : String.valueOf(second).trim();
+        return secondValue == null || secondValue.isBlank() ? null : secondValue;
     }
 
     /**
@@ -690,7 +849,8 @@ public class AgentToolPolicyResolver {
         boolean requireBoundToolCall,
         List<String> activatedIntents,
         List<String> selectedCandidateTools,
-        Map<String, String> skippedToolReasons
+        Map<String, String> skippedToolReasons,
+        List<String> workflowAutoAddedTools
     ) {
     }
 
@@ -718,6 +878,13 @@ public class AgentToolPolicyResolver {
     private record ToolSelection(
         List<String> availableTools,
         List<String> selectedCandidateTools,
+        Map<String, String> skippedToolReasons
+    ) {
+    }
+
+    private record WorkflowToolResolution(
+        List<String> requiredTools,
+        List<String> autoAddedTools,
         Map<String, String> skippedToolReasons
     ) {
     }

@@ -48,6 +48,62 @@ class AgentPlannerTest {
     }
 
     @Test
+    void plannerPromptIncludesAgentRuntimeOsWorkflowGraph() throws Exception {
+        AgentPlanner planner = new AgentPlanner(new TestToolRegistry(), new ObjectMapper());
+        Method method = AgentPlanner.class.getDeclaredMethod(
+            "buildPlannerPrompt",
+            String.class,
+            String.class,
+            List.class,
+            List.class,
+            List.class,
+            List.class,
+            List.class,
+            boolean.class,
+            boolean.class,
+            String.class,
+            String.class,
+            Map.class
+        );
+        method.setAccessible(true);
+        List<Map<String, Object>> workflow = List.of(
+            Map.of("step", "asset_discovery", "tool", "mcp_chatchat_mcp_server_asset_query", "required", true),
+            Map.of(
+                "step", "template_retrieval",
+                "tool", "mcp_chatchat_mcp_server_template_query",
+                "required", true,
+                "dependsOn", List.of("asset_discovery"),
+                "confirmation", "required_for_write"
+            )
+        );
+
+        String prompt = (String) method.invoke(
+            planner,
+            "分析本地MySQL测试服务InnoDB状态",
+            "",
+            List.of("mcp_chatchat_mcp_server_asset_query", "mcp_chatchat_mcp_server_template_query"),
+            List.of(),
+            List.of(),
+            List.of(),
+            List.of("mcp_chatchat_mcp_server_asset_query", "mcp_chatchat_mcp_server_template_query"),
+            true,
+            false,
+            null,
+            null,
+            Map.of("mcpWorkflow", workflow)
+        );
+
+        assertThat(prompt)
+            .contains("MCP tool orchestration contract from current Agent Runtime OS")
+            .contains("mandatory reasoning and execution graph")
+            .contains("tool=mcp_chatchat_mcp_server_asset_query")
+            .contains("tool=mcp_chatchat_mcp_server_template_query")
+            .contains("step asset_discovery")
+            .contains("dependsOn=[asset_discovery]")
+            .contains("confirmation=required_for_write");
+    }
+
+    @Test
     void normalizesRecoverableInterpretationPlanBeforeValidation() throws Exception {
         AgentPlanner planner = new AgentPlanner(new TestToolRegistry(), new ObjectMapper());
         List<String> requiredTools = List.of(
@@ -162,6 +218,86 @@ class AgentPlannerTest {
     }
 
     @Test
+    void rejectsInterpretationPlanThatSkipsConfiguredAssetDiscoveryOrder() throws Exception {
+        AgentPlanner planner = new AgentPlanner(new TestToolRegistry(), new ObjectMapper());
+        List<String> requiredTools = List.of(
+            "mcp_chatchat_mcp_server_asset_query",
+            "mcp_chatchat_mcp_server_template_query"
+        );
+        PlannerValidationContext context = new PlannerValidationContext(
+            requiredTools,
+            true,
+            false,
+            null,
+            null,
+            requiredTools,
+            "分析本地MySQL测试服务InnoDB状态"
+        );
+        String raw = """
+            {
+              "version": "1.0",
+              "intent": {"type": "sql_query", "goal": "分析本地MySQL测试服务InnoDB状态", "risk_level": "medium"},
+              "context": {"key_facts": [], "constraints": []},
+              "plan": {
+                "steps": [
+                  {
+                    "id": 1,
+                    "action_type": "mcp_tool",
+                    "tool_name": "mcp_chatchat_mcp_server_template_query",
+                    "input": {
+                      "candidates": [{"targetKind": "database", "confidence": 0.95}],
+                      "finalDecision": "database",
+                      "filters": {"intent": "分析本地MySQL测试服务InnoDB状态"},
+                      "limit": 10
+                    },
+                    "depends_on": []
+                  },
+                  {
+                    "id": 2,
+                    "action_type": "mcp_tool",
+                    "tool_name": "mcp_chatchat_mcp_server_asset_query",
+                    "input": {
+                      "candidates": [{"targetKind": "database", "confidence": 0.95}],
+                      "finalDecision": "database",
+                      "filters": {},
+                      "limit": 10
+                    },
+                    "depends_on": []
+                  },
+                  {
+                    "id": 3,
+                    "action_type": "final_answer",
+                    "tool_name": "",
+                    "input": {"answer": "待工具返回后生成报告"},
+                    "depends_on": [1, 2]
+                  }
+                ],
+                "edge_contracts": [],
+                "bindings": []
+              },
+              "execution_policy": {
+                "max_steps": 3,
+                "allow_tool": [
+                  "mcp_chatchat_mcp_server_asset_query",
+                  "mcp_chatchat_mcp_server_template_query"
+                ],
+                "fallback_mode": "safe_answer"
+              },
+              "review": {"self_check": {"tool_sufficiency": false, "missing_steps": []}, "fallback_plan": []}
+            }
+            """;
+
+        Method parseDecision = AgentPlanner.class.getDeclaredMethod("parseDecision", String.class, PlannerValidationContext.class);
+        parseDecision.setAccessible(true);
+        AgentDecision decision = (AgentDecision) parseDecision.invoke(planner, raw, context);
+
+        assertThat(decision.action()).isEqualTo("final");
+        assertThat(decision.reason()).isEqualTo("invalid_interpretation_plan");
+        assertThat((List<?>) decision.executionPlan().get("interpretationPlanRuntimeIssues"))
+            .anySatisfy(issue -> assertThat(String.valueOf(issue)).contains("Mandatory tools must appear in configured order"));
+    }
+
+    @Test
     void rejectsReasoningStepThatGuessesAssetRoutingContext() throws Exception {
         AgentPlanner planner = new AgentPlanner(new TestToolRegistry(), new ObjectMapper());
         List<String> requiredTools = List.of(
@@ -238,6 +374,82 @@ class AgentPlannerTest {
         assertThat(decision.reason()).isEqualTo("invalid_interpretation_plan");
         assertThat((List<?>) decision.executionPlan().get("interpretationPlanRuntimeIssues"))
             .anySatisfy(issue -> assertThat(String.valueOf(issue)).contains("Do not use a reasoning step to replace asset_query"));
+    }
+
+    @Test
+    void rejectsTemplateToSqlPlanThatAssumesAssetRoutingContext() throws Exception {
+        AgentPlanner planner = new AgentPlanner(new TestToolRegistry(), new ObjectMapper());
+        List<String> requiredTools = List.of(
+            "mcp_chatchat_mcp_server_asset_query",
+            "mcp_chatchat_mcp_server_template_query",
+            "mcp_chatchat_mcp_server_sql_query_execute"
+        );
+        PlannerValidationContext context = new PlannerValidationContext(
+            requiredTools,
+            true,
+            false,
+            null,
+            null,
+            requiredTools,
+            "Analyze local MySQL test InnoDB status"
+        );
+        String raw = """
+            {
+              "version": "1.0",
+              "intent": {"type": "data_query", "goal": "Analyze local MySQL test InnoDB status", "risk_level": "low"},
+              "context": {
+                "key_facts": ["Target asset name and env are known by assumption."],
+                "assumptions": ["Asset local MySQL test service is already registered as env test datasource."],
+                "constraints": ["Read only SQL."]
+              },
+              "plan": {
+                "steps": [
+                  {
+                    "id": 1,
+                    "action_type": "mcp_tool",
+                    "tool_name": "mcp_chatchat_mcp_server_template_query",
+                    "input": {"filters": {"assetName": "local MySQL test service", "env": "test"}, "limit": 10},
+                    "depends_on": []
+                  },
+                  {
+                    "id": 2,
+                    "action_type": "mcp_tool",
+                    "tool_name": "mcp_chatchat_mcp_server_sql_query_execute",
+                    "input": {"templateId": "PLACEHOLDER", "parameters": {}},
+                    "depends_on": [1]
+                  },
+                  {
+                    "id": 3,
+                    "action_type": "final_answer",
+                    "tool_name": "",
+                    "input": {"answer": "after tools"},
+                    "depends_on": [2]
+                  }
+                ],
+                "edge_contracts": [],
+                "bindings": []
+              },
+              "execution_policy": {
+                "max_steps": 3,
+                "allow_tool": [
+                  "mcp_chatchat_mcp_server_template_query",
+                  "mcp_chatchat_mcp_server_sql_query_execute"
+                ],
+                "fallback_mode": "safe_answer"
+              },
+              "review": {"self_check": {"tool_sufficiency": false, "missing_steps": []}, "fallback_plan": []}
+            }
+            """;
+
+        Method parseDecision = AgentPlanner.class.getDeclaredMethod("parseDecision", String.class, PlannerValidationContext.class);
+        parseDecision.setAccessible(true);
+        AgentDecision decision = (AgentDecision) parseDecision.invoke(planner, raw, context);
+
+        assertThat(decision.action()).isEqualTo("final");
+        assertThat(decision.reason()).isEqualTo("invalid_interpretation_plan");
+        assertThat((List<?>) decision.executionPlan().get("interpretationPlanRuntimeIssues"))
+            .anySatisfy(issue -> assertThat(String.valueOf(issue)).contains("Mandatory tool is missing"))
+            .anySatisfy(issue -> assertThat(String.valueOf(issue)).contains("plan context must not assume assetName/env/datasource"));
     }
 
     @Test
@@ -356,6 +568,7 @@ class AgentPlannerTest {
         private final Set<String> tools = Set.of(
             "mcp_chatchat_mcp_server_asset_query",
             "mcp_chatchat_mcp_server_template_query",
+            "mcp_chatchat_mcp_server_sql_query_execute",
             "mcp_chatchat_mcp_server_linux_command_execute"
         );
 

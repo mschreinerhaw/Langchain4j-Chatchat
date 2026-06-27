@@ -42,6 +42,9 @@ class AgentPlannerTest {
             .contains("<existing-service-label>")
             .contains("<asset-name-from-asset-query>")
             .contains("templates[] is ranked by relevanceScore")
+            .contains("filters.intentAliases")
+            .contains("filters.keywords")
+            .contains("Do not rely on Chinese-only or English-only intent")
             .contains("not as semantic ranking")
             .contains("Follow the dependency order configured by the user/runtime")
             .doesNotContain("Required execution flow for live host analysis");

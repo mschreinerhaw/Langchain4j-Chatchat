@@ -531,6 +531,64 @@ class CommandTemplateDiscoveryServiceTest {
     }
 
     @Test
+    void returnsAuthorizedLuceneHitsWhenStrictSqlBindingFiltersAllCandidates() {
+        SqlTemplateService sqlTemplateService = mock(SqlTemplateService.class);
+        SqlDatasourceConfigService datasourceService = mock(SqlDatasourceConfigService.class);
+        LuceneMcpSearchService lucene = mock(LuceneMcpSearchService.class);
+        CommandTemplateDiscoveryService service = new CommandTemplateDiscoveryService(
+            mock(CommandTemplateService.class),
+            mock(SshHostConfigService.class),
+            sqlTemplateService,
+            datasourceService,
+            mock(HttpEndpointConfigService.class),
+            new ObjectMapper(),
+            new TemplateDiscoveryProperties(),
+            lucene
+        );
+        SqlDatasourceConfig datasource = datasource("ds-local", "\u672c\u5730MySQL\u6d4b\u8bd5\u670d\u52a1", "test");
+        datasource.setDatabaseType("mysql");
+        datasource.setAllowedTemplatesJson("[\"MYSQL_INNODB_STATUS\"]");
+        when(datasourceService.listEnabled()).thenReturn(List.of(datasource));
+        SqlTemplateConfig innodbTemplate = sqlTemplate(
+            "MYSQL_INNODB_STATUS",
+            "SHOW ENGINE INNODB STATUS",
+            "MySQL InnoDB engine status",
+            "Show InnoDB engine status for transaction, lock wait, deadlock and buffer pool diagnostics.",
+            "mysql",
+            "maintenance_lock",
+            "[\"innodb\",\"engine status\",\"lock wait\",\"deadlock\",\"buffer pool\"]"
+        );
+        innodbTemplate.setRoutingLabelsJson("[\"maintenance_lock\"]");
+        when(sqlTemplateService.listEnabled()).thenReturn(List.of(innodbTemplate));
+        when(lucene.enabled()).thenReturn(true);
+        when(lucene.searchTemplates(anyList(), any())).thenReturn(List.of(
+            new LuceneMcpSearchService.SearchHit("MYSQL_INNODB_STATUS", "template", 4.0f, List.of("token:innodb"))
+        ));
+
+        Map<String, Object> result = service.query(Map.of(
+            "candidates", List.of(Map.of("targetKind", "database", "confidence", 0.95)),
+            "finalDecision", "database",
+            "filters", Map.of(
+                "assetName", "\u672c\u5730MySQL\u6d4b\u8bd5\u670d\u52a1",
+                "intent", "\u67e5\u8be2InnoDB\u72b6\u6001",
+                "intentAliases", List.of(
+                    "\u5206\u6790InnoDB\u72b6\u6001",
+                    "SHOW ENGINE INNODB STATUS",
+                    "InnoDB engine status"
+                ),
+                "keywords", List.of("InnoDB", "transaction", "lock wait", "deadlock", "buffer pool", "\u6b7b\u9501")
+            ),
+            "trace", trace(),
+            "limit", 5
+        ));
+
+        List<?> templates = (List<?>) result.get("templates");
+        assertThat(result).containsEntry("returnedCount", 1);
+        assertThat(((Map<?, ?>) templates.get(0)).get("templateId")).isEqualTo("MYSQL_INNODB_STATUS");
+        assertThat(result.get("resolutionTrace").toString()).contains("fallbackUsed=true", "lucene_scored");
+    }
+
+    @Test
     void ranksMysqlProcesslistForCurrentConnectionsIntent() {
         SqlTemplateService sqlTemplateService = mock(SqlTemplateService.class);
         SqlDatasourceConfigService datasourceService = mock(SqlDatasourceConfigService.class);

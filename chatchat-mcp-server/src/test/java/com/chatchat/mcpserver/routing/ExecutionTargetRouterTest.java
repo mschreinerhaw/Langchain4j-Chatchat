@@ -282,6 +282,36 @@ class ExecutionTargetRouterTest {
     }
 
     @Test
+    void routesSqlQueryByUniqueAssetNameAndEnvBeforeOptionalDatabaseRoleLabel() {
+        SshHostConfigService hostService = mock(SshHostConfigService.class);
+        SqlDatasourceConfigService datasourceService = mock(SqlDatasourceConfigService.class);
+        ExecutionTargetService targetService = mock(ExecutionTargetService.class);
+        ExecutionTargetRouter router = router(hostService, datasourceService, targetService);
+        when(targetService.listEnabledByAssetType(ExecutionTargetService.ASSET_TYPE_SQL_DATASOURCE)).thenReturn(List.of());
+        SqlDatasourceConfig localMysql = datasource("ds-local", "本地MySQL测试服务", "sql_local_mysql_test", "DEV", null);
+        localMysql.setCapabilitiesJson("[\"sql_query_execute\"]");
+        when(datasourceService.listEnabled()).thenReturn(List.of(localMysql));
+
+        Map<String, Object> routed = router.routeSqlQuery(Map.of(
+            "templateId", "MYSQL_INNODB_STATUS",
+            "executionContext", Map.of(
+                "assetName", "本地MySQL测试服务",
+                "env", "DEV",
+                "databaseRole", "primary"
+            )
+        ));
+
+        assertThat(routed)
+            .containsEntry("datasourceId", "ds-local")
+            .containsEntry("templateId", "MYSQL_INNODB_STATUS")
+            .doesNotContainKey("executionContext");
+        Map<?, ?> routedTarget = (Map<?, ?>) routed.get("routedTarget");
+        assertThat(routedTarget.get("type")).isEqualTo("sql_datasource");
+        assertThat(routedTarget.get("datasourceId")).isEqualTo("ds-local");
+        assertThat(routedTarget.get("environment")).isEqualTo("DEV");
+    }
+
+    @Test
     void targetRegistryRoutesBeforeAssetLabelFallback() {
         SshHostConfigService hostService = mock(SshHostConfigService.class);
         SqlDatasourceConfigService datasourceService = mock(SqlDatasourceConfigService.class);

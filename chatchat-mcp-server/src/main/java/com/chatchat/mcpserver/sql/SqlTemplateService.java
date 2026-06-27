@@ -4,6 +4,7 @@ import com.chatchat.agents.protocol.ModelProtocolJson;
 import com.chatchat.mcpserver.template.TemplateParameterValidator;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -16,8 +17,10 @@ import java.util.regex.Pattern;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class SqlTemplateService {
 
+    private static final int LOG_SQL_LIMIT = 4000;
     private static final Pattern TOKEN = Pattern.compile("\\{\\{\\s*([A-Za-z0-9_.-]+)\\s*}}");
     private static final List<String> RETIRED_DEFAULT_CODES = List.of(
         "CHECK_TABLE_COUNT",
@@ -108,6 +111,11 @@ public class SqlTemplateService {
             config.getParameterSchemaJson(),
             collectedParameters
         );
+        log.info("MCP SQL template render requested: templateId={}, title={}, category={}, riskLevel={}, databaseType={}, datasourceId={}, datasourceName={}, env={}, parameters={}, collectedParameters={}, sqlTemplate={}",
+            config.getCode(), config.getTitle(), config.getCategory(), config.getRiskLevel(), config.getDatabaseType(),
+            datasource == null ? null : datasource.getId(), datasource == null ? null : datasource.getName(),
+            datasource == null ? null : datasource.getEnvironment(), parameters, validatedParameters,
+            truncateSql(config.getSqlTemplate()));
         Matcher matcher = TOKEN.matcher(config.getSqlTemplate());
         StringBuffer buffer = new StringBuffer();
         while (matcher.find()) {
@@ -117,7 +125,11 @@ public class SqlTemplateService {
             matcher.appendReplacement(buffer, Matcher.quoteReplacement(replacement));
         }
         matcher.appendTail(buffer);
-        return buffer.toString();
+        String renderedSql = buffer.toString();
+        log.info("MCP SQL template rendered: templateId={}, datasourceId={}, datasourceName={}, env={}, renderedSql={}",
+            config.getCode(), datasource == null ? null : datasource.getId(), datasource == null ? null : datasource.getName(),
+            datasource == null ? null : datasource.getEnvironment(), truncateSql(renderedSql));
+        return renderedSql;
     }
 
     public SqlTemplateConfig getById(String id) {
@@ -510,6 +522,17 @@ public class SqlTemplateService {
         } catch (Exception ex) {
             return "{}";
         }
+    }
+
+    private String truncateSql(String value) {
+        if (value == null) {
+            return null;
+        }
+        String normalized = value.replace("\r", "\\r").replace("\n", "\\n");
+        if (normalized.length() <= LOG_SQL_LIMIT) {
+            return normalized;
+        }
+        return normalized.substring(0, LOG_SQL_LIMIT) + "...<truncated>";
     }
 
     private String requireText(String value, String message) {

@@ -2,6 +2,7 @@ package com.chatchat.agents.runtime.plan;
 
 import com.chatchat.agents.runtime.AgentRunEvent;
 import com.chatchat.agents.runtime.AgentRunEventType;
+import com.chatchat.agents.runtime.AgentObservation;
 import com.chatchat.agents.runtime.InMemoryAgentRunStore;
 import com.chatchat.agents.runtime.ToolRuntimeExecution;
 import com.chatchat.agents.runtime.ToolRuntimeRequest;
@@ -19,8 +20,10 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -351,6 +354,202 @@ class InterpretationPlanRuntimeTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    void injectsDatabaseRoutingDecisionForAssetDiscoveryWhenPlannerOnlyProvidedFilters() throws Exception {
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            mock(ToolRuntimeService.class),
+            new InterpretationPlanValidator(),
+            mock(InterpretationPlanRuntime.DagExecutionController.class)
+        );
+        InterpretationPlan.Step step = new InterpretationPlan.Step(
+            1,
+            "mcp_tool",
+            "mcp_chatchat_mcp_server_asset_query",
+            Map.of(
+                "filters", Map.of("assetName", "Local MySQL Test Service"),
+                "limit", 10
+            ),
+            List.of(),
+            null,
+            null
+        );
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("data_query", "Analyze Local MySQL Test Service InnoDB status", "low"),
+            context(),
+            new InterpretationPlan.Plan(List.of(
+                step,
+                new InterpretationPlan.Step(2, "mcp_tool", "mcp_chatchat_mcp_server_template_query",
+                    Map.of("filters", Map.of("intent", "InnoDB status"), "limit", 10), List.of(1), null, null),
+                new InterpretationPlan.Step(3, "mcp_tool", "mcp_chatchat_mcp_server_sql_query_execute",
+                    Map.of("templateId", "MYSQL_INNODB_STATUS", "parameters", Map.of()), List.of(2), null, null)
+            )),
+            new InterpretationPlan.ExecutionPolicy(
+                3,
+                false,
+                List.of(
+                    "mcp_chatchat_mcp_server_asset_query",
+                    "mcp_chatchat_mcp_server_template_query",
+                    "mcp_chatchat_mcp_server_sql_query_execute"
+                ),
+                List.of(),
+                30000
+            ),
+            review()
+        );
+        InterpretationPlanRuntime.ExecutionRequest request = new InterpretationPlanRuntime.ExecutionRequest(
+            plan,
+            mock(ToolRegistry.class),
+            List.of("mcp_chatchat_mcp_server_asset_query"),
+            "tenant-1",
+            "req-routing-decision",
+            "conv-routing-decision",
+            "user-1",
+            Map.of("executionTraceId", "trace-runtime-routing-decision")
+        );
+        Method method = InterpretationPlanRuntime.class.getDeclaredMethod(
+            "resolvedStepInput",
+            InterpretationPlan.Step.class,
+            InterpretationPlanRuntime.ExecutionRequest.class,
+            Map.class
+        );
+        method.setAccessible(true);
+
+        Map<String, Object> resolved = (Map<String, Object>) method.invoke(runtime, step, request, Map.of());
+
+        assertThat(resolved)
+            .containsEntry("finalDecision", "database")
+            .containsEntry("filtersSchemaVersion", "target_filters.v1");
+        List<Map<String, Object>> candidates = (List<Map<String, Object>>) resolved.get("candidates");
+        assertThat(candidates).hasSize(1);
+        assertThat(candidates.get(0)).containsEntry("targetKind", "database");
+        Map<String, Object> trace = (Map<String, Object>) resolved.get("trace");
+        assertThat(trace)
+            .containsEntry("routingInferred", true);
+        assertThat(String.valueOf(trace.get("routingInferReason")))
+            .contains("missing finalDecision/targetKind")
+            .contains("downstream target kind=database");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void rejectsAmbiguousRoutingWhenDatabaseAndHostDownstreamExistWithoutClearIntent() throws Exception {
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            mock(ToolRuntimeService.class),
+            new InterpretationPlanValidator(),
+            mock(InterpretationPlanRuntime.DagExecutionController.class)
+        );
+        InterpretationPlan.Step step = new InterpretationPlan.Step(
+            1,
+            "mcp_tool",
+            "mcp_chatchat_mcp_server_asset_query",
+            Map.of(
+                "filters", Map.of("assetName", "demo-service"),
+                "limit", 10
+            ),
+            List.of(),
+            null,
+            null
+        );
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("ops_check", "Check service status", "low"),
+            context(),
+            new InterpretationPlan.Plan(List.of(
+                step,
+                new InterpretationPlan.Step(2, "mcp_tool", "mcp_chatchat_mcp_server_database_query",
+                    Map.of("query", "status"), List.of(1), null, null),
+                new InterpretationPlan.Step(3, "mcp_tool", "mcp_chatchat_mcp_server_linux_command_execute",
+                    Map.of("command", "systemctl status demo"), List.of(1), null, null)
+            )),
+            new InterpretationPlan.ExecutionPolicy(
+                3,
+                false,
+                List.of(
+                    "mcp_chatchat_mcp_server_asset_query",
+                    "mcp_chatchat_mcp_server_database_query",
+                    "mcp_chatchat_mcp_server_linux_command_execute"
+                ),
+                List.of(),
+                30000
+            ),
+            review()
+        );
+        InterpretationPlanRuntime.ExecutionRequest request = new InterpretationPlanRuntime.ExecutionRequest(
+            plan,
+            mock(ToolRegistry.class),
+            List.of("mcp_chatchat_mcp_server_asset_query"),
+            "tenant-1",
+            "req-routing-ambiguous",
+            "conv-routing-ambiguous",
+            "user-1",
+            Map.of("executionTraceId", "trace-runtime-routing-ambiguous")
+        );
+        Method method = InterpretationPlanRuntime.class.getDeclaredMethod(
+            "resolvedStepInput",
+            InterpretationPlan.Step.class,
+            InterpretationPlanRuntime.ExecutionRequest.class,
+            Map.class
+        );
+        method.setAccessible(true);
+
+        assertThatThrownBy(() -> method.invoke(runtime, step, request, Map.of()))
+            .hasRootCauseMessage("ROUTING_AMBIGUOUS: downstream contains multiple target kinds: [database, host]");
+    }
+
+    @Test
+    void failsBeforeToolExecutionWhenRoutingDecisionMissingAndNoDownstreamTargetKindExists() {
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool("mcp_chatchat_mcp_server_asset_query")).thenReturn(true);
+        when(toolRegistry.getToolMetadata(any())).thenReturn(ToolMetadata.builder().riskLevel("low").build());
+        ToolRuntimeService toolRuntimeService = mock(ToolRuntimeService.class);
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            toolRuntimeService,
+            new InterpretationPlanValidator(),
+            mock(InterpretationPlanRuntime.DagExecutionController.class)
+        );
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("asset_lookup", "Find a service asset", "low"),
+            context(),
+            new InterpretationPlan.Plan(List.of(
+                new InterpretationPlan.Step(1, "mcp_tool", "mcp_chatchat_mcp_server_asset_query",
+                    Map.of("filters", Map.of("assetName", "demo-service"), "limit", 10), List.of(), null, null),
+                new InterpretationPlan.Step(2, "final_answer", "",
+                    Map.of("answer", "done"), List.of(1), null, null)
+            )),
+            new InterpretationPlan.ExecutionPolicy(
+                3,
+                false,
+                List.of("mcp_chatchat_mcp_server_asset_query"),
+                List.of(),
+                30000
+            ),
+            review()
+        );
+
+        InterpretationPlanRuntime.ExecutionResult result = runtime.execute(new InterpretationPlanRuntime.ExecutionRequest(
+            plan,
+            toolRegistry,
+            List.of("mcp_chatchat_mcp_server_asset_query"),
+            "tenant-1",
+            "req-routing-target-required",
+            "conv-routing-target-required",
+            "user-1",
+            Map.of("executionTraceId", "trace-runtime-routing-target-required")
+        ));
+
+        assertThat(result.success()).isFalse();
+        assertThat(result.status()).isEqualTo("STEP_FAILED");
+        assertThat(result.errorMessage())
+            .contains("ROUTING_TARGET_REQUIRED")
+            .contains("planner must regenerate discovery input");
+        assertThat(result.steps()).hasSize(1);
+        assertThat(result.steps().get(0).errorMessage()).contains("ROUTING_TARGET_REQUIRED");
+        verify(toolRuntimeService, never()).execute(any());
+    }
+
+    @Test
     void feedsReviewedWebSearchUrlIntoCrawlerStep() {
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         when(toolRegistry.hasTool("web_search")).thenReturn(true);
@@ -633,6 +832,137 @@ class InterpretationPlanRuntimeTest {
         assertThat(captor.getAllValues().get(1).getToolName()).isEqualTo("mcp_chatchat_mcp_server_linux_command_execute");
         assertThat(linuxParameters.get("template")).isEqualTo("CHECK_SYSTEM_OVERVIEW");
         assertThat(executionContext.get("assetName")).isEqualTo("docker_service");
+        assertThat(executionContext.get("env")).isEqualTo("DEV");
+    }
+
+    @Test
+    void hydratesPriorObservationOutputForRewritePlanBindings() {
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool("mcp_chatchat_mcp_server_asset_query")).thenReturn(true);
+        when(toolRegistry.hasTool("mcp_chatchat_mcp_server_template_query")).thenReturn(true);
+        when(toolRegistry.hasTool("mcp_chatchat_mcp_server_sql_query_execute")).thenReturn(true);
+        when(toolRegistry.getToolMetadata(any())).thenAnswer(invocation -> {
+            String toolName = invocation.getArgument(0);
+            ToolMetadata.ToolMetadataBuilder builder = ToolMetadata.builder()
+                .id(toolName)
+                .riskLevel("low");
+            if ("mcp_chatchat_mcp_server_sql_query_execute".equals(toolName)) {
+                builder.parameters(List.of(
+                    ToolParameter.builder().name("templateId").type("string").required(true).build(),
+                    ToolParameter.builder().name("executionContext").type("object").required(true).build()
+                ));
+            }
+            return builder.build();
+        });
+        ToolRuntimeService toolRuntimeService = mock(ToolRuntimeService.class);
+        when(toolRuntimeService.execute(any())).thenAnswer(invocation -> {
+            ToolRuntimeRequest request = invocation.getArgument(0);
+            return new ToolRuntimeExecution(
+                ToolOutput.success(Map.of("status", "ok", "parameters", request.getToolInput().getParameters())),
+                ToolMetadata.builder().id(request.getToolName()).build(),
+                null,
+                "success",
+                Map.of()
+            );
+        });
+        InMemoryAgentRunStore runStore = new InMemoryAgentRunStore();
+        String runId = "rewrite-hydrate-run";
+        runStore.recordObservation(runId, AgentObservation.builder()
+            .type("tool")
+            .source("mcp_chatchat_mcp_server_asset_query")
+            .content("asset_query completed")
+            .metadata(Map.of(
+                "interpretationPlanStepId", 1,
+                "interpretationPlanActionType", "mcp_tool",
+                "toolName", "mcp_chatchat_mcp_server_asset_query",
+                "success", true,
+                "stepOutput", Map.of(
+                    "assets", List.of(Map.of(
+                        "asset", Map.of("name", "本地MySQL测试服务", "environment", "DEV")
+                    ))
+                )
+            ))
+            .build());
+        runStore.recordObservation(runId, AgentObservation.builder()
+            .type("tool")
+            .source("mcp_chatchat_mcp_server_template_query")
+            .content("template_query completed")
+            .metadata(Map.of(
+                "interpretationPlanStepId", 2,
+                "interpretationPlanActionType", "mcp_tool",
+                "toolName", "mcp_chatchat_mcp_server_template_query",
+                "success", true,
+                "stepOutput", Map.of(
+                    "templates", List.of(Map.of("templateId", "MYSQL_INNODB_STATUS"))
+                )
+            ))
+            .build());
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("sql_query", "Analyze InnoDB status", "low"),
+            context(),
+            new InterpretationPlan.Plan(
+                List.of(
+                    new InterpretationPlan.Step(1, "mcp_tool", "mcp_chatchat_mcp_server_asset_query",
+                        Map.of("filters", Map.of("assetName", "本地MySQL测试服务"), "limit", 10), List.of(), null, null),
+                    new InterpretationPlan.Step(2, "mcp_tool", "mcp_chatchat_mcp_server_template_query",
+                        Map.of("filters", Map.of("intent", "InnoDB status"), "limit", 10), List.of(1), null, null),
+                    new InterpretationPlan.Step(3, "mcp_tool", "mcp_chatchat_mcp_server_sql_query_execute",
+                        Map.of("templateId", "", "parameters", Map.of()), List.of(1, 2), null, null),
+                    new InterpretationPlan.Step(4, "final_answer", "", Map.of("answer", "done"), List.of(3), null, null)
+                ),
+                List.of(),
+                List.of(
+                    new InterpretationPlan.Binding(1, "$.assets[0].asset.name", 3, "executionContext.assetName", "jsonpath", true),
+                    new InterpretationPlan.Binding(1, "$.assets[0].asset.environment", 3, "executionContext.env", "jsonpath", false),
+                    new InterpretationPlan.Binding(2, "$.templates[0].templateId", 3, "templateId", "jsonpath", true)
+                ),
+                null
+            ),
+            new InterpretationPlan.ExecutionPolicy(
+                4,
+                false,
+                List.of(
+                    "mcp_chatchat_mcp_server_asset_query",
+                    "mcp_chatchat_mcp_server_template_query",
+                    "mcp_chatchat_mcp_server_sql_query_execute"
+                ),
+                List.of(),
+                30000
+            ),
+            review()
+        );
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            toolRuntimeService,
+            new InterpretationPlanValidator(),
+            runStore,
+            scriptedController(List.of(List.of(4)))
+        );
+
+        InterpretationPlanRuntime.ExecutionResult result = runtime.execute(new InterpretationPlanRuntime.ExecutionRequest(
+            plan,
+            toolRegistry,
+            List.of(
+                "mcp_chatchat_mcp_server_asset_query",
+                "mcp_chatchat_mcp_server_template_query",
+                "mcp_chatchat_mcp_server_sql_query_execute"
+            ),
+            "tenant-1",
+            "req-rewrite-hydrate",
+            "conv-rewrite-hydrate",
+            "user-1",
+            Map.of("__agentRunId", runId)
+        ));
+
+        assertThat(result.success())
+            .as(result.status() + ": " + result.errorMessage() + " steps=" + result.steps())
+            .isTrue();
+        ArgumentCaptor<ToolRuntimeRequest> captor = ArgumentCaptor.forClass(ToolRuntimeRequest.class);
+        verify(toolRuntimeService, times(1)).execute(captor.capture());
+        Map<?, ?> parameters = captor.getValue().getToolInput().getParameters();
+        Map<?, ?> executionContext = (Map<?, ?>) parameters.get("executionContext");
+        assertThat(parameters.get("templateId")).isEqualTo("MYSQL_INNODB_STATUS");
+        assertThat(executionContext.get("assetName")).isEqualTo("本地MySQL测试服务");
         assertThat(executionContext.get("env")).isEqualTo("DEV");
     }
 

@@ -54,9 +54,9 @@ public class SqlQueryExecuteService {
             String sql = resolveSql(request, datasource);
             normalizedSql = safetyService.validateAndNormalize(sql, maxRows);
             validateAllowedTables(datasource, normalizedSql);
-            log.info("MCP SQL query execution requested: datasourceId={}, datasourceName={}, env={}, tool={}, template={}, timeoutSeconds={}, maxRows={}, purpose={}, sourceTaskId={}, sql={}",
+            log.info("MCP SQL query execution requested: datasourceId={}, datasourceName={}, env={}, tool={}, templateId={}, timeoutSeconds={}, maxRows={}, purpose={}, sourceTaskId={}, sql={}",
                 datasource.getId(), datasource.getName(), datasource.getEnvironment(), datasource.getToolName(),
-                text(request, "template"), timeoutSeconds, maxRows, text(request, "purpose"), text(request, "sourceTaskId"),
+                requestedTemplate(request), timeoutSeconds, maxRows, text(request, "purpose"), text(request, "sourceTaskId"),
                 truncateSql(normalizedSql));
             result = query(datasource, sql, normalizedSql, timeoutSeconds, maxRows,
                 text(request, "purpose"), text(request, "sourceTaskId"), startedAt);
@@ -162,7 +162,7 @@ public class SqlQueryExecuteService {
 
     private String resolveSql(Map<String, Object> request, SqlDatasourceConfig datasource) {
         String sql = text(request, "sql");
-        String template = firstText(text(request, "template"), text(request, "templateId"), text(request, "template_id"));
+        String template = requestedTemplate(request);
         if (sql != null && template != null) {
             throw new IllegalArgumentException("Use either sql or SQL template, not both");
         }
@@ -173,6 +173,10 @@ public class SqlQueryExecuteService {
             throw new IllegalArgumentException("Either sql or template is required");
         }
         return templateService.render(template, mapValue(request.get("parameters")), datasource, request);
+    }
+
+    private String requestedTemplate(Map<String, Object> request) {
+        return firstText(text(request, "template"), text(request, "templateId"), text(request, "template_id"));
     }
 
     private SqlQueryResult query(SqlDatasourceConfig datasource, String originalSql, String sql,

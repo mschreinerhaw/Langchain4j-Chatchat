@@ -96,6 +96,9 @@ public class ExecutionTargetRouter {
         Map<String, Object> context = executionContext(request);
         requireExecutionContext(context, "sql_query_execute");
         SqlDatasourceConfig datasource = resolveSqlDatasource(request);
+        log.info("MCP execution routing selected SQL datasource: tool=sql_query_execute, context={}, datasourceId={}, assetName={}, datasourceTool={}, env={}",
+            compactContext(context), datasource.getId(), firstText(datasource.getName(), datasource.getToolName()),
+            datasource.getToolName(), datasource.getEnvironment());
         Map<String, Object> routingDecisionLog = routingTrace(
             "sql_datasource",
             context,
@@ -208,6 +211,12 @@ public class ExecutionTargetRouter {
         }
         candidates = filterByEnvironment(candidates, context, SqlDatasourceConfig::getEnvironment);
         candidates = filterByAssetName(candidates, context, this::sqlLabels);
+        if (hasAssetNameContext(context) && candidates.size() == 1) {
+            log.info("MCP execution routing selected SQL datasource by unique assetName/env before optional logical labels: context={}, datasourceId={}, assetName={}, env={}",
+                compactContext(context), candidates.get(0).getId(), firstText(candidates.get(0).getName(), candidates.get(0).getToolName()),
+                candidates.get(0).getEnvironment());
+            return candidates.get(0);
+        }
         candidates = filterByLogicalTokens(candidates, context, this::sqlLabels,
             "cluster", "namespace", "target", "targetType", "target_type", "database", "databaseRole",
             "database_role", "databaseType", "dbType", "dialect", "service");
@@ -369,6 +378,10 @@ public class ExecutionTargetRouter {
             "service",
             "labels"
         ) != null;
+    }
+
+    private boolean hasAssetNameContext(Map<String, Object> context) {
+        return firstContextObject(context, "assetName", "asset_name", "name") != null;
     }
 
     private void removeExecutionContext(Map<String, Object> request) {

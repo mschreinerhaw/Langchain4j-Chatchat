@@ -225,6 +225,9 @@ public class CommandTemplateDiscoveryService {
                     selectedSqlAssetType(datasources, assetScoped), riskLevel(template))))
             .toList();
         List<ScoredTemplate<SqlTemplateConfig>> matched = rankAndFallback(candidates, intent, scored -> scored.template().getCode());
+        if (matched.isEmpty() && !luceneHits.isEmpty()) {
+            matched = sqlLuceneAuthorizedFallback(templates, filters, retrievalFilters, datasources, assetScoped, intent, luceneHits);
+        }
         boolean fallbackUsed = fallbackUsed(candidates, matched, intent);
         log.info("template_query sql search assetType={} dbType={} filters={} normalizedIntent={} datasources={} registryTemplates={} candidates={} luceneHits={} returned={} fallbackUsed={} hitIds={}",
             assetType, dbType, compactFilters(filters), intent.type(), datasources.size(), templates.size(), candidates.size(),
@@ -1438,6 +1441,9 @@ public class CommandTemplateDiscoveryService {
             "bilingualSearch",
             "queryTerms",
             "searchTerms",
+            "intentAliases",
+            "keywords",
+            "retrievalSignals",
             "intentZh",
             "intentEn"
         )) {
@@ -1467,7 +1473,7 @@ public class CommandTemplateDiscoveryService {
             "required", true,
             "modelGenerated", modelGenerated,
             "generatedByEngine", generated.stream().toList(),
-            "fields", List.of("bilingualIntent", "bilingualQuery", "intentZh", "intentEn"),
+            "fields", List.of("bilingualIntent", "bilingualQuery", "intentAliases", "keywords", "retrievalSignals", "intentZh", "intentEn"),
             "languages", List.of("zh", "en")
         );
     }
@@ -1767,6 +1773,66 @@ public class CommandTemplateDiscoveryService {
                 return false;
             }
             return true;
+        });
+    }
+
+    private List<ScoredTemplate<SqlTemplateConfig>> sqlLuceneAuthorizedFallback(List<SqlTemplateConfig> templates,
+                                                                                Map<String, Object> filters,
+                                                                                Map<String, Object> retrievalFilters,
+                                                                                List<SqlDatasourceConfig> datasources,
+                                                                                boolean assetScoped,
+                                                                                NormalizedIntent intent,
+                                                                                Map<String, LuceneMcpSearchService.SearchHit> luceneHits) {
+        if (templates == null || templates.isEmpty() || luceneHits == null || luceneHits.isEmpty()) {
+            return List.of();
+        }
+        String selectedAssetType = selectedSqlAssetType(datasources, assetScoped);
+        return templates.stream()
+            .filter(template -> luceneHits.containsKey(template.getCode()))
+            .filter(template -> sqlTemplateCompatibleWithRequestedType(template, filters, datasources, assetScoped))
+            .filter(template -> sqlTemplateAuthorizedByDatasource(template, datasources, assetScoped))
+            .map(template -> new ScoredTemplate<>(template,
+                decision(luceneAdjusted(relevance(template, retrievalFilters), luceneHits.get(template.getCode())),
+                    intent, template.getDatabaseType(), selectedAssetType, riskLevel(template))))
+            .sorted(scoredComparator(scored -> scored.template().getCode()))
+            .toList();
+    }
+
+    private boolean sqlTemplateCompatibleWithRequestedType(SqlTemplateConfig template,
+                                                           Map<String, Object> filters,
+                                                           List<SqlDatasourceConfig> datasources,
+                                                           boolean assetScoped) {
+        String requestedType = requestedDatabaseType(filters);
+        String templateType = SqlDatasourceConfigService.normalizeDatabaseTypeToken(template.getDatabaseType());
+        if (requestedType != null && !"generic".equals(templateType) && !templateType.equals(requestedType)) {
+            return false;
+        }
+        if (!assetScoped || datasources == null || datasources.isEmpty()) {
+            return true;
+        }
+        return datasources.stream().anyMatch(datasource -> {
+            String datasourceType = SqlDatasourceConfigService.normalizeDatabaseTypeToken(datasource.getDatabaseType());
+            return "generic".equals(templateType) || templateType.equals(datasourceType);
+        });
+    }
+
+    private boolean sqlTemplateAuthorizedByDatasource(SqlTemplateConfig template,
+                                                      List<SqlDatasourceConfig> datasources,
+                                                      boolean assetScoped) {
+        if (!assetScoped) {
+            return true;
+        }
+        if (datasources == null || datasources.isEmpty()) {
+            return false;
+        }
+        String templateCode = normalize(template.getCode());
+        String datasourceId = text(template.getDatasourceId());
+        return datasources.stream().anyMatch(datasource -> {
+            Set<String> allowedTemplates = allowedSqlTemplates(datasource);
+            if (!allowedTemplates.isEmpty() && templateCode != null) {
+                return allowedTemplates.contains(templateCode);
+            }
+            return datasourceId == null || datasourceId.equals(datasource.getId());
         });
     }
 

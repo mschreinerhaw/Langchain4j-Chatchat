@@ -159,6 +159,7 @@ public class InterpretationPlanRuntime {
             Set<Integer> completedStepIds = new LinkedHashSet<>(completed.keySet());
             completedStepIds.addAll(eventState.completedStepIds());
             completedStepIds.addAll(eventState.immutableStepIds());
+            hydrateCompletedExecutionsFromEvents(runId, completedStepIds, completed);
             remaining.removeAll(completedStepIds);
             remaining.removeAll(lockedBlockedStepIds(remaining, stepsById, eventState));
             if (remaining.isEmpty()) {
@@ -525,6 +526,7 @@ public class InterpretationPlanRuntime {
         }
         metadata.putAll(step.metadata() == null ? Map.of() : step.metadata());
         if (step.output() != null) {
+            metadata.put("stepOutput", step.output());
             metadata.put("stepOutputPreview", shortText(String.valueOf(step.output()), 4000));
         }
         if (output != null && output.getExecutionTimeMs() != null) {
@@ -881,6 +883,64 @@ public class InterpretationPlanRuntime {
         return blocked;
     }
 
+    private void hydrateCompletedExecutionsFromEvents(String runId,
+                                                      Set<Integer> completedStepIds,
+                                                      Map<Integer, StepExecution> completed) {
+        if (runStore == null || runId == null || runId.isBlank()
+            || completedStepIds == null || completedStepIds.isEmpty() || completed == null) {
+            return;
+        }
+        for (AgentRunEvent event : runStore.events(runId)) {
+            if (event == null || event.type() != AgentRunEventType.OBSERVATION_RECORDED) {
+                continue;
+            }
+            Map<String, Object> payload = asStringMap(event.payload());
+            Map<String, Object> metadata = asStringMap(payload.get("metadata"));
+            Integer stepId = integerValue(firstPresent(metadata, "interpretationPlanStepId", "workflowStepId", "stepId"));
+            if (stepId == null || !completedStepIds.contains(stepId) || completed.containsKey(stepId)) {
+                continue;
+            }
+            if (!Boolean.TRUE.equals(booleanValue(firstPresent(metadata, "success", "toolSuccess")))) {
+                continue;
+            }
+            Object output = outputFromObservationMetadata(metadata);
+            if (output == null) {
+                continue;
+            }
+            completed.put(stepId, new StepExecution(
+                stepId,
+                stringValue(firstPresent(metadata, "interpretationPlanActionType", "actionType")),
+                stringValue(firstPresent(metadata, "toolName", "source")),
+                true,
+                output,
+                null,
+                null,
+                null,
+                longValue(metadata.get("durationMs"), 0L),
+                Map.of("hydratedFromRunStoreObservation", true)
+            ));
+        }
+    }
+
+    private Object outputFromObservationMetadata(Map<String, Object> metadata) {
+        Object preview = firstPresent(metadata, "stepOutput", "stepOutputPreview", "output", "data");
+        if (preview == null) {
+            return null;
+        }
+        if (!(preview instanceof String text)) {
+            return preview;
+        }
+        String trimmed = text.trim();
+        if (trimmed.isBlank()) {
+            return null;
+        }
+        try {
+            return RESULT_OBJECT_MAPPER.readValue(trimmed, Object.class);
+        } catch (Exception ignored) {
+            return trimmed;
+        }
+    }
+
     private Map<String, Object> resolvedStepInput(InterpretationPlan.Step step,
                                                   ExecutionRequest request,
                                                   Map<Integer, StepExecution> completed) {
@@ -922,6 +982,7 @@ public class InterpretationPlanRuntime {
                 input.put("filters", mutableFilters);
             }
         }
+        ensureRoutingDecisionInput(step, request, input);
         input.putIfAbsent("filtersSchemaVersion", "target_filters.v1");
         Object trace = firstMapValue(input, "trace", "routingTrace", "routing_trace");
         if (trace instanceof Map<?, ?> traceMap && !traceMap.isEmpty()) {
@@ -931,6 +992,125 @@ public class InterpretationPlanRuntime {
             return;
         }
         input.put("trace", routingTraceForStep(step, request));
+    }
+
+    private void ensureRoutingDecisionInput(InterpretationPlan.Step step,
+                                            ExecutionRequest request,
+                                            Map<String, Object> input) {
+        if (input == null || hasNonBlank(input, "finalDecision", "targetKind", "assetType", "type")) {
+            return;
+        }
+        RoutingInference inference = inferRoutingTargetKind(step, request == null ? null : request.plan(), input);
+        if (inference.ambiguous()) {
+            throw new IllegalStateException("ROUTING_AMBIGUOUS: " + inference.reason());
+        }
+        if (inference.targetKind() == null || inference.targetKind().isBlank()) {
+            throw new IllegalStateException(
+                "ROUTING_TARGET_REQUIRED: missing finalDecision/targetKind and no unique downstream target kind; "
+                    + "planner must regenerate discovery input with candidates[] and finalDecision, or configure "
+                    + "mcpWorkflow/dependsOn so runtime can infer a target kind."
+            );
+        }
+        input.put("finalDecision", inference.targetKind());
+        input.put("candidates", List.of(Map.of(
+            "targetKind", inference.targetKind(),
+            "confidence", 0.8
+        )));
+        Map<String, Object> trace = mutableRoutingTrace(input, step, request);
+        trace.put("routingInferred", true);
+        trace.put("routingInferReason", inference.reason());
+        input.put("trace", trace);
+    }
+
+    private RoutingInference inferRoutingTargetKind(InterpretationPlan.Step step,
+                                                    InterpretationPlan plan,
+                                                    Map<String, Object> input) {
+        if (plan != null && plan.plan() != null && plan.plan().steps() != null && step != null && step.id() != null) {
+            List<String> downstreamTargets = downstreamTargetKinds(plan, step.id());
+            if (downstreamTargets.size() > 1) {
+                return RoutingInference.ambiguous("downstream contains multiple target kinds: " + downstreamTargets);
+            }
+            if (downstreamTargets.size() == 1) {
+                String targetKind = downstreamTargets.get(0);
+                return RoutingInference.inferred(targetKind,
+                    "missing finalDecision/targetKind, inferred from downstream target kind=" + targetKind);
+            }
+        }
+        return RoutingInference.none();
+    }
+
+    private Map<String, Object> mutableRoutingTrace(Map<String, Object> input,
+                                                    InterpretationPlan.Step step,
+                                                    ExecutionRequest request) {
+        Object trace = firstMapValue(input, "trace", "routingTrace", "routing_trace");
+        if (trace instanceof Map<?, ?> traceMap && !traceMap.isEmpty()) {
+            Map<String, Object> mutable = new LinkedHashMap<>();
+            traceMap.forEach((key, value) -> {
+                if (key != null) {
+                    mutable.put(String.valueOf(key), value);
+                }
+            });
+            return mutable;
+        }
+        return routingTraceForStep(step, request);
+    }
+
+    private List<String> downstreamTargetKinds(InterpretationPlan plan, Integer sourceStepId) {
+        if (plan == null || plan.plan() == null || plan.plan().steps() == null || sourceStepId == null) {
+            return List.of();
+        }
+        Set<String> targetKinds = new LinkedHashSet<>();
+        List<Integer> frontier = new ArrayList<>(List.of(sourceStepId));
+        List<Integer> visited = new ArrayList<>();
+        while (!frontier.isEmpty()) {
+            Integer current = frontier.remove(0);
+            if (current == null || visited.contains(current)) {
+                continue;
+            }
+            visited.add(current);
+            for (InterpretationPlan.Step candidate : plan.plan().steps()) {
+                if (candidate == null || candidate.dependsOn() == null || !candidate.dependsOn().contains(current)) {
+                    continue;
+                }
+                String semantic = toolSemanticKey(candidate.toolName());
+                String targetKind = targetKindFromToolSemanticKey(semantic);
+                if (targetKind != null) {
+                    targetKinds.add(targetKind);
+                }
+                frontier.add(candidate.id());
+            }
+        }
+        return new ArrayList<>(targetKinds);
+    }
+
+    private String targetKindFromToolSemanticKey(String semantic) {
+        if (semantic == null || semantic.isBlank()) {
+            return null;
+        }
+        if (semantic.contains("database") || semantic.contains("sql_query")) {
+            return "database";
+        }
+        if (semantic.contains("linux_command") || semantic.contains("ssh")) {
+            return "host";
+        }
+        if (semantic.contains("http")) {
+            return "http";
+        }
+        return null;
+    }
+
+    private record RoutingInference(String targetKind, String reason, boolean ambiguous) {
+        private static RoutingInference inferred(String targetKind, String reason) {
+            return new RoutingInference(targetKind, reason, false);
+        }
+
+        private static RoutingInference ambiguous(String reason) {
+            return new RoutingInference(null, reason, true);
+        }
+
+        private static RoutingInference none() {
+            return new RoutingInference(null, null, false);
+        }
     }
 
     private Map<String, Object> routingTraceForStep(InterpretationPlan.Step step, ExecutionRequest request) {
@@ -1055,7 +1235,7 @@ public class InterpretationPlanRuntime {
         current.put(tokens.get(tokens.size() - 1), value);
     }
 
-    private boolean hasNonBlank(Map<String, Object> input, String... keys) {
+    private boolean hasNonBlank(Map<?, ?> input, String... keys) {
         if (input == null || input.isEmpty() || keys == null) {
             return false;
         }
@@ -1624,6 +1804,43 @@ public class InterpretationPlanRuntime {
         } catch (NumberFormatException ignored) {
             return null;
         }
+    }
+
+    private Boolean booleanValue(Object value) {
+        if (value instanceof Boolean bool) {
+            return bool;
+        }
+        if (value == null || String.valueOf(value).isBlank()) {
+            return null;
+        }
+        return Boolean.parseBoolean(String.valueOf(value));
+    }
+
+    private long longValue(Object value, long fallback) {
+        if (value instanceof Number number) {
+            return number.longValue();
+        }
+        if (value == null || String.valueOf(value).isBlank()) {
+            return fallback;
+        }
+        try {
+            return Long.parseLong(String.valueOf(value));
+        } catch (NumberFormatException ignored) {
+            return fallback;
+        }
+    }
+
+    private Map<String, Object> asStringMap(Object value) {
+        if (!(value instanceof Map<?, ?> map)) {
+            return Map.of();
+        }
+        Map<String, Object> values = new LinkedHashMap<>();
+        map.forEach((key, item) -> {
+            if (key != null) {
+                values.put(String.valueOf(key), item);
+            }
+        });
+        return values;
     }
 
     private String firstText(String first, String second) {

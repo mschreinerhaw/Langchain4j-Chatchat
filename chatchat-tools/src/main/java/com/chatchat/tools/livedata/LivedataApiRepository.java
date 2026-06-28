@@ -1,4 +1,4 @@
-package com.chatchat.mcpserver.livedata;
+package com.chatchat.tools.livedata;
 
 import com.chatchat.tools.builtin.DynamicJdbcDriverLoader;
 import lombok.RequiredArgsConstructor;

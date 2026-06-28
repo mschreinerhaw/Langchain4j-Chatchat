@@ -10,6 +10,7 @@ import com.chatchat.agents.runtime.AgentRunStore;
 import com.chatchat.agents.runtime.ToolRuntimeExecution;
 import com.chatchat.agents.runtime.ToolRuntimeRequest;
 import com.chatchat.agents.runtime.ToolRuntimeService;
+import com.chatchat.agents.orchestration.McpToolRouter;
 import com.chatchat.common.tool.ToolOutput;
 import com.chatchat.common.tool.ToolInput;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -44,6 +45,7 @@ public class InterpretationPlanRuntime {
     private final AgentRunStore runStore;
     private final StepResultReviewer stepResultReviewer;
     private final DagExecutionController dagExecutionController;
+    private final McpToolRouter mcpToolRouter = new McpToolRouter();
 
     public InterpretationPlanRuntime(ToolRuntimeService toolRuntimeService,
                                      InterpretationPlanValidator validator,
@@ -377,13 +379,26 @@ public class InterpretationPlanRuntime {
         if (step.mcpToolAction()) {
             try {
                 Map<String, Object> resolvedInput = resolvedStepInput(step, request, completed);
+                McpToolRouter.RoutingDecision routingDecision = mcpToolRouter.route(
+                    step.toolName(),
+                    resolvedInput,
+                    safeList(request.allowedTools()),
+                    request.tenantId(),
+                    List.of()
+                );
+                if (routingDecision.routed() && !routingDecision.allowed()) {
+                    throw new IllegalStateException(routingDecision.errorCode() + ": " + routingDecision.reason());
+                }
+                String executionToolName = routingDecision.routed() && routingDecision.resolvedToolName() != null
+                    ? routingDecision.resolvedToolName()
+                    : step.toolName();
                 log.info("InterpretationPlan step resolved input: traceId={}, stepId={}, tool={}, input={}",
                     executionTraceId(request),
                     step.id(),
-                    step.toolName(),
+                    executionToolName,
                     summarize(resolvedInput));
                 ToolRuntimeExecution execution = toolRuntimeService.execute(ToolRuntimeRequest.builder()
-                    .toolName(step.toolName())
+                    .toolName(executionToolName)
                     .runtimeMode("interpretation_plan")
                     .requestId(request.requestId())
                     .conversationId(request.conversationId())
@@ -396,13 +411,13 @@ public class InterpretationPlanRuntime {
                         .userId(request.userId())
                         .parameters(resolvedInput)
                         .build())
-                    .attributes(attributesForStep(request, step, completed, resolvedInput))
+                    .attributes(attributesForStep(request, step, completed, resolvedInput, routingDecision))
                     .build());
                 boolean success = execution != null && execution.output() != null && execution.output().isSuccess();
                 log.info("InterpretationPlan step tool completed: traceId={}, stepId={}, tool={}, success={}, durationMs={}, error={}, output={}",
                     executionTraceId(request),
                     step.id(),
-                    step.toolName(),
+                    executionToolName,
                     success,
                     elapsed(startedAt),
                     execution == null || execution.output() == null ? null : execution.output().getErrorMessage(),
@@ -410,7 +425,7 @@ public class InterpretationPlanRuntime {
                 StepExecution result = new StepExecution(
                     step.id(),
                     step.actionType(),
-                    step.toolName(),
+                    executionToolName,
                     success,
                     execution == null || execution.output() == null ? null : execution.output().getData(),
                     execution == null || execution.output() == null ? "Tool returned no execution" : execution.output().getErrorMessage(),
@@ -596,7 +611,8 @@ public class InterpretationPlanRuntime {
     private Map<String, Object> attributesForStep(ExecutionRequest request,
                                                   InterpretationPlan.Step step,
                                                   Map<Integer, StepExecution> completed,
-                                                  Map<String, Object> resolvedInput) {
+                                                  Map<String, Object> resolvedInput,
+                                                  McpToolRouter.RoutingDecision routingDecision) {
         Map<String, Object> attributes = new LinkedHashMap<>(request.attributes() == null ? Map.of() : request.attributes());
         attributes.put("interpretationPlanVersion", request.plan().version());
         attributes.put("interpretationPlanStepId", step.id());
@@ -604,10 +620,17 @@ public class InterpretationPlanRuntime {
         Map<String, Object> executionPlan = new LinkedHashMap<>();
         executionPlan.put("workflow", "interpretation_plan");
         executionPlan.put("intent", request.plan().intent() == null ? "" : request.plan().intent().goal());
-        executionPlan.put("tool", step.toolName());
+        executionPlan.put("tool", routingDecision != null && routingDecision.resolvedToolName() != null
+            ? routingDecision.resolvedToolName()
+            : step.toolName());
+        executionPlan.put("requestedTool", step.toolName());
         executionPlan.put("risk_level", request.plan().intent() == null ? "low" : request.plan().intent().riskLevel());
         executionPlan.put("parameters", resolvedInput == null ? Map.of() : resolvedInput);
         executionPlan.put("reason", "InterpretationPlan step " + step.id());
+        if (routingDecision != null && routingDecision.routed()) {
+            executionPlan.put("toolRouter", routingDecision.metadata());
+            attributes.put("toolRouterDecision", routingDecision.metadata());
+        }
         attributes.put("executionPlan", executionPlan);
         attributes.put("completedPlanStepIds", new ArrayList<>(completed.keySet()));
         return attributes;
@@ -711,7 +734,7 @@ public class InterpretationPlanRuntime {
                 "Asset discovery returned " + returnedCount + " candidate asset(s); continue to dependent execution step.",
                 mapOf(
                     "toolResultReviewAutoAccepted", true,
-                    "toolResultReviewAutoAcceptReason", "asset_query returned non-empty asset metadata",
+                    "toolResultReviewAutoAcceptReason", "typed asset discovery returned non-empty asset metadata",
                     "assetDiscoveryReturnedCount", returnedCount,
                     "assetDiscoveryStepId", step == null ? null : step.id()
                 )
@@ -726,7 +749,7 @@ public class InterpretationPlanRuntime {
                 "Template discovery returned " + returnedCount + " candidate template(s); continue to dependent execution step.",
                 mapOf(
                     "toolResultReviewAutoAccepted", true,
-                    "toolResultReviewAutoAcceptReason", "template_query returned non-empty template metadata",
+                    "toolResultReviewAutoAcceptReason", "typed template discovery returned non-empty template metadata",
                     "templateDiscoveryReturnedCount", returnedCount,
                     "templateDiscoveryStepId", step == null ? null : step.id()
                 )
@@ -947,6 +970,8 @@ public class InterpretationPlanRuntime {
         Map<String, Object> input = new LinkedHashMap<>(step.input() == null ? Map.of() : step.input());
         InterpretationPlan plan = request == null ? null : request.plan();
         applyBindings(step, plan, completed, input);
+        hydrateExecutionContextFromCompletedAssets(step, completed, input);
+        normalizeTemplateExecutionParameters(step, completed, input);
         normalizeDiscoveryRoutingInput(step, request, input);
         if (!isCrawlerTool(step.toolName())) {
             return input;
@@ -957,6 +982,191 @@ public class InterpretationPlanRuntime {
         }
         input.put("url", selectedUrls.get(0));
         return input;
+    }
+
+    @SuppressWarnings("unchecked")
+    private void normalizeTemplateExecutionParameters(InterpretationPlan.Step step,
+                                                      Map<Integer, StepExecution> completed,
+                                                      Map<String, Object> input) {
+        if (step == null || input == null || completed == null || completed.isEmpty()
+            || !isExecutionContextTool(step.toolName()) || isRoutingDiscoveryTool(step.toolName())) {
+            return;
+        }
+        Object templateId = firstValueAtAnyPath(input,
+            "$.templateId",
+            "$.template",
+            "$.template_id");
+        if (templateId == null || String.valueOf(templateId).isBlank()) {
+            return;
+        }
+        Map<String, Object> template = completedTemplateMetadata(completed, String.valueOf(templateId));
+        if (template.isEmpty()) {
+            return;
+        }
+        List<String> required = requiredTemplateParameters(template);
+        if (required.isEmpty()) {
+            return;
+        }
+        Object existing = input.get("parameters");
+        Map<String, Object> parameters = existing instanceof Map<?, ?> map
+            ? new LinkedHashMap<>((Map<String, Object>) map)
+            : new LinkedHashMap<>();
+        boolean changed = false;
+        for (String requiredName : required) {
+            if (requiredName == null || requiredName.isBlank() || hasNonBlank(parameters, requiredName)) {
+                continue;
+            }
+            Object aliasValue = parameterAliasValue(parameters, requiredName);
+            if (aliasValue != null && !String.valueOf(aliasValue).isBlank()) {
+                parameters.put(requiredName, aliasValue);
+                changed = true;
+            }
+        }
+        if (changed || existing instanceof Map<?, ?>) {
+            input.put("parameters", parameters);
+        }
+    }
+
+    private Map<String, Object> completedTemplateMetadata(Map<Integer, StepExecution> completed, String templateId) {
+        if (completed == null || completed.isEmpty() || templateId == null || templateId.isBlank()) {
+            return Map.of();
+        }
+        for (StepExecution execution : completed.values()) {
+            if (execution == null || !execution.success() || !isTemplateDiscoveryTool(execution.toolName())) {
+                continue;
+            }
+            Map<String, Object> template = templateMetadataById(execution.output(), templateId);
+            if (!template.isEmpty()) {
+                return template;
+            }
+        }
+        return Map.of();
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> templateMetadataById(Object output, String templateId) {
+        Object templates = firstValueAtAnyPath(output, "$.templates", "$.data.templates");
+        if (!(templates instanceof Iterable<?> iterable)) {
+            return Map.of();
+        }
+        for (Object item : iterable) {
+            if (!(item instanceof Map<?, ?> map)) {
+                continue;
+            }
+            Map<String, Object> template = new LinkedHashMap<>((Map<String, Object>) map);
+            Object id = firstValueAtAnyPath(template, "$.templateId", "$.id", "$.code", "$.template");
+            if (id != null && templateId.equals(String.valueOf(id))) {
+                return template;
+            }
+        }
+        return Map.of();
+    }
+
+    private List<String> requiredTemplateParameters(Map<String, Object> template) {
+        Object required = firstValueAtAnyPath(template,
+            "$.parameterSchema.required",
+            "$.inputSchema.required",
+            "$.schema.required");
+        if (!(required instanceof Iterable<?> iterable)) {
+            return List.of();
+        }
+        List<String> values = new ArrayList<>();
+        for (Object item : iterable) {
+            if (item != null && !String.valueOf(item).isBlank()) {
+                values.add(String.valueOf(item));
+            }
+        }
+        return values;
+    }
+
+    private Object parameterAliasValue(Map<String, Object> parameters, String requiredName) {
+        if (parameters == null || parameters.isEmpty() || requiredName == null || requiredName.isBlank()) {
+            return null;
+        }
+        String requiredKey = canonicalParameterKey(requiredName);
+        for (Map.Entry<String, Object> entry : parameters.entrySet()) {
+            String key = entry.getKey();
+            if (key != null && requiredKey.equals(canonicalParameterKey(key))) {
+                return entry.getValue();
+            }
+        }
+        return null;
+    }
+
+    private String canonicalParameterKey(String key) {
+        return key == null ? "" : key.replace("_", "").replace("-", "").toLowerCase(Locale.ROOT);
+    }
+
+    @SuppressWarnings("unchecked")
+    private void hydrateExecutionContextFromCompletedAssets(InterpretationPlan.Step step,
+                                                            Map<Integer, StepExecution> completed,
+                                                            Map<String, Object> input) {
+        if (step == null || input == null || completed == null || completed.isEmpty()
+            || !isExecutionContextTool(step.toolName()) || isRoutingDiscoveryTool(step.toolName())) {
+            return;
+        }
+        Object existing = firstMapValue(input, "executionContext", "mcpExecutionContext");
+        Map<String, Object> context = existing instanceof Map<?, ?> map
+            ? new LinkedHashMap<>((Map<String, Object>) map)
+            : new LinkedHashMap<>();
+        if (hasNonBlank(context, "assetName", "asset_name", "name") && hasNonBlank(context, "env", "environment")) {
+            return;
+        }
+        Map<String, Object> assetContext = firstCompletedAssetExecutionContext(completed);
+        if (assetContext.isEmpty()) {
+            return;
+        }
+        assetContext.forEach(context::putIfAbsent);
+        input.put("executionContext", context);
+    }
+
+    private Map<String, Object> firstCompletedAssetExecutionContext(Map<Integer, StepExecution> completed) {
+        if (completed == null || completed.isEmpty()) {
+            return Map.of();
+        }
+        for (StepExecution execution : completed.values()) {
+            if (execution == null || !execution.success() || !isAssetDiscoveryTool(execution.toolName())) {
+                continue;
+            }
+            Map<String, Object> context = assetExecutionContext(execution.output());
+            if (!context.isEmpty()) {
+                return context;
+            }
+        }
+        return Map.of();
+    }
+
+    private Map<String, Object> assetExecutionContext(Object output) {
+        Map<String, Object> context = new LinkedHashMap<>();
+        Object assetName = firstValueAtAnyPath(output,
+            "$.assets[0].asset.name",
+            "$.assets[0].asset.displayName",
+            "$.assets[0].name",
+            "$.asset.name",
+            "$.name");
+        Object env = firstValueAtAnyPath(output,
+            "$.assets[0].asset.environment",
+            "$.assets[0].asset.env",
+            "$.assets[0].environment",
+            "$.asset.environment",
+            "$.environment",
+            "$.env");
+        Object databaseRole = firstValueAtAnyPath(output,
+            "$.assets[0].asset.databaseRole",
+            "$.assets[0].asset.database_role",
+            "$.assets[0].databaseRole",
+            "$.asset.databaseRole",
+            "$.databaseRole");
+        if (assetName != null && !String.valueOf(assetName).isBlank()) {
+            context.put("assetName", String.valueOf(assetName));
+        }
+        if (env != null && !String.valueOf(env).isBlank()) {
+            context.put("env", String.valueOf(env));
+        }
+        if (databaseRole != null && !String.valueOf(databaseRole).isBlank()) {
+            context.put("databaseRole", String.valueOf(databaseRole));
+        }
+        return context;
     }
 
     @SuppressWarnings("unchecked")
@@ -1199,7 +1409,7 @@ public class InterpretationPlanRuntime {
                 }
                 continue;
             }
-            Object value = valueAtPath(source.output(), binding.outputPath());
+            Object value = bindingValue(source, binding);
             if (value == null) {
                 if (binding.required() == null || binding.required()) {
                     throw new IllegalStateException("BINDING_FAILED: missing output_path " + binding.outputPath()
@@ -1209,6 +1419,26 @@ public class InterpretationPlanRuntime {
             }
             putInputValue(input, binding.inputField(), value);
         }
+    }
+
+    private Object bindingValue(StepExecution source, InterpretationPlan.Binding binding) {
+        if (source == null || binding == null) {
+            return null;
+        }
+        Object value = valueAtPath(source.output(), binding.outputPath());
+        if (value != null) {
+            return value;
+        }
+        if (isTemplateDiscoveryTool(source.toolName())) {
+            return firstValueAtAnyPath(source.output(),
+                "$.templates[0].templateId",
+                "$.templates[0].id",
+                "$.templates[0].code",
+                "$.templateId",
+                "$.id",
+                "$.code");
+        }
+        return null;
     }
 
     @SuppressWarnings("unchecked")
@@ -1340,15 +1570,27 @@ public class InterpretationPlanRuntime {
     }
 
     private boolean isAssetDiscoveryTool(String toolName) {
-        return "asset_query".equals(toolSemanticKey(toolName));
+        String semantic = toolSemanticKey(toolName);
+        return "asset_query".equals(semantic) || semantic.endsWith("_asset_query");
     }
 
     private boolean isTemplateDiscoveryTool(String toolName) {
-        return "template_query".equals(toolSemanticKey(toolName));
+        String semantic = toolSemanticKey(toolName);
+        return "template_query".equals(semantic) || semantic.endsWith("_template_query");
     }
 
     private boolean isRoutingDiscoveryTool(String toolName) {
         return isAssetDiscoveryTool(toolName) || isTemplateDiscoveryTool(toolName);
+    }
+
+    private boolean isExecutionContextTool(String toolName) {
+        String semantic = toolSemanticKey(toolName);
+        return semantic.equals("sql_query_execute")
+            || semantic.equals("database_query")
+            || semantic.equals("database_query_execute")
+            || semantic.equals("database_execute")
+            || semantic.equals("linux_command_execute")
+            || semantic.equals("http_request_execute");
     }
 
     private boolean isCrawlerTool(String toolName) {
@@ -1477,7 +1719,7 @@ public class InterpretationPlanRuntime {
                 continue;
             }
             StepExecution source = completed.get(contract.from());
-            ContractCheck check = checkContract(contract, source == null ? null : source.output());
+            ContractCheck check = checkContract(contract, source);
             if (!check.success()) {
                 return new StepExecution(
                     contract.to(),
@@ -1495,8 +1737,8 @@ public class InterpretationPlanRuntime {
         return null;
     }
 
-    private ContractCheck checkContract(InterpretationPlan.EdgeContract contract, Object output) {
-        Object value = contractValue(output, contract.field());
+    private ContractCheck checkContract(InterpretationPlan.EdgeContract contract, StepExecution source) {
+        Object value = contractValue(source, contract.field());
         boolean required = contract.required() == null || contract.required();
         if (value == null) {
             return required
@@ -1519,6 +1761,46 @@ public class InterpretationPlanRuntime {
                 + " expected " + type + " but was " + value.getClass().getSimpleName());
         }
         return new ContractCheck(true, null);
+    }
+
+    private ContractCheck checkContract(InterpretationPlan.EdgeContract contract, Object output) {
+        return checkContract(contract, new StepExecution(
+            contract == null ? null : contract.from(),
+            null,
+            null,
+            true,
+            output,
+            null,
+            null,
+            null,
+            0L
+        ));
+    }
+
+    private Object contractValue(StepExecution source, String field) {
+        if (source == null) {
+            return null;
+        }
+        Object value = contractValue(source.output(), field);
+        if (value != null) {
+            return value;
+        }
+        if (!isTemplateDiscoveryTool(source.toolName())) {
+            return null;
+        }
+        String key = contractFieldKey(field);
+        if ("templateid".equals(key) || "id".equals(key) || "template".equals(key)) {
+            return firstValueAtAnyPath(
+                source.output(),
+                "$.templates[0].templateId",
+                "$.templates[0].id",
+                "$.templates[0].code",
+                "$.templateId",
+                "$.id",
+                "$.code"
+            );
+        }
+        return null;
     }
 
     private Object contractValue(Object output, String field) {

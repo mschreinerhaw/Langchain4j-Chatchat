@@ -23,6 +23,7 @@
               v-if="messageHasRenderableContent(message)"
               type="button"
               class="message-copy-button"
+              :data-copied="copiedMessageId === message.id ? 'true' : undefined"
               :title="copiedMessageId === message.id ? '已复制' : '复制回答'"
               :aria-label="copiedMessageId === message.id ? '已复制回答' : '复制回答内容'"
               @click="copyMessage(message)"

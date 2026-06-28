@@ -40,10 +40,14 @@ class AgentPlannerTest {
             .contains("Do not invent service labels such as service:<topic>")
             .contains("{\"filters\":{},\"limit\":10}")
             .contains("<existing-service-label>")
-            .contains("<asset-name-from-asset-query>")
+            .contains("<asset-name-from-typed-asset-discovery>")
+            .contains("Never concatenate an assetName with descriptive text")
             .contains("templates[] is ranked by relevanceScore")
             .contains("filters.intentAliases")
             .contains("filters.keywords")
+            .contains("filters.bilingualIntent")
+            .contains("filters.intentZh")
+            .contains("filters.intentEn")
             .contains("Do not rely on Chinese-only or English-only intent")
             .contains("not as semantic ranking")
             .contains("Follow the dependency order configured by the user/runtime")
@@ -331,7 +335,7 @@ class AgentPlannerTest {
                     "action_type": "reasoning",
                     "tool_name": "",
                     "input": {
-                      "decision": "asset_query was rejected by confirmation, so assume env prod and service docker",
+                      "decision": "asset_discovery was rejected by confirmation, so assume env prod and service docker",
                       "output": {"env": "prod", "service": "docker"}
                     },
                     "depends_on": []
@@ -376,7 +380,7 @@ class AgentPlannerTest {
         assertThat(decision.action()).isEqualTo("final");
         assertThat(decision.reason()).isEqualTo("invalid_interpretation_plan");
         assertThat((List<?>) decision.executionPlan().get("interpretationPlanRuntimeIssues"))
-            .anySatisfy(issue -> assertThat(String.valueOf(issue)).contains("Do not use a reasoning step to replace asset_query"));
+            .anySatisfy(issue -> assertThat(String.valueOf(issue)).contains("Do not use a reasoning step to replace typed asset discovery"));
     }
 
     @Test

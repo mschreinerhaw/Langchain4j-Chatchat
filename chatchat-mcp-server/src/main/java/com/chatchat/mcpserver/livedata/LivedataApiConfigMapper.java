@@ -3,6 +3,9 @@ package com.chatchat.mcpserver.livedata;
 import com.chatchat.agents.protocol.ModelProtocolJson;
 
 import com.chatchat.mcpserver.api.ApiServiceConfig;
+import com.chatchat.tools.livedata.LivedataApiDefinition;
+import com.chatchat.tools.livedata.LivedataAutoRegistrationProperties;
+import com.chatchat.tools.livedata.LivedataSessionService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;

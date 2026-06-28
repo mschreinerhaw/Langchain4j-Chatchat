@@ -72,7 +72,7 @@ markdown.renderer.rules.fence = (tokens, idx) => {
     '<div class="markdown-code-block" data-code-block>',
     '<div class="markdown-code-toolbar">',
     languageLabel,
-    '<button type="button" class="markdown-code-copy" data-code-copy title="Copy code" aria-label="Copy code">Copy</button>',
+    '<button type="button" class="markdown-code-copy" data-code-copy title="Copy code" aria-label="Copy code"></button>',
     "</div>",
     `<pre><code${languageAttr}>${escapeHtml(token.content)}</code></pre>`,
     "</div>\n"
@@ -1510,12 +1510,15 @@ export default {
       }
       try {
         await this.writeClipboard(text);
-        const previousText = button.textContent || "Copy";
-        button.textContent = "Copied";
+        const previousTitle = button.getAttribute("title") || "Copy code";
+        const previousLabel = button.getAttribute("aria-label") || "Copy code";
         button.dataset.copied = "true";
+        button.setAttribute("title", "Copied");
+        button.setAttribute("aria-label", "Copied code");
         const timer = window.setTimeout(() => {
-          button.textContent = previousText;
           delete button.dataset.copied;
+          button.setAttribute("title", previousTitle);
+          button.setAttribute("aria-label", previousLabel);
           this.codeCopyResetTimers.delete(timer);
         }, 1400);
         this.codeCopyResetTimers.add(timer);

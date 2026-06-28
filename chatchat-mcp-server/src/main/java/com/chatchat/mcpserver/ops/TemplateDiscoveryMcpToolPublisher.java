@@ -21,7 +21,10 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class TemplateDiscoveryMcpToolPublisher {
 
-    public static final String TOOL_NAME = "template_query";
+    public static final String SSH_TEMPLATE_TOOL_NAME = "ssh_template_query";
+    public static final String SQL_DATASOURCE_TEMPLATE_TOOL_NAME = "sql_datasource_template_query";
+    public static final String HTTP_ENDPOINT_TEMPLATE_TOOL_NAME = "http_endpoint_template_query";
+    public static final String DATABASE_QUERY_TEMPLATE_TOOL_NAME = "database_query_template_query";
 
     private final McpSyncServer mcpSyncServer;
     private final CommandTemplateDiscoveryService templateDiscoveryService;
@@ -33,31 +36,64 @@ public class TemplateDiscoveryMcpToolPublisher {
     }
 
     public synchronized void refresh() {
-        remove(TOOL_NAME);
-        mcpSyncServer.addTool(templateQueryTool());
+        remove(SSH_TEMPLATE_TOOL_NAME);
+        remove(SQL_DATASOURCE_TEMPLATE_TOOL_NAME);
+        remove(HTTP_ENDPOINT_TEMPLATE_TOOL_NAME);
+        remove(DATABASE_QUERY_TEMPLATE_TOOL_NAME);
+        mcpSyncServer.addTool(domainTemplateQueryTool(
+            SSH_TEMPLATE_TOOL_NAME,
+            "SSH command template discovery",
+            "Read-only MCP tool for retrieving SSH host command templates only.",
+            "ssh_host",
+            "host",
+            "host command templates"
+        ));
+        mcpSyncServer.addTool(domainTemplateQueryTool(
+            SQL_DATASOURCE_TEMPLATE_TOOL_NAME,
+            "SQL datasource template discovery",
+            "Read-only MCP tool for retrieving SQL datasource query templates only.",
+            "sql_datasource",
+            "database",
+            "SQL datasource templates"
+        ));
+        mcpSyncServer.addTool(domainTemplateQueryTool(
+            HTTP_ENDPOINT_TEMPLATE_TOOL_NAME,
+            "HTTP endpoint template discovery",
+            "Read-only MCP tool for retrieving HTTP endpoint request templates only.",
+            "http_endpoint",
+            "http",
+            "HTTP endpoint templates"
+        ));
+        mcpSyncServer.addTool(databaseQueryTemplateQueryTool());
         mcpSyncServer.notifyToolsListChanged();
-        log.info("Template discovery MCP tool refreshed: {}", TOOL_NAME);
+        log.info("Template discovery MCP tools refreshed: {}, {}, {}, {}",
+            SSH_TEMPLATE_TOOL_NAME, SQL_DATASOURCE_TEMPLATE_TOOL_NAME,
+            HTTP_ENDPOINT_TEMPLATE_TOOL_NAME, DATABASE_QUERY_TEMPLATE_TOOL_NAME);
     }
 
-    private McpServerFeatures.SyncToolSpecification templateQueryTool() {
+    private McpServerFeatures.SyncToolSpecification domainTemplateQueryTool(String toolName,
+                                                                           String title,
+                                                                           String description,
+                                                                           String assetType,
+                                                                           String targetKind,
+                                                                           String domainLabel) {
         McpSchema.Tool tool = McpSchema.Tool.builder()
-            .name(TOOL_NAME)
-            .title("Execution template discovery")
-            .description("Read-only MCP Template Retrieval Engine v2 for querying registered SSH, SQL, HTTP, and business database query templates. "
-                + "It resolves assets, normalizes intent, ranks authorized templates with no-vector feature scoring, "
-                + "requires model-generated bilingual Chinese and English retrieval signals when intent is available, "
-                + "and returns queryIr/resolutionTrace plus template metadata, risk level, parameter schema and routing hints. "
-                + "It never returns raw commands, SQL, URLs, or bodies.")
-            .inputSchema(inputSchema())
-            .meta(meta())
+            .name(toolName)
+            .title(title)
+            .description(description + " It forces assetType=" + assetType + " and targetKind=" + targetKind
+                + ", so model mistakes cannot route this request into another asset type. It returns "
+                + domainLabel + " metadata, ranking traces, parameter schema and routing hints, but never returns raw execution specs.")
+            .inputSchema(domainTemplateInputSchema(domainLabel))
+            .meta(domainTemplateMeta(toolName, assetType, targetKind, domainLabel))
             .build();
         return McpServerFeatures.SyncToolSpecification.builder()
             .tool(tool)
             .callHandler((exchange, request) -> {
                 try {
-                    Map<String, Object> result = templateDiscoveryService.query(request.arguments());
+                    Map<String, Object> result = templateDiscoveryService.query(forcedTemplateArguments(
+                        request.arguments(), toolName, assetType, targetKind));
                     return McpSchema.CallToolResult.builder()
-                        .addTextContent("Command template query completed")
+                        .addTextContent(domainLabel + " query completed")
                         .structuredContent(result)
                         .isError(false)
                         .build();
@@ -76,6 +112,71 @@ public class TemplateDiscoveryMcpToolPublisher {
                 }
             })
             .build();
+    }
+
+    private McpServerFeatures.SyncToolSpecification databaseQueryTemplateQueryTool() {
+        McpSchema.Tool tool = McpSchema.Tool.builder()
+            .name(DATABASE_QUERY_TEMPLATE_TOOL_NAME)
+            .title("Business database query template discovery")
+            .description("Read-only MCP tool for retrieving business database query templates only. "
+                + "It forces assetType=database_query and finalDecision=business_database_query, "
+                + "so clients can discover authorized business query templates without routing through generic SSH, SQL datasource, or HTTP template domains. "
+                + "It returns template metadata, parameter schema, ranking traces, and routing hints, but never returns raw SQL.")
+            .inputSchema(databaseQueryTemplateInputSchema())
+            .meta(databaseQueryTemplateMeta())
+            .build();
+        return McpServerFeatures.SyncToolSpecification.builder()
+            .tool(tool)
+            .callHandler((exchange, request) -> {
+                try {
+                    Map<String, Object> result = templateDiscoveryService.query(databaseQueryTemplateArguments(request.arguments()));
+                    return McpSchema.CallToolResult.builder()
+                        .addTextContent("Business database query template query completed")
+                        .structuredContent(result)
+                        .isError(false)
+                        .build();
+                } catch (TargetKindRegistry.TargetKindException ex) {
+                    return McpSchema.CallToolResult.builder()
+                        .addTextContent(ex.getMessage())
+                        .structuredContent(errorResult(ex))
+                        .isError(true)
+                        .build();
+                } catch (Exception ex) {
+                    return McpSchema.CallToolResult.builder()
+                        .addTextContent(ex.getMessage())
+                        .structuredContent(errorResult(ex.getMessage()))
+                        .isError(true)
+                        .build();
+                }
+            })
+            .build();
+    }
+
+    private Map<String, Object> databaseQueryTemplateArguments(Map<String, Object> arguments) {
+        return forcedTemplateArguments(arguments, DATABASE_QUERY_TEMPLATE_TOOL_NAME, "database_query", "business_database_query");
+    }
+
+    private Map<String, Object> forcedTemplateArguments(Map<String, Object> arguments,
+                                                       String sourceTool,
+                                                       String assetType,
+                                                       String targetKind) {
+        Map<String, Object> values = new LinkedHashMap<>();
+        if (arguments != null) {
+            values.putAll(arguments);
+        }
+        values.put("assetType", assetType);
+        values.put("finalDecision", targetKind);
+        values.putIfAbsent("confidence", 1.0);
+        values.putIfAbsent("candidates", List.of(mapOf(
+            "targetKind", targetKind,
+            "confidence", 1.0
+        )));
+        values.putIfAbsent("trace", mapOf(
+            "source", sourceTool,
+            "forcedAssetType", assetType,
+            "forcedTargetKind", targetKind
+        ));
+        return values;
     }
 
     private McpSchema.JsonSchema inputSchema() {
@@ -168,6 +269,103 @@ public class TemplateDiscoveryMcpToolPublisher {
         ), List.of("filters", "trace"), false, null, null);
     }
 
+    private McpSchema.JsonSchema domainTemplateInputSchema(String domainLabel) {
+        return new McpSchema.JsonSchema("object", mapOf(
+            "schemaVersion", Map.of("type", "string", "description", CommandTemplateDiscoveryService.QUERY_SCHEMA_VERSION),
+            "filtersSchemaVersion", Map.of("type", "string", "description", TargetKindRegistry.FILTERS_SCHEMA_VERSION),
+            "filters", Map.of(
+                "type", "object",
+                "description", "Logical filters for " + domainLabel + ", such as assetName, env, cluster, service, intent, bilingualIntent, intentZh, intentEn, category, labels, databaseType, dbType, language, or queryLanguage. Concrete target fields and raw execution specs are forbidden.",
+                "additionalProperties", true
+            ),
+            "bilingualIntent", Map.of(
+                "type", "array",
+                "description", "Model-generated bilingual retrieval terms. Include both Chinese and English phrases.",
+                "items", Map.of("type", "string")
+            ),
+            "bilingualQuery", Map.of("type", "string", "description", "Alias for model-generated bilingual retrieval text."),
+            "intentZh", Map.of("type", "string", "description", "Chinese retrieval phrase generated by the model for template matching."),
+            "intentEn", Map.of("type", "string", "description", "English retrieval phrase generated by the model for template matching."),
+            "executionContext", Map.of(
+                "type", "object",
+                "description", "Alias for logical filters. Concrete target fields and raw execution specs are forbidden.",
+                "additionalProperties", true
+            ),
+            "trace", Map.of(
+                "type", "object",
+                "description", "Replay trace such as plannerVersion, model, promptVersion, or taskId.",
+                "additionalProperties", true
+            ),
+            "limit", Map.of(
+                "type", "integer",
+                "minimum", 1,
+                "maximum", CommandTemplateDiscoveryService.MAX_LIMIT,
+                "description", "Maximum number of templates returned; capped at 20."
+            ),
+            "view", Map.of("type", "string", "description", "Optional response view: model or system.")
+        ), List.of("filters"), false, null, null);
+    }
+
+    private McpSchema.JsonSchema databaseQueryTemplateInputSchema() {
+        return new McpSchema.JsonSchema("object", mapOf(
+            "schemaVersion", Map.of("type", "string", "description", CommandTemplateDiscoveryService.QUERY_SCHEMA_VERSION),
+            "filtersSchemaVersion", Map.of(
+                "type", "string",
+                "description", TargetKindRegistry.FILTERS_SCHEMA_VERSION
+            ),
+            "filters", Map.of(
+                "type", "object",
+                "description", "Logical filters for business database query templates, such as intent, bilingualIntent, intentZh, intentEn, category, databaseType, dbType, labels, language, or queryLanguage. Concrete datasource fields and raw SQL are forbidden.",
+                "additionalProperties", true
+            ),
+            "bilingualIntent", Map.of(
+                "type", "array",
+                "description", "Model-generated bilingual retrieval terms. Include both Chinese and English phrases.",
+                "items", Map.of("type", "string")
+            ),
+            "bilingualQuery", Map.of(
+                "type", "string",
+                "description", "Alias for model-generated bilingual retrieval text."
+            ),
+            "intentZh", Map.of(
+                "type", "string",
+                "description", "Chinese retrieval phrase generated by the model for template matching."
+            ),
+            "intentEn", Map.of(
+                "type", "string",
+                "description", "English retrieval phrase generated by the model for template matching."
+            ),
+            "language", Map.of(
+                "type", "string",
+                "description", "Optional query language hint: zh, en, or auto."
+            ),
+            "queryLanguage", Map.of(
+                "type", "string",
+                "description", "Alias of language for model-generated template retrieval requests."
+            ),
+            "executionContext", Map.of(
+                "type", "object",
+                "description", "Alias for logical filters. Concrete datasource fields and raw SQL are forbidden.",
+                "additionalProperties", true
+            ),
+            "trace", Map.of(
+                "type", "object",
+                "description", "Replay trace such as plannerVersion, model, promptVersion, or taskId.",
+                "additionalProperties", true
+            ),
+            "limit", Map.of(
+                "type", "integer",
+                "minimum", 1,
+                "maximum", CommandTemplateDiscoveryService.MAX_LIMIT,
+                "description", "Maximum number of templates returned; capped at 20."
+            ),
+            "view", Map.of(
+                "type", "string",
+                "description", "Optional response view: model or system."
+            )
+        ), List.of("filters"), false, null, null);
+    }
+
     private Map<String, Object> meta() {
         return mapOf(
             "schemaVersion", CommandTemplateDiscoveryService.QUERY_SCHEMA_VERSION,
@@ -234,6 +432,97 @@ public class TemplateDiscoveryMcpToolPublisher {
                 "rawSql",
                 "body",
                 "bodyTemplate"
+            ),
+            "rawExecutionSpecReturned", false
+        );
+    }
+
+    private Map<String, Object> domainTemplateMeta(String toolName,
+                                                  String assetType,
+                                                  String targetKind,
+                                                  String domainLabel) {
+        return mapOf(
+            "schemaVersion", CommandTemplateDiscoveryService.QUERY_SCHEMA_VERSION,
+            "kind", "typed_template_discovery_tool",
+            "domain", domainLabel,
+            "runtime_action", "read_only",
+            "runtimeAction", "read_only",
+            "controlPlane", "discovery",
+            "readOnly", true,
+            "risk_level", "low",
+            "riskLevel", "low",
+            "targetKind", targetKind,
+            "assetType", assetType,
+            "toolBoundary", mapOf(
+                "toolName", toolName,
+                "forcedAssetType", assetType,
+                "forcedTargetKind", targetKind,
+                "rejectCrossTypeRouting", true
+            ),
+            "confirmation", mapOf("default", "auto_execute", "allow_user_override", false),
+            "resultShape", mapOf(
+                "canonical", "templates[]",
+                "templateIdPath", "templates[].templateId",
+                "queryIrPath", "queryIr",
+                "decisionTracePath", "resolutionTrace"
+            ),
+            "indexPolicy", mapOf(
+                "logicalIndex", "template:" + assetType,
+                "filterField", "assetType",
+                "isolatedByTool", true
+            ),
+            "languageSupport", mapOf(
+                "mode", "bilingual",
+                "languages", List.of("zh", "en"),
+                "modelMustGenerateBilingualRetrieval", true,
+                "bilingualQueryFields", List.of("bilingualIntent", "bilingualQuery", "intentZh", "intentEn", "filters.bilingualIntent", "filters.intentZh", "filters.intentEn")
+            ),
+            "routingProtocol", mapOf(
+                "forcedTargetKind", targetKind,
+                "forcedAssetType", assetType,
+                "filtersSchemaVersion", TargetKindRegistry.FILTERS_SCHEMA_VERSION
+            ),
+            "rawExecutionSpecReturned", false
+        );
+    }
+
+    private Map<String, Object> databaseQueryTemplateMeta() {
+        return mapOf(
+            "schemaVersion", CommandTemplateDiscoveryService.QUERY_SCHEMA_VERSION,
+            "kind", "business_database_query_template_discovery_tool",
+            "runtime_action", "read_only",
+            "runtimeAction", "read_only",
+            "controlPlane", "discovery",
+            "readOnly", true,
+            "risk_level", "low",
+            "riskLevel", "low",
+            "targetKind", "business_database_query",
+            "assetType", "database_query",
+            "confirmation", mapOf("default", "auto_execute", "allow_user_override", false),
+            "resultShape", mapOf(
+                "canonical", "templates[]",
+                "templateIdPath", "templates[].templateId",
+                "queryIrPath", "queryIr",
+                "decisionTracePath", "resolutionTrace"
+            ),
+            "decisionEngine", "mcp_template_lucene_decision_v2_no_vector",
+            "languageSupport", mapOf(
+                "mode", "bilingual",
+                "languages", List.of("zh", "en"),
+                "modelMustGenerateBilingualRetrieval", true,
+                "bilingualQueryFields", List.of("bilingualIntent", "bilingualQuery", "intentZh", "intentEn", "filters.bilingualIntent", "filters.intentZh", "filters.intentEn")
+            ),
+            "routingProtocol", mapOf(
+                "forcedTargetKind", "business_database_query",
+                "forcedAssetType", "database_query",
+                "filtersSchemaVersion", TargetKindRegistry.FILTERS_SCHEMA_VERSION
+            ),
+            "forbiddenConcreteTargetFields", List.of(
+                "datasourceId",
+                "jdbcUrl",
+                "connectionString",
+                "sql",
+                "rawSql"
             ),
             "rawExecutionSpecReturned", false
         );

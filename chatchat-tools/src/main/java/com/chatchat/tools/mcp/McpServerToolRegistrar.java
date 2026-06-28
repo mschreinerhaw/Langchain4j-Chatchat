@@ -1,4 +1,4 @@
-package com.chatchat.mcpserver.tool;
+package com.chatchat.tools.mcp;
 
 import com.chatchat.agents.tool.ToolRegistry;
 

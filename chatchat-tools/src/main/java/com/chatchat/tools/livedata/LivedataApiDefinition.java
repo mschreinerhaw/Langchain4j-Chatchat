@@ -1,4 +1,4 @@
-package com.chatchat.mcpserver.livedata;
+package com.chatchat.tools.livedata;
 
 public record LivedataApiDefinition(
     String id,

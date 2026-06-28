@@ -198,6 +198,36 @@ class AssetDiscoveryServiceTest {
     }
 
     @Test
+    void returnsUniqueFuzzyAssetNameCandidateWhenPlannerConcatenatesDescription() {
+        SshHostConfigService hostService = mock(SshHostConfigService.class);
+        SqlDatasourceConfigService datasourceService = mock(SqlDatasourceConfigService.class);
+        HttpEndpointConfigService httpService = mock(HttpEndpointConfigService.class);
+        AssetDiscoveryService service = service(hostService, datasourceService, httpService);
+        SqlDatasourceConfig mysql = datasource("ds-1", "本地MySQL测试服务", "DEV", "[\"mysql\"]");
+        when(hostService.listEnabled()).thenReturn(List.of());
+        when(datasourceService.listEnabled()).thenReturn(List.of(mysql));
+        when(httpService.listEnabled()).thenReturn(List.of());
+
+        Map<String, Object> result = service.query(Map.of(
+            "targetKind", "database",
+            "confidence", 0.9,
+            "filters", Map.of("assetName", "MySQL测试服务该服务应为MySQL数据库"),
+            "trace", trace(),
+            "limit", 10
+        ));
+
+        assertThat(result).containsEntry("returnedCount", 1);
+        Map<?, ?> metadata = (Map<?, ?>) ((List<?>) result.get("assets")).get(0);
+        Map<?, ?> asset = (Map<?, ?>) metadata.get("asset");
+        Map<?, ?> routingHints = (Map<?, ?>) metadata.get("routingHints");
+        Map<?, ?> match = (Map<?, ?>) routingHints.get("assetQueryMatch");
+        assertThat(asset.get("name")).isEqualTo("本地MySQL测试服务");
+        assertThat(match.get("strategy")).isEqualTo("fuzzy_name_unique_candidate");
+        assertThat(match.get("requestedAssetName")).isEqualTo("MySQL测试服务该服务应为MySQL数据库");
+        assertThat(match.get("confidence")).isEqualTo("low");
+    }
+
+    @Test
     void returnsUnavailableAssetWhenExactMatchIsRegisteredButDisabled() {
         SshHostConfigService hostService = mock(SshHostConfigService.class);
         SqlDatasourceConfigService datasourceService = mock(SqlDatasourceConfigService.class);

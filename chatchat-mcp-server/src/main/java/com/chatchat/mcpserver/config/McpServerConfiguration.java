@@ -1,8 +1,8 @@
 package com.chatchat.mcpserver.config;
 
 import com.chatchat.agents.tool.ToolRegistry;
-import com.chatchat.mcpserver.tool.McpServerToolRegistrar;
 import com.chatchat.mcpserver.tool.ToolRegistryMcpAdapter;
+import com.chatchat.tools.mcp.McpServerToolRegistrar;
 import com.chatchat.tools.builtin.BuiltInToolsBootstrap;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.modelcontextprotocol.json.McpJsonMapper;

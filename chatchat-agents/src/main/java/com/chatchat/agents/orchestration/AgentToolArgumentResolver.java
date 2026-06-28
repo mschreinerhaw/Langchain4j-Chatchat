@@ -41,15 +41,24 @@ class AgentToolArgumentResolver {
             values.remove("documentIds");
             values.remove("fileIds");
             values.remove("file_ids");
+            values.remove("selectedDocumentIds");
+            values.remove("selected_document_ids");
+            values.remove("selectedFileIds");
+            values.remove("selected_file_ids");
+            values.remove("allowedDocIds");
+            values.remove("allowed_doc_ids");
+            values.remove("documentVisibilityEnforced");
+            values.remove("document_visibility_enforced");
+            values.remove("tags");
         } else if (!boundDocumentIds.isEmpty() && !hasAnyKey(values, "document_ids", "documentIds", "fileIds", "file_ids")) {
             values.put("document_ids", boundDocumentIds);
-        }
-        if (!boundDocumentIds.isEmpty() && !hasAnyKey(values, "selectedDocumentIds", "selected_document_ids", "selectedFileIds", "selected_file_ids", "allowedDocIds", "allowed_doc_ids")) {
-            values.put("selectedDocumentIds", boundDocumentIds);
-            values.put("documentVisibilityEnforced", true);
-        }
-        if (!boundDocumentTags.isEmpty() && !values.containsKey("tags")) {
-            values.put("tags", boundDocumentTags);
+            if (!hasAnyKey(values, "selectedDocumentIds", "selected_document_ids", "selectedFileIds", "selected_file_ids", "allowedDocIds", "allowed_doc_ids")) {
+                values.put("selectedDocumentIds", boundDocumentIds);
+                values.put("documentVisibilityEnforced", true);
+            }
+            if (!boundDocumentTags.isEmpty() && !values.containsKey("tags")) {
+                values.put("tags", boundDocumentTags);
+            }
         }
         return values;
     }

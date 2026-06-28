@@ -89,13 +89,13 @@ public class OpsMcpToolPublisher {
             .name("linux_command_execute")
             .title("Linux command execution gateway")
             .description("Execute a runtime-registered Linux command template on a routed logical host target. "
-                + "The template value must be an existing templateId returned by template_query for the same logical asset. "
+                + "The template value must be an existing templateId returned by ssh_template_query for the same logical asset. "
                 + "Do not invent template names and do not pass hostId, hostname, IP address, or any concrete machine identifier.")
             .inputSchema(new McpSchema.JsonSchema("object", Map.of(
-                "template", Map.of("type", "string", "description", "Required existing command templateId from template_query.templates[].templateId for the selected asset. Do not invent names."),
+                "template", Map.of("type", "string", "description", "Required existing command templateId from ssh_template_query.templates[].templateId for the selected asset. Do not invent names."),
                 "parameters", Map.of(
                     "type", "object",
-                    "description", "Template parameters object. Use exactly the fields required by template_query.templates[].parameterSchema; do not put template parameters at the top level.",
+                    "description", "Template parameters object. Use exactly the fields required by ssh_template_query.templates[].parameterSchema; do not put template parameters at the top level.",
                     "additionalProperties", true
                 ),
                 "executionContext", Map.of(
@@ -129,10 +129,10 @@ public class OpsMcpToolPublisher {
                     "type", "object",
                     "description", "Logical endpoint context such as env, cluster, targetType, target, service, or labels"
                 ),
-                "template", Map.of("type", "string", "description", "HTTP template id returned by template_query; this is a logical selector, not a URL"),
+                "template", Map.of("type", "string", "description", "HTTP template id returned by http_endpoint_template_query; this is a logical selector, not a URL"),
                 "parameters", Map.of(
                     "type", "object",
-                    "description", "Template parameters object. Use exactly the fields required by template_query.templates[].parameterSchema; do not put template parameters at the top level.",
+                    "description", "Template parameters object. Use exactly the fields required by http_endpoint_template_query.templates[].parameterSchema; do not put template parameters at the top level.",
                     "additionalProperties", true
                 ),
                 "sourceTaskId", Map.of("type", "string"),
@@ -161,10 +161,10 @@ public class OpsMcpToolPublisher {
             .title(host.getTitle())
             .description(description(host))
             .inputSchema(new McpSchema.JsonSchema("object", Map.of(
-                "template", Map.of("type", "string", "description", "Required existing command templateId from this asset's allowedCommandTemplates/template_query result. Do not invent names."),
+                "template", Map.of("type", "string", "description", "Required existing command templateId from this asset's allowedCommandTemplates or ssh_template_query result. Do not invent names."),
                 "parameters", Map.of(
                     "type", "object",
-                    "description", "Template parameters object. Use exactly the fields required by template_query.templates[].parameterSchema; do not put template parameters at the top level.",
+                    "description", "Template parameters object. Use exactly the fields required by ssh_template_query.templates[].parameterSchema; do not put template parameters at the top level.",
                     "additionalProperties", true
                 ),
                 "reason", Map.of("type", "string", "description", "Execution reason for user confirmation and audit"),
@@ -414,11 +414,11 @@ public class OpsMcpToolPublisher {
 
     private Map<String, Object> templateSelectionPolicy() {
         return mutableMap(
-            "source", "template_query.templates[].templateId",
+            "source", "ssh_template_query.templates[].templateId",
             "allowedSet", "authorizedCommandTemplates[].templateId or authorizedCommandTemplatesByAsset[].templates[].templateId",
             "selectionFields", List.of("templateId", "name", "description", "intentSignals", "parameterSchema"),
             "mustUseDiscoveredTemplate", true,
-            "onNoMatch", "call template_query with assetType=ssh_host and executionContext; if no authorized template is returned, explain that no existing authorized template can satisfy the request",
+            "onNoMatch", "call ssh_template_query with executionContext; if no authorized template is returned, explain that no existing authorized template can satisfy the request",
             "doNotInventTemplateNames", true
         );
     }

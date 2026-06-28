@@ -31,10 +31,10 @@ class AgentToolArgumentResolverTest {
             .doesNotContainKey("document_ids")
             .doesNotContainKey("documentIds")
             .doesNotContainKey("fileIds")
-            .doesNotContainKey("file_ids");
-        assertThat(result)
-            .containsEntry("selectedDocumentIds", List.of("20260617_c489d851"))
-            .containsEntry("documentVisibilityEnforced", true);
+            .doesNotContainKey("file_ids")
+            .doesNotContainKey("selectedDocumentIds")
+            .doesNotContainKey("documentVisibilityEnforced")
+            .doesNotContainKey("tags");
         assertThat(result.get("query").toString())
             .contains("跨交易日任务依赖执行判断与调度方案")
             .contains("跨交易日 任务依赖 执行判断 调度方案");
@@ -53,6 +53,8 @@ class AgentToolArgumentResolverTest {
 
         assertThat(result)
             .containsEntry("document_ids", List.of("20260617_c489d851"))
+            .containsEntry("selectedDocumentIds", List.of("20260617_c489d851"))
+            .containsEntry("documentVisibilityEnforced", true)
             .containsEntry("strict_document_scope", true);
     }
 
@@ -135,7 +137,7 @@ class AgentToolArgumentResolverTest {
             .isInstanceOfSatisfying(Map.class, filters -> assertThat(filters)
                 .containsEntry("env", "prod")
                 .containsEntry("service", "hive")
-                .containsEntry("intent", "service status"));
+                .containsEntry("intent", "check prod hive status"));
     }
 
     @Test

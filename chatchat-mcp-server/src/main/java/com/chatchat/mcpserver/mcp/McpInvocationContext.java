@@ -29,7 +29,18 @@ public final class McpInvocationContext {
         String remoteAddr,
         String userAgent,
         String requestId,
-        String clientId
+        String clientId,
+        String userId,
+        String username,
+        String tenantId,
+        String roles,
+        String workspaceId,
+        String environment,
+        String traceId,
+        String assetType,
+        String domain,
+        String permissionLevel,
+        String scopeExpression
     ) {
     }
 

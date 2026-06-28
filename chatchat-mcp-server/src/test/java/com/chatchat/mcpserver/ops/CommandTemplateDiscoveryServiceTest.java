@@ -648,6 +648,150 @@ class CommandTemplateDiscoveryServiceTest {
     }
 
     @Test
+    void ranksMysqlTableMetadataBeforeStorageTemplateForMetadataIntent() {
+        SqlTemplateService sqlTemplateService = mock(SqlTemplateService.class);
+        SqlDatasourceConfigService datasourceService = mock(SqlDatasourceConfigService.class);
+        LuceneMcpSearchService lucene = mock(LuceneMcpSearchService.class);
+        CommandTemplateDiscoveryService service = new CommandTemplateDiscoveryService(
+            mock(CommandTemplateService.class),
+            mock(SshHostConfigService.class),
+            sqlTemplateService,
+            datasourceService,
+            mock(HttpEndpointConfigService.class),
+            new ObjectMapper(),
+            new TemplateDiscoveryProperties(),
+            lucene
+        );
+        SqlDatasourceConfig datasource = datasource("ds-local", "本地MySQL测试服务", "DEV");
+        datasource.setDatabaseType("mysql");
+        datasource.setAllowedTemplatesJson("[\"MYSQL_DATABASE_SIZE\",\"MYSQL_TABLE_METADATA\",\"MYSQL_SHOW_STATUS\"]");
+        when(datasourceService.listEnabled()).thenReturn(List.of(datasource));
+        when(sqlTemplateService.listEnabled()).thenReturn(List.of(
+            sqlTemplate(
+                "MYSQL_DATABASE_SIZE",
+                "SELECT table_schema, table_name FROM information_schema.tables",
+                "MySQL database size",
+                "Read MySQL database and table storage size.",
+                "mysql",
+                "maintenance_storage",
+                "[\"database size\",\"storage\",\"space\"]"
+            ),
+            sqlTemplate(
+                "MYSQL_SHOW_STATUS",
+                "SHOW GLOBAL STATUS",
+                "MySQL status variables",
+                "Read MySQL status variables.",
+                "mysql",
+                "maintenance_status",
+                "[\"status\",\"health\"]"
+            ),
+            sqlTemplate(
+                "MYSQL_TABLE_METADATA",
+                "SELECT column_name FROM information_schema.columns WHERE table_schema = {{database}} AND table_name = {{table}}",
+                "MySQL table metadata",
+                "Read MySQL column metadata for a table.",
+                "mysql",
+                "maintenance_metadata",
+                "[\"table metadata\",\"column metadata\",\"table schema\",\"describe table\",\"metadata_query\"]"
+            )
+        ));
+        when(lucene.enabled()).thenReturn(true);
+        when(lucene.searchTemplates(anyList(), any())).thenReturn(List.of(
+            new LuceneMcpSearchService.SearchHit("MYSQL_DATABASE_SIZE", "template", 9.0f, List.of("token:information_schema")),
+            new LuceneMcpSearchService.SearchHit("MYSQL_TABLE_METADATA", "template", 4.0f, List.of("token:metadata")),
+            new LuceneMcpSearchService.SearchHit("MYSQL_SHOW_STATUS", "template", 3.0f, List.of("token:mysql"))
+        ));
+
+        Map<String, Object> result = service.query(Map.of(
+            "candidates", List.of(Map.of("targetKind", "database", "confidence", 0.95)),
+            "finalDecision", "database",
+            "filters", Map.of(
+                "assetName", "本地MySQL测试服务",
+                "env", "DEV",
+                "intent", "查询 user_info_file 表元数据信息",
+                "intentAliases", List.of("获取表结构", "table metadata", "SHOW CREATE TABLE", "DESCRIBE"),
+                "keywords", List.of("SHOW TABLE STATUS", "SHOW CREATE TABLE", "DESCRIBE", "TABLES", "COLUMNS", "information_schema", "表结构", "表元数据")
+            ),
+            "trace", trace(),
+            "limit", 10
+        ));
+
+        List<?> templates = (List<?>) result.get("templates");
+        assertThat(templates).isNotEmpty();
+        Map<?, ?> first = (Map<?, ?>) templates.get(0);
+        assertThat(first.get("id")).isEqualTo("MYSQL_TABLE_METADATA");
+        assertThat(first.get("templateId")).isEqualTo("MYSQL_TABLE_METADATA");
+    }
+
+    @Test
+    void retrievesEnglishNamedTemplateFromChineseOnlyMetadataIntent() {
+        SqlTemplateService sqlTemplateService = mock(SqlTemplateService.class);
+        SqlDatasourceConfigService datasourceService = mock(SqlDatasourceConfigService.class);
+        CommandTemplateDiscoveryService service = service(
+            mock(CommandTemplateService.class),
+            mock(SshHostConfigService.class),
+            sqlTemplateService,
+            datasourceService,
+            mock(HttpEndpointConfigService.class)
+        );
+        SqlDatasourceConfig datasource = datasource("ds-local", "\u672c\u5730MySQL\u6d4b\u8bd5\u670d\u52a1", "DEV");
+        datasource.setDatabaseType("mysql");
+        datasource.setAllowedTemplatesJson("[\"MYSQL_DATABASE_SIZE\",\"MYSQL_TABLE_METADATA\",\"MYSQL_SHOW_STATUS\"]");
+        when(datasourceService.listEnabled()).thenReturn(List.of(datasource));
+        when(sqlTemplateService.listEnabled()).thenReturn(List.of(
+            sqlTemplate(
+                "MYSQL_DATABASE_SIZE",
+                "SELECT table_schema, table_name FROM information_schema.tables",
+                "MySQL database size",
+                "Read MySQL database and table storage size.",
+                "mysql",
+                "maintenance_storage",
+                "[\"database size\",\"storage\",\"space\"]"
+            ),
+            sqlTemplate(
+                "MYSQL_TABLE_METADATA",
+                "SELECT column_name FROM information_schema.columns WHERE table_schema = {{database}} AND table_name = {{table}}",
+                "MySQL table metadata",
+                "Read MySQL column metadata for a table.",
+                "mysql",
+                "maintenance_metadata",
+                "[\"table metadata\",\"column metadata\",\"table schema\",\"describe table\",\"metadata_query\"]"
+            ),
+            sqlTemplate(
+                "MYSQL_SHOW_STATUS",
+                "SHOW GLOBAL STATUS",
+                "MySQL status variables",
+                "Read MySQL status variables.",
+                "mysql",
+                "maintenance_status",
+                "[\"status\",\"health\"]"
+            )
+        ));
+
+        Map<String, Object> result = service.query(Map.of(
+            "candidates", List.of(Map.of("targetKind", "database", "confidence", 0.95)),
+            "finalDecision", "database",
+            "filters", Map.of(
+                "assetName", "\u672c\u5730MySQL\u6d4b\u8bd5\u670d\u52a1",
+                "env", "DEV",
+                "intent", "\u67e5\u8be2 user_info_file \u8868\u5143\u6570\u636e\u4fe1\u606f\uff0c\u5305\u62ec\u5b57\u6bb5\u3001\u7d22\u5f15\u3001\u7ea6\u675f"
+            ),
+            "trace", trace(),
+            "limit", 10
+        ));
+
+        List<?> templates = (List<?>) result.get("templates");
+        Map<?, ?> first = (Map<?, ?>) templates.get(0);
+        Map<?, ?> queryIr = (Map<?, ?>) result.get("queryIr");
+        Map<?, ?> intent = (Map<?, ?>) queryIr.get("intent");
+
+        assertThat(first.get("templateId")).isEqualTo("MYSQL_TABLE_METADATA");
+        assertThat(first.get("name")).isEqualTo("MySQL table metadata");
+        assertThat(intent.get("type")).isEqualTo("metadata_query");
+        assertThat(result.get("templateSelectionPolicy").toString()).contains("Chinese and English");
+    }
+
+    @Test
     void ranksChineseTemplateSignalsForEnglishIntent() {
         SqlTemplateService sqlTemplateService = mock(SqlTemplateService.class);
         SqlDatasourceConfigService datasourceService = mock(SqlDatasourceConfigService.class);

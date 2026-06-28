@@ -205,7 +205,7 @@ public class AssetMetadataFactory {
 
     private Map<String, Object> templateSelectionPolicy() {
         return mapOf(
-            "source", "template_query.templates[].templateId",
+            "source", "ssh_template_query.templates[].templateId",
             "allowedSetPath", "capabilities.allowedCommandTemplates",
             "mustUseAllowedTemplate", true,
             "doNotInventTemplateNames", true,
@@ -215,7 +215,7 @@ public class AssetMetadataFactory {
 
     private Map<String, Object> sqlTemplateSelectionPolicy() {
         return mapOf(
-            "source", "template_query.templates[].templateId",
+            "source", "sql_datasource_template_query.templates[].templateId",
             "allowedSetPath", "capabilities.allowedQueryTemplates",
             "mustUseAllowedTemplate", true,
             "doNotInventTemplateNames", true,

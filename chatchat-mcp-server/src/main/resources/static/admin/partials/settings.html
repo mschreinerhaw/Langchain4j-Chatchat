@@ -1,17 +1,209 @@
 <section id="settingsView" class="panel d-none">
     <div class="panel-head">
-        <h2>连接信息</h2>
+        <div>
+            <h2>系统设置</h2>
+            <p class="text-secondary small mb-0">查看服务连接信息，并管理 API 控制面的 MCP 权限同步。</p>
+        </div>
     </div>
-    <dl class="connection-list">
-        <dt>MCP 端点</dt>
-        <dd id="mcpEndpointText"></dd>
-        <dt>API 注册接口</dt>
-        <dd>/api/v1/api-services</dd>
-        <dt>MCP 注册接口</dt>
-        <dd>/api/v1/mcp-services</dd>
-        <dt>审计日志接口</dt>
-        <dd>/api/v1/audit-logs</dd>
-        <dt>模板变量</dt>
-        <dd>可在 URL、请求头和请求体模板中使用 <code>{{name}}</code>。</dd>
-    </dl>
+
+    <div class="settings-tabs" role="tablist" aria-label="系统设置">
+        <button class="active" type="button" data-settings-tab="connection" role="tab" aria-selected="true">连接信息</button>
+        <button type="button" data-settings-tab="authorization" role="tab" aria-selected="false">权限同步</button>
+    </div>
+
+    <section id="settingsConnectionPanel" class="settings-tab-panel">
+        <dl class="connection-list">
+            <dt>MCP 端点</dt>
+            <dd id="mcpEndpointText"></dd>
+            <dt>API 注册接口</dt>
+            <dd>/api/v1/api-services</dd>
+            <dt>MCP 注册接口</dt>
+            <dd>/api/v1/mcp-services</dd>
+            <dt>审计日志接口</dt>
+            <dd>/api/v1/audit-logs</dd>
+            <dt>模板变量</dt>
+            <dd>可在 URL、请求头和请求体模板中使用 <code>{{name}}</code>。</dd>
+        </dl>
+    </section>
+
+    <section id="settingsAuthorizationPanel" class="settings-tab-panel d-none">
+        <div class="panel-head auth-sync-head">
+            <div>
+                <h2>权限同步</h2>
+                <p class="text-secondary small mb-0">从 API 控制面拉取非 admin 用户、角色和 MCP 工具授权。</p>
+            </div>
+            <button id="syncMcpAuthorizationBtn" class="btn btn-primary btn-sm" type="button">同步</button>
+        </div>
+
+        <div class="row g-3 mb-3">
+            <div class="col-md-3">
+                <div class="metric-card">
+                    <span>状态</span>
+                    <strong id="mcpAuthStatusText">-</strong>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="metric-card">
+                    <span>用户</span>
+                    <strong id="mcpAuthUserCount">0</strong>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="metric-card">
+                    <span>角色</span>
+                    <strong id="mcpAuthRoleCount">0</strong>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="metric-card">
+                    <span>规则</span>
+                    <strong id="mcpAuthPermissionCount">0</strong>
+                </div>
+            </div>
+        </div>
+
+        <div class="settings-tabs compact" role="tablist" aria-label="权限同步明细">
+            <button class="active" type="button" data-auth-sync-tab="users" role="tab" aria-selected="true">用户角色</button>
+            <button type="button" data-auth-sync-tab="roles" role="tab" aria-selected="false">角色信息</button>
+            <button type="button" data-auth-sync-tab="rules" role="tab" aria-selected="false">授权规则</button>
+        </div>
+
+        <section id="authSyncUsersPanel" class="auth-sync-tab-panel">
+            <div class="table-responsive">
+                <table class="table table-sm align-middle">
+                    <thead>
+                    <tr>
+                        <th>用户</th>
+                        <th>租户</th>
+                        <th>角色</th>
+                    </tr>
+                    </thead>
+                    <tbody id="mcpAuthUserBody"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section id="authSyncRolesPanel" class="auth-sync-tab-panel d-none">
+            <div class="table-responsive">
+                <table class="table table-sm align-middle">
+                    <thead>
+                    <tr>
+                        <th>角色</th>
+                        <th>类型</th>
+                        <th>状态</th>
+                        <th>租户</th>
+                        <th>操作</th>
+                    </tr>
+                    </thead>
+                    <tbody id="mcpAuthRoleBody"></tbody>
+                </table>
+            </div>
+        </section>
+
+        <section id="authSyncRulesPanel" class="auth-sync-tab-panel d-none">
+            <p class="text-secondary small mb-2">这里是 API 控制面同步过来的授权规则总览，用于核对和审计；编辑授权请在角色信息中点击“授权管理”。</p>
+            <div class="table-responsive">
+                <table class="table table-sm align-middle">
+                    <thead>
+                    <tr>
+                        <th>对象</th>
+                        <th>工具</th>
+                        <th>效果</th>
+                        <th>租户</th>
+                    </tr>
+                    </thead>
+                    <tbody id="mcpAuthPermissionBody"></tbody>
+                </table>
+            </div>
+        </section>
+    </section>
 </section>
+
+<div id="rolePermissionModal" class="modal-backdrop-custom d-none">
+    <section class="entity-modal role-permission-modal" role="dialog" aria-modal="true" aria-labelledby="rolePermissionTitle">
+        <div class="modal-head">
+            <div>
+                <p>角色授权管理</p>
+                <h2 id="rolePermissionTitle">角色授权</h2>
+            </div>
+            <button id="closeRolePermissionModalBtn" type="button" class="btn-close" aria-label="关闭"></button>
+        </div>
+
+        <div class="role-permission-layout">
+            <aside class="role-permission-browser">
+                <div class="role-permission-browser-head">
+                    <div>
+                        <strong>选择授权对象</strong>
+                        <p>资产、数据库查询和 API 会统一在这里检索。</p>
+                    </div>
+                    <span id="rolePermissionToolCount" class="text-secondary small">0 个可授权对象</span>
+                </div>
+
+                <div class="role-permission-filter-grid">
+                    <label>
+                        <span>分类</span>
+                        <select id="rolePermissionCategorySelect">
+                            <option value="all">全部</option>
+                            <option value="asset">资产工具</option>
+                            <option value="database_query">数据库查询</option>
+                            <option value="document">文档检索</option>
+                            <option value="api">API 服务</option>
+                            <option value="other">其他工具</option>
+                        </select>
+                    </label>
+                    <label>
+                        <span>检索</span>
+                        <input id="rolePermissionToolSearchInput" type="search" placeholder="工具名、服务或描述">
+                    </label>
+                </div>
+
+                <div id="rolePermissionToolList" class="role-permission-tool-list"></div>
+            </aside>
+
+            <section class="role-permission-editor">
+                <div class="role-permission-selected">
+                    <span>当前对象</span>
+                    <strong id="rolePermissionSelectedToolName">请选择授权对象</strong>
+                    <p id="rolePermissionSelectedToolMeta">左侧选择资产、数据库查询或 API 后再新增授权。</p>
+                    <small id="rolePermissionSelectedToolDescription">暂无描述</small>
+                    <em id="rolePermissionSelectedToolStatus">当前角色未授权</em>
+                </div>
+
+                <form id="rolePermissionForm" class="role-permission-form">
+                    <label>
+                        <span>效果</span>
+                        <select id="rolePermissionEffectSelect">
+                            <option value="allow">允许</option>
+                            <option value="deny">拒绝</option>
+                        </select>
+                    </label>
+                    <label>
+                        <span>备注</span>
+                        <input id="rolePermissionRemarkInput" type="text" placeholder="例如：生产数据库只读授权">
+                    </label>
+                    <button class="btn btn-primary role-permission-submit" type="submit">新增授权</button>
+                </form>
+
+                <div class="role-permission-rules-head">
+                    <h3>已有授权</h3>
+                    <span class="text-secondary small">授权变更会写回 API 控制面</span>
+                </div>
+
+                <div class="table-responsive role-permission-rules-table">
+                    <table class="table table-sm align-middle">
+                        <thead>
+                        <tr>
+                            <th>工具</th>
+                            <th>效果</th>
+                            <th>状态</th>
+                            <th>操作</th>
+                        </tr>
+                        </thead>
+                        <tbody id="rolePermissionBody"></tbody>
+                    </table>
+                </div>
+            </section>
+        </div>
+    </section>
+</div>
+

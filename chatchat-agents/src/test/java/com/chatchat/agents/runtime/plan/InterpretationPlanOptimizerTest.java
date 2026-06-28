@@ -96,7 +96,10 @@ class InterpretationPlanOptimizerTest {
                     "mcp_chatchat_mcp_server_document_search",
                     Map.of(
                         "query", "跨交易日 任务依赖 执行判断 调度方案",
-                        "document_ids", List.of("20260617_c489d851")
+                        "document_ids", List.of("20260617_c489d851"),
+                        "selectedDocumentIds", List.of("20260617_c489d851"),
+                        "documentVisibilityEnforced", true,
+                        "tags", List.of("agent-bound")
                     ),
                     List.of(),
                     null,
@@ -122,7 +125,10 @@ class InterpretationPlanOptimizerTest {
             .contains("DocumentSearchInputSanitizerPass", "RetrievalPolicyGuardPass");
         assertThat(result.plan().steps().get(0).input())
             .containsEntry("query", "跨交易日 任务依赖 执行判断 调度方案")
-            .doesNotContainKey("document_ids");
+            .doesNotContainKey("document_ids")
+            .doesNotContainKey("selectedDocumentIds")
+            .doesNotContainKey("documentVisibilityEnforced")
+            .doesNotContainKey("tags");
         assertThat(result.plan().executionPolicy().maxSteps()).isEqualTo(4);
         assertThat(result.plan().executionPolicy().maxRewriteTimes()).isEqualTo(2);
     }
@@ -141,6 +147,9 @@ class InterpretationPlanOptimizerTest {
                     Map.of(
                         "query", "跨交易日任务依赖执行判断与调度方案",
                         "document_ids", List.of("20260617_c489d851"),
+                        "selectedDocumentIds", List.of("20260617_c489d851"),
+                        "documentVisibilityEnforced", true,
+                        "tags", List.of("agent-bound"),
                         "strict_document_scope", true
                     ),
                     List.of(),
@@ -157,6 +166,10 @@ class InterpretationPlanOptimizerTest {
         assertThat(result.appliedPasses()).doesNotContain("DocumentSearchInputSanitizerPass");
         assertThat(result.plan().steps().get(0).input())
             .containsEntry("document_ids", List.of("20260617_c489d851"))
+            .containsEntry("selectedDocumentIds", List.of("20260617_c489d851"))
+            .containsEntry("documentVisibilityEnforced", true)
+            .containsEntry("tags", List.of("agent-bound"))
             .containsEntry("strict_document_scope", true);
     }
 }
+

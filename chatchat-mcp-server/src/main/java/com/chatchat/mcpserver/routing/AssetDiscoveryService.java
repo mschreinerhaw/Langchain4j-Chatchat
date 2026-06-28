@@ -9,10 +9,13 @@ import org.springframework.stereotype.Service;
 import lombok.extern.slf4j.Slf4j;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Pattern;
 
 @Service
@@ -23,6 +26,8 @@ public class AssetDiscoveryService {
     public static final String RESULT_SCHEMA_VERSION = "asset_query_result.v1";
     public static final int DEFAULT_LIMIT = 10;
     public static final int MAX_LIMIT = 20;
+    private static final double FUZZY_NAME_MIN_SCORE = 0.46D;
+    private static final double FUZZY_NAME_NEAR_TIE_DELTA = 0.08D;
 
     private static final List<String> CONTEXT_FILTER_KEYS = List.of(
         "env",
@@ -213,13 +218,10 @@ public class AssetDiscoveryService {
                                                                Map<String, Object> filters,
                                                                int limit) {
         if (luceneSearchService == null || !luceneSearchService.enabled()) {
-            List<Map<String, Object>> fallback = assets.stream()
-                .filter(asset -> matches(asset, filters))
-                .limit(limit)
-                .toList();
-            log.info("asset_query registry search assetType={} filters={} registryCandidates={} returned={} reason=lucene_disabled",
-                assetType, compactFilters(filters), assets.size(), fallback.size());
-            return fallback;
+            AssetFallback fallback = registryFallbackAssets(assets, filters, limit);
+            log.info("asset_query registry search assetType={} filters={} registryCandidates={} returned={} reason=lucene_disabled fuzzyFallbackUsed={}",
+                assetType, compactFilters(filters), assets.size(), fallback.assets().size(), fallback.fuzzyUsed());
+            return fallback.assets();
         }
         Map<String, Map<String, Object>> byId = new LinkedHashMap<>();
         assets.forEach(asset -> {
@@ -241,13 +243,22 @@ public class AssetDiscoveryService {
                 hits.stream().map(LuceneMcpSearchService.SearchHit::id).limit(limit).toList());
             return luceneMatched;
         }
-        List<Map<String, Object>> fallback = assets.stream()
+        AssetFallback fallback = registryFallbackAssets(assets, filters, limit);
+        log.info("asset_query lucene empty fallback assetType={} filters={} registryCandidates={} luceneHits=0 fallbackReturned={} fuzzyFallbackUsed={}",
+            assetType, compactFilters(filters), assets.size(), fallback.assets().size(), fallback.fuzzyUsed());
+        return fallback.assets();
+    }
+
+    private AssetFallback registryFallbackAssets(List<Map<String, Object>> assets, Map<String, Object> filters, int limit) {
+        List<Map<String, Object>> exact = assets.stream()
             .filter(asset -> matches(asset, filters))
             .limit(limit)
             .toList();
-        log.info("asset_query lucene empty fallback assetType={} filters={} registryCandidates={} luceneHits=0 fallbackReturned={}",
-            assetType, compactFilters(filters), assets.size(), fallback.size());
-        return fallback;
+        if (!exact.isEmpty()) {
+            return new AssetFallback(exact, false);
+        }
+        List<Map<String, Object>> fuzzy = fuzzyAssetNameFallback(assets, filters, limit);
+        return new AssetFallback(fuzzy, !fuzzy.isEmpty());
     }
 
     private LuceneMcpSearchService.AssetSearchRequest assetSearchRequest(String assetType,
@@ -397,6 +408,146 @@ public class AssetDiscoveryService {
             return false;
         }
         return contextTokens(filters).stream().allMatch(token -> labelMatches(labels, token));
+    }
+
+    private List<Map<String, Object>> fuzzyAssetNameFallback(List<Map<String, Object>> assets,
+                                                            Map<String, Object> filters,
+                                                            int limit) {
+        String requestedAssetName = text(firstValue(filters, "assetName", "asset_name", "name"));
+        if (requestedAssetName == null) {
+            return List.of();
+        }
+        List<AssetNameCandidate> candidates = assets.stream()
+            .filter(asset -> nonNameFiltersMatch(asset, filters))
+            .map(asset -> assetNameCandidate(asset, requestedAssetName))
+            .filter(candidate -> candidate.score() >= FUZZY_NAME_MIN_SCORE)
+            .sorted(Comparator.comparingDouble(AssetNameCandidate::score).reversed())
+            .toList();
+        if (candidates.isEmpty()) {
+            return List.of();
+        }
+        AssetNameCandidate best = candidates.get(0);
+        if (candidates.size() > 1 && best.score() - candidates.get(1).score() < FUZZY_NAME_NEAR_TIE_DELTA) {
+            log.info("asset_query fuzzy name fallback ambiguous requestedAssetName={} bestScore={} secondScore={} candidateCount={}",
+                requestedAssetName, best.score(), candidates.get(1).score(), candidates.size());
+            return List.of();
+        }
+        return candidates.stream()
+            .limit(Math.max(1, limit))
+            .map(candidate -> annotateFuzzyMatch(candidate.asset(), requestedAssetName, candidate.field(), candidate.score()))
+            .toList();
+    }
+
+    private boolean nonNameFiltersMatch(Map<String, Object> assetMetadata, Map<String, Object> filters) {
+        Map<?, ?> asset = (Map<?, ?>) assetMetadata.get("asset");
+        Map<?, ?> routingHints = (Map<?, ?>) assetMetadata.get("routingHints");
+        List<String> labels = labels(routingHints == null ? null : routingHints.get("labels"));
+        String env = text(firstValue(filters, "env", "environment"));
+        if (env != null && !equalsNormalized(env, asset == null ? null : asset.get("environment"))) {
+            return false;
+        }
+        return contextTokens(filters).stream().allMatch(token -> labelMatches(labels, token));
+    }
+
+    private AssetNameCandidate assetNameCandidate(Map<String, Object> metadata, String requestedAssetName) {
+        Map<?, ?> asset = metadata == null || !(metadata.get("asset") instanceof Map<?, ?> map) ? Map.of() : map;
+        AssetNameCandidate best = new AssetNameCandidate(metadata, null, 0.0D);
+        for (String field : List.of("name", "displayName", "toolName")) {
+            Object value = asset.get(field);
+            double score = nameSimilarity(requestedAssetName, value == null ? null : String.valueOf(value));
+            if (score > best.score()) {
+                best = new AssetNameCandidate(metadata, field, score);
+            }
+        }
+        return best;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> annotateFuzzyMatch(Map<String, Object> metadata,
+                                                   String requestedAssetName,
+                                                   String matchedField,
+                                                   double score) {
+        Map<String, Object> annotated = new LinkedHashMap<>(metadata);
+        Map<String, Object> routingHints = metadata.get("routingHints") instanceof Map<?, ?> map
+            ? new LinkedHashMap<>((Map<String, Object>) map)
+            : new LinkedHashMap<>();
+        routingHints.put("assetQueryMatch", mapOf(
+            "strategy", "fuzzy_name_unique_candidate",
+            "requestedAssetName", requestedAssetName,
+            "matchedField", matchedField,
+            "score", Math.round(score * 1000.0D) / 1000.0D,
+            "confidence", "low",
+            "reviewHint", "Matched only after exact assetName filtering returned no result; prefer canonical assets[].asset.name in downstream executionContext."
+        ));
+        annotated.put("routingHints", routingHints);
+        return annotated;
+    }
+
+    private double nameSimilarity(String queryValue, String assetValue) {
+        String query = normalizeForSimilarity(queryValue);
+        String assetName = normalizeForSimilarity(assetValue);
+        if (query == null || assetName == null) {
+            return 0.0D;
+        }
+        if (query.equals(assetName)) {
+            return 1.0D;
+        }
+        return Math.max(longestCommonSubstringScore(query, assetName), diceGramScore(query, assetName));
+    }
+
+    private double longestCommonSubstringScore(String left, String right) {
+        int best = 0;
+        int[] previous = new int[right.length() + 1];
+        for (int i = 1; i <= left.length(); i++) {
+            int[] current = new int[right.length() + 1];
+            for (int j = 1; j <= right.length(); j++) {
+                if (left.charAt(i - 1) == right.charAt(j - 1)) {
+                    current[j] = previous[j - 1] + 1;
+                    best = Math.max(best, current[j]);
+                }
+            }
+            previous = current;
+        }
+        return best == 0 ? 0.0D : (2.0D * best) / (left.length() + right.length());
+    }
+
+    private double diceGramScore(String left, String right) {
+        Set<String> leftGrams = grams(left);
+        Set<String> rightGrams = grams(right);
+        if (leftGrams.isEmpty() || rightGrams.isEmpty()) {
+            return 0.0D;
+        }
+        long overlap = leftGrams.stream().filter(rightGrams::contains).count();
+        return (2.0D * overlap) / (leftGrams.size() + rightGrams.size());
+    }
+
+    private Set<String> grams(String value) {
+        Set<String> grams = new LinkedHashSet<>();
+        if (value == null || value.isBlank()) {
+            return grams;
+        }
+        if (value.length() == 1) {
+            grams.add(value);
+            return grams;
+        }
+        for (int index = 0; index < value.length() - 1; index++) {
+            grams.add(value.substring(index, index + 2));
+        }
+        return grams;
+    }
+
+    private String normalizeForSimilarity(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        StringBuilder normalized = new StringBuilder();
+        for (int index = 0; index < value.length(); index++) {
+            char ch = value.charAt(index);
+            if (Character.isLetterOrDigit(ch)) {
+                normalized.append(Character.toLowerCase(ch));
+            }
+        }
+        return normalized.isEmpty() ? null : normalized.toString();
     }
 
     private boolean hasContextFilter(Map<String, Object> filters) {
@@ -593,5 +744,11 @@ public class AssetDiscoveryService {
             map.put(String.valueOf(values[index]), values[index + 1]);
         }
         return map;
+    }
+
+    private record AssetFallback(List<Map<String, Object>> assets, boolean fuzzyUsed) {
+    }
+
+    private record AssetNameCandidate(Map<String, Object> asset, String field, double score) {
     }
 }

@@ -93,9 +93,9 @@ public class ExecutionTargetRouter {
     public Map<String, Object> routeSqlQuery(Map<String, Object> arguments) {
         Map<String, Object> request = copyArguments(arguments);
         rejectConcreteTarget(request, "datasourceId", "jdbcUrl", "url", "connectionString");
-        Map<String, Object> context = executionContext(request);
+        Map<String, Object> context = executionContext(request, true);
         requireExecutionContext(context, "sql_query_execute");
-        SqlDatasourceConfig datasource = resolveSqlDatasource(request);
+        SqlDatasourceConfig datasource = resolveSqlDatasource(request, context);
         log.info("MCP execution routing selected SQL datasource: tool=sql_query_execute, context={}, datasourceId={}, assetName={}, datasourceTool={}, env={}",
             compactContext(context), datasource.getId(), firstText(datasource.getName(), datasource.getToolName()),
             datasource.getToolName(), datasource.getEnvironment());
@@ -203,6 +203,10 @@ public class ExecutionTargetRouter {
 
     public SqlDatasourceConfig resolveSqlDatasource(Map<String, Object> arguments) {
         Map<String, Object> context = executionContext(arguments);
+        return resolveSqlDatasource(arguments, context);
+    }
+
+    private SqlDatasourceConfig resolveSqlDatasource(Map<String, Object> arguments, Map<String, Object> context) {
         List<SqlDatasourceConfig> candidates = datasourceConfigService.listEnabled();
         ExecutionTargetConfig target = resolveConfiguredTarget(context, ExecutionTargetService.ASSET_TYPE_SQL_DATASOURCE);
         if (target != null) {
@@ -313,6 +317,11 @@ public class ExecutionTargetRouter {
 
     @SuppressWarnings("unchecked")
     private Map<String, Object> executionContext(Map<String, Object> arguments) {
+        return executionContext(arguments, false);
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> executionContext(Map<String, Object> arguments, boolean includeParameterContext) {
         Map<String, Object> context = new LinkedHashMap<>();
         if (arguments == null || arguments.isEmpty()) {
             return context;
@@ -321,6 +330,15 @@ public class ExecutionTargetRouter {
             Object value = arguments.get(key);
             if (value instanceof Map<?, ?> map) {
                 context.putAll((Map<String, Object>) map);
+            }
+        }
+        Object parameters = arguments.get("parameters");
+        if (includeParameterContext && parameters instanceof Map<?, ?> parameterMap) {
+            for (String key : LOGICAL_CONTEXT_KEYS) {
+                Object value = parameterMap.get(key);
+                if (value != null) {
+                    context.putIfAbsent(key, value);
+                }
             }
         }
         for (String key : LOGICAL_CONTEXT_KEYS) {

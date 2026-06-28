@@ -2,6 +2,7 @@ package com.chatchat.agents.orchestration;
 
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 /**
  * Resolves configured tool names, aliases, and semantic tool groups.
@@ -11,6 +12,7 @@ class AgentToolNameResolver {
     private static final String DOCUMENT_SEARCH_TOOL = "document_search";
     private static final String WEB_SEARCH_TOOL = "web_search";
     private static final String SEARCH_AND_EXTRACT_TOOL = "search_and_extract";
+    private final McpToolRouter mcpToolRouter = new McpToolRouter();
 
     AgentToolNameResolver() {
     }
@@ -45,15 +47,24 @@ class AgentToolNameResolver {
     }
 
     String normalizeToolName(String toolName, List<String> availableTools) {
+        return normalizeToolName(toolName, Map.of(), availableTools);
+    }
+
+    String normalizeToolName(String toolName, Map<String, Object> arguments, List<String> availableTools) {
         if (toolName == null || toolName.isBlank()) {
             return null;
         }
         String trimmed = toolName.trim();
         if (availableTools == null || availableTools.isEmpty()) {
-            return normalizeKnownToolAlias(trimmed);
+            String routed = mcpToolRouter.resolveToolName(trimmed, arguments, availableTools);
+            return normalizeKnownToolAlias(routed);
         }
         if (availableTools.contains(trimmed)) {
             return trimmed;
+        }
+        String routed = mcpToolRouter.resolveToolName(trimmed, arguments, availableTools);
+        if (routed != null && availableTools.contains(routed)) {
+            return routed;
         }
         String aliased = normalizeKnownToolAlias(trimmed);
         if (availableTools.contains(aliased)) {
@@ -124,6 +135,18 @@ class AgentToolNameResolver {
         }
         if (normalized.contains(WEB_SEARCH_TOOL)) {
             return WEB_SEARCH_TOOL;
+        }
+        if ("asset_query".equals(normalized) || "asset_discovery".equals(normalized)) {
+            return McpToolRouter.ASSET_DISCOVERY;
+        }
+        if ("template_query".equals(normalized) || "template_discovery".equals(normalized)) {
+            return McpToolRouter.TEMPLATE_DISCOVERY;
+        }
+        if (mcpToolRouter.isTypedAssetQuery(normalized)) {
+            return McpToolRouter.ASSET_DISCOVERY;
+        }
+        if (mcpToolRouter.isTypedTemplateQuery(normalized)) {
+            return McpToolRouter.TEMPLATE_DISCOVERY;
         }
         return normalized;
     }

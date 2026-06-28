@@ -7,7 +7,9 @@ import com.chatchat.common.tool.ToolLogSummarizer;
 import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolOutput;
 import com.chatchat.common.tool.ToolParameter;
+import com.chatchat.mcpserver.authorization.McpAuthorizationService;
 import com.chatchat.mcpserver.config.ChatChatMcpServerProperties;
+import com.chatchat.mcpserver.mcp.McpInvocationContext;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.modelcontextprotocol.server.McpServerFeatures;
 import io.modelcontextprotocol.spec.McpSchema;
@@ -53,6 +55,7 @@ public class ToolRegistryMcpAdapter {
     private final ChatChatMcpServerProperties properties;
     private final AgentRuntimeGovernanceFactory governanceFactory;
     private final McpToolConcurrencyManager concurrencyManager;
+    private final McpAuthorizationService authorizationService;
 
     /**
      * Converts the value to tool specifications.
@@ -136,6 +139,12 @@ public class ToolRegistryMcpAdapter {
         McpSchema.CallToolRequest request
     ) {
         Map<String, Object> arguments = applyDefaults(metadata, request.arguments());
+        injectProtocolContext(arguments);
+        McpAuthorizationService.AuthorizationDecision authorization = authorizationService.authorize(toolName, arguments);
+        if (!authorization.allowed()) {
+            log.warn("MCP server tool call denied tool={} reason={}", toolName, authorization.reason());
+            return permissionDeniedResult(toolName, authorization.reason());
+        }
         ToolOutput output;
         long startedAt = System.currentTimeMillis();
         log.info("MCP server tool call started tool={} timeoutMs={} args={}",
@@ -182,6 +191,64 @@ public class ToolRegistryMcpAdapter {
                 ToolLogSummarizer.summarize(output == null ? null : output.getData()));
         }
         return toCallToolResult(toolName, output);
+    }
+
+    private void injectProtocolContext(Map<String, Object> arguments) {
+        McpInvocationContext.Context context = McpInvocationContext.current();
+        if (context == null || arguments == null) {
+            return;
+        }
+        putIfAbsent(arguments, "tenantId", context.tenantId());
+        putIfAbsent(arguments, "workspaceId", context.workspaceId());
+        putIfAbsent(arguments, "env", context.environment());
+        putIfAbsent(arguments, "userId", context.userId());
+        putIfAbsent(arguments, "username", context.username());
+        putIfAbsent(arguments, "roles", context.roles());
+        putIfAbsent(arguments, "traceId", context.traceId());
+        putIfAbsent(arguments, "assetType", context.assetType());
+        putIfAbsent(arguments, "domain", context.domain());
+        putIfAbsent(arguments, "permissionLevel", context.permissionLevel());
+        putIfAbsent(arguments, "scopeExpression", context.scopeExpression());
+        Map<String, Object> mcpContext = new LinkedHashMap<>();
+        mcpContext.put("traceId", context.traceId());
+        mcpContext.put("user", Map.of(
+            "userId", context.userId() == null ? "" : context.userId(),
+            "username", context.username() == null ? "" : context.username(),
+            "roles", context.roles() == null ? "" : context.roles()
+        ));
+        mcpContext.put("tenant", Map.of(
+            "tenantId", context.tenantId() == null ? "" : context.tenantId(),
+            "workspaceId", context.workspaceId() == null ? "" : context.workspaceId(),
+            "env", context.environment() == null ? "" : context.environment()
+        ));
+        mcpContext.put("scope", Map.of(
+            "assetType", context.assetType() == null ? "" : context.assetType(),
+            "domain", context.domain() == null ? "" : context.domain(),
+            "permissionLevel", context.permissionLevel() == null ? "" : context.permissionLevel(),
+            "scopeExpression", context.scopeExpression() == null ? "" : context.scopeExpression()
+        ));
+        arguments.putIfAbsent("mcpContext", mcpContext);
+    }
+
+    private void putIfAbsent(Map<String, Object> arguments, String key, String value) {
+        if (value != null && !value.isBlank() && !arguments.containsKey(key)) {
+            arguments.put(key, value);
+        }
+    }
+
+    private McpSchema.CallToolResult permissionDeniedResult(String toolName, String reason) {
+        Map<String, Object> error = new LinkedHashMap<>();
+        error.put("success", false);
+        error.put("error", "PERMISSION_DENIED");
+        error.put("message", reason == null || reason.isBlank()
+            ? "no permission to execute mcp tool: " + toolName
+            : reason);
+        error.put("toolName", toolName);
+        return McpSchema.CallToolResult.builder()
+            .addTextContent(String.valueOf(error.get("message")))
+            .structuredContent(error)
+            .isError(true)
+            .build();
     }
 
     /**

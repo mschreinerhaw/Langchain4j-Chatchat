@@ -46,6 +46,20 @@ chatchat:
     security:
       require-mcp-token: ${CHAT_MCP_REQUIRE_TOKEN:true}
       invocation-token: ${CHAT_MCP_INVOCATION_TOKEN:}
+    authorization:
+      enabled: ${CHAT_MCP_AUTHORIZATION_ENABLED:false}
+      api-base-url: ${CHAT_MCP_AUTHORIZATION_API_BASE_URL:http://localhost:8080}
+      snapshot-path: ${CHAT_MCP_AUTHORIZATION_SNAPSHOT_PATH:/api/v1/enterprise/mcp-auth/snapshot}
+      refresh-interval-ms: ${CHAT_MCP_AUTHORIZATION_REFRESH_INTERVAL_MS:60000}
+      stale-ttl-seconds: ${CHAT_MCP_AUTHORIZATION_STALE_TTL_SECONDS:3600}
+      fail-open: ${CHAT_MCP_AUTHORIZATION_FAIL_OPEN:true}
+      require-tenant-context: ${CHAT_MCP_REQUIRE_TENANT_CONTEXT:true}
+      auth:
+        enabled: ${CHAT_MCP_AUTHORIZATION_AUTH_ENABLED:true}
+        login-path: ${CHAT_MCP_AUTHORIZATION_LOGIN_PATH:/api/v1/enterprise/auth/login}
+        username: ${CHAT_MCP_AUTHORIZATION_USERNAME:admin}
+        password: ${CHAT_MCP_AUTHORIZATION_PASSWORD:123456}
+        bearer-token: ${CHAT_MCP_AUTHORIZATION_BEARER_TOKEN:}
     command-templates:
       # Agent OS default: do not seed scenario-specific execution templates.
       seed-defaults-enabled: ${CHAT_MCP_SEED_COMMAND_TEMPLATES:false}

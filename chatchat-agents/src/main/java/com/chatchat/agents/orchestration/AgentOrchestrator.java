@@ -486,7 +486,7 @@ public class AgentOrchestrator {
                 requestRuntimeAttributes
             );
             runtimeGuard.checkCancelled(cancellationCheck);
-            String plannedToolName = toolNames.normalizeToolName(decision.toolName(), tools);
+            String plannedToolName = toolNames.normalizeToolName(decision.toolName(), decision.arguments(), tools);
             metadata.put("steps", step);
             Map<String, Object> plannerStep = new LinkedHashMap<>();
             plannerStep.put("step", step);

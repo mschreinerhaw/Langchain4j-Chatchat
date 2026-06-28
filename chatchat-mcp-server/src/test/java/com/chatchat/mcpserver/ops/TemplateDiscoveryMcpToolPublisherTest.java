@@ -14,33 +14,89 @@ import static org.mockito.Mockito.mock;
 class TemplateDiscoveryMcpToolPublisherTest {
 
     @Test
-    void templateQueryToolIsReadOnlyAndDoesNotReturnRawExecutionSpec() throws Exception {
+    void sshTemplateToolIsTypedReadOnlyDiscoveryTool() throws Exception {
         TemplateDiscoveryMcpToolPublisher publisher = new TemplateDiscoveryMcpToolPublisher(
             mock(McpSyncServer.class),
             mock(CommandTemplateDiscoveryService.class)
         );
-        Method templateQueryTool = TemplateDiscoveryMcpToolPublisher.class.getDeclaredMethod("templateQueryTool");
-        templateQueryTool.setAccessible(true);
+        Method method = TemplateDiscoveryMcpToolPublisher.class.getDeclaredMethod(
+            "domainTemplateQueryTool", String.class, String.class, String.class, String.class, String.class, String.class);
+        method.setAccessible(true);
 
-        McpServerFeatures.SyncToolSpecification spec =
-            (McpServerFeatures.SyncToolSpecification) templateQueryTool.invoke(publisher);
+        McpServerFeatures.SyncToolSpecification spec = (McpServerFeatures.SyncToolSpecification) method.invoke(
+            publisher,
+            TemplateDiscoveryMcpToolPublisher.SSH_TEMPLATE_TOOL_NAME,
+            "SSH command template discovery",
+            "Read-only MCP tool for retrieving SSH host command templates only.",
+            "ssh_host",
+            "host",
+            "host command templates"
+        );
         McpSchema.Tool tool = spec.tool();
         Map<?, ?> meta = tool.meta();
-        Map<?, ?> confirmation = (Map<?, ?>) meta.get("confirmation");
-        Map<?, ?> languageSupport = (Map<?, ?>) meta.get("languageSupport");
+        Map<?, ?> boundary = (Map<?, ?>) meta.get("toolBoundary");
+        Map<?, ?> indexPolicy = (Map<?, ?>) meta.get("indexPolicy");
 
-        assertThat(tool.name()).isEqualTo(TemplateDiscoveryMcpToolPublisher.TOOL_NAME);
-        assertThat(tool.description()).contains("bilingual Chinese and English");
+        assertThat(tool.name()).isEqualTo(TemplateDiscoveryMcpToolPublisher.SSH_TEMPLATE_TOOL_NAME);
         assertThat(meta.get("runtimeAction")).isEqualTo("read_only");
         assertThat(meta.get("readOnly")).isEqualTo(true);
         assertThat(meta.get("riskLevel")).isEqualTo("low");
+        assertThat(meta.get("targetKind")).isEqualTo("host");
+        assertThat(meta.get("assetType")).isEqualTo("ssh_host");
         assertThat(meta.get("rawExecutionSpecReturned")).isEqualTo(false);
-        assertThat(languageSupport.get("mode")).isEqualTo("bilingual");
-        assertThat(languageSupport.get("modelMustGenerateBilingualRetrieval")).isEqualTo(true);
-        assertThat(languageSupport.get("languages").toString()).contains("zh", "en");
-        assertThat(languageSupport.get("bilingualQueryFields").toString()).contains("bilingualIntent", "intentZh", "intentEn");
-        assertThat(tool.inputSchema().toString()).contains("bilingualIntent", "bilingualQuery", "intentZh", "intentEn", "language", "queryLanguage");
-        assertThat(confirmation.get("default")).isEqualTo("auto_execute");
-        assertThat(confirmation.get("allow_user_override")).isEqualTo(false);
+        assertThat(boundary.get("rejectCrossTypeRouting")).isEqualTo(true);
+        assertThat(indexPolicy.get("logicalIndex")).isEqualTo("template:ssh_host");
+        assertThat(tool.inputSchema().toString()).contains("bilingualIntent", "intentZh", "intentEn");
+    }
+
+    @Test
+    void databaseQueryTemplateToolIsNarrowReadOnlyDiscoveryTool() throws Exception {
+        TemplateDiscoveryMcpToolPublisher publisher = new TemplateDiscoveryMcpToolPublisher(
+            mock(McpSyncServer.class),
+            mock(CommandTemplateDiscoveryService.class)
+        );
+        Method databaseQueryTemplateTool = TemplateDiscoveryMcpToolPublisher.class.getDeclaredMethod("databaseQueryTemplateQueryTool");
+        databaseQueryTemplateTool.setAccessible(true);
+
+        McpServerFeatures.SyncToolSpecification spec =
+            (McpServerFeatures.SyncToolSpecification) databaseQueryTemplateTool.invoke(publisher);
+        McpSchema.Tool tool = spec.tool();
+        Map<?, ?> meta = tool.meta();
+        Map<?, ?> routingProtocol = (Map<?, ?>) meta.get("routingProtocol");
+
+        assertThat(tool.name()).isEqualTo(TemplateDiscoveryMcpToolPublisher.DATABASE_QUERY_TEMPLATE_TOOL_NAME);
+        assertThat(tool.description()).contains("business database query templates only");
+        assertThat(meta.get("runtimeAction")).isEqualTo("read_only");
+        assertThat(meta.get("readOnly")).isEqualTo(true);
+        assertThat(meta.get("riskLevel")).isEqualTo("low");
+        assertThat(meta.get("targetKind")).isEqualTo("business_database_query");
+        assertThat(meta.get("assetType")).isEqualTo("database_query");
+        assertThat(meta.get("rawExecutionSpecReturned")).isEqualTo(false);
+        assertThat(routingProtocol.get("forcedTargetKind")).isEqualTo("business_database_query");
+        assertThat(routingProtocol.get("forcedAssetType")).isEqualTo("database_query");
+        assertThat(tool.inputSchema().toString()).contains("bilingualIntent", "intentZh", "intentEn");
+    }
+
+    @Test
+    void typedTemplateArgumentsForceAssetTypeAndTargetKind() throws Exception {
+        TemplateDiscoveryMcpToolPublisher publisher = new TemplateDiscoveryMcpToolPublisher(
+            mock(McpSyncServer.class),
+            mock(CommandTemplateDiscoveryService.class)
+        );
+        Method argumentsMethod = TemplateDiscoveryMcpToolPublisher.class.getDeclaredMethod(
+            "forcedTemplateArguments", Map.class, String.class, String.class, String.class);
+        argumentsMethod.setAccessible(true);
+
+        Map<?, ?> arguments = (Map<?, ?>) argumentsMethod.invoke(publisher, Map.of(
+            "assetType", "ssh_host",
+            "finalDecision", "host",
+            "filters", Map.of("intent", "统计每日订单")
+        ), TemplateDiscoveryMcpToolPublisher.DATABASE_QUERY_TEMPLATE_TOOL_NAME, "database_query", "business_database_query");
+
+        assertThat(arguments.get("assetType")).isEqualTo("database_query");
+        assertThat(arguments.get("finalDecision")).isEqualTo("business_database_query");
+        assertThat(arguments.get("confidence")).isEqualTo(1.0);
+        assertThat(arguments.get("filters").toString()).contains("统计每日订单");
+        assertThat(arguments.get("candidates").toString()).contains("business_database_query");
     }
 }

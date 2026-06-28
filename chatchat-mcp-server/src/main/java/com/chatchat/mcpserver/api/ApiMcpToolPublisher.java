@@ -18,8 +18,6 @@ import java.util.concurrent.ConcurrentHashMap;
 public class ApiMcpToolPublisher {
 
     private final McpSyncServer mcpSyncServer;
-    private final ApiServiceConfigService configService;
-    private final ApiToolSpecFactory toolSpecFactory;
     private final Set<String> managedToolNames = ConcurrentHashMap.newKeySet();
 
     /**
@@ -44,16 +42,7 @@ public class ApiMcpToolPublisher {
         });
         managedToolNames.clear();
 
-        for (ApiServiceConfig config : configService.listEnabled()) {
-            try {
-                mcpSyncServer.addTool(toolSpecFactory.toToolSpecification(config));
-                managedToolNames.add(config.getToolName());
-            } catch (Exception ex) {
-                log.warn("Skip API MCP tool {}: {}", config.getToolName(), ex.getMessage());
-            }
-        }
-
         mcpSyncServer.notifyToolsListChanged();
-        log.info("API MCP tools refreshed, registered {}", managedToolNames.size());
+        log.info("API MCP per-service tool publishing disabled; use api_asset_query and api_template_query");
     }
 }

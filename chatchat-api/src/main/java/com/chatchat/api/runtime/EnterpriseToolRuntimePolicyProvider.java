@@ -12,6 +12,9 @@ import org.springframework.stereotype.Component;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
+import java.util.LinkedHashSet;
 
 @Component
 @RequiredArgsConstructor
@@ -39,13 +42,20 @@ public class EnterpriseToolRuntimePolicyProvider implements ToolRuntimePolicyPro
         if (userId != null) {
             matched.addAll(toolPermissionRepository.findByTenantIdAndTargetTypeAndTargetIdAndEnabledTrueOrderByUpdatedAtDesc(
                 tenantId,
-                "user",
+                "USER",
                 userId
+            ));
+        }
+        for (String role : roleIds(request)) {
+            matched.addAll(toolPermissionRepository.findByTenantIdAndTargetTypeAndTargetIdAndEnabledTrueOrderByUpdatedAtDesc(
+                tenantId,
+                "ROLE",
+                role
             ));
         }
         matched.addAll(toolPermissionRepository.findByTenantIdAndTargetTypeAndTargetIdAndEnabledTrueOrderByUpdatedAtDesc(
             tenantId,
-            "tenant",
+            "TENANT",
             tenantId
         ));
         if (matched.isEmpty()) {
@@ -88,13 +98,55 @@ public class EnterpriseToolRuntimePolicyProvider implements ToolRuntimePolicyPro
     private boolean toolMatches(McpToolPermission permission, String toolName, ToolMetadata metadata) {
         String localToolName = normalize(permission.getLocalToolName());
         if (localToolName != null) {
-            return toolName.equals(localToolName);
+            return "*".equals(localToolName) || toolName.equals(localToolName);
         }
         String toolId = normalize(permission.getToolId());
         if (toolId != null && metadata != null && metadata.getId() != null) {
-            return toolId.equals(normalize(metadata.getId()));
+            return "*".equals(toolId) || toolId.equals(normalize(metadata.getId()));
         }
         return false;
+    }
+
+    private Set<String> roleIds(ToolRuntimeRequest request) {
+        Set<String> roles = new LinkedHashSet<>();
+        if (request == null) {
+            return roles;
+        }
+        collectRoles(request.getAttributes(), roles);
+        if (request.getToolInput() != null) {
+            collectRoles(request.getToolInput().getContext(), roles);
+        }
+        roles.remove(null);
+        return roles;
+    }
+
+    private void collectRoles(Map<String, Object> values, Set<String> roles) {
+        if (values == null || values.isEmpty() || roles == null) {
+            return;
+        }
+        collectRoleValue(values.get("roles"), roles);
+        collectRoleValue(values.get("role"), roles);
+        collectRoleValue(values.get("roleIds"), roles);
+        collectRoleValue(values.get("role_ids"), roles);
+    }
+
+    private void collectRoleValue(Object value, Set<String> roles) {
+        if (value == null || roles == null) {
+            return;
+        }
+        if (value instanceof Iterable<?> iterable) {
+            for (Object item : iterable) {
+                collectRoleValue(item, roles);
+            }
+            return;
+        }
+        String text = String.valueOf(value);
+        for (String item : text.split(",")) {
+            String normalized = normalize(item);
+            if (normalized != null) {
+                roles.add(normalized);
+            }
+        }
     }
 
     /**

@@ -14,48 +14,72 @@ import java.util.Set;
 @Service
 public class LuceneMcpSearchService {
 
-    private final Map<String, AssetDoc> assetDocs = new LinkedHashMap<>();
-    private final Map<String, TemplateDoc> templateDocs = new LinkedHashMap<>();
+    private final Map<String, Map<String, AssetDoc>> assetDocsByType = new LinkedHashMap<>();
+    private final Map<String, Map<String, TemplateDoc>> templateDocsByType = new LinkedHashMap<>();
 
     public boolean enabled() {
         return true;
     }
 
     public synchronized void replaceAssets(List<AssetDoc> docs) {
-        assetDocs.clear();
+        assetDocsByType.clear();
         for (AssetDoc doc : docs == null ? List.<AssetDoc>of() : docs) {
             if (doc != null && text(doc.id()) != null) {
-                assetDocs.put(doc.id(), doc);
+                assetDocsByType
+                    .computeIfAbsent(indexType(doc.assetType()), ignored -> new LinkedHashMap<>())
+                    .put(doc.id(), doc);
             }
         }
     }
 
     public synchronized void replaceTemplates(List<TemplateDoc> docs) {
-        templateDocs.clear();
+        templateDocsByType.clear();
         upsertTemplates(docs);
     }
 
     public synchronized void upsertTemplates(List<TemplateDoc> docs) {
         for (TemplateDoc doc : docs == null ? List.<TemplateDoc>of() : docs) {
             if (doc != null && text(doc.id()) != null) {
-                templateDocs.put(doc.id(), doc);
+                templateDocsByType
+                    .computeIfAbsent(indexType(doc.assetType()), ignored -> new LinkedHashMap<>())
+                    .put(doc.id(), doc);
             }
         }
     }
 
     public synchronized List<SearchHit> searchAssets(AssetSearchRequest request) {
-        return scoreAssets(new ArrayList<>(assetDocs.values()), request);
+        return scoreAssets(assetIndex(request == null ? null : request.assetType()), request);
     }
 
     public List<SearchHit> searchTemplates(List<TemplateDoc> docs, TemplateSearchRequest request) {
         List<TemplateDoc> universe = docs == null || docs.isEmpty()
-            ? synchronizedTemplateDocs()
+            ? synchronizedTemplateDocs(request == null ? null : request.assetType())
             : docs;
         return scoreTemplates(universe, request);
     }
 
-    private synchronized List<TemplateDoc> synchronizedTemplateDocs() {
-        return new ArrayList<>(templateDocs.values());
+    private synchronized List<TemplateDoc> synchronizedTemplateDocs(String assetType) {
+        return templateIndex(assetType);
+    }
+
+    private List<AssetDoc> assetIndex(String assetType) {
+        String type = normalize(assetType);
+        if (type != null) {
+            return new ArrayList<>(assetDocsByType.getOrDefault(type, Map.of()).values());
+        }
+        return assetDocsByType.values().stream()
+            .flatMap(values -> values.values().stream())
+            .toList();
+    }
+
+    private List<TemplateDoc> templateIndex(String assetType) {
+        String type = normalize(assetType);
+        if (type != null) {
+            return new ArrayList<>(templateDocsByType.getOrDefault(type, Map.of()).values());
+        }
+        return templateDocsByType.values().stream()
+            .flatMap(values -> values.values().stream())
+            .toList();
     }
 
     private List<SearchHit> scoreAssets(List<AssetDoc> docs, AssetSearchRequest request) {
@@ -211,6 +235,11 @@ public class LuceneMcpSearchService {
         String left = normalize(requested);
         String right = normalize(actual);
         return left == null || "generic".equals(right) || left.equals(right);
+    }
+
+    private String indexType(String assetType) {
+        String normalized = normalize(assetType);
+        return normalized == null ? "_unknown" : normalized;
     }
 
     private int limit(int value) {

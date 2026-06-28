@@ -4,17 +4,25 @@ import com.chatchat.common.tool.ToolLogSummarizer;
 import com.chatchat.mcpserver.audit.InvocationAuditService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.chatchat.mcpserver.authorization.McpAuthorizationProperties;
 import jakarta.servlet.FilterChain;
+import jakarta.servlet.ReadListener;
 import jakarta.servlet.ServletException;
+import jakarta.servlet.ServletInputStream;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequestWrapper;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
-import org.springframework.web.util.ContentCachingRequestWrapper;
 
 import java.io.IOException;
+import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
+import java.io.InputStreamReader;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -27,11 +35,13 @@ import java.util.Map;
  */
 @Slf4j
 @Component
+@Order(Ordered.HIGHEST_PRECEDENCE + 20)
 @RequiredArgsConstructor
 public class McpInvocationLoggingFilter extends OncePerRequestFilter {
 
     private final InvocationAuditService auditService;
     private final ObjectMapper objectMapper;
+    private final McpAuthorizationProperties authorizationProperties;
 
     /**
      * Performs the do filter internal operation.
@@ -53,10 +63,16 @@ public class McpInvocationLoggingFilter extends OncePerRequestFilter {
         }
 
         long startedAt = System.currentTimeMillis();
-        ContentCachingRequestWrapper wrappedRequest = new ContentCachingRequestWrapper(request);
+        CachedBodyRequestWrapper wrappedRequest = new CachedBodyRequestWrapper(request);
         McpInvocationContext.Context invocationContext = invocationContext(wrappedRequest);
         McpInvocationContext.Scope scope = McpInvocationContext.open(invocationContext);
         try {
+            if (authorizationProperties.isRequireTenantContext() && isToolCall(wrappedRequest, requestBody(wrappedRequest))
+                && (invocationContext.tenantId() == null || invocationContext.tenantId().isBlank())) {
+                writeTenantRequired(response);
+                recordAudit(wrappedRequest, response, 0L, "TENANT_REQUIRED");
+                return;
+            }
             filterChain.doFilter(wrappedRequest, response);
             long durationMs = Math.max(0L, System.currentTimeMillis() - startedAt);
             String body = requestBody(wrappedRequest);
@@ -88,6 +104,7 @@ public class McpInvocationLoggingFilter extends OncePerRequestFilter {
     }
 
     private McpInvocationContext.Context invocationContext(HttpServletRequest request) {
+        JsonNode body = requestBodyJson(request);
         return new McpInvocationContext.Context(
             firstText(
                 request.getHeader("X-User-Id"),
@@ -105,13 +122,131 @@ public class McpInvocationLoggingFilter extends OncePerRequestFilter {
             firstText(
                 request.getHeader("X-Request-Id"),
                 request.getHeader("X-Correlation-Id"),
-                request.getHeader("Traceparent")
+                request.getHeader("Traceparent"),
+                textAt(body, "traceId"),
+                textAt(body, "params", "_meta", "traceId"),
+                textAt(body, "params", "context", "traceId")
             ),
             firstText(
                 request.getHeader("X-Client-Id"),
                 request.getHeader("MCP-Client-Id")
+            ),
+            firstText(
+                request.getHeader("X-User-Id"),
+                request.getHeader("X-Operator-Id"),
+                request.getHeader("X-Principal-Id")
+            ),
+            firstText(
+                request.getHeader("X-Username"),
+                request.getHeader("X-User-Name"),
+                request.getHeader("X-Operator"),
+                request.getHeader("X-Forwarded-User")
+            ),
+            firstText(
+                request.getHeader("X-Tenant-Id"),
+                request.getHeader("X-Tenant"),
+                textAt(body, "tenant", "tenantId"),
+                textAt(body, "params", "_meta", "tenant", "tenantId"),
+                textAt(body, "params", "_meta", "tenantId"),
+                textAt(body, "params", "context", "tenant", "tenantId"),
+                textAt(body, "params", "context", "tenantId"),
+                textAt(body, "params", "arguments", "tenant", "tenantId"),
+                textAt(body, "params", "arguments", "mcpContext", "tenant", "tenantId"),
+                textAt(body, "params", "arguments", "tenantId"),
+                textAt(body, "params", "arguments", "tenant_id")
+            ),
+            firstText(
+                request.getHeader("X-Roles"),
+                request.getHeader("X-Role-Ids"),
+                textAt(body, "user", "roles"),
+                textAt(body, "params", "_meta", "user", "roles"),
+                textAt(body, "params", "arguments", "roles")
+            ),
+            firstText(
+                request.getHeader("X-Workspace-Id"),
+                textAt(body, "tenant", "workspaceId"),
+                textAt(body, "params", "_meta", "tenant", "workspaceId"),
+                textAt(body, "params", "arguments", "workspaceId")
+            ),
+            firstText(
+                request.getHeader("X-Environment"),
+                request.getHeader("X-Env"),
+                textAt(body, "tenant", "env"),
+                textAt(body, "params", "_meta", "tenant", "env"),
+                textAt(body, "params", "arguments", "env")
+            ),
+            firstText(
+                request.getHeader("X-Trace-Id"),
+                request.getHeader("X-Request-Id"),
+                textAt(body, "traceId"),
+                textAt(body, "params", "_meta", "traceId")
+            ),
+            firstText(
+                request.getHeader("X-MCP-Asset-Type"),
+                textAt(body, "scope", "assetType"),
+                textAt(body, "params", "_meta", "scope", "assetType"),
+                textAt(body, "params", "context", "scope", "assetType"),
+                textAt(body, "params", "arguments", "scope", "assetType"),
+                textAt(body, "params", "arguments", "assetType")
+            ),
+            firstText(
+                request.getHeader("X-MCP-Domain"),
+                textAt(body, "scope", "domain"),
+                textAt(body, "params", "_meta", "scope", "domain"),
+                textAt(body, "params", "context", "scope", "domain"),
+                textAt(body, "params", "arguments", "scope", "domain"),
+                textAt(body, "params", "arguments", "domain")
+            ),
+            firstText(
+                request.getHeader("X-MCP-Permission-Level"),
+                textAt(body, "scope", "permissionLevel"),
+                textAt(body, "params", "_meta", "scope", "permissionLevel"),
+                textAt(body, "params", "context", "scope", "permissionLevel"),
+                textAt(body, "params", "arguments", "scope", "permissionLevel"),
+                textAt(body, "params", "arguments", "permissionLevel")
+            ),
+            firstText(
+                request.getHeader("X-MCP-Scope"),
+                textAt(body, "scopeExpression"),
+                textAt(body, "params", "_meta", "scopeExpression"),
+                textAt(body, "params", "context", "scopeExpression"),
+                textAt(body, "params", "arguments", "scopeExpression"),
+                textAt(body, "params", "arguments", "router", "scopeExpression")
             )
         );
+    }
+
+    private boolean isToolCall(HttpServletRequest request, String requestBody) {
+        if (!"POST".equalsIgnoreCase(request.getMethod())) {
+            return false;
+        }
+        JsonNode root = requestBody == null ? requestBodyJson(request) : parseJson(requestBody);
+        return containsToolCall(root);
+    }
+
+    private boolean containsToolCall(JsonNode node) {
+        if (node == null || node.isNull() || node.isMissingNode()) {
+            return false;
+        }
+        if (node.isArray()) {
+            for (JsonNode item : node) {
+                if (containsToolCall(item)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+        return "tools/call".equals(text(node.get("method")));
+    }
+
+    private void writeTenantRequired(HttpServletResponse response) throws IOException {
+        response.setStatus(HttpServletResponse.SC_BAD_REQUEST);
+        response.setContentType("application/json;charset=UTF-8");
+        objectMapper.writeValue(response.getWriter(), Map.of(
+            "success", false,
+            "error", "TENANT_REQUIRED",
+            "message", "missing tenantId in MCP request context"
+        ));
     }
 
     /**
@@ -122,7 +257,7 @@ public class McpInvocationLoggingFilter extends OncePerRequestFilter {
      * @param durationMs the duration ms value
      * @param errorMessage the error message value
      */
-    private void recordAudit(ContentCachingRequestWrapper request, HttpServletResponse response, long durationMs, String errorMessage) {
+    private void recordAudit(CachedBodyRequestWrapper request, HttpServletResponse response, long durationMs, String errorMessage) {
         auditService.recordMcpTransportRequest(
             request.getMethod(),
             request.getRequestURI(),
@@ -147,8 +282,8 @@ public class McpInvocationLoggingFilter extends OncePerRequestFilter {
      * @param request the request value
      * @return the operation result
      */
-    private String requestBody(ContentCachingRequestWrapper request) {
-        byte[] content = request.getContentAsByteArray();
+    private String requestBody(CachedBodyRequestWrapper request) {
+        byte[] content = request.cachedBody();
         if (content.length == 0) {
             return null;
         }
@@ -161,6 +296,48 @@ public class McpInvocationLoggingFilter extends OncePerRequestFilter {
         } catch (Exception ex) {
             return new String(content, StandardCharsets.UTF_8);
         }
+    }
+
+    private JsonNode requestBodyJson(HttpServletRequest request) {
+        if (request instanceof CachedBodyRequestWrapper wrapper) {
+            return parseJson(requestBody(wrapper));
+        }
+        return null;
+    }
+
+    private JsonNode parseJson(String body) {
+        if (body == null || body.isBlank()) {
+            return null;
+        }
+        try {
+            return objectMapper.readTree(body);
+        } catch (Exception ex) {
+            return null;
+        }
+    }
+
+    private String textAt(JsonNode root, String... path) {
+        JsonNode current = root;
+        if (current == null || path == null) {
+            return null;
+        }
+        for (String key : path) {
+            current = current == null ? null : current.get(key);
+            if (current == null || current.isNull() || current.isMissingNode()) {
+                return null;
+            }
+        }
+        if (current.isArray()) {
+            List<String> values = new ArrayList<>();
+            current.forEach(item -> {
+                String text = text(item);
+                if (text != null && !text.isBlank()) {
+                    values.add(text);
+                }
+            });
+            return values.isEmpty() ? null : String.join(",", values);
+        }
+        return text(current);
     }
 
     /**
@@ -261,5 +438,60 @@ public class McpInvocationLoggingFilter extends OncePerRequestFilter {
             return null;
         }
         return node.isValueNode() ? node.asText() : node.toString();
+    }
+
+    private static final class CachedBodyRequestWrapper extends HttpServletRequestWrapper {
+        private final byte[] cachedBody;
+
+        private CachedBodyRequestWrapper(HttpServletRequest request) throws IOException {
+            super(request);
+            this.cachedBody = request.getInputStream().readAllBytes();
+        }
+
+        private byte[] cachedBody() {
+            return cachedBody;
+        }
+
+        @Override
+        public ServletInputStream getInputStream() {
+            ByteArrayInputStream input = new ByteArrayInputStream(cachedBody);
+            return new ServletInputStream() {
+                @Override
+                public int read() {
+                    return input.read();
+                }
+
+                @Override
+                public boolean isFinished() {
+                    return input.available() == 0;
+                }
+
+                @Override
+                public boolean isReady() {
+                    return true;
+                }
+
+                @Override
+                public void setReadListener(ReadListener listener) {
+                    if (listener == null) {
+                        return;
+                    }
+                    try {
+                        listener.onDataAvailable();
+                        listener.onAllDataRead();
+                    } catch (IOException ex) {
+                        listener.onError(ex);
+                    }
+                }
+            };
+        }
+
+        @Override
+        public BufferedReader getReader() {
+            Charset charset = getCharacterEncoding() == null || getCharacterEncoding().isBlank()
+                ? StandardCharsets.UTF_8
+                : Charset.forName(getCharacterEncoding());
+            return new BufferedReader(new InputStreamReader(getInputStream(), charset));
+        }
     }
 }

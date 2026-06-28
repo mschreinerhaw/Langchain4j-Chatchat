@@ -342,6 +342,9 @@ public class InvocationAuditService {
         request.put("userAgent", userAgent);
         request.put("requestId", context == null ? null : context.requestId());
         request.put("clientId", context == null ? null : context.clientId());
+        request.put("tenantId", context == null ? null : context.tenantId());
+        request.put("workspaceId", context == null ? null : context.workspaceId());
+        request.put("traceId", context == null ? null : context.traceId());
         log.setRequestSummary(toJsonSummary(redact(request)));
         Map<String, Object> response = new LinkedHashMap<>();
         response.put("statusCode", statusCode);
@@ -423,6 +426,9 @@ public class InvocationAuditService {
         value.put("userAgent", context == null ? null : context.userAgent());
         value.put("requestId", context == null ? null : context.requestId());
         value.put("clientId", context == null ? null : context.clientId());
+        value.put("tenantId", context == null ? null : context.tenantId());
+        value.put("workspaceId", context == null ? null : context.workspaceId());
+        value.put("traceId", context == null ? null : context.traceId());
         return value;
     }
 

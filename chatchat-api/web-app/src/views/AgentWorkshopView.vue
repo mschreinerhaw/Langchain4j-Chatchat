@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <section class="feature-view skill-hub-view agent-workshop-view">
     <header class="agent-workshop-header">
       <div>
@@ -463,82 +463,6 @@
                 </div>
               </article>
             </div>
-          </section>
-
-          <section class="agent-document-picker wide-field">
-            <div class="agent-tool-picker-head">
-              <div>
-                <strong>知识库文档</strong>
-                <span>{{ documentResultLabel }}</span>
-              </div>
-              <button
-                v-if="documents.length"
-                type="button"
-                class="secondary-button compact-button"
-                @click="clearSelectedDocuments"
-              >
-                清空
-              </button>
-            </div>
-            <div v-if="documents.length" class="agent-document-searchbar">
-              <label>
-                <span>检索文档</span>
-                <input
-                  v-model.trim="documentSearchQuery"
-                  type="search"
-                  placeholder="按标题、来源、ID、分类或标签"
-                >
-              </label>
-              <label>
-                <span>分类</span>
-                <select v-model="documentCategoryFilter">
-                  <option v-for="option in documentCategoryOptions" :key="option.value" :value="option.value">
-                    {{ option.label }}
-                  </option>
-                </select>
-              </label>
-              <button
-                v-if="hasActiveDocumentFilters"
-                type="button"
-                class="secondary-button compact-button"
-                @click="resetDocumentFilters"
-              >
-                重置
-              </button>
-            </div>
-            <div v-if="documents.length && filteredDocuments.length" class="agent-document-batchbar">
-              <label class="agent-document-select-current">
-                <input
-                  type="checkbox"
-                  :checked="isFilteredDocumentsFullySelected"
-                  @change="toggleFilteredDocuments"
-                >
-                <span>{{ documentBatchActionLabel }}</span>
-              </label>
-              <strong>当前筛选 {{ selectedFilteredDocumentCount }} / {{ filteredDocuments.length }} 已选</strong>
-            </div>
-            <div v-if="documents.length && visibleDocuments.length" class="agent-document-checklist">
-              <label
-                v-for="document in visibleDocuments"
-                :key="document.docId"
-                class="agent-document-check"
-                :class="{ active: selectedDocumentIds.includes(document.docId) }"
-                :title="document.title"
-              >
-                <input
-                  type="checkbox"
-                  :checked="selectedDocumentIds.includes(document.docId)"
-                  @change="toggleDocument(document.docId)"
-                >
-                <span>
-                  <strong>{{ document.title }}</strong>
-                  <small>{{ document.source }} · {{ document.category || "未分类" }} · {{ document.date }}</small>
-                  <em>{{ document.docId }}</em>
-                </span>
-              </label>
-            </div>
-            <p v-else-if="documents.length" class="agent-tool-empty">没有匹配的知识库文档，请调整分类或关键词。</p>
-            <p v-else class="agent-tool-empty">请先在知识库上传或创建可检索文档。</p>
           </section>
 
           <section class="routing-settings wide-field">

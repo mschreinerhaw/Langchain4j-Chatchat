@@ -353,16 +353,17 @@ class AgentPlanner {
         if (availableTools == null || availableTools.isEmpty()) {
             return;
         }
-        String assetQueryTool = matchingAvailableTool(availableTools, "asset_query");
+        String assetQueryTool = matchingAvailableTool(availableTools, "asset_discovery");
         if (assetQueryTool != null) {
             prompt.append("Asset discovery tool contract:\n");
             prompt.append("- Use ").append(assetQueryTool)
                 .append(" only for read-only discovery of redacted asset metadata.\n");
             prompt.append("- Before calling ").append(assetQueryTool)
-                .append(", produce a routing candidate set and finalDecision. candidates[] must contain targetKind/confidence pairs, and finalDecision must be one of the candidates. Use database for database/SQL datasource assets, host for OS/server/service host assets, http for HTTP endpoint assets. For document, use the document search tool instead of asset_query.\n");
+                .append(", produce a routing candidate set and finalDecision. candidates[] must contain targetKind/confidence pairs, and finalDecision must be one of the candidates. Use database for database/SQL datasource assets, host for OS/server/service host assets, http for HTTP endpoint assets, and api for API service assets. For document, use the document search tool instead of asset discovery.\n");
             prompt.append("- ").append(assetQueryTool)
                 .append(" input should contain filters or executionContext when exact logical context is known; use {\"filters\":{},\"limit\":10} for capped redacted candidate discovery when the user did not provide assetName/env/cluster/service.\n");
             prompt.append("- Asset names and routing labels are exact-match. Do not derive assetName, service, cluster, target, or labels from the user intent unless the user explicitly provided that exact value or a prior tool observation returned it.\n");
+            prompt.append("- Never concatenate an assetName with descriptive text, asset type, capability, or assumption. For example, keep the user-provided asset phrase unchanged; if the exact asset name is uncertain, omit filters.assetName and use broad discovery with filters={}.\n");
             prompt.append("- Do not invent service labels such as service:<topic> from natural-language topic words until an asset/tool observation proves they are registered routing labels.\n");
             prompt.append("- Valid input example when no exact database context is known: {\"candidates\":[{\"targetKind\":\"database\",\"confidence\":0.82},{\"targetKind\":\"http\",\"confidence\":0.42}],\"finalDecision\":\"database\",\"filters\":{},\"trace\":{\"plannerVersion\":\"v1.1\",\"model\":\"<model>\"},\"limit\":10}.\n");
             prompt.append("- Valid input example when the host asset name is explicitly known: {\"candidates\":[{\"targetKind\":\"host\",\"confidence\":0.9}],\"finalDecision\":\"host\",\"filters\":{\"assetName\":\"<existing-asset-name>\"},\"trace\":{\"plannerVersion\":\"v1.1\",\"model\":\"<model>\"},\"limit\":10}.\n");
@@ -372,20 +373,20 @@ class AgentPlanner {
             prompt.append("- Do not replace ").append(assetQueryTool)
                 .append(" with a reasoning step that guesses env, service, cluster, or target. If broad discovery returns multiple plausible assets, ask the user for logical context.\n\n");
         }
-        String templateQueryTool = matchingAvailableTool(availableTools, "template_query");
+        String templateQueryTool = matchingAvailableTool(availableTools, "template_discovery");
         if (templateQueryTool != null) {
             prompt.append("Template discovery tool contract:\n");
             prompt.append("- Use ").append(templateQueryTool)
                 .append(" only for read-only discovery of registered execution templates.\n");
             prompt.append("- Before calling ").append(templateQueryTool)
-                .append(", produce a routing candidate set and finalDecision. candidates[] must contain targetKind/confidence pairs, and finalDecision must be one of the candidates. Runtime routes host to SSH templates, database to SQL datasource templates, http to HTTP templates, and business_database_query to business SQL MCP tools. For document, use document search instead of template_query.\n");
+                .append(", produce a routing candidate set and finalDecision. candidates[] must contain targetKind/confidence pairs, and finalDecision must be one of the candidates. Runtime routes host to SSH templates, database to SQL datasource templates, http to HTTP templates, api to API templates, and business_database_query to business SQL MCP tools. For document, use document search instead of template discovery.\n");
             prompt.append("- ").append(templateQueryTool)
                 .append(" returns the single canonical template view in templates[]. It never returns raw shell commands or executionSpec.\n");
-            prompt.append("- Query it when the plan/user-configured dependency requires template discovery before execution. Prefer filters.assetName and filters.env from asset_query data[].\n");
+            prompt.append("- Query it when the plan/user-configured dependency requires template discovery before execution. Prefer filters.assetName and filters.env from the prior typed asset discovery result.\n");
             prompt.append("- If the user asks for a capability and no exact asset context is known, query by candidate set plus intent, for example {\"candidates\":[{\"targetKind\":\"host\",\"confidence\":0.82},{\"targetKind\":\"database\",\"confidence\":0.51}],\"finalDecision\":\"host\",\"filters\":{\"intent\":\"<user-capability-intent>\"},\"trace\":{\"plannerVersion\":\"v1.1\",\"model\":\"<model>\"},\"limit\":10}; still use a returned templateId exactly.\n");
-            prompt.append("- Valid host input example: {\"candidates\":[{\"targetKind\":\"host\",\"confidence\":0.9}],\"finalDecision\":\"host\",\"filters\":{\"assetName\":\"<asset-name-from-asset-query>\",\"env\":\"<env-from-asset-query>\",\"intent\":\"<user-capability-intent>\"},\"trace\":{\"plannerVersion\":\"v1.1\",\"model\":\"<model>\"},\"limit\":10}.\n");
-            prompt.append("- For template_query filters, if the user intent contains database/component/metric/action names, include both Chinese and English retrieval terms. filters.intent keeps the user's original natural-language intent; filters.intentAliases must include Chinese aliases plus English technical terms; filters.keywords must include canonical DB/component keywords, command names, metric names, and common aliases. Do not rely on Chinese-only or English-only intent for template retrieval.\n");
-            prompt.append("- Valid database input example: {\"candidates\":[{\"targetKind\":\"database\",\"confidence\":0.9}],\"finalDecision\":\"database\",\"filters\":{\"assetName\":\"<asset-name-from-asset-query>\",\"env\":\"<env-from-asset-query>\",\"intent\":\"<database-query-intent>\",\"intentAliases\":[\"<Chinese alias>\",\"<English technical term>\"],\"keywords\":[\"<canonical command or metric>\",\"<Chinese keyword>\",\"<English keyword>\"]},\"trace\":{\"plannerVersion\":\"v1.1\",\"model\":\"<model>\"},\"limit\":10}.\n");
+            prompt.append("- Valid host input example: {\"candidates\":[{\"targetKind\":\"host\",\"confidence\":0.9}],\"finalDecision\":\"host\",\"filters\":{\"assetName\":\"<asset-name-from-typed-asset-discovery>\",\"env\":\"<env-from-typed-asset-discovery>\",\"intent\":\"<user-capability-intent>\"},\"trace\":{\"plannerVersion\":\"v1.1\",\"model\":\"<model>\"},\"limit\":10}.\n");
+            prompt.append("- For template discovery filters, if the user intent contains database/component/metric/action names, include both Chinese and English retrieval terms. filters.intent keeps the user's original natural-language intent; filters.bilingualIntent must include Chinese aliases and English technical terms; filters.intentZh and filters.intentEn should split the primary Chinese/English intent; filters.intentAliases must include Chinese aliases plus English technical terms; filters.keywords must include canonical DB/component keywords, command names, metric names, and common aliases. Do not rely on Chinese-only or English-only intent for template retrieval.\n");
+            prompt.append("- Valid database input example: {\"candidates\":[{\"targetKind\":\"database\",\"confidence\":0.9}],\"finalDecision\":\"database\",\"filters\":{\"assetName\":\"<asset-name-from-typed-asset-discovery>\",\"env\":\"<env-from-typed-asset-discovery>\",\"intent\":\"<database-query-intent>\",\"bilingualIntent\":[\"<Chinese alias>\",\"<English technical term>\"],\"intentZh\":\"<Chinese intent>\",\"intentEn\":\"<English technical intent>\",\"intentAliases\":[\"<Chinese alias>\",\"<English technical term>\"],\"keywords\":[\"<canonical command or metric>\",\"<Chinese keyword>\",\"<English keyword>\"]},\"trace\":{\"plannerVersion\":\"v1.1\",\"model\":\"<model>\"},\"limit\":10}.\n");
             prompt.append("- templates[] is ranked by relevanceScore. Choose the returned template whose name, description, intentSignals, matchReasons, and asset type best match the user intent; do not blindly bind the first asset allowedCommandTemplates item.\n");
             prompt.append("- If the selected template's parameterSchema.required is non-empty, include a parameters object in the execution tool input with exactly those required fields; never place template parameters at the top level.\n");
             prompt.append("- Do not invent template ids if ").append(templateQueryTool)
@@ -397,11 +398,11 @@ class AgentPlanner {
             prompt.append("- Use ").append(linuxCommandTool)
                 .append(" only with a registered template id and logical executionContext.\n");
             prompt.append("- Input MUST use field template, not command, command_template, shell, host, hostname, or ip.\n");
-            prompt.append("- The template value MUST be copied exactly from configured template metadata: template_query templates[].templateId when that tool is part of the plan, otherwise asset_query allowedCommandTemplates[].templateId or allowedCommandTemplateIds[]. Never synthesize aliases or alternate names.\n");
+            prompt.append("- The template value MUST be copied exactly from configured template metadata: typed template discovery templates[].templateId when that step is part of the plan, otherwise typed asset discovery allowedCommandTemplates[].templateId or allowedCommandTemplateIds[]. Never synthesize aliases or alternate names.\n");
             prompt.append("- Template arguments MUST be passed under parameters and must satisfy the selected template's parameterSchema, for example {\"template\":\"<templateId>\",\"parameters\":{\"<requiredParam>\":\"<value>\"},\"executionContext\":{\"assetName\":\"<asset>\"}}.\n");
-            prompt.append("- Prefer executionContext.assetName from asset discovery for exact routing, plus env when available. Example: {\"template\":\"<templateId-from-template-query>\",\"executionContext\":{\"assetName\":\"<asset-name-from-asset-query>\",\"env\":\"<env-from-asset-query>\"},\"reason\":\"inspect host state\"}.\n");
-            prompt.append("- Follow the dependency order configured by the user/runtime. Do not insert a hard-coded template_query step unless the plan needs template discovery or configured dependencies require it.\n");
-            prompt.append("- If asset_query returns allowedCommandTemplates and no template_query step is configured, choose the safest matching registered template from that authorized list and then call ")
+            prompt.append("- Prefer executionContext.assetName from asset discovery for exact routing, plus env when available. Example: {\"template\":\"<templateId-from-typed-template-discovery>\",\"executionContext\":{\"assetName\":\"<asset-name-from-typed-asset-discovery>\",\"env\":\"<env-from-typed-asset-discovery>\"},\"reason\":\"inspect host state\"}.\n");
+            prompt.append("- Follow the dependency order configured by the user/runtime. Do not insert a hard-coded template discovery step unless the plan needs template discovery or configured dependencies require it.\n");
+            prompt.append("- If typed asset discovery returns allowedCommandTemplates and no template discovery step is configured, choose the safest matching registered template from that authorized list and then call ")
                 .append(linuxCommandTool)
                 .append("; do not stop after discovery when the user asked for live system analysis.\n");
             prompt.append("- If no suitable command template is known or returned, produce a final answer asking the user/admin to register a safe template; do not invent raw shell commands.\n\n");
@@ -700,10 +701,10 @@ class AgentPlanner {
             return input;
         }
         String semanticTool = toolSemanticKey(toolName);
-        if ("asset_query".equals(semanticTool)) {
+        if ("asset_discovery".equals(semanticTool) || "asset_query".equals(semanticTool)) {
             normalizeDiscoveryQueryInput(input);
         }
-        if ("template_query".equals(semanticTool)) {
+        if ("template_discovery".equals(semanticTool) || "template_query".equals(semanticTool)) {
             normalizeDiscoveryQueryInput(input);
         }
         if ("linux_command_execute".equals(semanticTool)) {
@@ -928,13 +929,13 @@ class AgentPlanner {
                                                     Map<String, List<Integer>> toolStepIds,
                                                     List<String> issues) {
         if (plan == null || context == null || issues == null
-            || matchingAvailableTool(context.availableTools(), "asset_query") == null) {
+            || matchingAvailableTool(context.availableTools(), "asset_discovery") == null) {
             return;
         }
         boolean hasAssetQueryStep = toolStepIds.keySet().stream()
-            .anyMatch(tool -> "asset_query".equals(toolSemanticKey(tool)));
+            .anyMatch(tool -> "asset_discovery".equals(toolSemanticKey(tool)) || "asset_query".equals(toolSemanticKey(tool)));
         if (!hasAssetQueryStep && contextClaimsGuessedAssetRouting(plan.context())) {
-            issues.add("Asset routing context must come from asset_query, user-provided executionContext, or observations; plan context must not assume assetName/env/datasource registration.");
+            issues.add("Asset routing context must come from typed asset discovery, user-provided executionContext, or observations; plan context must not assume assetName/env/datasource registration.");
             return;
         }
         for (InterpretationPlan.Step step : plan.steps()) {
@@ -942,7 +943,7 @@ class AgentPlanner {
                 continue;
             }
             String text = normalize(step.input() == null ? "" : step.input().toString());
-            boolean mentionsAssetQueryFailure = text.contains("asset_query")
+            boolean mentionsAssetQueryFailure = (text.contains("asset_query") || text.contains("asset_discovery"))
                 && (text.contains("reject") || text.contains("rejected") || text.contains("refuse")
                     || text.contains("denied") || text.contains("confirmation") || text.contains("failed")
                     || text.contains("失败") || text.contains("拒绝") || text.contains("确认"));
@@ -950,11 +951,11 @@ class AgentPlanner {
                 || text.contains("env") || text.contains("service") || text.contains("cluster") || text.contains("target")
                 || text.contains("假设") || text.contains("默认");
             if (mentionsAssetQueryFailure && guessesTargetContext) {
-                issues.add("Do not use a reasoning step to replace asset_query or guess env/service after discovery failure; call asset_query or ask the user for logical executionContext.");
+                issues.add("Do not use a reasoning step to replace typed asset discovery or guess env/service after discovery failure; call the typed asset discovery tool or ask the user for logical executionContext.");
                 return;
             }
             if (!hasAssetQueryStep && guessesTargetContext && text.contains("service") && text.contains("env")) {
-                issues.add("Asset routing context must come from asset_query, user-provided executionContext, or observations; reasoning steps must not invent env/service defaults.");
+                issues.add("Asset routing context must come from typed asset discovery, user-provided executionContext, or observations; reasoning steps must not invent env/service defaults.");
                 return;
             }
         }
@@ -2140,9 +2141,12 @@ class AgentPlanner {
         }
         String left = first.trim();
         String right = second.trim();
+        String leftAlias = normalizeKnownToolAlias(left);
+        String rightAlias = normalizeKnownToolAlias(right);
         return left.equals(right)
-            || left.equals(normalizeKnownToolAlias(right))
-            || normalizeKnownToolAlias(left).equals(right)
+            || left.equals(rightAlias)
+            || leftAlias.equals(right)
+            || leftAlias.equals(rightAlias)
             || toolSemanticKey(left).equals(toolSemanticKey(right));
     }
 
@@ -2160,6 +2164,18 @@ class AgentPlanner {
         if (semantic.contains("search_and_extract")) {
             return "search_and_extract";
         }
+        if ("asset_query".equals(semantic) || "asset_discovery".equals(semantic)) {
+            return "asset_discovery";
+        }
+        if ("template_query".equals(semantic) || "template_discovery".equals(semantic)) {
+            return "template_discovery";
+        }
+        if (semantic.endsWith("_asset_query")) {
+            return "asset_discovery";
+        }
+        if (semantic.endsWith("_template_query")) {
+            return "template_discovery";
+        }
         return toolName.trim();
     }
 
@@ -2168,7 +2184,14 @@ class AgentPlanner {
             return null;
         }
         for (String availableTool : availableTools) {
-            if (semanticToolName.equals(toolSemanticKey(availableTool))) {
+            String semantic = toolSemanticKey(availableTool);
+            if (semanticToolName.equals(semantic)
+                || ("asset_discovery".equals(semanticToolName) && "asset_query".equals(semantic))
+                || ("template_discovery".equals(semanticToolName) && "template_query".equals(semantic))
+                || ("asset_discovery".equals(semanticToolName) && semantic.endsWith("_asset_query"))
+                || ("template_discovery".equals(semanticToolName) && semantic.endsWith("_template_query"))
+                || ("asset_query".equals(semanticToolName) && semantic.endsWith("_asset_query"))
+                || ("template_query".equals(semanticToolName) && semantic.endsWith("_template_query"))) {
                 return availableTool;
             }
         }

@@ -224,7 +224,12 @@ public class CommandTemplateDiscoveryService {
                     intent, template.getDatabaseType(),
                     selectedSqlAssetType(datasources, assetScoped), riskLevel(template))))
             .toList();
-        List<ScoredTemplate<SqlTemplateConfig>> matched = rankAndFallback(candidates, intent, scored -> scored.template().getCode());
+        List<ScoredTemplate<SqlTemplateConfig>> matched = rankAndFallback(
+            candidates,
+            intent,
+            scored -> scored.template().getCode(),
+            sqlScoredComparator(intent)
+        );
         if (matched.isEmpty() && !luceneHits.isEmpty()) {
             matched = sqlLuceneAuthorizedFallback(templates, filters, retrievalFilters, datasources, assetScoped, intent, luceneHits);
         }
@@ -678,6 +683,7 @@ public class CommandTemplateDiscoveryService {
         List<String> signals = intentSignals(template);
         return mapOf(
             "schemaVersion", TEMPLATE_SCHEMA_VERSION,
+            "id", template.getCode(),
             "templateId", template.getCode(),
             "name", firstText(template.getTitle(), template.getCode()),
             "description", firstText(template.getDescription(), ""),
@@ -707,6 +713,7 @@ public class CommandTemplateDiscoveryService {
         List<String> signals = intentSignals(template);
         return mapOf(
             "schemaVersion", TEMPLATE_SCHEMA_VERSION,
+            "id", template.getCode(),
             "templateId", template.getCode(),
             "name", firstText(template.getTitle(), template.getCode()),
             "description", firstText(template.getDescription(), ""),
@@ -739,6 +746,7 @@ public class CommandTemplateDiscoveryService {
         String templateId = firstText(endpoint.getToolName(), firstText(endpoint.getName(), endpoint.getId()));
         return mapOf(
             "schemaVersion", TEMPLATE_SCHEMA_VERSION,
+            "id", templateId,
             "templateId", templateId,
             "name", firstText(endpoint.getTitle(), templateId),
             "description", firstText(endpoint.getDescription(), ""),
@@ -769,6 +777,7 @@ public class CommandTemplateDiscoveryService {
         String toolName = firstText(config.getToolName(), config.getId());
         return mapOf(
             "schemaVersion", TEMPLATE_SCHEMA_VERSION,
+            "id", toolName,
             "templateId", toolName,
             "databaseQueryId", config.getId(),
             "mcpToolName", toolName,
@@ -1139,6 +1148,19 @@ public class CommandTemplateDiscoveryService {
                                                         NormalizedIntent intent,
                                                         java.util.function.Function<ScoredTemplate<T>, String> idExtractor) {
         Comparator<ScoredTemplate<T>> comparator = scoredComparator(idExtractor);
+        return rankAndFallback(candidates, intent, comparator);
+    }
+
+    private <T> List<ScoredTemplate<T>> rankAndFallback(List<ScoredTemplate<T>> candidates,
+                                                        NormalizedIntent intent,
+                                                        java.util.function.Function<ScoredTemplate<T>, String> idExtractor,
+                                                        Comparator<ScoredTemplate<T>> comparator) {
+        return rankAndFallback(candidates, intent, comparator);
+    }
+
+    private <T> List<ScoredTemplate<T>> rankAndFallback(List<ScoredTemplate<T>> candidates,
+                                                        NormalizedIntent intent,
+                                                        Comparator<ScoredTemplate<T>> comparator) {
         List<ScoredTemplate<T>> matched = candidates.stream()
             .filter(this::matchesIntent)
             .sorted(comparator)
@@ -1149,6 +1171,48 @@ public class CommandTemplateDiscoveryService {
         return candidates.stream()
             .sorted(comparator)
             .toList();
+    }
+
+    private Comparator<ScoredTemplate<SqlTemplateConfig>> sqlScoredComparator(NormalizedIntent intent) {
+        Comparator<ScoredTemplate<SqlTemplateConfig>> base = scoredComparator(scored -> scored.template().getCode());
+        return Comparator
+            .<ScoredTemplate<SqlTemplateConfig>>comparingInt(scored -> -sqlIntentFamilyPriority(scored.template(), intent))
+            .thenComparing(base);
+    }
+
+    private int sqlIntentFamilyPriority(SqlTemplateConfig template, NormalizedIntent intent) {
+        if (template == null || intent == null || intent.type() == null || "unknown".equals(intent.type())) {
+            return 0;
+        }
+        String searchable = String.join(" ",
+            firstText(template.getCode(), ""),
+            firstText(template.getTitle(), ""),
+            firstText(template.getDescription(), ""),
+            firstText(template.getCategory(), ""),
+            String.join(" ", intentSignals(template))
+        ).toLowerCase(Locale.ROOT);
+        return switch (intent.type()) {
+            case "metadata_query" -> containsAnyText(searchable, "metadata", "schema", "column", "field", "describe")
+                ? 3 : 0;
+            case "storage_check" -> containsAnyText(searchable, "storage", "size", "space", "capacity") ? 3 : 0;
+            case "db_status" -> containsAnyText(searchable, "status", "health", "instance") ? 3 : 0;
+            case "lock_check" -> containsAnyText(searchable, "lock", "blocking", "deadlock", "wait") ? 3 : 0;
+            case "connection_check" -> containsAnyText(searchable, "connection", "session", "processlist") ? 3 : 0;
+            case "performance_issue" -> containsAnyText(searchable, "performance", "slow", "latency") ? 3 : 0;
+            default -> 0;
+        };
+    }
+
+    private boolean containsAnyText(String text, String... needles) {
+        if (text == null || text.isBlank() || needles == null) {
+            return false;
+        }
+        for (String needle : needles) {
+            if (needle != null && !needle.isBlank() && text.contains(needle.toLowerCase(Locale.ROOT))) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private boolean fallbackUsed(List<? extends ScoredTemplate<?>> candidates,

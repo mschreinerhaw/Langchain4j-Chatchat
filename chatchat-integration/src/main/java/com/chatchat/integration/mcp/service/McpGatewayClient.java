@@ -137,11 +137,7 @@ public class McpGatewayClient {
 
         try {
             long startedAt = System.currentTimeMillis();
-            McpSyncClient client = getOrCreateSdkClient(config, kind, requestTimeoutMs);
-            Object raw = client.callTool(new McpSchema.CallToolRequest(toolName,
-                arguments == null ? Map.of() : arguments));
-            Map<String, Object> mapped = objectMapper.convertValue(raw, new TypeReference<>() {});
-            McpToolInvokeResult result = normalizeInvokeResult(mapped);
+            McpToolInvokeResult result = invokeSdkTool(config, kind, requestTimeoutMs, toolName, arguments);
             if (result.success()) {
                 log.info("MCP SDK invoke succeeded serviceId={} service={} remoteTool={} durationMs={} result={}",
                     config.getId(),
@@ -160,6 +156,29 @@ public class McpGatewayClient {
             }
             return result;
         } catch (Exception ex) {
+            if (isRecoverableMcpSessionFailure(ex)) {
+                invalidateSdkClient(config, kind, requestTimeoutMs, ex);
+                try {
+                    long retryStartedAt = System.currentTimeMillis();
+                    McpToolInvokeResult result = invokeSdkTool(config, kind, requestTimeoutMs, toolName, arguments);
+                    log.info("MCP SDK invoke recovered after session reset serviceId={} service={} remoteTool={} durationMs={} result={}",
+                        config.getId(),
+                        config.getName(),
+                        toolName,
+                        Math.max(0L, System.currentTimeMillis() - retryStartedAt),
+                        ToolLogSummarizer.summarize(result.data()));
+                    return result;
+                } catch (Exception retryEx) {
+                    log.warn("MCP SDK invoke retry after session reset failed serviceId={} service={} remoteTool={} timeoutMs={} error={}",
+                        config.getId(),
+                        config.getName(),
+                        toolName,
+                        requestTimeoutMs,
+                        retryEx.getMessage(),
+                        retryEx);
+                    ex = retryEx;
+                }
+            }
             log.warn("MCP SDK invoke threw serviceId={} service={} remoteTool={} timeoutMs={} error={}",
                 config.getId(),
                 config.getName(),
@@ -169,6 +188,15 @@ public class McpGatewayClient {
                 ex);
             return new McpToolInvokeResult(false, null, null, ex.getMessage());
         }
+    }
+
+    private McpToolInvokeResult invokeSdkTool(McpServiceConfig config, TransportKind kind, int requestTimeoutMs,
+                                              String toolName, Map<String, Object> arguments) {
+        McpSyncClient client = getOrCreateSdkClient(config, kind, requestTimeoutMs);
+        Object raw = client.callTool(new McpSchema.CallToolRequest(toolName,
+            arguments == null ? Map.of() : arguments));
+        Map<String, Object> mapped = objectMapper.convertValue(raw, new TypeReference<>() {});
+        return normalizeInvokeResult(mapped);
     }
 
     /**
@@ -192,7 +220,7 @@ public class McpGatewayClient {
      */
     private McpSyncClient getOrCreateSdkClient(McpServiceConfig config, TransportKind kind, int requestTimeoutMs) {
         int normalizedRequestTimeoutMs = Math.max(0, requestTimeoutMs);
-        String key = serviceKey(config) + ":" + normalizedRequestTimeoutMs;
+        String key = sdkClientKey(config, normalizedRequestTimeoutMs);
         String fingerprint = transportFingerprint(config, kind, requestTimeoutMs);
 
         ManagedSdkClient cached = sdkClientCache.get(key);
@@ -219,6 +247,29 @@ public class McpGatewayClient {
             sdkClientCache.put(key, new ManagedSdkClient(fingerprint, client));
             return client;
         }
+    }
+
+    private void invalidateSdkClient(McpServiceConfig config, TransportKind kind, int requestTimeoutMs, Throwable cause) {
+        int normalizedRequestTimeoutMs = Math.max(0, requestTimeoutMs);
+        String key = sdkClientKey(config, normalizedRequestTimeoutMs);
+        String fingerprint = transportFingerprint(config, kind, requestTimeoutMs);
+        synchronized (sdkClientCache) {
+            ManagedSdkClient current = sdkClientCache.get(key);
+            if (current == null || !current.fingerprint().equals(fingerprint)) {
+                return;
+            }
+            sdkClientCache.remove(key);
+            closeQuietly(current.client(), key);
+            log.info("MCP SDK client session invalidated serviceId={} service={} key={} reason={}",
+                config.getId(),
+                config.getName(),
+                key,
+                cause == null ? "" : cause.getMessage());
+        }
+    }
+
+    private String sdkClientKey(McpServiceConfig config, int requestTimeoutMs) {
+        return serviceKey(config) + ":" + Math.max(0, requestTimeoutMs);
     }
 
     /**
@@ -253,6 +304,7 @@ public class McpGatewayClient {
             .clientBuilder(clientBuilder)
             .requestBuilder(requestBuilder)
             .connectTimeout(connectTimeout)
+            .resumableStreams(false)
             .openConnectionOnStartup(false)
             .build();
     }
@@ -1226,6 +1278,25 @@ public class McpGatewayClient {
             return UNBOUNDED_MCP_REQUEST_TIMEOUT;
         }
         return Duration.ofMillis(timeoutMs);
+    }
+
+    private boolean isRecoverableMcpSessionFailure(Throwable throwable) {
+        Throwable current = throwable;
+        int depth = 0;
+        while (current != null && depth < 12) {
+            String className = current.getClass().getSimpleName();
+            String message = current.getMessage() == null ? "" : current.getMessage().toLowerCase(Locale.ROOT);
+            if ("McpTransportSessionNotFoundException".equals(className)
+                || message.contains("session not found")
+                || message.contains("transport session not found")
+                || message.contains("mcp session with server terminated")
+                || message.contains("session with server terminated")) {
+                return true;
+            }
+            current = current.getCause();
+            depth++;
+        }
+        return false;
     }
 
     /**

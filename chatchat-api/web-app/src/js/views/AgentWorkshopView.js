@@ -1,4 +1,4 @@
-import {
+﻿import {
   createWorkshopAgent,
   deleteWorkshopAgent,
   fetchAgentWorkshop,
@@ -136,8 +136,6 @@ function emptyForm() {
     preferredToolPrefixes: "",
     boundMcpServiceIds: "",
     boundMcpToolNames: "",
-    boundDocumentIds: "",
-    boundDocumentTags: "",
     toolConfigs: [],
     routingSettings: defaultRoutingSettings(),
     workflowConfig: defaultWorkflowConfig(),
@@ -181,8 +179,6 @@ export default {
       agentPageSize: 5,
       toolSearchQuery: "",
       toolGroupMode: "service",
-      documentSearchQuery: "",
-      documentCategoryFilter: "all",
       error: "",
       dialogError: "",
       importError: ""
@@ -240,9 +236,6 @@ export default {
     },
     selectedToolNames() {
       return parseList(this.form.boundMcpToolNames);
-    },
-    selectedDocumentIds() {
-      return parseList(this.form.boundDocumentIds);
     },
     normalizedMcpTools() {
       return this.registeredMcpTools
@@ -335,72 +328,6 @@ export default {
         { value: "tag", label: "按标签" }
       ];
     },
-    normalizedDocuments() {
-      return this.documents
-        .filter((document) => document?.docId)
-        .map((document) => ({
-          ...document,
-          docId: String(document.docId),
-          title: document.title || document.docId,
-          source: document.source || "knowledge",
-          category: document.category || "",
-          date: document.date || "",
-          tags: Array.isArray(document.tags) ? document.tags : []
-        }));
-    },
-    documentCategoryOptions() {
-      const categories = uniqueList(this.normalizedDocuments.map((document) => document.category || "未分类"))
-        .sort((left, right) => left.localeCompare(right, "zh-CN"));
-      return [
-        { value: "all", label: "全部分类" },
-        ...categories.map((category) => ({ value: category, label: category }))
-      ];
-    },
-    filteredDocuments() {
-      const keyword = this.documentSearchQuery.trim().toLowerCase();
-      const category = this.documentCategoryFilter;
-      return this.normalizedDocuments.filter((document) => {
-        const documentCategory = document.category || "未分类";
-        const categoryMatched = category === "all" || documentCategory === category;
-        const keywordMatched = !keyword || this.documentSearchText(document).includes(keyword);
-        return categoryMatched && keywordMatched;
-      });
-    },
-    visibleDocuments() {
-      const selected = new Set(this.selectedDocumentIds);
-      return [...this.filteredDocuments]
-        .sort((left, right) => {
-          const leftSelected = selected.has(left.docId) ? 0 : 1;
-          const rightSelected = selected.has(right.docId) ? 0 : 1;
-          if (leftSelected !== rightSelected) {
-            return leftSelected - rightSelected;
-          }
-          return left.title.localeCompare(right.title);
-        });
-    },
-    filteredDocumentIds() {
-      return this.filteredDocuments.map((document) => document.docId).filter(Boolean);
-    },
-    selectedFilteredDocumentCount() {
-      const selected = new Set(this.selectedDocumentIds);
-      return this.filteredDocumentIds.filter((docId) => selected.has(docId)).length;
-    },
-    isFilteredDocumentsFullySelected() {
-      return this.filteredDocumentIds.length > 0
-        && this.selectedFilteredDocumentCount === this.filteredDocumentIds.length;
-    },
-    documentBatchActionLabel() {
-      return this.isFilteredDocumentsFullySelected ? "取消当前筛选" : "全选当前筛选";
-    },
-    documentResultLabel() {
-      if (!this.documents.length) {
-        return "暂无可绑定文档";
-      }
-      return `已勾选 ${this.selectedDocumentIds.length} / ${this.normalizedDocuments.length}，当前 ${this.filteredDocuments.length} 份`;
-    },
-    hasActiveDocumentFilters() {
-      return this.documentSearchQuery.trim() || this.documentCategoryFilter !== "all";
-    },
     importPreviewLabel() {
       if (this.importItems.length) {
         return `已解析 ${this.importItems.length} 个 Agent`;
@@ -454,7 +381,6 @@ export default {
         this.models = Array.isArray(payload?.models) ? payload.models : [];
         this.documents = Array.isArray(payload?.documents) ? payload.documents : [];
         this.normalizeAgentFilters();
-        this.normalizeDocumentFilters();
       } catch (error) {
         this.error = error.message || "Agent管理加载失败";
       } finally {
@@ -561,8 +487,6 @@ export default {
         ...(agent?.preferredToolPrefixes || []),
         ...(agent?.boundMcpServiceIds || []),
         ...(agent?.boundMcpToolNames || []),
-        ...(agent?.boundDocumentIds || []),
-        ...(agent?.boundDocumentTags || []),
         ...(agent?.resolvedToolNames || [])
       ];
       return fields.map((field) => String(field || "").toLowerCase()).join(" ");
@@ -583,10 +507,6 @@ export default {
       this.agentModelFilter = "all";
       this.agentPage = 1;
     },
-    resetDocumentFilters() {
-      this.documentSearchQuery = "";
-      this.documentCategoryFilter = "all";
-    },
     normalizeAgentFilters() {
       if (!this.agentCategoryOptions.some((option) => option.value === this.agentCategoryFilter)) {
         this.agentCategoryFilter = "all";
@@ -595,11 +515,6 @@ export default {
         this.agentModelFilter = "all";
       }
       this.clampAgentPage();
-    },
-    normalizeDocumentFilters() {
-      if (!this.documentCategoryOptions.some((option) => option.value === this.documentCategoryFilter)) {
-        this.documentCategoryFilter = "all";
-      }
     },
     clampAgentPage() {
       if (this.agentPage > this.totalAgentPages) {
@@ -663,8 +578,6 @@ export default {
         preferredToolPrefixes: joinList(agent?.preferredToolPrefixes),
         boundMcpServiceIds: joinList(agent?.boundMcpServiceIds),
         boundMcpToolNames: joinList(agent?.boundMcpToolNames),
-        boundDocumentIds: joinList(agent?.boundDocumentIds),
-        boundDocumentTags: joinList(agent?.boundDocumentTags),
         toolConfigs: Array.isArray(agent?.toolConfigs) ? agent.toolConfigs : [],
         routingSettings: {
           ...defaultRoutingSettings(),
@@ -680,9 +593,6 @@ export default {
       const registeredToolNames = new Set(this.registeredMcpTools.map((tool) => tool?.localToolName).filter(Boolean));
       const selectedToolNames = parseList(this.form.boundMcpToolNames)
         .filter((toolName) => registeredToolNames.has(toolName));
-      const availableDocumentIds = new Set(this.documents.map((document) => document?.docId).filter(Boolean));
-      const selectedDocumentIds = parseList(this.form.boundDocumentIds)
-        .filter((docId) => availableDocumentIds.has(docId));
       const maxParallelCalls = Number(this.form.routingSettings.maxParallelCalls) || 3;
       const maxRelevantMcpTools = Number(this.form.routingSettings.maxRelevantMcpTools) || 3;
       const workflowConfig = this.normalizeWorkflowConfig(this.form.workflowConfig, selectedToolNames);
@@ -700,8 +610,8 @@ export default {
         preferredToolPrefixes: [],
         boundMcpServiceIds: [],
         boundMcpToolNames: selectedToolNames,
-        boundDocumentIds: selectedDocumentIds,
-        boundDocumentTags: parseList(this.form.boundDocumentTags),
+        boundDocumentIds: [],
+        boundDocumentTags: [],
         toolConfigs: this.buildToolConfigs(selectedToolNames),
         routingSettings: {
           smartSelectionEnabled: !!this.form.routingSettings.smartSelectionEnabled,
@@ -757,12 +667,8 @@ export default {
         boundMcpToolNames: listValue(fieldValue(row, [
           "boundMcpToolNames", "mcpTools", "tools", "toolNames", "MCP工具", "绑定工具", "工具"
         ])),
-        boundDocumentIds: listValue(fieldValue(row, [
-          "boundDocumentIds", "documentIds", "docIds", "绑定文档", "文档ID"
-        ])),
-        boundDocumentTags: listValue(fieldValue(row, [
-          "boundDocumentTags", "documentTags", "docTags", "文档标签", "知识库标签"
-        ])),
+        boundDocumentIds: [],
+        boundDocumentTags: [],
         toolConfigs: Array.isArray(row?.toolConfigs) ? row.toolConfigs : [],
         routingSettings: {
           ...defaultRoutingSettings(),
@@ -1222,33 +1128,6 @@ export default {
       });
       this.form.boundMcpToolNames = [...selected].sort().join("\n");
       this.syncWorkflowSteps([...selected].sort());
-    },
-    toggleDocument(docId) {
-      const selected = new Set(this.selectedDocumentIds);
-      if (selected.has(docId)) {
-        selected.delete(docId);
-      } else {
-        selected.add(docId);
-      }
-      this.form.boundDocumentIds = [...selected].sort().join("\n");
-    },
-    toggleFilteredDocuments() {
-      if (!this.filteredDocumentIds.length) {
-        return;
-      }
-      const selected = new Set(this.selectedDocumentIds);
-      const shouldRemove = this.filteredDocumentIds.every((docId) => selected.has(docId));
-      this.filteredDocumentIds.forEach((docId) => {
-        if (shouldRemove) {
-          selected.delete(docId);
-        } else {
-          selected.add(docId);
-        }
-      });
-      this.form.boundDocumentIds = [...selected].sort().join("\n");
-    },
-    clearSelectedDocuments() {
-      this.form.boundDocumentIds = "";
     },
     defaultModelName() {
       return this.models.find((model) => model?.value)?.value || "";

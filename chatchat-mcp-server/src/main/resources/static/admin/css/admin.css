@@ -1040,6 +1040,295 @@ body {
     margin: 0;
 }
 
+.settings-tabs {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin-bottom: 18px;
+    padding: 3px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #f8fafc;
+}
+
+.settings-tabs button {
+    min-height: 32px;
+    padding: 0 14px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--text-muted);
+    font-weight: 700;
+}
+
+.settings-tabs button.active {
+    background: var(--surface);
+    color: var(--text);
+    box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+}
+
+.settings-tabs.compact {
+    margin-bottom: 12px;
+}
+
+.settings-tab-panel {
+    min-height: 180px;
+}
+
+.auth-sync-tab-panel {
+    min-height: 260px;
+}
+
+.auth-sync-head {
+    align-items: flex-start;
+}
+
+.modal-backdrop-custom {
+    position: fixed;
+    inset: 0;
+    z-index: 1080;
+    display: grid;
+    place-items: center;
+    padding: 24px 28px;
+    background: rgba(15, 23, 42, 0.38);
+    overflow: auto;
+}
+
+.entity-modal {
+    width: min(1120px, calc(100vw - 56px));
+    max-height: min(760px, calc(100vh - 48px));
+    overflow: auto;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--surface);
+    box-shadow: 0 24px 60px rgba(15, 23, 42, 0.24);
+    padding: 18px;
+}
+
+.role-permission-modal {
+    width: min(1180px, calc(100vw - 56px));
+    overflow: hidden;
+}
+
+.modal-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.modal-head p {
+    margin: 0;
+    color: var(--text-muted);
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.modal-head h2 {
+    margin: 2px 0 0;
+    font-size: 18px;
+}
+
+.role-permission-layout {
+    display: grid;
+    grid-template-columns: minmax(320px, 0.92fr) minmax(420px, 1.08fr);
+    gap: 16px;
+    min-height: 560px;
+}
+
+.role-permission-browser,
+.role-permission-editor {
+    min-width: 0;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #f8fafc;
+    padding: 14px;
+}
+
+.role-permission-browser-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+    margin-bottom: 12px;
+}
+
+.role-permission-browser-head strong {
+    display: block;
+    font-size: 15px;
+}
+
+.role-permission-browser-head p {
+    margin: 2px 0 0;
+    color: var(--text-muted);
+    font-size: 12px;
+}
+
+.role-permission-filter-grid {
+    display: grid;
+    grid-template-columns: 140px minmax(0, 1fr);
+    gap: 10px;
+}
+
+.role-permission-filter-grid label,
+.role-permission-form label {
+    display: grid;
+    gap: 6px;
+    min-width: 0;
+}
+
+.role-permission-filter-grid span,
+.role-permission-form span,
+.role-permission-selected > span {
+    color: var(--text-muted);
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.role-permission-filter-grid select,
+.role-permission-filter-grid input,
+.role-permission-form select,
+.role-permission-form input {
+    width: 100%;
+    min-width: 0;
+    min-height: 36px;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 0 10px;
+    background: var(--surface);
+}
+
+.role-permission-tool-list {
+    display: grid;
+    gap: 8px;
+    max-height: 448px;
+    margin-top: 12px;
+    overflow: auto;
+    padding-right: 2px;
+}
+
+.role-tool-option {
+    display: grid;
+    gap: 5px;
+    width: 100%;
+    min-width: 0;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--surface);
+    padding: 10px 12px;
+    text-align: left;
+}
+
+.role-tool-option:hover {
+    border-color: rgba(13, 110, 253, 0.45);
+}
+
+.role-tool-option.active {
+    border-color: #0d6efd;
+    box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.12);
+}
+
+.role-tool-option-main {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    min-width: 0;
+}
+
+.role-tool-option-title,
+.role-tool-option-meta,
+.role-tool-option-desc {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.role-tool-option-title {
+    color: var(--text);
+    font-weight: 700;
+}
+
+.role-tool-option-meta,
+.role-tool-option-desc {
+    color: var(--text-muted);
+    font-size: 12px;
+}
+
+.role-permission-selected {
+    display: grid;
+    gap: 6px;
+    margin-bottom: 12px;
+    padding: 14px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--surface);
+}
+
+.role-permission-selected strong {
+    overflow-wrap: anywhere;
+    font-size: 18px;
+}
+
+.role-permission-selected p,
+.role-permission-selected small,
+.role-permission-selected em {
+    margin: 0;
+    color: var(--text-muted);
+}
+
+.role-permission-selected em {
+    font-style: normal;
+}
+
+.role-permission-form {
+    display: grid;
+    grid-template-columns: 130px minmax(0, 1fr) auto;
+    gap: 10px;
+    align-items: end;
+    margin-bottom: 14px;
+}
+
+.role-permission-submit {
+    min-height: 36px;
+    white-space: nowrap;
+}
+
+.role-permission-rules-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin: 12px 0 8px;
+}
+
+.role-permission-rules-head h3 {
+    margin: 0;
+    font-size: 16px;
+}
+
+.role-permission-rules-table {
+    max-height: 250px;
+    overflow: auto;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: var(--surface);
+}
+
+.role-permission-rules-table table {
+    margin-bottom: 0;
+}
+
+@media (max-width: 920px) {
+    .role-permission-layout,
+    .role-permission-filter-grid,
+    .role-permission-form {
+        grid-template-columns: 1fr;
+    }
+}
+
 .result-output {
     white-space: pre-wrap;
     word-break: break-word;
@@ -1284,4 +1573,23 @@ body {
     .sidebar {
         flex-wrap: wrap;
     }
+}
+
+.metric-card {
+    border: 1px solid var(--bs-border-color);
+    border-radius: 8px;
+    padding: 14px 16px;
+    background: var(--bs-body-bg);
+}
+
+.metric-card span {
+    display: block;
+    color: var(--bs-secondary-color);
+    font-size: 12px;
+    margin-bottom: 4px;
+}
+
+.metric-card strong {
+    font-size: 22px;
+    line-height: 1.2;
 }

@@ -46,6 +46,21 @@ chatchat:
     security:
       require-mcp-token: true
       invocation-token: mcp_test_8f3c7b2a9e6d4f10b5a92cdd0e7a6413
+    authorization:
+      # Pull RBAC/MCP tool permissions from chatchat-api and enforce them before tool execution.
+      enabled: false
+      api-base-url: http://localhost:8080
+      snapshot-path: /api/v1/enterprise/mcp-auth/snapshot
+      refresh-interval-ms: 60000
+      stale-ttl-seconds: 3600
+      fail-open: true
+      require-tenant-context: true
+      auth:
+        enabled: true
+        login-path: /api/v1/enterprise/auth/login
+        username: admin
+        password: 123456
+        bearer-token: ""
     command-templates:
       # Agent OS default: do not seed scenario-specific execution templates.
       seed-defaults-enabled: false

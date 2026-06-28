@@ -386,6 +386,18 @@ class AgentWorkflowDecisionEngine {
         if (semantic.contains("search_and_extract")) {
             return SEARCH_AND_EXTRACT_TOOL;
         }
+        if ("asset_query".equals(semantic) || "asset_discovery".equals(semantic)) {
+            return "asset_discovery";
+        }
+        if ("template_query".equals(semantic) || "template_discovery".equals(semantic)) {
+            return "template_discovery";
+        }
+        if (semantic.endsWith("_asset_query")) {
+            return "asset_discovery";
+        }
+        if (semantic.endsWith("_template_query")) {
+            return "template_discovery";
+        }
         return toolName.trim();
     }
 
@@ -439,9 +451,12 @@ class AgentWorkflowDecisionEngine {
         }
         String left = first.trim();
         String right = second.trim();
+        String leftAlias = normalizeKnownToolAlias(left);
+        String rightAlias = normalizeKnownToolAlias(right);
         return left.equals(right)
-            || left.equals(normalizeKnownToolAlias(right))
-            || normalizeKnownToolAlias(left).equals(right)
+            || left.equals(rightAlias)
+            || leftAlias.equals(right)
+            || leftAlias.equals(rightAlias)
             || toolSemanticKey(left).equals(toolSemanticKey(right));
     }
 

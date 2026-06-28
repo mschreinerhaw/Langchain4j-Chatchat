@@ -5,7 +5,7 @@ import com.chatchat.common.tool.ToolInput;
 import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolOutput;
 import com.chatchat.common.tool.ToolParameter;
-import com.chatchat.mcpserver.tool.McpServerToolRegistrar;
+import com.chatchat.tools.mcp.McpServerToolRegistrar;
 import com.chatchat.tools.builtin.WebSearchToolProperties;
 import com.chatchat.tools.web.SiteIntelligenceResolverService;
 import com.chatchat.tools.web.WebCrawlerProperties;

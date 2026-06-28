@@ -312,6 +312,35 @@ class ExecutionTargetRouterTest {
     }
 
     @Test
+    void routesSqlQueryWhenLogicalContextWasPlacedInsideTemplateParameters() {
+        SshHostConfigService hostService = mock(SshHostConfigService.class);
+        SqlDatasourceConfigService datasourceService = mock(SqlDatasourceConfigService.class);
+        ExecutionTargetService targetService = mock(ExecutionTargetService.class);
+        ExecutionTargetRouter router = router(hostService, datasourceService, targetService);
+        when(targetService.listEnabledByAssetType(ExecutionTargetService.ASSET_TYPE_SQL_DATASOURCE)).thenReturn(List.of());
+        SqlDatasourceConfig localMysql = datasource("ds-local", "本地MySQL测试服务", "sql_local_mysql_test", "DEV", null);
+        localMysql.setCapabilitiesJson("[\"sql_query_execute\"]");
+        when(datasourceService.listEnabled()).thenReturn(List.of(localMysql));
+
+        Map<String, Object> routed = router.routeSqlQuery(Map.of(
+            "templateId", "MYSQL_TABLE_METADATA",
+            "parameters", Map.of(
+                "database", "test",
+                "table", "user_info_file",
+                "env", "DEV",
+                "assetName", "本地MySQL测试服务",
+                "databaseRole", "primary"
+            )
+        ));
+
+        assertThat(routed)
+            .containsEntry("datasourceId", "ds-local")
+            .containsEntry("templateId", "MYSQL_TABLE_METADATA")
+            .containsKey("parameters")
+            .doesNotContainKey("executionContext");
+    }
+
+    @Test
     void targetRegistryRoutesBeforeAssetLabelFallback() {
         SshHostConfigService hostService = mock(SshHostConfigService.class);
         SqlDatasourceConfigService datasourceService = mock(SqlDatasourceConfigService.class);

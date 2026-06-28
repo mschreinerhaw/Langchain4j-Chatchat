@@ -45,6 +45,20 @@ chatchat:
     security:
       require-mcp-token: true
       invocation-token: 
+    authorization:
+      enabled: false
+      api-base-url: http://localhost:8080
+      snapshot-path: /api/v1/enterprise/mcp-auth/snapshot
+      refresh-interval-ms: 60000
+      stale-ttl-seconds: 3600
+      fail-open: true
+      require-tenant-context: true
+      auth:
+        enabled: true
+        login-path: /api/v1/enterprise/auth/login
+        username: admin
+        password: 123456
+        bearer-token: ""
     command-templates:
       seed-defaults-enabled: false
     sql-templates:

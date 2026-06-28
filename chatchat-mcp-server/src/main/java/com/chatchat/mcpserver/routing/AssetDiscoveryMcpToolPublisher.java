@@ -20,7 +20,9 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class AssetDiscoveryMcpToolPublisher {
 
-    public static final String TOOL_NAME = "asset_query";
+    public static final String SSH_ASSET_TOOL_NAME = "ssh_asset_query";
+    public static final String SQL_DATASOURCE_ASSET_TOOL_NAME = "sql_datasource_asset_query";
+    public static final String HTTP_ENDPOINT_ASSET_TOOL_NAME = "http_endpoint_asset_query";
 
     private final McpSyncServer mcpSyncServer;
     private final AssetDiscoveryService assetDiscoveryService;
@@ -32,27 +34,57 @@ public class AssetDiscoveryMcpToolPublisher {
     }
 
     public synchronized void refresh() {
-        remove(TOOL_NAME);
-        mcpSyncServer.addTool(assetQueryTool());
+        remove(SSH_ASSET_TOOL_NAME);
+        remove(SQL_DATASOURCE_ASSET_TOOL_NAME);
+        remove(HTTP_ENDPOINT_ASSET_TOOL_NAME);
+        mcpSyncServer.addTool(assetQueryTool(
+            SSH_ASSET_TOOL_NAME,
+            "SSH asset metadata discovery",
+            "Read-only discovery tool for querying redacted SSH host asset metadata and routing hints.",
+            "ssh_host",
+            "host"
+        ));
+        mcpSyncServer.addTool(assetQueryTool(
+            SQL_DATASOURCE_ASSET_TOOL_NAME,
+            "SQL datasource asset metadata discovery",
+            "Read-only discovery tool for querying redacted SQL datasource asset metadata and routing hints.",
+            "sql_datasource",
+            "database"
+        ));
+        mcpSyncServer.addTool(assetQueryTool(
+            HTTP_ENDPOINT_ASSET_TOOL_NAME,
+            "HTTP endpoint asset metadata discovery",
+            "Read-only discovery tool for querying redacted HTTP endpoint asset metadata and routing hints.",
+            "http_endpoint",
+            "http"
+        ));
         mcpSyncServer.notifyToolsListChanged();
-        log.info("Asset discovery MCP tool refreshed: {}", TOOL_NAME);
+        log.info("Asset discovery MCP tools refreshed: {}, {}, {}",
+            SSH_ASSET_TOOL_NAME, SQL_DATASOURCE_ASSET_TOOL_NAME, HTTP_ENDPOINT_ASSET_TOOL_NAME);
     }
 
-    private McpServerFeatures.SyncToolSpecification assetQueryTool() {
+    private McpServerFeatures.SyncToolSpecification assetQueryTool(String toolName,
+                                                                   String title,
+                                                                   String description,
+                                                                   String assetType,
+                                                                   String targetKind) {
         McpSchema.Tool tool = McpSchema.Tool.builder()
-            .name(TOOL_NAME)
-            .title("Asset metadata discovery")
-            .description("Read-only discovery tool for querying redacted asset metadata and routing hints. "
+            .name(toolName)
+            .title(title)
+            .description(description + " "
                 + "Prefer logical context filters when known; if none are known it can return capped redacted candidate assets. "
+                + "It forces assetType=" + assetType + " and targetKind=" + targetKind
+                + ", so model mistakes cannot route this request into another asset type. "
                 + "It never returns hostnames, IP addresses, JDBC URLs, or endpoint URLs. The result returns a single canonical redacted assets[] view.")
-            .inputSchema(inputSchema())
-            .meta(meta())
+            .inputSchema(inputSchema(assetType))
+            .meta(meta(toolName, assetType, targetKind))
             .build();
         return McpServerFeatures.SyncToolSpecification.builder()
             .tool(tool)
             .callHandler((exchange, request) -> {
                 try {
-                    Map<String, Object> result = assetDiscoveryService.query(request.arguments());
+                    Map<String, Object> result = assetDiscoveryService.query(forcedAssetArguments(
+                        request.arguments(), toolName, assetType, targetKind));
                     return McpSchema.CallToolResult.builder()
                         .addTextContent("Asset metadata query completed")
                         .structuredContent(result)
@@ -75,46 +107,39 @@ public class AssetDiscoveryMcpToolPublisher {
             .build();
     }
 
-    private McpSchema.JsonSchema inputSchema() {
+    private Map<String, Object> forcedAssetArguments(Map<String, Object> arguments,
+                                                     String sourceTool,
+                                                     String assetType,
+                                                     String targetKind) {
+        Map<String, Object> values = new LinkedHashMap<>();
+        if (arguments != null) {
+            values.putAll(arguments);
+        }
+        values.put("assetType", assetType);
+        values.put("finalDecision", targetKind);
+        values.putIfAbsent("confidence", 1.0);
+        values.putIfAbsent("candidates", List.of(mapOf(
+            "targetKind", targetKind,
+            "confidence", 1.0
+        )));
+        values.putIfAbsent("trace", mapOf(
+            "source", sourceTool,
+            "forcedAssetType", assetType,
+            "forcedTargetKind", targetKind
+        ));
+        return values;
+    }
+
+    private McpSchema.JsonSchema inputSchema(String assetType) {
         return new McpSchema.JsonSchema("object", mapOf(
             "schemaVersion", Map.of("type", "string", "description", AssetDiscoveryService.QUERY_SCHEMA_VERSION),
-            "assetType", Map.of(
-                "type", "string",
-                "description", "Asset type derived from targetKind: ssh_host, sql_datasource, or http_endpoint"
-            ),
-            "targetKind", Map.of(
-                "type", "string",
-                "description", "Legacy single semantic target marker. Prefer candidates[] + finalDecision in Routing Spec v1.1."
-            ),
-            "finalDecision", Map.of(
-                "type", "string",
-                "description", "Runtime-selected targetKind from candidates[]: host, database, http, or document. document must use document_search instead of asset_query."
-            ),
-            "candidates", Map.of(
-                "type", "array",
-                "description", "Routing candidate set proposed by planner/model; runtime validates feasibility and scores candidates before accepting finalDecision.",
-                "items", Map.of(
-                    "type", "object",
-                    "properties", Map.of(
-                        "targetKind", Map.of("type", "string"),
-                        "confidence", Map.of("type", "number", "minimum", 0, "maximum", 1)
-                    ),
-                    "required", List.of("targetKind", "confidence")
-                )
-            ),
-            "confidence", Map.of(
-                "type", "number",
-                "minimum", 0,
-                "maximum", 1,
-                "description", "Model confidence for targetKind. Values below 0.6 return REVIEW_REQUIRED and do not retrieve assets."
-            ),
             "filtersSchemaVersion", Map.of(
                 "type", "string",
                 "description", TargetKindRegistry.FILTERS_SCHEMA_VERSION
             ),
             "filters", Map.of(
                 "type", "object",
-                "description", "Optional logical context filters such as assetName, env, cluster, service, target, database, databaseRole, or labels. Asset names and labels are exact-match; no token splitting is applied. Omit or pass {} only when the user has not provided exact logical context.",
+                "description", "Optional logical context filters for " + assetType + ", such as assetName, env, cluster, service, target, database, databaseRole, or labels. Asset names and labels are exact-match; no token splitting is applied. Omit or pass {} only when the user has not provided exact logical context.",
                 "additionalProperties", true
             ),
             "executionContext", Map.of(
@@ -140,7 +165,7 @@ public class AssetDiscoveryMcpToolPublisher {
         ), List.of("filters", "trace"), false, null, null);
     }
 
-    private Map<String, Object> meta() {
+    private Map<String, Object> meta(String toolName, String assetType, String targetKind) {
         return mapOf(
             "schemaVersion", AssetDiscoveryService.QUERY_SCHEMA_VERSION,
             "kind", "asset_discovery_tool",
@@ -151,6 +176,14 @@ public class AssetDiscoveryMcpToolPublisher {
             "risk_level", "low",
             "riskLevel", "low",
             "confirmation", mapOf("default", "auto_execute", "allow_user_override", false),
+            "targetKind", targetKind,
+            "assetType", assetType,
+            "toolBoundary", mapOf(
+                "toolName", toolName,
+                "forcedAssetType", assetType,
+                "forcedTargetKind", targetKind,
+                "rejectCrossTypeRouting", true
+            ),
             "requiresContextFilter", false,
             "matchPolicy", "exact_asset_name_or_explicit_label",
             "broadDiscovery", mapOf(
@@ -162,25 +195,15 @@ public class AssetDiscoveryMcpToolPublisher {
             "maxResults", AssetDiscoveryService.MAX_LIMIT,
             "routingPolicyVersion", AssetMetadataFactory.ROUTING_POLICY_VERSION,
             "routingProtocol", mapOf(
-                "requiredMarker", "finalDecision",
-                "legacyMarker", "targetKind",
-                "preferredMarker", "finalDecision",
+                "forcedTargetKind", targetKind,
+                "forcedAssetType", assetType,
                 "filtersSchemaVersion", TargetKindRegistry.FILTERS_SCHEMA_VERSION,
-                "confidenceThreshold", TargetKindRegistry.MIN_CONFIDENCE,
-                "candidateSet", mapOf(
-                    "candidates", "candidates[]",
-                    "finalDecision", "finalDecision",
-                    "feasibilityLayer", List.of("schema_match", "tool_permission"),
-                    "scoringLayer", List.of("confidence", "latency_estimate", "historical_success_rate")
-                ),
-                "allowedTargetKinds", List.of("host", "database", "http"),
-                "targetKindToAssetType", mapOf(
-                    "host", "ssh_host",
-                    "database", "sql_datasource",
-                    "http", "http_endpoint",
-                    "document", "document_search"
-                ),
                 "doNotInferFromKeywords", true
+            ),
+            "indexPolicy", mapOf(
+                "logicalIndex", "asset:" + assetType,
+                "filterField", "assetType",
+                "isolatedByTool", true
             ),
             "resultShape", mapOf(
                 "canonical", "assets[]",

@@ -477,7 +477,7 @@ public class LinuxCommandService {
         String normalizedTemplateCode = templateCode == null ? "" : templateCode.toUpperCase(Locale.ROOT);
         if (!allowed.contains(normalizedTemplateCode)) {
             throw new IllegalArgumentException("Command template is not authorized for this host: " + templateCode
-                + ". Use only an existing templateId returned by template_query for this asset. Allowed templates: " + allowed
+                + ". Use only an existing templateId returned by ssh_template_query for this asset. Allowed templates: " + allowed
                 + ". Do not invent template names.");
         }
         return normalizedTemplateCode;

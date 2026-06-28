@@ -95,7 +95,21 @@ public class InterpretationPlanOptimizer {
             }
             Map<String, Object> input = new LinkedHashMap<>(step.input());
             boolean removed = false;
-            for (String key : List.of("document_ids", "documentIds", "fileIds", "file_ids")) {
+            for (String key : List.of(
+                "document_ids",
+                "documentIds",
+                "fileIds",
+                "file_ids",
+                "selectedDocumentIds",
+                "selected_document_ids",
+                "selectedFileIds",
+                "selected_file_ids",
+                "allowedDocIds",
+                "allowed_doc_ids",
+                "documentVisibilityEnforced",
+                "document_visibility_enforced",
+                "tags"
+            )) {
                 removed = input.remove(key) != null || removed;
             }
             if (!removed) {

@@ -185,6 +185,7 @@ class AgentPlanner {
         prompt.append("- For complex SQL table analysis or unknown schema/database, call sql_query_plan before template_query. sql_query_plan input MUST use question, tables[], and executionContext; do not use userQuery or context.targetTable as replacements.\n");
         prompt.append("- sql_query_execute with templateId MUST pass only fields declared by templates[].parameterSchema under input.parameters.\n");
         prompt.append("- sql_query_execute MUST include logical executionContext from typed asset discovery, for example {\"assetName\":\"<asset-name>\",\"env\":\"<env>\"}.\n");
+        prompt.append("- Do not put JSONPath strings such as $.assets[0].asset.name inside executionContext. Use plan.bindings or depend on the asset_query step so runtime can inject concrete values.\n");
         prompt.append("- Never put raw SQL such as SHOW CREATE TABLE, DESC/DESCRIBE, SELECT, SHOW STATUS, or information_schema queries inside input.parameters.sql/rawSql/query/statement.\n");
         prompt.append("- Do not invent SQL template names. If a requested analysis needs table metadata, choose the returned TABLE_METADATA template and pass tableName from the user/query context. Pass schemaName/databaseName only when it came from sql_query_plan diagnostics.resolvedTables or a table-location template; never bind assetName to schemaName.\n\n");
         if (requireToolBeforeFinal) {

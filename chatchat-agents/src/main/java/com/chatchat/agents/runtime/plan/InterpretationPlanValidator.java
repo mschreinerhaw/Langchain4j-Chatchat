@@ -220,7 +220,7 @@ public class InterpretationPlanValidator {
             state.error(path + ".input", "SQL template execution must use a templateId returned by template_query and template parameters only; do not mix top-level raw SQL with templateId.");
         }
         Object executionContext = firstPresent(input, "executionContext", "mcpExecutionContext");
-        if ((!(executionContext instanceof Map<?, ?> map) || map.isEmpty())
+        if (!hasConcreteExecutionContext(executionContext)
             && !hasBindingForInput(plan, step.id(), "executionContext")
             && !hasBindingForInput(plan, step.id(), "mcpExecutionContext")
             && !dependsOnAssetDiscovery(plan, step)) {
@@ -253,7 +253,7 @@ public class InterpretationPlanValidator {
                 "sql_query_plan requires input.question. Do not use userQuery as a replacement.");
         }
         Object executionContext = firstPresent(input, "executionContext", "mcpExecutionContext");
-        if ((!(executionContext instanceof Map<?, ?> map) || map.isEmpty())
+        if (!hasConcreteExecutionContext(executionContext)
             && !hasBindingForInput(plan, step.id(), "executionContext")
             && !hasBindingForInput(plan, step.id(), "mcpExecutionContext")
             && !dependsOnAssetDiscovery(plan, step)) {
@@ -329,6 +329,36 @@ public class InterpretationPlanValidator {
             .filter(field -> field != null && !field.isBlank())
             .map(field -> field.split("\\.")[0])
             .anyMatch(root -> inputField.equals(root));
+    }
+
+    private boolean hasConcreteExecutionContext(Object executionContext) {
+        if (!(executionContext instanceof Map<?, ?> map) || map.isEmpty()) {
+            return false;
+        }
+        boolean hasAsset = hasConcreteValue(map, "assetName", "asset_name", "name");
+        boolean hasEnv = hasConcreteValue(map, "env", "environment");
+        return hasAsset && hasEnv;
+    }
+
+    private boolean hasConcreteValue(Map<?, ?> map, String... keys) {
+        if (map == null || keys == null) {
+            return false;
+        }
+        for (String key : keys) {
+            Object value = map.get(key);
+            if (value != null && !String.valueOf(value).isBlank() && !isJsonPathPlaceholder(value)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean isJsonPathPlaceholder(Object value) {
+        if (!(value instanceof String text)) {
+            return false;
+        }
+        String trimmed = text.trim();
+        return trimmed.startsWith("$.") || trimmed.startsWith("$[");
     }
 
     private boolean dependsOnAssetDiscovery(InterpretationPlan plan, InterpretationPlan.Step step) {

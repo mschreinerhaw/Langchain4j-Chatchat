@@ -1556,15 +1556,47 @@ public class InterpretationPlanRuntime {
         Map<String, Object> context = existing instanceof Map<?, ?> map
             ? new LinkedHashMap<>((Map<String, Object>) map)
             : new LinkedHashMap<>();
-        if (hasNonBlank(context, "assetName", "asset_name", "name") && hasNonBlank(context, "env", "environment")) {
+        if (hasUsableNonBlank(context, "assetName", "asset_name", "name")
+            && hasUsableNonBlank(context, "env", "environment")) {
             return;
         }
         Map<String, Object> assetContext = firstCompletedAssetExecutionContext(completed);
         if (assetContext.isEmpty()) {
             return;
         }
-        assetContext.forEach(context::putIfAbsent);
+        assetContext.forEach((key, value) -> putIfAbsentOrPlaceholder(context, key, value));
         input.put("executionContext", context);
+    }
+
+    private void putIfAbsentOrPlaceholder(Map<String, Object> target, String key, Object value) {
+        if (target == null || key == null || key.isBlank() || value == null || String.valueOf(value).isBlank()) {
+            return;
+        }
+        Object existing = target.get(key);
+        if (existing == null || String.valueOf(existing).isBlank() || isJsonPathPlaceholder(existing)) {
+            target.put(key, value);
+        }
+    }
+
+    private boolean hasUsableNonBlank(Map<?, ?> input, String... keys) {
+        if (input == null || input.isEmpty() || keys == null) {
+            return false;
+        }
+        for (String key : keys) {
+            Object value = input.get(key);
+            if (value != null && !String.valueOf(value).isBlank() && !isJsonPathPlaceholder(value)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean isJsonPathPlaceholder(Object value) {
+        if (!(value instanceof String text)) {
+            return false;
+        }
+        String trimmed = text.trim();
+        return trimmed.startsWith("$.") || trimmed.startsWith("$[");
     }
 
     private Map<String, Object> firstCompletedAssetExecutionContext(Map<Integer, StepExecution> completed) {

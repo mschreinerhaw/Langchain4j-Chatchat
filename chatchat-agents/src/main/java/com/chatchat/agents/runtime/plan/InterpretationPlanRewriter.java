@@ -113,6 +113,7 @@ public class InterpretationPlanRewriter {
         prompt.append("- If a failed sql_query_execute step used input.parameters.sql/rawSql/query/statement, remove that raw SQL parameter and replan through sql datasource template_query.\n");
         prompt.append("- Bind a returned templates[].templateId into sql_query_execute.templateId and pass only parameters declared by templates[].parameterSchema.\n");
         prompt.append("- sql_query_execute must include executionContext from asset discovery, for example {\"assetName\":\"<asset-name>\",\"env\":\"<env>\"}; do not put routing fields only under parameters.\n");
+        prompt.append("- Do not inline JSONPath placeholders such as $.assets[0].asset.name inside executionContext; either use plan.bindings or depend on the asset_query step and let runtime inject concrete values.\n");
         prompt.append("- When using sql_query_plan, its input must use question, tables[], and executionContext. Do not use userQuery or context.targetTable.\n");
         prompt.append("- Never bind asset_query assets[].asset.name into parameters.schemaName. Asset name is routing context; schemaName/databaseName must come from sql_query_plan resolvedTables or a table-location template.\n");
         prompt.append("- Do not invent SQL or template IDs; use the already observed template_query result or add a new template_query step before sql_query_execute.\n\n");

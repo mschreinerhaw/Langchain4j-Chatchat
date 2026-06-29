@@ -727,6 +727,10 @@ class InterpretationPlanRuntimeTest {
             "mcp_chatchat_mcp_server_sql_query_execute",
             Map.of(
                 "templateId", "MYSQL_TABLE_METADATA",
+                "executionContext", Map.of(
+                    "assetName", "$.assets[0].asset.name",
+                    "env", "$.assets[0].asset.environment"
+                ),
                 "parameters", Map.of(
                     "tableName", "lbappdeploydetail",
                     "schemaName", "248测试数据库"

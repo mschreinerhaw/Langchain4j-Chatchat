@@ -755,7 +755,96 @@ public class InterpretationPlanRuntime {
                 )
             );
         }
+        if (isSqlQueryExecuteTool(execution.toolName())) {
+            int columnCount = sqlColumnMetadataCount(execution.output());
+            if (columnCount <= 0) {
+                return null;
+            }
+            return StepReview.accepted(
+                "SQL query returned " + columnCount + " column metadata row(s); structure evidence is valid and should not be rejected only because indexes or data distribution require follow-up queries.",
+                mapOf(
+                    "toolResultReviewAutoAccepted", true,
+                    "toolResultReviewAutoAcceptReason", "sql_query_execute returned non-empty information_schema.columns metadata",
+                    "sqlMetadataAutoAccepted", true,
+                    "sqlMetadataColumnCount", columnCount,
+                    "sqlMetadataStepId", step == null ? null : step.id()
+                )
+            );
+        }
         return null;
+    }
+
+    private int sqlColumnMetadataCount(Object output) {
+        return sqlColumnMetadataCount(output, 0);
+    }
+
+    private int sqlColumnMetadataCount(Object output, int depth) {
+        if (output == null || depth > 8) {
+            return 0;
+        }
+        Object normalized = normalizeToolProtocolPayload(output);
+        if (normalized != output) {
+            return sqlColumnMetadataCount(normalized, depth + 1);
+        }
+        if (output instanceof List<?> list) {
+            return looksLikeColumnMetadataRows(list) ? list.size() : 0;
+        }
+        if (!(output instanceof Map<?, ?> map)) {
+            return 0;
+        }
+
+        Object rows = firstMapValue(map, "rows", "dataRows", "data_rows");
+        if (rows instanceof List<?> rowList && looksLikeColumnMetadataRows(rowList)) {
+            return rowList.size();
+        }
+        Integer rowCount = integerValue(firstMapValue(map, "rowCount", "row_count", "returnedCount", "returned_count"));
+        Object columns = firstMapValue(map, "columns");
+        if (rowCount != null && rowCount > 0 && looksLikeColumnMetadataColumns(columns)) {
+            return rowCount;
+        }
+        for (String key : List.of("structuredContent", "structured_content", "data", "result", "payload", "body", "output")) {
+            Object nested = firstMapValue(map, key);
+            int nestedCount = sqlColumnMetadataCount(nested, depth + 1);
+            if (nestedCount > 0) {
+                return nestedCount;
+            }
+        }
+        Object content = firstMapValue(map, "content");
+        if (content instanceof List<?> list) {
+            for (Object item : list) {
+                Object text = item instanceof Map<?, ?> itemMap ? firstMapValue(itemMap, "text", "content", "data") : item;
+                int nestedCount = sqlColumnMetadataCount(text, depth + 1);
+                if (nestedCount > 0) {
+                    return nestedCount;
+                }
+            }
+        }
+        return 0;
+    }
+
+    private boolean looksLikeColumnMetadataRows(List<?> rows) {
+        if (rows == null || rows.isEmpty()) {
+            return false;
+        }
+        return rows.stream().anyMatch(row -> {
+            if (!(row instanceof Map<?, ?> map)) {
+                return false;
+            }
+            return firstMapValue(map, "COLUMN_NAME", "column_name") != null
+                && firstMapValue(map, "COLUMN_TYPE", "column_type", "DATA_TYPE", "data_type") != null;
+        });
+    }
+
+    private boolean looksLikeColumnMetadataColumns(Object columns) {
+        if (!(columns instanceof List<?> list) || list.isEmpty()) {
+            return false;
+        }
+        Set<String> normalizedColumns = list.stream()
+            .filter(item -> item != null)
+            .map(item -> String.valueOf(item).trim().toLowerCase(Locale.ROOT))
+            .collect(Collectors.toSet());
+        return normalizedColumns.contains("column_name")
+            && (normalizedColumns.contains("column_type") || normalizedColumns.contains("data_type"));
     }
 
     private int discoveredAssetCount(Object output, String listKey) {
@@ -1577,6 +1666,11 @@ public class InterpretationPlanRuntime {
     private boolean isTemplateDiscoveryTool(String toolName) {
         String semantic = toolSemanticKey(toolName);
         return "template_query".equals(semantic) || semantic.endsWith("_template_query");
+    }
+
+    private boolean isSqlQueryExecuteTool(String toolName) {
+        String semantic = toolSemanticKey(toolName);
+        return "sql_query_execute".equals(semantic) || semantic.endsWith("_sql_query_execute");
     }
 
     private boolean isRoutingDiscoveryTool(String toolName) {

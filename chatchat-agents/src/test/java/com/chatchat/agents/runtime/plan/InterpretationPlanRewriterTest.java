@@ -63,6 +63,64 @@ class InterpretationPlanRewriterTest {
     }
 
     @Test
+    void repairsContinuationPlanThatDependsOnCompletedOriginalSteps() {
+        CapturingChatModel chatModel = new CapturingChatModel("""
+            {
+              "version": "1.0",
+              "intent": {"type": "sql_metadata", "goal": "Analyze table metrics", "risk_level": "low"},
+              "context": {"key_facts": ["metadata was collected"], "missing_info": [], "assumptions": [], "constraints": ["readonly"]},
+              "plan": {
+                "steps": [
+                  {"id": 4, "action_type": "final_answer", "tool_name": "", "input": {"answer": "Use collected metadata to recommend metrics."}, "depends_on": [3]}
+                ],
+                "edge_contracts": [
+                  {"from": 3, "to": 4, "field": "result", "type": "any", "required": true}
+                ],
+                "bindings": [],
+                "stability": {
+                  "stable_nodes": [1, 2, 3, 4],
+                  "critical_tools": ["asset_query", "template_query", "sql_query_execute"],
+                  "locked_edges": true,
+                  "mutable_action_types": []
+                }
+              },
+              "execution_policy": {"max_steps": 1, "allow_parallel": false, "allow_tool": [], "deny_tool": [], "timeout_ms": 30000},
+              "review": {"self_check": {"completeness_score": 0.9, "hallucination_risk": 0.1, "tool_sufficiency": true, "missing_steps": []}, "fallback_plan": []}
+            }
+            """);
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool("asset_query")).thenReturn(true);
+        when(toolRegistry.hasTool("template_query")).thenReturn(true);
+        when(toolRegistry.hasTool("sql_query_execute")).thenReturn(true);
+        InterpretationPlan originalPlan = originalSqlMetadataPlan();
+        InterpretationPlanRewriter rewriter = new InterpretationPlanRewriter(
+            chatModel,
+            new ObjectMapper(),
+            new InterpretationPlanValidator()
+        );
+
+        InterpretationPlanRewriter.RewriteResult result = rewriter.rewrite(new InterpretationPlanRewriter.RewriteRequest(
+            originalPlan,
+            originalPlan.steps().get(2),
+            "LLM DAG controller requested plan rewrite",
+            List.of(
+                "InterpretationPlan initial step 1 asset_query succeeded.",
+                "InterpretationPlan initial step 2 template_query succeeded.",
+                "InterpretationPlan initial step 3 sql_query_execute succeeded."
+            ),
+            List.of("asset_query", "template_query", "sql_query_execute"),
+            toolRegistry
+        ));
+
+        assertThat(result.valid()).isTrue();
+        assertThat(result.rewrittenPlan().steps()).extracting(InterpretationPlan.Step::id)
+            .containsExactly(1, 2, 3, 4);
+        assertThat(result.rewrittenPlan().executionPolicy().maxSteps()).isEqualTo(4);
+        assertThat(result.rewrittenPlan().executionPolicy().allowTool())
+            .contains("asset_query", "template_query", "sql_query_execute");
+    }
+
+    @Test
     void returnsFailureWhenModelDoesNotReturnJsonPlan() {
         InterpretationPlanRewriter rewriter = new InterpretationPlanRewriter(
             new CapturingChatModel("not json"),
@@ -95,6 +153,31 @@ class InterpretationPlanRewriterTest {
             new InterpretationPlan.ExecutionPolicy(2, false, List.of("document_search"), List.of(), 30000),
             new InterpretationPlan.Review(
                 new InterpretationPlan.SelfCheck(0.8, 0.1, false, List.of()),
+                List.of()
+            )
+        );
+    }
+
+    private InterpretationPlan originalSqlMetadataPlan() {
+        return new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("sql_metadata", "Analyze table metrics", "low"),
+            new InterpretationPlan.Context(List.of(), List.of(), List.of(), List.of()),
+            new InterpretationPlan.Plan(List.of(
+                new InterpretationPlan.Step(1, "mcp_tool", "asset_query", Map.of("assetName", "db_query_mysql_248_test_db"), List.of(), null, null),
+                new InterpretationPlan.Step(2, "mcp_tool", "template_query", Map.of("intent", "metadata"), List.of(1), null, null),
+                new InterpretationPlan.Step(3, "mcp_tool", "sql_query_execute", Map.of("templateId", "MYSQL_TABLE_METADATA"), List.of(2), null, null),
+                new InterpretationPlan.Step(4, "final_answer", "", Map.of("answer", "done"), List.of(3), null, null)
+            )),
+            new InterpretationPlan.ExecutionPolicy(
+                4,
+                false,
+                List.of("asset_query", "template_query", "sql_query_execute"),
+                List.of(),
+                30000
+            ),
+            new InterpretationPlan.Review(
+                new InterpretationPlan.SelfCheck(0.8, 0.1, true, List.of()),
                 List.of()
             )
         );

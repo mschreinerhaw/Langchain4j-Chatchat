@@ -89,6 +89,7 @@ public class AgentOrchestrator {
     private final AgentAnswerFinalizer answerFinalizer;
     private final InterpretationPlanStore interpretationPlanStore;
     private final InterpretationPlanDagConverter interpretationPlanDagConverter = new InterpretationPlanDagConverter();
+    private final SqlMetadataAnswerRenderer sqlMetadataAnswerRenderer = new SqlMetadataAnswerRenderer();
 
     public AgentOrchestrator(ChatModel chatModel,
                              ToolRegistry toolRegistry,
@@ -1217,6 +1218,14 @@ public class AgentOrchestrator {
             metadata.put("interpretationPlanSummaryStage", stage);
             metadata.put("interpretationPlanStoredObservationCount", storedObservations.size());
         }
+        String structuredSqlMetadata = sqlMetadataAnswerRenderer.render(result);
+        if (!structuredSqlMetadata.isBlank()) {
+            if (metadata != null) {
+                metadata.put("structuredSqlMetadataRendered", true);
+                metadata.put("structuredSqlMetadataPreview", preview(structuredSqlMetadata));
+            }
+            answer = mergeStructuredSqlMetadataAnswer(structuredSqlMetadata, answer);
+        }
         runResultAdapter.recordRuntimeObservation(
             runtimeAttributes,
             AGENT_RUN_ID_ATTRIBUTE,
@@ -1232,6 +1241,20 @@ public class AgentOrchestrator {
         return answer == null || answer.isBlank()
             ? (result == null ? "" : firstNonBlank(result.finalAnswer(), ""))
             : answer;
+    }
+
+    private String mergeStructuredSqlMetadataAnswer(String structuredSqlMetadata, String modelAnswer) {
+        if (structuredSqlMetadata == null || structuredSqlMetadata.isBlank()) {
+            return modelAnswer == null ? "" : modelAnswer;
+        }
+        String answer = modelAnswer == null ? "" : modelAnswer.trim();
+        if (answer.contains("## 元数据依据") && answer.contains("## 字段结构")) {
+            return answer;
+        }
+        if (answer.isBlank()) {
+            return structuredSqlMetadata;
+        }
+        return structuredSqlMetadata.trim() + "\n\n## 分析结论\n\n" + answer;
     }
 
     private String buildInterpretationPlanSummaryPrompt(String query,

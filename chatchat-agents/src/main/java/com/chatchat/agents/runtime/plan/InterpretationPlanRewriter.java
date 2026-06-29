@@ -6,9 +6,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.langchain4j.model.chat.ChatModel;
 import lombok.extern.slf4j.Slf4j;
 
+import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Rewrites failed InterpretationPlans into a new validated plan.
@@ -61,8 +65,24 @@ public class InterpretationPlanRewriter {
                 new java.util.LinkedHashSet<>(request.availableTools() == null ? List.of() : request.availableTools())
             );
             if (!validation.valid()) {
+                InterpretationPlan repairedPlan = repairContinuationPlan(request.originalPlan(), rewrittenPlan);
+                if (repairedPlan != rewrittenPlan) {
+                    InterpretationPlanValidator.ValidationResult repairedValidation = validator.validate(
+                        repairedPlan,
+                        request.toolRegistry(),
+                        new java.util.LinkedHashSet<>(request.availableTools() == null ? List.of() : request.availableTools())
+                    );
+                    if (repairedValidation.valid()) {
+                        log.info("InterpretationPlan rewrite repaired as continuation DAG. originalErrors={}, repairedStepCount={}",
+                            validationSummary(validation),
+                            repairedPlan.steps().size());
+                        return new RewriteResult(true, repairedValidation.executable(), repairedPlan, repairedValidation, raw, null);
+                    }
+                    return new RewriteResult(false, false, repairedPlan, repairedValidation, raw,
+                        "Rewritten plan failed validation after continuation repair: " + validationSummary(repairedValidation));
+                }
                 return new RewriteResult(false, false, rewrittenPlan, validation, raw,
-                    "Rewritten plan failed validation");
+                    "Rewritten plan failed validation: " + validationSummary(validation));
             }
             return new RewriteResult(true, validation.executable(), rewrittenPlan, validation, raw, null);
         } catch (Exception ex) {
@@ -125,6 +145,183 @@ public class InterpretationPlanRewriter {
             return text.substring(firstBrace, lastBrace + 1);
         }
         return text;
+    }
+
+    private InterpretationPlan repairContinuationPlan(InterpretationPlan originalPlan, InterpretationPlan rewrittenPlan) {
+        if (originalPlan == null || rewrittenPlan == null
+            || originalPlan.steps().isEmpty() || rewrittenPlan.steps().isEmpty()) {
+            return rewrittenPlan;
+        }
+        Map<Integer, InterpretationPlan.Step> originalStepsById = new LinkedHashMap<>();
+        for (InterpretationPlan.Step step : originalPlan.steps()) {
+            if (step != null && step.id() != null) {
+                originalStepsById.put(step.id(), step);
+            }
+        }
+        if (originalStepsById.isEmpty()) {
+            return rewrittenPlan;
+        }
+
+        Set<Integer> rewrittenStepIds = stepIds(rewrittenPlan.steps());
+        Set<Integer> missingStepIds = referencedStepIds(rewrittenPlan);
+        missingStepIds.removeAll(rewrittenStepIds);
+        missingStepIds.retainAll(originalStepsById.keySet());
+        if (missingStepIds.isEmpty()) {
+            return rewrittenPlan;
+        }
+
+        collectTransitiveOriginalDependencies(missingStepIds, rewrittenStepIds, originalStepsById);
+        List<InterpretationPlan.Step> mergedSteps = new ArrayList<>();
+        for (InterpretationPlan.Step step : originalPlan.steps()) {
+            if (step != null && step.id() != null && missingStepIds.contains(step.id())) {
+                mergedSteps.add(step);
+            }
+        }
+        mergedSteps.addAll(rewrittenPlan.steps());
+        if (mergedSteps.size() == rewrittenPlan.steps().size()) {
+            return rewrittenPlan;
+        }
+
+        InterpretationPlan.Plan rewrittenBody = rewrittenPlan.plan();
+        InterpretationPlan.Plan repairedBody = new InterpretationPlan.Plan(
+            mergedSteps,
+            rewrittenBody == null || rewrittenBody.edgeContracts() == null ? List.of() : rewrittenBody.edgeContracts(),
+            rewrittenBody == null || rewrittenBody.bindings() == null ? List.of() : rewrittenBody.bindings(),
+            rewrittenBody == null ? null : rewrittenBody.stability()
+        );
+        return new InterpretationPlan(
+            rewrittenPlan.version(),
+            rewrittenPlan.intent(),
+            rewrittenPlan.context(),
+            repairedBody,
+            repairExecutionPolicy(originalPlan.executionPolicy(), rewrittenPlan.executionPolicy(), mergedSteps),
+            rewrittenPlan.review()
+        );
+    }
+
+    private void collectTransitiveOriginalDependencies(Set<Integer> missingStepIds,
+                                                       Set<Integer> rewrittenStepIds,
+                                                       Map<Integer, InterpretationPlan.Step> originalStepsById) {
+        ArrayDeque<Integer> pending = new ArrayDeque<>(missingStepIds);
+        while (!pending.isEmpty()) {
+            Integer stepId = pending.removeFirst();
+            InterpretationPlan.Step step = originalStepsById.get(stepId);
+            if (step == null || step.dependsOn() == null) {
+                continue;
+            }
+            for (Integer dependency : step.dependsOn()) {
+                if (dependency == null || rewrittenStepIds.contains(dependency) || !originalStepsById.containsKey(dependency)) {
+                    continue;
+                }
+                if (missingStepIds.add(dependency)) {
+                    pending.addLast(dependency);
+                }
+            }
+        }
+    }
+
+    private Set<Integer> stepIds(List<InterpretationPlan.Step> steps) {
+        Set<Integer> ids = new LinkedHashSet<>();
+        if (steps == null) {
+            return ids;
+        }
+        for (InterpretationPlan.Step step : steps) {
+            if (step != null && step.id() != null) {
+                ids.add(step.id());
+            }
+        }
+        return ids;
+    }
+
+    private Set<Integer> referencedStepIds(InterpretationPlan plan) {
+        Set<Integer> ids = new LinkedHashSet<>();
+        if (plan == null || plan.plan() == null) {
+            return ids;
+        }
+        for (InterpretationPlan.Step step : plan.steps()) {
+            if (step != null && step.dependsOn() != null) {
+                ids.addAll(step.dependsOn());
+            }
+        }
+        if (plan.plan().edgeContracts() != null) {
+            for (InterpretationPlan.EdgeContract contract : plan.plan().edgeContracts()) {
+                if (contract == null) {
+                    continue;
+                }
+                addIfPresent(ids, contract.from());
+                addIfPresent(ids, contract.to());
+            }
+        }
+        if (plan.plan().bindings() != null) {
+            for (InterpretationPlan.Binding binding : plan.plan().bindings()) {
+                if (binding == null) {
+                    continue;
+                }
+                addIfPresent(ids, binding.from());
+                addIfPresent(ids, binding.to());
+            }
+        }
+        InterpretationPlan.Stability stability = plan.plan().stability();
+        if (stability != null && stability.stableNodes() != null) {
+            ids.addAll(stability.stableNodes());
+        }
+        ids.remove(null);
+        return ids;
+    }
+
+    private void addIfPresent(Set<Integer> ids, Integer value) {
+        if (value != null) {
+            ids.add(value);
+        }
+    }
+
+    private InterpretationPlan.ExecutionPolicy repairExecutionPolicy(InterpretationPlan.ExecutionPolicy originalPolicy,
+                                                                     InterpretationPlan.ExecutionPolicy rewrittenPolicy,
+                                                                     List<InterpretationPlan.Step> mergedSteps) {
+        if (rewrittenPolicy == null) {
+            return originalPolicy;
+        }
+        Integer maxSteps = rewrittenPolicy.maxSteps();
+        int stepCount = mergedSteps == null ? 0 : mergedSteps.size();
+        if (maxSteps != null && maxSteps < stepCount) {
+            maxSteps = stepCount;
+        }
+        return new InterpretationPlan.ExecutionPolicy(
+            maxSteps,
+            rewrittenPolicy.allowParallel(),
+            mergeTools(originalPolicy == null ? null : originalPolicy.allowTool(), rewrittenPolicy.allowTool()),
+            rewrittenPolicy.denyTool(),
+            rewrittenPolicy.timeoutMs(),
+            rewrittenPolicy.maxRewriteTimes(),
+            rewrittenPolicy.fallbackMode(),
+            rewrittenPolicy.toolPriority(),
+            rewrittenPolicy.costBudget(),
+            rewrittenPolicy.latencyBudgetMs(),
+            rewrittenPolicy.accuracyVsSpeed()
+        );
+    }
+
+    private List<String> mergeTools(List<String> left, List<String> right) {
+        LinkedHashSet<String> tools = new LinkedHashSet<>();
+        if (left != null) {
+            tools.addAll(left);
+        }
+        if (right != null) {
+            tools.addAll(right);
+        }
+        return new ArrayList<>(tools);
+    }
+
+    private String validationSummary(InterpretationPlanValidator.ValidationResult validation) {
+        if (validation == null || validation.errors() == null || validation.errors().isEmpty()) {
+            return "unknown validation error";
+        }
+        return validation.errors().stream()
+            .map(InterpretationPlanValidator.ValidationIssue::message)
+            .filter(message -> message != null && !message.isBlank())
+            .limit(5)
+            .toList()
+            .toString();
     }
 
     public record RewriteRequest(

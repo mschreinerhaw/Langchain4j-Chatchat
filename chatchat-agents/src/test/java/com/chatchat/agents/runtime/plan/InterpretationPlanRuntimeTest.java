@@ -216,6 +216,62 @@ class InterpretationPlanRuntimeTest {
     }
 
     @Test
+    void autoAcceptsSqlColumnMetadataAsValidStructureEvidence() throws Exception {
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            mock(ToolRuntimeService.class),
+            new InterpretationPlanValidator(),
+            mock(InterpretationPlanRuntime.DagExecutionController.class)
+        );
+        Method method = InterpretationPlanRuntime.class.getDeclaredMethod(
+            "localToolResultReview",
+            InterpretationPlan.Step.class,
+            InterpretationPlanRuntime.StepExecution.class
+        );
+        method.setAccessible(true);
+        InterpretationPlan.Step step = new InterpretationPlan.Step(
+            3,
+            "mcp_tool",
+            "mcp_chatchat_mcp_server_sql_query_execute",
+            Map.of("templateId", "MYSQL_TABLE_METADATA"),
+            List.of(2),
+            null,
+            null
+        );
+        Map<String, Object> output = Map.of(
+            "kind", "sql_query",
+            "data", Map.of(
+                "columns", List.of("COLUMN_NAME", "COLUMN_TYPE", "IS_NULLABLE", "COLUMN_COMMENT"),
+                "rowCount", 2,
+                "rows", List.of(
+                    Map.of("COLUMN_NAME", "DICT_ENTR_CODE", "COLUMN_TYPE", "varchar(8)", "IS_NULLABLE", "YES", "COLUMN_COMMENT", "字典条目代码"),
+                    Map.of("COLUMN_NAME", "SSYS_CODE", "COLUMN_TYPE", "varchar(8)", "IS_NULLABLE", "YES", "COLUMN_COMMENT", "来源系统代码")
+                )
+            )
+        );
+        InterpretationPlanRuntime.StepExecution execution = new InterpretationPlanRuntime.StepExecution(
+            3,
+            "mcp_tool",
+            "mcp_chatchat_mcp_server_sql_query_execute",
+            true,
+            output,
+            null,
+            null,
+            null,
+            173
+        );
+
+        InterpretationPlanRuntime.StepReview review =
+            (InterpretationPlanRuntime.StepReview) method.invoke(runtime, step, execution);
+
+        assertThat(review).isNotNull();
+        assertThat(review.satisfied()).isTrue();
+        assertThat(review.metadata())
+            .containsEntry("toolResultReviewAutoAccepted", true)
+            .containsEntry("sqlMetadataAutoAccepted", true)
+            .containsEntry("sqlMetadataColumnCount", 2);
+    }
+
+    @Test
     @SuppressWarnings("unchecked")
     void injectsRoutingTraceForDiscoveryToolWhenPlannerOmittedIt() throws Exception {
         InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(

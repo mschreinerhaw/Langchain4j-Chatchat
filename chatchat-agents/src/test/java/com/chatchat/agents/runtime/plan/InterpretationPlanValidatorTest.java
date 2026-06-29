@@ -187,6 +187,56 @@ class InterpretationPlanValidatorTest {
     }
 
     @Test
+    void rejectsRawSqlNestedInsideSqlTemplateParameters() {
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool("mcp_chatchat_mcp_server_sql_query_execute")).thenReturn(true);
+        when(toolRegistry.getToolMetadata("mcp_chatchat_mcp_server_sql_query_execute"))
+            .thenReturn(ToolMetadata.builder()
+                .id("mcp_chatchat_mcp_server_sql_query_execute")
+                .riskLevel("low")
+                .build());
+
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("data_query", "Analyze table metadata", "low"),
+            context(),
+            new InterpretationPlan.Plan(List.of(
+                new InterpretationPlan.Step(
+                    1,
+                    "mcp_tool",
+                    "mcp_chatchat_mcp_server_sql_query_execute",
+                    Map.of(
+                        "templateId", "MYSQL_INNODB_TRX",
+                        "parameters", Map.of("sql", "SHOW CREATE TABLE rdsm_ad.t_ad_dict_entr_supn")
+                    ),
+                    List.of(),
+                    null,
+                    null
+                ),
+                finalStep(2, List.of(1))
+            )),
+            new InterpretationPlan.ExecutionPolicy(
+                3,
+                false,
+                List.of("mcp_chatchat_mcp_server_sql_query_execute"),
+                List.of(),
+                30000
+            ),
+            review(true)
+        );
+
+        InterpretationPlanValidator.ValidationResult result = validator.validate(
+            plan,
+            toolRegistry,
+            Set.of("mcp_chatchat_mcp_server_sql_query_execute")
+        );
+
+        assertThat(result.valid()).isFalse();
+        assertThat(result.errors()).extracting(InterpretationPlanValidator.ValidationIssue::message)
+            .anyMatch(message -> message.contains("Raw SQL is not a template parameter"));
+    }
+
+    @Test
     void deserializesSnakeCaseJsonPlan() throws Exception {
         ObjectMapper objectMapper = new ObjectMapper();
 

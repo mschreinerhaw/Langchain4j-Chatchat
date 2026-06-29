@@ -1061,6 +1061,7 @@ public class InterpretationPlanRuntime {
         applyBindings(step, plan, completed, input);
         hydrateExecutionContextFromCompletedAssets(step, completed, input);
         normalizeTemplateExecutionParameters(step, completed, input);
+        repairTableScopedSqlTemplate(step, completed, input);
         normalizeDiscoveryRoutingInput(step, request, input);
         if (!isCrawlerTool(step.toolName())) {
             return input;
@@ -1071,6 +1072,255 @@ public class InterpretationPlanRuntime {
         }
         input.put("url", selectedUrls.get(0));
         return input;
+    }
+
+    @SuppressWarnings("unchecked")
+    private void repairTableScopedSqlTemplate(InterpretationPlan.Step step,
+                                              Map<Integer, StepExecution> completed,
+                                              Map<String, Object> input) {
+        if (step == null || input == null || !isSqlQueryExecuteTool(step.toolName())) {
+            return;
+        }
+        Object templateIdValue = firstValueAtAnyPath(input,
+            "$.templateId",
+            "$.template",
+            "$.template_id");
+        if (templateIdValue == null || String.valueOf(templateIdValue).isBlank()) {
+            return;
+        }
+        String templateId = String.valueOf(templateIdValue).trim();
+        Map<String, Object> selectedTemplate = completedTemplateMetadata(completed, templateId);
+        Object tableName = firstValueAtAnyPath(input,
+            "$.parameters.table_name",
+            "$.parameters.tableName",
+            "$.table_name",
+            "$.tableName",
+            "$.executionContext.table_name",
+            "$.executionContext.tableName");
+        if (tableName == null || String.valueOf(tableName).isBlank()) {
+            return;
+        }
+        if (isTableScopedSqlTemplate(templateId, selectedTemplate)) {
+            return;
+        }
+        String repairedTemplateId = tableMetadataTemplateId(templateId, input, completed, selectedTemplate);
+        if (repairedTemplateId == null) {
+            throw new IllegalStateException("SQL_TEMPLATE_TARGET_SCOPE_MISMATCH: template " + templateId
+                + " is not table-scoped but tableName=" + tableName
+                + " was provided; planner must select a dialect-specific *_TABLE_METADATA template.");
+        }
+        Object existing = input.get("parameters");
+        Map<String, Object> parameters = existing instanceof Map<?, ?> map
+            ? new LinkedHashMap<>((Map<String, Object>) map)
+            : new LinkedHashMap<>();
+        parameters.putIfAbsent("table_name", tableName);
+        parameters.putIfAbsent("tableName", tableName);
+        input.put("parameters", parameters);
+        input.put("templateId", repairedTemplateId);
+        input.put("template", repairedTemplateId);
+        input.put("runtimeTemplateRepair", Map.of(
+            "schemaVersion", "sql_template_repair.v1",
+            "fromTemplateId", templateId,
+            "toTemplateId", repairedTemplateId,
+            "reason", "A tableName was provided, but the selected template is database/instance scoped and cannot satisfy table-scoped metadata analysis.",
+            "tableName", String.valueOf(tableName)
+        ));
+    }
+
+    private boolean isTableScopedSqlTemplate(String templateId, Map<String, Object> templateMetadata) {
+        Object targetLevel = firstValueAtAnyPath(templateMetadata,
+            "$.semantic.targetLevel",
+            "$.targetLevel",
+            "$.target_level");
+        if (targetLevel != null && "table".equalsIgnoreCase(String.valueOf(targetLevel).trim())) {
+            return true;
+        }
+        if (requiresTableName(templateMetadata)) {
+            Object operation = firstValueAtAnyPath(templateMetadata, "$.semantic.operation", "$.operation");
+            Object category = firstValueAtAnyPath(templateMetadata, "$.category");
+            if (containsText(operation, "metadata") || containsText(category, "metadata")
+                || containsText(firstValueAtAnyPath(templateMetadata, "$.intentSignals"), "metadata")) {
+                return true;
+            }
+        }
+        if (templateId == null || templateId.isBlank()) {
+            return false;
+        }
+        String normalized = templateId.trim().toUpperCase(Locale.ROOT);
+        return normalized.endsWith("_TABLE_METADATA") || normalized.endsWith("_TABLE_LOCATION");
+    }
+
+    private String tableMetadataTemplateId(String templateId,
+                                           Map<String, Object> input,
+                                           Map<Integer, StepExecution> completed,
+                                           Map<String, Object> selectedTemplate) {
+        String dialect = inferSqlDialect(templateId, input, selectedTemplate);
+        if (dialect == null) {
+            return null;
+        }
+        String discovered = tableMetadataTemplateFromCompleted(completed, dialect);
+        if (discovered != null) {
+            return discovered;
+        }
+        return null;
+    }
+
+    private String inferSqlDialect(String templateId, Map<String, Object> input, Map<String, Object> selectedTemplate) {
+        Object configured = firstValueAtAnyPath(input,
+            "$.databaseType",
+            "$.dbType",
+            "$.dialect",
+            "$.executionContext.databaseType",
+            "$.executionContext.dbType",
+            "$.executionContext.dialect",
+            "$.executionContext.datasource.databaseType",
+            "$.executionContext.routedTarget.databaseType",
+            "$.datasource.databaseType");
+        String dialect = configured == null || String.valueOf(configured).isBlank()
+            ? null
+            : normalizeSqlDialect(String.valueOf(configured));
+        if (dialect != null) {
+            return dialect;
+        }
+        Object templateDialect = firstValueAtAnyPath(selectedTemplate,
+            "$.semantic.dialect",
+            "$.semantic.dialects[0]",
+            "$.databaseType",
+            "$.dialect");
+        dialect = templateDialect == null || String.valueOf(templateDialect).isBlank()
+            ? null
+            : normalizeSqlDialect(String.valueOf(templateDialect));
+        return dialect != null ? dialect : dialectFromTemplateId(templateId);
+    }
+
+    private String tableMetadataTemplateFromCompleted(Map<Integer, StepExecution> completed, String dialect) {
+        if (completed == null || completed.isEmpty() || dialect == null || dialect.isBlank()) {
+            return null;
+        }
+        for (StepExecution execution : completed.values()) {
+            if (execution == null || !execution.success() || !isTemplateDiscoveryTool(execution.toolName())) {
+                continue;
+            }
+            Object templates = firstValueAtAnyPath(execution.output(), "$.templates", "$.data.templates");
+            if (!(templates instanceof Iterable<?> iterable)) {
+                continue;
+            }
+            for (Object item : iterable) {
+                if (!(item instanceof Map<?, ?> map)) {
+                    continue;
+                }
+                Map<String, Object> template = new LinkedHashMap<>((Map<String, Object>) map);
+                if (!isTableMetadataTemplate(template) || !dialectMatchesTemplate(template, dialect)) {
+                    continue;
+                }
+                Object id = firstValueAtAnyPath(template, "$.templateId", "$.id", "$.code", "$.template");
+                if (id != null && !String.valueOf(id).isBlank()) {
+                    return String.valueOf(id).trim();
+                }
+            }
+        }
+        return null;
+    }
+
+    private boolean isTableMetadataTemplate(Map<String, Object> template) {
+        Object operation = firstValueAtAnyPath(template, "$.semantic.operation", "$.operation");
+        Object targetLevel = firstValueAtAnyPath(template, "$.semantic.targetLevel", "$.targetLevel", "$.target_level");
+        if ("table".equalsIgnoreCase(String.valueOf(targetLevel))
+            && containsText(operation, "metadata")) {
+            return true;
+        }
+        return isTableScopedSqlTemplate(String.valueOf(firstValueAtAnyPath(template, "$.templateId", "$.id", "$.code")), template)
+            && containsText(firstValueAtAnyPath(template, "$.category", "$.intentSignals"), "metadata");
+    }
+
+    private boolean dialectMatchesTemplate(Map<String, Object> template, String dialect) {
+        Object value = firstValueAtAnyPath(template,
+            "$.semantic.dialect",
+            "$.semantic.dialects[0]",
+            "$.databaseType",
+            "$.dialect");
+        String templateDialect = value == null ? null : normalizeSqlDialect(String.valueOf(value));
+        return templateDialect != null && templateDialect.equals(normalizeSqlDialect(dialect));
+    }
+
+    private boolean requiresTableName(Map<String, Object> templateMetadata) {
+        Object required = firstValueAtAnyPath(templateMetadata,
+            "$.parameterSchema.required",
+            "$.inputSchema.required",
+            "$.schema.required");
+        if (!(required instanceof Iterable<?> iterable)) {
+            return false;
+        }
+        for (Object item : iterable) {
+            if (item != null && "tablename".equals(String.valueOf(item).replace("_", "").toLowerCase(Locale.ROOT))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean containsText(Object value, String needle) {
+        if (value == null || needle == null || needle.isBlank()) {
+            return false;
+        }
+        String loweredNeedle = needle.toLowerCase(Locale.ROOT);
+        if (value instanceof Iterable<?> iterable) {
+            for (Object item : iterable) {
+                if (containsText(item, needle)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+        if (value instanceof Map<?, ?> map) {
+            for (Object item : map.values()) {
+                if (containsText(item, needle)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+        return String.valueOf(value).toLowerCase(Locale.ROOT).contains(loweredNeedle);
+    }
+
+    private String dialectFromTemplateId(String templateId) {
+        if (templateId == null || templateId.isBlank()) {
+            return null;
+        }
+        String normalized = templateId.trim().toUpperCase(Locale.ROOT);
+        if (normalized.startsWith("MYSQL_")) {
+            return "mysql";
+        }
+        if (normalized.startsWith("ORACLE_")) {
+            return "oracle";
+        }
+        if (normalized.startsWith("POSTGRES_") || normalized.startsWith("POSTGRESQL_")) {
+            return "postgresql";
+        }
+        if (normalized.startsWith("SQLSERVER_") || normalized.startsWith("SQL_SERVER_") || normalized.startsWith("MSSQL_")) {
+            return "sqlserver";
+        }
+        return null;
+    }
+
+    private String normalizeSqlDialect(String value) {
+        String normalized = value == null ? "" : value.trim().toLowerCase(Locale.ROOT).replace("-", "_");
+        if (normalized.isBlank()) {
+            return null;
+        }
+        if (normalized.contains("mysql")) {
+            return "mysql";
+        }
+        if (normalized.contains("oracle")) {
+            return "oracle";
+        }
+        if (normalized.contains("postgres")) {
+            return "postgresql";
+        }
+        if (normalized.contains("sqlserver") || normalized.contains("sql_server") || normalized.contains("mssql")) {
+            return "sqlserver";
+        }
+        return normalized;
     }
 
     @SuppressWarnings("unchecked")
@@ -2111,6 +2361,19 @@ public class InterpretationPlanRuntime {
                 return DecisionValidation.invalid("DAG_DECISION_REJECTED", "final_answer action must select a final_answer step");
             }
             selected.add(step);
+        }
+        boolean selectedFinalAnswerStep = selected.stream().anyMatch(InterpretationPlan.Step::finalAnswerAction);
+        if ("final_answer".equals(action) || selectedFinalAnswerStep) {
+            List<Integer> pendingSteps = remaining.stream()
+                .filter(stepId -> !stepIds.contains(stepId))
+                .sorted()
+                .toList();
+            if (!pendingSteps.isEmpty()) {
+                return DecisionValidation.invalid(
+                    "DAG_DECISION_REJECTED",
+                    "final_answer must be the last executed step and cannot skip remaining steps: " + pendingSteps
+                );
+            }
         }
         return DecisionValidation.executable(action, selected);
     }

@@ -121,6 +121,48 @@ class InterpretationPlanRewriterTest {
     }
 
     @Test
+    void repairsRewrittenPlanWhenOnlyMaxStepsIsTooSmall() {
+        CapturingChatModel chatModel = new CapturingChatModel("""
+            {
+              "version": "1.0",
+              "intent": {"type": "web_search", "goal": "Recover with public evidence", "risk_level": "low"},
+              "context": {"key_facts": ["document_search failed"], "missing_info": [], "assumptions": [], "constraints": ["Use available tools only"]},
+              "plan": {
+                "steps": [
+                  {"id": 1, "action_type": "mcp_tool", "tool_name": "web_search", "input": {"query": "runtime evidence"}, "depends_on": []},
+                  {"id": 2, "action_type": "mcp_tool", "tool_name": "web_search", "input": {"query": "more runtime evidence"}, "depends_on": [1]},
+                  {"id": 3, "action_type": "final_answer", "tool_name": "", "input": {"answer": "Use web evidence fallback."}, "depends_on": [2]}
+                ]
+              },
+              "execution_policy": {"max_steps": 2, "allow_parallel": false, "allow_tool": ["web_search"], "deny_tool": ["document_search"], "timeout_ms": 30000},
+              "review": {"self_check": {"completeness_score": 0.7, "hallucination_risk": 0.2, "tool_sufficiency": false, "missing_steps": []}, "fallback_plan": []}
+            }
+            """);
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool("web_search")).thenReturn(true);
+        when(toolRegistry.hasTool("document_search")).thenReturn(true);
+        InterpretationPlan originalPlan = originalPlan();
+        InterpretationPlanRewriter rewriter = new InterpretationPlanRewriter(
+            chatModel,
+            new ObjectMapper(),
+            new InterpretationPlanValidator()
+        );
+
+        InterpretationPlanRewriter.RewriteResult result = rewriter.rewrite(new InterpretationPlanRewriter.RewriteRequest(
+            originalPlan,
+            originalPlan.steps().get(0),
+            "Tool execution timed out",
+            List.of("document_search failed with timeout"),
+            List.of("document_search", "web_search"),
+            toolRegistry
+        ));
+
+        assertThat(result.valid()).isTrue();
+        assertThat(result.rewrittenPlan().steps()).hasSize(3);
+        assertThat(result.rewrittenPlan().executionPolicy().maxSteps()).isEqualTo(3);
+    }
+
+    @Test
     void returnsFailureWhenModelDoesNotReturnJsonPlan() {
         InterpretationPlanRewriter rewriter = new InterpretationPlanRewriter(
             new CapturingChatModel("not json"),

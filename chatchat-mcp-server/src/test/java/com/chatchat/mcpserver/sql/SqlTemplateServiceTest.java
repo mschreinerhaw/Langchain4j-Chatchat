@@ -179,7 +179,95 @@ class SqlTemplateServiceTest {
         assertThat(sql).contains("table_name = 'orders'");
         assertThatThrownBy(() -> service.render("MYSQL_TABLE_METADATA", Map.of("tableName", "orders;drop")))
             .isInstanceOf(IllegalArgumentException.class)
-            .hasMessageContaining("does not match required pattern");
+            .hasMessageContaining("parameter tableName contains SQL syntax");
+    }
+
+    @Test
+    void rejectsRawSqlParameterWhenTemplateDoesNotDeclareIt() {
+        SqlTemplateSeedProperties properties = new SqlTemplateSeedProperties();
+        SqlTemplateService service = new SqlTemplateService(
+            repository,
+            objectMapper,
+            new TemplateParameterValidator(objectMapper),
+            properties
+        );
+        SqlTemplateConfig innodbTrx = template("MYSQL_INNODB_TRX");
+        innodbTrx.setSqlTemplate("SELECT * FROM information_schema.INNODB_TRX");
+        innodbTrx.setParameterSchemaJson("""
+            {
+              "type": "object",
+              "properties": {},
+              "required": []
+            }
+            """);
+        when(repository.findByCode("MYSQL_INNODB_TRX")).thenReturn(Optional.of(innodbTrx));
+
+        assertThatThrownBy(() -> service.render(
+            "MYSQL_INNODB_TRX",
+            Map.of("sql", "SHOW CREATE TABLE rdsm_ad.t_ad_dict_entr_supn")
+        ))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("SQL template MYSQL_INNODB_TRX does not accept parameter sql");
+    }
+
+    @Test
+    void rejectsSqlSyntaxHiddenInsideTypedTemplateParameter() {
+        SqlTemplateSeedProperties properties = new SqlTemplateSeedProperties();
+        SqlTemplateService service = new SqlTemplateService(
+            repository,
+            objectMapper,
+            new TemplateParameterValidator(objectMapper),
+            properties
+        );
+        SqlTemplateConfig metadata = template("MYSQL_TABLE_METADATA");
+        metadata.setSqlTemplate("SELECT column_name FROM information_schema.columns WHERE table_name = {{tableName}}");
+        metadata.setParameterSchemaJson("""
+            {
+              "type": "object",
+              "properties": {
+                "tableName": {"type": "string"}
+              },
+              "required": ["tableName"]
+            }
+            """);
+        when(repository.findByCode("MYSQL_TABLE_METADATA")).thenReturn(Optional.of(metadata));
+
+        assertThatThrownBy(() -> service.render(
+            "MYSQL_TABLE_METADATA",
+            Map.of("tableName", "SHOW CREATE TABLE rdsm_ad.t_ad_dict_entr_supn")
+        ))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("parameter tableName contains SQL syntax");
+    }
+
+    @Test
+    void rejectsDynamicSqlFragmentParameterEvenWhenSchemaDeclaresIt() {
+        SqlTemplateSeedProperties properties = new SqlTemplateSeedProperties();
+        SqlTemplateService service = new SqlTemplateService(
+            repository,
+            objectMapper,
+            new TemplateParameterValidator(objectMapper),
+            properties
+        );
+        SqlTemplateConfig template = template("MYSQL_CUSTOM_FILTER");
+        template.setSqlTemplate("SELECT * FROM t WHERE {{whereClause}}");
+        template.setParameterSchemaJson("""
+            {
+              "type": "object",
+              "properties": {
+                "whereClause": {"type": "string"}
+              },
+              "required": ["whereClause"]
+            }
+            """);
+        when(repository.findByCode("MYSQL_CUSTOM_FILTER")).thenReturn(Optional.of(template));
+
+        assertThatThrownBy(() -> service.render(
+            "MYSQL_CUSTOM_FILTER",
+            Map.of("whereClause", "status = 'A' ORDER BY id")
+        ))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("does not allow SQL fragment parameter whereClause");
     }
 
     private SqlTemplateConfig template(String code) {

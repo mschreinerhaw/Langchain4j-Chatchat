@@ -25,7 +25,7 @@ public final class InterpretationExecutionProtocol {
           "action": "execute_step | execute_parallel_steps | final_answer | rewrite_plan | abort",
           "step_ids": [1],
           "reason": "Why this decision is correct for the current DAG state.",
-          "final_answer": "Optional final answer text when action is final_answer or abort.",
+          "review_answer": "Optional controller diagnostic. Do not write final_answer here; final_answer is produced only by the final_answer plan step.",
           "confidence": 0.0
         }
         """;

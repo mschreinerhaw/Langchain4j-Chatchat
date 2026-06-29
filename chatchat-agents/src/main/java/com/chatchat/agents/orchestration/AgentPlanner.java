@@ -180,6 +180,11 @@ class AgentPlanner {
         prompt.append("- Use plan.stability to lock critical nodes/tools/edges that optimizer and rewriter must preserve.\n");
         prompt.append("- Add plan.edge_contracts when a later step needs a typed field from an earlier tool output.\n");
         prompt.append("- If information is missing, add missing_info and plan the smallest safe retrieval/tool step instead of inventing facts.\n\n");
+        prompt.append("SQL template execution contract:\n");
+        prompt.append("- For SQL datasource analysis, first call the typed sql datasource template_query tool and bind templates[0].templateId into sql_query_execute.templateId.\n");
+        prompt.append("- sql_query_execute with templateId MUST pass only fields declared by templates[].parameterSchema under input.parameters.\n");
+        prompt.append("- Never put raw SQL such as SHOW CREATE TABLE, DESC/DESCRIBE, SELECT, SHOW STATUS, or information_schema queries inside input.parameters.sql/rawSql/query/statement.\n");
+        prompt.append("- Do not invent SQL template names. If a requested analysis needs table metadata, choose the returned TABLE_METADATA template and pass tableName/schemaName parameters from the user/query context.\n\n");
         if (requireToolBeforeFinal) {
             prompt.append("Mandatory tool policy:\n");
             prompt.append("- This agent is bound to required runtime tools. Your response MUST be an InterpretationPlan that includes the required tool steps.\n");
@@ -701,10 +706,10 @@ class AgentPlanner {
             return input;
         }
         String semanticTool = toolSemanticKey(toolName);
-        if ("asset_discovery".equals(semanticTool) || "asset_query".equals(semanticTool)) {
+        if (isAssetDiscoverySemantic(semanticTool)) {
             normalizeDiscoveryQueryInput(input);
         }
-        if ("template_discovery".equals(semanticTool) || "template_query".equals(semanticTool)) {
+        if (isTemplateDiscoverySemantic(semanticTool)) {
             normalizeDiscoveryQueryInput(input);
         }
         if ("linux_command_execute".equals(semanticTool)) {
@@ -933,7 +938,8 @@ class AgentPlanner {
             return;
         }
         boolean hasAssetQueryStep = toolStepIds.keySet().stream()
-            .anyMatch(tool -> "asset_discovery".equals(toolSemanticKey(tool)) || "asset_query".equals(toolSemanticKey(tool)));
+            .map(this::toolSemanticKey)
+            .anyMatch(this::isAssetDiscoverySemantic);
         if (!hasAssetQueryStep && contextClaimsGuessedAssetRouting(plan.context())) {
             issues.add("Asset routing context must come from typed asset discovery, user-provided executionContext, or observations; plan context must not assume assetName/env/datasource registration.");
             return;
@@ -2222,6 +2228,18 @@ class AgentPlanner {
             }
         }
         return normalized;
+    }
+
+    private boolean isAssetDiscoverySemantic(String semantic) {
+        return "asset_discovery".equals(semantic)
+            || "asset_query".equals(semantic)
+            || (semantic != null && semantic.endsWith("_asset_query"));
+    }
+
+    private boolean isTemplateDiscoverySemantic(String semantic) {
+        return "template_discovery".equals(semantic)
+            || "template_query".equals(semantic)
+            || (semantic != null && semantic.endsWith("_template_query"));
     }
 
     private Map<String, Object> asMap(Object data) {

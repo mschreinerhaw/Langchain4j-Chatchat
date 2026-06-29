@@ -256,6 +256,108 @@ class AgentAnswerFinalizerEvidenceAnswerTest {
     }
 
     @Test
+    void structuredSqlMetadataAnswerSkipsReviewerRewrite() {
+        AgentAnswerReviewer reviewer = (chatModel, query, systemPrompt, observations, answer) ->
+            new AgentAnswerReview(
+                AgentAnswerReview.REVISED,
+                "## 现象总结\n\n观察中未返回任何关于该表的实际数据。",
+                "Reviewer could not see structured step output."
+            );
+        AgentAnswerFinalizer finalizer = new AgentAnswerFinalizer(
+            reviewer,
+            new AgentRuntimeGuard(12, "cancelled", "maxSteps", "maxToolCalls", "timeoutMs", "deadlineAt")
+        );
+        Map<String, Object> metadata = new java.util.LinkedHashMap<>();
+        metadata.put("structuredSqlMetadataRendered", true);
+        metadata.put("sqlMetadataSemanticGatePassed", true);
+        metadata.put("executionGraphSemanticPassed", true);
+
+        String structuredAnswer = """
+            ## 元数据依据
+
+            - 表定位：`rdsm_ad.t_ad_dict_entr_supn`
+            - 字段数：`8`
+
+            ## 字段结构
+
+            | # | 字段名 | 类型 | 可空 | 默认值 | 键 | 额外信息 | 注释 |
+            |---:|---|---|---|---|---|---|---|
+            | 1 | `DICT_ENTR_CODE` | `varchar(8)` | YES | - | - | - | 字典条目代码 |
+            """;
+
+        AgentOrchestrator.AgentExecutionResult result = finalizer.finishReviewedAnswer(
+            null,
+            "分析表 t_ad_dict_entr_supn",
+            null,
+            List.of(),
+            metadata,
+            List.of("InterpretationPlan initial step 3 mcp_chatchat_mcp_server_sql_query_execute succeeded."),
+            structuredAnswer,
+            () -> false,
+            "interpretation_plan_completed"
+        );
+
+        assertThat(result.answer())
+            .contains("## 元数据依据")
+            .contains("## 字段结构")
+            .contains("`DICT_ENTR_CODE`")
+            .doesNotContain("观察中未返回任何关于该表的实际数据");
+        assertThat(result.metadata())
+            .containsEntry("answerReviewSkipped", true)
+            .containsEntry("answerReviewSkippedReason", "sql_metadata_and_execution_graph_semantic_gates_passed")
+            .containsEntry("answerReviewStatus", AgentAnswerReview.ACCEPTED)
+            .containsEntry("answerDecision", AnswerDecisionEngine.NO_REWRITE)
+            .containsEntry("answerRewriteSource", "none")
+            .doesNotContainKey("answerReviewRewriteSuggested")
+            .doesNotContainKey("answerQualityAvailable");
+    }
+
+    @Test
+    void structuredSqlMetadataAnswerStillUsesReviewerWhenSemanticGateFails() {
+        AgentAnswerReviewer reviewer = (chatModel, query, systemPrompt, observations, answer) ->
+            new AgentAnswerReview(
+                AgentAnswerReview.REVISED,
+                "Reviewer diagnostic rewrite.",
+                "Semantic gate failed, reviewer still ran."
+            );
+        AgentAnswerFinalizer finalizer = new AgentAnswerFinalizer(
+            reviewer,
+            new AgentRuntimeGuard(12, "cancelled", "maxSteps", "maxToolCalls", "timeoutMs", "deadlineAt")
+        );
+        Map<String, Object> metadata = new java.util.LinkedHashMap<>();
+        metadata.put("structuredSqlMetadataRendered", true);
+        metadata.put("sqlMetadataSemanticGatePassed", true);
+        metadata.put("executionGraphSemanticPassed", false);
+
+        AgentOrchestrator.AgentExecutionResult result = finalizer.finishReviewedAnswer(
+            null,
+            "分析表 t_ad_dict_entr_supn",
+            null,
+            List.of(),
+            metadata,
+            List.of("InterpretationPlan initial step 3 mcp_chatchat_mcp_server_sql_query_execute succeeded."),
+            """
+                ## 元数据依据
+
+                ## 字段结构
+
+                | # | 字段名 | 类型 |
+                |---:|---|---|
+                | 1 | `DICT_ENTR_CODE` | `varchar(8)` |
+                """,
+            () -> false,
+            "interpretation_plan_completed"
+        );
+
+        assertThat(result.answer()).contains("## 元数据依据");
+        assertThat(result.metadata())
+            .doesNotContainKey("answerReviewSkipped")
+            .containsEntry("answerReviewStatus", AgentAnswerReview.REVISED)
+            .containsEntry("answerReviewRewriteSuggested", true)
+            .containsEntry("answerReviewRewriteApplied", false);
+    }
+
+    @Test
     void reviewerRevisionCanOverrideFinalAnswerWhenExplicitlyEnabled() {
         AgentAnswerReviewer reviewer = (chatModel, query, systemPrompt, observations, answer) ->
             new AgentAnswerReview(

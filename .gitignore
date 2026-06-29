@@ -15,6 +15,7 @@ target/
 **/config/env.local
 /chatchat-api/data/
 /chatchat-api/h2/
+/chatchat-api/src/resources/static/
 /chatchat-api/logs/
 /chatchat-mcp-server/data/
 /chatchat-mcp-server/h2/

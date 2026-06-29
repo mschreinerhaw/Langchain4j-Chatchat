@@ -273,6 +273,256 @@ class InterpretationPlanRuntimeTest {
 
     @Test
     @SuppressWarnings("unchecked")
+    void rejectsTableScopedGlobalTemplateWhenTemplateDiscoveryDidNotReturnTableMetadataTemplate() throws Exception {
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            mock(ToolRuntimeService.class),
+            new InterpretationPlanValidator(),
+            mock(InterpretationPlanRuntime.DagExecutionController.class)
+        );
+        InterpretationPlan.Step step = new InterpretationPlan.Step(
+            3,
+            "mcp_tool",
+            "mcp_chatchat_mcp_server_sql_query_execute",
+            Map.of(
+                "templateId", "MYSQL_SHOW_STATUS",
+                "parameters", Map.of("table_name", "t_ad_dict_entr_supn"),
+                "executionContext", Map.of("assetName", "248测试数据库", "env", "DEV")
+            ),
+            List.of(2),
+            null,
+            null
+        );
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("sql_metadata", "Analyze table t_ad_dict_entr_supn", "low"),
+            context(),
+            new InterpretationPlan.Plan(List.of(
+                new InterpretationPlan.Step(1, "mcp_tool", "mcp_chatchat_mcp_server_sql_datasource_asset_query",
+                    Map.of("filters", Map.of("assetName", "248测试数据库"), "limit", 10), List.of(), null, null),
+                new InterpretationPlan.Step(2, "mcp_tool", "mcp_chatchat_mcp_server_sql_datasource_template_query",
+                    Map.of("filters", Map.of("intent", "table metadata"), "limit", 10), List.of(1), null, null),
+                step,
+                new InterpretationPlan.Step(4, "final_answer", "", Map.of("answer", "done"), List.of(3), null, null)
+            )),
+            new InterpretationPlan.ExecutionPolicy(
+                4,
+                false,
+                List.of(
+                    "mcp_chatchat_mcp_server_sql_datasource_asset_query",
+                    "mcp_chatchat_mcp_server_sql_datasource_template_query",
+                    "mcp_chatchat_mcp_server_sql_query_execute"
+                ),
+                List.of(),
+                30000
+            ),
+            review()
+        );
+        InterpretationPlanRuntime.ExecutionRequest request = new InterpretationPlanRuntime.ExecutionRequest(
+            plan,
+            mock(ToolRegistry.class),
+            List.of("mcp_chatchat_mcp_server_sql_query_execute"),
+            "tenant-1",
+            "req-sql-template-repair",
+            "conv-sql-template-repair",
+            "user-1",
+            Map.of("executionTraceId", "trace-sql-template-repair")
+        );
+        Method method = InterpretationPlanRuntime.class.getDeclaredMethod(
+            "resolvedStepInput",
+            InterpretationPlan.Step.class,
+            InterpretationPlanRuntime.ExecutionRequest.class,
+            Map.class
+        );
+        method.setAccessible(true);
+
+        assertThatThrownBy(() -> method.invoke(runtime, step, request, Map.of()))
+            .hasCauseInstanceOf(IllegalStateException.class)
+            .hasRootCauseMessage("SQL_TEMPLATE_TARGET_SCOPE_MISMATCH: template MYSQL_SHOW_STATUS is not table-scoped but tableName=t_ad_dict_entr_supn was provided; planner must select a dialect-specific *_TABLE_METADATA template.");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void rejectsOracleInstanceTemplateWhenTemplateDiscoveryDidNotReturnTableMetadataTemplate() throws Exception {
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            mock(ToolRuntimeService.class),
+            new InterpretationPlanValidator(),
+            mock(InterpretationPlanRuntime.DagExecutionController.class)
+        );
+        InterpretationPlan.Step step = new InterpretationPlan.Step(
+            3,
+            "mcp_tool",
+            "mcp_chatchat_mcp_server_sql_query_execute",
+            Map.of(
+                "templateId", "ORACLE_INSTANCE_STATUS",
+                "parameters", Map.of("tableName", "T_AD_DICT_ENTR_SUPN"),
+                "executionContext", Map.of("databaseType", "oracle")
+            ),
+            List.of(2),
+            null,
+            null
+        );
+        Method method = InterpretationPlanRuntime.class.getDeclaredMethod(
+            "resolvedStepInput",
+            InterpretationPlan.Step.class,
+            InterpretationPlanRuntime.ExecutionRequest.class,
+            Map.class
+        );
+        method.setAccessible(true);
+
+        assertThatThrownBy(() -> method.invoke(
+            runtime,
+            step,
+            new InterpretationPlanRuntime.ExecutionRequest(
+                minimalPlan(step),
+                mock(ToolRegistry.class),
+                List.of("mcp_chatchat_mcp_server_sql_query_execute"),
+                "tenant-1",
+                "req-oracle-template-repair",
+                "conv-oracle-template-repair",
+                "user-1",
+                Map.of()
+            ),
+            Map.of()
+        ))
+            .hasCauseInstanceOf(IllegalStateException.class)
+            .hasRootCauseMessage("SQL_TEMPLATE_TARGET_SCOPE_MISMATCH: template ORACLE_INSTANCE_STATUS is not table-scoped but tableName=T_AD_DICT_ENTR_SUPN was provided; planner must select a dialect-specific *_TABLE_METADATA template.");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void repairsUsingExplicitTemplateSemanticMetadataBeforeNameInference() throws Exception {
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            mock(ToolRuntimeService.class),
+            new InterpretationPlanValidator(),
+            mock(InterpretationPlanRuntime.DagExecutionController.class)
+        );
+        InterpretationPlan.Step step = new InterpretationPlan.Step(
+            3,
+            "mcp_tool",
+            "mcp_chatchat_mcp_server_sql_query_execute",
+            Map.of(
+                "templateId", "GENERIC_INSTANCE_STATUS",
+                "parameters", Map.of("tableName", "customer_label")
+            ),
+            List.of(2),
+            null,
+            null
+        );
+        Map<Integer, InterpretationPlanRuntime.StepExecution> completed = Map.of(
+            2,
+            new InterpretationPlanRuntime.StepExecution(
+                2,
+                "mcp_tool",
+                "mcp_chatchat_mcp_server_sql_datasource_template_query",
+                true,
+                Map.of("templates", List.of(
+                    Map.of(
+                        "templateId", "GENERIC_INSTANCE_STATUS",
+                        "databaseType", "postgresql",
+                        "semantic", Map.of(
+                            "operation", "INSTANCE_DIAGNOSTIC_QUERY",
+                            "targetLevel", "INSTANCE",
+                            "dialect", "postgresql"
+                        )
+                    ),
+                    Map.of(
+                        "templateId", "PG_CUSTOM_TABLE_METADATA",
+                        "databaseType", "postgresql",
+                        "category", "maintenance_metadata",
+                        "parameterSchema", Map.of("required", List.of("tableName")),
+                        "semantic", Map.of(
+                            "operation", "TABLE_METADATA_QUERY",
+                            "targetLevel", "TABLE",
+                            "dialect", "postgresql"
+                        )
+                    )
+                )),
+                null,
+                null,
+                null,
+                10
+            )
+        );
+        Method method = InterpretationPlanRuntime.class.getDeclaredMethod(
+            "resolvedStepInput",
+            InterpretationPlan.Step.class,
+            InterpretationPlanRuntime.ExecutionRequest.class,
+            Map.class
+        );
+        method.setAccessible(true);
+
+        Map<String, Object> resolved = (Map<String, Object>) method.invoke(
+            runtime,
+            step,
+            new InterpretationPlanRuntime.ExecutionRequest(
+                minimalPlan(step),
+                mock(ToolRegistry.class),
+                List.of("mcp_chatchat_mcp_server_sql_query_execute"),
+                "tenant-1",
+                "req-semantic-template-repair",
+                "conv-semantic-template-repair",
+                "user-1",
+                Map.of()
+            ),
+            completed
+        );
+
+        assertThat(resolved)
+            .containsEntry("templateId", "PG_CUSTOM_TABLE_METADATA")
+            .containsEntry("template", "PG_CUSTOM_TABLE_METADATA");
+        Map<String, Object> repair = (Map<String, Object>) resolved.get("runtimeTemplateRepair");
+        assertThat(repair)
+            .containsEntry("fromTemplateId", "GENERIC_INSTANCE_STATUS")
+            .containsEntry("toTemplateId", "PG_CUSTOM_TABLE_METADATA");
+    }
+
+    @Test
+    void rejectsTableScopedGlobalTemplateWhenDialectCannotBeInferred() throws Exception {
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            mock(ToolRuntimeService.class),
+            new InterpretationPlanValidator(),
+            mock(InterpretationPlanRuntime.DagExecutionController.class)
+        );
+        InterpretationPlan.Step step = new InterpretationPlan.Step(
+            3,
+            "mcp_tool",
+            "mcp_chatchat_mcp_server_sql_query_execute",
+            Map.of(
+                "templateId", "INSTANCE_STATUS",
+                "parameters", Map.of("tableName", "T_AD_DICT_ENTR_SUPN")
+            ),
+            List.of(2),
+            null,
+            null
+        );
+        Method method = InterpretationPlanRuntime.class.getDeclaredMethod(
+            "resolvedStepInput",
+            InterpretationPlan.Step.class,
+            InterpretationPlanRuntime.ExecutionRequest.class,
+            Map.class
+        );
+        method.setAccessible(true);
+
+        assertThatThrownBy(() -> method.invoke(
+            runtime,
+            step,
+            new InterpretationPlanRuntime.ExecutionRequest(
+                minimalPlan(step),
+                mock(ToolRegistry.class),
+                List.of("mcp_chatchat_mcp_server_sql_query_execute"),
+                "tenant-1",
+                "req-template-scope-mismatch",
+                "conv-template-scope-mismatch",
+                "user-1",
+                Map.of()
+            ),
+            Map.of()
+        ))
+            .hasRootCauseMessage("SQL_TEMPLATE_TARGET_SCOPE_MISMATCH: template INSTANCE_STATUS is not table-scoped but tableName=T_AD_DICT_ENTR_SUPN was provided; planner must select a dialect-specific *_TABLE_METADATA template.");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
     void injectsRoutingTraceForDiscoveryToolWhenPlannerOmittedIt() throws Exception {
         InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
             mock(ToolRuntimeService.class),
@@ -1434,6 +1684,168 @@ class InterpretationPlanRuntimeTest {
     }
 
     @Test
+    void rejectsFinalAnswerDecisionWhenAnyStepsRemain() throws Exception {
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("sql_metadata", "Analyze table metadata", "low"),
+            context(),
+            new InterpretationPlan.Plan(List.of(
+                new InterpretationPlan.Step(1, "mcp_tool", "mcp_chatchat_mcp_server_sql_datasource_asset_query", Map.of(), List.of(), null, null),
+                new InterpretationPlan.Step(2, "final_answer", "", Map.of("answer", "done"), List.of(1), null, null),
+                new InterpretationPlan.Step(3, "mcp_tool", "mcp_chatchat_mcp_server_sql_query_execute", Map.of(), List.of(1), null, null)
+            )),
+            new InterpretationPlan.ExecutionPolicy(3, false, List.of(
+                "mcp_chatchat_mcp_server_sql_datasource_asset_query",
+                "mcp_chatchat_mcp_server_sql_query_execute"
+            ), List.of(), 30000),
+            review()
+        );
+        Map<Integer, InterpretationPlan.Step> stepsById = new java.util.LinkedHashMap<>();
+        plan.steps().forEach(step -> stepsById.put(step.id(), step));
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            mock(ToolRuntimeService.class),
+            new InterpretationPlanValidator(),
+            scriptedController(List.of())
+        );
+        Method method = InterpretationPlanRuntime.class.getDeclaredMethod(
+            "validateDecision",
+            InterpretationPlanRuntime.DagDecision.class,
+            InterpretationPlan.class,
+            java.util.Set.class,
+            Map.class,
+            java.util.Set.class
+        );
+        method.setAccessible(true);
+
+        Object validation = method.invoke(
+            runtime,
+            InterpretationPlanRuntime.DagDecision.finalAnswer(2, "done", "scripted final"),
+            plan,
+            new java.util.LinkedHashSet<>(List.of(2, 3)),
+            stepsById,
+            new java.util.LinkedHashSet<>(List.of(1))
+        );
+        Method validMethod = validation.getClass().getDeclaredMethod("valid");
+        Method messageMethod = validation.getClass().getDeclaredMethod("message");
+        validMethod.setAccessible(true);
+        messageMethod.setAccessible(true);
+
+        assertThat((Boolean) validMethod.invoke(validation)).isFalse();
+        assertThat((String) messageMethod.invoke(validation))
+            .contains("final_answer must be the last executed step")
+            .contains("3");
+    }
+
+    @Test
+    void rejectsExecuteStepDecisionWhenFinalAnswerStepWouldSkipRemainingSteps() throws Exception {
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("sql_metadata", "Analyze table metadata", "low"),
+            context(),
+            new InterpretationPlan.Plan(List.of(
+                new InterpretationPlan.Step(1, "mcp_tool", "mcp_chatchat_mcp_server_sql_datasource_asset_query", Map.of(), List.of(), null, null),
+                new InterpretationPlan.Step(2, "final_answer", "", Map.of("answer", "done"), List.of(1), null, null),
+                new InterpretationPlan.Step(3, "mcp_tool", "mcp_chatchat_mcp_server_sql_query_execute", Map.of(), List.of(1), null, null)
+            )),
+            new InterpretationPlan.ExecutionPolicy(3, false, List.of(
+                "mcp_chatchat_mcp_server_sql_datasource_asset_query",
+                "mcp_chatchat_mcp_server_sql_query_execute"
+            ), List.of(), 30000),
+            review()
+        );
+        Map<Integer, InterpretationPlan.Step> stepsById = new java.util.LinkedHashMap<>();
+        plan.steps().forEach(step -> stepsById.put(step.id(), step));
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            mock(ToolRuntimeService.class),
+            new InterpretationPlanValidator(),
+            scriptedController(List.of())
+        );
+        Method method = InterpretationPlanRuntime.class.getDeclaredMethod(
+            "validateDecision",
+            InterpretationPlanRuntime.DagDecision.class,
+            InterpretationPlan.class,
+            java.util.Set.class,
+            Map.class,
+            java.util.Set.class
+        );
+        method.setAccessible(true);
+
+        Object validation = method.invoke(
+            runtime,
+            InterpretationPlanRuntime.DagDecision.executeStep(2, "scripted final as execute_step"),
+            plan,
+            new java.util.LinkedHashSet<>(List.of(2, 3)),
+            stepsById,
+            new java.util.LinkedHashSet<>(List.of(1))
+        );
+        Method validMethod = validation.getClass().getDeclaredMethod("valid");
+        Method messageMethod = validation.getClass().getDeclaredMethod("message");
+        validMethod.setAccessible(true);
+        messageMethod.setAccessible(true);
+
+        assertThat((Boolean) validMethod.invoke(validation)).isFalse();
+        assertThat((String) messageMethod.invoke(validation))
+            .contains("final_answer must be the last executed step")
+            .contains("3");
+    }
+
+    @Test
+    void finalAnswerComesFromFinalStepNotControllerDecisionText() {
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool("document_search")).thenReturn(true);
+        when(toolRegistry.getToolMetadata("document_search")).thenReturn(ToolMetadata.builder().riskLevel("low").build());
+        ToolRuntimeService toolRuntimeService = mock(ToolRuntimeService.class);
+        when(toolRuntimeService.execute(any())).thenReturn(new ToolRuntimeExecution(
+            ToolOutput.success(Map.of("results", List.of("evidence"))),
+            ToolMetadata.builder().id("document_search").build(),
+            null,
+            "success",
+            Map.of()
+        ));
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("document_retrieval", "Collect evidence", "low"),
+            context(),
+            new InterpretationPlan.Plan(List.of(
+                new InterpretationPlan.Step(1, "mcp_tool", "document_search", Map.of("query", "internal"), List.of(), null, null),
+                new InterpretationPlan.Step(2, "final_answer", "", Map.of("answer", "step-owned final answer"), List.of(1), null, null)
+            )),
+            new InterpretationPlan.ExecutionPolicy(2, false, List.of("document_search"), List.of(), 30000),
+            review()
+        );
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            toolRuntimeService,
+            new InterpretationPlanValidator(),
+            request -> {
+                Integer stepId = request.remainingStepIds().stream().sorted().findFirst().orElse(null);
+                if (Integer.valueOf(2).equals(stepId)) {
+                    return InterpretationPlanRuntime.DagDecision.finalAnswer(
+                        2,
+                        "controller-authored answer must be ignored",
+                        "select final"
+                    );
+                }
+                return InterpretationPlanRuntime.DagDecision.executeStep(stepId, "select tool");
+            }
+        );
+
+        InterpretationPlanRuntime.ExecutionResult result = runtime.execute(new InterpretationPlanRuntime.ExecutionRequest(
+            plan,
+            toolRegistry,
+            List.of("document_search"),
+            "tenant-1",
+            "req-single-writer-final",
+            "conv-single-writer-final",
+            "user-1",
+            Map.of()
+        ));
+
+        assertThat(result.success()).isTrue();
+        assertThat(result.finalAnswer()).isEqualTo("step-owned final answer");
+        assertThat(result.finalAnswer()).isNotEqualTo("controller-authored answer must be ignored");
+    }
+
+    @Test
     void acceptsAssetTypeEdgeContractFromAssetEnvelopeWhenQueryScopeOmitted() throws Exception {
         InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
             mock(ToolRuntimeService.class),
@@ -1637,6 +2049,20 @@ class InterpretationPlanRuntimeTest {
                 new InterpretationPlan.Step(2, "final_answer", "", Map.of("answer", "done"), List.of(1), null, null)
             )),
             new InterpretationPlan.ExecutionPolicy(3, false, List.of("document_search"), List.of(), 30000),
+            review()
+        );
+    }
+
+    private InterpretationPlan minimalPlan(InterpretationPlan.Step step) {
+        return new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("sql_metadata", "Analyze table metadata", "low"),
+            context(),
+            new InterpretationPlan.Plan(List.of(
+                step,
+                new InterpretationPlan.Step(4, "final_answer", "", Map.of("answer", "done"), List.of(step.id()), null, null)
+            )),
+            new InterpretationPlan.ExecutionPolicy(2, false, List.of("mcp_chatchat_mcp_server_sql_query_execute"), List.of(), 30000),
             review()
         );
     }

@@ -21,6 +21,13 @@ import java.util.Set;
 public class InterpretationPlanValidator {
 
     private static final String HIGH = "high";
+    private static final Set<String> RAW_SQL_PARAMETER_KEYS = Set.of(
+        "sql",
+        "rawsql",
+        "raw_sql",
+        "statement",
+        "query"
+    );
     private static final Set<String> ACTION_TYPES = Set.of(
         "mcp_tool", "reasoning", "retrieval", "aggregation", "validation", "final_answer"
     );
@@ -169,6 +176,7 @@ public class InterpretationPlanValidator {
             state.error(path + ".tool_name", "Tool is not registered or available: " + step.toolName());
         }
         validateToolInput(plan, step, path, toolRegistry, state);
+        validateSqlTemplateExecutionContract(step, path, state);
         if (isHighRisk(plan, step, toolRegistry) && !containsTool(allowTools, step.toolName())) {
             state.approval(path + ".tool_name", "High-risk tool requires explicit allow_tool approval: " + step.toolName());
         }
@@ -196,6 +204,70 @@ public class InterpretationPlanValidator {
                 );
             }
         }
+    }
+
+    private void validateSqlTemplateExecutionContract(InterpretationPlan.Step step,
+                                                      String path,
+                                                      ValidationState state) {
+        if (step == null || !isSqlQueryExecuteTool(step.toolName()) || step.input() == null || step.input().isEmpty()) {
+            return;
+        }
+        Map<String, Object> input = step.input();
+        boolean templateMode = hasNonBlank(input, "template", "templateId", "template_id");
+        if (templateMode && hasNonBlank(input, "sql", "rawSql", "raw_sql", "statement", "query")) {
+            state.error(path + ".input", "SQL template execution must use a templateId returned by template_query and template parameters only; do not mix top-level raw SQL with templateId.");
+        }
+        Object parameters = firstPresent(input, "parameters", "params");
+        if (!(parameters instanceof Map<?, ?> map)) {
+            return;
+        }
+        for (Object key : map.keySet()) {
+            String normalized = normalizeRawSqlKey(key);
+            if (RAW_SQL_PARAMETER_KEYS.contains(normalized)) {
+                state.error(path + ".input.parameters." + key,
+                    "Raw SQL is not a template parameter. Select a template from sql_datasource_template_query and pass only fields declared by templates[].parameterSchema.");
+            }
+        }
+    }
+
+    private boolean isSqlQueryExecuteTool(String toolName) {
+        if (toolName == null || toolName.isBlank()) {
+            return false;
+        }
+        String normalized = toolName.trim().toLowerCase(Locale.ROOT);
+        return normalized.endsWith("sql_query_execute")
+            || normalized.contains("_sql_query_execute")
+            || normalized.endsWith("database_execute")
+            || normalized.endsWith("sql_execute");
+    }
+
+    private boolean hasNonBlank(Map<String, Object> input, String... keys) {
+        if (input == null || input.isEmpty() || keys == null) {
+            return false;
+        }
+        for (String key : keys) {
+            Object value = input.get(key);
+            if (value != null && !String.valueOf(value).isBlank()) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private Object firstPresent(Map<String, Object> input, String... keys) {
+        if (input == null || input.isEmpty() || keys == null) {
+            return null;
+        }
+        for (String key : keys) {
+            if (input.containsKey(key)) {
+                return input.get(key);
+            }
+        }
+        return null;
+    }
+
+    private String normalizeRawSqlKey(Object key) {
+        return key == null ? "" : String.valueOf(key).trim().toLowerCase(Locale.ROOT);
     }
 
     private boolean hasBindingForInput(InterpretationPlan plan, Integer stepId, String inputField) {

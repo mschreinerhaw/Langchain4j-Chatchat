@@ -460,6 +460,93 @@ class AgentPlannerTest {
     }
 
     @Test
+    void acceptsDomainPrefixedAssetQueryAsTypedAssetDiscovery() throws Exception {
+        AgentPlanner planner = new AgentPlanner(new TestToolRegistry(), new ObjectMapper());
+        List<String> requiredTools = List.of(
+            "mcp_chatchat_mcp_server_sql_datasource_asset_query",
+            "mcp_chatchat_mcp_server_sql_datasource_template_query",
+            "mcp_chatchat_mcp_server_sql_query_execute"
+        );
+        PlannerValidationContext context = new PlannerValidationContext(
+            requiredTools,
+            true,
+            false,
+            null,
+            null,
+            requiredTools,
+            "分析248测试数据库中表t_ad_dict_entr_supn"
+        );
+        String raw = """
+            {
+              "version": "1.0",
+              "intent": {"type": "sql_query", "goal": "分析248测试数据库中表t_ad_dict_entr_supn", "risk_level": "low"},
+              "context": {
+                "key_facts": ["用户指定环境为248测试数据库"],
+                "assumptions": ["248测试数据库已注册为SQL数据源资产"],
+                "constraints": ["必须依次执行asset_query → template_query → query_execute三个工具"]
+              },
+              "plan": {
+                "steps": [
+                  {
+                    "id": 1,
+                    "action_type": "mcp_tool",
+                    "tool_name": "mcp_chatchat_mcp_server_sql_datasource_asset_query",
+                    "input": {"candidates": [{"targetKind": "database", "confidence": 0.9}], "finalDecision": "database", "filters": {}, "limit": 10},
+                    "depends_on": []
+                  },
+                  {
+                    "id": 2,
+                    "action_type": "mcp_tool",
+                    "tool_name": "mcp_chatchat_mcp_server_sql_datasource_template_query",
+                    "input": {"candidates": [{"targetKind": "database", "confidence": 0.9}], "finalDecision": "database", "filters": {"intent": "分析表 t_ad_dict_entr_supn"}, "limit": 10},
+                    "depends_on": [1]
+                  },
+                  {
+                    "id": 3,
+                    "action_type": "mcp_tool",
+                    "tool_name": "mcp_chatchat_mcp_server_sql_query_execute",
+                    "input": {"parameters": {"tableName": "t_ad_dict_entr_supn"}},
+                    "depends_on": [2]
+                  },
+                  {
+                    "id": 4,
+                    "action_type": "final_answer",
+                    "tool_name": "",
+                    "input": {"answer": "after tools"},
+                    "depends_on": [3]
+                  }
+                ],
+                "edge_contracts": [
+                  {"from": 1, "to": 2, "field": "assets[0].asset.name", "type": "string", "required": false},
+                  {"from": 2, "to": 3, "field": "templates[0].templateId", "type": "string", "required": true}
+                ],
+                "bindings": [
+                  {"from": 1, "output_path": "$.assets[0].asset.name", "to": 2, "input_field": "filters.assetName", "type": "jsonpath", "required": false},
+                  {"from": 2, "output_path": "$.templates[0].templateId", "to": 3, "input_field": "templateId", "type": "jsonpath", "required": true}
+                ]
+              },
+              "execution_policy": {
+                "max_steps": 6,
+                "allow_tool": [
+                  "mcp_chatchat_mcp_server_sql_datasource_asset_query",
+                  "mcp_chatchat_mcp_server_sql_datasource_template_query",
+                  "mcp_chatchat_mcp_server_sql_query_execute"
+                ],
+                "fallback_mode": "safe_answer"
+              },
+              "review": {"self_check": {"tool_sufficiency": false, "missing_steps": []}, "fallback_plan": []}
+            }
+            """;
+
+        Method parseDecision = AgentPlanner.class.getDeclaredMethod("parseDecision", String.class, PlannerValidationContext.class);
+        parseDecision.setAccessible(true);
+        AgentDecision decision = (AgentDecision) parseDecision.invoke(planner, raw, context);
+
+        assertThat((List<?>) decision.executionPlan().get("interpretationPlanRuntimeIssues"))
+            .noneSatisfy(issue -> assertThat(String.valueOf(issue)).contains("plan context must not assume assetName/env/datasource"));
+    }
+
+    @Test
     void normalizesCompoundContextStringAsExactAssetName() throws Exception {
         AgentPlanner planner = new AgentPlanner(new TestToolRegistry(), new ObjectMapper());
         List<String> requiredTools = List.of("mcp_chatchat_mcp_server_asset_query");
@@ -575,6 +662,8 @@ class AgentPlannerTest {
         private final Set<String> tools = Set.of(
             "mcp_chatchat_mcp_server_asset_query",
             "mcp_chatchat_mcp_server_template_query",
+            "mcp_chatchat_mcp_server_sql_datasource_asset_query",
+            "mcp_chatchat_mcp_server_sql_datasource_template_query",
             "mcp_chatchat_mcp_server_sql_query_execute",
             "mcp_chatchat_mcp_server_linux_command_execute"
         );
@@ -645,7 +734,9 @@ class AgentPlannerTest {
 
         private List<ToolParameter> parameters(String toolName) {
             if ("mcp_chatchat_mcp_server_asset_query".equals(toolName)
-                || "mcp_chatchat_mcp_server_template_query".equals(toolName)) {
+                || "mcp_chatchat_mcp_server_template_query".equals(toolName)
+                || "mcp_chatchat_mcp_server_sql_datasource_asset_query".equals(toolName)
+                || "mcp_chatchat_mcp_server_sql_datasource_template_query".equals(toolName)) {
                 return List.of();
             }
             return List.of(ToolParameter.builder().name("template").type("string").required(true).build());

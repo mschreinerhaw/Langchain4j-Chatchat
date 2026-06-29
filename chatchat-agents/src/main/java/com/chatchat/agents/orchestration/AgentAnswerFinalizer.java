@@ -484,6 +484,21 @@ class AgentAnswerFinalizer {
                                            String finalAnswer,
                                            Map<String, Object> metadata) {
         String runId = stringValue(metadata == null ? null : metadata.get("agentRunId"));
+        if (structuredSqlMetadataSemanticGatePassed(metadata)) {
+            if (metadata != null) {
+                metadata.put("answerReviewSkipped", true);
+                metadata.put("answerReviewSkippedReason", "sql_metadata_and_execution_graph_semantic_gates_passed");
+            }
+            log.info("agentModelSkipped phase=review runId={} reason=sql_metadata_and_execution_graph_semantic_gates_passed answerChars={} observationCount={}",
+                firstNonBlank(runId, ""),
+                finalAnswer == null ? 0 : finalAnswer.length(),
+                observations == null ? 0 : observations.size());
+            return new AgentAnswerReview(
+                AgentAnswerReview.ACCEPTED,
+                finalAnswer == null ? "" : finalAnswer,
+                "SQL metadata and execution graph semantic gates passed; reviewer rewrite skipped."
+            );
+        }
         if (finalAnswer == null || finalAnswer.isBlank() || activeChatModel == null) {
             log.info("agentModelSkipped phase=review runId={} reason={} answerChars={} observationCount={}",
                 firstNonBlank(runId, ""),
@@ -514,6 +529,11 @@ class AgentAnswerFinalizer {
                 review.feedback());
         }
         return review;
+    }
+
+    private boolean structuredSqlMetadataSemanticGatePassed(Map<String, Object> metadata) {
+        return Boolean.TRUE.equals(metadata == null ? null : metadata.get("sqlMetadataSemanticGatePassed"))
+            && Boolean.TRUE.equals(metadata == null ? null : metadata.get("executionGraphSemanticPassed"));
     }
 
     private void recordAnswerReview(Map<String, Object> metadata, AgentAnswerReview review) {

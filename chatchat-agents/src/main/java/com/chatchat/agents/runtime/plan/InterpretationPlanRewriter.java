@@ -66,6 +66,7 @@ public class InterpretationPlanRewriter {
             );
             if (!validation.valid()) {
                 InterpretationPlan repairedPlan = repairContinuationPlan(request.originalPlan(), rewrittenPlan);
+                repairedPlan = repairExecutionPolicyStepLimit(repairedPlan);
                 if (repairedPlan != rewrittenPlan) {
                     InterpretationPlanValidator.ValidationResult repairedValidation = validator.validate(
                         repairedPlan,
@@ -108,6 +109,10 @@ public class InterpretationPlanRewriter {
         prompt.append("- Preserve plan.stability stable_nodes, critical_tools, and locked_edges; do not alter locked edges.\n");
         prompt.append("- Add or update plan.edge_contracts when the failure was caused by missing or mistyped tool output fields.\n");
         prompt.append("- Keep execution_policy.deny_tool for tools that failed due to policy, permission, or safety.\n\n");
+        prompt.append("SQL template repair rules:\n");
+        prompt.append("- If a failed sql_query_execute step used input.parameters.sql/rawSql/query/statement, remove that raw SQL parameter and replan through sql datasource template_query.\n");
+        prompt.append("- Bind a returned templates[].templateId into sql_query_execute.templateId and pass only parameters declared by templates[].parameterSchema.\n");
+        prompt.append("- Do not invent SQL or template IDs; use the already observed template_query result or add a new template_query step before sql_query_execute.\n\n");
         prompt.append("InterpretationPlan JSON Schema:\n").append(InterpretationPlanJsonSchema.SCHEMA).append("\n\n");
         prompt.append("Available tools:\n").append(request.availableTools() == null ? List.of() : request.availableTools()).append("\n");
         prompt.append("Failed step:\n").append(toJson(failedStep(request))).append("\n");
@@ -196,6 +201,39 @@ public class InterpretationPlanRewriter {
             repairedBody,
             repairExecutionPolicy(originalPlan.executionPolicy(), rewrittenPlan.executionPolicy(), mergedSteps),
             rewrittenPlan.review()
+        );
+    }
+
+    private InterpretationPlan repairExecutionPolicyStepLimit(InterpretationPlan plan) {
+        if (plan == null || plan.executionPolicy() == null) {
+            return plan;
+        }
+        int stepCount = plan.steps() == null ? 0 : plan.steps().size();
+        Integer maxSteps = plan.executionPolicy().maxSteps();
+        if (maxSteps == null || maxSteps >= stepCount) {
+            return plan;
+        }
+        InterpretationPlan.ExecutionPolicy policy = plan.executionPolicy();
+        InterpretationPlan.ExecutionPolicy repairedPolicy = new InterpretationPlan.ExecutionPolicy(
+            stepCount,
+            policy.allowParallel(),
+            policy.allowTool(),
+            policy.denyTool(),
+            policy.timeoutMs(),
+            policy.maxRewriteTimes(),
+            policy.fallbackMode(),
+            policy.toolPriority(),
+            policy.costBudget(),
+            policy.latencyBudgetMs(),
+            policy.accuracyVsSpeed()
+        );
+        return new InterpretationPlan(
+            plan.version(),
+            plan.intent(),
+            plan.context(),
+            plan.plan(),
+            repairedPolicy,
+            plan.review()
         );
     }
 

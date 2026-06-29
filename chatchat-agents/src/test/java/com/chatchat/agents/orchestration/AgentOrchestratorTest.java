@@ -1773,6 +1773,7 @@ class AgentOrchestratorTest {
         StringBuilder allowTools = new StringBuilder();
         StringBuilder finalDependencies = new StringBuilder("[");
         int stepId = 1;
+        Integer previousToolStepId = null;
         for (String tool : tools) {
             if (steps.length() > 0) {
                 steps.append(",");
@@ -1785,9 +1786,12 @@ class AgentOrchestratorTest {
             }
             steps.append("{\"id\":").append(stepId)
                 .append(",\"action_type\":\"mcp_tool\",\"tool_name\":\"").append(jsonEscape(tool))
-                .append("\",\"input\":{\"query\":\"runtime workflow evidence\"},\"depends_on\":[]}");
+                .append("\",\"input\":{\"query\":\"runtime workflow evidence\"},\"depends_on\":")
+                .append(previousToolStepId == null ? "[]" : "[" + previousToolStepId + "]")
+                .append("}");
             allowTools.append("\"").append(jsonEscape(tool)).append("\"");
             finalDependencies.append(stepId);
+            previousToolStepId = stepId;
             stepId++;
         }
         finalDependencies.append("]");

@@ -169,6 +169,36 @@ class AgentToolArgumentResolverTest {
     }
 
     @Test
+    void sqlDatasourceAssetQueryWrapsDirectQueryFallbackAsDiscoveryContract() {
+        Map<String, Object> result = resolver.applyToolDefaults(
+            "mcp_chatchat_mcp_server_sql_datasource_asset_query",
+            Map.of("query", "Analyze 248 test database table t_ad_dict_entr_supn"),
+            List.of(),
+            List.of(),
+            "Analyze 248 test database table t_ad_dict_entr_supn",
+            5
+        );
+
+        assertThat(result)
+            .doesNotContainKey("__runtimeParamBindingStatus")
+            .doesNotContainKey("query")
+            .containsEntry("targetKind", "database")
+            .containsEntry("finalDecision", "database")
+            .containsEntry("assetType", "sql_datasource")
+            .containsEntry("confidence", 0.9)
+            .containsEntry("filtersSchemaVersion", "target_filters.v1")
+            .containsEntry("limit", 10);
+        assertThat(result.get("filters"))
+            .isInstanceOfSatisfying(Map.class, filters -> assertThat(filters)
+                .containsEntry("intent", "Analyze 248 test database table t_ad_dict_entr_supn")
+                .containsEntry("env", "test"));
+        assertThat(result.get("trace"))
+            .isInstanceOfSatisfying(Map.class, trace -> assertThat(trace)
+                .containsEntry("source", "agent_tool_argument_resolver")
+                .containsEntry("toolName", "mcp_chatchat_mcp_server_sql_datasource_asset_query"));
+    }
+
+    @Test
     void templateQueryBindsRoutingCandidateSetFinalDecision() {
         Map<String, Object> result = resolver.applyToolDefaults(
             "mcp_chatchat_mcp_server_template_query",

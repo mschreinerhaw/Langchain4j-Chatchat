@@ -96,10 +96,10 @@ class McpParamBindingResolver {
             return bindSqlQuery(values, userQuery);
         }
         if (sameTool(remoteToolName, "asset_query")) {
-            return bindDiscoveryQuery(values, userQuery, false);
+            return bindDiscoveryQuery(toolName, values, userQuery, false);
         }
         if (sameTool(remoteToolName, "template_query")) {
-            return bindDiscoveryQuery(values, userQuery, true);
+            return bindDiscoveryQuery(toolName, values, userQuery, true);
         }
         return values;
     }
@@ -165,7 +165,10 @@ class McpParamBindingResolver {
         return values;
     }
 
-    private Map<String, Object> bindDiscoveryQuery(Map<String, Object> values, String userQuery, boolean templateQuery) {
+    private Map<String, Object> bindDiscoveryQuery(String toolName,
+                                                   Map<String, Object> values,
+                                                   String userQuery,
+                                                   boolean templateQuery) {
         String forbidden = firstPresentField(values, CONCRETE_TARGET_FIELDS);
         if (forbidden != null) {
             return denied(values, "Concrete target field is not allowed for discovery: " + forbidden);
@@ -184,6 +187,31 @@ class McpParamBindingResolver {
             targetKind = finalDecision;
         }
         Object explicitFilterEnvelope = firstPresent(values, "filters", "executionContext", "mcpExecutionContext");
+        if (!(explicitFilterEnvelope instanceof Map<?, ?>)) {
+            String toolTargetKind = targetKindFromDiscoveryToolName(toolName, templateQuery);
+            if (hasText(values.get("query")) && toolTargetKind != null) {
+                targetKind = firstNonBlank(targetKind, toolTargetKind);
+                Map<String, Object> filters = new LinkedHashMap<>();
+                inferLogicalContext(userQuery).forEach(filters::putIfAbsent);
+                if (templateQuery && hasText(userQuery)) {
+                    filters.putIfAbsent("intent", trim(userQuery));
+                } else if (hasText(userQuery)) {
+                    filters.putIfAbsent("intent", trim(userQuery));
+                }
+                values.put("filters", filters);
+                values.putIfAbsent("candidates", List.of(Map.of("targetKind", targetKind, "confidence", 0.9)));
+                values.putIfAbsent("finalDecision", targetKind);
+                values.putIfAbsent("confidence", 0.9);
+                values.putIfAbsent("trace", Map.of(
+                    "schemaVersion", "routing_trace.v1",
+                    "source", "agent_tool_argument_resolver",
+                    "toolName", toolName == null ? "" : toolName
+                ));
+                explicitFilterEnvelope = filters;
+                rawCandidates = firstPresent(values, "candidates", "routingCandidates", "routing_candidates");
+                finalDecision = firstText(firstPresent(values, "finalDecision", "final_decision", "selectedTargetKind", "selected_target_kind"));
+            }
+        }
         if (!(explicitFilterEnvelope instanceof Map<?, ?>)) {
             return denied(values, (templateQuery ? "template_query" : "asset_query")
                 + " requires explicit filters object, even when it is empty.");
@@ -218,7 +246,7 @@ class McpParamBindingResolver {
             targetKind = removeTargetKind(filters);
         }
         if (templateQuery && !hasText(firstPresent(filters, "intent", "goal", "category"))) {
-            String intent = inferIntent(userQuery);
+            String intent = hasText(userQuery) ? trim(userQuery) : inferIntent(userQuery);
             if (intent != null) {
                 filters.put("intent", intent);
             }
@@ -432,6 +460,24 @@ class McpParamBindingResolver {
             return containsAny(text, "状态", "日志", "系统", "主机", "服务", "status", "log") ? "ssh_host" : "sql_datasource";
         }
         return "ssh_host";
+    }
+
+    private String targetKindFromDiscoveryToolName(String toolName, boolean templateQuery) {
+        String normalized = normalizeToolName(toolName);
+        if (normalized.contains("sql_datasource") || normalized.contains("database_query")) {
+            return "database";
+        }
+        if (normalized.contains("http_endpoint") || normalized.contains("api_")) {
+            return "http";
+        }
+        if (normalized.contains("ssh_") || normalized.contains("linux_")) {
+            return "host";
+        }
+        return null;
+    }
+
+    private String firstNonBlank(String first, String second) {
+        return hasText(first) ? first : second;
     }
 
     private String canonicalServiceName(String service) {

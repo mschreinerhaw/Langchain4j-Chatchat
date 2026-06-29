@@ -16,6 +16,8 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class DataEngineQueryPlannerService {
 
+    private final SemanticIrBuilder semanticIrBuilder = new SemanticIrBuilder();
+    private final RetrievalPlanner retrievalPlanner = new RetrievalPlanner();
     private final SqlDatasourceConfigService datasourceConfigService;
     private final MetadataResolverService metadataResolverService;
     private final MetadataIndexService metadataIndexService;
@@ -28,18 +30,20 @@ public class DataEngineQueryPlannerService {
         SqlDatasourceConfig datasource = datasourceConfigService.getEnabled(text(request.get("datasourceId")));
         String question = firstText(text(request.get("question")), text(request.get("intent")), text(request.get("purpose")));
         List<String> requestedTables = requestedTables(request);
+        SemanticIR semanticIR = semanticIrBuilder.build(datasource, request, requestedTables);
         List<TableLocation> tables = resolveTables(datasource, question, requestedTables);
+        RetrievalPlan retrievalPlan = retrievalPlanner.plan(question, requestedTables, tables, semanticIR);
         JoinGraph joinGraph = joinGraphBuilder.build(datasource, tables);
         Map<String, Object> costModel = costModelRouter.evaluate(datasource, tables, joinGraph);
-        List<PlanNode> steps = buildSteps(datasource, question, tables, joinGraph);
+        List<PlanNode> steps = buildSteps(datasource, question, tables, joinGraph, retrievalPlan);
         return new QueryPlan(
-            "query_plan.v4",
+            "query_plan.v6",
             question,
             strategy(steps, joinGraph),
             steps,
             joinGraph,
             costModel,
-            diagnostics(datasource, request, requestedTables, tables)
+            diagnostics(datasource, request, requestedTables, tables, semanticIR, retrievalPlan, steps, joinGraph, costModel)
         );
     }
 
@@ -84,8 +88,11 @@ public class DataEngineQueryPlannerService {
             .toList();
     }
 
-    private List<PlanNode> buildSteps(SqlDatasourceConfig datasource, String question,
-                                      List<TableLocation> tables, JoinGraph joinGraph) {
+    private List<PlanNode> buildSteps(SqlDatasourceConfig datasource,
+                                      String question,
+                                      List<TableLocation> tables,
+                                      JoinGraph joinGraph,
+                                      RetrievalPlan retrievalPlan) {
         List<PlanNode> nodes = new ArrayList<>();
         int index = 1;
         for (TableLocation table : tables) {
@@ -133,11 +140,58 @@ public class DataEngineQueryPlannerService {
                 dependencies,
                 mapOf("intent", "trend_or_metric_analysis")
             ));
+            index++;
+        }
+        if (retrievalPlan != null && retrievalPlan.retrievalNeeded()) {
+            List<String> sqlTerminals = terminalNodeIds(nodes);
+            String retrievalId = "step_" + index++;
+            nodes.add(new PlanNode(
+                retrievalId,
+                "DOC_RETRIEVAL",
+                null,
+                null,
+                null,
+                null,
+                List.of(),
+                mapOf(
+                    "toolName", retrievalPlan.retrievalType(),
+                    "query", retrievalPlan.query(),
+                    "priority", retrievalPlan.priority(),
+                    "reason", retrievalPlan.reason(),
+                    "triggers", retrievalPlan.triggers()
+                )
+            ));
+            if (!sqlTerminals.isEmpty()) {
+                List<String> dependencies = new ArrayList<>(sqlTerminals);
+                dependencies.add(retrievalId);
+                nodes.add(new PlanNode(
+                    "step_" + index,
+                    "MERGE",
+                    null,
+                    null,
+                    null,
+                    "Fuse structured SQL evidence with document retrieval evidence for grounded answer synthesis.",
+                    dependencies,
+                    mapOf(
+                        "fusionStrategy", "structured_data_plus_retrieved_context",
+                        "requiresStructuredEvidence", true,
+                        "requiresDocumentEvidence", true
+                    )
+                ));
+            }
         }
         return nodes;
     }
 
     private String strategy(List<PlanNode> steps, JoinGraph joinGraph) {
+        boolean hasRetrieval = steps != null && steps.stream().anyMatch(step -> "DOC_RETRIEVAL".equals(step.type()));
+        boolean hasSql = steps != null && steps.stream().anyMatch(step -> "SELECT".equals(step.type()));
+        if (hasRetrieval && hasSql) {
+            return "UNIFIED_SQL_RAG_DAG";
+        }
+        if (hasRetrieval) {
+            return "RETRIEVAL_ONLY_DAG";
+        }
         boolean hasJoin = joinGraph != null && joinGraph.edges() != null && !joinGraph.edges().isEmpty();
         long rootSelects = steps == null ? 0 : steps.stream()
             .filter(step -> "SELECT".equals(step.type()) && (step.dependencies() == null || step.dependencies().isEmpty()))
@@ -151,10 +205,21 @@ public class DataEngineQueryPlannerService {
         return "SINGLE_PATH";
     }
 
-    private Map<String, Object> diagnostics(SqlDatasourceConfig datasource, Map<String, Object> request,
-                                            List<String> requestedTables, List<TableLocation> tables) {
+    private Map<String, Object> diagnostics(SqlDatasourceConfig datasource,
+                                            Map<String, Object> request,
+                                            List<String> requestedTables,
+                                            List<TableLocation> tables,
+                                            SemanticIR semanticIR,
+                                            RetrievalPlan retrievalPlan,
+                                            List<PlanNode> steps,
+                                            JoinGraph joinGraph,
+                                            Map<String, Object> costModel) {
         return mapOf(
-            "schemaVersion", "data_engine_planner_diagnostics.v1",
+            "schemaVersion", "unified_query_compiler_diagnostics.v1",
+            "compilerVersion", "retrieval_augmented_query_compiler_v6",
+            "semanticIR", semanticIR == null ? Map.of() : semanticIR.toDiagnostic(),
+            "retrievalPlan", retrievalPlan == null ? Map.of() : retrievalPlan.toDiagnostic(),
+            "compilerPipeline", compilerPipeline(semanticIR, retrievalPlan, tables, joinGraph, costModel, steps),
             "datasource", mapOf(
                 "id", datasource.getId(),
                 "name", datasource.getName(),
@@ -165,8 +230,63 @@ public class DataEngineQueryPlannerService {
             "requestedTables", requestedTables,
             "resolvedTables", tables.stream().map(TableLocation::toDiagnostic).toList(),
             "executionContext", request.getOrDefault("executionContext", Map.of()),
-            "plannerVersion", "mcp_data_engine_v4"
+            "plannerVersion", "retrieval_augmented_query_compiler_v6"
         );
+    }
+
+    private List<Map<String, Object>> compilerPipeline(SemanticIR semanticIR,
+                                                       RetrievalPlan retrievalPlan,
+                                                       List<TableLocation> tables,
+                                                       JoinGraph joinGraph,
+                                                       Map<String, Object> costModel,
+                                                       List<PlanNode> steps) {
+        return List.of(
+            mapOf(
+                "stage", "SEMANTIC_IR_BUILD",
+                "schemaVersion", semanticIR == null ? null : semanticIR.schemaVersion(),
+                "operation", semanticIR == null || semanticIR.root() == null ? null : semanticIR.root().operation(),
+                "targetLevel", semanticIR == null || semanticIR.root() == null ? null : semanticIR.root().targetLevel()
+            ),
+            mapOf(
+                "stage", "TABLE_RESOLUTION",
+                "resolvedCount", tables == null ? 0 : tables.size()
+            ),
+            mapOf(
+                "stage", "RETRIEVAL_PLAN",
+                "retrievalNeeded", retrievalPlan != null && retrievalPlan.retrievalNeeded(),
+                "retrievalType", retrievalPlan == null ? null : retrievalPlan.retrievalType(),
+                "priority", retrievalPlan == null ? null : retrievalPlan.priority()
+            ),
+            mapOf(
+                "stage", "QUERY_GRAPH_COMPILE",
+                "joinEdgeCount", joinGraph == null || joinGraph.edges() == null ? 0 : joinGraph.edges().size()
+            ),
+            mapOf(
+                "stage", "COST_BASED_OPTIMIZE",
+                "costModelVersion", costModel == null ? null : costModel.get("schemaVersion"),
+                "totalCost", costModel == null ? null : costModel.get("totalCost")
+            ),
+            mapOf(
+                "stage", "EXECUTION_DAG_GENERATE",
+                "nodeCount", steps == null ? 0 : steps.size(),
+                "rootNodeCount", steps == null ? 0 : steps.stream()
+                    .filter(step -> step.dependencies() == null || step.dependencies().isEmpty())
+                    .count()
+            )
+        );
+    }
+
+    private List<String> terminalNodeIds(List<PlanNode> nodes) {
+        if (nodes == null || nodes.isEmpty()) {
+            return List.of();
+        }
+        Set<String> dependedOn = nodes.stream()
+            .flatMap(node -> node.dependencies() == null ? java.util.stream.Stream.empty() : node.dependencies().stream())
+            .collect(java.util.stream.Collectors.toSet());
+        return nodes.stream()
+            .filter(node -> node.id() != null && !dependedOn.contains(node.id()))
+            .map(PlanNode::id)
+            .toList();
     }
 
     private List<String> requestedTables(Map<String, Object> request) {

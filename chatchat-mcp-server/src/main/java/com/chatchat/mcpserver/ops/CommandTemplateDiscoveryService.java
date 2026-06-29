@@ -726,6 +726,7 @@ public class CommandTemplateDiscoveryService {
             "category", category(template),
             "riskLevel", riskLevel(template),
             "databaseType", SqlDatasourceConfigService.normalizeDatabaseTypeToken(template.getDatabaseType()),
+            "semantic", sqlTemplateSemanticMetadata(template),
             "binding", sqlTemplateBindingMetadata(template),
             "supportedAssetTypes", List.of(assetType),
             "intentSignals", signals,
@@ -736,6 +737,89 @@ public class CommandTemplateDiscoveryService {
             "parameterSchema", parameterSchema(template.getParameterSchemaJson()),
             "enabled", template.isEnabled()
         );
+    }
+
+    private Map<String, Object> sqlTemplateSemanticMetadata(SqlTemplateConfig template) {
+        String databaseType = SqlDatasourceConfigService.normalizeDatabaseTypeToken(template.getDatabaseType());
+        String category = category(template);
+        boolean requiresTable = parameterRequired(template.getParameterSchemaJson(), "tableName", "table_name");
+        List<String> signals = intentSignals(template);
+        boolean metadataIntent = containsIgnoreCase(category, "metadata") || containsAnyIgnoreCase(signals, "metadata", "schema", "column", "describe");
+        String targetLevel = requiresTable ? "TABLE" : targetLevelFromCategory(category);
+        String operation = requiresTable && metadataIntent ? "TABLE_METADATA_QUERY" : operationFromCategory(category);
+        return mapOf(
+            "schemaVersion", "sql_template_semantic.v1",
+            "operation", operation,
+            "targetLevel", targetLevel,
+            "dialect", databaseType,
+            "dialects", List.of(databaseType),
+            "requiresTableName", requiresTable,
+            "scope", operation
+        );
+    }
+
+    private boolean parameterRequired(String parameterSchemaJson, String... names) {
+        Map<String, Object> schema = parameterSchema(parameterSchemaJson);
+        Object required = schema.get("required");
+        if (!(required instanceof Iterable<?> iterable)) {
+            return false;
+        }
+        Set<String> expected = new LinkedHashSet<>();
+        for (String name : names) {
+            if (name != null) {
+                expected.add(name.replace("_", "").toLowerCase(Locale.ROOT));
+            }
+        }
+        for (Object item : iterable) {
+            if (item != null && expected.contains(String.valueOf(item).replace("_", "").toLowerCase(Locale.ROOT))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private String targetLevelFromCategory(String category) {
+        String normalized = category == null ? "" : category.toLowerCase(Locale.ROOT);
+        if (normalized.contains("schema") || normalized.contains("storage")) {
+            return "SCHEMA";
+        }
+        return "INSTANCE";
+    }
+
+    private String operationFromCategory(String category) {
+        String normalized = category == null ? "" : category.toLowerCase(Locale.ROOT);
+        if (normalized.contains("lock")) {
+            return "LOCK_DIAGNOSTIC_QUERY";
+        }
+        if (normalized.contains("connection") || normalized.contains("session")) {
+            return "SESSION_DIAGNOSTIC_QUERY";
+        }
+        if (normalized.contains("storage")) {
+            return "STORAGE_DIAGNOSTIC_QUERY";
+        }
+        if (normalized.contains("metadata")) {
+            return "METADATA_QUERY";
+        }
+        return "INSTANCE_DIAGNOSTIC_QUERY";
+    }
+
+    private boolean containsAnyIgnoreCase(List<String> values, String... needles) {
+        if (values == null || values.isEmpty() || needles == null) {
+            return false;
+        }
+        for (String value : values) {
+            for (String needle : needles) {
+                if (containsIgnoreCase(value, needle)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private boolean containsIgnoreCase(String value, String needle) {
+        return value != null && needle != null
+            && value.toLowerCase(Locale.ROOT).contains(needle.toLowerCase(Locale.ROOT));
     }
 
     private Map<String, Object> templateMetadata(HttpEndpointConfig endpoint,

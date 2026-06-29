@@ -90,6 +90,8 @@ public class AgentOrchestrator {
     private final InterpretationPlanStore interpretationPlanStore;
     private final InterpretationPlanDagConverter interpretationPlanDagConverter = new InterpretationPlanDagConverter();
     private final SqlMetadataAnswerRenderer sqlMetadataAnswerRenderer = new SqlMetadataAnswerRenderer();
+    private final ExecutionGraphSemanticValidator executionGraphSemanticValidator = new ExecutionGraphSemanticValidator();
+    private final InterpretationPlanWorkflowGuard interpretationPlanWorkflowGuard = new InterpretationPlanWorkflowGuard();
 
     public AgentOrchestrator(ChatModel chatModel,
                              ToolRegistry toolRegistry,
@@ -841,6 +843,15 @@ public class AgentOrchestrator {
             metadata.put("confirmationRequired", true);
             return answerFinalizer.finishExecution("", traces, metadata, observations);
         }
+        InterpretationPlanWorkflowGuard.GuardResult firstWorkflowGuard = interpretationPlanWorkflowGuard.evaluate(
+            plan,
+            firstResult,
+            metadataStringList(metadata, "mandatoryTools"),
+            metadataStringList(runtimeAttributes, "workflowCompletedTools")
+        );
+        if (firstResult.success() && !firstWorkflowGuard.allowed()) {
+            firstResult = blockIncompleteWorkflow("initial", firstResult, firstWorkflowGuard, observations, metadata);
+        }
         if (firstResult.success()) {
             recordMandatoryWorkflowCompletion(traces, metadata, runtimeAttributes);
             String synthesizedAnswer = synthesizeInterpretationPlanAnswer(
@@ -941,6 +952,22 @@ public class AgentOrchestrator {
                 metadata.put("stopReason", "confirmation_required");
                 metadata.put("confirmationRequired", true);
                 return answerFinalizer.finishExecution("", traces, metadata, observations);
+            }
+            InterpretationPlanWorkflowGuard.GuardResult currentWorkflowGuard = interpretationPlanWorkflowGuard.evaluate(
+                currentPlan,
+                currentResult,
+                metadataStringList(metadata, "mandatoryTools"),
+                metadataStringList(runtimeAttributes, "workflowCompletedTools")
+            );
+            if (currentResult.success() && !currentWorkflowGuard.allowed()) {
+                currentResult = blockIncompleteWorkflow(
+                    rewriteCount == 1 ? "rewrite" : "rewrite" + rewriteCount,
+                    currentResult,
+                    currentWorkflowGuard,
+                    observations,
+                    metadata
+                );
+                continue;
             }
             if (currentResult.success()) {
                 recordMandatoryWorkflowCompletion(traces, metadata, runtimeAttributes);
@@ -1087,15 +1114,24 @@ public class AgentOrchestrator {
             stringValue(firstObject(payload, "reason", "analysis", "rationale")),
             "LLM DAG controller decision."
         );
-        String finalAnswer = stringValue(firstObject(payload, "final_answer", "finalAnswer", "answer"));
+        String reviewAnswer = firstNonBlank(
+            stringValue(firstObject(payload, "review_answer", "reviewAnswer")),
+            stringValue(firstObject(payload, "final_answer", "finalAnswer", "answer"))
+        );
         Map<String, Object> metadata = new LinkedHashMap<>();
         metadata.put("raw", preview(raw));
         metadata.put("controllerPhase", "llm_decision");
+        if (reviewAnswer != null && !reviewAnswer.isBlank()) {
+            metadata.put("reviewAnswer", reviewAnswer);
+        }
+        if (firstObject(payload, "final_answer", "finalAnswer") != null) {
+            metadata.put("legacyFinalAnswerFieldIgnored", true);
+        }
         Object confidence = firstObject(payload, "confidence", "score");
         if (confidence != null) {
             metadata.put("confidence", confidence);
         }
-        return new InterpretationPlanRuntime.DagDecision(protocolVersion, action, stepIds, reason, finalAnswer, metadata);
+        return new InterpretationPlanRuntime.DagDecision(protocolVersion, action, stepIds, reason, null, metadata);
     }
 
     private String buildInterpretationPlanDagDecisionPrompt(String query,
@@ -1121,14 +1157,15 @@ public class AgentOrchestrator {
         prompt.append("- completed_step_ids and executionLock are authoritative runtime state. Never re-run or override a completed/locked step, even if you think the state is contradictory.\n");
         prompt.append("- Do not select a step until all of its depends_on steps are in completed_step_ids.\n");
         prompt.append("- Use execute_parallel_steps only when execution_policy.allow_parallel is true and every selected step is independently ready.\n");
-        prompt.append("- Select the final_answer step only after its dependencies are complete and evidence is sufficient.\n");
+        prompt.append("- Select the final_answer step only when it is the last remaining executable step and evidence is sufficient.\n");
+        prompt.append("- Do not emit final_answer in your JSON. If you need to leave a diagnostic, write review_answer; Java will produce final_answer only from the final plan step.\n");
         prompt.append("- If a required dependency failed, request rewrite_plan or abort instead of forcing a dependent step.\n");
         prompt.append("- Do not call tools directly; Java will only execute the step ids you choose after safety validation.\n\n");
         prompt.append("User query:\n").append(query == null ? "" : query).append("\n\n");
         prompt.append("decision_count: ").append(request.decisionCount()).append("\n");
         prompt.append("remaining_step_ids: ").append(request.remainingStepIds() == null ? List.of() : request.remainingStepIds()).append("\n");
         prompt.append("completed_step_ids: ").append(request.completedStepIds() == null ? List.of() : request.completedStepIds()).append("\n");
-        prompt.append("current_final_answer_hint: ").append(firstNonBlank(request.finalAnswer(), "")).append("\n\n");
+        prompt.append("current_review_answer_hint: ").append(firstNonBlank(request.finalAnswer(), "")).append("\n\n");
         prompt.append("Full InterpretationPlan:\n")
             .append(stringify(request.plan()))
             .append("\n\n");
@@ -1218,11 +1255,19 @@ public class AgentOrchestrator {
             metadata.put("interpretationPlanSummaryStage", stage);
             metadata.put("interpretationPlanStoredObservationCount", storedObservations.size());
         }
-        String structuredSqlMetadata = sqlMetadataAnswerRenderer.render(result);
+        SqlMetadataAnswerRenderer.RenderedSqlMetadata renderedSqlMetadata = sqlMetadataAnswerRenderer.renderEvidence(result);
+        String structuredSqlMetadata = renderedSqlMetadata.markdown();
         if (!structuredSqlMetadata.isBlank()) {
             if (metadata != null) {
                 metadata.put("structuredSqlMetadataRendered", true);
                 metadata.put("structuredSqlMetadataPreview", preview(structuredSqlMetadata));
+                metadata.put("sqlMetadataFact", renderedSqlMetadata.metadata());
+                metadata.put("sqlMetadataSemanticGatePassed", renderedSqlMetadata.metadata().get("semanticGatePassed"));
+                metadata.put("sqlMetadataSemanticGateReason", renderedSqlMetadata.metadata().get("semanticGateReason"));
+                Map<String, Object> graphSemanticState = executionGraphSemanticValidator.validate(query, result, renderedSqlMetadata.metadata());
+                metadata.put("executionGraphSemanticState", graphSemanticState);
+                metadata.put("executionGraphSemanticPassed", graphSemanticState.get("passed"));
+                metadata.put("executionGraphSemanticReason", graphSemanticState.get("reason"));
             }
             answer = mergeStructuredSqlMetadataAnswer(structuredSqlMetadata, answer);
         }
@@ -1399,6 +1444,16 @@ public class AgentOrchestrator {
         );
         Map<String, Object> metadata = new LinkedHashMap<>();
         metadata.put("toolResultReviewRaw", preview(raw));
+        String reviewAnswer = firstNonBlank(
+            stringValue(firstObject(payload, "review_answer", "reviewAnswer")),
+            stringValue(firstObject(payload, "final_answer", "finalAnswer", "answer"))
+        );
+        if (reviewAnswer != null && !reviewAnswer.isBlank()) {
+            metadata.put("reviewAnswer", reviewAnswer);
+        }
+        if (firstObject(payload, "final_answer", "finalAnswer") != null) {
+            metadata.put("reviewFinalAnswerFieldIgnored", true);
+        }
         List<String> selectedUrls = stringList(firstObject(payload, "selected_urls", "selectedUrls", "urls"));
         if (!selectedUrls.isEmpty()) {
             metadata.put("selectedUrls", selectedUrls);
@@ -1443,7 +1498,7 @@ public class AgentOrchestrator {
         }
         prompt.append("You are the runtime reviewer for one completed MCP tool call.\n");
         prompt.append("Return strict JSON only with this shape:\n");
-        prompt.append("{\"satisfied\":true|false,\"reason\":\"short reason\",\"selected_urls\":[\"https://...\"],\"useful_refs\":[\"doc://...#chunk=0\"],\"rejected_refs\":[\"doc://...#chunk=1\"],\"relevance\":0.0,\"answerability\":0.0,\"supportsQuestionAspect\":[\"process\"],\"missingAspects\":[\"constraints\"],\"usefulness\":\"HIGH|MEDIUM|LOW\",\"shouldExpandQuery\":true|false,\"confidence\":0.0}\n");
+        prompt.append("{\"satisfied\":true|false,\"reason\":\"short reason\",\"review_answer\":\"optional audit note, not user-facing final answer\",\"selected_urls\":[\"https://...\"],\"useful_refs\":[\"doc://...#chunk=0\"],\"rejected_refs\":[\"doc://...#chunk=1\"],\"relevance\":0.0,\"answerability\":0.0,\"supportsQuestionAspect\":[\"process\"],\"missingAspects\":[\"constraints\"],\"usefulness\":\"HIGH|MEDIUM|LOW\",\"shouldExpandQuery\":true|false,\"confidence\":0.0}\n");
         prompt.append("Rules:\n");
         prompt.append("- Decide whether this tool output is sufficient for the current plan step and user request.\n");
         prompt.append("- If satisfied=false, the DAG must not continue to dependent steps.\n");
@@ -1457,6 +1512,7 @@ public class AgentOrchestrator {
         prompt.append("- Treat retrieval score as a weak prior only. Your semantic evidence evaluation must state relevance, answerability, supported aspects, missing aspects, usefulness, and whether another query expansion is needed.\n");
         prompt.append("- If the user required an official source, reject results that do not satisfy that source constraint.\n");
         prompt.append("- Do not answer the user here; only review the tool result.\n\n");
+        prompt.append("- Never write final_answer/finalAnswer in this reviewer JSON. If you need to propose wording for audit, write review_answer; it will not become the user-facing answer.\n");
         prompt.append("Attempt: ").append(request.attempt()).append('/').append(request.maxAttempts()).append("\n");
         prompt.append("User query:\n").append(query == null ? "" : query).append("\n\n");
         InterpretationPlan plan = request.plan();
@@ -1752,6 +1808,51 @@ public class AgentOrchestrator {
         List<Map<String, Object>> values = new ArrayList<>();
         metadata.put(key, values);
         return values;
+    }
+
+    private List<String> metadataStringList(Map<String, Object> metadata, String key) {
+        if (metadata == null || key == null || key.isBlank()) {
+            return List.of();
+        }
+        Object value = metadata.get(key);
+        if (!(value instanceof List<?> list) || list.isEmpty()) {
+            return List.of();
+        }
+        return list.stream()
+            .filter(item -> item != null && !String.valueOf(item).isBlank())
+            .map(String::valueOf)
+            .toList();
+    }
+
+    @SuppressWarnings("unchecked")
+    private InterpretationPlanRuntime.ExecutionResult blockIncompleteWorkflow(
+        String stage,
+        InterpretationPlanRuntime.ExecutionResult result,
+        InterpretationPlanWorkflowGuard.GuardResult guard,
+        List<String> observations,
+        Map<String, Object> metadata
+    ) {
+        Map<String, Object> guardMetadata = guard == null || guard.metadata() == null ? Map.of() : guard.metadata();
+        metadata.put("interpretationPlanWorkflowBlocked", true);
+        metadata.put("interpretationPlanWorkflowBlockedStage", stage);
+        metadata.put("interpretationPlanWorkflowGuard", guardMetadata);
+        metadata.put("interpretationPlanWorkflowMissingTools", guard == null ? List.of() : guard.missingRequiredTools());
+        observations.add("InterpretationPlan final answer blocked: configured MCP workflow must complete before final answer. Missing: "
+            + (guard == null ? List.of() : guard.missingRequiredTools()));
+        Map<String, Object> resultMetadata = new LinkedHashMap<>(result.metadata() == null ? Map.of() : result.metadata());
+        resultMetadata.put("workflowGuard", guardMetadata);
+        return new InterpretationPlanRuntime.ExecutionResult(
+            "MCP_WORKFLOW_INCOMPLETE",
+            false,
+            false,
+            guard == null || guard.reason() == null || guard.reason().isBlank()
+                ? "Configured MCP workflow is incomplete"
+                : guard.reason(),
+            result.finalAnswer(),
+            result.steps(),
+            resultMetadata,
+            result.durationMs()
+        );
     }
 
     private String planStepObservation(String stage, InterpretationPlanRuntime.StepExecution step) {

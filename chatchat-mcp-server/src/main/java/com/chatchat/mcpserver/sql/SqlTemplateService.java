@@ -13,6 +13,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -23,6 +24,42 @@ public class SqlTemplateService {
 
     private static final int LOG_SQL_LIMIT = 4000;
     private static final Pattern TOKEN = Pattern.compile("\\{\\{\\s*([A-Za-z0-9_.-]+)\\s*}}");
+    private static final Set<String> RAW_SQL_PARAMETER_KEYS = Set.of(
+        "sql",
+        "rawsql",
+        "raw_sql",
+        "statement",
+        "query"
+    );
+    private static final Set<String> SQL_FRAGMENT_PARAMETER_KEYS = Set.of(
+        "where",
+        "whereclause",
+        "where_clause",
+        "condition",
+        "conditions",
+        "filter",
+        "filterexpression",
+        "filter_expression",
+        "orderby",
+        "order_by",
+        "groupby",
+        "group_by",
+        "having",
+        "join",
+        "joinon",
+        "join_on",
+        "predicate",
+        "expression",
+        "sqlfragment",
+        "sql_fragment",
+        "clause"
+    );
+    private static final Pattern SQL_STATEMENT_TOKEN = Pattern.compile(
+        "(?is)(;|--|/\\*|\\*/|\\b(select|show|insert|update|delete|merge|drop|alter|create|truncate|grant|revoke|union|with)\\b)"
+    );
+    private static final Pattern SQL_FRAGMENT_TOKEN = Pattern.compile(
+        "(?is)(;|--|/\\*|\\*/|\\b(select|show|insert|update|delete|merge|drop|alter|create|truncate|grant|revoke|union|with|from|where|join|order\\s+by|group\\s+by|having)\\b)"
+    );
     private static final List<String> RETIRED_DEFAULT_CODES = List.of(
         "CHECK_TABLE_COUNT",
         "CHECK_RECENT_DATA",
@@ -102,6 +139,7 @@ public class SqlTemplateService {
             .filter(SqlTemplateConfig::isEnabled)
             .orElseThrow(() -> new IllegalArgumentException("SQL template not found or disabled: " + code));
         assertCompatible(config, datasource);
+        rejectUndeclaredRawSqlParameters(config, parameters);
         Map<String, Object> collectedParameters = parameterValidator.collect(
             config.getParameterSchemaJson(),
             parameters,
@@ -264,6 +302,89 @@ public class SqlTemplateService {
             // Invalid stale allowlists are treated as legacy unconfigured assets.
         }
         return List.of();
+    }
+
+    private void rejectUndeclaredRawSqlParameters(SqlTemplateConfig config, Map<String, Object> parameters) {
+        if (parameters == null || parameters.isEmpty()) {
+            return;
+        }
+        Set<String> declared = declaredParameterNames(config.getParameterSchemaJson());
+        for (String name : parameters.keySet()) {
+            String normalized = normalizeParameterName(name);
+            if (RAW_SQL_PARAMETER_KEYS.contains(normalized) && !declared.contains(normalized)) {
+                throw new IllegalArgumentException("SQL template " + config.getCode()
+                    + " does not accept parameter " + name
+                    + ". Pass raw SQL as top-level sql without templateId, or use a template that declares this parameter.");
+            }
+            if (RAW_SQL_PARAMETER_KEYS.contains(normalized)) {
+                throw new IllegalArgumentException("SQL template " + config.getCode()
+                    + " does not allow raw SQL parameter " + name
+                    + ". SQL templates are strict and must use typed parameters only.");
+            }
+            if (SQL_FRAGMENT_PARAMETER_KEYS.contains(normalized)) {
+                throw new IllegalArgumentException("SQL template " + config.getCode()
+                    + " does not allow SQL fragment parameter " + name
+                    + ". Use a static template with typed parameters, or add an AST-validated flex template implementation.");
+            }
+            rejectSqlStructureInValue(config, name, parameters.get(name), SQL_STATEMENT_TOKEN);
+        }
+    }
+
+    private void rejectSqlStructureInValue(SqlTemplateConfig config, String name, Object value, Pattern pattern) {
+        if (value == null) {
+            return;
+        }
+        if (value instanceof Map<?, ?> map) {
+            for (Map.Entry<?, ?> entry : map.entrySet()) {
+                rejectSqlStructureInValue(config, name + "." + entry.getKey(), entry.getValue(), SQL_FRAGMENT_TOKEN);
+            }
+            return;
+        }
+        if (value instanceof Iterable<?> iterable) {
+            int index = 0;
+            for (Object item : iterable) {
+                rejectSqlStructureInValue(config, name + "[" + index++ + "]", item, SQL_FRAGMENT_TOKEN);
+            }
+            return;
+        }
+        if (!(value instanceof CharSequence)) {
+            return;
+        }
+        String text = String.valueOf(value);
+        if (text.isBlank() || !pattern.matcher(text).find()) {
+            return;
+        }
+        throw new IllegalArgumentException("SQL template " + config.getCode()
+            + " parameter " + name
+            + " contains SQL syntax. SQL templates are strict; select a registered template and pass typed values only.");
+    }
+
+    private Set<String> declaredParameterNames(String schemaJson) {
+        if (schemaJson == null || schemaJson.isBlank()) {
+            return Set.of();
+        }
+        try {
+            Object value = objectMapper.readValue(schemaJson, Object.class);
+            Map<String, Object> schema = objectMap(value);
+            Map<String, Object> properties = objectMap(schema.get("properties"));
+            if (properties.isEmpty()) {
+                return Set.of();
+            }
+            return properties.keySet().stream()
+                .map(this::normalizeParameterName)
+                .collect(java.util.stream.Collectors.toSet());
+        } catch (Exception ex) {
+            throw new IllegalArgumentException("Template parameterSchema is invalid");
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> objectMap(Object value) {
+        return value instanceof Map<?, ?> map ? (Map<String, Object>) map : Map.of();
+    }
+
+    private String normalizeParameterName(String name) {
+        return name == null ? "" : name.trim().toLowerCase(Locale.ROOT);
     }
 
     private String normalizeRisk(String riskLevel) {

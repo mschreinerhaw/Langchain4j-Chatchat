@@ -112,6 +112,9 @@ public class InterpretationPlanRewriter {
         prompt.append("SQL template repair rules:\n");
         prompt.append("- If a failed sql_query_execute step used input.parameters.sql/rawSql/query/statement, remove that raw SQL parameter and replan through sql datasource template_query.\n");
         prompt.append("- Bind a returned templates[].templateId into sql_query_execute.templateId and pass only parameters declared by templates[].parameterSchema.\n");
+        prompt.append("- sql_query_execute must include executionContext from asset discovery, for example {\"assetName\":\"<asset-name>\",\"env\":\"<env>\"}; do not put routing fields only under parameters.\n");
+        prompt.append("- When using sql_query_plan, its input must use question, tables[], and executionContext. Do not use userQuery or context.targetTable.\n");
+        prompt.append("- Never bind asset_query assets[].asset.name into parameters.schemaName. Asset name is routing context; schemaName/databaseName must come from sql_query_plan resolvedTables or a table-location template.\n");
         prompt.append("- Do not invent SQL or template IDs; use the already observed template_query result or add a new template_query step before sql_query_execute.\n\n");
         prompt.append("InterpretationPlan JSON Schema:\n").append(InterpretationPlanJsonSchema.SCHEMA).append("\n\n");
         prompt.append("Available tools:\n").append(request.availableTools() == null ? List.of() : request.availableTools()).append("\n");

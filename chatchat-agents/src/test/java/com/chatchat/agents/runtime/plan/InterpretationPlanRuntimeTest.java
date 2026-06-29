@@ -661,6 +661,117 @@ class InterpretationPlanRuntimeTest {
 
     @Test
     @SuppressWarnings("unchecked")
+    void normalizesSqlQueryPlanAliasInputAndHydratesExecutionContext() throws Exception {
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            mock(ToolRuntimeService.class),
+            new InterpretationPlanValidator(),
+            mock(InterpretationPlanRuntime.DagExecutionController.class)
+        );
+        InterpretationPlan.Step step = new InterpretationPlan.Step(
+            2,
+            "mcp_tool",
+            "mcp_chatchat_mcp_server_sql_query_plan",
+            Map.of(
+                "userQuery", "Analyze lbappdeploydetail metadata",
+                "context", Map.of("targetTable", "lbappdeploydetail")
+            ),
+            List.of(1),
+            null,
+            null
+        );
+        Method method = InterpretationPlanRuntime.class.getDeclaredMethod(
+            "resolvedStepInput",
+            InterpretationPlan.Step.class,
+            InterpretationPlanRuntime.ExecutionRequest.class,
+            Map.class
+        );
+        method.setAccessible(true);
+
+        Map<String, Object> resolved = (Map<String, Object>) method.invoke(
+            runtime,
+            step,
+            new InterpretationPlanRuntime.ExecutionRequest(
+                minimalPlan(step),
+                mock(ToolRegistry.class),
+                List.of("mcp_chatchat_mcp_server_sql_query_plan"),
+                "tenant-1",
+                "req-plan-normalize",
+                "conv-plan-normalize",
+                "user-1",
+                Map.of()
+            ),
+            Map.of(1, completedSqlAssetStep())
+        );
+
+        assertThat(resolved)
+            .containsEntry("question", "Analyze lbappdeploydetail metadata")
+            .doesNotContainKey("userQuery");
+        assertThat((List<String>) resolved.get("tables")).containsExactly("lbappdeploydetail");
+        Map<String, Object> executionContext = (Map<String, Object>) resolved.get("executionContext");
+        assertThat(executionContext)
+            .containsEntry("assetName", "248测试数据库")
+            .containsEntry("env", "DEV");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void hydratesSqlExecuteContextAndRemovesAssetNameMisboundAsSchemaName() throws Exception {
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            mock(ToolRuntimeService.class),
+            new InterpretationPlanValidator(),
+            mock(InterpretationPlanRuntime.DagExecutionController.class)
+        );
+        InterpretationPlan.Step step = new InterpretationPlan.Step(
+            2,
+            "mcp_tool",
+            "mcp_chatchat_mcp_server_sql_query_execute",
+            Map.of(
+                "templateId", "MYSQL_TABLE_METADATA",
+                "parameters", Map.of(
+                    "tableName", "lbappdeploydetail",
+                    "schemaName", "248测试数据库"
+                )
+            ),
+            List.of(1),
+            null,
+            null
+        );
+        Method method = InterpretationPlanRuntime.class.getDeclaredMethod(
+            "resolvedStepInput",
+            InterpretationPlan.Step.class,
+            InterpretationPlanRuntime.ExecutionRequest.class,
+            Map.class
+        );
+        method.setAccessible(true);
+
+        Map<String, Object> resolved = (Map<String, Object>) method.invoke(
+            runtime,
+            step,
+            new InterpretationPlanRuntime.ExecutionRequest(
+                minimalPlan(step),
+                mock(ToolRegistry.class),
+                List.of("mcp_chatchat_mcp_server_sql_query_execute"),
+                "tenant-1",
+                "req-sql-context-normalize",
+                "conv-sql-context-normalize",
+                "user-1",
+                Map.of()
+            ),
+            Map.of(1, completedSqlAssetStep())
+        );
+
+        Map<String, Object> executionContext = (Map<String, Object>) resolved.get("executionContext");
+        assertThat(executionContext)
+            .containsEntry("assetName", "248测试数据库")
+            .containsEntry("env", "DEV");
+        Map<String, Object> parameters = (Map<String, Object>) resolved.get("parameters");
+        assertThat(parameters)
+            .containsEntry("tableName", "lbappdeploydetail")
+            .doesNotContainKey("schemaName");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
     void injectsDatabaseRoutingDecisionForAssetDiscoveryWhenPlannerOnlyProvidedFilters() throws Exception {
         InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
             mock(ToolRuntimeService.class),
@@ -1064,7 +1175,10 @@ class InterpretationPlanRuntimeTest {
                             "limit", 3
                         ), List.of(), null, null),
                     new InterpretationPlan.Step(2, "mcp_tool", "mcp_chatchat_mcp_server_sql_query_execute",
-                        Map.of("parameters", Map.of("table", "user_info_file")), List.of(1), null, null),
+                        Map.of(
+                            "executionContext", Map.of("assetName", "test_mysql_database", "env", "DEV"),
+                            "parameters", Map.of("table", "user_info_file")
+                        ), List.of(1), null, null),
                     new InterpretationPlan.Step(3, "final_answer", "", Map.of("answer", "done"), List.of(2), null, null)
                 ),
                 List.of(),
@@ -1163,7 +1277,7 @@ class InterpretationPlanRuntimeTest {
                     new InterpretationPlan.Step(2, "mcp_tool", "mcp_chatchat_mcp_server_sql_datasource_template_query",
                         Map.of("filters", Map.of("intent", "table metadata"), "finalDecision", "database"), List.of(1), null, null),
                     new InterpretationPlan.Step(3, "mcp_tool", "mcp_chatchat_mcp_server_sql_query_execute",
-                        Map.of("parameters", Map.of("database", "test", "table", "user_info_file")), List.of(2), null, null),
+                        Map.of("parameters", Map.of("database", "test", "table", "user_info_file")), List.of(1, 2), null, null),
                     new InterpretationPlan.Step(4, "final_answer", "", Map.of("answer", "done"), List.of(3), null, null)
                 ),
                 List.of(),
@@ -1257,7 +1371,10 @@ class InterpretationPlanRuntimeTest {
                     new InterpretationPlan.Step(1, "mcp_tool", "mcp_chatchat_mcp_server_sql_datasource_template_query",
                         Map.of("filters", Map.of("intent", "table metadata"), "finalDecision", "database"), List.of(), null, null),
                     new InterpretationPlan.Step(2, "mcp_tool", "mcp_chatchat_mcp_server_sql_query_execute",
-                        Map.of("parameters", Map.of("database", "test", "table", "user_info_file")), List.of(1), null, null),
+                        Map.of(
+                            "executionContext", Map.of("assetName", "test_mysql_database", "env", "DEV"),
+                            "parameters", Map.of("database", "test", "table", "user_info_file")
+                        ), List.of(1), null, null),
                     new InterpretationPlan.Step(3, "final_answer", "", Map.of("answer", "done"), List.of(2), null, null)
                 ),
                 List.of(new InterpretationPlan.EdgeContract(1, 2, "templateId", "string", true)),
@@ -1342,7 +1459,10 @@ class InterpretationPlanRuntimeTest {
                     new InterpretationPlan.Step(1, "mcp_tool", "mcp_chatchat_mcp_server_sql_datasource_template_query",
                         Map.of("filters", Map.of("intent", "table metadata"), "finalDecision", "database"), List.of(), null, null),
                     new InterpretationPlan.Step(2, "mcp_tool", "mcp_chatchat_mcp_server_sql_query_execute",
-                        Map.of("parameters", Map.of("table_name", "user_info_file")), List.of(1), null, null),
+                        Map.of(
+                            "executionContext", Map.of("assetName", "test_mysql_database", "env", "DEV"),
+                            "parameters", Map.of("table_name", "user_info_file")
+                        ), List.of(1), null, null),
                     new InterpretationPlan.Step(3, "final_answer", "", Map.of("answer", "done"), List.of(2), null, null)
                 ),
                 List.of(),
@@ -2064,6 +2184,34 @@ class InterpretationPlanRuntimeTest {
             )),
             new InterpretationPlan.ExecutionPolicy(2, false, List.of("mcp_chatchat_mcp_server_sql_query_execute"), List.of(), 30000),
             review()
+        );
+    }
+
+    private InterpretationPlanRuntime.StepExecution completedSqlAssetStep() {
+        Map<String, Object> asset = Map.of(
+            "asset", Map.of(
+                "id", "datasource-248",
+                "name", "248测试数据库",
+                "environment", "DEV",
+                "toolName", "db_query_mysql_248_test_db",
+                "databaseType", "mysql"
+            ),
+            "executionContext", Map.of(
+                "assetName", "248测试数据库",
+                "env", "DEV",
+                "databaseType", "mysql"
+            )
+        );
+        return new InterpretationPlanRuntime.StepExecution(
+            1,
+            "mcp_tool",
+            "mcp_chatchat_mcp_server_sql_datasource_asset_query",
+            true,
+            Map.of("assets", List.of(asset), "selectedAsset", asset),
+            null,
+            null,
+            null,
+            10L
         );
     }
 

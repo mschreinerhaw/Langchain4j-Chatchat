@@ -1059,7 +1059,9 @@ public class InterpretationPlanRuntime {
         Map<String, Object> input = new LinkedHashMap<>(step.input() == null ? Map.of() : step.input());
         InterpretationPlan plan = request == null ? null : request.plan();
         applyBindings(step, plan, completed, input);
+        normalizeSqlQueryPlanInput(step, input);
         hydrateExecutionContextFromCompletedAssets(step, completed, input);
+        normalizeSqlExecutionContext(step, input);
         normalizeTemplateExecutionParameters(step, completed, input);
         repairTableScopedSqlTemplate(step, completed, input);
         normalizeDiscoveryRoutingInput(step, request, input);
@@ -1072,6 +1074,112 @@ public class InterpretationPlanRuntime {
         }
         input.put("url", selectedUrls.get(0));
         return input;
+    }
+
+    @SuppressWarnings("unchecked")
+    private void normalizeSqlQueryPlanInput(InterpretationPlan.Step step, Map<String, Object> input) {
+        if (step == null || input == null || !isSqlQueryPlanTool(step.toolName())) {
+            return;
+        }
+        Object userQuery = input.remove("userQuery");
+        if (!hasNonBlank(input, "question") && userQuery != null && !String.valueOf(userQuery).isBlank()) {
+            input.put("question", String.valueOf(userQuery));
+        }
+        Object contextValue = input.get("context");
+        if (contextValue instanceof Map<?, ?> contextMap) {
+            Map<String, Object> context = new LinkedHashMap<>((Map<String, Object>) contextMap);
+            Object table = firstNonBlankObject(
+                context.remove("targetTable"),
+                context.remove("target_table"),
+                context.remove("tableName"),
+                context.remove("table_name"),
+                context.remove("table")
+            );
+            if (table != null && !String.valueOf(table).isBlank()
+                && firstValueAtAnyPath(input, "$.tables[0]", "$.tableName", "$.table_name", "$.table") == null) {
+                input.put("tables", List.of(String.valueOf(table)));
+            }
+            Object existingExecutionContext = firstMapValue(input, "executionContext", "mcpExecutionContext");
+            Map<String, Object> executionContext = existingExecutionContext instanceof Map<?, ?> map
+                ? new LinkedHashMap<>((Map<String, Object>) map)
+                : new LinkedHashMap<>();
+            moveContextValue(context, executionContext, "assetName", "assetName", "asset_name", "databaseHint", "database_hint");
+            moveContextValue(context, executionContext, "env", "env", "environment");
+            moveContextValue(context, executionContext, "databaseType", "databaseType", "dbType", "dialect");
+            if (!executionContext.isEmpty()) {
+                input.put("executionContext", executionContext);
+            }
+            if (context.isEmpty()) {
+                input.remove("context");
+            } else {
+                input.put("context", context);
+            }
+        }
+    }
+
+    private void moveContextValue(Map<String, Object> source, Map<String, Object> target, String targetKey, String... sourceKeys) {
+        if (source == null || target == null || target.containsKey(targetKey)) {
+            return;
+        }
+        for (String key : sourceKeys) {
+            Object value = source.remove(key);
+            if (value != null && !String.valueOf(value).isBlank()) {
+                target.put(targetKey, String.valueOf(value));
+                return;
+            }
+        }
+    }
+
+    @SuppressWarnings("unchecked")
+    private void normalizeSqlExecutionContext(InterpretationPlan.Step step, Map<String, Object> input) {
+        if (step == null || input == null || !isSqlQueryExecuteTool(step.toolName())) {
+            return;
+        }
+        Object existing = firstMapValue(input, "executionContext", "mcpExecutionContext");
+        Map<String, Object> executionContext = existing instanceof Map<?, ?> map
+            ? new LinkedHashMap<>((Map<String, Object>) map)
+            : new LinkedHashMap<>();
+        Object parametersValue = input.get("parameters");
+        if (parametersValue instanceof Map<?, ?> parametersMap) {
+            Map<String, Object> parameters = new LinkedHashMap<>((Map<String, Object>) parametersMap);
+            removeRoutingSchemaMistakes(parameters, executionContext);
+            input.put("parameters", parameters);
+        }
+        if (!executionContext.isEmpty()) {
+            input.put("executionContext", executionContext);
+        }
+    }
+
+    private void removeRoutingSchemaMistakes(Map<String, Object> parameters, Map<String, Object> executionContext) {
+        if (parameters == null || parameters.isEmpty() || executionContext == null || executionContext.isEmpty()) {
+            return;
+        }
+        Object assetName = firstNonBlankObject(
+            executionContext.get("assetName"),
+            executionContext.get("asset_name"),
+            executionContext.get("name")
+        );
+        if (assetName == null || String.valueOf(assetName).isBlank()) {
+            return;
+        }
+        for (String key : List.of("schemaName", "schema_name", "schema", "databaseName", "database_name", "database")) {
+            Object value = parameters.get(key);
+            if (value != null && String.valueOf(assetName).equals(String.valueOf(value))) {
+                parameters.remove(key);
+            }
+        }
+    }
+
+    private Object firstNonBlankObject(Object... values) {
+        if (values == null) {
+            return null;
+        }
+        for (Object value : values) {
+            if (value != null && !String.valueOf(value).isBlank()) {
+                return value;
+            }
+        }
+        return null;
     }
 
     @SuppressWarnings("unchecked")
@@ -1923,6 +2031,11 @@ public class InterpretationPlanRuntime {
         return "sql_query_execute".equals(semantic) || semantic.endsWith("_sql_query_execute");
     }
 
+    private boolean isSqlQueryPlanTool(String toolName) {
+        String semantic = toolSemanticKey(toolName);
+        return "sql_query_plan".equals(semantic) || semantic.endsWith("_sql_query_plan");
+    }
+
     private boolean isRoutingDiscoveryTool(String toolName) {
         return isAssetDiscoveryTool(toolName) || isTemplateDiscoveryTool(toolName);
     }
@@ -1930,6 +2043,7 @@ public class InterpretationPlanRuntime {
     private boolean isExecutionContextTool(String toolName) {
         String semantic = toolSemanticKey(toolName);
         return semantic.equals("sql_query_execute")
+            || semantic.equals("sql_query_plan")
             || semantic.equals("database_query")
             || semantic.equals("database_query_execute")
             || semantic.equals("database_execute")

@@ -237,6 +237,196 @@ class InterpretationPlanValidatorTest {
     }
 
     @Test
+    void rejectsSqlQueryPlanAliasPayloadThatOmitsRequiredQuestionAndTables() {
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool("mcp_chatchat_mcp_server_sql_query_plan")).thenReturn(true);
+        when(toolRegistry.getToolMetadata("mcp_chatchat_mcp_server_sql_query_plan"))
+            .thenReturn(ToolMetadata.builder()
+                .id("mcp_chatchat_mcp_server_sql_query_plan")
+                .riskLevel("low")
+                .build());
+
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("data_query", "Analyze table metadata", "low"),
+            context(),
+            new InterpretationPlan.Plan(List.of(
+                new InterpretationPlan.Step(
+                    1,
+                    "mcp_tool",
+                    "mcp_chatchat_mcp_server_sql_query_plan",
+                    Map.of(
+                        "userQuery", "analyze lbappdeploydetail",
+                        "context", Map.of("targetTable", "lbappdeploydetail"),
+                        "executionContext", Map.of("assetName", "248测试数据库", "env", "DEV")
+                    ),
+                    List.of(),
+                    null,
+                    null
+                ),
+                finalStep(2, List.of(1))
+            )),
+            new InterpretationPlan.ExecutionPolicy(
+                3,
+                false,
+                List.of("mcp_chatchat_mcp_server_sql_query_plan"),
+                List.of(),
+                30000
+            ),
+            review(true)
+        );
+
+        InterpretationPlanValidator.ValidationResult result = validator.validate(
+            plan,
+            toolRegistry,
+            Set.of("mcp_chatchat_mcp_server_sql_query_plan")
+        );
+
+        assertThat(result.valid()).isFalse();
+        assertThat(result.errors()).extracting(InterpretationPlanValidator.ValidationIssue::message)
+            .anyMatch(message -> message.contains("sql_query_plan requires input.question"))
+            .anyMatch(message -> message.contains("tables[] or tableName"));
+    }
+
+    @Test
+    void rejectsAssetNameSchemaBindingForSqlExecute() {
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool("mcp_chatchat_mcp_server_sql_datasource_asset_query")).thenReturn(true);
+        when(toolRegistry.hasTool("mcp_chatchat_mcp_server_sql_query_execute")).thenReturn(true);
+        when(toolRegistry.getToolMetadata("mcp_chatchat_mcp_server_sql_datasource_asset_query"))
+            .thenReturn(ToolMetadata.builder()
+                .id("mcp_chatchat_mcp_server_sql_datasource_asset_query")
+                .riskLevel("low")
+                .build());
+        when(toolRegistry.getToolMetadata("mcp_chatchat_mcp_server_sql_query_execute"))
+            .thenReturn(ToolMetadata.builder()
+                .id("mcp_chatchat_mcp_server_sql_query_execute")
+                .riskLevel("low")
+                .build());
+
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("data_query", "Analyze table metadata", "low"),
+            context(),
+            new InterpretationPlan.Plan(
+                List.of(
+                    new InterpretationPlan.Step(
+                        1,
+                        "mcp_tool",
+                        "mcp_chatchat_mcp_server_sql_datasource_asset_query",
+                        Map.of("filters", Map.of("assetName", "248测试数据库"), "trace", Map.of("plannerVersion", "v1")),
+                        List.of(),
+                        null,
+                        null
+                    ),
+                    new InterpretationPlan.Step(
+                        2,
+                        "mcp_tool",
+                        "mcp_chatchat_mcp_server_sql_query_execute",
+                        Map.of(
+                            "templateId", "MYSQL_TABLE_METADATA",
+                            "parameters", Map.of("tableName", "lbappdeploydetail")
+                        ),
+                        List.of(1),
+                        null,
+                        null
+                    ),
+                    finalStep(3, List.of(2))
+                ),
+                List.of(),
+                List.of(new InterpretationPlan.Binding(
+                    1,
+                    "$.assets[0].asset.name",
+                    2,
+                    "parameters.schemaName",
+                    "jsonpath",
+                    false
+                )),
+                null
+            ),
+            new InterpretationPlan.ExecutionPolicy(
+                4,
+                false,
+                List.of(
+                    "mcp_chatchat_mcp_server_sql_datasource_asset_query",
+                    "mcp_chatchat_mcp_server_sql_query_execute"
+                ),
+                List.of(),
+                30000
+            ),
+            review(true)
+        );
+
+        InterpretationPlanValidator.ValidationResult result = validator.validate(
+            plan,
+            toolRegistry,
+            Set.of(
+                "mcp_chatchat_mcp_server_sql_datasource_asset_query",
+                "mcp_chatchat_mcp_server_sql_query_execute"
+            )
+        );
+
+        assertThat(result.valid()).isFalse();
+        assertThat(result.errors()).extracting(InterpretationPlanValidator.ValidationIssue::message)
+            .anyMatch(message -> message.contains("Do not bind asset_query assets[].asset.name"));
+    }
+
+    @Test
+    void rejectsSqlExecuteWithoutAnyExecutionContextSource() {
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool("mcp_chatchat_mcp_server_sql_query_execute")).thenReturn(true);
+        when(toolRegistry.getToolMetadata("mcp_chatchat_mcp_server_sql_query_execute"))
+            .thenReturn(ToolMetadata.builder()
+                .id("mcp_chatchat_mcp_server_sql_query_execute")
+                .riskLevel("low")
+                .build());
+
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("data_query", "Analyze table metadata", "low"),
+            context(),
+            new InterpretationPlan.Plan(
+                List.of(
+                    new InterpretationPlan.Step(
+                        1,
+                        "mcp_tool",
+                        "mcp_chatchat_mcp_server_sql_query_execute",
+                        Map.of(
+                            "templateId", "MYSQL_TABLE_METADATA",
+                            "parameters", Map.of("tableName", "lbappdeploydetail")
+                        ),
+                        List.of(),
+                        null,
+                        null
+                    ),
+                    finalStep(2, List.of(1))
+                ),
+                List.of(),
+                List.of(),
+                null
+            ),
+            new InterpretationPlan.ExecutionPolicy(
+                2,
+                false,
+                List.of("mcp_chatchat_mcp_server_sql_query_execute"),
+                List.of(),
+                30000
+            ),
+            review(true)
+        );
+
+        InterpretationPlanValidator.ValidationResult result = validator.validate(
+            plan,
+            toolRegistry,
+            Set.of("mcp_chatchat_mcp_server_sql_query_execute")
+        );
+
+        assertThat(result.valid()).isFalse();
+        assertThat(result.errors()).extracting(InterpretationPlanValidator.ValidationIssue::message)
+            .anyMatch(message -> message.contains("sql_query_execute requires logical executionContext"));
+    }
+
+    @Test
     void deserializesSnakeCaseJsonPlan() throws Exception {
         ObjectMapper objectMapper = new ObjectMapper();
 

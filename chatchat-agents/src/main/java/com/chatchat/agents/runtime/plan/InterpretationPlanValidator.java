@@ -176,7 +176,8 @@ public class InterpretationPlanValidator {
             state.error(path + ".tool_name", "Tool is not registered or available: " + step.toolName());
         }
         validateToolInput(plan, step, path, toolRegistry, state);
-        validateSqlTemplateExecutionContract(step, path, state);
+        validateSqlQueryPlanContract(plan, step, path, state);
+        validateSqlTemplateExecutionContract(plan, step, path, state);
         if (isHighRisk(plan, step, toolRegistry) && !containsTool(allowTools, step.toolName())) {
             state.approval(path + ".tool_name", "High-risk tool requires explicit allow_tool approval: " + step.toolName());
         }
@@ -206,7 +207,8 @@ public class InterpretationPlanValidator {
         }
     }
 
-    private void validateSqlTemplateExecutionContract(InterpretationPlan.Step step,
+    private void validateSqlTemplateExecutionContract(InterpretationPlan plan,
+                                                      InterpretationPlan.Step step,
                                                       String path,
                                                       ValidationState state) {
         if (step == null || !isSqlQueryExecuteTool(step.toolName()) || step.input() == null || step.input().isEmpty()) {
@@ -216,6 +218,14 @@ public class InterpretationPlanValidator {
         boolean templateMode = hasNonBlank(input, "template", "templateId", "template_id");
         if (templateMode && hasNonBlank(input, "sql", "rawSql", "raw_sql", "statement", "query")) {
             state.error(path + ".input", "SQL template execution must use a templateId returned by template_query and template parameters only; do not mix top-level raw SQL with templateId.");
+        }
+        Object executionContext = firstPresent(input, "executionContext", "mcpExecutionContext");
+        if ((!(executionContext instanceof Map<?, ?> map) || map.isEmpty())
+            && !hasBindingForInput(plan, step.id(), "executionContext")
+            && !hasBindingForInput(plan, step.id(), "mcpExecutionContext")
+            && !dependsOnAssetDiscovery(plan, step)) {
+            state.error(path + ".input.executionContext",
+                "sql_query_execute requires logical executionContext from asset_query, for example {assetName, env}; do not rely on template parameters for datasource routing.");
         }
         Object parameters = firstPresent(input, "parameters", "params");
         if (!(parameters instanceof Map<?, ?> map)) {
@@ -230,6 +240,35 @@ public class InterpretationPlanValidator {
         }
     }
 
+    private void validateSqlQueryPlanContract(InterpretationPlan plan,
+                                              InterpretationPlan.Step step,
+                                              String path,
+                                              ValidationState state) {
+        if (step == null || !isSqlQueryPlanTool(step.toolName())) {
+            return;
+        }
+        Map<String, Object> input = step.input() == null ? Map.of() : step.input();
+        if (!hasNonBlank(input, "question") && !hasBindingForInput(plan, step.id(), "question")) {
+            state.error(path + ".input.question",
+                "sql_query_plan requires input.question. Do not use userQuery as a replacement.");
+        }
+        Object executionContext = firstPresent(input, "executionContext", "mcpExecutionContext");
+        if ((!(executionContext instanceof Map<?, ?> map) || map.isEmpty())
+            && !hasBindingForInput(plan, step.id(), "executionContext")
+            && !hasBindingForInput(plan, step.id(), "mcpExecutionContext")
+            && !dependsOnAssetDiscovery(plan, step)) {
+            state.error(path + ".input.executionContext",
+                "sql_query_plan requires logical executionContext from asset_query, for example {assetName, env}.");
+        }
+        Object context = input.get("context");
+        if (context instanceof Map<?, ?> contextMap
+            && firstPresent(input, "tables", "table", "tableName", "table_name") == null
+            && (contextMap.containsKey("targetTable") || contextMap.containsKey("tableName") || contextMap.containsKey("table"))) {
+            state.error(path + ".input.tables",
+                "sql_query_plan table hints must be passed as tables[] or tableName, not only inside context.targetTable.");
+        }
+    }
+
     private boolean isSqlQueryExecuteTool(String toolName) {
         if (toolName == null || toolName.isBlank()) {
             return false;
@@ -239,6 +278,15 @@ public class InterpretationPlanValidator {
             || normalized.contains("_sql_query_execute")
             || normalized.endsWith("database_execute")
             || normalized.endsWith("sql_execute");
+    }
+
+    private boolean isSqlQueryPlanTool(String toolName) {
+        if (toolName == null || toolName.isBlank()) {
+            return false;
+        }
+        String normalized = toolName.trim().toLowerCase(Locale.ROOT);
+        return normalized.endsWith("sql_query_plan")
+            || normalized.contains("_sql_query_plan");
     }
 
     private boolean hasNonBlank(Map<String, Object> input, String... keys) {
@@ -281,6 +329,15 @@ public class InterpretationPlanValidator {
             .filter(field -> field != null && !field.isBlank())
             .map(field -> field.split("\\.")[0])
             .anyMatch(root -> inputField.equals(root));
+    }
+
+    private boolean dependsOnAssetDiscovery(InterpretationPlan plan, InterpretationPlan.Step step) {
+        if (plan == null || step == null || step.dependsOn() == null || step.dependsOn().isEmpty()) {
+            return false;
+        }
+        return plan.steps().stream()
+            .filter(candidate -> candidate != null && step.dependsOn().contains(candidate.id()))
+            .anyMatch(candidate -> isAssetDiscoveryTool(candidate.toolName()));
     }
 
     private boolean missingRequiredValue(Object value) {
@@ -460,12 +517,43 @@ public class InterpretationPlanValidator {
                 state.error(path + ".type", "Unsupported binding type: " + binding.type());
             }
             InterpretationPlan.Step target = stepsById.get(binding.to());
+            InterpretationPlan.Step source = stepsById.get(binding.from());
+            if (target != null
+                && source != null
+                && isSqlQueryExecuteTool(target.toolName())
+                && isAssetDiscoveryTool(source.toolName())
+                && sameField(binding.inputField(), "parameters.schemaName")
+                && containsNormalized(binding.outputPath(), "asset.name")) {
+                state.error(path + ".input_field",
+                    "Do not bind asset_query assets[].asset.name into sql_query_execute parameters.schemaName. Asset name is routing context, not database/schema name; use sql_query_plan resolvedTables or omit schemaName when the selected template does not require it.");
+            }
             if (target != null
                 && binding.from() != null
                 && (target.dependsOn() == null || !target.dependsOn().contains(binding.from()))) {
                 state.warning(path, "Binding target should depend on source step: " + binding.from() + " -> " + binding.to());
             }
         }
+    }
+
+    private boolean isAssetDiscoveryTool(String toolName) {
+        if (toolName == null || toolName.isBlank()) {
+            return false;
+        }
+        String normalized = toolName.trim().toLowerCase(Locale.ROOT);
+        return normalized.endsWith("_asset_query") || "asset_query".equals(normalized);
+    }
+
+    private boolean sameField(String value, String expected) {
+        return normalizeField(value).equals(normalizeField(expected));
+    }
+
+    private boolean containsNormalized(String value, String token) {
+        return normalizeField(value).contains(normalizeField(token));
+    }
+
+    private String normalizeField(String value) {
+        return value == null ? "" : value.replace("_", "").replace("-", "").replace("$", "")
+            .replace("[", "").replace("]", "").replace(".", "").trim().toLowerCase(Locale.ROOT);
     }
 
     private void validateKnownToolNames(String path,

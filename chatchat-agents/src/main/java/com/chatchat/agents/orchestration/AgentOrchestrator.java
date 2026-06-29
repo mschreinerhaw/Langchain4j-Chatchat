@@ -1513,6 +1513,10 @@ public class AgentOrchestrator {
         prompt.append("- If the user required an official source, reject results that do not satisfy that source constraint.\n");
         prompt.append("- Do not answer the user here; only review the tool result.\n\n");
         prompt.append("- Never write final_answer/finalAnswer in this reviewer JSON. If you need to propose wording for audit, write review_answer; it will not become the user-facing answer.\n");
+        prompt.append("- Runtime deterministic fact check is non-overridable: do not contradict returned counts or extracted metadata facts. You may still reject for semantic mismatch, wrong template, wrong target, or missing follow-up evidence.\n");
+        prompt.append("- If assetDiscoveryReturnedCount > 0, do not claim the asset query returned zero/no assets.\n");
+        prompt.append("- If templateDiscoveryReturnedCount > 0, do not claim the template query returned zero/no templates.\n");
+        prompt.append("- If sqlMetadataColumnCount > 0, do not claim the SQL metadata step returned no columns/metadata.\n");
         prompt.append("Attempt: ").append(request.attempt()).append('/').append(request.maxAttempts()).append("\n");
         prompt.append("User query:\n").append(query == null ? "" : query).append("\n\n");
         InterpretationPlan plan = request.plan();
@@ -1522,9 +1526,39 @@ public class AgentOrchestrator {
         prompt.append("Current step:\n")
             .append(request.step() == null ? "" : stringify(request.step()))
             .append("\n\n");
+        Map<String, Object> factMetadata = toolResultFactMetadata(request.execution());
+        if (!factMetadata.isEmpty()) {
+            prompt.append("Runtime deterministic fact check:\n")
+                .append(shortObservationText(stringify(factMetadata), 2500))
+                .append("\n\n");
+        }
         prompt.append("Tool output:\n")
             .append(shortObservationText(stringify(request.execution().output()), 9000));
         return prompt.toString();
+    }
+
+    private Map<String, Object> toolResultFactMetadata(InterpretationPlanRuntime.StepExecution execution) {
+        if (execution == null || execution.metadata() == null || execution.metadata().isEmpty()) {
+            return Map.of();
+        }
+        Set<String> allowedKeys = Set.of(
+            "localDecisionPhase",
+            "localFactCheckSatisfied",
+            "localFactCheckHasEvidence",
+            "localFactCheckEvidenceType",
+            "localFactCheckReason",
+            "assetDiscoveryReturnedCount",
+            "templateDiscoveryReturnedCount",
+            "sqlMetadataFactChecked",
+            "sqlMetadataColumnCount"
+        );
+        Map<String, Object> facts = new LinkedHashMap<>();
+        for (Map.Entry<String, Object> entry : execution.metadata().entrySet()) {
+            if (allowedKeys.contains(entry.getKey())) {
+                facts.put(entry.getKey(), entry.getValue());
+            }
+        }
+        return facts;
     }
 
     private Map<String, Object> evidenceEvaluationContract(Map<String, Object> payload,

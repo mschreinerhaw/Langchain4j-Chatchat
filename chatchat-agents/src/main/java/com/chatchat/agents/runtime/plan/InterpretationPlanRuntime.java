@@ -642,23 +642,28 @@ public class InterpretationPlanRuntime {
                                            Map<Integer, StepExecution> completed,
                                            long startedAt) {
         StepReview localReview = localToolResultReview(step, execution);
+        Map<String, Object> metadata = new LinkedHashMap<>(execution.metadata());
         if (localReview != null) {
-            Map<String, Object> metadata = new LinkedHashMap<>(execution.metadata());
             metadata.put("toolResultReviewEnabled", stepResultReviewer != null);
-            metadata.put("localDecisionPhase", "local_decision");
-            metadata.put("toolResultReviewSatisfied", localReview.satisfied());
-            metadata.put("toolResultReviewReason", localReview.reason());
+            metadata.put("localDecisionPhase", "fact_check");
+            metadata.put("localFactCheckSatisfied", localReview.satisfied());
+            metadata.put("localFactCheckReason", localReview.reason());
             metadata.putAll(localReview.metadata() == null ? Map.of() : localReview.metadata());
-            if (localReview.satisfied()) {
+            if (localReview.satisfied() && stepResultReviewer == null) {
                 return execution.withMetadata(metadata, elapsed(startedAt));
             }
+            if (localReview.satisfied()) {
+                execution = execution.withMetadata(metadata, elapsed(startedAt));
+            }
+        }
+        if (localReview != null && !localReview.satisfied()) {
             return new StepExecution(
                 execution.stepId(),
                 execution.actionType(),
                 execution.toolName(),
                 false,
                 execution.output(),
-                "Tool result rejected by local review: " + localReview.reason(),
+                "Tool result rejected by local fact check: " + localReview.reason(),
                 execution.toolExecution(),
                 execution.finalAnswer(),
                 elapsed(startedAt),
@@ -670,9 +675,8 @@ public class InterpretationPlanRuntime {
         }
         int maxAttempts = toolResultReviewMaxAttempts(request);
         StepReview lastReview = null;
-        Map<String, Object> metadata = new LinkedHashMap<>(execution.metadata());
         metadata.put("toolResultReviewEnabled", true);
-        metadata.put("localDecisionPhase", "local_decision");
+        metadata.putIfAbsent("localDecisionPhase", "fact_check");
         metadata.put("toolResultReviewMaxAttempts", maxAttempts);
         for (int attempt = 1; attempt <= maxAttempts; attempt++) {
             try {
@@ -700,6 +704,14 @@ public class InterpretationPlanRuntime {
                     if (!lock.isEmpty()) {
                         metadata.put("executionLock", lock);
                     }
+                    return execution.withMetadata(metadata, elapsed(startedAt));
+                }
+                if (reviewContradictsLocalFacts(lastReview, metadata)) {
+                    metadata.put("toolResultReviewContradictedLocalFacts", true);
+                    metadata.put("toolResultReviewContradictionReason", lastReview.reason());
+                    metadata.put("toolResultReviewSatisfied", true);
+                    metadata.put("toolResultReviewReason",
+                        "Reviewer rejection contradicted deterministic tool facts; continuing with fact-checked result.");
                     return execution.withMetadata(metadata, elapsed(startedAt));
                 }
             }
@@ -733,8 +745,9 @@ public class InterpretationPlanRuntime {
             return StepReview.accepted(
                 "Asset discovery returned " + returnedCount + " candidate asset(s); continue to dependent execution step.",
                 mapOf(
-                    "toolResultReviewAutoAccepted", true,
-                    "toolResultReviewAutoAcceptReason", "typed asset discovery returned non-empty asset metadata",
+                    "localFactCheckHasEvidence", true,
+                    "localFactCheckEvidenceType", "asset_discovery",
+                    "localFactCheckReason", "typed asset discovery returned non-empty asset metadata",
                     "assetDiscoveryReturnedCount", returnedCount,
                     "assetDiscoveryStepId", step == null ? null : step.id()
                 )
@@ -748,8 +761,9 @@ public class InterpretationPlanRuntime {
             return StepReview.accepted(
                 "Template discovery returned " + returnedCount + " candidate template(s); continue to dependent execution step.",
                 mapOf(
-                    "toolResultReviewAutoAccepted", true,
-                    "toolResultReviewAutoAcceptReason", "typed template discovery returned non-empty template metadata",
+                    "localFactCheckHasEvidence", true,
+                    "localFactCheckEvidenceType", "template_discovery",
+                    "localFactCheckReason", "typed template discovery returned non-empty template metadata",
                     "templateDiscoveryReturnedCount", returnedCount,
                     "templateDiscoveryStepId", step == null ? null : step.id()
                 )
@@ -763,15 +777,74 @@ public class InterpretationPlanRuntime {
             return StepReview.accepted(
                 "SQL query returned " + columnCount + " column metadata row(s); structure evidence is valid and should not be rejected only because indexes or data distribution require follow-up queries.",
                 mapOf(
-                    "toolResultReviewAutoAccepted", true,
-                    "toolResultReviewAutoAcceptReason", "sql_query_execute returned non-empty information_schema.columns metadata",
-                    "sqlMetadataAutoAccepted", true,
+                    "localFactCheckHasEvidence", true,
+                    "localFactCheckEvidenceType", "sql_column_metadata",
+                    "localFactCheckReason", "sql_query_execute returned non-empty information_schema.columns metadata",
+                    "sqlMetadataFactChecked", true,
                     "sqlMetadataColumnCount", columnCount,
                     "sqlMetadataStepId", step == null ? null : step.id()
                 )
             );
         }
         return null;
+    }
+
+    private boolean reviewContradictsLocalFacts(StepReview review, Map<String, Object> metadata) {
+        if (review == null || review.satisfied() || metadata == null || metadata.isEmpty()) {
+            return false;
+        }
+        String reason = review.reason() == null ? "" : review.reason().toLowerCase(Locale.ROOT);
+        if (reason.isBlank()) {
+            return false;
+        }
+        Integer assetCount = integerValue(metadata.get("assetDiscoveryReturnedCount"));
+        if (assetCount != null && assetCount > 0 && mentionsNoAssetEvidence(reason)) {
+            return true;
+        }
+        Integer templateCount = integerValue(metadata.get("templateDiscoveryReturnedCount"));
+        if (templateCount != null && templateCount > 0 && mentionsNoTemplateEvidence(reason)) {
+            return true;
+        }
+        Integer columnCount = integerValue(metadata.get("sqlMetadataColumnCount"));
+        return columnCount != null && columnCount > 0 && mentionsNoSqlMetadataEvidence(reason);
+    }
+
+    private boolean mentionsNoAssetEvidence(String reason) {
+        return containsAny(reason,
+            "zero result", "0 result", "returned zero", "returned 0", "no asset", "no matching asset",
+            "assets=[]", "returned no asset",
+            "\u67e5\u8be2\u52300", "\u8fd4\u56de0", "0\u4e2a\u5339\u914d\u8d44\u4ea7",
+            "\u6ca1\u6709\u8d44\u4ea7", "\u65e0\u8d44\u4ea7", "\u672a\u8fd4\u56de\u8d44\u4ea7",
+            "\u65e0\u6cd5\u5339\u914d\u53ef\u7528\u7684 sql \u6570\u636e\u6e90"
+        );
+    }
+
+    private boolean mentionsNoTemplateEvidence(String reason) {
+        return containsAny(reason,
+            "zero template", "0 template", "no template", "returned no template", "templates=[]",
+            "\u6ca1\u6709\u6a21\u677f", "\u65e0\u6a21\u677f", "\u672a\u8fd4\u56de\u6a21\u677f"
+        );
+    }
+
+    private boolean mentionsNoSqlMetadataEvidence(String reason) {
+        return containsAny(reason,
+            "no metadata", "no column", "returned no row", "rowcount=0", "row count 0", "rows=[]",
+            "\u6ca1\u6709\u5143\u6570\u636e", "\u65e0\u5143\u6570\u636e",
+            "\u672a\u8fd4\u56de\u5b57\u6bb5", "\u6ca1\u6709\u5b57\u6bb5",
+            "\u6ca1\u6709\u4efb\u4f55\u5173\u4e8e\u8be5\u8868", "\u672a\u8fd4\u56de\u4efb\u4f55\u5173\u4e8e\u8be5\u8868"
+        );
+    }
+
+    private boolean containsAny(String text, String... tokens) {
+        if (text == null || tokens == null) {
+            return false;
+        }
+        for (String token : tokens) {
+            if (token != null && !token.isBlank() && text.contains(token.toLowerCase(Locale.ROOT))) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private int sqlColumnMetadataCount(Object output) {
@@ -862,13 +935,19 @@ public class InterpretationPlanRuntime {
         if (!(output instanceof Map<?, ?> map)) {
             return output instanceof List<?> list ? list.size() : 0;
         }
+        int explicit = discoveryValueCount(firstMapValue(map, listKey), listKey);
+        if (explicit > 0) {
+            return explicit;
+        }
+        for (String key : List.of("selectedAsset", "selected_asset", "selected", "asset", "template")) {
+            int selected = discoveryValueCount(firstMapValue(map, key), listKey);
+            if (selected > 0) {
+                return selected;
+            }
+        }
         Integer returnedCount = integerValue(firstMapValue(map, "returnedCount", "returned_count", "count"));
         if (returnedCount != null) {
             return Math.max(0, returnedCount);
-        }
-        int explicit = listSize(firstMapValue(map, listKey));
-        if (explicit > 0) {
-            return explicit;
         }
         Object explicitValue = firstMapValue(map, listKey);
         if (explicitValue != null) {
@@ -929,6 +1008,56 @@ public class InterpretationPlanRuntime {
 
     private int listSize(Object value) {
         return value instanceof List<?> list ? list.size() : 0;
+    }
+
+    private int discoveryValueCount(Object value, String listKey) {
+        if (value == null) {
+            return 0;
+        }
+        if (value instanceof List<?> list) {
+            long count = list.stream()
+                .filter(item -> looksLikeDiscoveryItem(item, listKey))
+                .count();
+            return Math.toIntExact(Math.min(Integer.MAX_VALUE, count));
+        }
+        if (looksLikeDiscoveryItem(value, listKey)) {
+            return 1;
+        }
+        return 0;
+    }
+
+    private boolean looksLikeDiscoveryItem(Object value, String listKey) {
+        if (value == null) {
+            return false;
+        }
+        if ("assets".equals(listKey)) {
+            return looksLikeAssetDiscoveryItem(value);
+        }
+        if ("templates".equals(listKey)) {
+            return looksLikeTemplateDiscoveryItem(value);
+        }
+        return value instanceof Map<?, ?> map && !map.isEmpty();
+    }
+
+    private boolean looksLikeAssetDiscoveryItem(Object value) {
+        if (!(value instanceof Map<?, ?> map) || map.isEmpty()) {
+            return false;
+        }
+        Object nestedAsset = firstMapValue(map, "asset", "datasource", "target");
+        if (nestedAsset instanceof Map<?, ?> nestedMap && looksLikeAssetDiscoveryItem(nestedMap)) {
+            return true;
+        }
+        return firstMapValue(map, "name", "assetName", "asset_name", "displayName", "toolName", "tool_name", "id") != null
+            && firstMapValue(map, "environment", "env", "databaseType", "database_type", "toolName", "tool_name", "id") != null;
+    }
+
+    private boolean looksLikeTemplateDiscoveryItem(Object value) {
+        if (!(value instanceof Map<?, ?> map) || map.isEmpty()) {
+            return false;
+        }
+        return firstMapValue(map, "templateId", "template_id", "id", "code", "name") != null
+            && firstMapValue(map, "parameterSchema", "parameter_schema", "scope", "targetLevel", "target_level",
+                "databaseType", "database_type", "templateId", "template_id", "id") != null;
     }
 
     private int toolResultReviewMaxAttempts(ExecutionRequest request) {

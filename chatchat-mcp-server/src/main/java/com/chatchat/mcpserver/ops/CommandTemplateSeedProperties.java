@@ -1,13 +1,11 @@
 package com.chatchat.mcpserver.ops;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.stereotype.Component;
 
-@Component
 @ConfigurationProperties(prefix = "chatchat.mcp.command-templates")
 public class CommandTemplateSeedProperties {
 
-    private boolean seedDefaultsEnabled = true;
+    private boolean seedDefaultsEnabled;
 
     public boolean isSeedDefaultsEnabled() {
         return seedDefaultsEnabled;

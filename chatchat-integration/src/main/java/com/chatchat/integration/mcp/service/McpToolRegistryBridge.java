@@ -284,6 +284,7 @@ public class McpToolRegistryBridge {
             if (arguments.isEmpty() && input.getRawInput() != null && !input.getRawInput().isBlank()) {
                 arguments.put("query", input.getRawInput());
             }
+            enrichInvocationContext(arguments, input);
             long startedAt = System.currentTimeMillis();
             log.info("MCP bridge tool call started localTool={} serviceId={} remoteTool={} requestId={} timeoutMs={} args={}",
                 metadata.getId(),
@@ -307,7 +308,7 @@ public class McpToolRegistryBridge {
                     Math.max(0L, System.currentTimeMillis() - startedAt),
                     result.errorMessage(),
                     ToolLogSummarizer.summarize(result.data()));
-                return ToolOutput.failure(result.errorMessage() == null ? "MCP tool call failed" : result.errorMessage());
+                return failureOutput(result);
             }
             log.info("MCP bridge tool call succeeded localTool={} serviceId={} remoteTool={} requestId={} durationMs={} message={} result={}",
                 metadata.getId(),
@@ -317,8 +318,125 @@ public class McpToolRegistryBridge {
                 Math.max(0L, System.currentTimeMillis() - startedAt),
                 result.message(),
                 ToolLogSummarizer.summarize(result.data()));
-            return ToolOutput.success(result.data(), result.message() == null ? "MCP call success" : result.message());
+            ToolOutput output = ToolOutput.success(result.data(), result.message() == null ? "MCP call success" : result.message());
+            enrichOutputMetadata(output, result);
+            return output;
         }
+    }
+
+    private ToolOutput failureOutput(McpToolInvokeResult result) {
+        String errorMessage = result == null || result.errorMessage() == null
+            ? "MCP tool call failed"
+            : result.errorMessage();
+        ToolOutput output = ToolOutput.failure(errorMessage);
+        String errorCode = result == null ? null : result.errorCode();
+        output.setExceptionType(firstText(errorCode, "MCP_TOOL_CALL_FAILED"));
+        enrichOutputMetadata(output, result);
+        output.getMetadata().put("errorCode", firstText(errorCode, "MCP_TOOL_CALL_FAILED"));
+        output.getMetadata().put("retryable", result != null && result.retryable());
+        output.getMetadata().put("action", result == null ? "STOP" : firstText(result.action(), "STOP"));
+        return output;
+    }
+
+    private void enrichOutputMetadata(ToolOutput output, McpToolInvokeResult result) {
+        if (output == null) {
+            return;
+        }
+        if (output.getMetadata() == null) {
+            output.setMetadata(new LinkedHashMap<>());
+        }
+        if (result == null) {
+            return;
+        }
+        if (result.executionState() != null && !result.executionState().isEmpty()) {
+            output.getMetadata().put("executionState", result.executionState());
+            output.getMetadata().put("executionStateName", result.executionState().get("state"));
+            output.getMetadata().put("executionRetryCount", result.executionState().get("retryCount"));
+        }
+        output.getMetadata().put("mcpAction", result.action());
+        output.getMetadata().put("mcpRetryable", result.retryable());
+    }
+
+    @SuppressWarnings("unchecked")
+    private void enrichInvocationContext(Map<String, Object> arguments, ToolInput input) {
+        if (arguments == null) {
+            return;
+        }
+        Map<String, Object> inputContext = input == null || input.getContext() == null ? Map.of() : input.getContext();
+        String tenantId = firstText(
+            stringValue(arguments.get("tenantId")),
+            stringValue(arguments.get("tenant_id")),
+            stringValue(inputContext.get("tenantId")),
+            stringValue(inputContext.get("tenant_id")),
+            stringValue(inputContext.get("tenant"))
+        );
+        String userId = firstText(
+            stringValue(arguments.get("userId")),
+            stringValue(arguments.get("user_id")),
+            stringValue(inputContext.get("userId")),
+            stringValue(inputContext.get("user_id")),
+            input == null ? null : input.getUserId(),
+            "anonymous"
+        );
+        String requestId = firstText(
+            stringValue(arguments.get("requestId")),
+            stringValue(arguments.get("request_id")),
+            stringValue(inputContext.get("requestId")),
+            input == null ? null : input.getRequestId()
+        );
+        String conversationId = firstText(
+            stringValue(arguments.get("conversationId")),
+            stringValue(arguments.get("conversation_id")),
+            stringValue(inputContext.get("conversationId")),
+            input == null ? null : input.getConversationId()
+        );
+
+        if (tenantId != null) {
+            arguments.putIfAbsent("tenantId", tenantId);
+        }
+        arguments.putIfAbsent("userId", userId);
+        if (requestId != null) {
+            arguments.putIfAbsent("requestId", requestId);
+        }
+        if (conversationId != null) {
+            arguments.putIfAbsent("conversationId", conversationId);
+        }
+
+        Map<String, Object> mcpContext = arguments.get("mcpContext") instanceof Map<?, ?> map
+            ? new LinkedHashMap<>((Map<String, Object>) map)
+            : new LinkedHashMap<>();
+        Map<String, Object> tenant = mcpContext.get("tenant") instanceof Map<?, ?> map
+            ? new LinkedHashMap<>((Map<String, Object>) map)
+            : new LinkedHashMap<>();
+        if (tenantId != null) {
+            tenant.putIfAbsent("tenantId", tenantId);
+            mcpContext.put("tenant", tenant);
+            mcpContext.putIfAbsent("tenantId", tenantId);
+        }
+        mcpContext.putIfAbsent("userId", userId);
+        if (requestId != null) {
+            mcpContext.putIfAbsent("traceId", requestId);
+        }
+        if (conversationId != null) {
+            mcpContext.putIfAbsent("conversationId", conversationId);
+        }
+        arguments.put("mcpContext", mcpContext);
+    }
+
+    private String firstText(String... values) {
+        if (values == null) {
+            return null;
+        }
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value.trim();
+            }
+        }
+        return null;
+    }
+
+    private String stringValue(Object value) {
+        return value == null ? null : String.valueOf(value);
     }
 
     public record RegisteredMcpTool(

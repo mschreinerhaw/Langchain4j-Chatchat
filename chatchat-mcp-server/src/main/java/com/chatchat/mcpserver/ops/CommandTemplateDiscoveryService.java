@@ -1913,6 +1913,10 @@ public class CommandTemplateDiscoveryService {
                     allowed.add(normalized);
                 }
             });
+            if (allowed.contains("MYSQL_TABLE_METADATA")) {
+                allowed.add("MYSQL_SCHEMA_TABLE_OVERVIEW");
+                allowed.add("MYSQL_TABLE_LOCATION");
+            }
             return allowed;
         } catch (Exception ignored) {
             return Set.of();

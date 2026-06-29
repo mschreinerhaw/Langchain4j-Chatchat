@@ -35,6 +35,7 @@ public class SqlQueryExecuteService {
     private final SqlDatasourceConfigService datasourceConfigService;
     private final SqlSafetyService safetyService;
     private final SqlTemplateService templateService;
+    private final MetadataResolverService metadataResolverService;
     private final InvocationAuditService auditService;
     private final ObjectMapper objectMapper;
 
@@ -46,12 +47,17 @@ public class SqlQueryExecuteService {
         SqlQueryResult result;
         int timeoutSeconds = 30;
         int maxRows = 1000;
+        Map<String, Object> diagnostics = new LinkedHashMap<>();
         try {
             datasource = datasourceConfigService.getEnabled(text(request, "datasourceId"));
             assertExecutionCapability(datasource);
             timeoutSeconds = normalizeTimeout(request.get("timeoutSeconds"), datasource.getDefaultTimeoutSeconds());
             maxRows = normalizeMaxRows(request.get("maxRows"), datasource.getDefaultMaxRows());
+            diagnostics.putAll(baseDiagnostics(datasource, request));
             String sql = resolveSql(request, datasource);
+            diagnostics.put("templateParameters", new LinkedHashMap<>(mapValue(request.get("parameters"))));
+            diagnostics.put("executionContext", contextFrom(request));
+            diagnostics.put("tableResolution", request.get("tableResolution"));
             normalizedSql = safetyService.validateAndNormalize(sql, maxRows);
             validateAllowedTables(datasource, normalizedSql);
             log.info("MCP SQL query execution requested: datasourceId={}, datasourceName={}, env={}, tool={}, templateId={}, timeoutSeconds={}, maxRows={}, purpose={}, sourceTaskId={}, sql={}",
@@ -59,9 +65,16 @@ public class SqlQueryExecuteService {
                 requestedTemplate(request), timeoutSeconds, maxRows, text(request, "purpose"), text(request, "sourceTaskId"),
                 truncateSql(normalizedSql));
             result = query(datasource, sql, normalizedSql, timeoutSeconds, maxRows,
+                text(request, "purpose"), text(request, "sourceTaskId"), startedAt, diagnostics);
+            result = attemptSelfHealingIfNeeded(datasource, request, result, timeoutSeconds, maxRows,
                 text(request, "purpose"), text(request, "sourceTaskId"), startedAt);
         } catch (Exception ex) {
             long durationMs = Math.max(0, System.currentTimeMillis() - startedAt);
+            diagnostics.put("templateParameters", new LinkedHashMap<>(mapValue(request.get("parameters"))));
+            diagnostics.put("executionContext", contextFrom(request));
+            diagnostics.put("tableResolution", request.get("tableResolution"));
+            diagnostics.put("failureStage", normalizedSql == null ? "prepare" : "execute");
+            diagnostics.put("errorType", ex.getClass().getSimpleName());
             result = new SqlQueryResult(
                 false,
                 datasource == null ? text(request, "datasourceId") : datasource.getId(),
@@ -79,11 +92,13 @@ public class SqlQueryExecuteService {
                 durationMs,
                 text(request, "purpose"),
                 text(request, "sourceTaskId"),
-                ex.getMessage()
+                ex.getMessage(),
+                diagnostics
             );
             log.warn("MCP SQL query execution failed before/while running: datasourceId={}, durationMs={}, error={}, sql={}",
                 result.datasourceId(), durationMs, ex.getMessage(), truncateSql(normalizedSql));
         }
+        recordSuccessfulMetadataUsage(datasource, request, result);
         logSqlResult(result);
         auditService.recordSqlQueryCall(datasource, request, result);
         return result;
@@ -123,13 +138,17 @@ public class SqlQueryExecuteService {
                     timeoutSeconds,
                     1,
                     List.of("probe"),
-                    List.of(Map.of("probe", probe.value())),
+                    List.of(diagnosticMap("probe", probe.value())),
                     1,
                     false,
                     durationMs,
                     "asset_connection_test",
                     "asset-center",
-                    null
+                    null,
+                    diagnosticMap(
+                        "connection", connectionDiagnostics(connection, datasource),
+                        "probeSql", probe.sql()
+                    )
                 );
                 logSqlResult(result);
                 return result;
@@ -153,7 +172,8 @@ public class SqlQueryExecuteService {
                 durationMs,
                 "asset_connection_test",
                 "asset-center",
-                ex.getMessage()
+                ex.getMessage(),
+                diagnosticMap("errorType", ex.getClass().getSimpleName())
             );
             logSqlResult(result);
             return result;
@@ -172,16 +192,185 @@ public class SqlQueryExecuteService {
         if (template == null || template.isBlank()) {
             throw new IllegalArgumentException("Either sql or template is required");
         }
-        return templateService.render(template, mapValue(request.get("parameters")), datasource, request);
+        Map<String, Object> parameters = enrichTemplateParameters(mapValue(request.get("parameters")), datasource, request);
+        parameters = resolveMetadataTableParameters(template, parameters, datasource, request);
+        request.put("parameters", parameters);
+        return templateService.render(template, parameters, datasource, request);
     }
 
     private String requestedTemplate(Map<String, Object> request) {
         return firstText(text(request, "template"), text(request, "templateId"), text(request, "template_id"));
     }
 
+    private Map<String, Object> resolveMetadataTableParameters(String template, Map<String, Object> parameters,
+                                                               SqlDatasourceConfig datasource,
+                                                               Map<String, Object> request) {
+        if (!isTableMetadataTemplate(template)) {
+            return parameters;
+        }
+        String tableName = firstText(
+            text(parameters, "tableName"),
+            text(parameters, "table_name"),
+            text(parameters, "table")
+        );
+        if (tableName == null) {
+            return parameters;
+        }
+        String preferredSchema = firstText(
+            text(parameters, "schemaName"),
+            text(parameters, "databaseName"),
+            text(parameters, "schema"),
+            text(parameters, "database")
+        );
+        Map<String, Object> values = new LinkedHashMap<>(parameters);
+        TableResolution resolution = metadataResolverService.resolveTable(datasource, tableName, preferredSchema);
+        request.put("tableResolution", resolution.toDiagnostic());
+        if (resolution.selectedSchema() != null) {
+            values.put("schemaName", resolution.selectedSchema());
+            values.put("databaseName", resolution.selectedSchema());
+            values.put("schema", resolution.selectedSchema());
+            values.put("database", resolution.selectedSchema());
+            values.put("tableName", resolution.selectedTable());
+        }
+        return values;
+    }
+
+    private boolean isTableMetadataTemplate(String template) {
+        return template != null && template.trim().toUpperCase(Locale.ROOT).endsWith("_TABLE_METADATA");
+    }
+
+    private SqlQueryResult attemptSelfHealingIfNeeded(SqlDatasourceConfig datasource, Map<String, Object> request,
+                                                      SqlQueryResult result, int timeoutSeconds, int maxRows,
+                                                      String purpose, String sourceTaskId, long startedAt)
+        throws Exception {
+        if (!shouldRepairMetadataEmptyResult(request, result)) {
+            return result;
+        }
+        Map<String, Object> parameters = new LinkedHashMap<>(mapValue(request.get("parameters")));
+        String usedSchema = firstText(
+            text(parameters, "schemaName"),
+            text(parameters, "databaseName"),
+            text(parameters, "schema"),
+            text(parameters, "database")
+        );
+        List<TableLocation> alternatives = alternativeSchemas(request, usedSchema);
+        QueryFeedback feedback = new QueryFeedback(
+            true,
+            usedSchema,
+            alternatives.stream().map(TableLocation::database).distinct().toList(),
+            alternatives.isEmpty() ? "STOP" : "RETRY_ALTERNATE_SCHEMA",
+            alternatives.isEmpty() ? "no alternate metadata candidate" : "information_schema.columns returned zero rows"
+        );
+        result.diagnostics().put("queryFeedback", feedback.toDiagnostic());
+        if (alternatives.isEmpty()) {
+            return result;
+        }
+
+        TableLocation alternative = alternatives.get(0);
+        Map<String, Object> repairedParameters = new LinkedHashMap<>(parameters);
+        repairedParameters.put("schemaName", alternative.database());
+        repairedParameters.put("databaseName", alternative.database());
+        repairedParameters.put("schema", alternative.database());
+        repairedParameters.put("database", alternative.database());
+        repairedParameters.put("tableName", alternative.table());
+        Map<String, Object> repairedRequest = new LinkedHashMap<>(request);
+        repairedRequest.put("parameters", repairedParameters);
+        repairedRequest.put("selfHealingAttempted", true);
+
+        Map<String, Object> repairDiagnostics = baseDiagnostics(datasource, repairedRequest);
+        repairDiagnostics.put("templateParameters", new LinkedHashMap<>(repairedParameters));
+        repairDiagnostics.put("executionContext", contextFrom(repairedRequest));
+        repairDiagnostics.put("tableResolution", repairedRequest.get("tableResolution"));
+        repairDiagnostics.put("queryFeedback", feedback.toDiagnostic());
+        repairDiagnostics.put("selfHealing", diagnosticMap(
+            "schemaVersion", "sql_self_healing.v1",
+            "strategy", "retry_alternate_schema",
+            "previousSchema", usedSchema,
+            "retrySchema", alternative.database(),
+            "retryTable", alternative.table()
+        ));
+
+        String repairedSql = templateService.render(requestedTemplate(repairedRequest), repairedParameters, datasource, repairedRequest);
+        String repairedNormalizedSql = safetyService.validateAndNormalize(repairedSql, maxRows);
+        validateAllowedTables(datasource, repairedNormalizedSql);
+        log.info("MCP SQL self-healing retry: datasourceId={}, table={}, previousSchema={}, retrySchema={}, sql={}",
+            datasource.getId(), alternative.table(), usedSchema, alternative.database(), truncateSql(repairedNormalizedSql));
+        SqlQueryResult repaired = query(datasource, repairedSql, repairedNormalizedSql, timeoutSeconds, maxRows,
+            purpose, sourceTaskId, startedAt, repairDiagnostics);
+        if (repaired.success() && repaired.rowCount() > 0) {
+            request.put("parameters", repairedParameters);
+            request.put("selfHealingResult", repairDiagnostics.get("selfHealing"));
+            return repaired;
+        }
+        result.diagnostics().put("selfHealingResult", diagnosticMap(
+            "attempted", true,
+            "retrySchema", alternative.database(),
+            "retryRowCount", repaired.rowCount(),
+            "retryError", repaired.errorMessage()
+        ));
+        return result;
+    }
+
+    private boolean shouldRepairMetadataEmptyResult(Map<String, Object> request, SqlQueryResult result) {
+        if (result == null || !result.success() || result.rowCount() != 0 || Boolean.TRUE.equals(request.get("selfHealingAttempted"))) {
+            return false;
+        }
+        String template = requestedTemplate(request);
+        String sql = result.normalizedSql() == null ? result.sql() : result.normalizedSql();
+        return isTableMetadataTemplate(template)
+            && sql != null
+            && sql.toLowerCase(Locale.ROOT).contains("information_schema.columns");
+    }
+
+    private List<TableLocation> alternativeSchemas(Map<String, Object> request, String usedSchema) {
+        Object resolution = request.get("tableResolution");
+        if (!(resolution instanceof Map<?, ?> map)) {
+            return List.of();
+        }
+        Object candidatesValue = map.get("candidates");
+        if (!(candidatesValue instanceof List<?> candidates)) {
+            return List.of();
+        }
+        String normalizedUsedSchema = normalizeIdentifier(usedSchema);
+        List<TableLocation> values = new ArrayList<>();
+        for (Object item : candidates) {
+            if (!(item instanceof Map<?, ?> candidate)) {
+                continue;
+            }
+            String datasourceId = stringValue(candidate.get("datasourceId"));
+            String database = stringValue(candidate.get("database"));
+            String schema = stringValue(candidate.get("schema"));
+            String table = stringValue(candidate.get("table"));
+            String tableType = stringValue(candidate.get("tableType"));
+            double score = doubleValue(candidate.get("score"));
+            if (database != null && !database.equalsIgnoreCase(String.valueOf(usedSchema))) {
+                values.add(new TableLocation(datasourceId, database, schema, table, tableType, null, score));
+            }
+        }
+        return values.stream()
+            .filter(location -> normalizedUsedSchema == null
+                || !normalizedUsedSchema.equals(normalizeIdentifier(location.database())))
+            .sorted(java.util.Comparator.comparingDouble(TableLocation::score).reversed())
+            .toList();
+    }
+
+    private void recordSuccessfulMetadataUsage(SqlDatasourceConfig datasource, Map<String, Object> request,
+                                               SqlQueryResult result) {
+        if (datasource == null || result == null || !result.success() || result.rowCount() <= 0 || !isTableMetadataTemplate(requestedTemplate(request))) {
+            return;
+        }
+        Map<String, Object> parameters = mapValue(request.get("parameters"));
+        String table = firstText(text(parameters, "tableName"), text(parameters, "table_name"), text(parameters, "table"));
+        String schema = firstText(text(parameters, "schemaName"), text(parameters, "databaseName"), text(parameters, "schema"), text(parameters, "database"));
+        if (table == null || schema == null) {
+            return;
+        }
+        metadataResolverService.recordUsage(new TableLocation(datasource.getId(), schema, schema, table, "BASE TABLE", null, 1.0));
+    }
+
     private SqlQueryResult query(SqlDatasourceConfig datasource, String originalSql, String sql,
                                  int timeoutSeconds, int maxRows, String purpose,
-                                 String sourceTaskId, long startedAt) throws Exception {
+                                 String sourceTaskId, long startedAt, Map<String, Object> diagnostics) throws Exception {
         if (datasource.getDriverClass() != null && !datasource.getDriverClass().isBlank()) {
             Class.forName(datasource.getDriverClass().trim());
         }
@@ -189,8 +378,10 @@ public class SqlQueryExecuteService {
             datasource.getJdbcUrl(), datasource.getUsername(), datasource.getPassword());
              Statement statement = connection.createStatement()) {
             connection.setReadOnly(true);
+            applyDefaultCatalog(connection, datasource, diagnostics);
             statement.setQueryTimeout(timeoutSeconds);
             statement.setMaxRows(maxRows);
+            diagnostics.put("connection", connectionDiagnostics(connection, datasource));
             log.info("MCP SQL query JDBC connected: datasourceId={}, datasourceName={}, env={}, jdbcUrl={}, readOnly=true, timeoutSeconds={}, maxRows={}",
                 datasource.getId(), datasource.getName(), datasource.getEnvironment(), redactJdbcUrl(datasource.getJdbcUrl()),
                 timeoutSeconds, maxRows);
@@ -211,6 +402,9 @@ public class SqlQueryExecuteService {
                     rows.add(row);
                 }
                 long durationMs = Math.max(0, System.currentTimeMillis() - startedAt);
+                diagnostics.put("rowCount", rows.size());
+                diagnostics.put("possiblyTruncated", rows.size() >= maxRows);
+                addZeroRowDiagnostics(diagnostics, datasource, sql, rows.size());
                 return new SqlQueryResult(
                     true,
                     datasource.getId(),
@@ -229,7 +423,8 @@ public class SqlQueryExecuteService {
                     durationMs,
                     purpose,
                     sourceTaskId,
-                    null
+                    null,
+                    diagnostics
                 );
             }
         }
@@ -281,18 +476,183 @@ public class SqlQueryExecuteService {
         rowPreview.put("rowCount", result.rowCount());
         rowPreview.put("possiblyTruncated", result.possiblyTruncated());
         rowPreview.put("rows", result.rows() == null ? List.of() : result.rows().stream().limit(LOG_ROWS_LIMIT).toList());
-        String message = "MCP SQL query execution result: success={}, datasourceId={}, datasourceName={}, tool={}, env={}, timeoutSeconds={}, maxRows={}, rowCount={}, durationMs={}, sql={}, output={}, error={}";
+        String message = "MCP SQL query execution result: success={}, datasourceId={}, datasourceName={}, tool={}, env={}, timeoutSeconds={}, maxRows={}, rowCount={}, durationMs={}, sql={}, output={}, diagnostics={}, error={}";
         if (result.success()) {
             log.info(message,
                 result.success(), result.datasourceId(), result.datasourceName(), result.toolName(), result.environment(),
                 result.timeoutSeconds(), result.maxRows(), result.rowCount(), result.durationMs(),
-                truncateSql(result.normalizedSql() == null ? result.sql() : result.normalizedSql()), rowPreview, result.errorMessage());
+                truncateSql(result.normalizedSql() == null ? result.sql() : result.normalizedSql()), rowPreview,
+                result.diagnostics(), result.errorMessage());
         } else {
             log.warn(message,
                 result.success(), result.datasourceId(), result.datasourceName(), result.toolName(), result.environment(),
                 result.timeoutSeconds(), result.maxRows(), result.rowCount(), result.durationMs(),
-                truncateSql(result.normalizedSql() == null ? result.sql() : result.normalizedSql()), rowPreview, result.errorMessage());
+                truncateSql(result.normalizedSql() == null ? result.sql() : result.normalizedSql()), rowPreview,
+                result.diagnostics(), result.errorMessage());
         }
+    }
+
+    private Map<String, Object> baseDiagnostics(SqlDatasourceConfig datasource, Map<String, Object> request) {
+        Map<String, Object> diagnostics = new LinkedHashMap<>();
+        diagnostics.put("schemaVersion", "sql_query_diagnostics.v1");
+        diagnostics.put("templateId", requestedTemplate(request));
+        diagnostics.put("templateParameters", new LinkedHashMap<>(mapValue(request.get("parameters"))));
+        diagnostics.put("executionContext", contextFrom(request));
+        diagnostics.put("tableResolution", request == null ? null : request.get("tableResolution"));
+        diagnostics.put("routedTarget", request == null ? null : request.get("routedTarget"));
+        diagnostics.put("routingDecisionLog", request == null ? null : request.get("routingDecisionLog"));
+        diagnostics.put("datasource", diagnosticMap(
+            "id", datasource.getId(),
+            "name", datasource.getName(),
+            "toolName", datasource.getToolName(),
+            "environment", datasource.getEnvironment(),
+            "databaseType", resolvedDatabaseType(datasource),
+            "jdbcDatabase", firstText(defaultSchemaName(datasource, request), "")
+        ));
+        return diagnostics;
+    }
+
+    private Map<String, Object> contextFrom(Map<String, Object> request) {
+        Map<String, Object> context = new LinkedHashMap<>();
+        for (String key : List.of("executionContext", "mcpExecutionContext")) {
+            Object value = request == null ? null : request.get(key);
+            if (value instanceof Map<?, ?> map) {
+                map.forEach((k, v) -> context.put(String.valueOf(k), v));
+            }
+        }
+        Object parameters = request == null ? null : request.get("parameters");
+        if (parameters instanceof Map<?, ?> map) {
+            for (String key : List.of("database", "schema", "schemaName", "databaseName", "tableName", "table_name")) {
+                Object value = map.get(key);
+                if (value != null) {
+                    context.putIfAbsent(key, value);
+                }
+            }
+        }
+        return context;
+    }
+
+    private Map<String, Object> enrichTemplateParameters(Map<String, Object> parameters, SqlDatasourceConfig datasource,
+                                                         Map<String, Object> request) {
+        Map<String, Object> values = new LinkedHashMap<>(parameters == null ? Map.of() : parameters);
+        String schemaName = firstText(
+            text(values, "schemaName"),
+            text(values, "schema"),
+            text(values, "databaseName"),
+            text(values, "database"),
+            text(contextFrom(request), "schemaName"),
+            text(contextFrom(request), "schema"),
+            text(contextFrom(request), "databaseName"),
+            text(contextFrom(request), "database"),
+            defaultSchemaName(datasource, request)
+        );
+        if (schemaName != null) {
+            values.putIfAbsent("schemaName", schemaName);
+            values.putIfAbsent("databaseName", schemaName);
+            values.putIfAbsent("schema", schemaName);
+            values.putIfAbsent("database", schemaName);
+        }
+        return values;
+    }
+
+    private String defaultSchemaName(SqlDatasourceConfig datasource, Map<String, Object> request) {
+        String explicit = firstText(
+            text(request, "schemaName"),
+            text(request, "schema"),
+            text(request, "databaseName"),
+            text(request, "database")
+        );
+        if (explicit != null) {
+            return explicit;
+        }
+        return databaseNameFromJdbcUrl(datasource == null ? null : datasource.getJdbcUrl());
+    }
+
+    private String databaseNameFromJdbcUrl(String jdbcUrl) {
+        if (jdbcUrl == null || jdbcUrl.isBlank()) {
+            return null;
+        }
+        String trimmed = jdbcUrl.trim();
+        Matcher parameterMatcher = Pattern.compile("(?i)[;?&](?:databaseName|database)=([^;?&]+)").matcher(trimmed);
+        if (parameterMatcher.find()) {
+            String value = parameterMatcher.group(1);
+            return value == null || value.isBlank() ? null : value.trim();
+        }
+        Matcher matcher = Pattern.compile("(?i)^jdbc:[^:]+://[^/]+/([^?;]+)").matcher(trimmed);
+        if (matcher.find()) {
+            String value = matcher.group(1);
+            return value == null || value.isBlank() ? null : value.trim();
+        }
+        return null;
+    }
+
+    private void applyDefaultCatalog(Connection connection, SqlDatasourceConfig datasource,
+                                     Map<String, Object> diagnostics) {
+        String datasourceType = resolvedDatabaseType(datasource);
+        String schemaName = defaultSchemaName(datasource, null);
+        if (connection == null || schemaName == null || !"mysql".equals(datasourceType)) {
+            return;
+        }
+        try {
+            connection.setCatalog(schemaName);
+            diagnostics.put("appliedCatalog", schemaName);
+        } catch (Exception ex) {
+            diagnostics.put("appliedCatalogError", ex.getMessage());
+        }
+    }
+
+    private Map<String, Object> connectionDiagnostics(Connection connection, SqlDatasourceConfig datasource) {
+        Map<String, Object> values = new LinkedHashMap<>();
+        try {
+            values.put("catalog", connection.getCatalog());
+        } catch (Exception ignored) {
+            values.put("catalog", null);
+        }
+        try {
+            values.put("schema", connection.getSchema());
+        } catch (Exception ignored) {
+            values.put("schema", null);
+        }
+        values.put("jdbcDatabase", defaultSchemaName(datasource, null));
+        values.put("databaseType", resolvedDatabaseType(datasource));
+        values.put("jdbcUrl", redactJdbcUrl(datasource.getJdbcUrl()));
+        return values;
+    }
+
+    private String resolvedDatabaseType(SqlDatasourceConfig datasource) {
+        if (datasource == null) {
+            return "generic";
+        }
+        return SqlDatasourceConfigService.normalizeDatabaseType(
+            datasource.getDatabaseType(),
+            datasource.getJdbcUrl(),
+            datasource.getDriverClass()
+        );
+    }
+
+    private void addZeroRowDiagnostics(Map<String, Object> diagnostics, SqlDatasourceConfig datasource,
+                                       String sql, int rowCount) {
+        if (rowCount != 0 || sql == null) {
+            return;
+        }
+        String normalizedSql = sql.toLowerCase(Locale.ROOT);
+        if (!normalizedSql.contains("information_schema.columns")) {
+            return;
+        }
+        diagnostics.put("zeroRowReasonHint", "information_schema.columns returned no rows. Check schemaName/databaseName, tableName case, and table visibility permissions.");
+        diagnostics.put("suggestedRepair", diagnosticMap(
+            "useExplicitSchemaName", true,
+            "schemaName", defaultSchemaName(datasource, null),
+            "avoidDatabaseFunctionOnly", true
+        ));
+    }
+
+    private Map<String, Object> diagnosticMap(Object... entries) {
+        Map<String, Object> values = new LinkedHashMap<>();
+        for (int index = 0; index + 1 < entries.length; index += 2) {
+            values.put(String.valueOf(entries[index]), entries[index + 1]);
+        }
+        return values;
     }
 
     private String truncateSql(String value) {
@@ -485,6 +845,28 @@ public class SqlQueryExecuteService {
     private String text(Map<String, Object> map, String key) {
         Object value = map == null ? null : map.get(key);
         return value == null ? null : String.valueOf(value).trim();
+    }
+
+    private String stringValue(Object value) {
+        return value == null || String.valueOf(value).isBlank() ? null : String.valueOf(value).trim();
+    }
+
+    private double doubleValue(Object value) {
+        if (value instanceof Number number) {
+            return number.doubleValue();
+        }
+        if (value == null || String.valueOf(value).isBlank()) {
+            return 0.0;
+        }
+        try {
+            return Double.parseDouble(String.valueOf(value));
+        } catch (Exception ignored) {
+            return 0.0;
+        }
+    }
+
+    private String normalizeIdentifier(String value) {
+        return value == null || value.isBlank() ? null : value.trim().toLowerCase(Locale.ROOT);
     }
 
     private String blankToNull(String value) {

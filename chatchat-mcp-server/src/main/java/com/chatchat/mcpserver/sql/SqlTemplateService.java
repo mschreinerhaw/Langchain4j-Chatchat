@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Comparator;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -153,7 +154,8 @@ public class SqlTemplateService {
         }
         removeRetiredDefaults();
         for (DefaultTemplate template : defaults()) {
-            if (repository.findByCode(template.code()).isEmpty()) {
+            var existing = repository.findByCode(template.code());
+            if (existing.isEmpty()) {
                 SqlTemplateConfig config = new SqlTemplateConfig();
                 config.setCode(template.code());
                 config.setTitle(template.title());
@@ -167,8 +169,29 @@ public class SqlTemplateService {
                 config.setIntentSignalsJson(writeJson(template.intentSignals()));
                 config.setEnabled(true);
                 repository.save(config);
+            } else if (shouldRefreshDefault(existing.get(), template)) {
+                SqlTemplateConfig config = existing.get();
+                config.setSqlTemplate(template.sql());
+                config.setParameterSchemaJson(writeJson(template.schema()));
+                config.setIntentSignalsJson(writeJson(template.intentSignals()));
+                repository.save(config);
+                log.info("Refreshed managed SQL default template: {}", template.code());
             }
         }
+    }
+
+    private boolean shouldRefreshDefault(SqlTemplateConfig existing, DefaultTemplate template) {
+        if (existing == null || template == null || existing.getCode() == null) {
+            return false;
+        }
+        String code = existing.getCode().trim().toUpperCase(Locale.ROOT);
+        String sql = existing.getSqlTemplate() == null ? "" : existing.getSqlTemplate().toLowerCase(Locale.ROOT);
+        return switch (code) {
+            case "MYSQL_TABLE_METADATA" -> sql.contains("table_schema = database()");
+            case "POSTGRES_TABLE_METADATA" -> sql.contains("table_schema = current_schema()");
+            case "SQLSERVER_TABLE_METADATA" -> !sql.contains("table_schema");
+            default -> false;
+        };
     }
 
     private void removeRetiredDefaults() {
@@ -224,11 +247,18 @@ public class SqlTemplateService {
         try {
             Object value = objectMapper.readValue(json, Object.class);
             if (value instanceof List<?> list) {
-                return list.stream()
+                List<String> allowed = list.stream()
                     .map(item -> item == null ? null : String.valueOf(item).trim().toUpperCase(Locale.ROOT))
                     .filter(item -> item != null && !item.isBlank())
                     .distinct()
                     .toList();
+                if (allowed.contains("MYSQL_TABLE_METADATA")) {
+                    LinkedHashSet<String> expanded = new LinkedHashSet<>(allowed);
+                    expanded.add("MYSQL_SCHEMA_TABLE_OVERVIEW");
+                    expanded.add("MYSQL_TABLE_LOCATION");
+                    return expanded.stream().toList();
+                }
+                return allowed;
             }
         } catch (Exception ignored) {
             // Invalid stale allowlists are treated as legacy unconfigured assets.
@@ -343,10 +373,20 @@ public class SqlTemplateService {
                 "mysql", "storage",
                 "SELECT table_schema AS db, SUM(data_length + index_length)/1024/1024 AS size_mb FROM information_schema.tables GROUP BY table_schema",
                 List.of("database size", "storage", "schema size", "space", "storage_check")),
-            metadataTemplate("MYSQL_TABLE_METADATA", "MySQL table metadata",
-                "Read MySQL column metadata for a table in the current database.",
+            maintenanceTemplate("MYSQL_SCHEMA_TABLE_OVERVIEW", "MySQL schema table overview",
+                "List user schemas/databases and table counts to understand where tables may live.",
+                "mysql", "metadata",
+                "SELECT table_schema AS schema_name, COUNT(*) AS table_count FROM information_schema.tables WHERE table_schema NOT IN ('information_schema', 'mysql', 'performance_schema', 'sys') GROUP BY table_schema ORDER BY table_schema",
+                List.of("schema overview", "database list", "table count", "tables by database", "metadata discovery")),
+            metadataTemplate("MYSQL_TABLE_LOCATION", "MySQL table location",
+                "Locate which schema/database contains a table before reading column metadata.",
                 "mysql",
-                "SELECT column_name, column_type, is_nullable, column_default, column_key, extra, column_comment FROM information_schema.columns WHERE table_schema = DATABASE() AND table_name = {{tableName}} ORDER BY ordinal_position",
+                "SELECT table_schema AS schema_name, table_name, table_type, table_rows FROM information_schema.tables WHERE table_schema NOT IN ('information_schema', 'mysql', 'performance_schema', 'sys') AND LOWER(table_name) = LOWER({{tableName}}) ORDER BY table_schema, table_name",
+                List.of("table location", "find table schema", "which database has table", "metadata discovery", "table resolve")),
+            metadataTemplate("MYSQL_TABLE_METADATA", "MySQL table metadata",
+                "Read MySQL column metadata for a table in an explicit schema/database.",
+                "mysql",
+                "SELECT column_name, column_type, is_nullable, column_default, column_key, extra, column_comment FROM information_schema.columns WHERE table_schema = COALESCE(NULLIF({{schemaName}}, ''), DATABASE()) AND table_name = {{tableName}} ORDER BY ordinal_position",
                 List.of("table metadata", "column metadata", "table schema", "describe table", "metadata_query")),
 
             maintenanceTemplate("ORACLE_SESSION_OVERVIEW", "Oracle current sessions",
@@ -406,9 +446,9 @@ public class SqlTemplateService {
                 "SELECT * FROM pg_stat_activity WHERE state != 'idle' ORDER BY query_start",
                 List.of("long transaction", "slow query", "active query", "performance_issue", "transaction")),
             metadataTemplate("POSTGRES_TABLE_METADATA", "PostgreSQL table metadata",
-                "Read PostgreSQL column metadata for a table in the current schema.",
+                "Read PostgreSQL column metadata for a table in an explicit schema.",
                 "postgresql",
-                "SELECT column_name, data_type, is_nullable, column_default, character_maximum_length, numeric_precision, numeric_scale FROM information_schema.columns WHERE table_schema = current_schema() AND table_name = {{tableName}} ORDER BY ordinal_position",
+                "SELECT column_name, data_type, is_nullable, column_default, character_maximum_length, numeric_precision, numeric_scale FROM information_schema.columns WHERE table_schema = COALESCE(NULLIF({{schemaName}}, ''), current_schema()) AND table_name = {{tableName}} ORDER BY ordinal_position",
                 List.of("table metadata", "column metadata", "table schema", "describe table", "metadata_query")),
 
             maintenanceTemplate("SQLSERVER_SESSIONS", "SQL Server current sessions",
@@ -437,9 +477,9 @@ public class SqlTemplateService {
                 "SELECT * FROM sys.dm_io_virtual_file_stats(NULL, NULL)",
                 List.of("io", "performance", "file stats", "dm_io_virtual_file_stats", "performance_issue")),
             metadataTemplate("SQLSERVER_TABLE_METADATA", "SQL Server table metadata",
-                "Read SQL Server column metadata for a table in the current schema.",
+                "Read SQL Server column metadata for a table in an explicit schema.",
                 "sqlserver",
-                "SELECT column_name, data_type, is_nullable, column_default, character_maximum_length, numeric_precision, numeric_scale FROM information_schema.columns WHERE table_name = {{tableName}} ORDER BY ordinal_position",
+                "SELECT column_name, data_type, is_nullable, column_default, character_maximum_length, numeric_precision, numeric_scale FROM information_schema.columns WHERE table_schema = COALESCE(NULLIF({{schemaName}}, ''), SCHEMA_NAME()) AND table_name = {{tableName}} ORDER BY ordinal_position",
                 List.of("table metadata", "column metadata", "table schema", "describe table", "metadata_query"))
         );
     }
@@ -497,6 +537,12 @@ public class SqlTemplateService {
                     "type", "string",
                     "description", "Table name to inspect in the current schema/database",
                     "minLength", 1,
+                    "maxLength", 128,
+                    "pattern", "[A-Za-z_][A-Za-z0-9_]*"
+                ),
+                "schemaName", Map.of(
+                    "type", "string",
+                    "description", "Schema/database name to inspect. The SQL executor fills this from execution context or JDBC URL when omitted.",
                     "maxLength", 128,
                     "pattern", "[A-Za-z_][A-Za-z0-9_]*"
                 )

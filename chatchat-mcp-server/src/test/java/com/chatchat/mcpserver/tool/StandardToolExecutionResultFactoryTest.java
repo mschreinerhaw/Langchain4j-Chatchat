@@ -110,11 +110,13 @@ class StandardToolExecutionResultFactoryTest {
 
         Map<String, Object> envelope = factory.fromLinuxCommand(result);
         Map<?, ?> target = (Map<?, ?>) envelope.get("target");
+        Map<?, ?> operation = (Map<?, ?>) envelope.get("operation");
         Map<?, ?> data = (Map<?, ?>) envelope.get("data");
         Map<?, ?> execution = (Map<?, ?>) envelope.get("execution");
         Map<?, ?> secondStep = (Map<?, ?>) ((List<?>) execution.get("steps")).get(1);
         Map<?, ?> secondInput = (Map<?, ?>) secondStep.get("input");
         Map<?, ?> secondOutput = (Map<?, ?>) secondStep.get("output");
+        Map<?, ?> diagnostics = (Map<?, ?>) data.get("diagnostics");
         Map<?, ?> graph = (Map<?, ?>) envelope.get("executionGraph");
 
         assertThat(envelope).containsEntry("schemaVersion", StandardToolExecutionResultFactory.SCHEMA_VERSION);
@@ -131,6 +133,11 @@ class StandardToolExecutionResultFactoryTest {
         assertThat(secondOutput.get("stderr")).isEqualTo("failed");
         assertThat(data.get("failedStepIndex")).isEqualTo(2);
         assertThat(data.get("outputMode")).isEqualTo("separated");
+        assertThat(operation.get("diagnostics")).isEqualTo(diagnostics);
+        assertThat(diagnostics.get("schemaVersion")).isEqualTo("linux_command_diagnostics.v1");
+        assertThat(diagnostics.get("stepCount")).isEqualTo(2);
+        assertThat(diagnostics.get("failedStepIndex")).isEqualTo(2);
+        assertThat(diagnostics.get("stderrLength")).isEqualTo(6);
         assertThat((List<?>) data.get("steps")).hasSize(2);
         assertThat((List<?>) graph.get("nodes")).hasSize(2);
         assertThat((List<?>) graph.get("edges")).hasSize(1);

@@ -13,6 +13,7 @@ import io.modelcontextprotocol.client.transport.HttpClientSseClientTransport;
 import io.modelcontextprotocol.client.transport.HttpClientStreamableHttpTransport;
 import io.modelcontextprotocol.spec.McpClientTransport;
 import io.modelcontextprotocol.spec.McpSchema;
+import io.modelcontextprotocol.spec.ProtocolVersions;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpHeaders;
@@ -27,6 +28,7 @@ import java.net.InetSocketAddress;
 import java.net.ProxySelector;
 import java.net.URI;
 import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -35,6 +37,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -58,12 +61,27 @@ public class McpGatewayClient {
     private static final String DEFAULT_STREAMABLE_HTTP_PATH = "/mcp";
     private static final String DEFAULT_LEGACY_SSE_PATH = "/sse";
     private static final Duration UNBOUNDED_MCP_REQUEST_TIMEOUT = Duration.ofDays(36500);
+    private static final String JSON_RPC_VERSION = "2.0";
+    private static final String ERROR_TENANT_MISSING = "TENANT_MISSING";
+    private static final String ERROR_SESSION_INVALID = "SESSION_INVALID";
+    private static final String ERROR_MCP_HTTP = "MCP_HTTP_ERROR";
+    private static final String ERROR_MCP_TOOL = "MCP_TOOL_ERROR";
+    private static final String ERROR_TOOL_BUSY = "TOOL_BUSY";
+    private static final String ACTION_STOP = "STOP";
+    private static final String ACTION_REBUILD_SESSION = "REBUILD_SESSION";
+    private static final String TOOL_DISCOVERY_SCOPE = "__tools_list";
+    private static final String STATE_RUNNING = "RUNNING";
+    private static final String STATE_REBUILDING = "REBUILDING";
+    private static final String STATE_SUCCEEDED = "SUCCEEDED";
+    private static final String STATE_FAILED = "FAILED";
+    private static final String STATE_STOPPED = "STOPPED";
 
     private final ObjectMapper objectMapper;
     private final McpCenterProperties centerProperties;
     private final McpStdioProxyService stdioProxyService;
     private final WebClient directWebClient = WebClient.builder().build();
     private final Map<String, ManagedSdkClient> sdkClientCache = new ConcurrentHashMap<>();
+    private final Map<String, Object> sdkSessionLocks = new ConcurrentHashMap<>();
 
     /**
      * Performs the discover tools operation.
@@ -80,17 +98,26 @@ public class McpGatewayClient {
         if (kind == TransportKind.LEGACY_HTTP) {
             return discoverToolsViaLegacyHttp(config);
         }
+        if (useDirectStreamableHttp(config, kind)) {
+            return discoverToolsViaDirectStreamableHttp(config, null);
+        }
         log.info("Using MCP SDK transport {} for service {} (protocol={})",
             kind, config.getName(), config.getProtocol());
 
+        Object sessionLock = sdkSessionLock(config, 0, TOOL_DISCOVERY_SCOPE);
+        synchronized (sessionLock) {
         try {
-            McpSyncClient client = getOrCreateSdkClient(config, kind);
+            McpSyncClient client = getOrCreateSdkClient(config, kind, 0, TOOL_DISCOVERY_SCOPE);
             Object raw = client.listTools();
             Map<String, Object> mapped = objectMapper.convertValue(raw, new TypeReference<>() {});
             return normalizeTools(mapped);
         } catch (Exception ex) {
             log.warn("Failed to discover MCP tools via SDK for {}: {}", config.getName(), ex.getMessage());
+            if (kind == TransportKind.STREAMABLE_HTTP) {
+                return discoverToolsViaDirectStreamableHttp(config, ex);
+            }
             return List.of();
+        }
         }
     }
 
@@ -117,6 +144,22 @@ public class McpGatewayClient {
      */
     public McpToolInvokeResult invokeTool(McpServiceConfig config, String toolName, Map<String, Object> arguments,
                                           Long timeoutOverrideMs) {
+        String tenantValidationError = validateTenantContext(arguments);
+        if (tenantValidationError != null) {
+            log.warn("MCP invoke rejected before transport serviceId={} service={} remoteTool={} error={} args={}",
+                config == null ? null : config.getId(),
+                config == null ? null : config.getName(),
+                toolName,
+                tenantValidationError,
+                ToolLogSummarizer.summarize(arguments));
+            return McpToolInvokeResult.failure(
+                tenantValidationError,
+                ERROR_TENANT_MISSING,
+                false,
+                ACTION_STOP,
+                executionState(STATE_STOPPED, config, toolName, 0, 0, ERROR_TENANT_MISSING, ACTION_STOP, arguments)
+            );
+        }
         if (isStdioProxyProtocol(config)) {
             return invokeToolViaStdioProxy(config, toolName, arguments);
         }
@@ -126,6 +169,9 @@ public class McpGatewayClient {
             return invokeToolViaLegacyHttp(config, toolName, arguments);
         }
         int requestTimeoutMs = effectiveToolTimeoutMs(timeoutOverrideMs);
+        if (useDirectStreamableHttp(config, kind)) {
+            return invokeToolViaDirectStreamableHttp(config, requestTimeoutMs, toolName, arguments, null);
+        }
         log.info("MCP SDK invoke started serviceId={} service={} remoteTool={} transport={} protocol={} timeoutMs={} args={}",
             config.getId(),
             config.getName(),
@@ -135,9 +181,12 @@ public class McpGatewayClient {
             requestTimeoutMs <= 0 ? "unbounded" : requestTimeoutMs,
             ToolLogSummarizer.summarize(arguments));
 
+        Object sessionLock = sdkSessionLock(config, requestTimeoutMs, toolName);
+        synchronized (sessionLock) {
         try {
             long startedAt = System.currentTimeMillis();
             McpToolInvokeResult result = invokeSdkTool(config, kind, requestTimeoutMs, toolName, arguments);
+            result = withExecutionState(result, config, toolName, requestTimeoutMs, 0, arguments);
             if (result.success()) {
                 log.info("MCP SDK invoke succeeded serviceId={} service={} remoteTool={} durationMs={} result={}",
                     config.getId(),
@@ -157,10 +206,11 @@ public class McpGatewayClient {
             return result;
         } catch (Exception ex) {
             if (isRecoverableMcpSessionFailure(ex)) {
-                invalidateSdkClient(config, kind, requestTimeoutMs, ex);
+                invalidateSdkClient(config, kind, requestTimeoutMs, toolName, ex);
                 try {
                     long retryStartedAt = System.currentTimeMillis();
                     McpToolInvokeResult result = invokeSdkTool(config, kind, requestTimeoutMs, toolName, arguments);
+                    result = withExecutionState(result, config, toolName, requestTimeoutMs, 1, arguments);
                     log.info("MCP SDK invoke recovered after session reset serviceId={} service={} remoteTool={} durationMs={} result={}",
                         config.getId(),
                         config.getName(),
@@ -186,17 +236,479 @@ public class McpGatewayClient {
                 requestTimeoutMs,
                 ex.getMessage(),
                 ex);
-            return new McpToolInvokeResult(false, null, null, ex.getMessage());
+            if (kind == TransportKind.STREAMABLE_HTTP) {
+                return invokeToolViaDirectStreamableHttp(config, requestTimeoutMs, toolName, arguments, ex);
+            }
+            return withExecutionState(failureResult(ex), config, toolName, requestTimeoutMs, 1, arguments);
         }
+        }
+    }
+
+    private boolean useDirectStreamableHttp(McpServiceConfig config, TransportKind kind) {
+        return kind == TransportKind.STREAMABLE_HTTP && isStandaloneCenterService(config);
+    }
+
+    private Object sdkSessionLock(McpServiceConfig config, int requestTimeoutMs, String scope) {
+        return sdkSessionLocks.computeIfAbsent(sdkClientKey(config, requestTimeoutMs, scope), ignored -> new Object());
+    }
+
+    private McpToolInvokeResult withExecutionState(McpToolInvokeResult result, McpServiceConfig config, String toolName,
+                                                   int requestTimeoutMs, int retryCount, Map<String, Object> arguments) {
+        if (result == null) {
+            return McpToolInvokeResult.failure(
+                "MCP tool call returned no result",
+                ERROR_MCP_TOOL,
+                false,
+                ACTION_STOP,
+                executionState(STATE_FAILED, config, toolName, requestTimeoutMs, retryCount, ERROR_MCP_TOOL,
+                    ACTION_STOP, arguments)
+            );
+        }
+        String state = result.success()
+            ? STATE_SUCCEEDED
+            : ACTION_STOP.equals(result.action()) ? STATE_STOPPED : STATE_FAILED;
+        return result.withExecutionState(executionState(
+            state,
+            config,
+            toolName,
+            requestTimeoutMs,
+            retryCount,
+            result.errorCode(),
+            result.action(),
+            arguments
+        ));
+    }
+
+    private Map<String, Object> executionState(String state, McpServiceConfig config, String toolName,
+                                               int requestTimeoutMs, int retryCount, String errorCode, String action,
+                                               Map<String, Object> arguments) {
+        Map<String, Object> values = new LinkedHashMap<>();
+        values.put("state", firstText(state, STATE_RUNNING));
+        values.put("step", toolName);
+        values.put("toolName", toolName);
+        values.put("serviceId", config == null ? null : config.getId());
+        values.put("serviceName", config == null ? null : config.getName());
+        values.put("timeoutMs", Math.max(0, requestTimeoutMs));
+        values.put("retryCount", Math.max(0, retryCount));
+        if (retryCount > 0) {
+            values.put("previousState", STATE_REBUILDING);
+        }
+        values.put("requestId", requestIdFrom(arguments));
+        values.put("tenantId", tenantIdFrom(arguments));
+        values.put("errorCode", errorCode);
+        values.put("action", action);
+        return values;
+    }
+
+    private String requestIdFrom(Map<String, Object> arguments) {
+        if (arguments == null || arguments.isEmpty()) {
+            return null;
+        }
+        Map<String, Object> mcpContext = asMap(arguments.get("mcpContext"));
+        return firstText(
+            stringValue(arguments.get("requestId")),
+            stringValue(arguments.get("request_id")),
+            stringValue(arguments.get("traceId")),
+            stringValue(arguments.get("trace_id")),
+            stringValue(mcpContext.get("requestId")),
+            stringValue(mcpContext.get("request_id")),
+            stringValue(mcpContext.get("traceId")),
+            stringValue(mcpContext.get("trace_id"))
+        );
+    }
+
+    private String validateTenantContext(Map<String, Object> arguments) {
+        String tenantId = tenantIdFrom(arguments);
+        if (tenantId == null || tenantId.isBlank()) {
+            return "MCP request missing tenantId";
+        }
+        return null;
+    }
+
+    private McpToolInvokeResult failureResult(Throwable throwable) {
+        return failureResult(throwable == null ? null : throwable.getMessage());
+    }
+
+    private McpToolInvokeResult failureResult(String message) {
+        String normalized = message == null ? "" : message.toLowerCase(Locale.ROOT);
+        if (normalized.contains("tenant_required") || normalized.contains("tenantid")
+            || normalized.contains("tenant id")) {
+            return McpToolInvokeResult.failure(
+                firstText(message, "MCP request missing tenantId"),
+                ERROR_TENANT_MISSING,
+                false,
+                ACTION_STOP
+            );
+        }
+        if (normalized.contains("session not found") || normalized.contains("not recognize session")
+            || normalized.contains("unknown id") || normalized.contains("session invalid")
+            || normalized.contains("mcptransportsessionnotfoundexception")) {
+            return McpToolInvokeResult.failure(
+                firstText(message, "MCP session invalid"),
+                ERROR_SESSION_INVALID,
+                true,
+                ACTION_REBUILD_SESSION
+            );
+        }
+        if (normalized.contains("tool_circuit_open") || normalized.contains("circuit is open")
+            || normalized.contains("queue is full") || normalized.contains("rate limit exceeded")) {
+            return McpToolInvokeResult.failure(
+                firstText(message, "MCP tool is temporarily unavailable"),
+                ERROR_TOOL_BUSY,
+                false,
+                ACTION_STOP
+            );
+        }
+        if (normalized.contains("mcp http status")) {
+            return McpToolInvokeResult.failure(
+                firstText(message, "MCP HTTP request failed"),
+                ERROR_MCP_HTTP,
+                false,
+                ACTION_STOP
+            );
+        }
+        return McpToolInvokeResult.failure(
+            firstText(message, "MCP tool call failed"),
+            ERROR_MCP_TOOL,
+            false,
+            ACTION_STOP
+        );
+    }
+
+    private String tenantIdFrom(Map<String, Object> arguments) {
+        if (arguments == null || arguments.isEmpty()) {
+            return null;
+        }
+        String direct = firstText(
+            stringValue(arguments.get("tenantId")),
+            stringValue(arguments.get("tenant_id")),
+            stringValue(arguments.get("tenant"))
+        );
+        if (direct != null) {
+            return direct;
+        }
+        Map<String, Object> mcpContext = asMap(arguments.get("mcpContext"));
+        String contextTenant = firstText(
+            stringValue(mcpContext.get("tenantId")),
+            stringValue(mcpContext.get("tenant_id")),
+            stringValue(mcpContext.get("tenant"))
+        );
+        if (contextTenant != null) {
+            return contextTenant;
+        }
+        Map<String, Object> tenant = asMap(mcpContext.get("tenant"));
+        return firstText(
+            stringValue(tenant.get("tenantId")),
+            stringValue(tenant.get("tenant_id")),
+            stringValue(tenant.get("id"))
+        );
     }
 
     private McpToolInvokeResult invokeSdkTool(McpServiceConfig config, TransportKind kind, int requestTimeoutMs,
                                               String toolName, Map<String, Object> arguments) {
-        McpSyncClient client = getOrCreateSdkClient(config, kind, requestTimeoutMs);
+        McpSyncClient client = getOrCreateSdkClient(config, kind, requestTimeoutMs, toolName);
         Object raw = client.callTool(new McpSchema.CallToolRequest(toolName,
             arguments == null ? Map.of() : arguments));
         Map<String, Object> mapped = objectMapper.convertValue(raw, new TypeReference<>() {});
         return normalizeInvokeResult(mapped);
+    }
+
+    private List<McpToolDefinition> discoverToolsViaDirectStreamableHttp(McpServiceConfig config, Exception sdkFailure) {
+        try {
+            DirectMcpSession session = openDirectStreamableHttpSession(config, 0);
+            try {
+                Object raw = directJsonRpcRequest(session, "tools/list", Map.of(), 0);
+                return normalizeTools(raw);
+            } finally {
+                closeDirectStreamableHttpSession(session);
+            }
+        } catch (Exception ex) {
+            log.warn("Direct MCP streamable HTTP tool discovery fallback failed serviceId={} service={} sdkError={} error={}",
+                config.getId(),
+                config.getName(),
+                sdkFailure == null ? "" : sdkFailure.getMessage(),
+                ex.getMessage(),
+                ex);
+            return List.of();
+        }
+    }
+
+    private McpToolInvokeResult invokeToolViaDirectStreamableHttp(McpServiceConfig config, int requestTimeoutMs,
+                                                                  String toolName, Map<String, Object> arguments,
+                                                                  Exception sdkFailure) {
+        try {
+            DirectMcpSession session = openDirectStreamableHttpSession(config, requestTimeoutMs);
+            try {
+                Map<String, Object> params = new LinkedHashMap<>();
+                params.put("name", toolName);
+                params.put("arguments", arguments == null ? Map.of() : arguments);
+                Object raw = directJsonRpcRequest(session, "tools/call", params, requestTimeoutMs);
+                McpToolInvokeResult result = normalizeInvokeResult(raw);
+                result = withExecutionState(
+                    result,
+                    config,
+                    toolName,
+                    requestTimeoutMs,
+                    sdkFailure == null ? 0 : 1,
+                    arguments
+                );
+                log.info("Direct MCP streamable HTTP invoke fallback completed serviceId={} service={} remoteTool={} success={} result={}",
+                    config.getId(),
+                    config.getName(),
+                    toolName,
+                    result.success(),
+                    ToolLogSummarizer.summarize(result.data()));
+                return result;
+            } finally {
+                closeDirectStreamableHttpSession(session);
+            }
+        } catch (Exception ex) {
+            log.warn("Direct MCP streamable HTTP invoke fallback failed serviceId={} service={} remoteTool={} sdkError={} error={}",
+                config.getId(),
+                config.getName(),
+                toolName,
+                sdkFailure == null ? "" : sdkFailure.getMessage(),
+                ex.getMessage(),
+                ex);
+            String message = ex.getMessage() == null ? (sdkFailure == null ? null : sdkFailure.getMessage()) : ex.getMessage();
+            return withExecutionState(
+                failureResult(message),
+                config,
+                toolName,
+                requestTimeoutMs,
+                sdkFailure == null ? 0 : 1,
+                arguments
+            );
+        }
+    }
+
+    private DirectMcpSession openDirectStreamableHttpSession(McpServiceConfig config, int requestTimeoutMs) throws Exception {
+        EndpointParts endpoint = endpointParts(resolveStreamableEndpoint(config), DEFAULT_STREAMABLE_HTTP_PATH);
+        java.net.http.HttpClient client = buildHttpClientBuilder(config)
+            .connectTimeout(Duration.ofMillis(positiveOrDefault(config.getTimeoutMs(), 20_000)))
+            .build();
+        URI uri = URI.create(endpoint.baseUrl() + endpoint.endpointPath());
+
+        Map<String, Object> initializeParams = new LinkedHashMap<>();
+        initializeParams.put("protocolVersion", ProtocolVersions.MCP_2025_11_25);
+        initializeParams.put("capabilities", Map.of());
+        initializeParams.put("clientInfo", Map.of(
+            "name", "chatchat-mcp-client-direct",
+            "version", "1.0.0"
+        ));
+
+        String requestId = nextDirectRequestId("initialize");
+        HttpResponse<String> response = sendDirectJsonRpc(
+            client,
+            config,
+            uri,
+            null,
+            ProtocolVersions.MCP_2025_11_25,
+            jsonRpcRequest(requestId, McpSchema.METHOD_INITIALIZE, initializeParams),
+            requestTimeoutMs
+        );
+        Object payload = directResponsePayload(response, requestId);
+        Map<String, Object> initResult = asMap(payload);
+        String negotiatedProtocol = firstText(stringValue(initResult.get("protocolVersion")), ProtocolVersions.MCP_2025_11_25);
+        String sessionId = response.headers().firstValue(io.modelcontextprotocol.spec.HttpHeaders.MCP_SESSION_ID)
+            .orElse(null);
+        if (sessionId == null || sessionId.isBlank()) {
+            throw new IllegalStateException("MCP initialize response did not include mcp-session-id");
+        }
+
+        DirectMcpSession session = new DirectMcpSession(client, config, uri, sessionId, negotiatedProtocol);
+        sendDirectNotification(session, McpSchema.METHOD_NOTIFICATION_INITIALIZED, null, requestTimeoutMs);
+        return session;
+    }
+
+    private Object directJsonRpcRequest(DirectMcpSession session, String method, Object params, int requestTimeoutMs)
+        throws Exception {
+        String requestId = nextDirectRequestId(method);
+        HttpResponse<String> response = sendDirectJsonRpc(
+            session.client(),
+            session.config(),
+            session.uri(),
+            session.sessionId(),
+            session.protocolVersion(),
+            jsonRpcRequest(requestId, method, params),
+            requestTimeoutMs
+        );
+        return directResponsePayload(response, requestId);
+    }
+
+    private void sendDirectNotification(DirectMcpSession session, String method, Object params, int requestTimeoutMs)
+        throws Exception {
+        sendDirectJsonRpc(
+            session.client(),
+            session.config(),
+            session.uri(),
+            session.sessionId(),
+            session.protocolVersion(),
+            jsonRpcNotification(method, params),
+            requestTimeoutMs
+        );
+    }
+
+    private HttpResponse<String> sendDirectJsonRpc(java.net.http.HttpClient client, McpServiceConfig config, URI uri,
+                                                   String sessionId, String protocolVersion, String body,
+                                                   int requestTimeoutMs) throws Exception {
+        HttpRequest.Builder builder = buildHttpRequestBuilder(config)
+            .copy()
+            .uri(uri)
+            .header(io.modelcontextprotocol.spec.HttpHeaders.ACCEPT, MediaType.APPLICATION_JSON_VALUE + ", text/event-stream")
+            .header(io.modelcontextprotocol.spec.HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
+            .header(io.modelcontextprotocol.spec.HttpHeaders.CACHE_CONTROL, "no-cache")
+            .header(io.modelcontextprotocol.spec.HttpHeaders.PROTOCOL_VERSION, protocolVersion)
+            .POST(HttpRequest.BodyPublishers.ofString(body));
+        if (sessionId != null && !sessionId.isBlank()) {
+            builder.header(io.modelcontextprotocol.spec.HttpHeaders.MCP_SESSION_ID, sessionId);
+        }
+        applyDirectContextHeaders(builder, body);
+        if (requestTimeoutMs > 0) {
+            builder.timeout(Duration.ofMillis(requestTimeoutMs));
+        }
+        return client.send(builder.build(), HttpResponse.BodyHandlers.ofString());
+    }
+
+    private void applyDirectContextHeaders(HttpRequest.Builder builder, String body) {
+        try {
+            Map<String, Object> envelope = objectMapper.readValue(body, new TypeReference<>() {});
+            Map<String, Object> params = asMap(envelope.get("params"));
+            Map<String, Object> arguments = asMap(params.get("arguments"));
+            Map<String, Object> mcpContext = asMap(arguments.get("mcpContext"));
+
+            String tenantId = firstText(
+                stringValue(arguments.get("tenantId")),
+                stringValue(arguments.get("tenant_id")),
+                stringValue(mcpContext.get("tenantId")),
+                stringValue(mcpContext.get("tenant_id")),
+                stringValue(mcpContext.get("tenant"))
+            );
+            String userId = firstText(
+                stringValue(arguments.get("userId")),
+                stringValue(arguments.get("user_id")),
+                stringValue(mcpContext.get("userId")),
+                stringValue(mcpContext.get("user_id"))
+            );
+            String requestId = firstText(
+                stringValue(arguments.get("requestId")),
+                stringValue(arguments.get("request_id")),
+                stringValue(mcpContext.get("requestId")),
+                stringValue(mcpContext.get("request_id"))
+            );
+
+            setHeaderIfPresent(builder, "X-Tenant-Id", tenantId);
+            setHeaderIfPresent(builder, "X-User-Id", userId);
+            setHeaderIfPresent(builder, "X-Request-Id", requestId);
+            setHeaderIfPresent(builder, "X-Correlation-Id", requestId);
+        } catch (Exception ex) {
+            log.debug("Failed to attach direct MCP context headers: {}", ex.getMessage());
+        }
+    }
+
+    private void setHeaderIfPresent(HttpRequest.Builder builder, String name, String value) {
+        if (value != null && !value.isBlank()) {
+            builder.setHeader(name, value.trim());
+        }
+    }
+
+    private Object directResponsePayload(HttpResponse<String> response, String expectedRequestId) throws Exception {
+        int status = response.statusCode();
+        if (status < 200 || status >= 300) {
+            throw new IllegalStateException("MCP HTTP status " + status + ": " + response.body());
+        }
+        if (status == 202 || response.body() == null || response.body().isBlank()) {
+            return Map.of();
+        }
+        String contentType = response.headers()
+            .firstValue(io.modelcontextprotocol.spec.HttpHeaders.CONTENT_TYPE)
+            .orElse("")
+            .toLowerCase(Locale.ROOT);
+        String json = contentType.contains("text/event-stream")
+            ? firstJsonRpcSseData(response.body(), expectedRequestId)
+            : response.body();
+        if (json == null || json.isBlank()) {
+            return Map.of();
+        }
+        Map<String, Object> envelope = objectMapper.readValue(json, new TypeReference<>() {});
+        Object error = envelope.get("error");
+        if (error != null) {
+            throw new IllegalStateException(String.valueOf(error));
+        }
+        return envelope.getOrDefault("result", envelope);
+    }
+
+    private String firstJsonRpcSseData(String body, String expectedRequestId) throws Exception {
+        List<String> dataLines = new ArrayList<>();
+        for (String rawLine : body.split("\\R")) {
+            String line = rawLine == null ? "" : rawLine;
+            if (line.isBlank()) {
+                String data = String.join("\n", dataLines).trim();
+                dataLines.clear();
+                if (isExpectedJsonRpcData(data, expectedRequestId)) {
+                    return data;
+                }
+                continue;
+            }
+            if (line.startsWith("data:")) {
+                dataLines.add(line.substring("data:".length()).trim());
+            }
+        }
+        String data = String.join("\n", dataLines).trim();
+        if (isExpectedJsonRpcData(data, expectedRequestId)) {
+            return data;
+        }
+        return null;
+    }
+
+    private boolean isExpectedJsonRpcData(String data, String expectedRequestId) throws Exception {
+        if (data == null || data.isBlank()) {
+            return false;
+        }
+        Map<String, Object> envelope = objectMapper.readValue(data, new TypeReference<>() {});
+        Object id = envelope.get("id");
+        return expectedRequestId == null || expectedRequestId.equals(String.valueOf(id));
+    }
+
+    private void closeDirectStreamableHttpSession(DirectMcpSession session) {
+        if (session == null || session.sessionId() == null || session.sessionId().isBlank()) {
+            return;
+        }
+        try {
+            HttpRequest.Builder builder = buildHttpRequestBuilder(session.config())
+                .copy()
+                .uri(session.uri())
+                .header(io.modelcontextprotocol.spec.HttpHeaders.MCP_SESSION_ID, session.sessionId())
+                .header(io.modelcontextprotocol.spec.HttpHeaders.PROTOCOL_VERSION, session.protocolVersion())
+                .DELETE();
+            session.client().send(builder.build(), HttpResponse.BodyHandlers.discarding());
+        } catch (Exception ex) {
+            log.debug("Failed to close direct MCP streamable HTTP session {}: {}", session.sessionId(), ex.getMessage());
+        }
+    }
+
+    private String jsonRpcRequest(String id, String method, Object params) throws Exception {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("jsonrpc", JSON_RPC_VERSION);
+        payload.put("id", id);
+        payload.put("method", method);
+        payload.put("params", params == null ? Map.of() : params);
+        return objectMapper.writeValueAsString(payload);
+    }
+
+    private String jsonRpcNotification(String method, Object params) throws Exception {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("jsonrpc", JSON_RPC_VERSION);
+        payload.put("method", method);
+        if (params != null) {
+            payload.put("params", params);
+        }
+        return objectMapper.writeValueAsString(payload);
+    }
+
+    private String nextDirectRequestId(String method) {
+        String prefix = method == null ? "mcp" : method.replace('/', '-');
+        return prefix + "-" + UUID.randomUUID();
     }
 
     /**
@@ -207,7 +719,7 @@ public class McpGatewayClient {
      * @return the or create sdk client
      */
     private McpSyncClient getOrCreateSdkClient(McpServiceConfig config, TransportKind kind) {
-        return getOrCreateSdkClient(config, kind, 0);
+        return getOrCreateSdkClient(config, kind, 0, TOOL_DISCOVERY_SCOPE);
     }
 
     /**
@@ -218,9 +730,10 @@ public class McpGatewayClient {
      * @param requestTimeoutMs the request timeout ms value
      * @return the or create sdk client
      */
-    private McpSyncClient getOrCreateSdkClient(McpServiceConfig config, TransportKind kind, int requestTimeoutMs) {
+    private McpSyncClient getOrCreateSdkClient(McpServiceConfig config, TransportKind kind, int requestTimeoutMs,
+                                               String scope) {
         int normalizedRequestTimeoutMs = Math.max(0, requestTimeoutMs);
-        String key = sdkClientKey(config, normalizedRequestTimeoutMs);
+        String key = sdkClientKey(config, normalizedRequestTimeoutMs, scope);
         String fingerprint = transportFingerprint(config, kind, requestTimeoutMs);
 
         ManagedSdkClient cached = sdkClientCache.get(key);
@@ -249,9 +762,10 @@ public class McpGatewayClient {
         }
     }
 
-    private void invalidateSdkClient(McpServiceConfig config, TransportKind kind, int requestTimeoutMs, Throwable cause) {
+    private void invalidateSdkClient(McpServiceConfig config, TransportKind kind, int requestTimeoutMs, String scope,
+                                     Throwable cause) {
         int normalizedRequestTimeoutMs = Math.max(0, requestTimeoutMs);
-        String key = sdkClientKey(config, normalizedRequestTimeoutMs);
+        String key = sdkClientKey(config, normalizedRequestTimeoutMs, scope);
         String fingerprint = transportFingerprint(config, kind, requestTimeoutMs);
         synchronized (sdkClientCache) {
             ManagedSdkClient current = sdkClientCache.get(key);
@@ -268,8 +782,16 @@ public class McpGatewayClient {
         }
     }
 
-    private String sdkClientKey(McpServiceConfig config, int requestTimeoutMs) {
-        return serviceKey(config) + ":" + Math.max(0, requestTimeoutMs);
+    private String sdkClientKey(McpServiceConfig config, int requestTimeoutMs, String scope) {
+        return serviceKey(config) + ":" + sdkScope(scope) + ":" + Math.max(0, requestTimeoutMs);
+    }
+
+    private String sdkScope(String scope) {
+        String normalized = normalizeText(scope);
+        if (normalized == null) {
+            return "_default";
+        }
+        return normalized.replaceAll("[^A-Za-z0-9_.-]", "_");
     }
 
     /**
@@ -690,11 +1212,11 @@ public class McpGatewayClient {
         params.put("arguments", arguments == null ? Map.of() : arguments);
         try {
             Object result = stdioProxyService.callForResult(config, "tools/call", params);
-            return normalizeInvokeResult(result);
+            return withExecutionState(normalizeInvokeResult(result), config, toolName, 0, 0, arguments);
         } catch (Exception ex) {
             log.warn("Failed to invoke MCP tool {} via stdio proxy for {}: {}", toolName, config.getName(),
                 ex.getMessage());
-            return new McpToolInvokeResult(false, null, null, ex.getMessage());
+            return withExecutionState(failureResult(ex), config, toolName, 0, 0, arguments);
         }
     }
 
@@ -765,10 +1287,10 @@ public class McpGatewayClient {
                 result.success(),
                 Math.max(0L, System.currentTimeMillis() - startedAt),
                 ToolLogSummarizer.summarize(result.data()));
-            return result;
+            return withExecutionState(result, config, toolName, requestTimeoutMs, 0, arguments);
         } catch (Exception ex) {
             log.warn("Failed to invoke MCP tool {} on {}: {}", toolName, url, ex.getMessage());
-            return new McpToolInvokeResult(false, null, null, ex.getMessage());
+            return withExecutionState(failureResult(ex), config, toolName, effectiveToolTimeoutMs(null), 0, arguments);
         }
     }
 
@@ -999,8 +1521,15 @@ public class McpGatewayClient {
 
         Integer code = asInteger(map.get("code"));
         if (code != null && code >= 400) {
-            String msg = stringValue(map.get("message"));
-            return new McpToolInvokeResult(false, null, msg, msg);
+            String msg = firstText(stringValue(map.get("message")), stringValue(map.get("error")));
+            if (msg == null) {
+                msg = "MCP HTTP status " + code;
+            }
+            McpToolInvokeResult classified = failureResult(msg);
+            String errorCode = ERROR_MCP_HTTP.equals(classified.errorCode())
+                ? ERROR_MCP_HTTP + "_" + code
+                : classified.errorCode();
+            return McpToolInvokeResult.failure(msg, errorCode, classified.retryable(), classified.action());
         }
 
         Object isError = map.get("isError");
@@ -1009,11 +1538,22 @@ public class McpGatewayClient {
             if (message == null || message.isBlank()) {
                 message = stringValue(map.get("content"));
             }
-            return new McpToolInvokeResult(false, map, message, message == null ? "MCP tool error" : message);
+            McpToolInvokeResult classified = failureResult(message == null ? "MCP tool error" : message);
+            return new McpToolInvokeResult(
+                false,
+                map,
+                message,
+                message == null ? "MCP tool error" : message,
+                classified.errorCode(),
+                classified.retryable(),
+                classified.action(),
+                Map.of()
+            );
         }
 
         if (map.containsKey("error")) {
-            return new McpToolInvokeResult(false, null, stringValue(map.get("message")), String.valueOf(map.get("error")));
+            String message = firstText(stringValue(map.get("message")), stringValue(map.get("error")));
+            return failureResult(message);
         }
 
         Object data = firstPresent(
@@ -1192,6 +1732,18 @@ public class McpGatewayClient {
         return value == null || value.isBlank() ? fallback : value.trim();
     }
 
+    private String firstText(String... values) {
+        if (values == null) {
+            return null;
+        }
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value.trim();
+            }
+        }
+        return null;
+    }
+
     /**
      * Returns whether as boolean.
      *
@@ -1327,5 +1879,12 @@ public class McpGatewayClient {
     }
 
     private record EndpointParts(String baseUrl, String endpointPath) {
+    }
+
+    private record DirectMcpSession(java.net.http.HttpClient client,
+                                    McpServiceConfig config,
+                                    URI uri,
+                                    String sessionId,
+                                    String protocolVersion) {
     }
 }

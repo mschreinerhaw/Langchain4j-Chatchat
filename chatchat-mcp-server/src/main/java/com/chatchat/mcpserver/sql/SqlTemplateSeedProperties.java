@@ -1,13 +1,11 @@
 package com.chatchat.mcpserver.sql;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.stereotype.Component;
 
-@Component
 @ConfigurationProperties(prefix = "chatchat.mcp.sql-templates")
 public class SqlTemplateSeedProperties {
 
-    private boolean seedDefaultsEnabled = true;
+    private boolean seedDefaultsEnabled;
 
     public boolean isSeedDefaultsEnabled() {
         return seedDefaultsEnabled;

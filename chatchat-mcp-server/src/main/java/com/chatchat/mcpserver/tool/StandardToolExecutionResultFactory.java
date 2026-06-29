@@ -8,7 +8,10 @@ import com.chatchat.mcpserver.ops.LinuxCommandStepResult;
 import com.chatchat.mcpserver.sql.SqlQueryResult;
 import org.springframework.stereotype.Component;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.time.Instant;
+import java.util.HexFormat;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -41,7 +44,8 @@ public class StandardToolExecutionResultFactory {
             "statement", result.normalizedSql() == null ? result.sql() : result.normalizedSql(),
             "timeoutSeconds", result.timeoutSeconds(),
             "purpose", result.purpose(),
-            "sourceTaskId", result.sourceTaskId()
+            "sourceTaskId", result.sourceTaskId(),
+            "diagnostics", result.diagnostics()
         ));
         List<Map<String, Object>> rows = result.rows() == null
             ? List.of()
@@ -60,7 +64,8 @@ public class StandardToolExecutionResultFactory {
             "returnedRowCount", rows.size(),
             "possiblyTruncated", result.possiblyTruncated() || result.rowCount() > rows.size(),
             "truncationStrategy", "LIMIT_50",
-            "governance", sqlOutputGovernance(result, rows.size())
+            "governance", sqlOutputGovernance(result, rows.size()),
+            "diagnostics", result.diagnostics()
         );
         payload.put("data", data);
         payload.put("execution", execution(
@@ -83,7 +88,8 @@ public class StandardToolExecutionResultFactory {
                     "returnedRowCount", rows.size(),
                     "possiblyTruncated", data.get("possiblyTruncated"),
                     "governance", data.get("governance"),
-                    "meta", limits
+                    "meta", limits,
+                    "diagnostics", result.diagnostics()
                 ),
                 result.success(),
                 result.durationMs(),
@@ -99,6 +105,7 @@ public class StandardToolExecutionResultFactory {
     }
 
     public Map<String, Object> fromLinuxCommand(LinuxCommandResult result) {
+        Map<String, Object> diagnostics = linuxCommandDiagnostics(result);
         Map<String, Object> payload = base(
             "ssh_command",
             "ssh_steps.v1",
@@ -122,7 +129,8 @@ public class StandardToolExecutionResultFactory {
             "template", result.template(),
             "commandHash", result.commandHash(),
             "sourceTaskId", result.request() == null ? null : result.request().get("sourceTaskId"),
-            "reason", result.request() == null ? null : result.request().get("reason")
+            "reason", result.request() == null ? null : result.request().get("reason"),
+            "diagnostics", diagnostics
         ));
         payload.put("data", mapOf(
             "exitCode", result.exitCode(),
@@ -131,7 +139,8 @@ public class StandardToolExecutionResultFactory {
             "failedCommand", result.failedCommand(),
             "outputMode", "separated",
             "stdout", result.stdout(),
-            "stderr", result.stderr()
+            "stderr", result.stderr(),
+            "diagnostics", diagnostics
         ));
         payload.put("execution", result.execution());
         payload.put("executionGraph", graph(stepGraphNodes(result.steps()), stepGraphEdges(result.steps())));
@@ -314,6 +323,52 @@ public class StandardToolExecutionResultFactory {
                 "stderr", step.stderr()
             ))
             .toList();
+    }
+
+    private Map<String, Object> linuxCommandDiagnostics(LinuxCommandResult result) {
+        List<LinuxCommandStepResult> steps = result.steps() == null ? List.of() : result.steps();
+        return mapOf(
+            "schemaVersion", "linux_command_diagnostics.v1",
+            "hostId", result.hostId(),
+            "host", result.host(),
+            "toolName", result.toolName(),
+            "environment", result.environment(),
+            "template", result.template(),
+            "sourceTaskId", result.request() == null ? null : result.request().get("sourceTaskId"),
+            "reason", result.request() == null ? null : result.request().get("reason"),
+            "parameters", result.request() == null ? Map.of() : result.request().getOrDefault("parameters", Map.of()),
+            "commandHash", result.commandHash(),
+            "stepCount", steps.size(),
+            "failedStepIndex", result.failedStepIndex(),
+            "failedCommandHash", sha256(result.failedCommand()),
+            "exitCode", result.exitCode(),
+            "durationMs", result.durationMs(),
+            "stdoutLength", result.stdout() == null ? 0 : result.stdout().length(),
+            "stderrLength", result.stderr() == null ? 0 : result.stderr().length(),
+            "steps", steps.stream()
+                .map(step -> mapOf(
+                    "stepIndex", step.stepIndex(),
+                    "commandHash", step.commandHash(),
+                    "exitCode", step.exitCode(),
+                    "success", step.success(),
+                    "durationMs", step.durationMs(),
+                    "stdoutLength", step.stdout() == null ? 0 : step.stdout().length(),
+                    "stderrLength", step.stderr() == null ? 0 : step.stderr().length()
+                ))
+                .toList()
+        );
+    }
+
+    private String sha256(String value) {
+        if (value == null) {
+            return null;
+        }
+        try {
+            MessageDigest digest = MessageDigest.getInstance("SHA-256");
+            return HexFormat.of().formatHex(digest.digest(value.getBytes(StandardCharsets.UTF_8)));
+        } catch (Exception ex) {
+            return null;
+        }
     }
 
     private List<Map<String, Object>> stepGraphNodes(List<LinuxCommandStepResult> steps) {

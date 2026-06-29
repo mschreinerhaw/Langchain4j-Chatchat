@@ -1,13 +1,11 @@
 package com.chatchat.mcpserver.ops;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.stereotype.Component;
 
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-@Component
 @ConfigurationProperties(prefix = "chatchat.mcp.template-discovery")
 public class TemplateDiscoveryProperties {
 
@@ -18,6 +16,6 @@ public class TemplateDiscoveryProperties {
     }
 
     public void setIntentSynonyms(Map<String, List<String>> intentSynonyms) {
-        this.intentSynonyms = intentSynonyms == null ? new LinkedHashMap<>() : new LinkedHashMap<>(intentSynonyms);
+        this.intentSynonyms = intentSynonyms == null ? new LinkedHashMap<>() : intentSynonyms;
     }
 }

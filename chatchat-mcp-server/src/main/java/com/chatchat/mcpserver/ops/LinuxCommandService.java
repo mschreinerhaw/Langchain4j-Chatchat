@@ -396,18 +396,54 @@ public class LinuxCommandService {
         if (result == null) {
             return;
         }
-        String levelMessage = "MCP Linux command execution result: success={}, hostId={}, host={}, tool={}, env={}, template={}, exitCode={}, durationMs={}, command={}, stdout={}, stderr={}, error={}";
+        Map<String, Object> diagnostics = linuxDiagnostics(result);
+        String levelMessage = "MCP Linux command execution result: success={}, hostId={}, host={}, tool={}, env={}, template={}, exitCode={}, durationMs={}, command={}, stdout={}, stderr={}, diagnostics={}, error={}";
         if (result.success()) {
             log.info(levelMessage,
                 result.success(), result.hostId(), result.host(), result.toolName(), result.environment(), result.template(),
                 result.exitCode(), result.durationMs(), result.command(), truncate(result.stdout()), truncate(result.stderr()),
-                result.errorMessage());
+                diagnostics, result.errorMessage());
         } else {
             log.warn(levelMessage,
                 result.success(), result.hostId(), result.host(), result.toolName(), result.environment(), result.template(),
                 result.exitCode(), result.durationMs(), result.command(), truncate(result.stdout()), truncate(result.stderr()),
-                result.errorMessage());
+                diagnostics, result.errorMessage());
         }
+    }
+
+    private Map<String, Object> linuxDiagnostics(LinuxCommandResult result) {
+        Map<String, Object> diagnostics = new LinkedHashMap<>();
+        diagnostics.put("schemaVersion", "linux_command_diagnostics.v1");
+        diagnostics.put("hostId", result.hostId());
+        diagnostics.put("host", result.host());
+        diagnostics.put("toolName", result.toolName());
+        diagnostics.put("environment", result.environment());
+        diagnostics.put("template", result.template());
+        diagnostics.put("sourceTaskId", result.request() == null ? null : result.request().get("sourceTaskId"));
+        diagnostics.put("reason", result.request() == null ? null : result.request().get("reason"));
+        diagnostics.put("parameters", result.request() == null ? Map.of() : mapValue(result.request().get("parameters")));
+        diagnostics.put("commandHash", result.commandHash());
+        diagnostics.put("stepCount", result.steps().size());
+        diagnostics.put("failedStepIndex", result.failedStepIndex());
+        diagnostics.put("failedCommandHash", result.failedCommand() == null ? null : sha256(result.failedCommand()));
+        diagnostics.put("exitCode", result.exitCode());
+        diagnostics.put("durationMs", result.durationMs());
+        diagnostics.put("stdoutLength", result.stdout() == null ? 0 : result.stdout().length());
+        diagnostics.put("stderrLength", result.stderr() == null ? 0 : result.stderr().length());
+        diagnostics.put("steps", result.steps().stream()
+            .map(step -> {
+                Map<String, Object> value = new LinkedHashMap<>();
+                value.put("stepIndex", step.stepIndex());
+                value.put("commandHash", step.commandHash());
+                value.put("exitCode", step.exitCode());
+                value.put("success", step.success());
+                value.put("durationMs", step.durationMs());
+                value.put("stdoutLength", step.stdout() == null ? 0 : step.stdout().length());
+                value.put("stderrLength", step.stderr() == null ? 0 : step.stderr().length());
+                return value;
+            })
+            .toList());
+        return diagnostics;
     }
 
     private String truncate(String value) {

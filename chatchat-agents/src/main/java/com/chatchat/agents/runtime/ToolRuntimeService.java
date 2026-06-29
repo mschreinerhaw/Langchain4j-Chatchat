@@ -181,6 +181,7 @@ public class ToolRuntimeService {
 
         ToolMetadata metadata = toolRegistry.getToolMetadata(toolName);
         ToolInput toolInput = request.getToolInput() == null ? new ToolInput() : request.getToolInput();
+        enrichToolInputContext(request, toolInput);
         if (isParamBindingDenied(toolInput)) {
             return deniedExecution(toolName, request, metadata,
                 firstText(paramBindingError(toolInput), "Tool parameter binding was denied by runtime policy"),
@@ -289,6 +290,36 @@ public class ToolRuntimeService {
         } finally {
             toolCounters.activeCalls.decrementAndGet();
         }
+    }
+
+    private void enrichToolInputContext(ToolRuntimeRequest request, ToolInput toolInput) {
+        if (request == null || toolInput == null) {
+            return;
+        }
+        if (normalizeText(toolInput.getRequestId()) == null) {
+            toolInput.setRequestId(request.getRequestId());
+        }
+        if (normalizeText(toolInput.getConversationId()) == null) {
+            toolInput.setConversationId(request.getConversationId());
+        }
+        if (normalizeText(toolInput.getUserId()) == null) {
+            toolInput.setUserId(request.getUserId());
+        }
+        Map<String, Object> context = toolInput.getContext() == null
+            ? new LinkedHashMap<>()
+            : new LinkedHashMap<>(toolInput.getContext());
+        putIfAbsentText(context, "tenantId", request.getTenantId());
+        putIfAbsentText(context, "userId", request.getUserId());
+        putIfAbsentText(context, "requestId", request.getRequestId());
+        putIfAbsentText(context, "conversationId", request.getConversationId());
+        toolInput.setContext(context);
+    }
+
+    private void putIfAbsentText(Map<String, Object> values, String key, String value) {
+        if (values == null || key == null || key.isBlank() || value == null || value.isBlank()) {
+            return;
+        }
+        values.putIfAbsent(key, value.trim());
     }
 
     @PreDestroy
@@ -530,6 +561,22 @@ public class ToolRuntimeService {
         ToolOutput output = ToolOutput.failure(message);
         output.setExceptionType(errorCode);
         output.getMetadata().putAll(runtimeMetadata);
+        if ("TOOL_CIRCUIT_OPEN".equals(errorCode)) {
+            output.setExceptionType("TOOL_BUSY");
+            output.getMetadata().put("runtimeErrorCode", errorCode);
+            output.getMetadata().put("errorCode", "TOOL_BUSY");
+            output.getMetadata().put("retryable", false);
+            output.getMetadata().put("action", "STOP");
+            output.getMetadata().put("executionState", Map.of(
+                "state", "STOPPED",
+                "step", toolName,
+                "toolName", toolName,
+                "retryCount", 0,
+                "errorCode", "TOOL_BUSY",
+                "action", "STOP",
+                "circuit", "OPEN"
+            ));
+        }
         InteractionToolTrace trace = buildTrace(toolName, metadata, request == null ? new ToolInput() : request.getToolInput(),
             output, System.currentTimeMillis(), System.currentTimeMillis(), runtimeMetadata);
         logAudit(toolName, request, outcome, 0L, message);

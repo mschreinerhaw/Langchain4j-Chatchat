@@ -1,6 +1,7 @@
 package com.chatchat.mcpserver.sql;
 
 import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 public record SqlQueryResult(
@@ -21,12 +22,14 @@ public record SqlQueryResult(
     long durationMs,
     String purpose,
     String sourceTaskId,
-    String errorMessage
+    String errorMessage,
+    Map<String, Object> diagnostics
 ) {
     public SqlQueryResult {
         columns = columns == null ? List.of() : columns;
         columnMetadata = columnMetadata == null ? List.of() : columnMetadata;
         rows = rows == null ? List.of() : rows;
+        diagnostics = diagnostics == null ? Map.of() : new LinkedHashMap<>(diagnostics);
     }
 
     public SqlQueryResult(
@@ -59,6 +62,48 @@ public record SqlQueryResult(
             timeoutSeconds,
             maxRows,
             columns,
+            rows,
+            rowCount,
+            possiblyTruncated,
+            durationMs,
+            purpose,
+            sourceTaskId,
+            errorMessage,
+            Map.of()
+        );
+    }
+
+    public SqlQueryResult(
+        boolean success,
+        String datasourceId,
+        String datasourceName,
+        String toolName,
+        String environment,
+        String sql,
+        String normalizedSql,
+        int timeoutSeconds,
+        int maxRows,
+        List<String> columns,
+        List<Map<String, Object>> rows,
+        int rowCount,
+        boolean possiblyTruncated,
+        long durationMs,
+        String purpose,
+        String sourceTaskId,
+        String errorMessage,
+        Map<String, Object> diagnostics
+    ) {
+        this(
+            success,
+            datasourceId,
+            datasourceName,
+            toolName,
+            environment,
+            sql,
+            normalizedSql,
+            timeoutSeconds,
+            maxRows,
+            columns,
             defaultColumnMetadata(columns),
             rows,
             rowCount,
@@ -66,7 +111,51 @@ public record SqlQueryResult(
             durationMs,
             purpose,
             sourceTaskId,
-            errorMessage
+            errorMessage,
+            diagnostics
+        );
+    }
+
+    public SqlQueryResult(
+        boolean success,
+        String datasourceId,
+        String datasourceName,
+        String toolName,
+        String environment,
+        String sql,
+        String normalizedSql,
+        int timeoutSeconds,
+        int maxRows,
+        List<String> columns,
+        List<Map<String, Object>> columnMetadata,
+        List<Map<String, Object>> rows,
+        int rowCount,
+        boolean possiblyTruncated,
+        long durationMs,
+        String purpose,
+        String sourceTaskId,
+        String errorMessage
+    ) {
+        this(
+            success,
+            datasourceId,
+            datasourceName,
+            toolName,
+            environment,
+            sql,
+            normalizedSql,
+            timeoutSeconds,
+            maxRows,
+            columns,
+            columnMetadata,
+            rows,
+            rowCount,
+            possiblyTruncated,
+            durationMs,
+            purpose,
+            sourceTaskId,
+            errorMessage,
+            Map.of()
         );
     }
 

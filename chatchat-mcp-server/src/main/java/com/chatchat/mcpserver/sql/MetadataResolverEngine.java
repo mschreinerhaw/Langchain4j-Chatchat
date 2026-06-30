@@ -33,6 +33,8 @@ public class MetadataResolverEngine {
                 candidate.table(),
                 candidate.tableType(),
                 candidate.tableRows(),
+                candidate.tableComment(),
+                candidate.databaseComment(),
                 fusedScore(context, candidate)
             ))
             .sorted(Comparator.comparingDouble(TableLocation::score).reversed()

@@ -53,7 +53,7 @@ class ApiTemplateDiscoveryMcpToolPublisherTest {
         config.setUrlTemplate("https://internal.example/orders/{{orderId}}");
         config.setHeadersJson("{\"Authorization\":\"secret\"}");
         config.setBodyTemplate("{\"raw\":\"body\"}");
-        config.setInputSchemaJson("{\"type\":\"object\",\"properties\":{\"orderId\":{\"type\":\"string\"}}}");
+        config.setInputSchemaJson("{\"type\":\"object\",\"properties\":{\"orderId\":{\"type\":\"string\"}},\"required\":[\"orderId\"]}");
         config.setEnabled(true);
 
         ApiServiceConfigService configService = mock(ApiServiceConfigService.class);
@@ -72,6 +72,10 @@ class ApiTemplateDiscoveryMcpToolPublisherTest {
         assertThat(result.get("assetType")).isEqualTo("api_service");
         assertThat(result.toString()).contains("order_status_api", "订单状态查询", "parameterSchema");
         assertThat(result.toString()).doesNotContain("internal.example", "Authorization", "{\"raw\":\"body\"}");
+        Map<?, ?> first = (Map<?, ?>) ((List<?>) result.get("templates")).get(0);
+        assertThat(first.get("requiredParameters")).isEqualTo(List.of("orderId"));
+        assertThat(first.get("parameterContract").toString()).contains("order_status_api.arguments", "orderId");
+        assertThat(first.get("invocationExample").toString()).contains("order_status_api", "orderId");
     }
 
     @Test

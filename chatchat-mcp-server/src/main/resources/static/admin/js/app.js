@@ -13,7 +13,7 @@ import {
     setEnabled,
     testService
 } from './apiServices.js';
-import { bindMcpServicePanel, loadMcpServicePanel, resetMcpServicePanel } from './mcpServicePanel.js';
+import { bindMcpServicePanel, loadMcpServicePanel, openNewMcpService, resetMcpServicePanel } from './mcpServicePanel.js';
 import { bindAuthorizationPanel, loadAuthorizationPanel } from './authorizationPanel.js';
 import { bindAssetCenterPanel, loadAssetCenterPanel } from './assetCenterPanel.js';
 import { bindAuditLogPanel, loadAuditLogPanel } from './auditLogPanel.js';
@@ -114,6 +114,8 @@ function bindEvents() {
     document.getElementById('microserviceMode').addEventListener('change', toggleMicroserviceFields);
     document.getElementById('testServiceBtn').addEventListener('click', handleTest);
     document.getElementById('refreshBtn').addEventListener('click', handleRefresh);
+    document.getElementById('newMcpServiceBtn').addEventListener('click', openNewMcpService);
+    document.getElementById('newDatabaseQueryBtn').addEventListener('click', openNewDatabaseQuery);
     bindMcpServicePanel({ onError: handleError });
     bindAuthorizationPanel({ onError: handleError });
     bindAssetCenterPanel({ onError: handleError });
@@ -122,7 +124,6 @@ function bindEvents() {
     document.getElementById('databaseQueryForm').addEventListener('submit', handleDatabaseQueryTest);
     document.getElementById('databaseQuerySaveBtn').addEventListener('click', handleDatabaseQuerySave);
     document.getElementById('databaseQueryClearBtn').addEventListener('click', resetDatabaseQueryForm);
-    document.getElementById('newDatabaseQueryBtn').addEventListener('click', openNewDatabaseQuery);
     document.getElementById('databaseQuerySearchInput').addEventListener('input', handleDatabaseQuerySearch);
     document.getElementById('databaseQueryPrevPageBtn').addEventListener('click', () => changeDatabaseQueryPage(-1));
     document.getElementById('databaseQueryNextPageBtn').addEventListener('click', () => changeDatabaseQueryPage(1));
@@ -959,6 +960,38 @@ function escapeHtml(value) {
         .replaceAll('>', '&gt;')
         .replaceAll('"', '&quot;')
         .replaceAll("'", '&#039;');
+}
+
+function defaultDatabaseQueryGovernance(query = {}) {
+    const maxRows = Number(query?.maxRows || 50);
+    return {
+        category: 'database_query',
+        operation_type: 'read',
+        risk_level: 'medium',
+        data_scope: `database_query:${String(query?.title || query?.toolName || 'asset').trim() || 'asset'}`,
+        user_visible: true,
+        confirmation: {
+            default: maxRows > 100 ? 'ask_before_execute' : 'auto_execute',
+            allow_user_override: true
+        },
+        permission: {
+            roles: []
+        },
+        input_policy: {
+            must_show_parameters: true,
+            sensitive_params: [],
+            parameter_rules: {}
+        },
+        output_policy: {
+            mask_fields: ['phone', 'id_card', 'account_no'],
+            max_rows_without_confirm: 100
+        },
+        audit: {
+            enabled: true,
+            log_params: true,
+            log_result_summary: true
+        }
+    };
 }
 
 function changeServicePage(delta) {

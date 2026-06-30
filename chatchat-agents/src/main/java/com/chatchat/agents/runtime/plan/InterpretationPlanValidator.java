@@ -28,6 +28,38 @@ public class InterpretationPlanValidator {
         "statement",
         "query"
     );
+    private static final Set<String> RAW_HTTP_PARAMETER_KEYS = Set.of(
+        "url",
+        "uri",
+        "method",
+        "headers",
+        "body",
+        "bodytemplate",
+        "body_template",
+        "endpointid",
+        "endpoint_id",
+        "host",
+        "hostname",
+        "ip",
+        "ipaddress",
+        "ip_address",
+        "address"
+    );
+    private static final Set<String> RAW_SSH_PARAMETER_KEYS = Set.of(
+        "command",
+        "rawcommand",
+        "raw_command",
+        "shell",
+        "script",
+        "hostid",
+        "host_id",
+        "host",
+        "hostname",
+        "ip",
+        "ipaddress",
+        "ip_address",
+        "address"
+    );
     private static final Set<String> ACTION_TYPES = Set.of(
         "mcp_tool", "reasoning", "retrieval", "aggregation", "validation", "final_answer"
     );
@@ -176,8 +208,9 @@ public class InterpretationPlanValidator {
             state.error(path + ".tool_name", "Tool is not registered or available: " + step.toolName());
         }
         validateToolInput(plan, step, path, toolRegistry, state);
-        validateSqlQueryPlanContract(plan, step, path, state);
         validateSqlTemplateExecutionContract(plan, step, path, state);
+        validateHttpTemplateExecutionContract(step, path, state);
+        validateSshTemplateExecutionContract(step, path, state);
         if (isHighRisk(plan, step, toolRegistry) && !containsTool(allowTools, step.toolName())) {
             state.approval(path + ".tool_name", "High-risk tool requires explicit allow_tool approval: " + step.toolName());
         }
@@ -229,7 +262,20 @@ public class InterpretationPlanValidator {
         }
         Object parameters = firstPresent(input, "parameters", "params");
         if (!(parameters instanceof Map<?, ?> map)) {
+            if (tableMetadataTemplate(input)
+                && !hasBindingForInput(plan, step.id(), "parameters.tableName")
+                && !hasBindingForInput(plan, step.id(), "parameters.table_name")) {
+                state.error(path + ".input.parameters",
+                    "SQL table metadata template requires parameters.tableName from the user request or a sql_metadata_search/table-location result; parameters cannot be omitted.");
+            }
             return;
+        }
+        if (tableMetadataTemplate(input)
+            && !hasNonBlank(map, "tableName", "table_name")
+            && !hasBindingForInput(plan, step.id(), "parameters.tableName")
+            && !hasBindingForInput(plan, step.id(), "parameters.table_name")) {
+            state.error(path + ".input.parameters.tableName",
+                "SQL table metadata template requires parameters.tableName. Do not call sql_query_execute with empty parameters when the selected template declares required tableName.");
         }
         for (Object key : map.keySet()) {
             String normalized = normalizeRawSqlKey(key);
@@ -240,33 +286,58 @@ public class InterpretationPlanValidator {
         }
     }
 
-    private void validateSqlQueryPlanContract(InterpretationPlan plan,
-                                              InterpretationPlan.Step step,
-                                              String path,
-                                              ValidationState state) {
-        if (step == null || !isSqlQueryPlanTool(step.toolName())) {
+    private boolean tableMetadataTemplate(Map<String, Object> input) {
+        Object value = firstPresent(input, "templateId", "template", "template_id");
+        if (value == null || String.valueOf(value).isBlank()) {
+            return false;
+        }
+        String normalized = String.valueOf(value).trim().toUpperCase(Locale.ROOT);
+        return normalized.endsWith("_TABLE_METADATA");
+    }
+
+    private void validateHttpTemplateExecutionContract(InterpretationPlan.Step step,
+                                                       String path,
+                                                       ValidationState state) {
+        if (step == null || !isHttpRequestExecuteTool(step.toolName()) || step.input() == null || step.input().isEmpty()) {
             return;
         }
-        Map<String, Object> input = step.input() == null ? Map.of() : step.input();
-        if (!hasNonBlank(input, "question") && !hasBindingForInput(plan, step.id(), "question")) {
-            state.error(path + ".input.question",
-                "sql_query_plan requires input.question. Do not use userQuery as a replacement.");
+        Map<String, Object> input = step.input();
+        if (hasRawKeys(input, RAW_HTTP_PARAMETER_KEYS)) {
+            state.error(path + ".input",
+                "HTTP template execution must use a returned template id plus parameters only; do not pass raw url, uri, method, headers, body, endpointId, host, or IP fields.");
         }
-        Object executionContext = firstPresent(input, "executionContext", "mcpExecutionContext");
-        if (!hasConcreteExecutionContext(executionContext)
-            && !hasBindingForInput(plan, step.id(), "executionContext")
-            && !hasBindingForInput(plan, step.id(), "mcpExecutionContext")
-            && !dependsOnAssetDiscovery(plan, step)) {
-            state.error(path + ".input.executionContext",
-                "sql_query_plan requires logical executionContext from asset_query, for example {assetName, env}.");
+        Object parameters = firstPresent(input, "parameters", "params");
+        if (parameters instanceof Map<?, ?> map && hasRawKeys(map, RAW_HTTP_PARAMETER_KEYS)) {
+            state.error(path + ".input.parameters",
+                "Raw HTTP request fields are not template parameters. Select an HTTP/API template and pass only fields declared by templates[].parameterSchema.");
         }
-        Object context = input.get("context");
-        if (context instanceof Map<?, ?> contextMap
-            && firstPresent(input, "tables", "table", "tableName", "table_name") == null
-            && (contextMap.containsKey("targetTable") || contextMap.containsKey("tableName") || contextMap.containsKey("table"))) {
-            state.error(path + ".input.tables",
-                "sql_query_plan table hints must be passed as tables[] or tableName, not only inside context.targetTable.");
+    }
+
+    private void validateSshTemplateExecutionContract(InterpretationPlan.Step step,
+                                                      String path,
+                                                      ValidationState state) {
+        if (step == null || !isLinuxCommandExecuteTool(step.toolName()) || step.input() == null || step.input().isEmpty()) {
+            return;
         }
+        Map<String, Object> input = step.input();
+        if (hasRawKeys(input, RAW_SSH_PARAMETER_KEYS)) {
+            state.error(path + ".input",
+                "SSH template execution must use a returned template id plus parameters only; do not pass command, rawCommand, shell, hostId, host, hostname, IP, or address fields.");
+        }
+        Object parameters = firstPresent(input, "parameters", "params");
+        if (parameters instanceof Map<?, ?> map && hasRawKeys(map, RAW_SSH_PARAMETER_KEYS)) {
+            state.error(path + ".input.parameters",
+                "Raw SSH command/target fields are not template parameters. Select an SSH template and pass only fields declared by templates[].parameterSchema.");
+        }
+    }
+
+    private boolean hasRawKeys(Map<?, ?> input, Set<String> forbidden) {
+        if (input == null || input.isEmpty() || forbidden == null || forbidden.isEmpty()) {
+            return false;
+        }
+        return input.keySet().stream()
+            .map(this::normalizeRawSqlKey)
+            .anyMatch(forbidden::contains);
     }
 
     private boolean isSqlQueryExecuteTool(String toolName) {
@@ -280,16 +351,25 @@ public class InterpretationPlanValidator {
             || normalized.endsWith("sql_execute");
     }
 
-    private boolean isSqlQueryPlanTool(String toolName) {
+    private boolean isHttpRequestExecuteTool(String toolName) {
         if (toolName == null || toolName.isBlank()) {
             return false;
         }
         String normalized = toolName.trim().toLowerCase(Locale.ROOT);
-        return normalized.endsWith("sql_query_plan")
-            || normalized.contains("_sql_query_plan");
+        return normalized.endsWith("http_request_execute")
+            || normalized.contains("_http_request_execute");
     }
 
-    private boolean hasNonBlank(Map<String, Object> input, String... keys) {
+    private boolean isLinuxCommandExecuteTool(String toolName) {
+        if (toolName == null || toolName.isBlank()) {
+            return false;
+        }
+        String normalized = toolName.trim().toLowerCase(Locale.ROOT);
+        return normalized.endsWith("linux_command_execute")
+            || normalized.contains("_linux_command_execute");
+    }
+
+    private boolean hasNonBlank(Map<?, ?> input, String... keys) {
         if (input == null || input.isEmpty() || keys == null) {
             return false;
         }
@@ -327,8 +407,7 @@ public class InterpretationPlanValidator {
             .filter(binding -> binding != null && stepId.equals(binding.to()))
             .map(InterpretationPlan.Binding::inputField)
             .filter(field -> field != null && !field.isBlank())
-            .map(field -> field.split("\\.")[0])
-            .anyMatch(root -> inputField.equals(root));
+            .anyMatch(field -> inputField.equals(field) || inputField.equals(field.split("\\.")[0]));
     }
 
     private boolean hasConcreteExecutionContext(Object executionContext) {
@@ -555,7 +634,7 @@ public class InterpretationPlanValidator {
                 && sameField(binding.inputField(), "parameters.schemaName")
                 && containsNormalized(binding.outputPath(), "asset.name")) {
                 state.error(path + ".input_field",
-                    "Do not bind asset_query assets[].asset.name into sql_query_execute parameters.schemaName. Asset name is routing context, not database/schema name; use sql_query_plan resolvedTables or omit schemaName when the selected template does not require it.");
+                    "Do not bind asset_query assets[].asset.name into sql_query_execute parameters.schemaName. Asset name is routing context, not database/schema name; use sql_metadata_search results or omit schemaName when the selected template does not require it.");
             }
             if (target != null
                 && binding.from() != null
@@ -654,8 +733,8 @@ public class InterpretationPlanValidator {
     }
 
     private boolean toolExists(String toolName, ToolRegistry toolRegistry, Set<String> availableTools) {
-        if (containsTool(availableTools, toolName)) {
-            return true;
+        if (availableTools != null && !availableTools.isEmpty()) {
+            return containsTool(availableTools, toolName);
         }
         if (toolRegistry == null || blank(toolName)) {
             return false;

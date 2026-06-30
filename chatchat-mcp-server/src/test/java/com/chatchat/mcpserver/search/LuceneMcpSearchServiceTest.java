@@ -88,6 +88,81 @@ class LuceneMcpSearchServiceTest {
             .startsWith("MYSQL_SHOW_STATUS");
     }
 
+    @Test
+    void searchesMetadataTableDocumentAndReturnsDatasourceId() {
+        LuceneMcpSearchService service = service();
+
+        List<LuceneMcpSearchService.SearchHit> hits = service.searchAssets(
+            List.of(
+                new LuceneMcpSearchService.AssetDoc(
+                    "metadata_table:ds-248:rdsm_ad:lbappdeploydetail",
+                    "sql_datasource",
+                    "248-test.rdsm_ad.lbappdeploydetail",
+                    "lbappdeploydetail",
+                    "db_query_mysql_248_test_db",
+                    "DEV",
+                    "mysql",
+                    List.of("metadata_table", "database:rdsm_ad", "schema:rdsm_ad", "table:lbappdeploydetail"),
+                    "metadata_table",
+                    "ds-248",
+                    "rdsm_ad",
+                    "lbappdeploydetail",
+                    "248-test.rdsm_ad.lbappdeploydetail"
+                )
+            ),
+            new LuceneMcpSearchService.AssetSearchRequest(
+                "sql_datasource",
+                "lbappdeploydetail",
+                "DEV",
+                "mysql",
+                List.of(),
+                10
+            )
+        );
+
+        assertThat(hits).extracting(LuceneMcpSearchService.SearchHit::id).containsExactly("ds-248");
+        assertThat(hits.get(0).reasons()).contains("source:metadata_table");
+    }
+
+    @Test
+    void searchesMetadataTableDocumentByTableComment() {
+        LuceneMcpSearchService service = service();
+
+        List<LuceneMcpSearchService.SearchHit> hits = service.searchAssets(
+            List.of(
+                new LuceneMcpSearchService.AssetDoc(
+                    "metadata_table:ds-248:rdsm_ad:t_ad_dict_entr_supn",
+                    "sql_datasource",
+                    "248-test.rdsm_ad.t_ad_dict_entr_supn",
+                    "t_ad_dict_entr_supn",
+                    "db_query_mysql_248_test_db",
+                    "DEV",
+                    "mysql",
+                    List.of("metadata_table", "database:rdsm_ad", "schema:rdsm_ad", "table:t_ad_dict_entr_supn"),
+                    "metadata_table",
+                    "ds-248",
+                    "rdsm_ad",
+                    "t_ad_dict_entr_supn",
+                    "248-test.rdsm_ad.t_ad_dict_entr_supn",
+                    "客户标签字典 入口补充说明",
+                    "客户标签字典",
+                    "248测试数据库"
+                )
+            ),
+            new LuceneMcpSearchService.AssetSearchRequest(
+                "sql_datasource",
+                "客户标签",
+                "DEV",
+                "mysql",
+                List.of(),
+                10
+            )
+        );
+
+        assertThat(hits).extracting(LuceneMcpSearchService.SearchHit::id).containsExactly("ds-248");
+        assertThat(hits.get(0).tableComment()).isEqualTo("客户标签字典");
+    }
+
     private LuceneMcpSearchService service() {
         LuceneSearchProperties properties = new LuceneSearchProperties();
         properties.setIndexDir(tempDir.toString());

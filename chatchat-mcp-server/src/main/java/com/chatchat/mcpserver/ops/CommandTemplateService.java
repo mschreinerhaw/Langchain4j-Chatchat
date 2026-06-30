@@ -91,7 +91,9 @@ public class CommandTemplateService {
     }
 
     private void ensureDefault(DefaultTemplate template) {
-        if (repository.findByCode(template.code()).isPresent()) {
+        java.util.Optional<CommandTemplateConfig> existing = repository.findByCode(template.code());
+        if (existing.isPresent()) {
+            repairRetiredDefaultTemplate(existing.get(), template);
             return;
         }
         CommandTemplateConfig config = new CommandTemplateConfig();
@@ -106,6 +108,22 @@ public class CommandTemplateService {
         config.setRuntimeAction("confirm_required");
         config.setEnabled(true);
         repository.save(config);
+    }
+
+    private void repairRetiredDefaultTemplate(CommandTemplateConfig existing, DefaultTemplate template) {
+        if (!"CHECK_JAVA_PROCESS".equals(template.code())) {
+            return;
+        }
+        String current = existing.getCommandTemplate() == null ? "" : existing.getCommandTemplate().trim();
+        if (!"jps -lv".equals(current)) {
+            return;
+        }
+        existing.setTitle(template.title());
+        existing.setDescription(template.description());
+        existing.setCommandTemplate(template.command());
+        existing.setParameterSchemaJson(writeJson(template.schema()));
+        existing.setIntentSignalsJson(writeJson(List.of(template.code(), template.title(), template.description(), "java", "jps", "ps")));
+        repository.save(existing);
     }
 
     private void normalize(CommandTemplateConfig config) {
@@ -216,7 +234,12 @@ public class CommandTemplateService {
             new DefaultTemplate("CHECK_IP_ADDR", "Network addresses", "Read network addresses.", "ip addr", empty),
             new DefaultTemplate("CHECK_SOCKET", "Socket status", "Read socket status.", "ss -tulnp", empty),
             new DefaultTemplate("CHECK_PROCESS", "Process status", "Read process list.", "ps aux", empty),
-            new DefaultTemplate("CHECK_JAVA_PROCESS", "Java process", "Read Java processes.", "jps -lv", empty),
+            new DefaultTemplate("CHECK_JAVA_PROCESS", "Java process", "Read Java processes with jps when available and ps as a fallback.",
+                writeJson(List.of(
+                    "echo '=== jps -lv ==='; if command -v jps >/dev/null 2>&1; then jps -lv 2>&1 || true; else echo 'jps not found'; fi",
+                    "echo '=== ps java processes ==='; ps -eo pid,ppid,user,stat,pcpu,pmem,etime,args | awk 'NR==1 || /[j]ava/'"
+                )),
+                empty),
             new DefaultTemplate("CHECK_SERVICE_STATUS", "Service status", "Read systemd service status.", "systemctl status {{service}}", serviceSchema),
             new DefaultTemplate("TAIL_LOG", "Log tail", "Read log tail.", "tail -n {{lines}} {{path}}", logSchema)
         );

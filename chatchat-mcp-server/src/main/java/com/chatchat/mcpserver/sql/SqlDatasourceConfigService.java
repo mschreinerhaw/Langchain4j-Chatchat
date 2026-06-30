@@ -29,6 +29,7 @@ public class SqlDatasourceConfigService {
     private final SqlDatasourceConfigRepository repository;
     private final ObjectMapper objectMapper;
     private final ExecutionTargetService executionTargetService;
+    private final SqlMetadataAssetRegistryService metadataAssetRegistryService;
 
     @Value("${spring.datasource.url:}")
     private String applicationJdbcUrl;
@@ -49,6 +50,7 @@ public class SqlDatasourceConfigService {
     public SqlDatasourceConfig create(SqlDatasourceConfig config) {
         normalize(config, null);
         SqlDatasourceConfig saved = repository.save(config);
+        metadataAssetRegistryService.syncDefaultForDatasource(saved);
         syncExecutionTargets(saved, config.getExecutionTargets());
         return saved;
     }
@@ -68,6 +70,10 @@ public class SqlDatasourceConfigService {
         config.setEnabled(request.isEnabled());
         config.setEnvironment(firstText(request.getEnvironment(), config.getEnvironment()));
         config.setRuntimeAction("confirm_required");
+        config.setMetadataScopeType(request.getMetadataScopeType());
+        config.setMetadataScopeValue(blankToNull(request.getMetadataScopeValue()));
+        config.setMetadataAutoRefreshEnabled(request.isMetadataAutoRefreshEnabled());
+        config.setMetadataRefreshIntervalMinutes(request.getMetadataRefreshIntervalMinutes());
         config.setRoutingLabelsJson(request.getRoutingLabelsJson());
         config.setRoutingLabels(request.getRoutingLabels());
         config.setCapabilitiesJson(request.getCapabilitiesJson());
@@ -81,6 +87,7 @@ public class SqlDatasourceConfigService {
         config.setGovernanceJson(normalizeJsonObject(request.getGovernanceJson(), "governance"));
         normalize(config, id);
         SqlDatasourceConfig saved = repository.save(config);
+        metadataAssetRegistryService.syncDefaultForDatasource(saved);
         syncExecutionTargets(saved, request.getExecutionTargets());
         return saved;
     }
@@ -105,6 +112,7 @@ public class SqlDatasourceConfigService {
     public void delete(String id) {
         SqlDatasourceConfig config = getById(id);
         repository.delete(config);
+        metadataAssetRegistryService.deleteByDatasource(id);
     }
 
     private void normalize(SqlDatasourceConfig config, String currentId) {
@@ -126,6 +134,9 @@ public class SqlDatasourceConfigService {
         config.setDatabaseType(normalizeDatabaseType(config.getDatabaseType(), config.getJdbcUrl(), config.getDriverClass()));
         config.setEnvironment(normalizeEnvironment(config.getEnvironment()));
         config.setRuntimeAction("confirm_required");
+        config.setMetadataScopeType(normalizeMetadataScopeType(config.getMetadataScopeType()));
+        config.setMetadataScopeValue(blankToNull(config.getMetadataScopeValue()));
+        config.setMetadataRefreshIntervalMinutes(normalizeMetadataRefreshIntervalMinutes(config.getMetadataRefreshIntervalMinutes()));
         config.setRoutingLabelsJson(normalizeJsonArray(mergedProtocolValues(config.getRoutingLabelsJson(), config.getRoutingLabels()), "routingLabels"));
         config.setCapabilitiesJson(firstText(
             normalizeJsonArray(mergedProtocolValues(config.getCapabilitiesJson(), config.getCapabilities()), "capabilities"),
@@ -197,6 +208,21 @@ public class SqlDatasourceConfigService {
             case "DEV", "TEST", "UAT", "PROD" -> normalized;
             default -> "DEV";
         };
+    }
+
+    private String normalizeMetadataScopeType(String value) {
+        String normalized = firstText(value, "JDBC_DATABASE").trim().toUpperCase(Locale.ROOT)
+            .replace('-', '_')
+            .replace(' ', '_');
+        return switch (normalized) {
+            case "JDBC_DATABASE", "LOGIN_USER_SCHEMA", "EXPLICIT_SCHEMA" -> normalized;
+            default -> "JDBC_DATABASE";
+        };
+    }
+
+    private int normalizeMetadataRefreshIntervalMinutes(int value) {
+        int minutes = value <= 0 ? 60 : value;
+        return Math.max(5, Math.min(minutes, 7 * 24 * 60));
     }
 
     public static String normalizeDatabaseType(String value, String jdbcUrl, String driverClass) {

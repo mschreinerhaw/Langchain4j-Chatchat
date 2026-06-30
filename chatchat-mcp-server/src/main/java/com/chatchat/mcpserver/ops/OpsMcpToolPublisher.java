@@ -89,6 +89,7 @@ public class OpsMcpToolPublisher {
             .name("linux_command_execute")
             .title("Linux command execution gateway")
             .description("Execute a runtime-registered Linux command template on a routed logical host target. "
+                + "The tool returns stdout, stderr, exitCode and per-step results as execution facts; non-zero remote exitCode is not a semantic judgment. "
                 + "The template value must be an existing templateId returned by ssh_template_query for the same logical asset. "
                 + "Do not invent template names and do not pass hostId, hostname, IP address, or any concrete machine identifier.")
             .inputSchema(new McpSchema.JsonSchema("object", Map.of(
@@ -399,6 +400,8 @@ public class OpsMcpToolPublisher {
     }
 
     private Map<String, Object> templateSummary(CommandTemplateConfig template) {
+        Map<String, Object> parameterSchema = readJsonObject(template.getParameterSchemaJson());
+        List<String> requiredParameters = requiredParameters(parameterSchema);
         return mutableMap(
             "templateId", template.getCode(),
             "name", firstText(template.getTitle(), template.getCode()),
@@ -407,7 +410,23 @@ public class OpsMcpToolPublisher {
             "riskLevel", firstText(template.getRiskLevel(), "LOW"),
             "runtimeAction", firstText(template.getRuntimeAction(), "confirm_required"),
             "intentSignals", readStringList(template.getIntentSignalsJson()),
-            "parameterSchema", readJsonObject(template.getParameterSchemaJson()),
+            "parameterSchema", parameterSchema,
+            "requiredParameters", requiredParameters,
+            "parameterContract", mutableMap(
+                "schemaVersion", "template_parameter_contract.v1",
+                "templateId", template.getCode(),
+                "executionTool", "linux_command_execute",
+                "argumentContainer", "linux_command_execute.parameters",
+                "required", requiredParameters,
+                "mustPassUnderParameters", true,
+                "topLevelTemplateParametersAllowed", false
+            ),
+            "invocationExample", mutableMap(
+                "tool", "linux_command_execute",
+                "templateId", template.getCode(),
+                "parameters", exampleParameters(parameterSchema),
+                "executionContext", mutableMap("assetName", "<assetName from ssh_asset_query>", "env", "<env>")
+            ),
             "rawExecutionSpecReturned", false
         );
     }
@@ -416,11 +435,39 @@ public class OpsMcpToolPublisher {
         return mutableMap(
             "source", "ssh_template_query.templates[].templateId",
             "allowedSet", "authorizedCommandTemplates[].templateId or authorizedCommandTemplatesByAsset[].templates[].templateId",
-            "selectionFields", List.of("templateId", "name", "description", "intentSignals", "parameterSchema"),
+            "selectionFields", List.of("templateId", "name", "description", "intentSignals", "parameterSchema", "requiredParameters", "parameterContract", "invocationExample"),
             "mustUseDiscoveredTemplate", true,
             "onNoMatch", "call ssh_template_query with executionContext; if no authorized template is returned, explain that no existing authorized template can satisfy the request",
             "doNotInventTemplateNames", true
         );
+    }
+
+    private List<String> requiredParameters(Map<String, Object> parameterSchema) {
+        Object required = parameterSchema == null ? null : parameterSchema.get("required");
+        if (!(required instanceof Iterable<?> iterable)) {
+            return List.of();
+        }
+        java.util.ArrayList<String> values = new java.util.ArrayList<>();
+        for (Object item : iterable) {
+            if (item != null && !String.valueOf(item).isBlank()) {
+                values.add(String.valueOf(item));
+            }
+        }
+        return values;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> exampleParameters(Map<String, Object> parameterSchema) {
+        Map<String, Object> properties = parameterSchema == null || !(parameterSchema.get("properties") instanceof Map<?, ?> map)
+            ? Map.of()
+            : (Map<String, Object>) map;
+        Map<String, Object> parameters = new LinkedHashMap<>();
+        for (String name : requiredParameters(parameterSchema)) {
+            Object property = properties.get(name);
+            Object example = property instanceof Map<?, ?> propertyMap ? propertyMap.get("example") : null;
+            parameters.put(name, example == null ? "<" + name + ">" : String.valueOf(example));
+        }
+        return parameters;
     }
 
     @SuppressWarnings("unchecked")

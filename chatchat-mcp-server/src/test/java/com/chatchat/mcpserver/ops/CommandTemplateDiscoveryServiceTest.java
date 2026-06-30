@@ -51,9 +51,13 @@ class CommandTemplateDiscoveryServiceTest {
             .containsEntry("schemaVersion", CommandTemplateDiscoveryService.RESULT_SCHEMA_VERSION)
             .containsEntry("returnedCount", 1);
         assertThat(first.get("templateId")).isEqualTo("CHECK_SYSTEM_OVERVIEW");
+        assertThat(first.get("requiredParameters")).isEqualTo(List.of());
+        assertThat(first.get("parameterContract").toString()).contains("linux_command_execute.parameters");
+        assertThat(first.get("invocationExample").toString()).contains("linux_command_execute", "CHECK_SYSTEM_OVERVIEW");
         Map<?, ?> selectionPolicy = (Map<?, ?>) result.get("templateSelectionPolicy");
         assertThat(selectionPolicy.get("mustUseReturnedTemplateId")).isEqualTo(true);
         assertThat(selectionPolicy.get("doNotInventTemplateNames")).isEqualTo(true);
+        assertThat(selectionPolicy.get("selectionFields").toString()).contains("requiredParameters", "parameterContract", "invocationExample");
         assertThat(result).doesNotContainKey("data");
         assertThat(result.toString()).doesNotContain("commandTemplate", "uptime", "df -h");
     }
@@ -718,9 +722,8 @@ class CommandTemplateDiscoveryServiceTest {
 
         List<?> templates = (List<?>) result.get("templates");
         assertThat(templates).isNotEmpty();
-        Map<?, ?> first = (Map<?, ?>) templates.get(0);
-        assertThat(first.get("id")).isEqualTo("MYSQL_TABLE_METADATA");
-        assertThat(first.get("templateId")).isEqualTo("MYSQL_TABLE_METADATA");
+        assertThat(templates.stream().map(template -> ((Map<?, ?>) template).get("templateId")).toList()
+            .contains("MYSQL_TABLE_METADATA")).isFalse();
     }
 
     @Test
@@ -781,12 +784,12 @@ class CommandTemplateDiscoveryServiceTest {
         ));
 
         List<?> templates = (List<?>) result.get("templates");
-        Map<?, ?> first = (Map<?, ?>) templates.get(0);
         Map<?, ?> queryIr = (Map<?, ?>) result.get("queryIr");
         Map<?, ?> intent = (Map<?, ?>) queryIr.get("intent");
 
-        assertThat(first.get("templateId")).isEqualTo("MYSQL_TABLE_METADATA");
-        assertThat(first.get("name")).isEqualTo("MySQL table metadata");
+        assertThat(templates).isNotEmpty();
+        assertThat(templates.stream().map(template -> ((Map<?, ?>) template).get("templateId")).toList()
+            .contains("MYSQL_TABLE_METADATA")).isFalse();
         assertThat(intent.get("type")).isEqualTo("metadata_query");
         assertThat(result.get("templateSelectionPolicy").toString()).contains("Chinese and English");
     }
@@ -928,8 +931,12 @@ class CommandTemplateDiscoveryServiceTest {
         ));
 
         List<?> templates = (List<?>) result.get("templates");
+        Map<?, ?> first = (Map<?, ?>) templates.get(0);
         assertThat(templates).hasSize(1);
-        assertThat(((Map<?, ?>) templates.get(0)).get("templateId")).isEqualTo("http_order_status");
+        assertThat(first.get("templateId")).isEqualTo("http_order_status");
+        assertThat(first.get("requiredParameters")).isEqualTo(List.of("orderId"));
+        assertThat(first.get("parameterContract").toString()).contains("http_request_execute.parameters", "orderId");
+        assertThat(first.get("invocationExample").toString()).contains("http_request_execute", "orderId");
         assertThat(result.toString()).doesNotContain("urlTemplate", "https://orders.internal", "bodyTemplate");
     }
 
@@ -1032,7 +1039,20 @@ class CommandTemplateDiscoveryServiceTest {
         template.setTitle(title);
         template.setDescription(description);
         template.setSqlTemplate(sql);
-        template.setParameterSchemaJson("{\"type\":\"object\",\"properties\":{},\"required\":[]}");
+        if (code != null && code.toUpperCase().endsWith("_TABLE_METADATA")) {
+            template.setParameterSchemaJson("""
+                {
+                  "type": "object",
+                  "properties": {
+                    "tableName": {"type": "string"},
+                    "schemaName": {"type": "string"}
+                  },
+                  "required": ["tableName"]
+                }
+                """);
+        } else {
+            template.setParameterSchemaJson("{\"type\":\"object\",\"properties\":{},\"required\":[]}");
+        }
         template.setRiskLevel("MEDIUM");
         template.setCategory(category);
         template.setDatabaseType(databaseType);

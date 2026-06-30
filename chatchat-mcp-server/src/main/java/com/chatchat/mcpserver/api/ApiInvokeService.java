@@ -4,6 +4,7 @@ import com.chatchat.agents.protocol.ModelProtocolJson;
 
 import com.chatchat.mcpserver.audit.InvocationAuditService;
 import com.chatchat.mcpserver.cache.ApiResponseCacheService;
+import com.chatchat.mcpserver.template.TemplateParameterValidator;
 import com.chatchat.tools.livedata.LivedataSessionService;
 import com.chatchat.common.tool.ToolLogSummarizer;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -42,6 +43,7 @@ public class ApiInvokeService {
     private final InvocationAuditService auditService;
     private final ApiResponseCacheService cacheService;
     private final ObjectProvider<LivedataSessionService> livedataSessionServiceProvider;
+    private final TemplateParameterValidator parameterValidator;
 
     /**
      * Performs the invoke operation.
@@ -52,7 +54,7 @@ public class ApiInvokeService {
      */
     public ApiInvokeResult invoke(ApiServiceConfig config, Map<String, Object> arguments) {
         long startedAt = System.currentTimeMillis();
-        Map<String, Object> auditArgs = arguments == null ? Map.of() : arguments;
+        Map<String, Object> auditArgs = validatedTemplateArguments(config, arguments == null ? Map.of() : arguments);
         ApiInvokeResult result;
         log.info("External API invoke started apiServiceId={} tool={} method={} urlTemplate={} args={}",
             config.getId(),
@@ -136,6 +138,32 @@ public class ApiInvokeService {
                 ToolLogSummarizer.summarize(result.body()));
         }
         return result;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> validatedTemplateArguments(ApiServiceConfig config, Map<String, Object> arguments) {
+        Object explicit = arguments.get("parameters");
+        Map<String, Object> explicitParameters = explicit instanceof Map<?, ?> map
+            ? new LinkedHashMap<>((Map<String, Object>) map)
+            : Map.of();
+        Map<String, Object> parameters = parameterValidator.validateDeclaredOnly(
+            config.getToolName(),
+            config.getInputSchemaJson(),
+            explicitParameters,
+            arguments
+        );
+        copyIfPresent(arguments, parameters, "sourceTaskId");
+        return parameters;
+    }
+
+    private void copyIfPresent(Map<String, Object> source, Map<String, Object> target, String key) {
+        if (source == null || target == null || key == null || !source.containsKey(key)) {
+            return;
+        }
+        Object value = source.get(key);
+        if (value != null && !String.valueOf(value).isBlank()) {
+            target.put(key, value);
+        }
     }
 
     /**

@@ -9,7 +9,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Comparator;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -66,7 +65,13 @@ public class SqlTemplateService {
         "TASK_RESULT",
         "CHECK_TASK_RESULT",
         "TASK_RESULT_QUERY",
-        "QUERY_TASK_RESULT"
+        "QUERY_TASK_RESULT",
+        "MYSQL_SCHEMA_TABLE_OVERVIEW",
+        "MYSQL_TABLE_LOCATION",
+        "MYSQL_TABLE_METADATA",
+        "ORACLE_TABLE_METADATA",
+        "POSTGRES_TABLE_METADATA",
+        "SQLSERVER_TABLE_METADATA"
     );
 
     private final SqlTemplateConfigRepository repository;
@@ -187,10 +192,10 @@ public class SqlTemplateService {
 
     @Transactional
     public void ensureDefaults() {
+        removeRetiredDefaults();
         if (seedProperties == null || !seedProperties.isSeedDefaultsEnabled()) {
             return;
         }
-        removeRetiredDefaults();
         for (DefaultTemplate template : defaults()) {
             var existing = repository.findByCode(template.code());
             if (existing.isEmpty()) {
@@ -225,9 +230,6 @@ public class SqlTemplateService {
         String code = existing.getCode().trim().toUpperCase(Locale.ROOT);
         String sql = existing.getSqlTemplate() == null ? "" : existing.getSqlTemplate().toLowerCase(Locale.ROOT);
         return switch (code) {
-            case "MYSQL_TABLE_METADATA" -> sql.contains("table_schema = database()");
-            case "POSTGRES_TABLE_METADATA" -> sql.contains("table_schema = current_schema()");
-            case "SQLSERVER_TABLE_METADATA" -> !sql.contains("table_schema");
             default -> false;
         };
     }
@@ -290,12 +292,6 @@ public class SqlTemplateService {
                     .filter(item -> item != null && !item.isBlank())
                     .distinct()
                     .toList();
-                if (allowed.contains("MYSQL_TABLE_METADATA")) {
-                    LinkedHashSet<String> expanded = new LinkedHashSet<>(allowed);
-                    expanded.add("MYSQL_SCHEMA_TABLE_OVERVIEW");
-                    expanded.add("MYSQL_TABLE_LOCATION");
-                    return expanded.stream().toList();
-                }
                 return allowed;
             }
         } catch (Exception ignored) {
@@ -494,21 +490,6 @@ public class SqlTemplateService {
                 "mysql", "storage",
                 "SELECT table_schema AS db, SUM(data_length + index_length)/1024/1024 AS size_mb FROM information_schema.tables GROUP BY table_schema",
                 List.of("database size", "storage", "schema size", "space", "storage_check")),
-            maintenanceTemplate("MYSQL_SCHEMA_TABLE_OVERVIEW", "MySQL schema table overview",
-                "List user schemas/databases and table counts to understand where tables may live.",
-                "mysql", "metadata",
-                "SELECT table_schema AS schema_name, COUNT(*) AS table_count FROM information_schema.tables WHERE table_schema NOT IN ('information_schema', 'mysql', 'performance_schema', 'sys') GROUP BY table_schema ORDER BY table_schema",
-                List.of("schema overview", "database list", "table count", "tables by database", "metadata discovery")),
-            metadataTemplate("MYSQL_TABLE_LOCATION", "MySQL table location",
-                "Locate which schema/database contains a table before reading column metadata.",
-                "mysql",
-                "SELECT table_schema AS schema_name, table_name, table_type, table_rows FROM information_schema.tables WHERE table_schema NOT IN ('information_schema', 'mysql', 'performance_schema', 'sys') AND LOWER(table_name) = LOWER({{tableName}}) ORDER BY table_schema, table_name",
-                List.of("table location", "find table schema", "which database has table", "metadata discovery", "table resolve")),
-            metadataTemplate("MYSQL_TABLE_METADATA", "MySQL table metadata",
-                "Read MySQL column metadata for a table in an explicit schema/database.",
-                "mysql",
-                "SELECT column_name, column_type, is_nullable, column_default, column_key, extra, column_comment FROM information_schema.columns WHERE table_schema = COALESCE(NULLIF({{schemaName}}, ''), DATABASE()) AND table_name = {{tableName}} ORDER BY ordinal_position",
-                List.of("table metadata", "column metadata", "table schema", "describe table", "metadata_query")),
 
             maintenanceTemplate("ORACLE_SESSION_OVERVIEW", "Oracle current sessions",
                 "Read Oracle session metadata from v$session.",
@@ -535,11 +516,6 @@ public class SqlTemplateService {
                 "oracle", "storage",
                 "SELECT tablespace_name, SUM(bytes)/1024/1024 AS size_mb FROM dba_data_files GROUP BY tablespace_name",
                 List.of("tablespace", "storage", "space", "database size", "storage_check")),
-            metadataTemplate("ORACLE_TABLE_METADATA", "Oracle table metadata",
-                "Read Oracle column metadata for a table accessible to the current user.",
-                "oracle",
-                "SELECT column_name, data_type, data_length, data_precision, data_scale, nullable, data_default FROM user_tab_columns WHERE table_name = UPPER({{tableName}}) ORDER BY column_id",
-                List.of("table metadata", "column metadata", "table schema", "describe table", "metadata_query")),
 
             maintenanceTemplate("POSTGRES_ACTIVITY", "PostgreSQL current activity",
                 "Read PostgreSQL sessions and active queries from pg_stat_activity.",
@@ -566,11 +542,6 @@ public class SqlTemplateService {
                 "postgresql", "performance",
                 "SELECT * FROM pg_stat_activity WHERE state != 'idle' ORDER BY query_start",
                 List.of("long transaction", "slow query", "active query", "performance_issue", "transaction")),
-            metadataTemplate("POSTGRES_TABLE_METADATA", "PostgreSQL table metadata",
-                "Read PostgreSQL column metadata for a table in an explicit schema.",
-                "postgresql",
-                "SELECT column_name, data_type, is_nullable, column_default, character_maximum_length, numeric_precision, numeric_scale FROM information_schema.columns WHERE table_schema = COALESCE(NULLIF({{schemaName}}, ''), current_schema()) AND table_name = {{tableName}} ORDER BY ordinal_position",
-                List.of("table metadata", "column metadata", "table schema", "describe table", "metadata_query")),
 
             maintenanceTemplate("SQLSERVER_SESSIONS", "SQL Server current sessions",
                 "Read SQL Server session metadata.",
@@ -596,12 +567,7 @@ public class SqlTemplateService {
                 "Read SQL Server virtual file IO statistics.",
                 "sqlserver", "performance",
                 "SELECT * FROM sys.dm_io_virtual_file_stats(NULL, NULL)",
-                List.of("io", "performance", "file stats", "dm_io_virtual_file_stats", "performance_issue")),
-            metadataTemplate("SQLSERVER_TABLE_METADATA", "SQL Server table metadata",
-                "Read SQL Server column metadata for a table in an explicit schema.",
-                "sqlserver",
-                "SELECT column_name, data_type, is_nullable, column_default, character_maximum_length, numeric_precision, numeric_scale FROM information_schema.columns WHERE table_schema = COALESCE(NULLIF({{schemaName}}, ''), SCHEMA_NAME()) AND table_name = {{tableName}} ORDER BY ordinal_position",
-                List.of("table metadata", "column metadata", "table schema", "describe table", "metadata_query"))
+                List.of("io", "performance", "file stats", "dm_io_virtual_file_stats", "performance_issue"))
         );
     }
 
@@ -628,48 +594,6 @@ public class SqlTemplateService {
 
     private Map<String, Object> emptySchema() {
         return Map.of("type", "object", "properties", Map.of(), "required", List.of());
-    }
-
-    private DefaultTemplate metadataTemplate(String code,
-                                             String title,
-                                             String description,
-                                             String databaseType,
-                                             String sql,
-                                             List<String> intentSignals) {
-        return new DefaultTemplate(
-            code,
-            title,
-            description,
-            sql,
-            tableNameSchema(),
-            "LOW",
-            "maintenance_metadata",
-            databaseType,
-            List.of(databaseType, "maintenance", "metadata"),
-            templateSignals(code, title, description, intentSignals)
-        );
-    }
-
-    private Map<String, Object> tableNameSchema() {
-        return Map.of(
-            "type", "object",
-            "properties", Map.of(
-                "tableName", Map.of(
-                    "type", "string",
-                    "description", "Table name to inspect in the current schema/database",
-                    "minLength", 1,
-                    "maxLength", 128,
-                    "pattern", "[A-Za-z_][A-Za-z0-9_]*"
-                ),
-                "schemaName", Map.of(
-                    "type", "string",
-                    "description", "Schema/database name to inspect. The SQL executor fills this from execution context or JDBC URL when omitted.",
-                    "maxLength", 128,
-                    "pattern", "[A-Za-z_][A-Za-z0-9_]*"
-                )
-            ),
-            "required", List.of("tableName")
-        );
     }
 
     private List<String> templateSignals(String code, String title, String description, List<String> extraSignals) {

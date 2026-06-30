@@ -107,12 +107,12 @@ class SqlQueryExecuteServiceTest {
         datasource.setDefaultMaxRows(10);
         datasource.setDefaultTimeoutSeconds(5);
         when(datasourceConfigService.getEnabled("ds-1")).thenReturn(datasource);
-        when(metadataResolverService.resolveTable(eq(datasource), eq("t_khtz_label"), eq("bd")))
+        when(metadataResolverService.resolveTable(eq(datasource), eq("t_khtz_label"), eq(null)))
             .thenReturn(new TableResolution(
                 "ds-1",
                 "mysql",
                 "t_khtz_label",
-                "bd",
+                null,
                 "bd",
                 "t_khtz_label",
                 "resolved",
@@ -144,6 +144,50 @@ class SqlQueryExecuteServiceTest {
         assertThat(diagnosticParameters.get("schemaName")).isEqualTo("bd");
         assertThat(diagnosticDatasource.get("databaseType")).isEqualTo("mysql");
         assertThat(diagnosticDatasource.get("jdbcDatabase")).isEqualTo("bd");
+    }
+
+    @Test
+    void tableMetadataResolutionRunsBeforeJdbcDefaultSchemaFallback() {
+        SqlDatasourceConfig datasource = new SqlDatasourceConfig();
+        datasource.setId("ds-1");
+        datasource.setName("customer-db");
+        datasource.setToolName("sql_customer");
+        datasource.setJdbcUrl("jdbc:mysql://127.0.0.1:3306/tpcds?useSSL=false");
+        datasource.setDefaultMaxRows(10);
+        datasource.setDefaultTimeoutSeconds(5);
+        when(datasourceConfigService.getEnabled("ds-1")).thenReturn(datasource);
+        when(metadataResolverService.resolveTable(eq(datasource), eq("lbappdeploydetail"), eq(null)))
+            .thenReturn(new TableResolution(
+                "ds-1",
+                "mysql",
+                "lbappdeploydetail",
+                null,
+                "rdsm_ad",
+                "lbappdeploydetail",
+                "resolved",
+                0.95,
+                List.of(new TableLocation("ds-1", "rdsm_ad", "rdsm_ad", "lbappdeploydetail", "BASE TABLE", null, 0.95)),
+                1,
+                true,
+                null
+            ));
+        when(templateService.render(eq("MYSQL_TABLE_METADATA"), anyMap(), eq(datasource), anyMap()))
+            .thenThrow(new IllegalArgumentException("stop after render"));
+
+        SqlQueryResult result = service.execute(Map.of(
+            "datasourceId", "ds-1",
+            "templateId", "MYSQL_TABLE_METADATA",
+            "parameters", Map.of("tableName", "lbappdeploydetail")
+        ));
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, Object>> parameters = ArgumentCaptor.forClass(Map.class);
+        verify(templateService).render(eq("MYSQL_TABLE_METADATA"), parameters.capture(), eq(datasource), anyMap());
+        assertThat(parameters.getValue())
+            .containsEntry("tableName", "lbappdeploydetail")
+            .containsEntry("schemaName", "rdsm_ad")
+            .containsEntry("databaseName", "rdsm_ad");
+        assertThat(result.diagnostics()).containsEntry("failureStage", "prepare");
     }
 
     @Test

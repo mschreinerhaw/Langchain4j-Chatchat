@@ -85,6 +85,33 @@ class InterpretationPlanWorkflowGuardTest {
     }
 
     @Test
+    void blocksFinalAnswerWhenAnyPlannedStepWasNotCompleted() {
+        InterpretationPlanRuntime.ExecutionResult result = result(
+            List.of(
+                execution(1, "mcp_tool", "mcp_chatchat_mcp_server_sql_datasource_asset_query", true),
+                execution(3, "final_answer", "", true)
+            ),
+            Map.of("completedPlanStepIds", List.of(1, 3))
+        );
+
+        InterpretationPlanWorkflowGuard.GuardResult evaluated = guard.evaluate(
+            planWithSteps(List.of(
+                new InterpretationPlan.Step(1, "mcp_tool", "mcp_chatchat_mcp_server_sql_datasource_asset_query", Map.of(), List.of(), null, null),
+                new InterpretationPlan.Step(2, "mcp_tool", "mcp_chatchat_mcp_server_sql_datasource_template_query", Map.of(), List.of(1), null, null),
+                new InterpretationPlan.Step(3, "final_answer", "", Map.of("answer", "done"), List.of(2), null, null)
+            )),
+            result,
+            List.of("mcp_chatchat_mcp_server_sql_datasource_asset_query"),
+            List.of("mcp_chatchat_mcp_server_sql_datasource_template_query")
+        );
+
+        assertThat(evaluated.allowed()).isFalse();
+        assertThat(evaluated.code()).isEqualTo("interpretation_plan_steps_incomplete");
+        assertThat(evaluated.missingPlanStepIds()).containsExactly(2);
+        assertThat(evaluated.metadata()).containsEntry("strictPlanStepCompletion", true);
+    }
+
+    @Test
     void doesNotInventMandatoryToolsWhenWorkflowIsNotConfigured() {
         InterpretationPlanRuntime.ExecutionResult result = result(List.of(
             execution(1, "mcp_tool", "mcp_chatchat_mcp_server_sql_datasource_asset_query", true),
@@ -126,7 +153,23 @@ class InterpretationPlanWorkflowGuardTest {
         );
     }
 
+    private InterpretationPlan planWithSteps(List<InterpretationPlan.Step> steps) {
+        return new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("sql_analysis", "Analyze table metadata", "low"),
+            new InterpretationPlan.Context(List.of(), List.of(), List.of(), List.of()),
+            new InterpretationPlan.Plan(steps),
+            new InterpretationPlan.ExecutionPolicy(5, false, List.of(), List.of(), 30000),
+            null
+        );
+    }
+
     private InterpretationPlanRuntime.ExecutionResult result(List<InterpretationPlanRuntime.StepExecution> steps) {
+        return result(steps, Map.of());
+    }
+
+    private InterpretationPlanRuntime.ExecutionResult result(List<InterpretationPlanRuntime.StepExecution> steps,
+                                                             Map<String, Object> metadata) {
         return new InterpretationPlanRuntime.ExecutionResult(
             "completed",
             true,
@@ -134,7 +177,7 @@ class InterpretationPlanWorkflowGuardTest {
             null,
             "done",
             steps,
-            Map.of(),
+            metadata,
             10L
         );
     }

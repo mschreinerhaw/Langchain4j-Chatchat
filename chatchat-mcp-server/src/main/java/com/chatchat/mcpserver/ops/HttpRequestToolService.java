@@ -3,6 +3,7 @@ package com.chatchat.mcpserver.ops;
 import com.chatchat.agents.protocol.ModelProtocolJson;
 
 import com.chatchat.mcpserver.audit.InvocationAuditService;
+import com.chatchat.mcpserver.template.TemplateParameterValidator;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -38,6 +39,7 @@ public class HttpRequestToolService {
 
     private final ObjectMapper objectMapper;
     private final InvocationAuditService auditService;
+    private final TemplateParameterValidator parameterValidator;
 
     public HttpRequestToolResult execute(Map<String, Object> arguments) {
         long startedAt = System.currentTimeMillis();
@@ -103,12 +105,39 @@ public class HttpRequestToolService {
 
     public HttpRequestToolResult execute(HttpEndpointConfig config, Map<String, Object> arguments) {
         assertExecutionCapability(config);
-        Map<String, Object> request = toRequest(config, arguments == null ? Map.of() : arguments);
+        Map<String, Object> safeArguments = validatedTemplateArguments(config, arguments == null ? Map.of() : arguments);
+        Map<String, Object> request = toRequest(config, safeArguments);
         request.put("toolName", config.getToolName());
         request.put("endpointId", config.getId());
         request.put("endpointName", config.getName());
         request.put("environment", config.getEnvironment());
         return execute(request);
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> validatedTemplateArguments(HttpEndpointConfig config, Map<String, Object> arguments) {
+        Object explicit = arguments.get("parameters");
+        Map<String, Object> explicitParameters = explicit instanceof Map<?, ?> map
+            ? new LinkedHashMap<>((Map<String, Object>) map)
+            : Map.of();
+        Map<String, Object> parameters = parameterValidator.validateDeclaredOnly(
+            config.getToolName(),
+            config.getInputSchemaJson(),
+            explicitParameters,
+            arguments
+        );
+        copyIfPresent(arguments, parameters, "sourceTaskId");
+        return parameters;
+    }
+
+    private void copyIfPresent(Map<String, Object> source, Map<String, Object> target, String key) {
+        if (source == null || target == null || key == null || !source.containsKey(key)) {
+            return;
+        }
+        Object value = source.get(key);
+        if (value != null && !String.valueOf(value).isBlank()) {
+            target.put(key, value);
+        }
     }
 
     private void assertExecutionCapability(HttpEndpointConfig config) {

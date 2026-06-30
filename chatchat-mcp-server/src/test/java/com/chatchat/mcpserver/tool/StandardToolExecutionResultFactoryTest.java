@@ -144,6 +144,44 @@ class StandardToolExecutionResultFactoryTest {
     }
 
     @Test
+    void linuxResultSeparatesTransportSuccessFromCommandExitStatus() {
+        LinuxCommandResult result = new LinuxCommandResult(
+            true,
+            "host-1",
+            "10.0.0.1",
+            "ssh_host",
+            "PROD",
+            "CHECK_JAVA_PROCESS",
+            "ps -eo pid,args | awk 'NR==1 || /[j]ava/'",
+            "hash",
+            List.of(new LinuxCommandStepResult(1, "grep java", "hash1", 1, "", "", 5, false)),
+            1,
+            "grep java",
+            1,
+            "",
+            "",
+            5,
+            null,
+            Map.of("sourceTaskId", "task-1")
+        );
+
+        Map<String, Object> envelope = factory.fromLinuxCommand(result);
+        Map<?, ?> data = (Map<?, ?>) envelope.get("data");
+        Map<?, ?> diagnostics = (Map<?, ?>) data.get("diagnostics");
+
+        assertThat(envelope).containsEntry("success", true);
+        assertThat(envelope).containsEntry("status", "success");
+        assertThat(data.get("transportSuccess")).isEqualTo(true);
+        assertThat(data.get("commandSuccess")).isEqualTo(false);
+        assertThat(data.get("exitCode")).isEqualTo(1);
+        assertThat(diagnostics.get("transportSuccess")).isEqualTo(true);
+        assertThat(diagnostics.get("commandSuccess")).isEqualTo(false);
+        List<?> nonZeroStepIndexes = (List<?>) diagnostics.get("nonZeroStepIndexes");
+        assertThat(nonZeroStepIndexes).hasSize(1);
+        assertThat(nonZeroStepIndexes.get(0)).isEqualTo(1);
+    }
+
+    @Test
     void httpResultUsesStandardEnvelope() {
         HttpRequestToolResult result = new HttpRequestToolResult(
             true,

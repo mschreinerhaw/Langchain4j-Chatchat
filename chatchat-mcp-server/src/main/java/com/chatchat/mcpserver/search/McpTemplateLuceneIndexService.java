@@ -31,6 +31,15 @@ import java.util.Set;
 @RequiredArgsConstructor
 public class McpTemplateLuceneIndexService {
 
+    private static final Set<String> RETIRED_SQL_METADATA_TEMPLATE_CODES = Set.of(
+        "MYSQL_SCHEMA_TABLE_OVERVIEW",
+        "MYSQL_TABLE_LOCATION",
+        "MYSQL_TABLE_METADATA",
+        "ORACLE_TABLE_METADATA",
+        "POSTGRES_TABLE_METADATA",
+        "SQLSERVER_TABLE_METADATA"
+    );
+
     private final LuceneMcpSearchService luceneSearchService;
     private final CommandTemplateService commandTemplateService;
     private final SqlTemplateService sqlTemplateService;
@@ -53,6 +62,7 @@ public class McpTemplateLuceneIndexService {
             .map(this::commandTemplateDoc)
             .forEach(docs::add);
         safe(sqlTemplateService.listEnabled()).stream()
+            .filter(template -> !isRetiredSqlMetadataTemplate(template))
             .map(this::sqlTemplateDoc)
             .forEach(docs::add);
         safe(httpEndpointConfigService.listEnabled()).stream()
@@ -70,7 +80,10 @@ public class McpTemplateLuceneIndexService {
     }
 
     public void upsertSqlTemplates(List<SqlTemplateConfig> templates) {
-        luceneSearchService.upsertTemplates(safe(templates).stream().map(this::sqlTemplateDoc).toList());
+        luceneSearchService.upsertTemplates(safe(templates).stream()
+            .filter(template -> !isRetiredSqlMetadataTemplate(template))
+            .map(this::sqlTemplateDoc)
+            .toList());
     }
 
     public void upsertDatabaseQueryTemplates(List<DatabaseQueryConfig> templates) {
@@ -223,6 +236,11 @@ public class McpTemplateLuceneIndexService {
             .filter(value -> value != null)
             .forEach(distinct::add);
         return new ArrayList<>(distinct);
+    }
+
+    private boolean isRetiredSqlMetadataTemplate(SqlTemplateConfig template) {
+        String code = template == null ? null : normalize(template.getCode());
+        return code != null && RETIRED_SQL_METADATA_TEMPLATE_CODES.contains(code.toUpperCase(Locale.ROOT));
     }
 
     private <T> List<T> safe(List<T> values) {

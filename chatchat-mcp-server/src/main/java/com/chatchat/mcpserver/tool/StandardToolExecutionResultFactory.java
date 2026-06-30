@@ -134,6 +134,12 @@ public class StandardToolExecutionResultFactory {
         ));
         payload.put("data", mapOf(
             "exitCode", result.exitCode(),
+            "transportSuccess", result.success(),
+            "commandSuccess", result.steps().stream().allMatch(LinuxCommandStepResult::success),
+            "nonZeroStepIndexes", result.steps().stream()
+                .filter(step -> !step.success())
+                .map(LinuxCommandStepResult::stepIndex)
+                .toList(),
             "steps", stepResults(result.steps()),
             "failedStepIndex", result.failedStepIndex(),
             "failedCommand", result.failedCommand(),
@@ -342,6 +348,12 @@ public class StandardToolExecutionResultFactory {
             "failedStepIndex", result.failedStepIndex(),
             "failedCommandHash", sha256(result.failedCommand()),
             "exitCode", result.exitCode(),
+            "transportSuccess", result.success(),
+            "commandSuccess", steps.stream().allMatch(LinuxCommandStepResult::success),
+            "nonZeroStepIndexes", steps.stream()
+                .filter(step -> !step.success())
+                .map(LinuxCommandStepResult::stepIndex)
+                .toList(),
             "durationMs", result.durationMs(),
             "stdoutLength", result.stdout() == null ? 0 : result.stdout().length(),
             "stderrLength", result.stderr() == null ? 0 : result.stderr().length(),

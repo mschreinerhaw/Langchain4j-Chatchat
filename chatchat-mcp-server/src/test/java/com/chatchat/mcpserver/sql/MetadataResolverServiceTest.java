@@ -41,6 +41,9 @@ class MetadataResolverServiceTest {
         datasource.setUsername("sa");
         datasource.setPassword("");
         datasource.setDatabaseType("postgresql");
+        datasource.setMetadataScopeType("EXPLICIT_SCHEMA");
+        datasource.setMetadataScopeValue("PUBLIC");
+        metadataIndexService.refreshDatasource(datasource);
 
         TableResolution first = service.resolveTable(datasource, "customer_label", "PUBLIC");
         TableResolution second = service.resolveTable(datasource, "customer_label", "PUBLIC");
@@ -48,7 +51,7 @@ class MetadataResolverServiceTest {
         assertThat(first.reason()).isEqualTo("resolved");
         assertThat(first.selectedSchema()).isEqualTo("PUBLIC");
         assertThat(first.selectedTable()).isEqualTo("CUSTOMER_LABEL");
-        assertThat(first.cacheHit()).isFalse();
+        assertThat(first.cacheHit()).isTrue();
         assertThat(second.reason()).isEqualTo("resolved");
         assertThat(second.cacheHit()).isTrue();
         assertThat(second.candidates()).hasSize(1);
@@ -71,13 +74,16 @@ class MetadataResolverServiceTest {
         datasource.setUsername("sa");
         datasource.setPassword("");
         datasource.setDatabaseType("postgresql");
+        datasource.setMetadataScopeType("EXPLICIT_SCHEMA");
+        datasource.setMetadataScopeValue("TENANT_B");
+        metadataIndexService.refreshDatasource(datasource);
 
         TableResolution resolution = service.resolveTable(datasource, "customer_label", "TENANT_B");
 
         assertThat(resolution.reason()).isEqualTo("resolved");
         assertThat(resolution.selectedSchema()).isEqualTo("TENANT_B");
         assertThat(resolution.selectedTable()).isEqualTo("CUSTOMER_LABEL");
-        assertThat(resolution.candidates()).hasSize(2);
+        assertThat(resolution.candidates()).hasSize(1);
     }
 
     @Test
@@ -94,6 +100,9 @@ class MetadataResolverServiceTest {
         datasource.setUsername("sa");
         datasource.setPassword("");
         datasource.setDatabaseType("postgresql");
+        datasource.setMetadataScopeType("EXPLICIT_SCHEMA");
+        datasource.setMetadataScopeValue("PUBLIC");
+        metadataIndexService.refreshDatasource(datasource);
 
         TableResolution resolution = service.resolveTable(datasource, "customer_label", "PUBLIC");
 

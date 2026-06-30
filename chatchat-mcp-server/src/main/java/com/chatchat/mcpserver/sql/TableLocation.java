@@ -10,8 +10,20 @@ public record TableLocation(
     String table,
     String tableType,
     Long tableRows,
+    String tableComment,
+    String databaseComment,
     double score
 ) {
+    public TableLocation(String datasourceId,
+                         String database,
+                         String schema,
+                         String table,
+                         String tableType,
+                         Long tableRows,
+                         double score) {
+        this(datasourceId, database, schema, table, tableType, tableRows, null, null, score);
+    }
+
     public Map<String, Object> toDiagnostic() {
         Map<String, Object> value = new LinkedHashMap<>();
         value.put("datasourceId", datasourceId);
@@ -20,6 +32,8 @@ public record TableLocation(
         value.put("table", table);
         value.put("tableType", tableType);
         value.put("tableRows", tableRows);
+        value.put("tableComment", tableComment);
+        value.put("databaseComment", databaseComment);
         value.put("score", score);
         return value;
     }

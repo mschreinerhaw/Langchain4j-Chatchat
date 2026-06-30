@@ -1871,8 +1871,11 @@ public class AgentOrchestrator {
         metadata.put("interpretationPlanWorkflowBlockedStage", stage);
         metadata.put("interpretationPlanWorkflowGuard", guardMetadata);
         metadata.put("interpretationPlanWorkflowMissingTools", guard == null ? List.of() : guard.missingRequiredTools());
-        observations.add("InterpretationPlan final answer blocked: configured MCP workflow must complete before final answer. Missing: "
-            + (guard == null ? List.of() : guard.missingRequiredTools()));
+        metadata.put("interpretationPlanWorkflowMissingPlanStepIds", guard == null ? List.of() : guard.missingPlanStepIds());
+        observations.add("InterpretationPlan final answer blocked: configured MCP workflow must complete before final answer. Missing tools: "
+            + (guard == null ? List.of() : guard.missingRequiredTools())
+            + ", missing plan steps: "
+            + (guard == null ? List.of() : guard.missingPlanStepIds()));
         Map<String, Object> resultMetadata = new LinkedHashMap<>(result.metadata() == null ? Map.of() : result.metadata());
         resultMetadata.put("workflowGuard", guardMetadata);
         return new InterpretationPlanRuntime.ExecutionResult(

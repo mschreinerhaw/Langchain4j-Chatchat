@@ -54,6 +54,12 @@ public class LuceneMcpSearchService {
     private static final String FIELD_TEXT = "text";
     private static final String FIELD_NAME_TEXT = "nameText";
     private static final String FIELD_INTENT_TEXT = "intentText";
+    private static final String FIELD_RESULT_ID = "resultId";
+    private static final String FIELD_DATABASE = "database";
+    private static final String FIELD_TABLE = "table";
+    private static final String FIELD_FULL_PATH = "fullPath";
+    private static final String FIELD_TABLE_COMMENT = "tableComment";
+    private static final String FIELD_DATABASE_COMMENT = "databaseComment";
 
     private final LuceneSearchProperties properties;
 
@@ -199,11 +205,22 @@ public class LuceneMcpSearchService {
             List<SearchHit> hits = new ArrayList<>();
             for (ScoreDoc scoreDoc : topDocs.scoreDocs) {
                 Document doc = searcher.doc(scoreDoc.doc);
+                String source = doc.get("source");
                 hits.add(new SearchHit(
-                    doc.get(FIELD_ID),
+                    firstText(doc.get(FIELD_RESULT_ID), doc.get(FIELD_ID)),
                     doc.get(FIELD_KIND),
                     scoreDoc.score,
-                    List.of("lucene_bm25:" + round(scoreDoc.score))
+                    source == null || source.isBlank()
+                        ? List.of("lucene_bm25:" + round(scoreDoc.score))
+                        : List.of("lucene_bm25:" + round(scoreDoc.score), "source:" + source),
+                    doc.get(FIELD_ID),
+                    source,
+                    doc.get(FIELD_RESULT_ID),
+                    doc.get(FIELD_DATABASE),
+                    doc.get(FIELD_TABLE),
+                    doc.get(FIELD_FULL_PATH),
+                    doc.get(FIELD_TABLE_COMMENT),
+                    doc.get(FIELD_DATABASE_COMMENT)
                 ));
             }
             return hits;
@@ -225,8 +242,11 @@ public class LuceneMcpSearchService {
         String queryText = normalizeText(request.queryText());
         if (queryText != null) {
             BooleanQuery.Builder text = new BooleanQuery.Builder();
-            text.add(new BoostQuery(textQuery(queryText, FIELD_NAME_TEXT, FIELD_TEXT), 2.0f), BooleanClause.Occur.SHOULD);
+            text.add(new BoostQuery(textQuery(queryText, FIELD_NAME_TEXT, FIELD_TEXT, FIELD_TABLE, FIELD_FULL_PATH), 2.0f), BooleanClause.Occur.SHOULD);
             text.add(new BoostQuery(exactQuery(FIELD_ID, queryText), 3.0f), BooleanClause.Occur.SHOULD);
+            text.add(new BoostQuery(exactQuery(FIELD_RESULT_ID, queryText), 3.0f), BooleanClause.Occur.SHOULD);
+            text.add(new BoostQuery(exactQuery(FIELD_FULL_PATH, queryText), 4.0f), BooleanClause.Occur.SHOULD);
+            text.add(new BoostQuery(exactQuery(FIELD_TABLE, queryText), 3.0f), BooleanClause.Occur.SHOULD);
             text.setMinimumNumberShouldMatch(1);
             root.add(text.build(), BooleanClause.Occur.MUST);
         }
@@ -274,8 +294,20 @@ public class LuceneMcpSearchService {
         addExact(document, FIELD_ASSET_TYPE, doc.assetType());
         addExact(document, FIELD_ENV, doc.env());
         addExact(document, FIELD_DB_TYPE, doc.dbType());
-        addText(document, FIELD_NAME_TEXT, join(doc.name(), doc.displayName(), doc.toolName()));
-        addText(document, FIELD_TEXT, join(doc.name(), doc.displayName(), doc.toolName(), String.join(" ", doc.labels())));
+        addExact(document, FIELD_RESULT_ID, doc.resultId());
+        addExact(document, FIELD_DATABASE, doc.databaseName());
+        addExact(document, FIELD_TABLE, doc.tableName());
+        addExact(document, FIELD_FULL_PATH, doc.fullPath());
+        addStored(document, FIELD_RESULT_ID, doc.resultId());
+        addStored(document, FIELD_DATABASE, doc.databaseName());
+        addStored(document, FIELD_TABLE, doc.tableName());
+        addStored(document, FIELD_FULL_PATH, doc.fullPath());
+        addStored(document, FIELD_TABLE_COMMENT, doc.tableComment());
+        addStored(document, FIELD_DATABASE_COMMENT, doc.databaseComment());
+        addText(document, FIELD_NAME_TEXT, join(doc.name(), doc.displayName(), doc.toolName(), doc.databaseName(), doc.tableName(), doc.fullPath(),
+            doc.extraText(), doc.tableComment(), doc.databaseComment()));
+        addText(document, FIELD_TEXT, join(doc.name(), doc.displayName(), doc.toolName(), doc.databaseName(), doc.tableName(), doc.fullPath(),
+            doc.extraText(), doc.tableComment(), doc.databaseComment(), String.join(" ", doc.labels())));
         addStored(document, "source", doc.source());
         for (String label : doc.labels()) {
             addExact(document, FIELD_LABEL, label);
@@ -346,6 +378,18 @@ public class LuceneMcpSearchService {
         return value == null || value.isBlank() ? null : value.trim().toLowerCase(Locale.ROOT);
     }
 
+    private String firstText(String... values) {
+        if (values == null) {
+            return null;
+        }
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value.trim();
+            }
+        }
+        return null;
+    }
+
     private double round(double value) {
         return Math.round(value * 1000.0) / 1000.0;
     }
@@ -358,7 +402,42 @@ public class LuceneMcpSearchService {
                            String env,
                            String dbType,
                            List<String> labels,
-                           String source) {
+                           String source,
+                           String resultId,
+                           String databaseName,
+                           String tableName,
+                           String fullPath,
+                           String extraText,
+                           String tableComment,
+                           String databaseComment) {
+
+        public AssetDoc(String id,
+                        String assetType,
+                        String name,
+                        String displayName,
+                        String toolName,
+                        String env,
+                        String dbType,
+                        List<String> labels,
+                        String source) {
+            this(id, assetType, name, displayName, toolName, env, dbType, labels, source, null, null, null, null, null, null, null);
+        }
+
+        public AssetDoc(String id,
+                        String assetType,
+                        String name,
+                        String displayName,
+                        String toolName,
+                        String env,
+                        String dbType,
+                        List<String> labels,
+                        String source,
+                        String resultId,
+                        String databaseName,
+                        String tableName,
+                        String fullPath) {
+            this(id, assetType, name, displayName, toolName, env, dbType, labels, source, resultId, databaseName, tableName, fullPath, null, null, null);
+        }
 
         public AssetDoc {
             labels = labels == null ? List.of() : labels;
@@ -399,7 +478,22 @@ public class LuceneMcpSearchService {
                                         int limit) {
     }
 
-    public record SearchHit(String id, String kind, float score, List<String> reasons) {
+    public record SearchHit(String id,
+                            String kind,
+                            float score,
+                            List<String> reasons,
+                            String documentId,
+                            String source,
+                            String resultId,
+                            String database,
+                            String table,
+                            String fullPath,
+                            String tableComment,
+                            String databaseComment) {
+
+        public SearchHit(String id, String kind, float score, List<String> reasons) {
+            this(id, kind, score, reasons, id, null, null, null, null, null, null, null);
+        }
     }
 
     private static class NgramAnalyzer extends Analyzer {

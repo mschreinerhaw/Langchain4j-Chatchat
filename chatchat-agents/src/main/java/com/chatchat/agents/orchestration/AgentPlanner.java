@@ -180,14 +180,36 @@ class AgentPlanner {
         prompt.append("- Use plan.stability to lock critical nodes/tools/edges that optimizer and rewriter must preserve.\n");
         prompt.append("- Add plan.edge_contracts when a later step needs a typed field from an earlier tool output.\n");
         prompt.append("- If information is missing, add missing_info and plan the smallest safe retrieval/tool step instead of inventing facts.\n\n");
+        String sqlTemplateQueryTool = matchingAvailableTool(availableTools, "template_discovery");
+        String sqlMetadataSearchTool = matchingAvailableTool(availableTools, "sql_metadata_search");
         prompt.append("SQL template execution contract:\n");
-        prompt.append("- For SQL datasource analysis, first call the typed sql datasource template_query tool and bind templates[0].templateId into sql_query_execute.templateId.\n");
-        prompt.append("- For complex SQL table analysis or unknown schema/database, call sql_query_plan before template_query. sql_query_plan input MUST use question, tables[], and executionContext; do not use userQuery or context.targetTable as replacements.\n");
+        if (sqlTemplateQueryTool != null) {
+            prompt.append("- For SQL datasource analysis, call the available typed template discovery tool ")
+                .append(sqlTemplateQueryTool)
+                .append(" and bind the selected returned templates[].templateId into sql_query_execute.templateId.\n");
+        } else {
+            prompt.append("- No SQL template discovery tool is available in this request. Do not add sql_datasource_template_query/template_query steps. Only call sql_query_execute when a concrete templateId and parameter contract already appear in Available tools metadata, prior observations, or user-provided governed context; otherwise stop at final_answer with the missing template-discovery requirement.\n");
+        }
+        if (sqlMetadataSearchTool != null) {
+            prompt.append("- For SQL table analysis or unknown schema/database, call ")
+                .append(sqlMetadataSearchTool)
+                .append(" before SQL execution. Pass the explicit tableName from the user request and includeColumns=true so cached column names/types/comments are returned. Use results[].sqlExecutionBinding as the authoritative source for schemaName/databaseName/tableName.\n");
+        } else {
+            prompt.append("- If sql_metadata_search is not available, do not guess schema/database/table binding from free text; use already observed structured metadata only.\n");
+        }
         prompt.append("- sql_query_execute with templateId MUST pass only fields declared by templates[].parameterSchema under input.parameters.\n");
+        prompt.append("- Treat templates[].parameterSchema, templates[].requiredParameters, templates[].parameterContract, and templates[].invocationExample as the binding contract. If requiredParameters contains tableName, copy the table name from the user request or sql_metadata_search result into input.parameters.tableName before calling sql_query_execute.\n");
+        prompt.append("- Never call sql_query_execute with templateId and parameters={} when the selected template has any required parameter. Missing required template parameters must be repaired by adding a prior discovery/planning step or by binding the value from user input/tool output.\n");
         prompt.append("- sql_query_execute MUST include logical executionContext from typed asset discovery, for example {\"assetName\":\"<asset-name>\",\"env\":\"<env>\"}.\n");
         prompt.append("- Do not put JSONPath strings such as $.assets[0].asset.name inside executionContext. Use plan.bindings or depend on the asset_query step so runtime can inject concrete values.\n");
         prompt.append("- Never put raw SQL such as SHOW CREATE TABLE, DESC/DESCRIBE, SELECT, SHOW STATUS, or information_schema queries inside input.parameters.sql/rawSql/query/statement.\n");
-        prompt.append("- Do not invent SQL template names. If a requested analysis needs table metadata, choose the returned TABLE_METADATA template and pass tableName from the user/query context. Pass schemaName/databaseName only when it came from sql_query_plan diagnostics.resolvedTables or a table-location template; never bind assetName to schemaName.\n\n");
+        prompt.append("- Do not invent SQL template names. If a requested analysis needs table metadata, choose an observed returned TABLE_METADATA template and pass tableName from the user/query context. Pass schemaName/databaseName only when it came from sql_metadata_search results[].sqlExecutionBinding.parameters or a table-location template; never bind assetName to schemaName.\n\n");
+        prompt.append("Template-governed HTTP/API/SSH execution contract:\n");
+        prompt.append("- HTTP/API/SSH execution must follow the same template governance as SQL: discover/select a registered template, read templates[].parameterSchema/requiredParameters/parameterContract/invocationExample, then call the execution tool with only declared parameters.\n");
+        prompt.append("- For http_request_execute, use template from http_endpoint_template_query.templates[].templateId and put all endpoint arguments under input.parameters. Do not pass raw url, uri, method, headers, body, host, hostname, ip, or endpointId.\n");
+        prompt.append("- For API service tools returned by api_template_query, use the returned toolName/templateId exactly and pass only arguments declared by templates[].parameterSchema. Do not invent raw URL, headers, or body fields.\n");
+        prompt.append("- For linux_command_execute, use template from ssh_template_query.templates[].templateId and put all command arguments under input.parameters. Do not pass command, rawCommand, shell, host, hostname, ip, or hostId.\n");
+        prompt.append("- Never call any template-governed execution tool with empty parameters when the selected template declares requiredParameters. Add a prior discovery/planning step or bind values from user input/tool output.\n\n");
         if (requireToolBeforeFinal) {
             prompt.append("Mandatory tool policy:\n");
             prompt.append("- This agent is bound to required runtime tools. Your response MUST be an InterpretationPlan that includes the required tool steps.\n");
@@ -397,6 +419,7 @@ class AgentPlanner {
             prompt.append("- Valid database input example: {\"candidates\":[{\"targetKind\":\"database\",\"confidence\":0.9}],\"finalDecision\":\"database\",\"filters\":{\"assetName\":\"<asset-name-from-typed-asset-discovery>\",\"env\":\"<env-from-typed-asset-discovery>\",\"intent\":\"<database-query-intent>\",\"bilingualIntent\":[\"<Chinese alias>\",\"<English technical term>\"],\"intentZh\":\"<Chinese intent>\",\"intentEn\":\"<English technical intent>\",\"intentAliases\":[\"<Chinese alias>\",\"<English technical term>\"],\"keywords\":[\"<canonical command or metric>\",\"<Chinese keyword>\",\"<English keyword>\"]},\"trace\":{\"plannerVersion\":\"v1.1\",\"model\":\"<model>\"},\"limit\":10}.\n");
             prompt.append("- templates[] is ranked by relevanceScore. Choose the returned template whose name, description, intentSignals, matchReasons, and asset type best match the user intent; do not blindly bind the first asset allowedCommandTemplates item.\n");
             prompt.append("- If the selected template's parameterSchema.required is non-empty, include a parameters object in the execution tool input with exactly those required fields; never place template parameters at the top level.\n");
+            prompt.append("- Also read templates[].requiredParameters, templates[].parameterContract, and templates[].invocationExample. These fields are authoritative. For SQL/HTTP/SSH gateway tools, required values must be placed under the execution step's input.parameters; for direct API tools, follow parameterContract.argumentContainer.\n");
             prompt.append("- Do not invent template ids if ").append(templateQueryTool)
                 .append(" returns no suitable template; ask the user/admin to register or allow one.\n\n");
         }
@@ -414,6 +437,16 @@ class AgentPlanner {
                 .append(linuxCommandTool)
                 .append("; do not stop after discovery when the user asked for live system analysis.\n");
             prompt.append("- If no suitable command template is known or returned, produce a final answer asking the user/admin to register a safe template; do not invent raw shell commands.\n\n");
+        }
+        String httpRequestTool = matchingAvailableTool(availableTools, "http_request_execute");
+        if (httpRequestTool != null) {
+            prompt.append("HTTP request gateway contract:\n");
+            prompt.append("- Use ").append(httpRequestTool)
+                .append(" only with a registered HTTP template id and logical executionContext.\n");
+            prompt.append("- Input MUST use field template plus parameters; never use url, uri, method, headers, body, host, hostname, ip, or endpointId.\n");
+            prompt.append("- The template value MUST be copied exactly from http_endpoint_template_query.templates[].templateId or typed API/HTTP discovery metadata.\n");
+            prompt.append("- Template arguments MUST be passed under parameters and must satisfy templates[].parameterSchema/requiredParameters. Missing required fields must be bound before execution.\n");
+            prompt.append("- Prefer executionContext.assetName from asset discovery for exact routing, plus env when available.\n\n");
         }
     }
 
@@ -1434,8 +1467,9 @@ class AgentPlanner {
         if (toolName == null || toolName.isBlank()) {
             return false;
         }
-        if (validationContext != null && normalizeList(validationContext.availableTools()).stream().anyMatch(tool -> sameToolName(tool, toolName))) {
-            return true;
+        List<String> availableTools = validationContext == null ? List.of() : normalizeList(validationContext.availableTools());
+        if (!availableTools.isEmpty()) {
+            return availableTools.stream().anyMatch(tool -> sameToolName(tool, toolName));
         }
         return toolRegistry != null && toolRegistry.hasTool(toolName);
     }

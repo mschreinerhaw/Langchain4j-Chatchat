@@ -12,6 +12,7 @@ public record MetadataColumn(
     String dataType,
     String columnType,
     String columnKey,
+    String comment,
     boolean nullable,
     Integer ordinalPosition
 ) {
@@ -25,6 +26,7 @@ public record MetadataColumn(
         value.put("dataType", dataType);
         value.put("columnType", columnType);
         value.put("columnKey", columnKey);
+        value.put("comment", comment);
         value.put("nullable", nullable);
         value.put("ordinalPosition", ordinalPosition);
         return value;

@@ -111,6 +111,7 @@ public class ApiTemplateDiscoveryMcpToolPublisher {
                 "mustUseReturnedTemplateId", true,
                 "doNotInventTemplateNames", true,
                 "rawExecutionSpecReturned", false,
+                "selectionFields", List.of("templateId", "toolName", "title", "description", "parameterSchema", "requiredParameters", "parameterContract", "invocationExample"),
                 "onEmptyResult", "No existing API template matched the request. Do not invent an API tool name."
             ),
             "queryIr", mapOf(
@@ -293,6 +294,8 @@ public class ApiTemplateDiscoveryMcpToolPublisher {
     }
 
     private Map<String, Object> templateMetadata(ApiServiceConfig config, double score) {
+        Map<String, Object> parameterSchema = parameterSchema(config.getInputSchemaJson());
+        List<String> requiredParameters = requiredParameters(parameterSchema);
         return mapOf(
             "schemaVersion", CommandTemplateDiscoveryService.TEMPLATE_SCHEMA_VERSION,
             "templateId", config.getToolName(),
@@ -303,7 +306,10 @@ public class ApiTemplateDiscoveryMcpToolPublisher {
             "assetType", "api_service",
             "targetKind", "api_service",
             "method", config.getMethod(),
-            "parameterSchema", parameterSchema(config.getInputSchemaJson()),
+            "parameterSchema", parameterSchema,
+            "requiredParameters", requiredParameters,
+            "parameterContract", directParameterContract(config.getToolName(), parameterSchema),
+            "invocationExample", directInvocationExample(config.getToolName(), parameterSchema),
             "riskLevel", "LOW",
             "enabled", config.isEnabled(),
             "relevanceScore", score,
@@ -313,6 +319,63 @@ public class ApiTemplateDiscoveryMcpToolPublisher {
                 "source", TOOL_NAME + ".templates[].templateId"
             )
         );
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> directParameterContract(String toolName, Map<String, Object> parameterSchema) {
+        Map<String, Object> properties = parameterSchema == null || !(parameterSchema.get("properties") instanceof Map<?, ?> map)
+            ? Map.of()
+            : (Map<String, Object>) map;
+        List<String> required = requiredParameters(parameterSchema);
+        return mapOf(
+            "schemaVersion", "template_parameter_contract.v1",
+            "templateId", toolName,
+            "executionTool", toolName,
+            "argumentContainer", toolName + ".arguments",
+            "required", required,
+            "optional", properties.keySet().stream()
+                .filter(key -> !required.contains(key))
+                .toList(),
+            "mustPassUnderParameters", false,
+            "topLevelTemplateParametersAllowed", true,
+            "missingRequiredBehavior", "Do not call the API MCP tool until every required argument is present."
+        );
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> directInvocationExample(String toolName, Map<String, Object> parameterSchema) {
+        Map<String, Object> properties = parameterSchema == null || !(parameterSchema.get("properties") instanceof Map<?, ?> map)
+            ? Map.of()
+            : (Map<String, Object>) map;
+        Map<String, Object> arguments = new LinkedHashMap<>();
+        for (String required : requiredParameters(parameterSchema)) {
+            arguments.put(required, exampleValue(required, properties.get(required)));
+        }
+        return mapOf(
+            "tool", toolName,
+            "arguments", arguments
+        );
+    }
+
+    private List<String> requiredParameters(Map<String, Object> parameterSchema) {
+        Object required = parameterSchema == null ? null : parameterSchema.get("required");
+        if (!(required instanceof Iterable<?> iterable)) {
+            return List.of();
+        }
+        List<String> values = new ArrayList<>();
+        for (Object item : iterable) {
+            if (item != null && !String.valueOf(item).isBlank()) {
+                values.add(String.valueOf(item));
+            }
+        }
+        return values;
+    }
+
+    private String exampleValue(String name, Object schema) {
+        if (schema instanceof Map<?, ?> map && map.get("example") != null) {
+            return String.valueOf(map.get("example"));
+        }
+        return "<" + name + ">";
     }
 
     private Map<String, Object> parameterSchema(String json) {

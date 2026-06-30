@@ -39,9 +39,12 @@ public class MetadataResolverService {
     }
 
     public TableResolution resolveTable(SqlDatasourceConfig datasource, String tableName, String preferredSchema) {
+        SqlTableNameParser.QualifiedTable qualifiedTable = SqlTableNameParser.parse(tableName, preferredSchema);
+        String resolvedTableName = qualifiedTable.table();
+        String resolvedPreferredSchema = qualifiedTable.schema();
         String datasourceType = resolvedDatabaseType(datasource);
         if (!Set.of("mysql", "mariadb", "postgresql", "sqlserver").contains(datasourceType)) {
-            return TableResolution.unsupported(datasource == null ? null : datasource.getId(), tableName, preferredSchema, datasourceType);
+            return TableResolution.unsupported(datasource == null ? null : datasource.getId(), tableName, resolvedPreferredSchema, datasourceType);
         }
         long startedAt = System.currentTimeMillis();
         try {
@@ -51,9 +54,9 @@ public class MetadataResolverService {
                     datasource.getId(),
                     datasourceType,
                     tableName,
-                    preferredSchema,
+                    resolvedPreferredSchema,
                     null,
-                    tableName,
+                    resolvedTableName,
                     index.error().equals("unsupported_database_type") ? "unsupported_database_type" : "lookup_failed",
                     0.0,
                     List.of(),
@@ -62,8 +65,8 @@ public class MetadataResolverService {
                     index.error()
                 );
             }
-            MetadataResolveContext context = new MetadataResolveContext(tableName, preferredSchema, datasource);
-            List<TableLocation> ranked = resolverEngine.rank(context, semanticCandidates(datasource, tableName));
+            MetadataResolveContext context = new MetadataResolveContext(resolvedTableName, resolvedPreferredSchema, datasource);
+            List<TableLocation> ranked = resolverEngine.rank(context, semanticCandidates(datasource, resolvedTableName));
             TableLocation selected = resolverEngine.select(context, ranked);
             String reason = selected == null
                 ? (ranked.isEmpty() ? "not_found" : "ambiguous")
@@ -72,9 +75,9 @@ public class MetadataResolverService {
                 datasource.getId(),
                 datasourceType,
                 tableName,
-                preferredSchema,
+                resolvedPreferredSchema,
                 selected == null ? null : selected.database(),
-                selected == null ? tableName : selected.table(),
+                selected == null ? resolvedTableName : selected.table(),
                 reason,
                 resolverEngine.confidence(ranked, selected),
                 ranked,
@@ -87,9 +90,9 @@ public class MetadataResolverService {
                 datasource == null ? null : datasource.getId(),
                 datasourceType,
                 tableName,
-                preferredSchema,
+                resolvedPreferredSchema,
                 null,
-                tableName,
+                resolvedTableName,
                 "lookup_failed",
                 0.0,
                 List.of(),

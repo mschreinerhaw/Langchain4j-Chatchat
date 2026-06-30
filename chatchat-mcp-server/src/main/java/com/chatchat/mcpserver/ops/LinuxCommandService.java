@@ -233,33 +233,12 @@ public class LinuxCommandService {
                 step.durationMs(), truncate(step.stdout()), truncate(step.stderr()));
             appendCommandOutput(stdoutAll, step.stepIndex(), step.command(), step.stdout());
             appendCommandOutput(stderrAll, step.stepIndex(), step.command(), step.stderr());
-            if (!step.success()) {
-                long durationMs = Math.max(0, System.currentTimeMillis() - startedAt);
-                return new LinuxCommandResult(
-                    false,
-                    host.getId(),
-                    host.getHostname(),
-                    host.getToolName(),
-                    host.getEnvironment(),
-                    template,
-                    String.join(System.lineSeparator(), commands),
-                    commandHash(commands),
-                    steps,
-                    step.stepIndex(),
-                    step.command(),
-                    step.exitCode(),
-                    stdoutAll.toString(),
-                    stderrAll.toString(),
-                    durationMs,
-                    "SSH command step " + step.stepIndex() + " exited with code " + step.exitCode()
-                        + ": " + truncate(step.stderr()),
-                    request
-                );
-            }
         }
         long durationMs = Math.max(0, System.currentTimeMillis() - startedAt);
+        LinuxCommandStepResult firstNonZeroStep = firstNonZeroStep(steps);
+        LinuxCommandStepResult firstTransportFailure = firstTransportFailure(steps);
         return new LinuxCommandResult(
-            true,
+            firstTransportFailure == null,
             host.getId(),
             host.getHostname(),
             host.getToolName(),
@@ -268,15 +247,37 @@ public class LinuxCommandService {
             String.join(System.lineSeparator(), commands),
             commandHash(commands),
             steps,
-            null,
-            null,
+            firstNonZeroStep == null ? null : firstNonZeroStep.stepIndex(),
+            firstNonZeroStep == null ? null : firstNonZeroStep.command(),
             lastExitCode,
             stdoutAll.toString(),
             stderrAll.toString(),
             durationMs,
-            null,
+            firstTransportFailure == null
+                ? null
+                : "SSH command step " + firstTransportFailure.stepIndex() + " did not complete: " + truncate(firstTransportFailure.stderr()),
             request
         );
+    }
+
+    private LinuxCommandStepResult firstNonZeroStep(List<LinuxCommandStepResult> steps) {
+        if (steps == null) {
+            return null;
+        }
+        return steps.stream()
+            .filter(step -> step != null && !step.success())
+            .findFirst()
+            .orElse(null);
+    }
+
+    private LinuxCommandStepResult firstTransportFailure(List<LinuxCommandStepResult> steps) {
+        if (steps == null) {
+            return null;
+        }
+        return steps.stream()
+            .filter(step -> step != null && step.exitCode() == -1)
+            .findFirst()
+            .orElse(null);
     }
 
     private LinuxCommandStepResult executeSingleSshCommand(SshHostConfig host, String command, int stepIndex) throws Exception {
@@ -427,6 +428,12 @@ public class LinuxCommandService {
         diagnostics.put("failedStepIndex", result.failedStepIndex());
         diagnostics.put("failedCommandHash", result.failedCommand() == null ? null : sha256(result.failedCommand()));
         diagnostics.put("exitCode", result.exitCode());
+        diagnostics.put("transportSuccess", result.success());
+        diagnostics.put("commandSuccess", result.steps().stream().allMatch(LinuxCommandStepResult::success));
+        diagnostics.put("nonZeroStepIndexes", result.steps().stream()
+            .filter(step -> !step.success())
+            .map(LinuxCommandStepResult::stepIndex)
+            .toList());
         diagnostics.put("durationMs", result.durationMs());
         diagnostics.put("stdoutLength", result.stdout() == null ? 0 : result.stdout().length());
         diagnostics.put("stderrLength", result.stderr() == null ? 0 : result.stderr().length());

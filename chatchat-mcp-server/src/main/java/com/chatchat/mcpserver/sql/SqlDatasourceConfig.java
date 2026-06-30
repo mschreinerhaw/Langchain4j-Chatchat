@@ -63,6 +63,18 @@ public class SqlDatasourceConfig {
     @Column(nullable = false, length = 32)
     private String runtimeAction = "confirm_required";
 
+    @Column(nullable = false, length = 32, columnDefinition = "varchar(32) default 'JDBC_DATABASE'")
+    private String metadataScopeType = "JDBC_DATABASE";
+
+    @Column(length = 200)
+    private String metadataScopeValue;
+
+    @Column(nullable = false, columnDefinition = "boolean default false")
+    private boolean metadataAutoRefreshEnabled = false;
+
+    @Column(nullable = false, columnDefinition = "integer default 60")
+    private int metadataRefreshIntervalMinutes = 60;
+
     @Lob
     @Column
     private String routingLabelsJson;

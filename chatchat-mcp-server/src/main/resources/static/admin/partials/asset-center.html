@@ -25,6 +25,9 @@
         <li class="nav-item" role="presentation">
             <button id="commandTemplateTabBtn" class="nav-link" type="button" data-asset-tab="template">执行模板</button>
         </li>
+        <li class="nav-item" role="presentation">
+            <button id="indexSearchTabBtn" class="nav-link" type="button" data-asset-tab="index-search">索引检索</button>
+        </li>
     </ul>
 
     <div id="sshAssetPane">
@@ -224,6 +227,102 @@
             <button id="commandTemplateNextPageBtn" class="btn btn-outline-secondary btn-sm" type="button">下一页</button>
         </div>
     </div>
+    <div id="indexSearchPane" class="d-none">
+        <div class="bulk-toolbar">
+            <div>
+                <div class="fw-semibold">索引检索测试</div>
+                <div class="text-secondary small">直接查询当前系统本地索引，查看 MCP 检索实际返回的结构化结果。</div>
+            </div>
+            <button id="indexSearchRunBtn" class="btn btn-primary btn-sm" type="button">检索</button>
+        </div>
+        <div class="index-search-panel">
+            <div class="row g-2 align-items-end">
+                <div class="col-md-2">
+                    <label class="form-label small text-secondary" for="indexSearchType">索引</label>
+                    <select id="indexSearchType" class="form-select">
+                        <option value="sql_metadata">SQL 元数据</option>
+                        <option value="assets">资产索引</option>
+                        <option value="templates">模板索引</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small text-secondary" for="indexSearchQuery">查询</label>
+                    <input id="indexSearchQuery" class="form-control" placeholder="livebos.os_historystep / 表注释 / 模板意图">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small text-secondary" for="indexSearchTableName">表名</label>
+                    <input id="indexSearchTableName" class="form-control" placeholder="os_historystep">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small text-secondary" for="indexSearchDatabase">库/Schema</label>
+                    <input id="indexSearchDatabase" class="form-control" placeholder="livebos">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small text-secondary" for="indexSearchAssetName">资产名</label>
+                    <input id="indexSearchAssetName" class="form-control" placeholder="248测试数据库">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small text-secondary" for="indexSearchAssetType">资产类型</label>
+                    <select id="indexSearchAssetType" class="form-select">
+                        <option value="">全部</option>
+                        <option value="sql_datasource">sql_datasource</option>
+                        <option value="ssh_host">ssh_host</option>
+                        <option value="http_endpoint">http_endpoint</option>
+                        <option value="database_query">database_query</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small text-secondary" for="indexSearchEnv">环境</label>
+                    <select id="indexSearchEnv" class="form-select">
+                        <option value="">全部</option>
+                        <option>DEV</option>
+                        <option>TEST</option>
+                        <option>UAT</option>
+                        <option>PROD</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small text-secondary" for="indexSearchDatabaseType">数据库类型</label>
+                    <select id="indexSearchDatabaseType" class="form-select">
+                        <option value="">全部</option>
+                        <option value="mysql">mysql</option>
+                        <option value="postgresql">postgresql</option>
+                        <option value="oracle">oracle</option>
+                        <option value="sqlserver">sqlserver</option>
+                        <option value="mariadb">mariadb</option>
+                        <option value="dm">dm</option>
+                        <option value="hive">hive</option>
+                        <option value="inceptor">inceptor</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small text-secondary" for="indexSearchLabels">标签</label>
+                    <input id="indexSearchLabels" class="form-control" placeholder="metadata_table,table:xxx">
+                </div>
+                <div class="col-md-1">
+                    <label class="form-label small text-secondary" for="indexSearchLimit">Limit</label>
+                    <input id="indexSearchLimit" class="form-control" type="number" min="1" max="50" value="10">
+                </div>
+                <div class="col-md-1">
+                    <label class="form-label small text-secondary" for="indexSearchIncludeColumns">字段</label>
+                    <select id="indexSearchIncludeColumns" class="form-select">
+                        <option value="true">返回</option>
+                        <option value="false">不返回</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        <div class="index-search-results">
+            <div class="index-search-summary">
+                <div class="fw-semibold mb-2">命中结果</div>
+                <div id="indexSearchSummary" class="index-search-summary-list text-secondary small">尚未检索</div>
+            </div>
+            <div class="index-search-json">
+                <div class="fw-semibold mb-2">原始 JSON</div>
+                <pre id="indexSearchRawJson" class="codebox index-search-json-box">{}</pre>
+            </div>
+        </div>
+    </div>
 </section>
 
 <div class="modal fade" id="sshAssetModal" tabindex="-1" aria-hidden="true">
@@ -296,7 +395,7 @@
                         <div class="col-md-4"><label class="form-label" for="commandTemplateTitle">Name</label><input id="commandTemplateTitle" class="form-control" required></div>
                         <div class="col-md-2"><label class="form-label" for="commandTemplateRiskLevel">Risk</label><select id="commandTemplateRiskLevel" class="form-select"><option>LOW</option><option>MEDIUM</option><option>HIGH</option><option>CRITICAL</option></select></div>
                         <div class="col-md-2"><label class="form-label" for="commandTemplateEnabled">Status</label><select id="commandTemplateEnabled" class="form-select"><option value="true">Enabled</option><option value="false">Disabled</option></select></div>
-                        <div class="col-md-4"><label class="form-label" for="commandTemplateCategory">Category</label><input id="commandTemplateCategory" class="form-control" placeholder="system_diagnostic"></div>
+                        <div class="col-md-4"><label class="form-label" for="commandTemplateCategory">Category</label><input id="commandTemplateCategory" class="form-control" list="commandTemplateCategoryOptions" placeholder="system_diagnostic"><datalist id="commandTemplateCategoryOptions"><option value="system_diagnostic"></option><option value="host_diagnostic"></option><option value="maintenance_performance"></option><option value="maintenance_metadata"></option><option value="maintenance_lock"></option><option value="sql_diagnostic"></option><option value="sql_metadata"></option><option value="http_request"></option></datalist></div>
                         <div class="col-md-3 sql-template-field d-none"><label class="form-label" for="commandTemplateDatabaseType">Database Type</label><select id="commandTemplateDatabaseType" class="form-select"><option value="generic">generic</option><option value="mysql">mysql</option><option value="postgresql">postgresql</option><option value="oracle">oracle</option><option value="hive">hive</option><option value="inceptor">inceptor</option><option value="goldendb">goldendb</option><option value="dm">dm</option><option value="sqlserver">sqlserver</option><option value="mariadb">mariadb</option><option value="clickhouse">clickhouse</option></select></div>
                         <div class="col-md-5 sql-template-field d-none"><label class="form-label" for="commandTemplateDatasourceId">Bound Database Asset</label><select id="commandTemplateDatasourceId" class="form-select"><option value="">Any compatible datasource</option></select></div>
                         <div class="col-md-8"><label class="form-label" for="commandTemplateIntentSignalsJson">Model-visible intent signals JSON</label><textarea id="commandTemplateIntentSignalsJson" class="form-control codebox" rows="3" spellcheck="false">[]</textarea></div>
@@ -384,7 +483,10 @@
                         <div class="col-md-3"><label class="form-label" for="sqlAssetEnabled">状态</label><select id="sqlAssetEnabled" class="form-select"><option value="false">停用</option><option value="true">启用</option></select></div>
                         <div class="col-md-3"><label class="form-label" for="sqlAssetDefaultTimeoutSeconds">默认超时秒</label><input id="sqlAssetDefaultTimeoutSeconds" class="form-control" type="number" min="1" max="60" value="30"></div>
                         <div class="col-md-3"><label class="form-label" for="sqlAssetDefaultMaxRows">默认最大行数</label><input id="sqlAssetDefaultMaxRows" class="form-control" type="number" min="1" max="5000" value="1000"></div>
-                        <div class="col-md-4"><label class="form-label" for="sqlAssetAllowedTablesJson">允许表 JSON</label><textarea id="sqlAssetAllowedTablesJson" class="form-control codebox" rows="5" spellcheck="false">[]</textarea></div>
+                        <div class="col-md-3"><label class="form-label" for="sqlAssetMetadataScopeType">元数据索引范围</label><select id="sqlAssetMetadataScopeType" class="form-select"><option value="JDBC_DATABASE">JDBC 当前数据库</option><option value="LOGIN_USER_SCHEMA">登录用户/Schema</option><option value="EXPLICIT_SCHEMA">指定数据库/Schema</option></select></div>
+                        <div class="col-md-4"><label class="form-label" for="sqlAssetMetadataScopeValue">范围值</label><div class="metadata-scope-picker"><input id="sqlAssetMetadataScopeValue" class="form-control" list="sqlAssetMetadataScopeValueOptions" placeholder="可手动输入 a,b,c"><datalist id="sqlAssetMetadataScopeValueOptions"></datalist><div class="metadata-scope-summary"><div id="sqlAssetMetadataScopeSelected" class="metadata-scope-selected text-secondary">未选择</div><button id="sqlAssetMetadataScopeToggleBtn" class="btn btn-sm metadata-scope-toggle" type="button">选择库/Schema</button></div><div id="sqlAssetMetadataScopeOptionsPanel" class="metadata-scope-options-panel d-none"><input id="sqlAssetMetadataScopeSearchInput" class="form-control form-control-sm" placeholder="搜索库名/Schema"><div id="sqlAssetMetadataScopeOptionsList" class="metadata-scope-options"></div></div></div></div>
+                        <div class="col-md-3"><label class="form-label" for="sqlAssetMetadataAutoRefreshEnabled">元数据自动刷新</label><select id="sqlAssetMetadataAutoRefreshEnabled" class="form-select"><option value="false">手动刷新</option><option value="true">定时自动刷新</option></select></div>
+                        <div class="col-md-2"><label class="form-label" for="sqlAssetMetadataRefreshIntervalMinutes">刷新间隔分钟</label><input id="sqlAssetMetadataRefreshIntervalMinutes" class="form-control" type="number" min="5" max="10080" value="60"></div>
                         <div class="col-12">
                             <label class="form-label">SQL 运维模板</label>
                             <input id="sqlAssetTemplateSearchInput" class="form-control mb-2" placeholder="搜索模板编号、名称、描述">

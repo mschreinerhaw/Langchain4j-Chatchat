@@ -9,6 +9,7 @@ import com.chatchat.mcpserver.ops.SshHostConfigService;
 import com.chatchat.mcpserver.sql.SqlDatasourceConfig;
 import com.chatchat.mcpserver.sql.SqlDatasourceConfigRepository;
 import com.chatchat.mcpserver.sql.SqlDatasourceConfigService;
+import com.chatchat.mcpserver.sql.SqlMetadataAssetRegistryService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 
@@ -37,7 +38,12 @@ class AssetNameUniquenessServiceTest {
     @Test
     void rejectsDuplicateSqlDatasourceNameOnCreate() {
         SqlDatasourceConfigRepository repository = mock(SqlDatasourceConfigRepository.class);
-        SqlDatasourceConfigService service = new SqlDatasourceConfigService(repository, objectMapper, executionTargetService);
+        SqlDatasourceConfigService service = new SqlDatasourceConfigService(
+            repository,
+            objectMapper,
+            executionTargetService,
+            mock(SqlMetadataAssetRegistryService.class)
+        );
         when(repository.findByNameIgnoreCase("MySQL248")).thenReturn(Optional.of(datasource("ds-1", "MySQL248")));
 
         assertThatThrownBy(() -> service.create(datasource("ds-2", "MySQL248")))

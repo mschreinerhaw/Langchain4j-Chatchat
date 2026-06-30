@@ -183,6 +183,45 @@ class InterpretationPlanRewriterTest {
         assertThat(result.errorMessage()).contains("Failed to parse rewritten InterpretationPlan");
     }
 
+    @Test
+    void rewritePromptForbidsUnavailableTemplateDiscoveryTool() {
+        CapturingChatModel chatModel = new CapturingChatModel("""
+            {
+              "version": "1.0",
+              "intent": {"type": "sql_metadata", "goal": "Use already observed metadata", "risk_level": "low"},
+              "context": {"key_facts": ["sql_metadata_search returned columns"], "missing_info": ["template discovery unavailable"], "assumptions": [], "constraints": ["Use available tools only"]},
+              "plan": {
+                "steps": [
+                  {"id": 1, "action_type": "final_answer", "tool_name": "", "input": {"answer": "已有元数据可用于结构说明；模板发现工具不可用，无法继续执行模板查询。"}, "depends_on": []}
+                ]
+              },
+              "execution_policy": {"max_steps": 1, "allow_parallel": false, "allow_tool": [], "deny_tool": [], "timeout_ms": 30000},
+              "review": {"self_check": {"completeness_score": 0.6, "hallucination_risk": 0.1, "tool_sufficiency": true, "missing_steps": ["template discovery unavailable"]}, "fallback_plan": []}
+            }
+            """);
+        InterpretationPlanRewriter rewriter = new InterpretationPlanRewriter(
+            chatModel,
+            new ObjectMapper(),
+            new InterpretationPlanValidator()
+        );
+
+        InterpretationPlanRewriter.RewriteResult result = rewriter.rewrite(new InterpretationPlanRewriter.RewriteRequest(
+            originalSqlMetadataPlan(),
+            originalSqlMetadataPlan().steps().get(2),
+            "TOOL_ROUTING_DENIED: No typed MCP tool is available for capability=template_discovery assetType=sql_datasource",
+            List.of("mcp_chatchat_mcp_server_sql_metadata_search returned 13 columns"),
+            List.of("mcp_chatchat_mcp_server_sql_metadata_search", "mcp_chatchat_mcp_server_sql_query_execute"),
+            mock(ToolRegistry.class)
+        ));
+
+        assertThat(result.valid()).isTrue();
+        assertThat(result.rewrittenPlan().steps()).extracting(InterpretationPlan.Step::toolName)
+            .doesNotContain("mcp_chatchat_mcp_server_sql_datasource_template_query", "template_query");
+        assertThat(chatModel.lastPrompt())
+            .contains("No template discovery tool is available")
+            .contains("Do not add sql_datasource_template_query/template_query steps");
+    }
+
     private InterpretationPlan originalPlan() {
         return new InterpretationPlan(
             "1.0",
@@ -208,7 +247,11 @@ class InterpretationPlanRewriterTest {
             new InterpretationPlan.Plan(List.of(
                 new InterpretationPlan.Step(1, "mcp_tool", "asset_query", Map.of("assetName", "db_query_mysql_248_test_db"), List.of(), null, null),
                 new InterpretationPlan.Step(2, "mcp_tool", "template_query", Map.of("intent", "metadata"), List.of(1), null, null),
-                new InterpretationPlan.Step(3, "mcp_tool", "sql_query_execute", Map.of("templateId", "MYSQL_TABLE_METADATA"), List.of(2), null, null),
+                new InterpretationPlan.Step(3, "mcp_tool", "sql_query_execute", Map.of(
+                    "templateId", "MYSQL_TABLE_METADATA",
+                    "parameters", Map.of("tableName", "lbappdeploydetail"),
+                    "executionContext", Map.of("assetName", "248测试数据库", "env", "DEV")
+                ), List.of(2), null, null),
                 new InterpretationPlan.Step(4, "final_answer", "", Map.of("answer", "done"), List.of(3), null, null)
             )),
             new InterpretationPlan.ExecutionPolicy(

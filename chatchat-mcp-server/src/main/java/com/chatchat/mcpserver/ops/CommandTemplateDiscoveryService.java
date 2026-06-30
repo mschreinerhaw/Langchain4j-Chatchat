@@ -27,6 +27,15 @@ import java.util.Set;
 @Slf4j
 public class CommandTemplateDiscoveryService {
 
+    private static final Set<String> RETIRED_SQL_METADATA_TEMPLATE_CODES = Set.of(
+        "MYSQL_SCHEMA_TABLE_OVERVIEW",
+        "MYSQL_TABLE_LOCATION",
+        "MYSQL_TABLE_METADATA",
+        "ORACLE_TABLE_METADATA",
+        "POSTGRES_TABLE_METADATA",
+        "SQLSERVER_TABLE_METADATA"
+    );
+
     public static final String QUERY_SCHEMA_VERSION = "template_query.v1";
     public static final String RESULT_SCHEMA_VERSION = "template_query_result.v1";
     public static final String TEMPLATE_SCHEMA_VERSION = "command_template.v1";
@@ -208,7 +217,9 @@ public class CommandTemplateDiscoveryService {
             return result(assetType, filters, intent, List.of(), limit, List.of(), false, false);
         }
         String dbType = firstText(selectedSqlAssetType(datasources, assetScoped), requestedDatabaseType(filters));
-        List<SqlTemplateConfig> templates = sqlTemplateService.listEnabled();
+        List<SqlTemplateConfig> templates = sqlTemplateService.listEnabled().stream()
+            .filter(template -> !isRetiredSqlMetadataTemplate(template))
+            .toList();
         Map<String, LuceneMcpSearchService.SearchHit> luceneHits = luceneTemplateHits(
             templates.stream().map(this::templateDoc).toList(),
             assetType,
@@ -228,7 +239,7 @@ public class CommandTemplateDiscoveryService {
             candidates,
             intent,
             scored -> scored.template().getCode(),
-            sqlScoredComparator(intent)
+            sqlScoredComparator(intent, filters)
         );
         if (matched.isEmpty() && !luceneHits.isEmpty()) {
             matched = sqlLuceneAuthorizedFallback(templates, filters, retrievalFilters, datasources, assetScoped, intent, luceneHits);
@@ -356,6 +367,7 @@ public class CommandTemplateDiscoveryService {
                 "languageSupport", "Models should generate bilingual Chinese and English retrieval terms in bilingualIntent, bilingualQuery, intentZh, or intentEn; the engine expands them into shared bilingual signals before retrieval and ranking.",
                 "selectionHint", "Generate and use bilingual Chinese and English retrieval terms, then choose the returned template whose name, description, intentSignals, relevanceScore, and matchReasons best match the user intent; do not use asset allowed template order as semantic ranking.",
                 "fallback", "If authorized candidates exist but intent ranking returns no match, the engine broadens intent and marks resolutionTrace[].fallbackUsed=true.",
+                "selectionFields", List.of("templateId", "name", "description", "intentSignals", "parameterSchema", "requiredParameters", "parameterContract", "invocationExample"),
                 "onEmptyResult", "No existing authorized template matched the request after asset, type and authorization filters. Do not suggest a new template name unless the user asks to administer templates."
             ),
             "templates", templateMetadata
@@ -546,7 +558,9 @@ public class CommandTemplateDiscoveryService {
             );
         }
         Map<String, LuceneMcpSearchService.SearchHit> byId = new LinkedHashMap<>();
-        hits.forEach(hit -> byId.put(hit.id(), hit));
+        hits.stream()
+            .filter(hit -> !isRetiredSqlMetadataTemplateId(hit.id()))
+            .forEach(hit -> byId.put(hit.id(), hit));
         return byId;
     }
 
@@ -681,6 +695,8 @@ public class CommandTemplateDiscoveryService {
                                                  Relevance relevance,
                                                  int rank) {
         List<String> signals = intentSignals(template);
+        Map<String, Object> parameterSchema = parameterSchema(template);
+        List<String> requiredParameters = requiredParameters(parameterSchema);
         return mapOf(
             "schemaVersion", TEMPLATE_SCHEMA_VERSION,
             "id", template.getCode(),
@@ -701,7 +717,10 @@ public class CommandTemplateDiscoveryService {
                 "strongSignals", signals.stream().limit(5).toList(),
                 "contextKeys", List.of("assetName", "env", "environment", "cluster", "service", "target", "labels")
             ),
-            "parameterSchema", parameterSchema(template),
+            "parameterSchema", parameterSchema,
+            "requiredParameters", requiredParameters,
+            "parameterContract", parameterContract(template.getCode(), parameterSchema, "linux_command_execute.parameters", "linux_command_execute"),
+            "invocationExample", invocationExample(template.getCode(), parameterSchema, "linux_command_execute", "<assetName from ssh_asset_query>", "<env>"),
             "enabled", template.isEnabled()
         );
     }
@@ -711,6 +730,8 @@ public class CommandTemplateDiscoveryService {
                                                  Relevance relevance,
                                                  int rank) {
         List<String> signals = intentSignals(template);
+        Map<String, Object> parameterSchema = parameterSchema(template.getParameterSchemaJson());
+        List<String> requiredParameters = requiredParameters(parameterSchema);
         return mapOf(
             "schemaVersion", TEMPLATE_SCHEMA_VERSION,
             "id", template.getCode(),
@@ -734,7 +755,10 @@ public class CommandTemplateDiscoveryService {
                 "strongSignals", signals.stream().limit(5).toList(),
                 "contextKeys", List.of("assetName", "env", "environment", "cluster", "database", "databaseType", "dbType", "dialect", "databaseRole", "service", "target", "labels")
             ),
-            "parameterSchema", parameterSchema(template.getParameterSchemaJson()),
+            "parameterSchema", parameterSchema,
+            "requiredParameters", requiredParameters,
+            "parameterContract", parameterContract(template.getCode(), parameterSchema, "sql_query_execute.parameters", "sql_query_execute"),
+            "invocationExample", invocationExample(template.getCode(), parameterSchema, "sql_query_execute", "<assetName from sql_datasource_asset_query>", "<env>"),
             "enabled", template.isEnabled()
         );
     }
@@ -828,6 +852,8 @@ public class CommandTemplateDiscoveryService {
                                                  int rank) {
         List<String> signals = intentSignals(endpoint);
         String templateId = firstText(endpoint.getToolName(), firstText(endpoint.getName(), endpoint.getId()));
+        Map<String, Object> parameterSchema = parameterSchema(endpoint.getInputSchemaJson());
+        List<String> requiredParameters = requiredParameters(parameterSchema);
         return mapOf(
             "schemaVersion", TEMPLATE_SCHEMA_VERSION,
             "id", templateId,
@@ -848,7 +874,10 @@ public class CommandTemplateDiscoveryService {
                 "strongSignals", signals.stream().limit(5).toList(),
                 "contextKeys", List.of("assetName", "env", "environment", "cluster", "service", "target", "labels")
             ),
-            "parameterSchema", parameterSchema(endpoint.getInputSchemaJson()),
+            "parameterSchema", parameterSchema,
+            "requiredParameters", requiredParameters,
+            "parameterContract", parameterContract(templateId, parameterSchema, "http_request_execute.parameters", "http_request_execute"),
+            "invocationExample", invocationExample(templateId, parameterSchema, "http_request_execute", "<assetName from http_endpoint_asset_query>", "<env>"),
             "enabled", endpoint.isEnabled()
         );
     }
@@ -859,6 +888,8 @@ public class CommandTemplateDiscoveryService {
                                                  int rank) {
         List<String> signals = intentSignals(config);
         String toolName = firstText(config.getToolName(), config.getId());
+        Map<String, Object> parameterSchema = parameterSchema(config.getInputSchemaJson());
+        List<String> requiredParameters = requiredParameters(parameterSchema);
         return mapOf(
             "schemaVersion", TEMPLATE_SCHEMA_VERSION,
             "id", toolName,
@@ -902,7 +933,10 @@ public class CommandTemplateDiscoveryService {
                 "callTool", toolName,
                 "argumentSchemaPath", "templates[].parameterSchema"
             ),
-            "parameterSchema", parameterSchema(config.getInputSchemaJson()),
+            "parameterSchema", parameterSchema,
+            "requiredParameters", requiredParameters,
+            "parameterContract", directParameterContract(toolName, parameterSchema),
+            "invocationExample", directInvocationExample(toolName, parameterSchema),
             "enabled", config.isEnabled()
         );
     }
@@ -1257,11 +1291,50 @@ public class CommandTemplateDiscoveryService {
             .toList();
     }
 
-    private Comparator<ScoredTemplate<SqlTemplateConfig>> sqlScoredComparator(NormalizedIntent intent) {
+    private Comparator<ScoredTemplate<SqlTemplateConfig>> sqlScoredComparator(NormalizedIntent intent, Map<String, Object> filters) {
         Comparator<ScoredTemplate<SqlTemplateConfig>> base = scoredComparator(scored -> scored.template().getCode());
         return Comparator
+            .<ScoredTemplate<SqlTemplateConfig>>comparingInt(scored -> -sqlTableContextPriority(scored.template(), filters))
+            .thenComparing(Comparator
             .<ScoredTemplate<SqlTemplateConfig>>comparingInt(scored -> -sqlIntentFamilyPriority(scored.template(), intent))
-            .thenComparing(base);
+            .thenComparing(base));
+    }
+
+    private int sqlTableContextPriority(SqlTemplateConfig template, Map<String, Object> filters) {
+        if (!hasSqlTableContext(filters)) {
+            return 0;
+        }
+        if (isSqlTableMetadataTemplate(template)) {
+            return 6;
+        }
+        return parameterRequired(template.getParameterSchemaJson(), "tableName", "table_name") ? 3 : 0;
+    }
+
+    private boolean isSqlTableMetadataTemplate(SqlTemplateConfig template) {
+        if (template == null) {
+            return false;
+        }
+        String code = firstText(template.getCode(), "").toUpperCase(Locale.ROOT);
+        if (code.endsWith("_TABLE_METADATA")) {
+            return true;
+        }
+        String category = category(template);
+        List<String> signals = intentSignals(template);
+        return parameterRequired(template.getParameterSchemaJson(), "tableName", "table_name")
+            && (containsIgnoreCase(category, "metadata")
+            || containsAnyIgnoreCase(signals, "metadata", "schema", "column", "describe", "table"));
+    }
+
+    @SuppressWarnings("unchecked")
+    private boolean hasSqlTableContext(Map<String, Object> filters) {
+        if (firstValue(filters, "tableName", "table_name", "table") != null) {
+            return true;
+        }
+        Object executionContext = firstValue(filters, "executionContext", "execution_context");
+        if (executionContext instanceof Map<?, ?> map) {
+            return firstValue((Map<String, Object>) map, "tableName", "table_name", "table") != null;
+        }
+        return false;
     }
 
     private int sqlIntentFamilyPriority(SqlTemplateConfig template, NormalizedIntent intent) {
@@ -1719,6 +1792,116 @@ public class CommandTemplateDiscoveryService {
         }
     }
 
+    private List<String> requiredParameters(Map<String, Object> parameterSchema) {
+        Object required = parameterSchema == null ? null : parameterSchema.get("required");
+        if (!(required instanceof Iterable<?> iterable)) {
+            return List.of();
+        }
+        List<String> values = new ArrayList<>();
+        for (Object item : iterable) {
+            if (item != null && !String.valueOf(item).isBlank()) {
+                values.add(String.valueOf(item));
+            }
+        }
+        return values;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> parameterContract(String templateId,
+                                                 Map<String, Object> parameterSchema,
+                                                 String argumentContainer,
+                                                 String executionTool) {
+        Map<String, Object> properties = parameterSchema == null || !(parameterSchema.get("properties") instanceof Map<?, ?> map)
+            ? Map.of()
+            : (Map<String, Object>) map;
+        List<String> required = requiredParameters(parameterSchema);
+        return mapOf(
+            "schemaVersion", "template_parameter_contract.v1",
+            "templateId", templateId,
+            "executionTool", executionTool,
+            "argumentContainer", argumentContainer,
+            "required", required,
+            "optional", properties.keySet().stream()
+                .filter(key -> !required.contains(key))
+                .toList(),
+            "mustPassUnderParameters", true,
+            "topLevelTemplateParametersAllowed", false,
+            "missingRequiredBehavior", "Do not call the execution tool until every required field is present under parameters."
+        );
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> directParameterContract(String toolName, Map<String, Object> parameterSchema) {
+        Map<String, Object> properties = parameterSchema == null || !(parameterSchema.get("properties") instanceof Map<?, ?> map)
+            ? Map.of()
+            : (Map<String, Object>) map;
+        List<String> required = requiredParameters(parameterSchema);
+        return mapOf(
+            "schemaVersion", "template_parameter_contract.v1",
+            "templateId", toolName,
+            "executionTool", toolName,
+            "argumentContainer", toolName + ".arguments",
+            "required", required,
+            "optional", properties.keySet().stream()
+                .filter(key -> !required.contains(key))
+                .toList(),
+            "mustPassUnderParameters", false,
+            "topLevelTemplateParametersAllowed", true,
+            "missingRequiredBehavior", "Do not call the direct MCP tool until every required argument is present."
+        );
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> invocationExample(String templateId,
+                                                 Map<String, Object> parameterSchema,
+                                                 String toolName,
+                                                 String assetNamePlaceholder,
+                                                 String envPlaceholder) {
+        Map<String, Object> properties = parameterSchema == null || !(parameterSchema.get("properties") instanceof Map<?, ?> map)
+            ? Map.of()
+            : (Map<String, Object>) map;
+        Map<String, Object> parameters = new LinkedHashMap<>();
+        for (String required : requiredParameters(parameterSchema)) {
+            parameters.put(required, exampleValue(required, properties.get(required)));
+        }
+        return mapOf(
+            "tool", toolName,
+            "templateId", templateId,
+            "parameters", parameters,
+            "executionContext", mapOf("assetName", assetNamePlaceholder, "env", envPlaceholder)
+        );
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> directInvocationExample(String toolName, Map<String, Object> parameterSchema) {
+        Map<String, Object> properties = parameterSchema == null || !(parameterSchema.get("properties") instanceof Map<?, ?> map)
+            ? Map.of()
+            : (Map<String, Object>) map;
+        Map<String, Object> arguments = new LinkedHashMap<>();
+        for (String required : requiredParameters(parameterSchema)) {
+            arguments.put(required, exampleValue(required, properties.get(required)));
+        }
+        return mapOf(
+            "tool", toolName,
+            "arguments", arguments
+        );
+    }
+
+    private String exampleValue(String name, Object schema) {
+        String normalized = name == null ? "" : name.replace("_", "").replace("-", "").toLowerCase(Locale.ROOT);
+        if (normalized.contains("tablename")) {
+            return "<tableName from user request>";
+        }
+        if (normalized.contains("schemaname") || normalized.contains("databasename") || "schema".equals(normalized)
+            || "database".equals(normalized)) {
+            return "<schemaName resolved by table-location query>";
+        }
+        if (schema instanceof Map<?, ?> map && map.get("example") != null) {
+            return String.valueOf(map.get("example"));
+        }
+        return "<" + name + ">";
+    }
+
     private List<String> intentSignals(CommandTemplateConfig template) {
         Set<String> signals = new LinkedHashSet<>();
         readStringArray(template.getIntentSignalsJson()).forEach(signal -> addWords(signals, signal));
@@ -1997,10 +2180,6 @@ public class CommandTemplateDiscoveryService {
                     allowed.add(normalized);
                 }
             });
-            if (allowed.contains("MYSQL_TABLE_METADATA")) {
-                allowed.add("MYSQL_SCHEMA_TABLE_OVERVIEW");
-                allowed.add("MYSQL_TABLE_LOCATION");
-            }
             return allowed;
         } catch (Exception ignored) {
             return Set.of();
@@ -2045,6 +2224,16 @@ public class CommandTemplateDiscoveryService {
             "assetName", assetName,
             "routingLabels", labels
         );
+    }
+
+    private boolean isRetiredSqlMetadataTemplate(SqlTemplateConfig template) {
+        String code = template == null ? null : normalize(template.getCode());
+        return code != null && RETIRED_SQL_METADATA_TEMPLATE_CODES.contains(code.toUpperCase(Locale.ROOT));
+    }
+
+    private boolean isRetiredSqlMetadataTemplateId(String templateId) {
+        String code = normalize(templateId);
+        return code != null && RETIRED_SQL_METADATA_TEMPLATE_CODES.contains(code.toUpperCase(Locale.ROOT));
     }
 
     private Map<String, Object> compactFilters(Map<String, Object> filters) {

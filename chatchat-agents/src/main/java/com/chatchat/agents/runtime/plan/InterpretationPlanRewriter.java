@@ -11,6 +11,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 
@@ -109,14 +110,32 @@ public class InterpretationPlanRewriter {
         prompt.append("- Preserve plan.stability stable_nodes, critical_tools, and locked_edges; do not alter locked edges.\n");
         prompt.append("- Add or update plan.edge_contracts when the failure was caused by missing or mistyped tool output fields.\n");
         prompt.append("- Keep execution_policy.deny_tool for tools that failed due to policy, permission, or safety.\n\n");
+        boolean templateDiscoveryAvailable = hasAvailableSemanticTool(request.availableTools(), "template_discovery");
+        boolean metadataSearchAvailable = hasAvailableSemanticTool(request.availableTools(), "sql_metadata_search");
         prompt.append("SQL template repair rules:\n");
-        prompt.append("- If a failed sql_query_execute step used input.parameters.sql/rawSql/query/statement, remove that raw SQL parameter and replan through sql datasource template_query.\n");
-        prompt.append("- Bind a returned templates[].templateId into sql_query_execute.templateId and pass only parameters declared by templates[].parameterSchema.\n");
+        if (templateDiscoveryAvailable) {
+            prompt.append("- If a failed sql_query_execute step used input.parameters.sql/rawSql/query/statement, remove that raw SQL parameter and replan through the available sql datasource template_query tool.\n");
+            prompt.append("- Bind a returned templates[].templateId into sql_query_execute.templateId and pass only parameters declared by templates[].parameterSchema.\n");
+        } else {
+            prompt.append("- No template discovery tool is available in this rewrite request. Do not add sql_datasource_template_query/template_query steps. Remove raw SQL fields, then call sql_query_execute only when a concrete templateId and parameter contract already appear in observations or available tool metadata; otherwise produce a final_answer step explaining that template discovery is unavailable.\n");
+            prompt.append("- If prior observations already contain structured sql_metadata_search columns/types/comments, preserve that evidence and do not re-add metadata search unless more data is explicitly missing and the tool is available.\n");
+        }
+        prompt.append("- Read templates[].requiredParameters, templates[].parameterContract, and templates[].invocationExample as authoritative. If requiredParameters contains tableName, fill sql_query_execute.input.parameters.tableName from the user request, sql_metadata_search result, or table-location result.\n");
+        prompt.append("- Never retry a template execution with empty parameters when the template declares required parameters; add/bind the missing parameters first.\n");
         prompt.append("- sql_query_execute must include executionContext from asset discovery, for example {\"assetName\":\"<asset-name>\",\"env\":\"<env>\"}; do not put routing fields only under parameters.\n");
         prompt.append("- Do not inline JSONPath placeholders such as $.assets[0].asset.name inside executionContext; either use plan.bindings or depend on the asset_query step and let runtime inject concrete values.\n");
-        prompt.append("- When using sql_query_plan, its input must use question, tables[], and executionContext. Do not use userQuery or context.targetTable.\n");
-        prompt.append("- Never bind asset_query assets[].asset.name into parameters.schemaName. Asset name is routing context; schemaName/databaseName must come from sql_query_plan resolvedTables or a table-location template.\n");
-        prompt.append("- Do not invent SQL or template IDs; use the already observed template_query result or add a new template_query step before sql_query_execute.\n\n");
+        if (metadataSearchAvailable) {
+            prompt.append("- When schema/database is unknown, add sql_metadata_search before any available template_query/sql_query_execute. Pass tableName and includeColumns=true for table analysis, then bind from results[].sqlExecutionBinding.\n");
+        } else {
+            prompt.append("- sql_metadata_search is not available; do not guess schema/database from free text or from assetName. Use only already observed table-location evidence.\n");
+        }
+        prompt.append("- Never bind asset_query assets[].asset.name into parameters.schemaName. Asset name is routing context; schemaName/databaseName must come from sql_metadata_search or a table-location template.\n");
+        prompt.append("- Do not invent SQL or template IDs; use an already observed template_query result, or add a new template_query step only when that tool is listed in Available tools.\n\n");
+        prompt.append("HTTP/API/SSH template repair rules:\n");
+        prompt.append("- For http_request_execute and linux_command_execute, bind a returned templates[].templateId into input.template and pass only parameters declared by templates[].parameterSchema under input.parameters.\n");
+        prompt.append("- For API service tools returned by api_template_query, call the returned toolName/templateId exactly and pass only arguments declared by templates[].parameterSchema/parameterContract.\n");
+        prompt.append("- Remove raw HTTP fields url/uri/method/headers/body/endpointId and raw SSH fields command/rawCommand/shell/host/hostname/ip/hostId from execution inputs. Replan through template discovery if needed.\n");
+        prompt.append("- Never retry HTTP/API/SSH template execution with empty parameters when requiredParameters is non-empty; add/bind the missing parameters first.\n\n");
         prompt.append("InterpretationPlan JSON Schema:\n").append(InterpretationPlanJsonSchema.SCHEMA).append("\n\n");
         prompt.append("Available tools:\n").append(request.availableTools() == null ? List.of() : request.availableTools()).append("\n");
         prompt.append("Failed step:\n").append(toJson(failedStep(request))).append("\n");
@@ -124,6 +143,47 @@ public class InterpretationPlanRewriter {
         prompt.append("Observations so far:\n").append(request.observations() == null ? List.of() : request.observations()).append("\n");
         prompt.append("Original plan:\n").append(toJson(request.originalPlan()));
         return prompt.toString();
+    }
+
+    private boolean hasAvailableSemanticTool(List<String> availableTools, String semanticToolName) {
+        if (availableTools == null || availableTools.isEmpty() || semanticToolName == null || semanticToolName.isBlank()) {
+            return false;
+        }
+        for (String toolName : availableTools) {
+            String semantic = toolSemanticKey(toolName);
+            if (semanticToolName.equals(semantic)
+                || ("template_discovery".equals(semanticToolName)
+                    && ("template_query".equals(semantic) || semantic.endsWith("_template_query")))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private String toolSemanticKey(String toolName) {
+        if (toolName == null) {
+            return "";
+        }
+        String normalized = toolName.trim().toLowerCase(Locale.ROOT).replace('-', '_');
+        while (normalized.startsWith("mcp_")) {
+            normalized = normalized.substring(4);
+        }
+        String[] prefixes = {
+            "chatchat_mcp_server_",
+            "chatchat_",
+            "xxx_"
+        };
+        boolean changed = true;
+        while (changed) {
+            changed = false;
+            for (String prefix : prefixes) {
+                if (normalized.startsWith(prefix)) {
+                    normalized = normalized.substring(prefix.length());
+                    changed = true;
+                }
+            }
+        }
+        return normalized;
     }
 
     private Map<String, Object> failedStep(RewriteRequest request) {

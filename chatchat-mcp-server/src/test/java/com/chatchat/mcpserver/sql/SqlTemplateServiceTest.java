@@ -63,33 +63,38 @@ class SqlTemplateServiceTest {
                 "MYSQL_INNODB_STATUS",
                 "MYSQL_INNODB_TRX",
                 "MYSQL_DATABASE_SIZE",
-                "MYSQL_SCHEMA_TABLE_OVERVIEW",
-                "MYSQL_TABLE_LOCATION",
-                "MYSQL_TABLE_METADATA",
                 "ORACLE_SESSION_OVERVIEW",
                 "ORACLE_INSTANCE_STATUS",
                 "ORACLE_LOCKS",
                 "ORACLE_SYSTEM_EVENTS",
                 "ORACLE_TABLESPACE_SIZE",
-                "ORACLE_TABLE_METADATA",
                 "POSTGRES_ACTIVITY",
                 "POSTGRES_DATABASE_SIZE",
                 "POSTGRES_TABLE_SIZE_RANKING",
                 "POSTGRES_LOCKS",
                 "POSTGRES_LONG_TRANSACTIONS",
-                "POSTGRES_TABLE_METADATA",
                 "SQLSERVER_SESSIONS",
                 "SQLSERVER_REQUESTS",
                 "SQLSERVER_DATABASE_SIZE",
                 "SQLSERVER_LOCKS",
-                "SQLSERVER_IO_STATS",
-                "SQLSERVER_TABLE_METADATA"
+                "SQLSERVER_IO_STATS"
             )
-            .doesNotContain("CHECK_TABLE_COUNT", "CHECK_RECENT_DATA", "TASK_RESULT", "CHECK_TASK_RESULT");
-        assertThat(saved).hasSize(26);
+            .doesNotContain(
+                "CHECK_TABLE_COUNT",
+                "CHECK_RECENT_DATA",
+                "TASK_RESULT",
+                "CHECK_TASK_RESULT",
+                "MYSQL_SCHEMA_TABLE_OVERVIEW",
+                "MYSQL_TABLE_LOCATION",
+                "MYSQL_TABLE_METADATA",
+                "ORACLE_TABLE_METADATA",
+                "POSTGRES_TABLE_METADATA",
+                "SQLSERVER_TABLE_METADATA"
+            );
+        assertThat(saved).hasSize(20);
         assertThat(saved)
             .filteredOn(template -> template.getCode().startsWith("MYSQL_"))
-            .hasSize(8)
+            .hasSize(5)
             .allSatisfy(template -> {
                 assertThat(template.getDatabaseType()).isEqualTo("mysql");
                 assertThat(template.getRiskLevel()).isEqualTo("LOW");
@@ -97,15 +102,15 @@ class SqlTemplateServiceTest {
             });
         assertThat(saved)
             .filteredOn(template -> template.getCode().startsWith("ORACLE_"))
-            .hasSize(6)
+            .hasSize(5)
             .allSatisfy(template -> assertThat(template.getDatabaseType()).isEqualTo("oracle"));
         assertThat(saved)
             .filteredOn(template -> template.getCode().startsWith("POSTGRES_"))
-            .hasSize(6)
+            .hasSize(5)
             .allSatisfy(template -> assertThat(template.getDatabaseType()).isEqualTo("postgresql"));
         assertThat(saved)
             .filteredOn(template -> template.getCode().startsWith("SQLSERVER_"))
-            .hasSize(6)
+            .hasSize(5)
             .allSatisfy(template -> assertThat(template.getDatabaseType()).isEqualTo("sqlserver"));
         assertThat(saved).extracting(SqlTemplateConfig::getSqlTemplate)
             .noneSatisfy(sql -> assertThat(sql).containsIgnoringCase("{{table}}"))
@@ -115,12 +120,7 @@ class SqlTemplateServiceTest {
             .noneSatisfy(sql -> assertThat(sql).containsIgnoringCase("exec "));
         assertThat(saved)
             .filteredOn(template -> template.getCode().endsWith("_TABLE_METADATA"))
-            .hasSize(4)
-            .allSatisfy(template -> {
-                assertThat(template.getCategory()).isEqualTo("maintenance_metadata");
-                assertThat(template.getParameterSchemaJson()).contains("tableName");
-                assertThat(template.getSqlTemplate()).contains("{{tableName}}");
-            });
+            .isEmpty();
     }
 
     @Test
@@ -136,10 +136,12 @@ class SqlTemplateServiceTest {
         SqlTemplateConfig tableCount = template("CHECK_TABLE_COUNT");
         SqlTemplateConfig recentData = template("CHECK_RECENT_DATA");
         SqlTemplateConfig taskResult = template("TASK_RESULT");
+        SqlTemplateConfig mysqlMetadata = template("MYSQL_TABLE_METADATA");
         when(repository.findByCode(anyString())).thenReturn(Optional.empty());
         when(repository.findByCode("CHECK_TABLE_COUNT")).thenReturn(Optional.of(tableCount));
         when(repository.findByCode("CHECK_RECENT_DATA")).thenReturn(Optional.of(recentData));
         when(repository.findByCode("TASK_RESULT")).thenReturn(Optional.of(taskResult));
+        when(repository.findByCode("MYSQL_TABLE_METADATA")).thenReturn(Optional.of(mysqlMetadata));
         when(repository.findByEnabledTrueOrderByCodeAsc()).thenReturn(List.of());
 
         service.listEnabled();
@@ -147,6 +149,7 @@ class SqlTemplateServiceTest {
         verify(repository).delete(tableCount);
         verify(repository).delete(recentData);
         verify(repository).delete(taskResult);
+        verify(repository).delete(mysqlMetadata);
     }
 
     @Test

@@ -47,4 +47,36 @@ class CommandTemplateServiceTest {
         assertThat(saved).extracting(CommandTemplateConfig::getCommandTemplate)
             .noneSatisfy(command -> assertThat(command).containsIgnoringCase("docker"));
     }
+
+    @Test
+    void repairsLegacyJavaProcessTemplateToUsePsFallback() {
+        CommandTemplateSeedProperties properties = new CommandTemplateSeedProperties();
+        properties.setSeedDefaultsEnabled(true);
+        CommandTemplateConfig legacy = new CommandTemplateConfig();
+        legacy.setCode("CHECK_JAVA_PROCESS");
+        legacy.setTitle("Java process");
+        legacy.setDescription("Read Java processes.");
+        legacy.setCommandTemplate("jps -lv");
+        legacy.setParameterSchemaJson("{}");
+        legacy.setIntentSignalsJson("[]");
+        legacy.setEnabled(true);
+        CommandTemplateService service = new CommandTemplateService(repository, new ObjectMapper(), properties);
+        when(repository.findByCode("CHECK_JAVA_PROCESS")).thenReturn(Optional.of(legacy));
+        when(repository.findByCode(org.mockito.ArgumentMatchers.argThat(code -> !"CHECK_JAVA_PROCESS".equals(code))))
+            .thenReturn(Optional.empty());
+        when(repository.findByEnabledTrueOrderByCodeAsc()).thenReturn(List.of(legacy));
+
+        service.listEnabled();
+
+        ArgumentCaptor<CommandTemplateConfig> captor = ArgumentCaptor.forClass(CommandTemplateConfig.class);
+        verify(repository, org.mockito.Mockito.atLeastOnce()).save(captor.capture());
+        assertThat(captor.getAllValues()).anySatisfy(saved -> {
+            if ("CHECK_JAVA_PROCESS".equals(saved.getCode())) {
+                assertThat(saved.getCommandTemplate())
+                    .contains("jps -lv")
+                    .contains("ps -eo")
+                    .contains("awk");
+            }
+        });
+    }
 }

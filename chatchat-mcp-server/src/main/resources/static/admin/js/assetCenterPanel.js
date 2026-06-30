@@ -12,11 +12,13 @@ import {
     rebuildAssetIndex,
     rebuildTemplateIndex,
     refreshOpsTools,
+    refreshSqlAssetMetadata,
     refreshSqlTools,
     saveCommandTemplate,
     saveHttpAsset,
     saveSqlAsset,
     saveSqlTemplate,
+    searchMcpIndex,
     saveSshAsset,
     testHttpAsset,
     testSqlAsset,
@@ -71,6 +73,8 @@ let commandTemplateSearchTerm = '';
 let commandTemplateTypeFilter = '';
 let commandTemplateCategoryFilter = '';
 let commandTemplatePage = 1;
+let sqlMetadataScopeOptions = [];
+let sqlMetadataScopeSearchTerm = '';
 
 const ASSET_PAGE_SIZE = 12;
 const COMMAND_TEMPLATE_PAGE_SIZE = 12;
@@ -96,6 +100,8 @@ export function bindAssetCenterPanel(options = {}) {
     document.getElementById('refreshSqlAssetToolsBtn').addEventListener('click', handleSqlAssetRefresh);
     bindOptional('rebuildAssetIndexBtn', 'click', handleAssetIndexRebuild);
     bindOptional('rebuildTemplateIndexBtn', 'click', handleTemplateIndexRebuild);
+    bindOptional('indexSearchRunBtn', 'click', handleIndexSearchRun);
+    bindOptional('indexSearchType', 'change', renderIndexSearchMode);
     document.querySelectorAll('[data-asset-tab]').forEach(button => {
         button.addEventListener('click', () => switchAssetTab(button.dataset.assetTab));
     });
@@ -120,6 +126,13 @@ export function bindAssetCenterPanel(options = {}) {
     bindOptional('sqlAssetAllowedTemplatesJson', 'input', syncSqlTemplateSelectionFromJson);
     bindOptional('sqlAssetTemplateSearchInput', 'input', handleSqlAssetTemplateSearch);
     bindOptional('sqlAssetDatabaseType', 'change', renderSqlTemplateOptions);
+    bindOptional('sqlAssetMetadataAutoRefreshEnabled', 'change', updateSqlMetadataRefreshIntervalState);
+    bindOptional('sqlAssetMetadataScopeValue', 'input', renderSqlMetadataScopePicker);
+    bindOptional('sqlAssetMetadataScopeToggleBtn', 'click', toggleSqlMetadataScopeOptionsPanel);
+    bindOptional('sqlAssetMetadataScopeSearchInput', 'input', event => {
+        sqlMetadataScopeSearchTerm = event.target.value || '';
+        renderSqlMetadataScopePicker();
+    });
     bindOptional('sqlAssetTemplatePrevPageBtn', 'click', () => changeTemplatePickerPage('sql', -1));
     bindOptional('sqlAssetTemplateNextPageBtn', 'click', () => changeTemplatePickerPage('sql', 1));
     bindOptional('sqlAssetTemplateSelectVisibleBtn', 'click', () => setVisibleSqlTemplatesChecked(true));
@@ -173,14 +186,19 @@ function renderAssetTabs() {
     document.getElementById('sqlAssetTabBtn').classList.toggle('active', activeAssetTab === 'sql');
     document.getElementById('httpAssetTabBtn')?.classList.toggle('active', activeAssetTab === 'http');
     document.getElementById('commandTemplateTabBtn')?.classList.toggle('active', activeAssetTab === 'template');
+    document.getElementById('indexSearchTabBtn')?.classList.toggle('active', activeAssetTab === 'index-search');
     document.getElementById('sshAssetPane').classList.toggle('d-none', activeAssetTab !== 'ssh');
     document.getElementById('sqlAssetPane').classList.toggle('d-none', activeAssetTab !== 'sql');
     document.getElementById('httpAssetPane')?.classList.toggle('d-none', activeAssetTab !== 'http');
     document.getElementById('commandTemplatePane')?.classList.toggle('d-none', activeAssetTab !== 'template');
+    document.getElementById('indexSearchPane')?.classList.toggle('d-none', activeAssetTab !== 'index-search');
+    if (activeAssetTab === 'index-search') {
+        renderIndexSearchMode();
+    }
 }
 
 function switchAssetTab(tab) {
-    activeAssetTab = ['ssh', 'sql', 'http', 'template'].includes(tab) ? tab : 'ssh';
+    activeAssetTab = ['ssh', 'sql', 'http', 'template', 'index-search'].includes(tab) ? tab : 'ssh';
     renderAssetCenter();
 }
 
@@ -293,6 +311,7 @@ function renderSqlAssets() {
         item.className = `service-card api-card ${asset.id === selectedSqlAssetId ? 'active' : ''}`;
         const category = classifySqlAsset(asset);
         item.innerHTML = `
+            <button class="btn btn-sm btn-outline-primary sql-metadata-refresh-button" type="button" data-action="refresh-metadata" title="刷新元数据" aria-label="刷新元数据">刷新</button>
             <div class="api-card-main">
                 <h3>${escapeHtml(asset.title || asset.name || asset.toolName)}</h3>
                 <p>${escapeHtml(asset.description || asset.jdbcUrl || '')}</p>
@@ -312,9 +331,28 @@ function renderSqlAssets() {
         `;
         item.querySelector('[data-action="edit"]').addEventListener('click', () => selectSqlAsset(asset));
         item.querySelector('[data-action="test"]').addEventListener('click', () => testSqlAssetFromCard(asset));
+        appendSqlMetadataBadges(item, asset);
+        item.querySelector('[data-action="refresh-metadata"]').addEventListener('click', event => refreshSqlMetadataFromCard(asset, event.currentTarget));
         item.querySelector('[data-action="delete"]').addEventListener('click', () => removeSqlAsset(asset));
         list.appendChild(item);
     }
+}
+
+function appendSqlMetadataBadges(item, asset) {
+    const meta = item?.querySelector('.service-meta');
+    if (!meta) {
+        return;
+    }
+    const scopeBadge = document.createElement('span');
+    scopeBadge.className = 'badge text-bg-light';
+    scopeBadge.textContent = formatMetadataScopeType(asset?.metadataScopeType);
+    const refreshBadge = document.createElement('span');
+    refreshBadge.className = `badge ${asset?.metadataAutoRefreshEnabled ? 'text-bg-success' : 'text-bg-light'}`;
+    refreshBadge.textContent = asset?.metadataAutoRefreshEnabled
+        ? `metadata auto / ${asset?.metadataRefreshIntervalMinutes || 60}m`
+        : 'metadata manual';
+    meta.appendChild(scopeBadge);
+    meta.appendChild(refreshBadge);
 }
 
 function renderHttpAssets() {
@@ -486,7 +524,7 @@ function renderCommandTemplates() {
                 <span class="badge text-bg-primary">${escapeHtml(template.scopeLabel)}</span>
                 <span class="badge ${template.enabled ? 'text-bg-success' : 'text-bg-secondary'}">${template.enabled ? 'Enabled' : 'Disabled'}</span>
                 <span class="badge ${template.riskLevel === 'LOW' ? 'text-bg-success' : 'text-bg-warning'}">${escapeHtml(template.riskLevel || 'LOW')}</span>
-                <span class="badge text-bg-info">${escapeHtml(template.category || 'system_diagnostic')}</span>
+                <span class="badge text-bg-info">${escapeHtml(formatCommandTemplateCategory(template.category))}</span>
                 ${template.scope === 'sql' ? `<span class="badge text-bg-light">${escapeHtml(template.databaseType || 'generic')}</span>` : ''}
                 ${template.scope === 'sql' && template.datasourceId ? '<span class="badge text-bg-secondary">bound asset</span>' : ''}
                 ${signals.map(signal => `<span class="badge text-bg-light">${escapeHtml(signal)}</span>`).join('')}
@@ -689,11 +727,11 @@ function syncCommandTemplateCategoryFilterOptions(catalog) {
     const selected = commandTemplateCategoryFilter || select.value || '';
     const categories = [...new Set((catalog || [])
         .map(template => String(template.category || '').trim())
-        .filter(Boolean))]
-        .sort((a, b) => a.localeCompare(b));
+        .filter(category => category && !isMojibakeText(category)))]
+        .sort((a, b) => formatCommandTemplateCategory(a).localeCompare(formatCommandTemplateCategory(b), 'zh-CN'));
     select.innerHTML = [
-        '<option value="">鍏ㄩ儴鍒嗙被</option>',
-        ...categories.map(category => `<option value="${escapeHtml(category)}">${escapeHtml(category)}</option>`)
+        '<option value="">全部分类</option>',
+        ...categories.map(category => `<option value="${escapeHtml(category)}">${escapeHtml(formatCommandTemplateCategory(category))}</option>`)
     ].join('');
     if (selected && categories.includes(selected)) {
         select.value = selected;
@@ -758,6 +796,15 @@ function formatAssetCategory(category) {
     return names[category] || '其他';
 }
 
+function formatMetadataScopeType(scopeType) {
+    const names = {
+        JDBC_DATABASE: 'JDBC database',
+        LOGIN_USER_SCHEMA: 'Login schema',
+        EXPLICIT_SCHEMA: 'Explicit schema'
+    };
+    return names[String(scopeType || 'JDBC_DATABASE').toUpperCase()] || 'JDBC database';
+}
+
 function formatHttpCategory(category) {
     const names = {
         business_api: '业务接口',
@@ -768,6 +815,81 @@ function formatHttpCategory(category) {
         other: '其他'
     };
     return names[category] || '其他';
+}
+
+function formatCommandTemplateCategory(category) {
+    const value = String(category || '').trim();
+    if (!value || isMojibakeText(value)) {
+        return '未分类';
+    }
+    const names = {
+        system_diagnostic: '系统诊断',
+        host_diagnostic: '主机诊断',
+        maintenance_connection: '连接诊断',
+        maintenance_instance: '实例诊断',
+        maintenance_performance: 'SQL 性能诊断',
+        maintenance_metadata: 'SQL 元数据',
+        maintenance_lock: 'SQL 锁与事务',
+        maintenance_storage: '存储诊断',
+        maintenance_system: '系统诊断',
+        maintenance_network: '网络诊断',
+        maintenance_process: '进程诊断',
+        sql_diagnostic: 'SQL 诊断',
+        sql_metadata: 'SQL 元数据',
+        sql_performance: 'SQL 性能',
+        sql_lock: 'SQL 锁与事务',
+        http_request: 'HTTP 请求',
+        business_api: '业务接口',
+        monitoring: '监控接口',
+        ops: '运维接口'
+    };
+    if (names[value]) {
+        return names[value];
+    }
+    if (!value.includes('_')) {
+        return value;
+    }
+    const prefixes = {
+        maintenance: '运维',
+        sql: 'SQL',
+        host: '主机',
+        system: '系统',
+        http: 'HTTP',
+        business: '业务'
+    };
+    const tokens = {
+        connection: '连接',
+        instance: '实例',
+        performance: '性能',
+        metadata: '元数据',
+        lock: '锁与事务',
+        storage: '存储',
+        diagnostic: '诊断',
+        system: '系统',
+        network: '网络',
+        process: '进程',
+        cpu: 'CPU',
+        memory: '内存',
+        disk: '磁盘',
+        java: 'Java',
+        block: '块设备',
+        date: '时间',
+        time: '时间',
+        request: '请求',
+        api: '接口',
+        other: '其他'
+    };
+    const parts = value.split('_').filter(Boolean);
+    const prefix = prefixes[parts[0]];
+    const label = parts.slice(prefix ? 1 : 0)
+        .map(part => tokens[part] || part)
+        .join('');
+    return [prefix, label].filter(Boolean).join(' ');
+}
+
+function isMojibakeText(value) {
+    const text = String(value || '');
+    return /[锟�鑱�]/.test(text) || /[ÃÂ][\x80-\xBF]/.test(text);
 }
 
 function openNewSshAsset() {
@@ -929,13 +1051,143 @@ async function handleSqlAssetTest() {
     }
     try {
         const result = await testSqlAsset(readSqlAssetForm());
-        notify(result.success ? '测试成功' : '测试失败', result.success ? '数据库连接有效。' : (result.errorMessage || '数据库连接失败。'));
+        const databases = extractSqlMetadataScopeOptions(result);
+        if (result.success) {
+            updateSqlMetadataScopeOptions(databases);
+        }
+        notify(
+            result.success ? '测试成功' : '测试失败',
+            result.success
+                ? `数据库连接有效。${databases.length ? `已发现 ${databases.length} 个库/Schema 可选。` : ''}`
+                : (result.errorMessage || '数据库连接失败。')
+        );
         showResult(result, {
             title: `${value('sqlAssetToolName') || value('sqlAssetName') || '数据库资产'} 测试结果`,
             subtitle: '使用当前表单内容测试 JDBC 连接，不保存配置'
         });
     } catch (error) {
         onError(error);
+    }
+}
+
+function extractSqlMetadataScopeOptions(result) {
+    const diagnostics = result?.diagnostics || {};
+    const values = diagnostics.metadataScopeOptions || diagnostics.availableDatabases || diagnostics.availableSchemas || [];
+    if (!Array.isArray(values)) {
+        return [];
+    }
+    return [...new Set(values
+        .map(value => value == null ? '' : String(value).trim())
+        .filter(Boolean))]
+        .sort((left, right) => left.localeCompare(right));
+}
+
+function updateSqlMetadataScopeOptions(values) {
+    const datalist = document.getElementById('sqlAssetMetadataScopeValueOptions');
+    if (!datalist) {
+        return;
+    }
+    sqlMetadataScopeOptions = [...new Set((values || [])
+        .map(value => value == null ? '' : String(value).trim())
+        .filter(Boolean))]
+        .sort((left, right) => left.localeCompare(right));
+    datalist.innerHTML = '';
+    for (const value of sqlMetadataScopeOptions) {
+        const option = document.createElement('option');
+        option.value = value;
+        datalist.appendChild(option);
+    }
+    renderSqlMetadataScopePicker();
+}
+
+function parseSqlMetadataScopeValues(text) {
+    return [...new Set(String(text || '')
+        .split(/[,;\r\n]+/)
+        .map(value => value.trim())
+        .filter(Boolean))];
+}
+
+function renderSqlMetadataScopePicker() {
+    const selected = new Set(parseSqlMetadataScopeValues(value('sqlAssetMetadataScopeValue')));
+    renderSqlMetadataScopeSelected(selected);
+    renderSqlMetadataScopeOptions(selected);
+}
+
+function renderSqlMetadataScopeSelected(selected) {
+    const node = document.getElementById('sqlAssetMetadataScopeSelected');
+    if (!node) {
+        return;
+    }
+    node.innerHTML = '';
+    if (!selected || selected.size === 0) {
+        node.classList.add('text-secondary');
+        node.textContent = '未选择';
+        return;
+    }
+    node.classList.remove('text-secondary');
+    for (const item of selected) {
+        const chip = document.createElement('button');
+        chip.type = 'button';
+        chip.className = 'metadata-scope-chip';
+        chip.title = `移除 ${item}`;
+        chip.innerHTML = `<span>${escapeHtml(item)}</span><strong aria-hidden="true">×</strong>`;
+        chip.addEventListener('click', () => removeSqlMetadataScopeValue(item));
+        node.appendChild(chip);
+    }
+}
+
+function renderSqlMetadataScopeOptions(selected) {
+    const list = document.getElementById('sqlAssetMetadataScopeOptionsList');
+    if (!list) {
+        return;
+    }
+    const keyword = sqlMetadataScopeSearchTerm.trim().toLowerCase();
+    const options = sqlMetadataScopeOptions
+        .filter(option => !keyword || option.toLowerCase().includes(keyword))
+        .slice(0, 80);
+    list.innerHTML = '';
+    if (!options.length) {
+        list.innerHTML = '<div class="metadata-scope-empty">测试连接后可选择库名，也可直接手动输入。</div>';
+        return;
+    }
+    for (const option of options) {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = `metadata-scope-option ${selected.has(option) ? 'active' : ''}`;
+        button.textContent = option;
+        button.addEventListener('click', () => toggleSqlMetadataScopeValue(option));
+        list.appendChild(button);
+    }
+}
+
+function toggleSqlMetadataScopeOptionsPanel() {
+    const panel = document.getElementById('sqlAssetMetadataScopeOptionsPanel');
+    if (panel) {
+        panel.classList.toggle('d-none');
+    }
+}
+
+function toggleSqlMetadataScopeValue(item) {
+    const values = parseSqlMetadataScopeValues(value('sqlAssetMetadataScopeValue'));
+    const next = values.includes(item)
+        ? values.filter(value => value !== item)
+        : [...values, item];
+    setValue('sqlAssetMetadataScopeValue', next.join(','));
+    renderSqlMetadataScopePicker();
+}
+
+function removeSqlMetadataScopeValue(item) {
+    const next = parseSqlMetadataScopeValues(value('sqlAssetMetadataScopeValue'))
+        .filter(value => value !== item);
+    setValue('sqlAssetMetadataScopeValue', next.join(','));
+    renderSqlMetadataScopePicker();
+}
+
+function updateSqlMetadataRefreshIntervalState() {
+    const enabled = document.getElementById('sqlAssetMetadataAutoRefreshEnabled')?.value === 'true';
+    const input = document.getElementById('sqlAssetMetadataRefreshIntervalMinutes');
+    if (input) {
+        input.disabled = !enabled;
     }
 }
 
@@ -979,6 +1231,41 @@ async function testSqlAssetFromCard(asset) {
         });
     } catch (error) {
         onError(error);
+    }
+}
+
+async function refreshSqlMetadataFromCard(asset, button) {
+    if (!asset?.id) {
+        notify('Refresh skipped', 'Save the database asset before refreshing metadata.');
+        return;
+    }
+    const originalText = button?.textContent || '刷新';
+    if (button) {
+        button.disabled = true;
+        button.textContent = '刷新中...';
+    }
+    try {
+        const result = await refreshSqlAssetMetadata(asset.id);
+        const error = result?.error && String(result.error).trim();
+        const persistState = result?.persistState || {};
+        const persistStatus = persistState.status || (result?.persistedToRocksDb ? 'PERSISTED' : 'UNKNOWN');
+        notify(
+            error ? 'Metadata refresh failed' : 'Metadata refreshed',
+            error
+                ? `${asset.name || asset.toolName}: ${result.error}`
+                : `${asset.name || asset.toolName}: ${result.schemaCount ?? 0} schemas, ${result.tableCount ?? 0} tables, ${result.columnCount ?? 0} columns. Persist: ${persistStatus}.`
+        );
+        showResult(result, {
+            title: `${asset.toolName || asset.name || 'Database asset'} metadata refresh`,
+            subtitle: `RocksDB persist: ${persistStatus}${persistState.message ? ` - ${persistState.message}` : ''}`
+        });
+    } catch (error) {
+        onError(error);
+    } finally {
+        if (button) {
+            button.disabled = false;
+            button.textContent = originalText;
+        }
     }
 }
 
@@ -1099,6 +1386,142 @@ async function handleTemplateIndexRebuild() {
     }
 }
 
+function renderIndexSearchMode() {
+    const type = value('indexSearchType') || 'sql_metadata';
+    const sqlOnlyIds = ['indexSearchTableName', 'indexSearchDatabase', 'indexSearchAssetName', 'indexSearchIncludeColumns'];
+    const assetOnlyIds = ['indexSearchEnv', 'indexSearchLabels'];
+    const assetTypeNode = document.getElementById('indexSearchAssetType')?.closest('.col-md-2');
+    sqlOnlyIds.forEach(id => {
+        document.getElementById(id)?.closest('[class*="col-"]')?.classList.toggle('d-none', type !== 'sql_metadata');
+    });
+    assetOnlyIds.forEach(id => {
+        document.getElementById(id)?.closest('[class*="col-"]')?.classList.toggle('d-none', type === 'templates');
+    });
+    assetTypeNode?.classList.toggle('d-none', type === 'sql_metadata');
+}
+
+async function handleIndexSearchRun() {
+    try {
+        const request = readIndexSearchRequest();
+        setIndexSearchOutput({ running: true, request });
+        const result = await searchMcpIndex(request);
+        setIndexSearchOutput(result);
+    } catch (error) {
+        setIndexSearchOutput({ error: error.message || String(error) });
+        onError(error);
+    }
+}
+
+function readIndexSearchRequest() {
+    const type = value('indexSearchType') || 'sql_metadata';
+    const request = {
+        indexType: type,
+        query: value('indexSearchQuery'),
+        limit: numberValue('indexSearchLimit', 10)
+    };
+    putIfPresent(request, 'assetType', value('indexSearchAssetType'));
+    putIfPresent(request, 'env', value('indexSearchEnv'));
+    putIfPresent(request, 'databaseType', value('indexSearchDatabaseType'));
+    if (type === 'sql_metadata') {
+        putIfPresent(request, 'tableName', value('indexSearchTableName'));
+        putIfPresent(request, 'database', value('indexSearchDatabase'));
+        putIfPresent(request, 'schema', value('indexSearchDatabase'));
+        putIfPresent(request, 'assetName', value('indexSearchAssetName'));
+        request.includeColumns = value('indexSearchIncludeColumns') !== 'false';
+    } else if (type === 'assets') {
+        request.labels = splitCsv(value('indexSearchLabels'));
+    } else if (type === 'templates') {
+        request.intentText = request.query;
+        request.dbType = request.databaseType;
+    }
+    return request;
+}
+
+function setIndexSearchOutput(result) {
+    const raw = document.getElementById('indexSearchRawJson');
+    const summary = document.getElementById('indexSearchSummary');
+    if (raw) {
+        raw.textContent = JSON.stringify(result || {}, null, 2);
+    }
+    if (!summary) {
+        return;
+    }
+    if (result?.running) {
+        summary.innerHTML = '<div class="index-search-empty">正在检索...</div>';
+        return;
+    }
+    if (result?.error) {
+        summary.innerHTML = `<div class="text-danger">${escapeHtml(result.error)}</div>`;
+        return;
+    }
+    const rows = Array.isArray(result?.results) ? result.results : [];
+    if (rows.length === 0) {
+        summary.innerHTML = '<div class="index-search-empty">无命中结果</div>';
+        return;
+    }
+    summary.innerHTML = rows.map((row, index) => indexSearchSummaryItem(row, index)).join('');
+}
+
+function indexSearchSummaryItem(row, index) {
+    const location = row.location || row;
+    const asset = row.asset || {};
+    const columns = Array.isArray(row.columns) ? row.columns : [];
+    const title = firstNonBlank(
+        location.fullPath,
+        [asset.name, location.database, location.table].filter(Boolean).join('.'),
+        row.fullPath,
+        row.id,
+        `result-${index + 1}`
+    );
+    const subtitle = firstNonBlank(
+        location.tableComment,
+        row.tableComment,
+        location.databaseComment,
+        row.databaseComment,
+        row.source
+    );
+    const columnPreview = columns.length
+        ? `<div class="index-search-columns">${columns.slice(0, 8).map(column => `
+            <span class="index-search-column">
+                <strong>${escapeHtml(column.name || column.label || '')}</strong>
+                <span>${escapeHtml(column.columnType || column.dataType || '')}</span>
+                ${column.comment ? `<em>${escapeHtml(column.comment)}</em>` : ''}
+            </span>`).join('')}${columns.length > 8 ? `<span class="text-secondary">+${columns.length - 8}</span>` : ''}</div>`
+        : '';
+    return `
+        <div class="index-search-hit">
+            <div class="d-flex justify-content-between gap-2">
+                <strong>${escapeHtml(title)}</strong>
+                <span class="text-secondary">${escapeHtml(row.score ?? '')}</span>
+            </div>
+            <div class="text-secondary">${escapeHtml(subtitle || '')}</div>
+            <div class="text-secondary">source=${escapeHtml(row.source || '')} count=${escapeHtml(row.columnCount ?? columns.length ?? '')}</div>
+            ${columnPreview}
+        </div>`;
+}
+
+function putIfPresent(target, key, nextValue) {
+    if (nextValue !== undefined && nextValue !== null && String(nextValue).trim()) {
+        target[key] = String(nextValue).trim();
+    }
+}
+
+function splitCsv(text) {
+    return String(text || '')
+        .split(/[\s,，]+/)
+        .map(item => item.trim())
+        .filter(Boolean);
+}
+
+function numberValue(id, fallback) {
+    const parsed = Number.parseInt(value(id), 10);
+    return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function firstNonBlank(...values) {
+    return values.find(item => item !== undefined && item !== null && String(item).trim()) || '';
+}
+
 function readCommandTemplateForm() {
     const payload = {
         id: value('commandTemplateId'),
@@ -1135,7 +1558,10 @@ function fillCommandTemplateForm(template) {
     setValue('commandTemplateTitle', template?.title || '');
     setValue('commandTemplateDescription', template?.description || '');
     setValue('commandTemplateRiskLevel', template?.riskLevel || 'LOW');
-    setValue('commandTemplateCategory', template?.category || (editingTemplateScope === 'sql' ? 'maintenance_performance' : 'system_diagnostic'));
+    const category = template?.category && !isMojibakeText(template.category)
+        ? template.category
+        : (editingTemplateScope === 'sql' ? 'maintenance_performance' : 'system_diagnostic');
+    setValue('commandTemplateCategory', category);
     setValue('commandTemplateEnabled', String(template?.enabled ?? true));
     setValue('commandTemplateIntentSignalsJson', prettyJsonArray(template?.intentSignalsJson || '[]'));
     setValue('commandTemplateParameterSchemaJson', prettyJsonObject(template?.parameterSchemaJson, defaultTemplateParameterSchema()));
@@ -1339,12 +1765,13 @@ function templatePickerTable(rows) {
 }
 
 function templatePickerRow({ id, code, checked, disabled, checkboxAttr, title, category, meta, detail, rowClass = '' }) {
+    const categoryLabel = formatCommandTemplateCategory(category);
     return `
         <tr class="${rowClass}">
             <td class="template-picker-check"><input class="form-check-input" type="checkbox" id="${escapeHtml(id)}" ${checkboxAttr} ${checked} ${disabled}></td>
             <td class="template-picker-code" title="${escapeHtml(code)}">${escapeHtml(code)}</td>
             <td class="template-picker-title" title="${escapeHtml(title)}">${escapeHtml(title)}</td>
-            <td class="template-picker-category" title="${escapeHtml(category)}">${escapeHtml(category)}</td>
+            <td class="template-picker-category" title="${escapeHtml(category)}">${escapeHtml(categoryLabel)}</td>
             <td class="template-picker-meta" title="${escapeHtml(meta)}">${escapeHtml(meta)}</td>
             <td class="template-picker-detail" title="${escapeHtml(detail)}">${escapeHtml(detail)}</td>
         </tr>
@@ -1599,7 +2026,11 @@ function readSqlAssetForm() {
         environment: value('sqlAssetEnvironment'),
         defaultTimeoutSeconds: Number(value('sqlAssetDefaultTimeoutSeconds') || 30),
         defaultMaxRows: Number(value('sqlAssetDefaultMaxRows') || 1000),
-        allowedTablesJson: stringifyJsonArray('sqlAssetAllowedTablesJson'),
+        metadataScopeType: value('sqlAssetMetadataScopeType') || 'JDBC_DATABASE',
+        metadataScopeValue: value('sqlAssetMetadataScopeValue'),
+        metadataAutoRefreshEnabled: document.getElementById('sqlAssetMetadataAutoRefreshEnabled')?.value === 'true',
+        metadataRefreshIntervalMinutes: Number(value('sqlAssetMetadataRefreshIntervalMinutes') || 60),
+        allowedTablesJson: '[]',
         allowedTemplatesJson: stringifyJsonArray('sqlAssetAllowedTemplatesJson'),
         sensitiveTablesJson: stringifyJsonArray('sqlAssetSensitiveTablesJson'),
         sensitiveFieldsJson: stringifyJsonArray('sqlAssetSensitiveFieldsJson'),
@@ -1623,7 +2054,12 @@ function fillSqlAssetForm(asset) {
     setValue('sqlAssetEnvironment', asset?.environment || 'DEV');
     setValue('sqlAssetDefaultTimeoutSeconds', String(asset?.defaultTimeoutSeconds || 30));
     setValue('sqlAssetDefaultMaxRows', String(asset?.defaultMaxRows || 1000));
-    setValue('sqlAssetAllowedTablesJson', prettyJsonArray(asset?.allowedTablesJson));
+    setValue('sqlAssetMetadataScopeType', asset?.metadataScopeType || 'JDBC_DATABASE');
+    setValue('sqlAssetMetadataScopeValue', asset?.metadataScopeValue || '');
+    setValue('sqlAssetMetadataAutoRefreshEnabled', String(asset?.metadataAutoRefreshEnabled ?? false));
+    setValue('sqlAssetMetadataRefreshIntervalMinutes', String(asset?.metadataRefreshIntervalMinutes || 60));
+    updateSqlMetadataScopeOptions([]);
+    updateSqlMetadataRefreshIntervalState();
     sqlAssetTemplateSearchTerm = '';
     sqlAssetTemplatePage = 1;
     setValue('sqlAssetTemplateSearchInput', '');

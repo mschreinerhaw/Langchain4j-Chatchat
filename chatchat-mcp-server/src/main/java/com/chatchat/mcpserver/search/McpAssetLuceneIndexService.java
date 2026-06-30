@@ -3,7 +3,11 @@ package com.chatchat.mcpserver.search;
 import com.chatchat.mcpserver.ops.HttpEndpointConfigService;
 import com.chatchat.mcpserver.ops.SshHostConfigService;
 import com.chatchat.mcpserver.routing.AssetMetadataFactory;
+import com.chatchat.mcpserver.sql.MetadataIndex;
+import com.chatchat.mcpserver.sql.MetadataIndexService;
 import com.chatchat.mcpserver.sql.SqlDatasourceConfigService;
+import com.chatchat.mcpserver.sql.SqlDatasourceConfig;
+import com.chatchat.mcpserver.sql.TableLocation;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
@@ -28,6 +32,7 @@ public class McpAssetLuceneIndexService {
     private final SqlDatasourceConfigService datasourceConfigService;
     private final HttpEndpointConfigService httpEndpointConfigService;
     private final AssetMetadataFactory assetMetadataFactory;
+    private final MetadataIndexService metadataIndexService;
 
     @Order(Ordered.LOWEST_PRECEDENCE)
     @EventListener(ApplicationReadyEvent.class)
@@ -45,24 +50,30 @@ public class McpAssetLuceneIndexService {
             .map(assetMetadataFactory::sshAsset)
             .map(this::assetDoc)
             .forEach(docs::add);
-        safe(datasourceConfigService.listEnabled()).stream()
+        List<SqlDatasourceConfig> datasources = safe(datasourceConfigService.listEnabled());
+        datasources.stream()
             .map(assetMetadataFactory::sqlDatasource)
             .map(this::assetDoc)
+            .forEach(docs::add);
+        datasources.stream()
+            .flatMap(datasource -> tableAssetDocs(datasource).stream())
             .forEach(docs::add);
         safe(httpEndpointConfigService.listEnabled()).stream()
             .map(assetMetadataFactory::httpEndpoint)
             .map(this::assetDoc)
             .forEach(docs::add);
         luceneSearchService.indexAssets(docs);
+        long tableDocCount = docs.stream().filter(doc -> "metadata_table".equals(doc.source())).count();
         Map<String, Object> summary = Map.of(
             "enabled", true,
             "indexed", docs.size(),
             "sshHostCount", safe(hostConfigService.listEnabled()).size(),
-            "sqlDatasourceCount", safe(datasourceConfigService.listEnabled()).size(),
+            "sqlDatasourceCount", datasources.size(),
+            "sqlTableCount", tableDocCount,
             "httpEndpointCount", safe(httpEndpointConfigService.listEnabled()).size()
         );
-        log.info("MCP Lucene asset index refreshed, indexed {} assets ssh={} sql={} http={}",
-            docs.size(), summary.get("sshHostCount"), summary.get("sqlDatasourceCount"), summary.get("httpEndpointCount"));
+        log.info("MCP Lucene asset index refreshed, indexed {} docs ssh={} sql={} sqlTables={} http={}",
+            docs.size(), summary.get("sshHostCount"), summary.get("sqlDatasourceCount"), summary.get("sqlTableCount"), summary.get("httpEndpointCount"));
         return summary;
     }
 
@@ -90,6 +101,75 @@ public class McpAssetLuceneIndexService {
         );
     }
 
+    private List<LuceneMcpSearchService.AssetDoc> tableAssetDocs(SqlDatasourceConfig datasource) {
+        if (datasource == null || datasource.getId() == null || metadataIndexService == null) {
+            return List.of();
+        }
+        MetadataIndex index = metadataIndexService.indexFor(datasource);
+        if (index == null || index.error() != null || index.tables() == null || index.tables().isEmpty()) {
+            return List.of();
+        }
+        return index.tables().stream()
+            .map(table -> tableAssetDoc(datasource, table, index.databaseType()))
+            .toList();
+    }
+
+    private LuceneMcpSearchService.AssetDoc tableAssetDoc(SqlDatasourceConfig datasource, TableLocation table, String databaseType) {
+        String database = text(table.database());
+        String tableName = text(table.table());
+        String assetName = firstText(datasource.getTitle(), datasource.getName(), datasource.getToolName(), datasource.getId());
+        String fullPath = joinPath(assetName, database, tableName);
+        String tableComment = text(table.tableComment());
+        String databaseComment = firstText(table.databaseComment(), datasource.getDescription(), datasource.getTitle(), datasource.getName());
+        return new LuceneMcpSearchService.AssetDoc(
+            tableDocId(datasource.getId(), database, tableName),
+            "sql_datasource",
+            fullPath,
+            tableName,
+            datasource.getToolName(),
+            datasource.getEnvironment(),
+            firstText(databaseType, datasource.getDatabaseType()),
+            tableLabels(datasource, database, tableName, fullPath),
+            "metadata_table",
+            datasource.getId(),
+            database,
+            tableName,
+            fullPath,
+            joinPath(tableComment, databaseComment),
+            tableComment,
+            databaseComment
+        );
+    }
+
+    private List<String> tableLabels(SqlDatasourceConfig datasource, String database, String tableName, String fullPath) {
+        List<String> labels = new ArrayList<>();
+        labels.add("metadata_table");
+        labels.add("table");
+        addLabel(labels, datasource.getName());
+        addLabel(labels, datasource.getTitle());
+        addLabel(labels, datasource.getDescription());
+        addLabel(labels, datasource.getToolName());
+        addLabel(labels, datasource.getEnvironment());
+        addLabel(labels, datasource.getDatabaseType());
+        addLabel(labels, database);
+        addLabel(labels, tableName);
+        addLabel(labels, fullPath);
+        addLabel(labels, "database:" + database);
+        addLabel(labels, "schema:" + database);
+        addLabel(labels, "table:" + tableName);
+        return labels.stream()
+            .map(this::normalize)
+            .filter(item -> item != null && !item.isBlank())
+            .distinct()
+            .toList();
+    }
+
+    private String tableDocId(String datasourceId, String database, String tableName) {
+        return "metadata_table:" + normalize(firstText(datasourceId, "unknown"))
+            + ":" + normalize(firstText(database, "unknown"))
+            + ":" + normalize(firstText(tableName, "unknown"));
+    }
+
     private List<String> labels(Object value) {
         if (value instanceof List<?> list) {
             return list.stream()
@@ -103,6 +183,38 @@ public class McpAssetLuceneIndexService {
 
     private String text(Object value) {
         return value == null || String.valueOf(value).isBlank() ? null : String.valueOf(value).trim();
+    }
+
+    private String firstText(String... values) {
+        if (values == null) {
+            return null;
+        }
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value.trim();
+            }
+        }
+        return null;
+    }
+
+    private String joinPath(String... values) {
+        List<String> parts = new ArrayList<>();
+        if (values != null) {
+            for (String value : values) {
+                String text = text(value);
+                if (text != null) {
+                    parts.add(text);
+                }
+            }
+        }
+        return String.join(".", parts);
+    }
+
+    private void addLabel(List<String> labels, String value) {
+        String text = text(value);
+        if (text != null) {
+            labels.add(text);
+        }
     }
 
     private String normalize(String value) {

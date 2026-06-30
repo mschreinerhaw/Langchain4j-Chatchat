@@ -93,6 +93,10 @@ export function testSqlAsset(asset) {
     return apiFetch(`${SQL_URL}/datasources/test`, { method: 'POST', body: JSON.stringify(asset) });
 }
 
+export function refreshSqlAssetMetadata(id) {
+    return apiFetch(`${SQL_URL}/datasources/${encodeURIComponent(id)}/metadata/refresh`, { method: 'POST' });
+}
+
 export function refreshSqlTools() {
     return apiFetch(`${SQL_URL}/refresh-tools`, { method: 'POST' });
 }
@@ -103,4 +107,8 @@ export function rebuildAssetIndex() {
 
 export function rebuildTemplateIndex() {
     return apiFetch(`${SEARCH_INDEX_URL}/templates/rebuild`, { method: 'POST' });
+}
+
+export function searchMcpIndex(request) {
+    return apiFetch(`${SEARCH_INDEX_URL}/search`, { method: 'POST', body: JSON.stringify(request || {}) });
 }

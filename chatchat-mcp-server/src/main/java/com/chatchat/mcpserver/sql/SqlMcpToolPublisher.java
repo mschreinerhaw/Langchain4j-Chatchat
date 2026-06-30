@@ -18,6 +18,7 @@ import org.springframework.core.Ordered;
 import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -35,7 +36,7 @@ public class SqlMcpToolPublisher {
     private final SqlDatasourceConfigService datasourceConfigService;
     private final SqlTemplateService sqlTemplateService;
     private final SqlQueryExecuteService executeService;
-    private final DataEngineQueryPlannerService queryPlannerService;
+    private final SqlMetadataSearchService metadataSearchService;
     private final ExecutionTargetRouter executionTargetRouter;
     private final AssetMetadataFactory assetMetadataFactory;
     private final AgentRuntimeGovernanceFactory governanceFactory;
@@ -52,14 +53,14 @@ public class SqlMcpToolPublisher {
 
     public synchronized void refresh() {
         remove("sql_query_execute");
-        remove("sql_query_plan");
+        remove("sql_metadata_search");
         datasourceConfigService.listAll().forEach(datasource -> remove(datasource.getToolName()));
         managedToolNames.forEach(this::remove);
         managedToolNames.clear();
-        mcpSyncServer.addTool(sqlQueryPlanTool());
+        mcpSyncServer.addTool(sqlMetadataSearchTool());
         mcpSyncServer.addTool(sqlQueryGatewayTool());
         mcpSyncServer.notifyToolsListChanged();
-        log.info("SQL MCP gateway tools refreshed: sql_query_plan, sql_query_execute");
+        log.info("SQL MCP gateway tools refreshed: sql_metadata_search, sql_query_execute");
     }
 
     private McpServerFeatures.SyncToolSpecification toToolSpecification(SqlDatasourceConfig datasource) {
@@ -102,27 +103,28 @@ public class SqlMcpToolPublisher {
             .build();
     }
 
-    private McpServerFeatures.SyncToolSpecification sqlQueryPlanTool() {
+    private McpServerFeatures.SyncToolSpecification sqlMetadataSearchTool() {
         McpSchema.Tool tool = McpSchema.Tool.builder()
-            .name("sql_query_plan")
-            .title("MCP Unified Data and Knowledge query compiler")
-            .description("Build a read-only Retrieval-Augmented Query Compiler v6 plan for a logical SQL datasource. "
-                + "This tool does not execute SQL or document retrieval. It returns SemanticIR, RetrievalPlan, unified QueryPlan DAG, join graph, cost model, and resolved table candidates. "
-                + "Use it before sql_query_execute and document_search for multi-table, trend, metric, business-term, or ambiguous schema analysis.")
-            .inputSchema(planInputSchema())
-            .meta(planMeta())
+            .name("sql_metadata_search")
+            .title("SQL metadata table search")
+            .description("Read-only Lucene-backed metadata retrieval tool for locating datasource/database/table entries before SQL template execution. "
+                + "Use this before sql_datasource_template_query and sql_query_execute when the user mentions a table name, table comment, business meaning, or when schema/database is unknown. "
+                + "When an explicit tableName/schema.table is provided, it returns cached column metadata including column name, type, key, nullability, ordinal position, and comment. "
+                + "It returns logical routing context and table locations from the metadata index; it never returns JDBC URLs or raw SQL.")
+            .inputSchema(metadataSearchInputSchema())
+            .meta(metadataSearchMeta())
             .build();
         return McpServerFeatures.SyncToolSpecification.builder()
             .tool(tool)
             .callHandler((exchange, request) -> concurrencyManager.execute(
-                "sql_query_plan",
+                "sql_metadata_search",
                 "sql",
                 request.arguments(),
                 () -> {
-                    QueryPlan plan = queryPlannerService.plan(executionTargetRouter.routeSqlQuery(request.arguments()));
+                    Map<String, Object> result = metadataSearchService.search(request.arguments());
                     return McpSchema.CallToolResult.builder()
-                        .addTextContent("SQL query plan completed")
-                        .structuredContent(plan.toDiagnostic())
+                        .addTextContent("SQL metadata search completed")
+                        .structuredContent(result)
                         .isError(false)
                         .build();
                 }))
@@ -165,20 +167,20 @@ public class SqlMcpToolPublisher {
         ), List.of("executionContext"), false, null, null);
     }
 
-    private McpSchema.JsonSchema planInputSchema() {
+    private McpSchema.JsonSchema metadataSearchInputSchema() {
         return new McpSchema.JsonSchema("object", Map.of(
-            "question", Map.of("type", "string", "description", "Natural-language analytical question or query intent"),
-            "tables", Map.of(
-                "type", "array",
-                "description", "Optional logical table names mentioned by the user; the planner will resolve schemas and variants",
-                "items", Map.of("type", "string")
-            ),
+            "query", Map.of("type", "string", "description", "Free-text table/database search query, for example a table name, table comment/business meaning, database description, schema.table, or asset.database.table path."),
+            "tableName", Map.of("type", "string", "description", "Optional explicit table name from the user request."),
+            "database", Map.of("type", "string", "description", "Optional database/schema name filter."),
+            "schema", Map.of("type", "string", "description", "Alias of database."),
+            "assetName", Map.of("type", "string", "description", "Optional logical datasource asset name, never a datasourceId."),
             "executionContext", Map.of(
                 "type", "object",
-                "description", "Logical datasource context such as env, assetName, databaseType, service, target, or labels"
+                "description", "Logical datasource context such as assetName, env, databaseType, database/schema, or tableName. Concrete target fields are forbidden."
             ),
-            "limit", Map.of("type", "integer", "minimum", 1, "maximum", 20)
-        ), List.of("question", "executionContext"), false, null, null);
+            "limit", Map.of("type", "integer", "minimum", 1, "maximum", 30),
+            "includeColumns", Map.of("type", "boolean", "description", "Optional; true includes cached column metadata for matched tables. Defaults to true; set false only for lightweight routing lookup.")
+        ), List.of(), false, null, null);
     }
 
     private Map<String, Object> meta(SqlDatasourceConfig datasource) {
@@ -242,25 +244,30 @@ public class SqlMcpToolPublisher {
         return meta;
     }
 
-    private Map<String, Object> planMeta() {
+    private Map<String, Object> metadataSearchMeta() {
         Map<String, Object> governance = new LinkedHashMap<>();
-        governance.put("category", "sql_planning");
-        governance.put("operation_type", "read_only_plan");
+        governance.put("category", "sql_metadata_search");
+        governance.put("operation_type", "read_metadata_index");
         governance.put("risk_level", "low");
         governance.put("data_scope", "database:metadata");
         governance.put("user_visible", true);
         governance.put("confirmation", mutableMap("default", "none", "allow_user_override", false));
         governance.put("audit", mutableMap("enabled", true, "log_params", true, "log_result_summary", true));
         Map<String, Object> meta = new LinkedHashMap<>(
-            governanceFactory.toMeta("sql_gateway", "sql_query_plan", governance, null));
+            governanceFactory.toMeta("sql_gateway", "sql_metadata_search", governance, null));
         meta.put("runtime_action", "allow");
         meta.put("runtimeAction", "allow");
-        meta.put("plannerVersion", "mcp_data_engine_v4");
-        meta.put("targetRoutingRequired", true);
-        meta.put("outputSchema", "query_plan.v4");
+        meta.put("outputSchema", SqlMetadataSearchService.RESULT_SCHEMA_VERSION);
         meta.put("doesNotExecuteSql", true);
+        meta.put("indexBackend", "lucene_metadata_table_index");
         meta.put("forbiddenTargetFields", List.of("datasourceId", "jdbcUrl", "url", "connectionString"));
-        meta.put("mcp_tool_limit", concurrencyManager.limitMeta("sql_query_plan", "sql"));
+        meta.put("resultShape", mutableMap(
+            "tableLocationPath", "results[].location",
+            "executionContextPath", "results[].sqlExecutionBinding.executionContext",
+            "templateParameterPath", "results[].sqlExecutionBinding.parameters",
+            "nextTool", "sql_datasource_template_query then sql_query_execute"
+        ));
+        meta.put("mcp_tool_limit", concurrencyManager.limitMeta("sql_metadata_search", "sql"));
         return meta;
     }
 
@@ -326,6 +333,8 @@ public class SqlMcpToolPublisher {
     }
 
     private Map<String, Object> templateSummary(SqlTemplateConfig template) {
+        Map<String, Object> parameterSchema = readJsonObject(template.getParameterSchemaJson());
+        List<String> requiredParameters = requiredParameters(parameterSchema);
         return mutableMap(
             "templateId", template.getCode(),
             "name", firstText(template.getTitle(), template.getCode()),
@@ -336,7 +345,10 @@ public class SqlMcpToolPublisher {
             "semantic", sqlTemplateSemanticMetadata(template),
             "binding", mutableMap("datasourceId", blankToNull(template.getDatasourceId())),
             "intentSignals", readStringList(template.getIntentSignalsJson()),
-            "parameterSchema", readJsonObject(template.getParameterSchemaJson()),
+            "parameterSchema", parameterSchema,
+            "requiredParameters", requiredParameters,
+            "parameterContract", parameterContract(template.getCode(), parameterSchema),
+            "invocationExample", invocationExample(template.getCode(), parameterSchema),
             "rawExecutionSpecReturned", false
         );
     }
@@ -444,13 +456,81 @@ public class SqlMcpToolPublisher {
         return mutableMap(
             "source", "sql_datasource_template_query.templates[].templateId",
             "allowedSet", "authorizedSqlTemplates[].templateId or authorizedSqlTemplatesByAsset[].templates[].templateId",
-            "selectionFields", List.of("templateId", "name", "description", "databaseType", "intentSignals", "parameterSchema"),
+            "selectionFields", List.of("templateId", "name", "description", "databaseType", "intentSignals",
+                "parameterSchema", "requiredParameters", "parameterContract", "invocationExample"),
             "mustUseDiscoveredTemplate", true,
             "metadataWorkflow", "For table structure analysis, discover schemas/tables first (for example MYSQL_SCHEMA_TABLE_OVERVIEW or MYSQL_TABLE_LOCATION), then call the table metadata template with the resolved schemaName.",
             "onNoMatch", "call sql_datasource_template_query with executionContext; if no authorized template is returned, either use explicit read-only sql when policy permits or explain that no existing authorized template can satisfy the request",
             "doNotInventTemplateNames", true,
             "rawSqlTemplateReturned", false
         );
+    }
+
+    private List<String> requiredParameters(Map<String, Object> parameterSchema) {
+        Object required = parameterSchema == null ? null : parameterSchema.get("required");
+        if (!(required instanceof Iterable<?> iterable)) {
+            return List.of();
+        }
+        List<String> values = new ArrayList<>();
+        for (Object item : iterable) {
+            if (item != null && !String.valueOf(item).isBlank()) {
+                values.add(String.valueOf(item));
+            }
+        }
+        return values;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> parameterContract(String templateId, Map<String, Object> parameterSchema) {
+        Map<String, Object> properties = parameterSchema == null || !(parameterSchema.get("properties") instanceof Map<?, ?> map)
+            ? Map.of()
+            : (Map<String, Object>) map;
+        List<String> required = requiredParameters(parameterSchema);
+        return mutableMap(
+            "schemaVersion", "template_parameter_contract.v1",
+            "templateId", templateId,
+            "argumentContainer", "sql_query_execute.parameters",
+            "required", required,
+            "optional", properties.keySet().stream()
+                .filter(key -> !required.contains(key))
+                .toList(),
+            "mustPassUnderParameters", true,
+            "topLevelTemplateParametersAllowed", false,
+            "missingRequiredBehavior", "Do not call sql_query_execute until every required field is present under parameters."
+        );
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> invocationExample(String templateId, Map<String, Object> parameterSchema) {
+        Map<String, Object> properties = parameterSchema == null || !(parameterSchema.get("properties") instanceof Map<?, ?> map)
+            ? Map.of()
+            : (Map<String, Object>) map;
+        Map<String, Object> parameters = new LinkedHashMap<>();
+        for (String required : requiredParameters(parameterSchema)) {
+            parameters.put(required, exampleValue(required, properties.get(required)));
+        }
+        return mutableMap(
+            "tool", "sql_query_execute",
+            "templateId", templateId,
+            "parameters", parameters,
+            "executionContext", mutableMap("assetName", "<assetName from sql_datasource_asset_query>", "env", "<env>")
+        );
+    }
+
+    @SuppressWarnings("unchecked")
+    private String exampleValue(String name, Object schema) {
+        String normalized = name == null ? "" : name.replace("_", "").replace("-", "").toLowerCase(Locale.ROOT);
+        if (normalized.contains("tablename")) {
+            return "<tableName from user request>";
+        }
+        if (normalized.contains("schemaname") || normalized.contains("databasename") || "schema".equals(normalized)
+            || "database".equals(normalized)) {
+            return "<schemaName resolved by table-location query>";
+        }
+        if (schema instanceof Map<?, ?> map && map.get("example") != null) {
+            return String.valueOf(map.get("example"));
+        }
+        return "<" + name + ">";
     }
 
     @SuppressWarnings("unchecked")

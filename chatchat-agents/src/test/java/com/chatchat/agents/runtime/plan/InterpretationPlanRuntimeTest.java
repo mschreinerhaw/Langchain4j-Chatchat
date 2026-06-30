@@ -225,7 +225,7 @@ class InterpretationPlanRuntimeTest {
               "assets": [
                 {
                   "asset": {
-                    "name": "248测试数据库",
+                    "name": "test_db_248",
                     "environment": "DEV"
                   }
                 }
@@ -247,7 +247,7 @@ class InterpretationPlanRuntimeTest {
             1,
             "mcp_tool",
             "mcp_chatchat_mcp_server_sql_datasource_asset_query",
-            Map.of("filters", Map.of("assetName", "248测试数据库"), "limit", 5),
+            Map.of("filters", Map.of("assetName", "test_db_248"), "limit", 5),
             List.of(),
             null,
             null
@@ -292,7 +292,7 @@ class InterpretationPlanRuntimeTest {
             1,
             "mcp_tool",
             "mcp_chatchat_mcp_server_sql_datasource_asset_query",
-            Map.of("filters", Map.of("assetName", "248测试数据库"), "limit", 5),
+            Map.of("filters", Map.of("assetName", "test_db_248"), "limit", 5),
             List.of(),
             null,
             null
@@ -304,7 +304,7 @@ class InterpretationPlanRuntimeTest {
             true,
             Map.of(
                 "returnedCount", 0,
-                "assets", List.of(Map.of("asset", Map.of("name", "248测试数据库", "environment", "DEV")))
+                "assets", List.of(Map.of("asset", Map.of("name", "test_db_248", "environment", "DEV")))
             ),
             null,
             null,
@@ -340,7 +340,7 @@ class InterpretationPlanRuntimeTest {
             1,
             "mcp_tool",
             "mcp_chatchat_mcp_server_sql_datasource_asset_query",
-            Map.of("filters", Map.of("assetName", "248测试数据库"), "limit", 5),
+            Map.of("filters", Map.of("assetName", "test_db_248"), "limit", 5),
             List.of(),
             null,
             null
@@ -384,7 +384,7 @@ class InterpretationPlanRuntimeTest {
             1,
             "mcp_tool",
             "mcp_chatchat_mcp_server_sql_datasource_asset_query",
-            Map.of("filters", Map.of("assetName", "248测试数据库"), "limit", 5),
+            Map.of("filters", Map.of("assetName", "test_db_248"), "limit", 5),
             List.of(),
             null,
             null
@@ -439,8 +439,8 @@ class InterpretationPlanRuntimeTest {
                 "columns", List.of("COLUMN_NAME", "COLUMN_TYPE", "IS_NULLABLE", "COLUMN_COMMENT"),
                 "rowCount", 2,
                 "rows", List.of(
-                    Map.of("COLUMN_NAME", "DICT_ENTR_CODE", "COLUMN_TYPE", "varchar(8)", "IS_NULLABLE", "YES", "COLUMN_COMMENT", "字典条目代码"),
-                    Map.of("COLUMN_NAME", "SSYS_CODE", "COLUMN_TYPE", "varchar(8)", "IS_NULLABLE", "YES", "COLUMN_COMMENT", "来源系统代码")
+                    Map.of("COLUMN_NAME", "DICT_ENTR_CODE", "COLUMN_TYPE", "varchar(8)", "IS_NULLABLE", "YES", "COLUMN_COMMENT", "瀛楀吀鏉＄洰浠ｇ爜"),
+                    Map.of("COLUMN_NAME", "SSYS_CODE", "COLUMN_TYPE", "varchar(8)", "IS_NULLABLE", "YES", "COLUMN_COMMENT", "鏉ユ簮绯荤粺浠ｇ爜")
                 )
             )
         );
@@ -483,7 +483,7 @@ class InterpretationPlanRuntimeTest {
             Map.of(
                 "templateId", "MYSQL_SHOW_STATUS",
                 "parameters", Map.of("table_name", "t_ad_dict_entr_supn"),
-                "executionContext", Map.of("assetName", "248测试数据库", "env", "DEV")
+                "executionContext", Map.of("assetName", "test_db_248", "env", "DEV")
             ),
             List.of(2),
             null,
@@ -495,7 +495,7 @@ class InterpretationPlanRuntimeTest {
             context(),
             new InterpretationPlan.Plan(List.of(
                 new InterpretationPlan.Step(1, "mcp_tool", "mcp_chatchat_mcp_server_sql_datasource_asset_query",
-                    Map.of("filters", Map.of("assetName", "248测试数据库"), "limit", 10), List.of(), null, null),
+                    Map.of("filters", Map.of("assetName", "test_db_248"), "limit", 10), List.of(), null, null),
                 new InterpretationPlan.Step(2, "mcp_tool", "mcp_chatchat_mcp_server_sql_datasource_template_query",
                     Map.of("filters", Map.of("intent", "table metadata"), "limit", 10), List.of(1), null, null),
                 step,
@@ -583,6 +583,92 @@ class InterpretationPlanRuntimeTest {
         ))
             .hasCauseInstanceOf(IllegalStateException.class)
             .hasRootCauseMessage("SQL_TEMPLATE_TARGET_SCOPE_MISMATCH: template ORACLE_INSTANCE_STATUS is not table-scoped but tableName=T_AD_DICT_ENTR_SUPN was provided; planner must select a dialect-specific *_TABLE_METADATA template.");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void hydratesTableMetadataSchemaFromSqlMetadataSearchResults() throws Exception {
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            mock(ToolRuntimeService.class),
+            new InterpretationPlanValidator(),
+            mock(InterpretationPlanRuntime.DagExecutionController.class)
+        );
+        InterpretationPlan.Step step = new InterpretationPlan.Step(
+            3,
+            "mcp_tool",
+            "mcp_chatchat_mcp_server_sql_query_execute",
+            Map.of(
+                "templateId", "MYSQL_TABLE_METADATA",
+                "parameters", Map.of("tableName", "lbappdeploydetail"),
+                "executionContext", Map.of("assetName", "test_db_248", "env", "DEV")
+            ),
+            List.of(1),
+            null,
+            null
+        );
+        Map<Integer, InterpretationPlanRuntime.StepExecution> completed = Map.of(
+            1,
+            new InterpretationPlanRuntime.StepExecution(
+                1,
+                "mcp_tool",
+                "mcp_chatchat_mcp_server_sql_metadata_search",
+                true,
+                Map.of(
+                    "results", List.of(Map.of(
+                        "location", Map.of(
+                            "database", "rdsm_ad",
+                            "schema", "rdsm_ad",
+                            "table", "lbappdeploydetail"
+                        ),
+                        "sqlExecutionBinding", Map.of(
+                            "parameters", Map.of(
+                                "databaseName", "rdsm_ad",
+                                "schemaName", "rdsm_ad",
+                                "tableName", "lbappdeploydetail"
+                            )
+                        ),
+                        "score", 0.95
+                    ))
+                ),
+                null,
+                null,
+                null,
+                10
+            )
+        );
+        Method method = InterpretationPlanRuntime.class.getDeclaredMethod(
+            "resolvedStepInput",
+            InterpretationPlan.Step.class,
+            InterpretationPlanRuntime.ExecutionRequest.class,
+            Map.class
+        );
+        method.setAccessible(true);
+
+        Map<String, Object> resolved = (Map<String, Object>) method.invoke(
+            runtime,
+            step,
+            new InterpretationPlanRuntime.ExecutionRequest(
+                minimalPlan(step),
+                mock(ToolRegistry.class),
+                List.of("mcp_chatchat_mcp_server_sql_query_execute"),
+                "tenant-1",
+                "req-metadata-search-table-location",
+                "conv-metadata-search-table-location",
+                "user-1",
+                Map.of()
+            ),
+            completed
+        );
+
+        Map<String, Object> parameters = (Map<String, Object>) resolved.get("parameters");
+        assertThat(parameters)
+            .containsEntry("tableName", "lbappdeploydetail")
+            .containsEntry("schemaName", "rdsm_ad")
+            .containsEntry("databaseName", "rdsm_ad")
+            .containsEntry("schema", "rdsm_ad")
+            .containsEntry("database", "rdsm_ad");
+        assertThat(resolved.get("runtimeTableResolution").toString())
+            .contains("sql_metadata_search.results", "rdsm_ad", "lbappdeploydetail");
     }
 
     @Test
@@ -811,9 +897,9 @@ class InterpretationPlanRuntimeTest {
         );
         InterpretationPlan plan = new InterpretationPlan(
             "1.0",
-            new InterpretationPlan.Intent("data_query", "test_mysql数据库 connections", "low"),
+            new InterpretationPlan.Intent("data_query", "test_mysql\u6570\u636e\u5e93 connections", "low"),
             new InterpretationPlan.Context(
-                List.of("User mentioned test_mysql数据库"),
+                List.of("User mentioned test_mysql\u6570\u636e\u5e93"),
                 List.of(),
                 List.of(),
                 List.of()
@@ -852,65 +938,10 @@ class InterpretationPlanRuntimeTest {
         Map<String, Object> resolved = (Map<String, Object>) method.invoke(runtime, step, request, Map.of());
 
         Map<String, Object> filters = (Map<String, Object>) resolved.get("filters");
-        assertThat(filters).containsEntry("assetName", "test_mysql数据库");
+        assertThat(filters).containsEntry("assetName", "test_mysql\u6570\u636e\u5e93");
         assertThat(resolved.get("trace")).isInstanceOf(Map.class);
     }
 
-    @Test
-    @SuppressWarnings("unchecked")
-    void normalizesSqlQueryPlanAliasInputAndHydratesExecutionContext() throws Exception {
-        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
-            mock(ToolRuntimeService.class),
-            new InterpretationPlanValidator(),
-            mock(InterpretationPlanRuntime.DagExecutionController.class)
-        );
-        InterpretationPlan.Step step = new InterpretationPlan.Step(
-            2,
-            "mcp_tool",
-            "mcp_chatchat_mcp_server_sql_query_plan",
-            Map.of(
-                "userQuery", "Analyze lbappdeploydetail metadata",
-                "context", Map.of("targetTable", "lbappdeploydetail")
-            ),
-            List.of(1),
-            null,
-            null
-        );
-        Method method = InterpretationPlanRuntime.class.getDeclaredMethod(
-            "resolvedStepInput",
-            InterpretationPlan.Step.class,
-            InterpretationPlanRuntime.ExecutionRequest.class,
-            Map.class
-        );
-        method.setAccessible(true);
-
-        Map<String, Object> resolved = (Map<String, Object>) method.invoke(
-            runtime,
-            step,
-            new InterpretationPlanRuntime.ExecutionRequest(
-                minimalPlan(step),
-                mock(ToolRegistry.class),
-                List.of("mcp_chatchat_mcp_server_sql_query_plan"),
-                "tenant-1",
-                "req-plan-normalize",
-                "conv-plan-normalize",
-                "user-1",
-                Map.of()
-            ),
-            Map.of(1, completedSqlAssetStep())
-        );
-
-        assertThat(resolved)
-            .containsEntry("question", "Analyze lbappdeploydetail metadata")
-            .doesNotContainKey("userQuery");
-        assertThat((List<String>) resolved.get("tables")).containsExactly("lbappdeploydetail");
-        Map<String, Object> executionContext = (Map<String, Object>) resolved.get("executionContext");
-        assertThat(executionContext)
-            .containsEntry("assetName", "248测试数据库")
-            .containsEntry("env", "DEV");
-    }
-
-    @Test
     @SuppressWarnings("unchecked")
     void hydratesSqlExecuteContextAndRemovesAssetNameMisboundAsSchemaName() throws Exception {
         InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
@@ -930,7 +961,7 @@ class InterpretationPlanRuntimeTest {
                 ),
                 "parameters", Map.of(
                     "tableName", "lbappdeploydetail",
-                    "schemaName", "248测试数据库"
+                    "schemaName", "test_db_248"
                 )
             ),
             List.of(1),
@@ -963,7 +994,7 @@ class InterpretationPlanRuntimeTest {
 
         Map<String, Object> executionContext = (Map<String, Object>) resolved.get("executionContext");
         assertThat(executionContext)
-            .containsEntry("assetName", "248测试数据库")
+            .containsEntry("assetName", "test_db_248")
             .containsEntry("env", "DEV");
         Map<String, Object> parameters = (Map<String, Object>) resolved.get("parameters");
         assertThat(parameters)
@@ -1298,7 +1329,7 @@ class InterpretationPlanRuntimeTest {
             context(),
             new InterpretationPlan.Plan(
                 List.of(
-                    new InterpretationPlan.Step(1, "mcp_tool", "web_search", Map.of("query", "浠婂ぉ甯傚満鐑偣"), List.of(), null, null),
+                    new InterpretationPlan.Step(1, "mcp_tool", "web_search", Map.of("query", "example page"), List.of(), null, null),
                     new InterpretationPlan.Step(2, "mcp_tool", "crawl_url", Map.of(), List.of(1), null, null),
                     new InterpretationPlan.Step(3, "final_answer", "", Map.of("answer", "done"), List.of(2), null, null)
                 ),
@@ -1435,7 +1466,7 @@ class InterpretationPlanRuntimeTest {
                         "schemaVersion", "asset_query_result.v1",
                         "assets", List.of(Map.of(
                             "asset", Map.of(
-                                "name", "鏈湴MySQL娴嬭瘯鏈嶅姟",
+                                "name", "閺堫剙婀碝ySQL濞村鐦張宥呭",
                                 "environment", "DEV",
                                 "databaseRole", "primary"
                             )
@@ -1474,7 +1505,7 @@ class InterpretationPlanRuntimeTest {
             new InterpretationPlan.Plan(
                 List.of(
                     new InterpretationPlan.Step(1, "mcp_tool", "mcp_chatchat_mcp_server_sql_datasource_asset_query",
-                        Map.of("filters", Map.of("assetName", "鏈湴MySQL娴嬭瘯鏈嶅姟"), "finalDecision", "database"), List.of(), null, null),
+                        Map.of("filters", Map.of("assetName", "閺堫剙婀碝ySQL濞村鐦張宥呭"), "finalDecision", "database"), List.of(), null, null),
                     new InterpretationPlan.Step(2, "mcp_tool", "mcp_chatchat_mcp_server_sql_datasource_template_query",
                         Map.of("filters", Map.of("intent", "table metadata"), "finalDecision", "database"), List.of(1), null, null),
                     new InterpretationPlan.Step(3, "mcp_tool", "mcp_chatchat_mcp_server_sql_query_execute",
@@ -1525,7 +1556,7 @@ class InterpretationPlanRuntimeTest {
         Map<?, ?> sqlInput = captor.getAllValues().get(2).getToolInput().getParameters();
         Map<?, ?> executionContext = (Map<?, ?>) sqlInput.get("executionContext");
         assertThat(sqlInput.get("templateId")).isEqualTo("MYSQL_TABLE_METADATA");
-        assertThat(executionContext.get("assetName")).isEqualTo("鏈湴MySQL娴嬭瘯鏈嶅姟");
+        assertThat(executionContext.get("assetName")).isEqualTo("閺堫剙婀碝ySQL濞村鐦張宥呭");
         assertThat(executionContext.get("env")).isEqualTo("DEV");
         assertThat(executionContext.get("databaseRole")).isEqualTo("primary");
     }
@@ -1703,6 +1734,92 @@ class InterpretationPlanRuntimeTest {
         assertThat(sqlInput.get("templateId")).isEqualTo("MYSQL_TABLE_METADATA");
         assertThat(parameters.get("table_name")).isEqualTo("user_info_file");
         assertThat(parameters.get("tableName")).isEqualTo("user_info_file");
+    }
+
+    @Test
+    void failsBeforeMcpExecutionWhenTemplateRequiredParameterIsMissing() {
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool("mcp_chatchat_mcp_server_sql_datasource_template_query")).thenReturn(true);
+        when(toolRegistry.hasTool("mcp_chatchat_mcp_server_sql_query_execute")).thenReturn(true);
+        when(toolRegistry.getToolMetadata(any())).thenReturn(ToolMetadata.builder().riskLevel("low").build());
+        ToolRuntimeService toolRuntimeService = mock(ToolRuntimeService.class);
+        when(toolRuntimeService.execute(any())).thenAnswer(invocation -> {
+            ToolRuntimeRequest request = invocation.getArgument(0);
+            if ("mcp_chatchat_mcp_server_sql_datasource_template_query".equals(request.getToolName())) {
+                return new ToolRuntimeExecution(
+                    ToolOutput.success(Map.of(
+                        "templates", List.of(Map.of(
+                            "templateId", "MYSQL_TABLE_METADATA",
+                            "parameterSchema", Map.of(
+                                "type", "object",
+                                "properties", Map.of("tableName", Map.of("type", "string")),
+                                "required", List.of("tableName")
+                            ),
+                            "requiredParameters", List.of("tableName")
+                        ))
+                    )),
+                    ToolMetadata.builder().id(request.getToolName()).build(),
+                    null,
+                    "success",
+                    Map.of()
+                );
+            }
+            return new ToolRuntimeExecution(
+                ToolOutput.success(Map.of("status", "should-not-run")),
+                ToolMetadata.builder().id(request.getToolName()).build(),
+                null,
+                "success",
+                Map.of()
+            );
+        });
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("data_query", "Query table metadata", "low"),
+            context(),
+            new InterpretationPlan.Plan(
+                List.of(
+                    new InterpretationPlan.Step(1, "mcp_tool", "mcp_chatchat_mcp_server_sql_datasource_template_query",
+                        Map.of("filters", Map.of("intent", "table metadata"), "finalDecision", "database"), List.of(), null, null),
+                    new InterpretationPlan.Step(2, "mcp_tool", "mcp_chatchat_mcp_server_sql_query_execute",
+                        Map.of(
+                            "executionContext", Map.of("assetName", "test_mysql_database", "env", "DEV"),
+                            "parameters", Map.of()
+                        ), List.of(1), null, null),
+                    new InterpretationPlan.Step(3, "final_answer", "", Map.of("answer", "done"), List.of(2), null, null)
+                ),
+                List.of(),
+                List.of(new InterpretationPlan.Binding(1, "$.templates[0].templateId", 2, "templateId", "jsonpath", true)),
+                null
+            ),
+            new InterpretationPlan.ExecutionPolicy(
+                3,
+                false,
+                List.of("mcp_chatchat_mcp_server_sql_datasource_template_query", "mcp_chatchat_mcp_server_sql_query_execute"),
+                List.of(),
+                30000
+            ),
+            review()
+        );
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            toolRuntimeService,
+            new InterpretationPlanValidator(),
+            scriptedController(List.of(List.of(1), List.of(2), List.of(3)))
+        );
+
+        InterpretationPlanRuntime.ExecutionResult result = runtime.execute(new InterpretationPlanRuntime.ExecutionRequest(
+            plan,
+            toolRegistry,
+            List.of("mcp_chatchat_mcp_server_sql_datasource_template_query", "mcp_chatchat_mcp_server_sql_query_execute"),
+            "tenant-1",
+            "req-template-required-missing",
+            "conv-template-required-missing",
+            "user-1",
+            Map.of()
+        ));
+
+        assertThat(result.success()).isFalse();
+        assertThat(result.errorMessage()).contains("TEMPLATE_REQUIRED_PARAMETER_MISSING");
+        verify(toolRuntimeService, times(1)).execute(any());
     }
 
     @Test
@@ -1958,7 +2075,7 @@ class InterpretationPlanRuntimeTest {
                 "success", true,
                 "stepOutput", Map.of(
                     "assets", List.of(Map.of(
-                        "asset", Map.of("name", "鏈湴MySQL娴嬭瘯鏈嶅姟", "environment", "DEV")
+                        "asset", Map.of("name", "閺堫剙婀碝ySQL濞村鐦張宥呭", "environment", "DEV")
                     ))
                 )
             ))
@@ -1984,7 +2101,7 @@ class InterpretationPlanRuntimeTest {
             new InterpretationPlan.Plan(
                 List.of(
                     new InterpretationPlan.Step(1, "mcp_tool", "mcp_chatchat_mcp_server_sql_datasource_asset_query",
-                        Map.of("filters", Map.of("assetName", "鏈湴MySQL娴嬭瘯鏈嶅姟"), "limit", 10), List.of(), null, null),
+                        Map.of("filters", Map.of("assetName", "閺堫剙婀碝ySQL濞村鐦張宥呭"), "limit", 10), List.of(), null, null),
                     new InterpretationPlan.Step(2, "mcp_tool", "mcp_chatchat_mcp_server_sql_datasource_template_query",
                         Map.of("filters", Map.of("intent", "InnoDB status"), "limit", 10), List.of(1), null, null),
                     new InterpretationPlan.Step(3, "mcp_tool", "mcp_chatchat_mcp_server_sql_query_execute",
@@ -2042,7 +2159,7 @@ class InterpretationPlanRuntimeTest {
         Map<?, ?> parameters = captor.getValue().getToolInput().getParameters();
         Map<?, ?> executionContext = (Map<?, ?>) parameters.get("executionContext");
         assertThat(parameters.get("templateId")).isEqualTo("MYSQL_INNODB_STATUS");
-        assertThat(executionContext.get("assetName")).isEqualTo("鏈湴MySQL娴嬭瘯鏈嶅姟");
+        assertThat(executionContext.get("assetName")).isEqualTo("閺堫剙婀碝ySQL濞村鐦張宥呭");
         assertThat(executionContext.get("env")).isEqualTo("DEV");
     }
 
@@ -2358,7 +2475,7 @@ class InterpretationPlanRuntimeTest {
     }
 
     @Test
-    void doesNotReplayExecutionLockedStepAfterRewrite() {
+    void doesNotReplayCompletedStepButExecutesNewWorkflowStepAfterRewrite() {
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         when(toolRegistry.hasTool("document_search")).thenReturn(true);
         when(toolRegistry.getToolMetadata("document_search")).thenReturn(ToolMetadata.builder().riskLevel("low").build());
@@ -2427,8 +2544,11 @@ class InterpretationPlanRuntimeTest {
             request -> {
                 assertThat(request.completedStepIds()).contains(1);
                 assertThat(request.remainingStepIds()).doesNotContain(1);
-                assertThat(request.remainingStepIds()).containsExactly(3);
-                return InterpretationPlanRuntime.DagDecision.executeStep(3, "continue from locked evidence");
+                if (request.remainingStepIds().contains(3)) {
+                    return InterpretationPlanRuntime.DagDecision.executeStep(3, "execute new workflow step after rewrite");
+                }
+                assertThat(request.remainingStepIds()).containsExactly(2);
+                return InterpretationPlanRuntime.DagDecision.finalAnswer(2, "done", "all workflow steps completed");
             }
         );
 
@@ -2446,8 +2566,12 @@ class InterpretationPlanRuntimeTest {
         assertThat(completed.success()).isTrue();
         assertThat(completed.finalAnswer()).isEqualTo("done");
         assertThat(completed.steps()).extracting(InterpretationPlanRuntime.StepExecution::stepId)
-            .containsExactly(3);
-        verify(toolRuntimeService, times(1)).execute(any());
+            .containsExactlyInAnyOrder(2, 3);
+        assertThat(completed.steps()).extracting(InterpretationPlanRuntime.StepExecution::actionType)
+            .contains("mcp_tool", "final_answer");
+        List<?> completedPlanStepIds = (List<?>) completed.metadata().get("completedPlanStepIds");
+        assertThat(completedPlanStepIds.containsAll(List.of(1, 2, 3))).isTrue();
+        verify(toolRuntimeService, times(2)).execute(any());
     }
 
     private InterpretationPlan rewrittenPlanWithRepeatedSearch() {
@@ -2483,13 +2607,13 @@ class InterpretationPlanRuntimeTest {
         Map<String, Object> asset = Map.of(
             "asset", Map.of(
                 "id", "datasource-248",
-                "name", "248测试数据库",
+                "name", "test_db_248",
                 "environment", "DEV",
                 "toolName", "db_query_mysql_248_test_db",
                 "databaseType", "mysql"
             ),
             "executionContext", Map.of(
-                "assetName", "248测试数据库",
+                "assetName", "test_db_248",
                 "env", "DEV",
                 "databaseType", "mysql"
             )
@@ -2587,4 +2711,6 @@ class InterpretationPlanRuntimeTest {
         };
     }
 }
+
+
 

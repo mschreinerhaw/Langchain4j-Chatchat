@@ -126,6 +126,7 @@ public class SqlQueryExecuteService {
                 connection.setReadOnly(true);
                 statement.setQueryTimeout(timeoutSeconds);
                 ProbeQueryResult probe = executeProbeQuery(statement);
+                List<String> availableDatabases = availableDatabases(connection);
                 long durationMs = Math.max(0, System.currentTimeMillis() - startedAt);
                 SqlQueryResult result = new SqlQueryResult(
                     true,
@@ -147,7 +148,9 @@ public class SqlQueryExecuteService {
                     null,
                     diagnosticMap(
                         "connection", connectionDiagnostics(connection, datasource),
-                        "probeSql", probe.sql()
+                        "probeSql", probe.sql(),
+                        "availableDatabases", availableDatabases,
+                        "metadataScopeOptions", availableDatabases
                     )
                 );
                 logSqlResult(result);
@@ -192,8 +195,13 @@ public class SqlQueryExecuteService {
         if (template == null || template.isBlank()) {
             throw new IllegalArgumentException("Either sql or template is required");
         }
-        Map<String, Object> parameters = enrichTemplateParameters(mapValue(request.get("parameters")), datasource, request);
-        parameters = resolveMetadataTableParameters(template, parameters, datasource, request);
+        Map<String, Object> parameters = resolveMetadataTableParameters(
+            template,
+            mapValue(request.get("parameters")),
+            datasource,
+            request
+        );
+        parameters = enrichTemplateParameters(parameters, datasource, request);
         request.put("parameters", parameters);
         return templateService.render(template, parameters, datasource, request);
     }
@@ -223,13 +231,29 @@ public class SqlQueryExecuteService {
             text(parameters, "database")
         );
         Map<String, Object> values = new LinkedHashMap<>(parameters);
-        TableResolution resolution = metadataResolverService.resolveTable(datasource, tableName, preferredSchema);
+        SqlTableNameParser.QualifiedTable qualifiedTable = SqlTableNameParser.parse(tableName, preferredSchema);
+        String resolvedInputTable = firstText(qualifiedTable.table(), tableName);
+        String resolvedInputDatabase = firstText(qualifiedTable.database(), preferredSchema);
+        String resolvedInputSchema = firstText(qualifiedTable.schema(), resolvedInputDatabase);
+        if (resolvedInputTable != null && !resolvedInputTable.equals(tableName)) {
+            values.put("tableName", resolvedInputTable);
+            values.put("table_name", resolvedInputTable);
+        }
+        if (resolvedInputSchema != null) {
+            values.putIfAbsent("schemaName", resolvedInputSchema);
+            values.putIfAbsent("schema", resolvedInputSchema);
+        }
+        if (resolvedInputDatabase != null) {
+            values.putIfAbsent("databaseName", resolvedInputDatabase);
+            values.putIfAbsent("database", resolvedInputDatabase);
+        }
+        TableResolution resolution = metadataResolverService.resolveTable(datasource, resolvedInputTable, firstText(resolvedInputSchema, resolvedInputDatabase));
         request.put("tableResolution", resolution.toDiagnostic());
         if (resolution.selectedSchema() != null) {
             values.put("schemaName", resolution.selectedSchema());
-            values.put("databaseName", resolution.selectedSchema());
             values.put("schema", resolution.selectedSchema());
-            values.put("database", resolution.selectedSchema());
+            values.put("databaseName", firstText(resolvedInputDatabase, resolution.selectedSchema()));
+            values.put("database", firstText(resolvedInputDatabase, resolution.selectedSchema()));
             values.put("tableName", resolution.selectedTable());
         }
         return values;
@@ -465,6 +489,49 @@ public class SqlQueryExecuteService {
             }
         }
         throw lastError == null ? new IllegalStateException("No SQL probe query configured") : lastError;
+    }
+
+    private List<String> availableDatabases(Connection connection) {
+        if (connection == null) {
+            return List.of();
+        }
+        LinkedHashSet<String> values = new LinkedHashSet<>();
+        try {
+            addIfText(values, connection.getCatalog());
+        } catch (Exception ignored) {
+            // Ignore driver-specific catalog access failures during lightweight connection tests.
+        }
+        try {
+            addIfText(values, connection.getSchema());
+        } catch (Exception ignored) {
+            // Ignore driver-specific schema access failures during lightweight connection tests.
+        }
+        try {
+            DatabaseMetaData metaData = connection.getMetaData();
+            try (ResultSet catalogs = metaData.getCatalogs()) {
+                while (catalogs.next() && values.size() < 200) {
+                    addIfText(values, catalogs.getString(1));
+                }
+            }
+            try (ResultSet schemas = metaData.getSchemas()) {
+                while (schemas.next() && values.size() < 200) {
+                    addIfText(values, schemas.getString("TABLE_SCHEM"));
+                }
+            }
+        } catch (Exception ex) {
+            log.debug("SQL datasource database/schema enumeration skipped: {}", ex.getMessage());
+        }
+        return values.stream()
+            .filter(value -> value != null && !value.isBlank())
+            .distinct()
+            .sorted(String.CASE_INSENSITIVE_ORDER)
+            .toList();
+    }
+
+    private void addIfText(Set<String> values, String value) {
+        if (values != null && value != null && !value.isBlank()) {
+            values.add(value.trim());
+        }
     }
 
     private void logSqlResult(SqlQueryResult result) {

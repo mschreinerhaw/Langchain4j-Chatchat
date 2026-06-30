@@ -24,7 +24,6 @@ const SERVICE_PAGE_SIZE = 12;
 export function bindMcpServicePanel(options = {}) {
     onError = options.onError || onError;
     document.getElementById('mcpServiceForm').addEventListener('submit', handleMcpSave);
-    document.getElementById('newMcpServiceBtn').addEventListener('click', openNewMcpService);
     document.getElementById('resetMcpFormBtn').addEventListener('click', resetMcpForm);
     document.getElementById('mcpServiceSearchInput').addEventListener('input', handleMcpServiceSearch);
     document.getElementById('mcpServicePrevPageBtn').addEventListener('click', () => changeMcpServicePage(-1));
@@ -87,7 +86,7 @@ function handleMcpServiceSearch(event) {
     renderMcpServiceCards();
 }
 
-function openNewMcpService() {
+export function openNewMcpService() {
     mcpServiceSearchTerm = '';
     mcpServicePage = 1;
     document.getElementById('mcpServiceSearchInput').value = '';
@@ -220,6 +219,11 @@ function setValue(id, nextValue) {
 function changeMcpServicePage(delta) {
     mcpServicePage = clampPage(mcpServicePage + delta, filterMcpServices().length, SERVICE_PAGE_SIZE);
     renderMcpServiceCards();
+}
+
+function paginate(items, page, pageSize) {
+    const start = (page - 1) * pageSize;
+    return (items || []).slice(start, start + pageSize);
 }
 
 function clampPage(page, itemCount, pageSize) {

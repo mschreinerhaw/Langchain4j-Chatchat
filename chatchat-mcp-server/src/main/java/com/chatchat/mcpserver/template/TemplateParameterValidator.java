@@ -59,6 +59,42 @@ public class TemplateParameterValidator {
         return normalized;
     }
 
+    public Map<String, Object> validateDeclaredOnly(String templateId,
+                                                    String schemaJson,
+                                                    Map<String, Object> explicitParameters,
+                                                    Map<String, Object> source) {
+        Map<String, Object> schema = readSchema(schemaJson);
+        Map<String, Object> properties = objectMap(schema.get("properties"));
+        List<String> required = stringList(schema.get("required"));
+        Map<String, Object> collected = new LinkedHashMap<>();
+
+        for (String name : properties.keySet()) {
+            Object value = null;
+            if (explicitParameters != null && explicitParameters.containsKey(name)) {
+                value = explicitParameters.get(name);
+            } else if (source != null && source.containsKey(name)) {
+                value = source.get(name);
+            }
+            if (value != null) {
+                collected.put(name, value);
+            }
+        }
+
+        for (String name : required) {
+            if (isBlankValue(collected.get(name))) {
+                throw new IllegalArgumentException("Template parameter is required: " + name
+                    + " for template " + templateId + ". Pass it under parameters." + name);
+            }
+        }
+
+        Map<String, Object> normalized = new LinkedHashMap<>();
+        for (Map.Entry<String, Object> entry : collected.entrySet()) {
+            Map<String, Object> property = objectMap(properties.get(entry.getKey()));
+            normalized.put(entry.getKey(), coerceAndValidate(templateId, entry.getKey(), entry.getValue(), property));
+        }
+        return normalized;
+    }
+
     private Object coerceAndValidate(String templateId, String name, Object rawValue, Map<String, Object> property) {
         if (isBlankValue(rawValue)) {
             return rawValue;

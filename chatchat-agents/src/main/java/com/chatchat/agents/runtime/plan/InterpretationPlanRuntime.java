@@ -160,10 +160,8 @@ public class InterpretationPlanRuntime {
             InterpretationPlanEventState eventState = eventState(runId, completed.keySet());
             Set<Integer> completedStepIds = new LinkedHashSet<>(completed.keySet());
             completedStepIds.addAll(eventState.completedStepIds());
-            completedStepIds.addAll(eventState.immutableStepIds());
             hydrateCompletedExecutionsFromEvents(runId, completedStepIds, completed);
             remaining.removeAll(completedStepIds);
-            remaining.removeAll(lockedBlockedStepIds(remaining, stepsById, eventState));
             if (remaining.isEmpty()) {
                 break;
             }
@@ -310,6 +308,8 @@ public class InterpretationPlanRuntime {
                 "protocolVersion", InterpretationExecutionProtocol.VERSION,
                 "executionTraceId", executionTraceId,
                 "stepCount", executions.size(),
+                "completedPlanStepIds", new ArrayList<>(completed.keySet()),
+                "remainingPlanStepIds", new ArrayList<>(remaining),
                 "parallel", allowParallel(executablePlan),
                 "decisionCount", decisionCount,
                 "llmDagController", true,
@@ -1099,31 +1099,6 @@ public class InterpretationPlanRuntime {
         return value;
     }
 
-    private Set<Integer> lockedBlockedStepIds(Set<Integer> remaining,
-                                              Map<Integer, InterpretationPlan.Step> stepsById,
-                                              InterpretationPlanEventState eventState) {
-        if (remaining == null || remaining.isEmpty() || stepsById == null || stepsById.isEmpty() || eventState == null) {
-            return Set.of();
-        }
-        Set<Integer> blocked = new LinkedHashSet<>();
-        for (Integer stepId : remaining) {
-            InterpretationPlan.Step step = stepsById.get(stepId);
-            if (step == null) {
-                continue;
-            }
-            if (!eventState.allowOnlyActions().isEmpty()
-                && step.actionType() != null
-                && !eventState.allowOnlyActions().contains(step.actionType())) {
-                blocked.add(stepId);
-                continue;
-            }
-            if (step.toolName() != null && eventState.blockedTools().contains(step.toolName())) {
-                blocked.add(stepId);
-            }
-        }
-        return blocked;
-    }
-
     private void hydrateCompletedExecutionsFromEvents(String runId,
                                                       Set<Integer> completedStepIds,
                                                       Map<Integer, StepExecution> completed) {
@@ -1188,11 +1163,12 @@ public class InterpretationPlanRuntime {
         Map<String, Object> input = new LinkedHashMap<>(step.input() == null ? Map.of() : step.input());
         InterpretationPlan plan = request == null ? null : request.plan();
         applyBindings(step, plan, completed, input);
-        normalizeSqlQueryPlanInput(step, input);
         hydrateExecutionContextFromCompletedAssets(step, completed, input);
         normalizeSqlExecutionContext(step, input);
         normalizeTemplateExecutionParameters(step, completed, input);
+        hydrateSqlMetadataParametersFromMetadataSearch(step, completed, input);
         repairTableScopedSqlTemplate(step, completed, input);
+        validateRequiredTemplateParameters(step, completed, input);
         normalizeDiscoveryRoutingInput(step, request, input);
         if (!isCrawlerTool(step.toolName())) {
             return input;
@@ -1203,60 +1179,6 @@ public class InterpretationPlanRuntime {
         }
         input.put("url", selectedUrls.get(0));
         return input;
-    }
-
-    @SuppressWarnings("unchecked")
-    private void normalizeSqlQueryPlanInput(InterpretationPlan.Step step, Map<String, Object> input) {
-        if (step == null || input == null || !isSqlQueryPlanTool(step.toolName())) {
-            return;
-        }
-        Object userQuery = input.remove("userQuery");
-        if (!hasNonBlank(input, "question") && userQuery != null && !String.valueOf(userQuery).isBlank()) {
-            input.put("question", String.valueOf(userQuery));
-        }
-        Object contextValue = input.get("context");
-        if (contextValue instanceof Map<?, ?> contextMap) {
-            Map<String, Object> context = new LinkedHashMap<>((Map<String, Object>) contextMap);
-            Object table = firstNonBlankObject(
-                context.remove("targetTable"),
-                context.remove("target_table"),
-                context.remove("tableName"),
-                context.remove("table_name"),
-                context.remove("table")
-            );
-            if (table != null && !String.valueOf(table).isBlank()
-                && firstValueAtAnyPath(input, "$.tables[0]", "$.tableName", "$.table_name", "$.table") == null) {
-                input.put("tables", List.of(String.valueOf(table)));
-            }
-            Object existingExecutionContext = firstMapValue(input, "executionContext", "mcpExecutionContext");
-            Map<String, Object> executionContext = existingExecutionContext instanceof Map<?, ?> map
-                ? new LinkedHashMap<>((Map<String, Object>) map)
-                : new LinkedHashMap<>();
-            moveContextValue(context, executionContext, "assetName", "assetName", "asset_name", "databaseHint", "database_hint");
-            moveContextValue(context, executionContext, "env", "env", "environment");
-            moveContextValue(context, executionContext, "databaseType", "databaseType", "dbType", "dialect");
-            if (!executionContext.isEmpty()) {
-                input.put("executionContext", executionContext);
-            }
-            if (context.isEmpty()) {
-                input.remove("context");
-            } else {
-                input.put("context", context);
-            }
-        }
-    }
-
-    private void moveContextValue(Map<String, Object> source, Map<String, Object> target, String targetKey, String... sourceKeys) {
-        if (source == null || target == null || target.containsKey(targetKey)) {
-            return;
-        }
-        for (String key : sourceKeys) {
-            Object value = source.remove(key);
-            if (value != null && !String.valueOf(value).isBlank()) {
-                target.put(targetKey, String.valueOf(value));
-                return;
-            }
-        }
     }
 
     @SuppressWarnings("unchecked")
@@ -1601,6 +1523,168 @@ public class InterpretationPlanRuntime {
         if (changed || existing instanceof Map<?, ?>) {
             input.put("parameters", parameters);
         }
+    }
+
+    @SuppressWarnings("unchecked")
+    private void hydrateSqlMetadataParametersFromMetadataSearch(InterpretationPlan.Step step,
+                                                                Map<Integer, StepExecution> completed,
+                                                                Map<String, Object> input) {
+        if (step == null || input == null || completed == null || completed.isEmpty()
+            || !isSqlQueryExecuteTool(step.toolName())) {
+            return;
+        }
+        Object templateIdValue = firstValueAtAnyPath(input, "$.templateId", "$.template", "$.template_id");
+        if (!isTableScopedSqlTemplate(templateIdValue == null ? null : String.valueOf(templateIdValue),
+            completedTemplateMetadata(completed, templateIdValue == null ? null : String.valueOf(templateIdValue)))) {
+            return;
+        }
+        Object existing = input.get("parameters");
+        Map<String, Object> parameters = existing instanceof Map<?, ?> map
+            ? new LinkedHashMap<>((Map<String, Object>) map)
+            : new LinkedHashMap<>();
+        Object tableName = firstNonBlankObject(
+            parameters.get("tableName"),
+            parameters.get("table_name"),
+            parameters.get("table")
+        );
+        if (tableName == null || String.valueOf(tableName).isBlank()) {
+            return;
+        }
+        Map<String, Object> resolved = resolvedTableFromMetadataSearch(completed, String.valueOf(tableName));
+        if (resolved.isEmpty()) {
+            return;
+        }
+        Object database = firstNonBlankObject(resolved.get("database"), resolved.get("schema"));
+        Object table = firstNonBlankObject(resolved.get("table"), tableName);
+        if (database == null || String.valueOf(database).isBlank()) {
+            return;
+        }
+        parameters.put("schemaName", String.valueOf(database));
+        parameters.put("databaseName", String.valueOf(database));
+        parameters.put("schema", String.valueOf(database));
+        parameters.put("database", String.valueOf(database));
+        parameters.put("tableName", String.valueOf(table));
+        parameters.putIfAbsent("table_name", String.valueOf(table));
+        input.put("parameters", parameters);
+        input.put("runtimeTableResolution", Map.of(
+            "schemaVersion", "runtime_table_resolution.v1",
+            "source", "sql_metadata_search.results",
+            "database", String.valueOf(database),
+            "schema", String.valueOf(firstNonBlankObject(resolved.get("schema"), database)),
+            "table", String.valueOf(table),
+            "score", resolved.get("score")
+        ));
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> resolvedTableFromMetadataSearch(Map<Integer, StepExecution> completed, String requestedTable) {
+        if (completed == null || completed.isEmpty() || requestedTable == null || requestedTable.isBlank()) {
+            return Map.of();
+        }
+        String requested = canonicalParameterKey(requestedTable);
+        Map<String, Object> best = Map.of();
+        double bestScore = -1.0;
+        for (StepExecution execution : completed.values()) {
+            if (execution == null || !execution.success() || !isSqlMetadataSearchTool(execution.toolName())) {
+                continue;
+            }
+            Object resolvedTables = firstValueAtAnyPath(
+                execution.output(),
+                "$.results",
+                "$.data.results",
+                "$.structuredContent.results",
+                "$.data.structuredContent.results"
+            );
+            if (!(resolvedTables instanceof Iterable<?> iterable)) {
+                continue;
+            }
+            for (Object item : iterable) {
+                if (!(item instanceof Map<?, ?> map)) {
+                    continue;
+                }
+                Map<String, Object> candidate = metadataSearchCandidate((Map<String, Object>) map);
+                Object table = candidate.get("table");
+                if (table == null || !requested.equals(canonicalParameterKey(String.valueOf(table)))) {
+                    continue;
+                }
+                double score = doubleValue(candidate.get("score"), 0.0);
+                if (score > bestScore) {
+                    best = candidate;
+                    bestScore = score;
+                }
+            }
+        }
+        return best;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> metadataSearchCandidate(Map<String, Object> result) {
+        if (result == null || result.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, Object> candidate = new LinkedHashMap<>();
+        Object location = result.get("location");
+        if (location instanceof Map<?, ?> locationMap) {
+            candidate.putAll((Map<String, Object>) locationMap);
+        }
+        Object bindingParameters = firstValueAtAnyPath(result,
+            "$.sqlExecutionBinding.parameters",
+            "$.binding.parameters");
+        if (bindingParameters instanceof Map<?, ?> parametersMap) {
+            Map<String, Object> parameters = (Map<String, Object>) parametersMap;
+            putIfAbsent(candidate, "database", parameters.get("databaseName"));
+            putIfAbsent(candidate, "schema", parameters.get("schemaName"));
+            putIfAbsent(candidate, "table", parameters.get("tableName"));
+            putIfAbsent(candidate, "tableName", parameters.get("tableName"));
+        }
+        putIfAbsent(candidate, "score", result.get("score"));
+        return candidate;
+    }
+
+    private void putIfAbsent(Map<String, Object> values, String key, Object value) {
+        if (values == null || key == null || values.containsKey(key) || value == null || String.valueOf(value).isBlank()) {
+            return;
+        }
+        values.put(key, value);
+    }
+
+    private void validateRequiredTemplateParameters(InterpretationPlan.Step step,
+                                                    Map<Integer, StepExecution> completed,
+                                                    Map<String, Object> input) {
+        if (step == null || input == null || completed == null || completed.isEmpty()
+            || !isExecutionContextTool(step.toolName()) || isRoutingDiscoveryTool(step.toolName())) {
+            return;
+        }
+        Object templateId = firstValueAtAnyPath(input,
+            "$.templateId",
+            "$.template",
+            "$.template_id");
+        if (templateId == null || String.valueOf(templateId).isBlank()) {
+            return;
+        }
+        Map<String, Object> template = completedTemplateMetadata(completed, String.valueOf(templateId));
+        if (template.isEmpty()) {
+            return;
+        }
+        List<String> required = requiredTemplateParameters(template);
+        if (required.isEmpty()) {
+            return;
+        }
+        Map<String, Object> parameters = input.get("parameters") instanceof Map<?, ?> map
+            ? asStringMap(map)
+            : Map.of();
+        List<String> missing = required.stream()
+            .filter(name -> name != null && !name.isBlank())
+            .filter(name -> !hasNonBlank(parameters, name))
+            .toList();
+        if (missing.isEmpty()) {
+            return;
+        }
+        throw new IllegalStateException("TEMPLATE_REQUIRED_PARAMETER_MISSING: template "
+            + templateId + " requires "
+            + missing.stream().map(name -> "parameters." + name).collect(Collectors.joining(", "))
+            + ". Use the selected template's parameterSchema/parameterContract; do not call "
+            + step.toolName() + " with empty or incomplete parameters.");
     }
 
     private Map<String, Object> completedTemplateMetadata(Map<Integer, StepExecution> completed, String templateId) {
@@ -2192,9 +2276,9 @@ public class InterpretationPlanRuntime {
         return "sql_query_execute".equals(semantic) || semantic.endsWith("_sql_query_execute");
     }
 
-    private boolean isSqlQueryPlanTool(String toolName) {
+    private boolean isSqlMetadataSearchTool(String toolName) {
         String semantic = toolSemanticKey(toolName);
-        return "sql_query_plan".equals(semantic) || semantic.endsWith("_sql_query_plan");
+        return "sql_metadata_search".equals(semantic) || semantic.endsWith("_sql_metadata_search");
     }
 
     private boolean isRoutingDiscoveryTool(String toolName) {
@@ -2204,7 +2288,7 @@ public class InterpretationPlanRuntime {
     private boolean isExecutionContextTool(String toolName) {
         String semantic = toolSemanticKey(toolName);
         return semantic.equals("sql_query_execute")
-            || semantic.equals("sql_query_plan")
+            || semantic.equals("sql_metadata_search")
             || semantic.equals("database_query")
             || semantic.equals("database_query_execute")
             || semantic.equals("database_execute")
@@ -2728,6 +2812,20 @@ public class InterpretationPlanRuntime {
             return null;
         }
         return Boolean.parseBoolean(String.valueOf(value));
+    }
+
+    private double doubleValue(Object value, double fallback) {
+        if (value instanceof Number number) {
+            return number.doubleValue();
+        }
+        if (value == null || String.valueOf(value).isBlank()) {
+            return fallback;
+        }
+        try {
+            return Double.parseDouble(String.valueOf(value));
+        } catch (NumberFormatException ignored) {
+            return fallback;
+        }
     }
 
     private long longValue(Object value, long fallback) {

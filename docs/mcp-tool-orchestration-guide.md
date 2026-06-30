@@ -17,14 +17,14 @@
 | --- | --- | --- | --- | --- |
 | `api_asset_query` | 资产发现 | 否 | 查询 API 服务资产元数据和路由线索 | `api_template_query` |
 | `ssh_asset_query` | 资产发现 | 否 | 查询 SSH 主机资产元数据和路由线索 | `ssh_template_query` |
-| `sql_datasource_asset_query` | 资产发现 | 否 | 查询 SQL 数据源资产元数据和路由线索 | `sql_query_plan` / `sql_datasource_template_query` |
+| `sql_datasource_asset_query` | 资产发现 | 否 | 查询 SQL 数据源资产元数据和路由线索 | `sql_metadata_search` / `sql_datasource_template_query` |
 | `http_endpoint_asset_query` | 资产发现 | 否 | 查询 HTTP endpoint 资产元数据和路由线索 | `http_endpoint_template_query` |
 | `api_template_query` | 模板发现 | 否 | 查询 API 服务模板元数据和参数 schema | API 执行工具族 |
 | `ssh_template_query` | 模板发现 | 否 | 查询 SSH 命令模板元数据和参数 schema | `linux_command_execute` |
 | `sql_datasource_template_query` | 模板发现 | 否 | 查询 SQL 数据源查询模板元数据和参数 schema | `sql_query_execute` |
 | `http_endpoint_template_query` | 模板发现 | 否 | 查询 HTTP endpoint 请求模板元数据和参数 schema | `http_request_execute` |
 | `database_query_template_query` | 模板发现 | 否 | 查询业务数据库查询模板 | 动态 `database_query` 工具 |
-| `sql_query_plan` | SQL/RAG 规划 | 否 | 解析表、schema、join/retrieval 计划和执行 DAG | `sql_datasource_template_query` / `document_search` |
+| `sql_metadata_search` | SQL 元数据检索 | 否 | 基于本地 RocksDB/Lucene 索引检索库、表、列、注释和执行绑定 | `sql_datasource_template_query` / `sql_query_execute` |
 | `sql_query_execute` | SQL 执行网关 | 是 | 执行已授权 SQL 模板 | finalizer |
 | `linux_command_execute` | SSH 执行网关 | 是 | 在逻辑主机上执行已授权命令模板 | finalizer |
 | `http_request_execute` | HTTP 执行网关 | 是 | 调用已授权 HTTP endpoint 模板 | finalizer |
@@ -42,7 +42,7 @@
   ↓
 asset_query
   ↓
-template_query 或 sql_query_plan
+sql_metadata_search（SQL 表分析时）
   ↓
 template_query
   ↓

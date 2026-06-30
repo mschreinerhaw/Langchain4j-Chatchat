@@ -217,6 +217,63 @@ class InterpretationPlanRuntimeTest {
     }
 
     @Test
+    void factChecksSqlMetadataSearchColumns() throws Exception {
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            mock(ToolRuntimeService.class),
+            new InterpretationPlanValidator(),
+            mock(InterpretationPlanRuntime.DagExecutionController.class)
+        );
+        Method method = InterpretationPlanRuntime.class.getDeclaredMethod(
+            "localToolResultReview",
+            InterpretationPlan.Step.class,
+            InterpretationPlanRuntime.StepExecution.class
+        );
+        method.setAccessible(true);
+        InterpretationPlan.Step step = new InterpretationPlan.Step(
+            2,
+            "mcp_tool",
+            "mcp_chatchat_mcp_server_sql_metadata_search",
+            Map.of("query", "livebos.os_historystep", "includeColumns", true),
+            List.of(1),
+            null,
+            null
+        );
+        InterpretationPlanRuntime.StepExecution execution = new InterpretationPlanRuntime.StepExecution(
+            2,
+            "mcp_tool",
+            "mcp_chatchat_mcp_server_sql_metadata_search",
+            true,
+            Map.of(
+                "schemaVersion", "sql_metadata_search_result.v1",
+                "success", true,
+                "results", List.of(Map.of(
+                    "location", Map.of("schema", "livebos", "table", "os_historystep"),
+                    "columns", List.of(
+                        Map.of("name", "ID", "dataType", "bigint", "columnType", "bigint(20)", "columnKey", "PRI"),
+                        Map.of("name", "ENTRY_ID", "dataType", "varchar", "columnType", "varchar(64)", "columnKey", "MUL")
+                    )
+                ))
+            ),
+            null,
+            null,
+            null,
+            6
+        );
+
+        InterpretationPlanRuntime.StepReview review =
+            (InterpretationPlanRuntime.StepReview) method.invoke(runtime, step, execution);
+
+        assertThat(review).isNotNull();
+        assertThat(review.satisfied()).isTrue();
+        assertThat(review.metadata())
+            .containsEntry("localFactCheckHasEvidence", true)
+            .containsEntry("localFactCheckEvidenceType", "sql_metadata_search_columns")
+            .containsEntry("sqlMetadataFactChecked", true)
+            .containsEntry("sqlMetadataColumnCount", 2)
+            .containsEntry("sqlMetadataStepId", 2);
+    }
+
+    @Test
     void factChecksAssetDiscoveryWhenMcpResultIsTextEnvelope() throws Exception {
         String assetQueryResult = """
             {

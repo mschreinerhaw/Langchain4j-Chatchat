@@ -769,6 +769,23 @@ public class InterpretationPlanRuntime {
                 )
             );
         }
+        if (isSqlMetadataSearchTool(execution.toolName())) {
+            int columnCount = sqlColumnMetadataCount(execution.output());
+            if (columnCount <= 0) {
+                return null;
+            }
+            return StepReview.accepted(
+                "SQL metadata search returned " + columnCount + " cached column metadata item(s); structure evidence is valid and should be preserved for final rendering.",
+                mapOf(
+                    "localFactCheckHasEvidence", true,
+                    "localFactCheckEvidenceType", "sql_metadata_search_columns",
+                    "localFactCheckReason", "sql_metadata_search returned non-empty results[].columns metadata",
+                    "sqlMetadataFactChecked", true,
+                    "sqlMetadataColumnCount", columnCount,
+                    "sqlMetadataStepId", step == null ? null : step.id()
+                )
+            );
+        }
         if (isSqlQueryExecuteTool(execution.toolName())) {
             int columnCount = sqlColumnMetadataCount(execution.output());
             if (columnCount <= 0) {
@@ -870,6 +887,10 @@ public class InterpretationPlanRuntime {
         if (rows instanceof List<?> rowList && looksLikeColumnMetadataRows(rowList)) {
             return rowList.size();
         }
+        int metadataSearchColumnCount = metadataSearchColumnCount(map);
+        if (metadataSearchColumnCount > 0) {
+            return metadataSearchColumnCount;
+        }
         Integer rowCount = integerValue(firstMapValue(map, "rowCount", "row_count", "returnedCount", "returned_count"));
         Object columns = firstMapValue(map, "columns");
         if (rowCount != null && rowCount > 0 && looksLikeColumnMetadataColumns(columns)) {
@@ -893,6 +914,40 @@ public class InterpretationPlanRuntime {
             }
         }
         return 0;
+    }
+
+    private int metadataSearchColumnCount(Map<?, ?> map) {
+        Object results = firstMapValue(map, "results", "items", "records");
+        if (results instanceof List<?> resultList) {
+            for (Object item : resultList) {
+                if (!(item instanceof Map<?, ?> itemMap)) {
+                    continue;
+                }
+                int count = metadataSearchColumnCount(itemMap);
+                if (count > 0) {
+                    return count;
+                }
+            }
+        }
+        Object columns = firstMapValue(map, "columns");
+        if (columns instanceof List<?> columnList && looksLikeMetadataSearchColumns(columnList)) {
+            return columnList.size();
+        }
+        Integer columnCount = integerValue(firstMapValue(map, "columnCount", "column_count"));
+        return columnCount == null ? 0 : Math.max(0, columnCount);
+    }
+
+    private boolean looksLikeMetadataSearchColumns(List<?> columns) {
+        if (columns == null || columns.isEmpty()) {
+            return false;
+        }
+        return columns.stream().anyMatch(column -> {
+            if (!(column instanceof Map<?, ?> map)) {
+                return false;
+            }
+            return firstMapValue(map, "name", "columnName", "column_name", "COLUMN_NAME") != null
+                && firstMapValue(map, "columnType", "dataType", "type", "column_type", "COLUMN_TYPE", "DATA_TYPE", "data_type") != null;
+        });
     }
 
     private boolean looksLikeColumnMetadataRows(List<?> rows) {

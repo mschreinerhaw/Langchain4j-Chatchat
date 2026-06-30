@@ -47,6 +47,23 @@ public class InterpretationPlanDagConverter {
                 );
             }
         }
+        if (plan.plan() != null && plan.plan().dependencyContracts() != null) {
+            for (InterpretationPlan.DependencyContract contract : plan.plan().dependencyContracts()) {
+                if (contract == null || contract.from() == null || contract.to() == null) {
+                    continue;
+                }
+                addEdge(
+                    edges,
+                    edgeIds,
+                    contract.from(),
+                    contract.to(),
+                    "dependency_contract",
+                    dependencyContractLabel(contract),
+                    contract.condition(),
+                    contract.required()
+                );
+            }
+        }
         if (plan.plan() != null && plan.plan().bindings() != null) {
             for (InterpretationPlan.Binding binding : plan.plan().bindings()) {
                 if (binding == null || binding.from() == null || binding.to() == null) {
@@ -170,6 +187,14 @@ public class InterpretationPlanDagConverter {
             return step.id() + ". " + toolName;
         }
         return step.id() + ". " + actionType;
+    }
+
+    private String dependencyContractLabel(InterpretationPlan.DependencyContract contract) {
+        String required = contract.required() == null || contract.required() ? "required" : "optional";
+        if (contract.reason() == null || contract.reason().isBlank()) {
+            return required;
+        }
+        return required + ": " + contract.reason();
     }
 
     private void addEdge(List<Map<String, Object>> edges,

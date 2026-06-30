@@ -48,19 +48,25 @@ public record InterpretationPlan(
         List<Step> steps,
         @JsonProperty("edge_contracts")
         List<EdgeContract> edgeContracts,
+        @JsonProperty("dependency_contracts")
+        List<DependencyContract> dependencyContracts,
         List<Binding> bindings,
         Stability stability
     ) {
         public Plan(List<Step> steps) {
-            this(steps, List.of(), List.of(), null);
+            this(steps, List.of(), List.of(), List.of(), null);
         }
 
         public Plan(List<Step> steps, List<EdgeContract> edgeContracts) {
-            this(steps, edgeContracts, List.of(), null);
+            this(steps, edgeContracts, List.of(), List.of(), null);
         }
 
         public Plan(List<Step> steps, List<EdgeContract> edgeContracts, Stability stability) {
-            this(steps, edgeContracts, List.of(), stability);
+            this(steps, edgeContracts, List.of(), List.of(), stability);
+        }
+
+        public Plan(List<Step> steps, List<EdgeContract> edgeContracts, List<Binding> bindings, Stability stability) {
+            this(steps, edgeContracts, List.of(), bindings, stability);
         }
     }
 
@@ -151,6 +157,17 @@ public record InterpretationPlan(
         String field,
         String type,
         Boolean required
+    ) {
+    }
+
+    public record DependencyContract(
+        Integer from,
+        Integer to,
+        Boolean required,
+        String condition,
+        String reason,
+        @JsonProperty("on_failure")
+        String onFailure
     ) {
     }
 

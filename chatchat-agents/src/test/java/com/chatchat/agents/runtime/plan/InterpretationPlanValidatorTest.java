@@ -234,6 +234,72 @@ class InterpretationPlanValidatorTest {
     }
 
     @Test
+    void validatesRequiredAndOptionalDependencyContracts() {
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool("asset_query")).thenReturn(true);
+        when(toolRegistry.hasTool("template_query")).thenReturn(true);
+        when(toolRegistry.hasTool("execute_tool")).thenReturn(true);
+        when(toolRegistry.getToolMetadata("asset_query"))
+            .thenReturn(ToolMetadata.builder().id("asset_query").riskLevel("low").build());
+        when(toolRegistry.getToolMetadata("template_query"))
+            .thenReturn(ToolMetadata.builder().id("template_query").riskLevel("low").build());
+        when(toolRegistry.getToolMetadata("execute_tool"))
+            .thenReturn(ToolMetadata.builder().id("execute_tool").riskLevel("low").build());
+
+        InterpretationPlan valid = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("tool_chain", "Execute governed workflow", "low"),
+            context(),
+            new InterpretationPlan.Plan(
+                List.of(
+                    new InterpretationPlan.Step(1, "mcp_tool", "asset_query", Map.of("query", "db"), List.of(), null, null),
+                    new InterpretationPlan.Step(2, "mcp_tool", "template_query", Map.of("query", "metadata"), List.of(1), null, null),
+                    new InterpretationPlan.Step(3, "mcp_tool", "execute_tool", Map.of("template", "T1"), List.of(2), null, null),
+                    finalStep(4, List.of(3))
+                ),
+                List.of(),
+                List.of(
+                    new InterpretationPlan.DependencyContract(1, 2, true, null, "template discovery requires asset context", "stop"),
+                    new InterpretationPlan.DependencyContract(1, 3, false, "only when execution needs refreshed asset context", "optional context refresh", "skip")
+                ),
+                List.of(),
+                null
+            ),
+            new InterpretationPlan.ExecutionPolicy(4, false, List.of("asset_query", "template_query", "execute_tool"), List.of(), 30000),
+            review(true)
+        );
+
+        assertThat(validator.validate(valid, toolRegistry, Set.of("asset_query", "template_query", "execute_tool")).valid())
+            .isTrue();
+
+        InterpretationPlan invalid = new InterpretationPlan(
+            valid.version(),
+            valid.intent(),
+            valid.context(),
+            new InterpretationPlan.Plan(
+                valid.steps(),
+                List.of(),
+                List.of(
+                    new InterpretationPlan.DependencyContract(1, 3, true, null, "required but missing from depends_on", "stop"),
+                    new InterpretationPlan.DependencyContract(2, 3, false, null, null, "skip")
+                ),
+                List.of(),
+                null
+            ),
+            valid.executionPolicy(),
+            valid.review()
+        );
+
+        InterpretationPlanValidator.ValidationResult result =
+            validator.validate(invalid, toolRegistry, Set.of("asset_query", "template_query", "execute_tool"));
+
+        assertThat(result.valid()).isFalse();
+        assertThat(result.errors()).extracting(InterpretationPlanValidator.ValidationIssue::message)
+            .anyMatch(message -> message.contains("Required dependency contract must also appear in target depends_on"))
+            .anyMatch(message -> message.contains("Optional dependency contract requires condition or reason"));
+    }
+
+    @Test
     void rejectsRawSqlNestedInsideSqlTemplateParameters() {
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         when(toolRegistry.hasTool("mcp_chatchat_mcp_server_sql_query_execute")).thenReturn(true);

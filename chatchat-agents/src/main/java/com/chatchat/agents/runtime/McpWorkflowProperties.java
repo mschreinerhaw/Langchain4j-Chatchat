@@ -41,6 +41,7 @@ public class McpWorkflowProperties {
         private String condition;
         private String confirmation;
         private List<String> dependsOn = new ArrayList<>();
+        private List<String> optionalDependsOn = new ArrayList<>();
     }
 
     @Getter
@@ -56,5 +57,7 @@ public class McpWorkflowProperties {
     @Setter
     public static class ToolDependencySpec {
         private List<String> dependsOn = new ArrayList<>();
+        private List<String> requiredDependsOn = new ArrayList<>();
+        private List<String> optionalDependsOn = new ArrayList<>();
     }
 }

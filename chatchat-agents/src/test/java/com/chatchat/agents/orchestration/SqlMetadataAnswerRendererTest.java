@@ -11,6 +11,52 @@ import static org.assertj.core.api.Assertions.assertThat;
 class SqlMetadataAnswerRendererTest {
 
     @Test
+    void rendersSqlMetadataSearchColumnsAsStructuredMarkdownTable() {
+        SqlMetadataAnswerRenderer renderer = new SqlMetadataAnswerRenderer();
+        InterpretationPlanRuntime.ExecutionResult result = new InterpretationPlanRuntime.ExecutionResult(
+            "completed",
+            true,
+            false,
+            null,
+            null,
+            List.of(new InterpretationPlanRuntime.StepExecution(
+                2,
+                "mcp_tool",
+                "mcp_chatchat_mcp_server_sql_metadata_search",
+                true,
+                sqlMetadataSearchOutput(),
+                null,
+                null,
+                null,
+                23
+            )),
+            Map.of(),
+            80
+        );
+
+        String markdown = renderer.render(result);
+        SqlMetadataAnswerRenderer.RenderedSqlMetadata evidence = renderer.renderEvidence(result);
+
+        assertThat(markdown)
+            .contains("`livebos.os_historystep`")
+            .contains("- 字段数：`3`")
+            .contains("`ID`")
+            .contains("bigint")
+            .contains("涓婚敭ID")
+            .contains("`ENTRY_ID`")
+            .contains("流程关联ID")
+            .contains("`STATUS`")
+            .contains("状态");
+        assertThat(evidence.metadata())
+            .containsEntry("source", "mcp_sql_metadata_search_results_columns")
+            .containsEntry("semanticGatePassed", true)
+            .containsEntry("columnCount", 3)
+            .containsEntry("schema", "livebos")
+            .containsEntry("table", "os_historystep")
+            .containsEntry("requestedTable", "os_historystep");
+    }
+
+    @Test
     void rendersSqlColumnMetadataAsStructuredMarkdownTable() {
         SqlMetadataAnswerRenderer renderer = new SqlMetadataAnswerRenderer();
         InterpretationPlanRuntime.ExecutionResult result = new InterpretationPlanRuntime.ExecutionResult(
@@ -203,6 +249,69 @@ class SqlMetadataAnswerRendererTest {
                     "toolName", "db_query_mysql_248_test_db"
                 )
             )
+        );
+    }
+
+    private Map<String, Object> sqlMetadataSearchOutput() {
+        return Map.of(
+            "schemaVersion", "sql_metadata_search_result.v1",
+            "success", true,
+            "count", 1,
+            "results", List.of(Map.of(
+                "asset", Map.of(
+                    "name", "248测试数据库",
+                    "toolName", "db_query_mysql_248_test_db"
+                ),
+                "location", Map.of(
+                    "database", "livebos",
+                    "schema", "livebos",
+                    "table", "os_historystep",
+                    "tableName", "os_historystep",
+                    "tableType", "BASE TABLE",
+                    "tableRows", 0,
+                    "fullPath", "livebos.os_historystep"
+                ),
+                "routingContext", Map.of(
+                    "assetName", "248测试数据库",
+                    "env", "DEV",
+                    "databaseType", "mysql"
+                ),
+                "sqlExecutionBinding", Map.of(
+                    "tool", "sql_query_execute",
+                    "executionContext", Map.of(
+                        "assetName", "248测试数据库",
+                        "env", "DEV",
+                        "databaseType", "mysql"
+                    ),
+                    "parameters", Map.of(
+                        "databaseName", "livebos",
+                        "schemaName", "livebos",
+                        "tableName", "os_historystep"
+                    )
+                ),
+                "columnCount", 3,
+                "columns", List.of(
+                    metadataSearchColumn("ID", "bigint", "bigint(20)", "PRI", "涓婚敭ID", false),
+                    metadataSearchColumn("ENTRY_ID", "varchar", "varchar(64)", "MUL", "流程关联ID", true),
+                    metadataSearchColumn("STATUS", "varchar", "varchar(32)", "", "状态", true)
+                )
+            ))
+        );
+    }
+
+    private Map<String, Object> metadataSearchColumn(String name,
+                                                     String dataType,
+                                                     String columnType,
+                                                     String columnKey,
+                                                     String comment,
+                                                     boolean nullable) {
+        return Map.of(
+            "name", name,
+            "dataType", dataType,
+            "columnType", columnType,
+            "columnKey", columnKey,
+            "comment", comment,
+            "nullable", nullable
         );
     }
 

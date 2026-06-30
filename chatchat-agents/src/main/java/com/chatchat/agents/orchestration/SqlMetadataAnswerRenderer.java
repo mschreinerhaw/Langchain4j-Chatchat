@@ -33,7 +33,8 @@ class SqlMetadataAnswerRenderer {
     }
 
     private RenderedSqlMetadata renderStep(InterpretationPlanRuntime.StepExecution step) {
-        if (step == null || !isSqlQueryExecute(step.toolName())) {
+        boolean metadataSearch = step != null && isSqlMetadataSearch(step.toolName());
+        if (step == null || (!isSqlQueryExecute(step.toolName()) && !metadataSearch)) {
             return RenderedSqlMetadata.empty();
         }
         Map<String, Object> output = asMap(step.output());
@@ -41,6 +42,12 @@ class SqlMetadataAnswerRenderer {
             return RenderedSqlMetadata.empty();
         }
         Map<String, Object> data = sqlDataMap(output);
+        Map<String, Object> metadataSearchResult = metadataSearch ? firstMetadataSearchResult(output) : Map.of();
+        Map<String, Object> metadataSearchLocation = asMap(metadataSearchResult.get("location"));
+        Map<String, Object> metadataSearchAsset = asMap(metadataSearchResult.get("asset"));
+        Map<String, Object> metadataSearchBinding = asMap(metadataSearchResult.get("sqlExecutionBinding"));
+        Map<String, Object> metadataSearchBindingParameters = asMap(metadataSearchBinding.get("parameters"));
+        Map<String, Object> metadataSearchRoutingContext = asMap(metadataSearchResult.get("routingContext"));
         List<Map<String, Object>> rows = sqlColumnRows(output);
         if (rows.isEmpty() || !looksLikeColumnMetadata(rows)) {
             return RenderedSqlMetadata.empty();
@@ -62,33 +69,52 @@ class SqlMetadataAnswerRenderer {
             text(executionContext.get("schema")),
             text(diagnostics.get("schemaName")),
             text(firstCandidate.get("schema")),
-            text(firstCandidate.get("database"))
+            text(firstCandidate.get("database")),
+            text(metadataSearchLocation.get("schema")),
+            text(metadataSearchLocation.get("database")),
+            text(metadataSearchBindingParameters.get("schemaName")),
+            text(metadataSearchBindingParameters.get("databaseName"))
         );
         String table = firstNonBlank(
             text(resolution.get("selectedTable")),
             text(executionContext.get("tableName")),
             text(executionContext.get("table_name")),
             text(diagnostics.get("tableName")),
-            text(firstCandidate.get("table"))
+            text(firstCandidate.get("table")),
+            text(metadataSearchLocation.get("table")),
+            text(metadataSearchLocation.get("tableName")),
+            text(metadataSearchBindingParameters.get("tableName"))
         );
         String datasourceName = firstNonBlank(
             text(target.get("name")),
             text(target.get("datasourceName")),
             text(datasource.get("name")),
             text(target.get("toolName")),
-            text(datasource.get("toolName"))
+            text(datasource.get("toolName")),
+            text(metadataSearchAsset.get("name")),
+            text(metadataSearchAsset.get("title")),
+            text(metadataSearchAsset.get("toolName")),
+            text(metadataSearchRoutingContext.get("assetName"))
         );
-        String tableType = text(firstCandidate.get("tableType"));
-        String tableRows = firstNonBlank(text(firstCandidate.get("tableRows")), text(data.get("tableRows")));
+        String tableType = firstNonBlank(text(firstCandidate.get("tableType")), text(metadataSearchLocation.get("tableType")));
+        String tableRows = firstNonBlank(text(firstCandidate.get("tableRows")), text(data.get("tableRows")), text(metadataSearchLocation.get("tableRows")));
         String sql = text(operation.get("statement"));
         String requestedTable = firstNonBlank(
             text(executionContext.get("tableName")),
             text(executionContext.get("table_name")),
             text(diagnostics.get("tableName")),
             text(asMap(diagnostics.get("templateParameters")).get("tableName")),
-            text(asMap(diagnostics.get("templateParameters")).get("table_name"))
+            text(asMap(diagnostics.get("templateParameters")).get("table_name")),
+            text(metadataSearchBindingParameters.get("tableName")),
+            text(metadataSearchLocation.get("tableName")),
+            text(metadataSearchLocation.get("table"))
         );
-        String templateId = firstNonBlank(text(diagnostics.get("templateId")), text(output.get("templateId")), text(output.get("template")));
+        String templateId = firstNonBlank(
+            text(diagnostics.get("templateId")),
+            text(output.get("templateId")),
+            text(output.get("template")),
+            metadataSearch ? "SQL_METADATA_SEARCH" : ""
+        );
         Map<String, Object> gate = semanticGate(step, rows, schema, table, requestedTable, templateId, sql, diagnostics);
 
         StringBuilder markdown = new StringBuilder();
@@ -129,7 +155,7 @@ class SqlMetadataAnswerRenderer {
         }
         Map<String, Object> metadata = new LinkedHashMap<>();
         metadata.put("schemaVersion", FACT_SCHEMA_VERSION);
-        metadata.put("source", "mcp_sql_query_execute_rows");
+        metadata.put("source", metadataSearch ? "mcp_sql_metadata_search_results_columns" : "mcp_sql_query_execute_rows");
         metadata.put("dataTruthValidated", true);
         metadata.put("toolName", step.toolName());
         metadata.put("stepId", step.stepId());
@@ -227,6 +253,10 @@ class SqlMetadataAnswerRenderer {
         if (looksLikeColumnMetadata(directRows)) {
             return directRows;
         }
+        List<Map<String, Object>> metadataSearchRows = metadataSearchColumnRows(map);
+        if (looksLikeColumnMetadata(metadataSearchRows)) {
+            return metadataSearchRows;
+        }
         for (String key : List.of("structuredContent", "structured_content", "data", "result", "payload", "body", "output")) {
             List<Map<String, Object>> nested = sqlColumnRows(map.get(key), depth + 1);
             if (!nested.isEmpty()) {
@@ -246,6 +276,97 @@ class SqlMetadataAnswerRenderer {
             }
         }
         return List.of();
+    }
+
+    private Map<String, Object> firstMetadataSearchResult(Map<String, Object> output) {
+        return firstMetadataSearchResult(output, 0);
+    }
+
+    private Map<String, Object> firstMetadataSearchResult(Object value, int depth) {
+        if (value == null || depth > 8) {
+            return Map.of();
+        }
+        Map<String, Object> map = asMap(value);
+        if (map.isEmpty()) {
+            return Map.of();
+        }
+        Object results = firstNonNull(map.get("results"), map.get("items"), map.get("records"));
+        if (results instanceof List<?> list) {
+            for (Object item : list) {
+                Map<String, Object> result = asMap(item);
+                if (!result.isEmpty() && !metadataSearchColumnRows(result).isEmpty()) {
+                    return result;
+                }
+            }
+            if (!list.isEmpty()) {
+                Map<String, Object> first = asMap(list.get(0));
+                if (!first.isEmpty()) {
+                    return first;
+                }
+            }
+        }
+        for (String key : List.of("structuredContent", "structured_content", "data", "result", "payload", "body", "output")) {
+            Map<String, Object> nested = firstMetadataSearchResult(map.get(key), depth + 1);
+            if (!nested.isEmpty()) {
+                return nested;
+            }
+        }
+        return Map.of();
+    }
+
+    private List<Map<String, Object>> metadataSearchColumnRows(Map<String, Object> map) {
+        if (map == null || map.isEmpty()) {
+            return List.of();
+        }
+        List<Map<String, Object>> direct = normalizeMetadataSearchColumns(rowMaps(map.get("columns")));
+        if (!direct.isEmpty()) {
+            return direct;
+        }
+        Object results = firstNonNull(map.get("results"), map.get("items"), map.get("records"));
+        if (results instanceof List<?> list) {
+            for (Object item : list) {
+                List<Map<String, Object>> rows = metadataSearchColumnRows(asMap(item));
+                if (!rows.isEmpty()) {
+                    return rows;
+                }
+            }
+        }
+        return List.of();
+    }
+
+    private List<Map<String, Object>> normalizeMetadataSearchColumns(List<Map<String, Object>> columns) {
+        if (columns == null || columns.isEmpty()) {
+            return List.of();
+        }
+        List<Map<String, Object>> rows = new ArrayList<>();
+        for (Map<String, Object> column : columns) {
+            String name = firstNonBlank(value(column, "COLUMN_NAME", "column_name", "name", "columnName"), "");
+            String type = firstNonBlank(value(column, "COLUMN_TYPE", "column_type", "columnType", "dataType", "DATA_TYPE", "data_type", "type"), "");
+            if (blank(name) || blank(type)) {
+                continue;
+            }
+            Map<String, Object> row = new LinkedHashMap<>();
+            row.put("COLUMN_NAME", name);
+            row.put("COLUMN_TYPE", type);
+            row.put("IS_NULLABLE", nullableText(column));
+            row.put("COLUMN_DEFAULT", firstNonBlank(value(column, "COLUMN_DEFAULT", "column_default", "defaultValue", "default"), ""));
+            row.put("COLUMN_KEY", firstNonBlank(value(column, "COLUMN_KEY", "column_key", "columnKey", "key"), ""));
+            row.put("EXTRA", firstNonBlank(value(column, "EXTRA", "extra"), ""));
+            row.put("COLUMN_COMMENT", firstNonBlank(value(column, "COLUMN_COMMENT", "column_comment", "comment", "remarks"), ""));
+            rows.add(row);
+        }
+        return rows;
+    }
+
+    private String nullableText(Map<String, Object> column) {
+        String value = firstNonBlank(value(column, "IS_NULLABLE", "is_nullable", "nullable"), "");
+        if ("true".equalsIgnoreCase(value)) {
+            return "YES";
+        }
+        if ("false".equalsIgnoreCase(value)) {
+            return "NO";
+        }
+        return value;
     }
 
     private String metricRecommendation(List<Map<String, Object>> rows, String schema, String table) {
@@ -302,6 +423,10 @@ class SqlMetadataAnswerRenderer {
         return toolName != null && toolName.toLowerCase().contains("sql_query_execute");
     }
 
+    private boolean isSqlMetadataSearch(String toolName) {
+        return toolName != null && toolName.toLowerCase().contains("sql_metadata_search");
+    }
+
     private boolean toolSucceeded(InterpretationPlanRuntime.StepExecution step) {
         if (step == null) {
             return false;
@@ -313,7 +438,11 @@ class SqlMetadataAnswerRenderer {
     }
 
     private boolean isTableMetadataTemplate(String templateId) {
-        return templateId != null && templateId.trim().toUpperCase().endsWith("_TABLE_METADATA");
+        if (templateId == null) {
+            return false;
+        }
+        String normalized = templateId.trim().toUpperCase();
+        return normalized.endsWith("_TABLE_METADATA") || "SQL_METADATA_SEARCH".equals(normalized);
     }
 
     private boolean containsIgnoreCase(String text, String needle) {

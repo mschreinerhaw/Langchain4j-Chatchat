@@ -26,6 +26,9 @@ public class InterpretationPlanOptimizer {
         List<InterpretationPlan.Binding> bindings = plan.plan().bindings() == null
             ? List.of()
             : new ArrayList<>(plan.plan().bindings());
+        List<InterpretationPlan.DependencyContract> dependencyContracts = plan.plan().dependencyContracts() == null
+            ? List.of()
+            : new ArrayList<>(plan.plan().dependencyContracts());
         InterpretationPlan.Stability stability = plan.plan().stability();
         boolean lockedEdges = stability != null && Boolean.TRUE.equals(stability.lockedEdges());
 
@@ -76,6 +79,7 @@ public class InterpretationPlanOptimizer {
             new InterpretationPlan.Plan(
                 renumber(steps),
                 remapContractsForRenumber(steps, edgeContracts),
+                remapDependencyContractsForRenumber(steps, dependencyContracts),
                 remapBindingsForRenumber(steps, bindings),
                 remapStabilityForRenumber(steps, plan.plan().stability())
             ),
@@ -347,6 +351,27 @@ public class InterpretationPlanOptimizer {
                 binding.inputField(),
                 binding.type(),
                 binding.required()
+            ))
+            .toList();
+    }
+
+    private List<InterpretationPlan.DependencyContract> remapDependencyContractsForRenumber(
+        List<InterpretationPlan.Step> originalSteps,
+        List<InterpretationPlan.DependencyContract> contracts
+    ) {
+        Map<Integer, Integer> idMap = new LinkedHashMap<>();
+        int next = 1;
+        for (InterpretationPlan.Step step : originalSteps) {
+            idMap.put(step.id(), next++);
+        }
+        return contracts.stream()
+            .map(contract -> new InterpretationPlan.DependencyContract(
+                idMap.getOrDefault(contract.from(), contract.from()),
+                idMap.getOrDefault(contract.to(), contract.to()),
+                contract.required(),
+                contract.condition(),
+                contract.reason(),
+                contract.onFailure()
             ))
             .toList();
     }

@@ -82,6 +82,27 @@ public final class InterpretationPlanJsonSchema {
                     }
                   }
                 },
+                "dependency_contracts": {
+                  "type": "array",
+                  "description": "Declarative dependency semantics. depends_on remains the hard DAG ordering field; dependency_contracts explains whether each dependency is mandatory or optional.",
+                  "items": {
+                    "type": "object",
+                    "required": ["from", "to", "required"],
+                    "additionalProperties": false,
+                    "properties": {
+                      "from": {"type": "integer"},
+                      "to": {"type": "integer"},
+                      "required": {"type": "boolean", "description": "true means this dependency must be executed before target; false means planner should include it only when condition is needed"},
+                      "condition": {"type": "string", "description": "When required=false, the condition under which this dependency should be planned/executed"},
+                      "reason": {"type": "string", "description": "Why the dependency is needed or optional"},
+                      "on_failure": {
+                        "type": "string",
+                        "enum": ["stop", "skip", "continue_with_partial_evidence", "replan"],
+                        "description": "Runtime/planner policy if this dependency is unavailable or fails"
+                      }
+                    }
+                  }
+                },
                 "edge_contracts": {
                   "type": "array",
                   "items": {

@@ -1389,6 +1389,13 @@ public class ToolRuntimeService {
             dependencies.addAll(globalDependency.getDependsOn());
             matchedRules.add("tool_dependencies." + toolName + "=" + globalDependency.getDependsOn());
         }
+        if (globalDependency != null && globalDependency.getRequiredDependsOn() != null) {
+            dependencies.addAll(globalDependency.getRequiredDependsOn());
+            matchedRules.add("tool_dependencies." + toolName + ".required=" + globalDependency.getRequiredDependsOn());
+        }
+        if (globalDependency != null && globalDependency.getOptionalDependsOn() != null && !globalDependency.getOptionalDependsOn().isEmpty()) {
+            matchedRules.add("tool_dependencies." + toolName + ".optional=" + globalDependency.getOptionalDependsOn());
+        }
 
         McpWorkflowProperties.WorkflowStep currentStep = workflow == null ? null : workflowStep(workflow, toolName);
         if (workflow != null) {
@@ -1398,6 +1405,9 @@ public class ToolRuntimeService {
             }
             if (currentStep.getDependsOn() != null) {
                 dependencies.addAll(currentStep.getDependsOn());
+            }
+            if (currentStep.getOptionalDependsOn() != null && !currentStep.getOptionalDependsOn().isEmpty()) {
+                matchedRules.add("workflow." + workflowName + "." + toolName + ".optionalDependsOn=" + currentStep.getOptionalDependsOn());
             }
             WorkflowDecision sequenceDecision = validateWorkflowSequence(
                 workflowName,
@@ -1973,6 +1983,12 @@ public class ToolRuntimeService {
             step.setCondition(stringValue(rawStep.get("condition")));
             step.setConfirmation(stringValue(rawStep.get("confirmation")));
             step.setDependsOn(stringList(firstPresent(rawStep.get("dependsOn"), rawStep.get("depends_on"))));
+            step.setOptionalDependsOn(stringList(firstPresent(
+                rawStep.get("optionalDependsOn"),
+                rawStep.get("optional_depends_on"),
+                rawStep.get("optionalDependencies"),
+                rawStep.get("optional_dependencies")
+            )));
             steps.add(step);
             for (String key : workflowStepKeys(step, stepText)) {
                 stepKeyToTool.putIfAbsent(normalizePolicyKey(key), step.getTool());
@@ -1981,6 +1997,11 @@ public class ToolRuntimeService {
         }
         for (McpWorkflowProperties.WorkflowStep step : steps) {
             step.setDependsOn(step.getDependsOn() == null ? List.of() : step.getDependsOn().stream()
+                .map(dependency -> firstText(stepKeyToTool.get(normalizePolicyKey(dependency)), dependency))
+                .filter(dependency -> dependency != null && !dependency.isBlank())
+                .distinct()
+                .toList());
+            step.setOptionalDependsOn(step.getOptionalDependsOn() == null ? List.of() : step.getOptionalDependsOn().stream()
                 .map(dependency -> firstText(stepKeyToTool.get(normalizePolicyKey(dependency)), dependency))
                 .filter(dependency -> dependency != null && !dependency.isBlank())
                 .distinct()
@@ -2029,14 +2050,33 @@ public class ToolRuntimeService {
             if (!sameTool(entry.getKey(), toolName) && !normalizePolicyKey(entry.getKey()).equals(normalized)) {
                 continue;
             }
-            List<String> dependsOn = entry.getValue() instanceof Map<?, ?> dependencyMap
-                ? stringList(firstPresent(dependencyMap.get("dependsOn"), dependencyMap.get("depends_on")))
-                : stringList(entry.getValue());
-            if (dependsOn.isEmpty()) {
+            List<String> dependsOn;
+            List<String> requiredDependsOn = List.of();
+            List<String> optionalDependsOn = List.of();
+            if (entry.getValue() instanceof Map<?, ?> dependencyMap) {
+                dependsOn = stringList(firstPresent(dependencyMap.get("dependsOn"), dependencyMap.get("depends_on")));
+                requiredDependsOn = stringList(firstPresent(
+                    dependencyMap.get("requiredDependsOn"),
+                    dependencyMap.get("required_depends_on"),
+                    dependencyMap.get("requiredDependencies"),
+                    dependencyMap.get("required_dependencies")
+                ));
+                optionalDependsOn = stringList(firstPresent(
+                    dependencyMap.get("optionalDependsOn"),
+                    dependencyMap.get("optional_depends_on"),
+                    dependencyMap.get("optionalDependencies"),
+                    dependencyMap.get("optional_dependencies")
+                ));
+            } else {
+                dependsOn = stringList(entry.getValue());
+            }
+            if (dependsOn.isEmpty() && requiredDependsOn.isEmpty() && optionalDependsOn.isEmpty()) {
                 return null;
             }
             McpWorkflowProperties.ToolDependencySpec spec = new McpWorkflowProperties.ToolDependencySpec();
             spec.setDependsOn(dependsOn);
+            spec.setRequiredDependsOn(requiredDependsOn);
+            spec.setOptionalDependsOn(optionalDependsOn);
             return spec;
         }
         return null;
@@ -2051,7 +2091,10 @@ public class ToolRuntimeService {
      */
     private McpWorkflowProperties.ToolDependencySpec firstDependency(McpWorkflowProperties.ToolDependencySpec first,
                                                                      McpWorkflowProperties.ToolDependencySpec second) {
-        if (first != null && first.getDependsOn() != null && !first.getDependsOn().isEmpty()) {
+        if (first != null
+            && ((first.getDependsOn() != null && !first.getDependsOn().isEmpty())
+            || (first.getRequiredDependsOn() != null && !first.getRequiredDependsOn().isEmpty())
+            || (first.getOptionalDependsOn() != null && !first.getOptionalDependsOn().isEmpty()))) {
             return first;
         }
         return second;

@@ -313,6 +313,51 @@ class AgentAnswerFinalizerEvidenceAnswerTest {
     }
 
     @Test
+    void finalizerMergesStructuredSqlMetadataMarkdownWhenSummaryOmitsColumnDetails() {
+        AgentAnswerReviewer reviewer = (chatModel, query, systemPrompt, observations, answer) ->
+            new AgentAnswerReview(AgentAnswerReview.ACCEPTED, answer, "ok");
+        AgentAnswerFinalizer finalizer = new AgentAnswerFinalizer(
+            reviewer,
+            new AgentRuntimeGuard(12, "cancelled", "maxSteps", "maxToolCalls", "timeoutMs", "deadlineAt")
+        );
+        Map<String, Object> metadata = new java.util.LinkedHashMap<>();
+        metadata.put("structuredSqlMetadataRendered", true);
+        metadata.put("sqlMetadataSemanticGatePassed", true);
+        metadata.put("executionGraphSemanticPassed", true);
+        metadata.put("structuredSqlMetadataMarkdown", """
+            ## \u5143\u6570\u636e\u4f9d\u636e
+
+            - \u6570\u636e\u6e90\uff1a248\u6d4b\u8bd5\u6570\u636e\u5e93
+            - \u8868\u5b9a\u4f4d\uff1a`livebos.t_dataflow_macro_def`
+            - \u5b57\u6bb5\u6570\uff1a`12`
+
+            ## \u5b57\u6bb5\u7ed3\u6784
+
+            | # | \u5b57\u6bb5\u540d | \u7c7b\u578b | \u53ef\u7a7a | \u9ed8\u8ba4\u503c | \u952e | \u989d\u5916\u4fe1\u606f | \u6ce8\u91ca |
+            |---:|---|---|---|---|---|---|---|
+            | 1 | `ID` | `varchar(64)` | NO | - | PRI | - | \u4e3b\u952e |
+            | 2 | `ENTRY_ID` | `varchar(64)` | YES | - | MUL | - | \u6d41\u7a0b\u5173\u8054\u5b57\u6bb5 |
+            """);
+
+        AgentOrchestrator.AgentExecutionResult result = finalizer.finishExecution(
+            "\u4ec5\u6210\u529f\u83b7\u53d612\u4e2a\u5217\uff0c\u4f46\u672a\u80fd\u5c55\u5f00\u5217\u4fe1\u606f\u3002",
+            List.of(),
+            metadata,
+            List.of("sql_metadata_search returned 12 columns.")
+        );
+
+        assertThat(result.answer())
+            .contains("## \u5143\u6570\u636e\u4f9d\u636e")
+            .contains("## \u5b57\u6bb5\u7ed3\u6784")
+            .contains("`ID`")
+            .contains("`ENTRY_ID`")
+            .contains("\u6d41\u7a0b\u5173\u8054\u5b57\u6bb5");
+        assertThat(result.metadata())
+            .containsEntry("structuredSqlMetadataMergedInFinalizer", true)
+            .containsEntry("structuredSqlMetadataMergeReason", "semantic_gate_passed_preserve_column_metadata");
+    }
+
+    @Test
     void structuredSqlMetadataAnswerStillUsesReviewerWhenSemanticGateFails() {
         AgentAnswerReviewer reviewer = (chatModel, query, systemPrompt, observations, answer) ->
             new AgentAnswerReview(

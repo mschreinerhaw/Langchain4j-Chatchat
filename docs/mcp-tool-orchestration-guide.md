@@ -4,12 +4,43 @@
 
 ## 总体原则
 
-1. 先发现资产，再发现模板，最后执行模板。
+1. 先发现资产；SQL 表分析先检索本地元数据；需要执行时再发现模板并执行模板。
 2. `tenantId`、`userId`、`requestId`、`conversationId` 必须随 MCP 请求透传；缺少 tenant 上下文时应 fail-fast，不允许进入执行工具。
 3. 模型只能选择 MCP 返回的工具名、资产、模板和参数 schema，不能发明 `templateId`、SQL、命令、URL、endpointId、hostId、datasourceId 等具体目标字段。
 4. `final_answer` 只能由最终汇总步骤生成；reviewer 只能写 `review_answer`、`review_status`、`review_reason` 等审计字段。
 5. 工具结果里的结构化字段优先级高于 text 摘要；最终答案必须引用结构化证据。
-6. execution 工具只消费 discovery/plan 阶段产出的确定性字段，不消费模型自由生成的执行文本。
+6. execution 工具只消费 discovery/metadata/template 阶段产出的确定性字段，不消费模型自由生成的执行文本。
+7. `availableTools` 是请求级工具边界。planner、rewriter、workflow guard、runtime validator 都必须以本次 `availableTools` 为准；工具即使在全局 registry 注册，只要本次不可见，也不能被规划或执行。
+
+## 依赖类型协议
+
+MCP 工具声明和 InterpretationPlan 需要区分两类依赖：
+
+- **必选依赖**：必须先执行并成功，后续工具才能执行。例如执行类工具必须依赖资产发现、模板发现或明确的本地元数据绑定。
+- **可选依赖**：只在当前用户问题确实需要时执行。例如锁等待、执行计划、慢查询、主机诊断、文档补充解释等，不应被无条件塞进固定链路。
+
+协议字段约定：
+
+- `depends_on` 只表示硬 DAG 顺序。只要写入 `depends_on`，runtime 就会把它当成必须完成的前置步骤。
+- `plan.dependency_contracts` 表示依赖语义，推荐结构如下：
+
+```json
+{
+  "from": 2,
+  "to": 4,
+  "required": true,
+  "condition": "sql_query_execute needs schema/table binding from sql_metadata_search",
+  "reason": "bind databaseName/schemaName/tableName before executing a template",
+  "on_failure": "stop"
+}
+```
+
+规划规则：
+
+- `required=true` 的 dependency contract 必须同时出现在目标 step 的 `depends_on` 中。
+- `required=false` 的 dependency contract 必须带 `condition` 或 `reason`，由模型判断当前问题是否需要；不需要时不要生成对应工具 step。
+- 可选依赖一旦被模型选择为本次需要执行，也应该生成明确 step，并按实际数据流添加 `depends_on`、`bindings` 或 `edge_contracts`。
+- 不允许把可选依赖当成固定必跑链路，否则会导致 MCP workflow 被无意义步骤拖慢或因可选步骤失败而误判整体失败。
 
 ## 工具族总览
 
@@ -52,6 +83,12 @@ review / semantic gate
   ↓
 final_answer
 ```
+
+说明：
+
+- `template_query` 只在本次 `availableTools` 包含对应 typed template discovery 工具时出现。
+- 如果 `availableTools` 不包含 `sql_datasource_template_query`，不得补造模板发现步骤；可以使用已观测到的模板契约继续执行，或在 final answer 中说明缺少模板发现能力。
+- 对于 SQL 表分析，`sql_metadata_search` 是表定位和字段依据的首选步骤，不应在对话过程中频繁查询 `information_schema`。
 
 最小 DAG 形态：
 
@@ -208,91 +245,120 @@ templates[].databaseType / targetKind / intentSignals
 templates[].routing
 ```
 
-不允许使用不存在的模板名。`sql_query_execute.templateId`、`linux_command_execute.template`、`http_request_execute.template` 必须来自对应 `template_query.templates[].templateId`。
+不允许使用不存在的模板名。`sql_query_execute.templateId`、`linux_command_execute.template`、`http_request_execute.template` 必须来自对应 `template_query.templates[].templateId`，或来自本次请求已经观测到的授权模板契约。没有模板发现工具且没有已观测模板契约时，应停止并说明缺少模板发现能力，不能发明模板名。
 
-## `sql_query_plan`
+## `sql_metadata_search`
 
 ### 定位
 
-`sql_query_plan` 是 SQL/RAG 统一查询规划工具，不执行 SQL，也不执行文档检索。它用于复杂 SQL 分析前的“编译/规划”，尤其适合以下场景：
+`sql_metadata_search` 是 SQL 表分析前的本地元数据检索工具。它不访问业务数据库执行 SQL，而是查询已经刷新到本地的元数据索引：
 
-1. 表名存在但 schema/database 不确定。
-2. 用户要求“分析”“趋势”“指标”“性能”“锁”“事务”等多步骤诊断。
-3. 可能涉及多表 join、指标解释、业务术语解释。
-4. SQL 结果需要和 `document_search` 结果融合。
+```text
+数据库资产维护页
+  ↓
+元数据刷新
+  ↓
+RocksDB schema cache
+  ↓
+Lucene searchable index
+  ↓
+sql_metadata_search
+```
+
+它用于替代已经删除的 `sql_query_plan`，解决“表名已知但库/schema 不确定”“需要字段名、类型、注释作为结构依据”“需要把 SQL 执行参数绑定到正确 schema/table”等问题。
+
+### 适用场景
+
+1. 用户提供表名、`database.table`、`schema.table` 或 SQL Server 风格 `database.schema.table`。
+2. 用户提供表注释、数据库注释、业务中文名称，需要基于注释召回真实表名。
+3. SQL 模板执行前需要确定 `schemaName/databaseName/tableName`。
+4. final answer 需要展示结构化字段依据，包括列名、类型、注释、主键/索引提示。
 
 ### 正确位置
 
 ```text
 sql_datasource_asset_query
   ↓
-sql_query_plan
+sql_metadata_search
   ↓
-sql_datasource_template_query
+sql_datasource_template_query（仅当本次 availableTools 包含该工具）
   ↓
 sql_query_execute
 ```
+
+如果本次 `availableTools` 不包含 `sql_datasource_template_query`，planner/rewriter 不得补造该步骤；只能使用已观测到的模板契约或停止在 final_answer 中说明缺少模板发现能力。
 
 ### 输入示例
 
 ```json
 {
-  "question": "分析 248测试数据库 中 t_ad_dict_entr_supn 表的结构、索引、数据量、锁等待和事务风险",
-  "tables": ["t_ad_dict_entr_supn"],
-  "executionContext": {
-    "assetName": "248测试数据库",
-    "env": "DEV"
-  },
+  "query": "livebos.os_historystep / 表注释 / 模块名称",
+  "tableName": "os_historystep",
+  "database": "livebos",
+  "schema": "livebos",
+  "assetName": "248测试数据库",
+  "env": "DEV",
+  "databaseType": "mysql",
+  "includeColumns": true,
   "limit": 10,
   "tenantId": "admin",
   "userId": "admin"
 }
 ```
 
-### 输出如何用
-
-重点使用：
+SQL Server 三段式表名必须按对象解析：
 
 ```text
-diagnostics.resolvedTables
-diagnostics.semanticIR
-diagnostics.retrievalPlan
-steps
-joinGraph
-costModel
+user.dbo.table
+  database = user
+  schema   = dbo
+  table    = table
 ```
 
-如果 `resolvedTables` 解析出：
+MySQL / PostgreSQL / Oracle 两段式按 `schema.table` 或 `database.table` 解析，最终以工具返回的 `sqlExecutionBinding` 为准。
 
-```json
-{
-  "database": "rdsm_ad",
-  "schema": "rdsm_ad",
-  "table": "t_ad_dict_entr_supn",
-  "score": 0.92
-}
+### 输出如何用
+
+重点消费：
+
+```text
+results[].location.datasourceId
+results[].location.assetName
+results[].location.database
+results[].location.schema
+results[].location.table
+results[].columns[].name
+results[].columns[].type
+results[].columns[].comment
+results[].sqlExecutionBinding
 ```
 
-后续 `sql_datasource_template_query` 和 `sql_query_execute` 应传：
+后续 `sql_query_execute` 应优先从 `results[].sqlExecutionBinding` 绑定参数，例如：
 
 ```json
 {
   "parameters": {
-    "tableName": "t_ad_dict_entr_supn",
-    "schemaName": "rdsm_ad"
+    "tableName": "os_historystep",
+    "schemaName": "livebos",
+    "databaseName": "livebos"
   },
   "executionContext": {
     "assetName": "248测试数据库",
-    "env": "DEV",
-    "schemaName": "rdsm_ad",
-    "databaseName": "rdsm_ad"
+    "env": "DEV"
   }
 }
 ```
 
-### 禁止事项
+### 索引刷新要求
 
-不能把 `sql_query_plan.steps[].sqlFragment` 当成 SQL 交给 `sql_query_execute`。plan 的 SQL 片段只是解释性计划，不是授权执行文本。真正执行必须通过 `sql_datasource_template_query` 返回的模板。
+`sql_metadata_search` 依赖本地索引，不应该在每次对话中频繁查询 `information_schema`。数据库资产维护页必须配置元数据索引范围：
+
+- JDBC 当前数据库
+- 指定数据库/Schema，可多选或手动输入
+- owner/user 范围，适用于 Oracle/SQL Server 等需要 owner/schema 的数据库
+- 手动刷新或按刷新间隔自动刷新
+
+刷新后数据进入 RocksDB 和 Lucene。RocksDB 是 schema cache，Lucene 是检索入口；二者都不是业务数据库的唯一真相源。
 
 ## `sql_query_execute`
 
@@ -323,7 +389,7 @@ SQL 执行网关。用于执行已授权 SQL 模板，必须受 template registr
 
 ### 严格规则
 
-1. `templateId` 必须来自 `sql_datasource_template_query.templates[].templateId`。
+1. `templateId` 必须来自 `sql_datasource_template_query.templates[].templateId` 或本次已经观测到的授权 SQL 模板契约。
 2. `parameters` 只能包含该模板 `parameterSchema` 声明的字段。
 3. 禁止传 `parameters.sql`、`rawSql`、`statement`、`query`。
 4. 禁止把 SQL 片段塞进 `tableName`、`whereClause`、`filterExpression` 等参数。
@@ -335,8 +401,8 @@ SQL 执行网关。用于执行已授权 SQL 模板，必须受 template registr
 1. sql_datasource_asset_query
    定位 248测试数据库
 
-2. sql_query_plan
-   解析 t_ad_dict_entr_supn 所在 schema/database
+2. sql_metadata_search
+   从本地索引解析 t_ad_dict_entr_supn 所在 schema/database，并返回列名、类型和注释
 
 3. sql_datasource_template_query
    查询 table location / table metadata 模板
@@ -477,7 +543,7 @@ database_query_template_query
 ### 使用规则
 
 1. 适合“查询某个业务指标/报表/固定业务列表”。
-2. 不适合自由表结构诊断；表结构诊断走 `sql_datasource_*` + `sql_query_plan` + `sql_query_execute`。
+2. 不适合自由表结构诊断；表结构诊断走 `sql_datasource_*` + `sql_metadata_search` + `sql_query_execute`。
 3. 参数必须符合动态工具 input schema。
 
 ## 文档检索和 RAG
@@ -495,9 +561,9 @@ database_query_template_query
 推荐链路：
 
 ```text
-sql_query_plan
+sql_metadata_search
   ├─ sql_datasource_template_query → sql_query_execute
-  └─ document_search
+  └─ document_search（需要业务解释或制度依据时）
        ↓
 result fusion / final_answer
 ```
@@ -598,7 +664,7 @@ web_page_analyze / crawl_url
 ```text
 sql_datasource_asset_query
   ↓
-sql_query_plan
+sql_metadata_search
   ↓
 sql_datasource_template_query(TABLE_LOCATION / TABLE_METADATA)
   ↓
@@ -679,7 +745,7 @@ final_answer
 ```text
 sql_datasource_asset_query
   ↓
-sql_query_plan
+sql_metadata_search
   ├─ sql_datasource_template_query → sql_query_execute
   └─ document_search
        ↓
@@ -717,9 +783,9 @@ final_answer
 | `TENANT_MISSING` | 停止执行，不 retry，不重建 session |
 | asset 未匹配 | 允许补充更精确 filters 或返回候选资产 |
 | template 未匹配 | 不发明模板；说明无授权模板，或改写 intent 后最多重试一次 |
-| template scope mismatch | 回到 template_query，按目标 scope 重新选模板 |
-| SQL 参数含 raw SQL | 拒绝执行，移除 raw SQL，重新走 template_query |
-| schema/table 未定位 | 走 `sql_query_plan` / table location 模板 |
+| template scope mismatch | 当 template_query 可用时回到 template_query，按目标 scope 重新选模板；不可用时停止并报告缺少模板发现能力 |
+| SQL 参数含 raw SQL | 拒绝执行，移除 raw SQL；当 template_query 可用时重新发现模板，不可用时停止 |
+| schema/table 未定位 | 走 `sql_metadata_search` / table location 模板 |
 | document_search 空结果 | 改写一次查询；仍为空则报告证据不足 |
 | execute 工具失败 | 根据结构化错误决定 STOP / RETRY_ONCE / REBUILD_SESSION |
 
@@ -728,8 +794,8 @@ final_answer
 | 字段/对象 | 唯一来源 |
 | --- | --- |
 | `assets[]` | asset_query |
-| `templates[]` | template_query |
-| `templateId` | template_query |
+| `templates[]` | template_query 或已观测授权模板契约 |
+| `templateId` | template_query 或已观测授权模板契约 |
 | SQL 结构化结果 | `sql_query_execute` |
 | SSH 命令结果 | `linux_command_execute` |
 | HTTP 调用结果 | `http_request_execute` |
@@ -746,26 +812,26 @@ final_answer
 4. 禁止模型直接写 URL、headers、body template。
 5. 禁止模型直接传 `hostId`、`datasourceId`、`endpointId`、JDBC URL、IP。
 6. 禁止 reviewer 写 `final_answer`。
-7. 禁止把 `sql_query_plan` 的解释性 `sqlFragment` 当作授权 SQL 执行。
+7. 禁止 planner/rewriter 规划不在本次 `availableTools` 中的 MCP 工具，即使该工具已在全局 registry 注册。
 8. 禁止用实例级模板代替表级模板，例如用 `MYSQL_INNODB_TRX` 回答表结构。
 
 ## 推荐落地到 planner 的强约束
 
-复杂 SQL 分析任务必须包含：
+复杂 SQL 分析任务的推荐链路：
 
 ```text
 sql_datasource_asset_query
-sql_query_plan
-sql_datasource_template_query
-sql_query_execute
+sql_metadata_search
+sql_datasource_template_query（仅当 availableTools 中存在）
+sql_query_execute（仅当 templateId 和参数契约已确定）
 final_answer
 ```
 
 受控执行任务必须满足：
 
 ```text
-execute.template/templateId ∈ template_query.templates[].templateId
-execute.parameters ⊆ template_query.templates[].parameterSchema.properties
+execute.template/templateId ∈ template_query.templates[].templateId 或已观测授权模板契约
+execute.parameters ⊆ 模板 parameterSchema.properties
 execute.executionContext 来自 asset_query 或用户逻辑上下文
 ```
 

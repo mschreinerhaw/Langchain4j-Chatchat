@@ -80,8 +80,18 @@ class AgentAnswerFinalizer {
             )
         );
         values.putAll(decision.metadata());
-        String finalAnswer = sanitizeFinalMarkdown(decision.finalAnswer());
-        if (!finalAnswer.equals(decision.finalAnswer())) {
+        String answerBeforeSqlMetadataMerge = decision.finalAnswer();
+        String mergedAnswer = mergeStructuredSqlMetadataAnswer(
+            structuredSqlMetadataMarkdown(values),
+            answerBeforeSqlMetadataMerge
+        );
+        if (!mergedAnswer.equals(answerBeforeSqlMetadataMerge == null ? "" : answerBeforeSqlMetadataMerge)) {
+            values.put("structuredSqlMetadataMergedInFinalizer", true);
+            values.put("structuredSqlMetadataMergeReason", "semantic_gate_passed_preserve_column_metadata");
+            values.put("finalAnswerPreview", shortText(mergedAnswer, 1000));
+        }
+        String finalAnswer = sanitizeFinalMarkdown(mergedAnswer);
+        if (!finalAnswer.equals(mergedAnswer)) {
             values.put("finalAnswerSanitized", true);
             values.put("finalAnswerPreview", shortText(finalAnswer, 1000));
         }
@@ -304,6 +314,12 @@ class AgentAnswerFinalizer {
         prompt.append("If observations include web citation labels, append the matching label immediately after every sentence that relies on that web source.\n");
         prompt.append("Do not invent citations or cite URLs that are not listed in the observations.\n");
         prompt.append("If an Evidence trust policy asks for more evidence, avoid strong claims and say that trusted evidence is insufficient.\n");
+        String structuredSqlMetadata = structuredSqlMetadataMarkdown(metadata);
+        if (!structuredSqlMetadata.isBlank()) {
+            prompt.append("Authoritative SQL metadata evidence is available below. Preserve the field list/types/comments in the answer and do not claim table columns or structure are missing.\n")
+                .append(structuredSqlMetadata)
+                .append("\n\n");
+        }
         if (containsEvidence(observations == null ? List.of() : observations)) {
             AnswerAssemblyPolicy assemblyPolicy = answerAssemblyEngine.plan(observations);
             prompt.append(answerAssemblyEngine.promptInstructions(assemblyPolicy)).append("\n");
@@ -534,6 +550,41 @@ class AgentAnswerFinalizer {
     private boolean structuredSqlMetadataSemanticGatePassed(Map<String, Object> metadata) {
         return Boolean.TRUE.equals(metadata == null ? null : metadata.get("sqlMetadataSemanticGatePassed"))
             && Boolean.TRUE.equals(metadata == null ? null : metadata.get("executionGraphSemanticPassed"));
+    }
+
+    private String structuredSqlMetadataMarkdown(Map<String, Object> metadata) {
+        if (metadata == null || !structuredSqlMetadataSemanticGatePassed(metadata)) {
+            return "";
+        }
+        Object value = metadata.get("structuredSqlMetadataMarkdown");
+        if (value == null) {
+            return "";
+        }
+        String markdown = String.valueOf(value).trim();
+        return markdown.isBlank() ? "" : markdown;
+    }
+
+    private String mergeStructuredSqlMetadataAnswer(String structuredSqlMetadata, String modelAnswer) {
+        String answer = modelAnswer == null ? "" : modelAnswer.trim();
+        if (structuredSqlMetadata == null || structuredSqlMetadata.isBlank()) {
+            return answer;
+        }
+        if (containsStructuredSqlMetadataAnswer(answer)) {
+            return answer;
+        }
+        if (answer.isBlank()) {
+            return structuredSqlMetadata.trim();
+        }
+        return structuredSqlMetadata.trim() + "\n\n## \u5206\u6790\u7ed3\u8bba\n\n" + answer;
+    }
+
+    private boolean containsStructuredSqlMetadataAnswer(String answer) {
+        if (answer == null || answer.isBlank()) {
+            return false;
+        }
+        return answer.contains("## \u5143\u6570\u636e\u4f9d\u636e")
+            && answer.contains("## \u5b57\u6bb5\u7ed3\u6784")
+            || (answer.contains("| # |") && answer.contains("|---:|") && answer.contains("`"));
     }
 
     private void recordAnswerReview(Map<String, Object> metadata, AgentAnswerReview review) {

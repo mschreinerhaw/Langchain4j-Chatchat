@@ -108,6 +108,7 @@ public class InterpretationPlanRewriter {
         prompt.append("- Preserve or tighten execution_policy.max_rewrite_times and fallback_mode.\n");
         prompt.append("- Preserve execution_policy tool priority/cost/latency/accuracy constraints unless the failure proves they are impossible.\n");
         prompt.append("- Preserve plan.stability stable_nodes, critical_tools, and locked_edges; do not alter locked edges.\n");
+        prompt.append("- Preserve plan.dependency_contracts. Required dependency_contracts must appear in target depends_on; optional dependency_contracts must keep condition/reason and should only be converted into executable steps when the user request needs them.\n");
         prompt.append("- Add or update plan.edge_contracts when the failure was caused by missing or mistyped tool output fields.\n");
         prompt.append("- Keep execution_policy.deny_tool for tools that failed due to policy, permission, or safety.\n\n");
         boolean templateDiscoveryAvailable = hasAvailableSemanticTool(request.availableTools(), "template_discovery");
@@ -255,6 +256,7 @@ public class InterpretationPlanRewriter {
         InterpretationPlan.Plan repairedBody = new InterpretationPlan.Plan(
             mergedSteps,
             rewrittenBody == null || rewrittenBody.edgeContracts() == null ? List.of() : rewrittenBody.edgeContracts(),
+            rewrittenBody == null || rewrittenBody.dependencyContracts() == null ? List.of() : rewrittenBody.dependencyContracts(),
             rewrittenBody == null || rewrittenBody.bindings() == null ? List.of() : rewrittenBody.bindings(),
             rewrittenBody == null ? null : rewrittenBody.stability()
         );

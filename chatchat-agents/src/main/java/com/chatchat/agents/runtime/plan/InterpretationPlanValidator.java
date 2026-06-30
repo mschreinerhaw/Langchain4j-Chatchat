@@ -101,6 +101,7 @@ public class InterpretationPlanValidator {
         validateFinalAnswer(steps, state);
         validateExecutionPolicy(plan, steps, toolRegistry, state);
         validateStability(plan, stepsById, toolRegistry, availableTools, state);
+        validateDependencyContracts(plan, stepsById, state);
         validateEdgeContracts(plan, stepsById, state);
         validateBindings(plan, stepsById, state);
         List<InterpretationPlan.Step> orderedSteps = validateDag(stepsById, state);
@@ -590,6 +591,45 @@ public class InterpretationPlanValidator {
                 && contract.from() != null
                 && (target.dependsOn() == null || !target.dependsOn().contains(contract.from()))) {
                 state.warning(path, "Edge contract target should depend on source step: " + contract.from() + " -> " + contract.to());
+            }
+        }
+    }
+
+    private void validateDependencyContracts(InterpretationPlan plan,
+                                             Map<Integer, InterpretationPlan.Step> stepsById,
+                                             ValidationState state) {
+        if (plan == null || plan.plan() == null || plan.plan().dependencyContracts() == null) {
+            return;
+        }
+        for (int index = 0; index < plan.plan().dependencyContracts().size(); index++) {
+            InterpretationPlan.DependencyContract contract = plan.plan().dependencyContracts().get(index);
+            String path = "plan.dependency_contracts[" + index + "]";
+            if (contract == null) {
+                state.error(path, "Dependency contract cannot be null");
+                continue;
+            }
+            if (contract.from() == null || !stepsById.containsKey(contract.from())) {
+                state.error(path + ".from", "Dependency contract source step does not exist: " + contract.from());
+            }
+            if (contract.to() == null || !stepsById.containsKey(contract.to())) {
+                state.error(path + ".to", "Dependency contract target step does not exist: " + contract.to());
+            }
+            boolean required = contract.required() == null || contract.required();
+            InterpretationPlan.Step target = stepsById.get(contract.to());
+            if (required
+                && target != null
+                && contract.from() != null
+                && (target.dependsOn() == null || !target.dependsOn().contains(contract.from()))) {
+                state.error(path + ".required",
+                    "Required dependency contract must also appear in target depends_on: " + contract.from() + " -> " + contract.to());
+            }
+            if (!required && blank(contract.condition()) && blank(contract.reason())) {
+                state.error(path + ".condition",
+                    "Optional dependency contract requires condition or reason so planner can decide when to include it.");
+            }
+            if (!blank(contract.onFailure())
+                && !Set.of("stop", "skip", "continue_with_partial_evidence", "replan").contains(normalize(contract.onFailure()))) {
+                state.error(path + ".on_failure", "Unsupported dependency failure policy: " + contract.onFailure());
             }
         }
     }

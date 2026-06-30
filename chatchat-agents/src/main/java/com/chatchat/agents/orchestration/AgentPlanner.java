@@ -178,6 +178,8 @@ class AgentPlanner {
         prompt.append("- Every execution_policy.tool_priority value MUST be a number from 0.0 to 1.0. Higher priority means closer to 1.0; never use rank numbers such as 2.0.\n");
         prompt.append("- execution_policy.accuracy_vs_speed MUST also be from 0.0 to 1.0.\n");
         prompt.append("- Use plan.stability to lock critical nodes/tools/edges that optimizer and rewriter must preserve.\n");
+        prompt.append("- Use plan.dependency_contracts to declare dependency semantics. depends_on is hard DAG ordering only; dependency_contracts.required=true means the upstream step must be executed before the target, while required=false means the upstream step is optional and should be planned only when its condition is needed.\n");
+        prompt.append("- Required dependency_contracts MUST also appear in the target step depends_on. Optional dependency_contracts MUST include condition or reason; do not add optional tools as depends_on unless you decide they are needed for this user request.\n");
         prompt.append("- Add plan.edge_contracts when a later step needs a typed field from an earlier tool output.\n");
         prompt.append("- If information is missing, add missing_info and plan the smallest safe retrieval/tool step instead of inventing facts.\n\n");
         String sqlTemplateQueryTool = matchingAvailableTool(availableTools, "template_discovery");
@@ -330,8 +332,9 @@ class AgentPlanner {
         }
         prompt.append("MCP tool orchestration contract from current Agent Runtime OS:\n");
         prompt.append("- Treat this workflow as a mandatory reasoning and execution graph, not a loose tool suggestion.\n");
-        prompt.append("- The InterpretationPlan MUST preserve every required step, dependency, condition, and confirmation node from this workflow.\n");
-        prompt.append("- When a workflow step has dependsOn, the matching plan step MUST depend_on the referenced prior workflow tool step.\n");
+        prompt.append("- The InterpretationPlan MUST preserve every required step, required dependency, condition, and confirmation node from this workflow.\n");
+        prompt.append("- Workflow dependencies may be required or optional. Required dependencies must become plan.dependency_contracts required=true and the matching target step depends_on. Optional dependencies must become required=false with condition/reason, and should only become executable steps when the user request needs them.\n");
+        prompt.append("- When a workflow step has dependsOn, treat it as required unless the workflow explicitly marks it optional. The matching plan step MUST depend_on the referenced prior workflow tool step.\n");
         prompt.append("- When a workflow step has confirmation, keep that tool as its own mcp_tool step so runtime can request/record confirmation at that node.\n");
         int index = 1;
         for (Object item : list) {
@@ -349,6 +352,7 @@ class AgentPlanner {
             String order = stringValue(firstObject(step, "step", "order"));
             Boolean required = booleanObject(step.get("required"));
             List<String> dependsOn = stringList(firstObject(step, "dependsOn", "depends_on"));
+            List<String> optionalDependsOn = stringList(firstObject(step, "optionalDependsOn", "optional_depends_on", "optionalDependencies", "optional_dependencies"));
             String condition = stringValue(step.get("condition"));
             String confirmation = stringValue(step.get("confirmation"));
             prompt.append("  step ").append(firstNonBlank(order, String.valueOf(index))).append(": ");
@@ -362,6 +366,9 @@ class AgentPlanner {
             prompt.append(", required=").append(!Boolean.FALSE.equals(required));
             if (!dependsOn.isEmpty()) {
                 prompt.append(", dependsOn=").append(dependsOn);
+            }
+            if (!optionalDependsOn.isEmpty()) {
+                prompt.append(", optionalDependsOn=").append(optionalDependsOn);
             }
             if (condition != null && !condition.isBlank()) {
                 prompt.append(", condition=").append(condition);
@@ -654,6 +661,21 @@ class AgentPlanner {
         Map<String, Object> plan = mutableMap(normalized.get("plan"));
         if (!plan.isEmpty()) {
             alias(plan, "edgeContracts", "edge_contracts");
+            alias(plan, "dependencyContracts", "dependency_contracts");
+            Object rawDependencyContracts = plan.get("dependency_contracts");
+            if (rawDependencyContracts instanceof List<?> contracts) {
+                List<Object> normalizedContracts = new ArrayList<>();
+                for (Object rawContract : contracts) {
+                    Map<String, Object> contract = mutableMap(rawContract);
+                    if (contract.isEmpty()) {
+                        normalizedContracts.add(rawContract);
+                        continue;
+                    }
+                    alias(contract, "onFailure", "on_failure");
+                    normalizedContracts.add(contract);
+                }
+                plan.put("dependency_contracts", normalizedContracts);
+            }
             Object rawSteps = plan.get("steps");
             if (rawSteps instanceof List<?> steps) {
                 List<Object> normalizedSteps = new ArrayList<>();
@@ -1987,6 +2009,7 @@ class AgentPlanner {
         InterpretationPlan.Plan repairedInnerPlan = new InterpretationPlan.Plan(
             steps,
             originalPlan == null ? List.of() : originalPlan.edgeContracts(),
+            originalPlan == null ? List.of() : originalPlan.dependencyContracts(),
             originalPlan == null ? List.of() : originalPlan.bindings(),
             originalPlan == null ? null : originalPlan.stability()
         );

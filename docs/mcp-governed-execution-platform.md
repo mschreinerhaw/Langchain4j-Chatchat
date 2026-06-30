@@ -210,6 +210,18 @@ http_endpoint_asset_query
 
 API 资产不按每个 API 单独暴露 MCP tool。统一通过 api_asset_query 检索 API 资产元数据，再通过 api_template_query 选择模板。
 
+SQL 表级分析不应在每次对话中扫描业务库系统元数据。数据库资产维护页负责声明元数据索引范围并刷新到本地：
+
+```text
+Asset Registry
+  -> Metadata Refresh
+  -> RocksDB schema cache
+  -> Lucene search index
+  -> sql_metadata_search
+```
+
+`sql_metadata_search` 是 MCP 对外暴露的元数据检索入口，用于按资产、库/schema、表名、表注释、字段注释召回结构化表位置和列信息。
+
 ### 模板检索工具
 
 当前实现按资产类型拆分，保证强隔离：
@@ -230,14 +242,26 @@ template_discovery(assetType)
 
 但 MCP 实际发布仍可以是 typed tools。这样对 Agent 是稳定接口，对 MCP 是强隔离实现。
 
+### 本地检索工具
+
+本地检索工具不直接访问外部系统，主要消费已经刷新到本地的索引或缓存：
+
+```text
+sql_metadata_search
+document_search
+```
+
+这类工具仍然必须携带 tenant/user/trace 上下文，并受本次 `availableTools` 约束。
+
 ### 执行工具
 
 执行维度必须严格隔离：
 
 ```text
 database_query
+sql_query_execute
 linux_command_execute
-http_execute
+http_request_execute
 notification_send
 ```
 

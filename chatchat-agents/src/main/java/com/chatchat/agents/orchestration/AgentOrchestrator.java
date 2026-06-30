@@ -1260,6 +1260,7 @@ public class AgentOrchestrator {
         if (!structuredSqlMetadata.isBlank()) {
             if (metadata != null) {
                 metadata.put("structuredSqlMetadataRendered", true);
+                metadata.put("structuredSqlMetadataMarkdown", structuredSqlMetadata);
                 metadata.put("structuredSqlMetadataPreview", preview(structuredSqlMetadata));
                 metadata.put("sqlMetadataFact", renderedSqlMetadata.metadata());
                 metadata.put("sqlMetadataSemanticGatePassed", renderedSqlMetadata.metadata().get("semanticGatePassed"));

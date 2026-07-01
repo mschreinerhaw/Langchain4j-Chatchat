@@ -4,14 +4,44 @@ import io.modelcontextprotocol.server.McpServerFeatures;
 import io.modelcontextprotocol.server.McpSyncServer;
 import io.modelcontextprotocol.spec.McpSchema;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 import java.lang.reflect.Method;
+import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
 class AssetDiscoveryMcpToolPublisherTest {
+
+    @Test
+    void refreshExposesSqlDatasourceAssetQueryTool() {
+        McpSyncServer server = mock(McpSyncServer.class);
+        AssetDiscoveryMcpToolPublisher publisher = new AssetDiscoveryMcpToolPublisher(
+            server,
+            mock(AssetDiscoveryService.class)
+        );
+
+        publisher.refresh();
+
+        ArgumentCaptor<McpServerFeatures.SyncToolSpecification> captor =
+            ArgumentCaptor.forClass(McpServerFeatures.SyncToolSpecification.class);
+        verify(server, times(3)).addTool(captor.capture());
+        List<String> toolNames = captor.getAllValues().stream()
+            .map(spec -> spec.tool().name())
+            .toList();
+        assertThat(toolNames)
+            .containsExactlyInAnyOrder(
+                AssetDiscoveryMcpToolPublisher.SSH_ASSET_TOOL_NAME,
+                AssetDiscoveryMcpToolPublisher.SQL_DATASOURCE_ASSET_TOOL_NAME,
+                AssetDiscoveryMcpToolPublisher.HTTP_ENDPOINT_ASSET_TOOL_NAME
+            );
+        verify(server).removeTool(AssetDiscoveryMcpToolPublisher.SQL_DATASOURCE_ASSET_TOOL_NAME);
+        verify(server).notifyToolsListChanged();
+    }
 
     @Test
     void sshAssetQueryToolIsTypedReadOnlyAndAutoExecute() throws Exception {

@@ -356,15 +356,15 @@ async function loadLocalAuthorizationTools() {
         result.status === 'fulfilled' && Array.isArray(result.value) ? result.value : []
     );
     localAuthorizationTools = [
-        toLocalTool({ id: 'document_search', toolName: 'document_search', enabled: true }, 'document', '文档检索', '检索系统管理的全部文档，访问范围由 document_search 工具权限控制'),
         toLocalTool({ id: 'api_asset_query', toolName: 'api_asset_query', enabled: true }, 'api', 'API 资产检索', '检索 API 服务资产元数据，不返回 URL、Header 或 Body 原始执行模板'),
+        toLocalTool({ id: 'database_asset_search', toolName: 'database_asset_search', enabled: true }, 'asset', '数据库资产检索', '确认数据库数据源资产元数据'),
+        toLocalTool({ id: 'document_search', toolName: 'document_search', enabled: true }, 'document', '文档检索', '检索系统管理的全部文档，访问范围由 document_search 工具权限控制'),
         toLocalTool({ id: 'api_template_query', toolName: 'api_template_query', enabled: true }, 'api', 'API 模板检索', '检索 API 服务模板，不返回 URL、Header 或 Body 原始执行模板'),
         toLocalTool({ id: 'ssh_template_query', toolName: 'ssh_template_query', enabled: true }, 'asset', 'SSH 模板检索', '检索 SSH 主机命令模板'),
-        toLocalTool({ id: 'sql_datasource_template_query', toolName: 'sql_datasource_template_query', enabled: true }, 'asset', 'SQL 数据源模板检索', '检索 SQL 数据源查询模板'),
+        toLocalTool({ id: 'database_ops_template_search', toolName: 'database_ops_template_search', enabled: true }, 'asset', '数据库运维模板检索', '检索数据库维护、元数据和诊断模板'),
         toLocalTool({ id: 'http_endpoint_template_query', toolName: 'http_endpoint_template_query', enabled: true }, 'asset', 'HTTP 端点模板检索', '检索 HTTP 端点请求模板'),
-        toLocalTool({ id: 'database_query_template_query', toolName: 'database_query_template_query', enabled: true }, 'database_query', '业务数据库查询模板检索', '检索业务数据库查询模板，不返回原始 SQL'),
+        toLocalTool({ id: 'business_query_template_search', toolName: 'business_query_template_search', enabled: true }, 'database_query', '业务查询模板检索', '检索业务数据库查询模板，不返回原始 SQL'),
         toLocalTool({ id: 'ssh_asset_query', toolName: 'ssh_asset_query', enabled: true }, 'asset', 'SSH 资产检索', '检索 SSH 主机资产元数据'),
-        toLocalTool({ id: 'sql_datasource_asset_query', toolName: 'sql_datasource_asset_query', enabled: true }, 'asset', 'SQL 数据源资产检索', '检索 SQL 数据源资产元数据'),
         toLocalTool({ id: 'http_endpoint_asset_query', toolName: 'http_endpoint_asset_query', enabled: true }, 'asset', 'HTTP 端点资产检索', '检索 HTTP 端点资产元数据'),
         ...databaseQueries.map(item => toLocalTool(item, 'database_query', '数据库查询', item.title || item.description || item.sqlTemplate)),
         ...sshAssets.map(item => toLocalTool(item, 'asset', '服务器资产', item.title || item.description || item.hostname)),

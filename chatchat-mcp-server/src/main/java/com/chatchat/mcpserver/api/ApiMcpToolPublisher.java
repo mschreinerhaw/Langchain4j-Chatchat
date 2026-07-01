@@ -43,6 +43,6 @@ public class ApiMcpToolPublisher {
         managedToolNames.clear();
 
         mcpSyncServer.notifyToolsListChanged();
-        log.info("API MCP per-service tool publishing disabled; use api_asset_query and api_template_query");
+        log.info("API MCP per-service tool publishing disabled; use api_template_query");
     }
 }

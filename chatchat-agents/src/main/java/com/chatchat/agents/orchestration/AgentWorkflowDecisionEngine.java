@@ -392,10 +392,10 @@ class AgentWorkflowDecisionEngine {
         if ("template_query".equals(semantic) || "template_discovery".equals(semantic)) {
             return "template_discovery";
         }
-        if (semantic.endsWith("_asset_query")) {
+        if (semantic.endsWith("_asset_query") || "database_asset_search".equals(semantic)) {
             return "asset_discovery";
         }
-        if (semantic.endsWith("_template_query")) {
+        if (semantic.endsWith("_template_query") || semantic.endsWith("_template_search")) {
             return "template_discovery";
         }
         return toolName.trim();

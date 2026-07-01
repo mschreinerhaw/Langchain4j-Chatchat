@@ -22,9 +22,11 @@ import java.util.Map;
 public class TemplateDiscoveryMcpToolPublisher {
 
     public static final String SSH_TEMPLATE_TOOL_NAME = "ssh_template_query";
-    public static final String SQL_DATASOURCE_TEMPLATE_TOOL_NAME = "sql_datasource_template_query";
+    public static final String SQL_DATASOURCE_TEMPLATE_TOOL_NAME = "database_ops_template_search";
+    public static final String LEGACY_SQL_DATASOURCE_TEMPLATE_TOOL_NAME = "sql_datasource_template_query";
     public static final String HTTP_ENDPOINT_TEMPLATE_TOOL_NAME = "http_endpoint_template_query";
-    public static final String DATABASE_QUERY_TEMPLATE_TOOL_NAME = "database_query_template_query";
+    public static final String DATABASE_QUERY_TEMPLATE_TOOL_NAME = "business_query_template_search";
+    public static final String LEGACY_DATABASE_QUERY_TEMPLATE_TOOL_NAME = "database_query_template_query";
 
     private final McpSyncServer mcpSyncServer;
     private final CommandTemplateDiscoveryService templateDiscoveryService;
@@ -38,8 +40,10 @@ public class TemplateDiscoveryMcpToolPublisher {
     public synchronized void refresh() {
         remove(SSH_TEMPLATE_TOOL_NAME);
         remove(SQL_DATASOURCE_TEMPLATE_TOOL_NAME);
+        remove(LEGACY_SQL_DATASOURCE_TEMPLATE_TOOL_NAME);
         remove(HTTP_ENDPOINT_TEMPLATE_TOOL_NAME);
         remove(DATABASE_QUERY_TEMPLATE_TOOL_NAME);
+        remove(LEGACY_DATABASE_QUERY_TEMPLATE_TOOL_NAME);
         mcpSyncServer.addTool(domainTemplateQueryTool(
             SSH_TEMPLATE_TOOL_NAME,
             "SSH command template discovery",
@@ -50,11 +54,11 @@ public class TemplateDiscoveryMcpToolPublisher {
         ));
         mcpSyncServer.addTool(domainTemplateQueryTool(
             SQL_DATASOURCE_TEMPLATE_TOOL_NAME,
-            "SQL datasource template discovery",
-            "Read-only MCP tool for retrieving SQL datasource query templates only.",
+            "Database maintenance template search",
+            "Read-only MCP tool for retrieving database maintenance, metadata, and diagnostic templates only.",
             "sql_datasource",
             "database",
-            "SQL datasource templates"
+            "database maintenance templates"
         ));
         mcpSyncServer.addTool(domainTemplateQueryTool(
             HTTP_ENDPOINT_TEMPLATE_TOOL_NAME,

@@ -1,5 +1,6 @@
 package com.chatchat.mcpserver.api;
 
+import com.chatchat.mcpserver.search.LuceneMcpSearchService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.modelcontextprotocol.server.McpServerFeatures;
 import io.modelcontextprotocol.server.McpSyncServer;
@@ -12,7 +13,10 @@ import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class ApiTemplateDiscoveryMcpToolPublisherTest {
@@ -22,6 +26,7 @@ class ApiTemplateDiscoveryMcpToolPublisherTest {
         ApiTemplateDiscoveryMcpToolPublisher publisher = new ApiTemplateDiscoveryMcpToolPublisher(
             mock(McpSyncServer.class),
             mock(ApiServiceConfigService.class),
+            mock(LuceneMcpSearchService.class),
             new ObjectMapper()
         );
         Method apiTemplateQueryTool = ApiTemplateDiscoveryMcpToolPublisher.class.getDeclaredMethod("apiTemplateQueryTool");
@@ -61,9 +66,15 @@ class ApiTemplateDiscoveryMcpToolPublisherTest {
 
         ApiServiceConfigService configService = mock(ApiServiceConfigService.class);
         when(configService.listEnabled()).thenReturn(List.of(config));
+        LuceneMcpSearchService lucene = mock(LuceneMcpSearchService.class);
+        when(lucene.enabled()).thenReturn(true);
+        when(lucene.searchApiServiceTemplates(any())).thenReturn(List.of(
+            new LuceneMcpSearchService.SearchHit("order_status_api", "template", 8.0f, List.of("lucene"))
+        ));
         ApiTemplateDiscoveryMcpToolPublisher publisher = new ApiTemplateDiscoveryMcpToolPublisher(
             mock(McpSyncServer.class),
             configService,
+            lucene,
             new ObjectMapper()
         );
 
@@ -108,9 +119,15 @@ class ApiTemplateDiscoveryMcpToolPublisherTest {
 
         ApiServiceConfigService configService = mock(ApiServiceConfigService.class);
         when(configService.listEnabled()).thenReturn(List.of(billingApi, orderApi));
+        LuceneMcpSearchService lucene = mock(LuceneMcpSearchService.class);
+        when(lucene.enabled()).thenReturn(true);
+        when(lucene.searchApiServiceTemplates(any())).thenReturn(List.of(
+            new LuceneMcpSearchService.SearchHit("order_status_api", "template", 9.0f, List.of("lucene"))
+        ));
         ApiTemplateDiscoveryMcpToolPublisher publisher = new ApiTemplateDiscoveryMcpToolPublisher(
             mock(McpSyncServer.class),
             configService,
+            lucene,
             new ObjectMapper()
         );
 
@@ -130,11 +147,48 @@ class ApiTemplateDiscoveryMcpToolPublisherTest {
         ApiTemplateDiscoveryMcpToolPublisher publisher = new ApiTemplateDiscoveryMcpToolPublisher(
             mock(McpSyncServer.class),
             mock(ApiServiceConfigService.class),
+            mock(LuceneMcpSearchService.class),
             new ObjectMapper()
         );
 
         assertThatThrownBy(() -> publisher.query(Map.of("filters", Map.of("urlTemplate", "https://example.com"))))
             .isInstanceOf(IllegalArgumentException.class)
             .hasMessageContaining("api_template_query");
+    }
+
+    @Test
+    void queryDoesNotFallbackToRegistryWhenApiTemplateIndexHasNoHit() {
+        ApiServiceConfig config = new ApiServiceConfig();
+        config.setToolName("order_status_api");
+        config.setTitle("Order status API");
+        config.setDescription("Query order status by order id");
+        config.setEnabled(true);
+
+        ApiServiceConfigService configService = mock(ApiServiceConfigService.class);
+        when(configService.listEnabled()).thenReturn(List.of(config));
+        LuceneMcpSearchService lucene = mock(LuceneMcpSearchService.class);
+        when(lucene.enabled()).thenReturn(true);
+        when(lucene.searchApiServiceTemplates(any())).thenReturn(List.of());
+        ApiTemplateDiscoveryMcpToolPublisher publisher = new ApiTemplateDiscoveryMcpToolPublisher(
+            mock(McpSyncServer.class),
+            configService,
+            lucene,
+            new ObjectMapper()
+        );
+
+        Map<String, Object> result = publisher.query(Map.of(
+            "filters", Map.of(
+                "intentZh", "\u67e5\u8be2\u8ba2\u5355\u72b6\u6001",
+                "intentEn", "query order status"
+            )
+        ));
+
+        assertThat(result).containsEntry("returnedCount", 0);
+        assertThat((List<?>) result.get("templates")).isEmpty();
+        assertThat(result.get("diagnostics").toString()).contains("fallbackUsed=false", "lucene_api_service_template_index");
+        verify(lucene).searchApiServiceTemplates(argThat(request -> request != null
+            && request.intentText() != null
+            && request.intentText().contains("\u67e5\u8be2\u8ba2\u5355\u72b6\u6001")
+            && request.intentText().contains("query order status")));
     }
 }

@@ -4,6 +4,7 @@ import io.modelcontextprotocol.server.McpServerFeatures;
 import io.modelcontextprotocol.server.McpSyncServer;
 import io.modelcontextprotocol.spec.McpSchema;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 import java.lang.reflect.Method;
 import java.util.List;
@@ -12,9 +13,28 @@ import java.util.Map;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class ApiAssetDiscoveryMcpToolPublisherTest {
+
+    @Test
+    void refreshExposesApiAssetQueryTool() {
+        McpSyncServer server = mock(McpSyncServer.class);
+        ApiAssetDiscoveryMcpToolPublisher publisher = new ApiAssetDiscoveryMcpToolPublisher(
+            server,
+            mock(ApiServiceConfigService.class)
+        );
+
+        publisher.refresh();
+
+        ArgumentCaptor<McpServerFeatures.SyncToolSpecification> captor =
+            ArgumentCaptor.forClass(McpServerFeatures.SyncToolSpecification.class);
+        verify(server).removeTool(ApiAssetDiscoveryMcpToolPublisher.TOOL_NAME);
+        verify(server).addTool(captor.capture());
+        assertThat(captor.getValue().tool().name()).isEqualTo(ApiAssetDiscoveryMcpToolPublisher.TOOL_NAME);
+        verify(server).notifyToolsListChanged();
+    }
 
     @Test
     void apiAssetToolIsTypedReadOnlyDiscoveryTool() throws Exception {

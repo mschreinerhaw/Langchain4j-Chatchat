@@ -15,15 +15,15 @@ public class McpToolRouter {
     private static final Map<String, String> ASSET_QUERY_TOOLS = Map.of(
         "api_service", "api_asset_query",
         "ssh_host", "ssh_asset_query",
-        "sql_datasource", "sql_datasource_asset_query",
+        "sql_datasource", "database_asset_search",
         "http_endpoint", "http_endpoint_asset_query"
     );
     private static final Map<String, String> TEMPLATE_QUERY_TOOLS = Map.of(
         "api_service", "api_template_query",
         "ssh_host", "ssh_template_query",
-        "sql_datasource", "sql_datasource_template_query",
+        "sql_datasource", "database_ops_template_search",
         "http_endpoint", "http_endpoint_template_query",
-        "database_query", "database_query_template_query"
+        "database_query", "business_query_template_search"
     );
     private static final Map<String, String> TARGET_KIND_TO_ASSET_TYPE = Map.of(
         "api", "api_service",
@@ -46,6 +46,11 @@ public class McpToolRouter {
             return RoutingDecision.unrouted(requestedToolName);
         }
         String assetType = assetType(arguments);
+        if (TEMPLATE_DISCOVERY.equals(capability)
+            && "sql_datasource".equals(assetType)
+            && shouldRouteBusinessDatabaseQuery(arguments, availableTools)) {
+            assetType = "database_query";
+        }
         String resolvedTool = resolveTypedTool(capability, assetType, availableTools);
         if (resolvedTool == null) {
             return RoutingDecision.denied(
@@ -75,6 +80,7 @@ public class McpToolRouter {
     public boolean isTypedAssetQuery(String toolName) {
         String semantic = semantic(toolName);
         return hasSemanticSuffix(toolName, "_asset_query")
+            || "database_asset_search".equals(semantic)
             || ASSET_DISCOVERY.equals(semantic)
             || LEGACY_ASSET_QUERY.equals(semantic);
     }
@@ -82,6 +88,7 @@ public class McpToolRouter {
     public boolean isTypedTemplateQuery(String toolName) {
         String semantic = semantic(toolName);
         return hasSemanticSuffix(toolName, "_template_query")
+            || hasSemanticSuffix(toolName, "_template_search")
             || TEMPLATE_DISCOVERY.equals(semantic)
             || LEGACY_TEMPLATE_QUERY.equals(semantic);
     }
@@ -93,10 +100,12 @@ public class McpToolRouter {
             return normalizedExplicit;
         }
         String semantic = semantic(requestedToolName);
-        if (ASSET_DISCOVERY.equals(semantic) || LEGACY_ASSET_QUERY.equals(semantic) || semantic.endsWith("_asset_query")) {
+        if (ASSET_DISCOVERY.equals(semantic) || LEGACY_ASSET_QUERY.equals(semantic)
+            || semantic.endsWith("_asset_query") || "database_asset_search".equals(semantic)) {
             return ASSET_DISCOVERY;
         }
-        if (TEMPLATE_DISCOVERY.equals(semantic) || LEGACY_TEMPLATE_QUERY.equals(semantic) || semantic.endsWith("_template_query")) {
+        if (TEMPLATE_DISCOVERY.equals(semantic) || LEGACY_TEMPLATE_QUERY.equals(semantic)
+            || semantic.endsWith("_template_query") || semantic.endsWith("_template_search")) {
             return TEMPLATE_DISCOVERY;
         }
         return null;
@@ -125,6 +134,73 @@ public class McpToolRouter {
         return TARGET_KIND_TO_ASSET_TYPE.get(targetKind);
     }
 
+    private boolean shouldRouteBusinessDatabaseQuery(Map<String, Object> arguments, List<String> availableTools) {
+        if (!hasAvailableSemanticTool(availableTools, "business_query_template_search")) {
+            return false;
+        }
+        String text = searchableText(arguments);
+        if (text.isBlank()) {
+            return false;
+        }
+        if (containsAny(text,
+            "metadata", "schema", "column", "columns", "field", "fields", "table metadata",
+            "lock", "blocking", "deadlock", "wait", "session", "connection", "processlist",
+            "storage", "space", "capacity", "tablespace", "status", "health", "diagnostic",
+            "slow query", "performance", "索引", "元数据", "表结构", "字段", "列", "锁", "阻塞",
+            "死锁", "等待", "连接", "会话", "连接数", "存储", "空间", "容量", "状态", "健康",
+            "诊断", "慢查询", "性能")) {
+            return false;
+        }
+        return containsAny(text,
+            "sql_query", "business_database_query", "database_query", "business", "analysis", "analytics",
+            "market", "volatility", "alert", "warning", "monitor", "event", "portfolio", "trade",
+            "order", "customer", "product", "行情", "市场", "波动", "异动", "异常", "提醒",
+            "预警", "告警", "监控", "事件", "业务", "分析", "交易", "订单", "客户", "产品",
+            "舆情", "持仓");
+    }
+
+    private boolean hasAvailableSemanticTool(List<String> availableTools, String semanticToolName) {
+        if (availableTools == null || availableTools.isEmpty() || semanticToolName == null || semanticToolName.isBlank()) {
+            return false;
+        }
+        return availableTools.stream().anyMatch(tool -> semanticMatches(semanticToolName, semantic(tool)));
+    }
+
+    private String searchableText(Object value) {
+        StringBuilder builder = new StringBuilder();
+        appendSearchableText(builder, value);
+        return builder.toString().toLowerCase(Locale.ROOT);
+    }
+
+    private void appendSearchableText(StringBuilder builder, Object value) {
+        if (builder == null || value == null) {
+            return;
+        }
+        if (value instanceof Map<?, ?> map) {
+            map.forEach((key, nested) -> appendSearchableText(builder, nested));
+            return;
+        }
+        if (value instanceof Iterable<?> iterable) {
+            for (Object item : iterable) {
+                appendSearchableText(builder, item);
+            }
+            return;
+        }
+        builder.append(' ').append(value);
+    }
+
+    private boolean containsAny(String text, String... tokens) {
+        if (text == null || text.isBlank() || tokens == null) {
+            return false;
+        }
+        for (String token : tokens) {
+            if (token != null && !token.isBlank() && text.contains(token.toLowerCase(Locale.ROOT))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     private String resolveTypedTool(String capability, String assetType, List<String> availableTools) {
         if (capability == null || assetType == null) {
             return null;
@@ -139,9 +215,24 @@ public class McpToolRouter {
             return canonical;
         }
         return availableTools.stream()
-            .filter(tool -> canonical.equals(semantic(tool)))
+            .filter(tool -> semanticMatches(canonical, semantic(tool)))
             .findFirst()
             .orElse(availableTools.contains(canonical) ? canonical : null);
+    }
+
+    private boolean semanticMatches(String expected, String actual) {
+        if (expected == null || actual == null) {
+            return false;
+        }
+        if (expected.equals(actual)) {
+            return true;
+        }
+        return switch (expected) {
+            case "database_asset_search" -> "sql_datasource_asset_query".equals(actual);
+            case "database_ops_template_search" -> "sql_datasource_template_query".equals(actual);
+            case "business_query_template_search" -> "database_query_template_query".equals(actual);
+            default -> false;
+        };
     }
 
     private String capabilityName(String capability) {

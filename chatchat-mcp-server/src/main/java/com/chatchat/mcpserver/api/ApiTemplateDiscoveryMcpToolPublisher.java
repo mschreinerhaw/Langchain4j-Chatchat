@@ -2,6 +2,7 @@ package com.chatchat.mcpserver.api;
 
 import com.chatchat.mcpserver.ops.CommandTemplateDiscoveryService;
 import com.chatchat.mcpserver.routing.TargetKindRegistry;
+import com.chatchat.mcpserver.search.LuceneMcpSearchService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.modelcontextprotocol.server.McpServerFeatures;
@@ -16,11 +17,12 @@ import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Slf4j
 @Component
@@ -33,6 +35,7 @@ public class ApiTemplateDiscoveryMcpToolPublisher {
 
     private final McpSyncServer mcpSyncServer;
     private final ApiServiceConfigService configService;
+    private final LuceneMcpSearchService luceneSearchService;
     private final ObjectMapper objectMapper;
 
     @Order(Ordered.LOWEST_PRECEDENCE)
@@ -83,13 +86,25 @@ public class ApiTemplateDiscoveryMcpToolPublisher {
         Map<String, Object> filters = filters(arguments);
         int limit = limit(arguments);
         List<String> terms = terms(filters);
-        List<ScoredApiTemplate> matched = configService.listEnabled().stream()
-            .map(config -> new ScoredApiTemplate(config, score(config, terms, filters)))
-            .filter(item -> terms.isEmpty() || item.score() > 0)
-            .sorted(Comparator
-                .comparingDouble(ScoredApiTemplate::score)
-                .reversed()
-                .thenComparing(item -> text(item.config().getToolName())))
+        List<LuceneMcpSearchService.SearchHit> hits = luceneSearchService == null || !luceneSearchService.enabled()
+            ? List.of()
+            : luceneSearchService.searchApiServiceTemplates(new LuceneMcpSearchService.TemplateSearchRequest(
+                "api_service",
+                null,
+                terms.isEmpty() ? null : String.join(" ", terms),
+                Math.max(limit, DEFAULT_LIMIT)
+        ));
+        Map<String, ApiServiceConfig> configsByToolName = configService.listEnabled().stream()
+            .filter(config -> !text(config.getToolName()).isBlank())
+            .collect(Collectors.toMap(
+                config -> text(config.getToolName()),
+                Function.identity(),
+                (first, ignored) -> first,
+                LinkedHashMap::new
+            ));
+        List<ScoredApiTemplate> matched = hits.stream()
+            .map(hit -> apiTemplateHit(configsByToolName, hit))
+            .filter(item -> item != null)
             .toList();
         List<Map<String, Object>> templates = matched.stream()
             .limit(limit)
@@ -118,7 +133,14 @@ public class ApiTemplateDiscoveryMcpToolPublisher {
                 "schemaVersion", "api_template_query_ir.v1",
                 "assetType", "api_service",
                 "targetKind", "api_service",
+                "indexType", "api_service_template",
                 "terms", terms
+            ),
+            "diagnostics", mapOf(
+                "source", "lucene_api_service_template_index",
+                "hitCount", hits.size(),
+                "hitIds", hits.stream().map(LuceneMcpSearchService.SearchHit::id).limit(limit).toList(),
+                "fallbackUsed", false
             ),
             "templates", templates
         );
@@ -283,26 +305,16 @@ public class ApiTemplateDiscoveryMcpToolPublisher {
         }
     }
 
-    private double score(ApiServiceConfig config, List<String> terms, Map<String, Object> filters) {
-        if (terms.isEmpty()) {
-            return 1.0;
+    private ScoredApiTemplate apiTemplateHit(Map<String, ApiServiceConfig> configsByToolName,
+                                             LuceneMcpSearchService.SearchHit hit) {
+        if (hit == null) {
+            return null;
         }
-        String haystack = normalize(String.join(" ",
-            text(config.getToolName()),
-            text(config.getTitle()),
-            text(config.getDescription()),
-            text(config.getBusinessGroup()),
-            text(config.getBusinessGroupName()),
-            text(config.getBusinessGroupDescription()),
-            text(config.getMethod())
-        ));
-        long matched = terms.stream().filter(haystack::contains).count();
-        double score = matched / (double) terms.size();
-        String requestedToolName = normalize(firstValue(filters, "toolName", "name"));
-        if (!requestedToolName.isBlank() && normalize(config.getToolName()).equals(requestedToolName)) {
-            score += 1.0;
+        ApiServiceConfig config = configsByToolName.get(text(hit.id()));
+        if (config == null) {
+            config = configsByToolName.get(text(hit.documentId()));
         }
-        return score;
+        return config == null ? null : new ScoredApiTemplate(config, hit.score());
     }
 
     private Map<String, Object> templateMetadata(ApiServiceConfig config, double score) {

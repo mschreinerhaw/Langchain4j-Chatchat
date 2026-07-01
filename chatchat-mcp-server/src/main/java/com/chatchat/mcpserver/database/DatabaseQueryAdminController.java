@@ -120,7 +120,7 @@ public class DatabaseQueryAdminController {
 
     private void refreshPublishedTemplates() {
         publisher.refresh();
-        templateIndexService.refreshAll();
+        templateIndexService.refreshDatabaseQueryTemplateIndex();
     }
 
     private void refreshPublishedTemplates(DatabaseQueryConfig saved) {

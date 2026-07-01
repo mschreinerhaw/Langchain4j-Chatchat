@@ -215,7 +215,7 @@ public class AssetMetadataFactory {
 
     private Map<String, Object> sqlTemplateSelectionPolicy() {
         return mapOf(
-            "source", "sql_datasource_template_query.templates[].templateId",
+            "source", "database_ops_template_search.templates[].templateId",
             "allowedSetPath", "capabilities.allowedQueryTemplates",
             "mustUseAllowedTemplate", true,
             "doNotInventTemplateNames", true,

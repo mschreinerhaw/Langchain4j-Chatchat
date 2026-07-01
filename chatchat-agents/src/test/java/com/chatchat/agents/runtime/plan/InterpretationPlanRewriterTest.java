@@ -216,10 +216,11 @@ class InterpretationPlanRewriterTest {
 
         assertThat(result.valid()).isTrue();
         assertThat(result.rewrittenPlan().steps()).extracting(InterpretationPlan.Step::toolName)
-            .doesNotContain("mcp_chatchat_mcp_server_sql_datasource_template_query", "template_query");
+            .doesNotContain("mcp_chatchat_mcp_server_database_ops_template_search",
+                "mcp_chatchat_mcp_server_sql_datasource_template_query", "template_query");
         assertThat(chatModel.lastPrompt())
             .contains("No template discovery tool is available")
-            .contains("Do not add sql_datasource_template_query/template_query steps");
+            .contains("Do not add database_ops_template_search/template_query steps");
     }
 
     private InterpretationPlan originalPlan() {

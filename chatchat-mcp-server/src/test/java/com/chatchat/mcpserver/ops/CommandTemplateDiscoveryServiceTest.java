@@ -16,7 +16,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class CommandTemplateDiscoveryServiceTest {
@@ -138,16 +140,24 @@ class CommandTemplateDiscoveryServiceTest {
     void queriesSqlTemplatesWithoutRawSql() {
         SqlTemplateService sqlTemplateService = mock(SqlTemplateService.class);
         SqlDatasourceConfigService datasourceService = mock(SqlDatasourceConfigService.class);
-        CommandTemplateDiscoveryService service = service(
+        LuceneMcpSearchService lucene = mock(LuceneMcpSearchService.class);
+        CommandTemplateDiscoveryService service = new CommandTemplateDiscoveryService(
             mock(CommandTemplateService.class),
             mock(SshHostConfigService.class),
             sqlTemplateService,
             datasourceService,
-            mock(HttpEndpointConfigService.class)
+            mock(HttpEndpointConfigService.class),
+            new ObjectMapper(),
+            new TemplateDiscoveryProperties(),
+            lucene
         );
         SqlDatasourceConfig datasource = datasource("ds-1", "orders_db", "DEV");
         when(datasourceService.listEnabled()).thenReturn(List.of(datasource));
         when(sqlTemplateService.listEnabled()).thenReturn(List.of(sqlTemplate("CHECK_TABLE_COUNT", "SELECT COUNT(*) FROM {{table}}")));
+        when(lucene.enabled()).thenReturn(true);
+        when(lucene.searchTemplates(anyList(), any())).thenReturn(List.of(
+            new LuceneMcpSearchService.SearchHit("CHECK_TABLE_COUNT", "template", 8.0f, List.of("token:count"))
+        ));
 
         Map<String, Object> result = service.query(Map.of(
             "targetKind", "database",
@@ -167,12 +177,16 @@ class CommandTemplateDiscoveryServiceTest {
     void queriesSqlTemplatesWhenAssetNameIncludesChineseIntentText() {
         SqlTemplateService sqlTemplateService = mock(SqlTemplateService.class);
         SqlDatasourceConfigService datasourceService = mock(SqlDatasourceConfigService.class);
-        CommandTemplateDiscoveryService service = service(
+        LuceneMcpSearchService lucene = mock(LuceneMcpSearchService.class);
+        CommandTemplateDiscoveryService service = new CommandTemplateDiscoveryService(
             mock(CommandTemplateService.class),
             mock(SshHostConfigService.class),
             sqlTemplateService,
             datasourceService,
-            mock(HttpEndpointConfigService.class)
+            mock(HttpEndpointConfigService.class),
+            new ObjectMapper(),
+            new TemplateDiscoveryProperties(),
+            lucene
         );
         SqlDatasourceConfig datasource = datasource("ds-248", "248测试数据库", "DEV");
         datasource.setDatabaseType("mysql");
@@ -197,6 +211,10 @@ class CommandTemplateDiscoveryServiceTest {
         );
         when(datasourceService.listEnabled()).thenReturn(List.of(datasource));
         when(sqlTemplateService.listEnabled()).thenReturn(List.of(size, status));
+        when(lucene.enabled()).thenReturn(true);
+        when(lucene.searchTemplates(anyList(), any())).thenReturn(List.of(
+            new LuceneMcpSearchService.SearchHit("MYSQL_SHOW_STATUS", "template", 8.0f, List.of("token:status"))
+        ));
 
         Map<String, Object> result = service.query(Map.of(
             "targetKind", "database",
@@ -236,12 +254,16 @@ class CommandTemplateDiscoveryServiceTest {
         CommandTemplateService commandTemplateService = mock(CommandTemplateService.class);
         SqlTemplateService sqlTemplateService = mock(SqlTemplateService.class);
         SqlDatasourceConfigService datasourceService = mock(SqlDatasourceConfigService.class);
-        CommandTemplateDiscoveryService service = service(
+        LuceneMcpSearchService lucene = mock(LuceneMcpSearchService.class);
+        CommandTemplateDiscoveryService service = new CommandTemplateDiscoveryService(
             commandTemplateService,
             mock(SshHostConfigService.class),
             sqlTemplateService,
             datasourceService,
-            mock(HttpEndpointConfigService.class)
+            mock(HttpEndpointConfigService.class),
+            new ObjectMapper(),
+            new TemplateDiscoveryProperties(),
+            lucene
         );
         SqlDatasourceConfig datasource = datasource("ds-tdh", "tdh-scheduler-db", "DEV");
         datasource.setDatabaseType("mysql");
@@ -258,6 +280,10 @@ class CommandTemplateDiscoveryServiceTest {
         when(datasourceService.listEnabled()).thenReturn(List.of(datasource));
         when(sqlTemplateService.listEnabled()).thenReturn(List.of(mysqlStatus));
         when(commandTemplateService.listEnabled()).thenReturn(List.of(cpu));
+        when(lucene.enabled()).thenReturn(true);
+        when(lucene.searchTemplates(anyList(), any())).thenReturn(List.of(
+            new LuceneMcpSearchService.SearchHit("MYSQL_SHOW_STATUS", "template", 8.0f, List.of("token:status"))
+        ));
 
         Map<String, Object> result = service.query(Map.of(
             "targetKind", "database",
@@ -360,7 +386,7 @@ class CommandTemplateDiscoveryServiceTest {
     }
 
     @Test
-    void fallsBackToAuthorizedTemplatesWhenIntentRankingReturnsNoMatch() {
+    void returnsNoSqlTemplatesWhenTemplateIndexIsUnavailable() {
         SqlTemplateService sqlTemplateService = mock(SqlTemplateService.class);
         SqlDatasourceConfigService datasourceService = mock(SqlDatasourceConfigService.class);
         CommandTemplateDiscoveryService service = service(
@@ -395,14 +421,13 @@ class CommandTemplateDiscoveryServiceTest {
             "limit", 10
         ));
 
-        List<?> templates = (List<?>) result.get("templates");
-        assertThat(result).containsEntry("returnedCount", 1);
-        assertThat(((Map<?, ?>) templates.get(0)).get("templateId")).isEqualTo("MYSQL_DATABASE_SIZE");
-        assertThat(result.get("resolutionTrace").toString()).contains("fallbackUsed=true");
+        assertThat((List<?>) result.get("templates")).isEmpty();
+        assertThat(result).containsEntry("returnedCount", 0);
+        assertThat(result.get("resolutionTrace").toString()).contains("fallbackUsed=false");
     }
 
     @Test
-    void fallsBackToRegisteredSqlTemplatesWhenLuceneReturnsNoHits() {
+    void returnsNoRegisteredSqlTemplatesWhenLuceneReturnsNoHits() {
         SqlTemplateService sqlTemplateService = mock(SqlTemplateService.class);
         SqlDatasourceConfigService datasourceService = mock(SqlDatasourceConfigService.class);
         LuceneMcpSearchService lucene = mock(LuceneMcpSearchService.class);
@@ -455,18 +480,65 @@ class CommandTemplateDiscoveryServiceTest {
             "limit", 5
         ));
 
-        List<?> templates = (List<?>) result.get("templates");
-        List<String> templateIds = templates.stream()
-            .map(item -> String.valueOf(((Map<?, ?>) item).get("templateId")))
-            .toList();
-        assertThat(result).containsEntry("returnedCount", 2);
-        assertThat(templateIds).contains("MYSQL_SHOW_STATUS", "MYSQL_INNODB_STATUS");
+        assertThat((List<?>) result.get("templates")).isEmpty();
+        assertThat(result).containsEntry("returnedCount", 0);
         assertThat(result.get("resolutionTrace").toString())
-            .contains("template_retrieval", "returnedCount=2", "lucene_empty_registry_fallback", "signalMissDoesNotDeny=true");
+            .contains("template_retrieval", "returnedCount=0", "fallbackUsed=false", "hitCount=0");
     }
 
     @Test
-    void lucenePartialHitDoesNotExcludeAuthorizedInnoDbTemplate() {
+    void doesNotFallbackToSqlOpsTemplatesForBusinessQueryIntentLuceneHits() {
+        SqlTemplateService sqlTemplateService = mock(SqlTemplateService.class);
+        SqlDatasourceConfigService datasourceService = mock(SqlDatasourceConfigService.class);
+        LuceneMcpSearchService lucene = mock(LuceneMcpSearchService.class);
+        CommandTemplateDiscoveryService service = new CommandTemplateDiscoveryService(
+            mock(CommandTemplateService.class),
+            mock(SshHostConfigService.class),
+            sqlTemplateService,
+            datasourceService,
+            mock(HttpEndpointConfigService.class),
+            new ObjectMapper(),
+            new TemplateDiscoveryProperties(),
+            lucene
+        );
+        SqlDatasourceConfig datasource = datasource("ds-market", "market-db", "DEV");
+        datasource.setDatabaseType("mysql");
+        datasource.setAllowedTemplatesJson("[\"UNRELATED_TEMPLATE\"]");
+        when(datasourceService.listEnabled()).thenReturn(List.of(datasource));
+        when(sqlTemplateService.listEnabled()).thenReturn(List.of(
+            sqlTemplate(
+                "MYSQL_DATABASE_SIZE",
+                "SELECT table_schema AS db FROM information_schema.tables",
+                "MySQL database size",
+                "Summarize MySQL database size.",
+                "mysql",
+                "maintenance_storage",
+                "[\"database size\",\"storage\",\"space\"]"
+            )
+        ));
+        when(lucene.enabled()).thenReturn(true);
+        when(lucene.searchTemplates(anyList(), any())).thenReturn(List.of(
+            new LuceneMcpSearchService.SearchHit("MYSQL_DATABASE_SIZE", "template", 9.0f, List.of("token:market"))
+        ));
+
+        Map<String, Object> result = service.query(Map.of(
+            "candidates", List.of(Map.of("targetKind", "database", "confidence", 0.9)),
+            "finalDecision", "database",
+            "filters", Map.of(
+                "assetName", "market-db",
+                "env", "DEV",
+                "intent", "analyze market volatility alert notification"
+            ),
+            "trace", trace(),
+            "limit", 5
+        ));
+
+        assertThat((List<?>) result.get("templates")).isEmpty();
+        assertThat(result).containsEntry("returnedCount", 0);
+    }
+
+    @Test
+    void lucenePartialHitReturnsOnlyHitSqlTemplates() {
         SqlTemplateService sqlTemplateService = mock(SqlTemplateService.class);
         SqlDatasourceConfigService datasourceService = mock(SqlDatasourceConfigService.class);
         LuceneMcpSearchService lucene = mock(LuceneMcpSearchService.class);
@@ -522,16 +594,16 @@ class CommandTemplateDiscoveryServiceTest {
         ));
 
         List<?> templates = (List<?>) result.get("templates");
-        Map<?, ?> first = (Map<?, ?>) templates.get(0);
         List<String> templateIds = templates.stream()
             .map(item -> String.valueOf(((Map<?, ?>) item).get("templateId")))
             .toList();
-        assertThat(templateIds).contains("MYSQL_INNODB_STATUS", "MYSQL_SHOW_STATUS");
-        assertThat(first.get("templateId")).isEqualTo("MYSQL_INNODB_STATUS");
+        assertThat(templateIds).containsExactly("MYSQL_SHOW_STATUS");
+        Map<?, ?> first = (Map<?, ?>) templates.get(0);
+        assertThat(first.get("templateId")).isEqualTo("MYSQL_SHOW_STATUS");
         assertThat(first.get("rankingFeatures").toString())
             .contains("featureList", "intentMatch", "lexicalScore", "weightedScore");
         assertThat(result.get("resolutionTrace").toString())
-            .contains("lucene_scored", "signalMissDoesNotDeny=true");
+            .contains("lucene_scored", "fallbackUsed=false");
     }
 
     @Test
@@ -589,7 +661,7 @@ class CommandTemplateDiscoveryServiceTest {
         List<?> templates = (List<?>) result.get("templates");
         assertThat(result).containsEntry("returnedCount", 1);
         assertThat(((Map<?, ?>) templates.get(0)).get("templateId")).isEqualTo("MYSQL_INNODB_STATUS");
-        assertThat(result.get("resolutionTrace").toString()).contains("fallbackUsed=true", "lucene_scored");
+        assertThat(result.get("resolutionTrace").toString()).contains("fallbackUsed=false", "lucene_scored");
     }
 
     @Test
@@ -632,7 +704,10 @@ class CommandTemplateDiscoveryServiceTest {
             )
         ));
         when(lucene.enabled()).thenReturn(true);
-        when(lucene.searchTemplates(anyList(), any())).thenReturn(List.of());
+        when(lucene.searchTemplates(anyList(), any())).thenReturn(List.of(
+            new LuceneMcpSearchService.SearchHit("MYSQL_SHOW_PROCESSLIST", "template", 8.0f, List.of("token:connection")),
+            new LuceneMcpSearchService.SearchHit("MYSQL_SHOW_STATUS", "template", 3.0f, List.of("token:status"))
+        ));
 
         Map<String, Object> result = service.query(Map.of(
             "candidates", List.of(Map.of("targetKind", "database", "confidence", 0.85)),
@@ -730,12 +805,16 @@ class CommandTemplateDiscoveryServiceTest {
     void retrievesEnglishNamedTemplateFromChineseOnlyMetadataIntent() {
         SqlTemplateService sqlTemplateService = mock(SqlTemplateService.class);
         SqlDatasourceConfigService datasourceService = mock(SqlDatasourceConfigService.class);
-        CommandTemplateDiscoveryService service = service(
+        LuceneMcpSearchService lucene = mock(LuceneMcpSearchService.class);
+        CommandTemplateDiscoveryService service = new CommandTemplateDiscoveryService(
             mock(CommandTemplateService.class),
             mock(SshHostConfigService.class),
             sqlTemplateService,
             datasourceService,
-            mock(HttpEndpointConfigService.class)
+            mock(HttpEndpointConfigService.class),
+            new ObjectMapper(),
+            new TemplateDiscoveryProperties(),
+            lucene
         );
         SqlDatasourceConfig datasource = datasource("ds-local", "\u672c\u5730MySQL\u6d4b\u8bd5\u670d\u52a1", "DEV");
         datasource.setDatabaseType("mysql");
@@ -770,6 +849,10 @@ class CommandTemplateDiscoveryServiceTest {
                 "[\"status\",\"health\"]"
             )
         ));
+        when(lucene.enabled()).thenReturn(true);
+        when(lucene.searchTemplates(anyList(), any())).thenReturn(List.of(
+            new LuceneMcpSearchService.SearchHit("MYSQL_DATABASE_SIZE", "template", 7.0f, List.of("token:metadata"))
+        ));
 
         Map<String, Object> result = service.query(Map.of(
             "candidates", List.of(Map.of("targetKind", "database", "confidence", 0.95)),
@@ -798,12 +881,16 @@ class CommandTemplateDiscoveryServiceTest {
     void ranksChineseTemplateSignalsForEnglishIntent() {
         SqlTemplateService sqlTemplateService = mock(SqlTemplateService.class);
         SqlDatasourceConfigService datasourceService = mock(SqlDatasourceConfigService.class);
-        CommandTemplateDiscoveryService service = service(
+        LuceneMcpSearchService lucene = mock(LuceneMcpSearchService.class);
+        CommandTemplateDiscoveryService service = new CommandTemplateDiscoveryService(
             mock(CommandTemplateService.class),
             mock(SshHostConfigService.class),
             sqlTemplateService,
             datasourceService,
-            mock(HttpEndpointConfigService.class)
+            mock(HttpEndpointConfigService.class),
+            new ObjectMapper(),
+            new TemplateDiscoveryProperties(),
+            lucene
         );
         SqlDatasourceConfig datasource = datasource("ds-cn", "orders_db", "DEV");
         datasource.setDatabaseType("mysql");
@@ -829,6 +916,11 @@ class CommandTemplateDiscoveryServiceTest {
                 "[\"\u72b6\u6001\",\"\u5065\u5eb7\",\"\u5b9e\u4f8b\"]"
             )
         ));
+        when(lucene.enabled()).thenReturn(true);
+        when(lucene.searchTemplates(anyList(), any())).thenReturn(List.of(
+            new LuceneMcpSearchService.SearchHit("MYSQL_CN_STATUS", "template", 8.0f, List.of("token:status")),
+            new LuceneMcpSearchService.SearchHit("MYSQL_CN_STORAGE", "template", 2.0f, List.of("token:storage"))
+        ));
 
         Map<String, Object> result = service.query(Map.of(
             "targetKind", "database",
@@ -853,12 +945,16 @@ class CommandTemplateDiscoveryServiceTest {
     void usesModelGeneratedBilingualRetrievalTermsWhenIntentIsAbsent() {
         SqlTemplateService sqlTemplateService = mock(SqlTemplateService.class);
         SqlDatasourceConfigService datasourceService = mock(SqlDatasourceConfigService.class);
-        CommandTemplateDiscoveryService service = service(
+        LuceneMcpSearchService lucene = mock(LuceneMcpSearchService.class);
+        CommandTemplateDiscoveryService service = new CommandTemplateDiscoveryService(
             mock(CommandTemplateService.class),
             mock(SshHostConfigService.class),
             sqlTemplateService,
             datasourceService,
-            mock(HttpEndpointConfigService.class)
+            mock(HttpEndpointConfigService.class),
+            new ObjectMapper(),
+            new TemplateDiscoveryProperties(),
+            lucene
         );
         SqlDatasourceConfig datasource = datasource("ds-bi", "billing_db", "DEV");
         datasource.setDatabaseType("mysql");
@@ -884,6 +980,10 @@ class CommandTemplateDiscoveryServiceTest {
                 "[\"status\",\"health\",\"instance\"]"
             )
         ));
+        when(lucene.enabled()).thenReturn(true);
+        when(lucene.searchTemplates(anyList(), any())).thenReturn(List.of(
+            new LuceneMcpSearchService.SearchHit("MYSQL_SHOW_STATUS", "template", 8.0f, List.of("token:bilingual"))
+        ));
 
         Map<String, Object> result = service.query(Map.of(
             "targetKind", "database",
@@ -907,6 +1007,10 @@ class CommandTemplateDiscoveryServiceTest {
         assertThat(bilingualRetrieval.get("modelGenerated").toString())
             .contains("\u6570\u636e\u5e93\u72b6\u6001", "database health status");
         assertThat(bilingualRetrieval.get("fields").toString()).contains("bilingualIntent", "intentZh", "intentEn");
+        verify(lucene).searchTemplates(anyList(), argThat(request -> request != null
+            && request.intentText() != null
+            && request.intentText().contains("\u6570\u636e\u5e93\u72b6\u6001")
+            && request.intentText().contains("database health status")));
     }
 
     @Test

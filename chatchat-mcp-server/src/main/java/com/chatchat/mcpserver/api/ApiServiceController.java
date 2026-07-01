@@ -139,7 +139,7 @@ public class ApiServiceController {
 
     private void refreshPublishedTemplates() {
         publisher.refresh();
-        templateIndexService.refreshAll();
+        templateIndexService.refreshApiServiceTemplateIndex();
     }
 
     /**

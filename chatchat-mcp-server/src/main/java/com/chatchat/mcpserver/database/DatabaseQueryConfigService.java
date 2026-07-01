@@ -87,7 +87,7 @@ public class DatabaseQueryConfigService {
                 (first, ignored) -> first,
                 java.util.LinkedHashMap::new
             ));
-        return luceneSearchService.searchTemplates(
+        return luceneSearchService.searchDatabaseQueryTemplates(
                 indexable.stream().map(this::templateDoc).toList(),
                 new LuceneMcpSearchService.TemplateSearchRequest("database_query", null, keyword, 50)
             ).stream()
@@ -375,6 +375,15 @@ public class DatabaseQueryConfigService {
         labels.add(firstText(config.getToolName(), ""));
         labels.add(firstText(config.getTitle(), ""));
         labels.add(firstText(config.getSqlTemplate(), ""));
+        datasourceFor(config).ifPresent(datasource -> {
+            labels.add(firstText(datasource.getName(), ""));
+            labels.add(firstText(datasource.getTitle(), ""));
+            labels.add(firstText(datasource.getToolName(), ""));
+            labels.add(firstText(datasource.getDescription(), ""));
+            labels.add(firstText(datasource.getEnvironment(), ""));
+            labels.add(firstText(datasource.getDatabaseType(), ""));
+            labels.add(firstText(datasource.getMetadataScopeValue(), ""));
+        });
         return new LuceneMcpSearchService.TemplateDoc(
             config.getId(),
             "database_query",
@@ -382,7 +391,12 @@ public class DatabaseQueryConfigService {
             firstText(config.getDescription(), "") + " "
                 + firstText(config.getBusinessGroupName(), "") + " "
                 + firstText(config.getBusinessGroupDescription(), "") + " "
-                + firstText(config.getSqlTemplate(), ""),
+                + firstText(config.getSqlTemplate(), "") + " "
+                + datasourceFor(config)
+                    .map(datasource -> firstText(datasource.getName(), "") + " "
+                        + firstText(datasource.getTitle(), "") + " "
+                        + firstText(datasource.getDescription(), ""))
+                    .orElse(""),
             "sql_template_registry",
             normalizeDatabaseType(config.getDatabaseType()),
             String.join(" ", labels),
@@ -390,6 +404,17 @@ public class DatabaseQueryConfigService {
             labels,
             "database_query_registry"
         );
+    }
+
+    private java.util.Optional<SqlDatasourceConfig> datasourceFor(DatabaseQueryConfig config) {
+        if (config == null || config.getDatasourceId() == null || config.getDatasourceId().isBlank()) {
+            return java.util.Optional.empty();
+        }
+        try {
+            return java.util.Optional.ofNullable(datasourceConfigService.getEnabled(config.getDatasourceId()));
+        } catch (Exception ignored) {
+            return java.util.Optional.empty();
+        }
     }
 
     private List<String> governanceSearchTerms(String json) {

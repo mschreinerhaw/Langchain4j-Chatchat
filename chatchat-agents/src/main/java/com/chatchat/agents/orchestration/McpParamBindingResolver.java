@@ -95,10 +95,10 @@ class McpParamBindingResolver {
         if (sameTool(remoteToolName, "sql_query_execute")) {
             return bindSqlQuery(values, userQuery);
         }
-        if (sameTool(remoteToolName, "asset_query")) {
+        if (isAssetDiscoveryTool(remoteToolName)) {
             return bindDiscoveryQuery(toolName, values, userQuery, false);
         }
-        if (sameTool(remoteToolName, "template_query")) {
+        if (isTemplateDiscoveryTool(remoteToolName)) {
             return bindDiscoveryQuery(toolName, values, userQuery, true);
         }
         return values;
@@ -464,7 +464,12 @@ class McpParamBindingResolver {
 
     private String targetKindFromDiscoveryToolName(String toolName, boolean templateQuery) {
         String normalized = normalizeToolName(toolName);
-        if (normalized.contains("sql_datasource") || normalized.contains("database_query")) {
+        if (normalized.contains("business_query_template_search") || normalized.contains("database_query_template_query")) {
+            return "business_database_query";
+        }
+        if (normalized.contains("database_asset_search")
+            || normalized.contains("database_ops_template_search")
+            || normalized.contains("sql_datasource")) {
             return "database";
         }
         if (normalized.contains("http_endpoint") || normalized.contains("api_")) {
@@ -544,7 +549,9 @@ class McpParamBindingResolver {
             return "";
         }
         for (String known : List.of("linux_command_execute", "http_request_execute", "sql_query_execute",
-            "database_query_execute", "asset_query", "template_query")) {
+            "database_query_execute", "asset_query", "template_query", "database_asset_search",
+            "database_ops_template_search", "business_query_template_search", "sql_datasource_asset_query",
+            "sql_datasource_template_query", "database_query_template_query")) {
             if (sameTool(toolName, known) || normalizeToolName(toolName).endsWith("_" + known)) {
                 return known;
             }
@@ -726,6 +733,21 @@ class McpParamBindingResolver {
 
     private boolean sameTool(String first, String second) {
         return normalizeToolName(first).equals(normalizeToolName(second));
+    }
+
+    private boolean isAssetDiscoveryTool(String toolName) {
+        String normalized = normalizeToolName(toolName);
+        return "asset_query".equals(normalized)
+            || normalized.endsWith("_asset_query")
+            || "database_asset_search".equals(normalized)
+            || normalized.endsWith("_database_asset_search");
+    }
+
+    private boolean isTemplateDiscoveryTool(String toolName) {
+        String normalized = normalizeToolName(toolName);
+        return "template_query".equals(normalized)
+            || normalized.endsWith("_template_query")
+            || normalized.endsWith("_template_search");
     }
 
     private String normalizeToolName(String value) {

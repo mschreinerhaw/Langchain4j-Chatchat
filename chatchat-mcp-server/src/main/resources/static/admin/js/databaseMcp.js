@@ -47,5 +47,5 @@ export function testDatabaseQuery(payload) {
 }
 
 export function rebuildDatabaseQueryIndex() {
-    return apiFetch(`${SEARCH_INDEX_URL}/templates/rebuild`, { method: 'POST' });
+    return apiFetch(`${SEARCH_INDEX_URL}/database-queries/rebuild`, { method: 'POST' });
 }

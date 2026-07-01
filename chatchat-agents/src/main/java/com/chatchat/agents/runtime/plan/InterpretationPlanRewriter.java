@@ -117,14 +117,15 @@ public class InterpretationPlanRewriter {
         if (templateDiscoveryAvailable) {
             prompt.append("- If a failed sql_query_execute step used input.parameters.sql/rawSql/query/statement, remove that raw SQL parameter and replan through the available sql datasource template_query tool.\n");
             prompt.append("- Bind a returned templates[].templateId into sql_query_execute.templateId and pass only parameters declared by templates[].parameterSchema.\n");
+            prompt.append("- For business/analytical SQL requests such as market, trading, alert, monitor, customer, order, product, report, or analysis, replan through business_query_template_search/finalDecision=business_database_query when available. Add a dependent sql_query_execute bridge step with the returned templates[].templateId bound to input.templateId; runtime will redirect that bridge to templates[].execution.callTool/templates[].mcpToolName without requiring assetName/env.\n");
         } else {
-            prompt.append("- No template discovery tool is available in this rewrite request. Do not add sql_datasource_template_query/template_query steps. Remove raw SQL fields, then call sql_query_execute only when a concrete templateId and parameter contract already appear in observations or available tool metadata; otherwise produce a final_answer step explaining that template discovery is unavailable.\n");
+            prompt.append("- No template discovery tool is available in this rewrite request. Do not add database_ops_template_search/template_query steps. Remove raw SQL fields, then call sql_query_execute only when a concrete templateId and parameter contract already appear in observations or available tool metadata; otherwise produce a final_answer step explaining that template discovery is unavailable.\n");
             prompt.append("- If prior observations already contain structured sql_metadata_search columns/types/comments, preserve that evidence and do not re-add metadata search unless more data is explicitly missing and the tool is available.\n");
         }
         prompt.append("- Read templates[].requiredParameters, templates[].parameterContract, and templates[].invocationExample as authoritative. If requiredParameters contains tableName, fill sql_query_execute.input.parameters.tableName from the user request, sql_metadata_search result, or table-location result.\n");
         prompt.append("- Never retry a template execution with empty parameters when the template declares required parameters; add/bind the missing parameters first.\n");
-        prompt.append("- sql_query_execute must include executionContext from asset discovery, for example {\"assetName\":\"<asset-name>\",\"env\":\"<env>\"}; do not put routing fields only under parameters.\n");
-        prompt.append("- Do not inline JSONPath placeholders such as $.assets[0].asset.name inside executionContext; either use plan.bindings or depend on the asset_query step and let runtime inject concrete values.\n");
+        prompt.append("- sql_query_execute must include executionContext from typed asset discovery, user context, template routing metadata, sql_metadata_search/table-location evidence, or an observed invocationExample. Use database_asset_search when datasource asset confirmation is needed. Exception: a sql_query_execute bridge step that depends on business_query_template_search does not require assetName/env because runtime redirects it to the direct business MCP tool.\n");
+        prompt.append("- Do not inline JSONPath placeholders such as $.assets[0].asset.name inside executionContext; use bindings only when a prior observed step really returns that field.\n");
         if (metadataSearchAvailable) {
             prompt.append("- When schema/database is unknown, add sql_metadata_search before any available template_query/sql_query_execute. Pass tableName and includeColumns=true for table analysis, then bind from results[].sqlExecutionBinding.\n");
         } else {
@@ -154,7 +155,9 @@ public class InterpretationPlanRewriter {
             String semantic = toolSemanticKey(toolName);
             if (semanticToolName.equals(semantic)
                 || ("template_discovery".equals(semanticToolName)
-                    && ("template_query".equals(semantic) || semantic.endsWith("_template_query")))) {
+                    && ("template_query".equals(semantic)
+                        || semantic.endsWith("_template_query")
+                        || semantic.endsWith("_template_search")))) {
                 return true;
             }
         }

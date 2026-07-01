@@ -9,6 +9,7 @@ import com.chatchat.mcpserver.ops.CommandTemplateService;
 import com.chatchat.mcpserver.ops.HttpEndpointConfigService;
 import com.chatchat.mcpserver.sql.SqlTemplateConfig;
 import com.chatchat.mcpserver.sql.SqlTemplateService;
+import com.chatchat.mcpserver.sql.SqlDatasourceConfigService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -45,6 +46,7 @@ class McpTemplateLuceneIndexServiceTest {
             httpEndpointConfigService,
             apiServiceConfigService,
             databaseQueryConfigService,
+            mock(SqlDatasourceConfigService.class),
             new ObjectMapper()
         );
 
@@ -80,15 +82,19 @@ class McpTemplateLuceneIndexServiceTest {
             httpEndpointConfigService,
             apiServiceConfigService,
             databaseQueryConfigService,
+            mock(SqlDatasourceConfigService.class),
             new ObjectMapper()
         );
 
         indexService.refreshAll();
 
-        assertThat(lucene.searchTemplates(new LuceneMcpSearchService.TemplateSearchRequest(
+        assertThat(lucene.searchDatabaseQueryTemplates(new LuceneMcpSearchService.TemplateSearchRequest(
             "database_query", "mysql", "fulfillment lifecycle order services", 10
         ))).extracting(LuceneMcpSearchService.SearchHit::id)
             .contains("db-query-1");
+        assertThat(lucene.searchTemplates(new LuceneMcpSearchService.TemplateSearchRequest(
+            "database_query", "mysql", "fulfillment lifecycle order services", 10
+        ))).isEmpty();
     }
 
     @Test
@@ -111,17 +117,21 @@ class McpTemplateLuceneIndexServiceTest {
             httpEndpointConfigService,
             apiServiceConfigService,
             databaseQueryConfigService,
+            mock(SqlDatasourceConfigService.class),
             new ObjectMapper()
         );
 
         indexService.refreshAll();
 
-        List<LuceneMcpSearchService.SearchHit> hits = lucene.searchTemplates(
+        List<LuceneMcpSearchService.SearchHit> hits = lucene.searchApiServiceTemplates(
             new LuceneMcpSearchService.TemplateSearchRequest("api_service", null, "risk alert event market", 10));
         assertThat(hits).extracting(LuceneMcpSearchService.SearchHit::id)
             .contains("api_market_event_alert");
         assertThat(hits.get(0).name()).isEqualTo("Market event alert");
         assertThat(hits.get(0).source()).isEqualTo("api_service_registry");
+        assertThat(lucene.searchTemplates(
+            new LuceneMcpSearchService.TemplateSearchRequest("api_service", null, "risk alert event market", 10)))
+            .isEmpty();
     }
 
     private CommandTemplateConfig commandTemplate() {

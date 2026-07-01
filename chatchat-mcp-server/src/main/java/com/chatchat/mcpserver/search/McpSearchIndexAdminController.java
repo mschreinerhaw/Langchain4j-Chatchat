@@ -29,8 +29,20 @@ public class McpSearchIndexAdminController {
 
     @PostMapping("/templates/rebuild")
     public ApiResponse<Map<String, Object>> rebuildTemplateIndex() {
-        templateLuceneIndexService.refreshAll();
+        templateLuceneIndexService.refreshTemplateIndex();
         return ApiResponse.success(Map.of("refreshed", true), "MCP template Lucene index rebuilt");
+    }
+
+    @PostMapping("/database-queries/rebuild")
+    public ApiResponse<Map<String, Object>> rebuildDatabaseQueryIndex() {
+        templateLuceneIndexService.refreshDatabaseQueryTemplateIndex();
+        return ApiResponse.success(Map.of("refreshed", true), "MCP database query Lucene index rebuilt");
+    }
+
+    @PostMapping("/api-services/rebuild")
+    public ApiResponse<Map<String, Object>> rebuildApiServiceIndex() {
+        templateLuceneIndexService.refreshApiServiceTemplateIndex();
+        return ApiResponse.success(Map.of("refreshed", true), "MCP API service Lucene index rebuilt");
     }
 
     @PostMapping("/search")
@@ -49,6 +61,30 @@ public class McpSearchIndexAdminController {
                 )
             );
             result = searchResult("templates", input, hits);
+        } else if ("database_queries".equalsIgnoreCase(indexType)
+            || "database_query".equalsIgnoreCase(indexType)
+            || "database-query".equalsIgnoreCase(indexType)) {
+            List<LuceneMcpSearchService.SearchHit> hits = luceneSearchService.searchDatabaseQueryTemplates(
+                new LuceneMcpSearchService.TemplateSearchRequest(
+                    text(input.get("assetType"), "database_query"),
+                    text(firstPresent(input, "dbType", "databaseType"), null),
+                    text(firstPresent(input, "query", "intentText", "q"), null),
+                    limit
+                )
+            );
+            result = searchResult("database_query", input, hits);
+        } else if ("api_services".equalsIgnoreCase(indexType)
+            || "api_service".equalsIgnoreCase(indexType)
+            || "api-service".equalsIgnoreCase(indexType)) {
+            List<LuceneMcpSearchService.SearchHit> hits = luceneSearchService.searchApiServiceTemplates(
+                new LuceneMcpSearchService.TemplateSearchRequest(
+                    text(input.get("assetType"), "api_service"),
+                    null,
+                    text(firstPresent(input, "query", "intentText", "q"), null),
+                    limit
+                )
+            );
+            result = searchResult("api_service", input, hits);
         } else if ("assets".equalsIgnoreCase(indexType) || "asset".equalsIgnoreCase(indexType)) {
             List<LuceneMcpSearchService.SearchHit> hits = luceneSearchService.searchAssets(
                 new LuceneMcpSearchService.AssetSearchRequest(

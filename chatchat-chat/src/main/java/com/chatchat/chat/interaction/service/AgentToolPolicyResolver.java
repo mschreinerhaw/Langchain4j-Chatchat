@@ -383,7 +383,7 @@ public class AgentToolPolicyResolver {
             case "asset_query", "asset_discovery" -> List.of("asset_query");
             case "template_query", "template_retrieval" -> List.of("template_query");
             case "database_query", "database_diagnosis", "sql_query" ->
-                List.of("database_query", "sql_query_execute");
+                List.of("business_query_template_search", "database_query_template_query", "database_query", "sql_query_execute");
             case "database_execute", "sql_execute", "database_change" ->
                 List.of("database_execute", "sql_execute", "sql_write_execute");
             case "host_diagnosis", "linux_command", "linux_command_execute" ->

@@ -182,15 +182,25 @@ class AgentPlanner {
         prompt.append("- Required dependency_contracts MUST also appear in the target step depends_on. Optional dependency_contracts MUST include condition or reason; do not add optional tools as depends_on unless you decide they are needed for this user request.\n");
         prompt.append("- Add plan.edge_contracts when a later step needs a typed field from an earlier tool output.\n");
         prompt.append("- If information is missing, add missing_info and plan the smallest safe retrieval/tool step instead of inventing facts.\n\n");
-        String sqlTemplateQueryTool = matchingAvailableTool(availableTools, "template_discovery");
+        String sqlTemplateQueryTool = matchingAvailableTool(availableTools, "database_ops_template_search");
+        String businessDatabaseQueryTemplateTool = matchingAvailableTool(availableTools, "business_query_template_search");
         String sqlMetadataSearchTool = matchingAvailableTool(availableTools, "sql_metadata_search");
         prompt.append("SQL template execution contract:\n");
+        if (businessDatabaseQueryTemplateTool != null) {
+            prompt.append("- For business/analytical SQL data requests, including market, trading, alert, monitor, customer, order, product, reporting, or analysis intents, call ")
+                .append(businessDatabaseQueryTemplateTool)
+                .append(" with finalDecision=business_database_query and bilingual Chinese/English intent filters. This tool searches the dedicated business query template index, not database maintenance templates.\n");
+            prompt.append("- When ")
+                .append(businessDatabaseQueryTemplateTool)
+                .append(" returns templates[], add a dependent bridge execution step using sql_query_execute with templates[0].templateId bound to input.templateId and parameters from templates[].parameterSchema. Runtime will redirect that bridge step to templates[].execution.callTool/templates[].mcpToolName. Do not require assetName/env for this bridge.\n");
+            prompt.append("- database_ops_template_search is only for datasource operations such as metadata, schema/table inspection, connection/session, lock, storage, health, performance diagnostics, and governed datasource SQL templates. Do not use it for registered business query templates.\n");
+        }
         if (sqlTemplateQueryTool != null) {
-            prompt.append("- For SQL datasource analysis, call the available typed template discovery tool ")
+            prompt.append("- For SQL datasource maintenance, metadata, or diagnostics, call ")
                 .append(sqlTemplateQueryTool)
                 .append(" and bind the selected returned templates[].templateId into sql_query_execute.templateId.\n");
         } else {
-            prompt.append("- No SQL template discovery tool is available in this request. Do not add sql_datasource_template_query/template_query steps. Only call sql_query_execute when a concrete templateId and parameter contract already appear in Available tools metadata, prior observations, or user-provided governed context; otherwise stop at final_answer with the missing template-discovery requirement.\n");
+            prompt.append("- No SQL template discovery tool is available in this request. Do not add database_ops_template_search/template_query steps. Only call sql_query_execute when a concrete templateId and parameter contract already appear in Available tools metadata, prior observations, or user-provided governed context; otherwise stop at final_answer with the missing template-discovery requirement.\n");
         }
         if (sqlMetadataSearchTool != null) {
             prompt.append("- For SQL table analysis or unknown schema/database, call ")
@@ -202,8 +212,8 @@ class AgentPlanner {
         prompt.append("- sql_query_execute with templateId MUST pass only fields declared by templates[].parameterSchema under input.parameters.\n");
         prompt.append("- Treat templates[].parameterSchema, templates[].requiredParameters, templates[].parameterContract, and templates[].invocationExample as the binding contract. If requiredParameters contains tableName, copy the table name from the user request or sql_metadata_search result into input.parameters.tableName before calling sql_query_execute.\n");
         prompt.append("- Never call sql_query_execute with templateId and parameters={} when the selected template has any required parameter. Missing required template parameters must be repaired by adding a prior discovery/planning step or by binding the value from user input/tool output.\n");
-        prompt.append("- sql_query_execute MUST include logical executionContext from typed asset discovery, for example {\"assetName\":\"<asset-name>\",\"env\":\"<env>\"}.\n");
-        prompt.append("- Do not put JSONPath strings such as $.assets[0].asset.name inside executionContext. Use plan.bindings or depend on the asset_query step so runtime can inject concrete values.\n");
+        prompt.append("- sql_query_execute MUST include logical executionContext from typed asset discovery, user-provided context, template routing metadata, sql_metadata_search/table-location evidence, or an observed invocationExample. Use database_asset_search when the request needs datasource asset confirmation. Exception: a sql_query_execute bridge step that depends on business_query_template_search does not require assetName/env because runtime redirects it to the direct business MCP tool.\n");
+        prompt.append("- Do not put JSONPath strings such as $.assets[0].asset.name inside executionContext. Use plan.bindings only when a prior observed step really returns that field.\n");
         prompt.append("- Never put raw SQL such as SHOW CREATE TABLE, DESC/DESCRIBE, SELECT, SHOW STATUS, or information_schema queries inside input.parameters.sql/rawSql/query/statement.\n");
         prompt.append("- Do not invent SQL template names. If a requested analysis needs table metadata, choose an observed returned TABLE_METADATA template and pass tableName from the user/query context. Pass schemaName/databaseName only when it came from sql_metadata_search results[].sqlExecutionBinding.parameters or a table-location template; never bind assetName to schemaName.\n\n");
         prompt.append("Template-governed HTTP/API/SSH execution contract:\n");
@@ -417,6 +427,7 @@ class AgentPlanner {
                 .append(" only for read-only discovery of registered execution templates.\n");
             prompt.append("- Before calling ").append(templateQueryTool)
                 .append(", produce a routing candidate set and finalDecision. candidates[] must contain targetKind/confidence pairs, and finalDecision must be one of the candidates. Runtime routes host to SSH templates, database to SQL datasource templates, http to HTTP templates, api to API templates, and business_database_query to business SQL MCP tools. For document, use document search instead of template discovery.\n");
+            prompt.append("- For business data analysis/query intents, set finalDecision=business_database_query so runtime uses business_query_template_search. Use finalDecision=database only for database maintenance, metadata, or diagnostic templates.\n");
             prompt.append("- ").append(templateQueryTool)
                 .append(" returns the single canonical template view in templates[]. It never returns raw shell commands or executionSpec.\n");
             prompt.append("- Query it when the plan/user-configured dependency requires template discovery before execution. Prefer filters.assetName and filters.env from the prior typed asset discovery result.\n");
@@ -427,6 +438,7 @@ class AgentPlanner {
             prompt.append("- templates[] is ranked by relevanceScore. Choose the returned template whose name, description, intentSignals, matchReasons, and asset type best match the user intent; do not blindly bind the first asset allowedCommandTemplates item.\n");
             prompt.append("- If the selected template's parameterSchema.required is non-empty, include a parameters object in the execution tool input with exactly those required fields; never place template parameters at the top level.\n");
             prompt.append("- Also read templates[].requiredParameters, templates[].parameterContract, and templates[].invocationExample. These fields are authoritative. For SQL/HTTP/SSH gateway tools, required values must be placed under the execution step's input.parameters; for direct API tools, follow parameterContract.argumentContainer.\n");
+            prompt.append("- For direct business database query templates, add a sql_query_execute bridge step bound to templates[].templateId; runtime will call templates[].execution.callTool/templates[].mcpToolName directly. Do not bind assetName/env for this bridge.\n");
             prompt.append("- Do not invent template ids if ").append(templateQueryTool)
                 .append(" returns no suitable template; ask the user/admin to register or allow one.\n\n");
         }
@@ -2236,10 +2248,10 @@ class AgentPlanner {
         if ("template_query".equals(semantic) || "template_discovery".equals(semantic)) {
             return "template_discovery";
         }
-        if (semantic.endsWith("_asset_query")) {
+        if (semantic.endsWith("_asset_query") || "database_asset_search".equals(semantic)) {
             return "asset_discovery";
         }
-        if (semantic.endsWith("_template_query")) {
+        if (semantic.endsWith("_template_query") || semantic.endsWith("_template_search")) {
             return "template_discovery";
         }
         return toolName.trim();
@@ -2252,16 +2264,36 @@ class AgentPlanner {
         for (String availableTool : availableTools) {
             String semantic = toolSemanticKey(availableTool);
             if (semanticToolName.equals(semantic)
+                || semanticAliasMatches(semanticToolName, semantic)
                 || ("asset_discovery".equals(semanticToolName) && "asset_query".equals(semantic))
                 || ("template_discovery".equals(semanticToolName) && "template_query".equals(semantic))
                 || ("asset_discovery".equals(semanticToolName) && semantic.endsWith("_asset_query"))
+                || ("asset_discovery".equals(semanticToolName) && "database_asset_search".equals(semantic))
                 || ("template_discovery".equals(semanticToolName) && semantic.endsWith("_template_query"))
+                || ("template_discovery".equals(semanticToolName) && semantic.endsWith("_template_search"))
                 || ("asset_query".equals(semanticToolName) && semantic.endsWith("_asset_query"))
-                || ("template_query".equals(semanticToolName) && semantic.endsWith("_template_query"))) {
+                || ("asset_query".equals(semanticToolName) && "database_asset_search".equals(semantic))
+                || ("template_query".equals(semanticToolName) && semantic.endsWith("_template_query"))
+                || ("template_query".equals(semanticToolName) && semantic.endsWith("_template_search"))) {
                 return availableTool;
             }
         }
         return null;
+    }
+
+    private boolean semanticAliasMatches(String expected, String actual) {
+        if (expected == null || actual == null) {
+            return false;
+        }
+        return switch (expected) {
+            case "database_ops_template_search", "sql_datasource_template_query" ->
+                "database_ops_template_search".equals(actual) || "sql_datasource_template_query".equals(actual);
+            case "business_query_template_search", "database_query_template_query" ->
+                "business_query_template_search".equals(actual) || "database_query_template_query".equals(actual);
+            case "database_asset_search", "sql_datasource_asset_query" ->
+                "database_asset_search".equals(actual) || "sql_datasource_asset_query".equals(actual);
+            default -> false;
+        };
     }
 
     private String toolSemanticKey(String toolName) {
@@ -2293,13 +2325,14 @@ class AgentPlanner {
     private boolean isAssetDiscoverySemantic(String semantic) {
         return "asset_discovery".equals(semantic)
             || "asset_query".equals(semantic)
+            || "database_asset_search".equals(semantic)
             || (semantic != null && semantic.endsWith("_asset_query"));
     }
 
     private boolean isTemplateDiscoverySemantic(String semantic) {
         return "template_discovery".equals(semantic)
             || "template_query".equals(semantic)
-            || (semantic != null && semantic.endsWith("_template_query"));
+            || (semantic != null && (semantic.endsWith("_template_query") || semantic.endsWith("_template_search")));
     }
 
     private Map<String, Object> asMap(Object data) {

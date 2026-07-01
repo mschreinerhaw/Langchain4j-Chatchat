@@ -257,9 +257,10 @@ public class InterpretationPlanValidator {
         if (!hasConcreteExecutionContext(executionContext)
             && !hasBindingForInput(plan, step.id(), "executionContext")
             && !hasBindingForInput(plan, step.id(), "mcpExecutionContext")
-            && !dependsOnAssetDiscovery(plan, step)) {
+            && !dependsOnAssetDiscovery(plan, step)
+            && !dependsOnBusinessTemplateDiscovery(plan, step)) {
             state.error(path + ".input.executionContext",
-                "sql_query_execute requires logical executionContext from asset_query, for example {assetName, env}; do not rely on template parameters for datasource routing.");
+                "sql_query_execute requires logical executionContext, for example {assetName, env}, from user context, template routing metadata, sql_metadata_search/table-location evidence, or an observed invocationExample; do not rely on template parameters for datasource routing.");
         }
         Object parameters = firstPresent(input, "parameters", "params");
         if (!(parameters instanceof Map<?, ?> map)) {
@@ -282,7 +283,7 @@ public class InterpretationPlanValidator {
             String normalized = normalizeRawSqlKey(key);
             if (RAW_SQL_PARAMETER_KEYS.contains(normalized)) {
                 state.error(path + ".input.parameters." + key,
-                    "Raw SQL is not a template parameter. Select a template from sql_datasource_template_query and pass only fields declared by templates[].parameterSchema.");
+                    "Raw SQL is not a template parameter. Select a template from database_ops_template_search and pass only fields declared by templates[].parameterSchema.");
             }
         }
     }
@@ -448,6 +449,24 @@ public class InterpretationPlanValidator {
         return plan.steps().stream()
             .filter(candidate -> candidate != null && step.dependsOn().contains(candidate.id()))
             .anyMatch(candidate -> isAssetDiscoveryTool(candidate.toolName()));
+    }
+
+    private boolean dependsOnBusinessTemplateDiscovery(InterpretationPlan plan, InterpretationPlan.Step step) {
+        if (plan == null || step == null || step.dependsOn() == null || step.dependsOn().isEmpty()) {
+            return false;
+        }
+        return plan.steps().stream()
+            .filter(candidate -> candidate != null && step.dependsOn().contains(candidate.id()))
+            .anyMatch(candidate -> isBusinessTemplateDiscoveryTool(candidate.toolName()));
+    }
+
+    private boolean isBusinessTemplateDiscoveryTool(String toolName) {
+        if (toolName == null || toolName.isBlank()) {
+            return false;
+        }
+        String normalized = toolName.trim().toLowerCase(Locale.ROOT).replace('-', '_');
+        return normalized.endsWith("business_query_template_search")
+            || normalized.endsWith("database_query_template_query");
     }
 
     private boolean missingRequiredValue(Object value) {

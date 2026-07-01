@@ -21,7 +21,8 @@ import java.util.Map;
 public class AssetDiscoveryMcpToolPublisher {
 
     public static final String SSH_ASSET_TOOL_NAME = "ssh_asset_query";
-    public static final String SQL_DATASOURCE_ASSET_TOOL_NAME = "sql_datasource_asset_query";
+    public static final String SQL_DATASOURCE_ASSET_TOOL_NAME = "database_asset_search";
+    public static final String LEGACY_SQL_DATASOURCE_ASSET_TOOL_NAME = "sql_datasource_asset_query";
     public static final String HTTP_ENDPOINT_ASSET_TOOL_NAME = "http_endpoint_asset_query";
 
     private final McpSyncServer mcpSyncServer;
@@ -36,6 +37,7 @@ public class AssetDiscoveryMcpToolPublisher {
     public synchronized void refresh() {
         remove(SSH_ASSET_TOOL_NAME);
         remove(SQL_DATASOURCE_ASSET_TOOL_NAME);
+        remove(LEGACY_SQL_DATASOURCE_ASSET_TOOL_NAME);
         remove(HTTP_ENDPOINT_ASSET_TOOL_NAME);
         mcpSyncServer.addTool(assetQueryTool(
             SSH_ASSET_TOOL_NAME,
@@ -46,8 +48,8 @@ public class AssetDiscoveryMcpToolPublisher {
         ));
         mcpSyncServer.addTool(assetQueryTool(
             SQL_DATASOURCE_ASSET_TOOL_NAME,
-            "SQL datasource asset metadata discovery",
-            "Read-only discovery tool for querying redacted SQL datasource asset metadata and routing hints.",
+            "Database asset search",
+            "Read-only discovery tool for confirming redacted database datasource assets and routing hints.",
             "sql_datasource",
             "database"
         ));

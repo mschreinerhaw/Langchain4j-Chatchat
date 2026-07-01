@@ -489,6 +489,76 @@ class InterpretationPlanValidatorTest {
     }
 
     @Test
+    void allowsBusinessTemplateBridgeWithoutDatasourceExecutionContext() {
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool("mcp_chatchat_mcp_server_business_query_template_search")).thenReturn(true);
+        when(toolRegistry.getToolMetadata("mcp_chatchat_mcp_server_business_query_template_search"))
+            .thenReturn(ToolMetadata.builder()
+                .id("mcp_chatchat_mcp_server_business_query_template_search")
+                .riskLevel("low")
+                .build());
+        when(toolRegistry.hasTool("mcp_chatchat_mcp_server_sql_query_execute")).thenReturn(true);
+        when(toolRegistry.getToolMetadata("mcp_chatchat_mcp_server_sql_query_execute"))
+            .thenReturn(ToolMetadata.builder()
+                .id("mcp_chatchat_mcp_server_sql_query_execute")
+                .riskLevel("low")
+                .build());
+
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("data_query", "分析行情数据发生较大波动时异常提醒数据", "low"),
+            context(),
+            new InterpretationPlan.Plan(
+                List.of(
+                    new InterpretationPlan.Step(
+                        1,
+                        "mcp_tool",
+                        "mcp_chatchat_mcp_server_business_query_template_search",
+                        Map.of("filters", Map.of("intent", "行情数据大幅波动时异常提醒")),
+                        List.of(),
+                        null,
+                        null
+                    ),
+                    new InterpretationPlan.Step(
+                        2,
+                        "mcp_tool",
+                        "mcp_chatchat_mcp_server_sql_query_execute",
+                        Map.of(
+                            "templateId", "edayQuqtMoni",
+                            "parameters", Map.of("etl_date", "20260601")
+                        ),
+                        List.of(1),
+                        null,
+                        null
+                    ),
+                    finalStep(3, List.of(2))
+                ),
+                List.of(),
+                List.of(),
+                null
+            ),
+            new InterpretationPlan.ExecutionPolicy(
+                3,
+                false,
+                List.of("mcp_chatchat_mcp_server_business_query_template_search",
+                    "mcp_chatchat_mcp_server_sql_query_execute"),
+                List.of(),
+                30000
+            ),
+            review(true)
+        );
+
+        InterpretationPlanValidator.ValidationResult result = validator.validate(
+            plan,
+            toolRegistry,
+            Set.of("mcp_chatchat_mcp_server_business_query_template_search",
+                "mcp_chatchat_mcp_server_sql_query_execute")
+        );
+
+        assertThat(result.valid()).isTrue();
+    }
+
+    @Test
     void rejectsTableMetadataTemplateWithEmptyParameters() {
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         when(toolRegistry.hasTool("mcp_chatchat_mcp_server_sql_query_execute")).thenReturn(true);

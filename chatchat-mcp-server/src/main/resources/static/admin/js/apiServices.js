@@ -3,6 +3,7 @@ import { apiFetch } from './http.js';
 
 const BASE_URL = `${API_BASE}/api-services`;
 const LIVEDATA_URL = `${API_BASE}/livedata-apis`;
+const SEARCH_INDEX_URL = `${API_BASE}/mcp-search-index`;
 
 export function listServices() {
     return apiFetch(BASE_URL);
@@ -44,7 +45,7 @@ export function refreshTools() {
 }
 
 export function rebuildApiServiceIndex() {
-    return apiFetch(`${BASE_URL}/refresh`, { method: 'POST' });
+    return apiFetch(`${SEARCH_INDEX_URL}/api-services/rebuild`, { method: 'POST' });
 }
 
 export function listLivedataApis() {

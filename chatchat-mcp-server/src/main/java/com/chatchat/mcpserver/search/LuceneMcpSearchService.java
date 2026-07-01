@@ -45,6 +45,10 @@ import java.util.Set;
 @Slf4j
 public class LuceneMcpSearchService {
 
+    private static final String TEMPLATE_INDEX = "templates";
+    private static final String DATABASE_QUERY_TEMPLATE_INDEX = "database-query-templates";
+    private static final String API_SERVICE_TEMPLATE_INDEX = "api-service-templates";
+
     private static final String FIELD_ID = "id";
     private static final String FIELD_KIND = "kind";
     private static final String FIELD_ASSET_TYPE = "assetType";
@@ -104,7 +108,7 @@ public class LuceneMcpSearchService {
             return;
         }
         try {
-            rebuild(indexPath("templates"), docs.stream().map(this::templateDocument).toList());
+            rebuildTemplateIndex(TEMPLATE_INDEX, docs);
         } catch (Exception ex) {
             // Lucene is an acceleration index. Callers keep using the source registry as truth.
             log.warn("MCP Lucene template index rebuild failed docs={}: {}", docs == null ? 0 : docs.size(), ex.getMessage());
@@ -116,7 +120,7 @@ public class LuceneMcpSearchService {
             return;
         }
         try {
-            upsert(indexPath("templates"), docs.stream().map(this::templateDocument).toList());
+            upsertTemplateIndex(TEMPLATE_INDEX, docs);
         } catch (Exception ex) {
             // Lucene is an acceleration index. Callers keep using the source registry as truth.
             log.warn("MCP Lucene template upsert failed docs={}: {}", docs.size(), ex.getMessage());
@@ -128,12 +132,50 @@ public class LuceneMcpSearchService {
             return List.of();
         }
         try {
-            return search(indexPath("templates"), templateQuery(request), request.limit());
+            return searchTemplateIndex(TEMPLATE_INDEX, request);
         } catch (Exception ex) {
             log.warn("MCP Lucene template search failed assetType={} dbType={} intentText={} limit={}: {}",
                 request.assetType(), request.dbType(), request.intentText(), request.limit(), ex.getMessage());
             return List.of();
         }
+    }
+
+    public void indexDatabaseQueryTemplates(List<TemplateDoc> docs) {
+        indexNamedTemplateIndex(DATABASE_QUERY_TEMPLATE_INDEX, docs, "database query template");
+    }
+
+    public void upsertDatabaseQueryTemplates(List<TemplateDoc> docs) {
+        upsertNamedTemplateIndex(DATABASE_QUERY_TEMPLATE_INDEX, docs, "database query template");
+    }
+
+    public List<SearchHit> searchDatabaseQueryTemplates(List<TemplateDoc> docs, TemplateSearchRequest request) {
+        if (!enabled()) {
+            return List.of();
+        }
+        try {
+            upsertDatabaseQueryTemplates(docs);
+            return searchDatabaseQueryTemplates(request);
+        } catch (Exception ex) {
+            log.warn("MCP Lucene database query template search failed assetType={} dbType={} intentText={} limit={}: {}",
+                request.assetType(), request.dbType(), request.intentText(), request.limit(), ex.getMessage());
+            return List.of();
+        }
+    }
+
+    public List<SearchHit> searchDatabaseQueryTemplates(TemplateSearchRequest request) {
+        return searchNamedTemplateIndex(DATABASE_QUERY_TEMPLATE_INDEX, request, "database query template");
+    }
+
+    public void indexApiServiceTemplates(List<TemplateDoc> docs) {
+        indexNamedTemplateIndex(API_SERVICE_TEMPLATE_INDEX, docs, "API service template");
+    }
+
+    public void upsertApiServiceTemplates(List<TemplateDoc> docs) {
+        upsertNamedTemplateIndex(API_SERVICE_TEMPLATE_INDEX, docs, "API service template");
+    }
+
+    public List<SearchHit> searchApiServiceTemplates(TemplateSearchRequest request) {
+        return searchNamedTemplateIndex(API_SERVICE_TEMPLATE_INDEX, request, "API service template");
     }
 
     public void indexAssets(List<AssetDoc> docs) {
@@ -171,6 +213,57 @@ public class LuceneMcpSearchService {
                 request.assetType(), request.queryText(), request.env(), request.dbType(), request.limit(), ex.getMessage());
             return List.of();
         }
+    }
+
+    private void indexNamedTemplateIndex(String indexName, List<TemplateDoc> docs, String label) {
+        if (!enabled()) {
+            return;
+        }
+        try {
+            rebuildTemplateIndex(indexName, docs);
+        } catch (Exception ex) {
+            log.warn("MCP Lucene {} index rebuild failed docs={}: {}", label, docs == null ? 0 : docs.size(), ex.getMessage());
+        }
+    }
+
+    private void upsertNamedTemplateIndex(String indexName, List<TemplateDoc> docs, String label) {
+        if (!enabled() || docs == null || docs.isEmpty()) {
+            return;
+        }
+        try {
+            upsertTemplateIndex(indexName, docs);
+        } catch (Exception ex) {
+            log.warn("MCP Lucene {} upsert failed docs={}: {}", label, docs.size(), ex.getMessage());
+        }
+    }
+
+    private List<SearchHit> searchNamedTemplateIndex(String indexName, TemplateSearchRequest request, String label) {
+        if (!enabled()) {
+            return List.of();
+        }
+        try {
+            return searchTemplateIndex(indexName, request);
+        } catch (Exception ex) {
+            log.warn("MCP Lucene {} search failed assetType={} dbType={} intentText={} limit={}: {}",
+                label, request.assetType(), request.dbType(), request.intentText(), request.limit(), ex.getMessage());
+            return List.of();
+        }
+    }
+
+    private void rebuildTemplateIndex(String indexName, List<TemplateDoc> docs) throws IOException {
+        rebuild(indexPath(indexName), safeTemplateDocs(docs).stream().map(this::templateDocument).toList());
+    }
+
+    private void upsertTemplateIndex(String indexName, List<TemplateDoc> docs) throws IOException {
+        upsert(indexPath(indexName), safeTemplateDocs(docs).stream().map(this::templateDocument).toList());
+    }
+
+    private List<SearchHit> searchTemplateIndex(String indexName, TemplateSearchRequest request) throws Exception {
+        return search(indexPath(indexName), templateQuery(request), request.limit());
+    }
+
+    private List<TemplateDoc> safeTemplateDocs(List<TemplateDoc> docs) {
+        return docs == null ? List.of() : docs;
     }
 
     private Path indexPath(String name) {

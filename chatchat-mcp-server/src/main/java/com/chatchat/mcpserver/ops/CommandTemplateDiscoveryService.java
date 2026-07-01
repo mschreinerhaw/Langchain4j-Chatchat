@@ -229,22 +229,18 @@ public class CommandTemplateDiscoveryService {
             Math.max(limit, MAX_LIMIT)
         );
         List<ScoredTemplate<SqlTemplateConfig>> candidates = templates.stream()
-            .filter(template -> matchesSqlTemplateBinding(template, filters, datasources, assetScoped))
+            .filter(template -> luceneHits.containsKey(template.getCode()))
+            .filter(template -> sqlTemplateCompatibleWithRequestedType(template, filters, datasources, assetScoped))
+            .filter(template -> sqlTemplateAuthorizedByDatasource(template, datasources, assetScoped))
             .map(template -> new ScoredTemplate<>(template,
                 decision(luceneAdjusted(relevance(template, retrievalFilters), luceneHits.get(template.getCode())),
                     intent, template.getDatabaseType(),
                     selectedSqlAssetType(datasources, assetScoped), riskLevel(template))))
             .toList();
-        List<ScoredTemplate<SqlTemplateConfig>> matched = rankAndFallback(
-            candidates,
-            intent,
-            scored -> scored.template().getCode(),
-            sqlScoredComparator(intent, filters)
-        );
-        if (matched.isEmpty() && !luceneHits.isEmpty()) {
-            matched = sqlLuceneAuthorizedFallback(templates, filters, retrievalFilters, datasources, assetScoped, intent, luceneHits);
-        }
-        boolean fallbackUsed = fallbackUsed(candidates, matched, intent);
+        List<ScoredTemplate<SqlTemplateConfig>> matched = candidates.stream()
+            .sorted(sqlScoredComparator(intent, filters))
+            .toList();
+        boolean fallbackUsed = false;
         log.info("template_query sql search assetType={} dbType={} filters={} normalizedIntent={} datasources={} registryTemplates={} candidates={} luceneHits={} returned={} fallbackUsed={} hitIds={}",
             assetType, dbType, compactFilters(filters), intent.type(), datasources.size(), templates.size(), candidates.size(),
             luceneHits.size(), Math.min(matched.size(), limit), fallbackUsed, luceneHits.keySet().stream().limit(limit).toList());
@@ -304,6 +300,7 @@ public class CommandTemplateDiscoveryService {
             Math.max(limit, MAX_LIMIT)
         );
         List<ScoredTemplate<DatabaseQueryConfig>> candidates = templates.stream()
+            .filter(template -> luceneHits.containsKey(template.getToolName()))
             .map(template -> new ScoredTemplate<>(template,
                 marketplaceDecision(
                     luceneAdjusted(relevance(template, retrievalFilters), luceneHits.get(template.getToolName())),
@@ -312,13 +309,14 @@ public class CommandTemplateDiscoveryService {
                     filters,
                     template)))
             .toList();
-        List<ScoredTemplate<DatabaseQueryConfig>> matched = rankAndFallback(candidates, intent,
-            scored -> scored.template().getToolName());
-        boolean fallbackUsed = fallbackUsed(candidates, matched, intent);
+        List<ScoredTemplate<DatabaseQueryConfig>> matched = candidates.stream()
+            .sorted(scoredComparator(scored -> scored.template().getToolName()))
+            .toList();
+        boolean fallbackUsed = false;
         log.info("template_query database-query search assetType={} dbType={} filters={} normalizedIntent={} registryTemplates={} candidates={} luceneHits={} returned={} fallbackUsed={} hitIds={}",
             assetType, requestedDatabaseType(filters), compactFilters(filters), intent.type(), templates.size(), candidates.size(),
             luceneHits.size(), Math.min(matched.size(), limit), fallbackUsed, luceneHits.keySet().stream().limit(limit).toList());
-        return result(assetType, filters, intent, List.of(), limit,
+        return result(assetType, filters, intent, databaseQueryAssetMetadata(matched), limit,
             databaseQueryTemplateMetadata(matched, assetType, limit), matched.size() > limit, fallbackUsed, templateSignal(luceneHits));
     }
 
@@ -513,17 +511,17 @@ public class CommandTemplateDiscoveryService {
             return new TemplateSignal(false, 0, "registry_only");
         }
         int hitCount = hits == null ? 0 : hits.size();
-        return new TemplateSignal(true, hitCount, hitCount > 0 ? "lucene_scored" : "lucene_empty_registry_fallback");
+        return new TemplateSignal(true, hitCount, hitCount > 0 ? "lucene_scored" : "dedicated_index_no_hit");
     }
 
     private String templateRetrievalStrategy(TemplateSignal signal) {
         if (signal == null || !signal.luceneActive()) {
-            return "authorized_filter_then_bm25_lite_feature_rank";
+            return "dedicated_template_index_unavailable";
         }
         if (signal.hitCount() <= 0) {
-            return "registry_universe_with_lucene_empty_signal_then_authorized_feature_rank";
+            return "dedicated_template_index_no_hit";
         }
-        return "registry_universe_with_lucene_score_then_authorized_feature_rank";
+        return "dedicated_template_index_hit_then_authorized_filter_rank";
     }
 
     private String filtersSchemaVersion(Map<String, Object> filters) {
@@ -542,20 +540,24 @@ public class CommandTemplateDiscoveryService {
         if (!luceneActive()) {
             return Map.of();
         }
-        List<LuceneMcpSearchService.SearchHit> hits = luceneSearchService.searchTemplates(
-            docs,
-            new LuceneMcpSearchService.TemplateSearchRequest(
-                assetType,
-                dbType,
-                luceneIntentText(filters, intent),
-                limit
-            )
+        LuceneMcpSearchService.TemplateSearchRequest request = new LuceneMcpSearchService.TemplateSearchRequest(
+            assetType,
+            dbType,
+            luceneIntentText(filters, intent),
+            limit
         );
-        if (hits.isEmpty() && intent != null && !"unknown".equals(intent.type())) {
-            hits = luceneSearchService.searchTemplates(
-                docs,
-                new LuceneMcpSearchService.TemplateSearchRequest(assetType, dbType, null, limit)
-            );
+        boolean databaseQueryIndex = "database_query".equalsIgnoreCase(assetType == null ? "" : assetType);
+        List<LuceneMcpSearchService.SearchHit> hits = databaseQueryIndex
+            ? luceneSearchService.searchDatabaseQueryTemplates(docs, request)
+            : luceneSearchService.searchTemplates(docs, request);
+        boolean strictTemplateIndex = "sql_datasource".equalsIgnoreCase(assetType == null ? "" : assetType)
+            || databaseQueryIndex;
+        if (!strictTemplateIndex && hits.isEmpty() && intent != null && !"unknown".equals(intent.type())) {
+            LuceneMcpSearchService.TemplateSearchRequest fallbackRequest =
+                new LuceneMcpSearchService.TemplateSearchRequest(assetType, dbType, null, limit);
+            hits = databaseQueryIndex
+                ? luceneSearchService.searchDatabaseQueryTemplates(docs, fallbackRequest)
+                : luceneSearchService.searchTemplates(docs, fallbackRequest);
         }
         Map<String, LuceneMcpSearchService.SearchHit> byId = new LinkedHashMap<>();
         hits.stream()
@@ -631,14 +633,28 @@ public class CommandTemplateDiscoveryService {
     }
 
     private LuceneMcpSearchService.TemplateDoc templateDoc(DatabaseQueryConfig config) {
-        List<String> signals = intentSignals(config);
+        List<String> signals = new ArrayList<>(intentSignals(config));
+        databaseQueryDatasource(config).ifPresent(datasource -> {
+            addWords(signals, datasource.getName());
+            addWords(signals, datasource.getTitle());
+            addWords(signals, datasource.getToolName());
+            addWords(signals, datasource.getDescription());
+            addWords(signals, datasource.getEnvironment());
+            addWords(signals, datasource.getDatabaseType());
+            addWords(signals, datasource.getMetadataScopeValue());
+        });
         return new LuceneMcpSearchService.TemplateDoc(
             firstText(config.getToolName(), config.getId()),
             "database_query",
             firstText(config.getTitle(), config.getToolName()),
             firstText(config.getDescription(), "") + " "
                 + firstText(config.getBusinessGroupName(), "") + " "
-                + firstText(config.getBusinessGroupDescription(), ""),
+                + firstText(config.getBusinessGroupDescription(), "") + " "
+                + databaseQueryDatasource(config)
+                    .map(datasource -> firstText(datasource.getName(), "") + " "
+                        + firstText(datasource.getTitle(), "") + " "
+                        + firstText(datasource.getDescription(), ""))
+                    .orElse(""),
             "sql_template_registry",
             SqlDatasourceConfigService.normalizeDatabaseTypeToken(config.getDatabaseType()),
             String.join(" ", signals),
@@ -690,6 +706,31 @@ public class CommandTemplateDiscoveryService {
             metadata.add(templateMetadata(item.template(), assetType, item.relevance(), index + 1));
         }
         return metadata;
+    }
+
+    private List<Map<String, Object>> databaseQueryAssetMetadata(List<ScoredTemplate<DatabaseQueryConfig>> scored) {
+        if (scored == null || scored.isEmpty()) {
+            return List.of();
+        }
+        Map<String, Map<String, Object>> assets = new LinkedHashMap<>();
+        for (ScoredTemplate<DatabaseQueryConfig> item : scored) {
+            databaseQueryDatasource(item.template()).ifPresent(datasource -> {
+                String key = firstText(datasource.getId(), firstText(datasource.getName(), datasource.getToolName()));
+                if (key != null && !assets.containsKey(key)) {
+                    assets.put(key, assetMetadata(
+                        "sql_datasource",
+                        datasource.getId(),
+                        datasource.getName(),
+                        datasource.getTitle(),
+                        datasource.getToolName(),
+                        datasource.getEnvironment(),
+                        datasourceLabels(datasource),
+                        Map.of()
+                    ));
+                }
+            });
+        }
+        return new ArrayList<>(assets.values());
     }
 
     private Map<String, Object> templateMetadata(CommandTemplateConfig template,
@@ -760,7 +801,7 @@ public class CommandTemplateDiscoveryService {
             "parameterSchema", parameterSchema,
             "requiredParameters", requiredParameters,
             "parameterContract", parameterContract(template.getCode(), parameterSchema, "sql_query_execute.parameters", "sql_query_execute"),
-            "invocationExample", invocationExample(template.getCode(), parameterSchema, "sql_query_execute", "<assetName from sql_datasource_asset_query>", "<env>"),
+            "invocationExample", invocationExample(template.getCode(), parameterSchema, "sql_query_execute", "<logical datasource assetName from user context or template routing>", "<env>"),
             "enabled", template.isEnabled()
         );
     }
@@ -892,12 +933,32 @@ public class CommandTemplateDiscoveryService {
         String toolName = firstText(config.getToolName(), config.getId());
         Map<String, Object> parameterSchema = parameterSchema(config.getInputSchemaJson());
         List<String> requiredParameters = requiredParameters(parameterSchema);
+        Map<String, Object> executionContext = databaseQueryExecutionContext(config);
+        Map<String, Object> datasourceAsset = databaseQueryDatasource(config)
+            .<Map<String, Object>>map(datasource -> mapOf(
+                "type", "sql_datasource",
+                "id", datasource.getId(),
+                "name", datasource.getName(),
+                "title", datasource.getTitle(),
+                "toolName", datasource.getToolName(),
+                "environment", datasource.getEnvironment(),
+                "databaseType", SqlDatasourceConfigService.normalizeDatabaseTypeToken(datasource.getDatabaseType())
+            ))
+            .orElse(Map.of());
         return mapOf(
             "schemaVersion", TEMPLATE_SCHEMA_VERSION,
             "id", toolName,
             "templateId", toolName,
             "databaseQueryId", config.getId(),
             "mcpToolName", toolName,
+            "datasourceAsset", datasourceAsset,
+            "executionContext", executionContext,
+            "sqlExecutionBinding", mapOf(
+                "toolName", "sql_query_execute",
+                "templateId", toolName,
+                "executionContext", executionContext,
+                "parametersPath", "parameters"
+            ),
             "name", firstText(config.getTitle(), toolName),
             "description", firstText(config.getDescription(), ""),
             "businessGroup", businessGroupMetadata(config),
@@ -930,11 +991,13 @@ public class CommandTemplateDiscoveryService {
             "intentSignals", signals,
             "routingHints", mapOf(
                 "strongSignals", signals.stream().limit(5).toList(),
-                "contextKeys", List.of("intent", "goal", "category", "businessGroup", "group", "template", "labels")
+                "contextKeys", List.of("intent", "goal", "category", "businessGroup", "group", "template", "labels",
+                    "assetName", "env", "databaseType")
             ),
             "execution", mapOf(
                 "mode", "direct_mcp_tool",
                 "callTool", toolName,
+                "executionContext", executionContext,
                 "argumentSchemaPath", "templates[].parameterSchema"
             ),
             "parameterSchema", parameterSchema,
@@ -943,6 +1006,29 @@ public class CommandTemplateDiscoveryService {
             "invocationExample", directInvocationExample(toolName, parameterSchema),
             "enabled", config.isEnabled()
         );
+    }
+
+    private Map<String, Object> databaseQueryExecutionContext(DatabaseQueryConfig config) {
+        return databaseQueryDatasource(config)
+            .<Map<String, Object>>map(datasource -> mapOf(
+                "assetName", firstText(datasource.getName(), firstText(datasource.getTitle(), datasource.getToolName())),
+                "env", datasource.getEnvironment(),
+                "environment", datasource.getEnvironment(),
+                "databaseType", SqlDatasourceConfigService.normalizeDatabaseTypeToken(datasource.getDatabaseType()),
+                "dbType", SqlDatasourceConfigService.normalizeDatabaseTypeToken(datasource.getDatabaseType())
+            ))
+            .orElse(Map.of());
+    }
+
+    private java.util.Optional<SqlDatasourceConfig> databaseQueryDatasource(DatabaseQueryConfig config) {
+        if (config == null || config.getDatasourceId() == null || config.getDatasourceId().isBlank()) {
+            return java.util.Optional.empty();
+        }
+        try {
+            return java.util.Optional.ofNullable(datasourceConfigService.getEnabled(config.getDatasourceId()));
+        } catch (Exception ignored) {
+            return java.util.Optional.empty();
+        }
     }
 
     private Map<String, Object> businessGroupMetadata(DatabaseQueryConfig config) {
@@ -2133,28 +2219,6 @@ public class CommandTemplateDiscoveryService {
             }
             return true;
         });
-    }
-
-    private List<ScoredTemplate<SqlTemplateConfig>> sqlLuceneAuthorizedFallback(List<SqlTemplateConfig> templates,
-                                                                                Map<String, Object> filters,
-                                                                                Map<String, Object> retrievalFilters,
-                                                                                List<SqlDatasourceConfig> datasources,
-                                                                                boolean assetScoped,
-                                                                                NormalizedIntent intent,
-                                                                                Map<String, LuceneMcpSearchService.SearchHit> luceneHits) {
-        if (templates == null || templates.isEmpty() || luceneHits == null || luceneHits.isEmpty()) {
-            return List.of();
-        }
-        String selectedAssetType = selectedSqlAssetType(datasources, assetScoped);
-        return templates.stream()
-            .filter(template -> luceneHits.containsKey(template.getCode()))
-            .filter(template -> sqlTemplateCompatibleWithRequestedType(template, filters, datasources, assetScoped))
-            .filter(template -> sqlTemplateAuthorizedByDatasource(template, datasources, assetScoped))
-            .map(template -> new ScoredTemplate<>(template,
-                decision(luceneAdjusted(relevance(template, retrievalFilters), luceneHits.get(template.getCode())),
-                    intent, template.getDatabaseType(), selectedAssetType, riskLevel(template))))
-            .sorted(scoredComparator(scored -> scored.template().getCode()))
-            .toList();
     }
 
     private boolean sqlTemplateCompatibleWithRequestedType(SqlTemplateConfig template,

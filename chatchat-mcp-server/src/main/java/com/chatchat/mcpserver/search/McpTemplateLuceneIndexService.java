@@ -9,6 +9,7 @@ import com.chatchat.mcpserver.ops.CommandTemplateService;
 import com.chatchat.mcpserver.ops.HttpEndpointConfig;
 import com.chatchat.mcpserver.ops.HttpEndpointConfigService;
 import com.chatchat.mcpserver.sql.SqlDatasourceConfigService;
+import com.chatchat.mcpserver.sql.SqlDatasourceConfig;
 import com.chatchat.mcpserver.sql.SqlTemplateConfig;
 import com.chatchat.mcpserver.sql.SqlTemplateService;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -48,6 +49,7 @@ public class McpTemplateLuceneIndexService {
     private final HttpEndpointConfigService httpEndpointConfigService;
     private final ApiServiceConfigService apiServiceConfigService;
     private final DatabaseQueryConfigService databaseQueryConfigService;
+    private final SqlDatasourceConfigService datasourceConfigService;
     private final ObjectMapper objectMapper;
 
     @Order(Ordered.LOWEST_PRECEDENCE)
@@ -57,6 +59,12 @@ public class McpTemplateLuceneIndexService {
     }
 
     public synchronized void refreshAll() {
+        refreshTemplateIndex();
+        refreshDatabaseQueryTemplateIndex();
+        refreshApiServiceTemplateIndex();
+    }
+
+    public synchronized void refreshTemplateIndex() {
         if (luceneSearchService == null || !luceneSearchService.enabled()) {
             return;
         }
@@ -71,15 +79,31 @@ public class McpTemplateLuceneIndexService {
         safe(httpEndpointConfigService.listEnabled()).stream()
             .map(this::httpTemplateDoc)
             .forEach(docs::add);
-        safe(apiServiceConfigService.listAll()).stream()
-            .filter(ApiServiceConfig::isEnabled)
-            .map(this::apiServiceTemplateDoc)
-            .forEach(docs::add);
-        safe(databaseQueryConfigService.listAll()).stream()
-            .map(this::databaseQueryTemplateDoc)
-            .forEach(docs::add);
         luceneSearchService.indexTemplates(docs);
         log.info("MCP Lucene template index refreshed, indexed {} templates", docs.size());
+    }
+
+    public synchronized void refreshDatabaseQueryTemplateIndex() {
+        if (luceneSearchService == null || !luceneSearchService.enabled()) {
+            return;
+        }
+        List<LuceneMcpSearchService.TemplateDoc> docs = safe(databaseQueryConfigService.listAll()).stream()
+            .map(this::databaseQueryTemplateDoc)
+            .toList();
+        luceneSearchService.indexDatabaseQueryTemplates(docs);
+        log.info("MCP Lucene database query template index refreshed, indexed {} templates", docs.size());
+    }
+
+    public synchronized void refreshApiServiceTemplateIndex() {
+        if (luceneSearchService == null || !luceneSearchService.enabled()) {
+            return;
+        }
+        List<LuceneMcpSearchService.TemplateDoc> docs = safe(apiServiceConfigService.listAll()).stream()
+            .filter(ApiServiceConfig::isEnabled)
+            .map(this::apiServiceTemplateDoc)
+            .toList();
+        luceneSearchService.indexApiServiceTemplates(docs);
+        log.info("MCP Lucene API service template index refreshed, indexed {} templates", docs.size());
     }
 
     public void upsertCommandTemplates(List<CommandTemplateConfig> templates) {
@@ -94,12 +118,12 @@ public class McpTemplateLuceneIndexService {
     }
 
     public void upsertDatabaseQueryTemplates(List<DatabaseQueryConfig> templates) {
-        luceneSearchService.upsertTemplates(safe(templates).stream().map(this::databaseQueryTemplateDoc).toList());
+        luceneSearchService.upsertDatabaseQueryTemplates(safe(templates).stream().map(this::databaseQueryTemplateDoc).toList());
         log.info("MCP Lucene database query template index upserted {} templates", safe(templates).size());
     }
 
     public void upsertApiServiceTemplates(List<ApiServiceConfig> templates) {
-        luceneSearchService.upsertTemplates(safe(templates).stream()
+        luceneSearchService.upsertApiServiceTemplates(safe(templates).stream()
             .filter(ApiServiceConfig::isEnabled)
             .map(this::apiServiceTemplateDoc)
             .toList());
@@ -187,6 +211,15 @@ public class McpTemplateLuceneIndexService {
         signals.addAll(readStringArray(config.getCapabilitiesJson()));
         signals.addAll(readStringArray(config.getTagsJson()));
         signals.addAll(governanceTerms(config.getGovernanceJson()));
+        databaseQueryDatasource(config).ifPresent(datasource -> addTerms(signals,
+            datasource.getName(),
+            datasource.getTitle(),
+            datasource.getToolName(),
+            datasource.getDescription(),
+            datasource.getEnvironment(),
+            datasource.getDatabaseType(),
+            datasource.getMetadataScopeValue()
+        ));
         addTerms(signals, config.getToolName(), config.getTitle(), config.getDescription(), config.getSqlTemplate(),
             config.getTemplateIntent(), config.getBusinessGroup(), config.getBusinessGroupName(),
             config.getBusinessGroupDescription(), config.getDatabaseType(), config.getRiskLevel(), config.getOwner());
@@ -197,7 +230,12 @@ public class McpTemplateLuceneIndexService {
             firstText(config.getDescription(), "") + " "
                 + firstText(config.getBusinessGroupName(), "") + " "
                 + firstText(config.getBusinessGroupDescription(), "") + " "
-                + firstText(config.getSqlTemplate(), ""),
+                + firstText(config.getSqlTemplate(), "") + " "
+                + databaseQueryDatasource(config)
+                    .map(datasource -> firstText(datasource.getName(), "") + " "
+                        + firstText(datasource.getTitle(), "") + " "
+                        + firstText(datasource.getDescription(), ""))
+                    .orElse(""),
             "sql_template_registry",
             SqlDatasourceConfigService.normalizeDatabaseTypeToken(config.getDatabaseType()),
             String.join(" ", signals),
@@ -205,6 +243,17 @@ public class McpTemplateLuceneIndexService {
             distinct(signals),
             "database_query_registry"
         );
+    }
+
+    private java.util.Optional<SqlDatasourceConfig> databaseQueryDatasource(DatabaseQueryConfig config) {
+        if (config == null || config.getDatasourceId() == null || config.getDatasourceId().isBlank()) {
+            return java.util.Optional.empty();
+        }
+        try {
+            return java.util.Optional.ofNullable(datasourceConfigService.getEnabled(config.getDatasourceId()));
+        } catch (Exception ignored) {
+            return java.util.Optional.empty();
+        }
     }
 
     private List<String> governanceTerms(String json) {

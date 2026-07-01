@@ -425,11 +425,23 @@ public class McpAuthorizationService {
 
     private ToolScope toolScope(String toolName) {
         String semantic = semanticToolName(toolName);
+        if ("database_asset_search".equals(semantic)) {
+            return new ToolScope("sql_datasource", "asset", "query");
+        }
+        if ("database_ops_template_search".equals(semantic)) {
+            return new ToolScope("sql_datasource", "template", "query");
+        }
+        if ("business_query_template_search".equals(semantic)) {
+            return new ToolScope("database_query", "template", "query");
+        }
         if (semantic.endsWith("_asset_query")) {
             return new ToolScope(normalizeAssetType(semantic.substring(0, semantic.length() - "_asset_query".length())), "asset", "query");
         }
         if (semantic.endsWith("_template_query")) {
             return new ToolScope(normalizeAssetType(semantic.substring(0, semantic.length() - "_template_query".length())), "template", "query");
+        }
+        if (semantic.endsWith("_template_search")) {
+            return new ToolScope(normalizeAssetType(semantic.substring(0, semantic.length() - "_template_search".length())), "template", "query");
         }
         return switch (semantic) {
             case "api_asset_query" -> new ToolScope("api_service", "asset", "query");

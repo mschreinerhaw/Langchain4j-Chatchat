@@ -177,10 +177,11 @@ class ExecutionGraphSemanticValidator {
             return "final_answer";
         }
         String tool = step.toolName() == null ? "" : step.toolName().toLowerCase(Locale.ROOT);
-        if (tool.contains("sql_datasource_asset_query")) {
+        if (tool.contains("sql_datasource_asset_query") || tool.contains("database_asset_search")) {
             return "asset_discovery";
         }
-        if (tool.contains("sql_datasource_template_query")) {
+        if (tool.contains("sql_datasource_template_query") || tool.contains("database_ops_template_search")
+            || tool.contains("business_query_template_search") || tool.contains("database_query_template_query")) {
             return "template_discovery";
         }
         if (tool.contains("sql_query_execute")) {

@@ -115,7 +115,7 @@ public class SqlMetadataSearchService {
             "results", results,
             "usage", mapOf(
                 "nextStep", "Use results[].sqlExecutionBinding when calling sql_query_execute. Do not invent schemaName/databaseName.",
-                "templateStep", "Call sql_datasource_template_query for the same assetName/env, then use the returned templateId and parameterSchema."
+                "templateStep", "Call database_ops_template_search for the same assetName/env, then use the returned templateId and parameterSchema."
             ),
             "diagnostics", mapOf(
                 "source", luceneSearchService != null && luceneSearchService.enabled() ? "lucene_metadata_table_index" : "metadata_cache",

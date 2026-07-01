@@ -86,7 +86,8 @@ public class SqlMcpToolPublisher {
             .name("sql_query_execute")
             .title("SQL query execution gateway")
             .description("Execute a read-only SQL query or SQL template on a routed logical datasource target. "
-                + "When using template, the value must be an existing templateId returned by sql_datasource_template_query for the same logical datasource. "
+                + "When using datasource maintenance template, the value must be an existing templateId returned by database_ops_template_search for the same logical datasource. "
+                + "Business query templates are discovered with business_query_template_search and executed through their returned direct MCP tool binding. "
                 + "For table metadata analysis, locate the table schema with metadata discovery templates such as MYSQL_SCHEMA_TABLE_OVERVIEW or MYSQL_TABLE_LOCATION before reading columns. "
                 + "Do not invent template names and do not pass datasourceId, JDBC URL, or any concrete database endpoint.")
             .inputSchema(gatewayInputSchema())
@@ -108,7 +109,7 @@ public class SqlMcpToolPublisher {
             .name("sql_metadata_search")
             .title("SQL metadata table search")
             .description("Read-only Lucene-backed metadata retrieval tool for locating datasource/database/table entries before SQL template execution. "
-                + "Use this before sql_datasource_template_query and sql_query_execute when the user mentions a table name, table comment, business meaning, or when schema/database is unknown. "
+                + "Use this before database_ops_template_search and sql_query_execute when the user mentions a table name, table comment, business meaning, or when schema/database is unknown. "
                 + "When an explicit tableName/schema.table is provided, it returns cached column metadata including column name, type, key, nullability, ordinal position, and comment. "
                 + "It returns logical routing context and table locations from the metadata index; it never returns JDBC URLs or raw SQL.")
             .inputSchema(metadataSearchInputSchema())
@@ -134,10 +135,10 @@ public class SqlMcpToolPublisher {
     private McpSchema.JsonSchema inputSchema() {
         return new McpSchema.JsonSchema("object", Map.of(
             "sql", Map.of("type", "string", "description", "只读 SQL。禁止多语句和注释。"),
-            "template", Map.of("type", "string", "description", "Existing SQL templateId from this datasource asset's authorizedSqlTemplates or sql_datasource_template_query result. Do not invent names."),
+            "template", Map.of("type", "string", "description", "Existing SQL templateId from this datasource asset's authorizedSqlTemplates or database_ops_template_search result. Do not invent names."),
             "parameters", Map.of(
                 "type", "object",
-                "description", "Template parameters object. Use exactly the fields required by sql_datasource_template_query.templates[].parameterSchema; do not put template parameters at the top level.",
+                "description", "Template parameters object. Use exactly the fields required by database_ops_template_search.templates[].parameterSchema; do not put template parameters at the top level.",
                 "additionalProperties", true
             ),
             "timeoutSeconds", Map.of("type", "integer", "minimum", 1, "maximum", 60),
@@ -150,10 +151,10 @@ public class SqlMcpToolPublisher {
     private McpSchema.JsonSchema gatewayInputSchema() {
         return new McpSchema.JsonSchema("object", Map.of(
             "sql", Map.of("type", "string", "description", "Read-only SQL. Multi-statement, comments, writes, DDL, and permission changes are forbidden."),
-            "template", Map.of("type", "string", "description", "Existing SQL templateId from sql_datasource_template_query.templates[].templateId for the selected datasource. Do not invent names."),
+            "template", Map.of("type", "string", "description", "Existing SQL templateId from database_ops_template_search.templates[].templateId for the selected datasource. Do not invent names."),
             "parameters", Map.of(
                 "type", "object",
-                "description", "Template parameters object. Use exactly the fields required by sql_datasource_template_query.templates[].parameterSchema; do not put template parameters at the top level.",
+                "description", "Template parameters object. Use exactly the fields required by database_ops_template_search.templates[].parameterSchema; do not put template parameters at the top level.",
                 "additionalProperties", true
             ),
             "executionContext", Map.of(
@@ -265,7 +266,7 @@ public class SqlMcpToolPublisher {
             "tableLocationPath", "results[].location",
             "executionContextPath", "results[].sqlExecutionBinding.executionContext",
             "templateParameterPath", "results[].sqlExecutionBinding.parameters",
-            "nextTool", "sql_datasource_template_query then sql_query_execute"
+            "nextTool", "database_ops_template_search then sql_query_execute"
         ));
         meta.put("mcp_tool_limit", concurrencyManager.limitMeta("sql_metadata_search", "sql"));
         return meta;
@@ -454,13 +455,13 @@ public class SqlMcpToolPublisher {
 
     private Map<String, Object> templateSelectionPolicy() {
         return mutableMap(
-            "source", "sql_datasource_template_query.templates[].templateId",
+            "source", "database_ops_template_search.templates[].templateId",
             "allowedSet", "authorizedSqlTemplates[].templateId or authorizedSqlTemplatesByAsset[].templates[].templateId",
             "selectionFields", List.of("templateId", "name", "description", "databaseType", "intentSignals",
                 "parameterSchema", "requiredParameters", "parameterContract", "invocationExample"),
             "mustUseDiscoveredTemplate", true,
             "metadataWorkflow", "For table structure analysis, discover schemas/tables first (for example MYSQL_SCHEMA_TABLE_OVERVIEW or MYSQL_TABLE_LOCATION), then call the table metadata template with the resolved schemaName.",
-            "onNoMatch", "call sql_datasource_template_query with executionContext; if no authorized template is returned, either use explicit read-only sql when policy permits or explain that no existing authorized template can satisfy the request",
+            "onNoMatch", "call database_ops_template_search with executionContext; if no authorized template is returned, either use explicit read-only sql when policy permits or explain that no existing authorized template can satisfy the request",
             "doNotInventTemplateNames", true,
             "rawSqlTemplateReturned", false
         );
@@ -513,7 +514,7 @@ public class SqlMcpToolPublisher {
             "tool", "sql_query_execute",
             "templateId", templateId,
             "parameters", parameters,
-            "executionContext", mutableMap("assetName", "<assetName from sql_datasource_asset_query>", "env", "<env>")
+            "executionContext", mutableMap("assetName", "<logical datasource assetName from user context or template routing>", "env", "<env>")
         );
     }
 

@@ -1407,6 +1407,7 @@ async function handleTemplateIndexRebuild() {
 
 function renderIndexSearchMode() {
     const type = value('indexSearchType') || 'sql_metadata';
+    const templateLike = ['templates', 'database_query', 'api_service'].includes(type);
     const sqlOnlyIds = ['indexSearchTableName', 'indexSearchDatabase', 'indexSearchAssetName', 'indexSearchIncludeColumns'];
     const assetOnlyIds = ['indexSearchEnv', 'indexSearchLabels'];
     const assetTypeNode = document.getElementById('indexSearchAssetType')?.closest('.col-md-2');
@@ -1414,9 +1415,9 @@ function renderIndexSearchMode() {
         document.getElementById(id)?.closest('[class*="col-"]')?.classList.toggle('d-none', type !== 'sql_metadata');
     });
     assetOnlyIds.forEach(id => {
-        document.getElementById(id)?.closest('[class*="col-"]')?.classList.toggle('d-none', type === 'templates');
+        document.getElementById(id)?.closest('[class*="col-"]')?.classList.toggle('d-none', templateLike);
     });
-    assetTypeNode?.classList.toggle('d-none', type === 'sql_metadata');
+    assetTypeNode?.classList.toggle('d-none', type === 'sql_metadata' || type === 'database_query' || type === 'api_service');
 }
 
 async function handleIndexSearchRun() {
@@ -1452,6 +1453,13 @@ function readIndexSearchRequest() {
     } else if (type === 'templates') {
         request.intentText = request.query;
         request.dbType = request.databaseType;
+    } else if (type === 'database_query') {
+        request.intentText = request.query;
+        request.assetType = 'database_query';
+        request.dbType = request.databaseType;
+    } else if (type === 'api_service') {
+        request.intentText = request.query;
+        request.assetType = 'api_service';
     }
     return request;
 }

@@ -14,6 +14,9 @@ export function readServiceForm() {
         toolName: value('toolName'),
         title: value('title'),
         description: value('description'),
+        businessGroup: value('businessGroup'),
+        businessGroupName: value('businessGroupName'),
+        businessGroupDescription: value('businessGroupDescription'),
         method: value('method') || 'GET',
         urlTemplate: value('urlTemplate'),
         headers: microserviceConfig?.headers || parseJsonField('headersJson', {}),
@@ -32,6 +35,9 @@ export function fillServiceForm(service) {
     setValue('toolName', service?.toolName || '');
     setValue('title', service?.title || '');
     setValue('description', service?.description || '');
+    setValue('businessGroup', service?.businessGroup || 'default');
+    setValue('businessGroupName', service?.businessGroupName || '');
+    setValue('businessGroupDescription', service?.businessGroupDescription || '');
     setValue('method', service?.method || 'GET');
     setValue('urlTemplate', service?.urlTemplate || '');
     setValue('headersJson', stringify(service?.headers || {}));

@@ -146,6 +146,9 @@ public class DatabaseQueryConfigService {
         current.setTitle(draft.getTitle());
         current.setDatasourceId(draft.getDatasourceId());
         current.setDescription(draft.getDescription());
+        current.setBusinessGroup(draft.getBusinessGroup());
+        current.setBusinessGroupName(draft.getBusinessGroupName());
+        current.setBusinessGroupDescription(draft.getBusinessGroupDescription());
         current.setSqlTemplate(draft.getSqlTemplate());
         current.setInputSchemaJson(draft.getInputSchemaJson());
         current.setGovernanceJson(draft.getGovernanceJson());
@@ -248,6 +251,9 @@ public class DatabaseQueryConfigService {
         config.setTitle(blankToNull(config.getTitle()) == null ? toolName : config.getTitle().trim());
         config.setDatasourceId(blankToNull(config.getDatasourceId()));
         config.setDescription(blankToNull(config.getDescription()));
+        config.setBusinessGroup(normalizeBusinessGroup(config.getBusinessGroup()));
+        config.setBusinessGroupName(firstText(blankToNull(config.getBusinessGroupName()), config.getBusinessGroup()));
+        config.setBusinessGroupDescription(blankToNull(config.getBusinessGroupDescription()));
         config.setSqlTemplate(normalizeRequired(config.getSqlTemplate(), "sql"));
         config.setInputSchemaJson(normalizeJsonObject(config.getInputSchemaJson()));
         config.setGovernanceJson(normalizeJsonObject(config.getGovernanceJson(), "governance"));
@@ -363,6 +369,9 @@ public class DatabaseQueryConfigService {
         labels.add(firstText(config.getDatabaseType(), ""));
         labels.add(firstText(config.getRiskLevel(), ""));
         labels.add(firstText(config.getOwner(), ""));
+        labels.add(firstText(config.getBusinessGroup(), ""));
+        labels.add(firstText(config.getBusinessGroupName(), ""));
+        labels.add(firstText(config.getBusinessGroupDescription(), ""));
         labels.add(firstText(config.getToolName(), ""));
         labels.add(firstText(config.getTitle(), ""));
         labels.add(firstText(config.getSqlTemplate(), ""));
@@ -370,7 +379,10 @@ public class DatabaseQueryConfigService {
             config.getId(),
             "database_query",
             firstText(config.getTitle(), config.getToolName()),
-            firstText(config.getDescription(), "") + " " + firstText(config.getSqlTemplate(), ""),
+            firstText(config.getDescription(), "") + " "
+                + firstText(config.getBusinessGroupName(), "") + " "
+                + firstText(config.getBusinessGroupDescription(), "") + " "
+                + firstText(config.getSqlTemplate(), ""),
             "sql_template_registry",
             normalizeDatabaseType(config.getDatabaseType()),
             String.join(" ", labels),
@@ -438,6 +450,16 @@ public class DatabaseQueryConfigService {
             return "general_query";
         }
         return normalized.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9_\\-]", "_");
+    }
+
+    private String normalizeBusinessGroup(String value) {
+        String normalized = blankToNull(value);
+        if (normalized == null) {
+            return "default";
+        }
+        normalized = normalized.trim().toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9_\\-]", "_");
+        normalized = normalized.replaceAll("_+", "_").replaceAll("^_+|_+$", "");
+        return normalized.isBlank() ? "default" : normalized;
     }
 
     private String normalizeDatabaseType(String value) {

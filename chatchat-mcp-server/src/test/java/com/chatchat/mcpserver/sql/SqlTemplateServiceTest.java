@@ -77,7 +77,32 @@ class SqlTemplateServiceTest {
                 "SQLSERVER_REQUESTS",
                 "SQLSERVER_DATABASE_SIZE",
                 "SQLSERVER_LOCKS",
-                "SQLSERVER_IO_STATS"
+                "SQLSERVER_IO_STATS",
+                "DM_SESSIONS",
+                "DM_INSTANCE_STATUS",
+                "DM_LOCKS",
+                "DM_SQL_HISTORY",
+                "DM_TABLESPACE_SIZE",
+                "TDSQL_SHOW_PROCESSLIST",
+                "TDSQL_SHOW_STATUS",
+                "TDSQL_INNODB_STATUS",
+                "TDSQL_INNODB_TRX",
+                "TDSQL_DATABASE_SIZE",
+                "TIDB_PROCESSLIST",
+                "TIDB_CLUSTER_INFO",
+                "TIDB_TRANSACTIONS",
+                "TIDB_STATEMENTS_SUMMARY",
+                "TIDB_DATABASE_SIZE",
+                "KINGBASE_ACTIVITY",
+                "KINGBASE_DATABASE_STATS",
+                "KINGBASE_LOCKS",
+                "KINGBASE_LONG_QUERIES",
+                "KINGBASE_DATABASE_SIZE",
+                "OCEANBASE_PROCESSLIST",
+                "OCEANBASE_SERVERS",
+                "OCEANBASE_TENANTS",
+                "OCEANBASE_SQL_AUDIT",
+                "OCEANBASE_DATABASE_SIZE"
             )
             .doesNotContain(
                 "CHECK_TABLE_COUNT",
@@ -91,7 +116,7 @@ class SqlTemplateServiceTest {
                 "POSTGRES_TABLE_METADATA",
                 "SQLSERVER_TABLE_METADATA"
             );
-        assertThat(saved).hasSize(20);
+        assertThat(saved).hasSize(45);
         assertThat(saved)
             .filteredOn(template -> template.getCode().startsWith("MYSQL_"))
             .hasSize(5)
@@ -112,6 +137,26 @@ class SqlTemplateServiceTest {
             .filteredOn(template -> template.getCode().startsWith("SQLSERVER_"))
             .hasSize(5)
             .allSatisfy(template -> assertThat(template.getDatabaseType()).isEqualTo("sqlserver"));
+        assertThat(saved)
+            .filteredOn(template -> template.getCode().startsWith("DM_"))
+            .hasSize(5)
+            .allSatisfy(template -> assertThat(template.getDatabaseType()).isEqualTo("dm"));
+        assertThat(saved)
+            .filteredOn(template -> template.getCode().startsWith("TDSQL_"))
+            .hasSize(5)
+            .allSatisfy(template -> assertThat(template.getDatabaseType()).isEqualTo("tdsql"));
+        assertThat(saved)
+            .filteredOn(template -> template.getCode().startsWith("TIDB_"))
+            .hasSize(5)
+            .allSatisfy(template -> assertThat(template.getDatabaseType()).isEqualTo("tidb"));
+        assertThat(saved)
+            .filteredOn(template -> template.getCode().startsWith("KINGBASE_"))
+            .hasSize(5)
+            .allSatisfy(template -> assertThat(template.getDatabaseType()).isEqualTo("kingbase"));
+        assertThat(saved)
+            .filteredOn(template -> template.getCode().startsWith("OCEANBASE_"))
+            .hasSize(5)
+            .allSatisfy(template -> assertThat(template.getDatabaseType()).isEqualTo("oceanbase"));
         assertThat(saved).extracting(SqlTemplateConfig::getSqlTemplate)
             .noneSatisfy(sql -> assertThat(sql).containsIgnoringCase("{{table}}"))
             .noneSatisfy(sql -> assertThat(sql).containsIgnoringCase("LIMIT 100"))
@@ -121,6 +166,35 @@ class SqlTemplateServiceTest {
         assertThat(saved)
             .filteredOn(template -> template.getCode().endsWith("_TABLE_METADATA"))
             .isEmpty();
+    }
+
+    @Test
+    void infersDomesticDatabaseTypesFromJdbcAndDriverHints() {
+        assertThat(SqlDatasourceConfigService.normalizeDatabaseType(
+            null,
+            "jdbc:mysql://tdsql-cluster.example:3306/app",
+            "com.mysql.cj.jdbc.Driver"
+        )).isEqualTo("tdsql");
+        assertThat(SqlDatasourceConfigService.normalizeDatabaseType(
+            null,
+            "jdbc:oceanbase://ob.example:2881/app",
+            "com.oceanbase.jdbc.Driver"
+        )).isEqualTo("oceanbase");
+        assertThat(SqlDatasourceConfigService.normalizeDatabaseType(
+            null,
+            "jdbc:mysql://tidb-cluster.example:4000/app",
+            "com.mysql.cj.jdbc.Driver"
+        )).isEqualTo("tidb");
+        assertThat(SqlDatasourceConfigService.normalizeDatabaseType(
+            null,
+            "jdbc:kingbase8://127.0.0.1:54321/app",
+            "com.kingbase8.Driver"
+        )).isEqualTo("kingbase");
+        assertThat(SqlDatasourceConfigService.normalizeDatabaseType(
+            null,
+            "jdbc:dm://127.0.0.1:5236",
+            "dm.jdbc.driver.DmDriver"
+        )).isEqualTo("dm");
     }
 
     @Test

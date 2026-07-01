@@ -530,6 +530,8 @@ body {
     padding: 12px;
     cursor: pointer;
     background: #fff;
+    min-width: 0;
+    overflow: hidden;
 }
 
 .service-card.selected {
@@ -562,6 +564,7 @@ body {
 .api-card-main {
     min-height: 70px;
     padding-right: 30px;
+    min-width: 0;
 }
 
 .sql-metadata-refresh-button {
@@ -969,6 +972,12 @@ body {
 .service-card h3 {
     font-size: 15px;
     margin: 0 0 6px;
+    min-width: 0;
+    display: -webkit-box;
+    overflow: hidden;
+    overflow-wrap: anywhere;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
 }
 
 .service-card p {
@@ -979,6 +988,7 @@ body {
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
+    overflow-wrap: anywhere;
 }
 
 .service-meta {
@@ -986,6 +996,26 @@ body {
     flex-wrap: wrap;
     gap: 6px;
     margin-top: auto;
+    min-width: 0;
+    overflow: hidden;
+}
+
+.service-meta .badge {
+    max-width: 100%;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.modal-title,
+.modal-head h2 {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.modal-header .modal-title {
+    max-width: calc(100% - 48px);
 }
 
 .command-template-card {

@@ -167,6 +167,9 @@ public class DatabaseQueryAdminController {
         config.setTitle(request.title());
         config.setDatasourceId(request.datasourceId());
         config.setDescription(request.description());
+        config.setBusinessGroup(request.businessGroup());
+        config.setBusinessGroupName(request.businessGroupName());
+        config.setBusinessGroupDescription(request.businessGroupDescription());
         config.setSqlTemplate(request.sqlTemplate());
         config.setInputSchemaJson(writeJson(request.inputSchema()));
         config.setGovernanceJson(writeJson(request.governance()));
@@ -204,6 +207,9 @@ public class DatabaseQueryAdminController {
             config.getTitle(),
             config.getDatasourceId(),
             config.getDescription(),
+            config.getBusinessGroup(),
+            config.getBusinessGroupName(),
+            config.getBusinessGroupDescription(),
             config.getSqlTemplate(),
             readJsonMap(config.getInputSchemaJson()),
             readJsonMap(config.getGovernanceJson()),
@@ -247,6 +253,7 @@ public class DatabaseQueryAdminController {
         SqlDatasourceConfig datasource = datasourceConfigService.getEnabled(request.datasourceId());
         parameters.put("jdbc_url", datasource.getJdbcUrl());
         putIfPresent(parameters, "driver_class", datasource.getDriverClass());
+        putIfPresent(parameters, "database_type", datasource.getDatabaseType());
         putIfPresent(parameters, "username", datasource.getUsername());
         putIfPresent(parameters, "password", datasource.getPassword());
         parameters.put("datasource_id", datasource.getId());
@@ -350,6 +357,9 @@ public class DatabaseQueryAdminController {
         String title,
         String datasourceId,
         String description,
+        String businessGroup,
+        String businessGroupName,
+        String businessGroupDescription,
         String sqlTemplate,
         Map<String, Object> inputSchema,
         Map<String, Object> governance,
@@ -383,6 +393,9 @@ public class DatabaseQueryAdminController {
         String title,
         String datasourceId,
         String description,
+        String businessGroup,
+        String businessGroupName,
+        String businessGroupDescription,
         String sqlTemplate,
         Map<String, Object> inputSchema,
         Map<String, Object> governance,

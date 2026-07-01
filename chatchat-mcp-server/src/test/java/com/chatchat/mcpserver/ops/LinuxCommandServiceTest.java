@@ -107,6 +107,26 @@ class LinuxCommandServiceTest {
     }
 
     @Test
+    void rejectsUnsafeServiceNameBeforeRenderingCommand() {
+        SshHostConfig host = host("host-1", "[\"CHECK_SERVICE_INFO\"]");
+        CommandTemplateConfig template = template("CHECK_SERVICE_INFO", "pgrep -af {{serviceName}}");
+        template.setParameterSchemaJson("""
+            {"type":"object","properties":{"serviceName":{"type":"string","pattern":"^[A-Za-z0-9_][A-Za-z0-9_.@:-]{0,127}$"}},"required":["serviceName"]}
+            """);
+        when(hostConfigService.getEnabled("host-1")).thenReturn(host);
+        when(templateService.getByCode("CHECK_SERVICE_INFO")).thenReturn(template);
+
+        LinuxCommandResult result = linuxCommandService.execute(Map.of(
+            "hostId", "host-1",
+            "template", "CHECK_SERVICE_INFO",
+            "parameters", Map.of("serviceName", "-nginx")
+        ));
+
+        assertThat(result.success()).isFalse();
+        assertThat(result.errorMessage()).contains("serviceName", "does not match required pattern");
+    }
+
+    @Test
     void wrapsSshCommandsInLoginShellSoProfileEnvironmentIsAvailable() {
         String command = linuxCommandService.sshLoginShellCommand("jps -l | grep 'MainApp'");
 

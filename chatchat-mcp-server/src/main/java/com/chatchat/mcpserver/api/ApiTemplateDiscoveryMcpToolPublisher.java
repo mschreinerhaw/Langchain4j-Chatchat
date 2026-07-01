@@ -111,7 +111,7 @@ public class ApiTemplateDiscoveryMcpToolPublisher {
                 "mustUseReturnedTemplateId", true,
                 "doNotInventTemplateNames", true,
                 "rawExecutionSpecReturned", false,
-                "selectionFields", List.of("templateId", "toolName", "title", "description", "parameterSchema", "requiredParameters", "parameterContract", "invocationExample"),
+                "selectionFields", List.of("templateId", "toolName", "title", "description", "businessGroup", "parameterSchema", "requiredParameters", "parameterContract", "invocationExample"),
                 "onEmptyResult", "No existing API template matched the request. Do not invent an API tool name."
             ),
             "queryIr", mapOf(
@@ -130,7 +130,7 @@ public class ApiTemplateDiscoveryMcpToolPublisher {
             "filtersSchemaVersion", Map.of("type", "string", "description", TargetKindRegistry.FILTERS_SCHEMA_VERSION),
             "filters", Map.of(
                 "type", "object",
-                "description", "Logical filters for API templates, such as intent, bilingualIntent, intentZh, intentEn, toolName, service, category, labels, language, or queryLanguage. Raw URL, headers, and body templates are not accepted.",
+                "description", "Logical filters for API templates, such as businessGroup, groupName, intent, bilingualIntent, intentZh, intentEn, toolName, service, category, labels, language, or queryLanguage. Raw URL, headers, and body templates are not accepted.",
                 "additionalProperties", true
             ),
             "bilingualIntent", Map.of(
@@ -216,6 +216,13 @@ public class ApiTemplateDiscoveryMcpToolPublisher {
         for (String key : List.of(
             "toolName",
             "name",
+            "businessGroup",
+            "business_group",
+            "group",
+            "groupName",
+            "group_name",
+            "groupDescription",
+            "group_description",
             "service",
             "target",
             "labels",
@@ -249,7 +256,9 @@ public class ApiTemplateDiscoveryMcpToolPublisher {
 
     private List<String> terms(Map<String, Object> filters) {
         List<String> terms = new ArrayList<>();
-        for (String key : List.of("toolName", "name", "service", "target", "intent", "bilingualQuery", "intentZh", "intentEn", "goal", "category")) {
+        for (String key : List.of("toolName", "name", "businessGroup", "business_group", "group", "groupName",
+            "group_name", "groupDescription", "group_description", "service", "target", "intent",
+            "bilingualQuery", "intentZh", "intentEn", "goal", "category")) {
             addTerm(terms, filters.get(key));
         }
         addTerm(terms, filters.get("bilingualIntent"));
@@ -282,6 +291,9 @@ public class ApiTemplateDiscoveryMcpToolPublisher {
             text(config.getToolName()),
             text(config.getTitle()),
             text(config.getDescription()),
+            text(config.getBusinessGroup()),
+            text(config.getBusinessGroupName()),
+            text(config.getBusinessGroupDescription()),
             text(config.getMethod())
         ));
         long matched = terms.stream().filter(haystack::contains).count();
@@ -303,6 +315,7 @@ public class ApiTemplateDiscoveryMcpToolPublisher {
             "toolName", config.getToolName(),
             "title", firstText(config.getTitle(), config.getToolName()),
             "description", text(config.getDescription()),
+            "businessGroup", businessGroupMetadata(config),
             "assetType", "api_service",
             "targetKind", "api_service",
             "method", config.getMethod(),
@@ -318,6 +331,15 @@ public class ApiTemplateDiscoveryMcpToolPublisher {
                 "templateId", config.getToolName(),
                 "source", TOOL_NAME + ".templates[].templateId"
             )
+        );
+    }
+
+    private Map<String, Object> businessGroupMetadata(ApiServiceConfig config) {
+        String code = firstText(config.getBusinessGroup(), "default");
+        return mapOf(
+            "code", code,
+            "name", firstText(config.getBusinessGroupName(), code),
+            "description", firstText(config.getBusinessGroupDescription(), "")
         );
     }
 

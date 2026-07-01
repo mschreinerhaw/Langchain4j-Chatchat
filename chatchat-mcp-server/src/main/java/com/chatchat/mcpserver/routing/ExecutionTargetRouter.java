@@ -47,6 +47,11 @@ public class ExecutionTargetRouter {
         "dialect",
         "databaseRole",
         "database_role",
+        "businessGroup",
+        "business_group",
+        "group",
+        "groupName",
+        "group_name",
         "service",
         "labels"
     );
@@ -253,7 +258,7 @@ public class ExecutionTargetRouter {
         candidates = filterByAssetName(candidates, context, this::databaseQueryLabels);
         candidates = filterByLogicalTokens(candidates, context, this::databaseQueryLabels,
             "cluster", "namespace", "target", "targetType", "target_type", "database", "databaseRole",
-            "database_role", "service");
+            "database_role", "businessGroup", "business_group", "group", "groupName", "group_name", "service");
         return singleTarget(candidates, "database query", context);
     }
 
@@ -265,6 +270,11 @@ public class ExecutionTargetRouter {
             "database",
             "databaseRole",
             "database_role",
+            "businessGroup",
+            "business_group",
+            "group",
+            "groupName",
+            "group_name",
             "service"
         );
         if (tokens.isEmpty()) {
@@ -550,7 +560,8 @@ public class ExecutionTargetRouter {
         double envMatch = environmentScore(context, candidateEnvironment);
         double labelMatch = tokenScore(labels, contextTokens(context,
             "cluster", "namespace", "target", "targetType", "target_type", "database", "databaseRole",
-            "database_role", "databaseType", "dbType", "dialect", "service"
+            "database_role", "databaseType", "dbType", "dialect", "businessGroup", "business_group", "group",
+            "groupName", "group_name", "service"
         ));
         double serviceAffinity = tokenScore(labels, contextTokens(context,
             "service", "target", "targetType", "target_type", "database", "databaseRole", "database_role",
@@ -661,6 +672,11 @@ public class ExecutionTargetRouter {
         addLabel(labels, "title:" + query.getTitle());
         addLabel(labels, query.getToolName());
         addLabel(labels, "tool:" + query.getToolName());
+        addLabel(labels, query.getBusinessGroup());
+        addLabel(labels, "group:" + query.getBusinessGroup());
+        addLabel(labels, query.getBusinessGroupName());
+        addLabel(labels, "group_name:" + query.getBusinessGroupName());
+        addDelimited(labels, query.getBusinessGroupDescription());
         addLabel(labels, query.getDatasourceId());
         addJsonLabels(labels, query.getRoutingLabelsJson());
         addJsonLabels(labels, query.getCapabilitiesJson());

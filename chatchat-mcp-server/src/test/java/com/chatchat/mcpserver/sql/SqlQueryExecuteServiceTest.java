@@ -1,6 +1,8 @@
 package com.chatchat.mcpserver.sql;
 
 import com.chatchat.mcpserver.audit.InvocationAuditService;
+import com.chatchat.tools.builtin.DatabaseToolProperties;
+import com.chatchat.tools.builtin.DynamicJdbcDriverLoader;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -30,7 +32,8 @@ class SqlQueryExecuteServiceTest {
         templateService,
         metadataResolverService,
         auditService,
-        new ObjectMapper()
+        new ObjectMapper(),
+        new DynamicJdbcDriverLoader(new DatabaseToolProperties())
     );
 
     @Test

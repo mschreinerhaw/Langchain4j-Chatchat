@@ -31,6 +31,9 @@ class CommandTemplateDiscoveryDatabaseQueryTest {
         query.setToolName("query_active_services");
         query.setTitle("Query active services");
         query.setDescription("Read active business services for operations analysis");
+        query.setBusinessGroup("service_ops");
+        query.setBusinessGroupName("Service operations");
+        query.setBusinessGroupDescription("Business queries for active service health and lifecycle decisions");
         query.setInputSchemaJson("{\"type\":\"object\",\"properties\":{\"status\":{\"type\":\"string\"}},\"required\":[\"status\"]}");
         query.setGovernanceJson("{\"intent\":\"service_status\",\"tags\":[\"service\",\"active\",\"business\"]}");
         query.setCapabilitiesJson("[\"database_query\",\"sql_query_execute\"]");
@@ -58,7 +61,7 @@ class CommandTemplateDiscoveryDatabaseQueryTest {
         Map<String, Object> result = service.query(Map.of(
             "targetKind", "business_database_query",
             "confidence", 0.9,
-            "filters", Map.of("intent", "active business service status", "dbType", "mysql"),
+            "filters", Map.of("businessGroup", "service operations", "dbType", "mysql"),
             "trace", trace(),
             "limit", 5
         ));
@@ -71,6 +74,7 @@ class CommandTemplateDiscoveryDatabaseQueryTest {
         assertThat(first.get("mcpToolName")).isEqualTo("query_active_services");
         assertThat(first.get("databaseQueryId")).isEqualTo("query-1");
         assertThat(first.get("intent")).isEqualTo("service_status");
+        assertThat(first.get("businessGroup").toString()).contains("service_ops", "Service operations", "active service health");
         assertThat(first.get("databaseType")).isEqualTo("mysql");
         assertThat(first.get("riskLevel")).isEqualTo("read_only");
         assertThat(first.get("owner")).isEqualTo("ops-admin");

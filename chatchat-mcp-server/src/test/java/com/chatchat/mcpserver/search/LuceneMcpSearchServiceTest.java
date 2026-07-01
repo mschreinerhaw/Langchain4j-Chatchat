@@ -86,6 +86,10 @@ class LuceneMcpSearchServiceTest {
 
         assertThat(hits).extracting(LuceneMcpSearchService.SearchHit::id)
             .startsWith("MYSQL_SHOW_STATUS");
+        assertThat(hits.get(0).name()).isEqualTo("MySQL status variables");
+        assertThat(hits.get(0).description()).contains("health and performance");
+        assertThat(hits.get(0).assetType()).isEqualTo("sql_datasource");
+        assertThat(hits.get(0).dbType()).isEqualTo("mysql");
     }
 
     @Test

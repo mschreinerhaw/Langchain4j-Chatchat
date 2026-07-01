@@ -103,11 +103,13 @@ public class AgentTodoService {
                                       String priority,
                                       String title,
                                       Map<String, Object> payload) {
-        Optional<TodoTaskEntity> existing = todoTaskRepository
-            .findByTenantIdAndTaskIdAndTodoType(task.getTenantId(), task.getTaskId(), todoType);
+        List<TodoTaskEntity> matches = todoTaskRepository
+            .findByTenantIdAndTaskIdAndTodoTypeOrderByCreatedAtAsc(task.getTenantId(), task.getTaskId(), todoType);
+        Optional<TodoTaskEntity> existing = canonicalTodo(matches);
         if (existing.isPresent()
             && CLOSED_STATUSES.contains(normalizeStatus(existing.get().getStatus()))
             && !TOOL_CONFIRMATION.equals(todoType)) {
+            closeDuplicateOpenTodos(matches, existing.get(), "CANCELLED");
             return existing.get();
         }
         TodoTaskEntity todo = existing.orElseGet(TodoTaskEntity::new);
@@ -126,16 +128,56 @@ public class AgentTodoService {
                 .map(TaskConfirmEntity::getExpiredAt)
                 .orElse(null)
             : null);
-        return todoTaskRepository.save(todo);
+        TodoTaskEntity saved = todoTaskRepository.save(todo);
+        closeDuplicateOpenTodos(matches, saved, "CANCELLED");
+        return saved;
     }
 
     private void closeOpenTodo(AgentTaskLatestEntity task, String todoType, String status) {
-        todoTaskRepository.findByTenantIdAndTaskIdAndTodoType(task.getTenantId(), task.getTaskId(), todoType)
+        List<TodoTaskEntity> matches = todoTaskRepository
+            .findByTenantIdAndTaskIdAndTodoTypeOrderByCreatedAtAsc(task.getTenantId(), task.getTaskId(), todoType);
+        matches.stream()
             .filter(todo -> OPEN_STATUSES.contains(normalizeStatus(todo.getStatus())))
-            .ifPresent(todo -> {
+            .forEach(todo -> {
                 todo.setStatus(status);
-                todoTaskRepository.save(todo);
             });
+        if (!matches.isEmpty()) {
+            todoTaskRepository.saveAll(matches);
+        }
+    }
+
+    private Optional<TodoTaskEntity> canonicalTodo(List<TodoTaskEntity> matches) {
+        if (matches == null || matches.isEmpty()) {
+            return Optional.empty();
+        }
+        return matches.stream()
+            .filter(todo -> OPEN_STATUSES.contains(normalizeStatus(todo.getStatus())))
+            .findFirst()
+            .or(() -> matches.stream().findFirst());
+    }
+
+    private void closeDuplicateOpenTodos(List<TodoTaskEntity> matches, TodoTaskEntity canonical, String status) {
+        if (matches == null || matches.size() <= 1 || canonical == null) {
+            return;
+        }
+        List<TodoTaskEntity> duplicates = matches.stream()
+            .filter(todo -> !sameTodo(todo, canonical))
+            .filter(todo -> OPEN_STATUSES.contains(normalizeStatus(todo.getStatus())))
+            .peek(todo -> todo.setStatus(status))
+            .toList();
+        if (!duplicates.isEmpty()) {
+            todoTaskRepository.saveAll(duplicates);
+        }
+    }
+
+    private boolean sameTodo(TodoTaskEntity left, TodoTaskEntity right) {
+        if (left == right) {
+            return true;
+        }
+        if (left == null || right == null || left.getId() == null || right.getId() == null) {
+            return false;
+        }
+        return left.getId().equals(right.getId());
     }
 
     private Object handleToolConfirmation(TodoTaskEntity todo, String action, TodoActionRequest request) {

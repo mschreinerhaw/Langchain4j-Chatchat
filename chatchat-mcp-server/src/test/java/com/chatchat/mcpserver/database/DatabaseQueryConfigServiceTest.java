@@ -58,6 +58,9 @@ class DatabaseQueryConfigServiceTest {
         draft.setPassword("legacy_password");
         draft.setReloadDrivers(true);
         draft.setGovernanceJson("{\"intent\":\"order_analysis\",\"tags\":[\"orders\",\"analysis\"],\"riskLevel\":\"safe\",\"owner\":\"bi-admin\"}");
+        draft.setBusinessGroup("Order BI");
+        draft.setBusinessGroupName("Order business intelligence");
+        draft.setBusinessGroupDescription("Templates for order revenue and fulfillment analysis");
         draft.setRating(9.0);
         draft.setUsageCount(-10L);
         when(toolRegistry.hasTool("query_orders")).thenReturn(false);
@@ -76,6 +79,9 @@ class DatabaseQueryConfigServiceTest {
         assertThat(saved.isReloadDrivers()).isFalse();
         assertThat(saved.getDatabaseType()).isEqualTo("mysql");
         assertThat(saved.getTemplateIntent()).isEqualTo("order_analysis");
+        assertThat(saved.getBusinessGroup()).isEqualTo("order_bi");
+        assertThat(saved.getBusinessGroupName()).isEqualTo("Order business intelligence");
+        assertThat(saved.getBusinessGroupDescription()).contains("order revenue");
         assertThat(saved.getTagsJson()).contains("orders", "analysis");
         assertThat(saved.getRiskLevel()).isEqualTo("safe");
         assertThat(saved.getOwner()).isEqualTo("bi-admin");
@@ -98,6 +104,9 @@ class DatabaseQueryConfigServiceTest {
         status.setToolName("mysql_db_status");
         status.setTitle("MySQL database status");
         status.setDescription("Read database health and status for business analysis");
+        status.setBusinessGroup("ops_health");
+        status.setBusinessGroupName("Operations health");
+        status.setBusinessGroupDescription("Database health and status diagnostics");
         status.setSqlTemplate("show status");
         DatabaseQueryConfig orders = query();
         orders.setId("query-2");
@@ -107,7 +116,7 @@ class DatabaseQueryConfigServiceTest {
         orders.setSqlTemplate("select id from orders order by created_at desc");
         when(repository.findAllByOrderByToolNameAsc()).thenReturn(List.of(orders, status));
 
-        List<DatabaseQueryConfig> result = searchable.search("数据库状态 health status");
+        List<DatabaseQueryConfig> result = searchable.search("operations health status");
 
         assertThat(result).extracting(DatabaseQueryConfig::getId).startsWith("query-1");
     }

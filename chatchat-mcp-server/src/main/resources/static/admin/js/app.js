@@ -7,6 +7,7 @@ import {
     deleteServices,
     listLivedataApis,
     listServices,
+    rebuildApiServiceIndex,
     registerLivedataApis,
     refreshTools,
     saveService,
@@ -23,6 +24,7 @@ import {
     deleteDatabaseQuery,
     deleteDatabaseQueries,
     listDatabaseQueries,
+    rebuildDatabaseQueryIndex,
     saveDatabaseQuery,
     setDatabaseQueryEnabled,
     testDatabaseQuery,
@@ -114,8 +116,10 @@ function bindEvents() {
     document.getElementById('microserviceMode').addEventListener('change', toggleMicroserviceFields);
     document.getElementById('testServiceBtn').addEventListener('click', handleTest);
     document.getElementById('refreshBtn').addEventListener('click', handleRefresh);
+    document.getElementById('apiServiceRebuildIndexBtn').addEventListener('click', handleApiServiceRebuildIndex);
     document.getElementById('newMcpServiceBtn').addEventListener('click', openNewMcpService);
     document.getElementById('newDatabaseQueryBtn').addEventListener('click', openNewDatabaseQuery);
+    document.getElementById('databaseQueryRebuildIndexBtn').addEventListener('click', handleDatabaseQueryRebuildIndex);
     bindMcpServicePanel({ onError: handleError });
     bindAuthorizationPanel({ onError: handleError });
     bindAssetCenterPanel({ onError: handleError });
@@ -225,6 +229,9 @@ function filterServices() {
         service.toolName,
         service.title,
         service.description,
+        service.businessGroup,
+        service.businessGroupName,
+        service.businessGroupDescription,
         service.method,
         service.urlTemplate
     ].some(value => String(value || '').toLowerCase().includes(keyword)));
@@ -319,6 +326,23 @@ async function handleRefresh() {
         await loadServices();
     } catch (error) {
         handleError(error);
+    }
+}
+
+async function handleApiServiceRebuildIndex() {
+    const button = document.getElementById('apiServiceRebuildIndexBtn');
+    const originalText = button.textContent;
+    button.disabled = true;
+    button.textContent = '重建中...';
+    try {
+        await rebuildApiServiceIndex();
+        notify('索引已重建', 'API 服务发现索引已刷新。');
+        await loadServices();
+    } catch (error) {
+        handleError(error);
+    } finally {
+        button.disabled = false;
+        button.textContent = originalText;
     }
 }
 
@@ -584,6 +608,9 @@ function filterDatabaseQueries() {
         query.toolName,
         query.title,
         query.description,
+        query.businessGroup,
+        query.businessGroupName,
+        query.businessGroupDescription,
         query.sqlTemplate
     ].some(value => String(value || '').toLowerCase().includes(keyword)));
 }
@@ -732,6 +759,22 @@ async function removeSelectedDatabaseQueries() {
     }
 }
 
+async function handleDatabaseQueryRebuildIndex() {
+    const button = document.getElementById('databaseQueryRebuildIndexBtn');
+    const originalText = button.textContent;
+    button.disabled = true;
+    button.textContent = '重建中...';
+    try {
+        await rebuildDatabaseQueryIndex();
+        notify('索引已重建', '业务数据库查询模板索引已刷新。');
+    } catch (error) {
+        handleError(error);
+    } finally {
+        button.disabled = false;
+        button.textContent = originalText;
+    }
+}
+
 function handleError(error) {
     if (error instanceof UnauthorizedError) {
         showLogin();
@@ -766,6 +809,9 @@ function readDatabaseQueryRegistrationForm() {
         title: value('databaseTitleInput'),
         datasourceId: value('databaseDatasourceSelect'),
         description: value('databaseDescriptionInput'),
+        businessGroup: value('databaseBusinessGroupInput'),
+        businessGroupName: value('databaseBusinessGroupNameInput'),
+        businessGroupDescription: value('databaseBusinessGroupDescriptionInput'),
         sqlTemplate: value('databaseSqlInput'),
         inputSchema: readJsonObject('databaseInputSchemaJson'),
         governance: readJsonObject('databaseGovernanceJson'),
@@ -786,6 +832,9 @@ function fillDatabaseQueryForm(query) {
     setValue('databaseTitleInput', query?.title || '');
     renderDatabaseDatasourceOptions(query?.datasourceId || '');
     setValue('databaseDescriptionInput', query?.description || '');
+    setValue('databaseBusinessGroupInput', query?.businessGroup || 'default');
+    setValue('databaseBusinessGroupNameInput', query?.businessGroupName || '');
+    setValue('databaseBusinessGroupDescriptionInput', query?.businessGroupDescription || '');
     setValue('databaseSqlInput', query?.sqlTemplate || '');
     setValue('databaseParamsJson', '{}');
     setValue('databaseMaxRowsInput', String(query?.maxRows || 50));

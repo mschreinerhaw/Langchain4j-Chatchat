@@ -81,6 +81,8 @@ class BuiltInToolsBootstrapTest {
         assertThat(databaseQuery.getConfirmation()).containsEntry("default", "ask_before_execute");
         assertThat(databaseQuery.getInputPolicy()).containsEntry("allow_auto_fill", false);
         assertThat(databaseQuery.getOutputPolicy()).containsKey("mask_fields");
+        assertThat(databaseQuery.getParameters()).extracting("name")
+            .contains("jdbc_url", "driver_class", "database_type", "reload_drivers");
 
         ToolMetadata fileSystem = registry.getToolMetadata("file_system");
         assertThat(fileSystem.getCategory()).isEqualTo("local_file_system");

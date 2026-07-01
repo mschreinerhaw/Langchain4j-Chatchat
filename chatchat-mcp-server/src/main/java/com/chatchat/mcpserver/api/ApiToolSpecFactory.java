@@ -38,7 +38,7 @@ public class ApiToolSpecFactory {
             .title(config.getTitle())
             .description(config.getDescription() == null ? "External API service" : config.getDescription())
             .inputSchema(toInputSchema(config.getInputSchemaJson()))
-            .meta(withLimitMeta(withLegacyId(governanceFactory.metaForApi(config), "apiServiceId", config.getId()),
+            .meta(withLimitMeta(withProtocolMeta(withLegacyId(governanceFactory.metaForApi(config), "apiServiceId", config.getId()), config),
                 config.getToolName(), "http"))
             .build();
 
@@ -190,5 +190,27 @@ public class ApiToolSpecFactory {
         Map<String, Object> values = new LinkedHashMap<>(meta == null ? Map.of() : meta);
         values.put("mcp_tool_limit", concurrencyManager.limitMeta(toolName, runtimeLevel));
         return values;
+    }
+
+    private Map<String, Object> withProtocolMeta(Map<String, Object> meta, ApiServiceConfig config) {
+        Map<String, Object> values = new LinkedHashMap<>(meta == null ? Map.of() : meta);
+        values.put("assetType", "api_service");
+        values.put("targetRoutingRequired", false);
+        values.put("templateId", config.getToolName());
+        values.put("businessGroup", businessGroupMeta(config));
+        return values;
+    }
+
+    private Map<String, Object> businessGroupMeta(ApiServiceConfig config) {
+        String code = firstText(config.getBusinessGroup(), "default");
+        return Map.of(
+            "code", code,
+            "name", firstText(config.getBusinessGroupName(), code),
+            "description", firstText(config.getBusinessGroupDescription(), "")
+        );
+    }
+
+    private String firstText(String value, String fallback) {
+        return value == null || value.isBlank() ? fallback : value.trim();
     }
 }

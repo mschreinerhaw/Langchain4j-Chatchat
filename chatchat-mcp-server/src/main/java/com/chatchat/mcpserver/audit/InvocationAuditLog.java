@@ -14,6 +14,12 @@ public class InvocationAuditLog {
 
     private String toolName;
 
+    private String templateType;
+
+    private String templateId;
+
+    private String templateName;
+
     private String caller;
 
     private boolean success;
@@ -118,6 +124,30 @@ public class InvocationAuditLog {
      */
     public void setToolName(String toolName) {
         this.toolName = toolName;
+    }
+
+    public String getTemplateType() {
+        return templateType;
+    }
+
+    public void setTemplateType(String templateType) {
+        this.templateType = templateType;
+    }
+
+    public String getTemplateId() {
+        return templateId;
+    }
+
+    public void setTemplateId(String templateId) {
+        this.templateId = templateId;
+    }
+
+    public String getTemplateName() {
+        return templateName;
+    }
+
+    public void setTemplateName(String templateName) {
+        this.templateName = templateName;
     }
 
     /**

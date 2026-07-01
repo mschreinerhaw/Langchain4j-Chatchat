@@ -54,6 +54,10 @@ public class LuceneMcpSearchService {
     private static final String FIELD_TEXT = "text";
     private static final String FIELD_NAME_TEXT = "nameText";
     private static final String FIELD_INTENT_TEXT = "intentText";
+    private static final String FIELD_NAME = "name";
+    private static final String FIELD_DESCRIPTION = "description";
+    private static final String FIELD_CATEGORY = "category";
+    private static final String FIELD_RISK_LEVEL = "riskLevel";
     private static final String FIELD_RESULT_ID = "resultId";
     private static final String FIELD_DATABASE = "database";
     private static final String FIELD_TABLE = "table";
@@ -220,7 +224,13 @@ public class LuceneMcpSearchService {
                     doc.get(FIELD_TABLE),
                     doc.get(FIELD_FULL_PATH),
                     doc.get(FIELD_TABLE_COMMENT),
-                    doc.get(FIELD_DATABASE_COMMENT)
+                    doc.get(FIELD_DATABASE_COMMENT),
+                    doc.get(FIELD_ASSET_TYPE),
+                    doc.get(FIELD_NAME),
+                    doc.get(FIELD_DESCRIPTION),
+                    doc.get(FIELD_CATEGORY),
+                    doc.get(FIELD_DB_TYPE),
+                    doc.get(FIELD_RISK_LEVEL)
                 ));
             }
             return hits;
@@ -298,6 +308,10 @@ public class LuceneMcpSearchService {
         addExact(document, FIELD_DATABASE, doc.databaseName());
         addExact(document, FIELD_TABLE, doc.tableName());
         addExact(document, FIELD_FULL_PATH, doc.fullPath());
+        addStored(document, FIELD_ASSET_TYPE, doc.assetType());
+        addStored(document, FIELD_DB_TYPE, doc.dbType());
+        addStored(document, FIELD_NAME, firstText(doc.displayName(), doc.name(), doc.toolName()));
+        addStored(document, FIELD_DESCRIPTION, firstText(doc.extraText(), doc.fullPath(), doc.databaseComment(), doc.tableComment()));
         addStored(document, FIELD_RESULT_ID, doc.resultId());
         addStored(document, FIELD_DATABASE, doc.databaseName());
         addStored(document, FIELD_TABLE, doc.tableName());
@@ -319,7 +333,13 @@ public class LuceneMcpSearchService {
         Document document = baseDocument("template", doc.id());
         addExact(document, FIELD_ASSET_TYPE, doc.assetType());
         addExact(document, FIELD_DB_TYPE, doc.dbType());
-        addExact(document, "riskLevel", doc.riskLevel());
+        addExact(document, FIELD_RISK_LEVEL, doc.riskLevel());
+        addStored(document, FIELD_ASSET_TYPE, doc.assetType());
+        addStored(document, FIELD_DB_TYPE, doc.dbType());
+        addStored(document, FIELD_NAME, doc.name());
+        addStored(document, FIELD_DESCRIPTION, doc.description());
+        addStored(document, FIELD_CATEGORY, doc.category());
+        addStored(document, FIELD_RISK_LEVEL, doc.riskLevel());
         addText(document, FIELD_INTENT_TEXT, join(doc.intent(), doc.category(), String.join(" ", doc.intentSignals())));
         addText(document, FIELD_TEXT, join(doc.id(), doc.name(), doc.description(), doc.category(), doc.intent(),
             doc.dbType(), String.join(" ", doc.intentSignals())));
@@ -489,10 +509,33 @@ public class LuceneMcpSearchService {
                             String table,
                             String fullPath,
                             String tableComment,
-                            String databaseComment) {
+                            String databaseComment,
+                            String assetType,
+                            String name,
+                            String description,
+                            String category,
+                            String dbType,
+                            String riskLevel) {
+
+        public SearchHit(String id,
+                         String kind,
+                         float score,
+                         List<String> reasons,
+                         String documentId,
+                         String source,
+                         String resultId,
+                         String database,
+                         String table,
+                         String fullPath,
+                         String tableComment,
+                         String databaseComment) {
+            this(id, kind, score, reasons, documentId, source, resultId, database, table, fullPath,
+                tableComment, databaseComment, null, null, null, null, null, null);
+        }
 
         public SearchHit(String id, String kind, float score, List<String> reasons) {
-            this(id, kind, score, reasons, id, null, null, null, null, null, null, null);
+            this(id, kind, score, reasons, id, null, null, null, null, null, null, null,
+                null, null, null, null, null, null);
         }
     }
 

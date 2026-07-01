@@ -1,5 +1,7 @@
 package com.chatchat.mcpserver.search;
 
+import com.chatchat.mcpserver.api.ApiServiceConfig;
+import com.chatchat.mcpserver.api.ApiServiceConfigService;
 import com.chatchat.mcpserver.database.DatabaseQueryConfig;
 import com.chatchat.mcpserver.database.DatabaseQueryConfigService;
 import com.chatchat.mcpserver.ops.CommandTemplateConfig;
@@ -44,6 +46,7 @@ public class McpTemplateLuceneIndexService {
     private final CommandTemplateService commandTemplateService;
     private final SqlTemplateService sqlTemplateService;
     private final HttpEndpointConfigService httpEndpointConfigService;
+    private final ApiServiceConfigService apiServiceConfigService;
     private final DatabaseQueryConfigService databaseQueryConfigService;
     private final ObjectMapper objectMapper;
 
@@ -68,6 +71,10 @@ public class McpTemplateLuceneIndexService {
         safe(httpEndpointConfigService.listEnabled()).stream()
             .map(this::httpTemplateDoc)
             .forEach(docs::add);
+        safe(apiServiceConfigService.listAll()).stream()
+            .filter(ApiServiceConfig::isEnabled)
+            .map(this::apiServiceTemplateDoc)
+            .forEach(docs::add);
         safe(databaseQueryConfigService.listAll()).stream()
             .map(this::databaseQueryTemplateDoc)
             .forEach(docs::add);
@@ -89,6 +96,14 @@ public class McpTemplateLuceneIndexService {
     public void upsertDatabaseQueryTemplates(List<DatabaseQueryConfig> templates) {
         luceneSearchService.upsertTemplates(safe(templates).stream().map(this::databaseQueryTemplateDoc).toList());
         log.info("MCP Lucene database query template index upserted {} templates", safe(templates).size());
+    }
+
+    public void upsertApiServiceTemplates(List<ApiServiceConfig> templates) {
+        luceneSearchService.upsertTemplates(safe(templates).stream()
+            .filter(ApiServiceConfig::isEnabled)
+            .map(this::apiServiceTemplateDoc)
+            .toList());
+        log.info("MCP Lucene API service template index upserted {} templates", safe(templates).size());
     }
 
     private LuceneMcpSearchService.TemplateDoc commandTemplateDoc(CommandTemplateConfig template) {
@@ -147,18 +162,42 @@ public class McpTemplateLuceneIndexService {
         );
     }
 
+    private LuceneMcpSearchService.TemplateDoc apiServiceTemplateDoc(ApiServiceConfig config) {
+        List<String> signals = new ArrayList<>(governanceTerms(config.getGovernanceJson()));
+        addTerms(signals, config.getToolName(), config.getTitle(), config.getDescription(), config.getBusinessGroup(),
+            config.getBusinessGroupName(), config.getBusinessGroupDescription(), config.getMethod());
+        return new LuceneMcpSearchService.TemplateDoc(
+            config.getToolName(),
+            "api_service",
+            firstText(config.getTitle(), config.getToolName()),
+            firstText(config.getDescription(), "") + " "
+                + firstText(config.getBusinessGroupName(), "") + " "
+                + firstText(config.getBusinessGroupDescription(), ""),
+            firstText(config.getBusinessGroup(), "api_service"),
+            "generic",
+            String.join(" ", signals),
+            apiRiskLevel(config.getGovernanceJson()),
+            distinct(signals),
+            "api_service_registry"
+        );
+    }
+
     private LuceneMcpSearchService.TemplateDoc databaseQueryTemplateDoc(DatabaseQueryConfig config) {
         List<String> signals = new ArrayList<>(readStringArray(config.getRoutingLabelsJson()));
         signals.addAll(readStringArray(config.getCapabilitiesJson()));
         signals.addAll(readStringArray(config.getTagsJson()));
         signals.addAll(governanceTerms(config.getGovernanceJson()));
         addTerms(signals, config.getToolName(), config.getTitle(), config.getDescription(), config.getSqlTemplate(),
-            config.getTemplateIntent(), config.getDatabaseType(), config.getRiskLevel(), config.getOwner());
+            config.getTemplateIntent(), config.getBusinessGroup(), config.getBusinessGroupName(),
+            config.getBusinessGroupDescription(), config.getDatabaseType(), config.getRiskLevel(), config.getOwner());
         return new LuceneMcpSearchService.TemplateDoc(
             config.getId(),
             "database_query",
             firstText(config.getTitle(), config.getToolName()),
-            firstText(config.getDescription(), "") + " " + firstText(config.getSqlTemplate(), ""),
+            firstText(config.getDescription(), "") + " "
+                + firstText(config.getBusinessGroupName(), "") + " "
+                + firstText(config.getBusinessGroupDescription(), "") + " "
+                + firstText(config.getSqlTemplate(), ""),
             "sql_template_registry",
             SqlDatasourceConfigService.normalizeDatabaseTypeToken(config.getDatabaseType()),
             String.join(" ", signals),
@@ -195,6 +234,22 @@ public class McpTemplateLuceneIndexService {
             return;
         }
         addTerms(terms, value == null ? null : String.valueOf(value));
+    }
+
+    private String apiRiskLevel(String json) {
+        if (json == null || json.isBlank()) {
+            return "read_only";
+        }
+        try {
+            Map<String, Object> map = objectMapper.readValue(json, new TypeReference<>() {});
+            Object risk = map.get("riskLevel");
+            if (risk == null) {
+                risk = map.get("risk_level");
+            }
+            return firstText(risk == null ? null : String.valueOf(risk), "read_only");
+        } catch (Exception ignored) {
+            return "read_only";
+        }
     }
 
     private List<String> readStringArray(String json) {

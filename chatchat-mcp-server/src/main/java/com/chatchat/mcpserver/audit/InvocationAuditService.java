@@ -2,9 +2,11 @@ package com.chatchat.mcpserver.audit;
 
 import com.chatchat.agents.protocol.ModelProtocolJson;
 
+import com.chatchat.common.tool.ToolOutput;
 import com.chatchat.mcpserver.api.ApiInvokeResult;
 import com.chatchat.mcpserver.api.ApiServiceConfig;
 import com.chatchat.mcpserver.cache.McpRocksDbStore;
+import com.chatchat.mcpserver.database.DatabaseQueryConfig;
 import com.chatchat.mcpserver.notification.NotificationChannelConfig;
 import com.chatchat.mcpserver.notification.NotificationSendResult;
 import com.chatchat.mcpserver.ops.HttpRequestToolResult;
@@ -132,6 +134,7 @@ public class InvocationAuditService {
         log.setTargetId(config.getId());
         log.setTargetName(config.getToolName());
         log.setToolName(config.getToolName());
+        setTemplate(log, "api_service", config.getToolName(), firstNonBlank(config.getTitle(), config.getToolName()));
         log.setCaller(auditCaller(arguments));
         log.setSuccess(result.success());
         log.setStatusCode(result.statusCode());
@@ -161,6 +164,7 @@ public class InvocationAuditService {
         log.setTargetId(config.getId());
         log.setTargetName(config.getTitle());
         log.setToolName(config.getToolName());
+        setTemplate(log, "notification_channel", config.getToolName(), firstNonBlank(config.getTitle(), config.getToolName()));
         log.setCaller(auditCaller(arguments));
         log.setSuccess(result.success());
         log.setStatusCode(result.statusCode());
@@ -196,6 +200,8 @@ public class InvocationAuditService {
         log.setTargetId(result.url());
         log.setTargetName(result.method() + " " + result.url());
         log.setToolName("http_request");
+        setTemplate(log, "http_endpoint", firstNonBlank(textValue(arguments, "template"), textValue(arguments, "templateId")),
+            firstNonBlank(textValue(arguments, "template"), textValue(arguments, "templateId")));
         log.setCaller(auditCaller(arguments));
         log.setSuccess(result.success());
         log.setStatusCode(result.statusCode());
@@ -224,6 +230,7 @@ public class InvocationAuditService {
         log.setTargetId(result.hostId());
         log.setTargetName((host == null ? result.host() : host.getName()) + " / " + result.template());
         log.setToolName(result.toolName() == null ? "linux_command_execute" : result.toolName());
+        setTemplate(log, "ssh_command", result.template(), result.template());
         log.setCaller(auditCaller(result.request()));
         log.setSuccess(result.success());
         log.setStatusCode(result.exitCode());
@@ -270,6 +277,7 @@ public class InvocationAuditService {
             + " / " + result.environment()
             + (template == null ? "" : " / " + template));
         log.setToolName(result.toolName() == null ? "sql_query_execute" : result.toolName());
+        setTemplate(log, "sql_template", template, template);
         log.setCaller(auditCaller(arguments));
         log.setSuccess(result.success());
         log.setStatusCode(result.success() ? 200 : 0);
@@ -295,6 +303,41 @@ public class InvocationAuditService {
         response.put("rowCount", result.rowCount());
         response.put("possiblyTruncated", result.possiblyTruncated());
         response.put("errorMessage", result.errorMessage());
+        log.setResponseSummary(toJsonSummary(redact(response)));
+        log.setCreatedAt(Instant.now());
+        save(log);
+    }
+
+    public void recordDatabaseQueryCall(DatabaseQueryConfig config, Map<String, Object> arguments,
+                                        ToolOutput result, long durationMs) {
+        if (!rocksDbStore.isUsable()) {
+            return;
+        }
+        InvocationAuditLog log = new InvocationAuditLog();
+        log.setId(UUID.randomUUID().toString());
+        log.setTargetType("DATABASE_QUERY");
+        log.setTargetId(config.getId());
+        log.setTargetName(firstNonBlank(config.getTitle(), config.getToolName()));
+        log.setToolName(config.getToolName());
+        setTemplate(log, "database_query", config.getToolName(), firstNonBlank(config.getTitle(), config.getToolName()));
+        log.setCaller(auditCaller(arguments));
+        log.setSuccess(result != null && result.isSuccess());
+        log.setStatusCode(log.isSuccess() ? 200 : 0);
+        log.setDurationMs(durationMs);
+        log.setErrorMessage(limit(result == null ? "database_query returned no output" : result.getErrorMessage()));
+        Map<String, Object> request = new LinkedHashMap<>(arguments == null ? Map.of() : arguments);
+        request.put("templateId", config.getToolName());
+        request.put("templateName", firstNonBlank(config.getTitle(), config.getToolName()));
+        request.put("databaseQueryId", config.getId());
+        request.put("datasourceId", config.getDatasourceId());
+        request.put("businessGroup", config.getBusinessGroup());
+        request.put("sourceTaskId", arguments == null ? null : arguments.get("sourceTaskId"));
+        request.put("auditContext", auditContext(arguments));
+        log.setRequestSummary(toJsonSummary(redact(request)));
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("success", result != null && result.isSuccess());
+        response.put("data", result == null ? null : result.getData());
+        response.put("errorMessage", result == null ? "database_query returned no output" : result.getErrorMessage());
         log.setResponseSummary(toJsonSummary(redact(response)));
         log.setCreatedAt(Instant.now());
         save(log);
@@ -404,6 +447,15 @@ public class InvocationAuditService {
         );
     }
 
+    private void setTemplate(InvocationAuditLog log, String templateType, String templateId, String templateName) {
+        if (log == null) {
+            return;
+        }
+        log.setTemplateType(trimToNull(templateType));
+        log.setTemplateId(trimToNull(templateId));
+        log.setTemplateName(trimToNull(templateName));
+    }
+
     private String auditCaller(Map<String, Object> arguments) {
         McpInvocationContext.Context context = McpInvocationContext.current();
         return firstNonBlank(
@@ -473,6 +525,8 @@ public class InvocationAuditService {
             trimToNull(query.targetType()),
             trimToNull(query.targetId()),
             trimToNull(query.toolName()),
+            trimToNull(query.templateType()),
+            trimToNull(query.templateId()),
             trimToNull(query.caller()),
             query.success(),
             query.statusCode(),
@@ -521,6 +575,12 @@ public class InvocationAuditService {
         if (query.toolName() != null && !containsIgnoreCase(log.getToolName(), query.toolName())) {
             return false;
         }
+        if (query.templateType() != null && !containsIgnoreCase(log.getTemplateType(), query.templateType())) {
+            return false;
+        }
+        if (query.templateId() != null && !containsIgnoreCase(log.getTemplateId(), query.templateId())) {
+            return false;
+        }
         if (query.caller() != null && !containsIgnoreCase(log.getCaller(), query.caller())) {
             return false;
         }
@@ -553,6 +613,9 @@ public class InvocationAuditService {
             || containsIgnoreCase(log.getTargetId(), keyword)
             || containsIgnoreCase(log.getTargetName(), keyword)
             || containsIgnoreCase(log.getToolName(), keyword)
+            || containsIgnoreCase(log.getTemplateType(), keyword)
+            || containsIgnoreCase(log.getTemplateId(), keyword)
+            || containsIgnoreCase(log.getTemplateName(), keyword)
             || containsIgnoreCase(log.getCaller(), keyword)
             || containsIgnoreCase(log.getErrorMessage(), keyword)
             || containsIgnoreCase(log.getRequestSummary(), keyword)
@@ -738,6 +801,8 @@ public class InvocationAuditService {
         String targetType,
         String targetId,
         String toolName,
+        String templateType,
+        String templateId,
         String caller,
         Boolean success,
         Integer statusCode,
@@ -750,7 +815,7 @@ public class InvocationAuditService {
          * @return the operation result
          */
         public static AuditLogSearchQuery recent() {
-            return new AuditLogSearchQuery(1, 100, null, null, null, null, null, null, null, null, null);
+            return new AuditLogSearchQuery(1, 100, null, null, null, null, null, null, null, null, null, null, null);
         }
     }
 

@@ -160,6 +160,7 @@ export function renderServices(services, selectedId, handlers, paging = {}) {
                     ${service.enabled ? '启用' : '停用'}
                 </span>
                 <span class="badge text-bg-light">${escapeHtml(service.toolName)}</span>
+                <span class="badge text-bg-light">${escapeHtml(service.businessGroupName || service.businessGroup || 'default')}</span>
                 <span class="badge ${service.cacheEnabled ? 'text-bg-info' : 'text-bg-light'}">
                     ${service.cacheEnabled ? `缓存 ${escapeHtml(service.cacheTtlSeconds || 300)} 秒` : '未启用缓存'}
                 </span>
@@ -367,6 +368,7 @@ export function renderDatabaseQueries(queries, selectedId, handlers, paging = {}
             <div class="service-meta">
                 <span class="badge ${query.enabled ? 'text-bg-success' : 'text-bg-secondary'}">${query.enabled ? '启用' : '停用'}</span>
                 <span class="badge ${query.datasourceId ? 'text-bg-info' : 'text-bg-warning'}">${query.datasourceId ? '资产' : '未绑定资产'}</span>
+                <span class="badge text-bg-light">${escapeHtml(query.businessGroupName || query.businessGroup || 'default')}</span>
                 <span class="badge text-bg-light">${escapeHtml(query.toolName)}</span>
                 <span class="badge text-bg-light">最多 ${escapeHtml(query.maxRows || 50)} 行</span>
             </div>
@@ -482,18 +484,24 @@ export function renderAuditLogs(logs, openDetail, paging = {}) {
     const body = document.getElementById('auditLogBody');
     body.innerHTML = '';
     if (!logs.length) {
-        body.innerHTML = '<tr><td colspan="7" class="text-secondary">暂无审计日志。</td></tr>';
+        body.innerHTML = '<tr><td colspan="8" class="text-secondary">暂无审计日志。</td></tr>';
         return;
     }
     for (const log of logs) {
         const row = document.createElement('tr');
+        const templateId = log.templateId || log.toolName || '-';
+        const templateName = log.templateName || '';
         row.innerHTML = `
             <td>${formatTime(log.createdAt)}</td>
+            <td>${escapeHtml(log.caller || '-')}</td>
+            <td>
+                <code>${escapeHtml(templateId)}</code>
+                <div class="small text-secondary">${escapeHtml(templateName || log.templateType || '')}</div>
+            </td>
             <td>
                 <strong>${escapeHtml(log.targetName || '-')}</strong>
                 <div class="small text-secondary">${escapeHtml(log.targetType || '')}</div>
             </td>
-            <td><code>${escapeHtml(log.toolName || '-')}</code></td>
             <td><span class="badge ${log.success ? 'text-bg-success' : 'text-bg-danger'}">${log.success ? '成功' : '失败'}</span></td>
             <td>${log.statusCode ?? '-'}</td>
             <td>${log.durationMs ?? '-'} ms</td>
@@ -578,14 +586,18 @@ export function switchView(name) {
         button.classList.toggle('active', button.dataset.view === name);
     });
     const newApi = document.getElementById('newServiceBtn');
+    const apiServiceIndex = document.getElementById('apiServiceRebuildIndexBtn');
     const importLivedata = document.getElementById('importLivedataBtn');
     const newMcp = document.getElementById('newMcpServiceBtn');
     const newDatabaseQuery = document.getElementById('newDatabaseQueryBtn');
+    const databaseQueryIndex = document.getElementById('databaseQueryRebuildIndexBtn');
     const refresh = document.getElementById('refreshBtn');
     newApi.classList.toggle('d-none', name !== 'apiServices');
+    apiServiceIndex.classList.toggle('d-none', name !== 'apiServices');
     importLivedata.classList.toggle('d-none', name !== 'apiServices');
     newMcp.classList.toggle('d-none', name !== 'mcpServices');
     newDatabaseQuery.classList.toggle('d-none', name !== 'databaseMcp');
+    databaseQueryIndex.classList.toggle('d-none', name !== 'databaseMcp');
     refresh.classList.toggle('d-none', name === 'assetCenter' || name === 'databaseMcp' || name === 'notificationChannels' || name === 'auditLogs' || name === 'settings');
     const titles = {
         apiServices: ['API 服务', '注册标准 HTTP API，并将其发布为 MCP 工具。'],

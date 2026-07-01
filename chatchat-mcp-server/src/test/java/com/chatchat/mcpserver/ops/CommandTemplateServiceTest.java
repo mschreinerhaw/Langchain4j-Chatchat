@@ -43,7 +43,19 @@ class CommandTemplateServiceTest {
         verify(repository, org.mockito.Mockito.atLeastOnce()).save(captor.capture());
         List<CommandTemplateConfig> saved = captor.getAllValues();
         assertThat(saved).extracting(CommandTemplateConfig::getCode)
-            .contains("CHECK_SYSTEM_OVERVIEW");
+            .contains("CHECK_SYSTEM_OVERVIEW", "CHECK_SERVICE_INFO");
+        assertThat(saved)
+            .filteredOn(template -> "CHECK_SERVICE_INFO".equals(template.getCode()))
+            .singleElement()
+            .satisfies(template -> {
+                assertThat(template.getCommandTemplate())
+                    .contains("systemctl show {{serviceName}}")
+                    .contains("systemctl status {{serviceName}}")
+                    .contains("pgrep -af {{serviceName}}")
+                    .contains("ss -tulnp");
+                assertThat(template.getParameterSchemaJson()).contains("serviceName");
+                assertThat(template.getCategory()).isEqualTo("service_diagnostic");
+            });
         assertThat(saved).extracting(CommandTemplateConfig::getCommandTemplate)
             .noneSatisfy(command -> assertThat(command).containsIgnoringCase("docker"));
     }

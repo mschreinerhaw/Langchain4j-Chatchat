@@ -109,6 +109,14 @@
   font-size: 12px;
 }
 
+.embed-token-generate-button {
+  min-height: 30px;
+  padding: 0 11px;
+  border-color: #bfdbfe;
+  background: #eff6ff;
+  color: var(--primary-strong);
+}
+
 .ghost-button:hover,
 .mini-actions button:hover,
 .icon-button:hover {

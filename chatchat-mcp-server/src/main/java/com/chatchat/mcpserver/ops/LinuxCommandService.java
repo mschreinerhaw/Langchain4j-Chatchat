@@ -671,6 +671,12 @@ public class LinuxCommandService {
             }
             return text;
         }
+        if ("service".equals(name) || "serviceName".equals(name)) {
+            if (!text.matches("[A-Za-z0-9_][A-Za-z0-9_.@:-]{0,127}")) {
+                throw new IllegalArgumentException("service parameter contains unsafe characters: " + name);
+            }
+            return text;
+        }
         if (!text.matches("[A-Za-z0-9_.@:-]{1,128}")) {
             throw new IllegalArgumentException("parameter contains unsafe characters: " + name);
         }

@@ -129,6 +129,9 @@ public class ApiServiceConfigService {
         current.setToolName(draft.getToolName());
         current.setTitle(draft.getTitle());
         current.setDescription(draft.getDescription());
+        current.setBusinessGroup(draft.getBusinessGroup());
+        current.setBusinessGroupName(draft.getBusinessGroupName());
+        current.setBusinessGroupDescription(draft.getBusinessGroupDescription());
         current.setMethod(draft.getMethod());
         current.setUrlTemplate(draft.getUrlTemplate());
         current.setHeadersJson(draft.getHeadersJson());
@@ -234,6 +237,9 @@ public class ApiServiceConfigService {
         config.setUrlTemplate(config.getUrlTemplate().trim());
 
         config.setDescription(blankToNull(config.getDescription()));
+        config.setBusinessGroup(normalizeBusinessGroup(config.getBusinessGroup()));
+        config.setBusinessGroupName(firstText(blankToNull(config.getBusinessGroupName()), config.getBusinessGroup()));
+        config.setBusinessGroupDescription(blankToNull(config.getBusinessGroupDescription()));
         config.setHeadersJson(normalizeJsonObject(config.getHeadersJson(), "headers"));
         config.setInputSchemaJson(normalizeJsonObject(config.getInputSchemaJson(), "inputSchema"));
         config.setGovernanceJson(normalizeJsonObject(config.getGovernanceJson(), "governance"));
@@ -295,5 +301,27 @@ public class ApiServiceConfigService {
             return null;
         }
         return value.trim();
+    }
+
+    private String normalizeBusinessGroup(String value) {
+        String normalized = blankToNull(value);
+        if (normalized == null) {
+            return "default";
+        }
+        normalized = normalized.trim().toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9_\\-]", "_");
+        normalized = normalized.replaceAll("_+", "_").replaceAll("^_+|_+$", "");
+        return normalized.isBlank() ? "default" : normalized;
+    }
+
+    private String firstText(String... values) {
+        if (values == null) {
+            return null;
+        }
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value.trim();
+            }
+        }
+        return null;
     }
 }

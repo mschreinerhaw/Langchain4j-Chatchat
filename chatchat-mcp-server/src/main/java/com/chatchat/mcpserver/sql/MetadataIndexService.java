@@ -1,11 +1,13 @@
 package com.chatchat.mcpserver.sql;
 
 import com.chatchat.mcpserver.cache.McpRocksDbStore;
+import com.chatchat.tools.builtin.DynamicJdbcDriverLoader;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -36,12 +38,16 @@ public class MetadataIndexService {
     private final Map<String, CacheEntry<MetadataIndex>> indexCache = new ConcurrentHashMap<>();
     private final Map<String, CacheEntry<List<String>>> databaseCache = new ConcurrentHashMap<>();
     private final ObjectMapper objectMapper = new ObjectMapper();
+    private final SystemMetadataQueryProvider metadataQueryProvider = new SystemMetadataQueryProvider();
 
     @Autowired(required = false)
     private McpRocksDbStore rocksDbStore;
 
     @Autowired(required = false)
     private SqlMetadataAssetRegistryService metadataAssetRegistryService;
+
+    @Autowired(required = false)
+    private DynamicJdbcDriverLoader driverLoader;
 
     public List<String> listDatabases(SqlDatasourceConfig datasource) {
         if (datasource == null) {
@@ -270,7 +276,7 @@ public class MetadataIndexService {
             if (scopeValues.isEmpty()) {
                 return MetadataIndex.failed(datasource.getId(), datasourceType, "metadata_asset_registry_empty");
             }
-            List<TableLocation> tables = queryAllTableLocations(datasource, datasourceType).stream()
+            List<TableLocation> tables = queryAllTableLocations(datasource, datasourceType, scopeValues).stream()
                 .filter(table -> schemaAllowed(scopeValues, table.database()))
                 .toList();
             Map<String, List<TableLocation>> tableIndex = tables.stream()
@@ -288,7 +294,7 @@ public class MetadataIndexService {
             Set<String> indexedTableKeys = tables.stream()
                 .map(table -> tableKey(table.database(), table.table()))
                 .collect(Collectors.toSet());
-            Map<String, List<MetadataColumn>> tableColumns = queryAllColumns(datasource, datasourceType).stream()
+            Map<String, List<MetadataColumn>> tableColumns = queryAllColumns(datasource, datasourceType, scopeValues).stream()
                 .filter(column -> schemaAllowed(scopeValues, column.database()))
                 .filter(column -> !indexedTableKeys.isEmpty() && indexedTableKeys.contains(tableKey(column.database(), column.table())))
                 .collect(Collectors.groupingBy(
@@ -310,18 +316,15 @@ public class MetadataIndexService {
                 null
             );
         } catch (Exception ex) {
-            log.warn("Metadata index build failed: datasourceId={}, error={}", datasource.getId(), ex.getMessage());
+            log.warn("Metadata index build failed: datasourceId={}, errorType={}, error={}",
+                datasource.getId(), ex.getClass().getSimpleName(), ex.getMessage(), ex);
             return MetadataIndex.failed(datasource.getId(), datasourceType, ex.getClass().getSimpleName() + ": " + ex.getMessage());
         }
     }
 
     private List<String> queryDatabases(SqlDatasourceConfig datasource) {
         String datasourceType = resolvedDatabaseType(datasource);
-        String sql = switch (datasourceType) {
-            case "postgresql" -> "SELECT schema_name FROM information_schema.schemata WHERE schema_name NOT IN ('pg_catalog', 'information_schema') ORDER BY schema_name";
-            case "sqlserver" -> "SELECT name AS schema_name FROM sys.databases ORDER BY name";
-            default -> "SELECT schema_name FROM information_schema.schemata WHERE schema_name NOT IN ('information_schema', 'mysql', 'performance_schema', 'sys') ORDER BY schema_name";
-        };
+        String sql = metadataQueryProvider.databaseSql(datasourceType).sql();
         try (Connection connection = openConnection(datasource);
              Statement statement = connection.createStatement();
              ResultSet resultSet = statement.executeQuery(sql)) {
@@ -339,52 +342,64 @@ public class MetadataIndexService {
         }
     }
 
-    private List<TableLocation> queryAllTableLocations(SqlDatasourceConfig datasource, String datasourceType)
+    private List<TableLocation> queryAllTableLocations(SqlDatasourceConfig datasource, String datasourceType, List<ScopeValue> scopeValues)
         throws Exception {
-        try (Connection connection = openConnection(datasource);
-             PreparedStatement statement = connection.prepareStatement(tableIndexSql(datasourceType));
-             ResultSet resultSet = statement.executeQuery()) {
+        SystemMetadataQueryProvider.MetadataSql sql = metadataQueryProvider.tableIndexSql(datasourceType);
+        try (Connection connection = openConnection(datasource)) {
             List<TableLocation> candidates = new ArrayList<>();
-            while (resultSet.next() && candidates.size() < 20000) {
-                String schema = blankToNull(resultSet.getString("table_schema"));
-                String actualTable = blankToNull(resultSet.getString("table_name"));
-                String tableType = readOptionalString(resultSet, "table_type");
-                Long rows = readOptionalLong(resultSet, "table_rows");
-                String tableComment = blankToNull(readOptionalString(resultSet, "table_comment"));
-                String databaseComment = firstText(datasource.getDescription(), datasource.getTitle(), datasource.getName());
-                if (schema != null && actualTable != null) {
-                    candidates.add(new TableLocation(datasource.getId(), schema, schema, actualTable, tableType, rows, tableComment, databaseComment, 0.0));
+            for (String databaseName : queryDatabaseNames(sql, scopeValues)) {
+                try (PreparedStatement statement = connection.prepareStatement(sql.sql())) {
+                    bindDatabaseName(statement, sql.databaseNameParameterCount(), databaseName);
+                    try (ResultSet resultSet = statement.executeQuery()) {
+                        while (resultSet.next() && candidates.size() < 20000) {
+                            String schema = blankToNull(resultSet.getString("table_schema"));
+                            String actualTable = blankToNull(resultSet.getString("table_name"));
+                            String tableType = readOptionalString(resultSet, "table_type");
+                            Long rows = readOptionalLong(resultSet, "table_rows");
+                            String tableComment = blankToNull(readOptionalString(resultSet, "table_comment"));
+                            String databaseComment = firstText(datasource.getDescription(), datasource.getTitle(), datasource.getName());
+                            if (schema != null && actualTable != null) {
+                                candidates.add(new TableLocation(datasource.getId(), schema, schema, actualTable, tableType, rows, tableComment, databaseComment, 0.0));
+                            }
+                        }
+                    }
                 }
             }
             return candidates;
         }
     }
 
-    private List<MetadataColumn> queryAllColumns(SqlDatasourceConfig datasource, String datasourceType) {
-        try (Connection connection = openConnection(datasource);
-             PreparedStatement statement = connection.prepareStatement(columnIndexSql(datasourceType));
-             ResultSet resultSet = statement.executeQuery()) {
+    private List<MetadataColumn> queryAllColumns(SqlDatasourceConfig datasource, String datasourceType, List<ScopeValue> scopeValues) {
+        SystemMetadataQueryProvider.MetadataSql sql = metadataQueryProvider.columnIndexSql(datasourceType);
+        try (Connection connection = openConnection(datasource)) {
             List<MetadataColumn> columns = new ArrayList<>();
-            while (resultSet.next() && columns.size() < 50000) {
-                String schema = blankToNull(resultSet.getString("table_schema"));
-                String table = blankToNull(resultSet.getString("table_name"));
-                String name = blankToNull(resultSet.getString("column_name"));
-                if (schema == null || table == null || name == null) {
-                    continue;
+            for (String databaseName : queryDatabaseNames(sql, scopeValues)) {
+                try (PreparedStatement statement = connection.prepareStatement(sql.sql())) {
+                    bindDatabaseName(statement, sql.databaseNameParameterCount(), databaseName);
+                    try (ResultSet resultSet = statement.executeQuery()) {
+                        while (resultSet.next() && columns.size() < 50000) {
+                            String schema = blankToNull(resultSet.getString("table_schema"));
+                            String table = blankToNull(resultSet.getString("table_name"));
+                            String name = blankToNull(resultSet.getString("column_name"));
+                            if (schema == null || table == null || name == null) {
+                                continue;
+                            }
+                            columns.add(new MetadataColumn(
+                                datasource.getId(),
+                                schema,
+                                schema,
+                                table,
+                                name,
+                                readOptionalString(resultSet, "data_type"),
+                                readOptionalString(resultSet, "column_type"),
+                                readOptionalString(resultSet, "column_key"),
+                                blankToNull(readOptionalString(resultSet, "column_comment")),
+                                !"NO".equalsIgnoreCase(readOptionalString(resultSet, "is_nullable")),
+                                readOptionalInteger(resultSet, "ordinal_position")
+                            ));
+                        }
+                    }
                 }
-                columns.add(new MetadataColumn(
-                    datasource.getId(),
-                    schema,
-                    schema,
-                    table,
-                    name,
-                    readOptionalString(resultSet, "data_type"),
-                    readOptionalString(resultSet, "column_type"),
-                    readOptionalString(resultSet, "column_key"),
-                    blankToNull(readOptionalString(resultSet, "column_comment")),
-                    !"NO".equalsIgnoreCase(readOptionalString(resultSet, "is_nullable")),
-                    readOptionalInteger(resultSet, "ordinal_position")
-                ));
             }
             return columns;
         } catch (Exception ex) {
@@ -394,11 +409,23 @@ public class MetadataIndexService {
     }
 
     private Connection openConnection(SqlDatasourceConfig datasource) throws Exception {
-        if (datasource.getDriverClass() != null && !datasource.getDriverClass().isBlank()) {
-            Class.forName(datasource.getDriverClass().trim());
+        Connection connection;
+        if (driverLoader == null) {
+            if (datasource.getDriverClass() != null && !datasource.getDriverClass().isBlank()) {
+                Class.forName(datasource.getDriverClass().trim());
+            }
+            connection = DriverManager.getConnection(
+                datasource.getJdbcUrl(), datasource.getUsername(), datasource.getPassword());
+        } else {
+            DataSource dataSource = driverLoader.createDataSource(
+                datasource.getJdbcUrl(),
+                datasource.getUsername(),
+                datasource.getPassword(),
+                datasource.getDriverClass(),
+                resolvedDatabaseType(datasource)
+            );
+            connection = dataSource.getConnection();
         }
-        Connection connection = DriverManager.getConnection(
-            datasource.getJdbcUrl(), datasource.getUsername(), datasource.getPassword());
         connection.setReadOnly(true);
         String schemaName = defaultSchemaName(datasource);
         if (schemaName != null && Set.of("mysql", "mariadb").contains(resolvedDatabaseType(datasource))) {
@@ -411,120 +438,25 @@ public class MetadataIndexService {
         return connection;
     }
 
-    private String tableIndexSql(String datasourceType) {
-        if ("oracle".equals(datasourceType)) {
-            return """
-                SELECT owner AS table_schema,
-                       table_name AS table_name,
-                       'BASE TABLE' AS table_type,
-                       num_rows AS table_rows,
-                       comments AS table_comment
-                FROM (
-                    SELECT t.owner, t.table_name, t.num_rows, c.comments
-                    FROM all_tables t
-                    LEFT JOIN all_tab_comments c
-                      ON c.owner = t.owner AND c.table_name = t.table_name
-                    WHERE t.owner NOT IN ('SYS', 'SYSTEM')
-                )
-                ORDER BY owner, table_name
-                """;
+    private List<String> queryDatabaseNames(SystemMetadataQueryProvider.MetadataSql sql, List<ScopeValue> scopeValues) {
+        if (sql == null || sql.databaseNameParameterCount() <= 0) {
+            return java.util.Collections.singletonList(null);
         }
-        if ("sqlserver".equals(datasourceType)) {
-            return """
-                SELECT s.name AS table_schema,
-                       t.name AS table_name,
-                       'BASE TABLE' AS table_type,
-                       CAST(NULL AS BIGINT) AS table_rows,
-                       CAST(ep.value AS NVARCHAR(4000)) AS table_comment
-                FROM sys.tables t
-                INNER JOIN sys.schemas s ON s.schema_id = t.schema_id
-                LEFT JOIN sys.extended_properties ep
-                  ON ep.major_id = t.object_id
-                 AND ep.minor_id = 0
-                 AND ep.name = 'MS_Description'
-                ORDER BY s.name, t.name
-                """;
+        if (scopeValues == null || scopeValues.isEmpty()) {
+            return java.util.Collections.singletonList(null);
         }
-        if ("postgresql".equals(datasourceType)) {
-            return """
-                SELECT t.table_schema,
-                       t.table_name,
-                       t.table_type,
-                       CAST(NULL AS BIGINT) AS table_rows,
-                       obj_description(c.oid) AS table_comment
-                FROM information_schema.tables t
-                LEFT JOIN pg_catalog.pg_namespace n
-                  ON n.nspname = t.table_schema
-                LEFT JOIN pg_catalog.pg_class c
-                  ON c.relnamespace = n.oid AND c.relname = t.table_name
-                WHERE t.table_schema NOT IN ('pg_catalog', 'information_schema')
-                ORDER BY t.table_schema, t.table_name
-                """;
-        }
-        return """
-            SELECT table_schema, table_name, table_type, table_rows, table_comment
-            FROM information_schema.tables
-            WHERE table_schema NOT IN ('information_schema', 'mysql', 'performance_schema', 'sys')
-            ORDER BY table_schema, table_name
-            """;
+        return scopeValues.stream()
+            .map(ScopeValue::value)
+            .filter(value -> value != null && !value.isBlank())
+            .map(String::trim)
+            .distinct()
+            .toList();
     }
 
-    private String columnIndexSql(String datasourceType) {
-        if ("oracle".equals(datasourceType)) {
-            return """
-                SELECT c.owner AS table_schema,
-                       c.table_name AS table_name,
-                       c.column_name AS column_name,
-                       c.data_type AS data_type,
-                       c.data_type AS column_type,
-                       CAST(NULL AS VARCHAR2(20)) AS column_key,
-                       cc.comments AS column_comment,
-                       c.nullable AS is_nullable,
-                       c.column_id AS ordinal_position
-                FROM all_tab_columns c
-                LEFT JOIN all_col_comments cc
-                  ON cc.owner = c.owner
-                 AND cc.table_name = c.table_name
-                 AND cc.column_name = c.column_name
-                WHERE c.owner NOT IN ('SYS', 'SYSTEM')
-                ORDER BY c.owner, c.table_name, c.column_id
-                """;
+    private void bindDatabaseName(PreparedStatement statement, int parameterCount, String databaseName) throws Exception {
+        for (int index = 1; index <= parameterCount; index++) {
+            statement.setString(index, databaseName);
         }
-        if ("postgresql".equals(datasourceType)) {
-            return """
-                SELECT c.table_schema, c.table_name, c.column_name, c.data_type,
-                       c.data_type AS column_type, CAST(NULL AS VARCHAR) AS column_key,
-                       pg_catalog.col_description((quote_ident(c.table_schema) || '.' || quote_ident(c.table_name))::regclass::oid, c.ordinal_position) AS column_comment,
-                       c.is_nullable, c.ordinal_position
-                FROM information_schema.columns c
-                WHERE c.table_schema NOT IN ('pg_catalog', 'information_schema')
-                ORDER BY c.table_schema, c.table_name, c.ordinal_position
-                """;
-        }
-        if ("sqlserver".equals(datasourceType)) {
-            return """
-                SELECT c.table_schema, c.table_name, c.column_name, c.data_type,
-                       c.data_type AS column_type, CAST(NULL AS VARCHAR) AS column_key,
-                       CAST(ep.value AS NVARCHAR(4000)) AS column_comment,
-                       c.is_nullable, c.ordinal_position
-                FROM information_schema.columns c
-                LEFT JOIN sys.schemas s ON s.name = c.table_schema
-                LEFT JOIN sys.tables t ON t.name = c.table_name AND t.schema_id = s.schema_id
-                LEFT JOIN sys.columns sc ON sc.object_id = t.object_id AND sc.name = c.column_name
-                LEFT JOIN sys.extended_properties ep
-                  ON ep.major_id = sc.object_id
-                 AND ep.minor_id = sc.column_id
-                 AND ep.name = 'MS_Description'
-                ORDER BY c.table_schema, c.table_name, c.ordinal_position
-                """;
-        }
-        return """
-            SELECT table_schema, table_name, column_name, data_type, column_type, column_key,
-                   column_comment, is_nullable, ordinal_position
-            FROM information_schema.columns
-            WHERE table_schema NOT IN ('information_schema', 'mysql', 'performance_schema', 'sys')
-            ORDER BY table_schema, table_name, ordinal_position
-            """;
     }
 
     private <T> void trimCache(Map<String, CacheEntry<T>> cache) {
@@ -558,7 +490,7 @@ public class MetadataIndexService {
     }
 
     private boolean isSupportedMetadataIndexType(String datasourceType) {
-        return Set.of("mysql", "mariadb", "postgresql", "sqlserver", "oracle").contains(datasourceType);
+        return metadataQueryProvider.supportsMetadataIndexType(datasourceType);
     }
 
     private String defaultSchemaName(SqlDatasourceConfig datasource) {

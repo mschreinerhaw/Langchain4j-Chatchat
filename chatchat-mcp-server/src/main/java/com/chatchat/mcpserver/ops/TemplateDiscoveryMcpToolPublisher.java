@@ -315,7 +315,7 @@ public class TemplateDiscoveryMcpToolPublisher {
             ),
             "filters", Map.of(
                 "type", "object",
-                "description", "Logical filters for business database query templates, such as intent, bilingualIntent, intentZh, intentEn, category, databaseType, dbType, labels, language, or queryLanguage. Concrete datasource fields and raw SQL are forbidden.",
+                "description", "Logical filters for business database query templates, such as businessGroup, groupName, intent, bilingualIntent, intentZh, intentEn, category, databaseType, dbType, labels, language, or queryLanguage. Concrete datasource fields and raw SQL are forbidden.",
                 "additionalProperties", true
             ),
             "bilingualIntent", Map.of(

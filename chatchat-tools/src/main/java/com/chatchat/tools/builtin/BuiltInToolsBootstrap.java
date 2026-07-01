@@ -521,6 +521,13 @@ public class BuiltInToolsBootstrap {
                     .maxLength(500)
                     .build(),
                 ToolParameter.builder()
+                    .name("database_type")
+                    .type("string")
+                    .description("Optional database type used to load jars from lib/drivers/{database_type}, for example dm, kingbase, oceanbase, tdsql, tidb.")
+                    .required(false)
+                    .maxLength(100)
+                    .build(),
+                ToolParameter.builder()
                     .name("username")
                     .type("string")
                     .description("Optional external database username.")
@@ -1650,7 +1657,8 @@ public class BuiltInToolsBootstrap {
                 jdbcUrl.trim(),
                 input.getParameterAsString("username", ""),
                 input.getParameterAsString("password", ""),
-                input.getParameterAsString("driver_class", "")
+                input.getParameterAsString("driver_class", ""),
+                input.getParameterAsString("database_type", "")
             );
         }
 

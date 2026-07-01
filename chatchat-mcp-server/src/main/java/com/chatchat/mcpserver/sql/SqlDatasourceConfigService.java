@@ -246,6 +246,18 @@ public class SqlDatasourceConfigService {
     private static String inferDatabaseType(String jdbcUrl, String driverClass) {
         String probe = ((jdbcUrl == null ? "" : jdbcUrl) + " " + (driverClass == null ? "" : driverClass))
             .toLowerCase(Locale.ROOT);
+        if (probe.contains("tdsql")) {
+            return "tdsql";
+        }
+        if (probe.contains("oceanbase")) {
+            return "oceanbase";
+        }
+        if (probe.contains("tidb")) {
+            return "tidb";
+        }
+        if (probe.contains("jdbc:kingbase") || probe.contains("kingbase")) {
+            return "kingbase";
+        }
         if (probe.contains("jdbc:mysql") || probe.contains("mysql")) {
             return "mysql";
         }

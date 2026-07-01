@@ -49,6 +49,9 @@ class ApiTemplateDiscoveryMcpToolPublisherTest {
         config.setToolName("order_status_api");
         config.setTitle("订单状态查询");
         config.setDescription("Query order status by order id");
+        config.setBusinessGroup("order_services");
+        config.setBusinessGroupName("Order services");
+        config.setBusinessGroupDescription("APIs for order status and fulfillment workflows");
         config.setMethod("GET");
         config.setUrlTemplate("https://internal.example/orders/{{orderId}}");
         config.setHeadersJson("{\"Authorization\":\"secret\"}");
@@ -65,7 +68,7 @@ class ApiTemplateDiscoveryMcpToolPublisherTest {
         );
 
         Map<String, Object> result = publisher.query(Map.of(
-            "filters", Map.of("intentZh", "订单状态", "intentEn", "order status")
+            "filters", Map.of("businessGroup", "Order services")
         ));
 
         assertThat(result.get("success")).isEqualTo(true);
@@ -73,9 +76,53 @@ class ApiTemplateDiscoveryMcpToolPublisherTest {
         assertThat(result.toString()).contains("order_status_api", "订单状态查询", "parameterSchema");
         assertThat(result.toString()).doesNotContain("internal.example", "Authorization", "{\"raw\":\"body\"}");
         Map<?, ?> first = (Map<?, ?>) ((List<?>) result.get("templates")).get(0);
+        assertThat(first.get("businessGroup").toString()).contains("order_services", "Order services", "fulfillment");
         assertThat(first.get("requiredParameters")).isEqualTo(List.of("orderId"));
         assertThat(first.get("parameterContract").toString()).contains("order_status_api.arguments", "orderId");
         assertThat(first.get("invocationExample").toString()).contains("order_status_api", "orderId");
+    }
+
+    @Test
+    void queryMatchesApiTemplateByBusinessGroupDescription() {
+        ApiServiceConfig orderApi = new ApiServiceConfig();
+        orderApi.setId("api-order");
+        orderApi.setToolName("order_status_api");
+        orderApi.setTitle("Order status API");
+        orderApi.setDescription("Query order status by order id");
+        orderApi.setBusinessGroup("order_services");
+        orderApi.setBusinessGroupName("Order services");
+        orderApi.setBusinessGroupDescription("fulfillment lifecycle APIs");
+        orderApi.setMethod("GET");
+        orderApi.setInputSchemaJson("{\"type\":\"object\",\"properties\":{\"orderId\":{\"type\":\"string\"}},\"required\":[\"orderId\"]}");
+        orderApi.setEnabled(true);
+        ApiServiceConfig billingApi = new ApiServiceConfig();
+        billingApi.setId("api-billing");
+        billingApi.setToolName("invoice_status_api");
+        billingApi.setTitle("Invoice status API");
+        billingApi.setDescription("Query invoice status by invoice id");
+        billingApi.setBusinessGroup("billing_services");
+        billingApi.setBusinessGroupName("Billing services");
+        billingApi.setBusinessGroupDescription("invoice settlement APIs");
+        billingApi.setMethod("GET");
+        billingApi.setEnabled(true);
+
+        ApiServiceConfigService configService = mock(ApiServiceConfigService.class);
+        when(configService.listEnabled()).thenReturn(List.of(billingApi, orderApi));
+        ApiTemplateDiscoveryMcpToolPublisher publisher = new ApiTemplateDiscoveryMcpToolPublisher(
+            mock(McpSyncServer.class),
+            configService,
+            new ObjectMapper()
+        );
+
+        Map<String, Object> result = publisher.query(Map.of(
+            "filters", Map.of("groupDescription", "fulfillment lifecycle")
+        ));
+
+        assertThat(result.get("returnedCount")).isEqualTo(1);
+        assertThat(result.toString()).contains("order_status_api", "order_services", "fulfillment lifecycle APIs");
+        assertThat(result.toString()).doesNotContain("invoice_status_api", "billing_services");
+        Map<?, ?> first = (Map<?, ?>) ((List<?>) result.get("templates")).get(0);
+        assertThat(first.get("templateId")).isEqualTo("order_status_api");
     }
 
     @Test

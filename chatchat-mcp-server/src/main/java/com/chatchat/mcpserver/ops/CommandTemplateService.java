@@ -209,8 +209,13 @@ public class CommandTemplateService {
         Map<String, Object> empty = Map.of("type", "object", "properties", Map.of(), "required", List.of());
         Map<String, Object> serviceSchema = Map.of(
             "type", "object",
-            "properties", Map.of("service", Map.of("type", "string", "pattern", "^[A-Za-z0-9_.@:-]{1,128}$")),
+            "properties", Map.of("service", Map.of("type", "string", "pattern", "^[A-Za-z0-9_][A-Za-z0-9_.@:-]{0,127}$")),
             "required", List.of("service")
+        );
+        Map<String, Object> serviceNameSchema = Map.of(
+            "type", "object",
+            "properties", Map.of("serviceName", Map.of("type", "string", "pattern", "^[A-Za-z0-9_][A-Za-z0-9_.@:-]{0,127}$")),
+            "required", List.of("serviceName")
         );
         Map<String, Object> logSchema = Map.of(
             "type", "object",
@@ -241,6 +246,15 @@ public class CommandTemplateService {
                 )),
                 empty),
             new DefaultTemplate("CHECK_SERVICE_STATUS", "Service status", "Read systemd service status.", "systemctl status {{service}}", serviceSchema),
+            new DefaultTemplate("CHECK_SERVICE_INFO", "Service information",
+                "Read running service information by serviceName for nginx, Java, Redis and other Linux services.",
+                writeJson(List.of(
+                    "echo '=== systemd summary: {{serviceName}} ==='; if command -v systemctl >/dev/null 2>&1; then systemctl show {{serviceName}} --property=Id,Names,LoadState,ActiveState,SubState,MainPID,ExecMainStartTimestamp,FragmentPath,Description --no-pager 2>&1 || true; else echo 'systemctl not found'; fi",
+                    "echo '=== systemd status: {{serviceName}} ==='; if command -v systemctl >/dev/null 2>&1; then systemctl status {{serviceName}} --no-pager -l 2>&1 || true; else echo 'systemctl not found'; fi",
+                    "echo '=== process match: {{serviceName}} ==='; if command -v pgrep >/dev/null 2>&1; then pgrep -af {{serviceName}} 2>&1 || true; else ps -eo pid,ppid,user,stat,pcpu,pmem,etime,args | grep -i {{serviceName}} | grep -v grep || true; fi",
+                    "echo '=== listening sockets match: {{serviceName}} ==='; if command -v ss >/dev/null 2>&1; then ss -tulnp 2>/dev/null | grep -i {{serviceName}} || true; else netstat -tulnp 2>/dev/null | grep -i {{serviceName}} || true; fi"
+                )),
+                serviceNameSchema),
             new DefaultTemplate("TAIL_LOG", "Log tail", "Read log tail.", "tail -n {{lines}} {{path}}", logSchema)
         );
     }

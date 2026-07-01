@@ -127,7 +127,7 @@ public class ApiAssetDiscoveryMcpToolPublisher {
             "filtersSchemaVersion", Map.of("type", "string", "description", TargetKindRegistry.FILTERS_SCHEMA_VERSION),
             "filters", Map.of(
                 "type", "object",
-                "description", "Optional logical filters for API assets, such as assetName, toolName, name, service, target, labels, intent, bilingualIntent, intentZh, or intentEn. Raw URL, headers, and body templates are forbidden.",
+                "description", "Optional logical filters for API assets, such as businessGroup, groupName, assetName, toolName, name, service, target, labels, intent, bilingualIntent, intentZh, or intentEn. Raw URL, headers, and body templates are forbidden.",
                 "additionalProperties", true
             ),
             "executionContext", Map.of(
@@ -191,7 +191,9 @@ public class ApiAssetDiscoveryMcpToolPublisher {
         if (context instanceof Map<?, ?> map) {
             filters.putAll((Map<String, Object>) map);
         }
-        for (String key : List.of("assetName", "asset_name", "toolName", "name", "service", "target", "labels", "intent", "bilingualIntent", "bilingualQuery", "intentZh", "intentEn")) {
+        for (String key : List.of("assetName", "asset_name", "toolName", "name", "businessGroup", "business_group",
+            "group", "groupName", "group_name", "groupDescription", "group_description", "service", "target",
+            "labels", "intent", "bilingualIntent", "bilingualQuery", "intentZh", "intentEn")) {
             Object value = arguments.get(key);
             if (value != null) {
                 filters.putIfAbsent(key, value);
@@ -212,7 +214,9 @@ public class ApiAssetDiscoveryMcpToolPublisher {
 
     private List<String> terms(Map<String, Object> filters) {
         List<String> terms = new ArrayList<>();
-        for (String key : List.of("assetName", "asset_name", "toolName", "name", "service", "target", "intent", "bilingualQuery", "intentZh", "intentEn")) {
+        for (String key : List.of("assetName", "asset_name", "toolName", "name", "businessGroup", "business_group",
+            "group", "groupName", "group_name", "groupDescription", "group_description", "service", "target",
+            "intent", "bilingualQuery", "intentZh", "intentEn")) {
             addTerm(terms, filters.get(key));
         }
         addTerm(terms, filters.get("bilingualIntent"));
@@ -245,6 +249,9 @@ public class ApiAssetDiscoveryMcpToolPublisher {
             text(config.getToolName()),
             text(config.getTitle()),
             text(config.getDescription()),
+            text(config.getBusinessGroup()),
+            text(config.getBusinessGroupName()),
+            text(config.getBusinessGroupDescription()),
             text(config.getMethod())
         ));
         long matched = terms.stream().filter(haystack::contains).count();
@@ -266,6 +273,7 @@ public class ApiAssetDiscoveryMcpToolPublisher {
                 "name", config.getToolName(),
                 "displayName", firstText(config.getTitle(), config.getToolName()),
                 "toolName", config.getToolName(),
+                "businessGroup", businessGroupMetadata(config),
                 "enabled", config.isEnabled()
             ),
             "capabilities", mapOf(
@@ -274,6 +282,7 @@ public class ApiAssetDiscoveryMcpToolPublisher {
                     "templateId", config.getToolName(),
                     "name", firstText(config.getTitle(), config.getToolName()),
                     "description", text(config.getDescription()),
+                    "businessGroup", businessGroupMetadata(config),
                     "source", "api_template_query.templates[].templateId"
                 ))
             ),
@@ -290,6 +299,15 @@ public class ApiAssetDiscoveryMcpToolPublisher {
         );
     }
 
+    private Map<String, Object> businessGroupMetadata(ApiServiceConfig config) {
+        String code = firstText(config.getBusinessGroup(), "default");
+        return mapOf(
+            "code", code,
+            "name", firstText(config.getBusinessGroupName(), code),
+            "description", firstText(config.getBusinessGroupDescription(), "")
+        );
+    }
+
     private List<String> apiLabels(ApiServiceConfig config) {
         LinkedHashSet<String> labels = new LinkedHashSet<>();
         if (config.getMethod() != null && !config.getMethod().isBlank()) {
@@ -297,6 +315,10 @@ public class ApiAssetDiscoveryMcpToolPublisher {
         }
         addLabel(labels, config.getToolName());
         addLabel(labels, config.getTitle());
+        addLabel(labels, config.getBusinessGroup());
+        addLabel(labels, "group:" + config.getBusinessGroup());
+        addLabel(labels, config.getBusinessGroupName());
+        addLabel(labels, config.getBusinessGroupDescription());
         return labels.stream().toList();
     }
 

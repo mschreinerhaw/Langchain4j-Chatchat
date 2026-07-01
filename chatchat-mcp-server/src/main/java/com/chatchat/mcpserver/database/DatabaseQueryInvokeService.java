@@ -4,6 +4,7 @@ import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.tool.ToolInput;
 import com.chatchat.common.tool.ToolLogSummarizer;
 import com.chatchat.common.tool.ToolOutput;
+import com.chatchat.mcpserver.audit.InvocationAuditService;
 import com.chatchat.mcpserver.sql.SqlDatasourceConfig;
 import com.chatchat.mcpserver.sql.SqlDatasourceConfigService;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -30,6 +31,7 @@ public class DatabaseQueryInvokeService {
     private final ToolRegistry toolRegistry;
     private final SqlDatasourceConfigService datasourceConfigService;
     private final ObjectMapper objectMapper;
+    private final InvocationAuditService auditService;
 
     /**
      * Performs the invoke operation.
@@ -39,14 +41,27 @@ public class DatabaseQueryInvokeService {
      * @return the operation result
      */
     public ToolOutput invoke(DatabaseQueryConfig config, Map<String, Object> arguments) {
-        assertExecutionCapability(config);
-        log.info("Database query invoke started databaseQueryId={} tool={} maxRows={} sql={} args={}",
-            config.getId(),
-            config.getToolName(),
-            config.getMaxRows(),
-            config.getSqlTemplate(),
-            ToolLogSummarizer.summarize(arguments));
-        return invoke(toParameters(config, arguments == null ? Map.of() : arguments));
+        long startedAt = System.currentTimeMillis();
+        Map<String, Object> auditArgs = arguments == null ? Map.of() : arguments;
+        ToolOutput output;
+        try {
+            assertExecutionCapability(config);
+            log.info("Database query invoke started databaseQueryId={} tool={} maxRows={} sql={} args={}",
+                config.getId(),
+                config.getToolName(),
+                config.getMaxRows(),
+                config.getSqlTemplate(),
+                ToolLogSummarizer.summarize(arguments));
+            output = invoke(toParameters(config, auditArgs));
+        } catch (Exception ex) {
+            output = ToolOutput.failure(ex.getMessage());
+            output.setExecutionTimeMs(Math.max(0L, System.currentTimeMillis() - startedAt));
+        }
+        long durationMs = output == null || output.getExecutionTimeMs() == null
+            ? Math.max(0L, System.currentTimeMillis() - startedAt)
+            : output.getExecutionTimeMs();
+        auditService.recordDatabaseQueryCall(config, auditArgs, output, durationMs);
+        return output;
     }
 
     private void assertExecutionCapability(DatabaseQueryConfig config) {
@@ -136,6 +151,7 @@ public class DatabaseQueryInvokeService {
         SqlDatasourceConfig datasource = datasourceConfigService.getEnabled(config.getDatasourceId());
         putIfPresent(parameters, "jdbc_url", datasource.getJdbcUrl());
         putIfPresent(parameters, "driver_class", datasource.getDriverClass());
+        putIfPresent(parameters, "database_type", datasource.getDatabaseType());
         putIfPresent(parameters, "username", datasource.getUsername());
         putIfPresent(parameters, "password", datasource.getPassword());
         parameters.put("datasource_id", datasource.getId());

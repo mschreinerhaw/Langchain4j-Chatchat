@@ -2,6 +2,7 @@ import { API_BASE } from './config.js';
 import { apiFetch } from './http.js';
 
 const BASE_URL = `${API_BASE}/database-query`;
+const SEARCH_INDEX_URL = `${API_BASE}/mcp-search-index`;
 
 export function listDatabaseQueries() {
     return apiFetch(BASE_URL);
@@ -43,4 +44,8 @@ export function testDatabaseQuery(payload) {
         method: 'POST',
         body: JSON.stringify(payload)
     });
+}
+
+export function rebuildDatabaseQueryIndex() {
+    return apiFetch(`${SEARCH_INDEX_URL}/templates/rebuild`, { method: 'POST' });
 }

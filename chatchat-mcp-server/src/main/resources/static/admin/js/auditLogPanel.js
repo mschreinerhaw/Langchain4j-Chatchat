@@ -105,7 +105,7 @@ async function openAuditLogDetail(log) {
     try {
         const detail = await getAuditLog(log.id);
         showResult(detail, {
-            title: `${detail.toolName || detail.targetName || detail.targetId || '调用'} 审计明细`,
+            title: `${detail.templateId || detail.toolName || detail.targetName || detail.targetId || '调用'} 审计明细`,
             subtitle: `${detail.targetType || '-'} · ${formatAuditTime(detail.createdAt)}`
         });
     } catch (error) {

@@ -28,6 +28,15 @@ public class ApiServiceConfig {
     @Column(length = 1000)
     private String description;
 
+    @Column(length = 128)
+    private String businessGroup = "default";
+
+    @Column(length = 200)
+    private String businessGroupName;
+
+    @Column(length = 1000)
+    private String businessGroupDescription;
+
     @Column(nullable = false, length = 16)
     private String method;
 
@@ -159,6 +168,30 @@ public class ApiServiceConfig {
      */
     public void setDescription(String description) {
         this.description = description;
+    }
+
+    public String getBusinessGroup() {
+        return businessGroup;
+    }
+
+    public void setBusinessGroup(String businessGroup) {
+        this.businessGroup = businessGroup;
+    }
+
+    public String getBusinessGroupName() {
+        return businessGroupName;
+    }
+
+    public void setBusinessGroupName(String businessGroupName) {
+        this.businessGroupName = businessGroupName;
+    }
+
+    public String getBusinessGroupDescription() {
+        return businessGroupDescription;
+    }
+
+    public void setBusinessGroupDescription(String businessGroupDescription) {
+        this.businessGroupDescription = businessGroupDescription;
     }
 
     /**

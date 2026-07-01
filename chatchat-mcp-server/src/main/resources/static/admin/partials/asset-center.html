@@ -114,6 +114,10 @@
                     <option value="">全部分类</option>
                     <option value="mysql">MySQL</option>
                     <option value="dm">达梦 DM</option>
+                    <option value="tdsql">TDSQL</option>
+                    <option value="tidb">TiDB</option>
+                    <option value="kingbase">Kingbase</option>
+                    <option value="oceanbase">OceanBase</option>
                     <option value="hive">Hive</option>
                     <option value="inceptor">Inceptor</option>
                     <option value="goldendb">GoldenDB</option>
@@ -268,6 +272,7 @@
                         <option value="sql_datasource">sql_datasource</option>
                         <option value="ssh_host">ssh_host</option>
                         <option value="http_endpoint">http_endpoint</option>
+                        <option value="api_service">api_service</option>
                         <option value="database_query">database_query</option>
                     </select>
                 </div>
@@ -291,6 +296,10 @@
                         <option value="sqlserver">sqlserver</option>
                         <option value="mariadb">mariadb</option>
                         <option value="dm">dm</option>
+                        <option value="tdsql">tdsql</option>
+                        <option value="tidb">tidb</option>
+                        <option value="kingbase">kingbase</option>
+                        <option value="oceanbase">oceanbase</option>
                         <option value="hive">hive</option>
                         <option value="inceptor">inceptor</option>
                     </select>
@@ -355,7 +364,7 @@
                         <div class="col-md-6"><label class="form-label" for="sshAssetTags">标签</label><input id="sshAssetTags" class="form-control" placeholder="hive,prod"></div>
                         <div class="col-12">
                             <label class="form-label">命令模板</label>
-                            <input id="sshAssetTemplateSearchInput" class="form-control mb-2" placeholder="Search template code, name, description">
+                            <input id="sshAssetTemplateSearchInput" class="form-control mb-2" placeholder="搜索模板编号、名称、描述">
                             <div id="sshAssetCommandTemplateList" class="template-picker"></div>
                             <div class="template-picker-actions">
                                 <span id="sshAssetTemplatePageText" class="template-picker-page-status small text-secondary"></span>
@@ -384,34 +393,34 @@
     <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
-                <h2 id="commandTemplateFormTitle" class="modal-title fs-5">Command Template</h2>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                <h2 id="commandTemplateFormTitle" class="modal-title fs-5">执行模板</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="关闭"></button>
             </div>
             <div class="modal-body">
                 <form id="commandTemplateForm" class="service-form">
                     <input id="commandTemplateId" type="hidden">
                     <div class="row g-3">
-                        <div class="col-md-4"><label class="form-label" for="commandTemplateCode">Template ID</label><input id="commandTemplateCode" class="form-control" placeholder="CHECK_DOCKER_STATUS" required></div>
-                        <div class="col-md-4"><label class="form-label" for="commandTemplateTitle">Name</label><input id="commandTemplateTitle" class="form-control" required></div>
-                        <div class="col-md-2"><label class="form-label" for="commandTemplateRiskLevel">Risk</label><select id="commandTemplateRiskLevel" class="form-select"><option>LOW</option><option>MEDIUM</option><option>HIGH</option><option>CRITICAL</option></select></div>
-                        <div class="col-md-2"><label class="form-label" for="commandTemplateEnabled">Status</label><select id="commandTemplateEnabled" class="form-select"><option value="true">Enabled</option><option value="false">Disabled</option></select></div>
-                        <div class="col-md-4"><label class="form-label" for="commandTemplateCategory">Category</label><input id="commandTemplateCategory" class="form-control" list="commandTemplateCategoryOptions" placeholder="system_diagnostic"><datalist id="commandTemplateCategoryOptions"><option value="system_diagnostic"></option><option value="host_diagnostic"></option><option value="maintenance_performance"></option><option value="maintenance_metadata"></option><option value="maintenance_lock"></option><option value="sql_diagnostic"></option><option value="sql_metadata"></option><option value="http_request"></option></datalist></div>
-                        <div class="col-md-3 sql-template-field d-none"><label class="form-label" for="commandTemplateDatabaseType">Database Type</label><select id="commandTemplateDatabaseType" class="form-select"><option value="generic">generic</option><option value="mysql">mysql</option><option value="postgresql">postgresql</option><option value="oracle">oracle</option><option value="hive">hive</option><option value="inceptor">inceptor</option><option value="goldendb">goldendb</option><option value="dm">dm</option><option value="sqlserver">sqlserver</option><option value="mariadb">mariadb</option><option value="clickhouse">clickhouse</option></select></div>
-                        <div class="col-md-5 sql-template-field d-none"><label class="form-label" for="commandTemplateDatasourceId">Bound Database Asset</label><select id="commandTemplateDatasourceId" class="form-select"><option value="">Any compatible datasource</option></select></div>
-                        <div class="col-md-8"><label class="form-label" for="commandTemplateIntentSignalsJson">Model-visible intent signals JSON</label><textarea id="commandTemplateIntentSignalsJson" class="form-control codebox" rows="3" spellcheck="false">[]</textarea></div>
-                        <div class="col-12 sql-template-field d-none"><label class="form-label" for="commandTemplateRoutingLabelsJson">Template routing labels JSON</label><textarea id="commandTemplateRoutingLabelsJson" class="form-control codebox" rows="3" spellcheck="false">[]</textarea></div>
-                        <div class="col-12"><label class="form-label" for="commandTemplateDescription">Model-visible description</label><textarea id="commandTemplateDescription" class="form-control" rows="2"></textarea></div>
-                        <div class="col-md-6"><label class="form-label" for="commandTemplateParameterSchemaJson">Parameter Schema JSON</label><textarea id="commandTemplateParameterSchemaJson" class="form-control codebox" rows="8" spellcheck="false">{
+                        <div class="col-md-4"><label class="form-label" for="commandTemplateCode">模板编号</label><input id="commandTemplateCode" class="form-control" placeholder="CHECK_DOCKER_STATUS" required></div>
+                        <div class="col-md-4"><label class="form-label" for="commandTemplateTitle">模板名称</label><input id="commandTemplateTitle" class="form-control" required></div>
+                        <div class="col-md-2"><label class="form-label" for="commandTemplateRiskLevel">风险等级</label><select id="commandTemplateRiskLevel" class="form-select"><option>LOW</option><option>MEDIUM</option><option>HIGH</option><option>CRITICAL</option></select></div>
+                        <div class="col-md-2"><label class="form-label" for="commandTemplateEnabled">启用状态</label><select id="commandTemplateEnabled" class="form-select"><option value="true">启用</option><option value="false">停用</option></select></div>
+                        <div class="col-md-4"><label class="form-label" for="commandTemplateCategory">模板分类</label><input id="commandTemplateCategory" class="form-control" list="commandTemplateCategoryOptions" placeholder="system_diagnostic"><datalist id="commandTemplateCategoryOptions"><option value="system_diagnostic"></option><option value="host_diagnostic"></option><option value="maintenance_performance"></option><option value="maintenance_metadata"></option><option value="maintenance_lock"></option><option value="sql_diagnostic"></option><option value="sql_metadata"></option><option value="http_request"></option></datalist></div>
+                        <div class="col-md-3 sql-template-field d-none"><label class="form-label" for="commandTemplateDatabaseType">数据库类型</label><select id="commandTemplateDatabaseType" class="form-select"><option value="generic">generic</option><option value="mysql">mysql</option><option value="postgresql">postgresql</option><option value="oracle">oracle</option><option value="hive">hive</option><option value="inceptor">inceptor</option><option value="goldendb">goldendb</option><option value="dm">dm</option><option value="tdsql">tdsql</option><option value="tidb">tidb</option><option value="kingbase">kingbase</option><option value="oceanbase">oceanbase</option><option value="sqlserver">sqlserver</option><option value="mariadb">mariadb</option><option value="clickhouse">clickhouse</option></select></div>
+                        <div class="col-md-5 sql-template-field d-none"><label class="form-label" for="commandTemplateDatasourceId">绑定数据库资产</label><select id="commandTemplateDatasourceId" class="form-select"><option value="">任意兼容数据源</option></select></div>
+                        <div class="col-md-8"><label class="form-label" for="commandTemplateIntentSignalsJson">模型可见意图信号 JSON</label><textarea id="commandTemplateIntentSignalsJson" class="form-control codebox" rows="3" spellcheck="false">[]</textarea></div>
+                        <div class="col-12 sql-template-field d-none"><label class="form-label" for="commandTemplateRoutingLabelsJson">模板路由标签 JSON</label><textarea id="commandTemplateRoutingLabelsJson" class="form-control codebox" rows="3" spellcheck="false">[]</textarea></div>
+                        <div class="col-12"><label class="form-label" for="commandTemplateDescription">模型可见描述</label><textarea id="commandTemplateDescription" class="form-control" rows="2"></textarea></div>
+                        <div class="col-md-6"><label class="form-label" for="commandTemplateParameterSchemaJson">参数 Schema JSON</label><textarea id="commandTemplateParameterSchemaJson" class="form-control codebox" rows="8" spellcheck="false">{
   "type": "object",
   "properties": {},
   "required": []
 }</textarea></div>
-                        <div class="col-md-6"><label id="commandTemplateBodyLabel" class="form-label" for="commandTemplateCommand">Internal command / JSON steps</label><textarea id="commandTemplateCommand" class="form-control codebox" rows="8" spellcheck="false" required></textarea></div>
+                        <div class="col-md-6"><label id="commandTemplateBodyLabel" class="form-label" for="commandTemplateCommand">内部命令 / JSON 步骤</label><textarea id="commandTemplateCommand" class="form-control codebox" rows="8" spellcheck="false" required></textarea></div>
                     </div>
                 </form>
             </div>
             <div class="modal-footer">
-                <button class="btn btn-primary" type="submit" form="commandTemplateForm">Save Template</button>
+                <button class="btn btn-primary" type="submit" form="commandTemplateForm">保存模板</button>
             </div>
         </div>
     </div>
@@ -476,7 +485,7 @@
                         <div class="col-12"><label class="form-label" for="sqlAssetDescription">工具描述</label><textarea id="sqlAssetDescription" class="form-control" rows="2"></textarea></div>
                         <div class="col-12"><label class="form-label" for="sqlAssetJdbcUrl">JDBC URL</label><input id="sqlAssetJdbcUrl" class="form-control" required></div>
                         <div class="col-md-4"><label class="form-label" for="sqlAssetDriverClass">Driver Class</label><input id="sqlAssetDriverClass" class="form-control"></div>
-                        <div class="col-md-2"><label class="form-label" for="sqlAssetDatabaseType">Database Type</label><select id="sqlAssetDatabaseType" class="form-select"><option value="generic">generic</option><option value="mysql">mysql</option><option value="postgresql">postgresql</option><option value="oracle">oracle</option><option value="hive">hive</option><option value="inceptor">inceptor</option><option value="goldendb">goldendb</option><option value="dm">dm</option><option value="sqlserver">sqlserver</option><option value="mariadb">mariadb</option><option value="clickhouse">clickhouse</option></select></div>
+                        <div class="col-md-2"><label class="form-label" for="sqlAssetDatabaseType">Database Type</label><select id="sqlAssetDatabaseType" class="form-select"><option value="generic">generic</option><option value="mysql">mysql</option><option value="postgresql">postgresql</option><option value="oracle">oracle</option><option value="hive">hive</option><option value="inceptor">inceptor</option><option value="goldendb">goldendb</option><option value="dm">dm</option><option value="tdsql">tdsql</option><option value="tidb">tidb</option><option value="kingbase">kingbase</option><option value="oceanbase">oceanbase</option><option value="sqlserver">sqlserver</option><option value="mariadb">mariadb</option><option value="clickhouse">clickhouse</option></select></div>
                         <div class="col-md-3"><label class="form-label" for="sqlAssetUsername">只读账号</label><input id="sqlAssetUsername" class="form-control"></div>
                         <div class="col-md-3"><label class="form-label" for="sqlAssetPassword">密码</label><input id="sqlAssetPassword" class="form-control" type="password" autocomplete="new-password"></div>
                         <div class="col-md-2"><label class="form-label" for="sqlAssetEnvironment">环境</label><select id="sqlAssetEnvironment" class="form-select"><option>DEV</option><option>TEST</option><option>UAT</option><option>PROD</option></select></div>

@@ -1,5 +1,8 @@
 package com.chatchat.mcpserver.search;
 
+import com.chatchat.mcpserver.api.ApiServiceConfig;
+import com.chatchat.mcpserver.api.ApiServiceConfigService;
+import com.chatchat.mcpserver.database.DatabaseQueryConfig;
 import com.chatchat.mcpserver.database.DatabaseQueryConfigService;
 import com.chatchat.mcpserver.ops.CommandTemplateConfig;
 import com.chatchat.mcpserver.ops.CommandTemplateService;
@@ -28,16 +31,19 @@ class McpTemplateLuceneIndexServiceTest {
         CommandTemplateService commandTemplateService = mock(CommandTemplateService.class);
         SqlTemplateService sqlTemplateService = mock(SqlTemplateService.class);
         HttpEndpointConfigService httpEndpointConfigService = mock(HttpEndpointConfigService.class);
+        ApiServiceConfigService apiServiceConfigService = mock(ApiServiceConfigService.class);
         DatabaseQueryConfigService databaseQueryConfigService = mock(DatabaseQueryConfigService.class);
         when(commandTemplateService.listEnabled()).thenReturn(List.of(commandTemplate()));
         when(sqlTemplateService.listEnabled()).thenReturn(List.of(sqlTemplate()));
         when(httpEndpointConfigService.listEnabled()).thenReturn(List.of());
+        when(apiServiceConfigService.listAll()).thenReturn(List.of());
         when(databaseQueryConfigService.listAll()).thenReturn(List.of());
         McpTemplateLuceneIndexService indexService = new McpTemplateLuceneIndexService(
             lucene,
             commandTemplateService,
             sqlTemplateService,
             httpEndpointConfigService,
+            apiServiceConfigService,
             databaseQueryConfigService,
             new ObjectMapper()
         );
@@ -52,6 +58,70 @@ class McpTemplateLuceneIndexServiceTest {
             "sql_datasource", "mysql", "database status health", 10
         ))).extracting(LuceneMcpSearchService.SearchHit::id)
             .contains("MYSQL_SHOW_STATUS");
+    }
+
+    @Test
+    void indexesDatabaseQueryBusinessGroupMetadataIntoLucene() {
+        LuceneMcpSearchService lucene = lucene();
+        CommandTemplateService commandTemplateService = mock(CommandTemplateService.class);
+        SqlTemplateService sqlTemplateService = mock(SqlTemplateService.class);
+        HttpEndpointConfigService httpEndpointConfigService = mock(HttpEndpointConfigService.class);
+        ApiServiceConfigService apiServiceConfigService = mock(ApiServiceConfigService.class);
+        DatabaseQueryConfigService databaseQueryConfigService = mock(DatabaseQueryConfigService.class);
+        when(commandTemplateService.listEnabled()).thenReturn(List.of());
+        when(sqlTemplateService.listEnabled()).thenReturn(List.of());
+        when(httpEndpointConfigService.listEnabled()).thenReturn(List.of());
+        when(apiServiceConfigService.listAll()).thenReturn(List.of());
+        when(databaseQueryConfigService.listAll()).thenReturn(List.of(databaseQuery()));
+        McpTemplateLuceneIndexService indexService = new McpTemplateLuceneIndexService(
+            lucene,
+            commandTemplateService,
+            sqlTemplateService,
+            httpEndpointConfigService,
+            apiServiceConfigService,
+            databaseQueryConfigService,
+            new ObjectMapper()
+        );
+
+        indexService.refreshAll();
+
+        assertThat(lucene.searchTemplates(new LuceneMcpSearchService.TemplateSearchRequest(
+            "database_query", "mysql", "fulfillment lifecycle order services", 10
+        ))).extracting(LuceneMcpSearchService.SearchHit::id)
+            .contains("db-query-1");
+    }
+
+    @Test
+    void indexesApiServiceTemplatesIntoLucene() {
+        LuceneMcpSearchService lucene = lucene();
+        CommandTemplateService commandTemplateService = mock(CommandTemplateService.class);
+        SqlTemplateService sqlTemplateService = mock(SqlTemplateService.class);
+        HttpEndpointConfigService httpEndpointConfigService = mock(HttpEndpointConfigService.class);
+        ApiServiceConfigService apiServiceConfigService = mock(ApiServiceConfigService.class);
+        DatabaseQueryConfigService databaseQueryConfigService = mock(DatabaseQueryConfigService.class);
+        when(commandTemplateService.listEnabled()).thenReturn(List.of());
+        when(sqlTemplateService.listEnabled()).thenReturn(List.of());
+        when(httpEndpointConfigService.listEnabled()).thenReturn(List.of());
+        when(apiServiceConfigService.listAll()).thenReturn(List.of(apiService()));
+        when(databaseQueryConfigService.listAll()).thenReturn(List.of());
+        McpTemplateLuceneIndexService indexService = new McpTemplateLuceneIndexService(
+            lucene,
+            commandTemplateService,
+            sqlTemplateService,
+            httpEndpointConfigService,
+            apiServiceConfigService,
+            databaseQueryConfigService,
+            new ObjectMapper()
+        );
+
+        indexService.refreshAll();
+
+        List<LuceneMcpSearchService.SearchHit> hits = lucene.searchTemplates(
+            new LuceneMcpSearchService.TemplateSearchRequest("api_service", null, "risk alert event market", 10));
+        assertThat(hits).extracting(LuceneMcpSearchService.SearchHit::id)
+            .contains("api_market_event_alert");
+        assertThat(hits.get(0).name()).isEqualTo("Market event alert");
+        assertThat(hits.get(0).source()).isEqualTo("api_service_registry");
     }
 
     private CommandTemplateConfig commandTemplate() {
@@ -76,6 +146,39 @@ class McpTemplateLuceneIndexServiceTest {
         config.setRiskLevel("LOW");
         config.setSqlTemplate("SHOW STATUS");
         config.setIntentSignalsJson("[\"db_status\",\"status\",\"health\",\"instance\"]");
+        config.setEnabled(true);
+        return config;
+    }
+
+    private DatabaseQueryConfig databaseQuery() {
+        DatabaseQueryConfig config = new DatabaseQueryConfig();
+        config.setId("db-query-1");
+        config.setToolName("order_status_query");
+        config.setTitle("Order status query");
+        config.setDescription("Query order status by order id.");
+        config.setBusinessGroup("order_services");
+        config.setBusinessGroupName("Order services");
+        config.setBusinessGroupDescription("Templates for fulfillment lifecycle checks.");
+        config.setSqlTemplate("SELECT status FROM orders WHERE order_id = :orderId");
+        config.setTemplateIntent("order status lookup");
+        config.setDatabaseType("mysql");
+        config.setRiskLevel("read_only");
+        config.setOwner("ops");
+        config.setEnabled(true);
+        return config;
+    }
+
+    private ApiServiceConfig apiService() {
+        ApiServiceConfig config = new ApiServiceConfig();
+        config.setToolName("api_market_event_alert");
+        config.setTitle("Market event alert");
+        config.setDescription("Query market event alerts and risk notifications.");
+        config.setBusinessGroup("risk_event");
+        config.setBusinessGroupName("Risk event");
+        config.setBusinessGroupDescription("API templates for market risk event monitoring.");
+        config.setMethod("GET");
+        config.setUrlTemplate("https://example.internal/events");
+        config.setGovernanceJson("{\"riskLevel\":\"low\",\"intent\":\"market alert event\"}");
         config.setEnabled(true);
         return config;
     }

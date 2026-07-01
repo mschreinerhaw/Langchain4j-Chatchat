@@ -34,6 +34,15 @@ public class DatabaseQueryConfig {
     @Column(length = 1000)
     private String description;
 
+    @Column(length = 128)
+    private String businessGroup = "default";
+
+    @Column(length = 200)
+    private String businessGroupName;
+
+    @Column(length = 1000)
+    private String businessGroupDescription;
+
     @Lob
     @Column(nullable = false)
     private String sqlTemplate;
@@ -140,6 +149,12 @@ public class DatabaseQueryConfig {
     public void setDatasourceId(String datasourceId) { this.datasourceId = datasourceId; }
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
+    public String getBusinessGroup() { return businessGroup; }
+    public void setBusinessGroup(String businessGroup) { this.businessGroup = businessGroup; }
+    public String getBusinessGroupName() { return businessGroupName; }
+    public void setBusinessGroupName(String businessGroupName) { this.businessGroupName = businessGroupName; }
+    public String getBusinessGroupDescription() { return businessGroupDescription; }
+    public void setBusinessGroupDescription(String businessGroupDescription) { this.businessGroupDescription = businessGroupDescription; }
     public String getSqlTemplate() { return sqlTemplate; }
     public void setSqlTemplate(String sqlTemplate) { this.sqlTemplate = sqlTemplate; }
     public String getInputSchemaJson() { return inputSchemaJson; }

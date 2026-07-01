@@ -486,7 +486,8 @@ public class TargetKindRegistry {
         add(definitions, "business_database_query", "database_query", Set.of("template_query"), Set.of(
             "assetname", "asset_name", "name", "env", "environment", "intent", "goal", "category",
             "template", "templateid", "template_id", "databasetype", "database_type", "dbtype",
-            "db_type", "dialect", "labels", "bilingualintent", "bilingualquery", "bilingualsearch",
+            "db_type", "dialect", "businessgroup", "business_group", "group", "groupname",
+            "group_name", "groupdescription", "group_description", "labels", "bilingualintent", "bilingualquery", "bilingualsearch",
             "intentzh", "intenten", "intentaliases", "keywords", "keyword", "queryterms",
             "searchterms", "retrievalsignals", "view", "language", "querylanguage", "locale"
         ));

@@ -240,6 +240,11 @@ public class StandardToolExecutionResultFactory {
             "template", config == null ? null : mapOf(
                 "templateId", config.getToolName(),
                 "intent", firstText(config.getTemplateIntent(), "general_query"),
+                "businessGroup", mapOf(
+                    "code", firstText(config.getBusinessGroup(), "default"),
+                    "name", firstText(config.getBusinessGroupName(), firstText(config.getBusinessGroup(), "default")),
+                    "description", firstText(config.getBusinessGroupDescription(), "")
+                ),
                 "databaseType", firstText(config.getDatabaseType(), "generic"),
                 "riskLevel", firstText(config.getRiskLevel(), "read_only"),
                 "owner", firstText(config.getOwner(), "admin")

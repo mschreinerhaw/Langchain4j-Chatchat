@@ -43,6 +43,10 @@ export function refreshTools() {
     return apiFetch(`${BASE_URL}/refresh`, { method: 'POST' });
 }
 
+export function rebuildApiServiceIndex() {
+    return apiFetch(`${BASE_URL}/refresh`, { method: 'POST' });
+}
+
 export function listLivedataApis() {
     return apiFetch(LIVEDATA_URL);
 }

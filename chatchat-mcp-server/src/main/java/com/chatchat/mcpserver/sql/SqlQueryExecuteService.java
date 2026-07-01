@@ -1,15 +1,16 @@
 package com.chatchat.mcpserver.sql;
 
 import com.chatchat.mcpserver.audit.InvocationAuditService;
+import com.chatchat.tools.builtin.DynamicJdbcDriverLoader;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.DatabaseMetaData;
-import java.sql.DriverManager;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.Statement;
@@ -38,6 +39,7 @@ public class SqlQueryExecuteService {
     private final MetadataResolverService metadataResolverService;
     private final InvocationAuditService auditService;
     private final ObjectMapper objectMapper;
+    private final DynamicJdbcDriverLoader driverLoader;
 
     public SqlQueryResult execute(Map<String, Object> arguments) {
         long startedAt = System.currentTimeMillis();
@@ -117,11 +119,7 @@ public class SqlQueryExecuteService {
             datasource.getName(), datasource.getToolName(), datasource.getEnvironment(), redactJdbcUrl(datasource.getJdbcUrl()), timeoutSeconds);
         try {
             assertExecutionCapability(datasource);
-            if (datasource.getDriverClass() != null && !datasource.getDriverClass().isBlank()) {
-                Class.forName(datasource.getDriverClass().trim());
-            }
-            try (Connection connection = DriverManager.getConnection(
-                datasource.getJdbcUrl(), datasource.getUsername(), datasource.getPassword());
+            try (Connection connection = openConnection(datasource);
                  Statement statement = connection.createStatement()) {
                 connection.setReadOnly(true);
                 statement.setQueryTimeout(timeoutSeconds);
@@ -395,11 +393,7 @@ public class SqlQueryExecuteService {
     private SqlQueryResult query(SqlDatasourceConfig datasource, String originalSql, String sql,
                                  int timeoutSeconds, int maxRows, String purpose,
                                  String sourceTaskId, long startedAt, Map<String, Object> diagnostics) throws Exception {
-        if (datasource.getDriverClass() != null && !datasource.getDriverClass().isBlank()) {
-            Class.forName(datasource.getDriverClass().trim());
-        }
-        try (Connection connection = DriverManager.getConnection(
-            datasource.getJdbcUrl(), datasource.getUsername(), datasource.getPassword());
+        try (Connection connection = openConnection(datasource);
              Statement statement = connection.createStatement()) {
             connection.setReadOnly(true);
             applyDefaultCatalog(connection, datasource, diagnostics);
@@ -532,6 +526,17 @@ public class SqlQueryExecuteService {
         if (values != null && value != null && !value.isBlank()) {
             values.add(value.trim());
         }
+    }
+
+    private Connection openConnection(SqlDatasourceConfig datasource) throws Exception {
+        DataSource dataSource = driverLoader.createDataSource(
+            datasource.getJdbcUrl(),
+            datasource.getUsername(),
+            datasource.getPassword(),
+            datasource.getDriverClass(),
+            resolvedDatabaseType(datasource)
+        );
+        return dataSource.getConnection();
     }
 
     private void logSqlResult(SqlQueryResult result) {

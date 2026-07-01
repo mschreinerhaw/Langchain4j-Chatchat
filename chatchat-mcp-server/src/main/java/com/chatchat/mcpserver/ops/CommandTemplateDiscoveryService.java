@@ -636,7 +636,9 @@ public class CommandTemplateDiscoveryService {
             firstText(config.getToolName(), config.getId()),
             "database_query",
             firstText(config.getTitle(), config.getToolName()),
-            firstText(config.getDescription(), ""),
+            firstText(config.getDescription(), "") + " "
+                + firstText(config.getBusinessGroupName(), "") + " "
+                + firstText(config.getBusinessGroupDescription(), ""),
             "sql_template_registry",
             SqlDatasourceConfigService.normalizeDatabaseTypeToken(config.getDatabaseType()),
             String.join(" ", signals),
@@ -898,6 +900,7 @@ public class CommandTemplateDiscoveryService {
             "mcpToolName", toolName,
             "name", firstText(config.getTitle(), toolName),
             "description", firstText(config.getDescription(), ""),
+            "businessGroup", businessGroupMetadata(config),
             "rank", rank,
             "relevanceScore", relevance.score(),
             "decisionScore", relevance.finalScore(),
@@ -917,6 +920,7 @@ public class CommandTemplateDiscoveryService {
                 "publishMode", "template_to_mcp_tool",
                 "governance", mapOf(
                     "intent", firstText(config.getTemplateIntent(), "general_query"),
+                    "businessGroup", businessGroupMetadata(config),
                     "dbType", SqlDatasourceConfigService.normalizeDatabaseTypeToken(config.getDatabaseType()),
                     "riskLevel", databaseQueryRiskLevel(config),
                     "owner", firstText(config.getOwner(), "admin")
@@ -926,7 +930,7 @@ public class CommandTemplateDiscoveryService {
             "intentSignals", signals,
             "routingHints", mapOf(
                 "strongSignals", signals.stream().limit(5).toList(),
-                "contextKeys", List.of("intent", "goal", "category", "template", "labels")
+                "contextKeys", List.of("intent", "goal", "category", "businessGroup", "group", "template", "labels")
             ),
             "execution", mapOf(
                 "mode", "direct_mcp_tool",
@@ -938,6 +942,15 @@ public class CommandTemplateDiscoveryService {
             "parameterContract", directParameterContract(toolName, parameterSchema),
             "invocationExample", directInvocationExample(toolName, parameterSchema),
             "enabled", config.isEnabled()
+        );
+    }
+
+    private Map<String, Object> businessGroupMetadata(DatabaseQueryConfig config) {
+        String code = firstText(config.getBusinessGroup(), "default");
+        return mapOf(
+            "code", code,
+            "name", firstText(config.getBusinessGroupName(), code),
+            "description", firstText(config.getBusinessGroupDescription(), "")
         );
     }
 
@@ -1035,8 +1048,10 @@ public class CommandTemplateDiscoveryService {
         return relevanceText(
             firstText(config.getToolName(), config.getId()),
             config.getTitle(),
-            config.getDescription(),
-            "business_database_query",
+            firstText(config.getDescription(), "") + " "
+                + firstText(config.getBusinessGroupName(), "") + " "
+                + firstText(config.getBusinessGroupDescription(), ""),
+            firstText(config.getBusinessGroup(), "business_database_query"),
             intentSignals(config),
             filters
         );
@@ -1618,13 +1633,14 @@ public class CommandTemplateDiscoveryService {
 
     private boolean hasAssetScope(Map<String, Object> filters) {
         return firstValue(filters, "assetName", "asset_name", "name", "env", "environment", "cluster", "service", "target",
-            "database", "databaseType", "dbType", "dialect", "databaseRole", "database_role", "labels") != null;
+            "database", "databaseType", "dbType", "dialect", "databaseRole", "database_role", "businessGroup",
+            "business_group", "group", "groupName", "group_name", "labels") != null;
     }
 
     private List<String> contextTokens(Map<String, Object> filters) {
         List<String> tokens = new ArrayList<>();
         for (String key : List.of("cluster", "service", "target", "targetType", "target_type", "database", "databaseRole",
-            "database_role", "labels")) {
+            "database_role", "businessGroup", "business_group", "group", "groupName", "group_name", "labels")) {
             Object value = filters.get(key);
             if (value instanceof List<?> list) {
                 list.forEach(item -> addToken(tokens, item));
@@ -1637,7 +1653,9 @@ public class CommandTemplateDiscoveryService {
 
     private List<String> intentTokens(Map<String, Object> filters) {
         List<String> tokens = new ArrayList<>();
-        for (String key : List.of("intent", "goal", "category", "template", "templateId", "template_id", "service")) {
+        for (String key : List.of("intent", "goal", "category", "businessGroup", "business_group", "group",
+            "groupName", "group_name", "groupDescription", "group_description", "template", "templateId",
+            "template_id", "service")) {
             Object value = filters.get(key);
             if (value instanceof List<?> list) {
                 list.forEach(item -> addWords(tokens, item));
@@ -1741,6 +1759,13 @@ public class CommandTemplateDiscoveryService {
             "dialect",
             "databaseRole",
             "database_role",
+            "businessGroup",
+            "business_group",
+            "group",
+            "groupName",
+            "group_name",
+            "groupDescription",
+            "group_description",
             "template",
             "templateId",
             "template_id",
@@ -1938,6 +1963,9 @@ public class CommandTemplateDiscoveryService {
         addWords(signals, config.getToolName());
         addWords(signals, config.getTitle());
         addWords(signals, config.getDescription());
+        addWords(signals, config.getBusinessGroup());
+        addWords(signals, config.getBusinessGroupName());
+        addWords(signals, config.getBusinessGroupDescription());
         addWords(signals, config.getTemplateIntent());
         addWords(signals, config.getDatabaseType());
         addWords(signals, config.getRiskLevel());

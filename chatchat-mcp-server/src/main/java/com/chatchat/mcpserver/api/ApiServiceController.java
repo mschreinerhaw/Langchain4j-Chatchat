@@ -3,6 +3,7 @@ package com.chatchat.mcpserver.api;
 import com.chatchat.agents.protocol.ModelProtocolJson;
 
 import com.chatchat.common.response.ApiResponse;
+import com.chatchat.mcpserver.search.McpTemplateLuceneIndexService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -28,6 +29,7 @@ public class ApiServiceController {
     private final ApiServiceConfigService configService;
     private final ApiMcpToolPublisher publisher;
     private final ApiInvokeService invokeService;
+    private final McpTemplateLuceneIndexService templateIndexService;
     private final ObjectMapper objectMapper;
 
     /**
@@ -49,7 +51,7 @@ public class ApiServiceController {
     @PostMapping
     public ApiResponse<ApiServiceView> create(@RequestBody ApiServiceUpsertRequest request) {
         ApiServiceConfig saved = configService.create(fromRequest(request));
-        publisher.refresh();
+        refreshPublishedTemplates();
         return ApiResponse.success(toView(saved), "API service registered");
     }
 
@@ -64,7 +66,7 @@ public class ApiServiceController {
     public ApiResponse<ApiServiceView> update(@PathVariable("id") String id,
                                               @RequestBody ApiServiceUpsertRequest request) {
         ApiServiceConfig saved = configService.update(id, fromRequest(request));
-        publisher.refresh();
+        refreshPublishedTemplates();
         return ApiResponse.success(toView(saved), "API service updated");
     }
 
@@ -77,7 +79,7 @@ public class ApiServiceController {
     @DeleteMapping("/{id}")
     public ApiResponse<Void> delete(@PathVariable("id") String id) {
         configService.delete(id);
-        publisher.refresh();
+        refreshPublishedTemplates();
         return ApiResponse.success(null, "API service deleted");
     }
 
@@ -90,7 +92,7 @@ public class ApiServiceController {
     @PostMapping("/batch-delete")
     public ApiResponse<Map<String, Object>> batchDelete(@RequestBody BatchDeleteRequest request) {
         int deleted = configService.deleteAll(request.ids());
-        publisher.refresh();
+        refreshPublishedTemplates();
         return ApiResponse.success(Map.of("deleted", deleted), "API services deleted");
     }
 
@@ -105,7 +107,7 @@ public class ApiServiceController {
     public ApiResponse<ApiServiceView> setEnabled(@PathVariable("id") String id,
                                                   @RequestParam("enabled") boolean enabled) {
         ApiServiceConfig saved = configService.setEnabled(id, enabled);
-        publisher.refresh();
+        refreshPublishedTemplates();
         return ApiResponse.success(toView(saved), "API service status updated");
     }
 
@@ -129,10 +131,15 @@ public class ApiServiceController {
      */
     @PostMapping("/refresh")
     public ApiResponse<Map<String, Object>> refresh() {
-        publisher.refresh();
+        refreshPublishedTemplates();
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("refreshed", true);
         return ApiResponse.success(data, "API MCP tools refreshed");
+    }
+
+    private void refreshPublishedTemplates() {
+        publisher.refresh();
+        templateIndexService.refreshAll();
     }
 
     /**
@@ -146,6 +153,9 @@ public class ApiServiceController {
         config.setToolName(request.toolName());
         config.setTitle(request.title());
         config.setDescription(request.description());
+        config.setBusinessGroup(request.businessGroup());
+        config.setBusinessGroupName(request.businessGroupName());
+        config.setBusinessGroupDescription(request.businessGroupDescription());
         config.setMethod(request.method());
         config.setUrlTemplate(request.urlTemplate());
         config.setHeadersJson(writeJson(request.headers()));
@@ -171,6 +181,9 @@ public class ApiServiceController {
             config.getToolName(),
             config.getTitle(),
             config.getDescription(),
+            config.getBusinessGroup(),
+            config.getBusinessGroupName(),
+            config.getBusinessGroupDescription(),
             config.getMethod(),
             config.getUrlTemplate(),
             readJsonMap(config.getHeadersJson()),
@@ -224,6 +237,9 @@ public class ApiServiceController {
         String toolName,
         String title,
         String description,
+        String businessGroup,
+        String businessGroupName,
+        String businessGroupDescription,
         String method,
         String urlTemplate,
         Map<String, Object> headers,
@@ -245,6 +261,9 @@ public class ApiServiceController {
         String toolName,
         String title,
         String description,
+        String businessGroup,
+        String businessGroupName,
+        String businessGroupDescription,
         String method,
         String urlTemplate,
         Map<String, Object> headers,

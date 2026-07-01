@@ -48,6 +48,9 @@ class ApiAssetDiscoveryMcpToolPublisherTest {
         config.setToolName("order_status_api");
         config.setTitle("订单状态查询");
         config.setDescription("Query order status by order id");
+        config.setBusinessGroup("order_services");
+        config.setBusinessGroupName("Order services");
+        config.setBusinessGroupDescription("APIs for order status and fulfillment workflows");
         config.setMethod("GET");
         config.setUrlTemplate("https://internal.example/orders/{{orderId}}");
         config.setHeadersJson("{\"Authorization\":\"secret\"}");
@@ -62,13 +65,56 @@ class ApiAssetDiscoveryMcpToolPublisherTest {
         );
 
         Map<String, Object> result = publisher.query(Map.of(
-            "filters", Map.of("intentZh", "订单状态", "intentEn", "order status")
+            "filters", Map.of("groupName", "Order services")
         ));
 
         assertThat(result.get("success")).isEqualTo(true);
         assertThat(result.get("assetType")).isEqualTo("api_service");
         assertThat(result.toString()).contains("order_status_api", "订单状态查询", "api_template_query");
+        assertThat(result.toString()).contains("order_services", "Order services", "fulfillment");
         assertThat(result.toString()).doesNotContain("internal.example", "Authorization", "{\"raw\":\"body\"}");
+    }
+
+    @Test
+    void queryMatchesApiAssetByBusinessGroupDescription() {
+        ApiServiceConfig orderApi = new ApiServiceConfig();
+        orderApi.setId("api-order");
+        orderApi.setToolName("order_status_api");
+        orderApi.setTitle("Order status API");
+        orderApi.setDescription("Query order status by order id");
+        orderApi.setBusinessGroup("order_services");
+        orderApi.setBusinessGroupName("Order services");
+        orderApi.setBusinessGroupDescription("fulfillment lifecycle APIs");
+        orderApi.setMethod("GET");
+        orderApi.setEnabled(true);
+        ApiServiceConfig billingApi = new ApiServiceConfig();
+        billingApi.setId("api-billing");
+        billingApi.setToolName("invoice_status_api");
+        billingApi.setTitle("Invoice status API");
+        billingApi.setDescription("Query invoice status by invoice id");
+        billingApi.setBusinessGroup("billing_services");
+        billingApi.setBusinessGroupName("Billing services");
+        billingApi.setBusinessGroupDescription("invoice settlement APIs");
+        billingApi.setMethod("GET");
+        billingApi.setEnabled(true);
+
+        ApiServiceConfigService configService = mock(ApiServiceConfigService.class);
+        when(configService.listEnabled()).thenReturn(List.of(billingApi, orderApi));
+        ApiAssetDiscoveryMcpToolPublisher publisher = new ApiAssetDiscoveryMcpToolPublisher(
+            mock(McpSyncServer.class),
+            configService
+        );
+
+        Map<String, Object> result = publisher.query(Map.of(
+            "filters", Map.of("groupDescription", "fulfillment lifecycle")
+        ));
+
+        assertThat(result.get("returnedCount")).isEqualTo(1);
+        assertThat(result.toString()).contains("order_status_api", "order_services", "fulfillment lifecycle APIs");
+        assertThat(result.toString()).doesNotContain("invoice_status_api", "billing_services");
+        Map<?, ?> first = (Map<?, ?>) ((List<?>) result.get("assets")).get(0);
+        Map<?, ?> asset = (Map<?, ?>) first.get("asset");
+        assertThat(asset.get("name")).isEqualTo("order_status_api");
     }
 
     @Test

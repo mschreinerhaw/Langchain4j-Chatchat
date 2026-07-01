@@ -89,6 +89,12 @@ public class McpSearchIndexAdminController {
                 value.put("reasons", hit.reasons());
                 value.put("documentId", hit.documentId());
                 value.put("source", hit.source());
+                value.put("assetType", hit.assetType());
+                value.put("name", hit.name());
+                value.put("description", hit.description());
+                value.put("category", hit.category());
+                value.put("dbType", hit.dbType());
+                value.put("riskLevel", hit.riskLevel());
                 value.put("resultId", hit.resultId());
                 value.put("database", hit.database());
                 value.put("table", hit.table());

@@ -269,17 +269,21 @@ function renderSshAssets() {
         const item = document.createElement('article');
         item.className = `service-card api-card ${asset.id === selectedSshAssetId ? 'active' : ''}`;
         const category = classifySshAsset(asset);
+        const displayName = asset.title || asset.name || asset.toolName || '';
+        const description = asset.description || asset.hostname || '';
+        const toolName = asset.toolName || '-';
+        const endpoint = `${asset.hostname || '-'}:${asset.port || 22}`;
         item.innerHTML = `
             <div class="api-card-main">
-                <h3>${escapeHtml(asset.title || asset.name || asset.toolName)}</h3>
-                <p>${escapeHtml(asset.description || asset.hostname || '')}</p>
+                <h3 title="${escapeHtml(displayName)}">${escapeHtml(displayName)}</h3>
+                <p title="${escapeHtml(description)}">${escapeHtml(description)}</p>
             </div>
             <div class="service-meta">
                 <span class="badge text-bg-primary">${escapeHtml(asset.environment || 'DEV')}</span>
                 <span class="badge text-bg-info">${escapeHtml(formatAssetCategory(category))}</span>
                 <span class="badge ${asset.enabled ? 'text-bg-success' : 'text-bg-secondary'}">${asset.enabled ? '启用' : '停用'}</span>
-                <span class="badge text-bg-light">${escapeHtml(asset.toolName || '-')}</span>
-                <span class="badge text-bg-light">${escapeHtml(asset.hostname || '-')}:${escapeHtml(asset.port || 22)}</span>
+                <span class="badge text-bg-light" title="${escapeHtml(toolName)}">${escapeHtml(toolName)}</span>
+                <span class="badge text-bg-light" title="${escapeHtml(endpoint)}">${escapeHtml(endpoint)}</span>
             </div>
             <div class="btn-group btn-group-sm mt-3" role="group">
                 <button class="btn btn-outline-secondary" data-action="edit">编辑</button>
@@ -310,17 +314,20 @@ function renderSqlAssets() {
         const item = document.createElement('article');
         item.className = `service-card api-card ${asset.id === selectedSqlAssetId ? 'active' : ''}`;
         const category = classifySqlAsset(asset);
+        const displayName = asset.title || asset.name || asset.toolName || '';
+        const description = asset.description || asset.jdbcUrl || '';
+        const toolName = asset.toolName || '-';
         item.innerHTML = `
             <button class="btn btn-sm btn-outline-primary sql-metadata-refresh-button" type="button" data-action="refresh-metadata" title="刷新元数据" aria-label="刷新元数据">刷新</button>
             <div class="api-card-main">
-                <h3>${escapeHtml(asset.title || asset.name || asset.toolName)}</h3>
-                <p>${escapeHtml(asset.description || asset.jdbcUrl || '')}</p>
+                <h3 title="${escapeHtml(displayName)}">${escapeHtml(displayName)}</h3>
+                <p title="${escapeHtml(description)}">${escapeHtml(description)}</p>
             </div>
             <div class="service-meta">
                 <span class="badge text-bg-primary">${escapeHtml(asset.environment || 'DEV')}</span>
                 <span class="badge text-bg-info">${escapeHtml(formatAssetCategory(category))}</span>
                 <span class="badge ${asset.enabled ? 'text-bg-success' : 'text-bg-secondary'}">${asset.enabled ? '启用' : '停用'}</span>
-                <span class="badge text-bg-light">${escapeHtml(asset.toolName || '-')}</span>
+                <span class="badge text-bg-light" title="${escapeHtml(toolName)}">${escapeHtml(toolName)}</span>
                 <span class="badge text-bg-light">最大 ${escapeHtml(asset.defaultMaxRows || 1000)} 行</span>
             </div>
             <div class="btn-group btn-group-sm mt-3" role="group">
@@ -375,17 +382,20 @@ function renderHttpAssets() {
     for (const asset of visibleAssets) {
         const item = document.createElement('article');
         item.className = `service-card api-card ${asset.id === selectedHttpAssetId ? 'active' : ''}`;
+        const displayName = asset.title || asset.name || asset.toolName || '';
+        const description = asset.description || asset.urlTemplate || '';
+        const toolName = asset.toolName || '-';
         item.innerHTML = `
             <div class="api-card-main">
-                <h3>${escapeHtml(asset.title || asset.name || asset.toolName)}</h3>
-                <p>${escapeHtml(asset.description || asset.urlTemplate || '')}</p>
+                <h3 title="${escapeHtml(displayName)}">${escapeHtml(displayName)}</h3>
+                <p title="${escapeHtml(description)}">${escapeHtml(description)}</p>
             </div>
             <div class="service-meta">
                 <span class="badge text-bg-primary">${escapeHtml(asset.environment || 'DEV')}</span>
                 <span class="badge text-bg-info">${escapeHtml(formatHttpCategory(asset.category))}</span>
                 <span class="badge ${asset.enabled ? 'text-bg-success' : 'text-bg-secondary'}">${asset.enabled ? '启用' : '停用'}</span>
                 <span class="badge text-bg-light">${escapeHtml(asset.method || 'GET')}</span>
-                <span class="badge text-bg-light">${escapeHtml(asset.toolName || '-')}</span>
+                <span class="badge text-bg-light" title="${escapeHtml(toolName)}">${escapeHtml(toolName)}</span>
             </div>
             <div class="btn-group btn-group-sm mt-3" role="group">
                 <button class="btn btn-outline-secondary" data-action="edit">编辑</button>
@@ -503,7 +513,7 @@ function renderCommandTemplates() {
     updateCommandTemplatePager(totalPages, filteredTemplates.length);
     list.innerHTML = '';
     if (!filteredTemplates.length) {
-        list.innerHTML = '<div class="api-empty text-secondary small">No matching execution templates.</div>';
+        list.innerHTML = '<div class="api-empty text-secondary small">没有匹配的执行模板。</div>';
         return;
     }
     for (const template of visibleTemplates) {
@@ -522,16 +532,16 @@ function renderCommandTemplates() {
             <div class="service-meta">
                 <span class="badge text-bg-light">${escapeHtml(code)}</span>
                 <span class="badge text-bg-primary">${escapeHtml(template.scopeLabel)}</span>
-                <span class="badge ${template.enabled ? 'text-bg-success' : 'text-bg-secondary'}">${template.enabled ? 'Enabled' : 'Disabled'}</span>
+                <span class="badge ${template.enabled ? 'text-bg-success' : 'text-bg-secondary'}">${template.enabled ? '启用' : '停用'}</span>
                 <span class="badge ${template.riskLevel === 'LOW' ? 'text-bg-success' : 'text-bg-warning'}">${escapeHtml(template.riskLevel || 'LOW')}</span>
                 <span class="badge text-bg-info">${escapeHtml(formatCommandTemplateCategory(template.category))}</span>
                 ${template.scope === 'sql' ? `<span class="badge text-bg-light">${escapeHtml(template.databaseType || 'generic')}</span>` : ''}
-                ${template.scope === 'sql' && template.datasourceId ? '<span class="badge text-bg-secondary">bound asset</span>' : ''}
+                ${template.scope === 'sql' && template.datasourceId ? '<span class="badge text-bg-secondary">已绑定资产</span>' : ''}
                 ${signals.map(signal => `<span class="badge text-bg-light">${escapeHtml(signal)}</span>`).join('')}
             </div>
             <div class="btn-group btn-group-sm mt-3" role="group">
-                <button class="btn btn-outline-secondary" data-action="edit">Edit</button>
-                <button class="btn btn-outline-danger" data-action="delete">Delete</button>
+                <button class="btn btn-outline-secondary" data-action="edit">编辑</button>
+                <button class="btn btn-outline-danger" data-action="delete">删除</button>
             </div>
         `;
         item.querySelector('[data-action="edit"]').addEventListener('click', () => selectTemplateCatalogRow(template));
@@ -568,20 +578,20 @@ function templateCatalogRows() {
         ...commandTemplates.map(template => ({
             ...template,
             scope: 'ssh',
-            scopeLabel: 'SSH Command',
+            scopeLabel: 'SSH 命令',
             catalogId: `ssh:${template.id}`
         })),
         ...sqlTemplates.map(template => ({
             ...template,
             scope: 'sql',
-            scopeLabel: 'SQL Ops Query',
+            scopeLabel: 'SQL 运维查询',
             catalogId: `sql:${template.id}`,
             commandTemplate: template.sqlTemplate
         })),
         ...httpAssets.map(asset => ({
             ...asset,
             scope: 'http',
-            scopeLabel: 'HTTP Asset',
+            scopeLabel: 'HTTP 资产',
             catalogId: `http:${asset.id}`,
             code: asset.toolName || asset.name,
             riskLevel: String(asset.method || 'GET').toUpperCase() === 'GET' ? 'LOW' : 'MEDIUM',
@@ -766,6 +776,7 @@ function classifySqlAsset(asset) {
         asset.toolName,
         asset.title,
         asset.description,
+        asset.databaseType,
         asset.jdbcUrl,
         asset.driverClass
     ].map(value => String(value || '').toLowerCase()).join(' ');
@@ -773,6 +784,10 @@ function classifySqlAsset(asset) {
     if (text.includes('inceptor')) return 'inceptor';
     if (text.includes('jdbc:hive') || text.includes('hive')) return 'hive';
     if (text.includes('jdbc:dm') || text.includes('dm.jdbc') || text.includes('dameng')) return 'dm';
+    if (text.includes('tdsql')) return 'tdsql';
+    if (text.includes('tidb')) return 'tidb';
+    if (text.includes('kingbase')) return 'kingbase';
+    if (text.includes('oceanbase')) return 'oceanbase';
     if (text.includes('jdbc:mysql') || text.includes('mysql')) return 'mysql';
     if (text.includes('jdbc:oracle') || text.includes('oracle')) return 'oracle';
     if (text.includes('jdbc:postgresql') || text.includes('postgresql') || text.includes('postgres')) return 'postgresql';
@@ -783,6 +798,10 @@ function formatAssetCategory(category) {
     const names = {
         mysql: 'MySQL',
         dm: '达梦 DM',
+        tdsql: 'TDSQL',
+        tidb: 'TiDB',
+        kingbase: 'Kingbase',
+        oceanbase: 'OceanBase',
         hive: 'Hive',
         inceptor: 'Inceptor',
         goldendb: 'GoldenDB',
@@ -1332,7 +1351,7 @@ async function removeTemplateCatalogRow(template) {
         await removeHttpAsset(template);
         return;
     }
-    if (!window.confirm(`Delete command template ${template.code || template.title || ''}?`)) return;
+    if (!window.confirm(`确定删除执行模板 ${template.code || template.title || ''} 吗？`)) return;
     try {
         if (template.scope === 'sql') {
             await deleteSqlTemplate(template.id);
@@ -1343,7 +1362,7 @@ async function removeTemplateCatalogRow(template) {
             selectedCommandTemplateId = '';
             hideCommandTemplateModal();
         }
-        notify('Template updated', `${template.code || template.title} has been deleted or disabled.`);
+        notify('模板已更新', `${template.code || template.title} 已删除或停用。`);
         await loadAssets();
     } catch (error) {
         onError(error);
@@ -1467,18 +1486,24 @@ function indexSearchSummaryItem(row, index) {
     const asset = row.asset || {};
     const columns = Array.isArray(row.columns) ? row.columns : [];
     const title = firstNonBlank(
+        row.name,
+        row.title,
+        row.toolName,
         location.fullPath,
         [asset.name, location.database, location.table].filter(Boolean).join('.'),
         row.fullPath,
+        row.resultId,
         row.id,
         `result-${index + 1}`
     );
     const subtitle = firstNonBlank(
+        row.description,
         location.tableComment,
         row.tableComment,
+        row.category,
         location.databaseComment,
         row.databaseComment,
-        row.source
+        [row.assetType, row.dbType, row.source].filter(Boolean).join(' / ')
     );
     const columnPreview = columns.length
         ? `<div class="index-search-columns">${columns.slice(0, 8).map(column => `
@@ -1495,7 +1520,7 @@ function indexSearchSummaryItem(row, index) {
                 <span class="text-secondary">${escapeHtml(row.score ?? '')}</span>
             </div>
             <div class="text-secondary">${escapeHtml(subtitle || '')}</div>
-            <div class="text-secondary">source=${escapeHtml(row.source || '')} count=${escapeHtml(row.columnCount ?? columns.length ?? '')}</div>
+            <div class="text-secondary">source=${escapeHtml(row.source || '')} type=${escapeHtml(row.assetType || '')} count=${escapeHtml(row.columnCount ?? columns.length ?? '')}</div>
             ${columnPreview}
         </div>`;
 }
@@ -1545,13 +1570,13 @@ function readCommandTemplateForm() {
 }
 
 function fillCommandTemplateForm(template) {
-    const scopeLabel = editingTemplateScope === 'sql' ? 'SQL Ops Template' : 'SSH Command Template';
-    document.getElementById('commandTemplateFormTitle').textContent = template ? `Edit ${template.code || template.title}` : `New ${scopeLabel}`;
+    const scopeLabel = editingTemplateScope === 'sql' ? 'SQL 运维模板' : 'SSH 命令模板';
+    document.getElementById('commandTemplateFormTitle').textContent = template ? `编辑 ${template.code || template.title}` : `新增 ${scopeLabel}`;
     const bodyLabel = document.getElementById('commandTemplateBodyLabel');
     if (bodyLabel) {
         bodyLabel.textContent = editingTemplateScope === 'sql'
-            ? 'SQL ops query template'
-            : 'Internal command / JSON steps';
+            ? 'SQL 运维查询模板'
+            : '内部命令 / JSON 步骤';
     }
     setValue('commandTemplateId', template?.id || '');
     setValue('commandTemplateCode', template?.code || '');
@@ -1581,7 +1606,7 @@ function renderSqlTemplateDatasourceOptions(template) {
         return;
     }
     const selected = template?.datasourceId || '';
-    const options = ['<option value="">Any compatible datasource</option>'];
+    const options = ['<option value="">任意兼容数据源</option>'];
     for (const asset of sqlAssets) {
         const label = [
             asset.toolName || asset.name,
@@ -1691,13 +1716,13 @@ function renderSshCommandTemplateOptions() {
     sshAssetTemplatePage = clampPage(sshAssetTemplatePage, filteredTemplates.length, COMMAND_TEMPLATE_PAGE_SIZE);
     const visibleTemplates = paginate(filteredTemplates, sshAssetTemplatePage, COMMAND_TEMPLATE_PAGE_SIZE);
     if (!commandTemplates.length) {
-        container.innerHTML = '<div class="text-secondary small">No command templates loaded.</div>';
+        container.innerHTML = '<div class="text-secondary small">暂无可用命令模板。</div>';
         updateTemplateSelectionSummary('sshAssetTemplateSelectionSummary', 0, 0, 0);
         updateTemplatePickerPager('ssh', 0, 1);
         return;
     }
     if (!filteredTemplates.length) {
-        container.innerHTML = '<div class="text-secondary small">No matching command templates.</div>';
+        container.innerHTML = '<div class="text-secondary small">没有匹配的命令模板。</div>';
         updateTemplateSelectionSummary('sshAssetTemplateSelectionSummary', selected.size, 0, 0);
         updateTemplatePickerPager('ssh', 0, 1);
         return;
@@ -1752,11 +1777,11 @@ function templatePickerTable(rows) {
             <thead>
                 <tr>
                     <th class="template-picker-check"></th>
-                    <th>Code</th>
-                    <th>Name</th>
-                    <th>Category</th>
-                    <th>Meta</th>
-                    <th>Detail</th>
+                    <th>编号</th>
+                    <th>名称</th>
+                    <th>分类</th>
+                    <th>元信息</th>
+                    <th>详情</th>
                 </tr>
             </thead>
             <tbody>${rows}</tbody>
@@ -1895,13 +1920,13 @@ function renderSqlTemplateOptions() {
     sqlAssetTemplatePage = clampPage(sqlAssetTemplatePage, filteredTemplates.length, COMMAND_TEMPLATE_PAGE_SIZE);
     const visibleTemplates = paginate(filteredTemplates, sqlAssetTemplatePage, COMMAND_TEMPLATE_PAGE_SIZE);
     if (!sqlTemplates.length) {
-        container.innerHTML = '<div class="text-secondary small">No SQL templates loaded.</div>';
+        container.innerHTML = '<div class="text-secondary small">暂无可用 SQL 运维模板。</div>';
         updateTemplateSelectionSummary('sqlAssetTemplateSelectionSummary', 0, 0, 0);
         updateTemplatePickerPager('sql', 0, 1);
         return;
     }
     if (!filteredTemplates.length) {
-        container.innerHTML = '<div class="text-secondary small">No matching SQL templates.</div>';
+        container.innerHTML = '<div class="text-secondary small">没有匹配的 SQL 运维模板。</div>';
         updateTemplateSelectionSummary('sqlAssetTemplateSelectionSummary', selected.size, 0, 0);
         updateTemplatePickerPager('sql', 0, 1);
         return;
@@ -1913,7 +1938,7 @@ function renderSqlTemplateOptions() {
         const checked = selected.has(code) ? 'checked' : '';
         const disabled = template.enabled === false || !compatible ? 'disabled' : '';
         const type = template.databaseType || 'generic';
-        const bound = template.datasourceId ? 'bound asset' : 'any asset';
+        const bound = template.datasourceId ? '绑定资产' : '任意资产';
         return templatePickerRow({
             id,
             code,

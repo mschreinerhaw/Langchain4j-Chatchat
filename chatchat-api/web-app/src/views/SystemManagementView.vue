@@ -330,7 +330,7 @@
                 </option>
               </select>
             </label>
-            <button type="button" class="primary-button" :disabled="embedTokenSaving" @click="createEmbedToken">
+            <button type="button" class="ghost-button compact-button embed-token-generate-button" :disabled="embedTokenSaving" @click="createEmbedToken">
               <Link2 :size="16" />
               <span>生成 URL</span>
             </button>

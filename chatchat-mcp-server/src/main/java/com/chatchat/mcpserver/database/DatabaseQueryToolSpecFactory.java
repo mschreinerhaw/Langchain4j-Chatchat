@@ -200,6 +200,7 @@ public class DatabaseQueryToolSpecFactory {
         values.put("targetRoutingRequired", false);
         values.put("templateId", config.getToolName());
         values.put("intent", firstText(config.getTemplateIntent(), "general_query"));
+        values.put("businessGroup", businessGroupMeta(config));
         values.put("databaseType", firstText(config.getDatabaseType(), "generic"));
         values.put("tags", readJsonList(config.getTagsJson()));
         values.put("riskLevel", firstText(config.getRiskLevel(), "read_only"));
@@ -213,6 +214,14 @@ public class DatabaseQueryToolSpecFactory {
         values.put("routingLabels", readJsonList(config.getRoutingLabelsJson()));
         values.put("capabilities", readJsonList(config.getCapabilitiesJson()));
         return values;
+    }
+
+    private Map<String, Object> businessGroupMeta(DatabaseQueryConfig config) {
+        return Map.of(
+            "code", firstText(config.getBusinessGroup(), "default"),
+            "name", firstText(config.getBusinessGroupName(), firstText(config.getBusinessGroup(), "default")),
+            "description", firstText(config.getBusinessGroupDescription(), "")
+        );
     }
 
     private String firstText(String value, String fallback) {

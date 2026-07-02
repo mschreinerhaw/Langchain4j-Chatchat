@@ -40,7 +40,8 @@ public class QueryExpander {
         entry(List.of("集群", "cluster"), List.of("集群", "cluster")),
         entry(List.of("服务器清单", "server list", "server inventory", "host inventory"), List.of("服务器清单", "主机清单", "server list", "server inventory", "host inventory")),
         entry(List.of("软件部署", "software deployment", "deployment list"), List.of("软件部署", "部署清单", "software deployment", "deployment list")),
-        entry(List.of("推荐配置", "recommended configuration", "recommended config"), List.of("推荐配置", "recommended configuration", "recommended config"))
+        entry(List.of("推荐配置", "recommended configuration", "recommended config"), List.of("推荐配置", "recommended configuration", "recommended config")),
+        entry(List.of("sparksql", "spark sql", "spark-sql", "spark_sql"), List.of("sparksql", "spark sql", "spark-sql", "spark_sql", "spark", "sql"))
     );
 
     private final SearchTokenizer tokenizer;
@@ -102,6 +103,7 @@ public class QueryExpander {
         if (normalized.isBlank()) {
             return "";
         }
+        normalized = focusRetrievalQuery(normalized);
         Set<String> appended = new LinkedHashSet<>();
         String normalizedText = normalize(normalized);
         List<String> baseTokens = tokenizer.searchTokens(normalizedText);
@@ -126,6 +128,101 @@ public class QueryExpander {
         return normalized + " " + String.join(" ", appended);
     }
 
+    private String focusRetrievalQuery(String query) {
+        String value = query == null ? "" : query.trim();
+        if (value.isBlank() || !looksLikeRetrievalQuestion(value)) {
+            return value;
+        }
+        String focused = value
+            .replaceAll("(?i)\\b(do|does|did)\\s+(we|you)\\s+(have|keep|own)\\b", " ")
+            .replaceAll("(?i)\\b(is|are)\\s+there\\b", " ")
+            .replaceAll("(?i)\\b(can|could|please)\\s+(you\\s+)?(help\\s+)?(find|search|lookup|look\\s+up|retrieve|check)\\b", " ")
+            .replaceAll("(?i)\\b(find|search|lookup|look\\s+up|retrieve|check|show)\\b", " ")
+            .replaceAll("(?i)\\b(key\\s*words?|keyword)\\b\\s*[:：]?", " ")
+            .replaceAll("(?i)\\b(any|related|relevant)\\s+(documents?|docs?|files?|materials?|records?)\\b", " ")
+            .replaceAll("(?i)\\b(documents?|docs?|files?|materials?|records?|knowledge\\s*base|kb)\\b", " ")
+            .replaceAll("(?i)\\b(about|for|on|regarding|related\\s+to)\\b", " ");
+        focused = focused
+            .replace("内部知识库中", " ")
+            .replace("内部知识库", " ")
+            .replace("知识库中", " ")
+            .replace("知识库", " ")
+            .replace("以关键词", " ")
+            .replace("以关键字", " ")
+            .replace("关键词", " ")
+            .replace("关键字", " ")
+            .replace("进行检索", " ")
+            .replace("进行搜索", " ")
+            .replace("进行查找", " ")
+            .replace("我们有没有", " ")
+            .replace("你们有没有", " ")
+            .replace("有没有关于", " ")
+            .replace("是否有关于", " ")
+            .replace("是否存在关于", " ")
+            .replace("有无关于", " ")
+            .replace("有没有", " ")
+            .replace("是否有", " ")
+            .replace("是否存在", " ")
+            .replace("有无", " ")
+            .replace("请帮我查找", " ")
+            .replace("请帮我查询", " ")
+            .replace("请帮我检索", " ")
+            .replace("请帮我搜索", " ")
+            .replace("帮我查找", " ")
+            .replace("帮我查询", " ")
+            .replace("帮我检索", " ")
+            .replace("帮我搜索", " ")
+            .replace("帮我查", " ")
+            .replace("请查询", " ")
+            .replace("请检索", " ")
+            .replace("请搜索", " ")
+            .replace("查一下", " ")
+            .replace("查询一下", " ")
+            .replace("检索一下", " ")
+            .replace("搜索一下", " ")
+            .replace("检索", " ")
+            .replace("搜索", " ")
+            .replace("查找", " ");
+        focused = focused
+            .replaceAll("的(相关)?(文档|资料|文件|材料)", " ")
+            .replaceAll("(相关)?(文档|资料|文件|材料)$", " ")
+            .replaceAll("(知识库|资料库)$", " ")
+            .replaceAll("[?？!！。。，,;；:：]", " ")
+            .replaceAll("\\s+", " ")
+            .trim();
+        return focused.length() >= 2 ? focused : value;
+    }
+
+    private boolean looksLikeRetrievalQuestion(String value) {
+        String normalized = normalize(value);
+        if (normalized.isBlank()) {
+            return false;
+        }
+        return normalized.contains("有没有")
+            || normalized.contains("是否有")
+            || normalized.contains("是否存在")
+            || normalized.contains("有无")
+            || normalized.contains("查一下")
+            || normalized.contains("查询一下")
+            || normalized.contains("检索一下")
+            || normalized.contains("搜索一下")
+            || normalized.contains("请查询")
+            || normalized.contains("请检索")
+            || normalized.contains("请搜索")
+            || normalized.contains("关键词")
+            || normalized.contains("关键字")
+            || normalized.contains("知识库")
+            || normalized.contains("文档")
+            || normalized.contains("资料")
+            || normalized.contains("文件")
+            || normalized.matches(".*\\b(do|does|did)\\s+(we|you)\\s+(have|keep|own)\\b.*")
+            || normalized.matches(".*\\b(is|are)\\s+there\\b.*")
+            || normalized.matches(".*\\b(find|search|lookup|retrieve|check)\\b.*")
+            || normalized.matches(".*\\bkey\\s*words?\\b.*")
+            || normalized.matches(".*\\bkeyword\\b.*")
+            || normalized.matches(".*\\b(documents?|docs?|files?|materials?|records?|knowledge\\s*base|kb)\\b.*");
+    }
+
     private boolean intentMatches(String ruleIntent, String intentName) {
         if (ruleIntent == null || ruleIntent.isBlank()) {
             return true;
@@ -141,9 +238,22 @@ public class QueryExpander {
         if (!query.isBlank() && query.contains(source)) {
             return true;
         }
+        String compactSource = compactTechnicalTerm(source);
+        String compactQuery = compactTechnicalTerm(query);
+        if (compactSource.length() >= 4 && compactQuery.length() >= 4
+            && (compactQuery.contains(compactSource) || compactSource.contains(compactQuery))) {
+            return true;
+        }
         for (String token : tokens) {
             String normalizedToken = normalize(token);
             if (normalizedToken.equals(source) || normalizedToken.contains(source) || source.contains(normalizedToken)) {
+                return true;
+            }
+            String compactToken = compactTechnicalTerm(normalizedToken);
+            if (compactSource.length() >= 4 && compactToken.length() >= 4
+                && (compactToken.equals(compactSource)
+                || compactToken.contains(compactSource)
+                || compactSource.contains(compactToken))) {
                 return true;
             }
         }
@@ -226,6 +336,13 @@ public class QueryExpander {
 
     private String normalize(String value) {
         return value == null ? "" : value.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private String compactTechnicalTerm(String value) {
+        return value == null ? "" : value
+            .trim()
+            .toLowerCase(Locale.ROOT)
+            .replaceAll("[\\s_\\-./]+", "");
     }
 
     private static BilingualRetrievalEntry entry(List<String> triggers, List<String> expansions) {

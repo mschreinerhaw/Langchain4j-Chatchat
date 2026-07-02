@@ -468,7 +468,7 @@ public class SearchService {
             .filter(document -> matchesQuickFilter(document.getIndustries(), industryTerms))
             .toList();
         FrontendQuickCorpus corpus = frontendQuickCorpus(candidates);
-        List<SearchResult> allResults = candidates.stream()
+        List<SearchResult> quickCandidates = candidates.stream()
             .map(document -> toFrontendQuickResult(
                 document,
                 normalizedKeyword,
@@ -477,8 +477,10 @@ public class SearchService {
                 corpus,
                 titleMemoryScores
             ))
-            .filter(result -> !hasKeyword(keyword) || isFrontendQuickRelevant(result, significantTerms, recallMode))
             .sorted(resultComparator())
+            .toList();
+        List<SearchResult> allResults = quickCandidates.stream()
+            .filter(result -> !hasKeyword(keyword) || isFrontendQuickRelevant(result, significantTerms, recallMode))
             .toList();
 
         if (hasKeyword(keyword) && allResults.isEmpty()) {
@@ -508,6 +510,17 @@ public class SearchService {
             );
             if (fallbackPage.total() > 0) {
                 return fallbackPage;
+            }
+            allResults = quickCandidates.stream()
+                .filter(this::isFrontendQuickWeakRelevant)
+                .toList();
+            if (!allResults.isEmpty()) {
+                log.info(
+                    "frontend_search_relaxed_result query='{}' mode={} weakResults={} reason=strict_and_fallback_empty",
+                    safeLogQuery(normalizedKeyword),
+                    recallMode,
+                    allResults.size()
+                );
             }
         }
 
@@ -2324,6 +2337,30 @@ public class SearchService {
         return breakdown != null
             && breakdown.fieldScores() != null
             && breakdown.fieldScores().getOrDefault("memoryRecall", 0) > 0;
+    }
+
+    private boolean isFrontendQuickWeakRelevant(SearchResult result) {
+        if (result == null || result.score() <= 0 || result.scoreBreakdown() == null) {
+            return false;
+        }
+        SearchScoreBreakdown breakdown = result.scoreBreakdown();
+        if (breakdown.baseTokenScore() > 0
+            || breakdown.titleScore() > 0
+            || breakdown.keywordScore() > 0
+            || breakdown.tagScore() > 0
+            || breakdown.phraseScore() > 0) {
+            return true;
+        }
+        Map<String, Integer> fieldScores = breakdown.fieldScores();
+        if (fieldScores == null || fieldScores.isEmpty()) {
+            return false;
+        }
+        return fieldScores.getOrDefault("title", 0) > 0
+            || fieldScores.getOrDefault("fileName", 0) > 0
+            || fieldScores.getOrDefault("content", 0) > 0
+            || fieldScores.getOrDefault("keyword", 0) > 0
+            || fieldScores.getOrDefault("tag", 0) > 0
+            || fieldScores.getOrDefault("memoryRecall", 0) > 0;
     }
 
     private QueryRecallMode routeQueryRecall(String keyword, List<String> significantTerms) {

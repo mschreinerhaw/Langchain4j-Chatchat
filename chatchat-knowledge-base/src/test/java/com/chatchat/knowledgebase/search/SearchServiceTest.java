@@ -800,6 +800,148 @@ class SearchServiceTest {
     }
 
     @Test
+    void frontendQuickSearchFocusesDocumentQuestionBeforeRetrieval() {
+        SearchService service = newSearchService();
+        service.createOrUpdate(SearchDocument.builder()
+            .docId("doc-server-list-question")
+            .title("数据资产管理平台服务器清单-推荐配置及软件部署清单")
+            .content("节点物理配置信息，CPU 内存 OS盘大小 数据分区磁盘数量。")
+            .source("library")
+            .date("2026-06-11")
+            .build());
+
+        SearchPage page = service.frontendQuickSearch(
+            "我们有没有服务器清单的文档",
+            null,
+            null,
+            null,
+            null,
+            1,
+            10,
+            SearchPermissionContext.system()
+        );
+
+        assertThat(page.results()).extracting(SearchResult::docId)
+            .contains("doc-server-list-question");
+        assertThat(page.queryTokens())
+            .contains("服务器", "清单")
+            .doesNotContain("有没有", "文档");
+    }
+
+    @Test
+    void frontendQuickSearchKeepsEnglishListKeywordWhenFocusingDocumentQuestion() {
+        SearchService service = newSearchService();
+        service.createOrUpdate(SearchDocument.builder()
+            .docId("doc-server-list-english-question")
+            .title("数据资产管理平台服务器清单-推荐配置及软件部署清单")
+            .content("节点物理配置信息，CPU 内存 OS盘大小 数据分区磁盘数量。")
+            .source("library")
+            .date("2026-06-11")
+            .build());
+
+        SearchPage page = service.frontendQuickSearch(
+            "do we have server list documents",
+            null,
+            null,
+            null,
+            null,
+            1,
+            10,
+            SearchPermissionContext.system()
+        );
+
+        assertThat(page.results()).extracting(SearchResult::docId)
+            .contains("doc-server-list-english-question");
+        assertThat(page.queryTokens())
+            .contains("server", "list", "服务器", "清单")
+            .doesNotContain("documents");
+    }
+
+    @Test
+    void frontendQuickSearchFocusesKeywordSearchWrapperAndExpandsTechnicalAlias() {
+        SearchService service = newSearchService();
+        service.createOrUpdate(SearchDocument.builder()
+            .docId("doc-spark-sql-keyword")
+            .title("Spark SQL Performance Guide")
+            .content("Spark SQL tuning uses partition pruning, broadcast joins and adaptive execution.")
+            .source("docs")
+            .date("2024-06-10")
+            .tags(List.of("spark", "sql"))
+            .build());
+
+        SearchPage page = service.frontendQuickSearch(
+            "在内部知识库中以关键词 SPARKSQL 进行检索",
+            null,
+            null,
+            null,
+            null,
+            1,
+            10,
+            SearchPermissionContext.system()
+        );
+
+        assertThat(page.results()).extracting(SearchResult::docId)
+            .contains("doc-spark-sql-keyword");
+        assertThat(page.queryTokens())
+            .contains("sparksql", "spark", "sql")
+            .doesNotContain("关键词", "检索", "知识库");
+    }
+
+    @Test
+    void frontendQuickSearchMatchesSimilarMixedTitleWithoutExactFullMatch() {
+        SearchService service = newSearchService();
+        service.createOrUpdate(SearchDocument.builder()
+            .docId("doc-calcite-practice")
+            .title("Apache Calcite 数据管理实战指南")
+            .content("Calcite 在数据管理、SQL 优化和查询规划中的实践说明。")
+            .source("docs")
+            .date("2026-07-02")
+            .tags(List.of("calcite", "sql"))
+            .build());
+
+        SearchPage page = service.frontendQuickSearch(
+            "Calcite数据管理实战",
+            null,
+            null,
+            null,
+            null,
+            1,
+            10,
+            SearchPermissionContext.system()
+        );
+
+        assertThat(page.results()).extracting(SearchResult::docId)
+            .contains("doc-calcite-practice");
+    }
+
+    @Test
+    void frontendQuickSearchReturnsWeakCandidateInsteadOfEmptyWhenOnlyPartialSignalMatches() {
+        SearchService service = newSearchService(properties -> properties.setLuceneEnabled(false));
+        service.createOrUpdate(SearchDocument.builder()
+            .docId("doc-calcite-weak")
+            .title("Apache Calcite Adapter Notes")
+            .content("Calcite parser and optimizer extension guide.")
+            .source("docs")
+            .date("2026-07-02")
+            .tags(List.of("calcite"))
+            .build());
+
+        SearchPage page = service.frontendQuickSearch(
+            "Calcite数据管理实战",
+            null,
+            null,
+            null,
+            null,
+            1,
+            10,
+            SearchPermissionContext.system()
+        );
+
+        assertThat(page.results()).extracting(SearchResult::docId)
+            .contains("doc-calcite-weak");
+    }
+
+    @Test
     void fallbackCandidateScanIsBoundedWhenKeywordIndexMisses() {
         SearchService service = newSearchService(properties -> {
             properties.setLuceneEnabled(false);

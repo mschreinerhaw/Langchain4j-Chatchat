@@ -1,7 +1,6 @@
 package com.chatchat.mcpserver.notification;
 
 import com.chatchat.agents.protocol.ModelProtocolJson;
-
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -23,7 +22,9 @@ public class NotificationChannelConfigService {
     public List<NotificationChannelConfig> listAll() {
         ensureDefaults();
         return repository.findAll().stream()
-            .sorted(Comparator.comparing(config -> config.getChannel().ordinal()))
+            .sorted(Comparator
+                .comparing((NotificationChannelConfig config) -> config.getChannel().ordinal())
+                .thenComparing(NotificationChannelConfig::getToolName))
             .toList();
     }
 
@@ -36,9 +37,7 @@ public class NotificationChannelConfigService {
     @Transactional
     public NotificationChannelConfig create(NotificationChannelConfig config) {
         normalize(config);
-        if (repository.findByChannel(config.getChannel()).isPresent()) {
-            throw new IllegalArgumentException("Notification channel already exists: " + config.getChannel());
-        }
+        requireUniqueToolName(config.getToolName(), null);
         return repository.save(config);
     }
 
@@ -77,6 +76,7 @@ public class NotificationChannelConfigService {
         existing.setTimeoutMs(config.getTimeoutMs());
         existing.setMaxRetries(config.getMaxRetries());
         normalize(existing);
+        requireUniqueToolName(existing.getToolName(), existing.getId());
         return repository.save(existing);
     }
 
@@ -102,7 +102,7 @@ public class NotificationChannelConfigService {
     @Transactional
     public void ensureDefaults() {
         for (NotificationChannel channel : NotificationChannel.values()) {
-            if (repository.findByChannel(channel).isEmpty()) {
+            if (!repository.existsByToolName(toolName(channel))) {
                 repository.save(defaultConfig(channel));
             }
         }
@@ -173,6 +173,15 @@ public class NotificationChannelConfigService {
             throw new IllegalArgumentException("Tool name only supports letters, numbers, underscore and dash");
         }
         return normalized;
+    }
+
+    private void requireUniqueToolName(String toolName, String currentId) {
+        boolean exists = currentId == null || currentId.isBlank()
+            ? repository.existsByToolName(toolName)
+            : repository.existsByToolNameAndIdNot(toolName, currentId);
+        if (exists) {
+            throw new IllegalArgumentException("Notification MCP tool name already exists: " + toolName);
+        }
     }
 
     private String requireText(String value, String message) {

@@ -34,6 +34,13 @@ public class NotificationAdminController {
         return ApiResponse.success(configService.listAll().stream().map(this::toView).toList());
     }
 
+    @PostMapping
+    public ApiResponse<NotificationChannelView> create(@RequestBody NotificationChannelUpsertRequest request) {
+        NotificationChannelConfig saved = configService.create(fromRequest(request));
+        publisher.refresh();
+        return ApiResponse.success(toView(saved), "Notification channel created");
+    }
+
     @PutMapping("/{id}")
     public ApiResponse<NotificationChannelView> update(@PathVariable("id") String id,
                                                        @RequestBody NotificationChannelUpsertRequest request) {

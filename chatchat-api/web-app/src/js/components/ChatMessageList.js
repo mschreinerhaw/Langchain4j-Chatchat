@@ -227,11 +227,35 @@ export default {
       const prepared = this.prepareMarkdownContent(String(content ?? ""), message);
       const uiContract = this.uiRenderContract(message, prepared.content);
       if (uiContract) {
-        return this.renderUiRenderContract(uiContract, new Set(prepared.citationUrls));
+        return this.collapseToolEvidenceHtml(this.renderUiRenderContract(uiContract, new Set(prepared.citationUrls)));
       }
-      return markdown.render(prepared.content, {
+      return this.collapseToolEvidenceHtml(markdown.render(prepared.content, {
         webCitationUrls: new Set(prepared.citationUrls)
-      });
+      }));
+    },
+    collapseToolEvidenceHtml(html = "") {
+      const source = String(html || "");
+      const headingMatch = /<h2>\s*工具执行证据\s*<\/h2>/i.exec(source);
+      if (!headingMatch) {
+        return source;
+      }
+      const before = source.slice(0, headingMatch.index);
+      const bodyStart = headingMatch.index + headingMatch[0].length;
+      const rest = source.slice(bodyStart);
+      const nextHeadingIndex = rest.search(/<h[12](?:\s[^>]*)?>/i);
+      const body = (nextHeadingIndex >= 0 ? rest.slice(0, nextHeadingIndex) : rest).trim();
+      const after = nextHeadingIndex >= 0 ? rest.slice(nextHeadingIndex) : "";
+      if (!body) {
+        return source;
+      }
+      return [
+        before,
+        '<details class="tool-evidence-details">',
+        '<summary><span>工具执行证据</span><small>点击展开</small></summary>',
+        `<div class="tool-evidence-body">${body}</div>`,
+        '</details>',
+        after
+      ].join("");
     },
     extractUiResponse(message = {}) {
       const candidates = [

@@ -152,7 +152,7 @@ public class AgentRuntimeController {
             valueOrDefault(afterCreatedAt, 0L),
             valueOrDefault(limit, 100),
             valueOrDefault(pollIntervalMs, 1_000L),
-            valueOrDefault(timeoutMs, 300_000L)
+            valueOrDefault(timeoutMs, 0L)
         );
     }
 

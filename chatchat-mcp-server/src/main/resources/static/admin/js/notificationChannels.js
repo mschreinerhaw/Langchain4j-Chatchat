@@ -8,6 +8,12 @@ export function listNotificationChannels() {
 }
 
 export function saveNotificationChannel(channel) {
+    if (!channel.id) {
+        return apiFetch(BASE_URL, {
+            method: 'POST',
+            body: JSON.stringify(toPayload(channel))
+        });
+    }
     return apiFetch(`${BASE_URL}/${encodeURIComponent(channel.id)}`, {
         method: 'PUT',
         body: JSON.stringify(toPayload(channel))

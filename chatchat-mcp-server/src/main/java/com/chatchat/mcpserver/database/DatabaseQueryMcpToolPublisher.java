@@ -34,16 +34,13 @@ public class DatabaseQueryMcpToolPublisher {
         managedToolNames.clear();
 
         for (DatabaseQueryConfig config : configService.listEnabled()) {
-            try {
-                mcpSyncServer.addTool(toolSpecFactory.toToolSpecification(config));
-                managedToolNames.add(config.getToolName());
-            } catch (Exception ex) {
-                log.warn("Skip database query MCP tool {}: {}", config.getToolName(), ex.getMessage());
+            if (config != null && config.getToolName() != null && !config.getToolName().isBlank()) {
+                remove(config.getToolName());
             }
         }
 
         mcpSyncServer.notifyToolsListChanged();
-        log.info("Database query MCP business tools refreshed, registered {}", managedToolNames.size());
+        log.info("Database query per-template MCP publishing disabled; use business_query_template_search + sql_query_execute");
     }
 
     private void remove(String toolName) {

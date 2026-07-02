@@ -18,6 +18,8 @@ import static org.mockito.Mockito.when;
 
 class AgentRuntimeTaskEventPublisherTest {
 
+    private final ObjectMapper objectMapper = new ObjectMapper();
+
     @Test
     void bridgesRuntimeStepToTaskEventStore() {
         AgentTaskLatestRepository latestRepository = mock(AgentTaskLatestRepository.class);
@@ -27,7 +29,7 @@ class AgentRuntimeTaskEventPublisherTest {
             latestRepository,
             eventStore,
             eventBus,
-            new ObjectMapper()
+            objectMapper
         );
         AgentTaskLatestEntity task = task("task-runtime-001");
         when(latestRepository.findById(task.getTaskId())).thenReturn(Optional.of(task));
@@ -75,7 +77,7 @@ class AgentRuntimeTaskEventPublisherTest {
             latestRepository,
             eventStore,
             mock(AgentEventBus.class),
-            new ObjectMapper()
+            objectMapper
         );
         when(latestRepository.findById("standalone-run")).thenReturn(Optional.empty());
 
@@ -87,6 +89,48 @@ class AgentRuntimeTaskEventPublisherTest {
         ));
 
         verifyNoInteractions(eventStore);
+    }
+
+    @Test
+    void bridgesRuntimeFailedEventToFailedTaskEvent() throws Exception {
+        AgentTaskLatestRepository latestRepository = mock(AgentTaskLatestRepository.class);
+        InMemoryAgentEventStore eventStore = new InMemoryAgentEventStore();
+        AgentEventBus eventBus = mock(AgentEventBus.class);
+        AgentRuntimeTaskEventPublisher publisher = new AgentRuntimeTaskEventPublisher(
+            latestRepository,
+            eventStore,
+            eventBus,
+            objectMapper
+        );
+        AgentTaskLatestEntity task = task("task-runtime-failed-001");
+        when(latestRepository.findById(task.getTaskId())).thenReturn(Optional.of(task));
+
+        publisher.publish(AgentRunEvent.of(
+            task.getTaskId(),
+            AgentRunEventType.RUN_FAILED,
+            "Agent run failed",
+            Map.of(
+                "errorCode", "PLAN_INVALID_REQUIRED_TOOL_NOT_EXECUTED",
+                "errorMessage", "mandatory workflow incomplete",
+                "answer", "必需工具 sql_query_execute 未执行完成，无法生成最终分析。"
+            )
+        ));
+
+        List<AgentEvent> events = eventStore.listByTask(task.getTenantId(), task.getSessionId(), task.getTaskId(), 10);
+        assertThat(events).hasSize(1);
+        AgentEvent failedEvent = events.get(0);
+        assertThat(failedEvent.getType()).isEqualTo("RUNTIME_FAILED");
+        assertThat(failedEvent.getStatus()).isEqualTo("FAILED");
+        assertThat(failedEvent.getErrorCode()).isEqualTo("PLAN_INVALID_REQUIRED_TOOL_NOT_EXECUTED");
+        Map<String, Object> payload = objectMapper.readValue(failedEvent.getPayload(), Map.class);
+        assertThat(payload)
+            .containsEntry("status", "FAILED")
+            .containsEntry("answer", "必需工具 sql_query_execute 未执行完成，无法生成最终分析。");
+        assertThat(payload.get("message")).isEqualTo("必需工具 sql_query_execute 未执行完成，无法生成最终分析。");
+        assertThat(payload.get("uiResponse")).asInstanceOf(org.assertj.core.api.InstanceOfAssertFactories.MAP)
+            .containsEntry("answer", "必需工具 sql_query_execute 未执行完成，无法生成最终分析。")
+            .containsEntry("status", "FAILED");
+        verify(eventBus).publishResult(failedEvent);
     }
 
     private AgentTaskLatestEntity task(String taskId) {

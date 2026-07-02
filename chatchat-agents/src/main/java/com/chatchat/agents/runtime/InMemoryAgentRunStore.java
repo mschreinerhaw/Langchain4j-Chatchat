@@ -143,15 +143,11 @@ public class InMemoryAgentRunStore implements AgentRunStore, InterpretationPlanS
                 events.add(observationRecorded);
                 publishEvent(observationRecorded);
             }
-            AgentRunStatus status = result != null && result.confirmationRequired()
-                ? AgentRunStatus.WAITING_CONFIRMATION
-                : AgentRunStatus.COMPLETED;
+            AgentRunStatus status = completionStatus(result);
             AgentRunEvent finished = AgentRunEvent.of(key,
-                status == AgentRunStatus.WAITING_CONFIRMATION
-                    ? AgentRunEventType.CONFIRMATION_REQUIRED
-                    : AgentRunEventType.RUN_COMPLETED,
-                status == AgentRunStatus.WAITING_CONFIRMATION ? "Agent run is waiting for confirmation" : "Agent run completed",
-                Map.of("stopReason", result == null ? "" : firstText(result.stopReason(), "")));
+                completionEventType(status),
+                completionMessage(status),
+                completionPayload(result, status));
             events.add(finished);
             publishEvent(finished);
             return AgentRun.builder()
@@ -169,6 +165,71 @@ public class InMemoryAgentRunStore implements AgentRunStore, InterpretationPlanS
         });
         pruneRuns();
         return run;
+    }
+
+    private AgentRunStatus completionStatus(AgentRunResult result) {
+        if (result != null && result.confirmationRequired()) {
+            return AgentRunStatus.WAITING_CONFIRMATION;
+        }
+        AgentRunStatus status = result == null ? null : result.status();
+        if (status == AgentRunStatus.FAILED || status == AgentRunStatus.CANCELLED) {
+            return status;
+        }
+        return AgentRunStatus.COMPLETED;
+    }
+
+    private AgentRunEventType completionEventType(AgentRunStatus status) {
+        if (status == AgentRunStatus.WAITING_CONFIRMATION) {
+            return AgentRunEventType.CONFIRMATION_REQUIRED;
+        }
+        if (status == AgentRunStatus.FAILED) {
+            return AgentRunEventType.RUN_FAILED;
+        }
+        if (status == AgentRunStatus.CANCELLED) {
+            return AgentRunEventType.RUN_CANCELLED;
+        }
+        return AgentRunEventType.RUN_COMPLETED;
+    }
+
+    private String completionMessage(AgentRunStatus status) {
+        if (status == AgentRunStatus.WAITING_CONFIRMATION) {
+            return "Agent run is waiting for confirmation";
+        }
+        if (status == AgentRunStatus.FAILED) {
+            return "Agent run failed";
+        }
+        if (status == AgentRunStatus.CANCELLED) {
+            return "Agent run cancelled";
+        }
+        return "Agent run completed";
+    }
+
+    private Map<String, Object> completionPayload(AgentRunResult result, AgentRunStatus status) {
+        Map<String, Object> payload = new LinkedHashMap<>();
+        payload.put("stopReason", result == null ? "" : firstText(result.stopReason(), ""));
+        payload.put("status", status == null ? null : status.name());
+        if (result != null && result.answer() != null && !result.answer().isBlank()) {
+            payload.put("answer", result.answer());
+        }
+        if (result != null && result.errorMessage() != null && !result.errorMessage().isBlank()) {
+            payload.put("errorMessage", result.errorMessage());
+        }
+        if (result != null && result.observations() != null && !result.observations().isEmpty()) {
+            payload.put("observations", result.observations().stream()
+                .map(AgentObservation::content)
+                .filter(content -> content != null && !content.isBlank())
+                .toList());
+        }
+        if (result != null && result.toolTraces() != null && !result.toolTraces().isEmpty()) {
+            payload.put("toolTraceCount", result.toolTraces().size());
+        }
+        if (result != null && result.metadata() != null) {
+            Object errorCode = result.metadata().get("errorCode");
+            if (errorCode != null) {
+                payload.put("errorCode", String.valueOf(errorCode));
+            }
+        }
+        return payload;
     }
 
     @Override

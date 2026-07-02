@@ -1139,54 +1139,79 @@ function mergeExecutionSteps(previousSteps = [], events = []) {
 
 function normalizeResponsePayload(response = {}) {
   const payload = response?.data && typeof response.data === "object" ? response.data : response;
+  const runtimePayload = firstObject(
+    payload?.payload,
+    payload?.metadata?.payload,
+    payload?.executionResult,
+    payload?.metadata?.executionResult
+  );
   const uiResponse = firstObject(
     payload?.uiResponse,
+    runtimePayload?.uiResponse,
     payload?.metadata?.uiResponse,
     payload?.executionResult?.uiResponse,
-    payload?.metadata?.executionResult?.uiResponse
+    payload?.metadata?.executionResult?.uiResponse,
+    runtimePayload?.executionResult?.uiResponse
   );
   const visualizationSpec = firstVisualizationSpec(
     uiResponse?.visualizationSpec,
     payload?.visualizationSpec,
+    runtimePayload?.visualizationSpec,
+    runtimePayload?.dataVisualization,
     payload?.dataVisualization,
     payload?.metadata?.visualizationSpec,
     payload?.metadata?.dataVisualization,
     payload?.metadata?.agent?.visualizationSpec,
-    payload?.metadata?.executionResult?.visualizationSpec
+    payload?.metadata?.executionResult?.visualizationSpec,
+    runtimePayload?.metadata?.visualizationSpec,
+    runtimePayload?.metadata?.agent?.visualizationSpec
   );
   return {
     ...payload,
-    answer: uiResponse?.answer || payload?.answer || "",
-    confidence: uiResponse?.confidence ?? payload?.confidence ?? null,
-    evidenceSummary: uiResponse?.evidenceSummary || payload?.evidenceSummary || "",
+    answer: uiResponse?.answer || payload?.answer || runtimePayload?.answer || runtimePayload?.message || "",
+    confidence: uiResponse?.confidence ?? payload?.confidence ?? runtimePayload?.confidence ?? null,
+    evidenceSummary: uiResponse?.evidenceSummary || payload?.evidenceSummary || runtimePayload?.evidenceSummary || "",
     evidencePremises: firstArray(
       uiResponse?.evidencePremises,
       payload?.evidencePremises,
-      payload?.metadata?.evidencePremises
+      runtimePayload?.evidencePremises,
+      payload?.metadata?.evidencePremises,
+      runtimePayload?.metadata?.evidencePremises
     ),
     citations: firstArray(
       uiResponse?.citations,
       payload?.citations,
-      payload?.references
+      runtimePayload?.citations,
+      payload?.references,
+      runtimePayload?.references
     ),
     uiResponse,
-    debug: firstObject(payload?.debug, payload?.metadata?.debug, payload?.executionResult?.debug),
+    debug: firstObject(payload?.debug, runtimePayload?.debug, payload?.metadata?.debug, payload?.executionResult?.debug),
     visualizationSpec,
     sources: firstArray(
       payload?.sources,
+      runtimePayload?.sources,
       payload?.references,
+      runtimePayload?.references,
       uiResponse?.citations,
       payload?.citations,
-      payload?.metadata?.sources
+      runtimePayload?.citations,
+      payload?.metadata?.sources,
+      runtimePayload?.metadata?.sources
     ),
     toolTraces: firstArray(
       payload?.toolTraces,
+      runtimePayload?.toolTraces,
       payload?.traces,
+      runtimePayload?.traces,
       payload?.tool_traces,
+      runtimePayload?.tool_traces,
       payload?.metadata?.toolTraces,
       payload?.metadata?.traces,
       payload?.metadata?.agent?.toolTraces,
-      payload?.metadata?.agent?.traces
+      payload?.metadata?.agent?.traces,
+      runtimePayload?.metadata?.toolTraces,
+      runtimePayload?.metadata?.agent?.toolTraces
     )
   };
 }
@@ -1860,14 +1885,29 @@ export default {
       }
 
       if (eventType === "ERROR" || eventStatus === "FAILED") {
-        const message = eventPayload.message || "Agent task failed";
+        const response = eventPayload || {};
+        const normalizedResponse = normalizeResponsePayload(eventPayload || {});
+        const displayAnswer = normalizedResponse.answer || eventPayload.answer || "";
+        const message = displayAnswer || eventPayload.message || "Agent task failed";
+        this.applyResponseMetadata(response, runContext);
         assistantMessage.content = message;
         await refreshSteps();
         assistantMessage.streaming = false;
-        assistantMessage.status = "failed";
+        assistantMessage.status = displayAnswer ? "partial" : "failed";
+        assistantMessage.timestamp = response.timestamp || event?.createTime || Date.now();
+        assistantMessage.latencyMs = response.latencyMs || event?.latencyMs;
+        assistantMessage.sources = runContext.lastResponse.sources;
+        assistantMessage.traces = runContext.lastResponse.toolTraces;
+        assistantMessage.visualizationSpec = runContext.lastResponse.visualizationSpec;
+        assistantMessage.uiResponse = runContext.lastResponse.uiResponse;
+        assistantMessage.evidencePremises = runContext.lastResponse.evidencePremises;
         if (this.isActiveRun(runContext)) {
           this.messages = runContext.messages;
           this.scrollMessages();
+        }
+        if (displayAnswer) {
+          this.emitActiveConversationSnapshot(query, "partial", runContext);
+          return { partial: true };
         }
         throw new Error(message);
       }
@@ -2943,9 +2983,10 @@ export default {
         assistantMessage.status = "cancelled";
         finalStatus = "cancelled";
       } else if (eventType === "ERROR" || eventStatus === "FAILED") {
-        assistantMessage.content = response.message || "Agent task failed";
-        assistantMessage.status = "failed";
-        finalStatus = "failed";
+        this.applyResponseMetadata(response, runContext);
+        assistantMessage.content = normalizedResponse.answer || response.answer || response.message || "Agent task failed";
+        assistantMessage.status = normalizedResponse.answer ? "partial" : "failed";
+        finalStatus = normalizedResponse.answer ? "partial" : "failed";
       } else if (eventType === "RESULT" || eventStatus === "PARTIAL" || eventStatus === "EMPTY") {
         const resultStatus = eventStatus === "EMPTY" ? "empty" : "partial";
         this.applyResponseMetadata(response, runContext);

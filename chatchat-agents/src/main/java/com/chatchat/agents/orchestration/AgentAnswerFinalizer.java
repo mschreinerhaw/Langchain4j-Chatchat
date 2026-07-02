@@ -8,6 +8,7 @@ import com.chatchat.agents.protocol.ModelProtocolJson;
 import com.chatchat.agents.runtime.AgentAnswerReview;
 import com.chatchat.agents.runtime.AgentAnswerReviewer;
 import com.chatchat.common.interaction.InteractionToolTrace;
+import com.chatchat.common.config.ModelsConfig;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.langchain4j.model.chat.ChatModel;
@@ -19,6 +20,14 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
+import java.util.concurrent.CancellationException;
 import java.util.function.BooleanSupplier;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -33,7 +42,14 @@ class AgentAnswerFinalizer {
     private static final String UNIFIED_EVIDENCE_CONTRACT = "evidence_v1";
     private static final String EVIDENCE_ANSWER_CONTRACT = "evidence_answer_v1";
     private static final String EXECUTION_CONTRACT = "evidence_execution_contract_v2_2";
+    private static final String ANSWER_EVIDENCE_DISCLOSURE_CONTRACT = "answer_evidence_disclosure_v1";
+    private static final String ANSWER_EVIDENCE_GROUNDED = "GROUNDED_ANALYSIS";
+    private static final String ANSWER_EVIDENCE_INSUFFICIENT = "EVIDENCE_INSUFFICIENT";
+    private static final String ANSWER_EVIDENCE_BLOCKED = "EXECUTION_BLOCKED";
     private static final String INSUFFICIENT_EVIDENCE_ANSWER = "根据当前文档证据不足，无法确认。";
+    private static final int TOOL_DATA_MARKDOWN_ROW_LIMIT = 20;
+    private static final int TOOL_DATA_VISUALIZATION_ROW_LIMIT = 200;
+    private static final int TOOL_EVIDENCE_PREVIEW_LIMIT = 1600;
     private static final Pattern DOCUMENT_REF_PATTERN =
         Pattern.compile("doc://([^\\s\"',;\\]\\)}]+)#chunk=([^\\s\"',;\\]\\)}]+)");
     private static final Pattern WEB_REF_PATTERN =
@@ -41,6 +57,7 @@ class AgentAnswerFinalizer {
 
     private final AgentAnswerReviewer answerReviewer;
     private final AgentRuntimeGuard runtimeGuard;
+    private final long modelRequestTimeoutMs;
     private final EvidenceAnswerGroundingGuard groundingGuard = new EvidenceAnswerGroundingGuard();
     private final AnswerAssemblyEngine answerAssemblyEngine = new AnswerAssemblyEngine();
     private final AnswerDecisionEngine answerDecisionEngine = new AnswerDecisionEngine();
@@ -48,8 +65,15 @@ class AgentAnswerFinalizer {
     private final AnswerQualityEvaluator answerQualityEvaluator = new AnswerQualityEvaluator(objectMapper);
 
     AgentAnswerFinalizer(AgentAnswerReviewer answerReviewer, AgentRuntimeGuard runtimeGuard) {
+        this(answerReviewer, runtimeGuard, null);
+    }
+
+    AgentAnswerFinalizer(AgentAnswerReviewer answerReviewer,
+                         AgentRuntimeGuard runtimeGuard,
+                         ModelsConfig modelsConfig) {
         this.answerReviewer = answerReviewer;
         this.runtimeGuard = runtimeGuard;
+        this.modelRequestTimeoutMs = modelRequestTimeoutMs(modelsConfig);
     }
 
     AgentOrchestrator.AgentExecutionResult finishExecution(String answer,
@@ -91,10 +115,39 @@ class AgentAnswerFinalizer {
             values.put("finalAnswerPreview", shortText(mergedAnswer, 1000));
         }
         String finalAnswer = sanitizeFinalMarkdown(mergedAnswer);
+        Map<String, Object> visualizationSpec = toolResultVisualizationSpec(traces);
+        if (!visualizationSpec.isEmpty()) {
+            values.putIfAbsent("visualizationSpec", visualizationSpec);
+            values.putIfAbsent("dataVisualization", visualizationSpec);
+            values.put("toolResultDataDisplayed", true);
+            values.put("toolResultDataDisplaySource", visualizationSpec.get("sourceTool"));
+            String answerWithTable = appendToolResultTable(finalAnswer, visualizationSpec);
+            if (!answerWithTable.equals(finalAnswer)) {
+                finalAnswer = answerWithTable;
+                values.put("toolResultDataMarkdownAppended", true);
+                values.put("finalAnswerPreview", shortText(finalAnswer, 1000));
+            }
+        }
+        List<Map<String, Object>> toolEvidence = toolResultEvidence(traces);
+        if (!toolEvidence.isEmpty()) {
+            values.put("toolResultEvidence", toolEvidence);
+            values.put("toolResultEvidenceCount", toolEvidence.size());
+            String answerWithEvidence = appendToolEvidence(finalAnswer, toolEvidence);
+            if (!answerWithEvidence.equals(finalAnswer)) {
+                finalAnswer = answerWithEvidence;
+                values.put("toolResultEvidenceMarkdownAppended", true);
+                values.put("finalAnswerPreview", shortText(finalAnswer, 1000));
+            }
+        }
         if (!finalAnswer.equals(mergedAnswer)) {
             values.put("finalAnswerSanitized", true);
             values.put("finalAnswerPreview", shortText(finalAnswer, 1000));
         }
+        AnswerEvidenceDisclosure disclosure = answerEvidenceDisclosure(values, observations, toolEvidence, traces);
+        String answerWithEvidenceDisclosure = prependAnswerEvidenceDisclosure(finalAnswer, disclosure);
+        recordAnswerEvidenceDisclosure(values, disclosure, !answerWithEvidenceDisclosure.equals(finalAnswer));
+        finalAnswer = answerWithEvidenceDisclosure;
+        values.put("finalAnswerPreview", shortText(finalAnswer, 1000));
         logAnswerDecision(decision, values);
         values.put("runtimeContractVersion", "agent_runtime_v1");
         values.put("observations", observations == null ? List.of() : List.copyOf(observations));
@@ -134,9 +187,9 @@ class AgentAnswerFinalizer {
                                                                  BooleanSupplier cancellationCheck) {
         runtimeGuard.checkCancelled(cancellationCheck);
         String finalAnswer = summarizeWithObservations(activeChatModel, query, systemPrompt, observations, metadata);
-        runtimeGuard.checkCancelled(cancellationCheck);
+        recordCancellationAfterAnswer(cancellationCheck, metadata, "after_summary");
         AgentAnswerReview review = reviewAnswer(activeChatModel, query, systemPrompt, observations, finalAnswer, metadata);
-        runtimeGuard.checkCancelled(cancellationCheck);
+        recordCancellationAfterAnswer(cancellationCheck, metadata, "after_review");
         recordAnswerReview(metadata, review);
         metadata.put("stopReason", "tool_budget_exceeded");
         AnswerDecisionEngine.EvidenceSignal signal = evidenceSignal(finalAnswer, observations, metadata);
@@ -162,9 +215,9 @@ class AgentAnswerFinalizer {
                                                                  String stopReason) {
         runtimeGuard.checkCancelled(cancellationCheck);
         String finalAnswer = summarizeWithObservations(activeChatModel, query, systemPrompt, observations, metadata);
-        runtimeGuard.checkCancelled(cancellationCheck);
+        recordCancellationAfterAnswer(cancellationCheck, metadata, "after_summary");
         AgentAnswerReview review = reviewAnswer(activeChatModel, query, systemPrompt, observations, finalAnswer, metadata);
-        runtimeGuard.checkCancelled(cancellationCheck);
+        recordCancellationAfterAnswer(cancellationCheck, metadata, "after_review");
         recordAnswerReview(metadata, review);
         metadata.put("stopReason", stopReason);
         AnswerDecisionEngine.EvidenceSignal signal = evidenceSignal(finalAnswer, observations, metadata);
@@ -190,9 +243,9 @@ class AgentAnswerFinalizer {
                                                                 BooleanSupplier cancellationCheck,
                                                                 String stopReason) {
         String finalAnswer = safeAnswer(activeChatModel, answer, query, observations, systemPrompt, metadata);
-        runtimeGuard.checkCancelled(cancellationCheck);
+        recordCancellationAfterAnswer(cancellationCheck, metadata, "after_answer");
         AgentAnswerReview review = reviewAnswer(activeChatModel, query, systemPrompt, observations, finalAnswer, metadata);
-        runtimeGuard.checkCancelled(cancellationCheck);
+        recordCancellationAfterAnswer(cancellationCheck, metadata, "after_review");
         recordAnswerReview(metadata, review);
         metadata.put("stopReason", stopReason);
         AnswerDecisionEngine.EvidenceSignal signal = evidenceSignal(finalAnswer, observations, metadata);
@@ -208,6 +261,33 @@ class AgentAnswerFinalizer {
         return finishWithDecision(finalAnswer, review, signal, quality, traces, metadata, observations);
     }
 
+    private void recordCancellationAfterAnswer(BooleanSupplier cancellationCheck,
+                                               Map<String, Object> metadata,
+                                               String phase) {
+        if (cancellationCheck == null) {
+            return;
+        }
+        try {
+            if (cancellationCheck.getAsBoolean()) {
+                recordAnswerCompletedAfterCancellation(metadata, phase, "Agent cancellation requested after answer was produced");
+            }
+        } catch (CancellationException ex) {
+            recordAnswerCompletedAfterCancellation(metadata, phase, firstNonBlank(ex.getMessage(), "Agent cancellation requested after answer was produced"));
+        }
+    }
+
+    private void recordAnswerCompletedAfterCancellation(Map<String, Object> metadata,
+                                                        String phase,
+                                                        String reason) {
+        if (metadata == null) {
+            return;
+        }
+        metadata.put("answerCompletedAfterCancellation", true);
+        metadata.put("answerCancellationPhase", phase);
+        metadata.put("answerCancellationReason", reason);
+        metadata.putIfAbsent("stopReason", "answer_completed_after_cancellation");
+    }
+
     private AnswerQualityEvaluator.QualityReport evaluateAnswerQuality(ChatModel activeChatModel,
                                                                        String query,
                                                                        String systemPrompt,
@@ -219,15 +299,33 @@ class AgentAnswerFinalizer {
         if (candidates.size() <= 1) {
             return null;
         }
-        return answerQualityEvaluator.evaluate(
-            activeChatModel,
-            new AnswerQualityEvaluator.QualityRequest(
-                query,
-                systemPrompt,
-                observations == null ? List.of() : List.copyOf(observations),
-                candidates
-            )
-        );
+        long timeoutMs = configuredTimeoutMs("chatchat.agent.answer.quality.timeout.ms", modelRequestTimeoutMs);
+        try {
+            return runWithTimeout(
+                "answer_quality",
+                "",
+                timeoutMs,
+                () -> answerQualityEvaluator.evaluate(
+                    activeChatModel,
+                    new AnswerQualityEvaluator.QualityRequest(
+                        query,
+                        systemPrompt,
+                        observations == null ? List.of() : List.copyOf(observations),
+                        candidates
+                    )
+                )
+            );
+        } catch (TimeoutException ex) {
+            log.warn("agentModelTimeout phase=answer_quality timeoutMs={} candidateCount={}", timeoutMs, candidates.size());
+            return AnswerQualityEvaluator.QualityReport.unavailable("quality_model_timeout", candidates);
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            log.warn("agentModelInterrupted phase=answer_quality candidateCount={}", candidates.size());
+            return AnswerQualityEvaluator.QualityReport.unavailable("quality_model_interrupted", candidates);
+        } catch (Exception ex) {
+            log.warn("agentModelFailed phase=answer_quality candidateCount={} error={}", candidates.size(), ex.getMessage());
+            return AnswerQualityEvaluator.QualityReport.unavailable("quality_model_failed", candidates);
+        }
     }
 
     private List<AnswerQualityEvaluator.AnswerCandidate> answerCandidates(String candidateAnswer,
@@ -424,6 +522,669 @@ class AgentAnswerFinalizer {
         return answer.trim() + "\n\n引用：" + citations;
     }
 
+    private Map<String, Object> toolResultVisualizationSpec(List<InteractionToolTrace> traces) {
+        if (traces == null || traces.isEmpty()) {
+            return Map.of();
+        }
+        for (InteractionToolTrace trace : traces) {
+            if (trace == null || !trace.isSuccess()) {
+                continue;
+            }
+            Map<String, Object> output = parseObject(trace.getOutput());
+            if (output.isEmpty()) {
+                continue;
+            }
+            Map<String, Object> data = firstTabularData(output);
+            if (data.isEmpty()) {
+                continue;
+            }
+            List<Map<String, Object>> rows = rowMaps(data.get("rows"), data.get("columns"));
+            if (rows.isEmpty()) {
+                continue;
+            }
+            List<String> columns = columns(data.get("columns"), rows);
+            if (columns.isEmpty()) {
+                continue;
+            }
+            int rowCount = firstInt(data.get("rowCount"), data.get("total"), data.get("count"), rows.size());
+            String title = firstNonBlank(stringValue(data.get("title")), "查询结果明细");
+            Map<String, Object> tableSpec = tableVisualizationSpec(title, columns, rows, rowCount, trace);
+            Map<String, Object> chartSpec = chartVisualizationSpec(title, columns, rows);
+            return chartSpec.isEmpty() ? tableSpec : panelVisualizationSpec(title, chartSpec, tableSpec, trace);
+        }
+        return Map.of();
+    }
+
+    private Map<String, Object> tableVisualizationSpec(String title,
+                                                       List<String> columns,
+                                                       List<Map<String, Object>> rows,
+                                                       int rowCount,
+                                                       InteractionToolTrace trace) {
+        Map<String, Object> dataset = new LinkedHashMap<>();
+        dataset.put("columns", columns);
+        dataset.put("rows", rows.stream().limit(TOOL_DATA_VISUALIZATION_ROW_LIMIT).toList());
+        dataset.put("rowCount", rowCount);
+        dataset.put("displayedRowCount", Math.min(rows.size(), TOOL_DATA_VISUALIZATION_ROW_LIMIT));
+
+        Map<String, Object> spec = new LinkedHashMap<>();
+        spec.put("version", "v1");
+        spec.put("type", "table");
+        spec.put("title", title);
+        spec.put("analysisType", "tool_result_rows");
+        spec.put("dataset", dataset);
+        spec.put("ui", Map.of("allowSwitch", true, "defaultView", "table"));
+        spec.put("sourceTool", firstNonBlank(trace.getToolName(), ""));
+        spec.put("sourceDisplayName", firstNonBlank(trace.getDisplayName(), trace.getToolName()));
+        return spec;
+    }
+
+    private Map<String, Object> panelVisualizationSpec(String title,
+                                                       Map<String, Object> chartSpec,
+                                                       Map<String, Object> tableSpec,
+                                                       InteractionToolTrace trace) {
+        Map<String, Object> spec = new LinkedHashMap<>();
+        spec.put("version", "v2");
+        spec.put("type", "panel");
+        spec.put("title", title);
+        spec.put("analysisType", "tool_result_visualization");
+        spec.put("layout", "stack");
+        spec.put("dataset", tableSpec.get("dataset"));
+        spec.put("ui", Map.of("allowSwitch", true, "defaultView", "panel"));
+        spec.put("sourceTool", firstNonBlank(trace.getToolName(), ""));
+        spec.put("sourceDisplayName", firstNonBlank(trace.getDisplayName(), trace.getToolName()));
+        spec.put("blocks", List.of(
+            Map.of("id", "chart", "type", "chart", "title", chartSpec.get("title"), "spec", chartSpec),
+            Map.of("id", "table", "type", "table", "title", tableSpec.get("title"), "spec", tableSpec)
+        ));
+        return spec;
+    }
+
+    private Map<String, Object> chartVisualizationSpec(String title,
+                                                       List<String> columns,
+                                                       List<Map<String, Object>> rows) {
+        if (rows == null || rows.size() < 2 || columns == null || columns.isEmpty()) {
+            return Map.of();
+        }
+        String timeKey = columns.stream()
+            .filter(column -> isTimeColumn(column, rows))
+            .findFirst()
+            .orElse(null);
+        List<String> numericColumns = columns.stream()
+            .filter(column -> !column.equals(timeKey))
+            .filter(column -> !isIdentifierColumn(column))
+            .filter(column -> rows.stream().anyMatch(row -> numberValue(row.get(column)) != null))
+            .limit(4)
+            .toList();
+        if (!numericColumns.isEmpty()) {
+            String xKey = firstNonBlank(timeKey, firstNonBlank(firstCategoricalColumn(columns, rows), columns.get(0)));
+            return chartVisualizationSpec(
+                title,
+                timeKey == null ? "bar" : "line",
+                timeKey == null ? "comparison" : "trend",
+                xKey,
+                numericColumns.stream().map(column -> Map.of("name", column, "yKey", column)).toList(),
+                rows.stream().limit(TOOL_DATA_VISUALIZATION_ROW_LIMIT).toList()
+            );
+        }
+
+        String categoryKey = firstCategoricalColumn(columns, rows);
+        if (categoryKey == null) {
+            return Map.of();
+        }
+        List<Map<String, Object>> countedRows = categoryCountRows(rows, categoryKey);
+        if (countedRows.size() < 2) {
+            return Map.of();
+        }
+        return chartVisualizationSpec(
+            title + "分布",
+            countedRows.size() <= 8 ? "pie" : "bar",
+            "distribution",
+            categoryKey,
+            List.of(Map.of("name", "数量", "yKey", "count")),
+            countedRows
+        );
+    }
+
+    private Map<String, Object> chartVisualizationSpec(String title,
+                                                       String chartType,
+                                                       String analysisType,
+                                                       String xKey,
+                                                       List<Map<String, String>> series,
+                                                       List<Map<String, Object>> rows) {
+        Map<String, Object> dataset = new LinkedHashMap<>();
+        dataset.put("xKey", xKey);
+        dataset.put("series", series);
+        dataset.put("rows", rows);
+
+        Map<String, Object> spec = new LinkedHashMap<>();
+        spec.put("version", "v1");
+        spec.put("type", "chart");
+        spec.put("chartType", chartType);
+        spec.put("title", title);
+        spec.put("analysisType", analysisType);
+        spec.put("dataset", dataset);
+        spec.put("ui", Map.of("allowSwitch", true, "defaultView", "chart"));
+        spec.put("insight", Map.of("summary", "已根据结构化工具结果自动生成图形表达。"));
+        return spec;
+    }
+
+    private String firstCategoricalColumn(List<String> columns, List<Map<String, Object>> rows) {
+        for (String column : columns) {
+            if (isIdentifierColumn(column) || isTimeColumn(column, rows)) {
+                continue;
+            }
+            if (rows.stream().anyMatch(row -> numberValue(row.get(column)) == null && nonBlankString(row.get(column)))) {
+                return column;
+            }
+        }
+        return null;
+    }
+
+    private List<Map<String, Object>> categoryCountRows(List<Map<String, Object>> rows, String categoryKey) {
+        Map<String, Integer> counts = new LinkedHashMap<>();
+        for (Map<String, Object> row : rows) {
+            String key = stringValue(row.get(categoryKey));
+            if (key == null || key.isBlank()) {
+                key = "未分类";
+            }
+            counts.merge(key, 1, Integer::sum);
+        }
+        return counts.entrySet().stream()
+            .limit(TOOL_DATA_VISUALIZATION_ROW_LIMIT)
+            .map(entry -> {
+                Map<String, Object> row = new LinkedHashMap<>();
+                row.put(categoryKey, entry.getKey());
+                row.put("count", entry.getValue());
+                return row;
+            })
+            .toList();
+    }
+
+    private boolean isTimeColumn(String column, List<Map<String, Object>> rows) {
+        String normalized = column == null ? "" : column.toLowerCase();
+        if (normalized.matches(".*(date|time|month|year|day|week|quarter).*")
+            || normalized.contains("日期")
+            || normalized.contains("时间")) {
+            return true;
+        }
+        return rows.stream()
+            .map(row -> stringValue(row.get(column)))
+            .filter(value -> value != null && !value.isBlank())
+            .limit(5)
+            .anyMatch(value -> value.matches("\\d{4}[-/]\\d{1,2}[-/]\\d{1,2}.*")
+                || value.matches("\\d{8}")
+                || value.matches("\\d{2}:\\d{2}(:\\d{2})?.*"));
+    }
+
+    private boolean isIdentifierColumn(String column) {
+        String normalized = column == null ? "" : column.toLowerCase();
+        return normalized.matches(".*(id|code|no|uuid|serial).*")
+            || normalized.contains("代码")
+            || normalized.contains("编号")
+            || normalized.contains("标识");
+    }
+
+    private Number numberValue(Object value) {
+        if (value instanceof Number number) {
+            return number;
+        }
+        if (value == null) {
+            return null;
+        }
+        String text = String.valueOf(value).replace(",", "").replace("%", "").trim();
+        if (text.isBlank()) {
+            return null;
+        }
+        try {
+            return Double.parseDouble(text);
+        } catch (NumberFormatException ignored) {
+            return null;
+        }
+    }
+
+    private List<Map<String, Object>> toolResultEvidence(List<InteractionToolTrace> traces) {
+        if (traces == null || traces.isEmpty()) {
+            return List.of();
+        }
+        List<Map<String, Object>> evidence = new ArrayList<>();
+        for (InteractionToolTrace trace : traces) {
+            if (trace == null) {
+                continue;
+            }
+            Map<String, Object> item = toolEvidence(trace);
+            if (!item.isEmpty()) {
+                evidence.add(item);
+            }
+        }
+        return List.copyOf(evidence);
+    }
+
+    private Map<String, Object> toolEvidence(InteractionToolTrace trace) {
+        Map<String, Object> item = new LinkedHashMap<>();
+        item.put("toolName", firstNonBlank(trace.getToolName(), ""));
+        item.put("displayName", firstNonBlank(trace.getDisplayName(), trace.getToolName()));
+        item.put("success", trace.isSuccess());
+        item.put("durationMs", trace.getDurationMs());
+        if (trace.getErrorMessage() != null && !trace.getErrorMessage().isBlank()) {
+            item.put("errorMessage", trace.getErrorMessage());
+        }
+
+        Map<String, Object> output = parseObject(trace.getOutput());
+        if (output.isEmpty()) {
+            String preview = previewText(trace.getOutput());
+            if (preview.isBlank()) {
+                return item;
+            }
+            item.put("evidenceType", "text");
+            item.put("outputPreview", preview);
+            return item;
+        }
+
+        Map<String, Object> table = firstTabularData(output);
+        if (!table.isEmpty()) {
+            List<Map<String, Object>> rows = rowMaps(table.get("rows"), table.get("columns"));
+            List<String> columns = columns(table.get("columns"), rows);
+            item.put("evidenceType", "tabular");
+            item.put("columns", columns);
+            item.put("rowCount", firstInt(table.get("rowCount"), table.get("total"), table.get("count"), rows.size()));
+            item.put("returnedRowCount", rows.size());
+            item.put("sampleRows", rows.stream().limit(5).toList());
+            return item;
+        }
+
+        Map<String, Object> data = primaryData(output);
+        if (isLinuxEvidence(data)) {
+            item.put("evidenceType", "linux_command");
+            item.put("exitCode", firstPresent(data.get("exitCode"), output.get("exitCode")));
+            item.put("commandSuccess", firstPresent(data.get("commandSuccess"), output.get("commandSuccess")));
+            item.put("transportSuccess", firstPresent(data.get("transportSuccess"), output.get("transportSuccess")));
+            item.put("failedStepIndex", firstPresent(data.get("failedStepIndex"), output.get("failedStepIndex")));
+            item.put("stdoutPreview", previewText(firstNonBlank(stringValue(data.get("stdout")), stringValue(output.get("stdout")))));
+            item.put("stderrPreview", previewText(firstNonBlank(stringValue(data.get("stderr")), stringValue(output.get("stderr")))));
+            item.put("stepCount", listSize(data.get("steps")));
+            return compactEvidence(item);
+        }
+
+        if (isHttpEvidence(data)) {
+            item.put("evidenceType", "http_response");
+            item.put("statusCode", firstPresent(data.get("statusCode"), output.get("statusCode")));
+            item.put("bodyPreview", previewStructured(firstPresent(data.get("body"), output.get("body"))));
+            item.put("rawBodyPreview", previewText(firstNonBlank(stringValue(data.get("rawBody")), stringValue(output.get("rawBody")))));
+            return compactEvidence(item);
+        }
+
+        item.put("evidenceType", "json");
+        item.put("schemaVersion", firstPresent(output.get("schemaVersion"), output.get("dataSchema")));
+        item.put("payloadType", output.get("payloadType"));
+        item.put("keys", new ArrayList<>(output.keySet()));
+        item.put("outputPreview", previewStructured(output));
+        return compactEvidence(item);
+    }
+
+    private Map<String, Object> primaryData(Map<String, Object> output) {
+        for (String key : List.of("data", "result", "payload", "structuredContent")) {
+            Object value = output.get(key);
+            if (value instanceof Map<?, ?> map) {
+                return copyMap(map);
+            }
+        }
+        return output == null ? Map.of() : output;
+    }
+
+    private boolean isLinuxEvidence(Map<String, Object> data) {
+        if (data == null || data.isEmpty()) {
+            return false;
+        }
+        return data.containsKey("exitCode")
+            || data.containsKey("stdout")
+            || data.containsKey("stderr")
+            || data.containsKey("steps")
+            || data.containsKey("commandSuccess");
+    }
+
+    private boolean isHttpEvidence(Map<String, Object> data) {
+        if (data == null || data.isEmpty()) {
+            return false;
+        }
+        return data.containsKey("statusCode")
+            || data.containsKey("body")
+            || data.containsKey("rawBody");
+    }
+
+    private Map<String, Object> compactEvidence(Map<String, Object> item) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        item.forEach((key, value) -> {
+            if (value == null) {
+                return;
+            }
+            if (value instanceof String text && text.isBlank()) {
+                return;
+            }
+            if (value instanceof List<?> list && list.isEmpty()) {
+                return;
+            }
+            if (value instanceof Map<?, ?> map && map.isEmpty()) {
+                return;
+            }
+            result.put(key, value);
+        });
+        return result;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> parseObject(String text) {
+        if (text == null || text.isBlank()) {
+            return Map.of();
+        }
+        try {
+            Object value = objectMapper.readValue(text, Object.class);
+            return value instanceof Map<?, ?> map ? copyMap((Map<?, ?>) map) : Map.of();
+        } catch (Exception ignored) {
+            return Map.of();
+        }
+    }
+
+    private Map<String, Object> firstTabularData(Map<String, Object> output) {
+        Map<String, Object> direct = tabularData(output);
+        if (!direct.isEmpty()) {
+            return direct;
+        }
+        for (String key : List.of("result", "data", "dataset", "payload", "structuredContent")) {
+            Object value = output.get(key);
+            if (value instanceof Map<?, ?> map) {
+                Map<String, Object> nested = firstTabularData(copyMap(map));
+                if (!nested.isEmpty()) {
+                    return nested;
+                }
+            }
+        }
+        return Map.of();
+    }
+
+    private Map<String, Object> tabularData(Map<String, Object> value) {
+        Object rows = firstPresent(value.get("rows"), firstPresent(value.get("records"), value.get("items")));
+        if (!(rows instanceof List<?> list) || list.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("rows", rows);
+        data.put("columns", firstPresent(value.get("columns"), value.get("fields")));
+        data.put("rowCount", firstPresent(value.get("rowCount"), firstPresent(value.get("total"), value.get("count"))));
+        data.put("title", firstPresent(value.get("title"), firstPresent(value.get("name"), value.get("templateId"))));
+        return data;
+    }
+
+    private List<Map<String, Object>> rowMaps(Object rowsValue, Object columnsValue) {
+        if (!(rowsValue instanceof List<?> values)) {
+            return List.of();
+        }
+        List<String> columns = columnsValue instanceof List<?> list
+            ? list.stream().map(String::valueOf).toList()
+            : List.of();
+        List<Map<String, Object>> rows = new ArrayList<>();
+        for (Object value : values) {
+            if (value instanceof Map<?, ?> map) {
+                rows.add(copyMap(map));
+            } else if (value instanceof List<?> rowValues && !columns.isEmpty()) {
+                Map<String, Object> row = new LinkedHashMap<>();
+                for (int i = 0; i < columns.size() && i < rowValues.size(); i++) {
+                    row.put(columns.get(i), rowValues.get(i));
+                }
+                rows.add(row);
+            }
+        }
+        return List.copyOf(rows);
+    }
+
+    private List<String> columns(Object columnsValue, List<Map<String, Object>> rows) {
+        if (columnsValue instanceof List<?> list && !list.isEmpty()) {
+            return list.stream().map(String::valueOf).toList();
+        }
+        List<String> columns = new ArrayList<>();
+        for (Map<String, Object> row : rows) {
+            for (String key : row.keySet()) {
+                if (!columns.contains(key)) {
+                    columns.add(key);
+                }
+            }
+        }
+        return List.copyOf(columns);
+    }
+
+    private Map<String, Object> copyMap(Map<?, ?> source) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        if (source != null) {
+            source.forEach((key, value) -> {
+                if (key != null) {
+                    result.put(String.valueOf(key), value);
+                }
+            });
+        }
+        return result;
+    }
+
+    @SuppressWarnings("unchecked")
+    private String appendToolResultTable(String answer, Map<String, Object> visualizationSpec) {
+        if (visualizationSpec == null || visualizationSpec.isEmpty()) {
+            return answer == null ? "" : answer;
+        }
+        String base = answer == null ? "" : answer.trim();
+        if (base.contains("## 查询结果明细") || base.contains("## 数据明细")) {
+            return base;
+        }
+        Map<String, Object> dataset = visualizationSpec.get("dataset") instanceof Map<?, ?> map
+            ? copyMap(map)
+            : Map.of();
+        List<String> columns = dataset.get("columns") instanceof List<?> list
+            ? list.stream().map(String::valueOf).toList()
+            : List.of();
+        List<Map<String, Object>> rows = rowMaps(dataset.get("rows"), columns);
+        if (columns.isEmpty() || rows.isEmpty()) {
+            return base;
+        }
+        int rowCount = firstInt(dataset.get("rowCount"), rows.size());
+        int displayCount = Math.min(rows.size(), TOOL_DATA_MARKDOWN_ROW_LIMIT);
+        StringBuilder table = new StringBuilder();
+        table.append("## 查询结果明细\n\n");
+        table.append("已找到 ").append(rowCount).append(" 行数据，下面展示前 ")
+            .append(displayCount).append(" 行；完整结构化数据已随结果返回用于表格展示。\n\n");
+        table.append("| ");
+        for (String column : columns) {
+            table.append(escapeTableCell(column)).append(" | ");
+        }
+        table.append("\n| ");
+        for (int i = 0; i < columns.size(); i++) {
+            table.append("--- | ");
+        }
+        table.append("\n");
+        for (Map<String, Object> row : rows.stream().limit(TOOL_DATA_MARKDOWN_ROW_LIMIT).toList()) {
+            table.append("| ");
+            for (String column : columns) {
+                table.append(escapeTableCell(row.get(column))).append(" | ");
+            }
+            table.append("\n");
+        }
+        return base.isBlank() ? table.toString().trim() : base + "\n\n" + table.toString().trim();
+    }
+
+    private String appendToolEvidence(String answer, List<Map<String, Object>> evidence) {
+        if (evidence == null || evidence.isEmpty()) {
+            return answer == null ? "" : answer;
+        }
+        String base = answer == null ? "" : answer.trim();
+        if (base.contains("## 工具执行证据")) {
+            return base;
+        }
+        StringBuilder section = new StringBuilder();
+        section.append("## 工具执行证据\n\n");
+        section.append("以下为本次工具调用证明，仅展示必要摘要；完整结构化结果保留在运行元数据中。\n\n");
+        int index = 1;
+        for (Map<String, Object> item : evidence) {
+            section.append(index++).append(". `")
+                .append(escapeInline(firstNonBlank(stringValue(item.get("toolName")), "unknown_tool")))
+                .append("`");
+            String displayName = stringValue(item.get("displayName"));
+            if (displayName != null && !displayName.isBlank() && !displayName.equals(item.get("toolName"))) {
+                section.append("（").append(escapeInline(displayName)).append("）");
+            }
+            section.append("：").append(Boolean.TRUE.equals(item.get("success")) ? "成功" : "失败")
+                .append("，证据类型 `").append(escapeInline(firstNonBlank(stringValue(item.get("evidenceType")), "unknown"))).append("`");
+            appendEvidenceField(section, "行数", item.get("rowCount"));
+            appendEvidenceField(section, "返回行数", item.get("returnedRowCount"));
+            appendEvidenceField(section, "退出码", item.get("exitCode"));
+            appendEvidenceField(section, "HTTP 状态", item.get("statusCode"));
+            appendEvidenceField(section, "耗时 ms", item.get("durationMs"));
+            appendEvidenceField(section, "字段", compactListText(item.get("columns"), 8));
+            appendEvidenceField(section, "输出键", compactListText(item.get("keys"), 8));
+            appendEvidenceField(section, "摘要", evidenceSummary(item));
+            section.append("。\n");
+        }
+        return base.isBlank() ? section.toString().trim() : base + "\n\n" + section.toString().trim();
+    }
+
+    private void appendEvidenceField(StringBuilder section, String label, Object value) {
+        if (value != null && !String.valueOf(value).isBlank()) {
+            section.append("，").append(label).append("=").append(escapeInline(String.valueOf(value)));
+        }
+    }
+
+    private void appendEvidenceBlock(StringBuilder section, String label, String value) {
+        if (value == null || value.isBlank()) {
+            return;
+        }
+        section.append("   - ").append(label).append("：").append(escapeInline(value)).append("\n");
+    }
+
+    private String listText(Object value) {
+        if (!(value instanceof List<?> list) || list.isEmpty()) {
+            return "";
+        }
+        return String.join(", ", list.stream().map(String::valueOf).toList());
+    }
+
+    private String compactListText(Object value, int limit) {
+        if (!(value instanceof List<?> list) || list.isEmpty()) {
+            return "";
+        }
+        List<String> values = list.stream()
+            .limit(Math.max(1, limit))
+            .map(String::valueOf)
+            .toList();
+        String suffix = list.size() > values.size() ? " 等" + list.size() + "项" : "";
+        return String.join(", ", values) + suffix;
+    }
+
+    private String evidenceSummary(Map<String, Object> item) {
+        if (item == null || item.isEmpty()) {
+            return "";
+        }
+        if (item.get("errorMessage") != null) {
+            return shortEvidenceText(stringValue(item.get("errorMessage")), 160);
+        }
+        String type = stringValue(item.get("evidenceType"));
+        if ("tabular".equals(type)) {
+            Object rowCount = firstPresent(item.get("rowCount"), item.get("returnedRowCount"));
+            return rowCount == null ? "已返回表格数据" : "已返回 " + rowCount + " 行表格数据";
+        }
+        if ("linux_command".equals(type)) {
+            Object stepCount = item.get("stepCount");
+            return stepCount == null ? "命令执行完成" : "命令执行完成，步骤数 " + stepCount;
+        }
+        if ("http_response".equals(type)) {
+            return "HTTP 调用完成";
+        }
+        if ("json".equals(type)) {
+            return "已返回结构化 JSON";
+        }
+        if ("text".equals(type)) {
+            return shortEvidenceText(stringValue(item.get("outputPreview")), 160);
+        }
+        return "";
+    }
+
+    private String shortEvidenceText(String value, int limit) {
+        if (value == null || value.isBlank()) {
+            return "";
+        }
+        String text = value.replaceAll("\\s+", " ").trim();
+        int max = Math.max(20, limit);
+        return text.length() <= max ? text : text.substring(0, max) + "...";
+    }
+
+    private String escapeTableCell(Object value) {
+        if (value == null) {
+            return "";
+        }
+        String text = String.valueOf(value).replace("\r", " ").replace("\n", " ").replace("|", "\\|").trim();
+        return text.length() <= 120 ? text : text.substring(0, 120);
+    }
+
+    private String escapeInline(String value) {
+        if (value == null) {
+            return "";
+        }
+        return value.replace("\r", " ").replace("\n", " ").replace("|", "\\|").trim();
+    }
+
+    private String previewText(String value) {
+        if (value == null || value.isBlank()) {
+            return "";
+        }
+        String text = value.replaceAll("\\s+", " ").trim();
+        return text.length() <= TOOL_EVIDENCE_PREVIEW_LIMIT ? text : text.substring(0, TOOL_EVIDENCE_PREVIEW_LIMIT);
+    }
+
+    private String previewStructured(Object value) {
+        if (value == null) {
+            return "";
+        }
+        if (value instanceof String text) {
+            return previewText(text);
+        }
+        try {
+            return previewText(objectMapper.writeValueAsString(value));
+        } catch (Exception ignored) {
+            return previewText(String.valueOf(value));
+        }
+    }
+
+    private int listSize(Object value) {
+        return value instanceof List<?> list ? list.size() : 0;
+    }
+
+    private int firstInt(Object first, Object second) {
+        Integer firstValue = intValue(first);
+        if (firstValue != null) {
+            return firstValue;
+        }
+        Integer secondValue = intValue(second);
+        return secondValue == null ? 0 : secondValue;
+    }
+
+    private int firstInt(Object first, Object second, Object third, int fallback) {
+        for (Object value : new Object[]{first, second, third}) {
+            Integer parsed = intValue(value);
+            if (parsed != null) {
+                return parsed;
+            }
+        }
+        return fallback;
+    }
+
+    private Integer intValue(Object value) {
+        if (value instanceof Number number) {
+            return number.intValue();
+        }
+        if (value == null) {
+            return null;
+        }
+        try {
+            return Integer.parseInt(String.valueOf(value));
+        } catch (NumberFormatException ignored) {
+            return null;
+        }
+    }
+
     private String citationsText(Object value) {
         if (!(value instanceof List<?> citations) || citations.isEmpty()) {
             return "";
@@ -529,7 +1290,51 @@ class AgentAnswerFinalizer {
             activeChatModel == null ? null : activeChatModel.getClass().getName(),
             finalAnswer == null ? 0 : finalAnswer.length(),
             observations == null ? 0 : observations.size());
-        AgentAnswerReview review = answerReviewer.review(activeChatModel, query, systemPrompt, observations, finalAnswer);
+        long timeoutMs = configuredTimeoutMs("chatchat.agent.answer.review.timeout.ms", modelRequestTimeoutMs);
+        AgentAnswerReview review;
+        try {
+            review = runWithTimeout(
+                "review",
+                runId,
+                timeoutMs,
+                () -> answerReviewer.review(activeChatModel, query, systemPrompt, observations, finalAnswer)
+            );
+        } catch (TimeoutException ex) {
+            if (metadata != null) {
+                metadata.put("answerReviewTimedOut", true);
+                metadata.put("answerReviewTimeoutMs", timeoutMs);
+                metadata.put("answerReviewFallback", "accepted_current_answer");
+            }
+            log.warn("agentModelTimeout phase=review runId={} timeoutMs={} answerChars={} observationCount={}",
+                firstNonBlank(runId, ""),
+                timeoutMs,
+                finalAnswer == null ? 0 : finalAnswer.length(),
+                observations == null ? 0 : observations.size());
+            return acceptWithoutReviewer(finalAnswer,
+                "Answer reviewer timed out after " + timeoutMs + "ms; accepted current evidence-grounded answer.");
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            if (metadata != null) {
+                metadata.put("answerReviewInterrupted", true);
+                metadata.put("answerReviewFallback", "accepted_current_answer");
+            }
+            log.warn("agentModelInterrupted phase=review runId={} answerChars={}",
+                firstNonBlank(runId, ""),
+                finalAnswer == null ? 0 : finalAnswer.length());
+            return acceptWithoutReviewer(finalAnswer,
+                "Answer reviewer was interrupted; accepted current evidence-grounded answer.");
+        } catch (Exception ex) {
+            if (metadata != null) {
+                metadata.put("answerReviewFailed", true);
+                metadata.put("answerReviewError", ex.getMessage());
+                metadata.put("answerReviewFallback", "accepted_current_answer");
+            }
+            log.warn("agentModelFailed phase=review runId={} error={}",
+                firstNonBlank(runId, ""),
+                ex.getMessage());
+            return acceptWithoutReviewer(finalAnswer,
+                "Answer reviewer failed; accepted current evidence-grounded answer.");
+        }
         log.info("agentModelResponse phase=review runId={} durationMs={} status={} answerChars={}",
             firstNonBlank(runId, ""),
             System.currentTimeMillis() - startedAt,
@@ -545,6 +1350,68 @@ class AgentAnswerFinalizer {
                 review.feedback());
         }
         return review;
+    }
+
+    private AgentAnswerReview acceptWithoutReviewer(String answer, String feedback) {
+        return new AgentAnswerReview(
+            AgentAnswerReview.ACCEPTED,
+            answer == null ? "" : answer,
+            feedback
+        );
+    }
+
+    private <T> T runWithTimeout(String phase,
+                                 String runId,
+                                 long timeoutMs,
+                                 Callable<T> task) throws Exception {
+        if (timeoutMs <= 0) {
+            return task.call();
+        }
+        ExecutorService executor = Executors.newSingleThreadExecutor(runnable -> {
+            Thread thread = new Thread(runnable,
+                "agent-" + firstNonBlank(phase, "model") + "-" + firstNonBlank(runId, "unknown"));
+            thread.setDaemon(true);
+            return thread;
+        });
+        Future<T> future = executor.submit(task);
+        try {
+            return future.get(timeoutMs, TimeUnit.MILLISECONDS);
+        } catch (TimeoutException | InterruptedException ex) {
+            future.cancel(true);
+            throw ex;
+        } catch (ExecutionException ex) {
+            Throwable cause = ex.getCause();
+            if (cause instanceof Exception exception) {
+                throw exception;
+            }
+            throw new IllegalStateException(cause);
+        } finally {
+            executor.shutdownNow();
+        }
+    }
+
+    private long configuredTimeoutMs(String property, long fallback) {
+        String value = System.getProperty(property);
+        if (value == null || value.isBlank()) {
+            return fallback;
+        }
+        try {
+            long parsed = Long.parseLong(value.trim());
+            return parsed < 0 ? fallback : parsed;
+        } catch (NumberFormatException ignored) {
+            return fallback;
+        }
+    }
+
+    private long modelRequestTimeoutMs(ModelsConfig modelsConfig) {
+        if (modelsConfig == null || modelsConfig.getOpenai() == null) {
+            return 0L;
+        }
+        int timeoutSeconds = modelsConfig.getOpenai().getTimeout();
+        if (timeoutSeconds <= 0) {
+            return 0L;
+        }
+        return TimeUnit.SECONDS.toMillis(timeoutSeconds);
     }
 
     private boolean structuredSqlMetadataSemanticGatePassed(Map<String, Object> metadata) {
@@ -614,6 +1481,106 @@ class AgentAnswerFinalizer {
             metadata == null ? null : metadata.get("finalAnswerPreview"));
     }
 
+    private AnswerEvidenceDisclosure answerEvidenceDisclosure(Map<String, Object> metadata,
+                                                              List<String> observations,
+                                                              List<Map<String, Object>> toolEvidence,
+                                                              List<InteractionToolTrace> traces) {
+        List<String> reasons = new ArrayList<>();
+        boolean successfulToolEvidence = toolEvidence != null && toolEvidence.stream()
+            .anyMatch(item -> Boolean.TRUE.equals(item.get("success")) && nonBlankString(item.get("evidenceType")));
+        if (successfulToolEvidence) {
+            reasons.add("\u5df2\u5b8c\u6210\u5de5\u5177\u8fd4\u56de\u7684\u7ed3\u6784\u5316\u7ed3\u679c");
+        }
+        boolean structuredSqlMetadata = Boolean.TRUE.equals(metadata == null ? null : metadata.get("structuredSqlMetadataRendered"))
+            && Boolean.TRUE.equals(metadata == null ? null : metadata.get("sqlMetadataSemanticGatePassed"));
+        if (structuredSqlMetadata) {
+            reasons.add("\u5df2\u901a\u8fc7\u8bed\u4e49\u95e8\u7981\u7684\u7ed3\u6784\u5316 SQL \u5143\u6570\u636e");
+        }
+        if (containsEvidence(observations == null ? List.of() : observations)) {
+            reasons.add("\u5e26\u6765\u6e90\u6807\u8bc6\u7684\u6587\u6863/\u77e5\u8bc6\u5e93/\u6267\u884c\u8bc1\u636e");
+        }
+        if (!reasons.isEmpty()) {
+            return new AnswerEvidenceDisclosure(
+                ANSWER_EVIDENCE_GROUNDED,
+                "\u6709\u4e8b\u5b9e\u4f9d\u636e\u7684\u5206\u6790",
+                "\u8bc1\u636e\u72b6\u6001\uff1a\u6709\u4e8b\u5b9e\u4f9d\u636e\u7684\u5206\u6790\u3002\u4f9d\u636e\uff1a" + String.join("\uff1b", reasons) + "\u3002",
+                reasons
+            );
+        }
+
+        boolean failedTerminalTool = toolEvidence != null && toolEvidence.stream()
+            .anyMatch(item -> !Boolean.TRUE.equals(item.get("success"))
+                && (nonBlankString(item.get("errorMessage")) || nonBlankString(item.get("evidenceType"))));
+        boolean failedTrace = traces != null && traces.stream().anyMatch(trace -> trace != null && !trace.isSuccess());
+        boolean blockedByRuntime = Boolean.TRUE.equals(metadata == null ? null : metadata.get("fatalExecutionBlocked"))
+            || Boolean.TRUE.equals(metadata == null ? null : metadata.get("mandatoryWorkflowBlocked"))
+            || observationContains(observations, "PLAN_INVALID_REQUIRED_TOOL_NOT_EXECUTED")
+            || observationContains(observations, "mandatory workflow tools are still incomplete")
+            || observationContains(observations, "failed after rewrite budget");
+        if (failedTerminalTool || failedTrace || blockedByRuntime) {
+            List<String> blockedReasons = new ArrayList<>();
+            if (failedTerminalTool || failedTrace) {
+                blockedReasons.add("\u5de5\u5177\u6267\u884c\u5df2\u5f62\u6210\u5931\u8d25\u6216\u6743\u9650\u89c2\u5bdf");
+            }
+            if (blockedByRuntime) {
+                blockedReasons.add("Runtime \u963b\u65ad\u4e86\u672a\u5b8c\u6210\u7684\u5f3a\u5236\u5de5\u5177\u6d41\u7a0b");
+            }
+            if (blockedReasons.isEmpty()) {
+                blockedReasons.add("\u672a\u5f62\u6210\u53ef\u7528\u7684\u4e1a\u52a1\u6570\u636e\u8bc1\u636e");
+            }
+            return new AnswerEvidenceDisclosure(
+                ANSWER_EVIDENCE_BLOCKED,
+                "\u6267\u884c\u963b\u65ad/\u8bc1\u636e\u4e0d\u8db3",
+                "\u8bc1\u636e\u72b6\u6001\uff1a\u6267\u884c\u963b\u65ad/\u8bc1\u636e\u4e0d\u8db3\u3002\u4ee5\u4e0b\u53ef\u4f5c\u4e3a\u5931\u8d25\u4e8b\u5b9e\u3001\u6d41\u7a0b\u72b6\u6001\u548c\u6392\u67e5\u53c2\u8003\uff0c\u4e0d\u80fd\u4f5c\u4e3a\u786e\u5b9a\u6027\u4e1a\u52a1\u7ed3\u8bba\u3002\u4f9d\u636e\uff1a"
+                    + String.join("\uff1b", blockedReasons) + "\u3002",
+                blockedReasons
+            );
+        }
+
+        List<String> gaps = List.of("\u672a\u53d1\u73b0\u5df2\u5b8c\u6210\u5de5\u5177\u7684\u7ed3\u6784\u5316\u7ed3\u679c",
+            "\u672a\u53d1\u73b0\u5e26\u6765\u6e90\u6807\u8bc6\u7684\u6587\u6863\u6216\u77e5\u8bc6\u5e93\u8bc1\u636e");
+        return new AnswerEvidenceDisclosure(
+            ANSWER_EVIDENCE_INSUFFICIENT,
+            "\u8bc1\u636e\u4e0d\u8db3/\u63a8\u6d4b",
+            "\u8bc1\u636e\u72b6\u6001\uff1a\u8bc1\u636e\u4e0d\u8db3/\u53c2\u8003\u6027\u5206\u6790\u3002\u4ee5\u4e0b\u53ef\u4f5c\u4e3a\u5f85\u9a8c\u8bc1\u7684\u63a8\u6d4b\u3001\u5206\u6790\u601d\u8def\u6216\u4e0b\u4e00\u6b65\u5efa\u8bae\uff0c\u4e0d\u80fd\u4f5c\u4e3a\u786e\u5b9a\u6027\u4e1a\u52a1\u7ed3\u8bba\u3002\u4f9d\u636e\u7f3a\u53e3\uff1a"
+                + String.join("\uff1b", gaps) + "\u3002",
+            gaps
+        );
+    }
+
+    private String prependAnswerEvidenceDisclosure(String answer, AnswerEvidenceDisclosure disclosure) {
+        String safeAnswer = answer == null ? "" : answer.trim();
+        if (safeAnswer.contains("\u8bc1\u636e\u72b6\u6001\uff1a")) {
+            return safeAnswer;
+        }
+        return "> " + disclosure.message() + (safeAnswer.isBlank() ? "" : "\n\n" + safeAnswer);
+    }
+
+    private void recordAnswerEvidenceDisclosure(Map<String, Object> metadata,
+                                                AnswerEvidenceDisclosure disclosure,
+                                                boolean rendered) {
+        metadata.put("answerEvidenceDisclosureVersion", ANSWER_EVIDENCE_DISCLOSURE_CONTRACT);
+        metadata.put("answerRequiresEvidenceDisclosure", true);
+        metadata.put("answerEvidenceDisclosureRendered", rendered);
+        metadata.put("answerEvidenceStatus", disclosure.status());
+        metadata.put("answerEvidenceLabel", disclosure.label());
+        metadata.put("answerEvidenceReasons", disclosure.reasons());
+        metadata.put("answerEvidenceDisclosure", disclosure.message());
+    }
+
+    private boolean observationContains(List<String> observations, String needle) {
+        if (observations == null || observations.isEmpty() || needle == null || needle.isBlank()) {
+            return false;
+        }
+        return observations.stream()
+            .filter(value -> value != null)
+            .anyMatch(value -> value.contains(needle));
+    }
+
+    private boolean nonBlankString(Object value) {
+        return value != null && !stringValue(value).isBlank();
+    }
+
     private void attachEvidenceAnswerContract(String answer,
                                               Map<String, Object> metadata,
                                               List<String> observations) {
@@ -651,6 +1618,12 @@ class AgentAnswerFinalizer {
                 || value.contains(EXECUTION_CONTRACT)
                 || value.contains("doc://")
                 || value.contains("web://"));
+    }
+
+    private record AnswerEvidenceDisclosure(String status,
+                                            String label,
+                                            String message,
+                                            List<String> reasons) {
     }
 
     private AnswerDecisionEngine.EvidenceSignal evidenceSignal(String answer,
@@ -983,6 +1956,10 @@ class AgentAnswerFinalizer {
 
     private String stringValue(Object value) {
         return value == null ? null : String.valueOf(value);
+    }
+
+    private Object firstPresent(Object first, Object second) {
+        return first == null ? second : first;
     }
 
     private String firstNonBlank(String first, String second) {

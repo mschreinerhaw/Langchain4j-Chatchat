@@ -766,7 +766,7 @@ async function handleDatabaseQueryRebuildIndex() {
     button.textContent = '重建中...';
     try {
         await rebuildDatabaseQueryIndex();
-        notify('索引已重建', '业务数据库查询模板索引已刷新。');
+        notify('索引已重建', '数据库查询模板索引已刷新。');
     } catch (error) {
         handleError(error);
     } finally {

@@ -64,6 +64,35 @@ class McpParamBindingResolverTest {
         assertThat(filters.get("intentEn")).isEqualTo("SHOW ENGINE INNODB STATUS");
     }
 
+    @Test
+    void dedicatedBusinessQueryTemplateToolOverridesMismatchedPlannerTargetKind() {
+        Map<String, Object> result = resolver.resolve(
+            "mcp_chatchat_mcp_server_business_query_template_search",
+            null,
+            Map.of(
+                "candidates", List.of(Map.of("targetKind", "database", "confidence", 0.9)),
+                "finalDecision", "database",
+                "filters", Map.of(
+                    "intent", "\u5206\u6790\u884c\u60c5\u6570\u636e\u53d1\u751f\u8f83\u5927\u6ce2\u52a8\u65f6\u5f02\u5e38\u63d0\u9192\u6570\u636e"
+                ),
+                "trace", Map.of("plannerVersion", "v1.1")
+            ),
+            "\u5206\u6790\u884c\u60c5\u6570\u636e\u53d1\u751f\u8f83\u5927\u6ce2\u52a8\u65f6\u5f02\u5e38\u63d0\u9192\u6570\u636e"
+        );
+
+        assertThat(result)
+            .containsEntry("targetKind", "business_database_query")
+            .containsEntry("finalDecision", "business_database_query")
+            .containsEntry("assetType", "database_query");
+        assertThat((List<?>) result.get("candidates"))
+            .singleElement()
+            .satisfies(candidate -> {
+                Map<?, ?> candidateMap = (Map<?, ?>) candidate;
+                assertThat(candidateMap.get("targetKind")).isEqualTo("business_database_query");
+                assertThat(candidateMap.get("confidence")).isEqualTo(0.9);
+            });
+    }
+
     private List<String> strings(Object value) {
         if (value instanceof List<?> list) {
             return list.stream().map(String::valueOf).toList();

@@ -65,6 +65,7 @@ public class InterpretationPlanRewriter {
                 request.toolRegistry(),
                 new java.util.LinkedHashSet<>(request.availableTools() == null ? List.of() : request.availableTools())
             );
+            validation = validateRequiredToolExecutions(rewrittenPlan, request.requiredToolExecutions(), validation);
             if (!validation.valid()) {
                 InterpretationPlan repairedPlan = repairContinuationPlan(request.originalPlan(), rewrittenPlan);
                 repairedPlan = repairExecutionPolicyStepLimit(repairedPlan);
@@ -74,6 +75,7 @@ public class InterpretationPlanRewriter {
                         request.toolRegistry(),
                         new java.util.LinkedHashSet<>(request.availableTools() == null ? List.of() : request.availableTools())
                     );
+                    repairedValidation = validateRequiredToolExecutions(repairedPlan, request.requiredToolExecutions(), repairedValidation);
                     if (repairedValidation.valid()) {
                         log.info("InterpretationPlan rewrite repaired as continuation DAG. originalErrors={}, repairedStepCount={}",
                             validationSummary(validation),
@@ -111,20 +113,35 @@ public class InterpretationPlanRewriter {
         prompt.append("- Preserve plan.dependency_contracts. Required dependency_contracts must appear in target depends_on; optional dependency_contracts must keep condition/reason and should only be converted into executable steps when the user request needs them.\n");
         prompt.append("- Add or update plan.edge_contracts when the failure was caused by missing or mistyped tool output fields.\n");
         prompt.append("- Keep execution_policy.deny_tool for tools that failed due to policy, permission, or safety.\n\n");
+        List<RequiredToolExecution> requiredExecutions = request.requiredToolExecutions() == null
+            ? List.of()
+            : request.requiredToolExecutions().stream()
+                .filter(execution -> execution != null
+                    && execution.required()
+                    && execution.toolName() != null
+                    && !execution.toolName().isBlank())
+                .toList();
+        if (!requiredExecutions.isEmpty()) {
+            prompt.append("Required tool execution contract:\n");
+            prompt.append("- Runtime marked these pending tool executions as required. The model may order and parameterize them, but must not skip or replace them with reasoning/final_answer.\n");
+            prompt.append("- final_answer is allowed only after each required tool appears as an MCP tool step and final_answer depends on those step results.\n");
+            prompt.append("- If a required tool cannot run, keep the tool step so runtime can produce the success, error, or permission observation.\n");
+            prompt.append("- execution_policy.allow_tool must include every required tool unless allow_tool is intentionally omitted by schema.\n");
+            prompt.append("requiredToolExecutions: ").append(toJson(requiredExecutions)).append("\n\n");
+        }
         boolean templateDiscoveryAvailable = hasAvailableSemanticTool(request.availableTools(), "template_discovery");
         boolean metadataSearchAvailable = hasAvailableSemanticTool(request.availableTools(), "sql_metadata_search");
         prompt.append("SQL template repair rules:\n");
         if (templateDiscoveryAvailable) {
             prompt.append("- If a failed sql_query_execute step used input.parameters.sql/rawSql/query/statement, remove that raw SQL parameter and replan through the available sql datasource template_query tool.\n");
             prompt.append("- Bind a returned templates[].templateId into sql_query_execute.templateId and pass only parameters declared by templates[].parameterSchema.\n");
-            prompt.append("- For business/analytical SQL requests such as market, trading, alert, monitor, customer, order, product, report, or analysis, replan through business_query_template_search/finalDecision=business_database_query when available. Add a dependent sql_query_execute bridge step with the returned templates[].templateId bound to input.templateId; runtime will redirect that bridge to templates[].execution.callTool/templates[].mcpToolName without requiring assetName/env.\n");
         } else {
             prompt.append("- No template discovery tool is available in this rewrite request. Do not add database_ops_template_search/template_query steps. Remove raw SQL fields, then call sql_query_execute only when a concrete templateId and parameter contract already appear in observations or available tool metadata; otherwise produce a final_answer step explaining that template discovery is unavailable.\n");
             prompt.append("- If prior observations already contain structured sql_metadata_search columns/types/comments, preserve that evidence and do not re-add metadata search unless more data is explicitly missing and the tool is available.\n");
         }
         prompt.append("- Read templates[].requiredParameters, templates[].parameterContract, and templates[].invocationExample as authoritative. If requiredParameters contains tableName, fill sql_query_execute.input.parameters.tableName from the user request, sql_metadata_search result, or table-location result.\n");
         prompt.append("- Never retry a template execution with empty parameters when the template declares required parameters; add/bind the missing parameters first.\n");
-        prompt.append("- sql_query_execute must include executionContext from typed asset discovery, user context, template routing metadata, sql_metadata_search/table-location evidence, or an observed invocationExample. Use database_asset_search when datasource asset confirmation is needed. Exception: a sql_query_execute bridge step that depends on business_query_template_search does not require assetName/env because runtime redirects it to the direct business MCP tool.\n");
+        prompt.append("- sql_query_execute must include executionContext from typed asset discovery, user context, template routing metadata, sql_metadata_search/table-location evidence, or an observed invocationExample. Use database_asset_search when datasource asset confirmation is needed, unless a prior template discovery observation supplies executable routing metadata.\n");
         prompt.append("- Do not inline JSONPath placeholders such as $.assets[0].asset.name inside executionContext; use bindings only when a prior observed step really returns that field.\n");
         if (metadataSearchAvailable) {
             prompt.append("- When schema/database is unknown, add sql_metadata_search before any available template_query/sql_query_execute. Pass tableName and includeColumns=true for table analysis, then bind from results[].sqlExecutionBinding.\n");
@@ -162,6 +179,128 @@ public class InterpretationPlanRewriter {
             }
         }
         return false;
+    }
+
+    private InterpretationPlanValidator.ValidationResult validateRequiredToolExecutions(
+        InterpretationPlan plan,
+        List<RequiredToolExecution> requiredExecutions,
+        InterpretationPlanValidator.ValidationResult validation
+    ) {
+        if (validation == null) {
+            return validation;
+        }
+        List<RequiredToolExecution> pendingRequiredExecutions = requiredExecutions == null
+            ? List.of()
+            : requiredExecutions.stream()
+                .filter(execution -> execution != null
+                    && execution.required()
+                    && execution.toolName() != null
+                    && !execution.toolName().isBlank())
+                .toList();
+        if (plan == null || plan.steps() == null || plan.steps().isEmpty() || pendingRequiredExecutions.isEmpty()) {
+            return validation;
+        }
+        Map<Integer, InterpretationPlan.Step> stepsById = new LinkedHashMap<>();
+        InterpretationPlan.Step finalStep = null;
+        for (InterpretationPlan.Step step : plan.steps()) {
+            if (step != null && step.id() != null) {
+                stepsById.put(step.id(), step);
+                if (step.finalAnswerAction()) {
+                    finalStep = step;
+                }
+            }
+        }
+        List<InterpretationPlanValidator.ValidationIssue> extraErrors = new ArrayList<>();
+        for (RequiredToolExecution execution : pendingRequiredExecutions) {
+            InterpretationPlan.Step requiredStep = firstStep(plan.steps(), execution.toolName());
+            if (requiredStep == null) {
+                extraErrors.add(new InterpretationPlanValidator.ValidationIssue(
+                    "error",
+                    "plan.steps",
+                    "Required tool must be present before final_answer: " + execution.toolName()
+                ));
+                continue;
+            }
+            if (finalStep == null || !dependsOn(finalStep.id(), requiredStep.id(), stepsById, new LinkedHashSet<>())) {
+                extraErrors.add(new InterpretationPlanValidator.ValidationIssue(
+                    "error",
+                    "plan.steps[" + (finalStep == null ? "final_answer" : finalStep.id()) + "].depends_on",
+                    "final_answer must depend on required tool result: " + execution.toolName()
+                ));
+            }
+            if (plan.executionPolicy() != null
+                && plan.executionPolicy().allowTool() != null
+                && !plan.executionPolicy().allowTool().isEmpty()
+                && plan.executionPolicy().allowTool().stream().noneMatch(tool -> sameTool(tool, execution.toolName()))) {
+                extraErrors.add(new InterpretationPlanValidator.ValidationIssue(
+                    "error",
+                    "execution_policy.allow_tool",
+                    "execution_policy.allow_tool must include required tool: " + execution.toolName()
+                ));
+            }
+        }
+        if (extraErrors.isEmpty()) {
+            return validation;
+        }
+        List<InterpretationPlanValidator.ValidationIssue> errors = new ArrayList<>();
+        errors.addAll(validation.errors() == null ? List.of() : validation.errors());
+        errors.addAll(extraErrors);
+        return new InterpretationPlanValidator.ValidationResult(
+            false,
+            false,
+            validation.approvalRequired(),
+            List.copyOf(errors),
+            validation.warnings() == null ? List.of() : validation.warnings(),
+            validation.approvalRequests() == null ? List.of() : validation.approvalRequests(),
+            validation.orderedSteps() == null ? List.of() : validation.orderedSteps()
+        );
+    }
+
+    private InterpretationPlan.Step firstStep(List<InterpretationPlan.Step> steps, String toolName) {
+        if (steps == null || toolName == null || toolName.isBlank()) {
+            return null;
+        }
+        return steps.stream()
+            .filter(step -> step != null && sameTool(step.toolName(), toolName))
+            .findFirst()
+            .orElse(null);
+    }
+
+    private boolean dependsOn(Integer fromStepId,
+                              Integer requiredDependencyId,
+                              Map<Integer, InterpretationPlan.Step> stepsById,
+                              Set<Integer> visited) {
+        if (fromStepId == null || requiredDependencyId == null) {
+            return false;
+        }
+        if (fromStepId.equals(requiredDependencyId)) {
+            return true;
+        }
+        if (visited == null) {
+            visited = new LinkedHashSet<>();
+        }
+        if (!visited.add(fromStepId)) {
+            return false;
+        }
+        InterpretationPlan.Step from = stepsById.get(fromStepId);
+        if (from == null || from.dependsOn() == null || from.dependsOn().isEmpty()) {
+            return false;
+        }
+        if (from.dependsOn().contains(requiredDependencyId)) {
+            return true;
+        }
+        for (Integer dependency : from.dependsOn()) {
+            if (dependsOn(dependency, requiredDependencyId, stepsById, visited)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean sameTool(String left, String right) {
+        String leftKey = toolSemanticKey(left);
+        String rightKey = toolSemanticKey(right);
+        return !leftKey.isBlank() && leftKey.equals(rightKey);
     }
 
     private String toolSemanticKey(String toolName) {
@@ -437,7 +576,23 @@ public class InterpretationPlanRewriter {
         String failureReason,
         List<String> observations,
         List<String> availableTools,
-        ToolRegistry toolRegistry
+        ToolRegistry toolRegistry,
+        List<RequiredToolExecution> requiredToolExecutions
+    ) {
+        public RewriteRequest(InterpretationPlan originalPlan,
+                              InterpretationPlan.Step failedStep,
+                              String failureReason,
+                              List<String> observations,
+                              List<String> availableTools,
+                              ToolRegistry toolRegistry) {
+            this(originalPlan, failedStep, failureReason, observations, availableTools, toolRegistry, List.of());
+        }
+    }
+
+    public record RequiredToolExecution(
+        String toolName,
+        String source,
+        boolean required
     ) {
     }
 

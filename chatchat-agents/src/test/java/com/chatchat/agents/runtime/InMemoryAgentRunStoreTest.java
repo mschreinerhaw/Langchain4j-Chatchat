@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -42,6 +43,36 @@ class InMemoryAgentRunStoreTest {
                 "OBSERVATION_RECORDED",
                 "RUN_COMPLETED"
             );
+    }
+
+    @Test
+    void failedCompletionPublishesRunFailedLifecycleEvent() {
+        RecordingPublisher publisher = new RecordingPublisher();
+        InMemoryAgentRunStore store = new InMemoryAgentRunStore(publisher);
+        AgentRunRequest request = AgentRunRequest.builder()
+            .runId("publish-failed-completion-1")
+            .requestId("req-publish-failed-completion-1")
+            .query("publish failed")
+            .build();
+
+        store.start(request);
+        AgentRun run = store.complete("publish-failed-completion-1", AgentRunResult.builder()
+            .runId("publish-failed-completion-1")
+            .status(AgentRunStatus.FAILED)
+            .answer("PLAN_INVALID_REQUIRED_TOOL_NOT_EXECUTED: missing sql_query_execute")
+            .stopReason("mandatory_workflow_incomplete")
+            .errorMessage("PLAN_INVALID_REQUIRED_TOOL_NOT_EXECUTED")
+            .metadata(Map.of("errorCode", "PLAN_INVALID_REQUIRED_TOOL_NOT_EXECUTED"))
+            .build());
+
+        assertThat(run.status()).isEqualTo(AgentRunStatus.FAILED);
+        assertThat(publisher.events())
+            .extracting(event -> event.type().name())
+            .containsExactly("RUN_STARTED", "RUN_FAILED");
+        assertThat(publisher.events().get(1).payload())
+            .containsEntry("errorCode", "PLAN_INVALID_REQUIRED_TOOL_NOT_EXECUTED")
+            .containsEntry("answer", "PLAN_INVALID_REQUIRED_TOOL_NOT_EXECUTED: missing sql_query_execute")
+            .containsEntry("status", "FAILED");
     }
 
     @Test

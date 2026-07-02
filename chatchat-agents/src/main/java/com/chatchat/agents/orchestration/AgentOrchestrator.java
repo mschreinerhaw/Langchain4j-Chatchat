@@ -176,7 +176,7 @@ public class AgentOrchestrator {
         this.toolNames = new AgentToolNameResolver();
         this.toolArguments = new AgentToolArgumentResolver(this.toolNames, WEB_SEARCH_REFERENCE_LIMIT, this.toolRegistry);
         this.workflowTools = new AgentWorkflowToolResolver(this.toolNames);
-        this.answerFinalizer = new AgentAnswerFinalizer(resolvedAnswerReviewer, this.runtimeGuard);
+        this.answerFinalizer = new AgentAnswerFinalizer(resolvedAnswerReviewer, this.runtimeGuard, modelsConfig);
         this.interpretationPlanStore = interpretationPlanStore == null && this.runStore instanceof InterpretationPlanStore store
             ? store
             : interpretationPlanStore;
@@ -261,9 +261,8 @@ public class AgentOrchestrator {
         if (request.getMaxToolCalls() != null) {
             attributes.put(AGENT_MAX_TOOL_CALLS_ATTRIBUTE, request.getMaxToolCalls());
         }
-        if (request.getTimeoutMs() != null) {
-            attributes.put(AGENT_TIMEOUT_MS_ATTRIBUTE, request.getTimeoutMs());
-        }
+        attributes.put(AGENT_TIMEOUT_MS_ATTRIBUTE,
+            request.getTimeoutMs() == null ? AgentRunRequest.DEFAULT_TIMEOUT_MS : request.getTimeoutMs());
         return runtimeGuard.attributesWithDeadline(attributes);
     }
 
@@ -372,6 +371,11 @@ public class AgentOrchestrator {
             maxSteps = Math.max(maxSteps, mandatoryTools.size() + 1);
         }
         boolean requireToolBeforeFinal = !mandatoryTools.isEmpty();
+        List<Map<String, Object>> requiredToolExecutionContracts = requiredToolExecutionContracts(
+            mandatoryTools,
+            requiredToolNames,
+            workflowMandatoryTools
+        );
         ChatModel activeChatModel = chatModelResolver.resolveChatModel(modelName);
         List<InteractionToolTrace> traces = new ArrayList<>();
         List<String> observations = runResultAdapter.runtimeObservationList(stringValue(requestRuntimeAttributes.get(AGENT_RUN_ID_ATTRIBUTE)));
@@ -387,6 +391,8 @@ public class AgentOrchestrator {
         metadata.put("mandatoryToolCall", requireToolBeforeFinal);
         metadata.put("mandatoryTools", mandatoryTools);
         metadata.put("workflowMandatoryTools", workflowMandatoryTools);
+        metadata.put("executionPolicy", runtimeExecutionPolicy(requireToolBeforeFinal));
+        metadata.put("requiredToolExecutions", requiredToolExecutionContracts);
         if (!workflowMandatoryResolution.skippedTools().isEmpty()) {
             metadata.put("workflowSkippedTools", workflowMandatoryResolution.skippedTools());
         }
@@ -546,6 +552,10 @@ public class AgentOrchestrator {
                         traces,
                         observations,
                         metadata,
+                        documentIds,
+                        documentTags,
+                        webSearchResultLimit,
+                        maxToolCalls,
                         cancellationCheck
                     );
                 }
@@ -561,12 +571,8 @@ public class AgentOrchestrator {
                 FinalExecutionDecision finalDecision = eventMissingMandatoryTools.isEmpty()
                     ? new FinalExecutionDecision(true, "REQUIRED_TOOLS_COMPLETED_BY_EVENTS", eventMissingMandatoryTools)
                     : new FinalExecutionDecision(
-                        Boolean.TRUE.equals(decision.sufficient()) || workflowDecisionEngine.policyAllowsEarlyFinal(requestRuntimeAttributes),
-                        Boolean.TRUE.equals(decision.sufficient())
-                            ? "PLANNER_SUFFICIENT"
-                            : workflowDecisionEngine.policyAllowsEarlyFinal(requestRuntimeAttributes)
-                                ? "POLICY_EARLY_EXIT"
-                                : "MISSING_REQUIRED_TOOLS_BY_EVENTS",
+                        false,
+                        "MISSING_REQUIRED_TOOLS_BY_EVENTS",
                         eventMissingMandatoryTools
                     );
                 metadata.put("finalDecisionReason", finalDecision.reason());
@@ -775,6 +781,22 @@ public class AgentOrchestrator {
             }
         }
 
+        AgentExecutionResult blockedResult = finishMandatoryWorkflowBlockedIfPending(
+            activeChatModel,
+            query,
+            systemPrompt,
+            traces,
+            metadata,
+            observations,
+            requestRuntimeAttributes,
+            cancellationCheck,
+            "mandatory_workflow_incomplete",
+            "Agent run stopped before final answer because mandatory workflow tools did not complete."
+        );
+        if (blockedResult != null) {
+            return blockedResult;
+        }
+
         return answerFinalizer.finishReviewedSummary(
             activeChatModel,
             query,
@@ -800,6 +822,10 @@ public class AgentOrchestrator {
                                                                    List<InteractionToolTrace> traces,
                                                                    List<String> observations,
                                                                    Map<String, Object> metadata,
+                                                                   List<String> documentIds,
+                                                                   List<String> documentTags,
+                                                                   int webSearchResultLimit,
+                                                                   int maxToolCalls,
                                                                    BooleanSupplier cancellationCheck) {
         runtimeGuard.checkCancelled(cancellationCheck);
         metadata.put("interpretationPlanPipeline", true);
@@ -885,13 +911,26 @@ public class AgentOrchestrator {
         metadata.put("interpretationPlanMaxRewriteTimes", maxRewriteTimes);
         for (int rewriteCount = 1; rewriteCount <= maxRewriteTimes; rewriteCount++) {
             InterpretationPlan.Step failedStep = failedStep(currentPlan, currentResult);
+            Set<String> completedTools = completedWorkflowToolsFromEvents(
+                runtimeAttributes,
+                workflowStateTracker.completedToolsFromTraces(traces)
+            );
+            List<String> pendingRequiredTools = workflowTools.missingMandatoryTools(
+                metadataStringList(metadata, "mandatoryTools"),
+                completedTools
+            );
             InterpretationPlanRewriter.RewriteResult rewrite = rewriter.rewrite(new InterpretationPlanRewriter.RewriteRequest(
                 currentPlan,
                 failedStep,
                 currentResult.errorMessage(),
                 observations,
                 tools,
-                toolRegistry
+                toolRegistry,
+                requiredToolExecutions(
+                    pendingRequiredTools,
+                    metadataStringList(metadata, "requiredToolNames"),
+                    metadataStringList(metadata, "workflowMandatoryTools")
+                )
             ));
             metadata.put("interpretationPlanRewriteAttempted", true);
             metadata.put("interpretationPlanRewriteCount", rewriteCount);
@@ -1001,6 +1040,44 @@ public class AgentOrchestrator {
         metadata.put("interpretationPlanFallbackMode", fallbackMode(plan));
         metadata.put("stopReason", "interpretation_plan_failed");
         observations.add("InterpretationPlan failed after rewrite budget. Fallback mode: " + fallbackMode(plan) + ".");
+        runMissingMandatoryWorkflowTools(
+            traces,
+            observations,
+            query,
+            conversationId,
+            requestId,
+            userId,
+            tenantId,
+            tools,
+            metadataStringList(metadata, "mandatoryTools"),
+            documentIds,
+            documentTags,
+            webSearchResultLimit,
+            metadata,
+            runtimeAttributes,
+            maxToolCalls
+        );
+        if (Boolean.TRUE.equals(metadata.get("confirmationRequired"))) {
+            return answerFinalizer.finishExecution("", traces, metadata, observations);
+        }
+        if (Boolean.TRUE.equals(metadata.get("toolBudgetExceeded"))) {
+            return answerFinalizer.finishBudgetedSummary(activeChatModel, query, systemPrompt, traces, metadata, observations, cancellationCheck);
+        }
+        AgentExecutionResult blockedResult = finishMandatoryWorkflowBlockedIfPending(
+            activeChatModel,
+            query,
+            systemPrompt,
+            traces,
+            metadata,
+            observations,
+            runtimeAttributes,
+            cancellationCheck,
+            "mandatory_workflow_incomplete",
+            "InterpretationPlan failed and mandatory workflow tools are still incomplete."
+        );
+        if (blockedResult != null) {
+            return blockedResult;
+        }
         return answerFinalizer.finishReviewedSummary(
             activeChatModel,
             query,
@@ -1040,6 +1117,57 @@ public class AgentOrchestrator {
         metadata.put("mandatoryWorkflowPending", !missingMandatoryTools.isEmpty());
     }
 
+    private AgentExecutionResult finishMandatoryWorkflowBlockedIfPending(ChatModel activeChatModel,
+                                                                         String query,
+                                                                         String systemPrompt,
+                                                                         List<InteractionToolTrace> traces,
+                                                                         Map<String, Object> metadata,
+                                                                         List<String> observations,
+                                                                         Map<String, Object> runtimeAttributes,
+                                                                         BooleanSupplier cancellationCheck,
+                                                                         String stopReason,
+                                                                         String reason) {
+        List<String> mandatoryTools = metadataStringList(metadata, "mandatoryTools");
+        if (mandatoryTools.isEmpty()) {
+            return null;
+        }
+        Set<String> completedTools = completedWorkflowToolsFromEvents(
+            runtimeAttributes,
+            workflowStateTracker.completedToolsFromTraces(traces)
+        );
+        List<String> missingMandatoryTools = workflowTools.missingMandatoryTools(mandatoryTools, completedTools);
+        if (missingMandatoryTools.isEmpty()) {
+            metadata.put("missingMandatoryTools", List.of());
+            metadata.put("mandatoryWorkflowCompleted", true);
+            metadata.put("mandatoryWorkflowPending", false);
+            return null;
+        }
+        metadata.put("stopReason", stopReason);
+        metadata.put("mandatoryWorkflowBlocked", true);
+        metadata.put("fatalExecutionBlocked", true);
+        metadata.put("errorCode", "PLAN_INVALID_REQUIRED_TOOL_NOT_EXECUTED");
+        metadata.put("errorMessage", "PLAN_INVALID_REQUIRED_TOOL_NOT_EXECUTED: " + reason
+            + " Missing mandatory tools: " + missingMandatoryTools);
+        metadata.put("missingMandatoryTools", missingMandatoryTools);
+        metadata.put("mandatoryWorkflowCompleted", false);
+        metadata.put("mandatoryWorkflowPending", true);
+        observations.add(reason + " Missing mandatory tools: " + missingMandatoryTools);
+        observations.add("PLAN_INVALID_REQUIRED_TOOL_NOT_EXECUTED: Required tools were not executed to a terminal observation. Missing tools: "
+            + String.join(", ", missingMandatoryTools)
+            + ".");
+        metadata.put("failureSummaryRequiresToolCompletionContext", true);
+        return answerFinalizer.finishReviewedSummary(
+            activeChatModel,
+            query,
+            systemPrompt,
+            traces,
+            metadata,
+            observations,
+            cancellationCheck,
+            stopReason
+        );
+    }
+
     private InterpretationPlanRuntime.ExecutionRequest planExecutionRequest(InterpretationPlan plan,
                                                                             String tenantId,
                                                                             String requestId,
@@ -1057,6 +1185,70 @@ public class AgentOrchestrator {
             userId,
             runtimeAttributes == null ? Map.of() : runtimeAttributes
         );
+    }
+
+    private Map<String, Object> runtimeExecutionPolicy(boolean requireToolBeforeFinal) {
+        Map<String, Object> policy = new LinkedHashMap<>();
+        policy.put("userSelectedToolsMustRun", requireToolBeforeFinal);
+        policy.put("modelCanSuggestSkip", false);
+        policy.put("finalAnswerRequiresToolCompletion", requireToolBeforeFinal);
+        return policy;
+    }
+
+    private List<Map<String, Object>> requiredToolExecutionContracts(List<String> tools,
+                                                                     List<String> userSelectedTools,
+                                                                     List<String> workflowMandatoryTools) {
+        List<Map<String, Object>> contracts = new ArrayList<>();
+        for (InterpretationPlanRewriter.RequiredToolExecution execution : requiredToolExecutions(
+            tools,
+            userSelectedTools,
+            workflowMandatoryTools
+        )) {
+            Map<String, Object> contract = new LinkedHashMap<>();
+            contract.put("toolName", execution.toolName());
+            contract.put("source", execution.source());
+            contract.put("required", execution.required());
+            contracts.add(contract);
+        }
+        return contracts;
+    }
+
+    private List<InterpretationPlanRewriter.RequiredToolExecution> requiredToolExecutions(List<String> tools,
+                                                                                          List<String> userSelectedTools,
+                                                                                          List<String> workflowMandatoryTools) {
+        List<InterpretationPlanRewriter.RequiredToolExecution> executions = new ArrayList<>();
+        for (String tool : normalizeList(tools)) {
+            executions.add(new InterpretationPlanRewriter.RequiredToolExecution(
+                tool,
+                requiredToolSource(tool, userSelectedTools, workflowMandatoryTools),
+                true
+            ));
+        }
+        return executions;
+    }
+
+    private String requiredToolSource(String tool,
+                                      List<String> userSelectedTools,
+                                      List<String> workflowMandatoryTools) {
+        if (containsSameTool(userSelectedTools, tool)) {
+            return "USER_SELECTED";
+        }
+        if (containsSameTool(workflowMandatoryTools, tool)) {
+            return "RUNTIME_WORKFLOW";
+        }
+        return "RUNTIME_POLICY";
+    }
+
+    private boolean containsSameTool(List<String> tools, String expectedTool) {
+        if (expectedTool == null || expectedTool.isBlank() || tools == null || tools.isEmpty()) {
+            return false;
+        }
+        for (String tool : tools) {
+            if (toolNames.sameToolName(tool, expectedTool)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private InterpretationPlanRuntime.DagDecision decideInterpretationPlanDagStep(
@@ -2200,6 +2392,13 @@ public class AgentOrchestrator {
         }
         metadata.put("mandatoryWorkflowExecutionTools", fallbackTools);
         for (String fallbackTool : fallbackTools) {
+            String failedMandatoryTool = failedMandatoryWorkflowTool(mandatoryTools, traces);
+            if (failedMandatoryTool != null) {
+                metadata.put("mandatoryWorkflowStoppedOnFailure", failedMandatoryTool);
+                observations.add("Mandatory workflow fallback stopped because required tool "
+                    + failedMandatoryTool + " already produced a failure observation.");
+                return;
+            }
             completedTools = completedWorkflowToolsFromEvents(
                 runtimeAttributes,
                 workflowStateTracker.completedToolsFromTraces(traces)
@@ -2246,6 +2445,27 @@ public class AgentOrchestrator {
                 completedWorkflowToolsFromEvents(runtimeAttributes, workflowStateTracker.completedToolsFromTraces(traces))
             );
         }
+    }
+
+    private String failedMandatoryWorkflowTool(List<String> mandatoryTools, List<InteractionToolTrace> traces) {
+        if (mandatoryTools == null || mandatoryTools.isEmpty() || traces == null || traces.isEmpty()) {
+            return null;
+        }
+        for (InteractionToolTrace trace : traces) {
+            if (trace == null || trace.isSuccess() || trace.getToolName() == null || trace.getToolName().isBlank()) {
+                continue;
+            }
+            Object outcome = trace.getRuntimeMetadata() == null ? null : trace.getRuntimeMetadata().get("outcome");
+            if ("confirmation_required".equalsIgnoreCase(String.valueOf(outcome))) {
+                continue;
+            }
+            for (String mandatoryTool : mandatoryTools) {
+                if (toolNames.sameToolName(mandatoryTool, trace.getToolName())) {
+                    return trace.getToolName();
+                }
+            }
+        }
+        return null;
     }
 
     /**

@@ -3,7 +3,7 @@
         <div>
             <h2>通知告警</h2>
             <div class="text-secondary small">
-                固定发布为 email_send、sms_send、wechat_work_send、dingtalk_send，默认 confirm_required。
+                每条启用的通知配置都会发布为一个 MCP 工具，调用后可发送邮件、短信、企业微信或钉钉通知。
             </div>
         </div>
         <div class="api-search">
@@ -13,6 +13,7 @@
     <div class="bulk-toolbar">
         <div class="text-secondary small">共 <span id="notificationTotalCount">0</span> 个渠道，匹配 <span id="notificationFilteredCount">0</span> 个</div>
         <div class="btn-group btn-group-sm" role="group" aria-label="Notification actions">
+            <button id="newNotificationChannelBtn" class="btn btn-primary" type="button">新增通知工具</button>
             <button id="refreshNotificationToolsBtn" class="btn btn-outline-secondary" type="button">刷新 MCP 工具</button>
         </div>
     </div>
@@ -29,8 +30,16 @@
             <div class="modal-body">
                 <form id="notificationChannelForm" class="service-form">
                     <input id="notificationId" type="hidden">
-                    <input id="notificationChannel" type="hidden">
                     <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label" for="notificationChannel">通知类型</label>
+                            <select id="notificationChannel" class="form-select" required>
+                                <option value="EMAIL">EMAIL</option>
+                                <option value="SMS">SMS</option>
+                                <option value="WECHAT_WORK">WECHAT_WORK</option>
+                                <option value="DINGTALK">DINGTALK</option>
+                            </select>
+                        </div>
                         <div class="col-md-4">
                             <label class="form-label" for="notificationToolName">工具名称</label>
                             <input id="notificationToolName" class="form-control" required>

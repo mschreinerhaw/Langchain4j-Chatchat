@@ -392,14 +392,16 @@ public class InterpretationPlanRuntime {
                 String executionToolName = routingDecision.routed() && routingDecision.resolvedToolName() != null
                     ? routingDecision.resolvedToolName()
                     : step.toolName();
-                DirectToolInvocation directInvocation = directBusinessTemplateInvocation(step, completed, resolvedInput);
-                if (directInvocation != null) {
-                    executionToolName = directInvocation.toolName();
-                    resolvedInput = directInvocation.arguments();
-                }
                 List<String> allowedTools = new ArrayList<>(safeList(request.allowedTools()));
-                if (directInvocation != null && !allowedTools.contains(executionToolName)) {
-                    allowedTools.add(executionToolName);
+                TemplateExecutorInvocation templateInvocation = templateExecutorInvocation(
+                    step,
+                    completed,
+                    resolvedInput,
+                    allowedTools
+                );
+                if (templateInvocation != null) {
+                    executionToolName = templateInvocation.toolName();
+                    resolvedInput = templateInvocation.arguments();
                 }
                 log.info("InterpretationPlan step resolved input: traceId={}, stepId={}, tool={}, input={}",
                     executionTraceId(request),
@@ -1298,35 +1300,140 @@ public class InterpretationPlanRuntime {
     }
 
     @SuppressWarnings("unchecked")
-    private DirectToolInvocation directBusinessTemplateInvocation(InterpretationPlan.Step step,
+    private TemplateExecutorInvocation templateExecutorInvocation(InterpretationPlan.Step step,
                                                                   Map<Integer, StepExecution> completed,
-                                                                  Map<String, Object> input) {
+                                                                  Map<String, Object> input,
+                                                                  List<String> allowedTools) {
         if (step == null || input == null || completed == null || completed.isEmpty()
-            || !isSqlQueryExecuteTool(step.toolName())) {
+            || isExecutionContextTool(step.toolName())) {
             return null;
         }
-        Object templateIdValue = firstValueAtAnyPath(input, "$.templateId", "$.template", "$.template_id");
-        if (templateIdValue == null || String.valueOf(templateIdValue).isBlank()) {
+        Map<String, Object> template = completedTemplateMetadataByToolName(completed, step.toolName());
+        if (template.isEmpty()) {
             return null;
         }
-        Map<String, Object> template = completedTemplateMetadata(completed, String.valueOf(templateIdValue));
-        Object mode = firstValueAtAnyPath(template, "$.execution.mode");
-        if (mode == null || !"direct_mcp_tool".equalsIgnoreCase(String.valueOf(mode).trim())) {
-            return null;
+        String executor = stringValue(firstValueAtAnyPath(template,
+            "$.sqlExecutionBinding.toolName",
+            "$.executionBinding.toolName",
+            "$.execution.executorTool",
+            "$.execution.toolName",
+            "$.execution.executionTool",
+            "$.executionTool"));
+        String executionTool = resolveExecutionToolName(executor, allowedTools);
+        if (executionTool == null || executionTool.isBlank()) {
+            throw new IllegalStateException("TEMPLATE_EXECUTOR_NOT_AVAILABLE: template " + step.toolName()
+                + " was selected but no declared executor tool is available");
         }
-        Object toolNameValue = firstValueAtAnyPath(template,
-            "$.execution.callTool",
-            "$.mcpToolName",
-            "$.toolName",
+        Map<String, Object> arguments = new LinkedHashMap<>(input);
+        String templateId = stringValue(firstValueAtAnyPath(template,
+            "$.sqlExecutionBinding.templateId",
+            "$.executionBinding.templateId",
             "$.templateId",
-            "$.id");
-        if (toolNameValue == null || String.valueOf(toolNameValue).isBlank()) {
-            return null;
+            "$.id",
+            "$.code",
+            "$.template",
+            "$.execution.template",
+            "$.execution.callTool",
+            "$.mcpToolName"));
+        if (templateId != null && !templateId.isBlank()) {
+            arguments.putIfAbsent("templateId", templateId);
+            arguments.putIfAbsent("template", templateId);
         }
-        Map<String, Object> arguments = input.get("parameters") instanceof Map<?, ?> map
+        Object existingContext = firstMapValue(arguments, "executionContext", "mcpExecutionContext");
+        Map<String, Object> executionContext = existingContext instanceof Map<?, ?> map
             ? new LinkedHashMap<>((Map<String, Object>) map)
             : new LinkedHashMap<>();
-        return new DirectToolInvocation(String.valueOf(toolNameValue).trim(), arguments);
+        Object contextValue = firstValueAtAnyPath(template,
+            "$.sqlExecutionBinding.executionContext",
+            "$.executionBinding.executionContext",
+            "$.execution.executionContext",
+            "$.executionContext");
+        if (contextValue instanceof Map<?, ?> contextMap) {
+            contextMap.forEach((key, value) -> {
+                if (key != null && value != null && !String.valueOf(value).isBlank()) {
+                    executionContext.putIfAbsent(String.valueOf(key), value);
+                }
+            });
+        }
+        if (!executionContext.isEmpty()) {
+            arguments.put("executionContext", executionContext);
+        }
+        return new TemplateExecutorInvocation(executionTool, arguments);
+    }
+
+    private Map<String, Object> completedTemplateMetadataByToolName(Map<Integer, StepExecution> completed, String toolName) {
+        if (completed == null || completed.isEmpty() || toolName == null || toolName.isBlank()) {
+            return Map.of();
+        }
+        for (StepExecution execution : completed.values()) {
+            if (execution == null || !execution.success() || !isTemplateDiscoveryTool(execution.toolName())) {
+                continue;
+            }
+            Map<String, Object> template = templateMetadataByToolName(execution.output(), toolName);
+            if (!template.isEmpty()) {
+                return template;
+            }
+        }
+        return Map.of();
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> templateMetadataByToolName(Object output, String toolName) {
+        for (Object item : templateCandidates(output)) {
+            if (!(item instanceof Map<?, ?> map)) {
+                continue;
+            }
+            Map<String, Object> template = new LinkedHashMap<>((Map<String, Object>) map);
+            if (templateNameMatches(template, toolName)) {
+                return template;
+            }
+        }
+        return Map.of();
+    }
+
+    private boolean templateNameMatches(Map<String, Object> template, String toolName) {
+        if (template == null || template.isEmpty() || toolName == null || toolName.isBlank()) {
+            return false;
+        }
+        Object[] candidates = new Object[] {
+            firstValueAtAnyPath(template, "$.templateId"),
+            firstValueAtAnyPath(template, "$.id"),
+            firstValueAtAnyPath(template, "$.code"),
+            firstValueAtAnyPath(template, "$.template"),
+            firstValueAtAnyPath(template, "$.mcpToolName"),
+            firstValueAtAnyPath(template, "$.toolName"),
+            firstValueAtAnyPath(template, "$.execution.callTool"),
+            firstValueAtAnyPath(template, "$.sqlExecutionBinding.templateId")
+        };
+        for (Object value : candidates) {
+            if (sameToolName(value == null ? null : String.valueOf(value), toolName)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private String resolveExecutionToolName(String executor, List<String> allowedTools) {
+        if (executor == null || executor.isBlank()) {
+            return null;
+        }
+        if (allowedTools == null || allowedTools.isEmpty()) {
+            return executor.trim();
+        }
+        for (String allowed : allowedTools) {
+            if (sameToolName(allowed, executor)) {
+                return allowed;
+            }
+        }
+        return null;
+    }
+
+    private boolean sameToolName(String left, String right) {
+        if (left == null || right == null || left.isBlank() || right.isBlank()) {
+            return false;
+        }
+        return left.trim().equalsIgnoreCase(right.trim())
+            || toolSemanticKey(left).equals(toolSemanticKey(right));
     }
 
     @SuppressWarnings("unchecked")
@@ -1853,11 +1960,7 @@ public class InterpretationPlanRuntime {
 
     @SuppressWarnings("unchecked")
     private Map<String, Object> templateMetadataById(Object output, String templateId) {
-        Object templates = firstValueAtAnyPath(output, "$.templates", "$.data.templates");
-        if (!(templates instanceof Iterable<?> iterable)) {
-            return Map.of();
-        }
-        for (Object item : iterable) {
+        for (Object item : templateCandidates(output)) {
             if (!(item instanceof Map<?, ?> map)) {
                 continue;
             }
@@ -1868,6 +1971,31 @@ public class InterpretationPlanRuntime {
             }
         }
         return Map.of();
+    }
+
+    private List<Object> templateCandidates(Object output) {
+        List<Object> values = new ArrayList<>();
+        addIterable(values, firstValueAtAnyPath(output, "$.templates", "$.data.templates"));
+        Object results = firstValueAtAnyPath(output, "$.results", "$.data.results");
+        if (results instanceof Iterable<?> iterable) {
+            for (Object result : iterable) {
+                addIterable(values, firstValueAtAnyPath(result,
+                    "$.associatedTemplates",
+                    "$.templates",
+                    "$.data.associatedTemplates",
+                    "$.data.templates"));
+            }
+        }
+        return values;
+    }
+
+    private void addIterable(List<Object> target, Object value) {
+        if (target == null || !(value instanceof Iterable<?> iterable)) {
+            return;
+        }
+        for (Object item : iterable) {
+            target.add(item);
+        }
     }
 
     private List<String> requiredTemplateParameters(Map<String, Object> template) {
@@ -2032,6 +2160,7 @@ public class InterpretationPlanRuntime {
                 input.put("filters", mutableFilters);
             }
         }
+        normalizeTypedDiscoveryRoutingDecision(step, request, input);
         ensureRoutingDecisionInput(step, request, input);
         input.putIfAbsent("filtersSchemaVersion", "target_filters.v1");
         Object trace = firstMapValue(input, "trace", "routingTrace", "routing_trace");
@@ -2042,6 +2171,79 @@ public class InterpretationPlanRuntime {
             return;
         }
         input.put("trace", routingTraceForStep(step, request));
+    }
+
+    private void normalizeTypedDiscoveryRoutingDecision(InterpretationPlan.Step step,
+                                                        ExecutionRequest request,
+                                                        Map<String, Object> input) {
+        String targetKind = targetKindFromToolSemanticKey(toolSemanticKey(step == null ? null : step.toolName()));
+        if (targetKind == null || targetKind.isBlank()) {
+            return;
+        }
+        Object currentDecision = firstMapValue(input, "finalDecision", "final_decision", "targetKind", "target_kind");
+        Object currentCandidates = input.get("candidates");
+        boolean needsCorrection = currentDecision == null
+            || String.valueOf(currentDecision).isBlank()
+            || !targetKind.equals(targetKindFromToolSemanticKey(String.valueOf(currentDecision)))
+            || !candidateSetContainsOnlyTargetKind(currentCandidates, targetKind);
+        if (!needsCorrection) {
+            return;
+        }
+        Map<String, Object> trace = mutableRoutingTrace(input, step, request);
+        if (currentDecision != null && !String.valueOf(currentDecision).isBlank()) {
+            trace.put("originalFinalDecision", currentDecision);
+        }
+        if (currentCandidates != null) {
+            trace.put("originalCandidates", currentCandidates);
+        }
+        trace.put("routingForcedByTypedDiscoveryTool", true);
+        trace.put("forcedTargetKind", targetKind);
+        input.put("finalDecision", targetKind);
+        input.put("candidates", List.of(Map.of(
+            "targetKind", targetKind,
+            "confidence", candidateConfidence(currentCandidates, 1.0)
+        )));
+        input.put("trace", trace);
+    }
+
+    private boolean candidateSetContainsOnlyTargetKind(Object candidates, String targetKind) {
+        if (!(candidates instanceof Iterable<?> iterable)) {
+            return false;
+        }
+        boolean seen = false;
+        for (Object item : iterable) {
+            if (!(item instanceof Map<?, ?> map)) {
+                return false;
+            }
+            Object value = firstMapValue(map, "targetKind", "target_kind", "queryDomain", "query_domain", "domain");
+            if (value == null || !targetKind.equals(targetKindFromToolSemanticKey(String.valueOf(value)))) {
+                return false;
+            }
+            seen = true;
+        }
+        return seen;
+    }
+
+    private double candidateConfidence(Object candidates, double fallback) {
+        if (!(candidates instanceof Iterable<?> iterable)) {
+            return fallback;
+        }
+        double max = fallback;
+        for (Object item : iterable) {
+            if (!(item instanceof Map<?, ?> map)) {
+                continue;
+            }
+            Object value = firstMapValue(map, "confidence", "targetConfidence", "routingConfidence");
+            if (value == null) {
+                continue;
+            }
+            try {
+                max = Math.max(max, Double.parseDouble(String.valueOf(value)));
+            } catch (NumberFormatException ignored) {
+                // Ignore malformed model confidence and keep the fallback.
+            }
+        }
+        return max;
     }
 
     private void ensureRoutingDecisionInput(InterpretationPlan.Step step,
@@ -2167,7 +2369,7 @@ public class InterpretationPlanRuntime {
         }
     }
 
-    private record DirectToolInvocation(String toolName, Map<String, Object> arguments) {
+    private record TemplateExecutorInvocation(String toolName, Map<String, Object> arguments) {
     }
 
     private Map<String, Object> routingTraceForStep(InterpretationPlan.Step step, ExecutionRequest request) {
@@ -2258,9 +2460,6 @@ public class InterpretationPlanRuntime {
             }
             Object value = bindingValue(source, binding);
             if (value == null) {
-                if (isLegacyDatasourceRoutingBindingForDirectTemplate(source, binding)) {
-                    continue;
-                }
                 if (binding.required() == null || binding.required()) {
                     throw new IllegalStateException("BINDING_FAILED: missing output_path " + binding.outputPath()
                         + " from step " + binding.from() + " for input " + binding.inputField());
@@ -2279,16 +2478,31 @@ public class InterpretationPlanRuntime {
         if (value != null) {
             return value;
         }
-        if (isTemplateDiscoveryTool(source.toolName())) {
+        if (isTemplateDiscoveryTool(source.toolName()) && bindingTargetsTemplateId(binding)) {
             return firstValueAtAnyPath(source.output(),
                 "$.templates[0].templateId",
                 "$.templates[0].id",
                 "$.templates[0].code",
+                "$.results[0].associatedTemplates[0].templateId",
+                "$.results[0].associatedTemplates[0].id",
+                "$.results[0].associatedTemplates[0].code",
                 "$.templateId",
                 "$.id",
                 "$.code");
         }
         return null;
+    }
+
+    private boolean bindingTargetsTemplateId(InterpretationPlan.Binding binding) {
+        if (binding == null) {
+            return false;
+        }
+        String outputKey = contractFieldKey(binding.outputPath());
+        String inputKey = contractFieldKey(binding.inputField());
+        return "templateid".equals(outputKey)
+            || "template".equals(outputKey)
+            || "templateid".equals(inputKey)
+            || "template".equals(inputKey);
     }
 
     @SuppressWarnings("unchecked")
@@ -2586,9 +2800,6 @@ public class InterpretationPlanRuntime {
             StepExecution source = completed.get(contract.from());
             ContractCheck check = checkContract(contract, source);
             if (!check.success()) {
-                if (isLegacyDatasourceRoutingContractForDirectTemplate(source, contract)) {
-                    continue;
-                }
                 return new StepExecution(
                     contract.to(),
                     "edge_contract",
@@ -2603,39 +2814,6 @@ public class InterpretationPlanRuntime {
             }
         }
         return null;
-    }
-
-    private boolean isLegacyDatasourceRoutingBindingForDirectTemplate(StepExecution source, InterpretationPlan.Binding binding) {
-        if (!isDirectBusinessTemplateDiscovery(source) || binding == null) {
-            return false;
-        }
-        String output = normalizeFieldPath(binding.outputPath());
-        String input = normalizeFieldPath(binding.inputField());
-        return ("assetname".equals(output) || "env".equals(output) || "environment".equals(output))
-            && (input.startsWith("executioncontextassetname")
-            || input.startsWith("mcpexecutioncontextassetname")
-            || input.startsWith("executioncontextenv")
-            || input.startsWith("mcpexecutioncontextenv")
-            || input.startsWith("executioncontextenvironment")
-            || input.startsWith("mcpexecutioncontextenvironment"));
-    }
-
-    private boolean isLegacyDatasourceRoutingContractForDirectTemplate(StepExecution source, InterpretationPlan.EdgeContract contract) {
-        if (!isDirectBusinessTemplateDiscovery(source) || contract == null) {
-            return false;
-        }
-        String field = normalizeFieldPath(contract.field());
-        return "assetname".equals(field) || "env".equals(field) || "environment".equals(field);
-    }
-
-    private boolean isDirectBusinessTemplateDiscovery(StepExecution source) {
-        if (source == null || !source.success() || !isTemplateDiscoveryTool(source.toolName())) {
-            return false;
-        }
-        Object mode = firstValueAtAnyPath(source.output(),
-            "$.templates[0].execution.mode",
-            "$.data.templates[0].execution.mode");
-        return mode != null && "direct_mcp_tool".equalsIgnoreCase(String.valueOf(mode).trim());
     }
 
     private ContractCheck checkContract(InterpretationPlan.EdgeContract contract, StepExecution source) {
@@ -2696,6 +2874,9 @@ public class InterpretationPlanRuntime {
                 "$.templates[0].templateId",
                 "$.templates[0].id",
                 "$.templates[0].code",
+                "$.results[0].associatedTemplates[0].templateId",
+                "$.results[0].associatedTemplates[0].id",
+                "$.results[0].associatedTemplates[0].code",
                 "$.templateId",
                 "$.id",
                 "$.code"

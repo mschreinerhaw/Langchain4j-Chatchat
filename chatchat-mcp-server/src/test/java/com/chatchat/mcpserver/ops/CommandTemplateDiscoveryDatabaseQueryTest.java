@@ -96,7 +96,9 @@ class CommandTemplateDiscoveryDatabaseQueryTest {
         assertThat(first.get("datasourceAsset").toString()).contains("ops-mysql", "db_query_ops_mysql");
         assertThat(first.get("mcpDecision").toString()).contains("SQL Template Marketplace");
         assertThat(first.get("rankingFeatures").toString()).contains("dbTypeMatch", "luceneScore", "usageScore");
-        assertThat(execution.get("mode")).isEqualTo("direct_mcp_tool");
+        assertThat(execution.get("mode")).isEqualTo("template_execution");
+        assertThat(execution.get("executorTool")).isEqualTo("sql_query_execute");
+        assertThat(execution.get("template")).isEqualTo("query_active_services");
         assertThat(execution.get("callTool")).isEqualTo("query_active_services");
         assertThat(first.get("parameterSchema").toString()).contains("status");
     }

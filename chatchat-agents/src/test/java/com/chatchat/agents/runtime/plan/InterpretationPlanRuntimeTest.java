@@ -729,7 +729,7 @@ class InterpretationPlanRuntimeTest {
     }
 
     @Test
-    void routesLegacySqlDatasourceTemplatePlanToDirectBusinessDatabaseQueryTool() {
+    void passesBusinessQueryTemplateNameToSqlQueryExecutor() {
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         when(toolRegistry.hasTool(any())).thenReturn(true);
         when(toolRegistry.getToolMetadata(any())).thenAnswer(invocation ->
@@ -740,6 +740,8 @@ class InterpretationPlanRuntimeTest {
             if ("mcp_chatchat_mcp_server_database_query_template_query".equals(toolRequest.getToolName())) {
                 return new ToolRuntimeExecution(
                     ToolOutput.success(Map.of(
+                        "assetName", "market-dm",
+                        "env", "DEV",
                         "templates", List.of(Map.of(
                             "templateId", "edayQuqtMoni",
                             "mcpToolName", "edayQuqtMoni",
@@ -788,9 +790,12 @@ class InterpretationPlanRuntimeTest {
         ArgumentCaptor<ToolRuntimeRequest> captor = ArgumentCaptor.forClass(ToolRuntimeRequest.class);
         verify(toolRuntimeService, times(2)).execute(captor.capture());
         assertThat(captor.getAllValues()).extracting(ToolRuntimeRequest::getToolName)
-            .containsExactly("mcp_chatchat_mcp_server_database_query_template_query", "edayQuqtMoni");
-        assertThat(captor.getAllValues().get(1).getToolInput().getParameters()).isEqualTo(Map.of());
-        assertThat(captor.getAllValues().get(1).getAllowedTools()).contains("edayQuqtMoni");
+            .containsExactly("mcp_chatchat_mcp_server_database_query_template_query",
+                "mcp_chatchat_mcp_server_sql_query_execute");
+        assertThat(captor.getAllValues().get(1).getToolInput().getParameters())
+            .containsEntry("templateId", "edayQuqtMoni");
+        assertThat(captor.getAllValues().get(1).getAllowedTools())
+            .doesNotContain("edayQuqtMoni");
     }
 
     @Test
@@ -844,7 +849,11 @@ class InterpretationPlanRuntimeTest {
             new InterpretationPlan.Context(List.of(), List.of(), List.of(), List.of()),
             new InterpretationPlan.Plan(List.of(
                 new InterpretationPlan.Step(1, "mcp_tool", "mcp_chatchat_mcp_server_business_query_template_search",
-                    Map.of("filters", Map.of("intent", "行情波动提醒")), List.of(), null, null),
+                    Map.of(
+                        "finalDecision", "business_database_query",
+                        "candidates", List.of(Map.of("targetKind", "business_database_query", "confidence", 0.95)),
+                        "filters", Map.of("intent", "行情波动提醒")
+                    ), List.of(), null, null),
                 new InterpretationPlan.Step(2, "mcp_tool", "mcp_chatchat_mcp_server_sql_query_execute",
                     Map.of("templateId", "edayQuqtMoni", "parameters", Map.of()), List.of(1), null, null),
                 new InterpretationPlan.Step(3, "final_answer", "", Map.of("answer", "done"), List.of(2), null, null)
@@ -881,6 +890,381 @@ class InterpretationPlanRuntimeTest {
                 "env", "DEV",
                 "databaseType", "dm"
             ));
+    }
+
+    @Test
+    void hydratesSqlExecutionContextFromDatabaseQuerySearchIndexResults() {
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool(any())).thenReturn(true);
+        when(toolRegistry.getToolMetadata(any())).thenAnswer(invocation ->
+            ToolMetadata.builder().id(invocation.getArgument(0)).riskLevel("low").build());
+        ToolRuntimeService toolRuntimeService = mock(ToolRuntimeService.class);
+        when(toolRuntimeService.execute(any())).thenAnswer(invocation -> {
+            ToolRuntimeRequest toolRequest = invocation.getArgument(0);
+            if ("mcp_chatchat_mcp_server_business_query_template_search".equals(toolRequest.getToolName())) {
+                return new ToolRuntimeExecution(
+                    ToolOutput.success(Map.of(
+                        "indexType", "database_query",
+                        "results", List.of(Map.of(
+                            "id", "ds-dm",
+                            "sqlExecutionContext", Map.of(
+                                "assetName", "达梦测试服务器",
+                                "env", "DEV",
+                                "environment", "DEV",
+                                "databaseType", "dm",
+                                "dbType", "dm"
+                            ),
+                            "associatedTemplates", List.of(Map.of(
+                                "templateId", "query_edayQuqtMoni",
+                                "mcpToolName", "query_edayQuqtMoni",
+                                "sqlExecutionBinding", Map.of(
+                                    "toolName", "sql_query_execute",
+                                    "templateId", "query_edayQuqtMoni",
+                                    "executionContext", Map.of(
+                                        "assetName", "达梦测试服务器",
+                                        "env", "DEV",
+                                        "environment", "DEV",
+                                        "databaseType", "dm",
+                                        "dbType", "dm"
+                                    )
+                                ),
+                                "parameterSchema", Map.of("type", "object", "properties", Map.of(), "required", List.of())
+                            ))
+                        ))
+                    )),
+                    ToolMetadata.builder().id(toolRequest.getToolName()).build(),
+                    null,
+                    "success",
+                    Map.of()
+                );
+            }
+            return new ToolRuntimeExecution(
+                ToolOutput.success(Map.of("rows", List.of(Map.of("cnt", 1)))),
+                ToolMetadata.builder().id(toolRequest.getToolName()).build(),
+                null,
+                "success",
+                Map.of()
+            );
+        });
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            toolRuntimeService,
+            new InterpretationPlanValidator(),
+            scriptedController(List.of(List.of(1), List.of(2), List.of(3)))
+        );
+
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("data_query", "行情提醒", "low"),
+            new InterpretationPlan.Context(List.of(), List.of(), List.of(), List.of()),
+            new InterpretationPlan.Plan(List.of(
+                new InterpretationPlan.Step(1, "mcp_tool", "mcp_chatchat_mcp_server_business_query_template_search",
+                    Map.of("filters", Map.of("intent", "行情提醒")), List.of(), null, null),
+                new InterpretationPlan.Step(2, "mcp_tool", "mcp_chatchat_mcp_server_sql_query_execute",
+                    Map.of("templateId", "query_edayQuqtMoni", "parameters", Map.of()), List.of(1), null, null),
+                new InterpretationPlan.Step(3, "final_answer", "", Map.of("answer", "done"), List.of(2), null, null)
+            )),
+            new InterpretationPlan.ExecutionPolicy(3, false,
+                List.of("mcp_chatchat_mcp_server_business_query_template_search",
+                    "mcp_chatchat_mcp_server_sql_query_execute"),
+                List.of(),
+                30000),
+            review()
+        );
+
+        InterpretationPlanRuntime.ExecutionResult result = runtime.execute(new InterpretationPlanRuntime.ExecutionRequest(
+            plan,
+            toolRegistry,
+            List.of("mcp_chatchat_mcp_server_business_query_template_search",
+                "mcp_chatchat_mcp_server_sql_query_execute"),
+            "tenant-1",
+            "req-business-query-search-index",
+            "conv-business-query-search-index",
+            "user-1",
+            Map.of()
+        ));
+
+        assertThat(result.success()).isTrue();
+        ArgumentCaptor<ToolRuntimeRequest> captor = ArgumentCaptor.forClass(ToolRuntimeRequest.class);
+        verify(toolRuntimeService, times(2)).execute(captor.capture());
+        assertThat(captor.getAllValues()).extracting(ToolRuntimeRequest::getToolName)
+            .containsExactly("mcp_chatchat_mcp_server_business_query_template_search",
+                "mcp_chatchat_mcp_server_sql_query_execute");
+        assertThat(captor.getAllValues().get(1).getToolInput().getParameters())
+            .containsEntry("executionContext", Map.of(
+                "assetName", "达梦测试服务器",
+                "env", "DEV",
+                "environment", "DEV",
+                "databaseType", "dm",
+                "dbType", "dm"
+            ));
+    }
+
+    @Test
+    void mapsDiscoveredTemplateToolStepToDeclaredExecutor() {
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool(any())).thenAnswer(invocation -> {
+            String tool = invocation.getArgument(0);
+            return !"query_edayQuqtMoni".equals(tool);
+        });
+        when(toolRegistry.getToolMetadata(any())).thenAnswer(invocation ->
+            ToolMetadata.builder().id(invocation.getArgument(0)).riskLevel("low").build());
+        ToolRuntimeService toolRuntimeService = mock(ToolRuntimeService.class);
+        when(toolRuntimeService.execute(any())).thenAnswer(invocation -> {
+            ToolRuntimeRequest toolRequest = invocation.getArgument(0);
+            if ("mcp_chatchat_mcp_server_business_query_template_search".equals(toolRequest.getToolName())) {
+                return new ToolRuntimeExecution(
+                    ToolOutput.success(Map.of(
+                        "results", List.of(Map.of(
+                            "id", "ds-dm",
+                            "associatedTemplates", List.of(Map.of(
+                                "templateId", "query_edayQuqtMoni",
+                                "mcpToolName", "query_edayQuqtMoni",
+                                "sqlExecutionBinding", Map.of(
+                                    "toolName", "sql_query_execute",
+                                    "templateId", "query_edayQuqtMoni",
+                                    "executionContext", Map.of(
+                                        "assetName", "达梦测试服务器",
+                                        "env", "DEV",
+                                        "databaseType", "dm"
+                                    )
+                                )
+                            ))
+                        ))
+                    )),
+                    ToolMetadata.builder().id(toolRequest.getToolName()).build(),
+                    null,
+                    "success",
+                    Map.of()
+                );
+            }
+            return new ToolRuntimeExecution(
+                ToolOutput.success(Map.of("rows", List.of(Map.of("cnt", 1)))),
+                ToolMetadata.builder().id(toolRequest.getToolName()).build(),
+                null,
+                "success",
+                Map.of()
+            );
+        });
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            toolRuntimeService,
+            new InterpretationPlanValidator(),
+            scriptedController(List.of(List.of(1), List.of(2), List.of(3)))
+        );
+
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("sql_query", "行情波动提醒", "low"),
+            new InterpretationPlan.Context(List.of(), List.of(), List.of(), List.of()),
+            new InterpretationPlan.Plan(List.of(
+                new InterpretationPlan.Step(1, "mcp_tool", "mcp_chatchat_mcp_server_business_query_template_search",
+                    Map.of(
+                        "finalDecision", "business_database_query",
+                        "candidates", List.of(Map.of("targetKind", "business_database_query", "confidence", 0.95)),
+                        "filters", Map.of("intent", "行情波动提醒")
+                    ), List.of(), null, null),
+                new InterpretationPlan.Step(2, "mcp_tool", "query_edayQuqtMoni",
+                    Map.of("parameters", Map.of()), List.of(1), null, null),
+                new InterpretationPlan.Step(3, "final_answer", "", Map.of("answer", "done"), List.of(2), null, null)
+            )),
+            new InterpretationPlan.ExecutionPolicy(3, false,
+                List.of("mcp_chatchat_mcp_server_business_query_template_search",
+                    "mcp_chatchat_mcp_server_sql_query_execute"),
+                List.of(),
+                30000),
+            review()
+        );
+
+        InterpretationPlanRuntime.ExecutionResult result = runtime.execute(new InterpretationPlanRuntime.ExecutionRequest(
+            plan,
+            toolRegistry,
+            List.of("mcp_chatchat_mcp_server_business_query_template_search",
+                "mcp_chatchat_mcp_server_sql_query_execute"),
+            "tenant-1",
+            "req-template-placeholder",
+            "conv-template-placeholder",
+            "user-1",
+            Map.of()
+        ));
+
+        assertThat(result.success()).isTrue();
+        ArgumentCaptor<ToolRuntimeRequest> captor = ArgumentCaptor.forClass(ToolRuntimeRequest.class);
+        verify(toolRuntimeService, times(2)).execute(captor.capture());
+        assertThat(captor.getAllValues()).extracting(ToolRuntimeRequest::getToolName)
+            .containsExactly("mcp_chatchat_mcp_server_business_query_template_search",
+                "mcp_chatchat_mcp_server_sql_query_execute");
+        assertThat(captor.getAllValues().get(1).getToolInput().getParameters())
+            .containsEntry("templateId", "query_edayQuqtMoni")
+            .containsEntry("executionContext", Map.of(
+                "assetName", "达梦测试服务器",
+                "env", "DEV",
+                "databaseType", "dm"
+            ));
+    }
+
+    @Test
+    void mapsDiscoveredTemplateToolStepUsingDeclaredExecutionExecutorTool() {
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool(any())).thenAnswer(invocation -> {
+            String tool = invocation.getArgument(0);
+            return !"query_mktInfoEvtMoni".equals(tool);
+        });
+        when(toolRegistry.getToolMetadata(any())).thenAnswer(invocation ->
+            ToolMetadata.builder().id(invocation.getArgument(0)).riskLevel("low").build());
+        ToolRuntimeService toolRuntimeService = mock(ToolRuntimeService.class);
+        when(toolRuntimeService.execute(any())).thenAnswer(invocation -> {
+            ToolRuntimeRequest toolRequest = invocation.getArgument(0);
+            if ("mcp_chatchat_mcp_server_business_query_template_search".equals(toolRequest.getToolName())) {
+                return new ToolRuntimeExecution(
+                    ToolOutput.success(Map.of(
+                        "results", List.of(Map.of(
+                            "id", "ds-dm",
+                            "associatedTemplates", List.of(Map.of(
+                                "templateId", "query_mktInfoEvtMoni",
+                                "mcpToolName", "query_mktInfoEvtMoni",
+                                "execution", Map.of(
+                                    "mode", "template_execution",
+                                    "executorTool", "sql_query_execute",
+                                    "template", "query_mktInfoEvtMoni",
+                                    "callTool", "query_mktInfoEvtMoni",
+                                    "executionContext", Map.of(
+                                        "assetName", "dm-market",
+                                        "env", "DEV",
+                                        "databaseType", "dm"
+                                    )
+                                )
+                            ))
+                        ))
+                    )),
+                    ToolMetadata.builder().id(toolRequest.getToolName()).build(),
+                    null,
+                    "success",
+                    Map.of()
+                );
+            }
+            return new ToolRuntimeExecution(
+                ToolOutput.success(Map.of("rows", List.of(Map.of("cnt", 1)))),
+                ToolMetadata.builder().id(toolRequest.getToolName()).build(),
+                null,
+                "success",
+                Map.of()
+            );
+        });
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            toolRuntimeService,
+            new InterpretationPlanValidator(),
+            scriptedController(List.of(List.of(1), List.of(2), List.of(3)))
+        );
+
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("sql_query", "market event monitor", "low"),
+            new InterpretationPlan.Context(List.of(), List.of(), List.of(), List.of()),
+            new InterpretationPlan.Plan(List.of(
+                new InterpretationPlan.Step(1, "mcp_tool", "mcp_chatchat_mcp_server_business_query_template_search",
+                    Map.of("filters", Map.of("intent", "market event monitor")), List.of(), null, null),
+                new InterpretationPlan.Step(2, "mcp_tool", "query_mktInfoEvtMoni",
+                    Map.of("parameters", Map.of()), List.of(1), null, null),
+                new InterpretationPlan.Step(3, "final_answer", "", Map.of("answer", "done"), List.of(2), null, null)
+            )),
+            new InterpretationPlan.ExecutionPolicy(3, false,
+                List.of("mcp_chatchat_mcp_server_business_query_template_search",
+                    "mcp_chatchat_mcp_server_sql_query_execute"),
+                List.of(),
+                30000),
+            review()
+        );
+
+        InterpretationPlanRuntime.ExecutionResult result = runtime.execute(new InterpretationPlanRuntime.ExecutionRequest(
+            plan,
+            toolRegistry,
+            List.of("mcp_chatchat_mcp_server_business_query_template_search",
+                "mcp_chatchat_mcp_server_sql_query_execute"),
+            "tenant-1",
+            "req-template-executor",
+            "conv-template-executor",
+            "user-1",
+            Map.of()
+        ));
+
+        assertThat(result.success()).isTrue();
+        ArgumentCaptor<ToolRuntimeRequest> captor = ArgumentCaptor.forClass(ToolRuntimeRequest.class);
+        verify(toolRuntimeService, times(2)).execute(captor.capture());
+        assertThat(captor.getAllValues()).extracting(ToolRuntimeRequest::getToolName)
+            .containsExactly("mcp_chatchat_mcp_server_business_query_template_search",
+                "mcp_chatchat_mcp_server_sql_query_execute");
+        assertThat(captor.getAllValues().get(1).getToolInput().getParameters())
+            .containsEntry("templateId", "query_mktInfoEvtMoni")
+            .containsEntry("executionContext", Map.of(
+                "assetName", "dm-market",
+                "env", "DEV",
+                "databaseType", "dm"
+            ));
+    }
+
+    @Test
+    void normalizesMismatchedBusinessTemplateRoutingDecisionBeforeMcpCall() {
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool(any())).thenReturn(true);
+        when(toolRegistry.getToolMetadata(any())).thenAnswer(invocation ->
+            ToolMetadata.builder().id(invocation.getArgument(0)).riskLevel("low").build());
+        ToolRuntimeService toolRuntimeService = mock(ToolRuntimeService.class);
+        when(toolRuntimeService.execute(any())).thenAnswer(invocation -> {
+            ToolRuntimeRequest toolRequest = invocation.getArgument(0);
+            return new ToolRuntimeExecution(
+                ToolOutput.success(Map.of("results", List.of())),
+                ToolMetadata.builder().id(toolRequest.getToolName()).build(),
+                null,
+                "success",
+                Map.of()
+            );
+        });
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            toolRuntimeService,
+            new InterpretationPlanValidator(),
+            scriptedController(List.of(List.of(1), List.of(2)))
+        );
+
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("sql_query", "行情波动提醒", "low"),
+            new InterpretationPlan.Context(List.of(), List.of(), List.of(), List.of()),
+            new InterpretationPlan.Plan(List.of(
+                new InterpretationPlan.Step(1, "mcp_tool", "mcp_chatchat_mcp_server_business_query_template_search",
+                    Map.of(
+                        "candidates", List.of(Map.of("targetKind", "database", "confidence", 0.95)),
+                        "finalDecision", "database",
+                        "filters", Map.of("intent", "行情数据发生较大波动时异常提醒数据"),
+                        "trace", Map.of("plannerVersion", "v1.1")
+                    ), List.of(), null, null),
+                new InterpretationPlan.Step(2, "final_answer", "", Map.of("answer", "done"), List.of(1), null, null)
+            )),
+            new InterpretationPlan.ExecutionPolicy(2, false,
+                List.of("mcp_chatchat_mcp_server_business_query_template_search"),
+                List.of(),
+                30000),
+            review()
+        );
+
+        InterpretationPlanRuntime.ExecutionResult result = runtime.execute(new InterpretationPlanRuntime.ExecutionRequest(
+            plan,
+            toolRegistry,
+            List.of("mcp_chatchat_mcp_server_business_query_template_search"),
+            "tenant-1",
+            "req-normalize-business-template-target",
+            "conv-normalize-business-template-target",
+            "user-1",
+            Map.of()
+        ));
+
+        assertThat(result.success()).isTrue();
+        ArgumentCaptor<ToolRuntimeRequest> captor = ArgumentCaptor.forClass(ToolRuntimeRequest.class);
+        verify(toolRuntimeService).execute(captor.capture());
+        Map<String, Object> parameters = captor.getValue().getToolInput().getParameters();
+        assertThat(parameters).containsEntry("finalDecision", "business_database_query");
+        assertThat(parameters.get("candidates").toString()).contains("business_database_query").doesNotContain("targetKind=database");
+        assertThat(parameters.get("trace").toString())
+            .contains("routingForcedByTypedDiscoveryTool=true")
+            .contains("originalFinalDecision=database");
     }
 
     @Test

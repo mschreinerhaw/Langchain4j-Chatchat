@@ -139,6 +139,8 @@ public class DefaultAgentRuntime implements AgentRuntime {
         Map<String, Object> attributes = request.getAttributes() == null
             ? new LinkedHashMap<>()
             : new LinkedHashMap<>(request.getAttributes());
+        attributes.putIfAbsent("timeoutMs",
+            request.getTimeoutMs() == null ? AgentRunRequest.DEFAULT_TIMEOUT_MS : request.getTimeoutMs());
         Object existing = attributes.get("__agentCancellation");
         if (existing instanceof BooleanSupplier existingSupplier) {
             attributes.put("__agentCancellation", (BooleanSupplier) () -> signal.get() || existingSupplier.getAsBoolean());

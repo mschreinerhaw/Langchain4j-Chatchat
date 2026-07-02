@@ -32,9 +32,7 @@ class AgentRunResultAdapter {
             : new LinkedHashMap<>(result.metadata());
         return AgentRunResult.builder()
             .runId(runId)
-            .status(booleanValue(metadata.get("confirmationRequired"))
-                ? AgentRunStatus.WAITING_CONFIRMATION
-                : AgentRunStatus.COMPLETED)
+            .status(resolveStatus(metadata))
             .answer(result == null ? "" : result.answer())
             .stopReason(stringValue(metadata.get("stopReason")))
             .confirmationRequired(booleanValue(metadata.get("confirmationRequired")))
@@ -45,6 +43,19 @@ class AgentRunResultAdapter {
             .toolTraces(result == null || result.toolTraces() == null ? List.of() : result.toolTraces())
             .metadata(metadata)
             .build();
+    }
+
+    private AgentRunStatus resolveStatus(Map<String, Object> metadata) {
+        if (booleanValue(metadata == null ? null : metadata.get("confirmationRequired"))) {
+            return AgentRunStatus.WAITING_CONFIRMATION;
+        }
+        if (booleanValue(firstPresent(
+            metadata == null ? null : metadata.get("fatalExecutionBlocked"),
+            metadata == null ? null : metadata.get("mandatoryWorkflowBlocked")
+        ))) {
+            return AgentRunStatus.FAILED;
+        }
+        return AgentRunStatus.COMPLETED;
     }
 
     void recordRuntimeStep(Map<String, Object> runtimeAttributes, String runIdAttribute, Map<String, Object> step) {
@@ -211,5 +222,9 @@ class AgentRunResultAdapter {
             return first;
         }
         return second == null || second.isBlank() ? null : second;
+    }
+
+    private Object firstPresent(Object first, Object second) {
+        return first != null ? first : second;
     }
 }

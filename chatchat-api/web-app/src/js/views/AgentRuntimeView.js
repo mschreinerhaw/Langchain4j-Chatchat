@@ -603,8 +603,7 @@ export default {
         {
           afterCreatedAt: this.streamCursor,
           limit: 100,
-          pollIntervalMs: 1000,
-          timeoutMs: 300000
+          pollIntervalMs: 1000
         },
         {
           signal: controller.signal,

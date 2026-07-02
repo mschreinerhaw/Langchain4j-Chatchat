@@ -205,7 +205,8 @@ public class InterpretationPlanValidator {
         if (containsTool(denyTools, step.toolName())) {
             state.error(path + ".tool_name", "Tool is denied by execution_policy.deny_tool: " + step.toolName());
         }
-        if (!toolExists(step.toolName(), toolRegistry, availableTools)) {
+        if (!toolExists(step.toolName(), toolRegistry, availableTools)
+            && !templatePlaceholderStep(plan, step, availableTools)) {
             state.error(path + ".tool_name", "Tool is not registered or available: " + step.toolName());
         }
         validateToolInput(plan, step, path, toolRegistry, state);
@@ -806,6 +807,51 @@ public class InterpretationPlanValidator {
             // Fall through to metadata-based resolution.
         }
         return toolMetadata(toolName, toolRegistry) != null;
+    }
+
+    private boolean templatePlaceholderStep(InterpretationPlan plan,
+                                            InterpretationPlan.Step step,
+                                            Set<String> availableTools) {
+        if (plan == null || plan.plan() == null || step == null || step.dependsOn() == null
+            || step.dependsOn().isEmpty() || availableTools == null || availableTools.isEmpty()) {
+            return false;
+        }
+        boolean dependsOnTemplateDiscovery = plan.steps().stream()
+            .filter(candidate -> candidate != null && candidate.id() != null && step.dependsOn().contains(candidate.id()))
+            .anyMatch(candidate -> candidate.mcpToolAction() && templateDiscoveryTool(candidate.toolName()));
+        return dependsOnTemplateDiscovery && availableTools.stream().anyMatch(this::templateExecutionTool);
+    }
+
+    private boolean templateDiscoveryTool(String toolName) {
+        String semantic = semanticToolName(toolName);
+        return "template_query".equals(semantic)
+            || semantic.endsWith("_template_query")
+            || semantic.endsWith("_template_search");
+    }
+
+    private boolean templateExecutionTool(String toolName) {
+        String semantic = semanticToolName(toolName);
+        return "sql_query_execute".equals(semantic)
+            || semantic.endsWith("_sql_query_execute")
+            || "database_query_execute".equals(semantic)
+            || semantic.endsWith("_database_query_execute")
+            || "linux_command_execute".equals(semantic)
+            || semantic.endsWith("_linux_command_execute")
+            || "http_request_execute".equals(semantic)
+            || semantic.endsWith("_http_request_execute");
+    }
+
+    private String semanticToolName(String toolName) {
+        String normalized = normalize(toolName);
+        while (normalized.startsWith("mcp_")) {
+            normalized = normalized.substring(4);
+        }
+        for (String prefix : List.of("chatchat_mcp_server_", "chatchat_", "xxx_")) {
+            if (normalized.startsWith(prefix)) {
+                normalized = normalized.substring(prefix.length());
+            }
+        }
+        return normalized;
     }
 
     private ToolMetadata toolMetadata(String toolName, ToolRegistry toolRegistry) {

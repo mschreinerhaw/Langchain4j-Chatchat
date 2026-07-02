@@ -6,6 +6,7 @@ import io.modelcontextprotocol.spec.McpSchema;
 import org.junit.jupiter.api.Test;
 
 import java.lang.reflect.Method;
+import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -98,5 +99,35 @@ class TemplateDiscoveryMcpToolPublisherTest {
         assertThat(arguments.get("confidence")).isEqualTo(1.0);
         assertThat(arguments.get("filters").toString()).contains("统计每日订单");
         assertThat(arguments.get("candidates").toString()).contains("business_database_query");
+    }
+
+    @Test
+    void databaseQueryTemplateArgumentsOverrideMismatchedDatabaseCandidate() throws Exception {
+        TemplateDiscoveryMcpToolPublisher publisher = new TemplateDiscoveryMcpToolPublisher(
+            mock(McpSyncServer.class),
+            mock(CommandTemplateDiscoveryService.class)
+        );
+        Method argumentsMethod = TemplateDiscoveryMcpToolPublisher.class.getDeclaredMethod("databaseQueryTemplateArguments", Map.class);
+        argumentsMethod.setAccessible(true);
+
+        Map<?, ?> arguments = (Map<?, ?>) argumentsMethod.invoke(publisher, Map.of(
+            "candidates", List.of(Map.of("targetKind", "database", "confidence", 0.95)),
+            "finalDecision", "database",
+            "filters", Map.of("intent", "分析行情数据发生较大波动时异常提醒数据"),
+            "trace", Map.of("plannerVersion", "v1.1")
+        ));
+
+        assertThat(arguments.get("assetType")).isEqualTo("database_query");
+        assertThat(arguments.get("finalDecision")).isEqualTo("business_database_query");
+        assertThat((List<?>) arguments.get("candidates"))
+            .singleElement()
+            .satisfies(candidate -> {
+                Map<?, ?> candidateMap = (Map<?, ?>) candidate;
+                assertThat(candidateMap.get("targetKind")).isEqualTo("business_database_query");
+                assertThat(candidateMap.get("confidence")).isEqualTo(1.0);
+            });
+        assertThat(arguments.get("trace").toString())
+            .contains("forcedTargetKind=business_database_query")
+            .contains("originalCandidates");
     }
 }

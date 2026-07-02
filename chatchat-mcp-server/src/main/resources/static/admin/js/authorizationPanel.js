@@ -363,7 +363,7 @@ async function loadLocalAuthorizationTools() {
         toLocalTool({ id: 'ssh_template_query', toolName: 'ssh_template_query', enabled: true }, 'asset', 'SSH 模板检索', '检索 SSH 主机命令模板'),
         toLocalTool({ id: 'database_ops_template_search', toolName: 'database_ops_template_search', enabled: true }, 'asset', '数据库运维模板检索', '检索数据库维护、元数据和诊断模板'),
         toLocalTool({ id: 'http_endpoint_template_query', toolName: 'http_endpoint_template_query', enabled: true }, 'asset', 'HTTP 端点模板检索', '检索 HTTP 端点请求模板'),
-        toLocalTool({ id: 'business_query_template_search', toolName: 'business_query_template_search', enabled: true }, 'database_query', '业务查询模板检索', '检索业务数据库查询模板，不返回原始 SQL'),
+        toLocalTool({ id: 'business_query_template_search', toolName: 'business_query_template_search', enabled: true }, 'database_query', '数据库查询模板检索', '检索数据库查询模板，不返回原始 SQL'),
         toLocalTool({ id: 'ssh_asset_query', toolName: 'ssh_asset_query', enabled: true }, 'asset', 'SSH 资产检索', '检索 SSH 主机资产元数据'),
         toLocalTool({ id: 'http_endpoint_asset_query', toolName: 'http_endpoint_asset_query', enabled: true }, 'asset', 'HTTP 端点资产检索', '检索 HTTP 端点资产元数据'),
         ...databaseQueries.map(item => toLocalTool(item, 'database_query', '数据库查询', item.title || item.description || item.sqlTemplate)),

@@ -10,6 +10,7 @@ import com.chatchat.mcpserver.ops.HttpEndpointConfigService;
 import com.chatchat.mcpserver.sql.SqlTemplateConfig;
 import com.chatchat.mcpserver.sql.SqlTemplateService;
 import com.chatchat.mcpserver.sql.SqlDatasourceConfigService;
+import com.chatchat.mcpserver.sql.SqlDatasourceConfig;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
@@ -75,6 +76,8 @@ class McpTemplateLuceneIndexServiceTest {
         when(httpEndpointConfigService.listEnabled()).thenReturn(List.of());
         when(apiServiceConfigService.listAll()).thenReturn(List.of());
         when(databaseQueryConfigService.listAll()).thenReturn(List.of(databaseQuery()));
+        SqlDatasourceConfigService datasourceConfigService = mock(SqlDatasourceConfigService.class);
+        when(datasourceConfigService.getEnabled("ds-1")).thenReturn(datasource());
         McpTemplateLuceneIndexService indexService = new McpTemplateLuceneIndexService(
             lucene,
             commandTemplateService,
@@ -82,16 +85,19 @@ class McpTemplateLuceneIndexServiceTest {
             httpEndpointConfigService,
             apiServiceConfigService,
             databaseQueryConfigService,
-            mock(SqlDatasourceConfigService.class),
+            datasourceConfigService,
             new ObjectMapper()
         );
 
         indexService.refreshAll();
 
-        assertThat(lucene.searchDatabaseQueryTemplates(new LuceneMcpSearchService.TemplateSearchRequest(
+        List<LuceneMcpSearchService.SearchHit> hits = lucene.searchDatabaseQueryTemplates(new LuceneMcpSearchService.TemplateSearchRequest(
             "database_query", "mysql", "fulfillment lifecycle order services", 10
-        ))).extracting(LuceneMcpSearchService.SearchHit::id)
-            .contains("db-query-1");
+        ));
+        assertThat(hits).extracting(LuceneMcpSearchService.SearchHit::id)
+            .contains("ds-1");
+        assertThat(hits.get(0).source()).isEqualTo("database_query_asset_registry");
+        assertThat(hits.get(0).name()).isEqualTo("Order Service MySQL");
         assertThat(lucene.searchTemplates(new LuceneMcpSearchService.TemplateSearchRequest(
             "database_query", "mysql", "fulfillment lifecycle order services", 10
         ))).isEmpty();
@@ -165,6 +171,7 @@ class McpTemplateLuceneIndexServiceTest {
         config.setId("db-query-1");
         config.setToolName("order_status_query");
         config.setTitle("Order status query");
+        config.setDatasourceId("ds-1");
         config.setDescription("Query order status by order id.");
         config.setBusinessGroup("order_services");
         config.setBusinessGroupName("Order services");
@@ -174,6 +181,19 @@ class McpTemplateLuceneIndexServiceTest {
         config.setDatabaseType("mysql");
         config.setRiskLevel("read_only");
         config.setOwner("ops");
+        config.setEnabled(true);
+        return config;
+    }
+
+    private SqlDatasourceConfig datasource() {
+        SqlDatasourceConfig config = new SqlDatasourceConfig();
+        config.setId("ds-1");
+        config.setName("orders-mysql");
+        config.setTitle("Order Service MySQL");
+        config.setToolName("db_query_orders_mysql");
+        config.setDescription("Datasource for fulfillment lifecycle order services.");
+        config.setDatabaseType("mysql");
+        config.setEnvironment("DEV");
         config.setEnabled(true);
         return config;
     }

@@ -186,9 +186,15 @@ class McpParamBindingResolver {
         if (targetKind == null) {
             targetKind = finalDecision;
         }
+        String toolTargetKind = targetKindFromDiscoveryToolName(toolName, templateQuery);
+        if (toolTargetKind != null) {
+            targetKind = toolTargetKind;
+            forceDiscoveryTargetKind(values, toolTargetKind, rawCandidates);
+            rawCandidates = firstPresent(values, "candidates", "routingCandidates", "routing_candidates");
+            finalDecision = firstText(firstPresent(values, "finalDecision", "final_decision", "selectedTargetKind", "selected_target_kind"));
+        }
         Object explicitFilterEnvelope = firstPresent(values, "filters", "executionContext", "mcpExecutionContext");
         if (!(explicitFilterEnvelope instanceof Map<?, ?>)) {
-            String toolTargetKind = targetKindFromDiscoveryToolName(toolName, templateQuery);
             if (hasText(values.get("query")) && toolTargetKind != null) {
                 targetKind = firstNonBlank(targetKind, toolTargetKind);
                 Map<String, Object> filters = new LinkedHashMap<>();
@@ -479,6 +485,61 @@ class McpParamBindingResolver {
             return "host";
         }
         return null;
+    }
+
+    private void forceDiscoveryTargetKind(Map<String, Object> values, String targetKind, Object rawCandidates) {
+        String normalizedTargetKind = normalizeTargetKind(targetKind);
+        if (values == null || normalizedTargetKind == null) {
+            return;
+        }
+        values.put("targetKind", normalizedTargetKind);
+        values.put("finalDecision", normalizedTargetKind);
+        if (candidateContains(rawCandidates, normalizedTargetKind)) {
+            return;
+        }
+        Double confidence = confidence(values.get("confidence"));
+        if (confidence == null) {
+            confidence = maxCandidateConfidence(rawCandidates);
+        }
+        if (confidence == null) {
+            confidence = 0.9;
+        }
+        values.put("confidence", confidence);
+        values.put("candidates", List.of(Map.of(
+            "targetKind", normalizedTargetKind,
+            "confidence", confidence
+        )));
+    }
+
+    private boolean candidateContains(Object rawCandidates, String targetKind) {
+        String normalizedTargetKind = normalizeTargetKind(targetKind);
+        if (!(rawCandidates instanceof List<?> candidates) || normalizedTargetKind == null) {
+            return false;
+        }
+        for (Object item : candidates) {
+            if (item instanceof Map<?, ?> candidate
+                && normalizedTargetKind.equals(normalizeTargetKind(firstText(candidate.get("targetKind"))))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private Double maxCandidateConfidence(Object rawCandidates) {
+        if (!(rawCandidates instanceof List<?> candidates)) {
+            return null;
+        }
+        Double max = null;
+        for (Object item : candidates) {
+            if (!(item instanceof Map<?, ?> candidate)) {
+                continue;
+            }
+            Double value = confidence(candidate.get("confidence"));
+            if (value != null && (max == null || value > max)) {
+                max = value;
+            }
+        }
+        return max;
     }
 
     private String firstNonBlank(String first, String second) {

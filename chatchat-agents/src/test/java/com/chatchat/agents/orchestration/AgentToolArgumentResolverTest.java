@@ -1,11 +1,15 @@
 package com.chatchat.agents.orchestration;
 
+import com.chatchat.agents.tool.ToolRegistry;
+import com.chatchat.common.tool.ToolMetadata;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class AgentToolArgumentResolverTest {
 
@@ -363,6 +367,37 @@ class AgentToolArgumentResolverTest {
             .isInstanceOfSatisfying(Map.class, context -> assertThat(context)
                 .containsEntry("assetName", "248测试数据库")
                 .containsEntry("env", "DEV"));
+    }
+
+    @Test
+    void notificationToolBindsMessageDefaultsFromUserQuery() {
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        String toolName = "mcp_chatchat_mcp_server_notify_ops";
+        when(toolRegistry.getToolMetadata(toolName)).thenReturn(ToolMetadata.builder()
+            .category("notification")
+            .operationType("notify")
+            .metadata(Map.of("notificationTool", true))
+            .build());
+        AgentToolArgumentResolver notificationResolver = new AgentToolArgumentResolver(
+            new AgentToolNameResolver(),
+            5,
+            toolRegistry
+        );
+
+        Map<String, Object> result = notificationResolver.applyToolDefaults(
+            toolName,
+            Map.of("query", "行情数据发生较大波动，请发送告警"),
+            List.of(),
+            List.of(),
+            "行情数据发生较大波动，请发送告警",
+            5
+        );
+
+        assertThat(result)
+            .containsEntry("title", "Agent 告警通知")
+            .containsEntry("content", "行情数据发生较大波动，请发送告警")
+            .containsEntry("level", "WARNING")
+            .doesNotContainKey("query");
     }
 
     private Map<String, Object> trace() {

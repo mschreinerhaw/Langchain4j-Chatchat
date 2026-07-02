@@ -12,7 +12,7 @@ import java.util.Map;
 import java.util.Set;
 
 /**
- * Maintains workflow completion state derived from successful tool traces.
+ * Maintains workflow completion state derived from terminal tool observations.
  */
 class AgentWorkflowStateTracker {
 
@@ -43,7 +43,7 @@ class AgentWorkflowStateTracker {
         if (completedTools == null || execution == null || execution.trace() == null) {
             return;
         }
-        if (execution.trace().isSuccess() && execution.trace().getToolName() != null && !execution.trace().getToolName().isBlank()) {
+        if (!isConfirmationRequired(execution) && execution.trace().getToolName() != null && !execution.trace().getToolName().isBlank()) {
             completedTools.add(execution.trace().getToolName());
         }
     }
@@ -54,7 +54,7 @@ class AgentWorkflowStateTracker {
             return completed;
         }
         traces.stream()
-            .filter(trace -> trace != null && trace.isSuccess())
+            .filter(trace -> trace != null && !confirmationRequired(trace))
             .map(InteractionToolTrace::getToolName)
             .filter(tool -> tool != null && !tool.isBlank())
             .forEach(completed::add);
@@ -75,6 +75,14 @@ class AgentWorkflowStateTracker {
             return false;
         }
         Object outcome = execution.trace().getRuntimeMetadata().get("outcome");
+        return "confirmation_required".equalsIgnoreCase(String.valueOf(outcome));
+    }
+
+    private boolean confirmationRequired(InteractionToolTrace trace) {
+        if (trace == null || trace.getRuntimeMetadata() == null) {
+            return false;
+        }
+        Object outcome = trace.getRuntimeMetadata().get("outcome");
         return "confirmation_required".equalsIgnoreCase(String.valueOf(outcome));
     }
 
@@ -115,10 +123,17 @@ class AgentWorkflowStateTracker {
                     Map<String, Object> payload = event.payload();
                     Map<String, Object> metadata = asMap(payload == null ? null : payload.get("metadata"));
                     Boolean success = booleanObject(firstObject(metadata, "success", "toolSuccess"));
+                    String toolName = stringObject(firstObject(metadata, "toolName", "resolvedToolName"));
+                    if (toolName == null || toolName.isBlank()) {
+                        toolName = stringObject(payload == null ? null : payload.get("source"));
+                    }
                     if (Boolean.FALSE.equals(success)) {
                         Integer stepId = firstInteger(firstObject(metadata, "interpretationPlanStepId", "workflowStepId", "stepId"));
                         if (stepId != null) {
                             failedStepIds.add(stepId);
+                        }
+                        if (toolName != null && !toolName.isBlank()) {
+                            completedTools.add(toolName);
                         }
                         continue;
                     }
@@ -128,10 +143,6 @@ class AgentWorkflowStateTracker {
                     Integer stepId = firstInteger(firstObject(metadata, "interpretationPlanStepId", "workflowStepId", "stepId"));
                     if (stepId != null) {
                         completedStepIds.add(stepId);
-                    }
-                    String toolName = stringObject(firstObject(metadata, "toolName", "resolvedToolName"));
-                    if (toolName == null || toolName.isBlank()) {
-                        toolName = stringObject(payload == null ? null : payload.get("source"));
                     }
                     if (toolName != null && !toolName.isBlank() && Boolean.TRUE.equals(success)) {
                         completedTools.add(toolName);

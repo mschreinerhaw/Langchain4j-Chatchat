@@ -1,5 +1,9 @@
 package com.chatchat.mcpserver.sql;
 
+import com.chatchat.common.tool.ToolOutput;
+import com.chatchat.mcpserver.database.DatabaseQueryConfig;
+import com.chatchat.mcpserver.database.DatabaseQueryConfigService;
+import com.chatchat.mcpserver.database.DatabaseQueryInvokeService;
 import com.chatchat.mcpserver.tool.AgentRuntimeGovernanceFactory;
 import com.chatchat.mcpserver.tool.McpToolConcurrencyManager;
 import com.chatchat.mcpserver.tool.StandardToolExecutionResultFactory;
@@ -37,6 +41,8 @@ public class SqlMcpToolPublisher {
     private final SqlTemplateService sqlTemplateService;
     private final SqlQueryExecuteService executeService;
     private final SqlMetadataSearchService metadataSearchService;
+    private final DatabaseQueryConfigService databaseQueryConfigService;
+    private final DatabaseQueryInvokeService databaseQueryInvokeService;
     private final ExecutionTargetRouter executionTargetRouter;
     private final AssetMetadataFactory assetMetadataFactory;
     private final AgentRuntimeGovernanceFactory governanceFactory;
@@ -87,7 +93,7 @@ public class SqlMcpToolPublisher {
             .title("SQL query execution gateway")
             .description("Execute a read-only SQL query or SQL template on a routed logical datasource target. "
                 + "When using datasource maintenance template, the value must be an existing templateId returned by database_ops_template_search for the same logical datasource. "
-                + "Business query templates are discovered with business_query_template_search and executed through their returned direct MCP tool binding. "
+                + "Business query templates are discovered with business_query_template_search; pass the returned executable template name as template/templateId to this executor with its executionContext. "
                 + "For table metadata analysis, locate the table schema with metadata discovery templates such as MYSQL_SCHEMA_TABLE_OVERVIEW or MYSQL_TABLE_LOCATION before reading columns. "
                 + "Do not invent template names and do not pass datasourceId, JDBC URL, or any concrete database endpoint.")
             .inputSchema(gatewayInputSchema())
@@ -99,9 +105,73 @@ public class SqlMcpToolPublisher {
                 "sql_query_execute",
                 "sql",
                 request.arguments(),
-                () -> toCallToolResult(executeService.execute(
-                    executionTargetRouter.routeSqlQuery(request.arguments())))))
+                () -> executeSqlGateway(request.arguments())))
             .build();
+    }
+
+    private McpSchema.CallToolResult executeSqlGateway(Map<String, Object> arguments) {
+        DatabaseQueryConfig databaseQuery = businessDatabaseQueryTemplate(arguments);
+        if (databaseQuery != null) {
+            Map<String, Object> queryArguments = databaseQueryArguments(arguments);
+            ToolOutput output = databaseQueryInvokeService.invoke(databaseQuery, queryArguments);
+            return toDatabaseQueryCallToolResult(databaseQuery, queryArguments, output);
+        }
+        return toCallToolResult(executeService.execute(executionTargetRouter.routeSqlQuery(arguments)));
+    }
+
+    private DatabaseQueryConfig businessDatabaseQueryTemplate(Map<String, Object> arguments) {
+        String template = firstText(
+            text(arguments, "template"),
+            firstText(text(arguments, "templateId"), text(arguments, "template_id"))
+        );
+        if (template == null || template.isBlank()) {
+            return null;
+        }
+        return databaseQueryConfigService.listEnabled().stream()
+            .filter(config -> config != null && equalsIgnoreCase(config.getToolName(), template))
+            .findFirst()
+            .orElse(null);
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> databaseQueryArguments(Map<String, Object> arguments) {
+        if (arguments == null || arguments.isEmpty()) {
+            return Map.of();
+        }
+        Object parameters = arguments.get("parameters");
+        if (parameters instanceof Map<?, ?> map) {
+            return new LinkedHashMap<>((Map<String, Object>) map);
+        }
+        Map<String, Object> values = new LinkedHashMap<>(arguments);
+        values.remove("template");
+        values.remove("templateId");
+        values.remove("template_id");
+        values.remove("executionContext");
+        values.remove("mcpExecutionContext");
+        return values;
+    }
+
+    private McpSchema.CallToolResult toDatabaseQueryCallToolResult(DatabaseQueryConfig config,
+                                                                   Map<String, Object> arguments,
+                                                                   ToolOutput output) {
+        Object structured = standardResultFactory.fromDatabaseQuery(config, arguments, output);
+        boolean success = output != null && output.isSuccess();
+        String text = success
+            ? summarizeDatabaseQueryData(output.getData())
+            : output == null ? "database_query returned no output" : output.getErrorMessage();
+        return McpSchema.CallToolResult.builder()
+            .addTextContent(text == null ? "" : text)
+            .structuredContent(structured)
+            .isError(!success)
+            .build();
+    }
+
+    private String summarizeDatabaseQueryData(Object data) {
+        if (data == null) {
+            return "database_query executed successfully";
+        }
+        String text = String.valueOf(data);
+        return text.length() <= 2000 ? text : text.substring(0, 2000) + "...";
     }
 
     private McpServerFeatures.SyncToolSpecification sqlMetadataSearchTool() {
@@ -575,6 +645,18 @@ public class SqlMcpToolPublisher {
 
     private String firstText(String value, String fallback) {
         return value == null || value.isBlank() ? fallback : value.trim();
+    }
+
+    private String text(Map<String, Object> values, String key) {
+        if (values == null || key == null) {
+            return null;
+        }
+        Object value = values.get(key);
+        return value == null || String.valueOf(value).isBlank() ? null : String.valueOf(value).trim();
+    }
+
+    private boolean equalsIgnoreCase(String left, String right) {
+        return left != null && right != null && left.trim().equalsIgnoreCase(right.trim());
     }
 
     private Map<String, Object> mutableMap(Object... values) {

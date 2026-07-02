@@ -26,7 +26,7 @@ public class NotificationChannelConfig {
     private String id;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false, unique = true, length = 32)
+    @Column(nullable = false, length = 32)
     private NotificationChannel channel;
 
     @Column(nullable = false, unique = true, length = 128)

@@ -20,7 +20,6 @@ import java.util.concurrent.ThreadFactory;
 @RequiredArgsConstructor
 public class AgentRuntimeEventStreamService {
 
-    private static final long DEFAULT_TIMEOUT_MS = 300_000L;
     private static final long MAX_TIMEOUT_MS = 1_800_000L;
     private static final long DEFAULT_POLL_INTERVAL_MS = 1_000L;
 
@@ -32,8 +31,8 @@ public class AgentRuntimeEventStreamService {
                                    int limit,
                                    long pollIntervalMs,
                                    long timeoutMs) {
-        long safeTimeoutMs = timeoutMs <= 0 ? DEFAULT_TIMEOUT_MS : Math.min(timeoutMs, MAX_TIMEOUT_MS);
-        SseEmitter emitter = new SseEmitter(safeTimeoutMs + 5_000L);
+        long safeTimeoutMs = timeoutMs <= 0 ? 0L : Math.min(timeoutMs, MAX_TIMEOUT_MS);
+        SseEmitter emitter = new SseEmitter(safeTimeoutMs <= 0 ? 0L : safeTimeoutMs + 5_000L);
         executor.execute(() -> streamLoop(
             emitter,
             runId,
@@ -56,7 +55,8 @@ public class AgentRuntimeEventStreamService {
                             int limit,
                             long pollIntervalMs,
                             long timeoutMs) {
-        long deadlineAt = System.currentTimeMillis() + timeoutMs;
+        boolean hasDeadline = timeoutMs > 0;
+        long deadlineAt = hasDeadline ? System.currentTimeMillis() + timeoutMs : Long.MAX_VALUE;
         try {
             AgentRun initial = agentRuntime.find(runId).orElse(null);
             if (initial == null) {
@@ -70,7 +70,7 @@ public class AgentRuntimeEventStreamService {
                 "cursor", cursor,
                 "timestamp", System.currentTimeMillis()
             ));
-            while (System.currentTimeMillis() <= deadlineAt) {
+            while (!hasDeadline || System.currentTimeMillis() <= deadlineAt) {
                 List<AgentRunEvent> events = agentRuntime.events(runId, cursor, limit);
                 for (AgentRunEvent event : events) {
                     send(emitter, "event", event);
@@ -102,8 +102,10 @@ public class AgentRuntimeEventStreamService {
                 }
                 sleep(pollIntervalMs);
             }
-            send(emitter, "timeout", Map.of("runId", runId, "cursor", cursor, "timestamp", System.currentTimeMillis()));
-            emitter.complete();
+            if (hasDeadline) {
+                send(emitter, "timeout", Map.of("runId", runId, "cursor", cursor, "timestamp", System.currentTimeMillis()));
+                emitter.complete();
+            }
         } catch (Exception ex) {
             sendError(emitter, ex);
         }

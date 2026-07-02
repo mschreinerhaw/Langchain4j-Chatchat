@@ -23,6 +23,7 @@ import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -87,11 +88,9 @@ public class McpTemplateLuceneIndexService {
         if (luceneSearchService == null || !luceneSearchService.enabled()) {
             return;
         }
-        List<LuceneMcpSearchService.TemplateDoc> docs = safe(databaseQueryConfigService.listAll()).stream()
-            .map(this::databaseQueryTemplateDoc)
-            .toList();
+        List<LuceneMcpSearchService.TemplateDoc> docs = databaseQueryAssetDocs();
         luceneSearchService.indexDatabaseQueryTemplates(docs);
-        log.info("MCP Lucene database query template index refreshed, indexed {} templates", docs.size());
+        log.info("MCP Lucene database query template index refreshed, indexed {} datasource assets", docs.size());
     }
 
     public synchronized void refreshApiServiceTemplateIndex() {
@@ -118,8 +117,8 @@ public class McpTemplateLuceneIndexService {
     }
 
     public void upsertDatabaseQueryTemplates(List<DatabaseQueryConfig> templates) {
-        luceneSearchService.upsertDatabaseQueryTemplates(safe(templates).stream().map(this::databaseQueryTemplateDoc).toList());
-        log.info("MCP Lucene database query template index upserted {} templates", safe(templates).size());
+        refreshDatabaseQueryTemplateIndex();
+        log.info("MCP Lucene database query template index rebuilt after {} changed templates", safe(templates).size());
     }
 
     public void upsertApiServiceTemplates(List<ApiServiceConfig> templates) {
@@ -206,43 +205,87 @@ public class McpTemplateLuceneIndexService {
         );
     }
 
-    private LuceneMcpSearchService.TemplateDoc databaseQueryTemplateDoc(DatabaseQueryConfig config) {
-        List<String> signals = new ArrayList<>(readStringArray(config.getRoutingLabelsJson()));
-        signals.addAll(readStringArray(config.getCapabilitiesJson()));
-        signals.addAll(readStringArray(config.getTagsJson()));
-        signals.addAll(governanceTerms(config.getGovernanceJson()));
-        databaseQueryDatasource(config).ifPresent(datasource -> addTerms(signals,
+    private List<LuceneMcpSearchService.TemplateDoc> databaseQueryAssetDocs() {
+        Map<String, DatabaseQueryAssetTemplates> grouped = new LinkedHashMap<>();
+        List<DatabaseQueryConfig> configs = databaseQueryConfigService == null
+            ? List.of()
+            : databaseQueryConfigService.listAll();
+        for (DatabaseQueryConfig config : safe(configs)) {
+            if (config == null || !config.isEnabled()) {
+                continue;
+            }
+            databaseQueryDatasource(config).ifPresent(datasource -> {
+                String key = firstText(datasource.getId(), firstText(datasource.getName(), datasource.getToolName()));
+                if (key == null) {
+                    return;
+                }
+                grouped.computeIfAbsent(key, ignored -> new DatabaseQueryAssetTemplates(datasource, new ArrayList<>()))
+                    .templates()
+                    .add(config);
+            });
+        }
+        return grouped.values().stream()
+            .map(this::databaseQueryAssetDoc)
+            .toList();
+    }
+
+    private LuceneMcpSearchService.TemplateDoc databaseQueryAssetDoc(DatabaseQueryAssetTemplates asset) {
+        SqlDatasourceConfig datasource = asset.datasource();
+        List<DatabaseQueryConfig> templates = asset.templates();
+        List<String> signals = new ArrayList<>();
+        addTerms(signals,
             datasource.getName(),
             datasource.getTitle(),
             datasource.getToolName(),
             datasource.getDescription(),
             datasource.getEnvironment(),
             datasource.getDatabaseType(),
-            datasource.getMetadataScopeValue()
-        ));
-        addTerms(signals, config.getToolName(), config.getTitle(), config.getDescription(), config.getSqlTemplate(),
-            config.getTemplateIntent(), config.getBusinessGroup(), config.getBusinessGroupName(),
-            config.getBusinessGroupDescription(), config.getDatabaseType(), config.getRiskLevel(), config.getOwner());
-        return new LuceneMcpSearchService.TemplateDoc(
-            config.getId(),
-            "database_query",
-            firstText(config.getTitle(), config.getToolName()),
-            firstText(config.getDescription(), "") + " "
-                + firstText(config.getBusinessGroupName(), "") + " "
-                + firstText(config.getBusinessGroupDescription(), "") + " "
-                + firstText(config.getSqlTemplate(), "") + " "
-                + databaseQueryDatasource(config)
-                    .map(datasource -> firstText(datasource.getName(), "") + " "
-                        + firstText(datasource.getTitle(), "") + " "
-                        + firstText(datasource.getDescription(), ""))
-                    .orElse(""),
-            "sql_template_registry",
-            SqlDatasourceConfigService.normalizeDatabaseTypeToken(config.getDatabaseType()),
-            String.join(" ", signals),
-            firstText(config.getRiskLevel(), "read_only"),
-            distinct(signals),
-            "database_query_registry"
+            datasource.getMetadataScopeValue(),
+            "assetName",
+            "env",
+            "environment",
+            "databaseType",
+            "dbType",
+            "executionContext"
         );
+        signals.addAll(readStringArray(datasource.getRoutingLabelsJson()));
+        signals.addAll(readStringArray(datasource.getCapabilitiesJson()));
+        signals.addAll(governanceTerms(datasource.getGovernanceJson()));
+        for (DatabaseQueryConfig config : templates) {
+            signals.addAll(readStringArray(config.getRoutingLabelsJson()));
+            signals.addAll(readStringArray(config.getCapabilitiesJson()));
+            signals.addAll(readStringArray(config.getTagsJson()));
+            signals.addAll(governanceTerms(config.getGovernanceJson()));
+            addTerms(signals, config.getToolName(), config.getTitle(), config.getDescription(), config.getSqlTemplate(),
+                config.getTemplateIntent(), config.getBusinessGroup(), config.getBusinessGroupName(),
+                config.getBusinessGroupDescription(), config.getDatabaseType(), config.getRiskLevel(), config.getOwner());
+        }
+        return new LuceneMcpSearchService.TemplateDoc(
+            firstText(datasource.getId(), firstText(datasource.getName(), datasource.getToolName())),
+            "database_query",
+            firstText(datasource.getTitle(), firstText(datasource.getName(), datasource.getToolName())),
+            databaseQueryAssetDescription(datasource, templates),
+            "sql_template_registry",
+            SqlDatasourceConfigService.normalizeDatabaseTypeToken(datasource.getDatabaseType()),
+            String.join(" ", signals),
+            "read_only",
+            distinct(signals),
+            "database_query_asset_registry"
+        );
+    }
+
+    private String databaseQueryAssetDescription(SqlDatasourceConfig datasource, List<DatabaseQueryConfig> templates) {
+        List<String> values = new ArrayList<>();
+        addTerms(values, datasource.getDescription(), datasource.getName(), datasource.getTitle(), datasource.getToolName(),
+            datasource.getEnvironment(), datasource.getDatabaseType());
+        for (DatabaseQueryConfig config : templates) {
+            addTerms(values, config.getTitle(), config.getDescription(), config.getTemplateIntent(),
+                config.getBusinessGroup(), config.getBusinessGroupName(), config.getBusinessGroupDescription());
+        }
+        return String.join(" ", distinct(values));
+    }
+
+    private record DatabaseQueryAssetTemplates(SqlDatasourceConfig datasource, List<DatabaseQueryConfig> templates) {
     }
 
     private java.util.Optional<SqlDatasourceConfig> databaseQueryDatasource(DatabaseQueryConfig config) {

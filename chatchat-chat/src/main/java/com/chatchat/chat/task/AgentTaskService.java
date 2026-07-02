@@ -724,23 +724,31 @@ public class AgentTaskService {
                 return;
             }
             String message = ex.getMessage() == null ? ex.getClass().getSimpleName() : ex.getMessage();
-            AgentEvent errorEvent = copyEvent(question, "ERROR", "FAILED", writePayload(Map.of("message", message)));
+            String errorCode = ex.getClass().getSimpleName();
+            ExecutionResultContract resultContract = compileFailureResult(message, errorCode);
+            Map<String, Object> errorPayload = new LinkedHashMap<>(resultContract.payload(null));
+            errorPayload.put("error", message);
+            errorPayload.put("errorCode", errorCode);
+            AgentEvent errorEvent = copyEvent(question, "ERROR", "FAILED", writePayload(errorPayload));
             errorEvent.setSequence(nextSequence(question));
             errorEvent.setParentEventId(question.getEventId());
-            errorEvent.setErrorCode(ex.getClass().getSimpleName());
+            errorEvent.setErrorCode(errorCode);
             eventStore.save(errorEvent);
             logAgentTaskEvent("error", errorEvent);
-            AgentEvent completeEvent = copyEvent(question, "COMPLETE", "FAILED", writePayload(Map.of(
-                "message", "Agent task failed",
-                "error", message
-            )));
+            Map<String, Object> completePayload = new LinkedHashMap<>(resultContract.asMap(null));
+            completePayload.put("message", resultContract.completeMessage());
+            completePayload.put("error", message);
+            completePayload.put("errorCode", errorCode);
+            completePayload.put("answer", resultContract.answerSummary());
+            completePayload.put("uiResponse", resultContract.uiResponseView());
+            AgentEvent completeEvent = copyEvent(question, "COMPLETE", "FAILED", writePayload(completePayload));
             completeEvent.setSequence(nextSequence(question));
             completeEvent.setParentEventId(errorEvent.getEventId());
-            completeEvent.setErrorCode(ex.getClass().getSimpleName());
+            completeEvent.setErrorCode(errorCode);
             completeEvent.setCreateTime(Math.max(errorEvent.getCreateTime(), System.currentTimeMillis()));
             eventStore.save(completeEvent);
             logAgentTaskEvent("complete", completeEvent);
-            updateLatest(question.getTaskId(), "FAILED", null, message);
+            updateLatest(question.getTaskId(), "FAILED", summarize(resultContract.answerSummary()), message);
             eventBus.publishResult(errorEvent);
         } finally {
             runningTaskThreads.remove(question.getTaskId());
@@ -1809,27 +1817,35 @@ public class AgentTaskService {
 
     private ExecutionResultContract compileExecutionResult(InteractionResponse response) {
         String answer = response == null ? "" : firstText(response.getAnswer(), "");
+        Map<String, Object> metadata = response == null ? Map.of() : asStringMap(response.getMetadata());
+        Map<String, Object> agentMetadata = asStringMap(metadata.get("agent"));
+        boolean fatalExecutionBlocked = booleanValue(firstPresent(
+            agentMetadata.get("fatalExecutionBlocked"),
+            agentMetadata.get("mandatoryWorkflowBlocked")
+        ));
         boolean hasAnswer = !answer.isBlank();
         boolean hasSources = response != null && response.getSources() != null && !response.getSources().isEmpty();
         boolean hasToolOutput = response != null && response.getToolTraces() != null && !response.getToolTraces().isEmpty();
         boolean hasObservations = metadataList(response == null ? null : response.getMetadata(), "observations");
         boolean hasArtifact = hasAnswer || hasSources || hasToolOutput || hasObservations;
-        String status = hasAnswer ? "SUCCESS" : (hasArtifact ? "PARTIAL" : "EMPTY");
+        String status = fatalExecutionBlocked ? "FAILED" : (hasAnswer ? "SUCCESS" : (hasArtifact ? "PARTIAL" : "EMPTY"));
         String message = switch (status) {
             case "SUCCESS" -> "Agent task completed";
+            case "FAILED" -> "Agent task failed before required tool workflow completed";
             case "PARTIAL" -> "Agent task completed with partial result";
             case "EMPTY" -> "Agent task completed without displayable result";
             default -> "Agent task completed";
         };
         String displayAnswer = switch (status) {
             case "SUCCESS" -> answer;
+            case "FAILED" -> firstText(answer, firstTextValue(agentMetadata.get("errorMessage"), "必需工具未完成，已阻断最终回答。请检查工具调用失败原因后重试。"));
             case "PARTIAL" -> "本次执行已完成，并获取到部分工具结果或中间产物，但没有生成最终回答。请查看执行步骤、引用来源或工具轨迹，必要时补充要求后重试。";
             case "EMPTY" -> "本次执行已结束，但没有产生可展示的回答或结果产物。请检查 Agent 配置、模型服务，或换一种问法后重试。";
             default -> answer;
         };
         Map<String, Object> flags = new LinkedHashMap<>();
         flags.put("hasAnswer", hasAnswer);
-        flags.put("hasInsight", hasAnswer);
+        flags.put("hasInsight", hasAnswer && !fatalExecutionBlocked);
         flags.put("hasToolOutput", hasToolOutput);
         flags.put("hasSources", hasSources);
         flags.put("hasArtifact", hasArtifact);
@@ -1837,6 +1853,46 @@ public class AgentTaskService {
         UiResponseContract uiResponse = uiResponse(status, displayAnswer, response, reasoningPayload);
         Map<String, Object> debug = debugPayload(response, reasoningPayload);
         return new ExecutionResultContract(status, message, flags, uiResponse, debug);
+    }
+
+    private ExecutionResultContract compileFailureResult(String message, String errorCode) {
+        String normalizedError = firstText(message, "Agent task failed");
+        String normalizedCode = firstText(errorCode, "AGENT_TASK_FAILED");
+        String answer = """
+            本次执行失败，但失败信息已被捕获并返回。
+
+            失败类型：%s
+            失败原因：%s
+
+            已将该失败作为本次任务结果反馈给用户端。请根据工具执行日志、权限配置、参数绑定或模型服务状态继续排查。
+            """.formatted(normalizedCode, normalizedError).trim();
+        Map<String, Object> flags = new LinkedHashMap<>();
+        flags.put("hasAnswer", true);
+        flags.put("hasInsight", false);
+        flags.put("hasToolOutput", false);
+        flags.put("hasSources", false);
+        flags.put("hasArtifact", true);
+        UiResponseContract uiResponse = new UiResponseContract(
+            "ui_response_v1",
+            "FAILED",
+            answer,
+            List.of(),
+            List.of(),
+            null,
+            "",
+            Map.of("type", "none"),
+            null
+        );
+        Map<String, Object> debug = new LinkedHashMap<>();
+        debug.put("errorCode", normalizedCode);
+        debug.put("errorMessage", normalizedError);
+        return new ExecutionResultContract(
+            "FAILED",
+            "Agent task failed with captured error details",
+            flags,
+            uiResponse,
+            debug
+        );
     }
 
     private UiResponseContract uiResponse(String status,
@@ -2281,6 +2337,13 @@ public class AgentTaskService {
             }
         }
         return null;
+    }
+
+    private boolean booleanValue(Object value) {
+        if (value instanceof Boolean bool) {
+            return bool;
+        }
+        return value != null && Boolean.parseBoolean(String.valueOf(value));
     }
 
     private boolean metadataList(Map<String, Object> metadata, String key) {

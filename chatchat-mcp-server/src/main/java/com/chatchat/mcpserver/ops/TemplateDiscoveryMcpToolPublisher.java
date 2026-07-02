@@ -170,17 +170,63 @@ public class TemplateDiscoveryMcpToolPublisher {
         }
         values.put("assetType", assetType);
         values.put("finalDecision", targetKind);
-        values.putIfAbsent("confidence", 1.0);
-        values.putIfAbsent("candidates", List.of(mapOf(
+        Object originalCandidates = values.get("candidates");
+        values.putIfAbsent("confidence", maxCandidateConfidence(originalCandidates, 1.0));
+        values.put("candidates", List.of(mapOf(
             "targetKind", targetKind,
-            "confidence", 1.0
+            "confidence", values.get("confidence")
         )));
-        values.putIfAbsent("trace", mapOf(
+        Map<String, Object> trace = new LinkedHashMap<>(asMap(values.get("trace")));
+        trace.putIfAbsent("source", sourceTool);
+        trace.put("forcedAssetType", assetType);
+        trace.put("forcedTargetKind", targetKind);
+        if (originalCandidates != null) {
+            trace.put("originalCandidates", originalCandidates);
+        }
+        values.put("trace", trace.isEmpty() ? mapOf(
             "source", sourceTool,
             "forcedAssetType", assetType,
             "forcedTargetKind", targetKind
-        ));
+        ) : trace);
         return values;
+    }
+
+    private double maxCandidateConfidence(Object candidates, double fallback) {
+        if (!(candidates instanceof List<?> list)) {
+            return fallback;
+        }
+        double max = fallback;
+        for (Object item : list) {
+            if (!(item instanceof Map<?, ?> candidate)) {
+                continue;
+            }
+            Object confidence = candidate.get("confidence");
+            if (confidence instanceof Number number) {
+                max = Math.max(max, number.doubleValue());
+                continue;
+            }
+            if (confidence != null) {
+                try {
+                    max = Math.max(max, Double.parseDouble(String.valueOf(confidence)));
+                } catch (NumberFormatException ignored) {
+                    // Keep the best confidence seen so far.
+                }
+            }
+        }
+        return max;
+    }
+
+    private Map<String, Object> asMap(Object value) {
+        if (!(value instanceof Map<?, ?> map)) {
+            return Map.of();
+        }
+        Map<String, Object> result = new LinkedHashMap<>();
+        map.forEach((key, item) -> {
+            if (key != null) {
+                result.put(String.valueOf(key), item);
+            }
+        });
+        return result;
     }
 
     private McpSchema.JsonSchema inputSchema() {

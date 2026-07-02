@@ -22,10 +22,12 @@ let notificationSearchTerm = '';
 export function bindNotificationPanel(options = {}) {
     onError = options.onError || onError;
     document.getElementById('notificationSearchInput').addEventListener('input', handleNotificationSearch);
+    document.getElementById('newNotificationChannelBtn').addEventListener('click', handleNewNotificationChannel);
     document.getElementById('refreshNotificationToolsBtn').addEventListener('click', handleNotificationRefresh);
     document.getElementById('notificationChannelForm').addEventListener('submit', handleNotificationSave);
     document.getElementById('notificationTestBtn').addEventListener('click', handleNotificationTest);
     document.getElementById('notificationDeliveryMode').addEventListener('change', toggleNotificationDeliveryFields);
+    document.getElementById('notificationChannel').addEventListener('change', handleNotificationChannelTypeChange);
 }
 
 export async function loadNotificationPanel() {
@@ -84,6 +86,13 @@ function selectNotificationChannel(channel) {
     showNotificationChannelModal();
 }
 
+function handleNewNotificationChannel() {
+    selectedNotificationChannelId = '';
+    fillNotificationChannelForm(newNotificationDraft());
+    renderNotificationChannelCards();
+    showNotificationChannelModal();
+}
+
 async function toggleNotificationChannel(channel) {
     try {
         await setNotificationEnabled(channel.id, !channel.enabled);
@@ -136,7 +145,7 @@ async function handleNotificationSave(event) {
 async function handleNotificationTest() {
     const id = value('notificationId');
     if (!id) {
-        notify('无法测试', '请先选择通知渠道。');
+        notify('无法测试', '请先保存通知工具。');
         return;
     }
     try {
@@ -196,7 +205,7 @@ function readNotificationChannelForm() {
 }
 
 function fillNotificationChannelForm(channel) {
-    document.getElementById('notificationFormTitle').textContent = channel ? `配置 ${channel.toolName}` : '通知渠道配置';
+    document.getElementById('notificationFormTitle').textContent = channel?.id ? `配置 ${channel.toolName}` : '新增通知工具';
     setValue('notificationId', channel?.id || '');
     setValue('notificationChannel', channel?.channel || '');
     setValue('notificationToolName', channel?.toolName || '');
@@ -239,6 +248,85 @@ function fillNotificationChannelForm(channel) {
         sourceTaskId: 'manual-test'
     }, null, 2));
     toggleNotificationDeliveryFields();
+}
+
+function handleNotificationChannelTypeChange() {
+    const draft = readNotificationChannelForm();
+    const defaults = notificationDefaultsFor(value('notificationChannel'));
+    if (!value('notificationId') && (!draft.toolName || draft.toolName.startsWith('notify_'))) {
+        setValue('notificationToolName', defaults.toolName);
+    }
+    if (!draft.title || draft.title === '通知工具') {
+        setValue('notificationTitle', defaults.title);
+    }
+    if (!draft.deliveryMode) {
+        setValue('notificationDeliveryMode', defaults.deliveryMode);
+    }
+    toggleNotificationDeliveryFields();
+}
+
+function newNotificationDraft() {
+    const defaults = notificationDefaultsFor('EMAIL');
+    return {
+        id: '',
+        channel: 'EMAIL',
+        toolName: defaults.toolName,
+        title: defaults.title,
+        description: defaults.description,
+        enabled: false,
+        runtimeAction: 'confirm_required',
+        deliveryMode: defaults.deliveryMode,
+        method: 'POST',
+        endpointUrl: '',
+        headers: { 'Content-Type': 'application/json' },
+        bodyTemplate: '',
+        secret: '',
+        defaultReceiver: 'ops@example.com',
+        ccReceiver: '',
+        timeoutMs: 10000,
+        maxRetries: 1,
+        defaultTestPayload: {
+            receiver: 'ops@example.com',
+            title: 'Agent 任务通知',
+            content: '这是一条测试通知。',
+            level: 'INFO',
+            sourceTaskId: 'manual-test'
+        }
+    };
+}
+
+function notificationDefaultsFor(channel) {
+    const suffix = Date.now().toString(36);
+    if (channel === 'SMS') {
+        return {
+            toolName: `notify_sms_${suffix}`,
+            title: '短信通知工具',
+            description: '通过短信网关发送 Agent 分析结果或告警通知。',
+            deliveryMode: 'HTTP'
+        };
+    }
+    if (channel === 'WECHAT_WORK') {
+        return {
+            toolName: `notify_wechat_work_${suffix}`,
+            title: '企业微信通知工具',
+            description: '通过企业微信机器人或消息接口发送 Agent 告警通知。',
+            deliveryMode: 'HTTP'
+        };
+    }
+    if (channel === 'DINGTALK') {
+        return {
+            toolName: `notify_dingtalk_${suffix}`,
+            title: '钉钉通知工具',
+            description: '通过钉钉机器人或消息接口发送 Agent 告警通知。',
+            deliveryMode: 'HTTP'
+        };
+    }
+    return {
+        toolName: `notify_email_${suffix}`,
+        title: '邮件通知工具',
+        description: '向指定邮箱发送 Agent 分析结果或告警通知。',
+        deliveryMode: 'SMTP'
+    };
 }
 
 function toggleNotificationDeliveryFields() {

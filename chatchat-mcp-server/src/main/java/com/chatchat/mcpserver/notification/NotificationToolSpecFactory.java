@@ -42,7 +42,7 @@ public class NotificationToolSpecFactory {
         Map<String, Object> properties = new LinkedHashMap<>();
         properties.put("receiver", Map.of(
             "type", "string",
-            "description", "接收人。邮件可填邮箱，短信可填手机号，企微/钉钉可填群、用户或 @ 标识。"
+            "description", "接收人。邮件可填邮箱，短信可填手机号，企业微信/钉钉可填群、用户或 @ 标识。"
         ));
         properties.put("title", Map.of(
             "type", "string",
@@ -65,7 +65,7 @@ public class NotificationToolSpecFactory {
         return new McpSchema.JsonSchema(
             "object",
             properties,
-            List.of("receiver", "title", "content"),
+            List.of("title", "content"),
             false,
             null,
             null

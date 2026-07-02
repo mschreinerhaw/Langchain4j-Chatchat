@@ -1,10 +1,12 @@
 package com.chatchat.agents.orchestration;
 
 import com.chatchat.agents.tool.ToolRegistry;
+import com.chatchat.common.tool.ToolMetadata;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 
@@ -75,6 +77,9 @@ class AgentToolArgumentResolver {
         } else if (toolNames.isDocumentSearchToolName(toolName) && query != null && !query.isBlank()) {
             values.put("query", mergedDocumentQuery(query, Objects.toString(values.get("query"), "")));
         }
+        if (isNotificationTool(toolName)) {
+            return applyMcpParamBinding(toolName, applyNotificationDefaults(values, query), query);
+        }
         if (!toolNames.isWebEvidenceToolName(toolName)) {
             return applyMcpParamBinding(toolName, values, query);
         }
@@ -100,10 +105,35 @@ class AgentToolArgumentResolver {
         if (toolNames.isSearchAndExtractToolName(toolName)) {
             return Map.of("query", query, "mode", "fast", "topK", cappedLimit(webSearchResultLimit));
         }
+        if (isNotificationTool(toolName)) {
+            return applyNotificationDefaults(Map.of(), query);
+        }
         if (toolName != null && (toolName.startsWith("mcp_") || toolNames.isDocumentSearchToolName(toolName))) {
             return Map.of("query", query);
         }
         return Map.of("input", query);
+    }
+
+    private Map<String, Object> applyNotificationDefaults(Map<String, Object> arguments, String query) {
+        Map<String, Object> values = new LinkedHashMap<>(arguments == null ? Map.of() : arguments);
+        String content = firstNonBlank(
+            stringValue(values.get("content")),
+            stringValue(values.get("message")),
+            stringValue(values.get("text")),
+            stringValue(values.get("query")),
+            query
+        );
+        if (!hasText(values.get("title"))) {
+            values.put("title", "Agent 告警通知");
+        }
+        if (!hasText(values.get("content")) && content != null) {
+            values.put("content", content);
+        }
+        if (!hasText(values.get("level"))) {
+            values.put("level", inferNotificationLevel(content));
+        }
+        values.remove("query");
+        return values;
     }
 
     private Map<String, Object> applyMcpParamBinding(String toolName, Map<String, Object> arguments, String query) {
@@ -113,6 +143,42 @@ class AgentToolArgumentResolver {
             arguments,
             query
         );
+    }
+
+    private boolean isNotificationTool(String toolName) {
+        if (toolName == null || toolName.isBlank() || toolRegistry == null) {
+            return false;
+        }
+        ToolMetadata metadata = toolRegistry.getToolMetadata(toolName);
+        if (metadata == null) {
+            return false;
+        }
+        if ("notification".equalsIgnoreCase(firstNonBlank(metadata.getCategory(), ""))) {
+            return true;
+        }
+        if ("notify".equalsIgnoreCase(firstNonBlank(metadata.getOperationType(), ""))) {
+            return true;
+        }
+        if (metadata.getCategories() != null && metadata.getCategories().stream()
+            .filter(Objects::nonNull)
+            .map(value -> value.toLowerCase(Locale.ROOT))
+            .anyMatch(value -> value.contains("notification"))) {
+            return true;
+        }
+        Object marker = metadata.getMetadata() == null ? null : metadata.getMetadata().get("notificationTool");
+        return marker instanceof Boolean flag ? flag : Boolean.parseBoolean(String.valueOf(marker));
+    }
+
+    private String inferNotificationLevel(String content) {
+        String text = content == null ? "" : content.toLowerCase(Locale.ROOT);
+        if (text.contains("critical") || text.contains("严重") || text.contains("紧急")) {
+            return "CRITICAL";
+        }
+        if (text.contains("warning") || text.contains("告警") || text.contains("异常")
+            || text.contains("失败") || text.contains("风险")) {
+            return "WARNING";
+        }
+        return "INFO";
     }
 
     private int cappedLimit(int webSearchResultLimit) {
@@ -144,6 +210,26 @@ class AgentToolArgumentResolver {
         for (String key : keys) {
             if (values.containsKey(key)) {
                 return values.get(key);
+            }
+        }
+        return null;
+    }
+
+    private String stringValue(Object value) {
+        return value == null ? null : String.valueOf(value);
+    }
+
+    private boolean hasText(Object value) {
+        return value != null && !String.valueOf(value).isBlank();
+    }
+
+    private String firstNonBlank(String... values) {
+        if (values == null) {
+            return null;
+        }
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value.trim();
             }
         }
         return null;

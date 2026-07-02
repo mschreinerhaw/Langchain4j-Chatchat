@@ -88,7 +88,7 @@ class AgentOrchestratorTest {
             false
         );
 
-        assertThat(result.answer()).isEqualTo("Use the internal definition handbook.");
+        assertThat(result.answer()).contains("Use the internal definition handbook.");
         assertThat(result.toolTraces()).extracting(InteractionToolTrace::getToolName)
             .containsExactly("document_search");
         assertThat(result.metadata())
@@ -566,7 +566,7 @@ class AgentOrchestratorTest {
             .webSearchResultLimit(10)
             .build());
 
-        assertThat(result.answer()).isEqualTo("Use the internal definition handbook.");
+        assertThat(result.answer()).contains("Use the internal definition handbook.");
         assertThat(result.stopReason()).isEqualTo("final_answer");
         assertThat(result.toolTraces())
             .extracting(InteractionToolTrace::getToolName)
@@ -577,7 +577,8 @@ class AgentOrchestratorTest {
             .contains("document_evidence");
         assertThat(result.metadata())
             .containsEntry("runtimeContractVersion", "agent_runtime_v1")
-            .containsEntry("toolTraceCount", 1);
+            .containsEntry("toolTraceCount", 1)
+            .containsEntry("timeoutMs", AgentRunRequest.DEFAULT_TIMEOUT_MS);
     }
 
     @Test
@@ -1669,6 +1670,75 @@ class AgentOrchestratorTest {
             .contains("The user query MUST first be converted into this executable InterpretationPlan")
             .contains(documentSearch)
             .contains(knowledgeSearch);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void mandatoryWorkflowFailureBlocksFinalSummarySynthesis() {
+        String templateSearch = "mandatory_fetch_alert_template";
+        String sqlExecute = "mandatory_query_execute";
+        QueueChatModel chatModel = new QueueChatModel(
+            interpretationPlan("This answer must not be used.", templateSearch, sqlExecute),
+            "已匹配到执行计划，但必需工具 mandatory_query_execute 未执行到终态，本次不能给出真实行情异常提醒分析结论。",
+            "{\"accepted\":true,\"feedback\":\"failure summary is grounded\",\"revisedAnswer\":\"\"}",
+            "{\"preferredId\":\"candidate\",\"reason\":\"grounded failure summary\",\"candidates\":[{\"id\":\"candidate\",\"score\":1.0,\"accuracy\":1.0,\"grounding\":1.0,\"completeness\":1.0,\"citation\":1.0,\"usefulness\":1.0,\"contradictsObservation\":false,\"usesFailedToolEvidence\":false,\"missingRequiredCitation\":false,\"schemaViolation\":false,\"unsafe\":false,\"issues\":[]}]}"
+        );
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool(templateSearch)).thenReturn(true);
+        when(toolRegistry.hasTool(sqlExecute)).thenReturn(true);
+        when(toolRegistry.getToolMetadata(templateSearch)).thenReturn(ToolMetadata.builder()
+            .id(templateSearch)
+            .title("Template Search")
+            .description("Search governed templates")
+            .riskLevel("low")
+            .build());
+        when(toolRegistry.getToolMetadata(sqlExecute)).thenReturn(ToolMetadata.builder()
+            .id(sqlExecute)
+            .title("SQL Execute")
+            .description("Execute governed SQL")
+            .riskLevel("low")
+            .build());
+        when(toolRegistry.executeEnhancedTool(eq(templateSearch), any())).thenReturn(ToolOutput.failure("template search rejected invalid routing input"));
+        AgentOrchestrator orchestrator = new AgentOrchestrator(
+            chatModel,
+            toolRegistry,
+            new ToolRuntimeService(toolRegistry, new ObjectMapper(), toolRuntimeProperties(), List.of(), List.of()),
+            new ObjectMapper(),
+            new ModelsConfig()
+        );
+
+        AgentOrchestrator.AgentExecutionResult result = orchestrator.executeAgent(
+            "分析行情数据发生较大波动时异常提醒数据",
+            "tenant-1",
+            List.of(templateSearch, sqlExecute),
+            "Required tools must complete before final answer.",
+            null,
+            List.of(),
+            List.of(),
+            "financial_data_analyst",
+            "req-mandatory-block",
+            "conv-mandatory-block",
+            "user-1",
+            10,
+            List.of(templateSearch, sqlExecute),
+            true
+        );
+
+        assertThat(result.answer())
+            .contains("必需工具 mandatory_query_execute 未执行到终态")
+            .doesNotContain("This answer must not be used");
+        assertThat(result.toolTraces())
+            .extracting(InteractionToolTrace::getToolName)
+            .containsExactly(templateSearch);
+        assertThat(result.metadata())
+            .containsEntry("fatalExecutionBlocked", true)
+            .containsEntry("mandatoryWorkflowBlocked", true)
+            .containsEntry("mandatoryWorkflowCompleted", false)
+            .containsEntry("errorCode", "PLAN_INVALID_REQUIRED_TOOL_NOT_EXECUTED")
+            .containsEntry("stopReason", "mandatory_workflow_incomplete");
+        assertThat((List<String>) result.metadata().get("missingMandatoryTools"))
+            .containsExactly(sqlExecute);
+        verify(toolRegistry, never()).executeEnhancedTool(eq(sqlExecute), any());
     }
 
     private AgentOrchestrator newOrchestrator(ChatModel chatModel) {

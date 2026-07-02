@@ -223,6 +223,56 @@ class InterpretationPlanRewriterTest {
             .contains("Do not add database_ops_template_search/template_query steps");
     }
 
+    @Test
+    void rejectsRewriteThatDropsPendingRequiredToolExecution() {
+        CapturingChatModel chatModel = new CapturingChatModel("""
+            {
+              "version": "1.0",
+              "intent": {"type": "data_query", "goal": "Analyze selected data", "risk_level": "low"},
+              "context": {"key_facts": ["search completed"], "missing_info": [], "assumptions": [], "constraints": []},
+              "plan": {
+                "steps": [
+                  {"id": 1, "action_type": "mcp_tool", "tool_name": "asset_query", "input": {"query": "selected data"}, "depends_on": []},
+                  {"id": 2, "action_type": "final_answer", "tool_name": "", "input": {"answer": "Skipped required execution."}, "depends_on": [1]}
+                ]
+              },
+              "execution_policy": {"max_steps": 2, "allow_parallel": false, "allow_tool": ["asset_query"], "deny_tool": []},
+              "review": {"self_check": {"completeness_score": 0.5, "hallucination_risk": 0.1, "tool_sufficiency": false, "missing_steps": []}, "fallback_plan": []}
+            }
+            """);
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool("asset_query")).thenReturn(true);
+        when(toolRegistry.hasTool("required_query_execute")).thenReturn(true);
+        InterpretationPlanRewriter rewriter = new InterpretationPlanRewriter(
+            chatModel,
+            new ObjectMapper(),
+            new InterpretationPlanValidator()
+        );
+
+        InterpretationPlanRewriter.RewriteResult result = rewriter.rewrite(new InterpretationPlanRewriter.RewriteRequest(
+            originalPlan(),
+            originalPlan().steps().get(0),
+            "previous tool failed",
+            List.of("asset_query succeeded"),
+            List.of("asset_query", "required_query_execute"),
+            toolRegistry,
+            List.of(new InterpretationPlanRewriter.RequiredToolExecution(
+                "required_query_execute",
+                "USER_SELECTED",
+                true
+            ))
+        ));
+
+        assertThat(result.valid()).isFalse();
+        assertThat(result.errorMessage())
+            .contains("Required tool must be present before final_answer")
+            .contains("required_query_execute");
+        assertThat(chatModel.lastPrompt())
+            .contains("Required tool execution contract")
+            .contains("requiredToolExecutions")
+            .contains("model may order and parameterize them, but must not skip");
+    }
+
     private InterpretationPlan originalPlan() {
         return new InterpretationPlan(
             "1.0",

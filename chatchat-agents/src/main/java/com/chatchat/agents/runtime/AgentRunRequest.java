@@ -16,6 +16,8 @@ import java.util.Map;
 @AllArgsConstructor
 public class AgentRunRequest {
 
+    public static final long DEFAULT_TIMEOUT_MS = 300_000L;
+
     private String runId;
     private String query;
     private String tenantId;
@@ -47,7 +49,9 @@ public class AgentRunRequest {
 
     private Integer maxSteps;
     private Integer maxToolCalls;
-    private Long timeoutMs;
+
+    @Builder.Default
+    private Long timeoutMs = DEFAULT_TIMEOUT_MS;
 
     @Builder.Default
     private Map<String, Object> attributes = new LinkedHashMap<>();

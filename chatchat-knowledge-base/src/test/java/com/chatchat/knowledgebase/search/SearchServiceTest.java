@@ -744,6 +744,62 @@ class SearchServiceTest {
     }
 
     @Test
+    void expandsEnglishQueryToChineseDocumentTermsForRetrieval() {
+        SearchService service = newSearchService();
+        service.createOrUpdate(SearchDocument.builder()
+            .docId("doc-server-list-zh")
+            .title("数据资产管理平台服务器清单-推荐配置及软件部署清单")
+            .content("节点物理配置信息，CPU 内存 OS盘大小 数据分区磁盘数量，平台服务器清单。")
+            .source("library")
+            .date("2026-06-11")
+            .build());
+
+        SearchPage page = service.frontendQuickSearch(
+            "server inventory recommended configuration",
+            null,
+            null,
+            null,
+            null,
+            1,
+            10,
+            SearchPermissionContext.system()
+        );
+
+        assertThat(page.results()).extracting(SearchResult::docId)
+            .contains("doc-server-list-zh");
+        assertThat(page.queryTokens())
+            .contains("server", "inventory", "服务器", "清单", "推荐配置");
+    }
+
+    @Test
+    void expandsChineseQueryToEnglishDocumentTermsForRetrieval() {
+        SearchService service = newSearchService();
+        service.createOrUpdate(SearchDocument.builder()
+            .docId("doc-server-list-en")
+            .title("LiveData Server Inventory - Recommended Configuration")
+            .content("Server inventory and software deployment list for the LiveData platform.")
+            .source("library")
+            .date("2026-06-23")
+            .build());
+
+        SearchPage page = service.frontendQuickSearch(
+            "服务器清单 推荐配置",
+            null,
+            null,
+            null,
+            null,
+            1,
+            10,
+            SearchPermissionContext.system()
+        );
+
+        assertThat(page.results()).extracting(SearchResult::docId)
+            .contains("doc-server-list-en");
+        assertThat(page.queryTokens())
+            .contains("服务器", "清单", "server", "inventory", "recommended", "configuration");
+    }
+
+    @Test
     void fallbackCandidateScanIsBoundedWhenKeywordIndexMisses() {
         SearchService service = newSearchService(properties -> {
             properties.setLuceneEnabled(false);

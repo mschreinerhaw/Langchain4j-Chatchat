@@ -38,6 +38,42 @@ class ToolObservationBuilderEvidenceTest {
     }
 
     @Test
+    void documentSearchObservationCountsTitleOnlyDocumentHits() {
+        ToolOutput output = ToolOutput.success(Map.of(
+            "contractVersion", "document_evidence_v1",
+            "query", "服务器清单",
+            "total", 2,
+            "results", List.of(),
+            "documents", List.of(
+                Map.of(
+                    "docId", "doc-server-1",
+                    "title", "数据资产管理平台服务器清单-推荐配置及软件部署清单 - 国都-20251031",
+                    "fileName", "server-list-1.xlsx",
+                    "tags", List.of("平台服务器清单")
+                ),
+                Map.of(
+                    "docId", "doc-server-2",
+                    "title", "LiveData服务器清单-推荐配置",
+                    "fileName", "server-list-2.xlsx"
+                )
+            ),
+            "retrievalSemantics", Map.of(
+                "dataSafetyLevel", "NO_EVIDENCE_BODY",
+                "canAnswerDirectly", false
+            )
+        ), "ok");
+
+        String observation = builder.buildSuccessObservation("document_search", output, "");
+
+        assertThat(observation)
+            .contains("Document search summary: total=2, contentEvidence=0, documentHits=2, returned=2")
+            .contains("数据资产管理平台服务器清单-推荐配置及软件部署清单")
+            .contains("LiveData服务器清单-推荐配置")
+            .contains("文档命中但未返回正文片段")
+            .doesNotContain("returned=0");
+    }
+
+    @Test
     void includesUnifiedEvidenceContextForWebSearch() {
         ToolOutput output = ToolOutput.success(Map.of(
             "contractVersion", "web_evidence_v1",

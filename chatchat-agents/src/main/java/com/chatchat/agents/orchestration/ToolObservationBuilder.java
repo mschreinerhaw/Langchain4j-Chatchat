@@ -183,13 +183,19 @@ class ToolObservationBuilder {
             addCandidateList(results, root.get("results"));
             addCandidateList(results, root.get("items"));
             addCandidateList(results, root.get("records"));
+            List<Map<String, Object>> documents = new ArrayList<>();
+            addCandidateList(documents, root.get("documents"));
             observation.append("\nDocument search summary: total=")
                 .append(firstNonBlank(
                     firstNonBlank(stringValue(root.get("total")), stringValue(root.get("totalCount"))),
                     firstNonBlank(stringValue(root.get("count")), "unknown")
                 ))
-                .append(", returned=")
+                .append(", contentEvidence=")
                 .append(results.size())
+                .append(", documentHits=")
+                .append(documents.size())
+                .append(", returned=")
+                .append(results.size() + documents.size())
                 .append(", contentMode=")
                 .append(firstNonBlank(stringValue(root.get("contentMode")), "unknown"))
                 .append('.');
@@ -214,6 +220,8 @@ class ToolObservationBuilder {
             }
             if (item.snippet() != null && !item.snippet().isBlank()) {
                 observation.append(" - ").append(item.snippet());
+            } else {
+                observation.append(" - 文档命中但未返回正文片段；只能证明知识库存在该文档，不能作为正文内容结论。");
             }
             observation.append("\n");
         }
@@ -594,6 +602,7 @@ class ToolObservationBuilder {
         addCandidateList(candidates, root.get("results"));
         addCandidateList(candidates, root.get("items"));
         addCandidateList(candidates, root.get("records"));
+        addCandidateList(candidates, root.get("documents"));
 
         List<DocumentEvidence> evidence = new ArrayList<>();
         Set<String> seen = new LinkedHashSet<>();

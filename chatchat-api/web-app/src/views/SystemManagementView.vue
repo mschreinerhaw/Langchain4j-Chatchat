@@ -53,6 +53,10 @@
               <RefreshCw :size="14" />
               用户
             </button>
+            <button type="button" title="修改 admin 密码" @click="openAdminPasswordModal">
+              <KeyRound :size="14" />
+              admin 密码
+            </button>
             <button type="button" @click="openUserModal()">
               <Plus :size="14" />
               新增账户
@@ -304,6 +308,43 @@
             <button type="submit" class="primary-button" :disabled="savingUser">
               <Save :size="16" />
               <span>{{ userForm.id ? "保存账户" : "新增账户" }}</span>
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <div v-if="adminPasswordModalOpen" class="permission-modal-backdrop" @click.self="closeAdminPasswordModal">
+        <form class="entity-modal" @submit.prevent="saveAdminPasswordForm">
+          <div class="modal-head">
+            <div>
+              <p>安全设置</p>
+              <h2>修改 admin 密码</h2>
+            </div>
+            <button type="button" class="icon-button" title="关闭" @click="closeAdminPasswordModal">
+              <X :size="18" />
+            </button>
+          </div>
+
+          <div class="entity-form modal-entity-form">
+            <label class="full-span">
+              <span>当前密码</span>
+              <input v-model="adminPasswordForm.currentPassword" type="password" autocomplete="current-password" />
+            </label>
+            <label>
+              <span>新密码</span>
+              <input v-model="adminPasswordForm.newPassword" type="password" autocomplete="new-password" />
+            </label>
+            <label>
+              <span>确认新密码</span>
+              <input v-model="adminPasswordForm.confirmPassword" type="password" autocomplete="new-password" />
+            </label>
+          </div>
+
+          <div class="modal-actions">
+            <button type="button" class="ghost-button" @click="closeAdminPasswordModal">取消</button>
+            <button type="submit" class="primary-button" :disabled="savingAdminPassword">
+              <Save :size="16" />
+              <span>保存新密码</span>
             </button>
           </div>
         </form>

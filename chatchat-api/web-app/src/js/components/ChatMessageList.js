@@ -25,6 +25,14 @@ function escapeHtml(value) {
     .replace(/"/g, "&quot;");
 }
 
+function parseNumber(value) {
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : null;
+  }
+  const parsed = Number(String(value ?? "").replace(/,/g, ""));
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 const defaultLinkOpen =
   markdown.renderer.rules.link_open ||
   ((tokens, idx, options, env, self) => self.renderToken(tokens, idx, options));
@@ -114,6 +122,7 @@ export default {
       copiedResetTimer: null,
       codeCopyResetTimers: new Set(),
       reasoningModal: null,
+      chartAnalysisModal: null,
       feedbackOptions: [
         { value: "useful", label: "\u6709\u7528" },
         { value: "adopted", label: "\u91c7\u7eb3" },
@@ -227,11 +236,91 @@ export default {
       const prepared = this.prepareMarkdownContent(String(content ?? ""), message);
       const uiContract = this.uiRenderContract(message, prepared.content);
       if (uiContract) {
-        return this.collapseToolEvidenceHtml(this.renderUiRenderContract(uiContract, new Set(prepared.citationUrls)));
+        const rendered = this.renderUiRenderContract(uiContract, new Set(prepared.citationUrls));
+        return this.collapseToolEvidenceHtml(this.enhanceResultTables(rendered));
       }
-      return this.collapseToolEvidenceHtml(markdown.render(prepared.content, {
+      const rendered = markdown.render(prepared.content, {
         webCitationUrls: new Set(prepared.citationUrls)
-      }));
+      });
+      return this.collapseToolEvidenceHtml(this.enhanceResultTables(rendered));
+    },
+    enhanceResultTables(html = "") {
+      if (typeof DOMParser === "undefined" || !String(html || "").includes("<table")) {
+        return html;
+      }
+      try {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(`<div>${html}</div>`, "text/html");
+        const root = doc.body.firstElementChild;
+        const tables = [...root.querySelectorAll("table")];
+        tables.forEach((table, index) => {
+          const payload = this.resultTablePayload(table, index);
+          if (!payload) {
+            return;
+          }
+          const wrapper = doc.createElement("section");
+          wrapper.className = "query-result-table-card";
+          wrapper.dataset.resultChartPayload = encodeURIComponent(JSON.stringify(payload));
+          const toolbar = doc.createElement("div");
+          toolbar.className = "query-result-table-toolbar";
+          const summary = doc.createElement("span");
+          summary.textContent = `${payload.rows.length} 行 / ${payload.columns.length} 列`;
+          const button = doc.createElement("button");
+          button.type = "button";
+          button.className = "query-result-chart-button";
+          button.dataset.resultChartPayload = encodeURIComponent(JSON.stringify(payload));
+          button.textContent = "图形化分析";
+          toolbar.append(summary, button);
+          table.parentNode.insertBefore(wrapper, table);
+          wrapper.append(toolbar, table);
+        });
+        return root.innerHTML;
+      } catch (error) {
+        console.warn("Enhance result table failed", error);
+        return html;
+      }
+    },
+    resultTablePayload(table, index) {
+      const headers = [...table.querySelectorAll("thead th")]
+        .map((cell) => this.decodeHtml(cell.textContent || "").trim())
+        .filter(Boolean);
+      if (headers.length < 2) {
+        return null;
+      }
+      const rows = [...table.querySelectorAll("tbody tr")]
+        .map((tr) => {
+          const cells = [...tr.querySelectorAll("td")];
+          if (!cells.length) {
+            return null;
+          }
+          return Object.fromEntries(headers.map((column, columnIndex) => {
+            const raw = this.decodeHtml(cells[columnIndex]?.textContent || "").trim();
+            const number = parseNumber(raw);
+            return [column, number !== null && raw !== "" ? number : raw];
+          }));
+        })
+        .filter(Boolean);
+      if (rows.length < 2) {
+        return null;
+      }
+      const title = this.nearestTableTitle(table) || `查询结果 ${index + 1}`;
+      return {
+        title,
+        columns: headers,
+        rows
+      };
+    },
+    nearestTableTitle(table) {
+      let node = table.previousElementSibling;
+      let distance = 0;
+      while (node && distance < 6) {
+        if (/^H[1-6]$/i.test(node.tagName)) {
+          return this.decodeHtml(node.textContent || "").trim();
+        }
+        node = node.previousElementSibling;
+        distance += 1;
+      }
+      return "";
     },
     collapseToolEvidenceHtml(html = "") {
       const source = String(html || "");
@@ -1613,6 +1702,13 @@ export default {
       return "medium";
     },
     async handleMarkdownClick(event) {
+      const chartButton = event.target?.closest?.("[data-result-chart-payload]");
+      if (chartButton) {
+        event.preventDefault();
+        event.stopPropagation();
+        this.openChartAnalysisModal(chartButton.dataset.resultChartPayload || "");
+        return;
+      }
       const reasoningButton = event.target?.closest?.("[data-reasoning-path]");
       if (reasoningButton) {
         event.preventDefault();
@@ -1659,6 +1755,143 @@ export default {
     },
     closeReasoningModal() {
       this.reasoningModal = null;
+    },
+    openChartAnalysisModal(payload) {
+      try {
+        const data = JSON.parse(decodeURIComponent(payload || ""));
+        const columns = Array.isArray(data.columns) ? data.columns : [];
+        this.chartAnalysisModal = {
+          title: data.title || "查询结果图形化分析",
+          columns,
+          rows: Array.isArray(data.rows) ? data.rows : [],
+          chartType: "bar",
+          xKey: columns[0] || "",
+          yKey: columns[1] || columns[0] || "",
+          groupKey: ""
+        };
+      } catch (error) {
+        console.warn("Open chart analysis failed", error);
+      }
+    },
+    closeChartAnalysisModal() {
+      this.chartAnalysisModal = null;
+    },
+    setChartField(key, value) {
+      if (!this.chartAnalysisModal) {
+        return;
+      }
+      this.chartAnalysisModal = {
+        ...this.chartAnalysisModal,
+        [key]: value
+      };
+    },
+    chartTypeOptions() {
+      return [
+        { value: "bar", label: "柱状图" },
+        { value: "line", label: "折线图" },
+        { value: "scatter", label: "散点图" },
+        { value: "pie", label: "饼图" },
+        { value: "table", label: "表格" }
+      ];
+    },
+    chartAnalysisSpec() {
+      const modal = this.chartAnalysisModal;
+      if (!modal) {
+        return null;
+      }
+      const chartType = modal.chartType || "bar";
+      const xKey = modal.xKey || modal.columns[0] || "";
+      const yKey = modal.yKey || modal.columns.find((column) => column !== xKey) || modal.columns[0] || "";
+      if (chartType === "table") {
+        return {
+          version: "v1",
+          type: "table",
+          title: modal.title,
+          dataset: {
+            columns: modal.columns,
+            rows: modal.rows
+          },
+          ui: { defaultView: "table" }
+        };
+      }
+      return {
+        version: "v1",
+        type: "chart",
+        chartType,
+        title: modal.title,
+        dataset: {
+          columns: modal.columns,
+          xKey,
+          xLabel: xKey,
+          series: this.chartAnalysisSeries(modal, chartType, xKey, yKey),
+          rows: this.chartAnalysisRows(modal, chartType, xKey, yKey)
+        },
+        insight: {
+          summary: this.chartAnalysisSemanticSummary()
+        },
+        ui: { defaultView: "chart" }
+      };
+    },
+    chartAnalysisSeries(modal, chartType, xKey, yKey) {
+      if (!modal || !yKey) {
+        return [];
+      }
+      if (modal.groupKey && !["pie", "scatter"].includes(chartType)) {
+        return [...new Set(modal.rows.map((row) => String(row[modal.groupKey] ?? "未分组")))]
+          .map((group) => ({ name: `${modal.groupKey}=${group} / ${yKey}`, yKey: group }));
+      }
+      return [{ name: yKey, yKey }];
+    },
+    chartAnalysisSemanticSummary() {
+      const modal = this.chartAnalysisModal;
+      if (!modal) {
+        return "";
+      }
+      const chartTypeLabel = this.chartTypeOptions().find((item) => item.value === modal.chartType)?.label || modal.chartType;
+      if (modal.chartType === "table") {
+        return `当前以表格查看：${modal.rows.length} 行，${modal.columns.length} 个字段。`;
+      }
+      const groupText = modal.groupKey ? `；分组：${modal.groupKey}` : "；不分组";
+      const yText = modal.chartType === "pie" ? `扇区大小：${modal.yKey}` : `Y 轴 / 指标：${modal.yKey}`;
+      return `图表类型：${chartTypeLabel}；X 轴 / 维度：${modal.xKey}；${yText}${groupText}`;
+    },
+    chartAnalysisRows(modal, chartType, xKey, yKey) {
+      if (!modal || !Array.isArray(modal.rows)) {
+        return [];
+      }
+      if (!xKey || !yKey) {
+        return modal.rows;
+      }
+      if (modal.groupKey && !["pie", "scatter"].includes(chartType)) {
+        const rowsByX = new Map();
+        modal.rows.forEach((row) => {
+          const xValue = String(row[xKey] ?? "未命名");
+          const group = String(row[modal.groupKey] ?? "未分组");
+          const target = rowsByX.get(xValue) || { [xKey]: xValue };
+          target[group] = (parseNumber(target[group]) ?? 0) + (parseNumber(row[yKey]) ?? 0);
+          rowsByX.set(xValue, target);
+        });
+        return [...rowsByX.values()];
+      }
+      if (chartType === "scatter") {
+        return modal.rows.map((row) => ({
+          ...row,
+          [xKey]: parseNumber(row[xKey]) ?? 0,
+          [yKey]: parseNumber(row[yKey]) ?? 0
+        }));
+      }
+      if (chartType === "pie") {
+        const totals = new Map();
+        modal.rows.forEach((row) => {
+          const label = String(row[xKey] ?? "未分组");
+          totals.set(label, (totals.get(label) || 0) + (parseNumber(row[yKey]) ?? 0));
+        });
+        return [...totals.entries()].map(([label, value]) => ({ [xKey]: label, [yKey]: value }));
+      }
+      return modal.rows.map((row) => ({
+        ...row,
+        [yKey]: parseNumber(row[yKey]) ?? 0
+      }));
     },
     async copyMessage(message) {
       const text = this.buildCopyText(message);

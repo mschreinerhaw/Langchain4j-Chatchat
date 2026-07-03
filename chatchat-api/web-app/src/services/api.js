@@ -1107,6 +1107,13 @@ export function updateUser(userId, payload) {
   });
 }
 
+export function changeAdminPassword(payload) {
+  return apiRequest("/enterprise/users/admin/password", {
+    method: "POST",
+    body: JSON.stringify(payload)
+  });
+}
+
 export function deleteUser(userId) {
   return apiRequest(`/enterprise/users/${encodeURIComponent(userId)}`, {
     method: "DELETE"

@@ -1,3 +1,6 @@
+import * as echarts from "echarts";
+import { markRaw } from "vue";
+
 const PALETTE = ["#2f7cf6", "#20b26b", "#f4a629", "#ef4f5f", "#7c3aed", "#0891b2"];
 const CHART_TYPES = new Set(["line", "bar", "pie", "scatter"]);
 const PANEL_LAYOUTS = new Set(["grid", "stack"]);
@@ -8,6 +11,24 @@ function compact(value) {
     return "";
   }
   return String(value);
+}
+
+function escapeHtml(value) {
+  return compact(value)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function fileSafeName(value) {
+  const name = compact(value).trim().replace(/[\\/:*?"<>|]+/g, "_").replace(/\s+/g, "_");
+  return (name || "chart").slice(0, 80);
+}
+
+function csvCell(value) {
+  const text = compact(value).replace(/\r?\n/g, " ");
+  return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
 }
 
 function numeric(value) {
@@ -85,6 +106,14 @@ function chooseChartType(spec = {}, rows = [], xKey = "", series = []) {
   return isTimeKey(xKey, rows) ? "line" : "bar";
 }
 
+function hasExplicitChartSemantics(spec = {}) {
+  const requested = String(spec.chartType || spec.chart || "").toLowerCase();
+  const xKey = spec.dataset?.xKey || spec.xKey || spec.x;
+  const series = Array.isArray(spec.dataset?.series) ? spec.dataset.series : [];
+  const legacyY = Array.isArray(spec.y) ? spec.y : (spec.y ? [spec.y] : []);
+  return CHART_TYPES.has(requested) && !!xKey && (series.some((item) => item?.yKey) || legacyY.length > 0);
+}
+
 function normalizeSingleRenderableSpec(spec = {}) {
   if (!spec || typeof spec !== "object") {
     return null;
@@ -94,15 +123,20 @@ function normalizeSingleRenderableSpec(spec = {}) {
   const type = requestedType === "metrics" ? "metric" : requestedType;
   const metrics = normalizeMetrics(spec.metrics || spec.values || spec.kpis, rows, type);
   const columns = [...new Set(rows.flatMap((row) => Object.keys(row || {})))];
-  const xKey = spec.dataset?.xKey || spec.xKey || spec.x || columns.find((column) => numeric(rows[0]?.[column]) === null) || columns[0] || "name";
+  const explicitChart = hasExplicitChartSemantics(spec);
+  const xKey = spec.dataset?.xKey || spec.xKey || spec.x || (explicitChart ? "" : columns.find((column) => numeric(rows[0]?.[column]) === null) || columns[0] || "name");
   const explicitSeries = Array.isArray(spec.dataset?.series) ? spec.dataset.series : [];
   const legacyY = Array.isArray(spec.y) ? spec.y : (spec.y ? [spec.y] : []);
   const numericColumns = columns.filter((column) => column !== xKey && rows.some((row) => numeric(row[column]) !== null));
-  const series = (explicitSeries.length
+  const seriesCandidates = explicitChart
+    ? (explicitSeries.length ? explicitSeries : legacyY.map((yKey) => ({ name: yKey, yKey })))
+    : (explicitSeries.length
     ? explicitSeries
-    : (legacyY.length ? legacyY.map((yKey) => ({ name: yKey, yKey })) : numericColumns.map((yKey) => ({ name: yKey, yKey })))
-  ).filter((item) => item?.yKey && rows.some((row) => numeric(row[item.yKey]) !== null)).slice(0, 4);
-  const chartType = type === "chart" || (!type && series.length) ? chooseChartType(spec, rows, xKey, series) : "";
+    : (legacyY.length ? legacyY.map((yKey) => ({ name: yKey, yKey })) : numericColumns.map((yKey) => ({ name: yKey, yKey }))));
+  const series = seriesCandidates.filter((item) => item?.yKey && rows.some((row) => numeric(row[item.yKey]) !== null)).slice(0, 4);
+  const chartType = (type === "chart" || (!type && series.length)) && (explicitChart || !type)
+    ? chooseChartType(spec, rows, xKey, series)
+    : "";
   const hasChart = CHART_TYPES.has(chartType) && rows.length > 0 && series.length > 0;
   if (!hasChart && !metrics.length && !rows.length) {
     return null;
@@ -110,7 +144,7 @@ function normalizeSingleRenderableSpec(spec = {}) {
   return {
     ...spec,
     version: spec.version || "v1",
-    type: type || (metrics.length ? "metric" : (hasChart ? "chart" : "table")),
+    type: hasChart ? "chart" : (type === "metric" || type === "metrics" ? "metric" : (metrics.length ? "metric" : "table")),
     chartType: hasChart ? chartType : "",
     dataset: {
       ...(spec.dataset || {}),
@@ -163,7 +197,9 @@ export default {
   emits: ["drill-down"],
   data() {
     return {
-      activeView: "graph"
+      activeView: "graph",
+      chartInstance: null,
+      resizeObserver: null
     };
   },
   computed: {
@@ -250,9 +286,138 @@ export default {
       const numericColumns = this.columns.filter((column) => column !== this.xKey && this.rows.some((row) => numeric(row[column]) !== null));
       return (values.length ? values : numericColumns).filter(Boolean).slice(0, 4);
     },
+    seriesMeta() {
+      const series = Array.isArray(this.normalizedSpec?.dataset?.series) ? this.normalizedSpec.dataset.series : [];
+      return this.yKeys.map((key) => {
+        const match = series.find((item) => item?.yKey === key) || {};
+        const label = compact(match.label || match.name || key);
+        const unit = compact(match.unit || this.normalizedSpec?.dataset?.unit || "");
+        return {
+          yKey: key,
+          name: unit && !label.includes(unit) ? `${label}（${unit}）` : label,
+          unit
+        };
+      });
+    },
+    xAxisLabel() {
+      return compact(this.normalizedSpec?.dataset?.xLabel || this.normalizedSpec?.xLabel || this.xKey);
+    },
+    yAxisLabel() {
+      if (this.chartType === "scatter" && this.seriesMeta.length === 1) {
+        return this.seriesMeta[0].name;
+      }
+      if (this.seriesMeta.length === 1) {
+        return this.seriesMeta[0].name;
+      }
+      return this.seriesMeta.length ? "指标值" : "";
+    },
+    chartSemanticSummary() {
+      if (!this.chartOption || this.chartType === "pie") {
+        if (this.chartType === "pie" && this.seriesMeta.length) {
+          return `分类：${this.xAxisLabel}；扇区大小：${this.seriesMeta[0].name}`;
+        }
+        return "";
+      }
+      const seriesNames = this.seriesMeta.map((item) => item.name).join("、");
+      return `X 轴：${this.xAxisLabel}；Y 轴：${this.yAxisLabel || seriesNames}；图例/线条：${seriesNames}`;
+    },
+    chartOption() {
+      if (!this.normalizedSpec || this.isMetrics || !CHART_TYPES.has(this.chartType) || !this.rows.length || !this.yKeys.length) {
+        return null;
+      }
+      const seriesNameByKey = Object.fromEntries(this.seriesMeta.map((item) => [item.yKey, item.name]));
+      const common = {
+        color: PALETTE,
+        animationDuration: 220,
+        textStyle: {
+          color: "#344054",
+          fontFamily: "Inter, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif"
+        },
+        tooltip: {
+          trigger: this.chartType === "pie" ? "item" : "axis",
+          confine: true,
+          formatter: (params) => this.formatTooltip(params, seriesNameByKey),
+          valueFormatter: (value) => this.formatCompact(Array.isArray(value) ? value[1] : value)
+        },
+        legend: {
+          type: "scroll",
+          top: 4,
+          right: 8,
+          textStyle: { color: "#667085", fontWeight: 700 }
+        }
+      };
+      if (this.chartType === "pie") {
+        const key = this.yKeys[0];
+        return {
+          ...common,
+          tooltip: { ...common.tooltip, trigger: "item" },
+          series: [{
+            name: seriesNameByKey[key] || key,
+            type: "pie",
+            radius: ["42%", "68%"],
+            center: ["50%", "55%"],
+            avoidLabelOverlap: true,
+            data: this.rows.map((row, rowIndex) => ({
+              name: compact(row[this.xKey] ?? row.label ?? row.name ?? `Row ${rowIndex + 1}`),
+              value: Math.max(0, numeric(row[key]) ?? 0),
+              row,
+              rowIndex,
+              yKey: key
+            }))
+          }]
+        };
+      }
+      if (this.chartType === "scatter") {
+        return {
+          ...common,
+          grid: { left: 46, right: 18, top: 42, bottom: 42, containLabel: true },
+          xAxis: { type: "value", name: this.xAxisLabel, nameGap: 22, axisLabel: { color: "#667085" } },
+          yAxis: { type: "value", name: this.yAxisLabel, nameGap: 32, axisLabel: { color: "#667085" } },
+          series: this.yKeys.map((key) => ({
+            name: seriesNameByKey[key] || key,
+            type: "scatter",
+            symbolSize: 8,
+            data: this.rows.map((row, rowIndex) => ({
+              value: [numeric(row[this.xKey]) ?? 0, numeric(row[key]) ?? 0],
+              row,
+              rowIndex,
+              xKey: this.xKey,
+              yKey: key
+            }))
+          }))
+        };
+      }
+      return {
+        ...common,
+        grid: { left: 46, right: 18, top: 42, bottom: 42, containLabel: true },
+        xAxis: {
+          type: "category",
+          name: this.xAxisLabel,
+          nameGap: 28,
+          data: this.rows.map((row, index) => compact(row[this.xKey] ?? `Row ${index + 1}`)),
+          axisLabel: { color: "#667085", hideOverlap: true }
+        },
+        yAxis: { type: "value", name: this.yAxisLabel, nameGap: 34, axisLabel: { color: "#667085" } },
+        dataZoom: this.rows.length > 20 ? [{ type: "inside" }, { type: "slider", height: 18, bottom: 8 }] : [],
+        series: this.yKeys.map((key) => ({
+          name: seriesNameByKey[key] || key,
+          type: this.chartType,
+          smooth: this.chartType === "line",
+          barMaxWidth: 34,
+          emphasis: { focus: "series" },
+          data: this.rows.map((row, rowIndex) => ({
+            value: numeric(row[key]) ?? 0,
+            row,
+            rowIndex,
+            xKey: this.xKey,
+            yKey: key
+          }))
+        }))
+      };
+    },
     availableViews() {
       const views = [];
-      if (this.isMetrics || this.rows.length) {
+      if (this.isMetrics || this.chartOption) {
         views.push("graph");
       }
       if (this.rows.length) {
@@ -285,6 +450,21 @@ export default {
       const insight = this.panelSpec?.insight || {};
       return !!(insight.summary || insight.anomaly || insight.trend || (Array.isArray(insight.drivers) && insight.drivers.length));
     },
+    canExport() {
+      if (this.activeView === "graph") {
+        return !!this.chartOption || this.isMetrics;
+      }
+      if (this.activeView === "table") {
+        return this.rows.length > 0;
+      }
+      return !!this.normalizedSpec;
+    },
+    exportLabel() {
+      return this.activeView === "graph" ? "导出 PNG" : (this.activeView === "table" ? "导出 CSV" : "导出 JSON");
+    },
+    exportTitle() {
+      return `导出${this.viewLabel(this.activeView)}`;
+    },
     numericValues() {
       const values = this.rows.flatMap((row) => this.yKeys.map((key) => numeric(row[key])).filter((value) => value !== null));
       return values.length ? values : [0];
@@ -296,7 +476,27 @@ export default {
       const max = Math.max(...this.numericValues);
       return max === this.minValue ? max + 1 : max;
     },
+    xNumericValues() {
+      if (this.chartType !== "scatter") {
+        return [];
+      }
+      const values = this.rows.map((row) => numeric(row[this.xKey])).filter((value) => value !== null);
+      return values.length ? values : [0];
+    },
+    minXValue() {
+      return Math.min(...this.xNumericValues);
+    },
+    maxXValue() {
+      const max = Math.max(...this.xNumericValues);
+      return max === this.minXValue ? max + 1 : max;
+    },
     xLabels() {
+      if (this.chartType === "scatter") {
+        return [
+          { key: "min-x", text: this.formatCompact(this.minXValue), x: 48 },
+          { key: "max-x", text: this.formatCompact(this.maxXValue), x: 608 }
+        ];
+      }
       const count = Math.max(1, this.rows.length - 1);
       return this.rows.map((row, index) => ({
         key: `${index}-${row[this.xKey]}`,
@@ -322,7 +522,7 @@ export default {
           xKey: this.xKey,
           yKey: key,
           value: numeric(row[key]) ?? 0,
-          x: this.xForIndex(index),
+          x: this.chartType === "scatter" ? this.xForValue(numeric(row[this.xKey]) ?? 0) : this.xForIndex(index),
           y: this.yForValue(numeric(row[key]) ?? 0),
           color: PALETTE[seriesIndex % PALETTE.length]
         }))
@@ -391,11 +591,141 @@ export default {
       if (this.availableViews.includes(view)) {
         this.activeView = view;
       }
+    },
+    activeView() {
+      this.renderEchart();
+    },
+    chartOption: {
+      deep: true,
+      handler() {
+        this.renderEchart();
+      }
     }
   },
+  mounted() {
+    this.renderEchart();
+  },
+  beforeUnmount() {
+    this.disposeEchart();
+  },
   methods: {
+    renderEchart() {
+      this.$nextTick(() => {
+        const element = this.$refs.chartCanvas;
+        if (!element || this.activeView !== "graph" || !this.chartOption) {
+          this.disposeEchart();
+          return;
+        }
+        if (!this.chartInstance) {
+          this.chartInstance = markRaw(echarts.init(element, null, { renderer: "canvas" }));
+          this.chartInstance.on("click", this.handleChartClick);
+          if (typeof ResizeObserver !== "undefined") {
+            this.resizeObserver = new ResizeObserver(() => this.chartInstance?.resize());
+            this.resizeObserver.observe(element);
+          } else if (typeof window !== "undefined") {
+            window.addEventListener("resize", this.resizeEchart);
+          }
+        }
+        this.chartInstance.setOption(this.chartOption, true);
+        this.chartInstance.resize();
+      });
+    },
+    resizeEchart() {
+      this.chartInstance?.resize();
+    },
+    downloadBlob(content, filename, type = "text/plain;charset=utf-8") {
+      if (typeof document === "undefined") {
+        return;
+      }
+      const blob = new Blob([content], { type });
+      const url = URL.createObjectURL(blob);
+      this.downloadUrl(url, filename);
+      window.setTimeout(() => URL.revokeObjectURL(url), 1200);
+    },
+    downloadUrl(url, filename) {
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    },
+    async exportCurrentView() {
+      const baseName = fileSafeName(this.title);
+      if (this.activeView === "graph") {
+        if (this.chartOption) {
+          await this.$nextTick();
+          if (!this.chartInstance) {
+            this.renderEchart();
+            await this.$nextTick();
+          }
+          const url = this.chartInstance?.getDataURL({
+            type: "png",
+            pixelRatio: 2,
+            backgroundColor: "#ffffff"
+          });
+          if (url) {
+            this.downloadUrl(url, `${baseName}.png`);
+          }
+          return;
+        }
+        this.downloadBlob(JSON.stringify(this.metrics, null, 2), `${baseName}-metrics.json`, "application/json;charset=utf-8");
+        return;
+      }
+      if (this.activeView === "table") {
+        const header = this.columns.map(csvCell).join(",");
+        const body = this.rows.map((row) => this.columns.map((column) => csvCell(row[column])).join(","));
+        this.downloadBlob(`\ufeff${[header, ...body].join("\n")}`, `${baseName}.csv`, "text/csv;charset=utf-8");
+        return;
+      }
+      this.downloadBlob(JSON.stringify(this.normalizedSpec || this.spec, null, 2), `${baseName}.json`, "application/json;charset=utf-8");
+    },
+    disposeEchart() {
+      if (this.resizeObserver) {
+        this.resizeObserver.disconnect();
+        this.resizeObserver = null;
+      }
+      if (typeof window !== "undefined") {
+        window.removeEventListener("resize", this.resizeEchart);
+      }
+      if (this.chartInstance) {
+        this.chartInstance.off("click", this.handleChartClick);
+        this.chartInstance.dispose();
+        this.chartInstance = null;
+      }
+    },
+    handleChartClick(params = {}) {
+      const data = params.data || {};
+      this.emitDrillDown({
+        label: params.name,
+        value: Array.isArray(data.value) ? data.value[1] : data.value,
+        row: data.row,
+        rowIndex: data.rowIndex,
+        xKey: data.xKey || this.xKey,
+        yKey: data.yKey || params.seriesName
+      });
+    },
     viewLabel(view) {
-      return { graph: "Graph", table: "Table", raw: "Raw" }[view] || view;
+      return { graph: "图表", table: "表格", raw: "原始数据" }[view] || view;
+    },
+    formatTooltip(params, seriesNameByKey = {}) {
+      const items = Array.isArray(params) ? params : [params];
+      if (!items.length) {
+        return "";
+      }
+      const first = items[0] || {};
+      const firstData = first.data || {};
+      const row = firstData.row || {};
+      const xValue = row[this.xKey] ?? first.name ?? "";
+      const lines = [`<strong>${escapeHtml(this.xAxisLabel)}：${escapeHtml(xValue)}</strong>`];
+      items.forEach((item) => {
+        const data = item.data || {};
+        const key = data.yKey || item.seriesName || "";
+        const name = seriesNameByKey[key] || item.seriesName || key;
+        const value = Array.isArray(data.value) ? data.value[1] : data.value;
+        lines.push(`${escapeHtml(name)}：${escapeHtml(this.formatCompact(value))}`);
+      });
+      return lines.join("<br/>");
     },
     emitDrillDown(selection = {}) {
       this.$emit("drill-down", {
@@ -420,6 +750,10 @@ export default {
     xForIndex(index) {
       const count = Math.max(1, this.rows.length - 1);
       return 48 + (560 * index / count);
+    },
+    xForValue(value) {
+      const range = this.maxXValue - this.minXValue || 1;
+      return 48 + ((value - this.minXValue) / range) * 560;
     },
     yForValue(value) {
       const range = this.maxValue - this.minValue || 1;

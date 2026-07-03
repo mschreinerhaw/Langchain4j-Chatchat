@@ -445,6 +445,40 @@ public class EnterpriseAdminService implements ApplicationRunner {
     }
 
     /**
+     * Changes the platform admin password.
+     *
+     * @param operatorUsername the current operator username
+     * @param currentPassword the current password value
+     * @param newPassword the new password value
+     * @param confirmPassword the confirmation password value
+     * @return the updated admin user view
+     */
+    @Transactional
+    public UserView changeAdminPassword(String operatorUsername,
+                                        String currentPassword,
+                                        String newPassword,
+                                        String confirmPassword) {
+        SysUser admin = requireAdminOperator(operatorUsername);
+        String expected = admin.getPasswordHash() == null ? "" : admin.getPasswordHash();
+        if (!expected.equals(currentPassword == null ? "" : currentPassword)) {
+            throw new IllegalArgumentException("current password is incorrect");
+        }
+        String nextPassword = requireText(newPassword, "newPassword");
+        if (nextPassword.length() < 6) {
+            throw new IllegalArgumentException("new password must be at least 6 characters");
+        }
+        if (!nextPassword.equals(confirmPassword == null ? "" : confirmPassword)) {
+            throw new IllegalArgumentException("password confirmation does not match");
+        }
+        admin.setPasswordHash(nextPassword);
+        SysUser saved = userRepository.save(admin);
+        invalidateUserPasswordSessions(saved.getId());
+        audit(saved.getTenantId(), saved.getId(), saved.getDisplayName(), "auth", "password-change",
+            "sys_user", saved.getId(), "admin password changed");
+        return toUserView(saved);
+    }
+
+    /**
      * Lists the permissions.
      *
      * @return the permissions list
@@ -915,9 +949,23 @@ public class EnterpriseAdminService implements ApplicationRunner {
         SysUser user = userRepository.findByUsername(requireText(username, "username"))
             .orElseThrow(() -> new IllegalArgumentException("admin user not found"));
         if (!isAdminUser(user) || !"enabled".equalsIgnoreCase(user.getStatus())) {
-            throw new IllegalArgumentException("only admin user can manage embed login tokens");
+            throw new IllegalArgumentException("only enabled admin user can perform this operation");
         }
         return user;
+    }
+
+    private void invalidateUserPasswordSessions(String userId) {
+        if (userId == null || userId.isBlank()) {
+            return;
+        }
+        List<String> tokens = activeTokens.entrySet().stream()
+            .filter(entry -> userId.equals(entry.getValue()))
+            .map(Map.Entry::getKey)
+            .toList();
+        tokens.forEach(token -> {
+            activeTokens.remove(token);
+            activeTokenUsers.remove(token);
+        });
     }
 
     private Optional<EmbedLoginToken> resolveUsableEmbedToken(String token) {

@@ -15,6 +15,9 @@ import {
 } from "@lucide/vue";
 import "../../styles/pages/system-management.css";
 import {
+  AUTH_REQUIRED_EVENT,
+  changeAdminPassword,
+  clearAuthSession,
   createOrg,
   createEmbedLoginToken,
   createRole,
@@ -70,6 +73,12 @@ const blankUserForm = () => ({
   roleIds: []
 });
 
+const blankAdminPasswordForm = () => ({
+  currentPassword: "",
+  newPassword: "",
+  confirmPassword: ""
+});
+
 export default {
   name: "SystemManagementView",
   components: {
@@ -93,11 +102,13 @@ export default {
       savingOrg: false,
       savingRole: false,
       savingUser: false,
+      savingAdminPassword: false,
       embedTokenLoading: false,
       embedTokenSaving: false,
       orgModalOpen: false,
       roleModalOpen: false,
       userModalOpen: false,
+      adminPasswordModalOpen: false,
       embedTokenModalOpen: false,
       error: "",
       message: "",
@@ -132,7 +143,8 @@ export default {
       tempPickerUserIds: [],
       orgForm: blankOrgForm(),
       roleForm: blankRoleForm(),
-      userForm: blankUserForm()
+      userForm: blankUserForm(),
+      adminPasswordForm: blankAdminPasswordForm()
     };
   },
   computed: {
@@ -512,6 +524,47 @@ export default {
     closeUserModal() {
       this.userModalOpen = false;
       this.resetUserForm();
+    },
+    openAdminPasswordModal() {
+      this.adminPasswordForm = blankAdminPasswordForm();
+      this.adminPasswordModalOpen = true;
+    },
+    closeAdminPasswordModal() {
+      this.adminPasswordModalOpen = false;
+      this.adminPasswordForm = blankAdminPasswordForm();
+    },
+    async saveAdminPasswordForm() {
+      const form = this.adminPasswordForm;
+      if (!form.currentPassword || !form.newPassword || !form.confirmPassword) {
+        this.setNotice("请完整填写当前密码、新密码和确认密码", true);
+        return;
+      }
+      if (form.newPassword.length < 6) {
+        this.setNotice("新密码至少 6 位", true);
+        return;
+      }
+      if (form.newPassword !== form.confirmPassword) {
+        this.setNotice("两次输入的新密码不一致", true);
+        return;
+      }
+      this.savingAdminPassword = true;
+      try {
+        await changeAdminPassword({
+          currentPassword: form.currentPassword,
+          newPassword: form.newPassword,
+          confirmPassword: form.confirmPassword
+        });
+        this.setNotice("admin 密码已修改，请使用新密码重新登录");
+        this.closeAdminPasswordModal();
+        clearAuthSession();
+        window.dispatchEvent(new CustomEvent(AUTH_REQUIRED_EVENT, {
+          detail: { reason: "admin_password_changed" }
+        }));
+      } catch (error) {
+        this.setNotice(error.message || "admin 密码修改失败", true);
+      } finally {
+        this.savingAdminPassword = false;
+      }
     },
     async openEmbedTokenModal(user = null) {
       if (!this.isAdminUser(user)) {

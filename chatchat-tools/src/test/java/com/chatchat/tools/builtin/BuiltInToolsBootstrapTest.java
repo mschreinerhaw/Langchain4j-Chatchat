@@ -12,6 +12,8 @@ import org.junit.jupiter.api.Test;
 import org.springframework.mock.env.MockEnvironment;
 
 import java.io.IOException;
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.InetSocketAddress;
 import java.net.URLDecoder;
@@ -20,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 
 class BuiltInToolsBootstrapTest {
@@ -91,6 +94,38 @@ class BuiltInToolsBootstrapTest {
         assertThat(fileSystem.getConfirmation()).containsEntry("default", "ask_before_execute");
         assertThat(fileSystem.getInputPolicy()).containsEntry("allow_auto_fill", false);
         assertThat(fileSystem.getOutputPolicy()).containsKey("mask_fields");
+    }
+
+    @Test
+    void databaseQueryAllowsMultilineDamengSelectTemplates() throws Exception {
+        String sql = """
+            select
+              etl_date,
+              fund_code,
+              fund_name,
+              valu_sys_nav,
+              corp_offweb_nav,
+              ta_sys_nav,
+              xbrl_sys_nav,
+              veri_rslt,
+              diff_expl,
+              updt_time
+            from
+              GDP_DWD.dwd_fund_nav_consistency_check_d_i
+            where etl_date = to_date('20260520', 'YYYYMMDD')
+            """;
+
+        assertThat(validateDatabaseQuerySql(sql)).isEqualTo(sql.trim());
+    }
+
+    @Test
+    void databaseQueryStillRejectsWriteSqlAfterReadOnlyTokenFix() {
+        assertThatThrownBy(() -> validateDatabaseQuerySql("select * from demo; update demo set name = 'x'"))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("Only one SQL statement is allowed");
+        assertThatThrownBy(() -> validateDatabaseQuerySql("update demo set name = 'x'"))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("Only read-only SQL statements are allowed");
     }
 
     @Test
@@ -697,6 +732,37 @@ class BuiltInToolsBootstrapTest {
         assertThat(results).anySatisfy(result -> assertThat(result)
             .containsEntry("source", "site_search")
             .containsEntry("url", "http://localhost:" + server.getAddress().getPort() + "/files/acme-2025-data.xlsx"));
+    }
+
+    private String validateDatabaseQuerySql(String sql) throws Exception {
+        Class<?> toolClass = Class.forName("com.chatchat.tools.builtin.BuiltInToolsBootstrap$DatabaseQueryTool");
+        Constructor<?> constructor = toolClass.getDeclaredConstructor(
+            DynamicJdbcDriverLoader.class,
+            DatabaseToolProperties.class,
+            String.class,
+            ObjectMapper.class
+        );
+        constructor.setAccessible(true);
+        Object tool = constructor.newInstance(
+            mock(DynamicJdbcDriverLoader.class),
+            new DatabaseToolProperties(),
+            "",
+            new ObjectMapper()
+        );
+        Method validator = toolClass.getDeclaredMethod("validateReadOnlySql", String.class);
+        validator.setAccessible(true);
+        try {
+            return (String) validator.invoke(tool, sql);
+        } catch (InvocationTargetException e) {
+            Throwable cause = e.getCause();
+            if (cause instanceof Exception exception) {
+                throw exception;
+            }
+            if (cause instanceof Error error) {
+                throw error;
+            }
+            throw new IllegalStateException(cause);
+        }
     }
 
     private void startDocumentApi() throws IOException {

@@ -57,14 +57,10 @@ const RESPONSE_RENDER_CONTRACT = {
     "- Separate mixed output sections clearly.",
     "- Never output plain code without a language tag.",
     "",
-    "VISUALIZATION CONTRACT:",
-    "- When the answer contains chartable structured data, emit visualizationSpec v2.",
-    "- Preferred schema: {version:'v2', type:'panel', title:'', analysisType:'comparison|trend|distribution|correlation', layout:'grid|stack', insight:{summary:'', anomaly:'', trend:'up|down|stable', drivers:[]}, blocks:[{id:'', type:'metric|chart|table', title:'', spec:{version:'v1', type:'chart|table|metric', chartType:'line|bar|pie|scatter', title:'', dataset:{xKey:'', series:[{name:'', yKey:''}], rows:[]}, ui:{allowSwitch:true, defaultView:'chart'}, insight:{summary:'', anomaly:'', trend:'up|down|stable', drivers:[]}}}]}",
-    "- Each panel block spec MUST use dataset.rows as an array of objects and dataset.series MUST reference numeric yKey fields in rows.",
-    "- Prefer metadata.visualizationSpec when the runtime supports structured metadata.",
-    "- If metadata is unavailable, include exactly one ```json block shaped as {\"visualizationSpec\": {...}}.",
-    "- Choose chartType by data shape: time series=line, category comparison=bar, proportions=pie, two numeric dimensions=scatter.",
-    "- Keep visualization data compact and numeric fields as numbers, not formatted strings."
+    "STRUCTURED DATA DISPLAY RULE:",
+    "- Prefer markdown tables for structured query rows.",
+    "- Emit visualizationSpec/dataVisualization only when chart semantics are explicit: chartType, xKey/xLabel, series[{name,yKey,unit?}], and a short insight summary.",
+    "- Do not guess chart axes or metrics from column order; if semantics are uncertain, return a table and let the frontend user choose chart fields manually."
   ].join("\n"),
   blocks: {
     sql: "```sql",
@@ -476,6 +472,14 @@ function chooseVisualizationChartType(spec = {}, rows = [], xKey = "", series = 
   return isTimeKey(xKey, rows) ? "line" : "bar";
 }
 
+function hasExplicitVisualizationSemantics(spec = {}) {
+  const requested = String(spec.chartType || spec.chart || "").toLowerCase();
+  const xKey = spec.dataset?.xKey || spec.xKey || spec.x;
+  const series = Array.isArray(spec.dataset?.series) ? spec.dataset.series : [];
+  const legacyY = Array.isArray(spec.y) ? spec.y : (spec.y ? [spec.y] : []);
+  return ["line", "bar", "pie", "scatter"].includes(requested) && !!xKey && (series.some((item) => item?.yKey) || legacyY.length > 0);
+}
+
 function normalizeVisualizationType(spec = {}, rows = [], series = []) {
   const type = String(spec.type || "").toLowerCase();
   if (type === "metric" || type === "metrics") {
@@ -484,7 +488,7 @@ function normalizeVisualizationType(spec = {}, rows = [], series = []) {
   if (type === "table") {
     return "table";
   }
-  if (type === "chart" || series.length) {
+  if (type === "chart" && hasExplicitVisualizationSemantics(spec) && series.length) {
     return "chart";
   }
   return rows.length ? "table" : "metric";
@@ -617,14 +621,17 @@ function normalizeSingleVisualizationSpec(value) {
     return null;
   }
   const columns = [...new Set(workingRows.flatMap((row) => Object.keys(row || {})))];
-  const xKey = spec.dataset?.xKey || spec.xKey || spec.x || columns.find((column) => numericValue(workingRows[0]?.[column]) === null) || columns[0] || "name";
+  const explicitChart = hasExplicitVisualizationSemantics(spec);
+  const xKey = spec.dataset?.xKey || spec.xKey || spec.x || (explicitChart ? "" : columns.find((column) => numericValue(workingRows[0]?.[column]) === null) || columns[0] || "name");
   const explicitSeries = Array.isArray(spec.dataset?.series) ? spec.dataset.series : [];
   const legacyY = Array.isArray(spec.y) ? spec.y : (spec.y ? [spec.y] : []);
   const numericColumns = columns.filter((column) => column !== xKey && workingRows.some((row) => numericValue(row[column]) !== null));
-  const series = (explicitSeries.length
+  const seriesCandidates = explicitChart
+    ? (explicitSeries.length ? explicitSeries : legacyY.map((yKey) => ({ name: yKey, yKey })))
+    : (explicitSeries.length
     ? explicitSeries
-    : (legacyY.length ? legacyY.map((yKey) => ({ name: yKey, yKey })) : numericColumns.map((yKey) => ({ name: yKey, yKey })))
-  ).filter((item) => item?.yKey && workingRows.some((row) => numericValue(row[item.yKey]) !== null)).slice(0, 4);
+    : (legacyY.length ? legacyY.map((yKey) => ({ name: yKey, yKey })) : numericColumns.map((yKey) => ({ name: yKey, yKey }))));
+  const series = seriesCandidates.filter((item) => item?.yKey && workingRows.some((row) => numericValue(row[item.yKey]) !== null)).slice(0, 4);
   const type = normalizeVisualizationType(spec, workingRows, series);
   const chartType = type === "chart" ? chooseVisualizationChartType(spec, workingRows, xKey, series) : "";
   return {
@@ -686,11 +693,10 @@ function normalizeMessageVisualization(message = {}) {
   return firstVisualizationSpec(
     message.visualizationSpec,
     message.dataVisualization,
+    message.uiResponse?.visualizationSpec,
     message.metadata?.visualizationSpec,
     message.metadata?.dataVisualization,
-    message.metadata?.agent?.visualizationSpec,
-    message.extra?.visualizationSpec,
-    visualizationSpecFromAnswer(message.content)
+    visualizationSpecFromAnswer(message.content || message.answer || "")
   );
 }
 
@@ -1155,16 +1161,13 @@ function normalizeResponsePayload(response = {}) {
   );
   const visualizationSpec = firstVisualizationSpec(
     uiResponse?.visualizationSpec,
+    uiResponse?.dataVisualization,
     payload?.visualizationSpec,
+    payload?.dataVisualization,
     runtimePayload?.visualizationSpec,
     runtimePayload?.dataVisualization,
-    payload?.dataVisualization,
     payload?.metadata?.visualizationSpec,
-    payload?.metadata?.dataVisualization,
-    payload?.metadata?.agent?.visualizationSpec,
-    payload?.metadata?.executionResult?.visualizationSpec,
-    runtimePayload?.metadata?.visualizationSpec,
-    runtimePayload?.metadata?.agent?.visualizationSpec
+    runtimePayload?.metadata?.visualizationSpec
   );
   return {
     ...payload,
@@ -1510,7 +1513,7 @@ export default {
       const query = [
         `请基于刚才的可视化结果继续下钻分析「${title}」。`,
         details,
-        "请解释该维度或数据点的原因、影响和下一步观察点，并在有结构化数据时继续输出符合 visualizationSpec v2 的 BI Panel。"
+        "请解释该维度或数据点的原因、影响和下一步观察点；如有结构化数据，请优先用 markdown 表格展示。只有能明确 chartType、xKey、series 指标含义时，才输出 visualizationSpec。"
       ].filter(Boolean).join("\n");
       this.handleSend({ query, drillDown: { event, sourceMessageId: payload.message?.id || "" } });
     },

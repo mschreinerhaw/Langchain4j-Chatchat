@@ -35,18 +35,33 @@
         <p>{{ chartLabel }}</p>
         <h3>{{ title }}</h3>
       </div>
-      <nav v-if="availableViews.length > 1" class="visualization-tabs" aria-label="Visualization views">
+      <div class="visualization-actions">
+        <nav v-if="availableViews.length > 1" class="visualization-tabs" aria-label="Visualization views">
+          <button
+            v-for="view in availableViews"
+            :key="view"
+            type="button"
+            :class="{ active: activeView === view }"
+            @click="activeView = view"
+          >
+            {{ viewLabel(view) }}
+          </button>
+        </nav>
         <button
-          v-for="view in availableViews"
-          :key="view"
+          v-if="canExport"
           type="button"
-          :class="{ active: activeView === view }"
-          @click="activeView = view"
+          class="visualization-export-button"
+          :title="exportTitle"
+          @click="exportCurrentView"
         >
-          {{ viewLabel(view) }}
+          {{ exportLabel }}
         </button>
-      </nav>
+      </div>
     </header>
+
+    <p v-if="chartSemanticSummary" class="visualization-semantics">
+      {{ chartSemanticSummary }}
+    </p>
 
     <div v-if="activeView === 'graph'" class="visualization-graph">
       <div v-if="isMetrics" class="visualization-metrics">
@@ -57,80 +72,7 @@
         </article>
       </div>
 
-      <svg v-else-if="isPieChart" viewBox="0 0 640 260" role="img" :aria-label="title">
-        <g :transform="`translate(${pieCenter.x} ${pieCenter.y})`">
-          <path
-            v-for="slice in pieSlices"
-            :key="slice.label"
-            :d="slice.path"
-            :fill="slice.color"
-            class="visualization-click-target"
-            @click="emitDrillDown({ label: slice.label, value: slice.value, row: slice.row })"
-          />
-        </g>
-        <g class="visualization-legend">
-          <g v-for="(slice, index) in pieSlices" :key="`${slice.label}-legend`" :transform="`translate(370 ${48 + index * 28})`">
-            <rect width="10" height="10" rx="2" :fill="slice.color" />
-            <text x="18" y="10">{{ slice.label }} {{ slice.percent }}%</text>
-          </g>
-        </g>
-      </svg>
-
-      <svg v-else viewBox="0 0 640 260" role="img" :aria-label="title">
-        <g class="visualization-axis">
-          <line x1="48" y1="214" x2="608" y2="214" />
-          <line x1="48" y1="28" x2="48" y2="214" />
-          <text x="44" y="32" text-anchor="end">{{ formatCompact(maxValue) }}</text>
-          <text x="44" y="214" text-anchor="end">{{ formatCompact(minValue) }}</text>
-        </g>
-        <g v-if="isBarChart">
-          <rect
-            v-for="bar in barItems"
-            :key="bar.label"
-            :x="bar.x"
-            :y="bar.y"
-            :width="bar.width"
-            :height="bar.height"
-            :fill="bar.color"
-            rx="3"
-            class="visualization-click-target"
-            @click="emitDrillDown(bar)"
-          />
-        </g>
-        <g v-else>
-          <polyline
-            v-for="series in lineSeries"
-            :key="series.key"
-            :points="series.points"
-            :stroke="series.color"
-            fill="none"
-            stroke-width="2.6"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-          />
-          <circle
-            v-for="point in scatterPoints"
-            :key="point.id"
-            :cx="point.x"
-            :cy="point.y"
-            r="3.5"
-            :fill="point.color"
-            class="visualization-click-target"
-            @click="emitDrillDown(point)"
-          />
-        </g>
-        <g class="visualization-x-labels">
-          <text
-            v-for="label in xLabels"
-            :key="label.key"
-            :x="label.x"
-            y="238"
-            text-anchor="middle"
-          >
-            {{ label.text }}
-          </text>
-        </g>
-      </svg>
+      <div v-else ref="chartCanvas" class="visualization-echart" role="img" :aria-label="title"></div>
     </div>
 
     <div v-else-if="activeView === 'table'" class="visualization-table">

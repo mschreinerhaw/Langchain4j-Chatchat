@@ -187,6 +187,85 @@
         </section>
       </section>
     </div>
+
+    <div
+      v-if="chartAnalysisModal"
+      class="result-chart-modal-backdrop"
+      role="presentation"
+      @click.self="closeChartAnalysisModal"
+    >
+      <section class="result-chart-modal" role="dialog" aria-modal="true" aria-label="查询结果图表分析">
+        <header>
+          <div>
+            <span>图表分析</span>
+            <h2>{{ chartAnalysisModal.title }}</h2>
+          </div>
+          <button type="button" aria-label="关闭" @click="closeChartAnalysisModal">×</button>
+        </header>
+
+        <div class="result-chart-controls">
+          <label>
+            <span>图表类型</span>
+            <select
+              :value="chartAnalysisModal.chartType"
+              @change="setChartField('chartType', $event.target.value)"
+            >
+              <option v-for="option in chartTypeOptions()" :key="option.value" :value="option.value">
+                {{ option.label }}
+              </option>
+            </select>
+          </label>
+          <label>
+            <span>X 轴 / 维度</span>
+            <select
+              :value="chartAnalysisModal.xKey"
+              @change="setChartField('xKey', $event.target.value)"
+            >
+              <option v-for="column in chartAnalysisModal.columns" :key="column" :value="column">
+                {{ column }}
+              </option>
+            </select>
+          </label>
+          <label>
+            <span>Y 轴 / 指标</span>
+            <select
+              :value="chartAnalysisModal.yKey"
+              @change="setChartField('yKey', $event.target.value)"
+            >
+              <option v-for="column in chartAnalysisModal.columns" :key="column" :value="column">
+                {{ column }}
+              </option>
+            </select>
+          </label>
+          <label>
+            <span>分组字段</span>
+            <select
+              :value="chartAnalysisModal.groupKey"
+              @change="setChartField('groupKey', $event.target.value)"
+            >
+              <option value="">不分组</option>
+              <option v-for="column in chartAnalysisModal.columns" :key="column" :value="column">
+                {{ column }}
+              </option>
+            </select>
+          </label>
+        </div>
+
+        <p v-if="chartAnalysisSemanticSummary()" class="result-chart-semantics">
+          {{ chartAnalysisSemanticSummary() }}
+        </p>
+
+        <VisualizationRenderer
+          v-if="chartAnalysisSpec()"
+          :spec="chartAnalysisSpec()"
+        />
+
+        <footer>
+          <span>{{ chartAnalysisModal.rows.length }} 行数据，{{ chartAnalysisModal.columns.length }} 个字段</span>
+          <button type="button" @click="closeChartAnalysisModal">关闭</button>
+        </footer>
+      </section>
+    </div>
   </section>
 </template>
 

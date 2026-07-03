@@ -429,6 +429,24 @@ public class EnterpriseAdminController {
     }
 
     /**
+     * Changes the admin password for the current platform admin user.
+     *
+     * @param servletRequest the servlet request
+     * @param request the password change request
+     * @return the updated admin user
+     */
+    @PostMapping("/users/admin/password")
+    public ApiResponse<EnterpriseAdminService.UserView> changeAdminPassword(HttpServletRequest servletRequest,
+                                                                            @RequestBody AdminPasswordChangeRequest request) {
+        return ApiResponse.success(adminService.changeAdminPassword(
+            currentUsername(servletRequest),
+            request.currentPassword(),
+            request.newPassword(),
+            request.confirmPassword()
+        ), "admin password changed");
+    }
+
+    /**
      * Deletes the user.
      *
      * @param id the id value
@@ -629,6 +647,9 @@ public class EnterpriseAdminController {
     }
 
     public record UserUpsertRequest(SysUser user, List<String> roleIds) {
+    }
+
+    public record AdminPasswordChangeRequest(String currentPassword, String newPassword, String confirmPassword) {
     }
 
     public record MenuGroup(String id, String title, List<MenuItem> children) {

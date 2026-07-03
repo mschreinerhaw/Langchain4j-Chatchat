@@ -1572,6 +1572,7 @@ public class BuiltInToolsBootstrap {
 
         private static final Pattern BLOCK_COMMENT = Pattern.compile("/\\*.*?\\*/", Pattern.DOTALL);
         private static final Pattern LINE_COMMENT = Pattern.compile("(?m)--.*$");
+        private static final Pattern FIRST_SQL_TOKEN = Pattern.compile("^([A-Za-z_][A-Za-z0-9_]*)\\b");
 
         private final DynamicJdbcDriverLoader dynamicJdbcDriverLoader;
         private final DatabaseToolProperties properties;
@@ -1706,13 +1707,19 @@ public class BuiltInToolsBootstrap {
             if (normalized.contains(";")) {
                 throw new IllegalArgumentException("Only one SQL statement is allowed");
             }
-            String lower = normalized.toLowerCase(Locale.ROOT);
+            java.util.regex.Matcher firstToken = FIRST_SQL_TOKEN.matcher(normalized);
+            if (!firstToken.find()) {
+                throw new IllegalArgumentException("Only read-only SQL statements are allowed");
+            }
+            String firstKeyword = firstToken.group(1).toLowerCase(Locale.ROOT);
             boolean allowed = properties.getAllowedPrefixes().stream()
-                .map(prefix -> prefix.toLowerCase(Locale.ROOT))
-                .anyMatch(prefix -> lower.equals(prefix) || lower.startsWith(prefix + " "));
+                .filter(prefix -> prefix != null && !prefix.isBlank())
+                .map(prefix -> prefix.trim().toLowerCase(Locale.ROOT))
+                .anyMatch(firstKeyword::equals);
             if (!allowed) {
                 throw new IllegalArgumentException("Only read-only SQL statements are allowed");
             }
+            String lower = normalized.toLowerCase(Locale.ROOT);
             for (String keyword : properties.getBlockedKeywords()) {
                 Pattern keywordPattern = Pattern.compile("(?i)(^|\\W)" + Pattern.quote(keyword) + "(\\W|$)");
                 if (keywordPattern.matcher(lower).find()) {

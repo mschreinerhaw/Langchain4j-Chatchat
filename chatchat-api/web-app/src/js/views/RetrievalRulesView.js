@@ -93,14 +93,14 @@ export default {
   computed: {
     ruleTabs() {
       return [
-        { key: "intent", label: "Intent Rules" },
-        { key: "expand", label: "Expansion Rules" },
-        { key: "chunk", label: "Chunk Rules" },
-        { key: "lexicon", label: "Semantic Lexicon" }
+        { key: "intent", label: "意图规则" },
+        { key: "expand", label: "扩展规则" },
+        { key: "chunk", label: "分片规则" },
+        { key: "lexicon", label: "语义词库" }
       ];
     },
     activeRuleLabel() {
-      return this.ruleTabs.find((tab) => tab.key === this.activeRuleTab)?.label || "Rules";
+      return this.ruleTabs.find((tab) => tab.key === this.activeRuleTab)?.label || "规则";
     },
     activeIntentVersion() {
       return this.retrievalRules.activeVersions?.intentVersion || 1;
@@ -141,7 +141,7 @@ export default {
       return [
         {
           key: "total",
-          label: "Total Rules",
+          label: "规则总数",
           value: this.allRules.length,
           enabled: this.enabledCount,
           draft: this.draftCount,
@@ -150,7 +150,7 @@ export default {
         },
         {
           key: "intent",
-          label: "Intent Rules",
+          label: "意图规则",
           value: this.retrievalRules.intentRules.length,
           enabled: this.countEnabled(this.retrievalRules.intentRules),
           draft: this.countDraft(this.retrievalRules.intentRules),
@@ -159,7 +159,7 @@ export default {
         },
         {
           key: "expand",
-          label: "Expansion Rules",
+          label: "扩展规则",
           value: this.retrievalRules.expandRules.length,
           enabled: this.countEnabled(this.retrievalRules.expandRules),
           draft: this.countDraft(this.retrievalRules.expandRules),
@@ -168,7 +168,7 @@ export default {
         },
         {
           key: "chunk",
-          label: "Chunk Rules",
+          label: "分片规则",
           value: this.retrievalRules.chunkTypeRules.length,
           enabled: this.countEnabled(this.retrievalRules.chunkTypeRules),
           draft: this.countDraft(this.retrievalRules.chunkTypeRules),
@@ -177,7 +177,7 @@ export default {
         },
         {
           key: "lexicon",
-          label: "Lexicon Entries",
+          label: "词库条目",
           value: this.retrievalRules.semanticLexiconEntries.length,
           enabled: this.countEnabled(this.retrievalRules.semanticLexiconEntries),
           draft: this.countDraft(this.retrievalRules.semanticLexiconEntries),
@@ -252,28 +252,28 @@ export default {
       return [
         {
           key: "enabled",
-          label: "Enabled",
+          label: "已启用",
           value: this.enabledCount,
           icon: CheckCircle,
           tone: "green"
         },
         {
           key: "draft",
-          label: "Draft",
+          label: "草稿",
           value: this.draftCount,
           icon: FileText,
           tone: "blue"
         },
         {
           key: "missing",
-          label: "Missing Keywords",
+          label: "缺少关键词",
           value: this.missingKeywordCount,
           icon: AlertTriangle,
           tone: "orange"
         },
         {
           key: "review",
-          label: "Needs Review",
+          label: "需要复核",
           value: this.needsReviewCount,
           icon: Info,
           tone: "purple"
@@ -312,7 +312,7 @@ export default {
           const row = this.expandRuleRow(rule, index);
           return {
             key: row.key,
-            label: `${rule.sourceWord || "global"} -> ${this.splitRuleWords(rule.expandWords).slice(0, 2).join(", ") || "empty"}`,
+            label: `${rule.sourceWord || "全局"} -> ${this.splitRuleWords(rule.expandWords).slice(0, 2).join(", ") || "空"}`,
             value: row.score * 13 + 80,
             ratio: 10
           };
@@ -326,12 +326,12 @@ export default {
     },
     ruleDialogTitle() {
       const labels = {
-        intent: "Intent Rule",
-        chunk: "Chunk Rule",
-        expand: "Expansion Rule",
-        lexicon: "Semantic Lexicon"
+        intent: "意图规则",
+        chunk: "分片规则",
+        expand: "扩展规则",
+        lexicon: "语义词库"
       };
-      return `${this.currentRuleForm?.id ? "Edit" : "Create"} ${labels[this.ruleDialogKind] || "Rule"}`;
+      return `${this.currentRuleForm?.id ? "编辑" : "创建"}${labels[this.ruleDialogKind] || "规则"}`;
     }
   },
   watch: {
@@ -367,7 +367,7 @@ export default {
         const rules = await fetchRetrievalRules();
         this.retrievalRules = this.normalizeRules(rules);
       } catch (error) {
-        this.rulesError = error.message || "Failed to load retrieval rules.";
+        this.rulesError = error.message || "加载检索规则失败。";
       } finally {
         this.rulesLoading = false;
       }
@@ -379,7 +379,7 @@ export default {
         const rules = await refreshRetrievalRules();
         this.retrievalRules = this.normalizeRules(rules);
       } catch (error) {
-        this.rulesError = error.message || "Failed to refresh retrieval rules.";
+        this.rulesError = error.message || "刷新检索规则失败。";
       } finally {
         this.rulesLoading = false;
       }
@@ -391,7 +391,7 @@ export default {
         const rules = await publishRetrievalRules();
         this.retrievalRules = this.normalizeRules(rules);
       } catch (error) {
-        this.rulesError = error.message || "Failed to publish retrieval rules.";
+        this.rulesError = error.message || "发布检索规则失败。";
       } finally {
         this.rulesLoading = false;
       }
@@ -403,7 +403,7 @@ export default {
         const rules = await publishRetrievalRuleType(type);
         this.retrievalRules = this.normalizeRules(rules);
       } catch (error) {
-        this.rulesError = error.message || "Failed to publish retrieval rule version.";
+        this.rulesError = error.message || "发布检索规则版本失败。";
       } finally {
         this.rulesLoading = false;
       }
@@ -418,7 +418,7 @@ export default {
         const rules = await activateRetrievalRuleVersion(version.type, version.version);
         this.retrievalRules = this.normalizeRules(rules);
       } catch (error) {
-        this.rulesError = error.message || "Failed to activate retrieval rule version.";
+        this.rulesError = error.message || "激活检索规则版本失败。";
       } finally {
         this.rulesLoading = false;
       }
@@ -443,17 +443,17 @@ export default {
         await this.loadRetrievalRules();
         this.closeRuleDialog();
       } catch (error) {
-        this.rulesError = error.message || "Failed to save retrieval rule.";
+        this.rulesError = error.message || "保存检索规则失败。";
       } finally {
         this.rulesLoading = false;
       }
     },
     async deleteRule(kind, rule) {
       if (kind === "lexicon" && rule?.builtin) {
-        this.rulesError = "Default semantic lexicon entries cannot be deleted.";
+        this.rulesError = "默认语义词库条目不能删除。";
         return;
       }
-      if (!rule?.id || !window.confirm("Delete this retrieval rule?")) {
+      if (!rule?.id || !window.confirm("确定删除这条检索规则吗？")) {
         return;
       }
       this.rulesLoading = true;
@@ -470,7 +470,7 @@ export default {
         }
         await this.loadRetrievalRules();
       } catch (error) {
-        this.rulesError = error.message || "Failed to delete retrieval rule.";
+        this.rulesError = error.message || "删除检索规则失败。";
       } finally {
         this.rulesLoading = false;
       }
@@ -539,41 +539,51 @@ export default {
       };
       requiredFields.forEach((field) => {
         if (!String(payload[field] || "").trim()) {
-          throw new Error(`${field} is required.`);
+          throw new Error(`${this.formatRuleFieldLabel(field)}不能为空。`);
         }
       });
       return payload;
     },
+    formatRuleFieldLabel(field) {
+      return (
+        {
+          intent: "意图",
+          chunkType: "分片类型",
+          term: "术语",
+          expandWords: "扩展词"
+        }[field] || field
+      );
+    },
     intentRuleRow(rule, index) {
       const words = this.splitRuleWords(`${rule.keywords || ""},${rule.regex || ""}`);
-      const title = rule.name || `${rule.intent || "General"} Intent`;
+      const title = rule.name || `${rule.intent || "通用"}意图`;
       return this.baseRuleRow(rule, index, {
         kind: "intent",
         title,
-        detailLabel: "Keywords",
-        detail: words.join(", ") || "No keywords",
+        detailLabel: "关键词",
+        detail: words.join(", ") || "无关键词",
         keywordCount: words.length
       });
     },
     expandRuleRow(rule, index) {
       const words = this.splitRuleWords(rule.expandWords);
-      const title = rule.sourceWord ? `${rule.sourceWord} Expansion` : "Global Expansion";
+      const title = rule.sourceWord ? `${rule.sourceWord}扩展` : "全局扩展";
       return this.baseRuleRow(rule, index, {
         kind: "expand",
         title,
-        detailLabel: "Expand",
-        detail: words.join(", ") || "No expansion",
+        detailLabel: "扩展词",
+        detail: words.join(", ") || "无扩展词",
         keywordCount: words.length
       });
     },
     chunkRuleRow(rule, index) {
       const words = this.splitRuleWords(`${rule.keywords || ""},${rule.pattern || ""}`);
-      const title = `${rule.chunkType || "general"} Chunk`;
+      const title = `${rule.chunkType || "通用"}分片`;
       return this.baseRuleRow(rule, index, {
         kind: "chunk",
         title,
-        detailLabel: "Keywords",
-        detail: words.join(", ") || "No keywords",
+        detailLabel: "关键词",
+        detail: words.join(", ") || "无关键词",
         keywordCount: words.length
       });
     },
@@ -583,11 +593,11 @@ export default {
       const taxonomy = [rule.domain, rule.category].filter(Boolean).join(" / ");
       return this.baseRuleRow(rule, index, {
         kind: "lexicon",
-        title: `${rule.term || "Term"}${mapped}`,
-        detailLabel: taxonomy || "Lexicon",
-        detail: words.join(", ") || "No aliases",
+        title: `${rule.term || "术语"}${mapped}`,
+        detailLabel: taxonomy || "词库",
+        detail: words.join(", ") || "无别名",
         keywordCount: words.length,
-        statusText: rule.builtin ? "Built-in" : undefined,
+        statusText: rule.builtin ? "内置" : undefined,
         statusClass: rule.builtin ? "builtin" : undefined
       });
     },
@@ -605,7 +615,7 @@ export default {
         priority,
         weight,
         enabled,
-        statusText: config.statusText || (enabled ? "Enabled" : "Draft"),
+        statusText: config.statusText || (enabled ? "已启用" : "草稿"),
         statusClass: config.statusClass || (enabled ? "enabled" : "draft"),
         createdAt: rule.createdAt || rule.updatedAt || rule.publishedAt || 0,
         score: this.ruleScore(rule, config.keywordCount),
@@ -677,8 +687,8 @@ export default {
         mappedTerm: "",
         aliases: "",
         language: "zh",
-        category: "metric",
-        domain: "data",
+        category: "指标",
+        domain: "数据",
         weight: 1,
         priority: 100,
         builtin: false,
@@ -693,10 +703,10 @@ export default {
       if (Number.isNaN(date.getTime())) {
         return "-";
       }
-      return date.toLocaleString();
+      return date.toLocaleString("zh-CN");
     },
     formatCount(value) {
-      return Number(value || 0).toLocaleString();
+      return Number(value || 0).toLocaleString("zh-CN");
     }
   }
 };

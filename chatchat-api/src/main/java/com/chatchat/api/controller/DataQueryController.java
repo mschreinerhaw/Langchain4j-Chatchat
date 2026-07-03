@@ -1,6 +1,7 @@
 package com.chatchat.api.controller;
 
 import com.chatchat.agents.tool.ToolRegistry;
+import com.chatchat.api.security.ApiAuthenticationFilter;
 import com.chatchat.chat.conversation.Conversation;
 import com.chatchat.chat.conversation.ConversationService;
 import com.chatchat.chat.skills.SkillCatalogService;
@@ -13,6 +14,7 @@ import com.chatchat.common.config.ModelsConfig;
 import com.chatchat.common.tool.ToolMetadata;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -276,10 +278,12 @@ public class DataQueryController {
     @GetMapping("/history/{userId}")
     @Operation(summary = "Search user history conversations")
     public ApiResponse<List<HistoryItem>> getHistory(@PathVariable("userId") String userId,
+                                                     @RequestParam(value = "tenantId", required = false) String tenantId,
                                                      @RequestParam(value = "keyword", required = false) String keyword,
                                                      @RequestParam(value = "status", required = false) String status,
-                                                     @RequestParam(value = "limit", required = false) Integer limit) {
-        return ApiResponse.success(loadPersistentHistory(userId, keyword, status, limit));
+                                                     @RequestParam(value = "limit", required = false) Integer limit,
+                                                     HttpServletRequest servletRequest) {
+        return ApiResponse.success(loadPersistentHistory(resolveTenantId(servletRequest, tenantId), userId, keyword, status, limit));
     }
 
     /**
@@ -290,10 +294,12 @@ public class DataQueryController {
      */
     @PostMapping("/history")
     @Operation(summary = "Save one history question")
-    public ApiResponse<List<HistoryItem>> addHistory(@RequestBody HistoryRequest request) {
+    public ApiResponse<List<HistoryItem>> addHistory(@RequestBody HistoryRequest request,
+                                                     HttpServletRequest servletRequest) {
         if (request == null || request.getQuestion() == null || request.getQuestion().isBlank()) {
             return ApiResponse.badRequest("question is required");
         }
+        String tenantId = resolveTenantId(servletRequest, request.getTenantId());
         String userId = request.getUserId() == null || request.getUserId().isBlank() ? "default-user" : request.getUserId();
         List<ConversationMessage> messages = request.getMessages() == null ? List.of() : request.getMessages();
         String status = resolveHistoryStatus(request.getStatus(), messages);
@@ -302,6 +308,7 @@ public class DataQueryController {
             return ApiResponse.badRequest("conversationId is required");
         }
         conversationService.updateConversationSummary(
+            tenantId,
             conversationId,
             userId,
             request.getQuestion(),
@@ -311,8 +318,8 @@ public class DataQueryController {
             request.getMode(),
             request.getAgentName()
         );
-        conversationService.replaceMessages(conversationId, userId, toConversationMessages(messages));
-        List<HistoryItem> history = loadPersistentHistory(userId, null, null, 30);
+        conversationService.replaceMessages(tenantId, conversationId, userId, toConversationMessages(messages));
+        List<HistoryItem> history = loadPersistentHistory(tenantId, userId, null, null, 30);
         replaceCurrentHistorySnapshot(history, new HistoryItem(
             conversationId,
             request.getQuestion(),
@@ -341,21 +348,24 @@ public class DataQueryController {
     @Operation(summary = "Update one history conversation status")
     public ApiResponse<List<HistoryItem>> updateHistoryStatus(@PathVariable("userId") String userId,
                                                               @PathVariable("historyId") String historyId,
-                                                              @RequestBody HistoryStatusRequest request) {
+                                                              @RequestParam(value = "tenantId", required = false) String tenantId,
+                                                              @RequestBody HistoryStatusRequest request,
+                                                              HttpServletRequest servletRequest) {
         String status = request == null ? null : request.getStatus();
         if (status == null || status.isBlank()) {
             return ApiResponse.badRequest("status is required");
         }
+        String resolvedTenantId = resolveTenantId(servletRequest, firstNonBlank(request == null ? null : request.getTenantId(), tenantId));
         String conversationId = firstNonBlank(request == null ? null : request.getConversationId(), historyId);
-        Conversation conversation = conversationService.getConversation(conversationId).orElse(null);
+        Conversation conversation = conversationService.getConversation(resolvedTenantId, conversationId).orElse(null);
         if (conversation == null) {
-            return ApiResponse.success(loadPersistentHistory(userId, null, null, 30), "History not found");
+            return ApiResponse.success(loadPersistentHistory(resolvedTenantId, userId, null, null, 30), "History not found");
         }
-        conversationService.updateConversationSummary(conversationId, userId, conversation.getTitle(), status);
+        conversationService.updateConversationSummary(resolvedTenantId, conversationId, userId, conversation.getTitle(), status);
         if (request != null && request.getMessages() != null) {
-            conversationService.replaceMessages(conversationId, userId, toConversationMessages(request.getMessages()));
+            conversationService.replaceMessages(resolvedTenantId, conversationId, userId, toConversationMessages(request.getMessages()));
         }
-        List<HistoryItem> history = loadPersistentHistory(userId, null, null, 30);
+        List<HistoryItem> history = loadPersistentHistory(resolvedTenantId, userId, null, null, 30);
         if (request != null && request.getMessages() != null) {
             replaceCurrentHistorySnapshot(history, new HistoryItem(
                 conversationId,
@@ -384,11 +394,14 @@ public class DataQueryController {
     @DeleteMapping("/history/{userId}/{historyId}")
     @Operation(summary = "Delete one history conversation by id")
     public ApiResponse<Void> deleteHistoryItem(@PathVariable("userId") String userId,
-                                               @PathVariable("historyId") String historyId) {
-        if (conversationService.getConversation(historyId).isEmpty()) {
+                                               @PathVariable("historyId") String historyId,
+                                               @RequestParam(value = "tenantId", required = false) String tenantId,
+                                               HttpServletRequest servletRequest) {
+        String resolvedTenantId = resolveTenantId(servletRequest, tenantId);
+        if (conversationService.getConversation(resolvedTenantId, historyId).isEmpty()) {
             return ApiResponse.success(null, "History not found");
         }
-        conversationService.deleteConversation(historyId);
+        conversationService.deleteConversation(resolvedTenantId, historyId);
         return ApiResponse.success(null, "History deleted");
     }
 
@@ -400,10 +413,13 @@ public class DataQueryController {
      */
     @DeleteMapping("/history/{userId}")
     @Operation(summary = "Clear history by user")
-    public ApiResponse<Void> clearHistory(@PathVariable("userId") String userId) {
-        conversationService.listUserConversations(userId).stream()
+    public ApiResponse<Void> clearHistory(@PathVariable("userId") String userId,
+                                          @RequestParam(value = "tenantId", required = false) String tenantId,
+                                          HttpServletRequest servletRequest) {
+        String resolvedTenantId = resolveTenantId(servletRequest, tenantId);
+        conversationService.listUserConversations(resolvedTenantId, userId).stream()
             .map(Conversation::getId)
-            .forEach(conversationService::deleteConversation);
+            .forEach(conversationId -> conversationService.deleteConversation(resolvedTenantId, conversationId));
         return ApiResponse.success(null, "History cleared");
     }
 
@@ -468,6 +484,7 @@ public class DataQueryController {
     @AllArgsConstructor
     public static class HistoryRequest {
         private String historyId;
+        private String tenantId;
         private String userId;
         private String question;
         private String conversationId;
@@ -484,6 +501,7 @@ public class DataQueryController {
     @NoArgsConstructor
     @AllArgsConstructor
     public static class HistoryStatusRequest {
+        private String tenantId;
         private String status;
         private String conversationId;
         private List<ConversationMessage> messages;
@@ -558,12 +576,22 @@ public class DataQueryController {
      * @param limit the limit value
      * @return the operation result
      */
-    private List<HistoryItem> loadPersistentHistory(String userId, String keyword, String status, Integer limit) {
-        List<HistoryItem> items = conversationService.listUserConversations(userId).stream()
-            .map(conversation -> conversationService.getConversation(conversation.getId()).orElse(conversation))
+    private List<HistoryItem> loadPersistentHistory(String tenantId, String userId, String keyword, String status, Integer limit) {
+        List<HistoryItem> items = conversationService.listUserConversations(tenantId, userId).stream()
+            .map(conversation -> conversationService.getConversation(tenantId, conversation.getId()).orElse(conversation))
             .map(this::toHistoryItem)
             .toList();
         return filterHistory(items, keyword, status, limit);
+    }
+
+    private String resolveTenantId(HttpServletRequest request, String requestedTenantId) {
+        String currentTenantId = requestAttribute(request, ApiAuthenticationFilter.CURRENT_TENANT_ID);
+        return firstNonBlank(firstNonBlank(currentTenantId, requestedTenantId), "default");
+    }
+
+    private String requestAttribute(HttpServletRequest request, String name) {
+        Object value = request == null ? null : request.getAttribute(name);
+        return value == null ? null : String.valueOf(value);
     }
 
     /**

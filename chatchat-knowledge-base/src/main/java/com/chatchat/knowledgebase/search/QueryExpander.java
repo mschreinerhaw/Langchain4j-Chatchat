@@ -103,7 +103,7 @@ public class QueryExpander {
         if (normalized.isBlank()) {
             return "";
         }
-        normalized = focusRetrievalQuery(normalized);
+        normalized = focusQuery(normalized);
         Set<String> appended = new LinkedHashSet<>();
         String normalizedText = normalize(normalized);
         List<String> baseTokens = tokenizer.searchTokens(normalizedText);
@@ -128,7 +128,7 @@ public class QueryExpander {
         return normalized + " " + String.join(" ", appended);
     }
 
-    private String focusRetrievalQuery(String query) {
+    public String focusQuery(String query) {
         String value = query == null ? "" : query.trim();
         if (value.isBlank() || !looksLikeRetrievalQuestion(value)) {
             return value;

@@ -279,8 +279,10 @@ public class SearchService {
         long startedAt = System.nanoTime();
         int pageSize = normalizeLimit(limit);
         int pageNumber = normalizePage(page);
+        String focusedKeyword = queryExpander.focusQuery(keyword);
         String normalizedKeyword = queryExpander.normalizeQuery(keyword);
         List<String> queryTokens = tokenizer.searchTokens(normalizedKeyword);
+        List<String> focusedQueryTokens = tokenizer.searchTokens(focusedKeyword);
         QueryIntent queryIntent = queryExpander.classifyIntent(normalizedKeyword);
         String queryIntentName = queryExpander.classifyIntentName(normalizedKeyword);
         List<String> expandedQueryTokens = queryExpander.expandTokens(queryTokens, queryIntentName, normalizedKeyword);
@@ -291,12 +293,13 @@ public class SearchService {
             && scopedDocumentIds.isEmpty()) {
             return emptySearchPage(keyword, pageSize, pageNumber, startedAt, "no_match", context);
         }
-        List<String> significantTerms = significantQueryTerms(normalizedKeyword, queryTokens);
-        QueryRecallMode recallMode = routeQueryRecall(normalizedKeyword, significantTerms);
-        Map<String, Integer> titleMemoryScores = titleMemoryCandidateScores(normalizedKeyword, significantTerms, context);
+        List<String> significantTerms = significantQueryTerms(focusedKeyword, focusedQueryTokens);
+        QueryRecallMode recallMode = routeQueryRecall(focusedKeyword, significantTerms);
+        Map<String, Integer> titleMemoryScores = titleMemoryCandidateScores(focusedKeyword, significantTerms, context);
         log.info(
-            "search_route query='{}' mode={} queryTokens={} expandedTokens={} significantTerms={} memoryCandidates={}",
+            "search_route query='{}' focusedQuery='{}' mode={} queryTokens={} expandedTokens={} significantTerms={} memoryCandidates={}",
             safeLogQuery(normalizedKeyword),
+            safeLogQuery(focusedKeyword),
             recallMode,
             queryTokens,
             expandedQueryTokens,
@@ -304,7 +307,7 @@ public class SearchService {
             titleMemoryScores.size()
         );
         LuceneSearchOutcome luceneOutcome = searchWithLucene(
-            normalizedKeyword,
+            focusedKeyword,
             tag,
             company,
             industry,
@@ -350,7 +353,7 @@ public class SearchService {
             titleMemoryScores,
             titleMemoryRawScores,
             titleMemoryCalibratedScores,
-            normalizedKeyword
+            focusedKeyword
         );
 
         candidates = applyFilter(candidates, tokenizer.splitFilter(tag), term -> store.findByTag(term, candidateLimit));
@@ -381,7 +384,7 @@ public class SearchService {
             .filter(document -> canAccess(document, context))
             .map(document -> toResult(
                 document,
-                normalizedKeyword,
+                focusedKeyword,
                 expandedQueryTokens,
                 significantTerms,
                 scores,
@@ -436,19 +439,22 @@ public class SearchService {
         long startedAt = System.nanoTime();
         int pageSize = normalizeLimit(limit);
         int pageNumber = normalizePage(page);
+        String focusedKeyword = queryExpander.focusQuery(keyword);
         String normalizedKeyword = queryExpander.normalizeQuery(keyword);
         List<String> queryTokens = tokenizer.searchTokens(normalizedKeyword);
+        List<String> focusedQueryTokens = tokenizer.searchTokens(focusedKeyword);
         String queryIntentName = queryExpander.classifyIntentName(normalizedKeyword);
         List<String> expandedQueryTokens = queryExpander.expandTokens(queryTokens, queryIntentName, normalizedKeyword);
         List<String> resultTokens = expandedQueryTokens.isEmpty() ? queryTokens : expandedQueryTokens;
-        List<String> significantTerms = significantQueryTerms(normalizedKeyword, queryTokens);
-        QueryRecallMode recallMode = routeQueryRecall(normalizedKeyword, significantTerms);
-        Map<String, Integer> titleMemoryScores = shouldRunTitleMemoryRecall(recallMode, normalizedKeyword)
-            ? titleMemoryCandidateScores(normalizedKeyword, significantTerms, context)
+        List<String> significantTerms = significantQueryTerms(focusedKeyword, focusedQueryTokens);
+        QueryRecallMode recallMode = routeQueryRecall(focusedKeyword, significantTerms);
+        Map<String, Integer> titleMemoryScores = shouldRunTitleMemoryRecall(recallMode, focusedKeyword)
+            ? titleMemoryCandidateScores(focusedKeyword, significantTerms, context)
             : Map.of();
         log.info(
-            "frontend_search_route query='{}' mode={} queryTokens={} significantTerms={} memoryCandidates={}",
+            "frontend_search_route query='{}' focusedQuery='{}' mode={} queryTokens={} significantTerms={} memoryCandidates={}",
             safeLogQuery(normalizedKeyword),
+            safeLogQuery(focusedKeyword),
             recallMode,
             queryTokens,
             significantTerms,
@@ -471,7 +477,7 @@ public class SearchService {
         List<SearchResult> quickCandidates = candidates.stream()
             .map(document -> toFrontendQuickResult(
                 document,
-                normalizedKeyword,
+                focusedKeyword,
                 significantTerms,
                 resultTokens,
                 corpus,
@@ -2919,8 +2925,10 @@ public class SearchService {
         }
         Set<String> terms = new LinkedHashSet<>();
         terms.add(compact);
-        for (int i = 0; i + 1 < compact.length(); i += 2) {
-            terms.add(compact.substring(i, i + 2));
+        for (int size = 2; size <= Math.min(4, compact.length()); size++) {
+            for (int i = 0; i + size <= compact.length(); i++) {
+                terms.add(compact.substring(i, i + size));
+            }
         }
         return new ArrayList<>(terms);
     }
@@ -3249,7 +3257,8 @@ public class SearchService {
             return false;
         }
         SearchPermissionContext context = permissionContext == null ? SearchPermissionContext.system() : permissionContext;
-        if (!normalizeTenant(document.getTenantId()).equals(normalizeTenant(context.tenantId()))) {
+        if (properties.isTenantIsolationEnabled()
+            && !normalizeTenant(document.getTenantId()).equals(normalizeTenant(context.tenantId()))) {
             return false;
         }
         String visibility = normalizeVisibility(document.getVisibility());

@@ -32,6 +32,7 @@ public class ToolRegistryMcpAdapter {
     private static final String DOCUMENT_SEARCH_TOOL = "document_search";
     private static final String DOCUMENT_SEARCH_EVIDENCE_GUIDANCE = String.join(" ",
         "document_search retrieves bounded, topK document evidence chunks for grounded answers.",
+        "It uses hybrid recall: global document candidates plus global chunk candidates, then document-scoped evidence extraction.",
         "Treat document_search as bounded retrieval, not full dataset scanning.",
         "Use concise, specific queries with key terms, document titles, product names, codes, dates, or domain terms when available.",
         "Queries must include at least one concrete constraint when possible, such as entity, time, keyword, or domain.",
@@ -139,7 +140,7 @@ public class ToolRegistryMcpAdapter {
         McpSchema.CallToolRequest request
     ) {
         Map<String, Object> arguments = applyDefaults(metadata, request.arguments());
-        injectProtocolContext(arguments);
+        injectProtocolContext(toolName, arguments);
         McpAuthorizationService.AuthorizationDecision authorization = authorizationService.authorize(toolName, arguments);
         if (!authorization.allowed()) {
             log.warn("MCP server tool call denied tool={} reason={}", toolName, authorization.reason());
@@ -193,22 +194,24 @@ public class ToolRegistryMcpAdapter {
         return toCallToolResult(toolName, output);
     }
 
-    private void injectProtocolContext(Map<String, Object> arguments) {
+    private void injectProtocolContext(String toolName, Map<String, Object> arguments) {
         McpInvocationContext.Context context = McpInvocationContext.current();
         if (context == null || arguments == null) {
             return;
         }
         putIfAbsent(arguments, "tenantId", context.tenantId());
-        putIfAbsent(arguments, "workspaceId", context.workspaceId());
-        putIfAbsent(arguments, "env", context.environment());
         putIfAbsent(arguments, "userId", context.userId());
-        putIfAbsent(arguments, "username", context.username());
         putIfAbsent(arguments, "roles", context.roles());
         putIfAbsent(arguments, "traceId", context.traceId());
-        putIfAbsent(arguments, "assetType", context.assetType());
-        putIfAbsent(arguments, "domain", context.domain());
-        putIfAbsent(arguments, "permissionLevel", context.permissionLevel());
-        putIfAbsent(arguments, "scopeExpression", context.scopeExpression());
+        if (!isDocumentSearchToolName(toolName)) {
+            putIfAbsent(arguments, "workspaceId", context.workspaceId());
+            putIfAbsent(arguments, "env", context.environment());
+            putIfAbsent(arguments, "username", context.username());
+            putIfAbsent(arguments, "assetType", context.assetType());
+            putIfAbsent(arguments, "domain", context.domain());
+            putIfAbsent(arguments, "permissionLevel", context.permissionLevel());
+            putIfAbsent(arguments, "scopeExpression", context.scopeExpression());
+        }
         Map<String, Object> mcpContext = new LinkedHashMap<>();
         mcpContext.put("traceId", context.traceId());
         mcpContext.put("user", Map.of(

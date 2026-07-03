@@ -141,6 +141,7 @@ chatchat:
     fallback-candidate-limit: 500
     fallback-empty-result-limit: 200
     fallback-exception-limit: 100
+    tenant-isolation-enabled: false
     lucene-max-query-terms: 80
     lucene-max-negative-query-terms: 24
     lucene-mmr-candidate-limit: 120

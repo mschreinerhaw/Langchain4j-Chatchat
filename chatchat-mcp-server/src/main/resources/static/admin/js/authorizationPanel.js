@@ -358,7 +358,7 @@ async function loadLocalAuthorizationTools() {
     localAuthorizationTools = [
         toLocalTool({ id: 'api_asset_query', toolName: 'api_asset_query', enabled: true }, 'api', 'API 资产检索', '检索 API 服务资产元数据，不返回 URL、Header 或 Body 原始执行模板'),
         toLocalTool({ id: 'database_asset_search', toolName: 'database_asset_search', enabled: true }, 'asset', '数据库资产检索', '确认数据库数据源资产元数据'),
-        toLocalTool({ id: 'document_search', toolName: 'document_search', enabled: true }, 'document', '文档检索', '检索系统管理的全部文档，访问范围由 document_search 工具权限控制'),
+        toLocalTool({ id: 'document_search', toolName: 'document_search', enabled: true }, 'document', '文档索引', '检索系统管理的全部文档，访问范围由 document_search 工具权限控制'),
         toLocalTool({ id: 'api_template_query', toolName: 'api_template_query', enabled: true }, 'api', 'API 模板检索', '检索 API 服务模板，不返回 URL、Header 或 Body 原始执行模板'),
         toLocalTool({ id: 'ssh_template_query', toolName: 'ssh_template_query', enabled: true }, 'asset', 'SSH 模板检索', '检索 SSH 主机命令模板'),
         toLocalTool({ id: 'database_ops_template_search', toolName: 'database_ops_template_search', enabled: true }, 'asset', '数据库运维模板检索', '检索数据库维护、元数据和诊断模板'),
@@ -449,7 +449,7 @@ function toolCategoryLabel(category) {
     return {
         api: 'API 服务',
         database_query: '数据库查询',
-        document: '文档检索',
+        document: '文档索引',
         asset: '资产工具',
         other: '其他工具'
     }[category] || '其他工具';

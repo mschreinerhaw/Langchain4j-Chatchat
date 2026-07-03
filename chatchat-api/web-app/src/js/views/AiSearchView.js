@@ -51,6 +51,10 @@ export default {
     userId: {
       type: String,
       default: "default-user"
+    },
+    tenantId: {
+      type: String,
+      default: ""
     }
   },
   emits: ["ask-ai", "navigate"],
@@ -116,6 +120,9 @@ export default {
       return this.uploadCategories.filter((category) =>
         category?.name && category.name !== "all" && category.name !== "uncategorized"
       );
+    },
+    effectiveTenantId() {
+      return this.tenantId || this.userId || "default";
     }
   },
   watch: {
@@ -139,7 +146,9 @@ export default {
         const payload = await searchDocuments({
           keyword: this.searchedKeyword,
           page: this.page,
-          pageSize: this.pageSize
+          pageSize: this.pageSize,
+          tenantId: this.effectiveTenantId,
+          userId: this.userId
         });
         this.results = payload?.results || [];
         this.resultTotal = payload?.total || 0;
@@ -182,7 +191,12 @@ export default {
     async loadUploadCategories() {
       this.uploadCategoriesLoading = true;
       try {
-        const payload = await fetchResearchLibrary({ page: 1, pageSize: 1 });
+        const payload = await fetchResearchLibrary({
+          page: 1,
+          pageSize: 1,
+          tenantId: this.effectiveTenantId,
+          userId: this.userId
+        });
         this.uploadCategories = payload?.categories || [];
         const options = this.uploadCategoryOptions;
         if (options.length && this.uploadForm.categoryMode !== "custom") {
@@ -255,6 +269,8 @@ export default {
         formData.append("tags", this.uploadForm.tags);
         formData.append("category", category);
         formData.append("documentType", this.uploadForm.documentType);
+        formData.append("tenantId", this.effectiveTenantId);
+        formData.append("userId", this.userId);
         let documents = [];
         if (files.length > 1) {
           documents = await uploadSearchDocumentsInBatches(formData, files);
@@ -288,7 +304,10 @@ export default {
       this.viewerDocument = null;
       this.viewerResult = result;
       try {
-        this.viewerDocument = await getSearchDocument(result.docId);
+        this.viewerDocument = await getSearchDocument(result.docId, {
+          tenantId: this.effectiveTenantId,
+          userId: this.userId
+        });
         if (!this.canPreviewResult(this.viewerDocument)) {
           this.viewerError = UNSUPPORTED_DOCUMENT_PREVIEW_MESSAGE;
           return;
@@ -363,7 +382,7 @@ export default {
       }
       try {
         await recordUserActivity({
-          tenantId: this.userId,
+          tenantId: this.effectiveTenantId,
           userId: this.userId,
           targetType: "DOCUMENT",
           targetId: docId,
@@ -421,7 +440,10 @@ export default {
       this.loading = true;
       this.error = "";
       try {
-        await deleteSearchDocument(docId);
+        await deleteSearchDocument(docId, {
+          tenantId: this.effectiveTenantId,
+          userId: this.userId
+        });
         if (this.viewerDocument?.docId === docId) {
           this.closeViewer();
         }

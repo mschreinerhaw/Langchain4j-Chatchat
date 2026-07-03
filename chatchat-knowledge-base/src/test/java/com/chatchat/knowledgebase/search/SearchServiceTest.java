@@ -942,6 +942,62 @@ class SearchServiceTest {
     }
 
     @Test
+    void frontendQuickSearchDoesNotRequireExpandedTermsForRelevanceCoverage() {
+        SearchService service = newSearchService(properties -> properties.setLuceneEnabled(false));
+        service.createOrUpdate(SearchDocument.builder()
+            .docId("doc-deploy-server-list")
+            .title("数据资产管理平台服务器清单-推荐配置及软件部署清单")
+            .content("节点物理配置信息，CPU 内存 OS盘大小 数据分区磁盘数量，最小数据分区容量。")
+            .source("library")
+            .date("2026-06-11")
+            .tags(List.of("平台服务器清单"))
+            .build());
+
+        SearchPage page = service.frontendQuickSearch(
+            "livedata 部署服务器清单",
+            null,
+            null,
+            null,
+            null,
+            1,
+            10,
+            SearchPermissionContext.system()
+        );
+
+        assertThat(page.results()).extracting(SearchResult::docId)
+            .contains("doc-deploy-server-list");
+        assertThat(page.results().get(0).scoreBreakdown().coverageRatio())
+            .isGreaterThan(0.0D);
+    }
+
+    @Test
+    void frontendQuickSearchMatchesReorderedDeploymentServerListTerms() {
+        SearchService service = newSearchService(properties -> properties.setLuceneEnabled(false));
+        service.createOrUpdate(SearchDocument.builder()
+            .docId("doc-reordered-deploy-server-list")
+            .title("数据资产管理平台服务器清单-推荐配置及软件部署清单")
+            .content("节点物理配置信息，CPU 内存 OS盘大小 数据分区磁盘数量，最小数据分区容量。")
+            .source("library")
+            .date("2026-06-11")
+            .tags(List.of("平台服务器清单"))
+            .build());
+
+        SearchPage page = service.frontendQuickSearch(
+            "部署服务器清单",
+            null,
+            null,
+            null,
+            null,
+            1,
+            10,
+            SearchPermissionContext.system()
+        );
+
+        assertThat(page.results()).extracting(SearchResult::docId)
+            .contains("doc-reordered-deploy-server-list");
+    }
+
+    @Test
     void fallbackCandidateScanIsBoundedWhenKeywordIndexMisses() {
         SearchService service = newSearchService(properties -> {
             properties.setLuceneEnabled(false);
@@ -1202,7 +1258,7 @@ class SearchServiceTest {
 
     @Test
     void isolatesDocumentsByTenantUserAndRolePermissions() {
-        SearchService service = newSearchService();
+        SearchService service = newSearchService(properties -> properties.setTenantIsolationEnabled(true));
         service.createOrUpdate(SearchDocument.builder()
             .docId("tenant-a-public")
             .title("Tenant A Runbook")
@@ -1283,6 +1339,37 @@ class SearchServiceTest {
         assertThat(secopsPage.results()).extracting(SearchResult::docId)
             .containsExactlyInAnyOrder("tenant-a-role", "tenant-a-public");
         assertThat(secopsPage.results()).allSatisfy(result -> assertThat(result.tenantId()).isEqualTo("tenant-a"));
+    }
+
+    @Test
+    void treatsTenantDocumentsAsPublicWhenTenantIsolationDisabled() {
+        SearchService service = newSearchService();
+        service.createOrUpdate(SearchDocument.builder()
+            .docId("tenant-b-public")
+            .title("Tenant B Runbook")
+            .content("shared deployment rollback checklist")
+            .source("ops")
+            .date("2024-06-13")
+            .tenantId("tenant-b")
+            .userId("owner-b")
+            .visibility("tenant")
+            .build());
+
+        SearchPage page = service.search(
+            "deployment rollback checklist",
+            null,
+            null,
+            null,
+            null,
+            1,
+            10,
+            SearchPermissionContext.of("tenant-a", "bob", List.of())
+        );
+
+        assertThat(page.results()).extracting(SearchResult::docId)
+            .containsExactly("tenant-b-public");
+        assertThat(service.get("tenant-b-public", SearchPermissionContext.of("tenant-a", "bob", List.of())))
+            .isPresent();
     }
 
     private void saveSemiconductorDocument(SearchService service) {

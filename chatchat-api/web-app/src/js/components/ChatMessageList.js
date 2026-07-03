@@ -252,10 +252,110 @@ export default {
         before,
         '<details class="tool-evidence-details">',
         '<summary><span>工具执行证据</span><small>点击展开</small></summary>',
-        `<div class="tool-evidence-body">${body}</div>`,
+        `<div class="tool-evidence-body">${this.formatToolEvidenceBody(body)}</div>`,
         '</details>',
         after
       ].join("");
+    },
+    formatToolEvidenceBody(body = "") {
+      const items = this.extractToolEvidenceItems(body);
+      if (!items.length) {
+        return body;
+      }
+      return `<div class="tool-evidence-list">${items.map((item) => this.renderToolEvidenceItem(item)).join("")}</div>`;
+    },
+    extractToolEvidenceItems(body = "") {
+      const source = String(body || "");
+      const liMatches = [...source.matchAll(/<li[^>]*>([\s\S]*?)<\/li>/gi)];
+      const candidates = liMatches.length ? liMatches.map((match) => match[1]) : [source];
+      return candidates
+        .map((candidate) => this.parseToolEvidenceItem(candidate))
+        .filter(Boolean);
+    },
+    parseToolEvidenceItem(fragment = "") {
+      const codeMatch = /<code[^>]*>([\s\S]*?)<\/code>/i.exec(fragment);
+      const text = this.decodeHtml(fragment.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim());
+      const toolName = this.decodeHtml(codeMatch?.[1] || "").trim() || this.firstToolEvidenceToken(text);
+      const semantic = this.matchToolEvidenceText(text, /[（(]\s*([^）)]+)\s*[）)]\s*[:：]/);
+      const status = text.includes("成功")
+        ? "成功"
+        : text.includes("失败")
+          ? "失败"
+          : this.matchToolEvidenceText(text, /\b(success|failed|error)\b/i);
+      const evidenceType = this.matchToolEvidenceText(text, /证据类型\s*([A-Za-z0-9_-]+)/);
+      const durationMs = this.matchToolEvidenceText(text, /耗时\s*ms\s*=\s*(\d+)/i);
+      const outputKeyText = this.matchToolEvidenceText(text, /输出键\s*=\s*(.*?)(?:\s*等\s*\d+\s*项|[，,]\s*摘要\s*=|$)/);
+      const outputKeyTotal = this.matchToolEvidenceText(text, /输出键\s*=.*?等\s*(\d+)\s*项/);
+      const summary = this.matchToolEvidenceText(text, /摘要\s*=\s*(.+)$/);
+      const outputKeys = String(outputKeyText || "")
+        .split(/[,，]\s*/)
+        .map((item) => item.trim())
+        .filter(Boolean);
+      if (!toolName && !semantic && !status && !evidenceType && !durationMs && !outputKeys.length && !summary) {
+        return null;
+      }
+      return {
+        toolName,
+        semantic,
+        status: status || "-",
+        statusClass: /fail|error|失败/i.test(status || "") ? "failed" : "success",
+        evidenceType: evidenceType || "-",
+        durationMs: durationMs || "",
+        outputKeys,
+        outputKeyTotal: outputKeyTotal || "",
+        summary: summary || ""
+      };
+    },
+    renderToolEvidenceItem(item = {}) {
+      const duration = item.durationMs
+        ? `${escapeHtml(item.durationMs)} ms${Number(item.durationMs) >= 1000 ? ` / ${(Number(item.durationMs) / 1000).toFixed(1)} s` : ""}`
+        : "-";
+      const outputKeys = item.outputKeys.slice(0, 14);
+      const keyChips = outputKeys.length
+        ? outputKeys.map((key) => `<code>${escapeHtml(key)}</code>`).join("")
+        : '<span class="tool-evidence-muted">-</span>';
+      const total = item.outputKeyTotal || item.outputKeys.length;
+      const more = Number(total) > outputKeys.length
+        ? `<span class="tool-evidence-more">共 ${escapeHtml(total)} 项</span>`
+        : "";
+      return [
+        `<article class="tool-evidence-item ${escapeHtml(item.statusClass)}">`,
+        '<header>',
+        '<div>',
+        `<strong><code>${escapeHtml(item.toolName || "-")}</code></strong>`,
+        item.semantic ? `<small>${escapeHtml(item.semantic)}</small>` : "",
+        '</div>',
+        `<span class="tool-evidence-status">${escapeHtml(item.status || "-")}</span>`,
+        '</header>',
+        '<dl class="tool-evidence-meta">',
+        `<div><dt>证据类型</dt><dd>${escapeHtml(item.evidenceType || "-")}</dd></div>`,
+        `<div><dt>耗时</dt><dd>${duration}</dd></div>`,
+        '</dl>',
+        '<section class="tool-evidence-keys">',
+        `<strong>输出键</strong><div>${keyChips}${more}</div>`,
+        '</section>',
+        item.summary ? `<p class="tool-evidence-summary"><strong>摘要</strong>${escapeHtml(item.summary)}</p>` : "",
+        '</article>'
+      ].join("");
+    },
+    matchToolEvidenceText(text = "", pattern) {
+      const match = pattern.exec(String(text || ""));
+      return match?.[1] ? String(match[1]).trim() : "";
+    },
+    firstToolEvidenceToken(text = "") {
+      const match = /^\s*([^\s（(：:]+)/.exec(String(text || ""));
+      return match?.[1] || "";
+    },
+    decodeHtml(value = "") {
+      const entities = {
+        amp: "&",
+        lt: "<",
+        gt: ">",
+        quot: '"',
+        "#039": "'",
+        nbsp: " "
+      };
+      return String(value || "").replace(/&([^;]+);/g, (match, entity) => entities[entity] || match);
     },
     extractUiResponse(message = {}) {
       const candidates = [

@@ -74,6 +74,11 @@ function isAuthenticatedSession(session) {
   return !!session?.token;
 }
 
+function resolveSessionTenantId(session, fallbackUserId = USER_ID) {
+  const user = session?.user || {};
+  return user.tenantId || user.tenant_id || session?.tenantId || fallbackUserId;
+}
+
 export default {
   name: "App",
   components: {
@@ -89,6 +94,7 @@ export default {
       authSession,
       activeView: authSession ? (viewFromHash() || DEFAULT_VIEW) : DEFAULT_VIEW,
       userId: sessionUser.username || sessionUser.id || USER_ID,
+      tenantId: resolveSessionTenantId(authSession, sessionUser.username || sessionUser.id || USER_ID),
       historyLoading: false,
       historyError: "",
       conversationHistory: [],
@@ -141,6 +147,14 @@ export default {
     };
   },
   computed: {
+    visibleNavItems() {
+      return this.navItems.map((group) => ({
+        ...group,
+        items: Array.isArray(group.items)
+          ? group.items.filter((item) => item.id !== "debugger")
+          : []
+      }));
+    },
     activeComponent() {
       return views[this.activeView] || ChatAssistantView;
     },
@@ -148,11 +162,13 @@ export default {
       return this.activeView === "chat"
         ? {
             userId: this.userId,
+            tenantId: this.tenantId,
             selectedConversation: this.selectedConversation,
             pendingDraft: this.pendingChatDraft
           }
         : {
             userId: this.userId,
+            tenantId: this.tenantId,
             pendingDocumentShortcut: this.activeView === "search" ? this.pendingDocumentShortcut : null
           };
     },
@@ -209,6 +225,7 @@ export default {
       this.authSession = session;
       const sessionUser = session?.user || {};
       this.userId = sessionUser.username || sessionUser.id || USER_ID;
+      this.tenantId = resolveSessionTenantId(session, this.userId);
       this.navigateToView(this.consumeRedirectView() || viewFromHash() || DEFAULT_VIEW);
       if (session?.embedded) {
         this.stopIdleLogoutWatcher();
@@ -241,6 +258,7 @@ export default {
       clearAuthSession();
       this.authSession = null;
       this.userId = USER_ID;
+      this.tenantId = USER_ID;
       this.conversationHistory = [];
       this.favoriteConversationIds = [];
       this.favoriteSavingIds = {};
@@ -372,11 +390,11 @@ export default {
       });
       for (const todo of expiredTodos) {
         try {
-          const killedTask = await killRuntimeTask(todo.taskId, todo.tenantId || this.userId);
+          const killedTask = await killRuntimeTask(todo.taskId, todo.tenantId || this.tenantId);
           notifyAgentTaskCancelled({
             ...(killedTask || {}),
             taskId: todo.taskId,
-            tenantId: todo.tenantId || this.userId,
+            tenantId: todo.tenantId || this.tenantId,
             message: "该操作超过 3 分钟未确认，任务已自动取消。"
           });
         } catch (error) {
@@ -410,6 +428,7 @@ export default {
       this.historyError = "";
       try {
         const history = await fetchConversationHistory(this.userId, {
+          tenantId: this.tenantId,
           limit: 30,
           ...historyFilters
         });
@@ -429,7 +448,7 @@ export default {
       const mergedHistory = history.map((conversation) => mergeChatRuntimeState(conversation));
       try {
         const summary = await fetchAgentRuntimeSummary({
-          tenantId: this.userId,
+          tenantId: this.tenantId,
           latestLimit: 50
         });
         const tasks = Array.isArray(summary?.latestTasks) ? summary.latestTasks : [];
@@ -539,6 +558,7 @@ export default {
         .filter((conversation) => conversation.__runtimeStatusChanged && conversation.id)
         .forEach((conversation) => {
           updateConversationHistoryStatus(this.userId, conversation.id, {
+            tenantId: this.tenantId,
             conversationId: conversation.conversationId || conversation.id,
             status: conversation.status,
             messages: conversation.messages || []
@@ -551,7 +571,7 @@ export default {
       }
       try {
         const payload = await fetchWorkbenchShortcuts({
-          tenantId: this.userId,
+          tenantId: this.tenantId,
           userId: this.userId,
           targetType: "SESSION",
           limit: 100
@@ -574,7 +594,7 @@ export default {
       this.todoError = "";
       try {
         const payload = await fetchAgentTodos({
-          tenantId: this.userId,
+          tenantId: this.tenantId,
           userId: this.userId,
           limit: 20
         });
@@ -696,7 +716,7 @@ export default {
       );
       if (!conversation) {
         try {
-          const history = await fetchConversationHistory(this.userId, { limit: 100 });
+          const history = await fetchConversationHistory(this.userId, { tenantId: this.tenantId, limit: 100 });
           if (Array.isArray(history)) {
             this.conversationHistory = history;
             conversation = history.find((entry) => entry.id === targetId || entry.conversationId === targetId);
@@ -745,7 +765,7 @@ export default {
         this.selectedConversation = null;
       }
       try {
-        await deleteConversationHistory(this.userId, deletedId);
+        await deleteConversationHistory(this.userId, deletedId, this.tenantId);
       } catch (error) {
         this.historyError = error.message || "历史会话删除失败";
         await this.loadConversationHistory();
@@ -763,7 +783,7 @@ export default {
       this.historyError = "";
       try {
         await addUserFavorite({
-          tenantId: this.userId,
+          tenantId: this.tenantId,
           userId: this.userId,
           targetType: "SESSION",
           targetId,

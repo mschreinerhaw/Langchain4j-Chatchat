@@ -117,29 +117,29 @@ export default {
         reasonCategory: ""
       },
       feedbackReasonOptions: [
-        { value: "", label: "Select reason" },
-        { value: "answer_correct", label: "Answer correct" },
-        { value: "steps_clear", label: "Steps clear" },
-        { value: "tool_result_accurate", label: "Tool result accurate" },
-        { value: "environment_mismatch", label: "Environment mismatch" },
-        { value: "answer_incomplete", label: "Answer incomplete" },
-        { value: "tool_call_error", label: "Tool call error" },
-        { value: "knowledge_outdated", label: "Knowledge outdated" },
-        { value: "other", label: "Other" }
+        { value: "", label: "选择原因" },
+        { value: "answer_correct", label: "答案正确" },
+        { value: "steps_clear", label: "步骤清晰" },
+        { value: "tool_result_accurate", label: "工具结果准确" },
+        { value: "environment_mismatch", label: "环境不匹配" },
+        { value: "answer_incomplete", label: "答案不完整" },
+        { value: "tool_call_error", label: "工具调用错误" },
+        { value: "knowledge_outdated", label: "知识过期" },
+        { value: "other", label: "其他" }
       ]
     };
   },
   computed: {
     tabs() {
       return [
-        { key: "tasks", label: "Tasks", icon: ListFilter, count: this.tasks.length },
-        { key: "effects", label: "Effects", icon: Activity, count: this.lowScoreTasks.length },
-        { key: "experiences", label: "Experience", icon: GitBranch, count: this.experienceItems.length },
-        { key: "events", label: "Events", icon: Database, count: this.filteredEvents.length },
-        { key: "plan", label: "Plan DAG", icon: GitBranch, count: this.planNodes.length },
-        { key: "tools", label: "Tools", icon: ShieldAlert, count: this.filteredTopTools.length },
-        { key: "governance", label: "Governance", icon: ShieldCheck, count: this.filteredGovernanceTools.length },
-        { key: "audits", label: "Audits", icon: ShieldCheck, count: this.filteredAudits.length }
+        { key: "tasks", label: "任务", icon: ListFilter, count: this.tasks.length },
+        { key: "effects", label: "效果", icon: Activity, count: this.lowScoreTasks.length },
+        { key: "experiences", label: "经验", icon: GitBranch, count: this.experienceItems.length },
+        { key: "events", label: "事件", icon: Database, count: this.filteredEvents.length },
+        { key: "plan", label: "计划图", icon: GitBranch, count: this.planNodes.length },
+        { key: "tools", label: "工具", icon: ShieldAlert, count: this.filteredTopTools.length },
+        { key: "governance", label: "治理", icon: ShieldCheck, count: this.filteredGovernanceTools.length },
+        { key: "audits", label: "审计", icon: ShieldCheck, count: this.filteredAudits.length }
       ];
     },
     tasks() {
@@ -191,12 +191,12 @@ export default {
       const summary = this.summary || {};
       const toolRuntime = summary.toolRuntime || {};
       return [
-        { label: "Total Tasks", value: summary.totalTasks || 0, icon: Layers },
-        { label: "Running", value: summary.activeTasks || 0, icon: Activity },
-        { label: "Queue Depth", value: summary.queueDepth || 0, icon: GitBranch },
-        { label: "Workers", value: summary.activeWorkerCount || 0, icon: TimerReset },
-        { label: "Tool Calls", value: toolRuntime.totalCalls || 0, icon: Database },
-        { label: "Failed Tasks", value: summary.failedTasks || 0, icon: XCircle }
+        { label: "任务总数", value: summary.totalTasks || 0, icon: Layers },
+        { label: "运行中", value: summary.activeTasks || 0, icon: Activity },
+        { label: "队列深度", value: summary.queueDepth || 0, icon: GitBranch },
+        { label: "工作线程", value: summary.activeWorkerCount || 0, icon: TimerReset },
+        { label: "工具调用", value: toolRuntime.totalCalls || 0, icon: Database },
+        { label: "失败任务", value: summary.failedTasks || 0, icon: XCircle }
       ];
     },
     governanceMetrics() {
@@ -206,10 +206,10 @@ export default {
         return acc;
       }, {});
       return [
-        { label: "Passed", value: counts.success || 0, icon: ShieldCheck },
-        { label: "Denied", value: counts.denied || 0, icon: ShieldX },
+        { label: "通过", value: counts.success || 0, icon: ShieldCheck },
+        { label: "拒绝", value: counts.denied || 0, icon: ShieldX },
         {
-          label: "Protected",
+          label: "保护拦截",
           value: (counts.rate_limited || 0) + (counts.circuit_open || 0),
           icon: ShieldAlert
         }
@@ -218,12 +218,12 @@ export default {
     effectMetrics() {
       const analytics = this.effectAnalytics || {};
       return [
-        { label: "Feedback Samples", value: analytics.feedbackTasks || 0, icon: Database },
-        { label: "Useful Rate", value: this.formatPercent(analytics.usefulRate), icon: ShieldCheck },
-        { label: "Adoption Rate", value: this.formatPercent(analytics.adoptedRate), icon: Activity },
-        { label: "Resolution Rate", value: this.formatPercent(analytics.resolvedRate), icon: GitBranch },
-        { label: "Failure Rate", value: this.formatPercent(analytics.failedRate), icon: XCircle },
-        { label: "Low Scores", value: this.lowScoreTasks.length, icon: ShieldAlert }
+        { label: "反馈样本", value: analytics.feedbackTasks || 0, icon: Database },
+        { label: "有用率", value: this.formatPercent(analytics.usefulRate), icon: ShieldCheck },
+        { label: "采纳率", value: this.formatPercent(analytics.adoptedRate), icon: Activity },
+        { label: "解决率", value: this.formatPercent(analytics.resolvedRate), icon: GitBranch },
+        { label: "失败率", value: this.formatPercent(analytics.failedRate), icon: XCircle },
+        { label: "低分任务", value: this.lowScoreTasks.length, icon: ShieldAlert }
       ];
     },
     filteredTasks() {
@@ -306,8 +306,8 @@ export default {
       }
       return {
         id: this.shortId(this.selectedTask.taskId),
-        title: this.selectedTask.question || "Untitled task",
-        subtitle: this.selectedTask.agentId || "default-agent",
+        title: this.selectedTask.question || "未命名任务",
+        subtitle: this.selectedTask.agentId || "默认智能体",
         description:
           this.selectedTask.answerSummary || this.selectedTask.errorMessage || this.selectedTask.question || ""
       };
@@ -355,8 +355,8 @@ export default {
         const level = resolveLevel(id);
         const laneIndex = lanes[level] || 0;
         lanes[level] = laneIndex + 1;
-        const labelValue = node.label || node.toolName || node.actionType || id;
         const actionText = this.formatPlanAction(node.actionType);
+        const labelValue = node.label || node.toolName || (node.actionType ? actionText : id);
         const labelLines = this.compactPlanTextLinesForWidth(
           labelValue,
           PLAN_NODE_WIDTH - PLAN_NODE_HORIZONTAL_PADDING,
@@ -377,7 +377,7 @@ export default {
           fullLabelText: labelValue,
           actionText,
           toolText: this.compactPlanTextForWidth(
-            node.toolName || node.actionType || "step",
+            node.toolName || actionText,
             PLAN_NODE_WIDTH - PLAN_NODE_HORIZONTAL_PADDING,
             14,
             800
@@ -391,6 +391,9 @@ export default {
           ),
           metaY: hasWrappedLabel ? 84 : 80,
           statusText: node.status || (node.success === true ? "success" : node.success === false ? "failed" : "planned"),
+          statusLabel: this.formatTaskStatus(
+            node.status || (node.success === true ? "success" : node.success === false ? "failed" : "planned")
+          ),
           detailText: node.errorMessage || node.outputPreview || ""
         };
       });
@@ -451,7 +454,7 @@ export default {
     },
     latestPlanVersionLabel() {
       if (!this.selectedPlanDag?.version) {
-        return "No snapshot";
+        return "无快照";
       }
       return `v${this.selectedPlanDag.version}`;
     },
@@ -559,7 +562,7 @@ export default {
           this.selectedEvents = [];
         }
       } catch (error) {
-        this.error = error.message || "Failed to load runtime monitoring.";
+        this.error = error.message || "加载运行监控失败。";
       } finally {
         this.loading = false;
       }
@@ -617,7 +620,7 @@ export default {
           events: this.clampedRuntimePage("events", this.filteredEvents.length)
         };
       } catch (error) {
-        this.error = error.message || "Failed to load event chain.";
+        this.error = error.message || "加载事件链路失败。";
         this.selectedEvents = [];
       } finally {
         this.eventsLoading = false;
@@ -642,7 +645,7 @@ export default {
         this.selectedPlanDag = dag || this.planPayloadFromRecord(latestVersion);
         this.resetPlanDagView();
       } catch (error) {
-        this.error = error.message || "Failed to load plan DAG.";
+        this.error = error.message || "加载计划图失败。";
         this.selectedPlanDag = null;
         this.selectedPlanVersions = [];
       } finally {
@@ -912,7 +915,7 @@ export default {
           await this.reloadEvents();
         }
       } catch (error) {
-        this.error = error.message || "Failed to stop task.";
+        this.error = error.message || "停止任务失败。";
       } finally {
         const next = { ...this.cancellingTaskIds };
         delete next[task.taskId];
@@ -943,7 +946,7 @@ export default {
         await this.reloadEvents();
         await this.loadRuntime();
       } catch (error) {
-        this.error = error.message || "Failed to save task feedback.";
+        this.error = error.message || "保存任务反馈失败。";
       } finally {
         this.feedbackSubmitting = false;
       }
@@ -954,12 +957,13 @@ export default {
         return;
       }
       try {
-        await updateConversationHistoryStatus(task.userId || task.tenantId || this.tenantId, historyId, {
+        await updateConversationHistoryStatus(task.userId || this.userId, historyId, {
+          tenantId: task.tenantId || this.tenantId,
           conversationId: historyId,
           status: "cancelled"
         });
       } catch (error) {
-        // Runtime cancellation already succeeded; history status will refresh on the next save/load cycle.
+        // 任务停止已成功，历史状态会在下一次保存或加载时刷新。
       }
     },
     shortId(value) {
@@ -972,7 +976,7 @@ export default {
       if (!value) {
         return "-";
       }
-      return new Intl.DateTimeFormat("en-US", {
+      return new Intl.DateTimeFormat("zh-CN", {
         month: "2-digit",
         day: "2-digit",
         hour: "2-digit",
@@ -983,7 +987,7 @@ export default {
       if (!value) {
         return "-";
       }
-      return new Intl.DateTimeFormat("en-US", {
+      return new Intl.DateTimeFormat("zh-CN", {
         hour: "2-digit",
         minute: "2-digit",
         second: "2-digit"
@@ -993,7 +997,7 @@ export default {
       if (!value) {
         return "-";
       }
-      return new Intl.DateTimeFormat("en-US", {
+      return new Intl.DateTimeFormat("zh-CN", {
         month: "2-digit",
         day: "2-digit",
         hour: "2-digit",
@@ -1005,7 +1009,7 @@ export default {
       if (value === null || value === undefined || value === "") {
         return "-";
       }
-      return `${value} ms`;
+      return `${value} 毫秒`;
     },
     formatPercent(value) {
       const number = Number(value || 0);
@@ -1015,48 +1019,129 @@ export default {
       const normalized = String(value || "").toLowerCase();
       return (
         {
-          readonly: "Read-only",
-          suggestion: "Suggestion",
-          confirm_required: "Confirmation required",
-          forbidden: "Forbidden"
-        }[normalized] || "Read-only"
+          readonly: "只读",
+          suggestion: "建议执行",
+          confirm_required: "需要确认",
+          forbidden: "禁止"
+        }[normalized] || "只读"
       );
     },
     formatRuntimeAction(value) {
       const normalized = String(value || "").toLowerCase();
       return (
         {
-          auto_execute: "Auto execute",
-          ask_before_execute: "Ask before execute",
-          deny: "Deny"
-        }[normalized] || "Auto execute"
+          auto_execute: "自动执行",
+          ask_before_execute: "执行前确认",
+          deny: "拒绝"
+        }[normalized] || "自动执行"
       );
     },
     formatFeedbackReason(value) {
-      return this.feedbackReasonOptions.find((item) => item.value === value)?.label || "Other";
+      return this.feedbackReasonOptions.find((item) => item.value === value)?.label || "其他";
+    },
+    formatTaskStatus(value) {
+      const normalized = String(value || "").toUpperCase();
+      return (
+        {
+          PENDING: "等待中",
+          RUNNING: "运行中",
+          WAIT_TOOL: "等待工具",
+          WAIT_MODEL: "等待模型",
+          WAIT_CONFIRMATION: "等待确认",
+          SUCCESS: "成功",
+          FAILED: "失败",
+          CANCELLED: "已取消",
+          CANCELED: "已取消",
+          DENIED: "已拒绝",
+          RATE_LIMITED: "已限流",
+          CIRCUIT_OPEN: "熔断",
+          GENERATED: "已生成",
+          PLANNED: "已计划",
+          OK: "正常"
+        }[normalized] || (normalized ? normalized.replaceAll("_", " ") : "未知")
+      );
+    },
+    formatEventType(value) {
+      const normalized = String(value || "").toUpperCase();
+      return (
+        {
+          CREATED: "已创建",
+          STARTED: "已启动",
+          PLANNED: "已计划",
+          TOOL_CALL: "工具调用",
+          TOOL_RESULT: "工具结果",
+          MODEL_CALL: "模型调用",
+          MODEL_RESULT: "模型结果",
+          RETRIEVAL: "检索",
+          MCP_TOOL: "MCP 工具",
+          MEMORY: "记忆",
+          FEEDBACK: "反馈",
+          FINISHED: "已完成",
+          FAILED: "失败",
+          CANCELLED: "已取消",
+          CANCELED: "已取消"
+        }[normalized] || (normalized ? normalized.replaceAll("_", " ") : "未知事件")
+      );
+    },
+    formatAttributionSource(value) {
+      const normalized = String(value || "").toLowerCase();
+      return (
+        {
+          rule: "规则",
+          user_feedback: "用户反馈",
+          tool_result: "工具结果",
+          model_review: "模型评审",
+          manual: "人工标注"
+        }[normalized] || (normalized ? normalized.replaceAll("_", " ") : "规则")
+      );
+    },
+    formatAuditMode(value) {
+      const normalized = String(value || "").toLowerCase();
+      return (
+        {
+          auto_execute: "自动执行",
+          ask_before_execute: "执行前确认",
+          confirm_required: "需要确认",
+          deny: "拒绝",
+          readonly: "只读",
+          suggestion: "建议执行"
+        }[normalized] || (normalized ? normalized.replaceAll("_", " ") : "-")
+      );
     },
     formatOutcome(value) {
       const normalized = String(value || "").toLowerCase();
       return (
         {
-          success: "Passed",
-          denied: "Denied",
-          failed: "Failed",
-          rate_limited: "Rate limited",
-          circuit_open: "Circuit open"
-        }[normalized] || (normalized ? normalized.replaceAll("_", " ") : "Unknown")
+          success: "通过",
+          denied: "拒绝",
+          failed: "失败",
+          rate_limited: "限流",
+          circuit_open: "熔断"
+        }[normalized] || (normalized ? normalized.replaceAll("_", " ") : "未知")
       );
     },
     formatToolHealth(value) {
       return (
         {
-          healthy: "Stable",
-          problem: "Problem"
-        }[value] || "All"
+          healthy: "稳定",
+          problem: "异常"
+        }[value] || "全部"
       );
     },
     formatPlanAction(value) {
-      return String(value || "step").replaceAll("_", " ");
+      const normalized = String(value || "step").toLowerCase();
+      return (
+        {
+          step: "步骤",
+          mcp_tool: "MCP 工具",
+          tool_call: "工具调用",
+          model_call: "模型调用",
+          runtime: "运行态",
+          final_answer: "最终回答",
+          reviewer: "评审",
+          planner: "规划"
+        }[normalized] || normalized.replaceAll("_", " ")
+      );
     },
     compactPlanText(value, maxLength = 24) {
       const text = String(value || "").replace(/\s+/g, " ").trim();

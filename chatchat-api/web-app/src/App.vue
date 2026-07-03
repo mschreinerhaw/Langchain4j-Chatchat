@@ -11,7 +11,7 @@
     :history-loading="historyLoading"
     :favorite-conversation-ids="favoriteConversationIds"
     :favorite-saving-ids="favoriteSavingIds"
-    :nav-items="navItems"
+    :nav-items="visibleNavItems"
     :recent-conversations="recentConversations"
     :user-id="userId"
     @navigate="handleNavigate"

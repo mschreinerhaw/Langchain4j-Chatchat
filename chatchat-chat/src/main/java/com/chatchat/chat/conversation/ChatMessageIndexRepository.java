@@ -15,6 +15,8 @@ public interface ChatMessageIndexRepository extends JpaRepository<ChatMessageInd
      */
     List<ChatMessageIndexEntity> findBySessionIdOrderByCreatedAtAsc(String sessionId);
 
+    List<ChatMessageIndexEntity> findByTenantIdAndSessionIdOrderByCreatedAtAsc(String tenantId, String sessionId);
+
     /**
      * Finds the by session id order by created at desc.
      *
@@ -24,10 +26,14 @@ public interface ChatMessageIndexRepository extends JpaRepository<ChatMessageInd
      */
     List<ChatMessageIndexEntity> findBySessionIdOrderByCreatedAtDesc(String sessionId, Pageable pageable);
 
+    List<ChatMessageIndexEntity> findByTenantIdAndSessionIdOrderByCreatedAtDesc(String tenantId, String sessionId, Pageable pageable);
+
     /**
      * Deletes the by session id.
      *
      * @param sessionId the session id value
      */
     void deleteBySessionId(String sessionId);
+
+    void deleteByTenantIdAndSessionId(String tenantId, String sessionId);
 }

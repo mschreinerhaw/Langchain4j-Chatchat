@@ -108,6 +108,125 @@ class DocumentSearchControlPlaneTest {
     }
 
     @Test
+    void globalChunkRecallCanPromoteDocumentIntoFineSearch() {
+        SearchService searchService = mock(SearchService.class);
+        when(searchService.frontendQuickSearch(
+            eq("ACME 2026 margin source"),
+            any(),
+            any(),
+            any(),
+            any(),
+            eq(1),
+            eq(8),
+            any(SearchPermissionContext.class)
+        )).thenReturn(new SearchPage(
+            "ACME 2026 margin source",
+            List.of("acme", "2026", "margin", "source"),
+            List.of(),
+            0,
+            8,
+            1,
+            8,
+            0,
+            false,
+            3L,
+            -1,
+            null
+        ));
+        when(searchService.search(
+            eq("ACME 2026 margin source"),
+            any(),
+            any(),
+            any(),
+            any(),
+            eq(1),
+            eq(50),
+            any(SearchPermissionContext.class)
+        )).thenReturn(new SearchPage(
+            "ACME 2026 margin source",
+            List.of("acme", "2026", "margin", "source"),
+            List.of(chunkRecallSearchResult()),
+            1,
+            50,
+            1,
+            50,
+            1,
+            false,
+            5L,
+            -1,
+            null
+        ));
+        when(searchService.get(eq("doc-chunk-1"), any(SearchPermissionContext.class)))
+            .thenReturn(java.util.Optional.of(chunkRecallDocument()));
+        DocumentSearchEvidenceService service = newEvidenceService(searchService);
+
+        DocumentSearchResult result = service.search(new DocumentSearchRequest(
+            "ACME 2026 margin source",
+            8,
+            null,
+            null,
+            null,
+            null,
+            null,
+            false
+        ));
+
+        assertThat(result.results()).hasSize(1);
+        assertThat(result.results().get(0).fileId()).isEqualTo("doc-chunk-1");
+        assertThat(result.results().get(0).content())
+            .contains("The ACME 2026 margin source is the risk ledger")
+            .contains("daily financing balance");
+        assertThat(result.results().get(0).chunkType()).isEqualTo("document");
+    }
+
+    @Test
+    void recallFiltersNonLatestDocumentsBeforeEvidenceAssembly() {
+        SearchService searchService = mock(SearchService.class);
+        when(searchService.frontendQuickSearch(
+            eq("ACME 2025 revenue policy"),
+            any(),
+            any(),
+            any(),
+            any(),
+            eq(1),
+            eq(8),
+            any(SearchPermissionContext.class)
+        )).thenReturn(new SearchPage(
+            "ACME 2025 revenue policy",
+            List.of("acme", "2025", "revenue", "policy"),
+            List.of(staleSearchResult(), searchResult()),
+            2,
+            8,
+            1,
+            8,
+            1,
+            false,
+            7L,
+            -1,
+            null
+        ));
+        DocumentSearchEvidenceService service = newEvidenceService(searchService);
+
+        DocumentSearchResult result = service.search(new DocumentSearchRequest(
+            "ACME 2025 revenue policy",
+            8,
+            null,
+            null,
+            null,
+            null,
+            null,
+            false
+        ));
+
+        assertThat(result.results())
+            .extracting(DocumentEvidenceChunk::fileId)
+            .containsExactly("doc-1");
+        assertThat(result.results())
+            .extracting(DocumentEvidenceChunk::content)
+            .doesNotContain("Stale ACME policy evidence must be filtered.");
+    }
+
+    @Test
     void documentVisibilityConstraintReturnsOnlySelectedDocuments() {
         SearchService searchService = mock(SearchService.class);
         when(searchService.frontendQuickSearch(
@@ -569,15 +688,30 @@ class DocumentSearchControlPlaneTest {
         RetrievalRuleService ruleService = mock(RetrievalRuleService.class);
         when(ruleService.snapshot()).thenReturn(new RetrievalRuleService.RuleSnapshot(List.of(), List.of(), List.of(), List.of(), 0L));
         QueryIntentClassifier intentClassifier = new QueryIntentClassifier(tokenizer, ruleService);
+        SearchPermissionGuard permissionGuard = new SearchPermissionGuard();
+        RetrievalQueryValidator queryValidator = new RetrievalQueryValidator(tokenizer, properties);
+        QueryPlanningService queryPlanningService = new QueryPlanningService(tokenizer, intentClassifier, queryValidator, permissionGuard);
+        IndexVersionManager indexVersionManager = new IndexVersionManager();
+        DocumentSearchOrchestrator orchestrator = new DocumentSearchOrchestrator(
+            new GlobalDocumentIndexService(searchService),
+            new GlobalChunkIndexService(searchService, properties),
+            properties,
+            indexVersionManager
+        );
+        DocumentIndexRegistry registry = new DocumentIndexRegistry(searchService, indexVersionManager);
+        DocumentChunkStore chunkStore = new DocumentChunkStore(registry);
         return new DocumentSearchEvidenceService(
-            searchService,
             tokenizer,
             intentClassifier,
-            new EvidenceContextFormatter(),
             properties,
-            new RetrievalQueryValidator(tokenizer, properties),
             new RetrievalEvidenceQualityScorer(properties),
-            new TextChunker()
+            new TextChunker(),
+            queryPlanningService,
+            permissionGuard,
+            orchestrator,
+            new PerDocumentIndexService(chunkStore),
+            new EvidenceAssembler(new EvidenceContextFormatter()),
+            new EvidenceReranker()
         );
     }
 
@@ -660,6 +794,98 @@ class DocumentSearchControlPlaneTest {
                 List.of()
             )),
             "vg-blocked",
+            1,
+            true,
+            SearchPermissionContext.DEFAULT_TENANT,
+            SearchPermissionContext.ANONYMOUS_USER,
+            "public",
+            List.of(),
+            "active",
+            System.currentTimeMillis(),
+            null,
+            null
+        );
+    }
+
+    private SearchResult staleSearchResult() {
+        return new SearchResult(
+            "doc-stale",
+            "ACME 2024 Revenue Policy",
+            "Stale ACME policy evidence must be filtered.",
+            "upload",
+            "2024-01-01",
+            "acme-policy-v1.pdf",
+            "pdf",
+            null,
+            List.of("finance"),
+            List.of("ACME"),
+            List.of("software"),
+            120,
+            null,
+            List.of("ACME", "2025", "revenue", "policy"),
+            List.of(new SearchMatchedChunk(
+                "doc-stale",
+                "acme-policy-v1.pdf",
+                "Revenue",
+                "policy",
+                "stale-chunk",
+                1,
+                0.1F,
+                "Stale ACME policy evidence must be filtered.",
+                "Stale ACME policy evidence must be filtered.",
+                9.9F,
+                SearchPermissionContext.ANONYMOUS_USER,
+                SearchPermissionContext.ANONYMOUS_USER,
+                "public",
+                List.of()
+            )),
+            "vg-1",
+            1,
+            false,
+            SearchPermissionContext.DEFAULT_TENANT,
+            SearchPermissionContext.ANONYMOUS_USER,
+            "public",
+            List.of(),
+            "active",
+            System.currentTimeMillis(),
+            null,
+            null
+        );
+    }
+
+    private SearchResult chunkRecallSearchResult() {
+        return new SearchResult(
+            "doc-chunk-1",
+            "Operations Platform Manual",
+            "Chunk-level recall hit.",
+            "upload",
+            "2026-02-01",
+            "operations-platform.pdf",
+            "pdf",
+            null,
+            List.of("finance"),
+            List.of("ACME"),
+            List.of("software"),
+            72,
+            null,
+            List.of("ACME", "2026", "margin", "source"),
+            List.of(new SearchMatchedChunk(
+                "doc-chunk-1",
+                "operations-platform.pdf",
+                "Margin Data",
+                "definition",
+                "doc-chunk-1_3",
+                3,
+                0.4F,
+                "margin source risk ledger",
+                "margin source risk ledger",
+                7.2F,
+                SearchPermissionContext.DEFAULT_TENANT,
+                SearchPermissionContext.ANONYMOUS_USER,
+                "public",
+                List.of()
+            )),
+            "vg-chunk-1",
             1,
             true,
             SearchPermissionContext.DEFAULT_TENANT,
@@ -837,6 +1063,27 @@ class DocumentSearchControlPlaneTest {
 
                 3. Exception Handling
                 Exceptions are routed to operations with owner, reason, and expected close date.
+                """)
+            .tenantId(SearchPermissionContext.DEFAULT_TENANT)
+            .userId(SearchPermissionContext.ANONYMOUS_USER)
+            .visibility("public")
+            .permissionRoles(List.of())
+            .build();
+    }
+
+    private SearchDocument chunkRecallDocument() {
+        return SearchDocument.builder()
+            .docId("doc-chunk-1")
+            .title("Operations Platform Manual")
+            .fileName("operations-platform.pdf")
+            .documentType("pdf")
+            .content("""
+                1. Overview
+                Generic platform operations and daily controls.
+
+                2. Margin Data
+                The ACME 2026 margin source is the risk ledger. It reconciles customer credit quota,
+                collateral value, daily financing balance, and exception status before downstream reporting.
                 """)
             .tenantId(SearchPermissionContext.DEFAULT_TENANT)
             .userId(SearchPermissionContext.ANONYMOUS_USER)

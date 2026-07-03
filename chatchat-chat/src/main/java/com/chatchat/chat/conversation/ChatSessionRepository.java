@@ -13,4 +13,8 @@ public interface ChatSessionRepository extends JpaRepository<ChatSessionEntity, 
      * @return the matching by user id order by updated at desc
      */
     List<ChatSessionEntity> findByUserIdOrderByUpdatedAtDesc(String userId);
+
+    List<ChatSessionEntity> findByTenantIdAndUserIdOrderByUpdatedAtDesc(String tenantId, String userId);
+
+    java.util.Optional<ChatSessionEntity> findBySessionIdAndTenantId(String sessionId, String tenantId);
 }

@@ -89,7 +89,8 @@ public class InteractionOrchestrationService {
         }
 
         String requestId = UUID.randomUUID().toString();
-        String conversationId = memoryService.ensureConversationId(request.getConversationId(), request.getUserId());
+        String tenantId = normalizeTenantId(request.getTenantId());
+        String conversationId = memoryService.ensureConversationId(tenantId, request.getConversationId(), request.getUserId());
         int historyWindow = request.getHistoryWindow() == null
             ? contextProperties.getRecentMessageLimit()
             : request.getHistoryWindow();
@@ -100,8 +101,8 @@ public class InteractionOrchestrationService {
             .conversationId(conversationId)
             .mode(mode)
             .startedAtMs(startedAt)
-            .conversationSummary(memoryService.summary(conversationId).map(summary -> summary.summary()).orElse(""))
-            .history(memoryService.recent(conversationId, historyWindow))
+            .conversationSummary(memoryService.summary(tenantId, conversationId).map(summary -> summary.summary()).orElse(""))
+            .history(memoryService.recent(tenantId, conversationId, historyWindow))
             .build();
 
         request.setQuery(appendImageContext(request.getQuery(), buildImageContext(request)));
@@ -123,7 +124,7 @@ public class InteractionOrchestrationService {
                 response.getToolTraces(),
                 memoryService.responseMemoryContext(response)
             );
-            memoryService.maybeRefreshSummary(conversationId);
+            memoryService.maybeRefreshSummary(tenantId, conversationId);
         }
 
         response.setConversationId(conversationId);
@@ -146,6 +147,10 @@ public class InteractionOrchestrationService {
         builder.append("\n\n");
         builder.append(imageContext);
         return builder.toString();
+    }
+
+    private String normalizeTenantId(String value) {
+        return value == null || value.isBlank() ? "default" : value.trim();
     }
 
     private String buildImageContext(InteractionRequest request) {

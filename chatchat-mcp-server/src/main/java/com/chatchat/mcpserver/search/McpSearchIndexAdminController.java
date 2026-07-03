@@ -29,6 +29,7 @@ public class McpSearchIndexAdminController {
     private final SqlMetadataSearchService sqlMetadataSearchService;
     private final DatabaseQueryConfigService databaseQueryConfigService;
     private final SqlDatasourceConfigService datasourceConfigService;
+    private final DocumentSearchAdminClient documentSearchAdminClient;
     private final ObjectMapper objectMapper;
 
     @PostMapping("/assets/rebuild")
@@ -106,6 +107,10 @@ public class McpSearchIndexAdminController {
                 )
             );
             result = searchResult("assets", input, hits);
+        } else if ("document_search".equalsIgnoreCase(indexType)
+            || "document-search".equalsIgnoreCase(indexType)
+            || "documents".equalsIgnoreCase(indexType)) {
+            result = documentSearchAdminClient.search(input, limit);
         } else {
             Map<String, Object> arguments = new LinkedHashMap<>();
             copy(input, arguments, "query", "q", "tableName", "table_name", "database", "schema", "assetName", "limit", "includeColumns");

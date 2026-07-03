@@ -83,6 +83,16 @@ chatchat:
       expose-agent-compatible-only: true
       excluded-tool-names: []
       instructions: "ChatChat standalone MCP server exposing LangChain4j-compatible tools."
+      document-search:
+        api-base-url: ${CHAT_MCP_DOCUMENT_SEARCH_API_BASE_URL:http://localhost:8080}
+        endpoint-path: ${CHAT_MCP_DOCUMENT_SEARCH_ENDPOINT_PATH:/api/v1/search/document-search}
+        timeout-ms: ${CHAT_MCP_DOCUMENT_SEARCH_TIMEOUT_MS:60000}
+        auth:
+          enabled: ${CHAT_MCP_DOCUMENT_SEARCH_AUTH_ENABLED:true}
+          login-path: ${CHAT_MCP_DOCUMENT_SEARCH_LOGIN_PATH:/api/v1/enterprise/auth/login}
+          username: ${CHAT_MCP_DOCUMENT_SEARCH_USERNAME:}
+          password: ${CHAT_MCP_DOCUMENT_SEARCH_PASSWORD:}
+          bearer-token: ${CHAT_MCP_DOCUMENT_SEARCH_BEARER_TOKEN:}
       concurrency:
         # Enables global/tool/user/agent concurrency guards for MCP tool calls.
         enabled: true

@@ -51,6 +51,10 @@ export default {
     userId: {
       type: String,
       default: "default-user"
+    },
+    tenantId: {
+      type: String,
+      default: ""
     }
   },
   emits: ["navigate"],
@@ -106,6 +110,26 @@ export default {
     };
   },
   computed: {
+    effectiveTenantId() {
+      return this.tenantId || this.userId || "default";
+    },
+    permissionFilters() {
+      return {
+        tenantId: this.effectiveTenantId,
+        userId: this.userId
+      };
+    },
+    permissionQuery() {
+      const params = new URLSearchParams();
+      if (this.effectiveTenantId) {
+        params.set("tenantId", this.effectiveTenantId);
+      }
+      if (this.userId) {
+        params.set("userId", this.userId);
+      }
+      const query = params.toString();
+      return query ? `?${query}` : "";
+    },
     viewerType() {
       return this.viewerDocument?.documentType || this.inferDocumentType(this.viewerDocument?.fileName);
     },
@@ -116,8 +140,8 @@ export default {
         return "";
       }
       return version
-        ? `/api/v1/search/documents/${encodeURIComponent(docId)}/versions/${encodeURIComponent(version)}/file`
-        : `/api/v1/search/documents/${encodeURIComponent(docId)}/file`;
+        ? `/api/v1/search/documents/${encodeURIComponent(docId)}/versions/${encodeURIComponent(version)}/file${this.permissionQuery}`
+        : `/api/v1/search/documents/${encodeURIComponent(docId)}/file${this.permissionQuery}`;
     },
     hasMultipleVersions() {
       return this.viewerVersions.length > 1;
@@ -202,7 +226,8 @@ export default {
           category: this.activeCategory,
           title: this.titleKeyword.trim(),
           page: this.page,
-          pageSize: this.pageSize
+          pageSize: this.pageSize,
+          ...this.permissionFilters
         });
         this.categories = payload?.categories || [];
         this.documents = payload?.documents || [];
@@ -315,7 +340,7 @@ export default {
       }
       this.categoryReindexStatusLoading = true;
       try {
-        const status = await fetchResearchCategoryReindexStatus();
+        const status = await fetchResearchCategoryReindexStatus(this.permissionFilters);
         await this.applyCategoryReindexTask(status, options);
       } catch (error) {
         if (!options.silent) {
@@ -417,7 +442,7 @@ export default {
       this.categoryReindexSubmitting = true;
       this.error = "";
       try {
-        const response = await reindexResearchCategory(name);
+        const response = await reindexResearchCategory(name, this.permissionFilters);
         await this.applyCategoryReindexTask(response?.task, { silent: true });
         this.categoryReindexDialogOpen = false;
         this.categoryReindexItem = null;
@@ -505,7 +530,7 @@ export default {
       this.documentCategorySavingIds = { ...this.documentCategorySavingIds, [docId]: true };
       this.error = "";
       try {
-        await updateSearchDocumentCategory(docId, nextCategory);
+        await updateSearchDocumentCategory(docId, nextCategory, this.permissionFilters);
         this.message = "文档分类已更新。";
         await this.loadLibrary();
         return true;
@@ -569,13 +594,13 @@ export default {
         return;
       }
       try {
-        const document = await getSearchDocument(docId);
+        const document = await getSearchDocument(docId, this.permissionFilters);
         if (!this.canPreviewDocument(document)) {
           this.viewerError = UNSUPPORTED_DOCUMENT_PREVIEW_MESSAGE;
           this.viewerLoading = false;
           return;
         }
-        const versions = await getSearchDocumentVersions(docId);
+        const versions = await getSearchDocumentVersions(docId, this.permissionFilters);
         this.viewerDocument = document;
         this.viewerVersions = versions?.length ? versions : [this.versionItemFromDocument(document)];
         this.selectedVersion = document?.version || this.viewerVersions.find((version) => version.latestVersion)?.version || 1;
@@ -619,7 +644,7 @@ export default {
       this.loading = true;
       this.error = "";
       try {
-        await deleteSearchDocument(docId);
+        await deleteSearchDocument(docId, this.permissionFilters);
         this.documentDeleteDialogOpen = false;
         this.documentDeleteItem = null;
         this.message = "文档已删除。";
@@ -643,7 +668,7 @@ export default {
       this.documentReindexingIds = { ...this.documentReindexingIds, [docId]: true };
       this.error = "";
       try {
-        await reindexSearchDocument(docId);
+        await reindexSearchDocument(docId, this.permissionFilters);
         this.message = `文档「${item.title || docId}」索引已重建。`;
         await this.loadLibrary();
       } catch (error) {
@@ -666,7 +691,7 @@ export default {
       this.error = "";
       try {
         await addUserFavorite({
-          tenantId: this.userId,
+          tenantId: this.effectiveTenantId,
           userId: this.userId,
           targetType: "DOCUMENT",
           targetId: docId,
@@ -691,7 +716,7 @@ export default {
       this.viewerHtml = "";
       this.viewerMode = "text";
       try {
-        this.viewerDocument = await getSearchDocumentVersion(this.viewerDocument.docId, version);
+        this.viewerDocument = await getSearchDocumentVersion(this.viewerDocument.docId, version, this.permissionFilters);
         this.selectedVersion = version;
         this.viewerLoading = false;
         await nextTick();

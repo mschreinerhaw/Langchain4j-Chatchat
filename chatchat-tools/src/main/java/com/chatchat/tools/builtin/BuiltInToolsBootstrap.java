@@ -1333,14 +1333,31 @@ public class BuiltInToolsBootstrap {
                 body.put("filters", filters);
             }
 
-            putIfText(body, "tenantId", firstNonBlank(input.getParameterAsString("tenantId", ""), input.getParameterAsString("tenant_id", "")));
-            putIfText(body, "userId", firstNonBlank(input.getParameterAsString("userId", ""), input.getParameterAsString("user_id", "")));
+            String tenantId = firstNonBlank(input.getParameterAsString("tenantId", ""), input.getParameterAsString("tenant_id", ""));
+            String userId = firstNonBlank(input.getParameterAsString("userId", ""), input.getParameterAsString("user_id", ""));
+            if (!isProtocolDefaultIdentity(tenantId, userId, input.getParameter("mcpContext"))) {
+                putIfText(body, "tenantId", tenantId);
+                putIfText(body, "userId", userId);
+            }
             String roles = joinValues(firstPresentParameter(input, "roles", "role"));
             if (roles != null && !roles.isBlank()) {
                 body.put("roles", Arrays.asList(roles.split(",")));
             }
             body.put("debug", input.getParameterAsBoolean("debug", false));
             return body;
+        }
+
+        private boolean isProtocolDefaultIdentity(String tenantId, String userId, Object mcpContext) {
+            return isAdminIdentity(tenantId, userId) && mcpContext instanceof Map<?, ?>;
+        }
+
+        private boolean isAdminIdentity(String tenantId, String userId) {
+            return "admin".equalsIgnoreCase(nullToEmpty(tenantId).trim())
+                && "admin".equalsIgnoreCase(nullToEmpty(userId).trim());
+        }
+
+        private String nullToEmpty(String value) {
+            return value == null ? "" : value;
         }
 
         /**

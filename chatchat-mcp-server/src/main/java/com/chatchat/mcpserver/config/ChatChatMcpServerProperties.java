@@ -17,6 +17,7 @@ public class ChatChatMcpServerProperties {
     private Set<String> excludedToolNames = new LinkedHashSet<>();
     private String instructions = "ChatChat standalone MCP server exposing LangChain4j-compatible tools.";
     private ConcurrencyProperties concurrency = new ConcurrencyProperties();
+    private DocumentSearchProperties documentSearch = new DocumentSearchProperties();
 
     /**
      * Returns the name.
@@ -142,6 +143,153 @@ public class ChatChatMcpServerProperties {
      */
     public void setConcurrency(ConcurrencyProperties concurrency) {
         this.concurrency = concurrency == null ? new ConcurrencyProperties() : concurrency;
+    }
+
+    /**
+     * Returns the document search.
+     *
+     * @return the document search
+     */
+    public DocumentSearchProperties getDocumentSearch() {
+        return documentSearch;
+    }
+
+    /**
+     * Sets the document search.
+     *
+     * @param documentSearch the document search value
+     */
+    public void setDocumentSearch(DocumentSearchProperties documentSearch) {
+        this.documentSearch = documentSearch == null ? new DocumentSearchProperties() : documentSearch;
+    }
+
+    public static class DocumentSearchProperties {
+
+        private String apiBaseUrl = "http://localhost:8080";
+        private String endpointPath = "/api/v1/search/document-search";
+        private int timeoutMs = 60000;
+        private AuthProperties auth = new AuthProperties();
+
+        /**
+         * Returns the api base url.
+         *
+         * @return the api base url
+         */
+        public String getApiBaseUrl() {
+            return apiBaseUrl;
+        }
+
+        /**
+         * Sets the api base url.
+         *
+         * @param apiBaseUrl the api base url value
+         */
+        public void setApiBaseUrl(String apiBaseUrl) {
+            this.apiBaseUrl = apiBaseUrl;
+        }
+
+        /**
+         * Returns the endpoint path.
+         *
+         * @return the endpoint path
+         */
+        public String getEndpointPath() {
+            return endpointPath;
+        }
+
+        /**
+         * Sets the endpoint path.
+         *
+         * @param endpointPath the endpoint path value
+         */
+        public void setEndpointPath(String endpointPath) {
+            this.endpointPath = endpointPath;
+        }
+
+        /**
+         * Returns the timeout ms.
+         *
+         * @return the timeout ms
+         */
+        public int getTimeoutMs() {
+            return timeoutMs;
+        }
+
+        /**
+         * Sets the timeout ms.
+         *
+         * @param timeoutMs the timeout ms value
+         */
+        public void setTimeoutMs(int timeoutMs) {
+            this.timeoutMs = timeoutMs <= 0 ? 60000 : timeoutMs;
+        }
+
+        /**
+         * Returns the auth.
+         *
+         * @return the auth
+         */
+        public AuthProperties getAuth() {
+            return auth;
+        }
+
+        /**
+         * Sets the auth.
+         *
+         * @param auth the auth value
+         */
+        public void setAuth(AuthProperties auth) {
+            this.auth = auth == null ? new AuthProperties() : auth;
+        }
+
+        public static class AuthProperties {
+
+            private boolean enabled = true;
+            private String loginPath = "/api/v1/enterprise/auth/login";
+            private String username = "admin";
+            private String password = "123456";
+            private String bearerToken = "";
+
+            public boolean isEnabled() {
+                return enabled;
+            }
+
+            public void setEnabled(boolean enabled) {
+                this.enabled = enabled;
+            }
+
+            public String getLoginPath() {
+                return loginPath;
+            }
+
+            public void setLoginPath(String loginPath) {
+                this.loginPath = loginPath;
+            }
+
+            public String getUsername() {
+                return username;
+            }
+
+            public void setUsername(String username) {
+                this.username = username;
+            }
+
+            public String getPassword() {
+                return password;
+            }
+
+            public void setPassword(String password) {
+                this.password = password;
+            }
+
+            public String getBearerToken() {
+                return bearerToken;
+            }
+
+            public void setBearerToken(String bearerToken) {
+                this.bearerToken = bearerToken;
+            }
+        }
     }
 
     public static class ConcurrencyProperties {

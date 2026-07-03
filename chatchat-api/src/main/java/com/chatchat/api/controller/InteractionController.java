@@ -1,5 +1,6 @@
 package com.chatchat.api.controller;
 
+import com.chatchat.api.security.ApiAuthenticationFilter;
 import com.chatchat.chat.interaction.model.InteractionMode;
 import com.chatchat.chat.interaction.model.InteractionRequest;
 import com.chatchat.chat.interaction.model.InteractionResponse;
@@ -8,6 +9,7 @@ import com.chatchat.common.constants.AppConstants;
 import com.chatchat.common.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
@@ -39,8 +41,10 @@ public class InteractionController {
      */
     @PostMapping("/chat")
     @Operation(summary = "Unified chat endpoint with mode-based orchestration")
-    public ApiResponse<InteractionResponse> chat(@RequestBody InteractionRequest request) {
+    public ApiResponse<InteractionResponse> chat(@RequestBody InteractionRequest request,
+                                                 HttpServletRequest servletRequest) {
         try {
+            bindRequestTenant(request, servletRequest);
             InteractionResponse response = orchestrationService.chat(request);
             return ApiResponse.success(response, "Interaction completed");
         } catch (IllegalArgumentException e) {
@@ -58,7 +62,9 @@ public class InteractionController {
      */
     @PostMapping(value = "/chat/stream", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
     @Operation(summary = "Unified chat endpoint with SSE progressive response")
-    public SseEmitter streamChat(@RequestBody InteractionRequest request) {
+    public SseEmitter streamChat(@RequestBody InteractionRequest request,
+                                 HttpServletRequest servletRequest) {
+        bindRequestTenant(request, servletRequest);
         SseEmitter emitter = new SseEmitter(0L);
         ExecutorService executor = Executors.newSingleThreadExecutor();
         executor.execute(() -> {
@@ -190,5 +196,22 @@ public class InteractionController {
      */
     private String nullToEmpty(String value) {
         return value == null ? "" : value;
+    }
+
+    private void bindRequestTenant(InteractionRequest request, HttpServletRequest servletRequest) {
+        if (request == null) {
+            return;
+        }
+        String currentTenantId = requestAttribute(servletRequest, ApiAuthenticationFilter.CURRENT_TENANT_ID);
+        if (currentTenantId != null && !currentTenantId.isBlank()) {
+            request.setTenantId(currentTenantId.trim());
+        } else if (request.getTenantId() == null || request.getTenantId().isBlank()) {
+            request.setTenantId("default");
+        }
+    }
+
+    private String requestAttribute(HttpServletRequest request, String name) {
+        Object value = request == null ? null : request.getAttribute(name);
+        return value == null ? null : String.valueOf(value);
     }
 }

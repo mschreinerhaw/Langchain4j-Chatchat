@@ -847,14 +847,14 @@ function formatCommandTemplateCategory(category) {
         maintenance_connection: '连接诊断',
         maintenance_instance: '实例诊断',
         maintenance_performance: 'SQL 性能诊断',
-        maintenance_metadata: 'SQL 元数据',
+        maintenance_metadata: '元数据索引',
         maintenance_lock: 'SQL 锁与事务',
         maintenance_storage: '存储诊断',
         maintenance_system: '系统诊断',
         maintenance_network: '网络诊断',
         maintenance_process: '进程诊断',
         sql_diagnostic: 'SQL 诊断',
-        sql_metadata: 'SQL 元数据',
+        sql_metadata: '元数据索引',
         sql_performance: 'SQL 性能',
         sql_lock: 'SQL 锁与事务',
         http_request: 'HTTP 请求',
@@ -1408,16 +1408,21 @@ async function handleTemplateIndexRebuild() {
 function renderIndexSearchMode() {
     const type = value('indexSearchType') || 'sql_metadata';
     const templateLike = ['templates', 'database_query', 'api_service'].includes(type);
+    const documentMode = type === 'document_search';
     const sqlOnlyIds = ['indexSearchTableName', 'indexSearchDatabase', 'indexSearchAssetName', 'indexSearchIncludeColumns'];
     const assetOnlyIds = ['indexSearchEnv', 'indexSearchLabels'];
+    const documentOnlyIds = ['indexSearchDocumentIds', 'indexSearchDocumentDebug'];
     const assetTypeNode = document.getElementById('indexSearchAssetType')?.closest('.col-md-2');
     sqlOnlyIds.forEach(id => {
         document.getElementById(id)?.closest('[class*="col-"]')?.classList.toggle('d-none', type !== 'sql_metadata');
     });
     assetOnlyIds.forEach(id => {
-        document.getElementById(id)?.closest('[class*="col-"]')?.classList.toggle('d-none', templateLike);
+        document.getElementById(id)?.closest('[class*="col-"]')?.classList.toggle('d-none', templateLike || documentMode);
     });
-    assetTypeNode?.classList.toggle('d-none', type === 'sql_metadata' || type === 'database_query' || type === 'api_service');
+    documentOnlyIds.forEach(id => {
+        document.getElementById(id)?.closest('[class*="col-"]')?.classList.toggle('d-none', !documentMode);
+    });
+    assetTypeNode?.classList.toggle('d-none', type === 'sql_metadata' || type === 'database_query' || type === 'api_service' || documentMode);
 }
 
 async function handleIndexSearchRun() {
@@ -1460,6 +1465,11 @@ function readIndexSearchRequest() {
     } else if (type === 'api_service') {
         request.intentText = request.query;
         request.assetType = 'api_service';
+    } else if (type === 'document_search') {
+        request.topK = request.limit;
+        request.fileIdsText = value('indexSearchDocumentIds');
+        request.fileIds = splitCsv(request.fileIdsText);
+        request.debug = value('indexSearchDocumentDebug') === 'true';
     }
     return request;
 }
@@ -1521,6 +1531,14 @@ function indexSearchSummaryItem(row, index) {
                 ${column.comment ? `<em>${escapeHtml(column.comment)}</em>` : ''}
             </span>`).join('')}${columns.length > 8 ? `<span class="text-secondary">+${columns.length - 8}</span>` : ''}</div>`
         : '';
+    const content = compactText(firstNonBlank(row.content, row.text, row.summary));
+    const contentPreview = content
+        ? `<div class="index-search-evidence">${escapeHtml(truncateText(content, 420))}</div>`
+        : '';
+    const evidenceMeta = firstNonBlank(
+        [row.fileId, row.chunkId, row.refId].filter(Boolean).join(' / '),
+        row.documentId
+    );
     return `
         <div class="index-search-hit">
             <div class="d-flex justify-content-between gap-2">
@@ -1529,6 +1547,8 @@ function indexSearchSummaryItem(row, index) {
             </div>
             <div class="text-secondary">${escapeHtml(subtitle || '')}</div>
             <div class="text-secondary">source=${escapeHtml(row.source || '')} type=${escapeHtml(row.assetType || '')} count=${escapeHtml(row.columnCount ?? columns.length ?? '')}</div>
+            ${evidenceMeta ? `<div class="text-secondary">evidence=${escapeHtml(evidenceMeta)}</div>` : ''}
+            ${contentPreview}
             ${columnPreview}
         </div>`;
 }
@@ -1553,6 +1573,15 @@ function numberValue(id, fallback) {
 
 function firstNonBlank(...values) {
     return values.find(item => item !== undefined && item !== null && String(item).trim()) || '';
+}
+
+function compactText(text) {
+    return String(text || '').replace(/\s+/g, ' ').trim();
+}
+
+function truncateText(text, maxLength) {
+    const value = String(text || '');
+    return value.length <= maxLength ? value : `${value.slice(0, maxLength)}...`;
 }
 
 function readCommandTemplateForm() {

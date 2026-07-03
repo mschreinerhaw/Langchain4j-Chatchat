@@ -73,6 +73,10 @@ public class ConversationMemoryService {
         return conversationService.ensureConversationId(conversationId, userId);
     }
 
+    public String ensureConversationId(String tenantId, String conversationId, String userId) {
+        return conversationService.ensureConversationId(tenantId, conversationId, userId);
+    }
+
     /**
      * Appends the append.
      *
@@ -170,35 +174,60 @@ public class ConversationMemoryService {
             .toList();
     }
 
+    public List<MessageSnapshot> recent(String tenantId, String conversationId, int limit) {
+        return conversationService.recentMessages(tenantId, conversationId, limit).stream()
+            .map(this::toSnapshot)
+            .toList();
+    }
+
     public Optional<ConversationSummary> summary(String conversationId) {
         return conversationService.latestSummary(conversationId);
     }
 
+    public Optional<ConversationSummary> summary(String tenantId, String conversationId) {
+        return conversationService.latestSummary(tenantId, conversationId);
+    }
+
     public void maybeRefreshSummary(String conversationId) {
+        maybeRefreshSummary(null, conversationId);
+    }
+
+    public void maybeRefreshSummary(String tenantId, String conversationId) {
         if (conversationId == null || conversationId.isBlank() || !properties.isSummaryEnabled()) {
             return;
         }
-        List<Conversation.Message> candidates = conversationService.summaryCandidates(
-            conversationId,
-            properties.getSummaryKeepRecentMessages()
-        );
+        List<Conversation.Message> candidates = tenantId == null || tenantId.isBlank()
+            ? conversationService.summaryCandidates(conversationId, properties.getSummaryKeepRecentMessages())
+            : conversationService.summaryCandidates(tenantId, conversationId, properties.getSummaryKeepRecentMessages());
         if (candidates.size() < properties.getSummaryTriggerMessages()) {
             return;
         }
 
-        String previousSummary = conversationService.latestSummary(conversationId)
+        String previousSummary = (tenantId == null || tenantId.isBlank()
+            ? conversationService.latestSummary(conversationId)
+            : conversationService.latestSummary(tenantId, conversationId))
             .map(ConversationSummary::summary)
             .orElse("");
         String summary = summarize(previousSummary, candidates);
         if (summary == null || summary.isBlank()) {
             return;
         }
-        conversationService.saveSummary(
-            conversationId,
-            limit(summary, properties.getSummaryMaxChars()),
-            candidates.get(0).getId(),
-            candidates.get(candidates.size() - 1).getId()
-        );
+        if (tenantId == null || tenantId.isBlank()) {
+            conversationService.saveSummary(
+                conversationId,
+                limit(summary, properties.getSummaryMaxChars()),
+                candidates.get(0).getId(),
+                candidates.get(candidates.size() - 1).getId()
+            );
+        } else {
+            conversationService.saveSummary(
+                tenantId,
+                conversationId,
+                limit(summary, properties.getSummaryMaxChars()),
+                candidates.get(0).getId(),
+                candidates.get(candidates.size() - 1).getId()
+            );
+        }
     }
 
     private String summarize(String previousSummary, List<Conversation.Message> messages) {

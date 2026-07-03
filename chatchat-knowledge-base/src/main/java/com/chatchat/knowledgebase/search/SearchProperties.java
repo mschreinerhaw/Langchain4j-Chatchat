@@ -28,8 +28,10 @@ public class SearchProperties {
     private int fallbackEmptyResultLimit = 200;
     private int fallbackExceptionLimit = 100;
     private boolean realtimeDocumentCountEnabled = false;
+    private boolean tenantIsolationEnabled = false;
     private QueryBudget queryBudget = new QueryBudget();
     private RetrievalControl retrievalControl = new RetrievalControl();
+    private HybridRetrieval hybridRetrieval = new HybridRetrieval();
     private Ocr ocr = new Ocr();
     private boolean lucenePrfEnabled = true;
     private int lucenePrfTopN = 20;
@@ -70,6 +72,16 @@ public class SearchProperties {
         private long latencyMs = 100L;
         private double minQualityScore = 20.0D;
         private int minSpecificTokens = 2;
+    }
+
+    @Getter
+    @Setter
+    public static class HybridRetrieval {
+        private boolean enabled = true;
+        private int globalDocumentLimit = 8;
+        private int globalChunkLimit = 50;
+        private int candidateDocumentLimit = 5;
+        private int chunksPerDocument = 3;
     }
 
     @Getter

@@ -84,6 +84,16 @@ chatchat:
       expose-agent-compatible-only: true
       excluded-tool-names: []
       instructions: "ChatChat standalone MCP server exposing LangChain4j-compatible tools."
+      document-search:
+        api-base-url: http://localhost:8080
+        endpoint-path: /api/v1/search/document-search
+        timeout-ms: 60000
+        auth:
+          enabled: true
+          login-path: /api/v1/enterprise/auth/login
+          username: admin
+          password: 123456
+          bearer-token: ""
       concurrency:
         # Enables global/tool/user/agent concurrency guards for MCP tool calls.
         enabled: true

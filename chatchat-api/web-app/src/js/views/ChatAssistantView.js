@@ -1269,6 +1269,10 @@ export default {
       type: String,
       default: "mx_48991534"
     },
+    tenantId: {
+      type: String,
+      default: ""
+    },
     pendingDraft: {
       type: Object,
       default: null
@@ -1447,6 +1451,9 @@ export default {
     }
   },
   methods: {
+    effectiveTenantId() {
+      return this.tenantId || this.userId;
+    },
     applyPendingDraft(draft) {
       if (!draft || draft.id === this.appliedDraftId) {
         return;
@@ -1598,6 +1605,7 @@ export default {
 
       const requestPayload = {
         conversationId: this.conversationId || undefined,
+        tenantId: this.effectiveTenantId(),
         userId: this.userId,
         mode: this.selectedAgentId || payload?.webSearch ? "agent_chat" : "llm_chat",
         skillId: this.selectedAgentId || undefined,
@@ -1696,7 +1704,7 @@ export default {
       }
       try {
         await recordUserActivity({
-          tenantId: this.userId,
+          tenantId: this.effectiveTenantId(),
           userId: this.userId,
           targetType: "AGENT",
           targetId: agentId,
@@ -1815,7 +1823,7 @@ export default {
       }
 
       const task = await submitAgentTask({
-        tenantId: this.userId,
+        tenantId: this.effectiveTenantId(),
         resumeTaskId: requestPayload.resumeTaskId || "",
         userId: requestPayload.userId,
         agentId: requestPayload.skillId || "general",
@@ -1837,11 +1845,11 @@ export default {
       this.emitActiveConversationSnapshot(query, "running", runContext);
       await this.saveHistory(query, "running", runContext);
 
-      const refreshSteps = () => this.refreshAgentTaskSteps(runContext.taskId, this.userId, runContext, assistantMessage, query);
+      const refreshSteps = () => this.refreshAgentTaskSteps(runContext.taskId, this.effectiveTenantId(), runContext, assistantMessage, query);
       await refreshSteps();
       const event = await this.waitForAgentTaskResult(
         runContext.taskId,
-        this.userId,
+        this.effectiveTenantId(),
         refreshSteps,
         () => this.isActiveRun(runContext)
       );
@@ -2246,8 +2254,8 @@ export default {
       targetMessage.feedbackError = "";
       this.messages = [...this.messages];
       try {
-        const updatedTask = await submitAgentTaskFeedback(targetMessage.taskId, this.userId, {
-          tenantId: this.userId,
+        const updatedTask = await submitAgentTaskFeedback(targetMessage.taskId, this.effectiveTenantId(), {
+          tenantId: this.effectiveTenantId(),
           userId: this.userId,
           ...feedbackPayload
         });
@@ -2489,13 +2497,13 @@ export default {
       try {
         const formData = new FormData();
         formData.append("file", this.imageForm.file);
-        formData.append("tenantId", this.userId);
+        formData.append("tenantId", this.effectiveTenantId());
         const asset = await uploadChatImage(formData);
         const analysis = await analyzeChatImage({
           fileId: asset?.fileId,
           question: this.imageForm.question || this.question || "",
           mode: this.imageForm.mode || "auto",
-          tenantId: this.userId
+          tenantId: this.effectiveTenantId()
         });
         this.pendingImageAnalysis = analysis;
       } catch (error) {
@@ -2741,6 +2749,7 @@ export default {
       try {
         const history = await saveConversationHistory({
           historyId: context.conversationId || context.historyId,
+          tenantId: this.effectiveTenantId(),
           userId: this.userId,
           question,
           conversationId: context.conversationId,
@@ -2892,7 +2901,7 @@ export default {
     async findActiveTaskIdForRestoredRun(runContext = {}) {
       try {
         const summary = await fetchAgentRuntimeSummary({
-          tenantId: this.userId,
+          tenantId: this.effectiveTenantId(),
           latestLimit: 50
         });
         const tasks = Array.isArray(summary?.latestTasks) ? summary.latestTasks : [];
@@ -2937,12 +2946,12 @@ export default {
       assistantMessage.taskId = taskId;
       this.emitActiveConversationSnapshot(query, "running", runContext);
       await this.saveHistory(query, "running", runContext);
-      const refreshSteps = () => this.refreshAgentTaskSteps(taskId, this.userId, runContext, assistantMessage, query);
+      const refreshSteps = () => this.refreshAgentTaskSteps(taskId, this.effectiveTenantId(), runContext, assistantMessage, query);
       try {
         await refreshSteps();
         const event = await this.waitForAgentTaskResult(
           taskId,
-          this.userId,
+          this.effectiveTenantId(),
           refreshSteps,
           () => this.isActiveRun(runContext)
         );
@@ -3106,10 +3115,10 @@ export default {
         return;
       }
       try {
-        await killRuntimeTask(taskId, this.userId);
+        await killRuntimeTask(taskId, this.effectiveTenantId());
         await this.handleAgentTaskCancelled({
           taskId,
-          tenantId: this.userId,
+          tenantId: this.effectiveTenantId(),
           message: "该操作超过 3 分钟未确认，任务已自动取消。",
           status: "KILLED"
         });
@@ -3226,7 +3235,7 @@ export default {
         return;
       }
       try {
-        await killRuntimeTask(taskId, this.userId);
+        await killRuntimeTask(taskId, this.effectiveTenantId());
         const targetContext = runContext || this.createRunContext(this.pendingMcpRequest?.query || "");
         const lastAssistantMessage = [...targetContext.messages].reverse()
           .find((message) => message.role === "assistant" && (message.streaming || message.status === "waiting"));

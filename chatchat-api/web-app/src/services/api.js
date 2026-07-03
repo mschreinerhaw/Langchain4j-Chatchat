@@ -510,6 +510,9 @@ export function deleteSemanticLexiconEntry(id) {
 
 export function fetchConversationHistory(userId, filters = {}) {
   const params = new URLSearchParams();
+  if (filters.tenantId) {
+    params.set("tenantId", filters.tenantId);
+  }
   if (filters.keyword) {
     params.set("keyword", filters.keyword);
   }
@@ -531,14 +534,24 @@ export function saveConversationHistory(payload) {
 }
 
 export function updateConversationHistoryStatus(userId, historyId, payload) {
-  return apiRequest(`/data/history/${encodeURIComponent(userId)}/${encodeURIComponent(historyId)}/status`, {
+  const params = new URLSearchParams();
+  if (payload?.tenantId) {
+    params.set("tenantId", payload.tenantId);
+  }
+  const query = params.toString();
+  return apiRequest(`/data/history/${encodeURIComponent(userId)}/${encodeURIComponent(historyId)}/status${query ? `?${query}` : ""}`, {
     method: "PATCH",
     body: JSON.stringify(payload)
   });
 }
 
-export function deleteConversationHistory(userId, historyId) {
-  return apiRequest(`/data/history/${encodeURIComponent(userId)}/${encodeURIComponent(historyId)}`, {
+export function deleteConversationHistory(userId, historyId, tenantId = "") {
+  const params = new URLSearchParams();
+  if (tenantId) {
+    params.set("tenantId", tenantId);
+  }
+  const query = params.toString();
+  return apiRequest(`/data/history/${encodeURIComponent(userId)}/${encodeURIComponent(historyId)}${query ? `?${query}` : ""}`, {
     method: "DELETE"
   });
 }
@@ -760,6 +773,15 @@ export function syncMcpCenter() {
 
 export function searchDocuments(filters = {}) {
   const params = new URLSearchParams();
+  if (filters.tenantId) {
+    params.set("tenantId", filters.tenantId);
+  }
+  if (filters.userId) {
+    params.set("userId", filters.userId);
+  }
+  if (filters.roles) {
+    params.set("roles", Array.isArray(filters.roles) ? filters.roles.join(",") : filters.roles);
+  }
   if (filters.keyword) {
     params.set("keyword", filters.keyword);
   }
@@ -804,26 +826,41 @@ export function debugDocumentDecision(payload = {}) {
   });
 }
 
-export function getSearchDocument(docId) {
-  return apiRequest(`/search/documents/${encodeURIComponent(docId)}`);
+function searchPermissionQuery(filters = {}) {
+  const params = new URLSearchParams();
+  if (filters.tenantId) {
+    params.set("tenantId", filters.tenantId);
+  }
+  if (filters.userId) {
+    params.set("userId", filters.userId);
+  }
+  if (filters.roles) {
+    params.set("roles", Array.isArray(filters.roles) ? filters.roles.join(",") : filters.roles);
+  }
+  const query = params.toString();
+  return query ? `?${query}` : "";
 }
 
-export function getSearchDocumentVersions(docId) {
-  return apiRequest(`/search/documents/${encodeURIComponent(docId)}/versions`);
+export function getSearchDocument(docId, filters = {}) {
+  return apiRequest(`/search/documents/${encodeURIComponent(docId)}${searchPermissionQuery(filters)}`);
 }
 
-export function getSearchDocumentVersion(docId, version) {
-  return apiRequest(`/search/documents/${encodeURIComponent(docId)}/versions/${encodeURIComponent(version)}`);
+export function getSearchDocumentVersions(docId, filters = {}) {
+  return apiRequest(`/search/documents/${encodeURIComponent(docId)}/versions${searchPermissionQuery(filters)}`);
 }
 
-export function deleteSearchDocument(docId) {
-  return apiRequest(`/search/documents/${encodeURIComponent(docId)}`, {
+export function getSearchDocumentVersion(docId, version, filters = {}) {
+  return apiRequest(`/search/documents/${encodeURIComponent(docId)}/versions/${encodeURIComponent(version)}${searchPermissionQuery(filters)}`);
+}
+
+export function deleteSearchDocument(docId, filters = {}) {
+  return apiRequest(`/search/documents/${encodeURIComponent(docId)}${searchPermissionQuery(filters)}`, {
     method: "DELETE"
   });
 }
 
-export function reindexSearchDocument(docId) {
-  return apiRequest(`/search/documents/${encodeURIComponent(docId)}/reindex`, {
+export function reindexSearchDocument(docId, filters = {}) {
+  return apiRequest(`/search/documents/${encodeURIComponent(docId)}/reindex${searchPermissionQuery(filters)}`, {
     method: "POST"
   });
 }
@@ -862,6 +899,15 @@ export async function fetchDocumentFile(fileUrl) {
 
 export function fetchResearchLibrary(filters = {}) {
   const params = new URLSearchParams();
+  if (filters.tenantId) {
+    params.set("tenantId", filters.tenantId);
+  }
+  if (filters.userId) {
+    params.set("userId", filters.userId);
+  }
+  if (filters.roles) {
+    params.set("roles", Array.isArray(filters.roles) ? filters.roles.join(",") : filters.roles);
+  }
   if (filters.category) {
     params.set("category", filters.category);
   }
@@ -881,8 +927,17 @@ export function fetchResearchLibrary(filters = {}) {
   return apiRequest(`/search/library${query ? `?${query}` : ""}`);
 }
 
-export function checkDocumentTitleExists(title) {
+export function checkDocumentTitleExists(title, filters = {}) {
   const params = new URLSearchParams({ title });
+  if (filters.tenantId) {
+    params.set("tenantId", filters.tenantId);
+  }
+  if (filters.userId) {
+    params.set("userId", filters.userId);
+  }
+  if (filters.roles) {
+    params.set("roles", Array.isArray(filters.roles) ? filters.roles.join(",") : filters.roles);
+  }
   return apiRequest(`/search/documents/title-exists?${params.toString()}`);
 }
 
@@ -906,19 +961,19 @@ export function deleteResearchCategory(name) {
   });
 }
 
-export function reindexResearchCategory(name) {
-  return apiRequest("/search/library/categories/reindex", {
+export function reindexResearchCategory(name, filters = {}) {
+  return apiRequest(`/search/library/categories/reindex${searchPermissionQuery(filters)}`, {
     method: "POST",
     body: JSON.stringify({ name })
   });
 }
 
-export function fetchResearchCategoryReindexStatus() {
-  return apiRequest("/search/library/categories/reindex/status");
+export function fetchResearchCategoryReindexStatus(filters = {}) {
+  return apiRequest(`/search/library/categories/reindex/status${searchPermissionQuery(filters)}`);
 }
 
-export function updateSearchDocumentCategory(docId, category) {
-  return apiRequest(`/search/documents/${encodeURIComponent(docId)}/category`, {
+export function updateSearchDocumentCategory(docId, category, filters = {}) {
+  return apiRequest(`/search/documents/${encodeURIComponent(docId)}/category${searchPermissionQuery(filters)}`, {
     method: "PUT",
     body: JSON.stringify({ category })
   });

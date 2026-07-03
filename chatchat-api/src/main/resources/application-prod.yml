@@ -136,6 +136,7 @@ chatchat:
     fallback-candidate-limit: ${CHAT_SEARCH_FALLBACK_CANDIDATE_LIMIT:500}
     fallback-empty-result-limit: ${CHAT_SEARCH_FALLBACK_EMPTY_RESULT_LIMIT:200}
     fallback-exception-limit: ${CHAT_SEARCH_FALLBACK_EXCEPTION_LIMIT:100}
+    tenant-isolation-enabled: ${CHAT_SEARCH_TENANT_ISOLATION_ENABLED:false}
     lucene-max-query-terms: ${CHAT_SEARCH_LUCENE_MAX_QUERY_TERMS:80}
     lucene-max-negative-query-terms: ${CHAT_SEARCH_LUCENE_MAX_NEGATIVE_QUERY_TERMS:24}
     lucene-mmr-candidate-limit: ${CHAT_SEARCH_LUCENE_MMR_CANDIDATE_LIMIT:120}

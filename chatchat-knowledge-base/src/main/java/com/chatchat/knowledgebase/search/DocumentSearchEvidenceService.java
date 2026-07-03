@@ -20,16 +20,18 @@ import java.util.UUID;
 public class DocumentSearchEvidenceService {
 
     private static final int DEFAULT_TOP_K = 8;
-    private static final int MAX_TOP_K = 30;
 
-    private final SearchService searchService;
     private final SearchTokenizer tokenizer;
     private final QueryIntentClassifier intentClassifier;
-    private final EvidenceContextFormatter contextFormatter;
     private final SearchProperties properties;
-    private final RetrievalQueryValidator queryValidator;
     private final RetrievalEvidenceQualityScorer qualityScorer;
     private final TextChunker chunker;
+    private final QueryPlanningService queryPlanningService;
+    private final SearchPermissionGuard permissionGuard;
+    private final DocumentSearchOrchestrator orchestrator;
+    private final PerDocumentIndexService perDocumentIndexService;
+    private final EvidenceAssembler evidenceAssembler;
+    private final EvidenceReranker evidenceReranker;
     private final EvidenceReasoningEngine reasoningEngine = new EvidenceReasoningEngine();
     private final EvidenceDecisionEngine decisionEngine = new EvidenceDecisionEngine();
     private final KnowledgeGraphFusionEngine knowledgeGraphFusionEngine = new KnowledgeGraphFusionEngine();
@@ -41,28 +43,18 @@ public class DocumentSearchEvidenceService {
         String traceId = UUID.randomUUID().toString();
         RetrievalExecutionState state = RetrievalExecutionState.started(traceId);
         List<RetrievalEvent> events = new ArrayList<>();
-        String query = requireQuery(request == null ? null : request.query());
-        int topK = normalizeTopK(request == null ? null : request.topK());
-        DocumentSearchFilters filters = request == null ? null : request.filters();
-        List<String> scopedFileIds = request == null ? List.of() : safeList(request.fileIds()).stream()
-            .filter(this::hasText)
-            .map(String::trim)
-            .distinct()
-            .toList();
-        boolean debug = request != null && Boolean.TRUE.equals(request.debug());
-        SearchPermissionContext permissionContext = request == null
-            ? SearchPermissionContext.system()
-            : SearchPermissionContext.of(request.tenantId(), request.userId(), request.roles());
-        DocumentVisibilityContext visibilityContext = visibilityContext(request, permissionContext);
-        List<String> effectiveScopedFileIds = visibilityContext.active()
-            ? visibilityContext.filterIds(scopedFileIds)
-            : scopedFileIds;
-        List<String> visibilityScopeIds = visibilityContext.active() && scopedFileIds.isEmpty()
-            ? List.copyOf(visibilityContext.allowedFileIds())
-            : effectiveScopedFileIds;
-        String fileIds = joinValues(visibilityScopeIds);
-        String intent = intentClassifier.classifyName(query);
-        RetrievalValidationResult validation = queryValidator.validate(query, !visibilityScopeIds.isEmpty(), filters);
+        DocumentSearchPlan plan = queryPlanningService.plan(request);
+        String query = plan.query();
+        int topK = plan.topK();
+        DocumentSearchFilters filters = plan.filters();
+        List<String> scopedFileIds = plan.scopedFileIds();
+        boolean debug = plan.debug();
+        SearchPermissionContext permissionContext = plan.permissionContext();
+        DocumentVisibilityContext visibilityContext = plan.visibilityContext();
+        List<String> effectiveScopedFileIds = plan.effectiveScopedFileIds();
+        List<String> visibilityScopeIds = plan.visibilityScopeIds();
+        String intent = plan.intent();
+        RetrievalValidationResult validation = plan.validation();
         events.add(event(
             traceId,
             RetrievalControlStep.VALIDATOR,
@@ -154,7 +146,7 @@ public class DocumentSearchEvidenceService {
             if (visibilityScopeIds.isEmpty()) {
                 return controlledResult(query, intent, List.of(), state, events, elapsedMs(startedAt));
             }
-        } else if (visibilityRequested(request) && permissionContext.isSuperAdmin()) {
+        } else if (permissionGuard.visibilityRequested(request) && permissionContext.isSuperAdmin()) {
             log.info(
                 "document_visibility_bypass query='{}' reason=super_admin roles={}",
                 safeLogQuery(query),
@@ -178,22 +170,16 @@ public class DocumentSearchEvidenceService {
             return controlledResult(result, state, events, elapsedMs(startedAt));
         }
 
-        SearchPage page = searchService.frontendQuickSearch(
-            query,
-            filters == null ? null : filters.tag(),
-            filters == null ? null : filters.company(),
-            filters == null ? null : filters.industry(),
-            fileIds,
-            1,
-            Math.max(topK, DEFAULT_TOP_K),
-            permissionContext
-        );
+        DocumentRecallResult recallResult = orchestrator.recall(plan, hybridDocumentLimit(topK));
 
         List<DocumentEvidenceChunk> chunks = new ArrayList<>();
         List<DocumentSearchHit> documents = new ArrayList<>();
         List<DocumentOutlineItem> outline = new ArrayList<>();
-        List<String> queryTokens = tokenizer.searchTokens(query);
-        for (SearchResult result : page.results()) {
+        List<String> queryTokens = plan.queryTokens();
+        List<SearchResult> searchResults = recallResult.candidates().stream()
+            .map(DocumentSearchCandidate::result)
+            .toList();
+        for (SearchResult result : searchResults) {
             if (!matchesFileType(result, filters == null ? null : filters.fileType())) {
                 continue;
             }
@@ -246,6 +232,24 @@ public class DocumentSearchEvidenceService {
                         return controlledResult(visibleResult(query, intent, chunks, documents, outline, visibilityContext), state, events, elapsedMs(startedAt));
                     }
                 }
+                int beforeFine = chunks.size();
+                addFineDocumentEvidence(
+                    chunks,
+                    result,
+                    query,
+                    queryTokens,
+                    intent,
+                    topK - chunks.size(),
+                    debug,
+                    filters,
+                    permissionContext
+                );
+                if (chunks.size() > beforeFine) {
+                    if (chunks.size() >= topK) {
+                        return controlledResult(visibleResult(query, intent, chunks, documents, outline, visibilityContext), state, events, elapsedMs(startedAt));
+                    }
+                    continue;
+                }
                 for (SearchMatchedChunk chunk : matchedChunks) {
                     if (!matchesChunkType(chunk, filters == null ? null : filters.chunkType())) {
                         continue;
@@ -263,9 +267,9 @@ public class DocumentSearchEvidenceService {
         return controlledResult(toV2SearchResult(
             query,
             intent,
-            visibleChunks(chunks, visibilityContext),
-            visibleDocuments(documents, visibilityContext),
-            visibleOutline(outline, visibilityContext)
+            permissionGuard.visibleChunks(chunks, visibilityContext),
+            permissionGuard.visibleDocuments(documents, visibilityContext),
+            permissionGuard.visibleOutline(outline, visibilityContext)
         ), state, events, elapsedMs(startedAt));
     }
 
@@ -276,16 +280,12 @@ public class DocumentSearchEvidenceService {
         if (!hasText(docId)) {
             throw new IllegalArgumentException("docId is required");
         }
-        SearchPermissionContext permissionContext = SearchPermissionContext.of(
-            request.tenantId(),
-            request.userId(),
-            request.roles()
-        );
-        DocumentVisibilityContext visibilityContext = visibilityContext(request, permissionContext);
+        SearchPermissionContext permissionContext = permissionGuard.permissionContext(request);
+        DocumentVisibilityContext visibilityContext = permissionGuard.visibilityContext(request, permissionContext);
         if (visibilityContext.active() && !visibilityContext.allows(docId.trim())) {
             throw new IllegalArgumentException("document is not visible in current selection: " + docId.trim());
         }
-        if (!visibilityContext.active() && visibilityRequested(request) && permissionContext.isSuperAdmin()) {
+        if (!visibilityContext.active() && permissionGuard.visibilityRequested(request) && permissionContext.isSuperAdmin()) {
             log.info(
                 "document_visibility_bypass_expand query='{}' docId={} reason=super_admin roles={}",
                 safeLogQuery(query),
@@ -293,7 +293,7 @@ public class DocumentSearchEvidenceService {
                 permissionContext.roles()
             );
         }
-        SearchDocument document = searchService.get(docId.trim(), permissionContext)
+        SearchDocument document = perDocumentIndexService.openDocumentIndex(docId.trim(), permissionContext)
             .orElseThrow(() -> new IllegalArgumentException("document not found: " + docId.trim()));
         int maxChunks = normalizeExpansionMax(request.maxChunks(), request.topK(), 6, 20);
         int maxSections = normalizeExpansionMax(request.maxSections(), null, 3, 10);
@@ -310,7 +310,7 @@ public class DocumentSearchEvidenceService {
             Boolean.TRUE.equals(request.debug())
         );
         SectionGraph sectionGraph = buildSectionGraph(document, query, queryTokens);
-        DocumentSearchResult formatted = contextFormatter.toSearchResult(query, intent, chunks);
+        DocumentSearchResult formatted = evidenceAssembler.evidenceOnly(query, intent, chunks);
         EvidenceReasoningResult reasoning = reasoningEngine.reason(formatted, qualityScorer.score(formatted.results()));
         EvidenceDecisionResult decision = decisionEngine.decide(formatted, reasoning);
         KnowledgeRuntimeGraph knowledgeGraph = knowledgeGraphFusionEngine.fuse(sectionGraph, reasoning.graph());
@@ -348,20 +348,68 @@ public class DocumentSearchEvidenceService {
         List<String> queryTokens = tokenizer.searchTokens(query);
         List<DocumentEvidenceChunk> chunks = new ArrayList<>();
         for (String fileId : fileIds) {
-            searchService.get(fileId, permissionContext)
+            perDocumentIndexService.openDocumentIndex(fileId, permissionContext)
                 .filter(document -> matchesDocumentFilters(document, filters))
                 .ifPresent(document -> chunks.addAll(toScopedEvidence(document, query, queryTokens, intent, debug, topK)));
             if (chunks.size() >= topK) {
                 break;
             }
         }
-        List<DocumentEvidenceChunk> ranked = chunks.stream()
-            .sorted(Comparator
-                .comparing(DocumentEvidenceChunk::score, Comparator.nullsLast(Comparator.reverseOrder()))
-                .thenComparing(DocumentEvidenceChunk::fileName, Comparator.nullsLast(String::compareTo)))
-            .limit(topK)
-            .toList();
-        return contextFormatter.toSearchResult(query, intent, ranked);
+        List<DocumentEvidenceChunk> ranked = evidenceReranker.rerank(query, chunks, topK);
+        return evidenceAssembler.evidenceOnly(query, intent, ranked);
+    }
+
+    private int hybridDocumentLimit(int topK) {
+        SearchProperties.HybridRetrieval hybrid = properties.getHybridRetrieval();
+        int defaultLimit = Math.max(topK, DEFAULT_TOP_K);
+        if (hybrid == null || !hybrid.isEnabled()) {
+            return defaultLimit;
+        }
+        return Math.max(defaultLimit, Math.max(1, hybrid.getGlobalDocumentLimit()));
+    }
+
+    private void addFineDocumentEvidence(List<DocumentEvidenceChunk> chunks,
+                                         SearchResult result,
+                                         String query,
+                                         List<String> queryTokens,
+                                         String intent,
+                                         int remaining,
+                                         boolean debug,
+                                         DocumentSearchFilters filters,
+                                         SearchPermissionContext permissionContext) {
+        SearchProperties.HybridRetrieval hybrid = properties.getHybridRetrieval();
+        if (hybrid == null || !hybrid.isEnabled() || remaining <= 0 || result == null || !hasText(result.docId())) {
+            return;
+        }
+        if (filters != null && hasText(filters.chunkType())) {
+            return;
+        }
+        SearchDocument document = perDocumentIndexService.openDocumentIndex(result.docId(), permissionContext).orElse(null);
+        if (document == null || !matchesDocumentFilters(document, filters)) {
+            return;
+        }
+        int perDocumentLimit = Math.min(Math.max(1, remaining), Math.max(1, hybrid.getChunksPerDocument()));
+        List<DocumentEvidenceChunk> fineChunks = toScopedEvidence(
+            document,
+            query,
+            queryTokens,
+            intent,
+            debug,
+            perDocumentLimit
+        );
+        Set<String> existing = chunks.stream()
+            .map(DocumentEvidenceChunk::refId)
+            .collect(LinkedHashSet::new, Set::add, Set::addAll);
+        int added = 0;
+        for (DocumentEvidenceChunk chunk : fineChunks) {
+            if (chunk != null && existing.add(chunk.refId())) {
+                chunks.add(chunk);
+                added++;
+                if (added >= remaining) {
+                    break;
+                }
+            }
+        }
     }
 
     private DocumentSearchResult controlledResult(String query,
@@ -369,7 +417,7 @@ public class DocumentSearchEvidenceService {
                                                   List<DocumentEvidenceChunk> chunks,
                                                   RetrievalExecutionState state,
                                                   List<RetrievalEvent> events) {
-        return controlledResult(contextFormatter.toSearchResult(query, intent, chunks), state, events, 0L);
+        return controlledResult(evidenceAssembler.evidenceOnly(query, intent, chunks), state, events, 0L);
     }
 
     private DocumentSearchResult controlledResult(String query,
@@ -378,7 +426,7 @@ public class DocumentSearchEvidenceService {
                                                   RetrievalExecutionState state,
                                                   List<RetrievalEvent> events,
                                                   long latencyMs) {
-        return controlledResult(contextFormatter.toSearchResult(query, intent, chunks), state, events, latencyMs);
+        return controlledResult(evidenceAssembler.evidenceOnly(query, intent, chunks), state, events, latencyMs);
     }
 
     private DocumentSearchResult controlledResult(DocumentSearchResult result,
@@ -386,7 +434,7 @@ public class DocumentSearchEvidenceService {
                                                   List<RetrievalEvent> events,
                                                   long latencyMs) {
         DocumentSearchResult safeResult = result == null
-            ? contextFormatter.toSearchResult("", "GENERAL", List.of())
+            ? evidenceAssembler.evidenceOnly("", "GENERAL", List.of())
             : result;
         RetrievalExecutionState currentState = state == null
             ? RetrievalExecutionState.started(UUID.randomUUID().toString())
@@ -465,30 +513,7 @@ public class DocumentSearchEvidenceService {
                                                   List<DocumentEvidenceChunk> chunks,
                                                   List<DocumentSearchHit> documents,
                                                   List<DocumentOutlineItem> outline) {
-        List<DocumentEvidenceChunk> safeChunks = chunks == null ? List.of() : chunks;
-        List<DocumentSearchHit> safeDocuments = documents == null ? List.of() : documents;
-        List<DocumentOutlineItem> safeOutline = outline == null ? List.of() : outline;
-        DocumentSearchMatchType matchType = matchType(safeChunks, safeDocuments);
-        DocumentSearchResult base = contextFormatter.toSearchResult(query, intent, safeChunks);
-        return new DocumentSearchResult(
-            base.contractVersion(),
-            base.query(),
-            base.intent(),
-            safeChunks.isEmpty() ? safeDocuments.size() : base.total() + safeDocuments.size(),
-            base.results(),
-            base.context(),
-            base.citations(),
-            base.retrievalState(),
-            base.evidenceQuality(),
-            base.retrievalEvents(),
-            matchType,
-            semantics(matchType),
-            safeDocuments,
-            safeOutline,
-            outlineSource(safeOutline),
-            expansionPolicy(matchType).withQueryContext(query, intent),
-            governancePolicy(matchType)
-        );
+        return evidenceAssembler.assemble(query, intent, chunks, documents, outline);
     }
 
     private DocumentSearchResult visibleResult(String query,
@@ -500,80 +525,10 @@ public class DocumentSearchEvidenceService {
         return toV2SearchResult(
             query,
             intent,
-            visibleChunks(chunks, visibilityContext),
-            visibleDocuments(documents, visibilityContext),
-            visibleOutline(outline, visibilityContext)
+            permissionGuard.visibleChunks(chunks, visibilityContext),
+            permissionGuard.visibleDocuments(documents, visibilityContext),
+            permissionGuard.visibleOutline(outline, visibilityContext)
         );
-    }
-
-    private List<DocumentEvidenceChunk> visibleChunks(List<DocumentEvidenceChunk> chunks,
-                                                      DocumentVisibilityContext visibilityContext) {
-        if (chunks == null || chunks.isEmpty() || visibilityContext == null || !visibilityContext.active()) {
-            return chunks == null ? List.of() : chunks;
-        }
-        return chunks.stream()
-            .filter(chunk -> chunk != null && visibilityContext.allows(chunk.fileId()))
-            .toList();
-    }
-
-    private List<DocumentSearchHit> visibleDocuments(List<DocumentSearchHit> documents,
-                                                     DocumentVisibilityContext visibilityContext) {
-        if (documents == null || documents.isEmpty() || visibilityContext == null || !visibilityContext.active()) {
-            return documents == null ? List.of() : documents;
-        }
-        return documents.stream()
-            .filter(document -> document != null && visibilityContext.allows(document.docId()))
-            .toList();
-    }
-
-    private List<DocumentOutlineItem> visibleOutline(List<DocumentOutlineItem> outline,
-                                                    DocumentVisibilityContext visibilityContext) {
-        if (outline == null || outline.isEmpty() || visibilityContext == null || !visibilityContext.active()) {
-            return outline == null ? List.of() : outline;
-        }
-        return outline.stream()
-            .filter(item -> item != null && visibilityContext.allows(item.docId()))
-            .toList();
-    }
-
-    private DocumentVisibilityContext visibilityContext(DocumentSearchRequest request, SearchPermissionContext permissionContext) {
-        if (request == null) {
-            return DocumentVisibilityContext.unrestricted();
-        }
-        if (permissionContext != null && permissionContext.isSuperAdmin() && visibilityRequested(request)) {
-            return DocumentVisibilityContext.unrestricted();
-        }
-        List<String> selected = !safeList(request.selectedDocumentIds()).isEmpty()
-            ? safeList(request.selectedDocumentIds())
-            : safeList(request.selectedFileIds());
-        return DocumentVisibilityContext.of(selected, request.documentVisibilityEnforced());
-    }
-
-    private DocumentVisibilityContext visibilityContext(DocumentSearchExpandRequest request, SearchPermissionContext permissionContext) {
-        if (request == null) {
-            return DocumentVisibilityContext.unrestricted();
-        }
-        if (permissionContext != null && permissionContext.isSuperAdmin() && visibilityRequested(request)) {
-            return DocumentVisibilityContext.unrestricted();
-        }
-        List<String> selected = !safeList(request.selectedDocumentIds()).isEmpty()
-            ? safeList(request.selectedDocumentIds())
-            : safeList(request.selectedFileIds());
-        return DocumentVisibilityContext.of(selected, request.documentVisibilityEnforced());
-    }
-
-    private boolean visibilityRequested(DocumentSearchRequest request) {
-        return request != null
-            && (!safeList(request.selectedDocumentIds()).isEmpty()
-                || !safeList(request.selectedFileIds()).isEmpty()
-                || Boolean.TRUE.equals(request.documentVisibilityEnforced()));
-    }
-
-    private boolean visibilityRequested(DocumentSearchExpandRequest request) {
-        return request != null
-            && (!safeList(request.selectedDocumentIds()).isEmpty()
-                || !safeList(request.selectedFileIds()).isEmpty()
-                || Boolean.TRUE.equals(request.documentVisibilityEnforced()));
     }
 
     private boolean isTitleOnlyHit(SearchResult result) {
@@ -614,7 +569,7 @@ public class DocumentSearchEvidenceService {
         if (result == null || !hasText(result.docId())) {
             return List.of();
         }
-        SearchDocument document = searchService.get(result.docId(), permissionContext).orElse(null);
+        SearchDocument document = perDocumentIndexService.openDocumentIndex(result.docId(), permissionContext).orElse(null);
         if (document != null && hasText(document.getContent())) {
             return outlineForDocument(document, 20);
         }
@@ -1260,7 +1215,7 @@ public class DocumentSearchEvidenceService {
         if (remaining <= 0 || result == null || !hasText(result.docId())) {
             return;
         }
-        SearchDocument document = searchService.get(result.docId(), permissionContext).orElse(null);
+        SearchDocument document = perDocumentIndexService.openDocumentIndex(result.docId(), permissionContext).orElse(null);
         if (document == null || !hasText(document.getContent())) {
             return;
         }
@@ -1288,7 +1243,7 @@ public class DocumentSearchEvidenceService {
         if (remaining <= 0 || result == null || !hasText(result.docId())) {
             return;
         }
-        SearchDocument document = searchService.get(result.docId(), permissionContext).orElse(null);
+        SearchDocument document = perDocumentIndexService.openDocumentIndex(result.docId(), permissionContext).orElse(null);
         if (document == null || !hasText(document.getContent())) {
             return;
         }
@@ -1635,69 +1590,12 @@ public class DocumentSearchEvidenceService {
         return Math.max(0L, (System.nanoTime() - startedAtNanos) / 1_000_000L);
     }
 
-    private int normalizeTopK(Integer value) {
-        if (value == null) {
-            return DEFAULT_TOP_K;
-        }
-        return Math.max(1, Math.min(MAX_TOP_K, value));
-    }
-
     private int normalizeExpansionMax(Integer primary, Integer fallback, int defaultValue, int maxValue) {
         Integer value = primary == null ? fallback : primary;
         if (value == null) {
             return defaultValue;
         }
         return Math.max(1, Math.min(maxValue, value));
-    }
-
-    private DocumentSearchMatchType matchType(List<DocumentEvidenceChunk> chunks, List<DocumentSearchHit> documents) {
-        boolean hasChunks = chunks != null && !chunks.isEmpty();
-        boolean hasDocuments = documents != null && !documents.isEmpty();
-        if (hasChunks && hasDocuments) {
-            return DocumentSearchMatchType.MIXED_HIT;
-        }
-        if (hasChunks) {
-            return DocumentSearchMatchType.CONTENT_HIT;
-        }
-        if (hasDocuments) {
-            return DocumentSearchMatchType.TITLE_ONLY_HIT;
-        }
-        return DocumentSearchMatchType.NO_HIT;
-    }
-
-    private DocumentRetrievalSemantics semantics(DocumentSearchMatchType matchType) {
-        return switch (matchType) {
-            case CONTENT_HIT -> DocumentRetrievalSemantics.evidenceBody();
-            case MIXED_HIT -> DocumentRetrievalSemantics.partialEvidence();
-            case TITLE_ONLY_HIT -> DocumentRetrievalSemantics.titleOnly();
-            case NO_HIT -> DocumentRetrievalSemantics.noHit();
-        };
-    }
-
-    private DocumentExpansionPolicy expansionPolicy(DocumentSearchMatchType matchType) {
-        return switch (matchType) {
-            case TITLE_ONLY_HIT -> DocumentExpansionPolicy.titleOnly();
-            case MIXED_HIT -> DocumentExpansionPolicy.mixed();
-            case CONTENT_HIT, NO_HIT -> DocumentExpansionPolicy.none();
-        };
-    }
-
-    private EvidenceGovernancePolicy governancePolicy(DocumentSearchMatchType matchType) {
-        return switch (matchType) {
-            case CONTENT_HIT, MIXED_HIT -> EvidenceGovernancePolicy.contentReady();
-            case TITLE_ONLY_HIT -> EvidenceGovernancePolicy.needsExpansion(
-                DocumentExpansionPolicy.titleOnly().maxSections(),
-                DocumentExpansionPolicy.titleOnly().maxChunks()
-            );
-            case NO_HIT -> EvidenceGovernancePolicy.noEvidence();
-        };
-    }
-
-    private DocumentOutlineSource outlineSource(List<DocumentOutlineItem> outline) {
-        if (outline == null || outline.isEmpty()) {
-            return null;
-        }
-        return outline.get(0).source();
     }
 
     private String sectionLabel(TextChunker.TextChunk chunk, int index) {
@@ -1794,17 +1692,6 @@ public class DocumentSearchEvidenceService {
             throw new IllegalArgumentException("query is required");
         }
         return query.trim();
-    }
-
-    private String joinValues(List<String> values) {
-        if (values == null || values.isEmpty()) {
-            return null;
-        }
-        return values.stream()
-            .filter(this::hasText)
-            .map(String::trim)
-            .reduce((left, right) -> left + "," + right)
-            .orElse(null);
     }
 
     private boolean containsAny(String text, List<String> values) {

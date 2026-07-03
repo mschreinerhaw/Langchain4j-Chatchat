@@ -479,7 +479,9 @@ public class LuceneDocumentIndexService {
         access.add(ownerRoleAccess.build(), BooleanClause.Occur.SHOULD);
         access.setMinimumNumberShouldMatch(1);
 
-        query.add(new TermQuery(new Term(TENANT_ID, tenantId)), BooleanClause.Occur.MUST);
+        if (properties.isTenantIsolationEnabled()) {
+            query.add(new TermQuery(new Term(TENANT_ID, tenantId)), BooleanClause.Occur.MUST);
+        }
         query.add(access.build(), BooleanClause.Occur.MUST);
     }
 

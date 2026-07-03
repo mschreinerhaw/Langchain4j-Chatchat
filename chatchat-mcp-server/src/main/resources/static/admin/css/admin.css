@@ -1841,6 +1841,16 @@ body {
     background: #fbfdff;
 }
 
+.index-search-evidence {
+    margin-top: 8px;
+    padding: 8px;
+    border-left: 3px solid #6aa7ff;
+    background: #f5f9ff;
+    color: #27364d;
+    line-height: 1.55;
+    overflow-wrap: anywhere;
+}
+
 .index-search-columns {
     display: flex;
     flex-wrap: wrap;

@@ -14,6 +14,7 @@ import java.util.Map;
 public class Conversation {
 
     private String id;
+    private String tenantId;
     private String userId;
     private String title;
     private String status;
@@ -33,6 +34,7 @@ public class Conversation {
      */
     private Conversation(ConversationBuilder builder) {
         this.id = builder.id;
+        this.tenantId = builder.tenantId;
         this.userId = builder.userId;
         this.title = builder.title;
         this.status = builder.status;
@@ -175,6 +177,7 @@ public class Conversation {
 
     public static class ConversationBuilder {
         private String id;
+        private String tenantId;
         private String userId;
         private String title;
         private String status;
@@ -195,6 +198,11 @@ public class Conversation {
          */
         public ConversationBuilder id(String id) {
             this.id = id;
+            return this;
+        }
+
+        public ConversationBuilder tenantId(String tenantId) {
+            this.tenantId = tenantId;
             return this;
         }
 

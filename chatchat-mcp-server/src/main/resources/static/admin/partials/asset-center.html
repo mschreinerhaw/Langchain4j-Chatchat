@@ -244,11 +244,12 @@
                 <div class="col-md-2">
                     <label class="form-label small text-secondary" for="indexSearchType">索引</label>
                     <select id="indexSearchType" class="form-select">
-                        <option value="sql_metadata">SQL 元数据</option>
+                        <option value="sql_metadata">元数据索引</option>
                         <option value="assets">资产索引</option>
                         <option value="templates">模板索引</option>
                         <option value="database_query">业务查询索引</option>
                         <option value="api_service">API 服务索引</option>
+                        <option value="document_search">文档索引</option>
                     </select>
                 </div>
                 <div class="col-md-3">
@@ -308,6 +309,10 @@
                     <label class="form-label small text-secondary" for="indexSearchLabels">标签</label>
                     <input id="indexSearchLabels" class="form-control" placeholder="metadata_table,table:xxx">
                 </div>
+                <div class="col-md-3">
+                    <label class="form-label small text-secondary" for="indexSearchDocumentIds">文档 ID</label>
+                    <input id="indexSearchDocumentIds" class="form-control" placeholder="doc_001, doc_002">
+                </div>
                 <div class="col-md-1">
                     <label class="form-label small text-secondary" for="indexSearchLimit">Limit</label>
                     <input id="indexSearchLimit" class="form-control" type="number" min="1" max="50" value="10">
@@ -317,6 +322,13 @@
                     <select id="indexSearchIncludeColumns" class="form-select">
                         <option value="true">返回</option>
                         <option value="false">不返回</option>
+                    </select>
+                </div>
+                <div class="col-md-1">
+                    <label class="form-label small text-secondary" for="indexSearchDocumentDebug">Debug</label>
+                    <select id="indexSearchDocumentDebug" class="form-select">
+                        <option value="false">false</option>
+                        <option value="true">true</option>
                     </select>
                 </div>
             </div>

@@ -52,8 +52,13 @@ public class ConversationService {
      */
     @Transactional
     public Conversation createConversation(String userId, String title) {
+        return createConversation(DEFAULT_TENANT_ID, userId, title);
+    }
+
+    @Transactional
+    public Conversation createConversation(String tenantId, String userId, String title) {
         ChatSessionEntity session = new ChatSessionEntity();
-        session.setTenantId(DEFAULT_TENANT_ID);
+        session.setTenantId(normalizeTenantId(tenantId));
         session.setUserId(normalize(userId, DEFAULT_USER_ID));
         session.setTitle(normalizeTitle(title));
         session.setStatus("active");
@@ -69,16 +74,24 @@ public class ConversationService {
      */
     @Transactional
     public String ensureConversationId(String conversationId, String userId) {
+        return ensureConversationId(DEFAULT_TENANT_ID, conversationId, userId);
+    }
+
+    @Transactional
+    public String ensureConversationId(String tenantId, String conversationId, String userId) {
+        String normalizedTenantId = normalizeTenantId(tenantId);
         if (conversationId == null || conversationId.isBlank()) {
-            return createConversation(userId, "New Conversation").getId();
+            return createConversation(normalizedTenantId, userId, "New Conversation").getId();
         }
         String normalizedConversationId = conversationId.trim();
-        if (sessionRepository.existsById(normalizedConversationId)) {
+        Optional<ChatSessionEntity> existing = sessionRepository.findById(normalizedConversationId);
+        if (existing.isPresent()) {
+            ensureTenant(existing.get(), normalizedTenantId);
             return normalizedConversationId;
         }
         ChatSessionEntity session = new ChatSessionEntity();
         session.setSessionId(normalizedConversationId);
-        session.setTenantId(DEFAULT_TENANT_ID);
+        session.setTenantId(normalizedTenantId);
         session.setUserId(normalize(userId, DEFAULT_USER_ID));
         session.setTitle("New Conversation");
         session.setStatus("active");
@@ -98,6 +111,13 @@ public class ConversationService {
             .map(session -> toConversation(session, listMessageDetails(conversationId)));
     }
 
+    @Transactional(readOnly = true)
+    public Optional<Conversation> getConversation(String tenantId, String conversationId) {
+        String normalizedTenantId = normalizeTenantId(tenantId);
+        return sessionRepository.findBySessionIdAndTenantId(conversationId, normalizedTenantId)
+            .map(session -> toConversation(session, listMessageDetails(normalizedTenantId, conversationId)));
+    }
+
     /**
      * Lists the user conversations.
      *
@@ -107,6 +127,13 @@ public class ConversationService {
     @Transactional(readOnly = true)
     public List<Conversation> listUserConversations(String userId) {
         return sessionRepository.findByUserIdOrderByUpdatedAtDesc(userId).stream()
+            .map(session -> toConversation(session, List.of()))
+            .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<Conversation> listUserConversations(String tenantId, String userId) {
+        return sessionRepository.findByTenantIdAndUserIdOrderByUpdatedAtDesc(normalizeTenantId(tenantId), normalize(userId, DEFAULT_USER_ID)).stream()
             .map(session -> toConversation(session, List.of()))
             .toList();
     }
@@ -126,6 +153,15 @@ public class ConversationService {
     }
 
     @Transactional
+    public Conversation updateConversationSummary(String tenantId,
+                                                  String conversationId,
+                                                  String userId,
+                                                  String title,
+                                                  String status) {
+        return updateConversationSummary(tenantId, conversationId, userId, title, status, null, null, null, null);
+    }
+
+    @Transactional
     public Conversation updateConversationSummary(String conversationId,
                                                   String userId,
                                                   String title,
@@ -134,9 +170,24 @@ public class ConversationService {
                                                   String modelName,
                                                   String mode,
                                                   String agentName) {
-        String normalizedConversationId = ensureConversationId(conversationId, userId);
+        return updateConversationSummary(DEFAULT_TENANT_ID, conversationId, userId, title, status, skillId, modelName, mode, agentName);
+    }
+
+    @Transactional
+    public Conversation updateConversationSummary(String tenantId,
+                                                  String conversationId,
+                                                  String userId,
+                                                  String title,
+                                                  String status,
+                                                  String skillId,
+                                                  String modelName,
+                                                  String mode,
+                                                  String agentName) {
+        String normalizedTenantId = normalizeTenantId(tenantId);
+        String normalizedConversationId = ensureConversationId(normalizedTenantId, conversationId, userId);
         ChatSessionEntity session = sessionRepository.findById(normalizedConversationId)
             .orElseThrow(() -> new IllegalArgumentException("Conversation not found: " + normalizedConversationId));
+        ensureTenant(session, normalizedTenantId);
         if (title != null && !title.isBlank()) {
             session.setTitle(normalizeTitle(title));
         }
@@ -155,7 +206,7 @@ public class ConversationService {
         if (agentName != null) {
             session.setAgentName(blankToNull(agentName));
         }
-        return toConversation(sessionRepository.save(session), listMessageDetails(normalizedConversationId));
+        return toConversation(sessionRepository.save(session), listMessageDetails(normalizedTenantId, normalizedConversationId));
     }
 
     /**
@@ -172,6 +223,21 @@ public class ConversationService {
         sessionRepository.deleteById(conversationId);
     }
 
+    @Transactional
+    public void deleteConversation(String tenantId, String conversationId) {
+        String normalizedTenantId = normalizeTenantId(tenantId);
+        ChatSessionEntity session = sessionRepository.findBySessionIdAndTenantId(conversationId, normalizedTenantId)
+            .orElseThrow(() -> new IllegalArgumentException("Conversation not found: " + conversationId));
+        List<ChatMessageIndexEntity> indexes = messageIndexRepository.findByTenantIdAndSessionIdOrderByCreatedAtAsc(
+            normalizedTenantId,
+            session.getSessionId()
+        );
+        indexes.forEach(index -> detailStore.delete(index.getRocksKey()));
+        messageIndexRepository.deleteByTenantIdAndSessionId(normalizedTenantId, session.getSessionId());
+        summaryRepository.deleteBySessionId(session.getSessionId());
+        sessionRepository.delete(session);
+    }
+
     /**
      * Performs the replace messages operation.
      *
@@ -181,13 +247,20 @@ public class ConversationService {
      */
     @Transactional
     public void replaceMessages(String conversationId, String userId, List<Conversation.Message> messages) {
-        String normalizedConversationId = ensureConversationId(conversationId, userId);
+        replaceMessages(DEFAULT_TENANT_ID, conversationId, userId, messages);
+    }
+
+    @Transactional
+    public void replaceMessages(String tenantId, String conversationId, String userId, List<Conversation.Message> messages) {
+        String normalizedTenantId = normalizeTenantId(tenantId);
+        String normalizedConversationId = ensureConversationId(normalizedTenantId, conversationId, userId);
         ChatSessionEntity session = sessionRepository.findById(normalizedConversationId)
             .orElseThrow(() -> new IllegalArgumentException("Conversation not found: " + normalizedConversationId));
+        ensureTenant(session, normalizedTenantId);
 
-        List<ChatMessageIndexEntity> existing = messageIndexRepository.findBySessionIdOrderByCreatedAtAsc(normalizedConversationId);
+        List<ChatMessageIndexEntity> existing = messageIndexRepository.findByTenantIdAndSessionIdOrderByCreatedAtAsc(normalizedTenantId, normalizedConversationId);
         existing.forEach(index -> detailStore.delete(index.getRocksKey()));
-        messageIndexRepository.deleteBySessionId(normalizedConversationId);
+        messageIndexRepository.deleteByTenantIdAndSessionId(normalizedTenantId, normalizedConversationId);
         summaryRepository.deleteBySessionId(normalizedConversationId);
 
         Instant lastCreatedAt = session.getUpdatedAt() == null ? Instant.now() : session.getUpdatedAt();
@@ -292,12 +365,38 @@ public class ConversationService {
     }
 
     @Transactional(readOnly = true)
+    public List<Conversation.Message> recentMessages(String tenantId, String conversationId, int limit) {
+        if (limit <= 0 || getConversation(tenantId, conversationId).isEmpty()) {
+            return List.of();
+        }
+        String normalizedTenantId = normalizeTenantId(tenantId);
+        return messageIndexRepository.findByTenantIdAndSessionIdOrderByCreatedAtDesc(
+                normalizedTenantId,
+                conversationId,
+                PageRequest.of(0, limit)
+            ).stream()
+            .sorted(Comparator.comparing(ChatMessageIndexEntity::getCreatedAt))
+            .map(index -> detailStore.get(index.getRocksKey()).orElse(null))
+            .filter(detail -> detail != null)
+            .map(this::toMessage)
+            .toList();
+    }
+
+    @Transactional(readOnly = true)
     public Optional<ConversationSummary> latestSummary(String conversationId) {
         if (conversationId == null || conversationId.isBlank()) {
             return Optional.empty();
         }
         return summaryRepository.findTopBySessionIdOrderByCreatedAtDesc(conversationId.trim())
             .map(this::toSummary);
+    }
+
+    @Transactional(readOnly = true)
+    public Optional<ConversationSummary> latestSummary(String tenantId, String conversationId) {
+        if (conversationId == null || conversationId.isBlank() || getConversation(tenantId, conversationId).isEmpty()) {
+            return Optional.empty();
+        }
+        return latestSummary(conversationId);
     }
 
     @Transactional(readOnly = true)
@@ -311,6 +410,34 @@ public class ConversationService {
             return List.of();
         }
         int startInclusive = latestSummary(conversationId)
+            .map(summary -> indexAfterMessage(indexes, summary.messageEndId()))
+            .orElse(0);
+        if (startInclusive >= endExclusive) {
+            return List.of();
+        }
+        return indexes.subList(startInclusive, endExclusive).stream()
+            .map(index -> detailStore.get(index.getRocksKey()).orElse(null))
+            .filter(detail -> detail != null)
+            .map(this::toMessage)
+            .toList();
+    }
+
+    @Transactional(readOnly = true)
+    public List<Conversation.Message> summaryCandidates(String tenantId, String conversationId, int keepRecentMessages) {
+        String normalizedTenantId = normalizeTenantId(tenantId);
+        if (conversationId == null || conversationId.isBlank()
+            || sessionRepository.findBySessionIdAndTenantId(conversationId.trim(), normalizedTenantId).isEmpty()) {
+            return List.of();
+        }
+        List<ChatMessageIndexEntity> indexes = messageIndexRepository.findByTenantIdAndSessionIdOrderByCreatedAtAsc(
+            normalizedTenantId,
+            conversationId.trim()
+        );
+        int endExclusive = Math.max(0, indexes.size() - Math.max(0, keepRecentMessages));
+        if (endExclusive == 0) {
+            return List.of();
+        }
+        int startInclusive = latestSummary(normalizedTenantId, conversationId)
             .map(summary -> indexAfterMessage(indexes, summary.messageEndId()))
             .orElse(0);
         if (startInclusive >= endExclusive) {
@@ -341,6 +468,18 @@ public class ConversationService {
         return Optional.of(toSummary(summaryRepository.save(entity)));
     }
 
+    @Transactional
+    public Optional<ConversationSummary> saveSummary(String tenantId,
+                                                     String conversationId,
+                                                     String summary,
+                                                     String messageStartId,
+                                                     String messageEndId) {
+        if (conversationId == null || sessionRepository.findBySessionIdAndTenantId(conversationId.trim(), normalizeTenantId(tenantId)).isEmpty()) {
+            return Optional.empty();
+        }
+        return saveSummary(conversationId, summary, messageStartId, messageEndId);
+    }
+
     /**
      * Lists the message details.
      *
@@ -349,6 +488,14 @@ public class ConversationService {
      */
     private List<Conversation.Message> listMessageDetails(String conversationId) {
         return messageIndexRepository.findBySessionIdOrderByCreatedAtAsc(conversationId).stream()
+            .map(index -> detailStore.get(index.getRocksKey()).orElse(null))
+            .filter(detail -> detail != null)
+            .map(this::toMessage)
+            .toList();
+    }
+
+    private List<Conversation.Message> listMessageDetails(String tenantId, String conversationId) {
+        return messageIndexRepository.findByTenantIdAndSessionIdOrderByCreatedAtAsc(tenantId, conversationId).stream()
             .map(index -> detailStore.get(index.getRocksKey()).orElse(null))
             .filter(detail -> detail != null)
             .map(this::toMessage)
@@ -377,6 +524,7 @@ public class ConversationService {
     private Conversation toConversation(ChatSessionEntity session, List<Conversation.Message> messages) {
         return Conversation.builder()
             .id(session.getSessionId())
+            .tenantId(session.getTenantId())
             .userId(session.getUserId())
             .title(session.getTitle())
             .status(session.getStatus())
@@ -550,6 +698,21 @@ public class ConversationService {
             return fallback;
         }
         return value.trim();
+    }
+
+    private String normalizeTenantId(String value) {
+        return normalize(value, DEFAULT_TENANT_ID);
+    }
+
+    private void ensureTenant(ChatSessionEntity session, String tenantId) {
+        if (session == null) {
+            throw new IllegalArgumentException("Conversation not found");
+        }
+        String expected = normalizeTenantId(tenantId);
+        String actual = normalizeTenantId(session.getTenantId());
+        if (!expected.equals(actual)) {
+            throw new IllegalArgumentException("Conversation belongs to a different tenant");
+        }
     }
 
     private String blankToNull(String value) {

@@ -432,6 +432,7 @@ public class ChatChatMcpServerProperties {
             Map<String, LimitProperties> values = new LinkedHashMap<>();
             values.put("ssh", new LimitProperties(2, 32, 10, 30, "ssh"));
             values.put("sql", new LimitProperties(5, 64, 10, 30, "sql"));
+            values.put("sql_script", new LimitProperties(2, 32, 10, 180, "sql_script"));
             values.put("http", new LimitProperties(30, 256, 5, 30, "http"));
             values.put("notification", new LimitProperties(10, 128, 5, 30, "notification"));
             return values;

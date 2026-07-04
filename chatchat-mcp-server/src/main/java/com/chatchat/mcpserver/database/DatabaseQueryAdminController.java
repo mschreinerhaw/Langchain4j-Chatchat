@@ -185,6 +185,7 @@ public class DatabaseQueryAdminController {
         config.setRating(request.rating() == null ? 0.0 : request.rating());
         config.setUsageCount(request.usageCount() == null ? 0L : request.usageCount());
         config.setMaxRows(request.maxRows() == null ? 50 : request.maxRows());
+        config.setTimeoutSeconds(request.timeoutSeconds() == null ? 30 : request.timeoutSeconds());
         config.setJdbcUrl(null);
         config.setDriverClass(null);
         config.setUsername(null);
@@ -225,6 +226,7 @@ public class DatabaseQueryAdminController {
             config.getRating(),
             config.getUsageCount(),
             config.getMaxRows(),
+            config.getTimeoutSeconds(),
             null,
             null,
             null,
@@ -247,6 +249,8 @@ public class DatabaseQueryAdminController {
         parameters.put("sql", request.sql());
         parameters.put("params", request.params() == null ? Map.of() : request.params());
         parameters.put("max_rows", request.maxRows());
+        parameters.put("timeoutSeconds", request.timeoutSeconds());
+        parameters.put("timeout_seconds", request.timeoutSeconds());
         if (request.datasourceId() == null || request.datasourceId().isBlank()) {
             throw new IllegalArgumentException("datasourceId is required");
         }
@@ -343,6 +347,7 @@ public class DatabaseQueryAdminController {
         String sql,
         Map<String, Object> params,
         Integer maxRows,
+        Integer timeoutSeconds,
         String datasourceId,
         String jdbcUrl,
         String driverClass,
@@ -375,6 +380,7 @@ public class DatabaseQueryAdminController {
         Double rating,
         Long usageCount,
         Integer maxRows,
+        Integer timeoutSeconds,
         String jdbcUrl,
         String driverClass,
         String username,
@@ -411,6 +417,7 @@ public class DatabaseQueryAdminController {
         double rating,
         long usageCount,
         int maxRows,
+        int timeoutSeconds,
         String jdbcUrl,
         String driverClass,
         String username,

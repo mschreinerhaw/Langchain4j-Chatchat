@@ -49,7 +49,25 @@ public class AdminAuthController {
      */
     @GetMapping("/me")
     public ApiResponse<Map<String, Object>> me(HttpServletRequest request) {
-        return ApiResponse.success(Map.of("authenticated", authService.isValid(resolveBearerToken(request))));
+        String username = authService.username(resolveBearerToken(request));
+        return ApiResponse.success(Map.of(
+            "authenticated", username != null,
+            "username", username == null ? "" : username,
+            "admin", "admin".equalsIgnoreCase(username)
+        ));
+    }
+
+    /**
+     * Changes the administrator password.
+     *
+     * @param request the servlet request
+     * @param payload the password change payload
+     * @return the operation result
+     */
+    @PostMapping("/password")
+    public ApiResponse<Map<String, Object>> changePassword(HttpServletRequest request, @RequestBody ChangePasswordRequest payload) {
+        authService.changePassword(resolveBearerToken(request), payload.currentPassword(), payload.newPassword());
+        return ApiResponse.success(Map.of("changed", true, "requiresLogin", true), "密码已修改");
     }
 
     /**
@@ -71,5 +89,8 @@ public class AdminAuthController {
     }
 
     public record LoginRequest(String username, String password) {
+    }
+
+    public record ChangePasswordRequest(String currentPassword, String newPassword) {
     }
 }

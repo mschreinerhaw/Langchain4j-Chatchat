@@ -94,6 +94,9 @@ public class DatabaseQueryConfig {
     @Column(nullable = false)
     private int maxRows = 50;
 
+    @Column
+    private Integer timeoutSeconds = 30;
+
     @Column(length = 2000)
     private String jdbcUrl;
 
@@ -185,6 +188,8 @@ public class DatabaseQueryConfig {
     public void setCapabilities(List<String> capabilities) { this.capabilities = capabilities == null ? new ArrayList<>() : capabilities; }
     public int getMaxRows() { return maxRows; }
     public void setMaxRows(int maxRows) { this.maxRows = maxRows; }
+    public int getTimeoutSeconds() { return timeoutSeconds == null || timeoutSeconds <= 0 ? 30 : timeoutSeconds; }
+    public void setTimeoutSeconds(Integer timeoutSeconds) { this.timeoutSeconds = timeoutSeconds; }
     public String getJdbcUrl() { return jdbcUrl; }
     public void setJdbcUrl(String jdbcUrl) { this.jdbcUrl = jdbcUrl; }
     public String getDriverClass() { return driverClass; }

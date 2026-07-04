@@ -164,6 +164,7 @@ public class DatabaseQueryConfigService {
         current.setRating(draft.getRating());
         current.setUsageCount(draft.getUsageCount());
         current.setMaxRows(draft.getMaxRows());
+        current.setTimeoutSeconds(draft.getTimeoutSeconds());
         current.setJdbcUrl(draft.getJdbcUrl());
         current.setDriverClass(draft.getDriverClass());
         current.setUsername(draft.getUsername());
@@ -266,6 +267,7 @@ public class DatabaseQueryConfigService {
             ModelProtocolJson.compact(List.of("database_query", "sql_query_execute", "jdbc"))
         ));
         config.setMaxRows(config.getMaxRows() <= 0 ? 50 : Math.min(500, config.getMaxRows()));
+        config.setTimeoutSeconds(config.getTimeoutSeconds() <= 0 ? 30 : Math.min(300, config.getTimeoutSeconds()));
         if (config.getDatasourceId() == null) {
             throw new IllegalArgumentException("datasourceId is required");
         }

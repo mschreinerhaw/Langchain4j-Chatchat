@@ -441,6 +441,9 @@ public class McpToolConcurrencyManager {
         if (name.equals("linux_command_execute") || name.startsWith("ssh_")) {
             return "ssh";
         }
+        if (name.equals("sql_script_execute")) {
+            return "sql_script";
+        }
         if (name.equals("sql_query_execute") || name.equals("database_query_execute")
             || name.startsWith("sql_") || name.startsWith("db_query_")) {
             return "sql";

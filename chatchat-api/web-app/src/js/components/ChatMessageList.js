@@ -1,7 +1,7 @@
 import MarkdownIt from "markdown-it";
 import { Check, CircleCheck, CircleX, Copy } from "@lucide/vue";
 import ResponseReferences from "../../components/ResponseReferences.vue";
-import VisualizationRenderer from "../../components/VisualizationRenderer.vue";
+import chartAnalysisMixin from "./ChatMessageListChartAnalysis.js";
 import { extractDocumentSearchPagesFromTraces, extractWebSearchPagesFromTraces } from "../utils/webReferences.js";
 
 const markdown = new MarkdownIt({
@@ -16,6 +16,7 @@ const SQL_CONTINUATION_RE = /^\s*(USING|OPTIONS\s*\(|PARTITIONED\s+BY|TBLPROPERT
 const SECTION_BOUNDARY_RE = /^\s*(#{1,6}\s+|[-*]\s+\d+[.)]\s+|\d+[.)]\s+|[\[(].+[\])]\s*$)/;
 const JSON_START_RE = /^\s*[{[]\s*$/;
 const INTERNAL_DOCUMENT_REF_RE = /[\uFF08(]?\s*doc:\/\/[^\s\uFF09)\]}\>\uFF0C\u3002\uFF1B;]+[\uFF09)]?\s*[:\uFF1A]?/gi;
+const EXECUTED_SQL_CONTEXT_RE = /(mcp_chatchat_mcp_server_business_query_template_search|business_query_template_search|mcp_chatchat_mcp_server_sql_query_execute|sql_query_execute|mcp_chatchat_mcp_server_sql_script_execute|sql_script_execute|\u6267\u884c\u7684?\s*SQL|\u5b9e\u9645\u6267\u884c\u8bed\u53e5|\u67e5\u8be2\u8bed\u53e5|\u5177\u4f53\u8bed\u53e5|operation\.statement|Executed\s+SQL|SQL\s+Statement)/i;
 
 function escapeHtml(value) {
   return String(value || "")
@@ -89,13 +90,13 @@ markdown.renderer.rules.fence = (tokens, idx) => {
 
 export default {
   name: "ChatMessageList",
+  mixins: [chartAnalysisMixin],
   components: {
     Check,
     CircleCheck,
     CircleX,
     Copy,
-    ResponseReferences,
-    VisualizationRenderer
+    ResponseReferences
   },
   emits: ["feedback", "visualization-drill-down"],
   props: {
@@ -122,7 +123,6 @@ export default {
       copiedResetTimer: null,
       codeCopyResetTimers: new Set(),
       reasoningModal: null,
-      chartAnalysisModal: null,
       feedbackOptions: [
         { value: "useful", label: "\u6709\u7528" },
         { value: "adopted", label: "\u91c7\u7eb3" },
@@ -139,7 +139,7 @@ export default {
       return this.displayUserId.slice(0, 2).toUpperCase();
     },
     assistantDisplayName() {
-      return this.activeAgent?.name || "AI投资助手";
+      return this.activeAgent?.name || "金融文档分析专家";
     },
     hasStreamingMessage() {
       return this.messages.some((message) => message.streaming || this.isExecutionRunning(message));
@@ -253,11 +253,11 @@ export default {
         const doc = parser.parseFromString(`<div>${html}</div>`, "text/html");
         const root = doc.body.firstElementChild;
         const tables = [...root.querySelectorAll("table")];
-        tables.forEach((table, index) => {
-          const payload = this.resultTablePayload(table, index);
-          if (!payload) {
-            return;
-          }
+        const tablePayloads = tables
+          .map((table, index) => ({ table, payload: this.resultTablePayload(table, index) }))
+          .filter((item) => item.payload);
+        let firstWrapper = null;
+        tablePayloads.forEach(({ table, payload }) => {
           const wrapper = doc.createElement("section");
           wrapper.className = "query-result-table-card";
           wrapper.dataset.resultChartPayload = encodeURIComponent(JSON.stringify(payload));
@@ -273,7 +273,31 @@ export default {
           toolbar.append(summary, button);
           table.parentNode.insertBefore(wrapper, table);
           wrapper.append(toolbar, table);
+          firstWrapper = firstWrapper || wrapper;
         });
+        if (tablePayloads.length > 1 && firstWrapper?.parentNode) {
+          const multiPayload = {
+            title: "多数据集对比分析",
+            datasets: tablePayloads.map((item, index) => ({
+              id: `dataset_${index + 1}`,
+              ...item.payload
+            }))
+          };
+          const multiToolbar = doc.createElement("section");
+          multiToolbar.className = "query-result-table-card query-result-multi-dataset-card";
+          const toolbar = doc.createElement("div");
+          toolbar.className = "query-result-table-toolbar";
+          const summary = doc.createElement("span");
+          summary.textContent = `${tablePayloads.length} 个数据集可分析`;
+          const button = doc.createElement("button");
+          button.type = "button";
+          button.className = "query-result-chart-button";
+          button.dataset.resultChartPayload = encodeURIComponent(JSON.stringify(multiPayload));
+          button.textContent = "多数据集分析";
+          toolbar.append(summary, button);
+          multiToolbar.append(toolbar);
+          firstWrapper.parentNode.insertBefore(multiToolbar, firstWrapper);
+        }
         return root.innerHTML;
       } catch (error) {
         console.warn("Enhance result table failed", error);
@@ -300,7 +324,7 @@ export default {
           }));
         })
         .filter(Boolean);
-      if (rows.length < 2) {
+      if (rows.length < 1) {
         return null;
       }
       const title = this.nearestTableTitle(table) || `查询结果 ${index + 1}`;
@@ -365,7 +389,7 @@ export default {
       const codeMatch = /<code[^>]*>([\s\S]*?)<\/code>/i.exec(fragment);
       const text = this.decodeHtml(fragment.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim());
       const toolName = this.decodeHtml(codeMatch?.[1] || "").trim() || this.firstToolEvidenceToken(text);
-      const semantic = this.matchToolEvidenceText(text, /[（(]\s*([^）)]+)\s*[）)]\s*[:：]/);
+      const semantic = this.matchToolEvidenceText(text, /[【[]\s*([^】\]]+)\s*[】\]]\s*[:：]/);
       const status = text.includes("成功")
         ? "成功"
         : text.includes("失败")
@@ -373,7 +397,7 @@ export default {
           : this.matchToolEvidenceText(text, /\b(success|failed|error)\b/i);
       const evidenceType = this.matchToolEvidenceText(text, /证据类型\s*([A-Za-z0-9_-]+)/);
       const durationMs = this.matchToolEvidenceText(text, /耗时\s*ms\s*=\s*(\d+)/i);
-      const outputKeyText = this.matchToolEvidenceText(text, /输出键\s*=\s*(.*?)(?:\s*等\s*\d+\s*项|[，,]\s*摘要\s*=|$)/);
+      const outputKeyText = this.matchToolEvidenceText(text, /输出键\s*=\s*(.*?)(?:\s*等\s*\d+\s*项|[；;]\s*摘要\s*=|$)/);
       const outputKeyTotal = this.matchToolEvidenceText(text, /输出键\s*=.*?等\s*(\d+)\s*项/);
       const summary = this.matchToolEvidenceText(text, /摘要\s*=\s*(.+)$/);
       const outputKeys = String(outputKeyText || "")
@@ -432,7 +456,7 @@ export default {
       return match?.[1] ? String(match[1]).trim() : "";
     },
     firstToolEvidenceToken(text = "") {
-      const match = /^\s*([^\s（(：:]+)/.exec(String(text || ""));
+      const match = /^\s*([^\s，；]+)/.exec(String(text || ""));
       return match?.[1] || "";
     },
     decodeHtml(value = "") {
@@ -695,9 +719,9 @@ export default {
     },
     prepareMarkdownContent(content, message = {}) {
       const displayContent = this.stripInternalDocumentRefs(
-        this.stripInternalProtocolBlocks(this.stripVisualizationSpecBlocks(content))
+        this.stripExecutedSqlContent(this.stripInternalProtocolBlocks(this.stripVisualizationSpecBlocks(content)))
       );
-      const normalizedContent = this.normalizeRenderContractBlocks(displayContent);
+      const normalizedContent = this.stripExecutedSqlContent(this.normalizeRenderContractBlocks(displayContent));
       const pages = extractWebSearchPagesFromTraces(message.traces || []);
       if (!pages.length) {
         return { content: normalizedContent, citationUrls: [] };
@@ -739,10 +763,20 @@ export default {
       );
       return { content: nextContent, citationUrls };
     },
+    stripExecutedSqlContent(content) {
+      return String(content || "")
+        .replace(/```sql\s*[\s\S]*?```/gi, (match, offset, source) => {
+          const before = source.slice(Math.max(0, offset - 360), offset);
+          return EXECUTED_SQL_CONTEXT_RE.test(before) ? "" : match;
+        })
+        .replace(/(^|\n)\s*(?:执行的?\s*SQL|实际执行语句|查询语句|具体语句|Executed\s+SQL|SQL\s+Statement)\s*[:：]\s*[^\n]*(?=\n|$)/gi, "$1")
+        .replace(/\n{3,}/g, "\n\n")
+        .trim();
+    },
     stripInternalDocumentRefs(content) {
       return String(content || "")
         .replace(INTERNAL_DOCUMENT_REF_RE, "")
-        .replace(/[ \t]*[\(（]\s*(?:confidence|missingInfo)\s*[\)）]/gi, "")
+        .replace(/[ \t]*[(（]\s*(?:confidence|missingInfo)\s*[)）]/gi, "")
         .replace(/[ \t]*[\[\uFF3B][ \t]*[\]\uFF3D][ \t]*/g, " ")
         .replace(/[ \t]+([,.;:!?\uFF0C\u3002\uFF1B\uFF1A])/g, "$1")
         .replace(/([,.;:!?\uFF0C\u3002\uFF1B\uFF1A])[ \t]*[\[\uFF3B][ \t]*[\]\uFF3D]/g, "$1")
@@ -1649,14 +1683,14 @@ export default {
     },
     splitEvidenceCitationText(value) {
       return String(value || "")
-        .split(/[；;]\s*/)
+        .split(/[，,；;]\s*/)
         .map((item) => item.trim())
         .filter(Boolean);
     },
     renderEvidenceAnswer(evidenceAnswer, citationUrls) {
       const env = { webCitationUrls: citationUrls };
       const confidence = evidenceAnswer.confidence || "";
-      const confidenceLabel = confidence.split(/\s+[—-]\s+|[:：]/)[0]?.trim() || confidence.trim();
+      const confidenceLabel = confidence.split(/\s+[·-]\s+|[:：]/)[0]?.trim() || confidence.trim();
       const confidenceClass = this.evidenceConfidenceClass(confidenceLabel);
       const citationItems = evidenceAnswer.citations.length
         ? evidenceAnswer.citations
@@ -1755,143 +1789,6 @@ export default {
     },
     closeReasoningModal() {
       this.reasoningModal = null;
-    },
-    openChartAnalysisModal(payload) {
-      try {
-        const data = JSON.parse(decodeURIComponent(payload || ""));
-        const columns = Array.isArray(data.columns) ? data.columns : [];
-        this.chartAnalysisModal = {
-          title: data.title || "查询结果图形化分析",
-          columns,
-          rows: Array.isArray(data.rows) ? data.rows : [],
-          chartType: "bar",
-          xKey: columns[0] || "",
-          yKey: columns[1] || columns[0] || "",
-          groupKey: ""
-        };
-      } catch (error) {
-        console.warn("Open chart analysis failed", error);
-      }
-    },
-    closeChartAnalysisModal() {
-      this.chartAnalysisModal = null;
-    },
-    setChartField(key, value) {
-      if (!this.chartAnalysisModal) {
-        return;
-      }
-      this.chartAnalysisModal = {
-        ...this.chartAnalysisModal,
-        [key]: value
-      };
-    },
-    chartTypeOptions() {
-      return [
-        { value: "bar", label: "柱状图" },
-        { value: "line", label: "折线图" },
-        { value: "scatter", label: "散点图" },
-        { value: "pie", label: "饼图" },
-        { value: "table", label: "表格" }
-      ];
-    },
-    chartAnalysisSpec() {
-      const modal = this.chartAnalysisModal;
-      if (!modal) {
-        return null;
-      }
-      const chartType = modal.chartType || "bar";
-      const xKey = modal.xKey || modal.columns[0] || "";
-      const yKey = modal.yKey || modal.columns.find((column) => column !== xKey) || modal.columns[0] || "";
-      if (chartType === "table") {
-        return {
-          version: "v1",
-          type: "table",
-          title: modal.title,
-          dataset: {
-            columns: modal.columns,
-            rows: modal.rows
-          },
-          ui: { defaultView: "table" }
-        };
-      }
-      return {
-        version: "v1",
-        type: "chart",
-        chartType,
-        title: modal.title,
-        dataset: {
-          columns: modal.columns,
-          xKey,
-          xLabel: xKey,
-          series: this.chartAnalysisSeries(modal, chartType, xKey, yKey),
-          rows: this.chartAnalysisRows(modal, chartType, xKey, yKey)
-        },
-        insight: {
-          summary: this.chartAnalysisSemanticSummary()
-        },
-        ui: { defaultView: "chart" }
-      };
-    },
-    chartAnalysisSeries(modal, chartType, xKey, yKey) {
-      if (!modal || !yKey) {
-        return [];
-      }
-      if (modal.groupKey && !["pie", "scatter"].includes(chartType)) {
-        return [...new Set(modal.rows.map((row) => String(row[modal.groupKey] ?? "未分组")))]
-          .map((group) => ({ name: `${modal.groupKey}=${group} / ${yKey}`, yKey: group }));
-      }
-      return [{ name: yKey, yKey }];
-    },
-    chartAnalysisSemanticSummary() {
-      const modal = this.chartAnalysisModal;
-      if (!modal) {
-        return "";
-      }
-      const chartTypeLabel = this.chartTypeOptions().find((item) => item.value === modal.chartType)?.label || modal.chartType;
-      if (modal.chartType === "table") {
-        return `当前以表格查看：${modal.rows.length} 行，${modal.columns.length} 个字段。`;
-      }
-      const groupText = modal.groupKey ? `；分组：${modal.groupKey}` : "；不分组";
-      const yText = modal.chartType === "pie" ? `扇区大小：${modal.yKey}` : `Y 轴 / 指标：${modal.yKey}`;
-      return `图表类型：${chartTypeLabel}；X 轴 / 维度：${modal.xKey}；${yText}${groupText}`;
-    },
-    chartAnalysisRows(modal, chartType, xKey, yKey) {
-      if (!modal || !Array.isArray(modal.rows)) {
-        return [];
-      }
-      if (!xKey || !yKey) {
-        return modal.rows;
-      }
-      if (modal.groupKey && !["pie", "scatter"].includes(chartType)) {
-        const rowsByX = new Map();
-        modal.rows.forEach((row) => {
-          const xValue = String(row[xKey] ?? "未命名");
-          const group = String(row[modal.groupKey] ?? "未分组");
-          const target = rowsByX.get(xValue) || { [xKey]: xValue };
-          target[group] = (parseNumber(target[group]) ?? 0) + (parseNumber(row[yKey]) ?? 0);
-          rowsByX.set(xValue, target);
-        });
-        return [...rowsByX.values()];
-      }
-      if (chartType === "scatter") {
-        return modal.rows.map((row) => ({
-          ...row,
-          [xKey]: parseNumber(row[xKey]) ?? 0,
-          [yKey]: parseNumber(row[yKey]) ?? 0
-        }));
-      }
-      if (chartType === "pie") {
-        const totals = new Map();
-        modal.rows.forEach((row) => {
-          const label = String(row[xKey] ?? "未分组");
-          totals.set(label, (totals.get(label) || 0) + (parseNumber(row[yKey]) ?? 0));
-        });
-        return [...totals.entries()].map(([label, value]) => ({ [xKey]: label, [yKey]: value }));
-      }
-      return modal.rows.map((row) => ({
-        ...row,
-        [yKey]: parseNumber(row[yKey]) ?? 0
-      }));
     },
     async copyMessage(message) {
       const text = this.buildCopyText(message);

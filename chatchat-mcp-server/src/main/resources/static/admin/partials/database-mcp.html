@@ -78,6 +78,9 @@
                         <div class="col-lg-4">
                             <label class="form-label" for="databaseMaxRowsInput">最大行数</label>
                             <input id="databaseMaxRowsInput" class="form-control" type="number" min="1" max="500" value="50">
+                            <label class="form-label mt-3" for="databaseTimeoutSecondsInput">执行超时（秒）</label>
+                            <input id="databaseTimeoutSecondsInput" class="form-control" type="number" min="1" max="300" value="30">
+                            <div class="form-text">每个数据库查询模板独立生效，默认 30 秒。</div>
                         </div>
                         <div class="col-12">
                             <label class="form-label" for="databaseInputSchemaJson">入参 Schema JSON</label>

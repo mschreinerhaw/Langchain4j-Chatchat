@@ -29,15 +29,8 @@ public class DatabaseQueryMcpToolPublisher {
     }
 
     public synchronized void refresh() {
-        remove("database_query_execute");
         managedToolNames.forEach(this::remove);
         managedToolNames.clear();
-
-        for (DatabaseQueryConfig config : configService.listEnabled()) {
-            if (config != null && config.getToolName() != null && !config.getToolName().isBlank()) {
-                remove(config.getToolName());
-            }
-        }
 
         mcpSyncServer.notifyToolsListChanged();
         log.info("Database query per-template MCP publishing disabled; use business_query_template_search + sql_query_execute");

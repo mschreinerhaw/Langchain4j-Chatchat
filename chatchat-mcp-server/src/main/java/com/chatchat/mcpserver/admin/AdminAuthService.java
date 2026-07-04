@@ -14,6 +14,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class AdminAuthService {
 
     private final AdminAuthProperties properties;
+    private final AdminPasswordStore passwordStore;
     private final SecureRandom secureRandom = new SecureRandom();
     private final Map<String, TokenSession> sessions = new ConcurrentHashMap<>();
 
@@ -26,11 +27,11 @@ public class AdminAuthService {
      */
     public LoginResult login(String username, String password) {
         if (properties.getUsername() == null || properties.getUsername().isBlank()
-            || properties.getPassword() == null || properties.getPassword().isBlank()) {
+            || (!passwordStore.hasOverride() && (properties.getPassword() == null || properties.getPassword().isBlank()))) {
             throw new IllegalStateException("MCP admin username/password is not configured");
         }
         if (!constantTimeEquals(properties.getUsername(), username)
-            || !constantTimeEquals(properties.getPassword(), password)) {
+            || !passwordStore.matches(password, properties.getPassword())) {
             throw new IllegalArgumentException("Invalid username or password");
         }
 
@@ -60,6 +61,46 @@ public class AdminAuthService {
             return false;
         }
         return true;
+    }
+
+    /**
+     * Returns the username for a valid token.
+     *
+     * @param token the token value
+     * @return the username, or null when the token is invalid
+     */
+    public String username(String token) {
+        if (!isValid(token)) {
+            return null;
+        }
+        TokenSession session = sessions.get(token);
+        return session == null ? null : session.username();
+    }
+
+    /**
+     * Changes the admin password.
+     *
+     * @param token the token value
+     * @param currentPassword the current password value
+     * @param newPassword the new password value
+     */
+    public void changePassword(String token, String currentPassword, String newPassword) {
+        String username = username(token);
+        if (!"admin".equalsIgnoreCase(username)) {
+            throw new SecurityException("只有 admin 用户可以修改管理员密码");
+        }
+        if (currentPassword == null || currentPassword.isBlank()
+            || !passwordStore.matches(currentPassword, properties.getPassword())) {
+            throw new IllegalArgumentException("当前密码不正确");
+        }
+        if (newPassword == null || newPassword.length() < 8 || newPassword.length() > 128) {
+            throw new IllegalArgumentException("新密码长度需为 8-128 位");
+        }
+        if (constantTimeEquals(currentPassword, newPassword)) {
+            throw new IllegalArgumentException("新密码不能与当前密码相同");
+        }
+        passwordStore.save(newPassword);
+        sessions.clear();
     }
 
     /**

@@ -121,7 +121,7 @@ function bindEvents() {
     document.getElementById('newDatabaseQueryBtn').addEventListener('click', openNewDatabaseQuery);
     document.getElementById('databaseQueryRebuildIndexBtn').addEventListener('click', handleDatabaseQueryRebuildIndex);
     bindMcpServicePanel({ onError: handleError });
-    bindAuthorizationPanel({ onError: handleError });
+    bindAuthorizationPanel({ onError: handleError, onPasswordChanged: showLogin });
     bindAssetCenterPanel({ onError: handleError });
     bindAuditLogPanel({ onError: handleError });
     bindNotificationPanel({ onError: handleError });
@@ -796,6 +796,7 @@ function readDatabaseQueryForm() {
         sql: value('databaseSqlInput'),
         params: readJsonObject('databaseParamsJson'),
         maxRows: Number(value('databaseMaxRowsInput') || 50),
+        timeoutSeconds: Number(value('databaseTimeoutSecondsInput') || 30),
         datasourceId: value('databaseDatasourceSelect')
     };
 }
@@ -820,6 +821,7 @@ function readDatabaseQueryRegistrationForm() {
         capabilitiesJson: current?.capabilitiesJson,
         capabilities: current?.capabilities,
         maxRows: Number(value('databaseMaxRowsInput') || 50),
+        timeoutSeconds: Number(value('databaseTimeoutSecondsInput') || 30),
         enabled: current?.enabled ?? true
     };
 }
@@ -838,6 +840,7 @@ function fillDatabaseQueryForm(query) {
     setValue('databaseSqlInput', query?.sqlTemplate || '');
     setValue('databaseParamsJson', '{}');
     setValue('databaseMaxRowsInput', String(query?.maxRows || 50));
+    setValue('databaseTimeoutSecondsInput', String(query?.timeoutSeconds || 30));
     setValue('databaseInputSchemaJson', JSON.stringify(query?.inputSchema || {
         type: 'object',
         properties: {},

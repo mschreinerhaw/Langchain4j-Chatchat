@@ -6,6 +6,17 @@ const DEFAULT_SCHEMA = {
 };
 
 const DEFAULT_MASK_FIELDS = ['phone', 'id_card', 'account_no'];
+const DEFAULT_TIMEOUT_SECONDS = 20;
+
+function secondsToMillis(value, fallbackSeconds = DEFAULT_TIMEOUT_SECONDS) {
+    const seconds = Number(value || fallbackSeconds);
+    return Math.max(1, Math.round(seconds)) * 1000;
+}
+
+function millisToSeconds(value, fallbackSeconds = DEFAULT_TIMEOUT_SECONDS) {
+    const millis = Number(value || fallbackSeconds * 1000);
+    return Math.max(1, Math.round(millis / 1000));
+}
 
 export function readServiceForm() {
     const microserviceConfig = readMicroserviceConfig();
@@ -24,7 +35,7 @@ export function readServiceForm() {
         inputSchema: parseJsonField('inputSchemaJson', DEFAULT_SCHEMA),
         governance: parseJsonField('governanceJson', defaultApiGovernance()),
         enabled: value('enabled') === 'true',
-        timeoutMs: Number(value('timeoutMs') || 20000),
+        timeoutMs: secondsToMillis(value('timeoutMs')),
         cacheEnabled: value('cacheEnabled') === 'true',
         cacheTtlSeconds: Number(value('cacheTtlSeconds') || 300)
     };
@@ -45,7 +56,7 @@ export function fillServiceForm(service) {
     setValue('inputSchemaJson', stringify(service?.inputSchema || DEFAULT_SCHEMA));
     setValue('governanceJson', stringify(service?.governance || defaultApiGovernance(service)));
     setValue('enabled', String(service?.enabled ?? true));
-    setValue('timeoutMs', String(service?.timeoutMs || 20000));
+    setValue('timeoutMs', String(millisToSeconds(service?.timeoutMs)));
     setValue('cacheEnabled', String(service?.cacheEnabled ?? false));
     setValue('cacheTtlSeconds', String(service?.cacheTtlSeconds || 300));
     fillMicroserviceFields(service);

@@ -30,6 +30,16 @@ public class SqlSafetyService {
         return normalized;
     }
 
+    public String validateAndNormalizeScriptStatement(String sql, int maxRows) {
+        String normalized = normalize(sql);
+        rejectForbiddenTokens(codeForKeywordScan(normalized));
+        String firstToken = firstToken(normalized);
+        if (!ALLOWED_FIRST_TOKENS.contains(firstToken)) {
+            throw new IllegalArgumentException("Only SELECT, SHOW, DESCRIBE and EXPLAIN SQL are allowed");
+        }
+        return normalized;
+    }
+
     private void rejectComments(String sql) {
         if (sql.contains("--") || sql.contains("/*") || sql.contains("*/") || sql.contains("#")) {
             throw new IllegalArgumentException("SQL comments are forbidden");
@@ -57,6 +67,163 @@ public class SqlSafetyService {
         }
     }
 
+    private String codeForKeywordScan(String sql) {
+        String value = sql == null ? "" : sql;
+        StringBuilder code = new StringBuilder(value.length());
+        QuoteMode quoteMode = QuoteMode.NONE;
+        String dollarQuoteTag = null;
+        String qQuoteEnd = null;
+        for (int index = 0; index < value.length(); index++) {
+            char ch = value.charAt(index);
+            if (dollarQuoteTag != null) {
+                if (startsWith(value, index, dollarQuoteTag)) {
+                    appendSpaces(code, dollarQuoteTag.length());
+                    index += dollarQuoteTag.length() - 1;
+                    dollarQuoteTag = null;
+                } else {
+                    code.append(' ');
+                }
+                continue;
+            }
+            if (qQuoteEnd != null) {
+                if (startsWith(value, index, qQuoteEnd)) {
+                    appendSpaces(code, qQuoteEnd.length());
+                    index += qQuoteEnd.length() - 1;
+                    qQuoteEnd = null;
+                } else {
+                    code.append(' ');
+                }
+                continue;
+            }
+            if (quoteMode == QuoteMode.SINGLE) {
+                code.append(' ');
+                if (ch == '\\' && index + 1 < value.length()) {
+                    code.append(' ');
+                    index++;
+                } else if (ch == '\'' && index + 1 < value.length() && value.charAt(index + 1) == '\'') {
+                    code.append(' ');
+                    index++;
+                } else if (ch == '\'') {
+                    quoteMode = QuoteMode.NONE;
+                }
+                continue;
+            }
+            if (quoteMode == QuoteMode.DOUBLE) {
+                code.append(' ');
+                if (ch == '"' && index + 1 < value.length() && value.charAt(index + 1) == '"') {
+                    code.append(' ');
+                    index++;
+                } else if (ch == '"') {
+                    quoteMode = QuoteMode.NONE;
+                }
+                continue;
+            }
+            if (quoteMode == QuoteMode.BACKTICK) {
+                code.append(' ');
+                if (ch == '`' && index + 1 < value.length() && value.charAt(index + 1) == '`') {
+                    code.append(' ');
+                    index++;
+                } else if (ch == '`') {
+                    quoteMode = QuoteMode.NONE;
+                }
+                continue;
+            }
+            if (quoteMode == QuoteMode.BRACKET) {
+                code.append(' ');
+                if (ch == ']' && index + 1 < value.length() && value.charAt(index + 1) == ']') {
+                    code.append(' ');
+                    index++;
+                } else if (ch == ']') {
+                    quoteMode = QuoteMode.NONE;
+                }
+                continue;
+            }
+
+            if (ch == '\'') {
+                quoteMode = QuoteMode.SINGLE;
+                code.append(' ');
+                continue;
+            }
+            if (ch == '"') {
+                quoteMode = QuoteMode.DOUBLE;
+                code.append(' ');
+                continue;
+            }
+            if (ch == '`') {
+                quoteMode = QuoteMode.BACKTICK;
+                code.append(' ');
+                continue;
+            }
+            if (ch == '[') {
+                quoteMode = QuoteMode.BRACKET;
+                code.append(' ');
+                continue;
+            }
+            String qQuote = qQuoteEnd(value, index);
+            if (qQuote != null) {
+                qQuoteEnd = qQuote;
+                appendSpaces(code, 3);
+                index += 2;
+                continue;
+            }
+            String dollarTag = dollarQuoteTag(value, index);
+            if (dollarTag != null) {
+                dollarQuoteTag = dollarTag;
+                appendSpaces(code, dollarTag.length());
+                index += dollarTag.length() - 1;
+                continue;
+            }
+            code.append(ch);
+        }
+        return code.toString();
+    }
+
+    private void appendSpaces(StringBuilder builder, int count) {
+        for (int index = 0; index < count; index++) {
+            builder.append(' ');
+        }
+    }
+
+    private boolean startsWith(String value, int index, String expected) {
+        return expected != null && index >= 0 && index + expected.length() <= value.length()
+            && value.regionMatches(index, expected, 0, expected.length());
+    }
+
+    private String dollarQuoteTag(String value, int index) {
+        if (index >= value.length() || value.charAt(index) != '$') {
+            return null;
+        }
+        int cursor = index + 1;
+        while (cursor < value.length()) {
+            char ch = value.charAt(cursor);
+            if (ch == '$') {
+                return value.substring(index, cursor + 1);
+            }
+            if (!(Character.isLetterOrDigit(ch) || ch == '_')) {
+                return null;
+            }
+            cursor++;
+        }
+        return null;
+    }
+
+    private String qQuoteEnd(String value, int index) {
+        if (index + 2 >= value.length()
+            || (value.charAt(index) != 'q' && value.charAt(index) != 'Q')
+            || value.charAt(index + 1) != '\'') {
+            return null;
+        }
+        char delimiter = value.charAt(index + 2);
+        char close = switch (delimiter) {
+            case '[' -> ']';
+            case '(' -> ')';
+            case '{' -> '}';
+            case '<' -> '>';
+            default -> delimiter;
+        };
+        return String.valueOf(close) + "'";
+    }
+
     private String firstToken(String sql) {
         return TOKEN_PATTERN.matcher(sql).results()
             .map(match -> match.group().toUpperCase(Locale.ROOT))
@@ -73,5 +240,13 @@ public class SqlSafetyService {
             value = value.substring(0, value.length() - 1).trim();
         }
         return value;
+    }
+
+    private enum QuoteMode {
+        NONE,
+        SINGLE,
+        DOUBLE,
+        BACKTICK,
+        BRACKET
     }
 }

@@ -185,7 +185,7 @@ export default {
         const payload = await fetchWorkbenchShortcuts({
           tenantId: this.displayUserId,
           userId: this.displayUserId,
-          limit: 5
+          limit: 6
         });
         this.favorites = Array.isArray(payload?.favorites) ? payload.favorites : [];
         this.recentAgents = Array.isArray(payload?.recentAgents) ? payload.recentAgents : [];

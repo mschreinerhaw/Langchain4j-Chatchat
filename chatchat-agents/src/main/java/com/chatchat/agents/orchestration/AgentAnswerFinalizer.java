@@ -403,6 +403,7 @@ class AgentAnswerFinalizer {
         prompt.append("First understand the user's intent, then synthesize the evidence into a clear explanation instead of copying tool output or internal execution reports.\n");
         prompt.append("For document QA, use natural Chinese section titles such as phenomenon summary, key evidence, troubleshooting steps, fix suggestions, and risk notes when they are relevant.\n");
         prompt.append("Use SQL snippets and document citations as support, but do not let raw SQL or chunk titles replace the actual explanation.\n");
+        prompt.append("If a tool or SQL query returned structured rows, preserve and display the returned data even when it is incomplete, unexpected, or does not satisfy the user's requested metric definition. Do not suppress returned rows only because fields are missing or quality is uncertain; present the data first, then explain gaps, uncertainty, and next checks separately.\n");
         prompt.append("If any tool observation reports failure, explicitly state that this source was unavailable and do not treat it as evidence.\n");
         prompt.append("If observations include evidence_v1 Unified evidence context, use only those EvidenceChunk entries as grounded evidence and keep the matching citation near every claim that relies on that evidence.\n");
         prompt.append("When both internal document and web search observations are available, separate internal document evidence from web verification evidence and explain conflicts instead of merging them silently.\n");

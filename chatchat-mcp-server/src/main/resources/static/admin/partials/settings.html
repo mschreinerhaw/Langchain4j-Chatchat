@@ -8,6 +8,7 @@
 
     <div class="settings-tabs" role="tablist" aria-label="系统设置">
         <button class="active" type="button" data-settings-tab="connection" role="tab" aria-selected="true">连接信息</button>
+        <button id="adminPasswordTabBtn" class="d-none" type="button" data-settings-tab="adminPassword" role="tab" aria-selected="false">管理员密码</button>
         <button type="button" data-settings-tab="authorization" role="tab" aria-selected="false">权限同步</button>
     </div>
 
@@ -24,6 +25,34 @@
             <dt>模板变量</dt>
             <dd>可在 URL、请求头和请求体模板中使用 <code>{{name}}</code>。</dd>
         </dl>
+    </section>
+
+    <section id="settingsAdminPasswordPanel" class="settings-tab-panel d-none">
+        <div class="panel-head auth-sync-head">
+            <div>
+                <h2>管理员密码</h2>
+                <p class="text-secondary small mb-0">仅 admin 用户可修改管理台登录密码，修改成功后需要重新登录。</p>
+            </div>
+        </div>
+
+        <form id="adminPasswordForm" class="admin-password-form">
+            <label>
+                <span>当前密码</span>
+                <input id="adminCurrentPassword" class="form-control" type="password" autocomplete="current-password" required>
+            </label>
+            <label>
+                <span>新密码</span>
+                <input id="adminNewPassword" class="form-control" type="password" autocomplete="new-password" minlength="8" maxlength="128" required>
+            </label>
+            <label>
+                <span>确认新密码</span>
+                <input id="adminConfirmPassword" class="form-control" type="password" autocomplete="new-password" minlength="8" maxlength="128" required>
+            </label>
+            <div class="admin-password-actions">
+                <span class="text-secondary small">新密码长度需为 8-128 位。</span>
+                <button id="adminPasswordSubmitBtn" class="btn btn-primary" type="submit">保存密码</button>
+            </div>
+        </form>
     </section>
 
     <section id="settingsAuthorizationPanel" class="settings-tab-panel d-none">

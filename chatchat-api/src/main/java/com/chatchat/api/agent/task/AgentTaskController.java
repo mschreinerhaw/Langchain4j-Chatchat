@@ -9,6 +9,7 @@ import com.chatchat.chat.task.AgentEffectAnalytics;
 import com.chatchat.chat.task.AgentEvent;
 import com.chatchat.chat.task.AgentExperienceSummary;
 import com.chatchat.chat.task.AgentLearningService;
+import com.chatchat.chat.task.AgentTaskFeedbackQueueService;
 import com.chatchat.chat.task.AgentTaskFeedbackRequest;
 import com.chatchat.chat.task.AgentRuntimeSummary;
 import com.chatchat.chat.task.AgentTaskResponse;
@@ -64,6 +65,7 @@ public class AgentTaskController {
     private final EnterpriseAdminService enterpriseAdminService;
     private final AgentTodoService todoService;
     private final InterpretationPlanStore interpretationPlanStore;
+    private final AgentTaskFeedbackQueueService feedbackQueueService;
 
     /**
      * Performs the submit operation.
@@ -488,7 +490,7 @@ public class AgentTaskController {
                                                    @PathVariable("taskId") String taskId,
                                                    @RequestBody AgentTaskFeedbackRequest request) {
         try {
-            return ApiResponse.success(taskService.recordFeedback(tenantId, taskId, request), "Agent task feedback recorded");
+            return ApiResponse.success(feedbackQueueService.enqueueFeedback(tenantId, taskId, request), "Agent task feedback queued");
         } catch (IllegalArgumentException e) {
             return ApiResponse.badRequest(e.getMessage());
         } catch (Exception e) {

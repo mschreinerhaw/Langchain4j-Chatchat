@@ -43,7 +43,81 @@ class CommandTemplateServiceTest {
         verify(repository, org.mockito.Mockito.atLeastOnce()).save(captor.capture());
         List<CommandTemplateConfig> saved = captor.getAllValues();
         assertThat(saved).extracting(CommandTemplateConfig::getCode)
-            .contains("CHECK_SYSTEM_OVERVIEW", "CHECK_SERVICE_INFO");
+            .contains(
+                "CHECK_SYSTEM_OVERVIEW",
+                "CHECK_SERVICE_INFO",
+                "CHECK_PROCESS_INFO",
+                "CHECK_PROCESS_NETWORK",
+                "CHECK_JAVA_PROCESS",
+                "CHECK_JVM_DETAIL",
+                "CHECK_IO_STATUS",
+                "CHECK_PORT_BINDING",
+                "CHECK_SYSTEM_LOAD"
+            );
+        assertThat(saved)
+            .filteredOn(template -> "CHECK_PROCESS_INFO".equals(template.getCode()))
+            .singleElement()
+            .satisfies(template -> {
+                assertThat(template.getCommandTemplate())
+                    .contains("process resource details: {{processName}}")
+                    .contains("ps -eo pid,ppid,user,comm,%cpu,%mem,rss,vsz,etime,cmd")
+                    .contains("process json lines: {{processName}}")
+                    .contains("ps -eo pid,comm,%cpu,%mem,rss,vsz,cmd")
+                    .contains("{{processName}}")
+                    .contains("index(tolower($0), q)>0")
+                    .contains("vsz");
+                assertThat(template.getParameterSchemaJson()).contains("processName");
+            });
+        assertThat(saved)
+            .filteredOn(template -> "CHECK_PROCESS_NETWORK".equals(template.getCode()))
+            .singleElement()
+            .satisfies(template -> {
+                assertThat(template.getCommandTemplate())
+                    .contains("lsof -i -P -n")
+                    .contains("ss -ptn")
+                    .contains("{{processName}}");
+                assertThat(template.getParameterSchemaJson()).contains("processName");
+            });
+        assertThat(saved)
+            .filteredOn(template -> "CHECK_JAVA_PROCESS".equals(template.getCode()))
+            .singleElement()
+            .satisfies(template -> assertThat(template.getCommandTemplate())
+                .contains("jps -lv")
+                .contains("ps -eo pid,ppid,user,stat,pcpu,pmem,etime,args")
+                .contains("ps -eo pid,%cpu,%mem,rss,vsz,cmd --no-headers | grep java | grep -v grep")
+                .contains("ps -eo pid,comm,%cpu,%mem,rss,vsz --no-headers | grep -i java")
+                .contains("pid")
+                .contains("rss"));
+        assertThat(saved)
+            .filteredOn(template -> "CHECK_JVM_DETAIL".equals(template.getCode()))
+            .singleElement()
+            .satisfies(template -> {
+                assertThat(template.getCommandTemplate())
+                    .contains("jstat -gc {{pid}} 1s 3")
+                    .contains("jmap -heap {{pid}}")
+                    .contains("jstack {{pid}}")
+                    .contains("jps -lv");
+                assertThat(template.getParameterSchemaJson()).contains("pid");
+            });
+        assertThat(saved)
+            .filteredOn(template -> "CHECK_IO_STATUS".equals(template.getCode()))
+            .singleElement()
+            .satisfies(template -> assertThat(template.getCommandTemplate())
+                .contains("iostat -x 1 3")
+                .contains("pidstat -d 1 3"));
+        assertThat(saved)
+            .filteredOn(template -> "CHECK_PORT_BINDING".equals(template.getCode()))
+            .singleElement()
+            .satisfies(template -> assertThat(template.getCommandTemplate())
+                .contains("ss -tulnp")
+                .contains("lsof -iTCP -sTCP:LISTEN"));
+        assertThat(saved)
+            .filteredOn(template -> "CHECK_SYSTEM_LOAD".equals(template.getCode()))
+            .singleElement()
+            .satisfies(template -> assertThat(template.getCommandTemplate())
+                .contains("/proc/loadavg")
+                .contains("mpstat 1 1")
+                .contains("vmstat 1 3"));
         assertThat(saved)
             .filteredOn(template -> "CHECK_SERVICE_INFO".equals(template.getCode()))
             .singleElement()
@@ -87,7 +161,42 @@ class CommandTemplateServiceTest {
                 assertThat(saved.getCommandTemplate())
                     .contains("jps -lv")
                     .contains("ps -eo")
-                    .contains("awk");
+                    .contains("awk")
+                    .contains("ps -eo pid,%cpu,%mem,rss,vsz,cmd --no-headers | grep java | grep -v grep")
+                    .contains("ps -eo pid,comm,%cpu,%mem,rss,vsz --no-headers | grep -i java")
+                    .contains("name");
+            }
+        });
+    }
+
+    @Test
+    void repairsExistingDefaultJavaProcessTemplateWhenResourceCommandIsMissing() {
+        CommandTemplateSeedProperties properties = new CommandTemplateSeedProperties();
+        properties.setSeedDefaultsEnabled(true);
+        CommandTemplateConfig existing = new CommandTemplateConfig();
+        existing.setCode("CHECK_JAVA_PROCESS");
+        existing.setTitle("Java process");
+        existing.setDescription("Read Java processes with jps when available and ps as a fallback.");
+        existing.setCommandTemplate("[\"echo '=== jps -lv ==='; jps -lv\",\"echo '=== ps java processes ==='; ps -eo pid,ppid,user,stat,pcpu,pmem,etime,args | awk 'NR==1 || /[j]ava/'\"]");
+        existing.setParameterSchemaJson("{}");
+        existing.setIntentSignalsJson("[]");
+        existing.setEnabled(true);
+        CommandTemplateService service = new CommandTemplateService(repository, new ObjectMapper(), properties);
+        when(repository.findByCode("CHECK_JAVA_PROCESS")).thenReturn(Optional.of(existing));
+        when(repository.findByCode(org.mockito.ArgumentMatchers.argThat(code -> !"CHECK_JAVA_PROCESS".equals(code))))
+            .thenReturn(Optional.empty());
+        when(repository.findByEnabledTrueOrderByCodeAsc()).thenReturn(List.of(existing));
+
+        service.listEnabled();
+
+        ArgumentCaptor<CommandTemplateConfig> captor = ArgumentCaptor.forClass(CommandTemplateConfig.class);
+        verify(repository, org.mockito.Mockito.atLeastOnce()).save(captor.capture());
+        assertThat(captor.getAllValues()).anySatisfy(saved -> {
+            if ("CHECK_JAVA_PROCESS".equals(saved.getCode())) {
+                assertThat(saved.getCommandTemplate())
+                    .contains("ps -eo pid,%cpu,%mem,rss,vsz,cmd --no-headers | grep java | grep -v grep")
+                    .contains("ps -eo pid,comm,%cpu,%mem,rss,vsz --no-headers | grep -i java")
+                    .contains("cpu");
             }
         });
     }

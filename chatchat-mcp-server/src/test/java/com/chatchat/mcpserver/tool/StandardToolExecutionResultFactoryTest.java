@@ -220,6 +220,10 @@ class StandardToolExecutionResultFactoryTest {
         config.setId("query-1");
         config.setToolName("db_query_customer");
         config.setTitle("Customer query");
+        config.setBusinessGroup("fund_nav");
+        config.setBusinessGroupName("基金净值核对");
+        config.setBusinessGroupDescription("用于跨渠道基金净值一致性分析");
+        config.setTemplateIntent("nav_reconciliation");
         config.setSqlTemplate("select * from customer where id = :id");
         config.setMaxRows(20);
         ToolOutput output = ToolOutput.success(Map.of(
@@ -237,6 +241,10 @@ class StandardToolExecutionResultFactoryTest {
 
         Map<String, Object> envelope = factory.fromDatabaseQuery(config, Map.of("id", "c-1"), output);
         Map<?, ?> execution = (Map<?, ?>) envelope.get("execution");
+        Map<?, ?> analysisContext = (Map<?, ?>) envelope.get("analysisContext");
+        Map<?, ?> target = (Map<?, ?>) envelope.get("target");
+        Map<?, ?> template = (Map<?, ?>) target.get("template");
+        Map<?, ?> businessGroup = (Map<?, ?>) template.get("businessGroup");
         Map<?, ?> step = (Map<?, ?>) ((List<?>) execution.get("steps")).get(0);
         Map<?, ?> input = (Map<?, ?>) step.get("input");
         Map<?, ?> stepOutput = (Map<?, ?>) step.get("output");
@@ -250,5 +258,10 @@ class StandardToolExecutionResultFactoryTest {
         assertThat(input.get("statement")).isEqualTo("select * from customer where id = :id");
         assertThat(stepOutput.get("rowCount")).isEqualTo(1);
         assertThat(nameColumn.get("comment")).isEqualTo("Customer name");
+        assertThat(analysisContext.get("businessGroupName")).isEqualTo("基金净值核对");
+        assertThat(analysisContext.get("businessGroupDescription")).isEqualTo("用于跨渠道基金净值一致性分析");
+        assertThat(analysisContext.get("templateIntent")).isEqualTo("nav_reconciliation");
+        assertThat(String.valueOf(analysisContext.get("modelAnalysisHint"))).contains("businessGroupName");
+        assertThat(businessGroup.get("name")).isEqualTo("基金净值核对");
     }
 }

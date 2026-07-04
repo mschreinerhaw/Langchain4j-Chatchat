@@ -78,6 +78,7 @@ let sqlMetadataScopeSearchTerm = '';
 
 const ASSET_PAGE_SIZE = 12;
 const COMMAND_TEMPLATE_PAGE_SIZE = 12;
+const DEFAULT_HTTP_TIMEOUT_SECONDS = 10;
 const GOVERNANCE_MASK_FIELDS = ['phone', 'id_card', 'account_no'];
 const DEFAULT_SSH_COMMAND_TEMPLATE_CODES = [];
 
@@ -2155,7 +2156,7 @@ function readHttpAssetForm() {
         routingLabels: existing.routingLabels,
         capabilitiesJson: existing.capabilitiesJson,
         capabilities: existing.capabilities,
-        timeoutMs: Number(value('httpAssetTimeoutMs') || 10000)
+        timeoutMs: secondsToMillis(value('httpAssetTimeoutMs'), DEFAULT_HTTP_TIMEOUT_SECONDS)
     };
 }
 
@@ -2181,7 +2182,17 @@ function fillHttpAssetForm(asset) {
     setValue('httpAssetEnvironment', asset?.environment || 'DEV');
     setValue('httpAssetCategory', asset?.category || 'business_api');
     setValue('httpAssetTags', asset?.tags || '');
-    setValue('httpAssetTimeoutMs', String(asset?.timeoutMs || 10000));
+    setValue('httpAssetTimeoutMs', String(millisToSeconds(asset?.timeoutMs, DEFAULT_HTTP_TIMEOUT_SECONDS)));
+}
+
+function secondsToMillis(value, fallbackSeconds) {
+    const seconds = Number(value || fallbackSeconds);
+    return Math.max(1, Math.round(seconds)) * 1000;
+}
+
+function millisToSeconds(value, fallbackSeconds) {
+    const millis = Number(value || fallbackSeconds * 1000);
+    return Math.max(1, Math.round(millis / 1000));
 }
 
 function defaultDatabaseQueryGovernance(query = {}) {

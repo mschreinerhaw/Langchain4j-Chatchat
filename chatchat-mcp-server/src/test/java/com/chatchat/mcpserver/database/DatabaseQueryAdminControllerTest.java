@@ -46,6 +46,7 @@ class DatabaseQueryAdminControllerTest {
                 "SELECT 1",
                 Map.of(),
                 1,
+                75,
                 "asset-dm",
                 null,
                 null,
@@ -64,6 +65,8 @@ class DatabaseQueryAdminControllerTest {
         assertThat(parameters).containsEntry("driver_class", "dm.jdbc.driver.DmDriver");
         assertThat(parameters).containsEntry("jdbc_url", "jdbc:dm://192.168.195.221:5236");
         assertThat(parameters).containsEntry("datasource_id", "asset-dm");
+        assertThat(parameters).containsEntry("timeoutSeconds", 75);
+        assertThat(parameters).containsEntry("timeout_seconds", 75);
     }
 
     private SqlDatasourceConfig dmDatasource() {

@@ -7,6 +7,7 @@ import com.chatchat.common.tool.ToolOutput;
 import com.chatchat.mcpserver.audit.InvocationAuditService;
 import com.chatchat.mcpserver.sql.SqlDatasourceConfig;
 import com.chatchat.mcpserver.sql.SqlDatasourceConfigService;
+import com.chatchat.mcpserver.sql.SqlScriptExecuteService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -30,6 +31,7 @@ public class DatabaseQueryInvokeService {
 
     private final ToolRegistry toolRegistry;
     private final SqlDatasourceConfigService datasourceConfigService;
+    private final SqlScriptExecuteService scriptExecuteService;
     private final ObjectMapper objectMapper;
     private final InvocationAuditService auditService;
 
@@ -107,6 +109,14 @@ public class DatabaseQueryInvokeService {
             output.setExecutionTimeMs(durationMs);
             return output;
         }
+        List<String> statements = scriptExecuteService.extractStatements(text(parameters, "sql"));
+        if (statements.size() > 1) {
+            return invokeScript(parameters, statements, startedAt);
+        }
+        if (statements.size() == 1) {
+            parameters = new LinkedHashMap<>(parameters);
+            parameters.put("sql", statements.get(0));
+        }
         ToolInput input = ToolInput.builder()
             .requestId(UUID.randomUUID().toString())
             .userId("admin")
@@ -133,6 +143,59 @@ public class DatabaseQueryInvokeService {
         return output;
     }
 
+    private ToolOutput invokeScript(Map<String, Object> parameters, List<String> statements, long startedAt) {
+        List<Map<String, Object>> results = new java.util.ArrayList<>();
+        boolean success = true;
+        String errorMessage = null;
+        for (int index = 0; index < statements.size(); index++) {
+            Map<String, Object> stepParameters = new LinkedHashMap<>(parameters);
+            stepParameters.put("sql", statements.get(index));
+            ToolOutput step = invokeSingleStatement(stepParameters);
+            Map<String, Object> data = mapValue(step.getData());
+            Map<String, Object> result = new LinkedHashMap<>();
+            result.put("statementIndex", index + 1);
+            result.put("success", step.isSuccess());
+            result.put("sql", data.getOrDefault("sql", statements.get(index)));
+            result.put("columns", data.getOrDefault("columns", List.of()));
+            result.put("rows", data.getOrDefault("rows", List.of()));
+            result.put("rowCount", data.getOrDefault("rowCount", 0));
+            result.put("maxRows", data.getOrDefault("maxRows", parameters.getOrDefault("max_rows", parameters.get("maxRows"))));
+            result.put("possiblyTruncated", data.getOrDefault("possiblyTruncated", false));
+            result.put("errorMessage", step.getErrorMessage());
+            results.add(result);
+            if (!step.isSuccess()) {
+                success = false;
+                errorMessage = step.getErrorMessage();
+                break;
+            }
+        }
+        long durationMs = Math.max(0L, System.currentTimeMillis() - startedAt);
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("mode", "sql_script");
+        data.put("statementCount", statements.size());
+        data.put("resultSetCount", results.size());
+        data.put("results", results);
+        data.put("possiblyPartial", results.size() < statements.size());
+        ToolOutput output = success
+            ? ToolOutput.success(data, "Database SQL script completed successfully")
+            : ToolOutput.failure(errorMessage == null ? "Database SQL script failed" : errorMessage);
+        output.setData(data);
+        output.setExecutionTimeMs(durationMs);
+        output.getMetadata().put("executionMode", "sql_script");
+        output.getMetadata().put("statementCount", statements.size());
+        return output;
+    }
+
+    private ToolOutput invokeSingleStatement(Map<String, Object> parameters) {
+        ToolInput input = ToolInput.builder()
+            .requestId(UUID.randomUUID().toString())
+            .userId("admin")
+            .parameters(parameters)
+            .build();
+        ToolOutput output = toolRegistry.executeEnhancedTool(TOOL_NAME, input);
+        return output == null ? ToolOutput.failure("database_query tool returned no output") : output;
+    }
+
     /**
      * Converts the value to parameters.
      *
@@ -145,6 +208,8 @@ public class DatabaseQueryInvokeService {
         parameters.put("sql", config.getSqlTemplate());
         parameters.put("params", arguments);
         parameters.put("max_rows", config.getMaxRows());
+        parameters.put("timeoutSeconds", config.getTimeoutSeconds());
+        parameters.put("timeout_seconds", config.getTimeoutSeconds());
         if (config.getDatasourceId() == null || config.getDatasourceId().isBlank()) {
             throw new IllegalArgumentException("database query requires an enabled datasource asset");
         }
@@ -171,6 +236,16 @@ public class DatabaseQueryInvokeService {
         if (value != null && !value.isBlank()) {
             parameters.put(key, value.trim());
         }
+    }
+
+    private String text(Map<String, Object> values, String key) {
+        Object value = values == null ? null : values.get(key);
+        return value == null ? "" : String.valueOf(value);
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> mapValue(Object value) {
+        return value instanceof Map<?, ?> map ? (Map<String, Object>) map : Map.of();
     }
 
     /**

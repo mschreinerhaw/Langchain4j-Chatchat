@@ -176,7 +176,7 @@ export default {
       agentStatusFilter: "all",
       agentModelFilter: "all",
       agentPage: 1,
-      agentPageSize: 5,
+      agentPageSize: 6,
       toolSearchQuery: "",
       toolGroupMode: "service",
       error: "",

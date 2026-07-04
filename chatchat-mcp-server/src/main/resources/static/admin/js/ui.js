@@ -299,6 +299,10 @@ export function renderDatabaseQueryPreview(output, handlers = {}) {
     }
 
     const data = output.data || {};
+    if (data.mode === 'sql_script' && Array.isArray(data.results)) {
+        renderDatabaseScriptPreview(node, output, data, handlers);
+        return;
+    }
     const columns = Array.isArray(data.columns) ? data.columns : [];
     const rows = Array.isArray(data.rows) ? data.rows : [];
     node.innerHTML = `
@@ -335,6 +339,64 @@ export function renderDatabaseQueryPreview(output, handlers = {}) {
             handlers.pickFields(columns, rows[0] || {});
         });
     }
+}
+
+function renderDatabaseScriptPreview(node, output, data, handlers = {}) {
+    const results = data.results || [];
+    node.innerHTML = `
+        <div class="database-preview-summary">
+            <span class="badge text-bg-success">成功</span>
+            <span>${escapeHtml(output.message || '脚本执行完成')}</span>
+            <span>${escapeHtml(data.statementCount ?? results.length)} 条 SQL</span>
+            <span>${escapeHtml(results.length)} 个结果集</span>
+            ${data.possiblyPartial ? '<span class="badge text-bg-warning">部分执行</span>' : ''}
+        </div>
+        ${results.map((result, resultIndex) => {
+            const columns = Array.isArray(result.columns) ? result.columns : [];
+            const rows = Array.isArray(result.rows) ? result.rows : [];
+            return `
+                <section class="database-script-result">
+                    <div class="database-script-result-head">
+                        <strong>第 ${escapeHtml(result.statementIndex ?? resultIndex + 1)} 条 SQL</strong>
+                        <span>${escapeHtml(result.rowCount ?? rows.length)} 行</span>
+                    </div>
+                    <pre class="database-script-sql">${escapeHtml(result.sql || '')}</pre>
+                    ${renderPreviewFieldPicker(columns, `script-${resultIndex}`)}
+                    ${renderPreviewTable(columns, rows)}
+                </section>
+            `;
+        }).join('')}
+        <details class="database-preview-json">
+            <summary>完整 JSON</summary>
+            <pre class="result-output">${escapeHtml(stringifyForDisplay(output))}</pre>
+        </details>
+    `;
+    node.querySelectorAll('[data-database-preview-field]').forEach(button => {
+        button.addEventListener('click', () => {
+            const index = Number(button.dataset.databasePreviewField);
+            const resultIndex = Number(button.dataset.databasePreviewResult || 0);
+            const result = results[resultIndex] || {};
+            const columns = Array.isArray(result.columns) ? result.columns : [];
+            const rows = Array.isArray(result.rows) ? result.rows : [];
+            const field = columns[index];
+            if (!field || typeof handlers.pickField !== 'function') {
+                return;
+            }
+            handlers.pickField(field, rows[0]?.[field]);
+        });
+    });
+    node.querySelectorAll('[data-database-preview-pick-all]').forEach(button => {
+        button.addEventListener('click', () => {
+            const resultIndex = Number(button.dataset.databasePreviewResult || 0);
+            const result = results[resultIndex] || {};
+            const columns = Array.isArray(result.columns) ? result.columns : [];
+            const rows = Array.isArray(result.rows) ? result.rows : [];
+            if (typeof handlers.pickFields !== 'function') {
+                return;
+            }
+            handlers.pickFields(columns, rows[0] || {});
+        });
+    });
 }
 
 export function renderDatabaseQueries(queries, selectedId, handlers, paging = {}) {
@@ -415,21 +477,22 @@ function renderPreviewTable(columns, rows) {
     `;
 }
 
-function renderPreviewFieldPicker(columns) {
+function renderPreviewFieldPicker(columns, resultIndex = 0) {
     if (!columns.length) {
         return '';
     }
+    const resultAttr = `data-database-preview-result="${escapeHtml(resultIndex)}"`;
     return `
         <div class="database-preview-fields">
             <div class="database-preview-fields-head">
                 <span class="text-secondary small">从查询结果列名生成参数</span>
-                <button class="btn btn-outline-primary btn-sm" type="button" data-database-preview-pick-all>
+                <button class="btn btn-outline-primary btn-sm" type="button" data-database-preview-pick-all ${resultAttr}>
                     全部字段
                 </button>
             </div>
             <div class="database-preview-field-list">
                 ${columns.map((column, index) => `
-                    <button class="btn btn-outline-secondary btn-sm" type="button" data-database-preview-field="${index}">
+                    <button class="btn btn-outline-secondary btn-sm" type="button" data-database-preview-field="${index}" ${resultAttr}>
                         ${escapeHtml(column)}
                     </button>
                 `).join('')}

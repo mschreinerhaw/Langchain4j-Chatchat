@@ -45,6 +45,33 @@ export async function logout() {
     clearSession();
 }
 
+export function currentUser() {
+    return authenticatedJson(`${API_BASE}/admin/auth/me`);
+}
+
+export function changeAdminPassword(currentPassword, newPassword) {
+    return authenticatedJson(`${API_BASE}/admin/auth/password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ currentPassword, newPassword })
+    });
+}
+
+async function authenticatedJson(url, options = {}) {
+    const token = getToken();
+    if (!token) {
+        throw new Error('请先登录');
+    }
+    const headers = new Headers(options.headers || {});
+    headers.set('Authorization', `Bearer ${token}`);
+    const response = await fetch(url, { ...options, headers });
+    const payload = await response.json().catch(() => ({}));
+    if (!response.ok || payload.code >= 400) {
+        throw new Error(payload.message || '请求失败');
+    }
+    return payload.data;
+}
+
 export function clearSession() {
     sessionStorage.removeItem(TOKEN_KEY);
     sessionStorage.removeItem(USER_KEY);

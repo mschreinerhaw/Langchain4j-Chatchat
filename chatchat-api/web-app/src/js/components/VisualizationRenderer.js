@@ -370,9 +370,16 @@ export default {
       if (this.chartType === "scatter") {
         return {
           ...common,
-          grid: { left: 46, right: 18, top: 42, bottom: 42, containLabel: true },
+          grid: { left: 68, right: 18, top: 54, bottom: 46, containLabel: true },
           xAxis: { type: "value", name: this.xAxisLabel, nameGap: 22, axisLabel: { color: "#667085" } },
-          yAxis: { type: "value", name: this.yAxisLabel, nameGap: 32, axisLabel: { color: "#667085" } },
+          yAxis: {
+            type: "value",
+            name: this.yAxisLabel,
+            nameLocation: "middle",
+            nameGap: 48,
+            nameRotate: 90,
+            axisLabel: { color: "#667085" }
+          },
           series: this.yKeys.map((key) => ({
             name: seriesNameByKey[key] || key,
             type: "scatter",
@@ -389,7 +396,7 @@ export default {
       }
       return {
         ...common,
-        grid: { left: 46, right: 18, top: 42, bottom: 42, containLabel: true },
+        grid: { left: 68, right: 18, top: 54, bottom: 46, containLabel: true },
         xAxis: {
           type: "category",
           name: this.xAxisLabel,
@@ -397,7 +404,14 @@ export default {
           data: this.rows.map((row, index) => compact(row[this.xKey] ?? `Row ${index + 1}`)),
           axisLabel: { color: "#667085", hideOverlap: true }
         },
-        yAxis: { type: "value", name: this.yAxisLabel, nameGap: 34, axisLabel: { color: "#667085" } },
+        yAxis: {
+          type: "value",
+          name: this.yAxisLabel,
+          nameLocation: "middle",
+          nameGap: 48,
+          nameRotate: 90,
+          axisLabel: { color: "#667085" }
+        },
         dataZoom: this.rows.length > 20 ? [{ type: "inside" }, { type: "slider", height: 18, bottom: 8 }] : [],
         series: this.yKeys.map((key) => ({
           name: seriesNameByKey[key] || key,

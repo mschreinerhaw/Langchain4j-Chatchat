@@ -39,7 +39,7 @@ public class DatabaseQueryToolSpecFactory {
         McpSchema.Tool tool = McpSchema.Tool.builder()
             .name(config.getToolName())
             .title(config.getTitle())
-            .description(config.getDescription() == null ? "Read-only database query" : config.getDescription())
+            .description(description(config))
             .inputSchema(toInputSchema(config.getInputSchemaJson()))
             .meta(withLimitMeta(withProtocolMeta(
                     withLegacyId(governanceFactory.metaForDatabaseQuery(config), "databaseQueryId", config.getId()),
@@ -98,7 +98,7 @@ public class DatabaseQueryToolSpecFactory {
         Object structured = standardResultFactory.fromDatabaseQuery(config, arguments, output);
         boolean success = output != null && output.isSuccess();
         String text = success
-            ? summarizeData(output.getData())
+            ? summarizeData(config, output.getData())
             : output == null ? "database_query returned no output" : output.getErrorMessage();
         return McpSchema.CallToolResult.builder()
             .addTextContent(text == null ? "" : text)
@@ -140,12 +140,18 @@ public class DatabaseQueryToolSpecFactory {
      * @param data the data value
      * @return the operation result
      */
-    private String summarizeData(Object data) {
+    private String summarizeData(DatabaseQueryConfig config, Object data) {
         if (data == null) {
             return "";
         }
         if (data instanceof Map<?, ?> map) {
             Map<String, Object> summary = new LinkedHashMap<>();
+            summary.put("analysisContext", Map.of(
+                "businessGroupCode", firstText(config.getBusinessGroup(), "default"),
+                "businessGroupName", firstText(config.getBusinessGroupName(), firstText(config.getBusinessGroup(), "default")),
+                "businessGroupDescription", firstText(config.getBusinessGroupDescription(), ""),
+                "templateIntent", firstText(config.getTemplateIntent(), "general_query")
+            ));
             summary.put("rowCount", map.get("rowCount"));
             summary.put("columns", map.get("columns"));
             summary.put("rows", map.get("rows"));
@@ -222,6 +228,23 @@ public class DatabaseQueryToolSpecFactory {
             "name", firstText(config.getBusinessGroupName(), firstText(config.getBusinessGroup(), "default")),
             "description", firstText(config.getBusinessGroupDescription(), "")
         );
+    }
+
+    private String description(DatabaseQueryConfig config) {
+        String description = firstText(config.getDescription(), "Read-only database query");
+        String groupCode = firstText(config.getBusinessGroup(), "default");
+        String groupName = firstText(config.getBusinessGroupName(), groupCode);
+        String groupDescription = firstText(config.getBusinessGroupDescription(), "");
+        StringBuilder builder = new StringBuilder(description)
+            .append(" Business group: ")
+            .append(groupName);
+        if (!groupCode.equals(groupName)) {
+            builder.append(" (").append(groupCode).append(")");
+        }
+        if (!groupDescription.isBlank()) {
+            builder.append(". Group context: ").append(groupDescription);
+        }
+        return builder.toString();
     }
 
     private String firstText(String value, String fallback) {

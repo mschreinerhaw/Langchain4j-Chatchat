@@ -29,6 +29,7 @@ class SqlMcpToolPublisherTest {
     private final McpSyncServer mcpSyncServer = mock(McpSyncServer.class);
     private final SqlDatasourceConfigService datasourceConfigService = mock(SqlDatasourceConfigService.class);
     private final SqlTemplateService sqlTemplateService = mock(SqlTemplateService.class);
+    private final SqlScriptExecuteService scriptExecuteService = mock(SqlScriptExecuteService.class);
     private final SqlMetadataSearchService metadataSearchService = mock(SqlMetadataSearchService.class);
     private final DatabaseQueryConfigService databaseQueryConfigService = mock(DatabaseQueryConfigService.class);
     private final DatabaseQueryInvokeService databaseQueryInvokeService = mock(DatabaseQueryInvokeService.class);
@@ -53,6 +54,7 @@ class SqlMcpToolPublisherTest {
             datasourceConfigService,
             sqlTemplateService,
             null,
+            scriptExecuteService,
             metadataSearchService,
             databaseQueryConfigService,
             databaseQueryInvokeService,
@@ -77,5 +79,103 @@ class SqlMcpToolPublisherTest {
         verify(executionTargetRouter, never()).routeSqlQuery(org.mockito.ArgumentMatchers.anyMap());
         assertThat(argumentsCaptor.getValue()).containsEntry("limit", 10);
         assertThat(result).isNotNull();
+    }
+
+    @Test
+    void sqlGatewayRoutesMultiStatementSqlToScriptExecutor() throws Exception {
+        when(databaseQueryConfigService.listEnabled()).thenReturn(List.of());
+        Map<String, Object> routed = new java.util.LinkedHashMap<>();
+        routed.put("datasourceId", "ds-1");
+        routed.put("sql", "select 1; select 2");
+        routed.put("maxRows", 20);
+        when(executionTargetRouter.routeSqlQuery(org.mockito.ArgumentMatchers.anyMap())).thenReturn(routed);
+        when(scriptExecuteService.execute(org.mockito.ArgumentMatchers.anyMap()))
+            .thenReturn(new SqlScriptResult(
+                true,
+                "ds-1",
+                "db",
+                "sql_db",
+                "DEV",
+                "select 1; select 2",
+                5,
+                20,
+                2,
+                List.of(),
+                3,
+                "analysis",
+                "task-1",
+                null,
+                Map.of()
+            ));
+
+        SqlMcpToolPublisher publisher = new SqlMcpToolPublisher(
+            mcpSyncServer,
+            datasourceConfigService,
+            sqlTemplateService,
+            null,
+            scriptExecuteService,
+            metadataSearchService,
+            databaseQueryConfigService,
+            databaseQueryInvokeService,
+            executionTargetRouter,
+            assetMetadataFactory,
+            governanceFactory,
+            concurrencyManager,
+            new StandardToolExecutionResultFactory(),
+            new ObjectMapper()
+        );
+
+        Method method = SqlMcpToolPublisher.class.getDeclaredMethod("executeSqlGateway", Map.class);
+        method.setAccessible(true);
+        Object result = method.invoke(publisher, Map.of(
+            "sql", "select 1; select 2",
+            "executionContext", Map.of("assetName", "db", "env", "DEV")
+        ));
+
+        ArgumentCaptor<Map<String, Object>> argumentsCaptor = ArgumentCaptor.forClass(Map.class);
+        verify(scriptExecuteService).execute(argumentsCaptor.capture());
+        assertThat(argumentsCaptor.getValue())
+            .containsEntry("script", "select 1; select 2")
+            .containsEntry("maxRowsPerStatement", 20);
+        assertThat(argumentsCaptor.getValue()).doesNotContainKey("sql");
+        assertThat(result).isNotNull();
+    }
+
+    @Test
+    void sqlGatewayRuntimeLevelUsesTemplateSqlWhenOnlyTemplateIdIsProvided() throws Exception {
+        DatabaseQueryConfig config = new DatabaseQueryConfig();
+        config.setId("query-1");
+        config.setToolName("query_market_overview_kpi_dashboard");
+        config.setSqlTemplate("select 1 as total_count; select 2 as detail_count");
+        when(databaseQueryConfigService.listEnabled()).thenReturn(List.of(config));
+        when(scriptExecuteService.extractStatements(config.getSqlTemplate()))
+            .thenReturn(List.of("select 1 as total_count", "select 2 as detail_count"));
+
+        SqlMcpToolPublisher publisher = new SqlMcpToolPublisher(
+            mcpSyncServer,
+            datasourceConfigService,
+            sqlTemplateService,
+            null,
+            scriptExecuteService,
+            metadataSearchService,
+            databaseQueryConfigService,
+            databaseQueryInvokeService,
+            executionTargetRouter,
+            assetMetadataFactory,
+            governanceFactory,
+            concurrencyManager,
+            new StandardToolExecutionResultFactory(),
+            new ObjectMapper()
+        );
+
+        Method method = SqlMcpToolPublisher.class.getDeclaredMethod("sqlGatewayRuntimeLevel", Map.class);
+        method.setAccessible(true);
+        Object level = method.invoke(publisher, Map.of(
+            "templateId", "query_market_overview_kpi_dashboard",
+            "parameters", Map.of(),
+            "executionContext", Map.of("assetName", "dm", "env", "DEV")
+        ));
+
+        assertThat(level).isEqualTo("sql_script");
     }
 }

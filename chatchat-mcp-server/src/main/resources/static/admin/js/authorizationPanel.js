@@ -1,4 +1,5 @@
 import { listHttpAssets, listSqlAssets, listSshAssets } from './assetCenter.js';
+import { changeAdminPassword, clearSession, currentUser, getUser } from './auth.js';
 import { listDatabaseQueries } from './databaseMcp.js';
 import {
     createRolePermission,
@@ -17,10 +18,14 @@ let rolePermissionRole = null;
 let rolePermissionRules = [];
 let selectedRolePermissionToolName = '';
 let onError = error => console.error(error);
+let onPasswordChanged = () => {};
 
 export function bindAuthorizationPanel(options = {}) {
     onError = options.onError || onError;
+    onPasswordChanged = options.onPasswordChanged || onPasswordChanged;
+    renderAdminPasswordAccess(sessionUser());
     bindOptional('syncMcpAuthorizationBtn', 'click', handleSync);
+    bindOptional('adminPasswordForm', 'submit', handleAdminPasswordSubmit);
     document.querySelectorAll('[data-settings-tab]').forEach(button => {
         button.addEventListener('click', () => switchSettingsTab(button.dataset.settingsTab));
     });
@@ -43,7 +48,10 @@ export function bindAuthorizationPanel(options = {}) {
 }
 
 export async function loadAuthorizationPanel() {
+    renderAdminPasswordAccess(sessionUser());
     try {
+        const user = await currentUser().catch(() => sessionUser());
+        renderAdminPasswordAccess(user);
         const [nextSnapshot] = await Promise.all([
             getAuthorizationSnapshot(),
             loadLocalAuthorizationTools()
@@ -61,15 +69,63 @@ function bindOptional(id, event, handler) {
 
 function switchSettingsTab(tab) {
     activeSettingsTab = tab || 'connection';
+    if (activeSettingsTab === 'adminPassword' && document.getElementById('adminPasswordTabBtn')?.classList.contains('d-none')) {
+        activeSettingsTab = 'connection';
+    }
     document.querySelectorAll('[data-settings-tab]').forEach(button => {
         const active = button.dataset.settingsTab === activeSettingsTab;
         button.classList.toggle('active', active);
         button.setAttribute('aria-selected', active ? 'true' : 'false');
     });
     document.getElementById('settingsConnectionPanel')?.classList.toggle('d-none', activeSettingsTab !== 'connection');
+    document.getElementById('settingsAdminPasswordPanel')?.classList.toggle('d-none', activeSettingsTab !== 'adminPassword');
     document.getElementById('settingsAuthorizationPanel')?.classList.toggle('d-none', activeSettingsTab !== 'authorization');
     if (activeSettingsTab === 'authorization') {
         loadAuthorizationPanel();
+    }
+}
+
+function renderAdminPasswordAccess(user) {
+    const isAdmin = !!user?.admin;
+    document.getElementById('adminPasswordTabBtn')?.classList.toggle('d-none', !isAdmin);
+    document.getElementById('settingsAdminPasswordPanel')?.classList.toggle('d-none', activeSettingsTab !== 'adminPassword' || !isAdmin);
+    if (!isAdmin && activeSettingsTab === 'adminPassword') {
+        switchSettingsTab('connection');
+    }
+}
+
+function sessionUser() {
+    const username = getUser();
+    return {
+        username,
+        admin: username === 'admin'
+    };
+}
+
+async function handleAdminPasswordSubmit(event) {
+    event.preventDefault();
+    const currentPassword = document.getElementById('adminCurrentPassword')?.value || '';
+    const newPassword = document.getElementById('adminNewPassword')?.value || '';
+    const confirmPassword = document.getElementById('adminConfirmPassword')?.value || '';
+    if (newPassword.length < 8 || newPassword.length > 128) {
+        notify('密码不符合要求', '新密码长度需为 8-128 位。');
+        return;
+    }
+    if (newPassword !== confirmPassword) {
+        notify('请确认新密码', '两次输入的新密码不一致。');
+        return;
+    }
+    try {
+        document.getElementById('adminPasswordSubmitBtn')?.setAttribute('disabled', 'disabled');
+        await changeAdminPassword(currentPassword, newPassword);
+        document.getElementById('adminPasswordForm')?.reset();
+        notify('密码修改成功', '请重新配置或者重启相关服务。');
+        clearSession();
+        onPasswordChanged();
+    } catch (error) {
+        onError(error);
+    } finally {
+        document.getElementById('adminPasswordSubmitBtn')?.removeAttribute('disabled');
     }
 }
 

@@ -61,6 +61,7 @@ class DatabaseQueryConfigServiceTest {
         draft.setBusinessGroup("Order BI");
         draft.setBusinessGroupName("Order business intelligence");
         draft.setBusinessGroupDescription("Templates for order revenue and fulfillment analysis");
+        draft.setTimeoutSeconds(120);
         draft.setRating(9.0);
         draft.setUsageCount(-10L);
         when(toolRegistry.hasTool("query_orders")).thenReturn(false);
@@ -82,6 +83,7 @@ class DatabaseQueryConfigServiceTest {
         assertThat(saved.getBusinessGroup()).isEqualTo("order_bi");
         assertThat(saved.getBusinessGroupName()).isEqualTo("Order business intelligence");
         assertThat(saved.getBusinessGroupDescription()).contains("order revenue");
+        assertThat(saved.getTimeoutSeconds()).isEqualTo(120);
         assertThat(saved.getTagsJson()).contains("orders", "analysis");
         assertThat(saved.getRiskLevel()).isEqualTo("safe");
         assertThat(saved.getOwner()).isEqualTo("bi-admin");
@@ -127,6 +129,7 @@ class DatabaseQueryConfigServiceTest {
         config.setTitle("Query orders");
         config.setSqlTemplate("select id from orders");
         config.setMaxRows(50);
+        config.setTimeoutSeconds(30);
         config.setEnabled(true);
         return config;
     }

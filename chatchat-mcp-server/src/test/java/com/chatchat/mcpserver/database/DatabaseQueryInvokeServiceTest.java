@@ -6,6 +6,7 @@ import com.chatchat.common.tool.ToolOutput;
 import com.chatchat.mcpserver.audit.InvocationAuditService;
 import com.chatchat.mcpserver.sql.SqlDatasourceConfig;
 import com.chatchat.mcpserver.sql.SqlDatasourceConfigService;
+import com.chatchat.mcpserver.sql.SqlScriptExecuteService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -21,10 +22,12 @@ class DatabaseQueryInvokeServiceTest {
 
     private final ToolRegistry toolRegistry = mock(ToolRegistry.class);
     private final SqlDatasourceConfigService datasourceConfigService = mock(SqlDatasourceConfigService.class);
+    private final SqlScriptExecuteService scriptExecuteService = mock(SqlScriptExecuteService.class);
     private final InvocationAuditService auditService = mock(InvocationAuditService.class);
     private final DatabaseQueryInvokeService service = new DatabaseQueryInvokeService(
         toolRegistry,
         datasourceConfigService,
+        scriptExecuteService,
         new ObjectMapper(),
         auditService
     );
@@ -42,6 +45,7 @@ class DatabaseQueryInvokeServiceTest {
         config.setDatasourceId("asset-dm");
         config.setSqlTemplate("SELECT 1");
         config.setMaxRows(1);
+        config.setTimeoutSeconds(90);
 
         ToolOutput output = service.invoke(config, Map.of());
 
@@ -53,6 +57,8 @@ class DatabaseQueryInvokeServiceTest {
         assertThat(parameters).containsEntry("driver_class", "dm.jdbc.driver.DmDriver");
         assertThat(parameters).containsEntry("jdbc_url", "jdbc:dm://192.168.195.221:5236");
         assertThat(parameters).containsEntry("datasource_id", "asset-dm");
+        assertThat(parameters).containsEntry("timeoutSeconds", 90);
+        assertThat(parameters).containsEntry("timeout_seconds", 90);
     }
 
     private SqlDatasourceConfig dmDatasource() {

@@ -98,21 +98,21 @@
             <span>{{ option.label }}</span>
           </button>
         </div>
-        <p v-else-if="message.feedbackTime" class="message-feedback-done">已参与评价</p>
+        <p v-else-if="message.feedbackTime" class="message-feedback-done">感谢评价</p>
         <p v-if="message.feedbackError" class="message-feedback-error">{{ message.feedbackError }}</p>
       </div>
     </article>
 
     <article v-if="loading && !hasStreamingMessage" class="chat-message assistant thinking-message">
       <div class="message-avatar">AI</div>
-      <div class="message-bubble loading-bubble" aria-label="AI投资助手正在思考">
+      <div class="message-bubble loading-bubble" aria-label="金融文档分析专家正在思考">
         <div class="thinking-brief" aria-hidden="true">
           <span></span>
           <span></span>
           <span></span>
         </div>
         <div class="thinking-copy">
-          <strong>AI投资助手正在梳理分析</strong>
+          <strong>金融文档分析专家正在梳理分析</strong>
           <small>研读市场信息、校验依据并组织结论</small>
           <div class="thinking-steps" aria-hidden="true">
             <span>理解问题</span>
@@ -191,79 +191,164 @@
     <div
       v-if="chartAnalysisModal"
       class="result-chart-modal-backdrop"
+      :class="{ floating: chartAnalysisFloating, fullscreen: chartAnalysisFullscreen }"
       role="presentation"
-      @click.self="closeChartAnalysisModal"
     >
-      <section class="result-chart-modal" role="dialog" aria-modal="true" aria-label="查询结果图表分析">
-        <header>
+      <section
+        class="result-chart-modal"
+        :class="{ floating: chartAnalysisFloating, fullscreen: chartAnalysisFullscreen }"
+        role="dialog"
+        :aria-modal="(!chartAnalysisFloating).toString()"
+        aria-label="查询结果图表分析"
+        :style="chartAnalysisWindowStyle()"
+      >
+        <header
+          :class="{ draggable: chartAnalysisFloating && !chartAnalysisFullscreen }"
+          @pointerdown="startChartAnalysisDrag"
+        >
           <div>
             <span>图表分析</span>
-            <h2>{{ chartAnalysisModal.title }}</h2>
+            <h2>{{ chartAnalysisActiveDataset()?.title || chartAnalysisModal.title }}</h2>
           </div>
-          <button type="button" aria-label="关闭" @click="closeChartAnalysisModal">×</button>
+          <div class="result-chart-window-actions" aria-label="chart window actions">
+            <button
+              type="button"
+              :class="{ active: chartAnalysisFloating }"
+              :title="chartAnalysisFloating ? '恢复弹窗' : '悬浮对比'"
+              :aria-label="chartAnalysisFloating ? '恢复弹窗' : '悬浮对比'"
+              @click="toggleChartAnalysisFloating"
+            >
+              <PinOff v-if="chartAnalysisFloating" :size="16" />
+              <Pin v-else :size="16" />
+            </button>
+            <button
+              type="button"
+              :title="chartAnalysisFullscreen ? '退出全屏' : '全屏'"
+              :aria-label="chartAnalysisFullscreen ? '退出全屏' : '全屏'"
+              @click="toggleChartAnalysisFullscreen"
+            >
+              <Minimize2 v-if="chartAnalysisFullscreen" :size="16" />
+              <Maximize2 v-else :size="16" />
+            </button>
+            <button type="button" aria-label="关闭" title="关闭" @click="closeChartAnalysisModal">
+              <X :size="18" />
+            </button>
+          </div>
         </header>
 
-        <div class="result-chart-controls">
-          <label>
-            <span>图表类型</span>
-            <select
-              :value="chartAnalysisModal.chartType"
-              @change="setChartField('chartType', $event.target.value)"
-            >
-              <option v-for="option in chartTypeOptions()" :key="option.value" :value="option.value">
-                {{ option.label }}
-              </option>
-            </select>
-          </label>
-          <label>
-            <span>X 轴 / 维度</span>
-            <select
-              :value="chartAnalysisModal.xKey"
-              @change="setChartField('xKey', $event.target.value)"
-            >
-              <option v-for="column in chartAnalysisModal.columns" :key="column" :value="column">
-                {{ column }}
-              </option>
-            </select>
-          </label>
-          <label>
-            <span>Y 轴 / 指标</span>
-            <select
-              :value="chartAnalysisModal.yKey"
-              @change="setChartField('yKey', $event.target.value)"
-            >
-              <option v-for="column in chartAnalysisModal.columns" :key="column" :value="column">
-                {{ column }}
-              </option>
-            </select>
-          </label>
-          <label>
-            <span>分组字段</span>
-            <select
-              :value="chartAnalysisModal.groupKey"
-              @change="setChartField('groupKey', $event.target.value)"
-            >
-              <option value="">不分组</option>
-              <option v-for="column in chartAnalysisModal.columns" :key="column" :value="column">
-                {{ column }}
-              </option>
-            </select>
-          </label>
-        </div>
+        <nav v-if="chartAnalysisDatasetCount() > 1" class="result-chart-dataset-tabs" aria-label="数据集切换">
+          <button
+            v-for="dataset in chartAnalysisModal.datasets"
+            :key="dataset.id"
+            type="button"
+            :class="{ active: dataset.id === chartAnalysisModal.activeDatasetId }"
+            @click="setChartAnalysisDataset(dataset.id)"
+          >
+            <span>{{ dataset.title }}</span>
+            <small>{{ dataset.rows.length }} 行 / {{ dataset.columns.length }} 列</small>
+          </button>
+        </nav>
 
-        <p v-if="chartAnalysisSemanticSummary()" class="result-chart-semantics">
+        <section class="result-chart-collapsible" :class="{ open: chartAnalysisSettingsOpen }">
+          <button type="button" class="result-chart-collapsible-toggle" @click="toggleChartAnalysisSettings">
+            <span>
+              <ChevronDown v-if="chartAnalysisSettingsOpen" :size="16" />
+              <ChevronRight v-else :size="16" />
+              图形设置
+            </span>
+            <small>{{ chartAnalysisSemanticSummary() }}</small>
+          </button>
+          <div v-if="chartAnalysisSettingsOpen" class="result-chart-controls">
+            <label>
+              <span>图表类型</span>
+              <select
+                :value="chartAnalysisActiveDataset()?.chartType"
+                @change="setChartField('chartType', $event.target.value)"
+              >
+                <option v-for="option in chartTypeOptions()" :key="option.value" :value="option.value">
+                  {{ option.label }}
+                </option>
+              </select>
+            </label>
+            <label>
+              <span>X 轴 / 维度</span>
+              <select
+                :value="chartAnalysisActiveDataset()?.xKey"
+                @change="setChartField('xKey', $event.target.value)"
+              >
+                <option v-for="column in chartAnalysisActiveDataset()?.columns || []" :key="column" :value="column">
+                  {{ column }}
+                </option>
+              </select>
+            </label>
+            <label>
+              <span>Y 轴 / 指标</span>
+              <select
+                :value="chartAnalysisActiveDataset()?.yKey"
+                @change="setChartField('yKey', $event.target.value)"
+              >
+                <option v-for="column in chartAnalysisActiveDataset()?.columns || []" :key="column" :value="column">
+                  {{ column }}
+                </option>
+              </select>
+            </label>
+            <label>
+              <span>分组字段</span>
+              <select
+                :value="chartAnalysisActiveDataset()?.groupKey"
+                @change="setChartField('groupKey', $event.target.value)"
+              >
+                <option value="">不分组</option>
+                <option v-for="column in chartAnalysisActiveDataset()?.columns || []" :key="column" :value="column">
+                  {{ column }}
+                </option>
+              </select>
+            </label>
+          </div>
+        </section>
+
+        <section class="result-chart-collapsible result-chart-column-picker" :class="{ open: chartAnalysisColumnsOpen }" aria-label="下钻数据列">
+          <button type="button" class="result-chart-collapsible-toggle" @click="toggleChartAnalysisColumnsPanel">
+            <span>
+              <ChevronDown v-if="chartAnalysisColumnsOpen" :size="16" />
+              <ChevronRight v-else :size="16" />
+              下钻数据列
+            </span>
+            <small>{{ chartAnalysisActiveDataset()?.selectedColumns?.length || 0 }} / {{ chartAnalysisActiveDataset()?.columns?.length || 0 }} 已选</small>
+          </button>
+          <div v-if="chartAnalysisColumnsOpen" class="result-chart-column-body">
+            <div class="result-chart-column-actions">
+              <button type="button" @click="selectAllChartAnalysisColumns">全选</button>
+              <button type="button" @click="clearChartAnalysisColumns">清空</button>
+            </div>
+            <div class="result-chart-column-list">
+              <label v-for="column in chartAnalysisActiveDataset()?.columns || []" :key="column">
+                <input
+                  type="checkbox"
+                  :checked="chartAnalysisActiveDataset()?.selectedColumns?.includes(column)"
+                  @change="toggleChartAnalysisColumn(column)"
+                >
+                <span>{{ column }}</span>
+              </label>
+            </div>
+          </div>
+        </section>
+        <p v-if="chartAnalysisSemanticSummary() && chartAnalysisSettingsOpen" class="result-chart-semantics">
           {{ chartAnalysisSemanticSummary() }}
         </p>
 
         <VisualizationRenderer
           v-if="chartAnalysisSpec()"
           :spec="chartAnalysisSpec()"
+          @drill-down="handleChartAnalysisDrillDown"
         />
 
         <footer>
-          <span>{{ chartAnalysisModal.rows.length }} 行数据，{{ chartAnalysisModal.columns.length }} 个字段</span>
+          <span>{{ chartAnalysisActiveDataset()?.rows?.length || 0 }} 行数据，{{ chartAnalysisActiveDataset()?.columns?.length || 0 }} 个字段</span>
+          <button type="button" :disabled="!(chartAnalysisActiveDataset()?.selectedColumns?.length)" @click="drillDownChartAnalysis">下钻分析</button>
           <button type="button" @click="closeChartAnalysisModal">关闭</button>
         </footer>
+        <span class="result-chart-resize-grip" aria-hidden="true"></span>
       </section>
     </div>
   </section>

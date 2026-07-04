@@ -40,6 +40,7 @@ public class SqlMcpToolPublisher {
     private final SqlDatasourceConfigService datasourceConfigService;
     private final SqlTemplateService sqlTemplateService;
     private final SqlQueryExecuteService executeService;
+    private final SqlScriptExecuteService scriptExecuteService;
     private final SqlMetadataSearchService metadataSearchService;
     private final DatabaseQueryConfigService databaseQueryConfigService;
     private final DatabaseQueryInvokeService databaseQueryInvokeService;
@@ -59,14 +60,16 @@ public class SqlMcpToolPublisher {
 
     public synchronized void refresh() {
         remove("sql_query_execute");
+        remove("sql_script_execute");
         remove("sql_metadata_search");
         datasourceConfigService.listAll().forEach(datasource -> remove(datasource.getToolName()));
         managedToolNames.forEach(this::remove);
         managedToolNames.clear();
         mcpSyncServer.addTool(sqlMetadataSearchTool());
         mcpSyncServer.addTool(sqlQueryGatewayTool());
+        mcpSyncServer.addTool(sqlScriptGatewayTool());
         mcpSyncServer.notifyToolsListChanged();
-        log.info("SQL MCP gateway tools refreshed: sql_metadata_search, sql_query_execute");
+        log.info("SQL MCP gateway tools refreshed: sql_metadata_search, sql_query_execute, sql_script_execute");
     }
 
     private McpServerFeatures.SyncToolSpecification toToolSpecification(SqlDatasourceConfig datasource) {
@@ -83,7 +86,7 @@ public class SqlMcpToolPublisher {
                 datasource.getToolName(),
                 "sql",
                 request.arguments(),
-                () -> toCallToolResult(executeService.execute(datasource, request.arguments()))))
+                () -> executeDatasourceSql(datasource, request.arguments())))
             .build();
     }
 
@@ -92,6 +95,7 @@ public class SqlMcpToolPublisher {
             .name("sql_query_execute")
             .title("SQL query execution gateway")
             .description("Execute a read-only SQL query or SQL template on a routed logical datasource target. "
+                + "User SQL may contain comments; they are stripped before execution. If the sql field contains multiple read-only statements separated by semicolons, this gateway automatically executes it as a read-only SQL script and returns multiple result sets. "
                 + "When using datasource maintenance template, the value must be an existing templateId returned by database_ops_template_search for the same logical datasource. "
                 + "Business query templates are discovered with business_query_template_search; pass the returned executable template name as template/templateId to this executor with its executionContext. "
                 + "For table metadata analysis, locate the table schema with metadata discovery templates such as MYSQL_SCHEMA_TABLE_OVERVIEW or MYSQL_TABLE_LOCATION before reading columns. "
@@ -103,10 +107,47 @@ public class SqlMcpToolPublisher {
             .tool(tool)
             .callHandler((exchange, request) -> concurrencyManager.execute(
                 "sql_query_execute",
-                "sql",
+                sqlGatewayRuntimeLevel(request.arguments()),
                 request.arguments(),
                 () -> executeSqlGateway(request.arguments())))
             .build();
+    }
+
+    private McpServerFeatures.SyncToolSpecification sqlScriptGatewayTool() {
+        McpSchema.Tool tool = McpSchema.Tool.builder()
+            .name("sql_script_execute")
+            .title("SQL read-only script execution gateway")
+            .description("Execute a semicolon-separated read-only SQL analysis script on a routed logical datasource target and return multiple result sets. "
+                + "Every statement must be SELECT, SHOW, DESCRIBE/DESC, or EXPLAIN. Writes, DDL, permissions, comments, stored procedures, SET/USE, and database admin operations are forbidden. "
+                + "Use this when one SQL statement is not enough for business analysis and several independent result sets are needed. "
+                + "Do not pass datasourceId, JDBC URL, or any concrete database endpoint.")
+            .inputSchema(scriptGatewayInputSchema())
+            .meta(scriptGatewayMeta())
+            .build();
+        return McpServerFeatures.SyncToolSpecification.builder()
+            .tool(tool)
+            .callHandler((exchange, request) -> concurrencyManager.execute(
+                "sql_script_execute",
+                "sql_script",
+                request.arguments(),
+                () -> toScriptCallToolResult(scriptExecuteService.execute(executionTargetRouter.routeSqlQuery(request.arguments())))))
+            .build();
+    }
+
+    private String sqlGatewayRuntimeLevel(Map<String, Object> arguments) {
+        String script = firstText(text(arguments, "script"), text(arguments, "sql"));
+        if (script == null || script.isBlank()) {
+            DatabaseQueryConfig query = businessDatabaseQueryTemplate(arguments);
+            script = query == null ? null : query.getSqlTemplate();
+        }
+        if (script == null || script.isBlank()) {
+            return "sql";
+        }
+        try {
+            return scriptExecuteService.extractStatements(script).size() > 1 ? "sql_script" : "sql";
+        } catch (Exception ignored) {
+            return script.contains(";") ? "sql_script" : "sql";
+        }
     }
 
     private McpSchema.CallToolResult executeSqlGateway(Map<String, Object> arguments) {
@@ -116,7 +157,45 @@ public class SqlMcpToolPublisher {
             ToolOutput output = databaseQueryInvokeService.invoke(databaseQuery, queryArguments);
             return toDatabaseQueryCallToolResult(databaseQuery, queryArguments, output);
         }
-        return toCallToolResult(executeService.execute(executionTargetRouter.routeSqlQuery(arguments)));
+        Map<String, Object> routed = executionTargetRouter.routeSqlQuery(arguments);
+        if (shouldExecuteAsScript(routed)) {
+            return toScriptCallToolResult(scriptExecuteService.execute(toScriptArguments(routed)));
+        }
+        return toCallToolResult(executeService.execute(routed));
+    }
+
+    private McpSchema.CallToolResult executeDatasourceSql(SqlDatasourceConfig datasource, Map<String, Object> arguments) {
+        Map<String, Object> request = new LinkedHashMap<>(arguments == null ? Map.of() : arguments);
+        if (shouldExecuteAsScript(request)) {
+            return toScriptCallToolResult(scriptExecuteService.execute(datasource, toScriptArguments(request)));
+        }
+        return toCallToolResult(executeService.execute(datasource, request));
+    }
+
+    private boolean shouldExecuteAsScript(Map<String, Object> arguments) {
+        if (arguments == null) {
+            return false;
+        }
+        String sql = text(arguments, "sql");
+        String script = text(arguments, "script");
+        if (script != null && !script.isBlank()) {
+            return true;
+        }
+        if (sql == null || sql.isBlank()) {
+            return false;
+        }
+        return SqlStatementExtractor.splitStatements(sql).size() > 1;
+    }
+
+    private Map<String, Object> toScriptArguments(Map<String, Object> arguments) {
+        Map<String, Object> values = new LinkedHashMap<>(arguments == null ? Map.of() : arguments);
+        String script = firstText(text(values, "script"), text(values, "sql"));
+        values.put("script", script);
+        values.remove("sql");
+        if (values.containsKey("maxRows") && !values.containsKey("maxRowsPerStatement")) {
+            values.put("maxRowsPerStatement", values.get("maxRows"));
+        }
+        return values;
     }
 
     private DatabaseQueryConfig businessDatabaseQueryTemplate(Map<String, Object> arguments) {
@@ -220,7 +299,8 @@ public class SqlMcpToolPublisher {
 
     private McpSchema.JsonSchema gatewayInputSchema() {
         return new McpSchema.JsonSchema("object", Map.of(
-            "sql", Map.of("type", "string", "description", "Read-only SQL. Multi-statement, comments, writes, DDL, and permission changes are forbidden."),
+            "sql", Map.of("type", "string", "description", "Read-only SQL. Comments are allowed and stripped. Multiple read-only statements are accepted and automatically executed as a SQL script with multiple result sets. Writes, DDL, and permission changes are forbidden."),
+            "script", Map.of("type", "string", "description", "Optional read-only SQL script alias. Prefer sql unless explicitly invoking multi-statement analysis."),
             "template", Map.of("type", "string", "description", "Existing SQL templateId from database_ops_template_search.templates[].templateId for the selected datasource. Do not invent names."),
             "parameters", Map.of(
                 "type", "object",
@@ -236,6 +316,20 @@ public class SqlMcpToolPublisher {
             "purpose", Map.of("type", "string", "description", "Query purpose for confirmation and audit"),
             "sourceTaskId", Map.of("type", "string")
         ), List.of("executionContext"), false, null, null);
+    }
+
+    private McpSchema.JsonSchema scriptGatewayInputSchema() {
+        return new McpSchema.JsonSchema("object", Map.of(
+            "script", Map.of("type", "string", "description", "Semicolon-separated read-only SQL analysis script. Each statement must be SELECT, SHOW, DESCRIBE/DESC, or EXPLAIN. Comments and writes are forbidden."),
+            "executionContext", Map.of(
+                "type", "object",
+                "description", "Logical datasource context such as env, cluster, database, databaseRole, targetType, service, or labels"
+            ),
+            "timeoutSeconds", Map.of("type", "integer", "minimum", 1, "maximum", 300),
+            "maxRowsPerStatement", Map.of("type", "integer", "minimum", 1, "maximum", 5000),
+            "purpose", Map.of("type", "string", "description", "Query purpose for confirmation and audit"),
+            "sourceTaskId", Map.of("type", "string")
+        ), List.of("script", "executionContext"), false, null, null);
     }
 
     private McpSchema.JsonSchema metadataSearchInputSchema() {
@@ -315,6 +409,38 @@ public class SqlMcpToolPublisher {
         return meta;
     }
 
+    private Map<String, Object> scriptGatewayMeta() {
+        Map<String, Object> governance = new LinkedHashMap<>();
+        governance.put("category", "sql_gateway");
+        governance.put("operation_type", "read_sql_script");
+        governance.put("risk_level", "high");
+        governance.put("data_scope", "database:routed");
+        governance.put("user_visible", true);
+        governance.put("confirmation", mutableMap("default", "ask_before_execute", "allow_user_override", false));
+        governance.put("input_policy", mutableMap(
+            "must_show_parameters", true,
+            "required_preview_params", List.of("script", "executionContext", "timeoutSeconds", "maxRowsPerStatement", "purpose", "sourceTaskId")
+        ));
+        governance.put("audit", mutableMap("enabled", true, "log_params", true, "log_result_summary", true));
+        Map<String, Object> meta = new LinkedHashMap<>(
+            governanceFactory.toMeta("sql_gateway", "sql_script_execute", governance, null));
+        meta.put("runtime_action", "confirm_required");
+        meta.put("runtimeAction", "confirm_required");
+        meta.put("allowedStatements", List.of("SELECT", "SHOW", "DESCRIBE", "DESC", "EXPLAIN"));
+        meta.put("maxStatements", 10);
+        meta.put("returnsMultipleResultSets", true);
+        meta.put("targetRoutingRequired", true);
+        meta.put("forbiddenTargetFields", List.of("datasourceId", "jdbcUrl", "url", "connectionString"));
+        meta.put("forbiddenOperations", List.of("INSERT", "UPDATE", "DELETE", "DROP", "ALTER", "CREATE", "TRUNCATE", "SET", "USE", "CALL", "EXEC"));
+        meta.put("assetMetadata", assetMetadataFactory.gateway(
+            "sql_datasource",
+            datasourceConfigService.listEnabled().stream().map(assetMetadataFactory::sqlDatasource).toList(),
+            List.of("datasourceId", "jdbcUrl", "url", "connectionString")
+        ));
+        meta.put("mcp_tool_limit", concurrencyManager.limitMeta("sql_script_execute", "sql_script"));
+        return meta;
+    }
+
     private Map<String, Object> metadataSearchMeta() {
         Map<String, Object> governance = new LinkedHashMap<>();
         governance.put("category", "sql_metadata_search");
@@ -354,6 +480,14 @@ public class SqlMcpToolPublisher {
         return McpSchema.CallToolResult.builder()
             .addTextContent(result.success() ? "SQL query completed" : result.errorMessage())
             .structuredContent(standardResultFactory.fromSql(result))
+            .isError(!result.success())
+            .build();
+    }
+
+    private McpSchema.CallToolResult toScriptCallToolResult(SqlScriptResult result) {
+        return McpSchema.CallToolResult.builder()
+            .addTextContent(result.success() ? "SQL script completed" : result.errorMessage())
+            .structuredContent(standardResultFactory.fromSqlScript(result))
             .isError(!result.success())
             .build();
     }

@@ -841,6 +841,33 @@ body {
     margin-bottom: 8px;
 }
 
+.database-script-result {
+    display: grid;
+    gap: 8px;
+    margin-top: 12px;
+    padding: 12px;
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #fff;
+}
+
+.database-script-result-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    color: #4b617e;
+}
+
+.database-script-sql {
+    margin: 0;
+    padding: 8px 10px;
+    border-radius: 6px;
+    background: #f8fafc;
+    color: var(--text);
+    white-space: pre-wrap;
+}
+
 .database-mcp-section {
     border: 1px solid var(--line);
     border-radius: 8px;
@@ -1260,6 +1287,34 @@ body {
 
 .auth-sync-head {
     align-items: flex-start;
+}
+
+.admin-password-form {
+    max-width: 560px;
+    display: grid;
+    gap: 14px;
+    padding: 18px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+    background: var(--surface);
+}
+
+.admin-password-form label {
+    display: grid;
+    gap: 6px;
+}
+
+.admin-password-form label > span {
+    color: var(--text-muted);
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.admin-password-actions {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
 }
 
 .modal-backdrop-custom {

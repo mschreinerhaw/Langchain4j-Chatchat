@@ -366,7 +366,8 @@ public class CommandTemplateDiscoveryService {
                 "languageSupport", "Models should generate bilingual Chinese and English retrieval terms in bilingualIntent, bilingualQuery, intentZh, or intentEn; the engine expands them into shared bilingual signals before retrieval and ranking.",
                 "selectionHint", "Generate and use bilingual Chinese and English retrieval terms, then choose the returned template whose name, description, intentSignals, relevanceScore, and matchReasons best match the user intent; do not use asset allowed template order as semantic ranking.",
                 "fallback", "If authorized candidates exist but intent ranking returns no match, the engine broadens intent and marks resolutionTrace[].fallbackUsed=true.",
-                "selectionFields", List.of("templateId", "name", "description", "intentSignals", "parameterSchema", "requiredParameters", "parameterContract", "invocationExample"),
+                "selectionFields", List.of("templateId", "name", "description", "templateConfig", "intentSignals", "parameterSchema", "requiredParameters", "parameterContract", "invocationExample"),
+                "sqlDisclosure", "business_query_template_search returns executable template references and parameter contracts only; it must not return raw SQL text or stored query bodies.",
                 "onEmptyResult", "No existing authorized template matched the request after asset, type and authorization filters. Do not suggest a new template name unless the user asks to administer templates."
             ),
             "templates", templateMetadata
@@ -1006,6 +1007,7 @@ public class CommandTemplateDiscoveryService {
             "templateId", toolName,
             "databaseQueryId", config.getId(),
             "mcpToolName", toolName,
+            "templateConfig", databaseQueryTemplateConfig(config, datasourceAsset, executionContext, parameterSchema),
             "datasourceAsset", datasourceAsset,
             "executionContext", executionContext,
             "sqlExecutionBinding", mapOf(
@@ -1015,7 +1017,7 @@ public class CommandTemplateDiscoveryService {
                 "parametersPath", "parameters"
             ),
             "name", firstText(config.getTitle(), toolName),
-            "description", firstText(config.getDescription(), ""),
+            "description", databaseQueryTemplateDescription(config),
             "businessGroup", businessGroupMetadata(config),
             "rank", rank,
             "relevanceScore", relevance.score(),
@@ -1100,6 +1102,61 @@ public class CommandTemplateDiscoveryService {
             "code", code,
             "name", firstText(config.getBusinessGroupName(), code),
             "description", firstText(config.getBusinessGroupDescription(), "")
+        );
+    }
+
+    private String databaseQueryTemplateDescription(DatabaseQueryConfig config) {
+        String description = firstText(config.getDescription(), "");
+        Map<String, Object> businessGroup = businessGroupMetadata(config);
+        String code = String.valueOf(businessGroup.getOrDefault("code", "default"));
+        String name = String.valueOf(businessGroup.getOrDefault("name", code));
+        String groupDescription = String.valueOf(businessGroup.getOrDefault("description", ""));
+        StringBuilder builder = new StringBuilder(description);
+        if (!builder.isEmpty()) {
+            builder.append(" ");
+        }
+        builder.append("Business group: ").append(name);
+        if (!code.equals(name)) {
+            builder.append(" (").append(code).append(")");
+        }
+        if (!groupDescription.isBlank()) {
+            builder.append(". Group context: ").append(groupDescription);
+        }
+        return builder.toString();
+    }
+
+    private Map<String, Object> databaseQueryTemplateConfig(DatabaseQueryConfig config,
+                                                            Map<String, Object> datasourceAsset,
+                                                            Map<String, Object> executionContext,
+                                                            Map<String, Object> parameterSchema) {
+        return mapOf(
+            "id", config.getId(),
+            "toolName", firstText(config.getToolName(), config.getId()),
+            "title", firstText(config.getTitle(), firstText(config.getToolName(), config.getId())),
+            "datasourceId", config.getDatasourceId(),
+            "description", databaseQueryTemplateDescription(config),
+            "businessGroup", businessGroupMetadata(config),
+            "inputSchema", parameterSchema,
+            "governance", readObject(config.getGovernanceJson()),
+            "routingLabels", readStringArray(config.getRoutingLabelsJson()),
+            "capabilities", readStringArray(config.getCapabilitiesJson()),
+            "intent", firstText(config.getTemplateIntent(), "general_query"),
+            "databaseType", SqlDatasourceConfigService.normalizeDatabaseTypeToken(config.getDatabaseType()),
+            "tags", readStringArray(config.getTagsJson()),
+            "riskLevel", databaseQueryRiskLevel(config),
+            "owner", firstText(config.getOwner(), "admin"),
+            "rating", config.getRating(),
+            "usageCount", config.getUsageCount(),
+            "maxRows", config.getMaxRows(),
+            "timeoutSeconds", config.getTimeoutSeconds(),
+            "connection", mapOf(
+                "datasourceAsset", datasourceAsset,
+                "executionContext", executionContext
+            ),
+            "enabled", config.isEnabled(),
+            "createdAt", config.getCreatedAt() == null ? null : config.getCreatedAt().toString(),
+            "updatedAt", config.getUpdatedAt() == null ? null : config.getUpdatedAt().toString(),
+            "queryBodyReturned", false
         );
     }
 
@@ -2245,6 +2302,17 @@ public class CommandTemplateDiscoveryService {
                 .toList();
         } catch (Exception ignored) {
             return List.of();
+        }
+    }
+
+    private Map<String, Object> readObject(String json) {
+        if (json == null || json.isBlank()) {
+            return Map.of();
+        }
+        try {
+            return objectMapper.readValue(json, new TypeReference<>() {});
+        } catch (Exception ignored) {
+            return Map.of();
         }
     }
 

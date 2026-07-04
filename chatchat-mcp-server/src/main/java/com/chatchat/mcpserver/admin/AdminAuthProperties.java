@@ -7,6 +7,7 @@ public class AdminAuthProperties {
 
     private String username = "";
     private String password = "";
+    private String passwordStorePath = "./data/admin-password.properties";
     private long tokenTtlMinutes = 480;
 
     /**
@@ -43,6 +44,24 @@ public class AdminAuthProperties {
      */
     public void setPassword(String password) {
         this.password = password;
+    }
+
+    /**
+     * Returns the password store path.
+     *
+     * @return the password store path
+     */
+    public String getPasswordStorePath() {
+        return passwordStorePath;
+    }
+
+    /**
+     * Sets the password store path.
+     *
+     * @param passwordStorePath the password store path
+     */
+    public void setPasswordStorePath(String passwordStorePath) {
+        this.passwordStorePath = passwordStorePath;
     }
 
     /**

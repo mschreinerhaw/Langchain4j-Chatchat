@@ -60,13 +60,14 @@ public class SqlQueryExecuteService {
             diagnostics.put("templateParameters", new LinkedHashMap<>(mapValue(request.get("parameters"))));
             diagnostics.put("executionContext", contextFrom(request));
             diagnostics.put("tableResolution", request.get("tableResolution"));
-            normalizedSql = safetyService.validateAndNormalize(sql, maxRows);
+            String executableSql = normalizeSingleStatementSql(sql);
+            normalizedSql = safetyService.validateAndNormalizeScriptStatement(executableSql, maxRows);
             validateAllowedTables(datasource, normalizedSql);
             log.info("MCP SQL query execution requested: datasourceId={}, datasourceName={}, env={}, tool={}, templateId={}, timeoutSeconds={}, maxRows={}, purpose={}, sourceTaskId={}, sql={}",
                 datasource.getId(), datasource.getName(), datasource.getEnvironment(), datasource.getToolName(),
                 requestedTemplate(request), timeoutSeconds, maxRows, text(request, "purpose"), text(request, "sourceTaskId"),
                 truncateSql(normalizedSql));
-            result = query(datasource, sql, normalizedSql, timeoutSeconds, maxRows,
+            result = query(datasource, executableSql, normalizedSql, timeoutSeconds, maxRows,
                 text(request, "purpose"), text(request, "sourceTaskId"), startedAt, diagnostics);
             result = attemptSelfHealingIfNeeded(datasource, request, result, timeoutSeconds, maxRows,
                 text(request, "purpose"), text(request, "sourceTaskId"), startedAt);
@@ -179,6 +180,17 @@ public class SqlQueryExecuteService {
             logSqlResult(result);
             return result;
         }
+    }
+
+    String normalizeSingleStatementSql(String sql) {
+        List<String> statements = SqlStatementExtractor.splitStatements(sql);
+        if (statements.isEmpty()) {
+            throw new IllegalArgumentException("SQL cannot be empty");
+        }
+        if (statements.size() > 1) {
+            throw new IllegalArgumentException("Multiple SQL statements should be executed with sql_script_execute");
+        }
+        return statements.get(0);
     }
 
     private String resolveSql(Map<String, Object> request, SqlDatasourceConfig datasource) {
@@ -448,7 +460,7 @@ public class SqlQueryExecuteService {
         }
     }
 
-    private void assertExecutionCapability(SqlDatasourceConfig datasource) {
+    void assertExecutionCapability(SqlDatasourceConfig datasource) {
         if (datasource.getCapabilitiesJson() == null || datasource.getCapabilitiesJson().isBlank()) {
             log.warn("MCP SQL datasource has no protocol capabilities configured; allowing legacy execution: datasourceId={}, datasourceName={}, tool={}",
                 datasource.getId(), datasource.getName(), datasource.getToolName());
@@ -528,7 +540,7 @@ public class SqlQueryExecuteService {
         }
     }
 
-    private Connection openConnection(SqlDatasourceConfig datasource) throws Exception {
+    Connection openConnection(SqlDatasourceConfig datasource) throws Exception {
         DataSource dataSource = driverLoader.createDataSource(
             datasource.getJdbcUrl(),
             datasource.getUsername(),
@@ -564,7 +576,7 @@ public class SqlQueryExecuteService {
         }
     }
 
-    private Map<String, Object> baseDiagnostics(SqlDatasourceConfig datasource, Map<String, Object> request) {
+    Map<String, Object> baseDiagnostics(SqlDatasourceConfig datasource, Map<String, Object> request) {
         Map<String, Object> diagnostics = new LinkedHashMap<>();
         diagnostics.put("schemaVersion", "sql_query_diagnostics.v1");
         diagnostics.put("templateId", requestedTemplate(request));
@@ -584,7 +596,7 @@ public class SqlQueryExecuteService {
         return diagnostics;
     }
 
-    private Map<String, Object> contextFrom(Map<String, Object> request) {
+    Map<String, Object> contextFrom(Map<String, Object> request) {
         Map<String, Object> context = new LinkedHashMap<>();
         for (String key : List.of("executionContext", "mcpExecutionContext")) {
             Object value = request == null ? null : request.get(key);
@@ -658,7 +670,7 @@ public class SqlQueryExecuteService {
         return null;
     }
 
-    private void applyDefaultCatalog(Connection connection, SqlDatasourceConfig datasource,
+    void applyDefaultCatalog(Connection connection, SqlDatasourceConfig datasource,
                                      Map<String, Object> diagnostics) {
         String datasourceType = resolvedDatabaseType(datasource);
         String schemaName = defaultSchemaName(datasource, null);
@@ -673,7 +685,7 @@ public class SqlQueryExecuteService {
         }
     }
 
-    private Map<String, Object> connectionDiagnostics(Connection connection, SqlDatasourceConfig datasource) {
+    Map<String, Object> connectionDiagnostics(Connection connection, SqlDatasourceConfig datasource) {
         Map<String, Object> values = new LinkedHashMap<>();
         try {
             values.put("catalog", connection.getCatalog());
@@ -719,7 +731,7 @@ public class SqlQueryExecuteService {
         ));
     }
 
-    private Map<String, Object> diagnosticMap(Object... entries) {
+    Map<String, Object> diagnosticMap(Object... entries) {
         Map<String, Object> values = new LinkedHashMap<>();
         for (int index = 0; index + 1 < entries.length; index += 2) {
             values.put(String.valueOf(entries[index]), entries[index + 1]);
@@ -727,7 +739,7 @@ public class SqlQueryExecuteService {
         return values;
     }
 
-    private String truncateSql(String value) {
+    String truncateSql(String value) {
         if (value == null) {
             return null;
         }
@@ -749,7 +761,7 @@ public class SqlQueryExecuteService {
     private record ProbeQueryResult(String sql, Object value) {
     }
 
-    private List<String> columns(ResultSetMetaData metaData) throws Exception {
+    List<String> columns(ResultSetMetaData metaData) throws Exception {
         List<String> columns = new ArrayList<>();
         for (int index = 1; index <= metaData.getColumnCount(); index++) {
             String label = metaData.getColumnLabel(index);
@@ -758,7 +770,7 @@ public class SqlQueryExecuteService {
         return columns;
     }
 
-    private List<Map<String, Object>> columnMetadata(Connection connection, ResultSetMetaData metaData,
+    List<Map<String, Object>> columnMetadata(Connection connection, ResultSetMetaData metaData,
                                                      List<String> labels, Set<String> sensitiveFields,
                                                      boolean maskAll) throws Exception {
         List<Map<String, Object>> columns = new ArrayList<>();
@@ -814,7 +826,7 @@ public class SqlQueryExecuteService {
         return null;
     }
 
-    private boolean shouldMask(String column, Set<String> sensitiveFields) {
+    boolean shouldMask(String column, Set<String> sensitiveFields) {
         String normalized = column == null ? "" : column.toLowerCase(Locale.ROOT);
         return sensitiveFields.contains(normalized)
             || normalized.contains("password")
@@ -825,7 +837,7 @@ public class SqlQueryExecuteService {
             || normalized.contains("id_card");
     }
 
-    private Set<String> sensitiveFields(SqlDatasourceConfig datasource) {
+    Set<String> sensitiveFields(SqlDatasourceConfig datasource) {
         Set<String> fields = new LinkedHashSet<>();
         fields.add("password");
         fields.add("token");
@@ -849,7 +861,7 @@ public class SqlQueryExecuteService {
         return fields;
     }
 
-    private boolean matchesSensitiveTable(SqlDatasourceConfig datasource, String sql) {
+    boolean matchesSensitiveTable(SqlDatasourceConfig datasource, String sql) {
         String json = datasource.getSensitiveTablesJson();
         if (json == null || json.isBlank() || sql == null) {
             return false;
@@ -866,7 +878,7 @@ public class SqlQueryExecuteService {
         }
     }
 
-    private void validateAllowedTables(SqlDatasourceConfig datasource, String sql) {
+    void validateAllowedTables(SqlDatasourceConfig datasource, String sql) {
         String json = datasource.getAllowedTablesJson();
         if (json == null || json.isBlank() || sql == null) {
             return;
@@ -896,18 +908,18 @@ public class SqlQueryExecuteService {
     }
 
     @SuppressWarnings("unchecked")
-    private Map<String, Object> mapValue(Object value) {
+    Map<String, Object> mapValue(Object value) {
         return value instanceof Map<?, ?> map ? (Map<String, Object>) map : Map.of();
     }
 
-    private int normalizeTimeout(Object value, int fallback) {
+    int normalizeTimeout(Object value, int fallback) {
         if (value instanceof Number number) {
             return Math.max(1, Math.min(number.intValue(), 60));
         }
         return Math.max(1, Math.min(fallback, 60));
     }
 
-    private int normalizeMaxRows(Object value, int fallback) {
+    int normalizeMaxRows(Object value, int fallback) {
         if (value instanceof Number number) {
             return Math.max(1, Math.min(number.intValue(), 5000));
         }

@@ -1509,10 +1509,12 @@ public class AgentOrchestrator {
         prompt.append("Return a polished Markdown document, not a single plain paragraph. Use concise headings and lists when they improve readability.\n");
         prompt.append("Do not wrap the Markdown in code fences and do not output JSON.\n");
         prompt.append("Workflow contract:\n");
-        prompt.append("- Treat every tool step as evidence only if it succeeded and the model review marked it satisfied.\n");
+        prompt.append("- Treat every succeeded tool step with returned data as evidence, even when the model review marked it incomplete or partial.\n");
         prompt.append("- Use each step's review reason as the premise for later steps.\n");
         prompt.append("- Summarize what was done step by step, then provide the final answer.\n");
-        prompt.append("- If some step failed or was rejected, state the limitation and do not use that result as evidence.\n");
+        prompt.append("- If a succeeded SQL/database step is partial, still summarize the returned rows/metrics and explicitly state missing fields or limitations.\n");
+        prompt.append("- If some step truly failed with no usable output, state the limitation and do not use that failed result as evidence.\n");
+        prompt.append("- Do not display executed SQL statements, scripts, or query text in the user-facing answer. Mention only the template/tool and returned data.\n");
         prompt.append("- Do not invent facts that are not present in the step outputs or observations.\n\n");
         prompt.append("User query:\n").append(query == null ? "" : query).append("\n\n");
         if (result != null && result.finalAnswer() != null && !result.finalAnswer().isBlank()) {
@@ -1543,7 +1545,7 @@ public class AgentOrchestrator {
                         .append("\n");
                 }
                 prompt.append("  output: ")
-                    .append(shortObservationText(stringify(step.output()), 4000))
+                    .append(shortObservationText(stringify(redactExecutionStatementText(step.output())), 4000))
                     .append("\n");
             }
         }
@@ -1694,7 +1696,8 @@ public class AgentOrchestrator {
         prompt.append("{\"satisfied\":true|false,\"reason\":\"short reason\",\"review_answer\":\"optional audit note, not user-facing final answer\",\"selected_urls\":[\"https://...\"],\"useful_refs\":[\"doc://...#chunk=0\"],\"rejected_refs\":[\"doc://...#chunk=1\"],\"relevance\":0.0,\"answerability\":0.0,\"supportsQuestionAspect\":[\"process\"],\"missingAspects\":[\"constraints\"],\"usefulness\":\"HIGH|MEDIUM|LOW\",\"shouldExpandQuery\":true|false,\"confidence\":0.0}\n");
         prompt.append("Rules:\n");
         prompt.append("- Decide whether this tool output is sufficient for the current plan step and user request.\n");
-        prompt.append("- If satisfied=false, the DAG must not continue to dependent steps.\n");
+        prompt.append("- If satisfied=false, explain missing aspects, but never discard succeeded SQL/database rows merely because they are partial or imperfect.\n");
+        prompt.append("- For SQL/database outputs, any returned rows, columns, metrics, or result sets are usable partial evidence. Mark them satisfied=true when they can support any part of the answer, and list gaps in missingAspects.\n");
         prompt.append("- For web discovery tools (web_search, web_page_analyze, site_intelligence_resolver, *_site_search), judge candidate URLs/snippets only. Do not require full article content from these tools.\n");
         prompt.append("- If a web discovery tool returns useful URLs for follow-up crawling or page analysis, set satisfied=true and put those URLs in selected_urls.\n");
         prompt.append("- For crawl/content tools, judge whether the fetched full content is relevant and usable for analysis.\n");
@@ -1726,8 +1729,42 @@ public class AgentOrchestrator {
                 .append("\n\n");
         }
         prompt.append("Tool output:\n")
-            .append(shortObservationText(stringify(request.execution().output()), 9000));
+            .append(shortObservationText(stringify(redactExecutionStatementText(request.execution().output())), 9000));
         return prompt.toString();
+    }
+
+    @SuppressWarnings("unchecked")
+    private Object redactExecutionStatementText(Object value) {
+        if (value instanceof Map<?, ?> map) {
+            Map<String, Object> redacted = new LinkedHashMap<>();
+            for (Map.Entry<?, ?> entry : map.entrySet()) {
+                String key = entry.getKey() == null ? "" : String.valueOf(entry.getKey());
+                Object child = entry.getValue();
+                if (isExecutionStatementKey(key)) {
+                    redacted.put(key, "[hidden: execution statement]");
+                } else {
+                    redacted.put(key, redactExecutionStatementText(child));
+                }
+            }
+            return redacted;
+        }
+        if (value instanceof List<?> list) {
+            return list.stream().map(this::redactExecutionStatementText).toList();
+        }
+        return value;
+    }
+
+    private boolean isExecutionStatementKey(String key) {
+        if (key == null || key.isBlank()) {
+            return false;
+        }
+        String normalized = key.trim().replace("_", "").replace("-", "").toLowerCase(Locale.ROOT);
+        return normalized.equals("statement")
+            || normalized.equals("sql")
+            || normalized.equals("script")
+            || normalized.equals("sqltemplate")
+            || normalized.equals("renderedsql")
+            || normalized.equals("querytext");
     }
 
     private Map<String, Object> toolResultFactMetadata(InterpretationPlanRuntime.StepExecution execution) {

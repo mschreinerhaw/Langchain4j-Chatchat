@@ -6,6 +6,8 @@ import com.chatchat.mcpserver.ops.HttpRequestToolResult;
 import com.chatchat.mcpserver.ops.LinuxCommandResult;
 import com.chatchat.mcpserver.ops.LinuxCommandStepResult;
 import com.chatchat.mcpserver.sql.SqlQueryResult;
+import com.chatchat.mcpserver.sql.SqlScriptResult;
+import com.chatchat.mcpserver.sql.SqlScriptStatementResult;
 import org.springframework.stereotype.Component;
 
 import java.nio.charset.StandardCharsets;
@@ -102,6 +104,96 @@ public class StandardToolExecutionResultFactory {
             List.of()
         ));
         return payload;
+    }
+
+    public Map<String, Object> fromSqlScript(SqlScriptResult result) {
+        Map<String, Object> payload = base(
+            "sql_script",
+            "sql_script_result.v1",
+            "structured",
+            result.success(),
+            result.durationMs(),
+            result.errorMessage()
+        );
+        payload.put("target", mapOf(
+            "type", "database",
+            "id", result.datasourceId(),
+            "name", result.datasourceName(),
+            "toolName", result.toolName(),
+            "environment", result.environment()
+        ));
+        payload.put("operation", mapOf(
+            "type", "sql.script",
+            "statementCount", result.statementCount(),
+            "timeoutSeconds", result.timeoutSeconds(),
+            "maxRowsPerStatement", result.maxRowsPerStatement(),
+            "purpose", result.purpose(),
+            "sourceTaskId", result.sourceTaskId(),
+            "diagnostics", result.diagnostics()
+        ));
+        List<Map<String, Object>> resultSets = result.results().stream()
+            .map(this::scriptResultSet)
+            .toList();
+        payload.put("limits", mapOf(
+            "maxRowsPerStatementRequested", result.maxRowsPerStatement(),
+            "maxRowsReturnedToModelPerStatement", SQL_RESULT_ROW_LIMIT,
+            "truncationStrategy", "LIMIT_50_PER_STATEMENT"
+        ));
+        payload.put("data", mapOf(
+            "statementCount", result.statementCount(),
+            "resultSetCount", resultSets.size(),
+            "results", resultSets,
+            "diagnostics", result.diagnostics()
+        ));
+        payload.put("execution", execution(
+            "sql_script_execute",
+            result.durationMs(),
+            result.results().stream()
+                .map(statement -> step(
+                    statement.statementIndex(),
+                    "sql",
+                    mapOf("statement", statement.sql()),
+                    scriptResultSet(statement),
+                    statement.success(),
+                    statement.durationMs(),
+                    statement.errorMessage(),
+                    mapOf("rowCount", statement.rowCount())
+                ))
+                .toList()
+        ));
+        payload.put("executionGraph", graph(
+            result.results().stream()
+                .map(statement -> graphNode(
+                    "sql_statement_" + statement.statementIndex(),
+                    "sql.query",
+                    statement.success(),
+                    statement.durationMs(),
+                    mapOf("rowCount", statement.rowCount())
+                ))
+                .toList(),
+            List.of()
+        ));
+        return payload;
+    }
+
+    private Map<String, Object> scriptResultSet(SqlScriptStatementResult result) {
+        List<Map<String, Object>> rows = result.rows() == null
+            ? List.of()
+            : result.rows().stream().limit(SQL_RESULT_ROW_LIMIT).toList();
+        return mapOf(
+            "statementIndex", result.statementIndex(),
+            "statement", result.sql(),
+            "success", result.success(),
+            "columns", result.columns(),
+            "columnMetadata", result.columnMetadata(),
+            "rows", rows,
+            "rowCount", result.rowCount(),
+            "returnedRowCount", rows.size(),
+            "possiblyTruncated", result.possiblyTruncated() || result.rowCount() > rows.size(),
+            "truncationStrategy", "LIMIT_50",
+            "errorMessage", result.errorMessage(),
+            "diagnostics", result.diagnostics()
+        );
     }
 
     public Map<String, Object> fromLinuxCommand(LinuxCommandResult result) {
@@ -223,6 +315,7 @@ public class StandardToolExecutionResultFactory {
         );
         String toolName = firstText(config == null ? null : config.getToolName(), "database_query");
         String errorMessage = output == null ? "database_query returned no output" : output.getErrorMessage();
+        Map<String, Object> analysisContext = databaseQueryAnalysisContext(config);
         Map<String, Object> payload = base(
             "sql_query",
             "sql_result.v1",
@@ -250,10 +343,11 @@ public class StandardToolExecutionResultFactory {
                 "owner", firstText(config.getOwner(), "admin")
             )
         ));
+        payload.put("analysisContext", analysisContext);
         payload.put("operation", mapOf(
             "type", "sql.query",
             "statement", statement,
-            "timeoutSeconds", null,
+            "timeoutSeconds", config == null ? null : config.getTimeoutSeconds(),
             "purpose", arguments == null ? null : arguments.get("purpose"),
             "sourceTaskId", arguments == null ? null : arguments.get("sourceTaskId")
         ));
@@ -272,9 +366,11 @@ public class StandardToolExecutionResultFactory {
                 mapOf(
                     "statement", statement,
                     "parameters", arguments == null ? Map.of() : arguments,
+                    "timeoutSeconds", config == null ? null : config.getTimeoutSeconds(),
                     "sourceTaskId", arguments == null ? null : arguments.get("sourceTaskId")
                 ),
                 mapOf(
+                    "analysisContext", analysisContext,
                     "columns", resultData.get("columns"),
                     "columnMetadata", resultData.get("columnMetadata"),
                     "rows", resultData.get("rows"),
@@ -299,6 +395,25 @@ public class StandardToolExecutionResultFactory {
             List.of()
         ));
         return payload;
+    }
+
+    private Map<String, Object> databaseQueryAnalysisContext(DatabaseQueryConfig config) {
+        if (config == null) {
+            return Map.of();
+        }
+        String groupCode = firstText(config.getBusinessGroup(), "default");
+        String groupName = firstText(config.getBusinessGroupName(), groupCode);
+        String groupDescription = firstText(config.getBusinessGroupDescription(), "");
+        return mapOf(
+            "schemaVersion", "database_query_analysis_context.v1",
+            "templateId", config.getToolName(),
+            "templateTitle", config.getTitle(),
+            "templateIntent", firstText(config.getTemplateIntent(), "general_query"),
+            "businessGroupCode", groupCode,
+            "businessGroupName", groupName,
+            "businessGroupDescription", groupDescription,
+            "modelAnalysisHint", "Use businessGroupName and businessGroupDescription as semantic context when interpreting returned SQL rows."
+        );
     }
 
     private Map<String, Object> base(String kind, String dataSchema, String payloadType,

@@ -15,6 +15,7 @@ import com.chatchat.mcpserver.ops.SshHostConfig;
 import com.chatchat.mcpserver.mcp.McpInvocationContext;
 import com.chatchat.mcpserver.sql.SqlDatasourceConfig;
 import com.chatchat.mcpserver.sql.SqlQueryResult;
+import com.chatchat.mcpserver.sql.SqlScriptResult;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -302,6 +303,52 @@ public class InvocationAuditService {
         response.put("columnMetadata", result.columnMetadata());
         response.put("rowCount", result.rowCount());
         response.put("possiblyTruncated", result.possiblyTruncated());
+        response.put("errorMessage", result.errorMessage());
+        log.setResponseSummary(toJsonSummary(redact(response)));
+        log.setCreatedAt(Instant.now());
+        save(log);
+    }
+
+    public void recordSqlScriptCall(SqlDatasourceConfig datasource, Map<String, Object> arguments, SqlScriptResult result) {
+        if (!rocksDbStore.isUsable()) {
+            return;
+        }
+        InvocationAuditLog log = new InvocationAuditLog();
+        log.setId(UUID.randomUUID().toString());
+        log.setTargetType("SQL_SCRIPT");
+        log.setTargetId(result.datasourceId());
+        log.setTargetName((datasource == null ? result.datasourceName() : datasource.getName()) + " / " + result.environment());
+        log.setToolName("sql_script_execute");
+        log.setCaller(auditCaller(arguments));
+        log.setSuccess(result.success());
+        log.setStatusCode(result.success() ? 200 : 0);
+        log.setDurationMs(result.durationMs());
+        log.setErrorMessage(limit(result.errorMessage()));
+        Map<String, Object> request = new LinkedHashMap<>();
+        request.put("datasourceId", result.datasourceId());
+        request.put("datasourceName", result.datasourceName());
+        request.put("environment", result.environment());
+        request.put("script", result.script());
+        request.put("timeoutSeconds", result.timeoutSeconds());
+        request.put("maxRowsPerStatement", result.maxRowsPerStatement());
+        request.put("statementCount", result.statementCount());
+        request.put("purpose", result.purpose());
+        request.put("sourceTaskId", result.sourceTaskId());
+        request.put("auditContext", auditContext(arguments));
+        log.setRequestSummary(toJsonSummary(redact(request)));
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("statementCount", result.statementCount());
+        response.put("results", result.results().stream()
+            .map(statement -> {
+                Map<String, Object> item = new LinkedHashMap<>();
+                item.put("statementIndex", statement.statementIndex());
+                item.put("success", statement.success());
+                item.put("rowCount", statement.rowCount());
+                item.put("possiblyTruncated", statement.possiblyTruncated());
+                item.put("errorMessage", statement.errorMessage());
+                return item;
+            })
+            .toList());
         response.put("errorMessage", result.errorMessage());
         log.setResponseSummary(toJsonSummary(redact(response)));
         log.setCreatedAt(Instant.now());

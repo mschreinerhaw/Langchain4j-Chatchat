@@ -730,6 +730,14 @@ public class InterpretationPlanRuntime {
         String reason = lastReview == null || lastReview.reason() == null || lastReview.reason().isBlank()
             ? "Tool result did not satisfy the plan step after model review."
             : lastReview.reason();
+        if (shouldPreservePartialToolResult(execution)) {
+            metadata.put("toolResultReviewPartialAccepted", true);
+            metadata.put("toolResultReviewPartialReason", reason);
+            metadata.put("toolResultReviewReason",
+                "Tool returned structured data and is preserved for final synthesis with limitations: " + reason);
+            metadata.put("partialEvidence", true);
+            return execution.withMetadata(metadata, elapsed(startedAt));
+        }
         return new StepExecution(
             execution.stepId(),
             execution.actionType(),
@@ -742,6 +750,88 @@ public class InterpretationPlanRuntime {
             elapsed(startedAt),
             metadata
         );
+    }
+
+    private boolean shouldPreservePartialToolResult(StepExecution execution) {
+        if (execution == null || !execution.success() || execution.output() == null) {
+            return false;
+        }
+        if (!isPreservableStructuredDataTool(execution.toolName())) {
+            return false;
+        }
+        return hasStructuredToolEvidence(execution.output(), 0);
+    }
+
+    private boolean isPreservableStructuredDataTool(String toolName) {
+        String semantic = toolSemanticKey(toolName);
+        String raw = toolName == null ? "" : toolName.trim().toLowerCase(Locale.ROOT).replace('-', '_');
+        return isStructuredDataToolKey(semantic) || isStructuredDataToolKey(raw);
+    }
+
+    private boolean isStructuredDataToolKey(String value) {
+        if (value == null || value.isBlank()) {
+            return false;
+        }
+        return value.equals("sql_query_execute")
+            || value.endsWith("_sql_query_execute")
+            || value.contains("sql_query_execute")
+            || value.equals("sql_script_execute")
+            || value.endsWith("_sql_script_execute")
+            || value.contains("sql_script_execute")
+            || value.equals("database_query")
+            || value.equals("database_query_execute")
+            || value.endsWith("_database_query_execute")
+            || value.contains("database_query_execute");
+    }
+
+    private boolean hasStructuredToolEvidence(Object output, int depth) {
+        if (output == null || depth > 8) {
+            return false;
+        }
+        Object normalized = normalizeToolProtocolPayload(output);
+        if (normalized != output) {
+            return hasStructuredToolEvidence(normalized, depth + 1);
+        }
+        if (output instanceof List<?> list) {
+            return !list.isEmpty();
+        }
+        if (!(output instanceof Map<?, ?> map) || map.isEmpty()) {
+            return false;
+        }
+        Boolean success = booleanValue(firstMapValue(map, "success"));
+        if (Boolean.TRUE.equals(success) && hasAnyMapKey(map,
+            "rows", "columns", "results", "resultSets", "result_sets", "payload", "data", "operation", "analysisContext")) {
+            return true;
+        }
+        Integer rowCount = integerValue(firstMapValue(map, "rowCount", "row_count", "resultSetCount", "result_set_count", "statementCount", "statement_count"));
+        if (rowCount != null && rowCount > 0) {
+            return true;
+        }
+        for (String key : List.of("rows", "columns", "results", "resultSets", "result_sets", "records", "items")) {
+            Object value = firstMapValue(map, key);
+            if (value instanceof List<?> list && !list.isEmpty()) {
+                return true;
+            }
+        }
+        for (String key : List.of("structuredContent", "structured_content", "data", "result", "payload", "body", "output")) {
+            Object nested = firstMapValue(map, key);
+            if (hasStructuredToolEvidence(nested, depth + 1)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean hasAnyMapKey(Map<?, ?> map, String... keys) {
+        if (map == null || map.isEmpty() || keys == null) {
+            return false;
+        }
+        for (String key : keys) {
+            if (firstMapValue(map, key) != null) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private StepReview localToolResultReview(InterpretationPlan.Step step, StepExecution execution) {

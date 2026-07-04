@@ -19,6 +19,17 @@ public class McpServerExceptionHandler {
     }
 
     /**
+     * Handles the security exception.
+     *
+     * @param ex the ex value
+     * @return the operation result
+     */
+    @ExceptionHandler(SecurityException.class)
+    public ApiResponse<Void> handleSecurity(SecurityException ex) {
+        return ApiResponse.error(403, ex.getMessage());
+    }
+
+    /**
      * Handles the exception.
      *
      * @param ex the ex value

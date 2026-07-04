@@ -51,7 +51,7 @@ const RESPONSE_RENDER_CONTRACT = {
   prompt: [
     "RESPONSE FORMAT RULE:",
     "- All responses MUST use explicit markdown code block language tags.",
-    "- Always wrap SQL in ```sql fenced code blocks.",
+    "- Do not display executed SQL statement text in user-facing analysis answers unless the user explicitly asks to write or review SQL.",
     "- Always wrap JSON/configuration examples in ```json fenced code blocks.",
     "- Use markdown headings for explanation sections.",
     "- Separate mixed output sections clearly.",
@@ -59,6 +59,8 @@ const RESPONSE_RENDER_CONTRACT = {
     "",
     "STRUCTURED DATA DISPLAY RULE:",
     "- Prefer markdown tables for structured query rows.",
+    "- Preserve and display any rows/fields that were actually returned, even when they are partial, incomplete, unexpected, or fail the user's ideal metric requirements.",
+    "- Never replace returned structured data with only a data-gap explanation; show the available data first, then label quality issues, missing fields, and uncertainty separately.",
     "- Emit visualizationSpec/dataVisualization only when chart semantics are explicit: chartType, xKey/xLabel, series[{name,yKey,unit?}], and a short insight summary.",
     "- Do not guess chart axes or metrics from column order; if semantics are uncertain, return a table and let the frontend user choose chart fields manually."
   ].join("\n"),
@@ -1503,17 +1505,22 @@ export default {
         || "";
       const value = selection.value ?? selection.height ?? "";
       const title = event.blockTitle || event.title || "当前图表";
+      const selectedColumns = Array.isArray(event.selectedColumns) ? event.selectedColumns.filter(Boolean) : [];
+      const selectedRows = Array.isArray(event.selectedRows) ? event.selectedRows : [];
       const details = [
         event.panelTitle ? `面板：${event.panelTitle}` : "",
         event.analysisType ? `分析类型：${event.analysisType}` : "",
         label ? `选中项：${label}` : "",
         value !== "" ? `数值：${value}` : "",
-        row ? `数据行：${JSON.stringify(row)}` : ""
+        selectedColumns.length ? `已选数据列：${selectedColumns.join(", ")}` : "",
+        row ? `数据行：${JSON.stringify(row)}` : "",
+        selectedRows.length ? `下钻数据：${JSON.stringify(selectedRows)}` : ""
       ].filter(Boolean).join("；");
       const query = [
         `请基于刚才的可视化结果继续下钻分析「${title}」。`,
         details,
-        "请解释该维度或数据点的原因、影响和下一步观察点；如有结构化数据，请优先用 markdown 表格展示。只有能明确 chartType、xKey、series 指标含义时，才输出 visualizationSpec。"
+        "请解释该维度或数据点的原因、影响和下一步观察点，并在有结构化数据时继续输出符合 visualizationSpec v2 的 BI Panel。",
+        "如果下钻对象是图片或图像类结果，不要要求上传或发送图片，只基于当前展示的数据列、元数据和可见结构化数据继续分析。"
       ].filter(Boolean).join("\n");
       this.handleSend({ query, drillDown: { event, sourceMessageId: payload.message?.id || "" } });
     },
@@ -2246,34 +2253,39 @@ export default {
         feedbackReasonCategory: message.feedbackReasonCategory || ""
       }));
     },
-    async handleMessageFeedback({ message, action } = {}) {
+    handleMessageFeedback({ message, action } = {}) {
       const targetMessage = this.messages.find((item) => item.id === message?.id);
       const feedbackPayload = MESSAGE_FEEDBACK_PAYLOADS[action];
       if (!targetMessage?.taskId || !feedbackPayload || targetMessage.feedbackSubmitting || targetMessage.feedbackTime) {
         return;
       }
 
+      const tenantId = this.effectiveTenantId();
       targetMessage.feedbackSubmitting = true;
       targetMessage.feedbackError = "";
+      this.applyFeedbackToMessage(targetMessage, action, { feedbackTime: new Date().toISOString() }, feedbackPayload);
+      targetMessage.feedbackSubmitting = false;
       this.messages = [...this.messages];
-      try {
-        const updatedTask = await submitAgentTaskFeedback(targetMessage.taskId, this.effectiveTenantId(), {
-          tenantId: this.effectiveTenantId(),
-          userId: this.userId,
-          ...feedbackPayload
+
+      const question = this.lastUserQuestion();
+      this.emitActiveConversationSnapshot(question, this.conversationStatus || "completed");
+      this.saveHistory(question, this.conversationStatus || "completed").catch((error) => {
+        console.warn("Failed to persist feedback history snapshot", error);
+      });
+
+      submitAgentTaskFeedback(targetMessage.taskId, tenantId, {
+        tenantId,
+        userId: this.userId,
+        ...feedbackPayload
+      })
+        .then((updatedTask) => {
+          this.applyFeedbackToMessage(targetMessage, action, updatedTask, feedbackPayload);
+          this.messages = [...this.messages];
+        })
+        .catch((error) => {
+          targetMessage.feedbackError = error.message || "评价已记录，后台同步暂时失败";
+          this.messages = [...this.messages];
         });
-        this.applyFeedbackToMessage(targetMessage, action, updatedTask, feedbackPayload);
-        this.messages = [...this.messages];
-        const question = this.lastUserQuestion();
-        this.emitActiveConversationSnapshot(question, this.conversationStatus || "completed");
-        await this.saveHistory(question, this.conversationStatus || "completed");
-      } catch (error) {
-        targetMessage.feedbackError = error.message || "评价提交失败，请稍后重试";
-        this.messages = [...this.messages];
-      } finally {
-        targetMessage.feedbackSubmitting = false;
-        this.messages = [...this.messages];
-      }
     },
     applyFeedbackToMessage(message, action, updatedTask = {}, fallback = {}) {
       message.feedbackAction = action || "";

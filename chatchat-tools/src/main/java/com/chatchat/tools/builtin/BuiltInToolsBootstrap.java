@@ -1626,11 +1626,12 @@ public class BuiltInToolsBootstrap {
                 DataSource dataSource = resolveDataSource(input);
                 String safeSql = validateReadOnlySql(sql);
                 int maxRows = resolveMaxRows(input);
+                int queryTimeoutSeconds = resolveQueryTimeoutSeconds(input);
                 Map<String, Object> params = resolveParams(input);
 
                 JdbcTemplate jdbcTemplate = new JdbcTemplate(dataSource);
                 jdbcTemplate.setMaxRows(maxRows);
-                jdbcTemplate.setQueryTimeout(Math.max(1, properties.getQueryTimeoutSeconds()));
+                jdbcTemplate.setQueryTimeout(queryTimeoutSeconds);
                 NamedParameterJdbcTemplate namedTemplate = new NamedParameterJdbcTemplate(jdbcTemplate);
 
                 List<Map<String, Object>> rows = namedTemplate.queryForList(safeSql, params)
@@ -1739,6 +1740,15 @@ public class BuiltInToolsBootstrap {
             Number requested = input.getParameterAsNumber("max_rows");
             int value = requested == null ? properties.getDefaultMaxRows() : requested.intValue();
             return Math.max(1, Math.min(properties.getMaxRows(), value));
+        }
+
+        private int resolveQueryTimeoutSeconds(ToolInput input) {
+            Number requested = input.getParameterAsNumber("timeoutSeconds");
+            if (requested == null) {
+                requested = input.getParameterAsNumber("timeout_seconds");
+            }
+            int value = requested == null ? properties.getQueryTimeoutSeconds() : requested.intValue();
+            return Math.max(1, Math.min(300, value));
         }
 
         /**

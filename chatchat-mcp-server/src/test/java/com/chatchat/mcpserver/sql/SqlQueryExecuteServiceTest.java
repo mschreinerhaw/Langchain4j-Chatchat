@@ -35,6 +35,12 @@ class SqlQueryExecuteServiceTest {
         new ObjectMapper(),
         new DynamicJdbcDriverLoader(new DatabaseToolProperties())
     );
+    private final SqlScriptExecuteService scriptService = new SqlScriptExecuteService(
+        datasourceConfigService,
+        new SqlSafetyService(),
+        service,
+        auditService
+    );
 
     @Test
     void queryResultIncludesColumnMetadataCommentsAndMaskingGovernance() throws Exception {
@@ -74,6 +80,170 @@ class SqlQueryExecuteServiceTest {
         assertThat(result.columnMetadata().get(1)).containsEntry("comment", "Customer Name");
         assertThat(result.columnMetadata().get(2)).containsEntry("comment", "Phone number");
         assertThat(result.columnMetadata().get(2)).containsEntry("masked", true);
+    }
+
+    @Test
+    void scriptExecutionReturnsMultipleReadOnlyResultSets() throws Exception {
+        String jdbcUrl = "jdbc:h2:mem:sql_script_multi_result;DB_CLOSE_DELAY=-1";
+        try (var connection = DriverManager.getConnection(jdbcUrl, "sa", "");
+             Statement statement = connection.createStatement()) {
+            statement.execute("create table script_customer (id int primary key, name varchar(64), phone varchar(32))");
+            statement.execute("insert into script_customer (id, name, phone) values (1, 'Alice', '13800000000')");
+            statement.execute("insert into script_customer (id, name, phone) values (2, 'Bob', '13900000000')");
+        }
+
+        SqlDatasourceConfig datasource = new SqlDatasourceConfig();
+        datasource.setId("ds-script");
+        datasource.setName("script-db");
+        datasource.setToolName("sql_script_db");
+        datasource.setJdbcUrl(jdbcUrl);
+        datasource.setUsername("sa");
+        datasource.setPassword("");
+        datasource.setDefaultMaxRows(10);
+        datasource.setDefaultTimeoutSeconds(5);
+        datasource.setCapabilitiesJson("[\"sql_query_execute\"]");
+        when(datasourceConfigService.getEnabled("ds-script")).thenReturn(datasource);
+
+        SqlScriptResult result = scriptService.execute(Map.of(
+            "datasourceId", "ds-script",
+            "script", "select count(*) as total_count from script_customer; select id, name, phone from script_customer order by id",
+            "maxRowsPerStatement", 10
+        ));
+
+        assertThat(result.success()).isTrue();
+        assertThat(result.statementCount()).isEqualTo(2);
+        assertThat(result.results()).hasSize(2);
+        assertThat(result.results().get(0).columns()).containsExactly("TOTAL_COUNT");
+        assertThat(result.results().get(0).rows().get(0)).containsEntry("TOTAL_COUNT", 2L);
+        assertThat(result.results().get(1).rows()).hasSize(2);
+        assertThat(result.results().get(1).rows().get(0)).containsEntry("PHONE", "***");
+    }
+
+    @Test
+    void scriptExecutionRejectsWriteStatements() {
+        SqlDatasourceConfig datasource = new SqlDatasourceConfig();
+        datasource.setId("ds-script");
+        datasource.setName("script-db");
+        datasource.setToolName("sql_script_db");
+        datasource.setJdbcUrl("jdbc:h2:mem:sql_script_reject_write");
+        datasource.setUsername("sa");
+        datasource.setPassword("");
+        datasource.setDefaultMaxRows(10);
+        datasource.setDefaultTimeoutSeconds(5);
+        datasource.setCapabilitiesJson("[\"sql_query_execute\"]");
+        when(datasourceConfigService.getEnabled("ds-script")).thenReturn(datasource);
+
+        SqlScriptResult result = scriptService.execute(Map.of(
+            "datasourceId", "ds-script",
+            "script", "select 1; update script_customer set name = 'Mallory' where id = 1"
+        ));
+
+        assertThat(result.success()).isFalse();
+        assertThat(result.errorMessage()).contains("forbidden keyword: UPDATE");
+        assertThat(result.results()).isEmpty();
+    }
+
+    @Test
+    void scriptExecutionKeepsSemicolonInsideStringLiteral() {
+        SqlDatasourceConfig datasource = new SqlDatasourceConfig();
+        datasource.setId("ds-script");
+        datasource.setName("script-db");
+        datasource.setToolName("sql_script_db");
+        datasource.setJdbcUrl("jdbc:h2:mem:sql_script_literal_semicolon;DB_CLOSE_DELAY=-1");
+        datasource.setUsername("sa");
+        datasource.setPassword("");
+        datasource.setDefaultMaxRows(10);
+        datasource.setDefaultTimeoutSeconds(5);
+        datasource.setCapabilitiesJson("[\"sql_query_execute\"]");
+        when(datasourceConfigService.getEnabled("ds-script")).thenReturn(datasource);
+
+        SqlScriptResult result = scriptService.execute(Map.of(
+            "datasourceId", "ds-script",
+            "script", "select 'a;b' as text_value; select 2 as n"
+        ));
+
+        assertThat(result.success()).isTrue();
+        assertThat(result.results()).hasSize(2);
+        assertThat(result.results().get(0).rows().get(0)).containsEntry("TEXT_VALUE", "a;b");
+    }
+
+    @Test
+    void scriptExecutionIgnoresCommentsWhileSplittingStatements() {
+        SqlDatasourceConfig datasource = new SqlDatasourceConfig();
+        datasource.setId("ds-script-comments");
+        datasource.setName("script-db");
+        datasource.setToolName("sql_script_db");
+        datasource.setJdbcUrl("jdbc:h2:mem:sql_script_comments;DB_CLOSE_DELAY=-1");
+        datasource.setUsername("sa");
+        datasource.setPassword("");
+        datasource.setDefaultMaxRows(10);
+        datasource.setDefaultTimeoutSeconds(5);
+        datasource.setCapabilitiesJson("[\"sql_query_execute\"]");
+        when(datasourceConfigService.getEnabled("ds-script-comments")).thenReturn(datasource);
+
+        SqlScriptResult result = scriptService.execute(Map.of(
+            "datasourceId", "ds-script-comments",
+            "script", """
+                -- leading comment with a fake statement; update t set a = 1
+                select 1 as first_value;
+                /* block comment ; select should_not_run */
+                select 'semi; inside text -- not comment' as text_value;
+                # mysql style comment ; drop table x
+                select 3 as third_value
+                """
+        ));
+
+        assertThat(result.success()).isTrue();
+        assertThat(result.results()).hasSize(3);
+        assertThat(result.results().get(0).rows().get(0)).containsEntry("FIRST_VALUE", 1);
+        assertThat(result.results().get(1).rows().get(0)).containsEntry("TEXT_VALUE", "semi; inside text -- not comment");
+        assertThat(result.results().get(2).rows().get(0)).containsEntry("THIRD_VALUE", 3);
+    }
+
+    @Test
+    void queryExecutionAcceptsUserCommentsInSingleStatement() {
+        SqlDatasourceConfig datasource = new SqlDatasourceConfig();
+        datasource.setId("ds-commented-query");
+        datasource.setName("commented-query-db");
+        datasource.setToolName("sql_commented_query");
+        datasource.setJdbcUrl("jdbc:h2:mem:sql_commented_query;DB_CLOSE_DELAY=-1");
+        datasource.setUsername("sa");
+        datasource.setPassword("");
+        datasource.setDefaultMaxRows(10);
+        datasource.setDefaultTimeoutSeconds(5);
+        datasource.setCapabilitiesJson("[\"sql_query_execute\"]");
+        when(datasourceConfigService.getEnabled("ds-commented-query")).thenReturn(datasource);
+
+        SqlQueryResult result = service.execute(Map.of(
+            "datasourceId", "ds-commented-query",
+            "sql", """
+                -- user note before query
+                select 'value -- still text' as text_value
+                /* user note after query */
+                """
+        ));
+
+        assertThat(result.success()).isTrue();
+        assertThat(result.normalizedSql()).contains("select");
+        assertThat(result.normalizedSql()).doesNotContain("user note");
+        assertThat(result.rows().get(0)).containsEntry("TEXT_VALUE", "value -- still text");
+    }
+
+    @Test
+    void scriptExtractorKeepsSemicolonsInsideQuotedSqlForms() {
+        List<String> statements = scriptService.splitStatements("""
+            select $$a;b$$ as pg_text;
+            select q'[x;y]' as oracle_text;
+            select "a;b", `c;d` from [schema;table];
+            select 'it''s; ok' as escaped_text
+            """);
+
+        assertThat(statements).containsExactly(
+            "select $$a;b$$ as pg_text",
+            "select q'[x;y]' as oracle_text",
+            "select \"a;b\", `c;d` from [schema;table]",
+            "select 'it''s; ok' as escaped_text"
+        );
     }
 
     @Test

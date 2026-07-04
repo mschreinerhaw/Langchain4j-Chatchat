@@ -160,6 +160,66 @@ class InterpretationPlanRuntimeTest {
     }
 
     @Test
+    void preservesPartialSqlResultWhenModelReviewRejectsIt() {
+        String toolName = "mcp_chatchat_mcp_server_sql_query_execute";
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool(toolName)).thenReturn(true);
+        when(toolRegistry.getToolMetadata(toolName)).thenReturn(ToolMetadata.builder().riskLevel("low").build());
+        ToolRuntimeService toolRuntimeService = mock(ToolRuntimeService.class);
+        when(toolRuntimeService.execute(any())).thenReturn(new ToolRuntimeExecution(
+            ToolOutput.success(Map.of(
+                "schemaVersion", "tool_execution_result.v1",
+                "kind", "sql_query",
+                "success", true,
+                "payload", Map.of(
+                    "columns", List.of("STAT_DATE", "TOTAL_MARKET_VALUE", "AVG_CHANGE_PCT"),
+                    "rows", List.of(Map.of(
+                        "STAT_DATE", "2026-07-04",
+                        "TOTAL_MARKET_VALUE", 1000,
+                        "AVG_CHANGE_PCT", 0.0123
+                    )),
+                    "rowCount", 1
+                )
+            )),
+            ToolMetadata.builder().id(toolName).build(),
+            null,
+            "success",
+            Map.of()
+        ));
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            toolRuntimeService,
+            new InterpretationPlanValidator(),
+            new InterpretationPlanOptimizer(),
+            null,
+            request -> InterpretationPlanRuntime.StepReview.rejected(
+                "missing advancers and decliners",
+                Map.of("reviewed", true)
+            ),
+            scriptedController(List.of(List.of(1), List.of(2)))
+        );
+
+        InterpretationPlanRuntime.ExecutionResult result = runtime.execute(new InterpretationPlanRuntime.ExecutionRequest(
+            sqlQueryPlan(toolName),
+            toolRegistry,
+            List.of(toolName),
+            "tenant-1",
+            "req-sql-partial",
+            "conv-sql-partial",
+            "user-1",
+            Map.of()
+        ));
+
+        assertThat(result.success()).as("status=%s error=%s steps=%s", result.status(), result.errorMessage(), result.steps()).isTrue();
+        assertThat(result.status()).isEqualTo("completed");
+        assertThat(result.steps()).extracting(InterpretationPlanRuntime.StepExecution::stepId)
+            .containsExactly(1, 2);
+        assertThat(result.steps().get(0).metadata())
+            .containsEntry("toolResultReviewSatisfied", false)
+            .containsEntry("toolResultReviewPartialAccepted", true)
+            .containsEntry("partialEvidence", true);
+    }
+
+    @Test
     void factChecksTemplateDiscoveryWhenMcpResultIsJsonString() throws Exception {
         String templateQueryResult = """
             {
@@ -3320,6 +3380,23 @@ class InterpretationPlanRuntimeTest {
                 new InterpretationPlan.Step(2, "final_answer", "", Map.of("answer", "done"), List.of(1), null, null)
             )),
             new InterpretationPlan.ExecutionPolicy(2, false, List.of("document_search"), List.of(), 30000),
+            review()
+        );
+    }
+
+    private InterpretationPlan sqlQueryPlan(String toolName) {
+        return new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("sql_analysis", "Collect SQL analysis evidence", "low"),
+            context(),
+            new InterpretationPlan.Plan(List.of(
+                new InterpretationPlan.Step(1, "mcp_tool", toolName, Map.of(
+                    "templateId", "market_kpi",
+                    "executionContext", Map.of("assetName", "dm-test", "env", "DEV")
+                ), List.of(), null, null),
+                new InterpretationPlan.Step(2, "final_answer", "", Map.of("answer", "done"), List.of(1), null, null)
+            )),
+            new InterpretationPlan.ExecutionPolicy(2, false, List.of(toolName), List.of(), 30000),
             review()
         );
     }

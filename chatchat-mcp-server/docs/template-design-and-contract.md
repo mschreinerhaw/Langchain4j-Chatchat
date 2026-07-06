@@ -41,3 +41,5 @@
 ## Required Tool Principle
 
 MCP Server 不判断模型是否“需要”执行工具。它只按工具契约执行、拒绝或返回修复提示。
+> Intent Ensemble Retrieval contract: see `../../docs/intent-ensemble-retrieval-contract.md`.
+> MCP Server targetKind schemas must allow semantic retrieval fields including `intentCandidates`, `intent_candidates`, `queries`, `expandedQueries`, `expanded_queries`, `queryTerms`, and `retrievalSignals`; these fields are retrieval signals, not exact routing labels.

@@ -842,3 +842,5 @@ final_answer 只能引用已完成 step 的 structuredContent
 缺失的数据要明确列入“未获取依据”
 不能把可能原因写成已确认事实
 ```
+> Intent Ensemble Retrieval contract: see `docs/intent-ensemble-retrieval-contract.md`.
+> Asset/template/document discovery must use `intentCandidates`, threshold selection (`score >= 0.75`), multi-query fields (`queries`, `expandedQueries`, `keywords`), original user question in `queryTerms/retrievalSignals`, and retrieval review. Natural-language aggregate phrases must not be written into `assetName` unless they are exact registered asset names or came from prior observations.

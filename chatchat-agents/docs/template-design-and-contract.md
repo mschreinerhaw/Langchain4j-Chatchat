@@ -83,3 +83,5 @@ MCP 交互必须遵循两条主路径：
 ## No Hardcoding Rule
 
 禁止用业务类型硬编码执行路径。必须通过 `requiredToolExecutions`、工具元数据、模板元数据和 Runtime policy 表达执行要求。
+> Intent Ensemble Retrieval contract: see `../../docs/intent-ensemble-retrieval-contract.md`.
+> Planner/Rewriter must emit scored `filters.intentCandidates`; Runtime/Resolver selects all candidates with `score >= 0.75`, falls back to Top 2 only when none reaches threshold, merges multi-query expansions and the original user question into `queryTerms/retrievalSignals`, and must not invent `assetName` from aggregate natural language.

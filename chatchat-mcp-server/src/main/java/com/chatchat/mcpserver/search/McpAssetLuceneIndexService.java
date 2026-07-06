@@ -1,5 +1,6 @@
 package com.chatchat.mcpserver.search;
 
+import com.chatchat.mcpserver.api.ApiServiceConfigService;
 import com.chatchat.mcpserver.ops.HttpEndpointConfigService;
 import com.chatchat.mcpserver.ops.SshHostConfigService;
 import com.chatchat.mcpserver.routing.AssetMetadataFactory;
@@ -31,6 +32,7 @@ public class McpAssetLuceneIndexService {
     private final SshHostConfigService hostConfigService;
     private final SqlDatasourceConfigService datasourceConfigService;
     private final HttpEndpointConfigService httpEndpointConfigService;
+    private final ApiServiceConfigService apiServiceConfigService;
     private final AssetMetadataFactory assetMetadataFactory;
     private final MetadataIndexService metadataIndexService;
 
@@ -45,35 +47,72 @@ public class McpAssetLuceneIndexService {
             log.info("MCP Lucene asset index refresh skipped because Lucene is disabled");
             return Map.of("enabled", false, "indexed", 0);
         }
-        List<LuceneMcpSearchService.AssetDoc> docs = new ArrayList<>();
+        List<LuceneMcpSearchService.AssetDoc> sshDocs = new ArrayList<>();
+        List<LuceneMcpSearchService.AssetDoc> sqlDocs = new ArrayList<>();
+        List<LuceneMcpSearchService.AssetDoc> httpDocs = new ArrayList<>();
+        List<LuceneMcpSearchService.AssetDoc> apiServiceDocs = new ArrayList<>();
         safe(hostConfigService.listEnabled()).stream()
             .map(assetMetadataFactory::sshAsset)
             .map(this::assetDoc)
-            .forEach(docs::add);
+            .forEach(sshDocs::add);
         List<SqlDatasourceConfig> datasources = safe(datasourceConfigService.listEnabled());
         datasources.stream()
             .map(assetMetadataFactory::sqlDatasource)
             .map(this::assetDoc)
-            .forEach(docs::add);
+            .forEach(sqlDocs::add);
         datasources.stream()
             .flatMap(datasource -> tableAssetDocs(datasource).stream())
-            .forEach(docs::add);
+            .forEach(sqlDocs::add);
         safe(httpEndpointConfigService.listEnabled()).stream()
             .map(assetMetadataFactory::httpEndpoint)
             .map(this::assetDoc)
-            .forEach(docs::add);
-        luceneSearchService.indexAssets(docs);
-        long tableDocCount = docs.stream().filter(doc -> "metadata_table".equals(doc.source())).count();
+            .forEach(httpDocs::add);
+        safe(apiServiceConfigService.listEnabled()).stream()
+            .map(config -> new LuceneMcpSearchService.AssetDoc(
+                config.getId(),
+                "api_service",
+                config.getToolName(),
+                firstText(config.getTitle(), config.getToolName()),
+                config.getToolName(),
+                null,
+                null,
+                apiServiceLabels(config.getToolName(), config.getTitle(), config.getDescription(),
+                    config.getBusinessGroup(), config.getBusinessGroupName(), config.getBusinessGroupDescription(), config.getMethod()),
+                "api_service_asset_registry",
+                null,
+                null,
+                null,
+                null,
+                joinPath(config.getDescription(), config.getBusinessGroup(), config.getBusinessGroupName(),
+                    config.getBusinessGroupDescription(), config.getMethod()),
+                null,
+                null
+            ))
+            .forEach(apiServiceDocs::add);
+        luceneSearchService.indexAssets("ssh_host", sshDocs);
+        luceneSearchService.indexAssets("sql_datasource", sqlDocs);
+        luceneSearchService.indexAssets("http_endpoint", httpDocs);
+        luceneSearchService.indexAssets("api_service", apiServiceDocs);
+        long tableDocCount = sqlDocs.stream().filter(doc -> "metadata_table".equals(doc.source())).count();
+        int indexed = sshDocs.size() + sqlDocs.size() + httpDocs.size() + apiServiceDocs.size();
         Map<String, Object> summary = Map.of(
             "enabled", true,
-            "indexed", docs.size(),
-            "sshHostCount", safe(hostConfigService.listEnabled()).size(),
+            "indexed", indexed,
+            "sshHostCount", sshDocs.size(),
             "sqlDatasourceCount", datasources.size(),
             "sqlTableCount", tableDocCount,
-            "httpEndpointCount", safe(httpEndpointConfigService.listEnabled()).size()
+            "httpEndpointCount", httpDocs.size(),
+            "apiServiceCount", apiServiceDocs.size(),
+            "indexes", Map.of(
+                "service", Map.of("assetType", "ssh_host", "physicalIndex", luceneSearchService.assetIndexName("ssh_host"), "indexed", sshDocs.size()),
+                "apiService", Map.of("assetType", "api_service", "physicalIndex", luceneSearchService.assetIndexName("api_service"), "indexed", apiServiceDocs.size()),
+                "database", Map.of("assetType", "sql_datasource", "physicalIndex", luceneSearchService.assetIndexName("sql_datasource"), "indexed", sqlDocs.size()),
+                "http", Map.of("assetType", "http_endpoint", "physicalIndex", luceneSearchService.assetIndexName("http_endpoint"), "indexed", httpDocs.size())
+            )
         );
-        log.info("MCP Lucene asset index refreshed, indexed {} docs ssh={} sql={} sqlTables={} http={}",
-            docs.size(), summary.get("sshHostCount"), summary.get("sqlDatasourceCount"), summary.get("sqlTableCount"), summary.get("httpEndpointCount"));
+        log.info("MCP Lucene asset index refreshed, indexed {} docs ssh={} apiService={} sql={} sqlTables={} http={}",
+            indexed, summary.get("sshHostCount"), summary.get("apiServiceCount"), summary.get("sqlDatasourceCount"),
+            summary.get("sqlTableCount"), summary.get("httpEndpointCount"));
         return summary;
     }
 
@@ -179,6 +218,20 @@ public class McpAssetLuceneIndexService {
                 .toList();
         }
         return List.of();
+    }
+
+    private List<String> apiServiceLabels(String... values) {
+        List<String> labels = new ArrayList<>();
+        if (values != null) {
+            for (String value : values) {
+                addLabel(labels, value);
+            }
+        }
+        return labels.stream()
+            .map(this::normalize)
+            .filter(item -> item != null && !item.isBlank())
+            .distinct()
+            .toList();
     }
 
     private String text(Object value) {

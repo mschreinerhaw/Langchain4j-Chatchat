@@ -3,6 +3,7 @@ package com.chatchat.mcpserver.search;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 
@@ -165,6 +166,51 @@ class LuceneMcpSearchServiceTest {
 
         assertThat(hits).extracting(LuceneMcpSearchService.SearchHit::id).containsExactly("ds-248");
         assertThat(hits.get(0).tableComment()).isEqualTo("客户标签字典");
+    }
+
+    @Test
+    void keepsTypedAssetIndexesIsolatedAndClearsOneAssetType() {
+        LuceneMcpSearchService service = service();
+        service.indexAssets("api_service", List.of(new LuceneMcpSearchService.AssetDoc(
+            "api-orders",
+            "api_service",
+            "order_status_api",
+            "Order status API",
+            "order_status_api",
+            null,
+            null,
+            List.of("order_services"),
+            "api_service_asset_registry"
+        )));
+        service.indexAssets("sql_datasource", List.of(new LuceneMcpSearchService.AssetDoc(
+            "db-orders",
+            "sql_datasource",
+            "orders_db",
+            "Orders database",
+            "sql_orders_db",
+            "DEV",
+            "mysql",
+            List.of("order_services"),
+            "asset_registry"
+        )));
+
+        assertThat(Files.exists(tempDir.resolve(service.assetIndexName("api_service")))).isTrue();
+        assertThat(Files.exists(tempDir.resolve(service.assetIndexName("sql_datasource")))).isTrue();
+        assertThat(service.searchAssets(new LuceneMcpSearchService.AssetSearchRequest(
+            "api_service", "order status", null, null, List.of(), 10
+        ))).extracting(LuceneMcpSearchService.SearchHit::id).containsExactly("api-orders");
+        assertThat(service.searchAssets(new LuceneMcpSearchService.AssetSearchRequest(
+            "sql_datasource", "orders", "DEV", "mysql", List.of(), 10
+        ))).extracting(LuceneMcpSearchService.SearchHit::id).containsExactly("db-orders");
+
+        service.indexAssets("api_service", List.of());
+
+        assertThat(service.searchAssets(new LuceneMcpSearchService.AssetSearchRequest(
+            "api_service", "order status", null, null, List.of(), 10
+        ))).isEmpty();
+        assertThat(service.searchAssets(new LuceneMcpSearchService.AssetSearchRequest(
+            "sql_datasource", "orders", "DEV", "mysql", List.of(), 10
+        ))).extracting(LuceneMcpSearchService.SearchHit::id).containsExactly("db-orders");
     }
 
     private LuceneMcpSearchService service() {

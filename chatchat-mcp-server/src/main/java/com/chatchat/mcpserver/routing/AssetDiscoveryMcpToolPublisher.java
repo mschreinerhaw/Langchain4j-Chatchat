@@ -204,6 +204,8 @@ public class AssetDiscoveryMcpToolPublisher {
             ),
             "indexPolicy", mapOf(
                 "logicalIndex", "asset:" + assetType,
+                "physicalIndex", assetPhysicalIndex(assetType),
+                "indexBackend", "lucene_typed_asset_index",
                 "filterField", "assetType",
                 "isolatedByTool", true
             ),
@@ -231,6 +233,10 @@ public class AssetDiscoveryMcpToolPublisher {
                 "uri"
             )
         );
+    }
+
+    private String assetPhysicalIndex(String assetType) {
+        return "assets-" + String.valueOf(assetType).replace('_', '-');
     }
 
     private Map<String, Object> errorResult(String message) {

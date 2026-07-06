@@ -31,6 +31,7 @@ class SqlTemplateServiceTest {
             new TemplateParameterValidator(objectMapper),
             properties
         );
+        when(repository.findByCode(anyString())).thenReturn(Optional.empty());
         when(repository.findByEnabledTrueOrderByCodeAsc()).thenReturn(List.of());
 
         service.listEnabled();
@@ -224,6 +225,95 @@ class SqlTemplateServiceTest {
         verify(repository).delete(recentData);
         verify(repository).delete(taskResult);
         verify(repository).delete(mysqlMetadata);
+    }
+
+    @Test
+    void refreshesExistingDefaultSqlTemplateDefinitionButPreservesDisabledState() {
+        SqlTemplateSeedProperties properties = new SqlTemplateSeedProperties();
+        properties.setSeedDefaultsEnabled(true);
+        SqlTemplateService service = new SqlTemplateService(
+            repository,
+            objectMapper,
+            new TemplateParameterValidator(objectMapper),
+            properties
+        );
+        SqlTemplateConfig existing = template("MYSQL_SHOW_STATUS");
+        existing.setTitle("Old status title");
+        existing.setDescription("Old status description");
+        existing.setSqlTemplate("SELECT 1");
+        existing.setParameterSchemaJson("{}");
+        existing.setRiskLevel("HIGH");
+        existing.setCategory("custom");
+        existing.setDatabaseType("generic");
+        existing.setDatasourceId("user-bound-datasource");
+        existing.setRoutingLabelsJson("[]");
+        existing.setIntentSignalsJson("[]");
+        existing.setEnabled(false);
+        when(repository.findByCode(anyString())).thenReturn(Optional.empty());
+        when(repository.findByCode("MYSQL_SHOW_STATUS")).thenReturn(Optional.of(existing));
+        when(repository.findByEnabledTrueOrderByCodeAsc()).thenReturn(List.of());
+
+        service.listEnabled();
+
+        ArgumentCaptor<SqlTemplateConfig> captor = ArgumentCaptor.forClass(SqlTemplateConfig.class);
+        verify(repository, org.mockito.Mockito.atLeastOnce()).save(captor.capture());
+        assertThat(captor.getAllValues()).anySatisfy(saved -> {
+            if ("MYSQL_SHOW_STATUS".equals(saved.getCode())) {
+                assertThat(saved.getTitle()).isEqualTo("MySQL status variables");
+                assertThat(saved.getDescription()).contains("status counters");
+                assertThat(saved.getSqlTemplate()).isEqualTo("SHOW STATUS");
+                assertThat(saved.getRiskLevel()).isEqualTo("LOW");
+                assertThat(saved.getCategory()).isEqualTo("maintenance_instance");
+                assertThat(saved.getDatabaseType()).isEqualTo("mysql");
+                assertThat(saved.getDatasourceId()).isNull();
+                assertThat(saved.getRoutingLabelsJson()).contains("mysql", "maintenance", "instance");
+                assertThat(saved.getIntentSignalsJson()).contains("performance_issue");
+                assertThat(saved.isEnabled()).isFalse();
+            }
+        });
+    }
+
+    @Test
+    void refreshesExistingDefaultSqlTemplateEvenWhenDefaultSeedIsDisabled() {
+        SqlTemplateSeedProperties properties = new SqlTemplateSeedProperties();
+        SqlTemplateService service = new SqlTemplateService(
+            repository,
+            objectMapper,
+            new TemplateParameterValidator(objectMapper),
+            properties
+        );
+        SqlTemplateConfig existing = template("MYSQL_SHOW_STATUS");
+        existing.setTitle("旧状态标题");
+        existing.setDescription("旧状态描述");
+        existing.setSqlTemplate("SELECT 1");
+        existing.setParameterSchemaJson("{}");
+        existing.setRiskLevel("HIGH");
+        existing.setCategory("custom");
+        existing.setDatabaseType("generic");
+        existing.setDatasourceId("user-bound-datasource");
+        existing.setRoutingLabelsJson("[]");
+        existing.setIntentSignalsJson("[]");
+        existing.setEnabled(true);
+        when(repository.findByCode(anyString())).thenReturn(Optional.empty());
+        when(repository.findByCode("MYSQL_SHOW_STATUS")).thenReturn(Optional.of(existing));
+        when(repository.findByEnabledTrueOrderByCodeAsc()).thenReturn(List.of(existing));
+
+        service.listEnabled();
+
+        ArgumentCaptor<SqlTemplateConfig> captor = ArgumentCaptor.forClass(SqlTemplateConfig.class);
+        verify(repository, org.mockito.Mockito.atLeastOnce()).save(captor.capture());
+        assertThat(captor.getAllValues()).anySatisfy(saved -> {
+            if ("MYSQL_SHOW_STATUS".equals(saved.getCode())) {
+                assertThat(saved.getTitle()).isEqualTo("MySQL status variables");
+                assertThat(saved.getDescription()).contains("status counters");
+                assertThat(saved.getSqlTemplate()).isEqualTo("SHOW STATUS");
+                assertThat(saved.getRiskLevel()).isEqualTo("LOW");
+                assertThat(saved.getCategory()).isEqualTo("maintenance_instance");
+                assertThat(saved.getDatabaseType()).isEqualTo("mysql");
+                assertThat(saved.getDatasourceId()).isNull();
+                assertThat(saved.isEnabled()).isTrue();
+            }
+        });
     }
 
     @Test

@@ -12,6 +12,7 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -193,12 +194,13 @@ public class SqlTemplateService {
     @Transactional
     public void ensureDefaults() {
         removeRetiredDefaults();
-        if (seedProperties == null || !seedProperties.isSeedDefaultsEnabled()) {
-            return;
-        }
+        boolean createMissingDefaults = seedProperties != null && seedProperties.isSeedDefaultsEnabled();
         for (DefaultTemplate template : defaults()) {
             var existing = repository.findByCode(template.code());
             if (existing.isEmpty()) {
+                if (!createMissingDefaults) {
+                    continue;
+                }
                 SqlTemplateConfig config = new SqlTemplateConfig();
                 config.setCode(template.code());
                 config.setTitle(template.title());
@@ -212,26 +214,40 @@ public class SqlTemplateService {
                 config.setIntentSignalsJson(writeJson(template.intentSignals()));
                 config.setEnabled(true);
                 repository.save(config);
-            } else if (shouldRefreshDefault(existing.get(), template)) {
-                SqlTemplateConfig config = existing.get();
-                config.setSqlTemplate(template.sql());
-                config.setParameterSchemaJson(writeJson(template.schema()));
-                config.setIntentSignalsJson(writeJson(template.intentSignals()));
-                repository.save(config);
-                log.info("Refreshed managed SQL default template: {}", template.code());
+            } else {
+                refreshDefaultTemplate(existing.get(), template);
             }
         }
     }
 
-    private boolean shouldRefreshDefault(SqlTemplateConfig existing, DefaultTemplate template) {
-        if (existing == null || template == null || existing.getCode() == null) {
-            return false;
+    private void refreshDefaultTemplate(SqlTemplateConfig existing, DefaultTemplate template) {
+        String parameterSchema = writeJson(template.schema());
+        String routingLabels = writeJson(template.routingLabels());
+        String intentSignals = writeJson(template.intentSignals());
+        if (Objects.equals(existing.getTitle(), template.title())
+            && Objects.equals(existing.getDescription(), template.description())
+            && Objects.equals(existing.getSqlTemplate(), template.sql())
+            && Objects.equals(existing.getParameterSchemaJson(), parameterSchema)
+            && Objects.equals(existing.getRiskLevel(), template.riskLevel())
+            && Objects.equals(existing.getCategory(), template.category())
+            && Objects.equals(existing.getDatabaseType(), template.databaseType())
+            && Objects.equals(existing.getRoutingLabelsJson(), routingLabels)
+            && Objects.equals(existing.getIntentSignalsJson(), intentSignals)
+            && existing.getDatasourceId() == null) {
+            return;
         }
-        String code = existing.getCode().trim().toUpperCase(Locale.ROOT);
-        String sql = existing.getSqlTemplate() == null ? "" : existing.getSqlTemplate().toLowerCase(Locale.ROOT);
-        return switch (code) {
-            default -> false;
-        };
+        existing.setTitle(template.title());
+        existing.setDescription(template.description());
+        existing.setSqlTemplate(template.sql());
+        existing.setParameterSchemaJson(parameterSchema);
+        existing.setRiskLevel(template.riskLevel());
+        existing.setCategory(template.category());
+        existing.setDatabaseType(template.databaseType());
+        existing.setDatasourceId(null);
+        existing.setRoutingLabelsJson(routingLabels);
+        existing.setIntentSignalsJson(intentSignals);
+        repository.save(existing);
+        log.info("Refreshed managed SQL default template: {}", template.code());
     }
 
     private void removeRetiredDefaults() {

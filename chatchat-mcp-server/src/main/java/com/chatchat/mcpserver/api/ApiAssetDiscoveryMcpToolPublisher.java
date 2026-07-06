@@ -3,11 +3,13 @@ package com.chatchat.mcpserver.api;
 import com.chatchat.mcpserver.routing.AssetDiscoveryService;
 import com.chatchat.mcpserver.routing.AssetMetadataFactory;
 import com.chatchat.mcpserver.routing.TargetKindRegistry;
+import com.chatchat.mcpserver.search.LuceneMcpSearchService;
 import io.modelcontextprotocol.server.McpServerFeatures;
 import io.modelcontextprotocol.server.McpSyncServer;
 import io.modelcontextprotocol.spec.McpSchema;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.context.event.EventListener;
 import org.springframework.core.Ordered;
@@ -24,7 +26,6 @@ import java.util.Map;
 
 @Slf4j
 @Component
-@RequiredArgsConstructor
 public class ApiAssetDiscoveryMcpToolPublisher {
 
     public static final String TOOL_NAME = "api_asset_query";
@@ -33,6 +34,21 @@ public class ApiAssetDiscoveryMcpToolPublisher {
 
     private final McpSyncServer mcpSyncServer;
     private final ApiServiceConfigService configService;
+    private final LuceneMcpSearchService luceneSearchService;
+
+    @Autowired
+    public ApiAssetDiscoveryMcpToolPublisher(McpSyncServer mcpSyncServer,
+                                             ApiServiceConfigService configService,
+                                             LuceneMcpSearchService luceneSearchService) {
+        this.mcpSyncServer = mcpSyncServer;
+        this.configService = configService;
+        this.luceneSearchService = luceneSearchService;
+    }
+
+    public ApiAssetDiscoveryMcpToolPublisher(McpSyncServer mcpSyncServer,
+                                             ApiServiceConfigService configService) {
+        this(mcpSyncServer, configService, null);
+    }
 
     @Order(Ordered.LOWEST_PRECEDENCE)
     @EventListener(ApplicationReadyEvent.class)
@@ -82,14 +98,13 @@ public class ApiAssetDiscoveryMcpToolPublisher {
         Map<String, Object> filters = filters(arguments);
         int limit = limit(arguments);
         List<String> terms = terms(filters);
-        List<ScoredApiAsset> matched = configService.listEnabled().stream()
-            .map(config -> new ScoredApiAsset(config, score(config, terms, filters)))
-            .filter(item -> terms.isEmpty() || item.score() > 0)
-            .sorted(Comparator
-                .comparingDouble(ScoredApiAsset::score)
-                .reversed()
-                .thenComparing(item -> text(item.config().getToolName())))
-            .toList();
+        List<ApiServiceConfig> enabledConfigs = configService.listEnabled();
+        List<ScoredApiAsset> matched = luceneMatched(enabledConfigs, terms, filters, limit);
+        boolean luceneUsed = !matched.isEmpty() || luceneSearchService != null && luceneSearchService.enabled() && terms.isEmpty();
+        if (matched.isEmpty()) {
+            matched = fallbackMatched(enabledConfigs, terms, filters);
+            luceneUsed = false;
+        }
         List<Map<String, Object>> assets = matched.stream()
             .limit(limit)
             .map(item -> assetMetadata(item.config(), item.score()))
@@ -109,12 +124,16 @@ public class ApiAssetDiscoveryMcpToolPublisher {
             "discoveryPolicy", mapOf(
                 "readOnly", true,
                 "redaction", "URL templates, headers, and body templates are never returned",
-                "logicalIndex", "asset:api_service"
+                "logicalIndex", "asset:api_service",
+                "physicalIndex", "assets-api-service",
+                "indexBackend", luceneUsed ? "lucene_typed_asset_index" : "registry_fallback"
             ),
             "queryIr", mapOf(
                 "schemaVersion", "api_asset_query_ir.v1",
                 "assetType", "api_service",
                 "targetKind", "api_service",
+                "logicalIndex", "asset:api_service",
+                "physicalIndex", "assets-api-service",
                 "terms", terms
             ),
             "assets", assets
@@ -165,6 +184,8 @@ public class ApiAssetDiscoveryMcpToolPublisher {
             ),
             "indexPolicy", mapOf(
                 "logicalIndex", "asset:api_service",
+                "physicalIndex", "assets-api-service",
+                "indexBackend", "lucene_typed_asset_index",
                 "filterField", "assetType",
                 "isolatedByTool", true
             ),
@@ -201,6 +222,86 @@ public class ApiAssetDiscoveryMcpToolPublisher {
         }
         rejectRawApiFields(filters);
         return filters;
+    }
+
+    private List<ScoredApiAsset> luceneMatched(List<ApiServiceConfig> configs,
+                                               List<String> terms,
+                                               Map<String, Object> filters,
+                                               int limit) {
+        if (luceneSearchService == null || !luceneSearchService.enabled()) {
+            return List.of();
+        }
+        Map<String, ApiServiceConfig> byId = new LinkedHashMap<>();
+        for (ApiServiceConfig config : configs) {
+            if (!text(config.getId()).isBlank()) {
+                byId.put(config.getId(), config);
+            }
+        }
+        List<LuceneMcpSearchService.SearchHit> hits = luceneSearchService.searchAssets(
+            configs.stream().map(this::apiAssetDoc).toList(),
+            new LuceneMcpSearchService.AssetSearchRequest(
+                "api_service",
+                queryText(terms, filters),
+                null,
+                null,
+                List.of(),
+                Math.min(MAX_LIMIT, Math.max(limit + 1, limit))
+            )
+        );
+        return hits.stream()
+            .map(hit -> {
+                ApiServiceConfig config = byId.get(hit.id());
+                return config == null ? null : new ScoredApiAsset(config, hit.score());
+            })
+            .filter(item -> item != null)
+            .toList();
+    }
+
+    private List<ScoredApiAsset> fallbackMatched(List<ApiServiceConfig> configs,
+                                                 List<String> terms,
+                                                 Map<String, Object> filters) {
+        return configs.stream()
+            .map(config -> new ScoredApiAsset(config, score(config, terms, filters)))
+            .filter(item -> terms.isEmpty() || item.score() > 0)
+            .sorted(Comparator
+                .comparingDouble(ScoredApiAsset::score)
+                .reversed()
+                .thenComparing(item -> text(item.config().getToolName())))
+            .toList();
+    }
+
+    private LuceneMcpSearchService.AssetDoc apiAssetDoc(ApiServiceConfig config) {
+        return new LuceneMcpSearchService.AssetDoc(
+            config.getId(),
+            "api_service",
+            config.getToolName(),
+            firstText(config.getTitle(), config.getToolName()),
+            config.getToolName(),
+            null,
+            null,
+            apiLabels(config),
+            "api_service_asset_registry",
+            null,
+            null,
+            null,
+            null,
+            String.join(" ", List.of(
+                text(config.getDescription()),
+                text(config.getBusinessGroup()),
+                text(config.getBusinessGroupName()),
+                text(config.getBusinessGroupDescription()),
+                text(config.getMethod())
+            )),
+            null,
+            null
+        );
+    }
+
+    private String queryText(List<String> terms, Map<String, Object> filters) {
+        if (terms != null && !terms.isEmpty()) {
+            return String.join(" ", terms);
+        }
+        return text(firstValue(filters, "assetName", "asset_name", "toolName", "name"));
     }
 
     private void rejectRawApiFields(Map<String, Object> filters) {

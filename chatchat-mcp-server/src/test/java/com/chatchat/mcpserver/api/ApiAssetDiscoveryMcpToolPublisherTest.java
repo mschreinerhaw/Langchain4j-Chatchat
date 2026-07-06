@@ -23,7 +23,8 @@ class ApiAssetDiscoveryMcpToolPublisherTest {
         McpSyncServer server = mock(McpSyncServer.class);
         ApiAssetDiscoveryMcpToolPublisher publisher = new ApiAssetDiscoveryMcpToolPublisher(
             server,
-            mock(ApiServiceConfigService.class)
+            mock(ApiServiceConfigService.class),
+            null
         );
 
         publisher.refresh();
@@ -141,7 +142,8 @@ class ApiAssetDiscoveryMcpToolPublisherTest {
     void queryRejectsRawApiExecutionFields() {
         ApiAssetDiscoveryMcpToolPublisher publisher = new ApiAssetDiscoveryMcpToolPublisher(
             mock(McpSyncServer.class),
-            mock(ApiServiceConfigService.class)
+            mock(ApiServiceConfigService.class),
+            null
         );
 
         assertThatThrownBy(() -> publisher.query(Map.of("filters", Map.of("urlTemplate", "https://example.com"))))

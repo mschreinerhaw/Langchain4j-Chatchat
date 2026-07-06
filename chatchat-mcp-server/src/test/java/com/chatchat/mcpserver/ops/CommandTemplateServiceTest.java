@@ -22,6 +22,7 @@ class CommandTemplateServiceTest {
     void doesNotSeedDefaultTemplatesUnlessExplicitlyEnabled() {
         CommandTemplateSeedProperties properties = new CommandTemplateSeedProperties();
         CommandTemplateService service = new CommandTemplateService(repository, new ObjectMapper(), properties);
+        when(repository.findByCode(anyString())).thenReturn(Optional.empty());
         when(repository.findByEnabledTrueOrderByCodeAsc()).thenReturn(List.of());
 
         service.listEnabled();
@@ -199,5 +200,74 @@ class CommandTemplateServiceTest {
                     .contains("cpu");
             }
         });
+    }
+
+    @Test
+    void refreshesExistingDefaultTemplateDefinitionButPreservesDisabledState() {
+        CommandTemplateSeedProperties properties = new CommandTemplateSeedProperties();
+        properties.setSeedDefaultsEnabled(true);
+        CommandTemplateConfig existing = new CommandTemplateConfig();
+        existing.setCode("CHECK_SYSTEM_LOAD");
+        existing.setTitle("Old load title");
+        existing.setDescription("Old load description");
+        existing.setCommandTemplate("uptime");
+        existing.setParameterSchemaJson("{}");
+        existing.setRiskLevel("HIGH");
+        existing.setCategory("custom");
+        existing.setIntentSignalsJson("[]");
+        existing.setRuntimeAction("forbidden");
+        existing.setEnabled(false);
+        CommandTemplateService service = new CommandTemplateService(repository, new ObjectMapper(), properties);
+        when(repository.findByCode(anyString())).thenReturn(Optional.empty());
+        when(repository.findByCode("CHECK_SYSTEM_LOAD")).thenReturn(Optional.of(existing));
+        when(repository.findByEnabledTrueOrderByCodeAsc()).thenReturn(List.of());
+
+        service.listEnabled();
+
+        ArgumentCaptor<CommandTemplateConfig> captor = ArgumentCaptor.forClass(CommandTemplateConfig.class);
+        verify(repository, org.mockito.Mockito.atLeastOnce()).save(captor.capture());
+        assertThat(captor.getAllValues()).anySatisfy(saved -> {
+            if ("CHECK_SYSTEM_LOAD".equals(saved.getCode())) {
+                assertThat(saved.getTitle()).isEqualTo("System load pressure");
+                assertThat(saved.getDescription()).contains("load average");
+                assertThat(saved.getCommandTemplate()).contains("/proc/loadavg").contains("vmstat 1 3");
+                assertThat(saved.getRiskLevel()).isEqualTo("LOW");
+                assertThat(saved.getCategory()).isEqualTo("system_diagnostic");
+                assertThat(saved.isEnabled()).isFalse();
+            }
+        });
+    }
+
+    @Test
+    void refreshesExistingDefaultTemplateEvenWhenDefaultSeedIsDisabled() {
+        CommandTemplateSeedProperties properties = new CommandTemplateSeedProperties();
+        CommandTemplateConfig existing = new CommandTemplateConfig();
+        existing.setCode("CHECK_BLOCK");
+        existing.setTitle("块设备");
+        existing.setDescription("查询块设备。");
+        existing.setCommandTemplate("old lsblk");
+        existing.setParameterSchemaJson("{}");
+        existing.setRiskLevel("HIGH");
+        existing.setCategory("custom");
+        existing.setIntentSignalsJson("[]");
+        existing.setRuntimeAction("forbidden");
+        existing.setEnabled(true);
+        CommandTemplateService service = new CommandTemplateService(repository, new ObjectMapper(), properties);
+        when(repository.findByCode(anyString())).thenReturn(Optional.empty());
+        when(repository.findByCode("CHECK_BLOCK")).thenReturn(Optional.of(existing));
+        when(repository.findByEnabledTrueOrderByCodeAsc()).thenReturn(List.of(existing));
+
+        service.listEnabled();
+
+        ArgumentCaptor<CommandTemplateConfig> captor = ArgumentCaptor.forClass(CommandTemplateConfig.class);
+        verify(repository).save(captor.capture());
+        CommandTemplateConfig saved = captor.getValue();
+        assertThat(saved.getCode()).isEqualTo("CHECK_BLOCK");
+        assertThat(saved.getTitle()).isEqualTo("Block devices");
+        assertThat(saved.getDescription()).isEqualTo("Read block devices.");
+        assertThat(saved.getCommandTemplate()).isEqualTo("lsblk");
+        assertThat(saved.getRiskLevel()).isEqualTo("LOW");
+        assertThat(saved.getCategory()).isEqualTo("host_diagnostic");
+        assertThat(saved.isEnabled()).isTrue();
     }
 }

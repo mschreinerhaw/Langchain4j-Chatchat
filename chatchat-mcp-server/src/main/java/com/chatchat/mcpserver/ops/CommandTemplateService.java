@@ -3,6 +3,7 @@ package com.chatchat.mcpserver.ops;
 import com.chatchat.agents.protocol.ModelProtocolJson;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -10,9 +11,11 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class CommandTemplateService {
 
     private static final String JAVA_PROCESS_DETAIL_COMMAND =
@@ -86,19 +89,20 @@ public class CommandTemplateService {
 
     @Transactional
     public void ensureDefaults() {
-        if (seedProperties == null || !seedProperties.isSeedDefaultsEnabled()) {
-            return;
-        }
+        boolean createMissingDefaults = seedProperties != null && seedProperties.isSeedDefaultsEnabled();
         for (DefaultTemplate template : defaults()) {
-            ensureDefault(template);
+            ensureDefault(template, createMissingDefaults);
         }
-        ensureDefault(systemOverviewTemplate());
+        ensureDefault(systemOverviewTemplate(), createMissingDefaults);
     }
 
-    private void ensureDefault(DefaultTemplate template) {
+    private void ensureDefault(DefaultTemplate template, boolean createMissingDefaults) {
         java.util.Optional<CommandTemplateConfig> existing = repository.findByCode(template.code());
         if (existing.isPresent()) {
-            repairRetiredDefaultTemplate(existing.get(), template);
+            refreshDefaultTemplate(existing.get(), template);
+            return;
+        }
+        if (!createMissingDefaults) {
             return;
         }
         CommandTemplateConfig config = new CommandTemplateConfig();
@@ -115,22 +119,30 @@ public class CommandTemplateService {
         repository.save(config);
     }
 
-    private void repairRetiredDefaultTemplate(CommandTemplateConfig existing, DefaultTemplate template) {
-        if (!"CHECK_JAVA_PROCESS".equals(template.code())) {
-            return;
-        }
-        String current = existing.getCommandTemplate() == null ? "" : existing.getCommandTemplate().trim();
-        if (!"jps -lv".equals(current)
-            && current.contains(JAVA_PROCESS_DETAIL_COMMAND)
-            && current.contains(JAVA_PROCESS_JSON_COMMAND)) {
+    private void refreshDefaultTemplate(CommandTemplateConfig existing, DefaultTemplate template) {
+        String parameterSchema = writeJson(template.schema());
+        String category = categoryFromCode(template.code());
+        String intentSignals = writeJson(List.of(template.code(), template.title(), template.description()));
+        if (Objects.equals(existing.getTitle(), template.title())
+            && Objects.equals(existing.getDescription(), template.description())
+            && Objects.equals(existing.getCommandTemplate(), template.command())
+            && Objects.equals(existing.getParameterSchemaJson(), parameterSchema)
+            && Objects.equals(existing.getRiskLevel(), "LOW")
+            && Objects.equals(existing.getCategory(), category)
+            && Objects.equals(existing.getIntentSignalsJson(), intentSignals)
+            && Objects.equals(existing.getRuntimeAction(), "confirm_required")) {
             return;
         }
         existing.setTitle(template.title());
         existing.setDescription(template.description());
         existing.setCommandTemplate(template.command());
-        existing.setParameterSchemaJson(writeJson(template.schema()));
-        existing.setIntentSignalsJson(writeJson(List.of(template.code(), template.title(), template.description(), "java", "jps", "ps")));
+        existing.setParameterSchemaJson(parameterSchema);
+        existing.setRiskLevel("LOW");
+        existing.setCategory(category);
+        existing.setIntentSignalsJson(intentSignals);
+        existing.setRuntimeAction("confirm_required");
         repository.save(existing);
+        log.info("Refreshed managed command default template: {}", template.code());
     }
 
     private void normalize(CommandTemplateConfig config) {

@@ -9,6 +9,7 @@ import com.chatchat.mcpserver.tool.McpToolConcurrencyManager;
 import com.chatchat.mcpserver.tool.StandardToolExecutionResultFactory;
 import com.chatchat.mcpserver.routing.AssetMetadataFactory;
 import com.chatchat.mcpserver.routing.ExecutionTargetRouter;
+import com.chatchat.mcpserver.template.AgentRuntimeTemplateDsl;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.modelcontextprotocol.server.McpServerFeatures;
@@ -182,9 +183,27 @@ public class SqlMcpToolPublisher {
             return true;
         }
         if (sql == null || sql.isBlank()) {
-            return false;
+            String template = firstText(
+                text(arguments, "template"),
+                firstText(text(arguments, "templateId"), text(arguments, "template_id"))
+            );
+            String templateBody = sqlTemplateBody(template);
+            return templateBody != null
+                && (AgentRuntimeTemplateDsl.looksLikeDsl(templateBody)
+                || SqlStatementExtractor.splitStatements(templateBody).size() > 1);
         }
         return SqlStatementExtractor.splitStatements(sql).size() > 1;
+    }
+
+    private String sqlTemplateBody(String templateCode) {
+        if (templateCode == null || templateCode.isBlank()) {
+            return null;
+        }
+        return sqlTemplateService.listEnabled().stream()
+            .filter(template -> template != null && equalsIgnoreCase(template.getCode(), templateCode))
+            .map(SqlTemplateConfig::getSqlTemplate)
+            .findFirst()
+            .orElse(null);
     }
 
     private Map<String, Object> toScriptArguments(Map<String, Object> arguments) {

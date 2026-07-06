@@ -7,6 +7,7 @@ let sqlAssetModal;
 let httpAssetModal;
 let assetIndexRebuildModal;
 let commandTemplateModal;
+let templateDslImportModal;
 let databaseQueryModal;
 let notificationChannelModal;
 let livedataImportModal;
@@ -25,6 +26,8 @@ export function initUi() {
     assetIndexRebuildModal = assetIndexRebuildModalElement ? new bootstrap.Modal(assetIndexRebuildModalElement) : null;
     const commandTemplateModalElement = document.getElementById('commandTemplateModal');
     commandTemplateModal = commandTemplateModalElement ? new bootstrap.Modal(commandTemplateModalElement) : null;
+    const templateDslImportModalElement = document.getElementById('templateDslImportModal');
+    templateDslImportModal = templateDslImportModalElement ? new bootstrap.Modal(templateDslImportModalElement) : null;
     databaseQueryModal = new bootstrap.Modal(document.getElementById('databaseQueryModal'));
     notificationChannelModal = new bootstrap.Modal(document.getElementById('notificationChannelModal'));
     livedataImportModal = new bootstrap.Modal(document.getElementById('livedataImportModal'));
@@ -119,6 +122,14 @@ export function showCommandTemplateModal() {
 
 export function hideCommandTemplateModal() {
     commandTemplateModal?.hide();
+}
+
+export function showTemplateDslImportModal() {
+    templateDslImportModal?.show();
+}
+
+export function hideTemplateDslImportModal() {
+    templateDslImportModal?.hide();
 }
 
 export function showDatabaseQueryModal() {

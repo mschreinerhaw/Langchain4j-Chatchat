@@ -63,6 +63,11 @@ public final class ToolExecutionUnitFactory {
                 step.stepIndex(),
                 "command",
                 mapOf(
+                    "stepCode", step.stepCode(),
+                    "stepName", step.stepName(),
+                    "stepType", step.stepType(),
+                    "required", step.required(),
+                    "analysisHint", step.analysisHint(),
                     "command", step.command(),
                     "commandHash", step.commandHash()
                 ),
@@ -74,7 +79,13 @@ public final class ToolExecutionUnitFactory {
                 step.success(),
                 step.durationMs(),
                 step.success() ? null : firstText(step.stderr(), "Command step failed"),
-                mapOf("exitCode", step.exitCode())
+                mapOf(
+                    "stepCode", step.stepCode(),
+                    "stepName", step.stepName(),
+                    "required", step.required(),
+                    "analysisHint", step.analysisHint(),
+                    "exitCode", step.exitCode()
+                )
             ))
             .toList();
     }

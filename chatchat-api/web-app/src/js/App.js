@@ -424,6 +424,7 @@ export default {
     },
     async loadConversationHistory(filters = {}) {
       const { suppressError = false, ...historyFilters } = filters || {};
+      const previousHistory = this.conversationHistory;
       this.historyLoading = true;
       this.historyError = "";
       try {
@@ -433,7 +434,9 @@ export default {
           ...historyFilters
         });
         const nextHistory = Array.isArray(history) ? history : [];
-        this.conversationHistory = await this.verifyRuntimeHistory(nextHistory);
+        const verifiedHistory = await this.verifyRuntimeHistory(nextHistory);
+        this.conversationHistory = verifiedHistory;
+        this.resetActiveConversationWhenRemoved(previousHistory, verifiedHistory);
       } catch (error) {
         this.conversationHistory = [];
         if (suppressError) {
@@ -759,10 +762,11 @@ export default {
         return;
       }
       const deletedId = conversation.id;
+      const deletedConversationId = conversation.conversationId || "";
+      const deletedActiveConversation = this.isActiveConversationId(deletedId, deletedConversationId);
       this.conversationHistory = this.conversationHistory.filter((item) => item.id !== deletedId);
-      if (this.activeHistoryId === deletedId) {
-        this.activeHistoryId = "";
-        this.selectedConversation = null;
+      if (deletedActiveConversation) {
+        this.resetCurrentConversationView();
       }
       try {
         await deleteConversationHistory(this.userId, deletedId, this.tenantId);
@@ -808,6 +812,7 @@ export default {
       }
     },
     handleHistorySaved(payload) {
+      const previousHistory = this.conversationHistory;
       const history = Array.isArray(payload?.history) ? payload.history : payload;
       if (Array.isArray(history)) {
         this.conversationHistory = this.applyActiveConversationStatus(
@@ -815,10 +820,50 @@ export default {
           payload?.activeHistoryId,
           payload?.activeStatus
         );
+        this.resetActiveConversationWhenRemoved(previousHistory, this.conversationHistory);
       }
       if (payload?.activeHistoryId) {
         this.activeHistoryId = payload.activeHistoryId;
       }
+    },
+    resetActiveConversationWhenRemoved(previousHistory = [], nextHistory = []) {
+      const activeIds = this.activeConversationIds();
+      if (activeIds.size === 0) {
+        return;
+      }
+      const existedBefore = this.historyContainsAnyConversationId(previousHistory, activeIds);
+      const existsNow = this.historyContainsAnyConversationId(nextHistory, activeIds);
+      if (existedBefore && !existsNow) {
+        this.resetCurrentConversationView();
+      }
+    },
+    resetCurrentConversationView() {
+      this.selectedConversation = null;
+      this.activeHistoryId = "";
+      this.pendingChatDraft = null;
+      this.navigateToView("chat");
+      this.$nextTick(() => {
+        this.$refs.activeViewComponent?.clearChat?.();
+      });
+    },
+    isActiveConversationId(...ids) {
+      const activeIds = this.activeConversationIds();
+      return ids.some((id) => id && activeIds.has(id));
+    },
+    activeConversationIds() {
+      return new Set([
+        this.activeHistoryId,
+        this.selectedConversation?.id,
+        this.selectedConversation?.conversationId
+      ].filter(Boolean));
+    },
+    historyContainsAnyConversationId(history = [], ids = new Set()) {
+      if (!Array.isArray(history) || ids.size === 0) {
+        return false;
+      }
+      return history.some((conversation) =>
+        ids.has(conversation?.id) || ids.has(conversation?.conversationId)
+      );
     },
     applyActiveConversationStatus(history, activeHistoryId, activeStatus) {
       if (!activeHistoryId || !activeStatus) {

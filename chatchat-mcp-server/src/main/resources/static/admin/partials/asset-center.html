@@ -200,6 +200,7 @@
             <div class="template-create-actions">
                 <button id="newCommandTemplateBtn" class="btn btn-sm btn-outline-primary" type="button">新增 SSH 模板</button>
                 <button id="newSqlTemplateBtn" class="btn btn-sm btn-outline-primary" type="button">新增 SQL 运维模板</button>
+                <button id="importTemplateDslBtn" class="btn btn-sm btn-primary" type="button">导入 DSL 模板</button>
                 <button id="newHttpTemplateBtn" class="btn btn-sm btn-outline-primary" type="button">新增 HTTP 请求资产</button>
             </div>
         </div>
@@ -372,6 +373,48 @@
                 <button id="assetIndexRebuildSubmitBtn" class="btn btn-primary" type="submit">重建</button>
             </div>
         </form>
+    </div>
+</div>
+
+<div class="modal fade" id="templateDslImportModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title fs-5">导入 AgentRuntime DSL 模板</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="关闭"></button>
+            </div>
+            <div class="modal-body">
+                <form id="templateDslImportForm" class="service-form">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label" for="templateDslImportType">导入类型</label>
+                            <select id="templateDslImportType" class="form-select">
+                                <option value="LINUX_CMD">Linux / SSH 命令模板</option>
+                                <option value="DB_SQL">SQL 运维模板</option>
+                                <option value="DATABASE_QUERY">数据库查询模板</option>
+                            </select>
+                        </div>
+                        <div class="col-md-8">
+                            <label class="form-label" for="templateDslImportDatasourceId">数据库资产（数据库查询模板必选）</label>
+                            <select id="templateDslImportDatasourceId" class="form-select">
+                                <option value="">使用 DSL 内 datasourceId 或不绑定</option>
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label" for="templateDslImportBody">DSL JSON</label>
+                            <textarea id="templateDslImportBody" class="form-control codebox" rows="18" spellcheck="false" placeholder='{"templateCode":"LINUX_HOST_STATUS","templateType":"LINUX_CMD","steps":[{"stepCode":"UPTIME","stepType":"SHELL","command":"uptime"}]}'></textarea>
+                        </div>
+                        <div class="col-12">
+                            <div id="templateDslImportResult" class="template-dsl-import-result text-secondary small">粘贴 DSL 后点击“验证”。</div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button id="templateDslValidateBtn" class="btn btn-outline-secondary" type="button">验证</button>
+                <button id="templateDslImportSubmitBtn" class="btn btn-primary" type="submit" form="templateDslImportForm" disabled>验证并导入</button>
+            </div>
+        </div>
     </div>
 </div>
 

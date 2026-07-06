@@ -143,6 +143,47 @@ class ApiTemplateDiscoveryMcpToolPublisherTest {
     }
 
     @Test
+    void queryEnrichesRetrievalWithScopedApiServiceSignals() {
+        ApiServiceConfig config = new ApiServiceConfig();
+        config.setId("api-payment");
+        config.setToolName("payment_status_api");
+        config.setTitle("Payment status API");
+        config.setDescription("Read payment callback and settlement status");
+        config.setBusinessGroup("payment_services");
+        config.setBusinessGroupName("Payment services");
+        config.setBusinessGroupDescription("Payment callback and settlement APIs");
+        config.setMethod("GET");
+        config.setInputSchemaJson("{\"type\":\"object\",\"properties\":{\"paymentId\":{\"type\":\"string\"}},\"required\":[\"paymentId\"]}");
+        config.setEnabled(true);
+
+        ApiServiceConfigService configService = mock(ApiServiceConfigService.class);
+        when(configService.listEnabled()).thenReturn(List.of(config));
+        LuceneMcpSearchService lucene = mock(LuceneMcpSearchService.class);
+        when(lucene.enabled()).thenReturn(true);
+        when(lucene.searchApiServiceTemplates(any())).thenReturn(List.of(
+            new LuceneMcpSearchService.SearchHit("payment_status_api", "template", 8.0f, List.of("lucene"))
+        ));
+        ApiTemplateDiscoveryMcpToolPublisher publisher = new ApiTemplateDiscoveryMcpToolPublisher(
+            mock(McpSyncServer.class),
+            configService,
+            lucene,
+            new ObjectMapper()
+        );
+
+        Map<String, Object> result = publisher.query(Map.of(
+            "filters", Map.of("toolName", "payment_status_api", "intent", "status")
+        ));
+
+        assertThat(result.get("diagnostics").toString())
+            .contains("retrievalSignals", "Payment status API", "settlement");
+        verify(lucene).searchApiServiceTemplates(argThat(request -> request != null
+            && request.intentText() != null
+            && request.intentText().contains("payment_status_api")
+            && request.intentText().contains("payment status api")
+            && request.intentText().contains("settlement")));
+    }
+
+    @Test
     void queryRejectsRawApiExecutionFields() {
         ApiTemplateDiscoveryMcpToolPublisher publisher = new ApiTemplateDiscoveryMcpToolPublisher(
             mock(McpSyncServer.class),

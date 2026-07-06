@@ -61,6 +61,70 @@ class DatabaseQueryInvokeServiceTest {
         assertThat(parameters).containsEntry("timeout_seconds", 90);
     }
 
+    @Test
+    void invokesJsonDslDatabaseQueryStepsAndContinuesAfterOptionalFailure() {
+        when(toolRegistry.hasTool("database_query")).thenReturn(true);
+        when(datasourceConfigService.getEnabled("asset-dm")).thenReturn(dmDatasource());
+        when(toolRegistry.executeEnhancedTool(org.mockito.ArgumentMatchers.eq("database_query"),
+            org.mockito.ArgumentMatchers.any(ToolInput.class))).thenAnswer(invocation -> {
+                ToolInput input = invocation.getArgument(1);
+                String sql = String.valueOf(input.getParameters().get("sql"));
+                if (sql.contains("MISSING_TABLE")) {
+                    return ToolOutput.failure("table not found");
+                }
+                return ToolOutput.success(Map.of(
+                    "sql", sql,
+                    "columns", java.util.List.of("CNT"),
+                    "rows", java.util.List.of(Map.of("CNT", 1)),
+                    "rowCount", 1
+                ));
+            });
+        DatabaseQueryConfig config = new DatabaseQueryConfig();
+        config.setId("query-dsl");
+        config.setToolName("db_query_dsl");
+        config.setTitle("DB query DSL");
+        config.setDatasourceId("asset-dm");
+        config.setSqlTemplate("""
+            {
+              "templateCode": "DM_INSTANCE_STATUS",
+              "templateType": "DB_SQL",
+              "targetType": "DM",
+              "continueOnError": true,
+              "steps": [
+                {
+                  "stepCode": "OPTIONAL_LOCK",
+                  "stepName": "Optional lock table",
+                  "stepType": "SQL",
+                  "required": false,
+                  "sql": "SELECT * FROM MISSING_TABLE",
+                  "analysisHint": "Optional lock evidence."
+                },
+                {
+                  "stepCode": "SESSION_STAT",
+                  "stepName": "Session statistics",
+                  "stepType": "SQL",
+                  "required": true,
+                  "sql": "SELECT COUNT(*) CNT FROM V$SESSIONS",
+                  "analysisHint": "Session count evidence."
+                }
+              ],
+              "analysisPolicy": {
+                "evidenceRequired": true
+              }
+            }
+            """);
+        config.setMaxRows(10);
+        config.setTimeoutSeconds(30);
+
+        ToolOutput output = service.invoke(config, Map.of());
+
+        assertThat(output.isSuccess()).isTrue();
+        Map<?, ?> data = (Map<?, ?>) output.getData();
+        assertThat(data.get("mode")).isEqualTo("agent_runtime_template_dsl");
+        assertThat(data.get("templateDsl").toString()).contains("DM_INSTANCE_STATUS", "SESSION_STAT");
+        assertThat(data.get("results").toString()).contains("OPTIONAL_LOCK", "Session statistics", "analysisHint");
+    }
+
     private SqlDatasourceConfig dmDatasource() {
         SqlDatasourceConfig config = new SqlDatasourceConfig();
         config.setId("asset-dm");

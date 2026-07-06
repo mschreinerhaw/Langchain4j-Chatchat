@@ -1,5 +1,7 @@
 package com.chatchat.mcpserver.ops;
 
+import com.chatchat.mcpserver.database.DatabaseQueryConfig;
+import com.chatchat.mcpserver.database.DatabaseQueryConfigService;
 import com.chatchat.mcpserver.routing.TargetKindRegistry;
 import com.chatchat.mcpserver.search.LuceneMcpSearchService;
 import com.chatchat.mcpserver.sql.SqlDatasourceConfig;
@@ -115,6 +117,80 @@ class CommandTemplateDiscoveryServiceTest {
     }
 
     @Test
+    void enrichesSshTemplateRetrievalWithScopedAssetSignals() {
+        CommandTemplateService templateService = mock(CommandTemplateService.class);
+        SshHostConfigService hostService = mock(SshHostConfigService.class);
+        CommandTemplateDiscoveryService service = service(templateService, hostService);
+        when(templateService.listEnabled()).thenReturn(List.of(
+            template(
+                "CHECK_PROCESS",
+                "ps aux",
+                "Process status",
+                "Read generic process list.",
+                "[\"process\",\"status\"]"
+            ),
+            template(
+                "ZZ_MYSQLD_PROCESS",
+                "ps aux | grep -Ei 'mysqld|mariadbd'",
+                "Database daemon process",
+                "Read database daemon process state.",
+                "[\"mysqld\",\"daemon\",\"process\"]"
+            )
+        ));
+        SshHostConfig host = host("host-248", "mysql_server", "DEV", "[\"CHECK_PROCESS\",\"ZZ_MYSQLD_PROCESS\"]");
+        when(hostService.listEnabled()).thenReturn(List.of(host));
+
+        Map<String, Object> result = service.query(Map.of(
+            "targetKind", "host",
+            "confidence", 0.9,
+            "filters", Map.of(
+                "assetName", "mysql_server",
+                "env", "DEV",
+                "intent", "management process information"
+            ),
+            "trace", trace(),
+            "limit", 10
+        ));
+
+        List<?> templates = (List<?>) result.get("templates");
+        Map<?, ?> first = (Map<?, ?>) templates.get(0);
+        assertThat(first.get("templateId")).isEqualTo("ZZ_MYSQLD_PROCESS");
+        assertThat(first.get("matchReasons").toString()).contains("mysql");
+        assertThat(result.get("queryIr").toString()).contains("retrievalSignals", "mysql_server", "mysql");
+    }
+
+    @Test
+    void reportsAllowedSshTemplatesMissingFromEnabledRegistry() {
+        CommandTemplateService templateService = mock(CommandTemplateService.class);
+        SshHostConfigService hostService = mock(SshHostConfigService.class);
+        CommandTemplateDiscoveryService service = service(templateService, hostService);
+        when(templateService.listEnabled()).thenReturn(List.of(
+            template("CHECK_PROCESS", "ps aux")
+        ));
+        SshHostConfig host = host("host-1", "ops_host", "DEV", "[\"CHECK_PROCESS\",\"CHECK_SPECIAL_PROCESS\"]");
+        when(hostService.listEnabled()).thenReturn(List.of(host));
+
+        Map<String, Object> result = service.query(Map.of(
+            "targetKind", "host",
+            "confidence", 0.9,
+            "filters", Map.of(
+                "assetName", "ops_host",
+                "env", "DEV",
+                "intent", "process"
+            ),
+            "trace", trace(),
+            "limit", 10
+        ));
+
+        Map<?, ?> diagnostics = (Map<?, ?>) result.get("templateRegistryDiagnostics");
+        assertThat(diagnostics.get("schemaVersion")).isEqualTo("template_registry_diagnostics.v1");
+        assertThat(diagnostics.get("allowedTemplateCount")).isEqualTo(2);
+        assertThat(diagnostics.get("authorizedRegisteredCount")).isEqualTo(1);
+        assertThat(diagnostics.get("notEnabledOrMissingAllowedTemplates").toString())
+            .contains("check_special_process");
+    }
+
+    @Test
     void rejectsConcreteTargetAndRawCommandFields() {
         CommandTemplateDiscoveryService service = new CommandTemplateDiscoveryService(
             mock(CommandTemplateService.class),
@@ -171,6 +247,58 @@ class CommandTemplateDiscoveryServiceTest {
         assertThat(templates).hasSize(1);
         assertThat(((Map<?, ?>) templates.get(0)).get("templateId")).isEqualTo("CHECK_TABLE_COUNT");
         assertThat(result.toString()).doesNotContain("sqlTemplate", "SELECT COUNT");
+    }
+
+    @Test
+    void enrichesSqlTemplateRetrievalWithScopedDatasourceSignalsAndRegistryDiagnostics() {
+        SqlTemplateService sqlTemplateService = mock(SqlTemplateService.class);
+        SqlDatasourceConfigService datasourceService = mock(SqlDatasourceConfigService.class);
+        LuceneMcpSearchService lucene = mock(LuceneMcpSearchService.class);
+        CommandTemplateDiscoveryService service = new CommandTemplateDiscoveryService(
+            mock(CommandTemplateService.class),
+            mock(SshHostConfigService.class),
+            sqlTemplateService,
+            datasourceService,
+            mock(HttpEndpointConfigService.class),
+            new ObjectMapper(),
+            new TemplateDiscoveryProperties(),
+            lucene
+        );
+        SqlDatasourceConfig datasource = datasource("ds-analytics", "analytics_db", "DEV");
+        datasource.setTitle("Analytics reporting database");
+        datasource.setDatabaseType("mysql");
+        datasource.setAllowedTemplatesJson("[\"MYSQL_SHOW_STATUS\",\"MYSQL_ANALYTICS_SPECIAL\"]");
+        when(datasourceService.listEnabled()).thenReturn(List.of(datasource));
+        when(sqlTemplateService.listEnabled()).thenReturn(List.of(sqlTemplate(
+            "MYSQL_SHOW_STATUS",
+            "SHOW STATUS",
+            "MySQL status variables",
+            "Show MySQL status variables.",
+            "mysql",
+            "maintenance_instance",
+            "[\"status\",\"health\"]"
+        )));
+        when(lucene.enabled()).thenReturn(true);
+        when(lucene.searchTemplates(anyList(), any())).thenReturn(List.of(
+            new LuceneMcpSearchService.SearchHit("MYSQL_SHOW_STATUS", "template", 8.0f, List.of("lucene"))
+        ));
+
+        Map<String, Object> result = service.query(Map.of(
+            "targetKind", "database",
+            "confidence", 0.9,
+            "filters", Map.of("assetName", "analytics_db", "env", "DEV", "intent", "health"),
+            "trace", trace(),
+            "limit", 10
+        ));
+
+        assertThat(result.get("queryIr").toString()).contains("retrievalSignals", "analytics_db", "Analytics reporting database");
+        Map<?, ?> diagnostics = (Map<?, ?>) result.get("templateRegistryDiagnostics");
+        assertThat(diagnostics.get("notEnabledOrMissingAllowedTemplates").toString())
+            .contains("mysql_analytics_special");
+        verify(lucene).searchTemplates(anyList(), argThat(request -> request != null
+            && request.intentText() != null
+            && request.intentText().contains("analytics_db")
+            && request.intentText().contains("analytics reporting database")));
     }
 
     @Test
@@ -1044,6 +1172,87 @@ class CommandTemplateDiscoveryServiceTest {
         assertThat(result.toString()).doesNotContain("urlTemplate", "https://orders.internal", "bodyTemplate");
     }
 
+    @Test
+    void enrichesHttpTemplateRetrievalWithScopedEndpointSignals() {
+        HttpEndpointConfigService httpService = mock(HttpEndpointConfigService.class);
+        LuceneMcpSearchService lucene = mock(LuceneMcpSearchService.class);
+        CommandTemplateDiscoveryService service = new CommandTemplateDiscoveryService(
+            mock(CommandTemplateService.class),
+            mock(SshHostConfigService.class),
+            mock(SqlTemplateService.class),
+            mock(SqlDatasourceConfigService.class),
+            httpService,
+            new ObjectMapper(),
+            new TemplateDiscoveryProperties(),
+            lucene
+        );
+        HttpEndpointConfig endpoint = httpEndpoint("http_payment_status", "DEV");
+        endpoint.setTitle("Payment status endpoint");
+        endpoint.setDescription("Read payment callback status");
+        endpoint.setTags("payment,callback,status");
+        when(httpService.listEnabled()).thenReturn(List.of(endpoint));
+        when(lucene.enabled()).thenReturn(true);
+        when(lucene.searchTemplates(anyList(), any())).thenReturn(List.of(
+            new LuceneMcpSearchService.SearchHit("http_payment_status", "template", 7.0f, List.of("lucene"))
+        ));
+
+        Map<String, Object> result = service.query(Map.of(
+            "targetKind", "http",
+            "confidence", 0.9,
+            "filters", Map.of("template", "http_payment_status", "intent", "status"),
+            "trace", trace(),
+            "limit", 10
+        ));
+
+        assertThat(result.get("queryIr").toString()).contains("retrievalSignals", "payment", "callback");
+        verify(lucene).searchTemplates(anyList(), argThat(request -> request != null
+            && request.intentText() != null
+            && request.intentText().contains("http_payment_status")
+            && request.intentText().contains("payment status endpoint")));
+    }
+
+    @Test
+    void enrichesDatabaseQueryRetrievalWithScopedDatasourceSignals() {
+        SqlDatasourceConfigService datasourceService = mock(SqlDatasourceConfigService.class);
+        DatabaseQueryConfigService databaseQueryService = mock(DatabaseQueryConfigService.class);
+        LuceneMcpSearchService lucene = mock(LuceneMcpSearchService.class);
+        CommandTemplateDiscoveryService service = new CommandTemplateDiscoveryService(
+            mock(CommandTemplateService.class),
+            mock(SshHostConfigService.class),
+            mock(SqlTemplateService.class),
+            datasourceService,
+            mock(HttpEndpointConfigService.class),
+            databaseQueryService,
+            new ObjectMapper(),
+            new TemplateDiscoveryProperties(),
+            lucene
+        );
+        SqlDatasourceConfig datasource = datasource("ds-reporting", "reporting_db", "DEV");
+        datasource.setTitle("Reporting warehouse datasource");
+        datasource.setDatabaseType("mysql");
+        DatabaseQueryConfig query = databaseQuery("reporting_health_query", "ds-reporting");
+        when(databaseQueryService.listEnabled()).thenReturn(List.of(query));
+        when(datasourceService.getEnabled("ds-reporting")).thenReturn(datasource);
+        when(lucene.enabled()).thenReturn(true);
+        when(lucene.searchDatabaseQueryTemplates(anyList(), any())).thenReturn(List.of(
+            new LuceneMcpSearchService.SearchHit("ds-reporting", "asset", 7.0f, List.of("lucene"))
+        ));
+
+        Map<String, Object> result = service.query(Map.of(
+            "targetKind", "business_database_query",
+            "confidence", 0.9,
+            "filters", Map.of("assetName", "reporting_db", "intent", "health"),
+            "trace", trace(),
+            "limit", 10
+        ));
+
+        assertThat(result.get("queryIr").toString()).contains("retrievalSignals", "reporting_db", "Reporting warehouse datasource");
+        verify(lucene).searchDatabaseQueryTemplates(anyList(), argThat(request -> request != null
+            && request.intentText() != null
+            && request.intentText().contains("reporting_db")
+            && request.intentText().contains("reporting warehouse datasource")));
+    }
+
     private CommandTemplateDiscoveryService service(CommandTemplateService templateService,
                                                     SshHostConfigService hostService) {
         return service(templateService, hostService, new TemplateDiscoveryProperties());
@@ -1191,5 +1400,23 @@ class CommandTemplateDiscoveryServiceTest {
         endpoint.setTags("order,status");
         endpoint.setEnabled(true);
         return endpoint;
+    }
+
+    private DatabaseQueryConfig databaseQuery(String toolName, String datasourceId) {
+        DatabaseQueryConfig config = new DatabaseQueryConfig();
+        config.setId(toolName);
+        config.setToolName(toolName);
+        config.setTitle("Reporting health query");
+        config.setDescription("Read reporting health summary");
+        config.setDatasourceId(datasourceId);
+        config.setBusinessGroup("reporting");
+        config.setBusinessGroupName("Reporting");
+        config.setBusinessGroupDescription("Reporting and analytics checks");
+        config.setDatabaseType("mysql");
+        config.setSqlTemplate("SELECT 1");
+        config.setInputSchemaJson("{\"type\":\"object\",\"properties\":{},\"required\":[]}");
+        config.setRiskLevel("read_only");
+        config.setEnabled(true);
+        return config;
     }
 }

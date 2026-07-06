@@ -39,6 +39,7 @@ class SqlQueryExecuteServiceTest {
         datasourceConfigService,
         new SqlSafetyService(),
         service,
+        templateService,
         auditService
     );
 
@@ -117,6 +118,75 @@ class SqlQueryExecuteServiceTest {
         assertThat(result.results().get(0).rows().get(0)).containsEntry("TOTAL_COUNT", 2L);
         assertThat(result.results().get(1).rows()).hasSize(2);
         assertThat(result.results().get(1).rows().get(0)).containsEntry("PHONE", "***");
+    }
+
+    @Test
+    void jsonDslScriptContinuesAfterOptionalFailureAndKeepsAnalysisHints() throws Exception {
+        String jdbcUrl = "jdbc:h2:mem:sql_script_dsl;DB_CLOSE_DELAY=-1";
+        try (var connection = DriverManager.getConnection(jdbcUrl, "sa", "");
+             Statement statement = connection.createStatement()) {
+            statement.execute("create table dsl_customer (id int primary key, name varchar(64))");
+            statement.execute("insert into dsl_customer (id, name) values (1, 'Alice')");
+        }
+
+        SqlDatasourceConfig datasource = new SqlDatasourceConfig();
+        datasource.setId("ds-dsl");
+        datasource.setName("dsl-db");
+        datasource.setToolName("sql_dsl_db");
+        datasource.setJdbcUrl(jdbcUrl);
+        datasource.setUsername("sa");
+        datasource.setPassword("");
+        datasource.setDefaultMaxRows(10);
+        datasource.setDefaultTimeoutSeconds(5);
+        datasource.setCapabilitiesJson("[\"sql_query_execute\"]");
+        when(datasourceConfigService.getEnabled("ds-dsl")).thenReturn(datasource);
+
+        SqlScriptResult result = scriptService.execute(Map.of(
+            "datasourceId", "ds-dsl",
+            "script", """
+                {
+                  "templateCode": "DSL_STATUS",
+                  "templateType": "DB_SQL",
+                  "targetType": "H2",
+                  "continueOnError": true,
+                  "steps": [
+                    {
+                      "stepCode": "OPTIONAL_BAD_TABLE",
+                      "stepName": "Optional missing table",
+                      "stepType": "SQL",
+                      "order": 1,
+                      "required": false,
+                      "sql": "select * from missing_table",
+                      "analysisHint": "Missing optional data should not stop later evidence collection."
+                    },
+                    {
+                      "stepCode": "CUSTOMER_COUNT",
+                      "stepName": "Customer count",
+                      "stepType": "SQL",
+                      "order": 2,
+                      "required": true,
+                      "sql": "select count(*) as total_count from dsl_customer",
+                      "analysisHint": "Count available customer records."
+                    }
+                  ],
+                  "analysisPolicy": {
+                    "summaryRequired": true,
+                    "outputSections": ["总体结论", "关键证据"]
+                  }
+                }
+                """,
+            "maxRowsPerStatement", 10
+        ));
+
+        assertThat(result.success()).isTrue();
+        assertThat(result.results()).hasSize(2);
+        assertThat(result.results().get(0).success()).isFalse();
+        assertThat(result.results().get(0).required()).isFalse();
+        assertThat(result.results().get(0).stepCode()).isEqualTo("OPTIONAL_BAD_TABLE");
+        assertThat(result.results().get(1).success()).isTrue();
+        assertThat(result.results().get(1).stepName()).isEqualTo("Customer count");
+        assertThat(result.results().get(1).rows().get(0)).containsEntry("TOTAL_COUNT", 1L);
+        assertThat(result.diagnostics().toString()).contains("agent_runtime_template_dsl.v1", "analysisPolicy", "关键证据");
     }
 
     @Test

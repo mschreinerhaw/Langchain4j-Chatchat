@@ -22,7 +22,9 @@ import {
     saveSshAsset,
     testHttpAsset,
     testSqlAsset,
-    testSshAsset
+    testSshAsset,
+    validateTemplateDsl,
+    importTemplateDsl
 } from './assetCenter.js';
 import {
     hideCommandTemplateModal,
@@ -30,13 +32,15 @@ import {
     hideSqlAssetModal,
     hideSshAssetModal,
     hideAssetIndexRebuildModal,
+    hideTemplateDslImportModal,
     notify,
     showCommandTemplateModal,
     showHttpAssetModal,
     showAssetIndexRebuildModal,
     showResult,
     showSqlAssetModal,
-    showSshAssetModal
+    showSshAssetModal,
+    showTemplateDslImportModal
 } from './ui.js';
 
 let onError = error => console.error(error);
@@ -77,6 +81,7 @@ let commandTemplateCategoryFilter = '';
 let commandTemplatePage = 1;
 let sqlMetadataScopeOptions = [];
 let sqlMetadataScopeSearchTerm = '';
+let latestTemplateDslValidation = null;
 
 const ASSET_PAGE_SIZE = 12;
 const COMMAND_TEMPLATE_PAGE_SIZE = 12;
@@ -92,6 +97,12 @@ export function bindAssetCenterPanel(options = {}) {
     bindOptional('newCommandTemplateBtn', 'click', openNewCommandTemplate);
     bindOptional('newSqlTemplateBtn', 'click', openNewSqlTemplate);
     bindOptional('newHttpTemplateBtn', 'click', openNewHttpTemplate);
+    bindOptional('importTemplateDslBtn', 'click', openTemplateDslImport);
+    bindOptional('templateDslValidateBtn', 'click', handleTemplateDslValidate);
+    bindOptional('templateDslImportForm', 'submit', handleTemplateDslImport);
+    bindOptional('templateDslImportType', 'change', resetTemplateDslValidationState);
+    bindOptional('templateDslImportDatasourceId', 'change', resetTemplateDslValidationState);
+    bindOptional('templateDslImportBody', 'input', resetTemplateDslValidationState);
     document.getElementById('sshAssetForm').addEventListener('submit', handleSshAssetSave);
     document.getElementById('sqlAssetForm').addEventListener('submit', handleSqlAssetSave);
     bindOptional('httpAssetForm', 'submit', handleHttpAssetSave);
@@ -942,6 +953,16 @@ function openNewSqlTemplate() {
     showCommandTemplateModal();
 }
 
+function openTemplateDslImport() {
+    const typeNode = document.getElementById('templateDslImportType');
+    if (typeNode) {
+        typeNode.value = editingTemplateScope === 'sql' ? 'DB_SQL' : 'LINUX_CMD';
+    }
+    renderTemplateDslDatasourceOptions();
+    resetTemplateDslValidationState('粘贴 DSL 后点击“验证”。');
+    showTemplateDslImportModal();
+}
+
 function openNewHttpTemplate() {
     activeAssetTab = 'template';
     fillHttpAssetForm(null);
@@ -1416,6 +1437,60 @@ async function handleAssetIndexRebuild(event) {
         if (submitBtn) {
             submitBtn.disabled = false;
         }
+    }
+}
+
+async function handleTemplateDslValidate() {
+    const submitBtn = document.getElementById('templateDslImportSubmitBtn');
+    const validateBtn = document.getElementById('templateDslValidateBtn');
+    try {
+        validateBtn.disabled = true;
+        latestTemplateDslValidation = await validateTemplateDsl(readTemplateDslImportForm());
+        renderTemplateDslValidationResult(latestTemplateDslValidation);
+        if (submitBtn) {
+            submitBtn.disabled = !latestTemplateDslValidation.valid;
+        }
+    } catch (error) {
+        latestTemplateDslValidation = null;
+        if (submitBtn) {
+            submitBtn.disabled = true;
+        }
+        renderTemplateDslImportMessage(error.message || String(error), true);
+    } finally {
+        validateBtn.disabled = false;
+    }
+}
+
+async function handleTemplateDslImport(event) {
+    event.preventDefault();
+    const submitBtn = document.getElementById('templateDslImportSubmitBtn');
+    const validateBtn = document.getElementById('templateDslValidateBtn');
+    try {
+        if (submitBtn) submitBtn.disabled = true;
+        if (validateBtn) validateBtn.disabled = true;
+        const payload = readTemplateDslImportForm();
+        const validation = latestTemplateDslValidation?.valid ? latestTemplateDslValidation : await validateTemplateDsl(payload);
+        if (!validation.valid) {
+            latestTemplateDslValidation = validation;
+            renderTemplateDslValidationResult(validation);
+            if (submitBtn) submitBtn.disabled = true;
+            return;
+        }
+        const result = await importTemplateDsl(payload);
+        notify('DSL 模板已导入', `${result.templateCode || '模板'} 已写入 ${templateDslRegistryLabel(result.targetRegistry)}。`);
+        hideTemplateDslImportModal();
+        activeAssetTab = 'template';
+        selectedCommandTemplateId = result.targetRegistry === 'sql_ops_template'
+            ? `sql:${result.savedId}`
+            : result.targetRegistry === 'linux_command_template'
+                ? `ssh:${result.savedId}`
+                : selectedCommandTemplateId;
+        await loadAssets();
+    } catch (error) {
+        onError(error);
+    } finally {
+        if (validateBtn) validateBtn.disabled = false;
+        if (submitBtn) submitBtn.disabled = !(latestTemplateDslValidation?.valid);
     }
 }
 
@@ -2314,6 +2389,111 @@ function methodOperationType(method) {
 function dataScope(prefix, name) {
     const normalized = String(name || '').trim();
     return `${prefix}:${normalized || 'asset'}`;
+}
+
+function renderTemplateDslDatasourceOptions() {
+    const select = document.getElementById('templateDslImportDatasourceId');
+    if (!select) {
+        return;
+    }
+    const selected = select.value;
+    select.innerHTML = '<option value="">使用 DSL 内 datasourceId 或不绑定</option>';
+    for (const asset of sqlAssets) {
+        if (!asset?.id) {
+            continue;
+        }
+        const option = document.createElement('option');
+        option.value = asset.id;
+        option.textContent = `${asset.name || asset.title || asset.toolName || asset.id} (${asset.databaseType || 'generic'} / ${asset.environment || 'DEV'})`;
+        select.appendChild(option);
+    }
+    if ([...select.options].some(option => option.value === selected)) {
+        select.value = selected;
+    }
+}
+
+function readTemplateDslImportForm() {
+    return {
+        templateType: value('templateDslImportType') || 'LINUX_CMD',
+        targetRegistry: '',
+        datasourceId: value('templateDslImportDatasourceId') || '',
+        dsl: value('templateDslImportBody')
+    };
+}
+
+function resetTemplateDslValidationState(message) {
+    latestTemplateDslValidation = null;
+    const submitBtn = document.getElementById('templateDslImportSubmitBtn');
+    if (submitBtn) {
+        submitBtn.disabled = true;
+    }
+    renderTemplateDslImportMessage(typeof message === 'string' ? message : 'DSL 已修改，请重新验证。', false);
+}
+
+function renderTemplateDslValidationResult(result) {
+    if (!result) {
+        renderTemplateDslImportMessage('尚未验证。', false);
+        return;
+    }
+    const normalized = result.normalized || {};
+    const steps = Array.isArray(normalized.steps) ? normalized.steps : [];
+    const warnings = Array.isArray(result.warnings) ? result.warnings : [];
+    const errors = Array.isArray(result.errors) ? result.errors : [];
+    const badgeClass = result.valid ? 'text-bg-success' : 'text-bg-danger';
+    const status = result.valid ? '验证通过' : '验证失败';
+    const html = `
+        <div class="template-dsl-validation">
+            <div class="d-flex align-items-center gap-2 mb-2">
+                <span class="badge ${badgeClass}">${escapeHtml(status)}</span>
+                <strong>${escapeHtml(normalized.templateCode || '-')}</strong>
+                <span class="text-secondary">${escapeHtml(templateDslRegistryLabel(result.targetRegistry))}</span>
+                <span class="text-secondary">步骤 ${escapeHtml(normalized.stepCount ?? steps.length)}</span>
+            </div>
+            ${errors.length ? `<div class="alert alert-danger py-2 mb-2">${errors.map(escapeHtml).join('<br>')}</div>` : ''}
+            ${warnings.length ? `<div class="alert alert-warning py-2 mb-2">${warnings.map(escapeHtml).join('<br>')}</div>` : ''}
+            <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                    <thead><tr><th>顺序</th><th>步骤编码</th><th>类型</th><th>必需</th><th>分析提示</th></tr></thead>
+                    <tbody>
+                        ${steps.map(step => `
+                            <tr>
+                                <td>${escapeHtml(step.order ?? '')}</td>
+                                <td><code>${escapeHtml(step.stepCode || '')}</code><div class="small text-secondary">${escapeHtml(step.stepName || '')}</div></td>
+                                <td>${escapeHtml(step.stepType || '')}</td>
+                                <td>${step.required ? '是' : '否'}</td>
+                                <td>${escapeHtml(step.analysisHint || '')}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    `;
+    const node = document.getElementById('templateDslImportResult');
+    if (node) {
+        node.classList.toggle('text-danger', !result.valid);
+        node.classList.toggle('text-secondary', false);
+        node.innerHTML = html;
+    }
+}
+
+function renderTemplateDslImportMessage(message, error) {
+    const node = document.getElementById('templateDslImportResult');
+    if (!node) {
+        return;
+    }
+    node.classList.toggle('text-danger', !!error);
+    node.classList.toggle('text-secondary', !error);
+    node.textContent = message || '';
+}
+
+function templateDslRegistryLabel(registry) {
+    const labels = {
+        linux_command_template: 'Linux / SSH 命令模板',
+        sql_ops_template: 'SQL 运维模板',
+        database_query_template: '数据库查询模板'
+    };
+    return labels[registry] || registry || '未知模板类型';
 }
 
 function valueOr(id, fallback) {

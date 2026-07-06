@@ -8,6 +8,9 @@ import com.chatchat.mcpserver.audit.InvocationAuditService;
 import com.chatchat.mcpserver.sql.SqlDatasourceConfig;
 import com.chatchat.mcpserver.sql.SqlDatasourceConfigService;
 import com.chatchat.mcpserver.sql.SqlScriptExecuteService;
+import com.chatchat.mcpserver.template.AgentRuntimeTemplateDsl;
+import com.chatchat.mcpserver.template.AgentRuntimeTemplateDsl.TemplatePlan;
+import com.chatchat.mcpserver.template.AgentRuntimeTemplateDsl.TemplateStep;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -109,9 +112,11 @@ public class DatabaseQueryInvokeService {
             output.setExecutionTimeMs(durationMs);
             return output;
         }
-        List<String> statements = scriptExecuteService.extractStatements(text(parameters, "sql"));
+        String sql = text(parameters, "sql");
+        TemplatePlan plan = sqlPlan(sql);
+        List<String> statements = plan.steps().stream().map(TemplateStep::command).toList();
         if (statements.size() > 1) {
-            return invokeScript(parameters, statements, startedAt);
+            return invokeScript(parameters, plan, startedAt);
         }
         if (statements.size() == 1) {
             parameters = new LinkedHashMap<>(parameters);
@@ -143,19 +148,26 @@ public class DatabaseQueryInvokeService {
         return output;
     }
 
-    private ToolOutput invokeScript(Map<String, Object> parameters, List<String> statements, long startedAt) {
+    private ToolOutput invokeScript(Map<String, Object> parameters, TemplatePlan plan, long startedAt) {
         List<Map<String, Object>> results = new java.util.ArrayList<>();
         boolean success = true;
         String errorMessage = null;
+        List<TemplateStep> statements = plan.steps();
         for (int index = 0; index < statements.size(); index++) {
+            TemplateStep current = statements.get(index);
             Map<String, Object> stepParameters = new LinkedHashMap<>(parameters);
-            stepParameters.put("sql", statements.get(index));
+            stepParameters.put("sql", current.command());
             ToolOutput step = invokeSingleStatement(stepParameters);
             Map<String, Object> data = mapValue(step.getData());
             Map<String, Object> result = new LinkedHashMap<>();
             result.put("statementIndex", index + 1);
+            result.put("stepCode", current.stepCode());
+            result.put("stepName", current.stepName());
+            result.put("stepType", current.stepType());
+            result.put("required", current.required());
+            result.put("analysisHint", current.analysisHint());
             result.put("success", step.isSuccess());
-            result.put("sql", data.getOrDefault("sql", statements.get(index)));
+            result.put("sql", data.getOrDefault("sql", current.command()));
             result.put("columns", data.getOrDefault("columns", List.of()));
             result.put("rows", data.getOrDefault("rows", List.of()));
             result.put("rowCount", data.getOrDefault("rowCount", 0));
@@ -164,14 +176,22 @@ public class DatabaseQueryInvokeService {
             result.put("errorMessage", step.getErrorMessage());
             results.add(result);
             if (!step.isSuccess()) {
-                success = false;
-                errorMessage = step.getErrorMessage();
-                break;
+                if (current.required()) {
+                    success = false;
+                    errorMessage = step.getErrorMessage();
+                }
+                if (!plan.continueOnError()) {
+                    break;
+                }
             }
         }
         long durationMs = Math.max(0L, System.currentTimeMillis() - startedAt);
         Map<String, Object> data = new LinkedHashMap<>();
-        data.put("mode", "sql_script");
+        data.put("mode", plan.dsl() ? "agent_runtime_template_dsl" : "sql_script");
+        data.put("templateDsl", AgentRuntimeTemplateDsl.metadata(plan));
+        data.put("analysisPolicy", plan.analysisPolicy());
+        data.put("executionMode", plan.executionMode());
+        data.put("continueOnError", plan.continueOnError());
         data.put("statementCount", statements.size());
         data.put("resultSetCount", results.size());
         data.put("results", results);
@@ -181,7 +201,7 @@ public class DatabaseQueryInvokeService {
             : ToolOutput.failure(errorMessage == null ? "Database SQL script failed" : errorMessage);
         output.setData(data);
         output.setExecutionTimeMs(durationMs);
-        output.getMetadata().put("executionMode", "sql_script");
+        output.getMetadata().put("executionMode", data.get("mode"));
         output.getMetadata().put("statementCount", statements.size());
         return output;
     }
@@ -223,6 +243,31 @@ public class DatabaseQueryInvokeService {
         parameters.put("datasource_name", datasource.getName());
         parameters.put("reload_drivers", false);
         return parameters;
+    }
+
+    private TemplatePlan sqlPlan(String sql) {
+        TemplatePlan dsl = AgentRuntimeTemplateDsl.parse(sql, "database_query", "DB_SQL", "SQL");
+        if (dsl != null) {
+            return dsl;
+        }
+        List<String> statements = scriptExecuteService.extractStatements(sql);
+        List<TemplateStep> steps = new java.util.ArrayList<>();
+        for (int index = 0; index < statements.size(); index++) {
+            steps.add(AgentRuntimeTemplateDsl.singleStep(index + 1, "SQL", statements.get(index)));
+        }
+        return new TemplatePlan(
+            "database_query",
+            "database_query",
+            "DB_SQL",
+            null,
+            "SEQUENTIAL",
+            false,
+            "LOW",
+            null,
+            Map.of(),
+            steps,
+            false
+        );
     }
 
     /**

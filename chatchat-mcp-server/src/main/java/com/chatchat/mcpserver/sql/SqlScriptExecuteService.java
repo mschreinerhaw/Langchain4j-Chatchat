@@ -1,6 +1,9 @@
 package com.chatchat.mcpserver.sql;
 
 import com.chatchat.mcpserver.audit.InvocationAuditService;
+import com.chatchat.mcpserver.template.AgentRuntimeTemplateDsl;
+import com.chatchat.mcpserver.template.AgentRuntimeTemplateDsl.TemplatePlan;
+import com.chatchat.mcpserver.template.AgentRuntimeTemplateDsl.TemplateStep;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -27,6 +30,7 @@ public class SqlScriptExecuteService {
     private final SqlDatasourceConfigService datasourceConfigService;
     private final SqlSafetyService safetyService;
     private final SqlQueryExecuteService queryExecuteService;
+    private final SqlTemplateService templateService;
     private final InvocationAuditService auditService;
 
     public SqlScriptResult execute(Map<String, Object> arguments) {
@@ -43,16 +47,20 @@ public class SqlScriptExecuteService {
             maxRowsPerStatement = queryExecuteService.normalizeMaxRows(firstValue(request, "maxRowsPerStatement", "maxRows"), datasource.getDefaultMaxRows());
             diagnostics.putAll(queryExecuteService.baseDiagnostics(datasource, request));
             diagnostics.put("scriptMode", "read_only_multi_result");
-            String script = text(request, "script");
-            List<String> statements = normalizeStatements(script, maxRowsPerStatement);
-            diagnostics.put("statementCount", statements.size());
+            String script = resolveScript(request, datasource);
+            TemplatePlan plan = scriptPlan(requestedTemplate(request), script, maxRowsPerStatement);
+            diagnostics.put("statementCount", plan.steps().size());
+            diagnostics.put("templateDsl", AgentRuntimeTemplateDsl.metadata(plan));
+            diagnostics.put("analysisPolicy", plan.analysisPolicy());
+            diagnostics.put("executionMode", plan.executionMode());
+            diagnostics.put("continueOnError", plan.continueOnError());
             SqlDatasourceConfig currentDatasource = datasource;
-            statements.forEach(sql -> queryExecuteService.validateAllowedTables(currentDatasource, sql));
+            plan.steps().forEach(step -> queryExecuteService.validateAllowedTables(currentDatasource, step.command()));
 
             SqlScriptResult result = executeStatements(
                 datasource,
                 script,
-                statements,
+                plan,
                 timeoutSeconds,
                 maxRowsPerStatement,
                 text(request, "purpose"),
@@ -100,11 +108,12 @@ public class SqlScriptExecuteService {
         return splitStatements(script);
     }
 
-    private SqlScriptResult executeStatements(SqlDatasourceConfig datasource, String originalScript, List<String> statements,
+    private SqlScriptResult executeStatements(SqlDatasourceConfig datasource, String originalScript, TemplatePlan plan,
                                               int timeoutSeconds, int maxRowsPerStatement, String purpose,
                                               String sourceTaskId, long startedAt, Map<String, Object> diagnostics)
         throws Exception {
         List<SqlScriptStatementResult> results = new ArrayList<>();
+        List<TemplateStep> statements = plan.steps();
         try (Connection connection = queryExecuteService.openConnection(datasource);
              Statement statement = connection.createStatement()) {
             connection.setReadOnly(true);
@@ -114,14 +123,20 @@ public class SqlScriptExecuteService {
             diagnostics.put("connection", queryExecuteService.connectionDiagnostics(connection, datasource));
             Set<String> sensitiveFields = queryExecuteService.sensitiveFields(datasource);
             for (int index = 0; index < statements.size(); index++) {
-                String sql = statements.get(index);
+                TemplateStep step = statements.get(index);
+                String sql = step.command();
                 long stepStartedAt = System.currentTimeMillis();
                 try {
-                    results.add(executeSingle(connection, statement, datasource, sql, index + 1, maxRowsPerStatement, sensitiveFields, stepStartedAt));
+                    results.add(executeSingle(connection, statement, datasource, step, index + 1, maxRowsPerStatement, sensitiveFields, stepStartedAt));
                 } catch (Exception ex) {
                     long stepDurationMs = Math.max(0, System.currentTimeMillis() - stepStartedAt);
                     results.add(new SqlScriptStatementResult(
                         index + 1,
+                        step.stepCode(),
+                        step.stepName(),
+                        step.stepType(),
+                        step.required(),
+                        step.analysisHint(),
                         false,
                         sql,
                         List.of(),
@@ -131,16 +146,20 @@ public class SqlScriptExecuteService {
                         false,
                         stepDurationMs,
                         ex.getMessage(),
-                        Map.of("errorType", ex.getClass().getSimpleName())
+                        stepDiagnostics(step, Map.of("errorType", ex.getClass().getSimpleName()))
                     ));
-                    break;
+                    if (!plan.continueOnError()) {
+                        break;
+                    }
                 }
             }
         }
         long durationMs = Math.max(0, System.currentTimeMillis() - startedAt);
-        boolean success = results.size() == statements.size() && results.stream().allMatch(SqlScriptStatementResult::success);
+        boolean requiredFailure = results.stream().anyMatch(result -> result.required() && !result.success());
+        boolean success = results.size() == statements.size() && !requiredFailure
+            && (plan.continueOnError() || results.stream().allMatch(SqlScriptStatementResult::success));
         String error = results.stream()
-            .filter(result -> !result.success())
+            .filter(result -> result.required() && !result.success())
             .map(SqlScriptStatementResult::errorMessage)
             .filter(value -> value != null && !value.isBlank())
             .findFirst()
@@ -171,8 +190,9 @@ public class SqlScriptExecuteService {
     }
 
     private SqlScriptStatementResult executeSingle(Connection connection, Statement statement, SqlDatasourceConfig datasource,
-                                                   String sql, int index, int maxRowsPerStatement,
+                                                   TemplateStep step, int index, int maxRowsPerStatement,
                                                    Set<String> sensitiveFields, long startedAt) throws Exception {
+        String sql = step.command();
         try (ResultSet resultSet = statement.executeQuery(sql)) {
             ResultSetMetaData metaData = resultSet.getMetaData();
             List<String> columns = queryExecuteService.columns(metaData);
@@ -191,8 +211,14 @@ public class SqlScriptExecuteService {
             Map<String, Object> stepDiagnostics = new LinkedHashMap<>();
             stepDiagnostics.put("rowCount", rows.size());
             stepDiagnostics.put("possiblyTruncated", rows.size() >= maxRowsPerStatement);
+            stepDiagnostics.putAll(stepDiagnostics(step, Map.of()));
             return new SqlScriptStatementResult(
                 index,
+                step.stepCode(),
+                step.stepName(),
+                step.stepType(),
+                step.required(),
+                step.analysisHint(),
                 true,
                 sql,
                 columns,
@@ -207,17 +233,102 @@ public class SqlScriptExecuteService {
         }
     }
 
-    private List<String> normalizeStatements(String script, int maxRowsPerStatement) {
+    private TemplatePlan scriptPlan(String templateCode, String script, int maxRowsPerStatement) {
+        TemplatePlan dsl = AgentRuntimeTemplateDsl.parse(script, templateCode, "DB_SQL", "SQL");
+        if (dsl != null) {
+            List<TemplateStep> normalized = dsl.steps().stream()
+                .map(step -> new TemplateStep(
+                    step.stepCode(),
+                    step.stepName(),
+                    step.stepType(),
+                    step.order(),
+                    safetyService.validateAndNormalizeScriptStatement(step.command(), maxRowsPerStatement),
+                    step.required(),
+                    step.timeoutSeconds(),
+                    step.analysisHint()
+                ))
+                .toList();
+            assertStatementLimit(normalized.size());
+            return new TemplatePlan(
+                dsl.templateCode(),
+                dsl.templateName(),
+                dsl.templateType(),
+                dsl.targetType(),
+                dsl.executionMode(),
+                dsl.continueOnError(),
+                dsl.riskLevel(),
+                dsl.timeoutSeconds(),
+                dsl.analysisPolicy(),
+                normalized,
+                true
+            );
+        }
         List<String> statements = splitStatements(script).stream()
             .map(value -> safetyService.validateAndNormalizeScriptStatement(value, maxRowsPerStatement))
             .toList();
         if (statements.isEmpty()) {
             throw new IllegalArgumentException("SQL script cannot be empty");
         }
-        if (statements.size() > MAX_STATEMENTS) {
+        assertStatementLimit(statements.size());
+        List<TemplateStep> steps = new ArrayList<>();
+        for (int index = 0; index < statements.size(); index++) {
+            steps.add(AgentRuntimeTemplateDsl.singleStep(index + 1, "SQL", statements.get(index)));
+        }
+        return new TemplatePlan(
+            templateCode,
+            templateCode,
+            "DB_SQL",
+            null,
+            "SEQUENTIAL",
+            false,
+            null,
+            null,
+            Map.of(),
+            steps,
+            false
+        );
+    }
+
+    private void assertStatementLimit(int statementCount) {
+        if (statementCount > MAX_STATEMENTS) {
             throw new IllegalArgumentException("SQL script can contain at most " + MAX_STATEMENTS + " statements");
         }
-        return statements;
+    }
+
+    private String resolveScript(Map<String, Object> request, SqlDatasourceConfig datasource) {
+        String script = firstText(text(request, "script"), text(request, "sql"));
+        String template = requestedTemplate(request);
+        if (script != null && template != null) {
+            throw new IllegalArgumentException("Use either script/sql or SQL template, not both");
+        }
+        if (script != null && !script.isBlank()) {
+            return script;
+        }
+        if (template == null || template.isBlank()) {
+            throw new IllegalArgumentException("Either script/sql or template is required");
+        }
+        Map<String, Object> parameters = queryExecuteService.enrichTemplateParameters(
+            mapValue(request.get("parameters")),
+            datasource,
+            request
+        );
+        request.put("parameters", parameters);
+        return templateService.render(template, parameters, datasource, request);
+    }
+
+    private String requestedTemplate(Map<String, Object> request) {
+        return firstText(text(request, "template"), text(request, "templateId"), text(request, "template_id"));
+    }
+
+    private Map<String, Object> stepDiagnostics(TemplateStep step, Map<String, Object> values) {
+        Map<String, Object> diagnostics = new LinkedHashMap<>();
+        diagnostics.put("stepCode", step.stepCode());
+        diagnostics.put("stepName", step.stepName());
+        diagnostics.put("stepType", step.stepType());
+        diagnostics.put("required", step.required());
+        diagnostics.put("analysisHint", step.analysisHint());
+        diagnostics.putAll(values);
+        return diagnostics;
     }
 
     private int normalizeScriptTimeout(Object value, int fallback) {
@@ -239,6 +350,8 @@ public class SqlScriptExecuteService {
             .map(statement -> {
                 Map<String, Object> item = new LinkedHashMap<>();
                 item.put("statementIndex", statement.statementIndex());
+                item.put("stepCode", statement.stepCode());
+                item.put("stepName", statement.stepName());
                 item.put("success", statement.success());
                 item.put("rowCount", statement.rowCount());
                 item.put("rows", statement.rows().stream().limit(LOG_ROWS_LIMIT).toList());
@@ -267,5 +380,22 @@ public class SqlScriptExecuteService {
     private String text(Map<String, Object> map, String key) {
         Object value = map == null ? null : map.get(key);
         return value == null ? null : String.valueOf(value).trim();
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> mapValue(Object value) {
+        return value instanceof Map<?, ?> map ? new LinkedHashMap<>((Map<String, Object>) map) : Map.of();
+    }
+
+    private String firstText(String... values) {
+        if (values == null) {
+            return null;
+        }
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value.trim();
+            }
+        }
+        return null;
     }
 }

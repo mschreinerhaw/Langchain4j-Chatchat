@@ -85,7 +85,13 @@ public class ApiTemplateDiscoveryMcpToolPublisher {
     Map<String, Object> query(Map<String, Object> arguments) {
         Map<String, Object> filters = filters(arguments);
         int limit = limit(arguments);
-        List<String> terms = terms(filters);
+        List<ApiServiceConfig> enabledConfigs = configService.listEnabled();
+        List<ApiServiceConfig> scopedConfigs = scopedApiServices(enabledConfigs, filters);
+        List<String> assetSignals = apiServiceSignals(scopedConfigs);
+        Map<String, Object> retrievalFilters = assetSignals.isEmpty()
+            ? filters
+            : filtersWithApiAssetSignals(filters, assetSignals);
+        List<String> terms = terms(retrievalFilters);
         List<LuceneMcpSearchService.SearchHit> hits = luceneSearchService == null || !luceneSearchService.enabled()
             ? List.of()
             : luceneSearchService.searchApiServiceTemplates(new LuceneMcpSearchService.TemplateSearchRequest(
@@ -94,7 +100,7 @@ public class ApiTemplateDiscoveryMcpToolPublisher {
                 terms.isEmpty() ? null : String.join(" ", terms),
                 Math.max(limit, DEFAULT_LIMIT)
         ));
-        Map<String, ApiServiceConfig> configsByToolName = configService.listEnabled().stream()
+        Map<String, ApiServiceConfig> configsByToolName = enabledConfigs.stream()
             .filter(config -> !text(config.getToolName()).isBlank())
             .collect(Collectors.toMap(
                 config -> text(config.getToolName()),
@@ -140,6 +146,9 @@ public class ApiTemplateDiscoveryMcpToolPublisher {
                 "source", "lucene_api_service_template_index",
                 "hitCount", hits.size(),
                 "hitIds", hits.stream().map(LuceneMcpSearchService.SearchHit::id).limit(limit).toList(),
+                "assetScoped", !scopedConfigs.isEmpty(),
+                "scopedAssetCount", scopedConfigs.size(),
+                "retrievalSignals", assetSignals,
                 "fallbackUsed", false
             ),
             "templates", templates
@@ -285,6 +294,8 @@ public class ApiTemplateDiscoveryMcpToolPublisher {
         }
         addTerm(terms, filters.get("bilingualIntent"));
         addTerm(terms, filters.get("labels"));
+        addTerm(terms, filters.get("retrievalSignals"));
+        addTerm(terms, filters.get("queryTerms"));
         return terms.stream()
             .map(this::normalize)
             .filter(value -> !value.isBlank())
@@ -315,6 +326,130 @@ public class ApiTemplateDiscoveryMcpToolPublisher {
             config = configsByToolName.get(text(hit.documentId()));
         }
         return config == null ? null : new ScoredApiTemplate(config, hit.score());
+    }
+
+    private Map<String, Object> filtersWithApiAssetSignals(Map<String, Object> filters, List<String> signals) {
+        Map<String, Object> merged = new LinkedHashMap<>(filters);
+        appendSignals(merged, "intent", signals);
+        appendSignals(merged, "retrievalSignals", signals);
+        appendSignals(merged, "queryTerms", signals);
+        return merged;
+    }
+
+    private void appendSignals(Map<String, Object> filters, String key, List<String> signals) {
+        if (filters == null || key == null || signals == null || signals.isEmpty()) {
+            return;
+        }
+        List<Object> values = new ArrayList<>();
+        Object existing = filters.get(key);
+        if (existing instanceof Iterable<?> iterable) {
+            for (Object item : iterable) {
+                values.add(item);
+            }
+        } else if (existing != null) {
+            values.add(existing);
+        }
+        values.addAll(signals);
+        filters.put(key, values.stream()
+            .filter(value -> value != null && !String.valueOf(value).isBlank())
+            .map(value -> String.valueOf(value).trim())
+            .distinct()
+            .toList());
+    }
+
+    private List<ApiServiceConfig> scopedApiServices(List<ApiServiceConfig> configs, Map<String, Object> filters) {
+        if (!hasAssetScope(filters)) {
+            return List.of();
+        }
+        return (configs == null ? List.<ApiServiceConfig>of() : configs).stream()
+            .filter(config -> matchesApiServiceScope(config, filters))
+            .toList();
+    }
+
+    private boolean hasAssetScope(Map<String, Object> filters) {
+        return firstValue(filters, "toolName", "name", "businessGroup", "business_group", "group", "groupName",
+            "group_name", "service", "target", "labels", "category") != null;
+    }
+
+    private boolean matchesApiServiceScope(ApiServiceConfig config, Map<String, Object> filters) {
+        String requestedName = text(firstValue(filters, "toolName", "name", "service", "target"));
+        if (!requestedName.isBlank()
+            && !logicalNameMatches(requestedName, config.getToolName())
+            && !logicalNameMatches(requestedName, config.getTitle())
+            && !logicalNameMatches(requestedName, config.getBusinessGroup())
+            && !logicalNameMatches(requestedName, config.getBusinessGroupName())) {
+            return false;
+        }
+        String group = text(firstValue(filters, "businessGroup", "business_group", "group", "groupName", "group_name"));
+        if (!group.isBlank()
+            && !logicalNameMatches(group, config.getBusinessGroup())
+            && !logicalNameMatches(group, config.getBusinessGroupName())) {
+            return false;
+        }
+        Object labels = filters.get("labels");
+        if (labels != null) {
+            List<String> requestedLabels = new ArrayList<>();
+            addTerm(requestedLabels, labels);
+            List<String> configLabels = apiServiceSignals(List.of(config)).stream()
+                .map(this::normalize)
+                .toList();
+            if (!configLabels.containsAll(requestedLabels.stream().map(this::normalize).toList())) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private List<String> apiServiceSignals(List<ApiServiceConfig> configs) {
+        List<String> signals = new ArrayList<>();
+        for (ApiServiceConfig config : configs == null ? List.<ApiServiceConfig>of() : configs) {
+            addTerm(signals, config.getToolName());
+            addTerm(signals, config.getTitle());
+            addTerm(signals, config.getDescription());
+            addTerm(signals, config.getBusinessGroup());
+            addTerm(signals, config.getBusinessGroupName());
+            addTerm(signals, config.getBusinessGroupDescription());
+            addTerm(signals, governanceSignals(config.getGovernanceJson()));
+        }
+        return signals.stream()
+            .filter(value -> value != null && !value.isBlank())
+            .distinct()
+            .limit(24)
+            .toList();
+    }
+
+    private List<String> governanceSignals(String json) {
+        if (json == null || json.isBlank()) {
+            return List.of();
+        }
+        try {
+            Object value = objectMapper.readValue(json, Object.class);
+            List<String> signals = new ArrayList<>();
+            collectScalarSignals(value, signals);
+            return signals;
+        } catch (Exception ignored) {
+            return List.of();
+        }
+    }
+
+    private void collectScalarSignals(Object value, List<String> signals) {
+        if (value instanceof Map<?, ?> map) {
+            map.values().forEach(item -> collectScalarSignals(item, signals));
+            return;
+        }
+        if (value instanceof Iterable<?> iterable) {
+            for (Object item : iterable) {
+                collectScalarSignals(item, signals);
+            }
+            return;
+        }
+        addTerm(signals, value);
+    }
+
+    private boolean logicalNameMatches(String requested, String candidate) {
+        String left = normalize(requested);
+        String right = normalize(candidate);
+        return !left.isBlank() && !right.isBlank() && (left.equals(right) || left.contains(right) || right.contains(left));
     }
 
     private Map<String, Object> templateMetadata(ApiServiceConfig config, double score) {

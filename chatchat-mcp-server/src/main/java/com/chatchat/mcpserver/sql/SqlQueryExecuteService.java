@@ -616,8 +616,8 @@ public class SqlQueryExecuteService {
         return context;
     }
 
-    private Map<String, Object> enrichTemplateParameters(Map<String, Object> parameters, SqlDatasourceConfig datasource,
-                                                         Map<String, Object> request) {
+    Map<String, Object> enrichTemplateParameters(Map<String, Object> parameters, SqlDatasourceConfig datasource,
+                                                 Map<String, Object> request) {
         Map<String, Object> values = new LinkedHashMap<>(parameters == null ? Map.of() : parameters);
         String schemaName = firstText(
             text(values, "schemaName"),

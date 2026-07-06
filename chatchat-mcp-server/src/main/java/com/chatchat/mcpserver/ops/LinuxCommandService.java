@@ -2,6 +2,9 @@ package com.chatchat.mcpserver.ops;
 
 import com.chatchat.mcpserver.audit.InvocationAuditService;
 import com.chatchat.mcpserver.template.TemplateParameterValidator;
+import com.chatchat.mcpserver.template.AgentRuntimeTemplateDsl;
+import com.chatchat.mcpserver.template.AgentRuntimeTemplateDsl.TemplatePlan;
+import com.chatchat.mcpserver.template.AgentRuntimeTemplateDsl.TemplateStep;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -56,6 +59,7 @@ public class LinuxCommandService {
         SshHostConfig host = null;
         String command = null;
         List<String> commands = List.of();
+        TemplatePlan plan = null;
         LinuxCommandResult result;
         try {
             host = hostConfigService.getEnabled(text(request, "hostId"));
@@ -74,16 +78,19 @@ public class LinuxCommandService {
             );
             request.put("parameters", parameters);
             command = renderCommand(template.getCommandTemplate(), parameters);
-            commands = parseCommands(command);
+            plan = commandPlan(template.getCode(), command);
+            commands = plan.steps().stream().map(TemplateStep::command).toList();
+            request.put("templateDsl", AgentRuntimeTemplateDsl.metadata(plan));
+            request.put("analysisPolicy", plan.analysisPolicy());
             commands.forEach(safetyService::assertSafe);
             commands.forEach(safetyKernelService::assertAllowed);
             log.info("MCP Linux command execution requested: hostId={}, hostName={}, endpoint={}:{}, env={}, tool={}, template={}, sourceTaskId={}, reason={}",
                 host.getId(), host.getName(), host.getHostname(), normalizePort(host.getPort()), host.getEnvironment(),
                 host.getToolName(), template.getCode(), request.get("sourceTaskId"), request.get("reason"));
-            result = executeSsh(host, template.getCode(), commands, request, startedAt);
+            result = executeSsh(host, template.getCode(), plan, request, startedAt);
         } catch (Exception ex) {
             long durationMs = Math.max(0, System.currentTimeMillis() - startedAt);
-            List<LinuxCommandStepResult> failedSteps = commandFailureSteps(commands, command, ex.getMessage(), durationMs);
+            List<LinuxCommandStepResult> failedSteps = commandFailureSteps(plan, commands, command, ex.getMessage(), durationMs);
             result = new LinuxCommandResult(
                 false,
                 host == null ? text(request, "hostId") : host.getId(),
@@ -208,16 +215,17 @@ public class LinuxCommandService {
         }
     }
 
-    private LinuxCommandResult executeSsh(SshHostConfig host, String template, List<String> commands,
+    private LinuxCommandResult executeSsh(SshHostConfig host, String template, TemplatePlan plan,
                                           Map<String, Object> request, long startedAt) throws Exception {
         List<LinuxCommandStepResult> steps = new ArrayList<>();
         StringBuilder stdoutAll = new StringBuilder();
         StringBuilder stderrAll = new StringBuilder();
         int lastExitCode = 0;
-        for (int index = 0; index < commands.size(); index++) {
-            String current = commands.get(index);
+        List<TemplateStep> commandSteps = plan.steps();
+        for (int index = 0; index < commandSteps.size(); index++) {
+            TemplateStep current = commandSteps.get(index);
             log.info("MCP Linux command SSH exec command: hostId={}, template={}, step={}/{}, command={}",
-                host.getId(), template, index + 1, commands.size(), current);
+                host.getId(), template, index + 1, commandSteps.size(), current.command());
             long stepStartedAt = System.currentTimeMillis();
             LinuxCommandStepResult step;
             try {
@@ -229,10 +237,13 @@ public class LinuxCommandService {
             steps.add(step);
             lastExitCode = step.exitCode();
             log.info("MCP Linux command SSH step completed: hostId={}, hostName={}, template={}, step={}/{}, exitCode={}, success={}, durationMs={}, stdout={}, stderr={}",
-                host.getId(), host.getName(), template, step.stepIndex(), commands.size(), step.exitCode(), step.success(),
+                host.getId(), host.getName(), template, step.stepIndex(), commandSteps.size(), step.exitCode(), step.success(),
                 step.durationMs(), truncate(step.stdout()), truncate(step.stderr()));
             appendCommandOutput(stdoutAll, step.stepIndex(), step.command(), step.stdout());
             appendCommandOutput(stderrAll, step.stepIndex(), step.command(), step.stderr());
+            if (!step.success() && !plan.continueOnError()) {
+                break;
+            }
         }
         long durationMs = Math.max(0, System.currentTimeMillis() - startedAt);
         LinuxCommandStepResult firstNonZeroStep = firstNonZeroStep(steps);
@@ -244,8 +255,8 @@ public class LinuxCommandService {
             host.getToolName(),
             host.getEnvironment(),
             template,
-            String.join(System.lineSeparator(), commands),
-            commandHash(commands),
+            commandSteps.stream().map(TemplateStep::command).collect(Collectors.joining(System.lineSeparator())),
+            commandHash(commandSteps.stream().map(TemplateStep::command).toList()),
             steps,
             firstNonZeroStep == null ? null : firstNonZeroStep.stepIndex(),
             firstNonZeroStep == null ? null : firstNonZeroStep.command(),
@@ -280,8 +291,9 @@ public class LinuxCommandService {
             .orElse(null);
     }
 
-    private LinuxCommandStepResult executeSingleSshCommand(SshHostConfig host, String command, int stepIndex) throws Exception {
+    private LinuxCommandStepResult executeSingleSshCommand(SshHostConfig host, TemplateStep step, int stepIndex) throws Exception {
         long startedAt = System.currentTimeMillis();
+        String command = step.command();
         try (SshClient client = SshClient.setUpDefaultClient()) {
             client.setServerKeyVerifier((session, remoteAddress, serverKey) -> verifyHostKey(host, serverKey));
             client.start();
@@ -307,6 +319,11 @@ public class LinuxCommandService {
                     long durationMs = Math.max(0, System.currentTimeMillis() - startedAt);
                     return new LinuxCommandStepResult(
                         stepIndex,
+                        step.stepCode(),
+                        step.stepName(),
+                        step.stepType(),
+                        step.required(),
+                        step.analysisHint(),
                         command,
                         sha256(command),
                         exitCode,
@@ -332,8 +349,15 @@ public class LinuxCommandService {
         return "'" + (value == null ? "" : value).replace("'", "'\\''") + "'";
     }
 
-    private List<LinuxCommandStepResult> commandFailureSteps(List<String> commands, String command,
+    private List<LinuxCommandStepResult> commandFailureSteps(TemplatePlan plan, List<String> commands, String command,
                                                              String errorMessage, long durationMs) {
+        if (plan != null && plan.dsl() && !plan.steps().isEmpty()) {
+            List<LinuxCommandStepResult> steps = new ArrayList<>();
+            for (int index = 0; index < plan.steps().size(); index++) {
+                steps.add(failedCommandStep(plan.steps().get(index), index + 1, errorMessage, index == 0 ? durationMs : 0L));
+            }
+            return steps;
+        }
         List<String> values = commands == null || commands.isEmpty()
             ? parseFallbackCommand(command)
             : commands;
@@ -342,14 +366,21 @@ public class LinuxCommandService {
         }
         List<LinuxCommandStepResult> steps = new ArrayList<>();
         for (int index = 0; index < values.size(); index++) {
-            steps.add(failedCommandStep(values.get(index), index + 1, errorMessage, index == 0 ? durationMs : 0L));
+            steps.add(failedCommandStep(AgentRuntimeTemplateDsl.singleStep(index + 1, "SHELL", values.get(index)),
+                index + 1, errorMessage, index == 0 ? durationMs : 0L));
         }
         return steps;
     }
 
-    private LinuxCommandStepResult failedCommandStep(String command, int stepIndex, String errorMessage, long durationMs) {
+    private LinuxCommandStepResult failedCommandStep(TemplateStep step, int stepIndex, String errorMessage, long durationMs) {
+        String command = step == null ? "" : step.command();
         return new LinuxCommandStepResult(
             stepIndex,
+            step == null ? "STEP_" + stepIndex : step.stepCode(),
+            step == null ? "Step " + stepIndex : step.stepName(),
+            step == null ? "SHELL" : step.stepType(),
+            step == null || step.required(),
+            step == null ? null : step.analysisHint(),
             command,
             sha256(command),
             -1,
@@ -441,6 +472,11 @@ public class LinuxCommandService {
             .map(step -> {
                 Map<String, Object> value = new LinkedHashMap<>();
                 value.put("stepIndex", step.stepIndex());
+                value.put("stepCode", step.stepCode());
+                value.put("stepName", step.stepName());
+                value.put("stepType", step.stepType());
+                value.put("required", step.required());
+                value.put("analysisHint", step.analysisHint());
                 value.put("commandHash", step.commandHash());
                 value.put("exitCode", step.exitCode());
                 value.put("success", step.success());
@@ -569,6 +605,31 @@ public class LinuxCommandService {
         }
         matcher.appendTail(buffer);
         return buffer.toString().trim();
+    }
+
+    private TemplatePlan commandPlan(String templateCode, String command) {
+        TemplatePlan dsl = AgentRuntimeTemplateDsl.parse(command, templateCode, "LINUX_CMD", "SHELL");
+        if (dsl != null) {
+            return dsl;
+        }
+        List<TemplateStep> steps = new ArrayList<>();
+        List<String> commands = parseCommands(command);
+        for (int index = 0; index < commands.size(); index++) {
+            steps.add(AgentRuntimeTemplateDsl.singleStep(index + 1, "SHELL", commands.get(index)));
+        }
+        return new TemplatePlan(
+            templateCode,
+            templateCode,
+            "LINUX_CMD",
+            "LINUX",
+            "SEQUENTIAL",
+            true,
+            null,
+            null,
+            Map.of(),
+            steps,
+            false
+        );
     }
 
     private List<String> parseCommands(String command) {

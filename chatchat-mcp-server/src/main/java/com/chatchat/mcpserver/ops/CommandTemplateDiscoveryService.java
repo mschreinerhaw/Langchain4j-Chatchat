@@ -183,18 +183,24 @@ public class CommandTemplateDiscoveryService {
         Set<String> allowedByAsset = allowedTemplatesForHosts(hosts, filters);
         boolean assetScoped = hasAssetScope(filters);
         List<CommandTemplateConfig> templates = templateService.listEnabled();
+        Map<String, Object> sshRetrievalFilters = assetScoped
+            ? filtersWithSshAssetSignals(retrievalFilters, hosts)
+            : retrievalFilters;
+        Map<String, Object> resultFilters = assetScoped
+            ? filtersWithSshAssetSignals(filters, hosts)
+            : filters;
         Map<String, LuceneMcpSearchService.SearchHit> luceneHits = luceneTemplateHits(
             templates.stream().map(this::templateDoc).toList(),
             assetType,
             null,
-            retrievalFilters,
+            sshRetrievalFilters,
             intent,
             Math.max(limit, MAX_LIMIT)
         );
         List<ScoredTemplate<CommandTemplateConfig>> candidates = templates.stream()
             .filter(template -> !assetScoped || allowedByAsset.contains(normalize(template.getCode())))
             .map(template -> new ScoredTemplate<>(template,
-                decision(luceneAdjusted(relevance(template, retrievalFilters), luceneHits.get(template.getCode())),
+                decision(luceneAdjusted(relevance(template, sshRetrievalFilters), luceneHits.get(template.getCode())),
                     intent, "ssh_host", null, riskLevel(template))))
             .toList();
         List<ScoredTemplate<CommandTemplateConfig>> matched = rankAndFallback(candidates, intent, scored -> scored.template().getCode());
@@ -202,8 +208,13 @@ public class CommandTemplateDiscoveryService {
         log.info("template_query ssh search assetType={} filters={} normalizedIntent={} registryTemplates={} candidates={} luceneHits={} returned={} fallbackUsed={}",
             assetType, compactFilters(filters), intent.type(), templates.size(), candidates.size(), luceneHits.size(),
             Math.min(matched.size(), limit), fallbackUsed);
-        return result(assetType, filters, intent, sshAssetMetadata(hosts, filters, assetScoped), limit,
+        Map<String, Object> result = result(assetType, resultFilters, intent, sshAssetMetadata(hosts, filters, assetScoped), limit,
             sshTemplateMetadata(matched, assetType, limit), matched.size() > limit, fallbackUsed, templateSignal(luceneHits));
+        Map<String, Object> registryDiagnostics = sshTemplateRegistryDiagnostics(templates, allowedByAsset, assetScoped);
+        if (!registryDiagnostics.isEmpty()) {
+            result.put("templateRegistryDiagnostics", registryDiagnostics);
+        }
+        return result;
     }
 
     private Map<String, Object> querySqlTemplates(String assetType,
@@ -217,6 +228,12 @@ public class CommandTemplateDiscoveryService {
             return result(assetType, filters, intent, List.of(), limit, List.of(), false, false);
         }
         String dbType = firstText(selectedSqlAssetType(datasources, assetScoped), requestedDatabaseType(filters));
+        Map<String, Object> sqlRetrievalFilters = assetScoped
+            ? filtersWithSqlAssetSignals(retrievalFilters, datasources)
+            : retrievalFilters;
+        Map<String, Object> resultFilters = assetScoped
+            ? filtersWithSqlAssetSignals(filters, datasources)
+            : filters;
         List<SqlTemplateConfig> templates = sqlTemplateService.listEnabled().stream()
             .filter(template -> !isRetiredSqlMetadataTemplate(template))
             .toList();
@@ -224,7 +241,7 @@ public class CommandTemplateDiscoveryService {
             templates.stream().map(this::templateDoc).toList(),
             assetType,
             dbType,
-            retrievalFilters,
+            sqlRetrievalFilters,
             intent,
             Math.max(limit, MAX_LIMIT)
         );
@@ -233,7 +250,7 @@ public class CommandTemplateDiscoveryService {
             .filter(template -> sqlTemplateCompatibleWithRequestedType(template, filters, datasources, assetScoped))
             .filter(template -> sqlTemplateAuthorizedByDatasource(template, datasources, assetScoped))
             .map(template -> new ScoredTemplate<>(template,
-                decision(luceneAdjusted(relevance(template, retrievalFilters), luceneHits.get(template.getCode())),
+                decision(luceneAdjusted(relevance(template, sqlRetrievalFilters), luceneHits.get(template.getCode())),
                     intent, template.getDatabaseType(),
                     selectedSqlAssetType(datasources, assetScoped), riskLevel(template))))
             .toList();
@@ -244,8 +261,13 @@ public class CommandTemplateDiscoveryService {
         log.info("template_query sql search assetType={} dbType={} filters={} normalizedIntent={} datasources={} registryTemplates={} candidates={} luceneHits={} returned={} fallbackUsed={} hitIds={}",
             assetType, dbType, compactFilters(filters), intent.type(), datasources.size(), templates.size(), candidates.size(),
             luceneHits.size(), Math.min(matched.size(), limit), fallbackUsed, luceneHits.keySet().stream().limit(limit).toList());
-        return result(assetType, filters, intent, sqlAssetMetadata(datasources, filters, assetScoped), limit,
+        Map<String, Object> result = result(assetType, resultFilters, intent, sqlAssetMetadata(datasources, filters, assetScoped), limit,
             sqlTemplateMetadata(matched, assetType, limit), matched.size() > limit, fallbackUsed, templateSignal(luceneHits));
+        Map<String, Object> registryDiagnostics = sqlTemplateRegistryDiagnostics(templates, datasources, assetScoped);
+        if (!registryDiagnostics.isEmpty()) {
+            result.put("templateRegistryDiagnostics", registryDiagnostics);
+        }
+        return result;
     }
 
     private Map<String, Object> queryHttpTemplates(String assetType,
@@ -256,17 +278,24 @@ public class CommandTemplateDiscoveryService {
         List<HttpEndpointConfig> endpoints = httpEndpointConfigService.listEnabled().stream()
             .filter(endpoint -> matchesHttpEndpoint(endpoint, filters))
             .toList();
+        boolean assetScoped = hasAssetScope(filters);
+        Map<String, Object> httpRetrievalFilters = assetScoped
+            ? filtersWithHttpAssetSignals(retrievalFilters, endpoints)
+            : retrievalFilters;
+        Map<String, Object> resultFilters = assetScoped
+            ? filtersWithHttpAssetSignals(filters, endpoints)
+            : filters;
         Map<String, LuceneMcpSearchService.SearchHit> luceneHits = luceneTemplateHits(
             endpoints.stream().map(this::templateDoc).toList(),
             assetType,
             null,
-            retrievalFilters,
+            httpRetrievalFilters,
             intent,
             Math.max(limit, MAX_LIMIT)
         );
         List<ScoredTemplate<HttpEndpointConfig>> candidates = endpoints.stream()
             .map(endpoint -> new ScoredTemplate<>(endpoint,
-                decision(luceneAdjusted(relevance(endpoint, retrievalFilters),
+                decision(luceneAdjusted(relevance(endpoint, httpRetrievalFilters),
                     luceneHits.get(firstText(endpoint.getToolName(), endpoint.getName()))),
                     intent, "http_endpoint", null, httpRiskLevel(endpoint))))
             .toList();
@@ -279,7 +308,7 @@ public class CommandTemplateDiscoveryService {
         log.info("template_query http search assetType={} filters={} normalizedIntent={} endpoints={} candidates={} luceneHits={} returned={} fallbackUsed={}",
             assetType, compactFilters(filters), intent.type(), endpoints.size(), candidates.size(), luceneHits.size(),
             Math.min(matched.size(), limit), fallbackUsed);
-        return result(assetType, filters, intent, httpAssetMetadata(endpoints, filters, hasAssetScope(filters)), limit,
+        return result(assetType, resultFilters, intent, httpAssetMetadata(endpoints, filters, assetScoped), limit,
             httpTemplateMetadata(matched, assetType, limit), matched.size() > limit, fallbackUsed, templateSignal(luceneHits));
     }
 
@@ -291,11 +320,20 @@ public class CommandTemplateDiscoveryService {
         List<DatabaseQueryConfig> templates = databaseQueryConfigService == null
             ? List.of()
             : databaseQueryConfigService.listEnabled();
+        List<DatabaseQueryConfig> scopedDatabaseQueries = hasAssetScope(filters)
+            ? scopedDatabaseQueryTemplates(templates, filters)
+            : List.of();
+        Map<String, Object> databaseQueryRetrievalFilters = hasAssetScope(filters)
+            ? filtersWithDatabaseQueryAssetSignals(retrievalFilters, scopedDatabaseQueries)
+            : retrievalFilters;
+        Map<String, Object> resultFilters = hasAssetScope(filters)
+            ? filtersWithDatabaseQueryAssetSignals(filters, scopedDatabaseQueries)
+            : filters;
         Map<String, LuceneMcpSearchService.SearchHit> luceneHits = luceneTemplateHits(
             databaseQueryAssetDocs(templates),
             assetType,
             requestedDatabaseType(filters),
-            retrievalFilters,
+            databaseQueryRetrievalFilters,
             intent,
             Math.max(limit, MAX_LIMIT)
         );
@@ -304,10 +342,10 @@ public class CommandTemplateDiscoveryService {
             .filter(template -> luceneHits.containsKey(databaseQueryDatasourceId(template)))
             .map(template -> new ScoredTemplate<>(template,
                 marketplaceDecision(
-                    luceneAdjusted(relevance(template, retrievalFilters), luceneHits.get(databaseQueryDatasourceId(template))),
+                    luceneAdjusted(relevance(template, databaseQueryRetrievalFilters), luceneHits.get(databaseQueryDatasourceId(template))),
                     luceneHits.get(databaseQueryDatasourceId(template)),
                     intent,
-                    filters,
+                    databaseQueryRetrievalFilters,
                     template)))
             .toList();
         List<ScoredTemplate<DatabaseQueryConfig>> matched = candidates.stream()
@@ -317,7 +355,7 @@ public class CommandTemplateDiscoveryService {
         log.info("template_query database-query search assetType={} dbType={} filters={} normalizedIntent={} registryTemplates={} candidates={} luceneHits={} returned={} fallbackUsed={} hitIds={}",
             assetType, requestedDatabaseType(filters), compactFilters(filters), intent.type(), templates.size(), candidates.size(),
             luceneHits.size(), Math.min(matched.size(), limit), fallbackUsed, luceneHits.keySet().stream().limit(limit).toList());
-        return result(assetType, filters, intent, databaseQueryAssetMetadata(matched), limit,
+        return result(assetType, resultFilters, intent, databaseQueryAssetMetadata(matched), limit,
             databaseQueryTemplateMetadata(matched, assetType, limit), matched.size() > limit, fallbackUsed, templateSignal(luceneHits));
     }
 
@@ -1208,6 +1246,154 @@ public class CommandTemplateDiscoveryService {
         return merged;
     }
 
+    private Map<String, Object> filtersWithSshAssetSignals(Map<String, Object> filters, List<SshHostConfig> hosts) {
+        List<String> signals = sshAssetRetrievalSignals(hosts);
+        if (signals.isEmpty()) {
+            return filters;
+        }
+        Map<String, Object> merged = new LinkedHashMap<>(filters);
+        appendRetrievalSignals(merged, "intent", signals);
+        appendRetrievalSignals(merged, "retrievalSignals", signals);
+        appendRetrievalSignals(merged, "queryTerms", signals);
+        return merged;
+    }
+
+    private List<String> sshAssetRetrievalSignals(List<SshHostConfig> hosts) {
+        Set<String> signals = new LinkedHashSet<>();
+        for (SshHostConfig host : hosts == null ? List.<SshHostConfig>of() : hosts) {
+            addWords(signals, host.getName());
+            addWords(signals, host.getTitle());
+            addWords(signals, host.getToolName());
+            addWords(signals, host.getEnvironment());
+            addDelimited(signals, host.getTags());
+            addJsonLabels(signals, host.getRoutingLabelsJson());
+            addJsonLabels(signals, host.getCapabilitiesJson());
+        }
+        return signals.stream()
+            .filter(value -> value != null && !value.isBlank())
+            .distinct()
+            .limit(24)
+            .toList();
+    }
+
+    private Map<String, Object> filtersWithSqlAssetSignals(Map<String, Object> filters, List<SqlDatasourceConfig> datasources) {
+        List<String> signals = sqlAssetRetrievalSignals(datasources);
+        if (signals.isEmpty()) {
+            return filters;
+        }
+        Map<String, Object> merged = new LinkedHashMap<>(filters);
+        appendRetrievalSignals(merged, "intent", signals);
+        appendRetrievalSignals(merged, "retrievalSignals", signals);
+        appendRetrievalSignals(merged, "queryTerms", signals);
+        return merged;
+    }
+
+    private List<String> sqlAssetRetrievalSignals(List<SqlDatasourceConfig> datasources) {
+        Set<String> signals = new LinkedHashSet<>();
+        for (SqlDatasourceConfig datasource : datasources == null ? List.<SqlDatasourceConfig>of() : datasources) {
+            addWords(signals, datasource.getName());
+            addWords(signals, datasource.getTitle());
+            addWords(signals, datasource.getToolName());
+            addWords(signals, datasource.getEnvironment());
+            addWords(signals, datasource.getDatabaseType());
+            addWords(signals, datasource.getMetadataScopeValue());
+            addJsonLabels(signals, datasource.getRoutingLabelsJson());
+            addJsonLabels(signals, datasource.getCapabilitiesJson());
+            addGovernanceSignals(signals, datasource.getGovernanceJson());
+        }
+        return signals.stream()
+            .filter(value -> value != null && !value.isBlank())
+            .distinct()
+            .limit(24)
+            .toList();
+    }
+
+    private Map<String, Object> filtersWithHttpAssetSignals(Map<String, Object> filters, List<HttpEndpointConfig> endpoints) {
+        List<String> signals = httpAssetRetrievalSignals(endpoints);
+        if (signals.isEmpty()) {
+            return filters;
+        }
+        Map<String, Object> merged = new LinkedHashMap<>(filters);
+        appendRetrievalSignals(merged, "intent", signals);
+        appendRetrievalSignals(merged, "retrievalSignals", signals);
+        appendRetrievalSignals(merged, "queryTerms", signals);
+        return merged;
+    }
+
+    private List<String> httpAssetRetrievalSignals(List<HttpEndpointConfig> endpoints) {
+        Set<String> signals = new LinkedHashSet<>();
+        for (HttpEndpointConfig endpoint : endpoints == null ? List.<HttpEndpointConfig>of() : endpoints) {
+            addWords(signals, endpoint.getName());
+            addWords(signals, endpoint.getTitle());
+            addWords(signals, endpoint.getToolName());
+            addWords(signals, endpoint.getEnvironment());
+            addWords(signals, endpoint.getCategory());
+            addDelimited(signals, endpoint.getTags());
+            addJsonLabels(signals, endpoint.getRoutingLabelsJson());
+            addJsonLabels(signals, endpoint.getCapabilitiesJson());
+            addGovernanceSignals(signals, endpoint.getGovernanceJson());
+        }
+        return signals.stream()
+            .filter(value -> value != null && !value.isBlank())
+            .distinct()
+            .limit(24)
+            .toList();
+    }
+
+    private Map<String, Object> filtersWithDatabaseQueryAssetSignals(Map<String, Object> filters,
+                                                                     List<DatabaseQueryConfig> templates) {
+        List<String> signals = databaseQueryAssetRetrievalSignals(templates);
+        if (signals.isEmpty()) {
+            return filters;
+        }
+        Map<String, Object> merged = new LinkedHashMap<>(filters);
+        appendRetrievalSignals(merged, "intent", signals);
+        appendRetrievalSignals(merged, "retrievalSignals", signals);
+        appendRetrievalSignals(merged, "queryTerms", signals);
+        return merged;
+    }
+
+    private List<String> databaseQueryAssetRetrievalSignals(List<DatabaseQueryConfig> templates) {
+        Set<String> signals = new LinkedHashSet<>();
+        for (DatabaseQueryConfig config : templates == null ? List.<DatabaseQueryConfig>of() : templates) {
+            addWords(signals, config.getToolName());
+            addWords(signals, config.getTitle());
+            addWords(signals, config.getDescription());
+            addWords(signals, config.getBusinessGroup());
+            addWords(signals, config.getBusinessGroupName());
+            addWords(signals, config.getBusinessGroupDescription());
+            addWords(signals, config.getDatabaseType());
+            addJsonLabels(signals, config.getRoutingLabelsJson());
+            addJsonLabels(signals, config.getCapabilitiesJson());
+            addGovernanceSignals(signals, config.getGovernanceJson());
+            databaseQueryDatasource(config).ifPresent(datasource -> signals.addAll(sqlAssetRetrievalSignals(List.of(datasource))));
+        }
+        return signals.stream()
+            .filter(value -> value != null && !value.isBlank())
+            .distinct()
+            .limit(32)
+            .toList();
+    }
+
+    private void appendRetrievalSignals(Map<String, Object> filters, String key, List<String> signals) {
+        if (filters == null || key == null || signals == null || signals.isEmpty()) {
+            return;
+        }
+        List<Object> values = new ArrayList<>();
+        Object existing = filters.get(key);
+        if (existing instanceof List<?> list) {
+            values.addAll(list);
+        } else if (existing != null) {
+            values.add(existing);
+        }
+        values.addAll(signals);
+        filters.put(key, values.stream()
+            .filter(value -> value != null && !String.valueOf(value).isBlank())
+            .map(value -> String.valueOf(value).trim())
+            .distinct()
+            .toList());
+    }
+
     private boolean containsAnyToken(List<String> tokens, String... probes) {
         for (String token : tokens) {
             if (containsAny(token, probes)) {
@@ -1677,6 +1863,81 @@ public class CommandTemplateDiscoveryService {
         return allowed;
     }
 
+    private Map<String, Object> sshTemplateRegistryDiagnostics(List<CommandTemplateConfig> templates,
+                                                               Set<String> allowedByAsset,
+                                                               boolean assetScoped) {
+        if (!assetScoped) {
+            return Map.of();
+        }
+        Set<String> registeredEnabled = new LinkedHashSet<>();
+        for (CommandTemplateConfig template : templates == null ? List.<CommandTemplateConfig>of() : templates) {
+            String code = normalize(template.getCode());
+            if (code != null) {
+                registeredEnabled.add(code);
+            }
+        }
+        List<String> allowed = allowedByAsset == null ? List.of() : allowedByAsset.stream().toList();
+        List<String> notEnabledOrMissing = allowed.stream()
+            .filter(code -> !registeredEnabled.contains(code))
+            .toList();
+        return mapOf(
+            "schemaVersion", "template_registry_diagnostics.v1",
+            "assetScoped", true,
+            "allowedTemplateCount", allowed.size(),
+            "registeredEnabledTemplateCount", registeredEnabled.size(),
+            "authorizedRegisteredCount", allowed.size() - notEnabledOrMissing.size(),
+            "notEnabledOrMissingAllowedTemplates", notEnabledOrMissing,
+            "diagnostic", notEnabledOrMissing.isEmpty()
+                ? "asset allowlist is fully backed by enabled registered command templates"
+                : "asset allowlist references templates that are missing from the enabled command template registry"
+        );
+    }
+
+    private Map<String, Object> sqlTemplateRegistryDiagnostics(List<SqlTemplateConfig> templates,
+                                                               List<SqlDatasourceConfig> datasources,
+                                                               boolean assetScoped) {
+        if (!assetScoped || datasources == null || datasources.isEmpty()) {
+            return Map.of();
+        }
+        Set<String> registeredEnabled = new LinkedHashSet<>();
+        for (SqlTemplateConfig template : templates == null ? List.<SqlTemplateConfig>of() : templates) {
+            String code = normalize(template.getCode());
+            if (code != null) {
+                registeredEnabled.add(code);
+            }
+        }
+        Set<String> allowedByAsset = new LinkedHashSet<>();
+        for (SqlDatasourceConfig datasource : datasources) {
+            allowedByAsset.addAll(allowedSqlTemplates(datasource));
+        }
+        if (allowedByAsset.isEmpty()) {
+            return Map.of(
+                "schemaVersion", "template_registry_diagnostics.v1",
+                "assetScoped", true,
+                "allowedTemplateCount", 0,
+                "registeredEnabledTemplateCount", registeredEnabled.size(),
+                "authorizedRegisteredCount", registeredEnabled.size(),
+                "notEnabledOrMissingAllowedTemplates", List.of(),
+                "diagnostic", "selected datasource does not define an allowlist; enabled registered SQL templates are filtered by datasource/type compatibility"
+            );
+        }
+        List<String> allowed = allowedByAsset.stream().toList();
+        List<String> notEnabledOrMissing = allowed.stream()
+            .filter(code -> !registeredEnabled.contains(code))
+            .toList();
+        return mapOf(
+            "schemaVersion", "template_registry_diagnostics.v1",
+            "assetScoped", true,
+            "allowedTemplateCount", allowed.size(),
+            "registeredEnabledTemplateCount", registeredEnabled.size(),
+            "authorizedRegisteredCount", allowed.size() - notEnabledOrMissing.size(),
+            "notEnabledOrMissingAllowedTemplates", notEnabledOrMissing,
+            "diagnostic", notEnabledOrMissing.isEmpty()
+                ? "datasource allowlist is fully backed by enabled registered SQL templates"
+                : "datasource allowlist references SQL templates that are missing from the enabled SQL template registry"
+        );
+    }
+
     private List<Map<String, Object>> sshAssetMetadata(List<SshHostConfig> hosts, Map<String, Object> filters, boolean scoped) {
         if (!scoped) {
             return List.of();
@@ -1794,6 +2055,64 @@ public class CommandTemplateDiscoveryService {
             && (tokens.isEmpty() || endpointLabels(endpoint).containsAll(tokens));
     }
 
+    private List<DatabaseQueryConfig> scopedDatabaseQueryTemplates(List<DatabaseQueryConfig> templates, Map<String, Object> filters) {
+        List<DatabaseQueryConfig> scoped = (templates == null ? List.<DatabaseQueryConfig>of() : templates).stream()
+            .filter(template -> matchesDatabaseQueryTemplateAsset(template, filters))
+            .toList();
+        return scoped.isEmpty() ? List.of() : scoped;
+    }
+
+    private boolean matchesDatabaseQueryTemplateAsset(DatabaseQueryConfig template, Map<String, Object> filters) {
+        String assetName = text(firstValue(filters, "assetName", "asset_name", "name", "template", "templateId", "template_id"));
+        String env = text(firstValue(filters, "env", "environment"));
+        List<String> tokens = contextTokens(filters);
+        java.util.Optional<SqlDatasourceConfig> datasource = databaseQueryDatasource(template);
+        if (assetName != null
+            && !logicalNameMatches(assetName, template.getToolName())
+            && !logicalNameMatches(assetName, template.getTitle())
+            && !logicalNameMatches(assetName, template.getBusinessGroup())
+            && !logicalNameMatches(assetName, template.getBusinessGroupName())
+            && datasource.filter(value -> datasourceNameMatches(value, assetName)).isEmpty()) {
+            return false;
+        }
+        if (env != null && datasource.filter(value -> equalsNormalized(env, value.getEnvironment())).isEmpty()) {
+            return false;
+        }
+        String requestedType = requestedDatabaseType(filters);
+        if (requestedType != null) {
+            String templateType = SqlDatasourceConfigService.normalizeDatabaseTypeToken(template.getDatabaseType());
+            boolean templateMatches = "generic".equals(templateType) || templateType.equals(requestedType);
+            boolean datasourceMatches = datasource
+                .map(value -> equalsNormalized(requestedType, value.getDatabaseType()))
+                .orElse(false);
+            if (!templateMatches && !datasourceMatches) {
+                return false;
+            }
+        }
+        if (!tokens.isEmpty()) {
+            Set<String> labels = databaseQueryTemplateLabels(template, datasource.orElse(null));
+            if (!labels.containsAll(tokens)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private Set<String> databaseQueryTemplateLabels(DatabaseQueryConfig template, SqlDatasourceConfig datasource) {
+        Set<String> labels = new LinkedHashSet<>();
+        addLabel(labels, template.getToolName());
+        addLabel(labels, template.getTitle());
+        addLabel(labels, template.getBusinessGroup());
+        addLabel(labels, template.getBusinessGroupName());
+        addLabel(labels, template.getDatabaseType());
+        addJsonLabels(labels, template.getRoutingLabelsJson());
+        addJsonLabels(labels, template.getCapabilitiesJson());
+        if (datasource != null) {
+            labels.addAll(datasourceLabels(datasource));
+        }
+        return labels;
+    }
+
     private boolean endpointNameMatches(HttpEndpointConfig endpoint, String assetName) {
         return logicalNameMatches(assetName, endpoint.getName())
             || logicalNameMatches(assetName, endpoint.getTitle())
@@ -1840,7 +2159,7 @@ public class CommandTemplateDiscoveryService {
     private boolean hasAssetScope(Map<String, Object> filters) {
         return firstValue(filters, "assetName", "asset_name", "name", "env", "environment", "cluster", "service", "target",
             "database", "databaseType", "dbType", "dialect", "databaseRole", "database_role", "businessGroup",
-            "business_group", "group", "groupName", "group_name", "labels") != null;
+            "business_group", "group", "groupName", "group_name", "template", "templateId", "template_id", "labels") != null;
     }
 
     private List<String> contextTokens(Map<String, Object> filters) {

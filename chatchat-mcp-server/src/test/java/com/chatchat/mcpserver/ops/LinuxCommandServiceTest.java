@@ -72,6 +72,47 @@ class LinuxCommandServiceTest {
     }
 
     @Test
+    void jsonDslCommandTemplateCarriesStepMetadataIntoFailureEvidence() {
+        SshHostConfig host = host("host-1", "[\"HOST_STATUS\"]");
+        CommandTemplateConfig template = template("HOST_STATUS", """
+            {
+              "templateCode": "HOST_STATUS",
+              "templateType": "LINUX_CMD",
+              "targetType": "LINUX",
+              "continueOnError": true,
+              "steps": [
+                {
+                  "stepCode": "DANGEROUS_STEP",
+                  "stepName": "Dangerous step",
+                  "stepType": "SHELL",
+                  "command": "rm -rf /",
+                  "required": true,
+                  "analysisHint": "This should be blocked before SSH execution."
+                }
+              ],
+              "analysisPolicy": {
+                "summaryRequired": true
+              }
+            }
+            """);
+        when(hostConfigService.getEnabled("host-1")).thenReturn(host);
+        when(templateService.getByCode("HOST_STATUS")).thenReturn(template);
+
+        LinuxCommandResult result = linuxCommandService.execute(Map.of(
+            "hostId", "host-1",
+            "template", "HOST_STATUS"
+        ));
+
+        assertThat(result.success()).isFalse();
+        assertThat(result.request().get("templateDsl").toString()).contains("HOST_STATUS", "DANGEROUS_STEP");
+        LinuxCommandStepResult step = result.steps().get(0);
+        assertThat(step.stepCode()).isEqualTo("DANGEROUS_STEP");
+        assertThat(step.stepName()).isEqualTo("Dangerous step");
+        assertThat(step.analysisHint()).contains("blocked");
+        assertThat(result.execution().toString()).contains("DANGEROUS_STEP", "Dangerous step", "analysisHint");
+    }
+
+    @Test
     void rejectsInventedTemplateNamesBeforeRegistryLookup() {
         SshHostConfig host = host("host-1", "[\"CHECK_SYSTEM_OVERVIEW\"]");
         when(hostConfigService.getEnabled("host-1")).thenReturn(host);

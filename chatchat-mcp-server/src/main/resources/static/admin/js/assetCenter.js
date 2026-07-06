@@ -4,6 +4,7 @@ import { apiFetch } from './http.js';
 const OPS_URL = `${API_BASE}/ops`;
 const SQL_URL = `${API_BASE}/sql`;
 const SEARCH_INDEX_URL = `${API_BASE}/mcp-search-index`;
+const TEMPLATE_DSL_URL = `${API_BASE}/template-dsl`;
 
 export function listSshAssets() {
     return apiFetch(`${OPS_URL}/ssh-hosts`);
@@ -115,4 +116,18 @@ export function rebuildTemplateIndex() {
 
 export function searchMcpIndex(request) {
     return apiFetch(`${SEARCH_INDEX_URL}/search`, { method: 'POST', body: JSON.stringify(request || {}) });
+}
+
+export function validateTemplateDsl(request) {
+    return apiFetch(`${TEMPLATE_DSL_URL}/validate`, {
+        method: 'POST',
+        body: JSON.stringify(request || {})
+    });
+}
+
+export function importTemplateDsl(request) {
+    return apiFetch(`${TEMPLATE_DSL_URL}/import`, {
+        method: 'POST',
+        body: JSON.stringify(request || {})
+    });
 }

@@ -109,6 +109,7 @@ export function bindAssetCenterPanel(options = {}) {
     document.getElementById('sqlAssetForm').addEventListener('submit', handleSqlAssetSave);
     bindOptional('httpAssetForm', 'submit', handleHttpAssetSave);
     bindOptional('commandTemplateForm', 'submit', handleCommandTemplateSave);
+    bindOptional('commandTemplateCommand', 'input', updateCommandTemplateStructuredPreview);
     document.getElementById('testSshAssetBtn').addEventListener('click', handleSshAssetTest);
     document.getElementById('testSqlAssetBtn').addEventListener('click', handleSqlAssetTest);
     bindOptional('testHttpAssetBtn', 'click', handleHttpAssetTest);
@@ -1943,8 +1944,8 @@ function fillCommandTemplateForm(template) {
     const bodyLabel = document.getElementById('commandTemplateBodyLabel');
     if (bodyLabel) {
         bodyLabel.textContent = editingTemplateScope === 'sql'
-            ? 'SQL 运维查询模板'
-            : '内部命令 / JSON 步骤';
+            ? '模板 JSON / SQL 高级编辑'
+            : '模板 JSON / 命令高级编辑';
     }
     setValue('commandTemplateId', template?.id || '');
     setValue('commandTemplateCode', template?.code || '');
@@ -1959,6 +1960,7 @@ function fillCommandTemplateForm(template) {
     setValue('commandTemplateIntentSignalsJson', prettyJsonArray(template?.intentSignalsJson || '[]'));
     setValue('commandTemplateParameterSchemaJson', prettyJsonObject(template?.parameterSchemaJson, defaultTemplateParameterSchema()));
     setValue('commandTemplateCommand', template?.commandTemplate || template?.sqlTemplate || defaultTemplateBody());
+    updateCommandTemplateStructuredPreview();
     document.querySelectorAll('.sql-template-field').forEach(node => {
         node.classList.toggle('d-none', editingTemplateScope !== 'sql');
     });
@@ -1966,6 +1968,66 @@ function fillCommandTemplateForm(template) {
     setValue('commandTemplateDatabaseType', template?.databaseType || 'generic');
     setValue('commandTemplateDatasourceId', template?.datasourceId || '');
     setValue('commandTemplateRoutingLabelsJson', prettyJsonArray(template?.routingLabelsJson || '[]'));
+}
+
+function updateCommandTemplateStructuredPreview() {
+    renderCommandTemplateStructuredPreview(value('commandTemplateCommand'));
+}
+
+function renderCommandTemplateStructuredPreview(rawTemplate) {
+    const wrapper = document.getElementById('commandTemplateStructuredPreviewWrap');
+    const container = document.getElementById('commandTemplateStructuredPreview');
+    if (!wrapper || !container) {
+        return;
+    }
+    const parsed = tryParseJsonObject(rawTemplate);
+    const steps = Array.isArray(parsed?.steps) ? parsed.steps : [];
+    if (!steps.length) {
+        wrapper.classList.add('d-none');
+        container.innerHTML = '';
+        return;
+    }
+    wrapper.classList.remove('d-none');
+    const sortedSteps = [...steps].sort((left, right) => Number(left.order || 0) - Number(right.order || 0));
+    container.innerHTML = `
+        <div class="template-steps-summary">
+            <span class="badge text-bg-primary">${escapeHtml(parsed.templateType || (editingTemplateScope === 'sql' ? 'DB_SQL' : 'LINUX_CMD'))}</span>
+            <strong>${escapeHtml(parsed.templateName || parsed.name || parsed.templateCode || '模板')}</strong>
+            <span class="text-secondary">共 ${sortedSteps.length} 个步骤</span>
+            ${parsed.executionMode ? `<span class="text-secondary">${escapeHtml(parsed.executionMode)}</span>` : ''}
+            ${parsed.continueOnError !== undefined ? `<span class="text-secondary">失败后${parsed.continueOnError ? '继续' : '停止'}</span>` : ''}
+        </div>
+        <div class="template-steps-list">
+            ${sortedSteps.map((step, index) => templateStepPreviewItem(step, index)).join('')}
+        </div>
+    `;
+}
+
+function templateStepPreviewItem(step, index) {
+    const order = step.order ?? index + 1;
+    const code = step.stepCode || step.code || `STEP_${order}`;
+    const name = step.stepName || step.name || `Step ${order}`;
+    const type = step.stepType || step.type || (editingTemplateScope === 'sql' ? 'SQL' : 'SHELL');
+    const command = step.command || step.sql || step.shell || '';
+    const required = step.required === true;
+    return `
+        <section class="template-step-preview">
+            <div class="template-step-preview-head">
+                <div>
+                    <span class="template-step-order">${escapeHtml(order)}</span>
+                    <strong>${escapeHtml(name)}</strong>
+                    <code>${escapeHtml(code)}</code>
+                </div>
+                <div class="template-step-preview-meta">
+                    <span class="badge text-bg-light">${escapeHtml(type)}</span>
+                    <span class="badge ${required ? 'text-bg-success' : 'text-bg-secondary'}">${required ? '必选' : '可选'}</span>
+                    ${step.timeoutSeconds ? `<span class="badge text-bg-light">${escapeHtml(step.timeoutSeconds)}s</span>` : ''}
+                </div>
+            </div>
+            ${step.analysisHint ? `<div class="template-step-hint">${escapeHtml(step.analysisHint)}</div>` : ''}
+            <pre class="template-step-command"><code>${escapeHtml(command)}</code></pre>
+        </section>
+    `;
 }
 
 function renderSqlTemplateDatasourceOptions(template) {

@@ -1170,6 +1170,89 @@ body {
     width: 130px;
 }
 
+.template-steps-preview {
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    background: #fff;
+    overflow: hidden;
+}
+
+.template-steps-summary {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 10px 12px;
+    background: #f7f9fc;
+    border-bottom: 1px solid var(--line);
+}
+
+.template-steps-list {
+    display: grid;
+    gap: 0;
+}
+
+.template-step-preview {
+    padding: 12px;
+    border-bottom: 1px solid var(--line);
+}
+
+.template-step-preview:last-child {
+    border-bottom: 0;
+}
+
+.template-step-preview-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+.template-step-preview-head > div:first-child {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+    min-width: 0;
+}
+
+.template-step-order {
+    display: inline-grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 999px;
+    background: #eef4ff;
+    color: #0d6efd;
+    font-weight: 700;
+    font-size: 12px;
+}
+
+.template-step-preview-meta {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 6px;
+}
+
+.template-step-hint {
+    margin-top: 8px;
+    color: var(--text-muted);
+    font-size: 13px;
+}
+
+.template-step-command {
+    margin: 10px 0 0;
+    padding: 10px;
+    border-radius: 6px;
+    background: #f8fafc;
+    color: #1f2937;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    font-size: 13px;
+}
+
 .codebox,
 .result-output {
     font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;

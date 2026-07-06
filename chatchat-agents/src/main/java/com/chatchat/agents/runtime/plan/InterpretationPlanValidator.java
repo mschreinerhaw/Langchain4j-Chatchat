@@ -233,7 +233,9 @@ public class InterpretationPlanValidator {
                 continue;
             }
             Object value = input.get(parameter.getName());
-            if (missingRequiredValue(value) && !hasBindingForInput(plan, step.id(), parameter.getName())) {
+            if (missingRequiredValue(value)
+                && !hasBindingForInput(plan, step.id(), parameter.getName())
+                && !runtimeBindableRequiredInput(plan, step, parameter.getName())) {
                 state.error(
                     path + ".input." + parameter.getName(),
                     "Required tool input is missing for " + step.toolName() + ": " + parameter.getName()
@@ -816,10 +818,29 @@ public class InterpretationPlanValidator {
             || step.dependsOn().isEmpty() || availableTools == null || availableTools.isEmpty()) {
             return false;
         }
-        boolean dependsOnTemplateDiscovery = plan.steps().stream()
+        return dependsOnTemplateDiscovery(plan, step) && availableTools.stream().anyMatch(this::templateExecutionTool);
+    }
+
+    private boolean runtimeBindableRequiredInput(InterpretationPlan plan,
+                                                 InterpretationPlan.Step step,
+                                                 String parameterName) {
+        if (plan == null || step == null || blank(parameterName) || !templateExecutionTool(step.toolName())) {
+            return false;
+        }
+        String key = parameterName.replace("_", "").replace("-", "").trim().toLowerCase(Locale.ROOT);
+        if (!"template".equals(key) && !"templateid".equals(key) && !"templatecode".equals(key)) {
+            return false;
+        }
+        return dependsOnTemplateDiscovery(plan, step);
+    }
+
+    private boolean dependsOnTemplateDiscovery(InterpretationPlan plan, InterpretationPlan.Step step) {
+        if (plan == null || step == null || step.dependsOn() == null || step.dependsOn().isEmpty()) {
+            return false;
+        }
+        return plan.steps().stream()
             .filter(candidate -> candidate != null && candidate.id() != null && step.dependsOn().contains(candidate.id()))
             .anyMatch(candidate -> candidate.mcpToolAction() && templateDiscoveryTool(candidate.toolName()));
-        return dependsOnTemplateDiscovery && availableTools.stream().anyMatch(this::templateExecutionTool);
     }
 
     private boolean templateDiscoveryTool(String toolName) {

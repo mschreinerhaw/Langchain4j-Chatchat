@@ -1333,11 +1333,13 @@ public class InterpretationPlanRuntime {
         applyBindings(step, plan, completed, input);
         hydrateExecutionContextFromCompletedAssets(step, completed, input);
         normalizeSqlExecutionContext(step, input);
+        normalizeTemplateExecutionAlias(step, completed, input);
         normalizeTemplateExecutionParameters(step, completed, input);
         hydrateExecutionContextFromTemplate(step, completed, input);
         hydrateSqlMetadataParametersFromMetadataSearch(step, completed, input);
         repairTableScopedSqlTemplate(step, completed, input);
         validateRequiredTemplateParameters(step, completed, input);
+        validateRequiredExecutionTemplate(step, input);
         normalizeDiscoveryRoutingInput(step, request, input);
         if (!isCrawlerTool(step.toolName())) {
             return input;
@@ -1839,6 +1841,101 @@ public class InterpretationPlanRuntime {
         return normalized;
     }
 
+    private void normalizeTemplateExecutionAlias(InterpretationPlan.Step step,
+                                                 Map<Integer, StepExecution> completed,
+                                                 Map<String, Object> input) {
+        if (step == null || input == null || !isTemplateExecutionTool(step.toolName())) {
+            return;
+        }
+        Object templateId = firstValueAtAnyPath(input,
+            "$.template",
+            "$.templateId",
+            "$.template_id",
+            "$.templateCode",
+            "$.template_code",
+            "$.commandTemplate",
+            "$.command_template",
+            "$.selectedTemplate.templateId",
+            "$.selectedTemplate.id",
+            "$.selectedTemplate.code",
+            "$.selected_template.templateId",
+            "$.selected_template.id",
+            "$.selected_template.code",
+            "$.execution.template",
+            "$.execution.templateId",
+            "$.executionBinding.templateId",
+            "$.execution_binding.templateId",
+            "$.sqlExecutionBinding.templateId");
+        if (templateId == null || String.valueOf(templateId).isBlank()) {
+            templateId = uniqueCompletedTemplateForExecutor(step.toolName(), completed);
+        }
+        if (templateId == null || String.valueOf(templateId).isBlank()) {
+            return;
+        }
+        String normalizedTemplateId = String.valueOf(templateId).trim();
+        input.putIfAbsent("templateId", normalizedTemplateId);
+        input.putIfAbsent("template", normalizedTemplateId);
+        input.putIfAbsent("runtimeTemplateBinding", Map.of(
+            "schemaVersion", "runtime_template_binding.v1",
+            "source", "template_alias_or_completed_template_discovery",
+            "templateId", normalizedTemplateId,
+            "executorTool", step.toolName()
+        ));
+    }
+
+    @SuppressWarnings("unchecked")
+    private String uniqueCompletedTemplateForExecutor(String toolName, Map<Integer, StepExecution> completed) {
+        if (toolName == null || toolName.isBlank() || completed == null || completed.isEmpty()) {
+            return null;
+        }
+        Set<String> templateIds = new LinkedHashSet<>();
+        for (StepExecution execution : completed.values()) {
+            if (execution == null || !execution.success() || !isTemplateDiscoveryTool(execution.toolName())) {
+                continue;
+            }
+            for (Object item : templateCandidates(execution.output())) {
+                if (!(item instanceof Map<?, ?> map)) {
+                    continue;
+                }
+                Map<String, Object> template = new LinkedHashMap<>((Map<String, Object>) map);
+                if (!templateExecutorMatches(template, toolName)) {
+                    continue;
+                }
+                String templateId = stringValue(firstValueAtAnyPath(template,
+                    "$.templateId",
+                    "$.id",
+                    "$.code",
+                    "$.template"));
+                if (templateId != null && !templateId.isBlank()) {
+                    templateIds.add(templateId.trim());
+                }
+            }
+        }
+        return templateIds.size() == 1 ? templateIds.iterator().next() : null;
+    }
+
+    private boolean templateExecutorMatches(Map<String, Object> template, String toolName) {
+        if (template == null || template.isEmpty() || toolName == null || toolName.isBlank()) {
+            return false;
+        }
+        Object[] candidates = new Object[] {
+            firstValueAtAnyPath(template, "$.parameterContract.executionTool"),
+            firstValueAtAnyPath(template, "$.invocationExample.tool"),
+            firstValueAtAnyPath(template, "$.sqlExecutionBinding.toolName"),
+            firstValueAtAnyPath(template, "$.executionBinding.toolName"),
+            firstValueAtAnyPath(template, "$.execution.executorTool"),
+            firstValueAtAnyPath(template, "$.execution.toolName"),
+            firstValueAtAnyPath(template, "$.execution.executionTool"),
+            firstValueAtAnyPath(template, "$.executionTool")
+        };
+        for (Object value : candidates) {
+            if (sameToolName(value == null ? null : String.valueOf(value), toolName)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
     @SuppressWarnings("unchecked")
     private void normalizeTemplateExecutionParameters(InterpretationPlan.Step step,
                                                       Map<Integer, StepExecution> completed,
@@ -2042,6 +2139,22 @@ public class InterpretationPlanRuntime {
             + missing.stream().map(name -> "parameters." + name).collect(Collectors.joining(", "))
             + ". Use the selected template's parameterSchema/parameterContract; do not call "
             + step.toolName() + " with empty or incomplete parameters.");
+    }
+
+    private void validateRequiredExecutionTemplate(InterpretationPlan.Step step, Map<String, Object> input) {
+        if (step == null || input == null || !requiresTemplateId(step.toolName())) {
+            return;
+        }
+        Object templateId = firstValueAtAnyPath(input,
+            "$.template",
+            "$.templateId",
+            "$.template_id");
+        if (templateId != null && !String.valueOf(templateId).isBlank()) {
+            return;
+        }
+        throw new IllegalStateException("TEMPLATE_REQUIRED: " + step.toolName()
+            + " must be called with template/templateId returned by the matching template_query step. "
+            + "Do not retry template execution with an empty template.");
     }
 
     private Map<String, Object> completedTemplateMetadata(Map<Integer, StepExecution> completed, String templateId) {
@@ -2768,6 +2881,26 @@ public class InterpretationPlanRuntime {
     private boolean isSqlQueryExecuteTool(String toolName) {
         String semantic = toolSemanticKey(toolName);
         return "sql_query_execute".equals(semantic) || semantic.endsWith("_sql_query_execute");
+    }
+
+    private boolean isLinuxCommandExecuteTool(String toolName) {
+        String semantic = toolSemanticKey(toolName);
+        return "linux_command_execute".equals(semantic) || semantic.endsWith("_linux_command_execute");
+    }
+
+    private boolean isHttpRequestExecuteTool(String toolName) {
+        String semantic = toolSemanticKey(toolName);
+        return "http_request_execute".equals(semantic) || semantic.endsWith("_http_request_execute");
+    }
+
+    private boolean isTemplateExecutionTool(String toolName) {
+        return isSqlQueryExecuteTool(toolName)
+            || isLinuxCommandExecuteTool(toolName)
+            || isHttpRequestExecuteTool(toolName);
+    }
+
+    private boolean requiresTemplateId(String toolName) {
+        return isLinuxCommandExecuteTool(toolName) || isHttpRequestExecuteTool(toolName);
     }
 
     private boolean isSqlMetadataSearchTool(String toolName) {

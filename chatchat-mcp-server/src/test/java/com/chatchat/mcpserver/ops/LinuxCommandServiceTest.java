@@ -72,6 +72,23 @@ class LinuxCommandServiceTest {
     }
 
     @Test
+    void acceptsTemplateIdAliasForTemplateExecution() {
+        SshHostConfig host = host("host-1", "[\"DANGEROUS\"]");
+        CommandTemplateConfig template = template("DANGEROUS", "rm -rf /");
+        when(hostConfigService.getEnabled("host-1")).thenReturn(host);
+        when(templateService.getByCode("DANGEROUS")).thenReturn(template);
+
+        LinuxCommandResult result = linuxCommandService.execute(Map.of(
+            "hostId", "host-1",
+            "templateId", "DANGEROUS"
+        ));
+
+        assertThat(result.success()).isFalse();
+        assertThat(result.errorMessage()).contains("safety kernel");
+        verify(templateService).getByCode("DANGEROUS");
+    }
+
+    @Test
     void jsonDslCommandTemplateCarriesStepMetadataIntoFailureEvidence() {
         SshHostConfig host = host("host-1", "[\"HOST_STATUS\"]");
         CommandTemplateConfig template = template("HOST_STATUS", """

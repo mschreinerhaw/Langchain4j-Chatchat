@@ -500,7 +500,11 @@
   "properties": {},
   "required": []
 }</textarea></div>
-                        <div class="col-md-6"><label id="commandTemplateBodyLabel" class="form-label" for="commandTemplateCommand">内部命令 / JSON 步骤</label><textarea id="commandTemplateCommand" class="form-control codebox" rows="8" spellcheck="false" required></textarea></div>
+                        <div id="commandTemplateStructuredPreviewWrap" class="col-12 d-none">
+                            <label class="form-label">模板步骤</label>
+                            <div id="commandTemplateStructuredPreview" class="template-steps-preview"></div>
+                        </div>
+                        <div class="col-12"><label id="commandTemplateBodyLabel" class="form-label" for="commandTemplateCommand">模板 JSON / 高级编辑</label><textarea id="commandTemplateCommand" class="form-control codebox" rows="10" spellcheck="false" required></textarea></div>
                     </div>
                 </form>
             </div>

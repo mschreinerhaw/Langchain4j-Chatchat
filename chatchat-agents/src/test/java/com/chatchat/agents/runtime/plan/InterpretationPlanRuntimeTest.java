@@ -2751,6 +2751,109 @@ class InterpretationPlanRuntimeTest {
     }
 
     @Test
+    void hydratesMissingLinuxTemplateFromUniqueTemplateDiscoveryResult() {
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool("mcp_chatchat_mcp_server_ssh_template_query")).thenReturn(true);
+        when(toolRegistry.hasTool("mcp_chatchat_mcp_server_linux_command_execute")).thenReturn(true);
+        when(toolRegistry.getToolMetadata("mcp_chatchat_mcp_server_ssh_template_query"))
+            .thenReturn(ToolMetadata.builder().id("mcp_chatchat_mcp_server_ssh_template_query").riskLevel("low").build());
+        when(toolRegistry.getToolMetadata("mcp_chatchat_mcp_server_linux_command_execute"))
+            .thenReturn(ToolMetadata.builder()
+                .id("mcp_chatchat_mcp_server_linux_command_execute")
+                .riskLevel("medium")
+                .parameters(List.of(
+                    ToolParameter.builder().name("template").type("string").required(true).build(),
+                    ToolParameter.builder().name("executionContext").type("object").required(true).build()
+                ))
+                .build());
+        ToolRuntimeService toolRuntimeService = mock(ToolRuntimeService.class);
+        when(toolRuntimeService.execute(any())).thenAnswer(invocation -> {
+            ToolRuntimeRequest request = invocation.getArgument(0);
+            if ("mcp_chatchat_mcp_server_ssh_template_query".equals(request.getToolName())) {
+                return new ToolRuntimeExecution(
+                    ToolOutput.success(Map.of(
+                        "schemaVersion", "template_query_result.v1",
+                        "success", true,
+                        "templates", List.of(Map.of(
+                            "templateId", "CHECK_SYSTEM_OVERVIEW",
+                            "name", "System overview",
+                            "parameterContract", Map.of(
+                                "executionTool", "linux_command_execute",
+                                "required", List.of()
+                            ),
+                            "invocationExample", Map.of(
+                                "tool", "linux_command_execute",
+                                "templateId", "CHECK_SYSTEM_OVERVIEW",
+                                "parameters", Map.of()
+                            )
+                        ))
+                    )),
+                    ToolMetadata.builder().id(request.getToolName()).build(),
+                    null,
+                    "success",
+                    Map.of()
+                );
+            }
+            return new ToolRuntimeExecution(
+                ToolOutput.success(Map.of("status", "ok")),
+                ToolMetadata.builder().id(request.getToolName()).build(),
+                null,
+                "success",
+                Map.of()
+            );
+        });
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("system_operation", "Analyze host system status", "medium"),
+            context(),
+            new InterpretationPlan.Plan(List.of(
+                new InterpretationPlan.Step(1, "mcp_tool", "mcp_chatchat_mcp_server_ssh_template_query",
+                    Map.of("query", "system overview", "limit", 1), List.of(), null, null),
+                new InterpretationPlan.Step(2, "mcp_tool", "mcp_chatchat_mcp_server_linux_command_execute",
+                    Map.of("executionContext", Map.of("assetName", "MySQL服务器", "env", "DEV")), List.of(1), null, null),
+                new InterpretationPlan.Step(3, "final_answer", "", Map.of("answer", "done"), List.of(2), null, null)
+            )),
+            new InterpretationPlan.ExecutionPolicy(
+                3,
+                false,
+                List.of("mcp_chatchat_mcp_server_ssh_template_query", "mcp_chatchat_mcp_server_linux_command_execute"),
+                List.of(),
+                30000
+            ),
+            review()
+        );
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            toolRuntimeService,
+            new InterpretationPlanValidator(),
+            null,
+            null,
+            scriptedController(List.of(List.of(1), List.of(2), List.of(3)))
+        );
+
+        InterpretationPlanRuntime.ExecutionResult result = runtime.execute(new InterpretationPlanRuntime.ExecutionRequest(
+            plan,
+            toolRegistry,
+            List.of("mcp_chatchat_mcp_server_ssh_template_query", "mcp_chatchat_mcp_server_linux_command_execute"),
+            "tenant-1",
+            "req-linux-template-hydration",
+            "conv-linux-template-hydration",
+            "user-1",
+            Map.of()
+        ));
+
+        assertThat(result.success())
+            .as(result.status() + ": " + result.errorMessage() + " steps=" + result.steps())
+            .isTrue();
+        ArgumentCaptor<ToolRuntimeRequest> captor = ArgumentCaptor.forClass(ToolRuntimeRequest.class);
+        verify(toolRuntimeService, times(2)).execute(captor.capture());
+        Map<?, ?> linuxParameters = captor.getAllValues().get(1).getToolInput().getParameters();
+        assertThat(linuxParameters.get("template")).isEqualTo("CHECK_SYSTEM_OVERVIEW");
+        assertThat(linuxParameters.get("templateId")).isEqualTo("CHECK_SYSTEM_OVERVIEW");
+        assertThat(linuxParameters.get("runtimeTemplateBinding").toString())
+            .contains("runtime_template_binding.v1", "CHECK_SYSTEM_OVERVIEW");
+    }
+
+    @Test
     void continuesWhenReviewerContradictsDeterministicAssetFacts() {
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         when(toolRegistry.hasTool("mcp_chatchat_mcp_server_sql_datasource_asset_query")).thenReturn(true);

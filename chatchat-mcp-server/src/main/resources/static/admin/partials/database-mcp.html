@@ -73,6 +73,10 @@
                             <textarea id="databaseSqlInput" class="form-control codebox" rows="6" spellcheck="false" placeholder="select id, name from your_table where status = :status" required></textarea>
                             <div class="form-text">仅允许只读 SQL。命名参数使用 <code>:name</code>，测试参数从下方 JSON 读取。</div>
                         </div>
+                        <div id="databaseQueryStructuredPreviewWrap" class="col-12 d-none">
+                            <label class="form-label">模板步骤</label>
+                            <div id="databaseQueryStructuredPreview" class="template-steps-preview"></div>
+                        </div>
                         <div class="col-lg-8">
                             <label class="form-label" for="databaseParamsJson">测试参数 JSON</label>
                             <textarea id="databaseParamsJson" class="form-control codebox" rows="5" spellcheck="false">{}</textarea>

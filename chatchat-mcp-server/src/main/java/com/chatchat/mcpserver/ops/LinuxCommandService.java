@@ -544,7 +544,17 @@ public class LinuxCommandService {
     private Map<String, Object> normalizeRequest(Map<String, Object> arguments) {
         Map<String, Object> request = new LinkedHashMap<>(arguments == null ? Map.of() : arguments);
         requireText(text(request, "hostId"), "hostId is required");
-        requireText(text(request, "template"), "template is required");
+        String template = firstText(
+            text(request, "template"),
+            text(request, "templateId"),
+            text(request, "template_id"),
+            text(request, "templateCode"),
+            text(request, "template_code"),
+            text(request, "commandTemplate"),
+            text(request, "command_template")
+        );
+        requireText(template, "template is required");
+        request.put("template", template);
         request.putIfAbsent("parameters", Map.of());
         request.putIfAbsent("sourceTaskId", "");
         request.putIfAbsent("reason", "");
@@ -752,6 +762,18 @@ public class LinuxCommandService {
     private String text(Map<String, Object> map, String key) {
         Object value = map == null ? null : map.get(key);
         return value == null ? null : String.valueOf(value).trim();
+    }
+
+    private String firstText(String... values) {
+        if (values == null) {
+            return null;
+        }
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value.trim();
+            }
+        }
+        return null;
     }
 
     private String requireText(String value, String message) {

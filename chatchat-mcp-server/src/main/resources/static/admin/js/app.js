@@ -131,6 +131,7 @@ function bindEvents() {
     document.getElementById('databaseQueryForm').addEventListener('submit', handleDatabaseQueryTest);
     document.getElementById('databaseQuerySaveBtn').addEventListener('click', handleDatabaseQuerySave);
     document.getElementById('databaseQueryClearBtn').addEventListener('click', resetDatabaseQueryForm);
+    document.getElementById('databaseSqlInput').addEventListener('input', updateDatabaseQueryStructuredPreview);
     document.getElementById('databaseQuerySearchInput').addEventListener('input', handleDatabaseQuerySearch);
     document.getElementById('databaseQueryPrevPageBtn').addEventListener('click', () => changeDatabaseQueryPage(-1));
     document.getElementById('databaseQueryNextPageBtn').addEventListener('click', () => changeDatabaseQueryPage(1));
@@ -1111,6 +1112,7 @@ function fillDatabaseQueryForm(query) {
     setValue('databaseBusinessGroupNameInput', query?.businessGroupName || '');
     setValue('databaseBusinessGroupDescriptionInput', query?.businessGroupDescription || '');
     setValue('databaseSqlInput', query?.sqlTemplate || '');
+    updateDatabaseQueryStructuredPreview();
     setValue('databaseParamsJson', '{}');
     setValue('databaseMaxRowsInput', String(query?.maxRows || 50));
     setValue('databaseTimeoutSecondsInput', String(query?.timeoutSeconds || 30));
@@ -1122,6 +1124,66 @@ function fillDatabaseQueryForm(query) {
     }, null, 2));
     setValue('databaseGovernanceJson', JSON.stringify(query?.governance || defaultDatabaseQueryGovernance(query), null, 2));
     renderDatabaseQueryPreview(null);
+}
+
+function updateDatabaseQueryStructuredPreview() {
+    renderDatabaseQueryStructuredPreview(value('databaseSqlInput'));
+}
+
+function renderDatabaseQueryStructuredPreview(rawTemplate) {
+    const wrapper = document.getElementById('databaseQueryStructuredPreviewWrap');
+    const container = document.getElementById('databaseQueryStructuredPreview');
+    if (!wrapper || !container) {
+        return;
+    }
+    const parsed = tryParseJsonObject(rawTemplate);
+    const steps = Array.isArray(parsed?.steps) ? parsed.steps : [];
+    if (!steps.length) {
+        wrapper.classList.add('d-none');
+        container.innerHTML = '';
+        return;
+    }
+    wrapper.classList.remove('d-none');
+    const sortedSteps = [...steps].sort((left, right) => Number(left.order || 0) - Number(right.order || 0));
+    container.innerHTML = `
+        <div class="template-steps-summary">
+            <span class="badge text-bg-primary">${escapeHtml(parsed.templateType || 'DATABASE_QUERY')}</span>
+            <strong>${escapeHtml(parsed.templateName || parsed.name || parsed.templateCode || '数据库查询模板')}</strong>
+            <span class="text-secondary">共 ${sortedSteps.length} 个步骤</span>
+            ${parsed.executionMode ? `<span class="text-secondary">${escapeHtml(parsed.executionMode)}</span>` : ''}
+            ${parsed.continueOnError !== undefined ? `<span class="text-secondary">失败后${parsed.continueOnError ? '继续' : '停止'}</span>` : ''}
+        </div>
+        <div class="template-steps-list">
+            ${sortedSteps.map((step, index) => databaseQueryStepPreviewItem(step, index)).join('')}
+        </div>
+    `;
+}
+
+function databaseQueryStepPreviewItem(step, index) {
+    const order = step.order ?? index + 1;
+    const code = step.stepCode || step.code || `STEP_${order}`;
+    const name = step.stepName || step.name || `Step ${order}`;
+    const type = step.stepType || step.type || 'SQL';
+    const command = step.command || step.sql || step.shell || '';
+    const required = step.required === true;
+    return `
+        <section class="template-step-preview">
+            <div class="template-step-preview-head">
+                <div>
+                    <span class="template-step-order">${escapeHtml(order)}</span>
+                    <strong>${escapeHtml(name)}</strong>
+                    <code>${escapeHtml(code)}</code>
+                </div>
+                <div class="template-step-preview-meta">
+                    <span class="badge text-bg-light">${escapeHtml(type)}</span>
+                    <span class="badge ${required ? 'text-bg-success' : 'text-bg-secondary'}">${required ? '必选' : '可选'}</span>
+                    ${step.timeoutSeconds ? `<span class="badge text-bg-light">${escapeHtml(step.timeoutSeconds)}s</span>` : ''}
+                </div>
+            </div>
+            ${step.analysisHint ? `<div class="template-step-hint">${escapeHtml(step.analysisHint)}</div>` : ''}
+            <pre class="template-step-command"><code>${escapeHtml(command)}</code></pre>
+        </section>
+    `;
 }
 
 function renderDatabaseDatasourceOptions(selected = value('databaseDatasourceSelect')) {

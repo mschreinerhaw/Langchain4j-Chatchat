@@ -63,3 +63,16 @@ MCP Server 输出必须支持“无证据即臆造”的 Agent 侧判定。
 ## 总结边界
 
 MCP Server 不生成业务最终结论。它只提供发现结果、执行结果和错误 observation。最终总结由 Agent 在工具执行闭环后完成。
+
+## Agent Runtime Template DSL 契约
+
+标准多步骤模板 DSL 契约见：`../../docs/agent-runtime-template-dsl-contract.md`。
+
+MCP Server 发布模板和执行模板时必须保证：
+
+- `template_query.templates[].templateDsl` 可供模型判断模板是否匹配用户意图。
+- DSL 的 step 名称、分析提示和执行内容进入模板检索索引。
+- DSL 模板执行结果保留 `stepCode`、`stepName`、`stepType`、`required`、`analysisHint`、执行状态、耗时、输出和错误。
+- `linux_command_execute` 执行 Linux / SSH steps。
+- `sql_script_execute` 执行多步骤 SQL steps。
+- `sql_query_execute` 不承担多步骤 DSL 执行职责。

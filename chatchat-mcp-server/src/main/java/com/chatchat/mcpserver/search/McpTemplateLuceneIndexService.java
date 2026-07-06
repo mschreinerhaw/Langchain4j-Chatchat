@@ -12,6 +12,7 @@ import com.chatchat.mcpserver.sql.SqlDatasourceConfigService;
 import com.chatchat.mcpserver.sql.SqlDatasourceConfig;
 import com.chatchat.mcpserver.sql.SqlTemplateConfig;
 import com.chatchat.mcpserver.sql.SqlTemplateService;
+import com.chatchat.mcpserver.template.AgentRuntimeTemplateDsl;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
@@ -132,6 +133,7 @@ public class McpTemplateLuceneIndexService {
     private LuceneMcpSearchService.TemplateDoc commandTemplateDoc(CommandTemplateConfig template) {
         List<String> signals = new ArrayList<>(readStringArray(template.getIntentSignalsJson()));
         addTerms(signals, template.getCode(), template.getTitle(), template.getDescription(), template.getCategory());
+        signals.addAll(dslSearchTerms(template.getCommandTemplate(), template.getCode(), "LINUX_CMD", "SHELL"));
         return new LuceneMcpSearchService.TemplateDoc(
             template.getCode(),
             "ssh_host",
@@ -151,6 +153,7 @@ public class McpTemplateLuceneIndexService {
         signals.addAll(readStringArray(template.getRoutingLabelsJson()));
         addTerms(signals, template.getCode(), template.getTitle(), template.getDescription(), template.getCategory(),
             template.getDatabaseType(), template.getSqlTemplate());
+        signals.addAll(dslSearchTerms(template.getSqlTemplate(), template.getCode(), "DB_SQL", "SQL"));
         return new LuceneMcpSearchService.TemplateDoc(
             template.getCode(),
             "sql_datasource",
@@ -259,6 +262,7 @@ public class McpTemplateLuceneIndexService {
             addTerms(signals, config.getToolName(), config.getTitle(), config.getDescription(), config.getSqlTemplate(),
                 config.getTemplateIntent(), config.getBusinessGroup(), config.getBusinessGroupName(),
                 config.getBusinessGroupDescription(), config.getDatabaseType(), config.getRiskLevel(), config.getOwner());
+            signals.addAll(dslSearchTerms(config.getSqlTemplate(), config.getToolName(), "DATABASE_QUERY", "SQL"));
         }
         return new LuceneMcpSearchService.TemplateDoc(
             firstText(datasource.getId(), firstText(datasource.getName(), datasource.getToolName())),
@@ -310,6 +314,48 @@ public class McpTemplateLuceneIndexService {
             return terms;
         } catch (Exception ignored) {
             return List.of();
+        }
+    }
+
+    private List<String> dslSearchTerms(String templateBody,
+                                        String templateCode,
+                                        String fallbackTemplateType,
+                                        String fallbackStepType) {
+        if (!AgentRuntimeTemplateDsl.looksLikeDsl(templateBody)) {
+            return List.of();
+        }
+        try {
+            AgentRuntimeTemplateDsl.TemplatePlan plan = AgentRuntimeTemplateDsl.parse(
+                templateBody,
+                templateCode,
+                fallbackTemplateType,
+                fallbackStepType
+            );
+            List<String> terms = new ArrayList<>();
+            addTerms(terms,
+                AgentRuntimeTemplateDsl.SCHEMA_VERSION,
+                "agent_runtime_template_dsl",
+                "templateDsl",
+                plan.templateCode(),
+                plan.templateName(),
+                plan.templateType(),
+                plan.targetType(),
+                plan.executionMode(),
+                plan.riskLevel()
+            );
+            flattenValues(terms, plan.analysisPolicy());
+            for (AgentRuntimeTemplateDsl.TemplateStep step : plan.steps()) {
+                addTerms(terms,
+                    step.stepCode(),
+                    step.stepName(),
+                    step.stepType(),
+                    step.analysisHint(),
+                    step.command()
+                );
+            }
+            return distinct(terms);
+        } catch (IllegalArgumentException ignored) {
+            return List.of("agent_runtime_template_dsl", "invalid_dsl_template", templateCode);
         }
     }
 

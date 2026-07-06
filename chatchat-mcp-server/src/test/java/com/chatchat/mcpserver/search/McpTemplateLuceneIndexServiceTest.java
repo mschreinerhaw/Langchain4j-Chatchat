@@ -64,6 +64,67 @@ class McpTemplateLuceneIndexServiceTest {
     }
 
     @Test
+    void indexesDslStepSignalsIntoTemplateLucene() {
+        LuceneMcpSearchService lucene = lucene();
+        CommandTemplateService commandTemplateService = mock(CommandTemplateService.class);
+        SqlTemplateService sqlTemplateService = mock(SqlTemplateService.class);
+        HttpEndpointConfigService httpEndpointConfigService = mock(HttpEndpointConfigService.class);
+        ApiServiceConfigService apiServiceConfigService = mock(ApiServiceConfigService.class);
+        DatabaseQueryConfigService databaseQueryConfigService = mock(DatabaseQueryConfigService.class);
+        CommandTemplateConfig commandTemplate = commandTemplate();
+        commandTemplate.setId("CHECK_MYSQLD_PROCESS");
+        commandTemplate.setCode("CHECK_MYSQLD_PROCESS");
+        commandTemplate.setTitle("Host diagnostics");
+        commandTemplate.setDescription("Structured command template.");
+        commandTemplate.setIntentSignalsJson("[]");
+        commandTemplate.setCommandTemplate("""
+            {
+              "templateCode": "CHECK_MYSQLD_PROCESS",
+              "templateName": "MySQL daemon process check",
+              "templateType": "LINUX_CMD",
+              "targetType": "LINUX",
+              "executionMode": "SEQUENTIAL",
+              "continueOnError": true,
+              "steps": [
+                {
+                  "stepCode": "MYSQLD_PROCESS",
+                  "stepName": "MySQL daemon process",
+                  "stepType": "SHELL",
+                  "order": 1,
+                  "command": "ps aux | grep -Ei 'mysqld|mariadbd'",
+                  "analysisHint": "Judge whether mysqld or mariadbd management daemon is running."
+                }
+              ],
+              "analysisPolicy": {
+                "outputSections": ["summary", "evidence"]
+              }
+            }
+            """);
+        when(commandTemplateService.listEnabled()).thenReturn(List.of(commandTemplate));
+        when(sqlTemplateService.listEnabled()).thenReturn(List.of());
+        when(httpEndpointConfigService.listEnabled()).thenReturn(List.of());
+        when(apiServiceConfigService.listAll()).thenReturn(List.of());
+        when(databaseQueryConfigService.listAll()).thenReturn(List.of());
+        McpTemplateLuceneIndexService indexService = new McpTemplateLuceneIndexService(
+            lucene,
+            commandTemplateService,
+            sqlTemplateService,
+            httpEndpointConfigService,
+            apiServiceConfigService,
+            databaseQueryConfigService,
+            mock(SqlDatasourceConfigService.class),
+            new ObjectMapper()
+        );
+
+        indexService.refreshAll();
+
+        assertThat(lucene.searchTemplates(new LuceneMcpSearchService.TemplateSearchRequest(
+            "ssh_host", null, "mariadbd management daemon evidence", 10
+        ))).extracting(LuceneMcpSearchService.SearchHit::id)
+            .contains("CHECK_MYSQLD_PROCESS");
+    }
+
+    @Test
     void indexesDatabaseQueryBusinessGroupMetadataIntoLucene() {
         LuceneMcpSearchService lucene = lucene();
         CommandTemplateService commandTemplateService = mock(CommandTemplateService.class);

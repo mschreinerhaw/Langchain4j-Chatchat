@@ -844,3 +844,18 @@ final_answer 只能引用已完成 step 的 structuredContent
 ```
 > Intent Ensemble Retrieval contract: see `docs/intent-ensemble-retrieval-contract.md`.
 > Asset/template/document discovery must use `intentCandidates`, threshold selection (`score >= 0.75`), multi-query fields (`queries`, `expandedQueries`, `keywords`), original user question in `queryTerms/retrievalSignals`, and retrieval review. Natural-language aggregate phrases must not be written into `assetName` unless they are exact registered asset names or came from prior observations.
+
+## Agent Runtime Template DSL Contract
+
+多步骤 Linux 命令、SQL 脚本、数据库查询和运维巡检模板必须遵循标准 DSL 契约：`agent_runtime_template_dsl.v1`。
+
+契约文档：[`agent-runtime-template-dsl-contract.md`](agent-runtime-template-dsl-contract.md)
+
+编排侧必须遵守：
+
+1. 模板发现阶段必须返回模型可见的 `templates[].templateDsl` 元数据。
+2. 模板检索索引必须包含 DSL 的 `templateCode`、`templateName`、`templateType`、`targetType`、`analysisPolicy`、`steps[].stepName`、`steps[].analysisHint` 和 `steps[].command`。
+3. `linux_command_execute` 按 DSL steps 执行 Linux / SSH 模板。
+4. `sql_script_execute` 按 DSL steps 执行多步骤 SQL 模板。
+5. `sql_query_execute` 只执行单 SQL，不作为多步骤 DSL 执行器；多步骤 SQL DSL 必须路由到 `sql_script_execute` 或等价支持 steps 的执行器。
+6. 最终总结只能使用执行工具返回的结构化 step 证据，不能把模板发现结果当作已执行证据。

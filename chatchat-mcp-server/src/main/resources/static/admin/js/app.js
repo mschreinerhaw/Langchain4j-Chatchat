@@ -28,7 +28,9 @@ import {
     saveDatabaseQuery,
     setDatabaseQueryEnabled,
     testDatabaseQuery,
-    testSavedDatabaseQuery
+    testSavedDatabaseQuery,
+    validateDatabaseQueryTemplateDsl,
+    importDatabaseQueryTemplateDsl
 } from './databaseMcp.js';
 import { fillServiceForm, readServiceForm, readTestArgs, readTestArgsFromSchema, toggleMicroserviceFields } from './form.js';
 import {
@@ -65,6 +67,7 @@ let selectedDatabaseQueryId = '';
 let selectedDatabaseQueryIds = new Set();
 let databaseQuerySearchTerm = '';
 let databaseQueryPage = 1;
+let latestDatabaseQueryDslValidation = null;
 const SERVICE_PAGE_SIZE = 12;
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -134,6 +137,12 @@ function bindEvents() {
     document.getElementById('databaseQuerySelectVisibleBtn').addEventListener('click', selectVisibleDatabaseQueries);
     document.getElementById('databaseQueryClearSelectionBtn').addEventListener('click', clearDatabaseQuerySelection);
     document.getElementById('databaseQueryBatchDeleteBtn').addEventListener('click', removeSelectedDatabaseQueries);
+    document.getElementById('databaseQueryImportDslBtn').addEventListener('click', openDatabaseQueryDslImport);
+    document.getElementById('databaseQueryExportDslBtn').addEventListener('click', handleDatabaseQueryDslExport);
+    document.getElementById('databaseQueryDslValidateBtn').addEventListener('click', handleDatabaseQueryDslValidate);
+    document.getElementById('databaseQueryDslImportForm').addEventListener('submit', handleDatabaseQueryDslImport);
+    document.getElementById('databaseQueryDslDatasourceId').addEventListener('change', resetDatabaseQueryDslValidationState);
+    document.getElementById('databaseQueryDslBody').addEventListener('input', resetDatabaseQueryDslValidationState);
     document.querySelectorAll('.sidebar [data-view]').forEach(button => {
         button.addEventListener('click', () => handleViewSwitch(button.dataset.view));
     });
@@ -597,6 +606,7 @@ function renderDatabaseQueryCards() {
         visible,
         selectedIds: selectedDatabaseQueryIds
     });
+    updateDatabaseQueryDslExportButton();
 }
 
 function filterDatabaseQueries() {
@@ -624,6 +634,12 @@ function handleDatabaseQuerySearch(event) {
 function openNewDatabaseQuery() {
     resetDatabaseQueryForm();
     showDatabaseQueryModal();
+}
+
+function openDatabaseQueryDslImport() {
+    renderDatabaseQueryDslDatasourceOptions();
+    resetDatabaseQueryDslValidationState('粘贴模板 JSON 后点击“验证”。');
+    bootstrap.Modal.getOrCreateInstance(document.getElementById('databaseQueryDslImportModal')).show();
 }
 
 function changeDatabaseQueryPage(delta) {
@@ -738,6 +754,77 @@ function clearDatabaseQuerySelection() {
     renderDatabaseQueryCards();
 }
 
+function updateDatabaseQueryDslExportButton() {
+    const button = document.getElementById('databaseQueryExportDslBtn');
+    if (!button) {
+        return;
+    }
+    button.disabled = selectedDatabaseQueryIds.size === 0;
+    button.textContent = selectedDatabaseQueryIds.size > 0
+        ? `导出模板 (${selectedDatabaseQueryIds.size})`
+        : '导出模板';
+}
+
+function handleDatabaseQueryDslExport() {
+    const selected = databaseQueries.filter(query => selectedDatabaseQueryIds.has(query.id));
+    if (!selected.length) {
+        notify('请选择查询模板', '勾选一个或多个数据库查询模板后再导出模板。');
+        return;
+    }
+    const exported = selected.map(exportDatabaseQueryAsDsl);
+    showResult(selected.length === 1 ? exported[0] : exported, {
+        title: selected.length === 1 ? `${selected[0].toolName || selected[0].title || '数据库查询'} 导出结果` : `已导出 ${selected.length} 个数据库查询模板`,
+        subtitle: '可使用结果窗口右上角复制完整 JSON。'
+    });
+}
+
+async function handleDatabaseQueryDslValidate() {
+    const submitBtn = document.getElementById('databaseQueryDslImportSubmitBtn');
+    const validateBtn = document.getElementById('databaseQueryDslValidateBtn');
+    try {
+        validateBtn.disabled = true;
+        latestDatabaseQueryDslValidation = await validateDatabaseQueryTemplateDsl(readDatabaseQueryDslImportForm());
+        renderDatabaseQueryDslValidationResult(latestDatabaseQueryDslValidation);
+        submitBtn.disabled = !latestDatabaseQueryDslValidation.valid;
+    } catch (error) {
+        latestDatabaseQueryDslValidation = null;
+        submitBtn.disabled = true;
+        renderDatabaseQueryDslImportMessage(error.message || String(error), true);
+    } finally {
+        validateBtn.disabled = false;
+    }
+}
+
+async function handleDatabaseQueryDslImport(event) {
+    event.preventDefault();
+    const submitBtn = document.getElementById('databaseQueryDslImportSubmitBtn');
+    const validateBtn = document.getElementById('databaseQueryDslValidateBtn');
+    try {
+        submitBtn.disabled = true;
+        validateBtn.disabled = true;
+        const payload = readDatabaseQueryDslImportForm();
+        const validation = latestDatabaseQueryDslValidation?.valid
+            ? latestDatabaseQueryDslValidation
+            : await validateDatabaseQueryTemplateDsl(payload);
+        if (!validation.valid) {
+            latestDatabaseQueryDslValidation = validation;
+            renderDatabaseQueryDslValidationResult(validation);
+            submitBtn.disabled = true;
+            return;
+        }
+        const result = await importDatabaseQueryTemplateDsl(payload);
+        notify('数据库查询模板已导入', `${result.templateCode || '模板'} 已写入数据库查询模板。`);
+        bootstrap.Modal.getOrCreateInstance(document.getElementById('databaseQueryDslImportModal')).hide();
+        selectedDatabaseQueryId = result.savedId || '';
+        await loadDatabaseQueries();
+    } catch (error) {
+        handleError(error);
+    } finally {
+        validateBtn.disabled = false;
+        submitBtn.disabled = !(latestDatabaseQueryDslValidation?.valid);
+    }
+}
+
 async function removeSelectedDatabaseQueries() {
     const ids = [...selectedDatabaseQueryIds];
     if (!ids.length) {
@@ -773,6 +860,192 @@ async function handleDatabaseQueryRebuildIndex() {
         button.disabled = false;
         button.textContent = originalText;
     }
+}
+
+function exportDatabaseQueryAsDsl(query) {
+    const existing = existingDatabaseQueryDsl(query);
+    if (existing) {
+        return existing;
+    }
+    return {
+        templateCode: query.toolName,
+        templateName: query.title || query.toolName,
+        templateType: 'DATABASE_QUERY',
+        targetType: query.dbType || query.databaseType || 'generic',
+        databaseType: query.dbType || query.databaseType || 'generic',
+        datasourceId: query.datasourceId || null,
+        description: query.description || '',
+        businessGroup: query.businessGroup || 'default',
+        businessGroupName: query.businessGroupName || query.businessGroup || 'default',
+        businessGroupDescription: query.businessGroupDescription || '',
+        riskLevel: query.riskLevel || 'read_only',
+        owner: query.owner || 'admin',
+        maxRows: query.maxRows || 50,
+        timeoutSeconds: query.timeoutSeconds || 30,
+        executionMode: 'SEQUENTIAL',
+        continueOnError: true,
+        parameterSchema: query.inputSchema || emptyParameterSchema(),
+        governance: query.governance || defaultDatabaseQueryGovernance(query),
+        routingLabels: query.routingLabels || parseJsonArray(query.routingLabelsJson),
+        capabilities: query.capabilities || parseJsonArray(query.capabilitiesJson),
+        steps: commandList(query.sqlTemplate).map((sql, index) => ({
+            stepCode: `STEP_${index + 1}`,
+            stepName: index === 0 ? (query.title || `Step ${index + 1}`) : `Step ${index + 1}`,
+            stepType: 'SQL',
+            order: index + 1,
+            required: true,
+            timeoutSeconds: query.timeoutSeconds || null,
+            sql,
+            analysisHint: query.description || query.businessGroupDescription || ''
+        })),
+        analysisPolicy: defaultDslAnalysisPolicy()
+    };
+}
+
+function existingDatabaseQueryDsl(query) {
+    const parsed = tryParseJsonObject(query.sqlTemplate);
+    if (!parsed || !Array.isArray(parsed.steps)) {
+        return null;
+    }
+    return {
+        ...parsed,
+        templateCode: parsed.templateCode || query.toolName,
+        templateName: parsed.templateName || parsed.name || query.title || query.toolName,
+        templateType: parsed.templateType || 'DATABASE_QUERY',
+        datasourceId: parsed.datasourceId || query.datasourceId || null,
+        description: parsed.description || query.description || '',
+        riskLevel: parsed.riskLevel || query.riskLevel || 'read_only'
+    };
+}
+
+function renderDatabaseQueryDslDatasourceOptions() {
+    const select = document.getElementById('databaseQueryDslDatasourceId');
+    if (!select) {
+        return;
+    }
+    const selected = select.value;
+    select.innerHTML = '<option value="">使用模板内 datasourceId</option>';
+    for (const asset of sqlAssets.filter(item => item.enabled)) {
+        const option = document.createElement('option');
+        option.value = asset.id;
+        option.textContent = `${asset.name || asset.title || asset.toolName || asset.id} (${asset.databaseType || 'generic'} / ${asset.environment || 'DEV'})`;
+        select.appendChild(option);
+    }
+    if ([...select.options].some(option => option.value === selected)) {
+        select.value = selected;
+    }
+}
+
+function readDatabaseQueryDslImportForm() {
+    return {
+        templateType: 'DATABASE_QUERY',
+        datasourceId: value('databaseQueryDslDatasourceId'),
+        dsl: value('databaseQueryDslBody')
+    };
+}
+
+function resetDatabaseQueryDslValidationState(message) {
+    latestDatabaseQueryDslValidation = null;
+    const submitBtn = document.getElementById('databaseQueryDslImportSubmitBtn');
+    if (submitBtn) {
+        submitBtn.disabled = true;
+    }
+    renderDatabaseQueryDslImportMessage(typeof message === 'string' ? message : '模板已修改，请重新验证。', false);
+}
+
+function renderDatabaseQueryDslValidationResult(result) {
+    const node = document.getElementById('databaseQueryDslImportResult');
+    if (!node) {
+        return;
+    }
+    const normalized = result?.normalized || {};
+    const steps = Array.isArray(normalized.steps) ? normalized.steps : [];
+    const errors = Array.isArray(result?.errors) ? result.errors : [];
+    const warnings = Array.isArray(result?.warnings) ? result.warnings : [];
+    node.classList.remove('text-secondary', 'text-danger');
+    node.innerHTML = `
+        <div class="d-flex align-items-center gap-2 mb-2">
+            <span class="badge ${result?.valid ? 'text-bg-success' : 'text-bg-danger'}">${result?.valid ? '验证通过' : '验证失败'}</span>
+            <strong>${escapeHtml(normalized.templateCode || '-')}</strong>
+            <span class="text-secondary">DATABASE_QUERY</span>
+            <span class="text-secondary">步骤 ${escapeHtml(normalized.stepCount ?? steps.length)}</span>
+        </div>
+        ${errors.length ? `<div class="alert alert-danger py-2 mb-2">${errors.map(escapeHtml).join('<br>')}</div>` : ''}
+        ${warnings.length ? `<div class="alert alert-warning py-2 mb-2">${warnings.map(escapeHtml).join('<br>')}</div>` : ''}
+        <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0">
+                <thead><tr><th>顺序</th><th>步骤编码</th><th>类型</th><th>必需</th><th>分析提示</th></tr></thead>
+                <tbody>
+                    ${steps.map(step => `
+                        <tr>
+                            <td>${escapeHtml(step.order ?? '')}</td>
+                            <td><code>${escapeHtml(step.stepCode || '')}</code><div class="small text-secondary">${escapeHtml(step.stepName || '')}</div></td>
+                            <td>${escapeHtml(step.stepType || '')}</td>
+                            <td>${step.required ? '是' : '否'}</td>
+                            <td>${escapeHtml(step.analysisHint || '')}</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        </div>
+    `;
+}
+
+function renderDatabaseQueryDslImportMessage(message, error) {
+    const node = document.getElementById('databaseQueryDslImportResult');
+    if (!node) {
+        return;
+    }
+    node.classList.toggle('text-danger', !!error);
+    node.classList.toggle('text-secondary', !error);
+    node.textContent = message || '';
+}
+
+function commandList(value) {
+    const parsed = tryParseJson(value);
+    if (Array.isArray(parsed)) {
+        return parsed.map(item => String(item ?? '').trim()).filter(Boolean);
+    }
+    const text = String(value || '').trim();
+    return text ? [text] : [];
+}
+
+function tryParseJsonObject(value) {
+    const parsed = tryParseJson(value);
+    return parsed && !Array.isArray(parsed) && typeof parsed === 'object' ? parsed : null;
+}
+
+function tryParseJson(value) {
+    if (!value || typeof value !== 'string') {
+        return null;
+    }
+    try {
+        return JSON.parse(value);
+    } catch (error) {
+        return null;
+    }
+}
+
+function parseJsonArray(value) {
+    const parsed = tryParseJson(value);
+    return Array.isArray(parsed) ? parsed : [];
+}
+
+function emptyParameterSchema() {
+    return {
+        type: 'object',
+        properties: {},
+        required: [],
+        additionalProperties: false
+    };
+}
+
+function defaultDslAnalysisPolicy() {
+    return {
+        summaryRequired: true,
+        evidenceRequired: true,
+        outputSections: ['总体结论', '异常项', '关键证据', '风险等级', '处理建议']
+    };
 }
 
 function handleError(error) {

@@ -53,6 +53,7 @@ let selectedSshAssetId = '';
 let selectedSqlAssetId = '';
 let selectedHttpAssetId = '';
 let selectedCommandTemplateId = '';
+let selectedTemplateExportIds = new Set();
 let editingTemplateScope = 'ssh';
 let activeAssetTab = 'ssh';
 let sshAssetSearchTerm = '';
@@ -98,6 +99,7 @@ export function bindAssetCenterPanel(options = {}) {
     bindOptional('newSqlTemplateBtn', 'click', openNewSqlTemplate);
     bindOptional('newHttpTemplateBtn', 'click', openNewHttpTemplate);
     bindOptional('importTemplateDslBtn', 'click', openTemplateDslImport);
+    bindOptional('exportTemplateDslBtn', 'click', handleTemplateDslExport);
     bindOptional('templateDslValidateBtn', 'click', handleTemplateDslValidate);
     bindOptional('templateDslImportForm', 'submit', handleTemplateDslImport);
     bindOptional('templateDslImportType', 'change', resetTemplateDslValidationState);
@@ -181,7 +183,9 @@ async function loadAssets() {
         if (selectedSshAssetId && !sshAssets.some(asset => asset.id === selectedSshAssetId)) selectedSshAssetId = '';
         if (selectedSqlAssetId && !sqlAssets.some(asset => asset.id === selectedSqlAssetId)) selectedSqlAssetId = '';
         if (selectedHttpAssetId && !httpAssets.some(asset => asset.id === selectedHttpAssetId)) selectedHttpAssetId = '';
-        if (selectedCommandTemplateId && !templateCatalogRows().some(template => template.catalogId === selectedCommandTemplateId)) selectedCommandTemplateId = '';
+        const catalog = templateCatalogRows();
+        if (selectedCommandTemplateId && !catalog.some(template => template.catalogId === selectedCommandTemplateId)) selectedCommandTemplateId = '';
+        selectedTemplateExportIds = new Set([...selectedTemplateExportIds].filter(id => catalog.some(template => template.catalogId === id)));
         renderAssetCenter();
     } catch (error) {
         onError(error);
@@ -513,6 +517,7 @@ function renderCommandTemplates() {
     }
     const catalog = templateCatalogRows();
     syncCommandTemplateCategoryFilterOptions(catalog);
+    updateTemplateExportButton();
     count.textContent = catalog.length;
     const filteredTemplates = filterCommandTemplates();
     filteredCount.textContent = filteredTemplates.length;
@@ -540,6 +545,9 @@ function renderCommandTemplates() {
             .filter(Boolean)
             .slice(0, 4);
         item.innerHTML = `
+            <label class="service-card-check" aria-label="选择 ${escapeHtml(template.title || code)}">
+                <input class="form-check-input" type="checkbox" data-select-template-dsl="${escapeHtml(template.catalogId)}" ${selectedTemplateExportIds.has(template.catalogId) ? 'checked' : ''}>
+            </label>
             <div class="api-card-main">
                 <h3>${escapeHtml(template.title || code)}</h3>
                 <p>${escapeHtml(template.description || '')}</p>
@@ -559,6 +567,9 @@ function renderCommandTemplates() {
                 <button class="btn btn-outline-danger" data-action="delete">删除</button>
             </div>
         `;
+        item.querySelector('[data-select-template-dsl]').addEventListener('change', event => {
+            setTemplateDslExportSelected(template.catalogId, event.target.checked);
+        });
         item.querySelector('[data-action="edit"]').addEventListener('click', () => selectTemplateCatalogRow(template));
         item.querySelector('[data-action="delete"]').addEventListener('click', () => removeTemplateCatalogRow(template));
         list.appendChild(item);
@@ -588,6 +599,42 @@ function changeCommandTemplatePage(delta) {
     renderCommandTemplates();
 }
 
+function setTemplateDslExportSelected(catalogId, selected) {
+    if (!catalogId) {
+        return;
+    }
+    if (selected) {
+        selectedTemplateExportIds.add(catalogId);
+    } else {
+        selectedTemplateExportIds.delete(catalogId);
+    }
+    updateTemplateExportButton();
+}
+
+function updateTemplateExportButton() {
+    const button = document.getElementById('exportTemplateDslBtn');
+    if (!button) {
+        return;
+    }
+    button.disabled = selectedTemplateExportIds.size === 0;
+    button.textContent = selectedTemplateExportIds.size > 0
+        ? `导出模板 (${selectedTemplateExportIds.size})`
+        : '导出模板';
+}
+
+function handleTemplateDslExport() {
+    const rows = templateCatalogRows().filter(template => selectedTemplateExportIds.has(template.catalogId));
+    if (!rows.length) {
+        notify('请选择模板', '勾选一个或多个执行模板后再导出模板。');
+        return;
+    }
+    const exported = rows.map(exportTemplateAsDsl);
+    showResult(rows.length === 1 ? exported[0] : exported, {
+        title: rows.length === 1 ? `${rows[0].code || rows[0].title || '模板'} 导出结果` : `已导出 ${rows.length} 个模板`,
+        subtitle: '可使用结果窗口右上角复制完整 JSON。'
+    });
+}
+
 function templateCatalogRows() {
     return [
         ...commandTemplates.map(template => ({
@@ -614,6 +661,163 @@ function templateCatalogRows() {
             commandTemplate: ''
         }))
     ];
+}
+
+function exportTemplateAsDsl(template) {
+    const existingDsl = existingTemplateDsl(template);
+    if (existingDsl) {
+        return existingDsl;
+    }
+    if (template.scope === 'sql') {
+        return exportSqlTemplateAsDsl(template);
+    }
+    if (template.scope === 'http') {
+        return exportHttpTemplateAsDsl(template);
+    }
+    return exportLinuxTemplateAsDsl(template);
+}
+
+function existingTemplateDsl(template) {
+    const parsed = tryParseJsonObject(template.commandTemplate || template.sqlTemplate || '');
+    if (!parsed || !Array.isArray(parsed.steps)) {
+        return null;
+    }
+    return {
+        ...parsed,
+        templateCode: parsed.templateCode || template.code || template.toolName || template.name,
+        templateName: parsed.templateName || parsed.name || template.title || template.name || template.code,
+        templateType: parsed.templateType || (template.scope === 'sql' ? 'DB_SQL' : template.scope === 'http' ? 'HTTP_REQUEST' : 'LINUX_CMD'),
+        description: parsed.description || template.description || '',
+        riskLevel: parsed.riskLevel || template.riskLevel || (template.scope === 'sql' ? 'LOW' : 'LOW')
+    };
+}
+
+function exportLinuxTemplateAsDsl(template) {
+    return {
+        templateCode: template.code,
+        templateName: template.title || template.code,
+        templateType: 'LINUX_CMD',
+        targetType: 'LINUX',
+        description: template.description || '',
+        riskLevel: template.riskLevel || 'LOW',
+        executionMode: 'SEQUENTIAL',
+        continueOnError: true,
+        parameterSchema: tryParseJsonObject(template.parameterSchemaJson) || emptyParameterSchema(),
+        steps: commandList(template.commandTemplate).map((command, index) => ({
+            stepCode: `STEP_${index + 1}`,
+            stepName: index === 0 ? (template.title || `Step ${index + 1}`) : `Step ${index + 1}`,
+            stepType: 'SHELL',
+            order: index + 1,
+            required: true,
+            timeoutSeconds: null,
+            command,
+            analysisHint: template.description || ''
+        })),
+        analysisPolicy: defaultAnalysisPolicy()
+    };
+}
+
+function exportSqlTemplateAsDsl(template) {
+    return {
+        templateCode: template.code,
+        templateName: template.title || template.code,
+        templateType: 'DB_SQL',
+        targetType: template.databaseType || 'generic',
+        databaseType: template.databaseType || 'generic',
+        datasourceId: template.datasourceId || null,
+        description: template.description || '',
+        riskLevel: template.riskLevel || 'LOW',
+        executionMode: 'SEQUENTIAL',
+        continueOnError: true,
+        parameterSchema: tryParseJsonObject(template.parameterSchemaJson) || emptyParameterSchema(),
+        routingLabels: parseJsonArrayValue(template.routingLabelsJson),
+        steps: commandList(template.commandTemplate || template.sqlTemplate).map((sql, index) => ({
+            stepCode: `STEP_${index + 1}`,
+            stepName: index === 0 ? (template.title || `Step ${index + 1}`) : `Step ${index + 1}`,
+            stepType: 'SQL',
+            order: index + 1,
+            required: true,
+            timeoutSeconds: null,
+            sql,
+            analysisHint: template.description || ''
+        })),
+        analysisPolicy: defaultAnalysisPolicy()
+    };
+}
+
+function exportHttpTemplateAsDsl(template) {
+    const method = String(template.method || 'GET').toUpperCase();
+    return {
+        templateCode: template.code || template.toolName || template.name,
+        templateName: template.title || template.name || template.toolName,
+        templateType: 'HTTP_REQUEST',
+        targetType: 'HTTP',
+        description: template.description || '',
+        riskLevel: method === 'GET' ? 'LOW' : 'MEDIUM',
+        executionMode: 'SEQUENTIAL',
+        continueOnError: true,
+        parameterSchema: tryParseJsonObject(template.inputSchemaJson) || emptyParameterSchema(),
+        steps: [
+            {
+                stepCode: 'HTTP_REQUEST',
+                stepName: template.title || template.name || 'HTTP request',
+                stepType: 'HTTP',
+                order: 1,
+                required: true,
+                timeoutSeconds: template.timeoutSeconds || null,
+                command: `${method} ${template.urlTemplate || ''}`.trim(),
+                analysisHint: template.description || '',
+                http: {
+                    method,
+                    urlTemplate: template.urlTemplate || '',
+                    headers: tryParseJsonObject(template.headersJson) || {},
+                    bodyTemplate: template.bodyTemplate || ''
+                }
+            }
+        ],
+        analysisPolicy: defaultAnalysisPolicy()
+    };
+}
+
+function commandList(value) {
+    const parsed = tryParseJson(value);
+    if (Array.isArray(parsed)) {
+        return parsed.map(item => String(item ?? '').trim()).filter(Boolean);
+    }
+    const text = String(value || '').trim();
+    return text ? [text] : [];
+}
+
+function tryParseJsonObject(value) {
+    const parsed = tryParseJson(value);
+    return parsed && !Array.isArray(parsed) && typeof parsed === 'object' ? parsed : null;
+}
+
+function tryParseJson(value) {
+    if (!value || typeof value !== 'string') {
+        return null;
+    }
+    try {
+        return JSON.parse(value);
+    } catch (error) {
+        return null;
+    }
+}
+
+function emptyParameterSchema() {
+    return {
+        type: 'object',
+        properties: {},
+        required: []
+    };
+}
+
+function defaultAnalysisPolicy() {
+    return {
+        summaryRequired: true,
+        evidenceRequired: true,
+        outputSections: ['总体结论', '异常项', '关键证据', '风险等级', '处理建议']
+    };
 }
 
 function filterSshAssets() {
@@ -958,8 +1162,11 @@ function openTemplateDslImport() {
     if (typeNode) {
         typeNode.value = editingTemplateScope === 'sql' ? 'DB_SQL' : 'LINUX_CMD';
     }
-    renderTemplateDslDatasourceOptions();
-    resetTemplateDslValidationState('粘贴 DSL 后点击“验证”。');
+    const datasourceNode = document.getElementById('templateDslImportDatasourceId');
+    if (datasourceNode) {
+        datasourceNode.value = '';
+    }
+    resetTemplateDslValidationState('粘贴模板 JSON 后点击“验证”。');
     showTemplateDslImportModal();
 }
 
@@ -1477,7 +1684,10 @@ async function handleTemplateDslImport(event) {
             return;
         }
         const result = await importTemplateDsl(payload);
-        notify('DSL 模板已导入', `${result.templateCode || '模板'} 已写入 ${templateDslRegistryLabel(result.targetRegistry)}。`);
+        const importedCount = result.normalized?.importedCount || (result.targetRegistry === 'batch' ? 0 : 1);
+        notify('模板已导入', result.targetRegistry === 'batch'
+            ? `已导入 ${importedCount} 个模板。`
+            : `${result.templateCode || '模板'} 已写入 ${templateDslRegistryLabel(result.targetRegistry)}。`);
         hideTemplateDslImportModal();
         activeAssetTab = 'template';
         selectedCommandTemplateId = result.targetRegistry === 'sql_ops_template'
@@ -2397,7 +2607,7 @@ function renderTemplateDslDatasourceOptions() {
         return;
     }
     const selected = select.value;
-    select.innerHTML = '<option value="">使用 DSL 内 datasourceId 或不绑定</option>';
+    select.innerHTML = '<option value="">使用模板内 datasourceId 或不绑定</option>';
     for (const asset of sqlAssets) {
         if (!asset?.id) {
             continue;
@@ -2416,7 +2626,7 @@ function readTemplateDslImportForm() {
     return {
         templateType: value('templateDslImportType') || 'LINUX_CMD',
         targetRegistry: '',
-        datasourceId: value('templateDslImportDatasourceId') || '',
+        datasourceId: '',
         dsl: value('templateDslImportBody')
     };
 }
@@ -2427,7 +2637,7 @@ function resetTemplateDslValidationState(message) {
     if (submitBtn) {
         submitBtn.disabled = true;
     }
-    renderTemplateDslImportMessage(typeof message === 'string' ? message : 'DSL 已修改，请重新验证。', false);
+    renderTemplateDslImportMessage(typeof message === 'string' ? message : '模板已修改，请重新验证。', false);
 }
 
 function renderTemplateDslValidationResult(result) {
@@ -2436,6 +2646,10 @@ function renderTemplateDslValidationResult(result) {
         return;
     }
     const normalized = result.normalized || {};
+    if (normalized.batch) {
+        renderTemplateDslBatchValidationResult(result, normalized);
+        return;
+    }
     const steps = Array.isArray(normalized.steps) ? normalized.steps : [];
     const warnings = Array.isArray(result.warnings) ? result.warnings : [];
     const errors = Array.isArray(result.errors) ? result.errors : [];
@@ -2462,6 +2676,47 @@ function renderTemplateDslValidationResult(result) {
                                 <td>${escapeHtml(step.stepType || '')}</td>
                                 <td>${step.required ? '是' : '否'}</td>
                                 <td>${escapeHtml(step.analysisHint || '')}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    `;
+    const node = document.getElementById('templateDslImportResult');
+    if (node) {
+        node.classList.toggle('text-danger', !result.valid);
+        node.classList.toggle('text-secondary', false);
+        node.innerHTML = html;
+    }
+}
+
+function renderTemplateDslBatchValidationResult(result, normalized) {
+    const templates = Array.isArray(normalized.templates) ? normalized.templates : [];
+    const warnings = Array.isArray(result.warnings) ? result.warnings : [];
+    const errors = Array.isArray(result.errors) ? result.errors : [];
+    const badgeClass = result.valid ? 'text-bg-success' : 'text-bg-danger';
+    const status = result.valid ? '批量验证通过' : '批量验证失败';
+    const html = `
+        <div class="template-dsl-validation">
+            <div class="d-flex align-items-center gap-2 mb-2">
+                <span class="badge ${badgeClass}">${escapeHtml(status)}</span>
+                <strong>${escapeHtml(normalized.templateCount || templates.length)} 个模板</strong>
+                <span class="text-secondary">可导入 ${escapeHtml(normalized.validCount ?? 0)} 个</span>
+            </div>
+            ${errors.length ? `<div class="alert alert-danger py-2 mb-2">${errors.map(escapeHtml).join('<br>')}</div>` : ''}
+            ${warnings.length ? `<div class="alert alert-warning py-2 mb-2">${warnings.map(escapeHtml).join('<br>')}</div>` : ''}
+            <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                    <thead><tr><th>#</th><th>模板</th><th>类型</th><th>步骤</th><th>状态</th></tr></thead>
+                    <tbody>
+                        ${templates.map((template, index) => `
+                            <tr>
+                                <td>${index + 1}</td>
+                                <td><code>${escapeHtml(template.templateCode || '')}</code><div class="small text-secondary">${escapeHtml(template.templateName || '')}</div></td>
+                                <td>${escapeHtml(templateDslRegistryLabel(template.targetRegistry))}</td>
+                                <td>${escapeHtml(template.stepCount || 0)}</td>
+                                <td>${template.valid ? '<span class="badge text-bg-success">通过</span>' : '<span class="badge text-bg-danger">失败</span>'}</td>
                             </tr>
                         `).join('')}
                     </tbody>

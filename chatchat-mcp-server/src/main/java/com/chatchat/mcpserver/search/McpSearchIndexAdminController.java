@@ -52,8 +52,13 @@ public class McpSearchIndexAdminController {
 
     @PostMapping("/templates/rebuild")
     public ApiResponse<Map<String, Object>> rebuildTemplateIndex() {
-        templateLuceneIndexService.refreshTemplateIndex();
-        return ApiResponse.success(Map.of("refreshed", true), "MCP template Lucene index rebuilt");
+        templateLuceneIndexService.refreshAll();
+        return ApiResponse.success(Map.of(
+            "refreshed", true,
+            "templateIndex", true,
+            "databaseQueryIndex", true,
+            "apiServiceIndex", true
+        ), "MCP template Lucene indexes rebuilt");
     }
 
     @PostMapping("/database-queries/rebuild")

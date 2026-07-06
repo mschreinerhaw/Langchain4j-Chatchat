@@ -13,6 +13,8 @@
         <div class="btn-group btn-group-sm" role="group" aria-label="Database query batch actions">
             <button id="databaseQuerySelectVisibleBtn" class="btn btn-outline-secondary" type="button">选择当前页</button>
             <button id="databaseQueryClearSelectionBtn" class="btn btn-outline-secondary" type="button">清空选择</button>
+            <button id="databaseQueryImportDslBtn" class="btn btn-outline-primary" type="button">导入模板</button>
+            <button id="databaseQueryExportDslBtn" class="btn btn-outline-primary" type="button" disabled>导出模板</button>
             <button id="databaseQueryBatchDeleteBtn" class="btn btn-outline-danger" type="button" disabled>删除选中</button>
         </div>
     </div>
@@ -108,6 +110,40 @@
                 <button id="databaseQueryClearBtn" class="btn btn-outline-secondary" type="button">清空</button>
                 <button id="databaseQueryTestBtn" class="btn btn-outline-primary" type="submit" form="databaseQueryForm">测试调用</button>
                 <button id="databaseQuerySaveBtn" class="btn btn-primary" type="button">保存查询</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="databaseQueryDslImportModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title fs-5">导入数据库查询模板</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="关闭"></button>
+            </div>
+            <div class="modal-body">
+                <form id="databaseQueryDslImportForm" class="service-form">
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label" for="databaseQueryDslDatasourceId">数据库资产</label>
+                            <select id="databaseQueryDslDatasourceId" class="form-select">
+                                <option value="">使用模板内 datasourceId</option>
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label" for="databaseQueryDslBody">模板 JSON</label>
+                            <textarea id="databaseQueryDslBody" class="form-control codebox" rows="18" spellcheck="false" placeholder='{"templateCode":"ORDER_QUERY","templateType":"DATABASE_QUERY","datasourceId":"...","steps":[{"stepCode":"QUERY","stepType":"SQL","sql":"select * from orders"}]}'></textarea>
+                        </div>
+                        <div class="col-12">
+                            <div id="databaseQueryDslImportResult" class="text-secondary small">粘贴模板 JSON 后点击“验证”。</div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button id="databaseQueryDslValidateBtn" class="btn btn-outline-secondary" type="button">验证</button>
+                <button id="databaseQueryDslImportSubmitBtn" class="btn btn-primary" type="submit" form="databaseQueryDslImportForm" disabled>验证并导入</button>
             </div>
         </div>
     </div>

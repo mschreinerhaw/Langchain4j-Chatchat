@@ -8,6 +8,7 @@ import com.chatchat.mcpserver.sql.SqlDatasourceConfig;
 import com.chatchat.mcpserver.sql.SqlDatasourceConfigService;
 import com.chatchat.mcpserver.sql.SqlTemplateConfig;
 import com.chatchat.mcpserver.sql.SqlTemplateService;
+import com.chatchat.mcpserver.template.AgentRuntimeTemplateDsl;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
@@ -849,6 +850,7 @@ public class CommandTemplateDiscoveryService {
             "category", category(template),
             "riskLevel", riskLevel(template),
             "supportedAssetTypes", List.of(assetType),
+            "templateDsl", templateDslMetadata(template.getCommandTemplate(), template.getCode(), "LINUX_CMD", "SHELL"),
             "intentSignals", signals,
             "routingHints", mapOf(
                 "strongSignals", signals.stream().limit(5).toList(),
@@ -887,6 +889,7 @@ public class CommandTemplateDiscoveryService {
             "semantic", sqlTemplateSemanticMetadata(template),
             "binding", sqlTemplateBindingMetadata(template),
             "supportedAssetTypes", List.of(assetType),
+            "templateDsl", templateDslMetadata(template.getSqlTemplate(), template.getCode(), "DB_SQL", "SQL"),
             "intentSignals", signals,
             "routingHints", mapOf(
                 "strongSignals", signals.stream().limit(5).toList(),
@@ -917,6 +920,45 @@ public class CommandTemplateDiscoveryService {
             "requiresTableName", requiresTable,
             "scope", operation
         );
+    }
+
+    private Map<String, Object> templateDslMetadata(String templateBody,
+                                                    String templateCode,
+                                                    String fallbackTemplateType,
+                                                    String fallbackStepType) {
+        if (!AgentRuntimeTemplateDsl.looksLikeDsl(templateBody)) {
+            return mapOf(
+                "schemaVersion", AgentRuntimeTemplateDsl.SCHEMA_VERSION,
+                "dsl", false,
+                "templateCode", templateCode,
+                "templateType", fallbackTemplateType,
+                "executionMode", "SINGLE_OR_LEGACY",
+                "executorStepType", fallbackStepType,
+                "modelHint", "Legacy template body; execute by templateId and parameters from parameterContract."
+            );
+        }
+        try {
+            AgentRuntimeTemplateDsl.TemplatePlan plan = AgentRuntimeTemplateDsl.parse(
+                templateBody,
+                templateCode,
+                fallbackTemplateType,
+                fallbackStepType
+            );
+            Map<String, Object> metadata = new LinkedHashMap<>(AgentRuntimeTemplateDsl.metadata(plan));
+            metadata.put("dsl", true);
+            metadata.put("modelHint", "Use templateDsl.steps[].stepName/analysisHint to judge whether this template covers the user intent. Execute by templateId; do not inline raw commands or SQL.");
+            return metadata;
+        } catch (IllegalArgumentException ex) {
+            return mapOf(
+                "schemaVersion", AgentRuntimeTemplateDsl.SCHEMA_VERSION,
+                "dsl", true,
+                "templateCode", templateCode,
+                "templateType", fallbackTemplateType,
+                "valid", false,
+                "error", ex.getMessage(),
+                "modelHint", "DSL template is invalid and should not be selected until fixed."
+            );
+        }
     }
 
     private boolean parameterRequired(String parameterSchemaJson, String... names) {
@@ -1068,6 +1110,7 @@ public class CommandTemplateDiscoveryService {
             "databaseType", SqlDatasourceConfigService.normalizeDatabaseTypeToken(config.getDatabaseType()),
             "tags", readStringArray(config.getTagsJson()),
             "riskLevel", databaseQueryRiskLevel(config),
+            "templateDsl", templateDslMetadata(config.getSqlTemplate(), toolName, "DATABASE_QUERY", "SQL"),
             "owner", firstText(config.getOwner(), "admin"),
             "rating", config.getRating(),
             "usageCount", config.getUsageCount(),

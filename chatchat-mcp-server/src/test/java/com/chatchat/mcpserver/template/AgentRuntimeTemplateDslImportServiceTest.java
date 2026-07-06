@@ -7,6 +7,7 @@ import com.chatchat.mcpserver.ops.CommandTemplateService;
 import com.chatchat.mcpserver.ops.OpsMcpToolPublisher;
 import com.chatchat.mcpserver.search.McpTemplateLuceneIndexService;
 import com.chatchat.mcpserver.sql.SqlMcpToolPublisher;
+import com.chatchat.mcpserver.sql.SqlTemplateConfig;
 import com.chatchat.mcpserver.sql.SqlTemplateService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
@@ -104,5 +105,67 @@ class AgentRuntimeTemplateDslImportServiceTest {
 
         assertThat(result.valid()).isFalse();
         assertThat(result.errors()).anyMatch(error -> error.contains("stepType SHELL is not allowed"));
+    }
+
+    @Test
+    void importsBatchDslIntoMatchingRegistries() {
+        when(commandTemplateService.listAll()).thenReturn(List.of());
+        when(sqlTemplateService.listAll()).thenReturn(List.of());
+        when(commandTemplateService.save(any(CommandTemplateConfig.class))).thenAnswer(invocation -> {
+            CommandTemplateConfig config = invocation.getArgument(0);
+            config.setId("linux-template-1");
+            return config;
+        });
+        when(sqlTemplateService.save(any(SqlTemplateConfig.class))).thenAnswer(invocation -> {
+            SqlTemplateConfig config = invocation.getArgument(0);
+            config.setId("sql-template-1");
+            return config;
+        });
+        String dsl = """
+            [
+              {
+                "templateCode": "LINUX_UPTIME",
+                "templateName": "Linux uptime",
+                "templateType": "LINUX_CMD",
+                "steps": [
+                  {
+                    "stepCode": "UPTIME",
+                    "stepType": "SHELL",
+                    "command": "uptime"
+                  }
+                ]
+              },
+              {
+                "templateCode": "MYSQL_STATUS",
+                "templateName": "MySQL status",
+                "templateType": "DB_SQL",
+                "targetType": "mysql",
+                "steps": [
+                  {
+                    "stepCode": "STATUS",
+                    "stepType": "SQL",
+                    "command": "SHOW STATUS"
+                  }
+                ]
+              }
+            ]
+            """;
+
+        AgentRuntimeTemplateDslImportService.ValidationResult validation = service.validate(
+            new AgentRuntimeTemplateDslImportService.ImportRequest(dsl, "LINUX_CMD", null, null)
+        );
+        AgentRuntimeTemplateDslImportService.ImportResult result = service.importTemplate(
+            new AgentRuntimeTemplateDslImportService.ImportRequest(dsl, "LINUX_CMD", null, null)
+        );
+
+        assertThat(validation.valid()).isTrue();
+        assertThat(validation.targetRegistry()).isEqualTo("batch");
+        assertThat(validation.normalized()).containsEntry("batch", true);
+        assertThat(result.targetRegistry()).isEqualTo("batch");
+        assertThat(result.normalized()).containsEntry("importedCount", 2);
+        verify(commandTemplateService).save(any(CommandTemplateConfig.class));
+        verify(sqlTemplateService).save(any(SqlTemplateConfig.class));
+        verify(opsPublisher).refresh();
+        verify(sqlPublisher).refresh();
     }
 }

@@ -3,6 +3,7 @@ import { apiFetch } from './http.js';
 
 const BASE_URL = `${API_BASE}/database-query`;
 const SEARCH_INDEX_URL = `${API_BASE}/mcp-search-index`;
+const TEMPLATE_DSL_URL = `${API_BASE}/template-dsl`;
 
 export function listDatabaseQueries() {
     return apiFetch(BASE_URL);
@@ -48,4 +49,24 @@ export function testDatabaseQuery(payload) {
 
 export function rebuildDatabaseQueryIndex() {
     return apiFetch(`${SEARCH_INDEX_URL}/database-queries/rebuild`, { method: 'POST' });
+}
+
+export function validateDatabaseQueryTemplateDsl(request) {
+    return apiFetch(`${TEMPLATE_DSL_URL}/validate`, {
+        method: 'POST',
+        body: JSON.stringify({
+            ...(request || {}),
+            templateType: 'DATABASE_QUERY'
+        })
+    });
+}
+
+export function importDatabaseQueryTemplateDsl(request) {
+    return apiFetch(`${TEMPLATE_DSL_URL}/import`, {
+        method: 'POST',
+        body: JSON.stringify({
+            ...(request || {}),
+            templateType: 'DATABASE_QUERY'
+        })
+    });
 }

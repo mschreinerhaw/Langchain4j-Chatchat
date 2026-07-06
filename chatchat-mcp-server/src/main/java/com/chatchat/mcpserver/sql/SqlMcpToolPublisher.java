@@ -568,6 +568,7 @@ public class SqlMcpToolPublisher {
             "databaseType", SqlDatasourceConfigService.normalizeDatabaseTypeToken(template.getDatabaseType()),
             "semantic", sqlTemplateSemanticMetadata(template),
             "binding", mutableMap("datasourceId", blankToNull(template.getDatasourceId())),
+            "templateDsl", templateDslMetadata(template),
             "intentSignals", readStringList(template.getIntentSignalsJson()),
             "parameterSchema", parameterSchema,
             "requiredParameters", requiredParameters,
@@ -575,6 +576,40 @@ public class SqlMcpToolPublisher {
             "invocationExample", invocationExample(template.getCode(), parameterSchema),
             "rawExecutionSpecReturned", false
         );
+    }
+
+    private Map<String, Object> templateDslMetadata(SqlTemplateConfig template) {
+        String body = template == null ? null : template.getSqlTemplate();
+        String code = template == null ? null : template.getCode();
+        if (!AgentRuntimeTemplateDsl.looksLikeDsl(body)) {
+            return mutableMap(
+                "schemaVersion", AgentRuntimeTemplateDsl.SCHEMA_VERSION,
+                "dsl", false,
+                "templateCode", code,
+                "templateType", "DB_SQL",
+                "executionMode", "SINGLE_OR_LEGACY",
+                "executorStepType", "SQL",
+                "modelHint", "Legacy SQL template body; execute by templateId and parameters from parameterContract."
+            );
+        }
+        try {
+            Map<String, Object> metadata = new LinkedHashMap<>(AgentRuntimeTemplateDsl.metadata(
+                AgentRuntimeTemplateDsl.parse(body, code, "DB_SQL", "SQL")
+            ));
+            metadata.put("dsl", true);
+            metadata.put("modelHint", "Use templateDsl.steps[].stepName/analysisHint to judge whether this template covers the user intent. Execute by templateId; do not inline raw SQL.");
+            return metadata;
+        } catch (IllegalArgumentException ex) {
+            return mutableMap(
+                "schemaVersion", AgentRuntimeTemplateDsl.SCHEMA_VERSION,
+                "dsl", true,
+                "templateCode", code,
+                "templateType", "DB_SQL",
+                "valid", false,
+                "error", ex.getMessage(),
+                "modelHint", "DSL template is invalid and should not be selected until fixed."
+            );
+        }
     }
 
     private Map<String, Object> sqlTemplateSemanticMetadata(SqlTemplateConfig template) {

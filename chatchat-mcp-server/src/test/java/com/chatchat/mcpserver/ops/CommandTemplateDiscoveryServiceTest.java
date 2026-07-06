@@ -160,6 +160,67 @@ class CommandTemplateDiscoveryServiceTest {
     }
 
     @Test
+    void returnsDslMetadataForModelTemplateReview() {
+        CommandTemplateService templateService = mock(CommandTemplateService.class);
+        SshHostConfigService hostService = mock(SshHostConfigService.class);
+        CommandTemplateDiscoveryService service = service(templateService, hostService);
+        when(templateService.listEnabled()).thenReturn(List.of(
+            template(
+                "CHECK_MYSQLD_PROCESS",
+                """
+                    {
+                      "templateCode": "CHECK_MYSQLD_PROCESS",
+                      "templateName": "MySQL daemon process check",
+                      "templateType": "LINUX_CMD",
+                      "targetType": "LINUX",
+                      "executionMode": "SEQUENTIAL",
+                      "continueOnError": true,
+                      "steps": [
+                        {
+                          "stepCode": "MYSQLD_PROCESS",
+                          "stepName": "MySQL daemon process",
+                          "stepType": "SHELL",
+                          "order": 1,
+                          "command": "ps aux | grep -Ei 'mysqld|mariadbd'",
+                          "analysisHint": "Judge whether mysqld or mariadbd management daemon is running."
+                        }
+                      ],
+                      "analysisPolicy": {
+                        "outputSections": ["summary", "evidence"]
+                      }
+                    }
+                    """,
+                "MySQL process DSL",
+                "Structured DSL template for MySQL process diagnostics.",
+                "[]"
+            )
+        ));
+        when(hostService.listEnabled()).thenReturn(List.of(
+            host("host-248", "mysql_server", "DEV", "[\"CHECK_MYSQLD_PROCESS\"]")
+        ));
+
+        Map<String, Object> result = service.query(Map.of(
+            "targetKind", "host",
+            "confidence", 0.9,
+            "filters", Map.of(
+                "assetName", "mysql_server",
+                "env", "DEV",
+                "intent", "mysql management daemon process"
+            ),
+            "trace", trace(),
+            "limit", 10
+        ));
+
+        List<?> templates = (List<?>) result.get("templates");
+        Map<?, ?> first = (Map<?, ?>) templates.get(0);
+        assertThat(first.get("templateId")).isEqualTo("CHECK_MYSQLD_PROCESS");
+        assertThat(first.get("templateDsl").toString())
+            .contains("dsl=true", "MYSQLD_PROCESS", "MySQL daemon process", "analysisHint", "outputSections");
+        assertThat(first.get("templateDsl").toString())
+            .contains("Execute by templateId");
+    }
+
+    @Test
     void reportsAllowedSshTemplatesMissingFromEnabledRegistry() {
         CommandTemplateService templateService = mock(CommandTemplateService.class);
         SshHostConfigService hostService = mock(SshHostConfigService.class);

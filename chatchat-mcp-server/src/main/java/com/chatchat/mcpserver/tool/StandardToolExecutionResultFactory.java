@@ -151,13 +151,27 @@ public class StandardToolExecutionResultFactory {
             result.results().stream()
                 .map(statement -> step(
                     statement.statementIndex(),
-                    "sql",
-                    mapOf("statement", statement.sql()),
+                    firstText(statement.stepType(), "sql").toLowerCase(java.util.Locale.ROOT),
+                    mapOf(
+                        "statement", statement.sql(),
+                        "stepCode", statement.stepCode(),
+                        "stepName", statement.stepName(),
+                        "stepType", statement.stepType(),
+                        "required", statement.required(),
+                        "analysisHint", statement.analysisHint()
+                    ),
                     scriptResultSet(statement),
                     statement.success(),
                     statement.durationMs(),
                     statement.errorMessage(),
-                    mapOf("rowCount", statement.rowCount())
+                    mapOf(
+                        "rowCount", statement.rowCount(),
+                        "stepCode", statement.stepCode(),
+                        "stepName", statement.stepName(),
+                        "stepType", statement.stepType(),
+                        "required", statement.required(),
+                        "analysisHint", statement.analysisHint()
+                    )
                 ))
                 .toList()
         ));
@@ -182,6 +196,11 @@ public class StandardToolExecutionResultFactory {
             : result.rows().stream().limit(SQL_RESULT_ROW_LIMIT).toList();
         return mapOf(
             "statementIndex", result.statementIndex(),
+            "stepCode", result.stepCode(),
+            "stepName", result.stepName(),
+            "stepType", result.stepType(),
+            "required", result.required(),
+            "analysisHint", result.analysisHint(),
             "statement", result.sql(),
             "success", result.success(),
             "columns", result.columns(),

@@ -43,3 +43,15 @@
 MCP Server 不判断模型是否“需要”执行工具。它只按工具契约执行、拒绝或返回修复提示。
 > Intent Ensemble Retrieval contract: see `../../docs/intent-ensemble-retrieval-contract.md`.
 > MCP Server targetKind schemas must allow semantic retrieval fields including `intentCandidates`, `intent_candidates`, `queries`, `expandedQueries`, `expanded_queries`, `queryTerms`, and `retrievalSignals`; these fields are retrieval signals, not exact routing labels.
+
+## Agent Runtime Template DSL 契约
+
+标准多步骤模板 DSL 契约见：`../../docs/agent-runtime-template-dsl-contract.md`。
+
+MCP Server 侧必须遵守：
+
+- 发布 Linux 命令、SQL 脚本、数据库查询和运维巡检模板时，支持 `agent_runtime_template_dsl.v1`。
+- 模板索引必须消费 DSL 顶层字段、`analysisPolicy` 和 `steps[].stepName` / `steps[].analysisHint` / `steps[].command`。
+- 模板发现结果必须返回 `templateDsl` 元数据，供模型 review 和 Runtime 修复执行路径使用。
+- `linux_command_execute` 和 `sql_script_execute` 必须按 DSL steps 执行并返回 step 级结构化证据。
+- `sql_query_execute` 只执行单 SQL；多步骤 SQL DSL 必须路由到 `sql_script_execute` 或等价多步骤执行器。

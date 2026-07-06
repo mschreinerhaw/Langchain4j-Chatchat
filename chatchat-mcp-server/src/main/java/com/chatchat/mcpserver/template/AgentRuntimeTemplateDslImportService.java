@@ -50,6 +50,9 @@ public class AgentRuntimeTemplateDslImportService {
 
     @Transactional
     public ImportResult importTemplate(ImportRequest request) {
+        if (isBatchDsl(request)) {
+            return importBatch(request);
+        }
         ValidationResult validation = validateInternal(request, true);
         if (!validation.valid()) {
             throw new IllegalArgumentException(String.join("; ", validation.errors()));
@@ -145,6 +148,9 @@ public class AgentRuntimeTemplateDslImportService {
         if (request == null || request.dsl() == null || request.dsl().isBlank()) {
             return invalid(List.of("DSL template content is required"));
         }
+        if (isBatchDsl(request)) {
+            return validateBatch(request, requireImportReady);
+        }
         AgentRuntimeTemplateDsl.TemplatePlan plan;
         Map<String, Object> root;
         try {
@@ -181,6 +187,67 @@ public class AgentRuntimeTemplateDslImportService {
         normalized.put("datasourceId", firstText(text(root.get("datasourceId")), text(root.get("datasource_id")), request.datasourceId()));
         normalized.put("intentSignals", intentSignals(root, plan));
         return new ValidationResult(errors.isEmpty(), errors, warnings, registry, plan, normalized);
+    }
+
+    private ValidationResult validateBatch(ImportRequest request, boolean requireImportReady) {
+        List<ImportRequest> items;
+        try {
+            items = batchRequests(request);
+        } catch (IllegalArgumentException ex) {
+            return invalid(List.of(ex.getMessage()));
+        }
+        if (items.isEmpty()) {
+            return invalid(List.of("DSL template batch cannot be empty"));
+        }
+        List<String> errors = new ArrayList<>();
+        List<String> warnings = new ArrayList<>();
+        List<Map<String, Object>> templates = new ArrayList<>();
+        for (int index = 0; index < items.size(); index++) {
+            ValidationResult item = validateInternal(items.get(index), requireImportReady);
+            int position = index + 1;
+            item.errors().forEach(error -> errors.add("template[" + position + "]: " + error));
+            item.warnings().forEach(warning -> warnings.add("template[" + position + "]: " + warning));
+            Map<String, Object> normalized = new LinkedHashMap<>(item.normalized());
+            normalized.put("valid", item.valid());
+            normalized.put("errors", item.errors());
+            normalized.put("warnings", item.warnings());
+            normalized.put("targetRegistry", item.targetRegistry());
+            templates.add(normalized);
+        }
+        Map<String, Object> normalized = new LinkedHashMap<>();
+        normalized.put("batch", true);
+        normalized.put("templateCount", items.size());
+        normalized.put("validCount", templates.stream().filter(item -> Boolean.TRUE.equals(item.get("valid"))).count());
+        normalized.put("templates", templates);
+        return new ValidationResult(errors.isEmpty(), errors, warnings, "batch", null, normalized);
+    }
+
+    private ImportResult importBatch(ImportRequest request) {
+        ValidationResult validation = validateBatch(request, true);
+        if (!validation.valid()) {
+            throw new IllegalArgumentException(String.join("; ", validation.errors()));
+        }
+        List<ImportResult> imported = new ArrayList<>();
+        for (ImportRequest item : batchRequests(request)) {
+            imported.add(importTemplate(item));
+        }
+        Map<String, Object> normalized = new LinkedHashMap<>(validation.normalized());
+        normalized.put("importedCount", imported.size());
+        normalized.put("imports", imported.stream().map(item -> mapOf(
+            "targetRegistry", item.targetRegistry(),
+            "savedId", item.savedId(),
+            "templateCode", item.templateCode(),
+            "templateName", item.templateName()
+        )).toList());
+        return new ImportResult(
+            true,
+            "batch",
+            imported.isEmpty() ? null : imported.get(0).savedId(),
+            imported.size() + "_templates",
+            "Batch AgentRuntime DSL import",
+            normalized,
+            imported
+        );
     }
 
     private void validateSteps(AgentRuntimeTemplateDsl.TemplatePlan plan, String registry, List<String> errors) {
@@ -276,10 +343,53 @@ public class AgentRuntimeTemplateDslImportService {
 
     private Map<String, Object> readRoot(String dsl) {
         try {
-            return objectMapper.readValue(dsl, new TypeReference<>() {});
+            Object value = objectMapper.readValue(dsl, Object.class);
+            if (value instanceof Map<?, ?> map) {
+                return castMap(map);
+            }
+            throw new IllegalArgumentException("Agent runtime template DSL root must be a JSON object");
         } catch (Exception ex) {
+            if (ex instanceof IllegalArgumentException illegalArgumentException) {
+                throw illegalArgumentException;
+            }
             throw new IllegalArgumentException("Agent runtime template DSL JSON is invalid: " + ex.getMessage());
         }
+    }
+
+    private boolean isBatchDsl(ImportRequest request) {
+        String text = request == null ? null : request.dsl();
+        return text != null && text.trim().startsWith("[");
+    }
+
+    private List<ImportRequest> batchRequests(ImportRequest request) {
+        try {
+            List<Object> values = objectMapper.readValue(request.dsl(), new TypeReference<>() {});
+            List<ImportRequest> items = new ArrayList<>();
+            for (int index = 0; index < values.size(); index++) {
+                Object value = values.get(index);
+                if (!(value instanceof Map<?, ?> rawMap)) {
+                    throw new IllegalArgumentException("Agent runtime template DSL batch item must be an object at index " + index);
+                }
+                Map<String, Object> map = castMap(rawMap);
+                items.add(new ImportRequest(
+                    ModelProtocolJson.compact(value),
+                    text(map.get("templateType")) == null ? request.templateType() : null,
+                    request.targetRegistry(),
+                    request.datasourceId()
+                ));
+            }
+            return items;
+        } catch (IllegalArgumentException ex) {
+            throw ex;
+        } catch (Exception ex) {
+            throw new IllegalArgumentException("Agent runtime template DSL batch JSON is invalid: " + ex.getMessage());
+        }
+    }
+
+    private Map<String, Object> castMap(Map<?, ?> map) {
+        Map<String, Object> values = new LinkedHashMap<>();
+        map.forEach((key, value) -> values.put(String.valueOf(key), value));
+        return values;
     }
 
     private Map<String, Object> emptyParameterSchema() {
@@ -396,6 +506,14 @@ public class AgentRuntimeTemplateDslImportService {
 
     private ValidationResult invalid(List<String> errors) {
         return new ValidationResult(false, errors, List.of(), null, null, Map.of());
+    }
+
+    private Map<String, Object> mapOf(Object... values) {
+        Map<String, Object> map = new LinkedHashMap<>();
+        for (int index = 0; index + 1 < values.length; index += 2) {
+            map.put(String.valueOf(values[index]), values[index + 1]);
+        }
+        return map;
     }
 
     public record ImportRequest(

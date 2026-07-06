@@ -277,6 +277,84 @@ class InterpretationPlanRuntimeTest {
     }
 
     @Test
+    void skipsModelReviewForNonEmptyTemplateDiscoveryResult() {
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool("mcp_chatchat_mcp_server_ssh_template_query")).thenReturn(true);
+        when(toolRegistry.getToolMetadata(any())).thenReturn(ToolMetadata.builder().riskLevel("low").build());
+        ToolRuntimeService toolRuntimeService = mock(ToolRuntimeService.class);
+        when(toolRuntimeService.execute(any())).thenReturn(new ToolRuntimeExecution(
+            ToolOutput.success(Map.of(
+                "schemaVersion", "template_query_result.v1",
+                "success", true,
+                "returnedCount", 2,
+                "templates", List.of(
+                    Map.of(
+                        "templateId", "CHECK_PROCESS",
+                        "parameterSchema", Map.of("type", "object"),
+                        "invocationExample", Map.of("template", "CHECK_PROCESS")
+                    ),
+                    Map.of(
+                        "templateId", "CHECK_SERVICE_STATUS",
+                        "parameterSchema", Map.of("type", "object"),
+                        "invocationExample", Map.of("template", "CHECK_SERVICE_STATUS")
+                    )
+                )
+            )),
+            ToolMetadata.builder().id("mcp_chatchat_mcp_server_ssh_template_query").build(),
+            null,
+            "success",
+            Map.of()
+        ));
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("ops", "select ssh template", "low"),
+            context(),
+            new InterpretationPlan.Plan(List.of(
+                new InterpretationPlan.Step(
+                    1,
+                    "mcp_tool",
+                    "mcp_chatchat_mcp_server_ssh_template_query",
+                    Map.of("filters", Map.of("intent", "分析MySQL服务器管理进程信息"), "limit", 10),
+                    List.of(),
+                    null,
+                    null
+                ),
+                new InterpretationPlan.Step(2, "final_answer", "", Map.of("answer", "done"), List.of(1), null, null)
+            )),
+            new InterpretationPlan.ExecutionPolicy(3, false, List.of("mcp_chatchat_mcp_server_ssh_template_query"), List.of(), 30000),
+            review()
+        );
+        AtomicInteger reviewerCalls = new AtomicInteger();
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            toolRuntimeService,
+            new InterpretationPlanValidator(),
+            null,
+            request -> {
+                reviewerCalls.incrementAndGet();
+                return InterpretationPlanRuntime.StepReview.rejected("should not review discovery results", Map.of());
+            },
+            scriptedController(List.of(List.of(1), List.of(2)))
+        );
+
+        InterpretationPlanRuntime.ExecutionResult result = runtime.execute(new InterpretationPlanRuntime.ExecutionRequest(
+            plan,
+            toolRegistry,
+            List.of("mcp_chatchat_mcp_server_ssh_template_query"),
+            "tenant-1",
+            "req-template-discovery-skip-review",
+            "conv-template-discovery-skip-review",
+            "user-1",
+            Map.of()
+        ));
+
+        assertThat(result.success()).isTrue();
+        assertThat(reviewerCalls).hasValue(0);
+        assertThat(result.steps().get(0).metadata())
+            .containsEntry("templateDiscoveryReturnedCount", 2)
+            .containsEntry("toolResultReviewSkipped", true);
+    }
+
+    @Test
     void factChecksSqlMetadataSearchColumns() throws Exception {
         InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
             mock(ToolRuntimeService.class),
@@ -1531,7 +1609,7 @@ class InterpretationPlanRuntimeTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    void infersDatabaseAssetNameForDiscoveryWhenPlannerOmittedFilter() throws Exception {
+    void injectsRetrievalIntentForDatabaseDiscoveryWhenPlannerOmittedFilter() throws Exception {
         InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
             mock(ToolRuntimeService.class),
             new InterpretationPlanValidator(),
@@ -1594,7 +1672,79 @@ class InterpretationPlanRuntimeTest {
         Map<String, Object> resolved = (Map<String, Object>) method.invoke(runtime, step, request, Map.of());
 
         Map<String, Object> filters = (Map<String, Object>) resolved.get("filters");
-        assertThat(filters).containsEntry("assetName", "test_mysql\u6570\u636e\u5e93");
+        assertThat(filters)
+            .doesNotContainKey("assetName")
+            .containsEntry("intent", "test_mysql\u6570\u636e\u5e93 connections")
+            .containsEntry("goal", "test_mysql\u6570\u636e\u5e93 connections");
+        assertThat((List<String>) filters.get("queryTerms")).containsExactly("test_mysql\u6570\u636e\u5e93 connections");
+        assertThat(resolved.get("trace")).isInstanceOf(Map.class);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void injectsRetrievalIntentForSshDiscoveryWhenPlannerOmittedFilter() throws Exception {
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            mock(ToolRuntimeService.class),
+            new InterpretationPlanValidator(),
+            mock(InterpretationPlanRuntime.DagExecutionController.class)
+        );
+        InterpretationPlan.Step step = new InterpretationPlan.Step(
+            1,
+            "mcp_tool",
+            "mcp_chatchat_mcp_server_ssh_asset_query",
+            Map.of(
+                "candidates", List.of(Map.of("targetKind", "host", "confidence", 0.85)),
+                "finalDecision", "host",
+                "filters", Map.of(),
+                "limit", 10
+            ),
+            List.of(),
+            null,
+            null
+        );
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("system_operation", "分析 MySQL服务器 管理进程信息", "low"),
+            context(),
+            new InterpretationPlan.Plan(List.of(
+                step,
+                new InterpretationPlan.Step(2, "final_answer", "", Map.of("answer", "done"), List.of(1), null, null)
+            )),
+            new InterpretationPlan.ExecutionPolicy(
+                2,
+                false,
+                List.of("mcp_chatchat_mcp_server_ssh_asset_query"),
+                List.of(),
+                30000
+            ),
+            review()
+        );
+        InterpretationPlanRuntime.ExecutionRequest request = new InterpretationPlanRuntime.ExecutionRequest(
+            plan,
+            mock(ToolRegistry.class),
+            List.of("mcp_chatchat_mcp_server_ssh_asset_query"),
+            "tenant-1",
+            "req-routing-ssh-asset-name",
+            "conv-routing-ssh-asset-name",
+            "user-1",
+            Map.of("executionTraceId", "trace-runtime-ssh-asset")
+        );
+        Method method = InterpretationPlanRuntime.class.getDeclaredMethod(
+            "resolvedStepInput",
+            InterpretationPlan.Step.class,
+            InterpretationPlanRuntime.ExecutionRequest.class,
+            Map.class
+        );
+        method.setAccessible(true);
+
+        Map<String, Object> resolved = (Map<String, Object>) method.invoke(runtime, step, request, Map.of());
+
+        Map<String, Object> filters = (Map<String, Object>) resolved.get("filters");
+        assertThat(filters)
+            .doesNotContainKey("assetName")
+            .containsEntry("intent", "分析 MySQL服务器 管理进程信息")
+            .containsEntry("goal", "分析 MySQL服务器 管理进程信息");
+        assertThat((List<String>) filters.get("queryTerms")).containsExactly("分析 MySQL服务器 管理进程信息");
         assertThat(resolved.get("trace")).isInstanceOf(Map.class);
     }
 

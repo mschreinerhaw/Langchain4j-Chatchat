@@ -50,6 +50,25 @@ public class AssetDiscoveryService {
         "labels"
     );
 
+    private static final List<String> RETRIEVAL_FILTER_KEYS = List.of(
+        "intent",
+        "goal",
+        "query",
+        "q",
+        "bilingualIntent",
+        "bilingualQuery",
+        "intentZh",
+        "intentEn",
+        "intentAliases",
+        "keywords",
+        "keyword",
+        "queryTerms",
+        "searchTerms",
+        "retrievalSignals",
+        "intentCandidates",
+        "intent_candidates"
+    );
+
     private static final List<String> CONCRETE_TARGET_FIELDS = List.of(
         "hostId",
         "host",
@@ -98,7 +117,7 @@ public class AssetDiscoveryService {
         long startedAt = System.nanoTime();
         Map<String, Object> filters = filters(arguments);
         rejectConcreteTargetFields(filters);
-        boolean broadDiscovery = !hasContextFilter(filters);
+        boolean broadDiscovery = !hasContextFilter(filters) && !hasRetrievalFilter(filters);
 
         TargetKindRegistry.Resolution target = targetKindRegistry.resolveForTool(
             "asset_query",
@@ -250,15 +269,20 @@ public class AssetDiscoveryService {
     }
 
     private AssetFallback registryFallbackAssets(List<Map<String, Object>> assets, Map<String, Object> filters, int limit) {
-        List<Map<String, Object>> exact = assets.stream()
-            .filter(asset -> matches(asset, filters))
-            .limit(limit)
-            .toList();
+        List<Map<String, Object>> exact = hasContextFilter(filters)
+            ? assets.stream()
+                .filter(asset -> matches(asset, filters))
+                .limit(limit)
+                .toList()
+            : List.of();
         if (!exact.isEmpty()) {
             return new AssetFallback(exact, false);
         }
         List<Map<String, Object>> fuzzy = fuzzyAssetNameFallback(assets, filters, limit);
-        return new AssetFallback(fuzzy, !fuzzy.isEmpty());
+        if (!fuzzy.isEmpty() || hasContextFilter(filters) || hasRetrievalFilter(filters)) {
+            return new AssetFallback(fuzzy, !fuzzy.isEmpty());
+        }
+        return new AssetFallback(assets.stream().limit(limit).toList(), false);
     }
 
     private LuceneMcpSearchService.AssetSearchRequest assetSearchRequest(String assetType,
@@ -266,7 +290,7 @@ public class AssetDiscoveryService {
                                                                          int limit) {
         return new LuceneMcpSearchService.AssetSearchRequest(
             normalize(assetType),
-            text(firstValue(filters, "assetName", "asset_name", "name")),
+            firstText(text(firstValue(filters, "assetName", "asset_name", "name")), retrievalText(filters)),
             text(firstValue(filters, "env", "environment")),
             text(firstValue(filters, "databaseType", "dbType", "dialect")),
             contextTokens(filters),
@@ -392,6 +416,11 @@ public class AssetDiscoveryService {
                 filters.putIfAbsent(key, arguments.get(key));
             }
         }
+        for (String key : RETRIEVAL_FILTER_KEYS) {
+            if (arguments.get(key) != null) {
+                filters.putIfAbsent(key, arguments.get(key));
+            }
+        }
         return filters;
     }
 
@@ -413,7 +442,10 @@ public class AssetDiscoveryService {
     private List<Map<String, Object>> fuzzyAssetNameFallback(List<Map<String, Object>> assets,
                                                             Map<String, Object> filters,
                                                             int limit) {
-        String requestedAssetName = text(firstValue(filters, "assetName", "asset_name", "name"));
+        String requestedAssetName = firstText(
+            text(firstValue(filters, "assetName", "asset_name", "name")),
+            retrievalText(filters)
+        );
         if (requestedAssetName == null) {
             return List.of();
         }
@@ -556,6 +588,12 @@ public class AssetDiscoveryService {
             .anyMatch(value -> value != null && !String.valueOf(value).isBlank());
     }
 
+    private boolean hasRetrievalFilter(Map<String, Object> filters) {
+        return RETRIEVAL_FILTER_KEYS.stream()
+            .map(filters::get)
+            .anyMatch(value -> value != null && !String.valueOf(value).isBlank());
+    }
+
     private List<String> contextTokens(Map<String, Object> filters) {
         List<String> tokens = new ArrayList<>();
         for (String key : List.of(
@@ -658,7 +696,60 @@ public class AssetDiscoveryService {
                 compact.put(key, value);
             }
         });
+        RETRIEVAL_FILTER_KEYS.forEach(key -> {
+            Object value = filters.get(key);
+            if (value != null && !String.valueOf(value).isBlank()) {
+                compact.put(key, value);
+            }
+        });
         return compact;
+    }
+
+    private String retrievalText(Map<String, Object> filters) {
+        if (filters == null || filters.isEmpty()) {
+            return null;
+        }
+        List<String> terms = new ArrayList<>();
+        for (String key : RETRIEVAL_FILTER_KEYS) {
+            Object value = filters.get(key);
+            if (value instanceof List<?> list) {
+                list.forEach(item -> addRetrievalValue(terms, item));
+            } else {
+                addRetrievalValue(terms, value);
+            }
+        }
+        return terms.isEmpty() ? null : String.join(" ", terms);
+    }
+
+    private void addRetrievalValue(List<String> terms, Object value) {
+        if (value instanceof Map<?, ?> map) {
+            addRawText(terms, firstValueMap(map, "intent", "query", "term", "text", "label", "name"));
+            return;
+        }
+        addRawText(terms, value);
+    }
+
+    private Object firstValueMap(Map<?, ?> map, String... keys) {
+        if (map == null || keys == null) {
+            return null;
+        }
+        for (String key : keys) {
+            Object value = map.get(key);
+            if (value != null && !String.valueOf(value).isBlank()) {
+                return value;
+            }
+        }
+        return null;
+    }
+
+    private void addRawText(List<String> terms, Object value) {
+        if (value == null) {
+            return;
+        }
+        String text = String.valueOf(value).trim();
+        if (!text.isBlank()) {
+            terms.add(text);
+        }
     }
 
     private Map<String, Object> emptyResultAdvice(Map<String, Object> filters, List<Map<String, Object>> unavailableAssets) {

@@ -70,6 +70,28 @@ class TargetKindContractTest {
     }
 
     @Test
+    void acceptsIntentEnsembleFiltersForHostAssetDiscovery() {
+        TargetKindRegistry.Resolution resolution = registry.resolveForTool(
+            "asset_query",
+            null,
+            candidateRequest("host", Map.of(
+                    "intent", "分析MySQL服务器管理进程信息",
+                    "intentCandidates", List.of(
+                        Map.of("intent", "MySQL服务器管理进程", "score", 0.92),
+                        Map.of("intent", "mysqld process status", "score", 0.87)
+                    ),
+                    "queries", List.of("mysqld process", "systemctl status mysql"),
+                    "expandedQueries", List.of("ps aux mysqld")
+                ),
+                candidate("host", 0.9)),
+            Map.of("intent", "分析MySQL服务器管理进程信息")
+        );
+
+        assertThat(resolution.definition().targetKind()).isEqualTo("host");
+        assertThat(resolution.decision()).isEqualTo(TargetKindRegistry.DECISION_ACCEPTED);
+    }
+
+    @Test
     void rejectsFinalDecisionOutsideCandidateSet() {
         assertThatThrownBy(() -> registry.resolveForTool(
             "template_query",

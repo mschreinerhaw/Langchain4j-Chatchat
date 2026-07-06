@@ -245,7 +245,10 @@
                     <label class="form-label small text-secondary" for="indexSearchType">索引</label>
                     <select id="indexSearchType" class="form-select">
                         <option value="sql_metadata">元数据索引</option>
-                        <option value="assets">资产索引</option>
+                        <option value="ssh_host_assets">服务器资产索引</option>
+                        <option value="sql_datasource_assets">数据库资产索引</option>
+                        <option value="http_endpoint_assets">HTTP 资产索引</option>
+                        <option value="api_service_assets">API 服务资产索引</option>
                         <option value="templates">模板索引</option>
                         <option value="database_query">业务查询索引</option>
                         <option value="api_service">API 服务索引</option>
@@ -275,6 +278,7 @@
                         <option value="sql_datasource">sql_datasource</option>
                         <option value="ssh_host">ssh_host</option>
                         <option value="http_endpoint">http_endpoint</option>
+                        <option value="api_service">api_service</option>
                     </select>
                 </div>
                 <div class="col-md-2">
@@ -345,6 +349,31 @@
         </div>
     </div>
 </section>
+
+<div class="modal fade" id="assetIndexRebuildModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog">
+        <form id="assetIndexRebuildForm" class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title fs-5">重建资产索引</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="关闭"></button>
+            </div>
+            <div class="modal-body">
+                <label class="form-label" for="assetIndexRebuildType">重建类型</label>
+                <select id="assetIndexRebuildType" class="form-select">
+                    <option value="">全部资产索引</option>
+                    <option value="ssh_host">服务器资产索引</option>
+                    <option value="sql_datasource">数据库资产索引</option>
+                    <option value="http_endpoint">HTTP 资产索引</option>
+                    <option value="api_service">API 服务资产索引</option>
+                </select>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">取消</button>
+                <button id="assetIndexRebuildSubmitBtn" class="btn btn-primary" type="submit">重建</button>
+            </div>
+        </form>
+    </div>
+</div>
 
 <div class="modal fade" id="sshAssetModal" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-xl modal-dialog-scrollable">

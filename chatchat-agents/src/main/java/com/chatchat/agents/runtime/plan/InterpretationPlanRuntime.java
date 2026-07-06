@@ -25,8 +25,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
@@ -37,8 +35,6 @@ public class InterpretationPlanRuntime {
 
     private static final String AGENT_RUN_ID_ATTRIBUTE = "__agentRunId";
     private static final ObjectMapper RESULT_OBJECT_MAPPER = new ObjectMapper();
-    private static final Pattern DATABASE_ASSET_PHRASE = Pattern.compile("([0-9A-Za-z_-]{1,32}[^\\s,，。；;:：]{0,24}数据库)");
-
     private final ToolRuntimeService toolRuntimeService;
     private final InterpretationPlanValidator validator;
     private final InterpretationPlanOptimizer optimizer;
@@ -663,6 +659,11 @@ public class InterpretationPlanRuntime {
             if (localReview.satisfied() && stepResultReviewer == null) {
                 return execution.withMetadata(metadata, elapsed(startedAt));
             }
+            if (localReview.satisfied() && shouldSkipModelReviewAfterLocalFactCheck(metadata)) {
+                metadata.put("toolResultReviewSkipped", true);
+                metadata.put("toolResultReviewSkipReason", "deterministic discovery fact check accepted non-empty structured results");
+                return execution.withMetadata(metadata, elapsed(startedAt));
+            }
             if (localReview.satisfied()) {
                 execution = execution.withMetadata(metadata, elapsed(startedAt));
             }
@@ -750,6 +751,17 @@ public class InterpretationPlanRuntime {
             elapsed(startedAt),
             metadata
         );
+    }
+
+    private boolean shouldSkipModelReviewAfterLocalFactCheck(Map<String, Object> metadata) {
+        if (metadata == null || metadata.isEmpty()) {
+            return false;
+        }
+        if (!Boolean.TRUE.equals(metadata.get("localFactCheckHasEvidence"))) {
+            return false;
+        }
+        String evidenceType = stringValue(metadata.get("localFactCheckEvidenceType"));
+        return "template_discovery".equals(evidenceType);
     }
 
     private boolean shouldPreservePartialToolResult(StepExecution execution) {
@@ -2240,13 +2252,15 @@ public class InterpretationPlanRuntime {
             filters = input.get("filters");
         }
         if (filters instanceof Map<?, ?> filterMap && !hasAssetConstraint(filterMap)) {
-            String inferred = inferAssetNameFromPlan(request == null ? null : request.plan());
-            if (inferred != null && !inferred.isBlank()) {
+            String searchText = planGoalSearchText(request == null ? null : request.plan());
+            if (searchText != null && !searchText.isBlank() && !hasRetrievalSignal(filterMap)) {
                 @SuppressWarnings("unchecked")
                 Map<String, Object> mutableFilters = filterMap instanceof LinkedHashMap<?, ?>
                     ? (Map<String, Object>) filterMap
                     : new LinkedHashMap<>((Map<String, Object>) filterMap);
-                mutableFilters.putIfAbsent("assetName", inferred);
+                mutableFilters.putIfAbsent("intent", searchText);
+                mutableFilters.putIfAbsent("goal", searchText);
+                mutableFilters.putIfAbsent("queryTerms", List.of(searchText));
                 input.put("filters", mutableFilters);
             }
         }
@@ -2488,13 +2502,27 @@ public class InterpretationPlanRuntime {
         return false;
     }
 
-    private String inferAssetNameFromPlan(InterpretationPlan plan) {
-        String text = planText(plan);
-        if (text == null || text.isBlank()) {
+    private String planGoalSearchText(InterpretationPlan plan) {
+        if (plan == null || plan.intent() == null || plan.intent().goal() == null) {
             return null;
         }
-        Matcher matcher = DATABASE_ASSET_PHRASE.matcher(text.replaceAll("\\s+", ""));
-        return matcher.find() ? matcher.group(1) : null;
+        String goal = plan.intent().goal().trim();
+        return goal.isBlank() ? null : goal;
+    }
+
+    private boolean hasRetrievalSignal(Map<?, ?> filters) {
+        if (filters == null || filters.isEmpty()) {
+            return false;
+        }
+        for (String key : List.of("intent", "goal", "query", "q", "bilingualIntent", "bilingualQuery",
+            "intentZh", "intentEn", "intentAliases", "keywords", "keyword", "queryTerms", "searchTerms",
+            "retrievalSignals")) {
+            Object value = filters.get(key);
+            if (value != null && !String.valueOf(value).isBlank()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private String planText(InterpretationPlan plan) {

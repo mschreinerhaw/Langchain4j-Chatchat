@@ -2,6 +2,8 @@ package com.chatchat.agents.orchestration;
 
 import com.chatchat.common.tool.ToolMetadata;
 
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -76,6 +78,7 @@ class McpParamBindingResolver {
     );
     private static final String FILTERS_SCHEMA_VERSION = "target_filters.v1";
     private static final double TARGET_KIND_CONFIDENCE_THRESHOLD = 0.60;
+    private static final double INTENT_RETRIEVAL_THRESHOLD = 0.75;
 
     Map<String, Object> resolve(String toolName,
                                 ToolMetadata metadata,
@@ -228,6 +231,27 @@ class McpParamBindingResolver {
                 + (templateQuery ? "host, database, http, or business_database_query" : "host, database, or http")
                 + "; use document_search for targetKind=document.");
         }
+        Map<String, Object> filters = filters(values);
+        inferLogicalContext(userQuery).forEach(filters::putIfAbsent);
+        if (targetKind == null) {
+            targetKind = removeTargetKind(filters);
+        }
+        if (templateQuery && !hasText(firstPresent(filters, "intent", "goal", "category"))) {
+            String intent = hasText(userQuery) ? trim(userQuery) : inferIntent(userQuery);
+            if (intent != null) {
+                filters.put("intent", intent);
+            }
+        }
+        if (templateQuery) {
+            enrichTemplateIntentSignals(filters, userQuery);
+        }
+        enrichRetrievalTerms(filters, values, userQuery);
+        if (!filters.isEmpty()) {
+            values.put("filters", filters);
+        } else if (values.containsKey("query")) {
+            values.put("filters", Map.of());
+        }
+        values.putIfAbsent("filtersSchemaVersion", FILTERS_SCHEMA_VERSION);
         Double confidence = confidence(values.get("confidence"));
         if (confidence == null) {
             confidence = candidateConfidence(rawCandidates, targetKind);
@@ -246,23 +270,6 @@ class McpParamBindingResolver {
             return denied(values, (templateQuery ? "template_query" : "asset_query")
                 + " requires trace object for replayable routing.");
         }
-        Map<String, Object> filters = filters(values);
-        inferLogicalContext(userQuery).forEach(filters::putIfAbsent);
-        if (targetKind == null) {
-            targetKind = removeTargetKind(filters);
-        }
-        if (templateQuery && !hasText(firstPresent(filters, "intent", "goal", "category"))) {
-            String intent = hasText(userQuery) ? trim(userQuery) : inferIntent(userQuery);
-            if (intent != null) {
-                filters.put("intent", intent);
-            }
-        }
-        if (!filters.isEmpty()) {
-            values.put("filters", filters);
-        } else if (values.containsKey("query")) {
-            values.put("filters", Map.of());
-        }
-        values.putIfAbsent("filtersSchemaVersion", FILTERS_SCHEMA_VERSION);
         if (!hasText(values.get("assetType"))) {
             String assetType = assetTypeFromTargetKind(targetKind);
             if (assetType != null) {
@@ -339,6 +346,152 @@ class McpParamBindingResolver {
         }
         removeForbidden(filters);
         return filters;
+    }
+
+    private void enrichRetrievalTerms(Map<String, Object> filters, Map<String, Object> values, String userQuery) {
+        if (filters == null) {
+            return;
+        }
+        Object rawCandidates = firstPresent(filters, "intentCandidates", "intent_candidates");
+        if (rawCandidates == null) {
+            rawCandidates = firstPresent(values, "intentCandidates", "intent_candidates");
+        }
+        List<String> selectedIntentTerms = selectedIntentTerms(rawCandidates);
+        List<String> queryTerms = mergeTerms(filters.get("queryTerms"), selectedIntentTerms, userQuery);
+        if (!queryTerms.isEmpty()) {
+            filters.put("queryTerms", queryTerms);
+        }
+        List<String> retrievalSignals = mergeTerms(filters.get("retrievalSignals"), queryTerms);
+        if (!retrievalSignals.isEmpty()) {
+            filters.put("retrievalSignals", retrievalSignals);
+        }
+        if (!selectedIntentTerms.isEmpty() && !filters.containsKey("intentScoring")) {
+            filters.put("intentScoring", Map.of(
+                "strategy", "threshold_intent_ensemble_plus_original_query",
+                "threshold", INTENT_RETRIEVAL_THRESHOLD,
+                "fallback", "top2_when_no_candidate_reaches_threshold",
+                "selectedTerms", selectedIntentTerms
+            ));
+        }
+    }
+
+    private List<String> selectedIntentTerms(Object rawCandidates) {
+        if (!(rawCandidates instanceof List<?> candidates) || candidates.isEmpty()) {
+            return List.of();
+        }
+        List<IntentCandidate> ranked = candidates.stream()
+            .map(this::intentCandidate)
+            .filter(candidate -> !candidate.terms().isEmpty())
+            .sorted(Comparator.comparingDouble(IntentCandidate::score).reversed())
+            .toList();
+        List<IntentCandidate> selected = ranked.stream()
+            .filter(candidate -> candidate.score() >= INTENT_RETRIEVAL_THRESHOLD)
+            .toList();
+        if (selected.isEmpty()) {
+            selected = ranked.stream().limit(2).toList();
+        }
+        List<String> terms = new ArrayList<>();
+        selected.forEach(candidate -> addTerms(terms, candidate.terms()));
+        return terms;
+    }
+
+    private IntentCandidate intentCandidate(Object item) {
+        if (item instanceof Map<?, ?> map) {
+            Map<String, Object> candidate = asMap(item);
+            List<String> terms = new ArrayList<>();
+            for (String key : List.of("intent", "query", "term", "text", "label", "name",
+                "queryTerms", "searchTerms", "retrievalSignals", "queries", "expandedQueries",
+                "expanded_queries", "keywords", "intentAliases", "bilingualIntent")) {
+                addTerms(terms, map.get(key));
+            }
+            Double score = confidence(firstPresent(candidate, "score", "confidence", "matchScore", "match_score"));
+            return new IntentCandidate(List.copyOf(terms), score == null ? 0.0D : score);
+        }
+        List<String> terms = new ArrayList<>();
+        addTerms(terms, item);
+        return new IntentCandidate(List.copyOf(terms), 0.0D);
+    }
+
+    private List<String> mergeTerms(Object existing, Object... additions) {
+        List<String> terms = new ArrayList<>();
+        addTerms(terms, existing);
+        if (additions != null) {
+            for (Object addition : additions) {
+                addTerms(terms, addition);
+            }
+        }
+        return terms;
+    }
+
+    private void addTerms(List<String> terms, Object value) {
+        if (terms == null || value == null) {
+            return;
+        }
+        if (value instanceof List<?> list) {
+            list.forEach(item -> addTerms(terms, item));
+            return;
+        }
+        String text = firstText(value);
+        if (text != null && terms.stream().noneMatch(existing -> existing.equalsIgnoreCase(text))) {
+            terms.add(text);
+        }
+    }
+
+    private void enrichTemplateIntentSignals(Map<String, Object> filters, String userQuery) {
+        if (filters == null) {
+            return;
+        }
+        String text = normalize(String.join(" ",
+            firstText(filters.get("intent")) == null ? "" : firstText(filters.get("intent")),
+            userQuery == null ? "" : userQuery
+        ));
+        if (text == null) {
+            return;
+        }
+        String tableName = firstTableName(text);
+        if (text.contains("metadata") || text.contains("schema") || text.contains("table")
+            || text.contains("元数据") || text.contains("表结构") || text.contains("字段")) {
+            putListIfAbsent(filters, "bilingualIntent", List.of("表元数据", "table metadata", "table schema", tableName));
+            putListIfAbsent(filters, "intentAliases", List.of("表结构", "table metadata", "SHOW CREATE TABLE", "DESCRIBE TABLE"));
+            putListIfAbsent(filters, "keywords", List.of("INFORMATION_SCHEMA", "SHOW COLUMNS", "COLUMNS", tableName, "字段"));
+            filters.putIfAbsent("intentZh", "表元数据");
+            filters.putIfAbsent("intentEn", "table metadata");
+            return;
+        }
+        if (text.contains("innodb")) {
+            putListIfAbsent(filters, "bilingualIntent", List.of("查询InnoDB状态", "SHOW ENGINE INNODB STATUS",
+                "InnoDB engine status", "lock wait", "deadlock"));
+            putListIfAbsent(filters, "intentAliases", List.of("分析InnoDB状态", "SHOW ENGINE INNODB STATUS",
+                "InnoDB status", "deadlock"));
+            putListIfAbsent(filters, "keywords", List.of("InnoDB", "SHOW ENGINE INNODB STATUS", "transaction",
+                "lock wait", "deadlock", "buffer pool"));
+            filters.putIfAbsent("intentEn", "SHOW ENGINE INNODB STATUS");
+        }
+    }
+
+    private void putListIfAbsent(Map<String, Object> filters, String key, List<String> values) {
+        if (filters == null || filters.containsKey(key)) {
+            return;
+        }
+        List<String> compact = values == null ? List.of() : values.stream()
+            .filter(this::hasText)
+            .distinct()
+            .toList();
+        if (!compact.isEmpty()) {
+            filters.put(key, compact);
+        }
+    }
+
+    private String firstTableName(String text) {
+        if (text == null) {
+            return null;
+        }
+        for (String token : text.split("[^a-z0-9_]+")) {
+            if (token.contains("_") && token.length() > 2) {
+                return token;
+            }
+        }
+        return "table";
     }
 
     @SuppressWarnings("unchecked")
@@ -828,5 +981,8 @@ class McpParamBindingResolver {
 
     private boolean hasText(Object value) {
         return value != null && !String.valueOf(value).trim().isBlank();
+    }
+
+    private record IntentCandidate(List<String> terms, double score) {
     }
 }

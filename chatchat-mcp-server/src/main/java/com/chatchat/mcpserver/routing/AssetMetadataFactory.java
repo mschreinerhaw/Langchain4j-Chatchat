@@ -180,6 +180,10 @@ public class AssetMetadataFactory {
         ));
         metadata.put("routingHints", mapOf(
             "labels", labels,
+            "executionContext", mapOf(
+                "assetName", name,
+                "env", environment
+            ),
             "contextKeys", CONTEXT_KEYS,
             "selectionScoreHints", selectionScoreHints(environment, labels)
         ));

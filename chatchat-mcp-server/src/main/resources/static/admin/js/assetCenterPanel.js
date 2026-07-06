@@ -29,9 +29,11 @@ import {
     hideHttpAssetModal,
     hideSqlAssetModal,
     hideSshAssetModal,
+    hideAssetIndexRebuildModal,
     notify,
     showCommandTemplateModal,
     showHttpAssetModal,
+    showAssetIndexRebuildModal,
     showResult,
     showSqlAssetModal,
     showSshAssetModal
@@ -99,7 +101,8 @@ export function bindAssetCenterPanel(options = {}) {
     bindOptional('testHttpAssetBtn', 'click', handleHttpAssetTest);
     document.getElementById('refreshOpsAssetToolsBtn').addEventListener('click', handleOpsAssetRefresh);
     document.getElementById('refreshSqlAssetToolsBtn').addEventListener('click', handleSqlAssetRefresh);
-    bindOptional('rebuildAssetIndexBtn', 'click', handleAssetIndexRebuild);
+    bindOptional('rebuildAssetIndexBtn', 'click', openAssetIndexRebuildModal);
+    bindOptional('assetIndexRebuildForm', 'submit', handleAssetIndexRebuild);
     bindOptional('rebuildTemplateIndexBtn', 'click', handleTemplateIndexRebuild);
     bindOptional('indexSearchRunBtn', 'click', handleIndexSearchRun);
     bindOptional('indexSearchType', 'change', renderIndexSearchMode);
@@ -1388,13 +1391,42 @@ async function handleSqlAssetRefresh() {
     }
 }
 
-async function handleAssetIndexRebuild() {
+function openAssetIndexRebuildModal() {
+    const typeNode = document.getElementById('assetIndexRebuildType');
+    if (typeNode) {
+        typeNode.value = '';
+    }
+    showAssetIndexRebuildModal();
+}
+
+async function handleAssetIndexRebuild(event) {
+    event?.preventDefault();
+    const submitBtn = document.getElementById('assetIndexRebuildSubmitBtn');
+    const assetType = value('assetIndexRebuildType');
     try {
-        const result = await rebuildAssetIndex();
-        notify('Asset index rebuilt', `Indexed ${result.indexed ?? 0} assets.`);
+        if (submitBtn) {
+            submitBtn.disabled = true;
+        }
+        const result = await rebuildAssetIndex(assetType);
+        hideAssetIndexRebuildModal();
+        notify('Asset index rebuilt', `${assetIndexRebuildLabel(assetType)} indexed ${result.indexed ?? 0} assets.`);
     } catch (error) {
         onError(error);
+    } finally {
+        if (submitBtn) {
+            submitBtn.disabled = false;
+        }
     }
+}
+
+function assetIndexRebuildLabel(assetType) {
+    const labels = {
+        ssh_host: '服务器资产索引',
+        sql_datasource: '数据库资产索引',
+        http_endpoint: 'HTTP 资产索引',
+        api_service: 'API 服务资产索引'
+    };
+    return labels[assetType] || '全部资产索引';
 }
 
 async function handleTemplateIndexRebuild() {
@@ -1408,6 +1440,9 @@ async function handleTemplateIndexRebuild() {
 
 function renderIndexSearchMode() {
     const type = value('indexSearchType') || 'sql_metadata';
+    const assetIndexTypes = ['assets', 'ssh_host_assets', 'sql_datasource_assets', 'http_endpoint_assets', 'api_service_assets'];
+    const typedAssetIndexTypes = assetIndexTypes.filter(item => item !== 'assets');
+    const assetMode = assetIndexTypes.includes(type);
     const templateLike = ['templates', 'database_query', 'api_service'].includes(type);
     const documentMode = type === 'document_search';
     const sqlOnlyIds = ['indexSearchTableName', 'indexSearchDatabase', 'indexSearchAssetName', 'indexSearchIncludeColumns'];
@@ -1418,12 +1453,12 @@ function renderIndexSearchMode() {
         document.getElementById(id)?.closest('[class*="col-"]')?.classList.toggle('d-none', type !== 'sql_metadata');
     });
     assetOnlyIds.forEach(id => {
-        document.getElementById(id)?.closest('[class*="col-"]')?.classList.toggle('d-none', templateLike || documentMode);
+        document.getElementById(id)?.closest('[class*="col-"]')?.classList.toggle('d-none', !assetMode);
     });
     documentOnlyIds.forEach(id => {
         document.getElementById(id)?.closest('[class*="col-"]')?.classList.toggle('d-none', !documentMode);
     });
-    assetTypeNode?.classList.toggle('d-none', type === 'sql_metadata' || type === 'database_query' || type === 'api_service' || documentMode);
+    assetTypeNode?.classList.toggle('d-none', typedAssetIndexTypes.includes(type) || type === 'sql_metadata' || templateLike || documentMode);
 }
 
 async function handleIndexSearchRun() {
@@ -1440,12 +1475,22 @@ async function handleIndexSearchRun() {
 
 function readIndexSearchRequest() {
     const type = value('indexSearchType') || 'sql_metadata';
+    const assetTypeByIndexType = {
+        ssh_host_assets: 'ssh_host',
+        sql_datasource_assets: 'sql_datasource',
+        http_endpoint_assets: 'http_endpoint',
+        api_service_assets: 'api_service'
+    };
     const request = {
         indexType: type,
         query: value('indexSearchQuery'),
         limit: numberValue('indexSearchLimit', 10)
     };
-    putIfPresent(request, 'assetType', value('indexSearchAssetType'));
+    if (assetTypeByIndexType[type]) {
+        request.assetType = assetTypeByIndexType[type];
+    } else {
+        putIfPresent(request, 'assetType', value('indexSearchAssetType'));
+    }
     putIfPresent(request, 'env', value('indexSearchEnv'));
     putIfPresent(request, 'databaseType', value('indexSearchDatabaseType'));
     if (type === 'sql_metadata') {
@@ -1454,7 +1499,7 @@ function readIndexSearchRequest() {
         putIfPresent(request, 'schema', value('indexSearchDatabase'));
         putIfPresent(request, 'assetName', value('indexSearchAssetName'));
         request.includeColumns = value('indexSearchIncludeColumns') !== 'false';
-    } else if (type === 'assets') {
+    } else if (type === 'assets' || assetTypeByIndexType[type]) {
         request.labels = splitCsv(value('indexSearchLabels'));
     } else if (type === 'templates') {
         request.intentText = request.query;

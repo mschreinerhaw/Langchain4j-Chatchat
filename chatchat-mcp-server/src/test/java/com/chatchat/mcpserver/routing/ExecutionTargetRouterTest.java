@@ -256,6 +256,29 @@ class ExecutionTargetRouterTest {
     }
 
     @Test
+    void routesLinuxCommandByUniqueAssetNameBeforeOptionalServiceTokens() {
+        SshHostConfigService hostService = mock(SshHostConfigService.class);
+        SqlDatasourceConfigService datasourceService = mock(SqlDatasourceConfigService.class);
+        ExecutionTargetService targetService = mock(ExecutionTargetService.class);
+        ExecutionTargetRouter router = router(hostService, datasourceService, targetService);
+        when(targetService.listEnabledByAssetType(ExecutionTargetService.ASSET_TYPE_SSH_HOST)).thenReturn(List.of());
+        SshHostConfig scheduler = host("host-1", "CDH调度器服务器", "ssh_dolphinscheduler_service", "DEV", "ssh,linux_command_execute");
+        SshHostConfig docker = host("host-2", "容器测试服务器", "ssh_container_test_service", "DEV", "docker,ssh,linux_command_execute");
+        when(hostService.listEnabled()).thenReturn(List.of(scheduler, docker));
+
+        Map<String, Object> routed = router.routeLinuxCommand(Map.of(
+            "template", "CHECK_PROCESS",
+            "executionContext", Map.of(
+                "assetName", "CDH调度器服务器",
+                "env", "DEV",
+                "service", "mysql"
+            )
+        ));
+
+        assertThat(routed).containsEntry("hostId", "host-1");
+    }
+
+    @Test
     void routesSqlQueryByAssetRegistrationProtocolLabels() {
         SshHostConfigService hostService = mock(SshHostConfigService.class);
         SqlDatasourceConfigService datasourceService = mock(SqlDatasourceConfigService.class);

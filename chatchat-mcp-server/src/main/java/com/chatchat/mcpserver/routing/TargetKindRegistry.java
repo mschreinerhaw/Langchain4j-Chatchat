@@ -465,6 +465,7 @@ public class TargetKindRegistry {
             "target", "targettype", "target_type", "service", "labels", "intent", "goal", "category",
             "bilingualintent", "bilingualquery", "bilingualsearch", "intentzh", "intenten",
             "intentaliases", "keywords", "keyword", "queryterms", "searchterms", "retrievalsignals",
+            "intentcandidates", "intent_candidates", "queries", "expandedqueries", "expanded_queries",
             "template", "templateid", "template_id", "view", "language", "querylanguage", "locale"
         ));
         add(definitions, "database", "sql_datasource", Set.of("asset_query", "template_query"), Set.of(
@@ -474,6 +475,7 @@ public class TargetKindRegistry {
             "intent", "goal", "category", "tablename", "table_name", "template", "templateid",
             "template_id", "bilingualintent", "bilingualquery", "bilingualsearch", "intentzh", "intenten",
             "intentaliases", "keywords", "keyword", "queryterms", "searchterms", "retrievalsignals",
+            "intentcandidates", "intent_candidates", "queries", "expandedqueries", "expanded_queries",
             "view", "language", "querylanguage", "locale"
         ));
         add(definitions, "http", "http_endpoint", Set.of("asset_query", "template_query"), Set.of(
@@ -481,7 +483,8 @@ public class TargetKindRegistry {
             "service", "target", "labels", "intent", "goal", "category", "template",
             "templateid", "template_id", "bilingualintent", "bilingualquery", "bilingualsearch",
             "intentzh", "intenten", "intentaliases", "keywords", "keyword", "queryterms",
-            "searchterms", "retrievalsignals", "view", "language", "querylanguage", "locale"
+            "searchterms", "retrievalsignals", "intentcandidates", "intent_candidates",
+            "queries", "expandedqueries", "expanded_queries", "view", "language", "querylanguage", "locale"
         ));
         add(definitions, "business_database_query", "database_query", Set.of("template_query"), Set.of(
             "assetname", "asset_name", "name", "env", "environment", "intent", "goal", "category",
@@ -489,12 +492,15 @@ public class TargetKindRegistry {
             "db_type", "dialect", "businessgroup", "business_group", "group", "groupname",
             "group_name", "groupdescription", "group_description", "labels", "bilingualintent", "bilingualquery", "bilingualsearch",
             "intentzh", "intenten", "intentaliases", "keywords", "keyword", "queryterms",
-            "searchterms", "retrievalsignals", "view", "language", "querylanguage", "locale"
+            "searchterms", "retrievalsignals", "intentcandidates", "intent_candidates",
+            "queries", "expandedqueries", "expanded_queries", "view", "language", "querylanguage", "locale"
         ));
         add(definitions, "document", "document_search", Set.of("document_search"), Set.of(
             "assetname", "asset_name", "name", "intent", "goal", "category", "labels",
             "bilingualintent", "bilingualquery", "intentzh", "intenten", "intentaliases",
-            "keywords", "keyword", "queryterms", "searchterms", "retrievalsignals", "view", "locale"
+            "keywords", "keyword", "queryterms", "searchterms", "retrievalsignals",
+            "intentcandidates", "intent_candidates", "queries", "expandedqueries", "expanded_queries",
+            "view", "locale"
         ));
         return Map.copyOf(definitions);
     }

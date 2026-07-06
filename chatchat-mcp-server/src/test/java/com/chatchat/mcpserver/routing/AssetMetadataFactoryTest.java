@@ -29,6 +29,7 @@ class AssetMetadataFactoryTest {
 
         Map<String, Object> metadata = factory.sshAsset(host);
         Map<?, ?> routingHints = (Map<?, ?>) metadata.get("routingHints");
+        Map<?, ?> executionContext = (Map<?, ?>) routingHints.get("executionContext");
         Map<?, ?> asset = (Map<?, ?>) metadata.get("asset");
         Map<?, ?> scoreHints = (Map<?, ?>) routingHints.get("selectionScoreHints");
         List<String> labels = ((List<?>) routingHints.get("labels")).stream()
@@ -40,6 +41,8 @@ class AssetMetadataFactoryTest {
 
         assertThat(metadata).containsEntry("schemaVersion", AssetMetadataFactory.SCHEMA_VERSION);
         assertThat(asset.get("type")).isEqualTo("ssh_host");
+        assertThat(executionContext.get("assetName")).isEqualTo("datanode-a");
+        assertThat(executionContext.get("env")).isEqualTo("PROD");
         assertThat(labels).contains("cluster:hadoop-prod", "prod", "datanode");
         assertThat(labels).doesNotContain("hadoop", "docker");
         assertThat(scoreHints.get("environment")).isEqualTo("PROD");

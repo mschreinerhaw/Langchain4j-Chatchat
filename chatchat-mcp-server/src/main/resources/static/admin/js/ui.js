@@ -5,6 +5,7 @@ let mcpServiceModal;
 let sshAssetModal;
 let sqlAssetModal;
 let httpAssetModal;
+let assetIndexRebuildModal;
 let commandTemplateModal;
 let databaseQueryModal;
 let notificationChannelModal;
@@ -20,6 +21,8 @@ export function initUi() {
     sqlAssetModal = new bootstrap.Modal(document.getElementById('sqlAssetModal'));
     const httpAssetModalElement = document.getElementById('httpAssetModal');
     httpAssetModal = httpAssetModalElement ? new bootstrap.Modal(httpAssetModalElement) : null;
+    const assetIndexRebuildModalElement = document.getElementById('assetIndexRebuildModal');
+    assetIndexRebuildModal = assetIndexRebuildModalElement ? new bootstrap.Modal(assetIndexRebuildModalElement) : null;
     const commandTemplateModalElement = document.getElementById('commandTemplateModal');
     commandTemplateModal = commandTemplateModalElement ? new bootstrap.Modal(commandTemplateModalElement) : null;
     databaseQueryModal = new bootstrap.Modal(document.getElementById('databaseQueryModal'));
@@ -100,6 +103,14 @@ export function showHttpAssetModal() {
 
 export function hideHttpAssetModal() {
     httpAssetModal?.hide();
+}
+
+export function showAssetIndexRebuildModal() {
+    assetIndexRebuildModal?.show();
+}
+
+export function hideAssetIndexRebuildModal() {
+    assetIndexRebuildModal?.hide();
 }
 
 export function showCommandTemplateModal() {

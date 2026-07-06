@@ -200,6 +200,12 @@ public class ExecutionTargetRouter {
         }
         candidates = filterByEnvironment(candidates, context, SshHostConfig::getEnvironment);
         candidates = filterByAssetName(candidates, context, this::sshLabels);
+        if (hasAssetNameContext(context) && candidates.size() == 1) {
+            log.info("MCP execution routing selected SSH host by unique assetName/env before optional logical labels: context={}, hostId={}, assetName={}, env={}",
+                compactContext(context), candidates.get(0).getId(), firstText(candidates.get(0).getName(), candidates.get(0).getToolName()),
+                candidates.get(0).getEnvironment());
+            return candidates.get(0);
+        }
         candidates = filterBySelector(candidates, context, this::sshLabels);
         candidates = filterByLogicalTokens(candidates, context, this::sshLabels,
             "cluster", "namespace", "target", "targetType", "target_type", "service");

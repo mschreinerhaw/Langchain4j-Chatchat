@@ -16,7 +16,7 @@ import java.util.Map;
 @AllArgsConstructor
 public class AgentRunRequest {
 
-    public static final long DEFAULT_TIMEOUT_MS = 300_000L;
+    public static final long DEFAULT_TIMEOUT_MS = 900_000L;
 
     private String runId;
     private String query;

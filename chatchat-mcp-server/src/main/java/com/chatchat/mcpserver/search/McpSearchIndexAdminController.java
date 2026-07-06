@@ -9,6 +9,7 @@ import com.chatchat.mcpserver.sql.SqlDatasourceConfigService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -37,6 +38,18 @@ public class McpSearchIndexAdminController {
         return ApiResponse.success(assetLuceneIndexService.refreshAll(), "MCP asset Lucene index rebuilt");
     }
 
+    @PostMapping("/assets/{assetType}/rebuild")
+    public ApiResponse<Map<String, Object>> rebuildAssetIndex(@PathVariable("assetType") String assetType) {
+        String normalizedAssetType = assetTypeForAssetIndex(assetType);
+        if (normalizedAssetType == null) {
+            return ApiResponse.badRequest("Unsupported MCP asset index type: " + assetType);
+        }
+        return ApiResponse.success(
+            assetLuceneIndexService.refresh(normalizedAssetType),
+            "MCP " + normalizedAssetType + " Lucene index rebuilt"
+        );
+    }
+
     @PostMapping("/templates/rebuild")
     public ApiResponse<Map<String, Object>> rebuildTemplateIndex() {
         templateLuceneIndexService.refreshTemplateIndex();
@@ -61,7 +74,22 @@ public class McpSearchIndexAdminController {
         String indexType = text(input.get("indexType"), "sql_metadata");
         int limit = boundedInt(input.get("limit"), 10, 1, 50);
         Map<String, Object> result;
-        if ("templates".equalsIgnoreCase(indexType) || "template".equalsIgnoreCase(indexType)) {
+        String assetIndexAssetType = assetTypeForAssetIndex(indexType);
+        if (assetIndexAssetType != null) {
+            Map<String, Object> effectiveInput = new LinkedHashMap<>(input);
+            effectiveInput.put("assetType", assetIndexAssetType);
+            List<LuceneMcpSearchService.SearchHit> hits = luceneSearchService.searchAssets(
+                new LuceneMcpSearchService.AssetSearchRequest(
+                    assetIndexAssetType,
+                    text(firstPresent(input, "query", "q"), null),
+                    text(input.get("env"), null),
+                    text(firstPresent(input, "dbType", "databaseType"), null),
+                    stringList(input.get("labels")),
+                    limit
+                )
+            );
+            result = assetSearchResult(assetIndexName(assetIndexAssetType), effectiveInput, hits, assetIndexAssetType);
+        } else if ("templates".equalsIgnoreCase(indexType) || "template".equalsIgnoreCase(indexType)) {
             List<LuceneMcpSearchService.SearchHit> hits = luceneSearchService.searchTemplates(
                 new LuceneMcpSearchService.TemplateSearchRequest(
                     text(input.get("assetType"), null),
@@ -96,9 +124,10 @@ public class McpSearchIndexAdminController {
             );
             result = searchResult("api_service", input, hits);
         } else if ("assets".equalsIgnoreCase(indexType) || "asset".equalsIgnoreCase(indexType)) {
+            String requestedAssetType = text(input.get("assetType"), null);
             List<LuceneMcpSearchService.SearchHit> hits = luceneSearchService.searchAssets(
                 new LuceneMcpSearchService.AssetSearchRequest(
-                    text(input.get("assetType"), null),
+                    requestedAssetType,
                     text(firstPresent(input, "query", "q"), null),
                     text(input.get("env"), null),
                     text(firstPresent(input, "dbType", "databaseType"), null),
@@ -106,7 +135,7 @@ public class McpSearchIndexAdminController {
                     limit
                 )
             );
-            result = searchResult("assets", input, hits);
+            result = assetSearchResult("assets", input, hits, requestedAssetType);
         } else if ("document_search".equalsIgnoreCase(indexType)
             || "document-search".equalsIgnoreCase(indexType)
             || "documents".equalsIgnoreCase(indexType)) {
@@ -125,6 +154,43 @@ public class McpSearchIndexAdminController {
             result.put("request", arguments);
         }
         return ApiResponse.success(result, "MCP search index query completed");
+    }
+
+    private String assetTypeForAssetIndex(String indexType) {
+        if (indexType == null || indexType.isBlank()) {
+            return null;
+        }
+        String normalized = indexType.trim().toLowerCase(java.util.Locale.ROOT)
+            .replace('-', '_')
+            .replace(':', '_');
+        return switch (normalized) {
+            case "ssh_host", "ssh_host_assets", "ssh_assets", "server_assets", "service_assets", "asset_ssh_host", "assets_ssh_host" -> "ssh_host";
+            case "sql_datasource", "sql_datasource_assets", "database_assets", "db_assets", "asset_sql_datasource", "assets_sql_datasource" -> "sql_datasource";
+            case "http_endpoint", "http_endpoint_assets", "http_assets", "asset_http_endpoint", "assets_http_endpoint" -> "http_endpoint";
+            case "api_service", "api_service_assets", "api_assets", "asset_api_service", "assets_api_service" -> "api_service";
+            default -> null;
+        };
+    }
+
+    private String assetIndexName(String assetType) {
+        return switch (assetType) {
+            case "ssh_host" -> "ssh_host_assets";
+            case "sql_datasource" -> "sql_datasource_assets";
+            case "http_endpoint" -> "http_endpoint_assets";
+            case "api_service" -> "api_service_assets";
+            default -> "assets";
+        };
+    }
+
+    private Map<String, Object> assetSearchResult(String indexType,
+                                                  Map<String, Object> request,
+                                                  List<LuceneMcpSearchService.SearchHit> hits,
+                                                  String assetType) {
+        Map<String, Object> value = searchResult(indexType, request, hits);
+        value.put("assetType", assetType == null ? "all" : assetType);
+        value.put("logicalIndex", assetType == null ? "asset:*" : "asset:" + assetType);
+        value.put("physicalIndex", assetType == null ? "assets-*" : luceneSearchService.assetIndexName(assetType));
+        return value;
     }
 
     private Map<String, Object> searchResult(String indexType,

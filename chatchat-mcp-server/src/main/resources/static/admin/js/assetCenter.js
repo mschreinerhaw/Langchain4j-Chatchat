@@ -101,8 +101,12 @@ export function refreshSqlTools() {
     return apiFetch(`${SQL_URL}/refresh-tools`, { method: 'POST' });
 }
 
-export function rebuildAssetIndex() {
-    return apiFetch(`${SEARCH_INDEX_URL}/assets/rebuild`, { method: 'POST' });
+export function rebuildAssetIndex(assetType = '') {
+    const normalized = String(assetType || '').trim();
+    const path = normalized
+        ? `/assets/${encodeURIComponent(normalized)}/rebuild`
+        : '/assets/rebuild';
+    return apiFetch(`${SEARCH_INDEX_URL}${path}`, { method: 'POST' });
 }
 
 export function rebuildTemplateIndex() {

@@ -93,6 +93,77 @@ class McpParamBindingResolverTest {
             });
     }
 
+    @Test
+    @SuppressWarnings("unchecked")
+    void enrichesAssetDiscoveryRetrievalWithTopTwoIntentCandidatesAndOriginalQuery() {
+        Map<String, Object> result = resolver.resolve(
+            "mcp_chatchat_mcp_server_ssh_asset_query",
+            null,
+            Map.of(
+                "candidates", List.of(Map.of("targetKind", "host", "confidence", 0.9)),
+                "finalDecision", "host",
+                "confidence", 0.9,
+                "filters", Map.of(
+                    "intent", "分析MySQL服务器管理进程信息",
+                    "intentCandidates", List.of(
+                        Map.of("intent", "Linux service status", "score", 0.61),
+                        Map.of("intent", "MySQL服务器管理进程", "score", 0.92),
+                        Map.of("intent", "mysqld process status", "score", 0.87)
+                    )
+                ),
+                "trace", Map.of("plannerVersion", "v1.1")
+            ),
+            "分析MySQL服务器管理进程信息"
+        );
+
+        Map<?, ?> filters = (Map<?, ?>) result.get("filters");
+        assertThat(strings(filters.get("queryTerms")))
+            .containsExactly("MySQL服务器管理进程", "mysqld process status", "分析MySQL服务器管理进程信息");
+        assertThat(strings(filters.get("retrievalSignals")))
+            .containsExactly("MySQL服务器管理进程", "mysqld process status", "分析MySQL服务器管理进程信息");
+        Map<String, Object> intentScoring = (Map<String, Object>) filters.get("intentScoring");
+        assertThat(intentScoring)
+            .containsEntry("strategy", "threshold_intent_ensemble_plus_original_query")
+            .containsEntry("threshold", 0.75);
+        assertThat(filters.containsKey("assetName")).isFalse();
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void keepsAllIntentCandidatesAboveThresholdAndIncludesExpandedQueries() {
+        Map<String, Object> result = resolver.resolve(
+            "mcp_chatchat_mcp_server_ssh_asset_query",
+            null,
+            Map.of(
+                "candidates", List.of(Map.of("targetKind", "host", "confidence", 0.91)),
+                "finalDecision", "host",
+                "confidence", 0.91,
+                "filters", Map.of(
+                    "intent", "kafka消费慢是不是rocksdb写入导致的",
+                    "intentCandidates", List.of(
+                        Map.of("intent", "Kafka", "score", 0.96, "queries", List.of("consumer lag", "offset commit")),
+                        Map.of("intent", "RocksDB", "score", 0.88, "expandedQueries", List.of("write stall", "compaction")),
+                        Map.of("intent", "Flink", "score", 0.80, "keywords", List.of("checkpoint", "state backend")),
+                        Map.of("intent", "Linux", "score", 0.11, "queries", List.of("iowait"))
+                    )
+                ),
+                "trace", Map.of("plannerVersion", "v1.1")
+            ),
+            "kafka消费慢是不是rocksdb写入导致的"
+        );
+
+        Map<?, ?> filters = (Map<?, ?>) result.get("filters");
+        assertThat(strings(filters.get("queryTerms")))
+            .contains("Kafka", "consumer lag", "offset commit")
+            .contains("RocksDB", "write stall", "compaction")
+            .contains("Flink", "checkpoint", "state backend")
+            .contains("kafka消费慢是不是rocksdb写入导致的")
+            .doesNotContain("Linux", "iowait");
+        Map<String, Object> intentScoring = (Map<String, Object>) filters.get("intentScoring");
+        assertThat(intentScoring)
+            .containsEntry("fallback", "top2_when_no_candidate_reaches_threshold");
+    }
+
     private List<String> strings(Object value) {
         if (value instanceof List<?> list) {
             return list.stream().map(String::valueOf).toList();

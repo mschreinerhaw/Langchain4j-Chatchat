@@ -47,48 +47,11 @@ public class McpAssetLuceneIndexService {
             log.info("MCP Lucene asset index refresh skipped because Lucene is disabled");
             return Map.of("enabled", false, "indexed", 0);
         }
-        List<LuceneMcpSearchService.AssetDoc> sshDocs = new ArrayList<>();
-        List<LuceneMcpSearchService.AssetDoc> sqlDocs = new ArrayList<>();
-        List<LuceneMcpSearchService.AssetDoc> httpDocs = new ArrayList<>();
-        List<LuceneMcpSearchService.AssetDoc> apiServiceDocs = new ArrayList<>();
-        safe(hostConfigService.listEnabled()).stream()
-            .map(assetMetadataFactory::sshAsset)
-            .map(this::assetDoc)
-            .forEach(sshDocs::add);
         List<SqlDatasourceConfig> datasources = safe(datasourceConfigService.listEnabled());
-        datasources.stream()
-            .map(assetMetadataFactory::sqlDatasource)
-            .map(this::assetDoc)
-            .forEach(sqlDocs::add);
-        datasources.stream()
-            .flatMap(datasource -> tableAssetDocs(datasource).stream())
-            .forEach(sqlDocs::add);
-        safe(httpEndpointConfigService.listEnabled()).stream()
-            .map(assetMetadataFactory::httpEndpoint)
-            .map(this::assetDoc)
-            .forEach(httpDocs::add);
-        safe(apiServiceConfigService.listEnabled()).stream()
-            .map(config -> new LuceneMcpSearchService.AssetDoc(
-                config.getId(),
-                "api_service",
-                config.getToolName(),
-                firstText(config.getTitle(), config.getToolName()),
-                config.getToolName(),
-                null,
-                null,
-                apiServiceLabels(config.getToolName(), config.getTitle(), config.getDescription(),
-                    config.getBusinessGroup(), config.getBusinessGroupName(), config.getBusinessGroupDescription(), config.getMethod()),
-                "api_service_asset_registry",
-                null,
-                null,
-                null,
-                null,
-                joinPath(config.getDescription(), config.getBusinessGroup(), config.getBusinessGroupName(),
-                    config.getBusinessGroupDescription(), config.getMethod()),
-                null,
-                null
-            ))
-            .forEach(apiServiceDocs::add);
+        List<LuceneMcpSearchService.AssetDoc> sshDocs = sshAssetDocs();
+        List<LuceneMcpSearchService.AssetDoc> sqlDocs = sqlAssetDocs(datasources);
+        List<LuceneMcpSearchService.AssetDoc> httpDocs = httpEndpointAssetDocs();
+        List<LuceneMcpSearchService.AssetDoc> apiServiceDocs = apiServiceAssetDocs();
         luceneSearchService.indexAssets("ssh_host", sshDocs);
         luceneSearchService.indexAssets("sql_datasource", sqlDocs);
         luceneSearchService.indexAssets("http_endpoint", httpDocs);
@@ -114,6 +77,130 @@ public class McpAssetLuceneIndexService {
             indexed, summary.get("sshHostCount"), summary.get("apiServiceCount"), summary.get("sqlDatasourceCount"),
             summary.get("sqlTableCount"), summary.get("httpEndpointCount"));
         return summary;
+    }
+
+    public synchronized Map<String, Object> refresh(String assetType) {
+        if (luceneSearchService == null || !luceneSearchService.enabled()) {
+            log.info("MCP Lucene asset index refresh skipped assetType={} because Lucene is disabled", assetType);
+            return Map.of("enabled", false, "indexed", 0);
+        }
+        String normalizedAssetType = normalizeAssetType(assetType);
+        return switch (normalizedAssetType) {
+            case "ssh_host" -> {
+                List<LuceneMcpSearchService.AssetDoc> docs = sshAssetDocs();
+                luceneSearchService.indexAssets("ssh_host", docs);
+                yield singleIndexSummary("service", "ssh_host", docs.size());
+            }
+            case "sql_datasource" -> {
+                List<SqlDatasourceConfig> datasources = safe(datasourceConfigService.listEnabled());
+                List<LuceneMcpSearchService.AssetDoc> docs = sqlAssetDocs(datasources);
+                luceneSearchService.indexAssets("sql_datasource", docs);
+                long tableDocCount = docs.stream().filter(doc -> "metadata_table".equals(doc.source())).count();
+                Map<String, Object> summary = new LinkedHashMap<>(singleIndexSummary("database", "sql_datasource", docs.size()));
+                summary.put("sqlDatasourceCount", datasources.size());
+                summary.put("sqlTableCount", tableDocCount);
+                yield summary;
+            }
+            case "http_endpoint" -> {
+                List<LuceneMcpSearchService.AssetDoc> docs = httpEndpointAssetDocs();
+                luceneSearchService.indexAssets("http_endpoint", docs);
+                yield singleIndexSummary("http", "http_endpoint", docs.size());
+            }
+            case "api_service" -> {
+                List<LuceneMcpSearchService.AssetDoc> docs = apiServiceAssetDocs();
+                luceneSearchService.indexAssets("api_service", docs);
+                yield singleIndexSummary("apiService", "api_service", docs.size());
+            }
+            default -> throw new IllegalArgumentException("Unsupported asset type: " + assetType);
+        };
+    }
+
+    private Map<String, Object> singleIndexSummary(String key, String assetType, int indexed) {
+        Map<String, Object> index = Map.of(
+            "assetType", assetType,
+            "physicalIndex", luceneSearchService.assetIndexName(assetType),
+            "indexed", indexed
+        );
+        return Map.of(
+            "enabled", true,
+            "indexed", indexed,
+            "assetType", assetType,
+            "physicalIndex", luceneSearchService.assetIndexName(assetType),
+            "indexes", Map.of(key, index)
+        );
+    }
+
+    private List<LuceneMcpSearchService.AssetDoc> sshAssetDocs() {
+        List<LuceneMcpSearchService.AssetDoc> docs = new ArrayList<>();
+        safe(hostConfigService.listEnabled()).stream()
+            .map(assetMetadataFactory::sshAsset)
+            .map(this::assetDoc)
+            .forEach(docs::add);
+        return docs;
+    }
+
+    private List<LuceneMcpSearchService.AssetDoc> sqlAssetDocs(List<SqlDatasourceConfig> datasources) {
+        List<LuceneMcpSearchService.AssetDoc> docs = new ArrayList<>();
+        safe(datasources).stream()
+            .map(assetMetadataFactory::sqlDatasource)
+            .map(this::assetDoc)
+            .forEach(docs::add);
+        safe(datasources).stream()
+            .flatMap(datasource -> tableAssetDocs(datasource).stream())
+            .forEach(docs::add);
+        return docs;
+    }
+
+    private List<LuceneMcpSearchService.AssetDoc> httpEndpointAssetDocs() {
+        List<LuceneMcpSearchService.AssetDoc> docs = new ArrayList<>();
+        safe(httpEndpointConfigService.listEnabled()).stream()
+            .map(assetMetadataFactory::httpEndpoint)
+            .map(this::assetDoc)
+            .forEach(docs::add);
+        return docs;
+    }
+
+    private List<LuceneMcpSearchService.AssetDoc> apiServiceAssetDocs() {
+        List<LuceneMcpSearchService.AssetDoc> docs = new ArrayList<>();
+        safe(apiServiceConfigService.listEnabled()).stream()
+            .map(config -> new LuceneMcpSearchService.AssetDoc(
+                config.getId(),
+                "api_service",
+                config.getToolName(),
+                firstText(config.getTitle(), config.getToolName()),
+                config.getToolName(),
+                null,
+                null,
+                apiServiceLabels(config.getToolName(), config.getTitle(), config.getDescription(),
+                    config.getBusinessGroup(), config.getBusinessGroupName(), config.getBusinessGroupDescription(), config.getMethod()),
+                "api_service_asset_registry",
+                null,
+                null,
+                null,
+                null,
+                joinPath(config.getDescription(), config.getBusinessGroup(), config.getBusinessGroupName(),
+                    config.getBusinessGroupDescription(), config.getMethod()),
+                null,
+                null
+            ))
+            .forEach(docs::add);
+        return docs;
+    }
+
+    private String normalizeAssetType(String assetType) {
+        if (assetType == null || assetType.isBlank()) {
+            return null;
+        }
+        String normalized = assetType.trim().toLowerCase(Locale.ROOT)
+            .replace('-', '_')
+            .replace(':', '_');
+        return switch (normalized) {
+            case "ssh_host", "ssh_host_assets", "ssh_assets", "server_assets", "service_assets", "asset_ssh_host", "assets_ssh_host" -> "ssh_host";
+            case "sql_datasource", "sql_datasource_assets", "database_assets", "db_assets", "asset_sql_datasource", "assets_sql_datasource" -> "sql_datasource";
+            case "http_endpoint", "http_endpoint_assets", "http_assets", "asset_http_endpoint", "assets_http_endpoint" -> "http_endpoint";
+            case "api_service", "api_service_assets", "api_assets", "asset_api_service", "assets_api_service" -> "api_service";
+            default -> null;
+        };
     }
 
     @SuppressWarnings("unchecked")

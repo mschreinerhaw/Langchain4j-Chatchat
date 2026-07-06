@@ -86,6 +86,40 @@ class AssetDiscoveryServiceTest {
     }
 
     @Test
+    void usesRetrievalIntentToSelectSshAssetInsteadOfBroadFirstCandidate() {
+        SshHostConfigService hostService = mock(SshHostConfigService.class);
+        SqlDatasourceConfigService datasourceService = mock(SqlDatasourceConfigService.class);
+        HttpEndpointConfigService httpService = mock(HttpEndpointConfigService.class);
+        AssetDiscoveryService service = service(hostService, datasourceService, httpService);
+        SshHostConfig scheduler = sshHost("host-1", "CDH\u8c03\u5ea6\u5668\u670d\u52a1\u5668", "DEV", null);
+        SshHostConfig mysql = sshHost("host-2", "MySQL\u670d\u52a1\u5668", "DEV", "[\"mysql\"]");
+        when(hostService.listEnabled()).thenReturn(List.of(scheduler, mysql));
+        when(datasourceService.listEnabled()).thenReturn(List.of());
+        when(httpService.listEnabled()).thenReturn(List.of());
+
+        Map<String, Object> result = service.query(Map.of(
+            "targetKind", "host",
+            "confidence", 0.9,
+            "filters", Map.of("intent", "\u5206\u6790 MySQL\u670d\u52a1\u5668 \u7ba1\u7406\u8fdb\u7a0b\u4fe1\u606f"),
+            "trace", trace(),
+            "limit", 10
+        ));
+
+        assertThat(result)
+            .containsEntry("returnedCount", 1)
+            .containsEntry("broadDiscovery", false);
+        List<?> assets = (List<?>) result.get("assets");
+        Map<?, ?> metadata = (Map<?, ?>) assets.get(0);
+        Map<?, ?> asset = (Map<?, ?>) metadata.get("asset");
+        Map<?, ?> routingHints = (Map<?, ?>) metadata.get("routingHints");
+        assertThat(asset.get("name")).isEqualTo("MySQL\u670d\u52a1\u5668");
+        assertThat(((Map<?, ?>) result.get("filters")).get("intent"))
+            .isEqualTo("\u5206\u6790 MySQL\u670d\u52a1\u5668 \u7ba1\u7406\u8fdb\u7a0b\u4fe1\u606f");
+        assertThat(((Map<?, ?>) routingHints.get("assetQueryMatch")).get("strategy"))
+            .isEqualTo("fuzzy_name_unique_candidate");
+    }
+
+    @Test
     void treatsLooseContextStringAsServiceFilter() {
         SshHostConfigService hostService = mock(SshHostConfigService.class);
         SqlDatasourceConfigService datasourceService = mock(SqlDatasourceConfigService.class);

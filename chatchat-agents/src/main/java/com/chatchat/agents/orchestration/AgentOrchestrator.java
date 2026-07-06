@@ -1515,6 +1515,7 @@ public class AgentOrchestrator {
         prompt.append("- If a succeeded SQL/database step is partial, still summarize the returned rows/metrics and explicitly state missing fields or limitations.\n");
         prompt.append("- If some step truly failed with no usable output, state the limitation and do not use that failed result as evidence.\n");
         prompt.append("- Do not display executed SQL statements, scripts, or query text in the user-facing answer. Mention only the template/tool and returned data.\n");
+        prompt.append("- A shortened output preview in this prompt is not evidence that the tool output itself was truncated. Claim truncation only when output facts contain explicitTruncation=true or the output has an explicit _truncated/[truncated] marker.\n");
         prompt.append("- Do not invent facts that are not present in the step outputs or observations.\n\n");
         prompt.append("User query:\n").append(query == null ? "" : query).append("\n\n");
         if (result != null && result.finalAnswer() != null && !result.finalAnswer().isBlank()) {
@@ -1544,7 +1545,13 @@ public class AgentOrchestrator {
                         .append(stepMetadata.get("toolResultReviewReason"))
                         .append("\n");
                 }
-                prompt.append("  output: ")
+                Map<String, Object> outputFacts = structuredOutputFacts(step.output());
+                if (!outputFacts.isEmpty()) {
+                    prompt.append("  outputFacts: ")
+                        .append(shortObservationText(stringify(outputFacts), 1800))
+                        .append("\n");
+                }
+                prompt.append("  outputPreview: ")
                     .append(shortObservationText(stringify(redactExecutionStatementText(step.output())), 4000))
                     .append("\n");
             }
@@ -1713,6 +1720,7 @@ public class AgentOrchestrator {
         prompt.append("- If assetDiscoveryReturnedCount > 0, do not claim the asset query returned zero/no assets.\n");
         prompt.append("- If templateDiscoveryReturnedCount > 0, do not claim the template query returned zero/no templates.\n");
         prompt.append("- If sqlMetadataColumnCount > 0, do not claim the SQL metadata step returned no columns/metadata.\n");
+        prompt.append("- A shortened Tool output preview is not evidence that the MCP tool returned truncated data. Claim truncation only when Structured output facts contain explicitTruncation=true or the output has an explicit _truncated/[truncated] marker.\n");
         prompt.append("Attempt: ").append(request.attempt()).append('/').append(request.maxAttempts()).append("\n");
         prompt.append("User query:\n").append(query == null ? "" : query).append("\n\n");
         InterpretationPlan plan = request.plan();
@@ -1728,7 +1736,13 @@ public class AgentOrchestrator {
                 .append(shortObservationText(stringify(factMetadata), 2500))
                 .append("\n\n");
         }
-        prompt.append("Tool output:\n")
+        Map<String, Object> outputFacts = structuredOutputFacts(request.execution().output());
+        if (!outputFacts.isEmpty()) {
+            prompt.append("Structured output facts:\n")
+                .append(shortObservationText(stringify(outputFacts), 2500))
+                .append("\n\n");
+        }
+        prompt.append("Tool output preview, shortened only for reviewer context when necessary:\n")
             .append(shortObservationText(stringify(redactExecutionStatementText(request.execution().output())), 9000));
         return prompt.toString();
     }
@@ -1789,6 +1803,142 @@ public class AgentOrchestrator {
             }
         }
         return facts;
+    }
+
+    private Map<String, Object> structuredOutputFacts(Object output) {
+        Map<String, Object> root = asMap(output);
+        if (root.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, Object> facts = new LinkedHashMap<>();
+        putIfPresent(facts, "schemaVersion", root.get("schemaVersion"));
+        putIfPresent(facts, "category", root.get("category"));
+        putIfPresent(facts, "dataSchemaVersion", root.get("dataSchemaVersion"));
+        putIfPresent(facts, "success", root.get("success"));
+        putIfPresent(facts, "status", root.get("status"));
+        putIfPresent(facts, "errorMessage", root.get("errorMessage"));
+
+        Map<String, Object> target = asMap(root.get("target"));
+        if (!target.isEmpty()) {
+            facts.put("target", compactMap(target, "type", "id", "name", "address", "ipAddress", "toolName", "environment"));
+        }
+
+        Map<String, Object> operation = asMap(root.get("operation"));
+        if (!operation.isEmpty()) {
+            facts.put("operation", compactMap(operation, "type", "template", "commandHash", "sourceTaskId", "reason"));
+        }
+
+        Map<String, Object> data = asMap(root.get("data"));
+        if (!data.isEmpty()) {
+            Map<String, Object> dataFacts = compactMap(
+                data,
+                "exitCode",
+                "transportSuccess",
+                "commandSuccess",
+                "nonZeroStepIndexes",
+                "failedStepIndex",
+                "outputMode",
+                "rowCount",
+                "returnedRowCount",
+                "possiblyTruncated",
+                "truncationStrategy"
+            );
+            Integer stdoutLength = outputLength(data.get("stdout"));
+            Integer stderrLength = outputLength(data.get("stderr"));
+            if (stdoutLength != null) {
+                dataFacts.put("stdoutLength", stdoutLength);
+            }
+            if (stderrLength != null) {
+                dataFacts.put("stderrLength", stderrLength);
+            }
+            Map<String, Object> diagnostics = firstNonEmptyMap(data.get("diagnostics"), operation.get("diagnostics"));
+            if (!diagnostics.isEmpty()) {
+                dataFacts.put("diagnostics", compactMap(
+                    diagnostics,
+                    "stdoutLength",
+                    "stderrLength",
+                    "stepCount",
+                    "exitCode",
+                    "transportSuccess",
+                    "commandSuccess",
+                    "nonZeroStepIndexes",
+                    "durationMs"
+                ));
+            }
+            facts.put("data", dataFacts);
+        }
+
+        facts.put("explicitTruncation", hasExplicitTruncationMarker(output, 0, new Counter()));
+        return facts.entrySet().stream()
+            .filter(entry -> entry.getValue() != null)
+            .filter(entry -> !(entry.getValue() instanceof Map<?, ?> map && map.isEmpty()))
+            .collect(LinkedHashMap::new, (map, entry) -> map.put(entry.getKey(), entry.getValue()), LinkedHashMap::putAll);
+    }
+
+    private Map<String, Object> firstNonEmptyMap(Object first, Object second) {
+        Map<String, Object> firstMap = asMap(first);
+        return firstMap.isEmpty() ? asMap(second) : firstMap;
+    }
+
+    private Map<String, Object> compactMap(Map<String, Object> source, String... keys) {
+        Map<String, Object> values = new LinkedHashMap<>();
+        if (source == null || source.isEmpty() || keys == null) {
+            return values;
+        }
+        for (String key : keys) {
+            if (key != null && source.containsKey(key) && source.get(key) != null) {
+                values.put(key, source.get(key));
+            }
+        }
+        return values;
+    }
+
+    private void putIfPresent(Map<String, Object> target, String key, Object value) {
+        if (target != null && key != null && value != null) {
+            target.put(key, value);
+        }
+    }
+
+    private Integer outputLength(Object value) {
+        if (!(value instanceof String text)) {
+            return null;
+        }
+        return text.length();
+    }
+
+    private boolean hasExplicitTruncationMarker(Object value, int depth, Counter counter) {
+        if (value == null || depth > 8 || counter.value > 300) {
+            return false;
+        }
+        counter.value++;
+        if (value instanceof Map<?, ?> map) {
+            for (Map.Entry<?, ?> entry : map.entrySet()) {
+                String key = entry.getKey() == null ? "" : String.valueOf(entry.getKey());
+                Object item = entry.getValue();
+                if ("_truncated".equals(key) && Boolean.TRUE.equals(item)) {
+                    return true;
+                }
+                if ("possiblyTruncated".equals(key) && Boolean.TRUE.equals(item)) {
+                    return true;
+                }
+                if (hasExplicitTruncationMarker(item, depth + 1, counter)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+        if (value instanceof Iterable<?> iterable) {
+            for (Object item : iterable) {
+                if (hasExplicitTruncationMarker(item, depth + 1, counter)) {
+                    return true;
+                }
+            }
+            return false;
+        }
+        if (value instanceof String text) {
+            return text.contains("...[truncated]") || text.equals("[truncated]") || text.contains("...<truncated>");
+        }
+        return false;
     }
 
     private Map<String, Object> evidenceEvaluationContract(Map<String, Object> payload,
@@ -2991,6 +3141,10 @@ public class AgentOrchestrator {
         InteractionToolTrace trace,
         String observation
     ) {
+    }
+
+    private static final class Counter {
+        private int value;
     }
 
     public record AgentExecutionResult(

@@ -39,3 +39,28 @@
         </div>
     </div>
 </div>
+
+<div class="modal fade danger-confirm-modal" id="dangerConfirmModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="dangerConfirmTitle" class="modal-title fs-5">操作确认</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="关闭"></button>
+            </div>
+            <div class="modal-body">
+                <div class="asset-delete-confirm-body">
+                    <div class="asset-delete-warning-mark">!</div>
+                    <div>
+                        <div id="dangerConfirmMessage" class="asset-delete-confirm-message">确认执行该操作吗？</div>
+                        <div id="dangerConfirmTarget" class="asset-delete-confirm-target"></div>
+                        <div id="dangerConfirmDetail" class="asset-delete-confirm-detail">该操作执行后可能无法恢复，请确认后继续。</div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="dangerConfirmCancelBtn" class="btn btn-outline-secondary btn-sm" type="button" data-bs-dismiss="modal">取消</button>
+                <button id="dangerConfirmSubmitBtn" class="btn btn-danger btn-sm" type="button">确认</button>
+            </div>
+        </div>
+    </div>
+</div>

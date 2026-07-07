@@ -27,6 +27,57 @@
 - 模板名称不是 Agent Runtime 要直接调用的 workflow 工具名。
 - 模板必须声明实际执行者，例如 `sqlExecutionBinding.toolName=sql_query_execute`。
 
+## 数据库查询动态日期参数契约
+
+数据库查询模板允许使用由 MCP Runtime 统一解析的动态日期参数。模型只允许选择参数和模板，不允许自行计算、拼接或改写日期值。
+
+### 参数命名
+
+| 参数 | 含义 | 格式 | 解析规则 |
+| --- | --- | --- | --- |
+| `${today}` | 当天自然日 | `yyyyMMdd` | 使用 Runtime 当前日期。 |
+| `${natural_date}` | 当天自然日别名 | `yyyyMMdd` | 与 `${today}` 等价。 |
+| `${month}` | 当前月份 | `yyyyMM` | 使用 Runtime 当前月份。 |
+| `${month_start}` | 当月第一天 | `yyyyMMdd` | 当前月份的第一天。 |
+| `${month_end}` | 当月最后一天 | `yyyyMMdd` | 当前月份的最后一天。 |
+| `${trade_date}` | 当前交易日 | `yyyyMMdd` | 当天是交易日取当天，否则取最近可用交易日。 |
+| `${trade_date-1}` | 上一个交易日 | `yyyyMMdd` | 以当天为基准向前偏移 1 个交易日。 |
+| `${trade_date+1}` | 下一个交易日 | `yyyyMMdd` | 以当天为基准向后偏移 1 个交易日。 |
+
+### SQL 模板约束
+
+- SQL 模板可以使用 `${...}` 形式直接声明动态日期占位符，例如 `WHERE stat_date = ${trade_date}`。
+- SQL 模板也可以使用命名参数，例如 `WHERE stat_date = :trade_date`；当参数名属于动态日期参数集合时，Runtime 必须在执行前自动补齐。
+- 用户输入参数和动态日期参数必须分离维护。动态日期参数的默认来源应声明为 `defaultSource`，例如 `trade_date`、`trade_date-1`、`month`。
+- 页面测试值、模型入参和 Agent 计划不得要求用户手工填写 `trade_date`、`today`、`month_start` 等动态日期参数。
+- 动态日期解析必须发生在 SQL 安全校验和真实数据库执行之前。
+
+### 交易日数据源
+
+- 交易日计算由 MCP Runtime 负责，优先使用绑定数据库资产可访问的交易日表。
+- 当前约定交易日表为 `dsc_cfg.t_xtjyr`，Runtime 可以缓存交易日表以降低频繁查询成本。
+- 如果交易日表不可用，Runtime 必须返回结构化错误或明确降级策略，不得让模型临时编造交易日。
+
+### 示例
+
+```sql
+SELECT *
+FROM customer_asset
+WHERE stat_date = ${trade_date}
+  AND branch_id = :branch_id
+```
+
+Runtime 执行前解析为：
+
+```sql
+SELECT *
+FROM customer_asset
+WHERE stat_date = 20260707
+  AND branch_id = :branch_id
+```
+
+其中 `branch_id` 仍由用户输入或权限上下文绑定，`trade_date` 由 Runtime 统一计算。
+
 ## MCP 工具契约
 
 - MCP 工具必须校验 `finalDecision` 和 `candidates[].targetKind` 一致性。

@@ -3,6 +3,7 @@ package com.chatchat.mcpserver.api;
 import com.chatchat.agents.protocol.ModelProtocolJson;
 
 import com.chatchat.agents.tool.ToolRegistry;
+import com.chatchat.mcpserver.ops.HttpEndpointConfigService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -28,6 +29,7 @@ public class ApiServiceConfigService {
     private final ApiServiceConfigRepository repository;
     private final ToolRegistry toolRegistry;
     private final ObjectMapper objectMapper;
+    private final HttpEndpointConfigService gatewayConfigService;
 
     /**
      * Lists the all.
@@ -132,6 +134,7 @@ public class ApiServiceConfigService {
         current.setBusinessGroup(draft.getBusinessGroup());
         current.setBusinessGroupName(draft.getBusinessGroupName());
         current.setBusinessGroupDescription(draft.getBusinessGroupDescription());
+        current.setGatewayId(draft.getGatewayId());
         current.setMethod(draft.getMethod());
         current.setUrlTemplate(draft.getUrlTemplate());
         current.setHeadersJson(draft.getHeadersJson());
@@ -224,26 +227,38 @@ public class ApiServiceConfigService {
             config.setTitle(config.getTitle().trim());
         }
 
-        String method = config.getMethod() == null ? "GET" : config.getMethod().trim().toUpperCase(Locale.ROOT);
-        if (!ALLOWED_METHODS.contains(method)) {
-            throw new IllegalArgumentException("method must be one of " + ALLOWED_METHODS);
+        config.setGatewayId(blankToNull(config.getGatewayId()));
+        boolean usesGateway = config.getGatewayId() != null;
+        if (usesGateway) {
+            gatewayConfigService.getById(config.getGatewayId());
         }
-        config.setMethod(method);
 
-        if (config.getUrlTemplate() == null || config.getUrlTemplate().isBlank()) {
-            throw new IllegalArgumentException("urlTemplate is required");
+        if (usesGateway) {
+            config.setMethod(null);
+            config.setUrlTemplate(null);
+            config.setHeadersJson(null);
+            config.setBodyTemplate(null);
+        } else {
+            String method = config.getMethod() == null ? "GET" : config.getMethod().trim().toUpperCase(Locale.ROOT);
+            if (!ALLOWED_METHODS.contains(method)) {
+                throw new IllegalArgumentException("method must be one of " + ALLOWED_METHODS);
+            }
+            config.setMethod(method);
+            config.setUrlTemplate(blankToNull(config.getUrlTemplate()));
+            if (config.getUrlTemplate() == null) {
+                throw new IllegalArgumentException("gatewayId or urlTemplate is required");
+            }
+            validateUrlTemplate(config.getUrlTemplate());
+            config.setHeadersJson(normalizeJsonObject(config.getHeadersJson(), "headers"));
+            config.setBodyTemplate(blankToNull(config.getBodyTemplate()));
         }
-        validateUrlTemplate(config.getUrlTemplate().trim());
-        config.setUrlTemplate(config.getUrlTemplate().trim());
 
         config.setDescription(blankToNull(config.getDescription()));
         config.setBusinessGroup(normalizeBusinessGroup(config.getBusinessGroup()));
         config.setBusinessGroupName(firstText(blankToNull(config.getBusinessGroupName()), config.getBusinessGroup()));
         config.setBusinessGroupDescription(blankToNull(config.getBusinessGroupDescription()));
-        config.setHeadersJson(normalizeJsonObject(config.getHeadersJson(), "headers"));
         config.setInputSchemaJson(normalizeJsonObject(config.getInputSchemaJson(), "inputSchema"));
         config.setGovernanceJson(normalizeJsonObject(config.getGovernanceJson(), "governance"));
-        config.setBodyTemplate(blankToNull(config.getBodyTemplate()));
         if (config.getTimeoutMs() <= 0) {
             config.setTimeoutMs(20000);
         }

@@ -275,32 +275,8 @@ chatchat:
         #     tenant-ids: [tenant-a]
         #     task-ids: [task-a]
     livedata:
-      # Enables the admin page to list and manually register LiveData APIs. Startup auto-sync is disabled.
+      # Runtime values are maintained on the admin page. Database access is bound through a database asset.
       enabled: false
-      jdbc-url: 
-      username: 
-      password: 
-      driver-class: com.mysql.cj.jdbc.Driver
-      table-name: ld_dataservice_api
-      service-base-url: 
-      service-path-template: /service/{serviceName}/call
-      login-enabled: true
-      login-path: /login
-      login-id: 
-      login-pwd: 
-      login-timeout-ms: 10000
-      session-ttl-seconds: 1800
-      ams-token: 
-      default-namespace: livedata
-      tool-name-prefix: livedata_
-      published-state: 0
-      max-apis: 1000
-      timeout-ms: 20000
-      cache-enabled: false
-      cache-ttl-seconds: 300
-      overwrite-existing: false
-      include-unpublished-as-disabled: false
-      expose-ams-token-parameter: false
     calculator:
       # Safe local arithmetic tool.
       risk-level: low

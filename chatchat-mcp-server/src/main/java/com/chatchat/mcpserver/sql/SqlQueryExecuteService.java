@@ -40,6 +40,7 @@ public class SqlQueryExecuteService {
     private final InvocationAuditService auditService;
     private final ObjectMapper objectMapper;
     private final DynamicJdbcDriverLoader driverLoader;
+    private final DynamicDateParamService dynamicDateParamService;
 
     public SqlQueryResult execute(Map<String, Object> arguments) {
         long startedAt = System.currentTimeMillis();
@@ -200,7 +201,7 @@ public class SqlQueryExecuteService {
             throw new IllegalArgumentException("Use either sql or SQL template, not both");
         }
         if (sql != null && !sql.isBlank()) {
-            return sql;
+            return dynamicDateParamService.resolveSqlPlaceholders(sql, datasource);
         }
         if (template == null || template.isBlank()) {
             throw new IllegalArgumentException("Either sql or template is required");
@@ -213,7 +214,10 @@ public class SqlQueryExecuteService {
         );
         parameters = enrichTemplateParameters(parameters, datasource, request);
         request.put("parameters", parameters);
-        return templateService.render(template, parameters, datasource, request);
+        return dynamicDateParamService.resolveSqlPlaceholders(
+            templateService.render(template, parameters, datasource, request),
+            datasource
+        );
     }
 
     private String requestedTemplate(Map<String, Object> request) {
@@ -636,7 +640,7 @@ public class SqlQueryExecuteService {
             values.putIfAbsent("schema", schemaName);
             values.putIfAbsent("database", schemaName);
         }
-        return values;
+        return dynamicDateParamService.enrichParameters(values, datasource, null);
     }
 
     private String defaultSchemaName(SqlDatasourceConfig datasource, Map<String, Object> request) {

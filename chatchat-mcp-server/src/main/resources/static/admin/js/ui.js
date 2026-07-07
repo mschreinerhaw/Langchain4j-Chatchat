@@ -60,6 +60,58 @@ export function notify(title, message) {
     toast.show();
 }
 
+export function confirmDangerAction({
+    title = '操作确认',
+    message = '确认执行该操作吗？',
+    target = '',
+    detail = '该操作执行后可能无法恢复，请确认后继续。',
+    confirmText = '确认',
+    cancelText = '取消'
+} = {}) {
+    const modalElement = document.getElementById('dangerConfirmModal');
+    const confirmButton = document.getElementById('dangerConfirmSubmitBtn');
+    const cancelButton = document.getElementById('dangerConfirmCancelBtn');
+    if (!modalElement || !confirmButton || !window.bootstrap) {
+        console.warn('Danger confirm modal is not available.');
+        return Promise.resolve(false);
+    }
+    setText('dangerConfirmTitle', title);
+    setText('dangerConfirmMessage', message);
+    setText('dangerConfirmTarget', target);
+    setText('dangerConfirmDetail', detail);
+    confirmButton.textContent = confirmText;
+    if (cancelButton) {
+        cancelButton.textContent = cancelText;
+    }
+
+    const modal = window.bootstrap.Modal.getOrCreateInstance(modalElement);
+    return new Promise(resolve => {
+        let settled = false;
+        const settle = value => {
+            if (settled) return;
+            settled = true;
+            confirmButton.removeEventListener('click', onConfirm);
+            modalElement.removeEventListener('hidden.bs.modal', onHidden);
+            resolve(value);
+        };
+        const onConfirm = () => {
+            settle(true);
+            modal.hide();
+        };
+        const onHidden = () => settle(false);
+        confirmButton.addEventListener('click', onConfirm);
+        modalElement.addEventListener('hidden.bs.modal', onHidden);
+        modal.show();
+    });
+}
+
+function setText(id, text) {
+    const element = document.getElementById(id);
+    if (element) {
+        element.textContent = text ?? '';
+    }
+}
+
 export function showApiServiceModal() {
     apiServiceModal.show();
 }
@@ -174,10 +226,10 @@ export function renderServices(services, selectedId, handlers, paging = {}) {
             </label>
             <div class="api-card-main">
                 <h3>${escapeHtml(service.title || service.toolName)}</h3>
-                <p>${escapeHtml(service.description || service.urlTemplate)}</p>
+                <p>${escapeHtml(service.description || (service.gatewayId ? '已绑定 API 网关资产' : service.urlTemplate))}</p>
             </div>
             <div class="service-meta">
-                <span class="badge text-bg-primary">${escapeHtml(service.method)}</span>
+                <span class="badge text-bg-primary">${escapeHtml(service.gatewayId ? '网关' : service.method)}</span>
                 <span class="badge ${service.enabled ? 'text-bg-success' : 'text-bg-secondary'}">
                     ${service.enabled ? '启用' : '停用'}
                 </span>
@@ -663,7 +715,7 @@ function stringifyForDisplay(value) {
 }
 
 export function switchView(name) {
-    const viewIds = ['apiServicesView', 'mcpServicesView', 'assetCenterView', 'databaseMcpView', 'notificationChannelsView', 'auditLogsView', 'settingsView'];
+    const viewIds = ['apiServicesView', 'mcpServicesView', 'assetCenterView', 'databaseMcpView', 'cacheSettingsView', 'notificationChannelsView', 'auditLogsView', 'settingsView'];
     for (const id of viewIds) {
         document.getElementById(id).classList.toggle('d-none', id !== `${name}View`);
     }
@@ -683,7 +735,7 @@ export function switchView(name) {
     newMcp.classList.toggle('d-none', name !== 'mcpServices');
     newDatabaseQuery.classList.toggle('d-none', name !== 'databaseMcp');
     databaseQueryIndex.classList.toggle('d-none', name !== 'databaseMcp');
-    refresh.classList.toggle('d-none', name === 'assetCenter' || name === 'databaseMcp' || name === 'notificationChannels' || name === 'auditLogs' || name === 'settings');
+    refresh.classList.toggle('d-none', name === 'assetCenter' || name === 'databaseMcp' || name === 'cacheSettings' || name === 'notificationChannels' || name === 'auditLogs' || name === 'settings');
     const titles = {
         apiServices: ['API 服务', '注册标准 HTTP API，并将其发布为 MCP 工具。'],
         mcpServices: ['MCP 服务', '注册 MCP 服务、管理服务 Token，并查看心跳状态。'],
@@ -695,6 +747,10 @@ export function switchView(name) {
     };
     document.getElementById('pageTitle').textContent = titles[name]?.[0] || 'MCP 管理台';
     document.getElementById('pageSubtitle').textContent = titles[name]?.[1] || '';
+    if (name === 'cacheSettings') {
+        document.getElementById('pageTitle').textContent = '缓存设置';
+        document.getElementById('pageSubtitle').textContent = '配置数据库查询缓存策略、容量、过期和清理规则。';
+    }
 }
 
 function formatTime(value) {

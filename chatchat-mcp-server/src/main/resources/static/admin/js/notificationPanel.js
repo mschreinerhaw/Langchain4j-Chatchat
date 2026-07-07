@@ -131,7 +131,16 @@ async function handleNotificationSave(event) {
         return;
     }
     try {
-        const saved = await saveNotificationChannel(readNotificationChannelForm());
+        const payload = readNotificationChannelForm();
+        if (!payload.id) {
+            payload.deliveryMode = 'HTTP';
+        }
+        if (payload.deliveryMode === 'HTTP' && !payload.bodyTemplate?.trim()) {
+            notify('请填写告警内容', 'HTTP 告警必须填写请求体模板。');
+            document.getElementById('notificationBodyTemplate')?.focus();
+            return;
+        }
+        const saved = await saveNotificationChannel(payload);
         selectedNotificationChannelId = saved.id;
         notify('保存成功', `${saved.toolName} 配置已生效。`);
         await loadNotificationChannels();
@@ -205,7 +214,8 @@ function readNotificationChannelForm() {
 }
 
 function fillNotificationChannelForm(channel) {
-    document.getElementById('notificationFormTitle').textContent = channel?.id ? `配置 ${channel.toolName}` : '新增通知工具';
+    const isNew = !channel?.id;
+    document.getElementById('notificationFormTitle').textContent = isNew ? '新增 HTTP 告警' : `配置 ${channel.toolName}`;
     setValue('notificationId', channel?.id || '');
     setValue('notificationChannel', channel?.channel || '');
     setValue('notificationToolName', channel?.toolName || '');
@@ -242,7 +252,7 @@ function fillNotificationChannelForm(channel) {
     setValue('notificationMaxRetries', String(channel?.maxRetries ?? 1));
     setValue('notificationTestPayloadJson', JSON.stringify(channel?.defaultTestPayload || {
         receiver: 'ops@example.com',
-        title: 'Agent 浠诲姟閫氱煡',
+        title: 'Agent 任务通知',
         content: '这是一条测试通知。',
         level: 'INFO',
         sourceTaskId: 'manual-test'
@@ -259,23 +269,25 @@ function handleNotificationChannelTypeChange() {
     if (!draft.title || draft.title === '通知工具') {
         setValue('notificationTitle', defaults.title);
     }
-    if (!draft.deliveryMode) {
+    if (!value('notificationId')) {
+        setValue('notificationDeliveryMode', 'HTTP');
+    } else if (!draft.deliveryMode) {
         setValue('notificationDeliveryMode', defaults.deliveryMode);
     }
     toggleNotificationDeliveryFields();
 }
 
 function newNotificationDraft() {
-    const defaults = notificationDefaultsFor('EMAIL');
+    const defaults = notificationDefaultsFor('DINGTALK');
     return {
         id: '',
-        channel: 'EMAIL',
+        channel: 'DINGTALK',
         toolName: defaults.toolName,
-        title: defaults.title,
-        description: defaults.description,
+        title: 'HTTP 告警',
+        description: '通过 HTTP/Webhook 发送用户自定义告警内容。',
         enabled: false,
         runtimeAction: 'confirm_required',
-        deliveryMode: defaults.deliveryMode,
+        deliveryMode: 'HTTP',
         method: 'POST',
         endpointUrl: '',
         headers: { 'Content-Type': 'application/json' },
@@ -330,8 +342,16 @@ function notificationDefaultsFor(channel) {
 }
 
 function toggleNotificationDeliveryFields() {
+    const isNew = !value('notificationId');
+    if (isNew) {
+        setValue('notificationDeliveryMode', 'HTTP');
+    }
     const mode = value('notificationDeliveryMode') || 'HTTP';
     const channel = value('notificationChannel');
+    const deliveryMode = document.getElementById('notificationDeliveryMode');
+    if (deliveryMode) {
+        deliveryMode.disabled = isNew;
+    }
     document.querySelectorAll('.notification-http-field').forEach(node => {
         node.classList.toggle('d-none', mode === 'SMTP');
     });
@@ -341,6 +361,14 @@ function toggleNotificationDeliveryFields() {
     document.querySelectorAll('.notification-sms-field').forEach(node => {
         node.classList.toggle('d-none', channel !== 'SMS');
     });
+    const endpoint = document.getElementById('notificationEndpointUrl');
+    const body = document.getElementById('notificationBodyTemplate');
+    if (endpoint) {
+        endpoint.required = mode === 'HTTP';
+    }
+    if (body) {
+        body.required = mode === 'HTTP';
+    }
 }
 
 function value(id) {

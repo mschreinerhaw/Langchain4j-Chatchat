@@ -6,6 +6,7 @@ const PARTIALS = {
     mcpServices: '../partials/mcp-services.html',
     assetCenter: '../partials/asset-center.html',
     databaseMcp: '../partials/database-mcp.html',
+    cacheSettings: '../partials/cache-settings.html',
     notificationChannels: '../partials/notification-channels.html',
     auditLogs: '../partials/audit-logs.html',
     settings: '../partials/settings.html',
@@ -25,6 +26,7 @@ export async function loadLayout() {
                 ${partials.mcpServices}
                 ${partials.assetCenter}
                 ${partials.databaseMcp}
+                ${partials.cacheSettings}
                 ${partials.notificationChannels}
                 ${partials.auditLogs}
                 ${partials.settings}

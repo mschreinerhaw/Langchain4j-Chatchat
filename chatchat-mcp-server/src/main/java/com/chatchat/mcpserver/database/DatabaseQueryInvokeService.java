@@ -5,6 +5,8 @@ import com.chatchat.common.tool.ToolInput;
 import com.chatchat.common.tool.ToolLogSummarizer;
 import com.chatchat.common.tool.ToolOutput;
 import com.chatchat.mcpserver.audit.InvocationAuditService;
+import com.chatchat.mcpserver.cache.DatabaseQueryCacheService;
+import com.chatchat.mcpserver.sql.DynamicDateParamService;
 import com.chatchat.mcpserver.sql.SqlDatasourceConfig;
 import com.chatchat.mcpserver.sql.SqlDatasourceConfigService;
 import com.chatchat.mcpserver.sql.SqlScriptExecuteService;
@@ -35,8 +37,10 @@ public class DatabaseQueryInvokeService {
     private final ToolRegistry toolRegistry;
     private final SqlDatasourceConfigService datasourceConfigService;
     private final SqlScriptExecuteService scriptExecuteService;
+    private final DynamicDateParamService dynamicDateParamService;
     private final ObjectMapper objectMapper;
     private final InvocationAuditService auditService;
+    private final DatabaseQueryCacheService cacheService;
 
     /**
      * Performs the invoke operation.
@@ -57,7 +61,22 @@ public class DatabaseQueryInvokeService {
                 config.getMaxRows(),
                 config.getSqlTemplate(),
                 ToolLogSummarizer.summarize(arguments));
-            output = invoke(toParameters(config, auditArgs));
+            Map<String, Object> parameters = toParameters(config, auditArgs);
+            var cached = cacheService.get(config, parameters);
+            if (cached.isPresent()) {
+                output = cached.get();
+                output.setExecutionTimeMs(Math.max(0L, System.currentTimeMillis() - startedAt));
+                log.info("Database query invoke cache hit databaseQueryId={} tool={} durationMs={}",
+                    config.getId(),
+                    config.getToolName(),
+                    Math.max(0L, System.currentTimeMillis() - startedAt));
+            } else {
+                output = invoke(parameters);
+                if (output.getMetadata() != null) {
+                    output.getMetadata().putIfAbsent("cacheHit", false);
+                }
+                cacheService.put(config, parameters, output);
+            }
         } catch (Exception ex) {
             output = ToolOutput.failure(ex.getMessage());
             output.setExecutionTimeMs(Math.max(0L, System.currentTimeMillis() - startedAt));
@@ -224,16 +243,22 @@ public class DatabaseQueryInvokeService {
      * @return the converted parameters
      */
     private Map<String, Object> toParameters(DatabaseQueryConfig config, Map<String, Object> arguments) {
-        Map<String, Object> parameters = new LinkedHashMap<>();
-        parameters.put("sql", config.getSqlTemplate());
-        parameters.put("params", arguments);
-        parameters.put("max_rows", config.getMaxRows());
-        parameters.put("timeoutSeconds", config.getTimeoutSeconds());
-        parameters.put("timeout_seconds", config.getTimeoutSeconds());
         if (config.getDatasourceId() == null || config.getDatasourceId().isBlank()) {
             throw new IllegalArgumentException("database query requires an enabled datasource asset");
         }
         SqlDatasourceConfig datasource = datasourceConfigService.getEnabled(config.getDatasourceId());
+        Map<String, Object> resolvedArguments = dynamicDateParamService.enrichParameters(
+            arguments,
+            datasource,
+            config.getSqlTemplate()
+        );
+        String resolvedSql = dynamicDateParamService.resolveSqlPlaceholders(config.getSqlTemplate(), datasource);
+        Map<String, Object> parameters = new LinkedHashMap<>();
+        parameters.put("sql", resolvedSql);
+        parameters.put("params", resolvedArguments);
+        parameters.put("max_rows", config.getMaxRows());
+        parameters.put("timeoutSeconds", config.getTimeoutSeconds());
+        parameters.put("timeout_seconds", config.getTimeoutSeconds());
         putIfPresent(parameters, "jdbc_url", datasource.getJdbcUrl());
         putIfPresent(parameters, "driver_class", datasource.getDriverClass());
         putIfPresent(parameters, "database_type", datasource.getDatabaseType());

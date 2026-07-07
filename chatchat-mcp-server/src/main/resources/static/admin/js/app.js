@@ -5,11 +5,13 @@ import { UnauthorizedError } from './http.js';
 import {
     deleteService,
     deleteServices,
+    getLivedataConfig,
     listLivedataApis,
     listServices,
     rebuildApiServiceIndex,
     registerLivedataApis,
     refreshTools,
+    saveLivedataConfig,
     saveService,
     setEnabled,
     testService
@@ -19,21 +21,27 @@ import { bindAuthorizationPanel, loadAuthorizationPanel } from './authorizationP
 import { bindAssetCenterPanel, loadAssetCenterPanel } from './assetCenterPanel.js';
 import { bindAuditLogPanel, loadAuditLogPanel } from './auditLogPanel.js';
 import { bindNotificationPanel, loadNotificationPanel } from './notificationPanel.js';
-import { listSqlAssets } from './assetCenter.js';
+import { bindCacheSettingsPanel, loadCacheSettingsPanel } from './cacheSettingsPanel.js';
+import { listHttpAssets, listSqlAssets } from './assetCenter.js';
 import {
     deleteDatabaseQuery,
     deleteDatabaseQueries,
     listDatabaseQueries,
     rebuildDatabaseQueryIndex,
     saveDatabaseQuery,
+    getTradingCalendarConfig,
+    saveTradingCalendarConfig,
     setDatabaseQueryEnabled,
     testDatabaseQuery,
+    testTradingCalendarFunction,
+    testTradingCalendarConfig,
     testSavedDatabaseQuery,
     validateDatabaseQueryTemplateDsl,
     importDatabaseQueryTemplateDsl
 } from './databaseMcp.js';
-import { fillServiceForm, readServiceForm, readTestArgs, readTestArgsFromSchema, toggleMicroserviceFields } from './form.js';
+import { bindApiParamEditor, fillServiceForm, readServiceForm, readTestArgs, readTestArgsFromSchema, toggleMicroserviceFields } from './form.js';
 import {
+    confirmDangerAction,
     hideLoginError,
     hideApiServiceModal,
     hideDatabaseQueryModal,
@@ -61,6 +69,8 @@ let servicePage = 1;
 let livedataApis = [];
 let livedataSearchTerm = '';
 let selectedLivedataApiIds = new Set();
+let livedataConfig = null;
+let apiGatewayAssets = [];
 let sqlAssets = [];
 let databaseQueries = [];
 let selectedDatabaseQueryId = '';
@@ -68,7 +78,28 @@ let selectedDatabaseQueryIds = new Set();
 let databaseQuerySearchTerm = '';
 let databaseQueryPage = 1;
 let latestDatabaseQueryDslValidation = null;
+let tradingCalendarConfig = null;
+let tradingCalendarQueryTestPassed = false;
 const SERVICE_PAGE_SIZE = 12;
+const DATABASE_DYNAMIC_PARAMS = new Set([
+    'today',
+    'natural_date',
+    'month',
+    'month_start',
+    'month_end',
+    'trade_date'
+]);
+const DATABASE_DIRECT_DYNAMIC_TOKEN = /^(?:today|natural_date|month|month_start|month_end|trade_date[+-]?\d*)$/;
+const DATABASE_PARAM_SOURCE_OPTIONS = [
+    ['user_input', '用户输入'],
+    ['today', '当天自然日 today'],
+    ['month', '当前月份 month'],
+    ['month_start', '当月第一天 month_start'],
+    ['month_end', '当月最后一天 month_end'],
+    ['trade_date', '当前交易日 trade_date'],
+    ['trade_date-1', '上一交易日 trade_date-1'],
+    ['trade_date+1', '下一交易日 trade_date+1']
+];
 
 document.addEventListener('DOMContentLoaded', async () => {
     try {
@@ -111,6 +142,11 @@ function bindEvents() {
     document.getElementById('serviceBatchDeleteBtn').addEventListener('click', removeSelectedServices);
     document.getElementById('importLivedataBtn').addEventListener('click', openLivedataImport);
     document.getElementById('reloadLivedataApisBtn').addEventListener('click', reloadLivedataApis);
+    document.addEventListener('click', event => {
+        if (event.target?.id === 'saveLivedataConfigBtn') {
+            handleSaveLivedataConfig();
+        }
+    });
     document.getElementById('selectAllLivedataApisBtn').addEventListener('click', selectVisibleLivedataApis);
     document.getElementById('clearLivedataSelectionBtn').addEventListener('click', clearLivedataSelection);
     document.getElementById('registerLivedataApisBtn').addEventListener('click', handleLivedataRegister);
@@ -128,16 +164,32 @@ function bindEvents() {
     bindAssetCenterPanel({ onError: handleError });
     bindAuditLogPanel({ onError: handleError });
     bindNotificationPanel({ onError: handleError });
+    bindCacheSettingsPanel({ onError: handleError });
+    bindApiParamEditor();
     document.getElementById('databaseQueryForm').addEventListener('submit', handleDatabaseQueryTest);
     document.getElementById('databaseQuerySaveBtn').addEventListener('click', handleDatabaseQuerySave);
     document.getElementById('databaseQueryClearBtn').addEventListener('click', resetDatabaseQueryForm);
     document.getElementById('databaseSqlInput').addEventListener('input', updateDatabaseQueryStructuredPreview);
+    document.getElementById('databaseQuerySyncParamsBtn').addEventListener('click', () => syncDatabaseQueryParametersFromSql({ notifyUser: true }));
+    document.getElementById('databaseDatasourceSelect').addEventListener('change', () => updateDatabaseQueryParamSummary());
+    document.getElementById('addDatabaseParamBtn').addEventListener('click', () => addDatabaseParamRow());
+    document.getElementById('databaseParamRows').addEventListener('click', handleDatabaseParamRowsClick);
+    document.getElementById('databaseParamRows').addEventListener('input', () => syncDatabaseParamHiddenFields(false));
+    document.getElementById('databaseParamRows').addEventListener('change', event => {
+        updateDatabaseParamSourceState(event.target?.closest?.('[data-database-param-row]'));
+        syncDatabaseParamHiddenFields(false);
+    });
     document.getElementById('databaseQuerySearchInput').addEventListener('input', handleDatabaseQuerySearch);
     document.getElementById('databaseQueryPrevPageBtn').addEventListener('click', () => changeDatabaseQueryPage(-1));
     document.getElementById('databaseQueryNextPageBtn').addEventListener('click', () => changeDatabaseQueryPage(1));
     document.getElementById('databaseQuerySelectVisibleBtn').addEventListener('click', selectVisibleDatabaseQueries);
     document.getElementById('databaseQueryClearSelectionBtn').addEventListener('click', clearDatabaseQuerySelection);
     document.getElementById('databaseQueryBatchDeleteBtn').addEventListener('click', removeSelectedDatabaseQueries);
+    document.getElementById('saveTradingCalendarConfigBtn').addEventListener('click', handleSaveTradingCalendarConfig);
+    document.getElementById('testTradingCalendarConfigBtn').addEventListener('click', handleTestTradingCalendarConfig);
+    document.getElementById('testTradingCalendarFunctionBtn').addEventListener('click', handleTestTradingCalendarFunction);
+    document.getElementById('tradingCalendarDatasourceSelect').addEventListener('change', resetTradingCalendarFunctionTestState);
+    document.getElementById('tradingCalendarSqlInput').addEventListener('input', resetTradingCalendarFunctionTestState);
     document.getElementById('databaseQueryImportDslBtn').addEventListener('click', openDatabaseQueryDslImport);
     document.getElementById('databaseQueryExportDslBtn').addEventListener('click', handleDatabaseQueryDslExport);
     document.getElementById('databaseQueryDslValidateBtn').addEventListener('click', handleDatabaseQueryDslValidate);
@@ -176,6 +228,8 @@ async function handleLogin(event) {
 
 async function enterApp() {
     showApp();
+    ensureApiGatewaySelector();
+    hideLegacyApiHttpFields();
     resetForm();
     resetMcpServicePanel();
     await loadServices();
@@ -195,15 +249,72 @@ async function handleViewSwitch(view) {
     if (view === 'databaseMcp') {
         await loadDatabaseQueries();
     }
+    if (view === 'cacheSettings') await loadCacheSettingsPanel();
     if (view === 'notificationChannels') await loadNotificationPanel();
     if (view === 'auditLogs') await loadAuditLogPanel();
 }
 
+function ensureApiGatewaySelector() {
+    if (document.getElementById('apiGatewaySelect')) {
+        return;
+    }
+    const titleInput = document.getElementById('title');
+    const titleColumn = titleInput?.closest('.col-md-6');
+    if (!titleColumn) {
+        return;
+    }
+    const wrapper = document.createElement('div');
+    wrapper.className = 'col-12';
+    wrapper.innerHTML = `
+        <label class="form-label" for="apiGatewaySelect">API 网关资产</label>
+        <select id="apiGatewaySelect" class="form-select">
+            <option value="">请选择 API 网关资产</option>
+        </select>
+    `;
+    titleColumn.insertAdjacentElement('afterend', wrapper);
+}
+
+function hideLegacyApiHttpFields() {
+    ['method', 'timeoutMs', 'urlTemplate', 'headersJson'].forEach(id => {
+        const element = document.getElementById(id);
+        element?.closest('[class*="col-"]')?.classList.add('d-none');
+        element?.removeAttribute('required');
+    });
+    const bodyTemplate = document.getElementById('bodyTemplate');
+    bodyTemplate?.classList.add('d-none');
+    bodyTemplate?.removeAttribute('required');
+    document.querySelector('label[for="bodyTemplate"]')?.classList.add('d-none');
+    const microserviceBox = document.getElementById('microserviceMode')?.closest('[class*="col-"]');
+    microserviceBox?.classList.add('d-none');
+}
+
+function renderApiGatewayOptions(selectedGatewayId = document.getElementById('apiGatewaySelect')?.value || '') {
+    ensureApiGatewaySelector();
+    const select = document.getElementById('apiGatewaySelect');
+    if (!select) {
+        return;
+    }
+    const selectedId = selectedGatewayId || '';
+    const visibleAssets = apiGatewayAssets
+        .filter(asset => asset.enabled || asset.id === selectedId)
+        .sort((a, b) => String(a.name || a.toolName || '').localeCompare(String(b.name || b.toolName || '')));
+    const options = ['<option value="">请选择 API 网关资产</option>'];
+    for (const asset of visibleAssets) {
+        const label = [asset.name || asset.title || asset.toolName || asset.id, asset.environment, asset.method]
+            .filter(Boolean)
+            .join(' · ');
+        options.push(`<option value="${escapeHtml(asset.id)}">${escapeHtml(label)}</option>`);
+    }
+    select.innerHTML = options.join('');
+    select.value = selectedId;
+}
+
 async function loadServices() {
     try {
-        services = await listServices();
+        [services, apiGatewayAssets] = await Promise.all([listServices(), listHttpAssets()]);
         if (selectedId && !services.some(service => service.id === selectedId)) selectedId = '';
         selectedServiceIds = new Set([...selectedServiceIds].filter(id => services.some(service => service.id === id)));
+        renderApiGatewayOptions();
         renderApiServices();
     } catch (error) {
         handleError(error);
@@ -259,12 +370,14 @@ function openNewService() {
     document.getElementById('serviceSearchInput').value = '';
     renderApiServices();
     resetForm();
+    renderApiGatewayOptions();
     showApiServiceModal();
 }
 
 function selectService(service) {
     selectedId = service.id;
     document.getElementById('formTitle').textContent = '编辑 API 服务';
+    renderApiGatewayOptions(service.gatewayId);
     fillServiceForm(service);
     renderApiServices();
     showApiServiceModal();
@@ -273,6 +386,7 @@ function selectService(service) {
 function resetForm() {
     selectedId = '';
     document.getElementById('formTitle').textContent = '新增 API 服务';
+    renderApiGatewayOptions();
     fillServiceForm(null);
 }
 
@@ -359,13 +473,49 @@ async function handleApiServiceRebuildIndex() {
 async function openLivedataImport() {
     livedataSearchTerm = '';
     selectedLivedataApiIds = new Set();
+    ensureLivedataConfigPanel();
     document.getElementById('livedataApiSearchInput').value = '';
     document.getElementById('overwriteLivedataExisting').checked = false;
     showLivedataImportModal();
+    await loadLivedataConfig();
     await reloadLivedataApis();
 }
 
+async function loadLivedataConfig() {
+    try {
+        [livedataConfig, sqlAssets] = await Promise.all([getLivedataConfig(), listSqlAssets()]);
+        renderLivedataDatasourceOptions(livedataConfig?.datasourceId || '');
+        fillLivedataConfigForm(livedataConfig);
+    } catch (error) {
+        handleError(error);
+    }
+}
+
+async function handleSaveLivedataConfig() {
+    const button = document.getElementById('saveLivedataConfigBtn');
+    const originalText = button?.textContent || '保存配置';
+    if (button) {
+        button.disabled = true;
+        button.textContent = '保存中...';
+    }
+    try {
+        livedataConfig = await saveLivedataConfig(readLivedataConfigForm());
+        notify('保存成功', 'LiveData 配置已更新。');
+        renderLivedataDatasourceOptions(livedataConfig?.datasourceId || '');
+        fillLivedataConfigForm(livedataConfig);
+        await reloadLivedataApis();
+    } catch (error) {
+        handleError(error);
+    } finally {
+        if (button) {
+            button.disabled = false;
+            button.textContent = originalText;
+        }
+    }
+}
+
 async function reloadLivedataApis() {
+    ensureLivedataConfigPanel();
     const button = document.getElementById('reloadLivedataApisBtn');
     button.disabled = true;
     try {
@@ -517,7 +667,14 @@ async function toggleService(service) {
 }
 
 async function removeService(service) {
-    if (!window.confirm(`确定删除 ${service.toolName} 吗？`)) return;
+    const confirmed = await confirmDangerAction({
+        title: '删除 API 服务',
+        message: '确定删除该 API 服务吗？',
+        target: service.toolName || service.title || '未命名 API 服务',
+        detail: '删除后该 API 服务将从 MCP 工具列表移除，已绑定的页面配置不会再调用它。',
+        confirmText: '确认删除'
+    });
+    if (!confirmed) return;
     try {
         await deleteService(service.id);
         notify('删除成功', `${service.toolName} 已删除。`);
@@ -558,7 +715,14 @@ async function removeSelectedServices() {
         notify('未选择 API', '请先选择需要删除的 API。');
         return;
     }
-    if (!window.confirm(`确定删除选中的 ${ids.length} 个 API 吗？`)) return;
+    const confirmed = await confirmDangerAction({
+        title: '批量删除 API 服务',
+        message: `确定删除选中的 ${ids.length} 个 API 服务吗？`,
+        target: `${ids.length} 个已选 API 服务`,
+        detail: '批量删除后这些 API 服务将从 MCP 工具列表移除。',
+        confirmText: '确认删除'
+    });
+    if (!confirmed) return;
     try {
         const result = await deleteServices(ids);
         selectedServiceIds.clear();
@@ -575,11 +739,16 @@ async function removeSelectedServices() {
 
 async function loadDatabaseQueries() {
     try {
-        [databaseQueries, sqlAssets] = await Promise.all([listDatabaseQueries(), listSqlAssets()]);
+        [databaseQueries, sqlAssets, tradingCalendarConfig] = await Promise.all([
+            listDatabaseQueries(),
+            listSqlAssets(),
+            getTradingCalendarConfig()
+        ]);
         if (selectedDatabaseQueryId && !databaseQueries.some(query => query.id === selectedDatabaseQueryId)) {
             selectedDatabaseQueryId = '';
         }
         renderDatabaseDatasourceOptions();
+        renderTradingCalendarConfig();
         selectedDatabaseQueryIds = new Set([...selectedDatabaseQueryIds].filter(id =>
             databaseQueries.some(query => query.id === id)
         ));
@@ -698,10 +867,10 @@ function selectDatabaseQuery(query) {
 
 async function testDatabaseQueryFromCard(query) {
     try {
-        const params = promptJsonObject('请输入查询参数 JSON', {});
-        if (params == null) return;
+        const params = readDatabasePromptArgsFromSchema(query.inputSchema || emptyParameterSchema());
         selectedDatabaseQueryId = query.id;
         fillDatabaseQueryForm(query);
+        renderDatabaseParamEditor(query.inputSchema || emptyParameterSchema(), params);
         renderDatabaseQueryOutput(await testSavedDatabaseQuery(query.id, params));
         renderDatabaseQueryCards();
         showDatabaseQueryModal();
@@ -721,7 +890,14 @@ async function toggleDatabaseQuery(query) {
 }
 
 async function removeDatabaseQuery(query) {
-    if (!window.confirm(`确定删除 ${query.toolName} 吗？`)) return;
+    const confirmed = await confirmDangerAction({
+        title: '删除数据库查询',
+        message: '确定删除该数据库查询吗？',
+        target: query.toolName || query.title || '未命名数据库查询',
+        detail: '删除后该查询模板将从 MCP 数据库查询工具中移除。',
+        confirmText: '确认删除'
+    });
+    if (!confirmed) return;
     try {
         await deleteDatabaseQuery(query.id);
         notify('删除成功', `${query.toolName} 已删除。`);
@@ -796,6 +972,320 @@ async function handleDatabaseQueryDslValidate() {
     }
 }
 
+async function handleSaveTradingCalendarConfig() {
+    const button = document.getElementById('saveTradingCalendarConfigBtn');
+    const original = button?.textContent || '保存配置';
+    try {
+        if (button) {
+            button.disabled = true;
+            button.textContent = '保存中...';
+        }
+        tradingCalendarConfig = await saveTradingCalendarConfig(readTradingCalendarConfigForm());
+        resetTradingCalendarFunctionTestState();
+        notify('保存成功', '交易日数据源模板已更新。');
+        renderTradingCalendarConfig();
+    } catch (error) {
+        handleError(error);
+    } finally {
+        if (button) {
+            button.disabled = false;
+            button.textContent = original;
+        }
+    }
+}
+
+async function handleTestTradingCalendarConfig() {
+    const button = document.getElementById('testTradingCalendarConfigBtn');
+    const original = button?.textContent || '测试查询';
+    try {
+        if (button) {
+            button.disabled = true;
+            button.textContent = '测试中...';
+        }
+        const result = await testTradingCalendarConfig(readTradingCalendarConfigForm());
+        tradingCalendarQueryTestPassed = !!result.success;
+        updateTradingCalendarFunctionTestState();
+        notify(result.success ? '测试通过' : '测试未通过', result.message || result.errorMessage || '交易日查询测试完成。');
+        showResult(result, {
+            title: '交易日数据源模板测试结果',
+            subtitle: '使用当前页面配置执行测试，不保存配置'
+        });
+    } catch (error) {
+        resetTradingCalendarFunctionTestState();
+        notify('测试失败', error.message || '交易日查询测试失败。');
+        showResult({
+            success: false,
+            message: '交易日查询测试失败',
+            errorMessage: error.message || String(error)
+        }, {
+            title: '交易日数据源模板测试结果',
+            subtitle: '使用当前页面配置执行测试，不保存配置'
+        });
+    } finally {
+        if (button) {
+            button.disabled = false;
+            button.textContent = original;
+        }
+    }
+}
+
+async function handleTestTradingCalendarFunction() {
+    const button = document.getElementById('testTradingCalendarFunctionBtn');
+    const original = button?.textContent || '测试函数';
+    const functionName = value('tradingCalendarFunctionSelect') || 'trade_date';
+    try {
+        if (button) {
+            button.disabled = true;
+            button.textContent = '获取中...';
+        }
+        const result = await testTradingCalendarFunction({
+            ...readTradingCalendarConfigForm(),
+            functionName
+        });
+        notify(result.success ? '获取成功' : '获取失败', result.success ? `${result.functionName} = ${result.value}` : (result.message || '函数数据日获取失败。'));
+        showResult(result, {
+            title: '交易日函数数据日获取测试',
+            subtitle: '使用当前页面配置和已通过查询测试的交易日模板'
+        });
+    } catch (error) {
+        notify('获取失败', error.message || '函数数据日获取失败。');
+        showResult({
+            success: false,
+            functionName,
+            message: '函数数据日获取失败',
+            errorMessage: error.message || String(error)
+        }, {
+            title: '交易日函数数据日获取测试',
+            subtitle: '使用当前页面配置和已通过查询测试的交易日模板'
+        });
+    } finally {
+        updateTradingCalendarFunctionTestState();
+        if (button) {
+            button.textContent = original;
+        }
+    }
+}
+
+function resetTradingCalendarFunctionTestState() {
+    tradingCalendarQueryTestPassed = false;
+    updateTradingCalendarFunctionTestState();
+}
+
+function updateTradingCalendarFunctionTestState() {
+    const enabled = !!tradingCalendarQueryTestPassed;
+    const select = document.getElementById('tradingCalendarFunctionSelect');
+    const button = document.getElementById('testTradingCalendarFunctionBtn');
+    if (select) {
+        select.disabled = !enabled;
+    }
+    if (button) {
+        button.disabled = !enabled;
+    }
+}
+
+function readDatabasePromptArgsFromSchema(schema = emptyParameterSchema()) {
+    const args = {};
+    const properties = schema.properties || {};
+    for (const [name, definition] of Object.entries(properties)) {
+        if (definition?.defaultSource && definition.defaultSource !== 'user_input') {
+            continue;
+        }
+        const promptValue = window.prompt(`请输入参数 ${name}`, definition.default ?? '');
+        if (promptValue !== null && promptValue !== '') {
+            args[name] = coerceParamValue(promptValue, definition.type || 'string');
+        }
+    }
+    return args;
+}
+
+function ensureLivedataConfigPanel() {
+    if (document.getElementById('livedataConfigPanel')) {
+        return;
+    }
+    const toolbar = document.querySelector('.livedata-import-toolbar');
+    if (!toolbar) {
+        return;
+    }
+    const panel = document.createElement('div');
+    panel.id = 'livedataConfigPanel';
+    panel.className = 'livedata-config-panel mb-3 border rounded-2';
+    panel.innerHTML = `
+        <button class="livedata-config-toggle collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#livedataConfigBody" aria-expanded="false" aria-controls="livedataConfigBody">
+            <span>
+                <strong>API 网关设置</strong>
+                <small class="text-secondary">配置 LiveData 导入使用的数据资产、网关地址、登录和缓存策略</small>
+            </span>
+        </button>
+        <div id="livedataConfigBody" class="collapse">
+            <div class="row g-3 p-3 pt-0">
+                <div class="col-md-3">
+                    <label class="form-label small text-secondary" for="livedataEnabled">启用状态</label>
+                    <select id="livedataEnabled" class="form-select">
+                        <option value="false">停用</option>
+                        <option value="true">启用</option>
+                    </select>
+                </div>
+                <div class="col-md-5">
+                    <label class="form-label small text-secondary" for="livedataDatasourceId">数据库资产</label>
+                    <select id="livedataDatasourceId" class="form-select">
+                        <option value="">请选择数据库资产</option>
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label small text-secondary" for="livedataTableName">API 表名</label>
+                    <input id="livedataTableName" class="form-control" value="ld_dataservice_api">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label small text-secondary" for="livedataServiceBaseUrl">服务基础地址</label>
+                    <input id="livedataServiceBaseUrl" class="form-control" placeholder="https://livedata.example.com">
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label small text-secondary" for="livedataServicePathTemplate">服务路径模板</label>
+                    <input id="livedataServicePathTemplate" class="form-control" value="/service/{serviceName}/call">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small text-secondary" for="livedataLoginEnabled">登录开关</label>
+                    <select id="livedataLoginEnabled" class="form-select">
+                        <option value="true">启用</option>
+                        <option value="false">停用</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small text-secondary" for="livedataLoginPath">登录路径</label>
+                    <input id="livedataLoginPath" class="form-control" value="/login">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small text-secondary" for="livedataLoginId">登录账号</label>
+                    <input id="livedataLoginId" class="form-control">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small text-secondary" for="livedataLoginPwd">登录密码</label>
+                    <input id="livedataLoginPwd" class="form-control" type="password">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label small text-secondary" for="livedataAmsToken">AMS 令牌</label>
+                    <input id="livedataAmsToken" class="form-control" type="password">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small text-secondary" for="livedataNamespace">命名空间</label>
+                    <input id="livedataNamespace" class="form-control" value="livedata">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small text-secondary" for="livedataToolPrefix">工具名前缀</label>
+                    <input id="livedataToolPrefix" class="form-control" value="livedata_">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small text-secondary" for="livedataPublishedState">发布状态值</label>
+                    <input id="livedataPublishedState" class="form-control" type="number" value="0">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small text-secondary" for="livedataMaxApis">最大 API 数</label>
+                    <input id="livedataMaxApis" class="form-control" type="number" min="1" value="1000">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small text-secondary" for="livedataTimeoutMs">超时时间 ms</label>
+                    <input id="livedataTimeoutMs" class="form-control" type="number" min="1000" value="20000">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small text-secondary" for="livedataCacheEnabled">缓存开关</label>
+                    <select id="livedataCacheEnabled" class="form-select">
+                        <option value="false">停用</option>
+                        <option value="true">启用</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small text-secondary" for="livedataCacheTtlSeconds">缓存 TTL 秒</label>
+                    <input id="livedataCacheTtlSeconds" class="form-control" type="number" min="1" value="300">
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
+                    <div class="form-check">
+                        <input id="livedataIncludeUnpublished" class="form-check-input" type="checkbox">
+                        <label class="form-check-label" for="livedataIncludeUnpublished">包含未发布 API</label>
+                    </div>
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
+                    <div class="form-check">
+                        <input id="livedataExposeAmsToken" class="form-check-input" type="checkbox">
+                        <label class="form-check-label" for="livedataExposeAmsToken">暴露令牌参数</label>
+                    </div>
+                </div>
+                <div class="col-12 d-flex justify-content-end">
+                    <button id="saveLivedataConfigBtn" class="btn btn-outline-primary btn-sm px-3" type="button">保存配置</button>
+                </div>
+            </div>
+        </div>
+    `;
+    toolbar.insertAdjacentElement('beforebegin', panel);
+}
+
+function renderLivedataDatasourceOptions(selected = '') {
+    const select = document.getElementById('livedataDatasourceId');
+    if (!select) {
+        return;
+    }
+    const assets = sqlAssets
+        .filter(asset => asset.enabled || asset.id === selected)
+        .sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
+    select.innerHTML = [
+        '<option value="">请选择数据库资产</option>',
+        ...assets.map(asset => `<option value="${escapeHtml(asset.id)}">${escapeHtml(asset.name || asset.toolName || asset.id)} / ${escapeHtml(asset.environment || 'DEV')}</option>`)
+    ].join('');
+    select.value = selected || '';
+}
+
+function fillLivedataConfigForm(config = {}) {
+    setValue('livedataEnabled', String(config.enabled ?? false));
+    setValue('livedataDatasourceId', config.datasourceId || '');
+    setValue('livedataTableName', config.tableName || 'ld_dataservice_api');
+    setValue('livedataServiceBaseUrl', config.serviceBaseUrl || '');
+    setValue('livedataServicePathTemplate', config.servicePathTemplate || '/service/{serviceName}/call');
+    setValue('livedataLoginEnabled', String(config.loginEnabled ?? true));
+    setValue('livedataLoginPath', config.loginPath || '/login');
+    setValue('livedataLoginId', config.loginId || '');
+    setValue('livedataLoginPwd', config.loginPwd || '');
+    setValue('livedataAmsToken', config.amsToken || '');
+    setValue('livedataNamespace', config.defaultNamespace || 'livedata');
+    setValue('livedataToolPrefix', config.toolNamePrefix || 'livedata_');
+    setValue('livedataPublishedState', String(config.publishedState ?? 0));
+    setValue('livedataMaxApis', String(config.maxApis || 1000));
+    setValue('livedataTimeoutMs', String(config.timeoutMs || 20000));
+    setValue('livedataCacheEnabled', String(config.cacheEnabled ?? false));
+    setValue('livedataCacheTtlSeconds', String(config.cacheTtlSeconds || 300));
+    const include = document.getElementById('livedataIncludeUnpublished');
+    if (include) include.checked = Boolean(config.includeUnpublishedAsDisabled);
+    const expose = document.getElementById('livedataExposeAmsToken');
+    if (expose) expose.checked = Boolean(config.exposeAmsTokenParameter);
+    const overwrite = document.getElementById('overwriteLivedataExisting');
+    if (overwrite) overwrite.checked = Boolean(config.overwriteExisting);
+}
+
+function readLivedataConfigForm() {
+    return {
+        enabled: value('livedataEnabled') === 'true',
+        datasourceId: value('livedataDatasourceId') || null,
+        tableName: value('livedataTableName') || 'ld_dataservice_api',
+        serviceBaseUrl: value('livedataServiceBaseUrl') || null,
+        servicePathTemplate: value('livedataServicePathTemplate') || '/service/{serviceName}/call',
+        loginEnabled: value('livedataLoginEnabled') === 'true',
+        loginPath: value('livedataLoginPath') || '/login',
+        loginId: value('livedataLoginId') || null,
+        loginPwd: value('livedataLoginPwd') || null,
+        loginTimeoutMs: 10000,
+        sessionTtlSeconds: 1800,
+        amsToken: value('livedataAmsToken') || null,
+        defaultNamespace: value('livedataNamespace') || 'livedata',
+        toolNamePrefix: value('livedataToolPrefix') || 'livedata_',
+        publishedState: Number(value('livedataPublishedState') || 0),
+        maxApis: Number(value('livedataMaxApis') || 1000),
+        timeoutMs: Number(value('livedataTimeoutMs') || 20000),
+        cacheEnabled: value('livedataCacheEnabled') === 'true',
+        cacheTtlSeconds: Number(value('livedataCacheTtlSeconds') || 300),
+        overwriteExisting: document.getElementById('overwriteLivedataExisting')?.checked || false,
+        includeUnpublishedAsDisabled: document.getElementById('livedataIncludeUnpublished')?.checked || false,
+        exposeAmsTokenParameter: document.getElementById('livedataExposeAmsToken')?.checked || false
+    };
+}
+
 async function handleDatabaseQueryDslImport(event) {
     event.preventDefault();
     const submitBtn = document.getElementById('databaseQueryDslImportSubmitBtn');
@@ -832,7 +1322,14 @@ async function removeSelectedDatabaseQueries() {
         notify('未选择查询', '请先选择需要删除的数据查询。');
         return;
     }
-    if (!window.confirm(`确定删除选中的 ${ids.length} 个数据查询吗？`)) return;
+    const confirmed = await confirmDangerAction({
+        title: '批量删除数据库查询',
+        message: `确定删除选中的 ${ids.length} 个数据查询吗？`,
+        target: `${ids.length} 个已选数据库查询`,
+        detail: '批量删除后这些查询模板将从 MCP 数据库查询工具中移除。',
+        confirmText: '确认删除'
+    });
+    if (!confirmed) return;
     try {
         const result = await deleteDatabaseQueries(ids);
         selectedDatabaseQueryIds.clear();
@@ -1058,17 +1555,22 @@ function handleError(error) {
     notify('操作失败', error.message || '未知错误');
 }
 function value(id) {
-    return document.getElementById(id).value.trim();
+    const element = document.getElementById(id);
+    return element ? element.value.trim() : '';
 }
 
 function setValue(id, nextValue) {
-    document.getElementById(id).value = nextValue ?? '';
+    const element = document.getElementById(id);
+    if (element) {
+        element.value = nextValue ?? '';
+    }
 }
 
 function readDatabaseQueryForm() {
+    syncDatabaseParamHiddenFields();
     return {
         sql: value('databaseSqlInput'),
-        params: readJsonObject('databaseParamsJson'),
+        params: readDatabaseTestParams(),
         maxRows: Number(value('databaseMaxRowsInput') || 50),
         timeoutSeconds: Number(value('databaseTimeoutSecondsInput') || 30),
         datasourceId: value('databaseDatasourceSelect')
@@ -1076,6 +1578,7 @@ function readDatabaseQueryForm() {
 }
 
 function readDatabaseQueryRegistrationForm() {
+    syncDatabaseParamHiddenFields();
     const id = value('databaseQueryId');
     const current = databaseQueries.find(query => query.id === id);
     return {
@@ -1088,7 +1591,7 @@ function readDatabaseQueryRegistrationForm() {
         businessGroupName: value('databaseBusinessGroupNameInput'),
         businessGroupDescription: value('databaseBusinessGroupDescriptionInput'),
         sqlTemplate: value('databaseSqlInput'),
-        inputSchema: readJsonObject('databaseInputSchemaJson'),
+        inputSchema: readDatabaseInputSchema(),
         governance: readJsonObject('databaseGovernanceJson'),
         routingLabelsJson: current?.routingLabelsJson,
         routingLabels: current?.routingLabels,
@@ -1113,21 +1616,392 @@ function fillDatabaseQueryForm(query) {
     setValue('databaseBusinessGroupDescriptionInput', query?.businessGroupDescription || '');
     setValue('databaseSqlInput', query?.sqlTemplate || '');
     updateDatabaseQueryStructuredPreview();
-    setValue('databaseParamsJson', '{}');
+    renderDatabaseParamEditor(query?.inputSchema || emptyParameterSchema(), {});
     setValue('databaseMaxRowsInput', String(query?.maxRows || 50));
     setValue('databaseTimeoutSecondsInput', String(query?.timeoutSeconds || 30));
-    setValue('databaseInputSchemaJson', JSON.stringify(query?.inputSchema || {
-        type: 'object',
-        properties: {},
-        required: [],
-        additionalProperties: false
-    }, null, 2));
     setValue('databaseGovernanceJson', JSON.stringify(query?.governance || defaultDatabaseQueryGovernance(query), null, 2));
     renderDatabaseQueryPreview(null);
 }
 
 function updateDatabaseQueryStructuredPreview() {
     renderDatabaseQueryStructuredPreview(value('databaseSqlInput'));
+    updateDatabaseQueryParamSummary();
+}
+
+function syncDatabaseQueryParametersFromSql(options = {}) {
+    const params = extractDatabaseQueryParameters(value('databaseSqlInput'));
+    const schema = readDatabaseInputSchema();
+    const testParams = readDatabaseTestParams();
+    let added = 0;
+
+    for (const param of params) {
+        if (!schema.properties[param.name]) {
+            schema.properties[param.name] = databaseQuerySchemaProperty(param);
+            added += 1;
+        } else if (param.dynamic) {
+            schema.properties[param.name] = {
+                ...schema.properties[param.name],
+                defaultSource: param.defaultSource
+            };
+        }
+        if (param.required && !schema.required.includes(param.name)) {
+            schema.required.push(param.name);
+        }
+        if (!param.dynamic && !Object.prototype.hasOwnProperty.call(testParams, param.name)) {
+            testParams[param.name] = param.example;
+        }
+    }
+
+    renderDatabaseParamEditor(schema, testParams);
+    updateDatabaseQueryParamSummary(params);
+    if (options.notifyUser) {
+        notify('参数已同步', added > 0 ? `新增 ${added} 个参数定义。` : '参数定义已是最新。');
+    }
+    return params;
+}
+
+function updateDatabaseQueryParamSummary(existingParams) {
+    const node = document.getElementById('databaseQueryParamSummary');
+    if (!node) {
+        return;
+    }
+    const params = existingParams || extractDatabaseQueryParameters(value('databaseSqlInput'));
+    if (!params.length) {
+        node.textContent = '';
+        return;
+    }
+    const names = params.map(param => param.dynamic ? `${param.name}:自动` : param.name);
+    node.textContent = `参数：${names.join(', ')}`;
+}
+
+function extractDatabaseQueryParameters(sql) {
+    const params = new Map();
+    const text = String(sql || '');
+
+    const namedPattern = /(^|[^:]):([A-Za-z_][A-Za-z0-9_]*)\b/g;
+    let match;
+    while ((match = namedPattern.exec(text)) !== null) {
+        const name = match[2];
+        params.set(name, databaseQueryParamDescriptor(name, DATABASE_DYNAMIC_PARAMS.has(name), 'named'));
+    }
+
+    const dynamicPattern = /\$\{\s*([A-Za-z_][A-Za-z0-9_+-]*)\s*}/g;
+    while ((match = dynamicPattern.exec(text)) !== null) {
+        const token = match[1];
+        if (!DATABASE_DIRECT_DYNAMIC_TOKEN.test(token)) {
+            continue;
+        }
+        const name = token.startsWith('trade_date') ? 'trade_date' : token;
+        if (!params.has(name)) {
+            params.set(name, databaseQueryParamDescriptor(name, true, 'dynamic_token', token));
+        }
+    }
+
+    const mustachePattern = /\{\{\s*([A-Za-z_][A-Za-z0-9_]*)\s*}}/g;
+    while ((match = mustachePattern.exec(text)) !== null) {
+        const name = match[1];
+        if (!params.has(name)) {
+            params.set(name, databaseQueryParamDescriptor(name, DATABASE_DYNAMIC_PARAMS.has(name), 'template_token'));
+        }
+    }
+
+    return [...params.values()];
+}
+
+function databaseQueryParamDescriptor(name, dynamic, source, token = name) {
+    return {
+        name,
+        dynamic,
+        source,
+        token,
+        defaultSource: dynamic ? token : 'user_input',
+        required: !dynamic,
+        example: databaseQueryParamExample(name)
+    };
+}
+
+function databaseQuerySchemaProperty(param) {
+    const property = {
+        type: 'string',
+        description: param.dynamic
+            ? `Runtime dynamic parameter: ${param.defaultSource}`
+            : `Query parameter: ${param.name}`
+    };
+    if (param.dynamic) {
+        property.defaultSource = param.defaultSource;
+    }
+    const pattern = databaseQueryParamPattern(param.name);
+    if (pattern) {
+        property.pattern = pattern;
+    }
+    if (param.example !== '') {
+        property.examples = [param.example];
+    }
+    return property;
+}
+
+function databaseQueryParamPattern(name) {
+    if (name === 'month') {
+        return '^\\d{6}$';
+    }
+    if (['today', 'natural_date', 'month_start', 'month_end', 'trade_date'].includes(name)) {
+        return '^\\d{8}$';
+    }
+    return null;
+}
+
+function databaseQueryParamExample(name) {
+    if (name === 'month') {
+        return '202607';
+    }
+    if (['today', 'natural_date', 'month_start', 'month_end', 'trade_date'].includes(name)) {
+        return '20260707';
+    }
+    if (name.toLowerCase().includes('branch')) {
+        return '0001';
+    }
+    if (name.toLowerCase().includes('customer')) {
+        return 'CUST001';
+    }
+    return '';
+}
+
+function handleDatabaseParamRowsClick(event) {
+    const button = event.target?.closest?.('[data-database-param-remove]');
+    if (!button) {
+        return;
+    }
+    button.closest('[data-database-param-row]')?.remove();
+    updateDatabaseParamEmptyState();
+    syncDatabaseParamHiddenFields(false);
+}
+
+function renderDatabaseParamEditor(schema = emptyParameterSchema(), testParams = {}) {
+    const rows = document.getElementById('databaseParamRows');
+    if (!rows) {
+        setValue('databaseInputSchemaJson', JSON.stringify(schema || emptyParameterSchema(), null, 2));
+        setValue('databaseParamsJson', JSON.stringify(testParams || {}, null, 2));
+        return;
+    }
+    rows.querySelectorAll('[data-database-param-row]').forEach(row => row.remove());
+    const normalized = normalizeInputSchema(isPlainObject(schema) ? { ...schema } : emptyParameterSchema());
+    const required = new Set(normalized.required || []);
+    for (const [name, definition] of Object.entries(normalized.properties || {})) {
+        const defaultSource = definition.defaultSource || '';
+        addDatabaseParamRow({
+            name,
+            type: definition.type || 'string',
+            required: required.has(name),
+            defaultSource,
+            dynamic: defaultSource && defaultSource !== 'user_input',
+            defaultValue: definition.default,
+            testValue: testParams?.[name],
+            exampleValue: Array.isArray(definition.examples) ? definition.examples[0] : definition.example,
+            description: definition.description || ''
+        }, false);
+    }
+    updateDatabaseParamEmptyState();
+    syncDatabaseParamHiddenFields(false);
+}
+
+function addDatabaseParamRow(param = {}, sync = true) {
+    const rows = document.getElementById('databaseParamRows');
+    const empty = document.getElementById('databaseParamEmptyRow');
+    if (!rows) {
+        return;
+    }
+    const dynamic = Boolean(param.dynamic || (param.defaultSource && param.defaultSource !== 'user_input'));
+    const tr = document.createElement('tr');
+    tr.dataset.databaseParamRow = 'true';
+    tr.innerHTML = `
+        <td><input class="form-control form-control-sm api-param-name" data-database-param-name value="${escapeAttribute(param.name || '')}" placeholder="customer_id"></td>
+        <td>
+            <select class="form-select form-select-sm" data-database-param-type>
+                ${databaseParamTypeOptions(param.type || 'string')}
+            </select>
+        </td>
+        <td class="api-param-required-cell"><input class="form-check-input" type="checkbox" data-database-param-required ${param.required ? 'checked' : ''}></td>
+        <td>
+            <select class="form-select form-select-sm database-param-source" data-database-param-source>
+                ${databaseParamSourceOptions(param.defaultSource || (dynamic ? 'trade_date' : 'user_input'))}
+            </select>
+        </td>
+        <td><input class="form-control form-control-sm" data-database-param-test value="${escapeAttribute(formatParamValue(param.testValue))}" ${dynamic ? 'disabled' : ''}></td>
+        <td><input class="form-control form-control-sm" data-database-param-example value="${escapeAttribute(formatParamValue(param.exampleValue))}"></td>
+        <td><input class="form-control form-control-sm api-param-description" data-database-param-description value="${escapeAttribute(param.description || '')}" placeholder="参数业务含义"></td>
+        <td class="text-end"><button class="btn btn-outline-danger btn-sm api-param-remove" type="button" data-database-param-remove aria-label="删除参数">×</button></td>
+    `;
+    rows.insertBefore(tr, empty || null);
+    updateDatabaseParamEmptyState();
+    if (sync) {
+        syncDatabaseParamHiddenFields(false);
+    }
+}
+
+function readDatabaseInputSchema() {
+    const rows = [...document.querySelectorAll('[data-database-param-row]')];
+    if (!rows.length && !document.getElementById('databaseParamRows')) {
+        return normalizeInputSchema(readJsonObject('databaseInputSchemaJson'));
+    }
+    const schema = emptyParameterSchema();
+    const names = new Set();
+    for (const row of rows) {
+        const name = databaseParamFieldValue(row, 'name');
+        if (!name) {
+            continue;
+        }
+        if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) {
+            throw new Error(`查询参数名 ${name} 不合法，只能使用字母、数字和下划线，且不能以数字开头`);
+        }
+        if (names.has(name)) {
+            throw new Error(`查询参数名 ${name} 重复`);
+        }
+        names.add(name);
+        const type = databaseParamFieldValue(row, 'type') || 'string';
+        const defaultSource = databaseParamFieldValue(row, 'source') || 'user_input';
+        const exampleValue = databaseParamFieldValue(row, 'example');
+        const description = databaseParamFieldValue(row, 'description');
+        const definition = { type };
+        if (description) {
+            definition.description = description;
+        }
+        if (defaultSource && defaultSource !== 'user_input') {
+            definition.defaultSource = defaultSource;
+        }
+        if (exampleValue !== '') {
+            definition.examples = [coerceParamValue(exampleValue, type)];
+        }
+        schema.properties[name] = definition;
+        if (row.querySelector('[data-database-param-required]')?.checked) {
+            schema.required.push(name);
+        }
+    }
+    setValue('databaseInputSchemaJson', JSON.stringify(schema, null, 2));
+    return schema;
+}
+
+function readDatabaseTestParams() {
+    const params = {};
+    const rows = [...document.querySelectorAll('[data-database-param-row]')];
+    if (!rows.length && !document.getElementById('databaseParamRows')) {
+        return readJsonObject('databaseParamsJson');
+    }
+    for (const row of rows) {
+        const name = databaseParamFieldValue(row, 'name');
+        const source = databaseParamFieldValue(row, 'source') || 'user_input';
+        const valueText = databaseParamFieldValue(row, 'test');
+        if (!name || source !== 'user_input' || valueText === '') {
+            continue;
+        }
+        params[name] = coerceParamValue(valueText, databaseParamFieldValue(row, 'type') || 'string');
+    }
+    setValue('databaseParamsJson', JSON.stringify(params, null, 2));
+    return params;
+}
+
+function syncDatabaseParamHiddenFields(strict = true) {
+    try {
+        readDatabaseInputSchema();
+        readDatabaseTestParams();
+    } catch (error) {
+        if (strict) {
+            throw error;
+        }
+    }
+}
+
+function updateDatabaseParamEmptyState() {
+    const empty = document.getElementById('databaseParamEmptyRow');
+    const hasRows = Boolean(document.querySelector('[data-database-param-row]'));
+    empty?.classList.toggle('d-none', hasRows);
+}
+
+function updateDatabaseParamSourceState(row) {
+    if (!row) {
+        return;
+    }
+    const source = databaseParamFieldValue(row, 'source') || 'user_input';
+    const testInput = row.querySelector('[data-database-param-test]');
+    if (testInput) {
+        testInput.disabled = source !== 'user_input';
+        if (source !== 'user_input') {
+            testInput.value = '';
+        }
+    }
+}
+
+function databaseParamFieldValue(row, name) {
+    return row.querySelector(`[data-database-param-${name}]`)?.value?.trim() || '';
+}
+
+function databaseParamTypeOptions(selectedType) {
+    return ['string', 'number', 'integer', 'boolean', 'object', 'array']
+        .map(type => `<option value="${type}" ${type === selectedType ? 'selected' : ''}>${databaseParamTypeLabel(type)}</option>`)
+        .join('');
+}
+
+function databaseParamSourceOptions(selectedSource) {
+    const source = selectedSource || 'user_input';
+    const known = new Set(DATABASE_PARAM_SOURCE_OPTIONS.map(([value]) => value));
+    const options = [...DATABASE_PARAM_SOURCE_OPTIONS];
+    if (source === 'natural_date') {
+        options.push(['natural_date', '当天自然日 natural_date（兼容）']);
+    }
+    if (source && !known.has(source)) {
+        options.push([source, `${source}（自定义）`]);
+    }
+    return options
+        .map(([value, label]) => `<option value="${escapeAttribute(value)}" ${value === source ? 'selected' : ''}>${escapeHtml(label)}</option>`)
+        .join('');
+}
+
+function databaseParamTypeLabel(type) {
+    return {
+        string: '文本',
+        number: '数字',
+        integer: '整数',
+        boolean: '布尔',
+        object: '对象',
+        array: '数组'
+    }[type] || type;
+}
+
+function coerceParamValue(text, type) {
+    if (type === 'number' || type === 'integer') {
+        const number = Number(text);
+        if (!Number.isNaN(number)) {
+            return type === 'integer' ? Math.trunc(number) : number;
+        }
+    }
+    if (type === 'boolean') {
+        return text === 'true' || text === '1' || text === 'yes' || text === '是';
+    }
+    if (type === 'object' || type === 'array') {
+        try {
+            return JSON.parse(text);
+        } catch (error) {
+            return text;
+        }
+    }
+    return text;
+}
+
+function formatParamValue(value) {
+    if (value == null) {
+        return '';
+    }
+    if (typeof value === 'object') {
+        return JSON.stringify(value);
+    }
+    return String(value);
+}
+
+function escapeAttribute(value) {
+    return String(value ?? '')
+        .replaceAll('&', '&amp;')
+        .replaceAll('"', '&quot;')
+        .replaceAll('<', '&lt;')
+        .replaceAll('>', '&gt;');
 }
 
 function renderDatabaseQueryStructuredPreview(rawTemplate) {
@@ -1202,6 +2076,39 @@ function renderDatabaseDatasourceOptions(selected = value('databaseDatasourceSel
     ].join('');
 }
 
+function renderTradingCalendarConfig() {
+    renderTradingCalendarDatasourceOptions(tradingCalendarConfig?.datasourceId || '');
+    setValue('tradingCalendarDatasourceSelect', tradingCalendarConfig?.datasourceId || '');
+    setValue('tradingCalendarSqlInput', tradingCalendarConfig?.sqlTemplate || tradingCalendarConfig?.defaultSqlTemplate || 'select ZRR,JYR from dsc_cfg.t_xtjyr order by ZRR');
+    updateTradingCalendarFunctionTestState();
+}
+
+function renderTradingCalendarDatasourceOptions(selected = '') {
+    const select = document.getElementById('tradingCalendarDatasourceSelect');
+    if (!select) {
+        return;
+    }
+    const assets = sqlAssets
+        .filter(asset => asset.enabled || asset.id === selected)
+        .sort((a, b) => String(a.name || a.toolName || '').localeCompare(String(b.name || b.toolName || '')));
+    select.innerHTML = [
+        '<option value="">请选择交易日数据库资产</option>',
+        ...assets.map(asset => `
+            <option value="${escapeHtml(asset.id)}" ${asset.id === selected ? 'selected' : ''}>
+                ${escapeHtml(asset.toolName || asset.name || asset.id)} / ${escapeHtml(asset.environment || 'DEV')}
+            </option>
+        `)
+    ].join('');
+}
+
+function readTradingCalendarConfigForm() {
+    return {
+        enabled: true,
+        datasourceId: value('tradingCalendarDatasourceSelect') || null,
+        sqlTemplate: value('tradingCalendarSqlInput') || 'select ZRR,JYR from dsc_cfg.t_xtjyr order by ZRR'
+    };
+}
+
 function resetDatabaseQueryForm() {
     fillDatabaseQueryForm(null);
 }
@@ -1218,7 +2125,7 @@ function addDatabasePreviewFieldParam(field, sampleValue) {
         const result = appendDatabasePreviewParams([{ field, sampleValue }]);
         notify('参数已添加', `${field} 已抽取为参数 ${result.names[0]}。`);
     } catch (error) {
-        notify('参数添加失败', error.message || '请检查参数 JSON 与 Schema JSON。');
+        notify('参数添加失败', error.message || '请检查参数配置。');
     }
 }
 
@@ -1230,13 +2137,13 @@ function addDatabasePreviewFieldParams(fields, sampleRow) {
         })));
         notify('参数已添加', `已从查询结果提取 ${result.addedCount} 个列名参数。`);
     } catch (error) {
-        notify('参数添加失败', error.message || '请检查参数 JSON 与 Schema JSON。');
+        notify('参数添加失败', error.message || '请检查参数配置。');
     }
 }
 
 function appendDatabasePreviewParams(items) {
-    const params = readJsonObject('databaseParamsJson');
-    const schema = normalizeInputSchema(readJsonObject('databaseInputSchemaJson'));
+    const params = readDatabaseTestParams();
+    const schema = readDatabaseInputSchema();
     const names = [];
     let addedCount = 0;
 
@@ -1262,8 +2169,7 @@ function appendDatabasePreviewParams(items) {
         }
     }
 
-    setValue('databaseParamsJson', JSON.stringify(params, null, 2));
-    setValue('databaseInputSchemaJson', JSON.stringify(schema, null, 2));
+    renderDatabaseParamEditor(schema, params);
     return { names, addedCount };
 }
 function normalizeInputSchema(schema) {

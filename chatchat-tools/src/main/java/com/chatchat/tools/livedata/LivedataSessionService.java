@@ -23,7 +23,7 @@ public class LivedataSessionService {
 
     public static final String SESSION_ARGUMENT = "__livedata_session_id";
 
-    private final LivedataAutoRegistrationProperties properties;
+    private final LivedataSettingsProvider settingsProvider;
     private final ObjectMapper objectMapper;
 
     private volatile SessionState sessionState;
@@ -72,6 +72,7 @@ public class LivedataSessionService {
      * @return whether the condition is satisfied
      */
     private boolean shouldLogin() {
+        LivedataAutoRegistrationProperties properties = settingsProvider.current();
         return properties.isLoginEnabled()
             && hasText(properties.getLoginId())
             && hasText(properties.getLoginPwd());
@@ -94,6 +95,7 @@ public class LivedataSessionService {
     private SessionState login() {
         try {
             String loginUrl = loginUrl();
+            LivedataAutoRegistrationProperties properties = settingsProvider.current();
             String requestBody = ModelProtocolJson.compact(Map.of(
                 "loginId", properties.getLoginId(),
                 "loginPwd", properties.getLoginPwd()
@@ -170,6 +172,7 @@ public class LivedataSessionService {
      * @return the operation result
      */
     private String loginUrl() {
+        LivedataAutoRegistrationProperties properties = settingsProvider.current();
         String baseUrl = properties.getServiceBaseUrl();
         if (!hasText(baseUrl)) {
             throw new IllegalStateException("chatchat.mcp.livedata.service-base-url is required");

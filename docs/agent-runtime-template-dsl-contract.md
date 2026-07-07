@@ -237,6 +237,8 @@ sql_datasource_asset_query
 
 动态数据库查询工具不得把 DSL 多步骤模板压扁成一段自然语言，也不得只执行第一条 SQL 后宣称完成。
 
+动态 `database_query` 工具涉及日期范围时，必须遵守 MCP Server 的数据库查询动态日期参数契约。模型只选择模板和业务参数，`today`、`month`、`month_start`、`month_end`、`trade_date`、`trade_date±N` 等日期值由 MCP Runtime 在执行前统一解析。
+
 ## 结构化结果契约
 
 任何 DSL 执行结果都必须保留 step 级证据。

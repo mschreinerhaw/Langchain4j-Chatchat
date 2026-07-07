@@ -97,6 +97,12 @@ public class DatabaseQueryConfig {
     @Column
     private Integer timeoutSeconds = 30;
 
+    @Column
+    private Boolean cacheEnabled = false;
+
+    @Column
+    private Integer cacheTtlSeconds = 300;
+
     @Column(length = 2000)
     private String jdbcUrl;
 
@@ -129,6 +135,7 @@ public class DatabaseQueryConfig {
         if (id == null || id.isBlank()) {
             id = UUID.randomUUID().toString();
         }
+        normalizeDefaults();
         Instant now = Instant.now();
         createdAt = now;
         updatedAt = now;
@@ -139,7 +146,17 @@ public class DatabaseQueryConfig {
      */
     @PreUpdate
     public void preUpdate() {
+        normalizeDefaults();
         updatedAt = Instant.now();
+    }
+
+    private void normalizeDefaults() {
+        if (cacheEnabled == null) {
+            cacheEnabled = false;
+        }
+        if (cacheTtlSeconds == null || cacheTtlSeconds <= 0) {
+            cacheTtlSeconds = 300;
+        }
     }
 
     public String getId() { return id; }
@@ -190,6 +207,10 @@ public class DatabaseQueryConfig {
     public void setMaxRows(int maxRows) { this.maxRows = maxRows; }
     public int getTimeoutSeconds() { return timeoutSeconds == null || timeoutSeconds <= 0 ? 30 : timeoutSeconds; }
     public void setTimeoutSeconds(Integer timeoutSeconds) { this.timeoutSeconds = timeoutSeconds; }
+    public boolean isCacheEnabled() { return cacheEnabled != null && cacheEnabled; }
+    public void setCacheEnabled(boolean cacheEnabled) { this.cacheEnabled = cacheEnabled; }
+    public int getCacheTtlSeconds() { return cacheTtlSeconds == null || cacheTtlSeconds <= 0 ? 300 : cacheTtlSeconds; }
+    public void setCacheTtlSeconds(int cacheTtlSeconds) { this.cacheTtlSeconds = cacheTtlSeconds; }
     public String getJdbcUrl() { return jdbcUrl; }
     public void setJdbcUrl(String jdbcUrl) { this.jdbcUrl = jdbcUrl; }
     public String getDriverClass() { return driverClass; }

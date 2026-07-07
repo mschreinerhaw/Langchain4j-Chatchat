@@ -7,6 +7,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneId;
 import java.sql.DriverManager;
 import java.sql.Statement;
 import java.util.List;
@@ -26,6 +29,11 @@ class SqlQueryExecuteServiceTest {
     private final SqlTemplateService templateService = mock(SqlTemplateService.class);
     private final MetadataResolverService metadataResolverService = mock(MetadataResolverService.class);
     private final InvocationAuditService auditService = mock(InvocationAuditService.class);
+    private final DynamicJdbcDriverLoader driverLoader = new DynamicJdbcDriverLoader(new DatabaseToolProperties());
+    private final DynamicDateParamService dynamicDateParamService = new DynamicDateParamService(
+        driverLoader,
+        Clock.fixed(Instant.parse("2026-07-07T00:00:00Z"), ZoneId.of("Asia/Shanghai"))
+    );
     private final SqlQueryExecuteService service = new SqlQueryExecuteService(
         datasourceConfigService,
         new SqlSafetyService(),
@@ -33,14 +41,16 @@ class SqlQueryExecuteServiceTest {
         metadataResolverService,
         auditService,
         new ObjectMapper(),
-        new DynamicJdbcDriverLoader(new DatabaseToolProperties())
+        driverLoader,
+        dynamicDateParamService
     );
     private final SqlScriptExecuteService scriptService = new SqlScriptExecuteService(
         datasourceConfigService,
         new SqlSafetyService(),
         service,
         templateService,
-        auditService
+        auditService,
+        dynamicDateParamService
     );
 
     @Test

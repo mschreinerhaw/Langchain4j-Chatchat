@@ -1,0 +1,113 @@
+<section id="cacheSettingsView" class="panel api-service-view d-none">
+    <div class="panel-head api-service-head">
+        <div>
+            <h2>缓存设置</h2>
+            <div class="text-secondary small">统一管理数据库查询缓存策略、容量、过期和清理。</div>
+        </div>
+        <div class="btn-group btn-group-sm cache-settings-actions" role="group" aria-label="缓存操作">
+            <button id="cacheSettingsRefreshBtn" class="btn btn-outline-secondary" type="button">刷新状态</button>
+            <button id="dbQueryCacheCleanupExpiredBtn" class="btn btn-outline-secondary" type="button">清理过期</button>
+            <button id="dbQueryCacheEvictAllBtn" class="btn btn-outline-danger" type="button">清理全部</button>
+            <button id="cacheSettingsSaveBtn" class="btn btn-outline-primary" type="button">保存配置</button>
+        </div>
+    </div>
+
+    <div class="row g-3">
+        <div class="col-xl-8">
+            <div class="panel-section">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div>
+                        <h3 class="h6 mb-1">数据库查询缓存</h3>
+                        <div class="text-secondary small">作用于数据库查询资产和 SQL 模板执行结果。</div>
+                    </div>
+                    <span id="dbQueryCacheStatusBadge" class="badge text-bg-secondary">未加载</span>
+                </div>
+
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label class="form-label small text-secondary" for="dbQueryCacheEnabled">启用状态</label>
+                        <select id="dbQueryCacheEnabled" class="form-select">
+                            <option value="false">关闭</option>
+                            <option value="true">开启</option>
+                        </select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small text-secondary" for="dbQueryCacheTtl">默认 TTL 秒</label>
+                        <input id="dbQueryCacheTtl" class="form-control" type="number" min="1" max="86400" value="300">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small text-secondary" for="dbQueryCacheMaxRows">最大缓存行数</label>
+                        <input id="dbQueryCacheMaxRows" class="form-control" type="number" min="1" max="100000" value="1000">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label small text-secondary" for="dbQueryCacheMaxBytes">单条上限 KB</label>
+                        <input id="dbQueryCacheMaxBytes" class="form-control" type="number" min="1" max="102400" value="512">
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small text-secondary" for="dbQueryCacheKey">缓存 Key 策略</label>
+                        <select id="dbQueryCacheKey" class="form-select">
+                            <option value="SQL_PARAMS_DATASOURCE">SQL + 参数 + 数据源</option>
+                            <option value="SQL_PARAMS_DATASOURCE_USER">SQL + 参数 + 数据源 + 用户</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small text-secondary" for="dbQueryCacheEmpty">空结果缓存</label>
+                        <select id="dbQueryCacheEmpty" class="form-select">
+                            <option value="false">不缓存</option>
+                            <option value="true">缓存</option>
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small text-secondary" for="dbQueryCacheError">异常结果缓存</label>
+                        <select id="dbQueryCacheError" class="form-select">
+                            <option value="false">不缓存</option>
+                            <option value="true">缓存</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel-section mt-3">
+                <h3 class="h6 mb-3">策略说明</h3>
+                <div class="small text-secondary">
+                    <div>缓存命中条件：查询配置、数据源、最终 SQL、动态日期解析结果、参数、最大行数和超时完全一致。</div>
+                    <div>缓存写入限制：超过最大缓存行数或单条上限 KB 的结果不会写入缓存。</div>
+                    <div>RocksDB 存储未启用时，页面配置会保存，但运行时不会命中缓存。</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-xl-4">
+            <div class="panel-section">
+                <h3 class="h6 mb-3">运行指标</h3>
+                <div class="row g-2">
+                    <div class="col-6">
+                        <div class="metric-card">
+                            <span>存储状态</span>
+                            <strong id="dbQueryCacheStoreStatus">--</strong>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="metric-card">
+                            <span>缓存条目</span>
+                            <strong id="dbQueryCacheEntryCount">--</strong>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="metric-card">
+                            <span>过期条目</span>
+                            <strong id="dbQueryCacheExpiredCount">--</strong>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="metric-card">
+                            <span>占用空间</span>
+                            <strong id="dbQueryCacheBytes">--</strong>
+                        </div>
+                    </div>
+                </div>
+                <div id="dbQueryCacheMeasuredAt" class="text-secondary small mt-3">尚未刷新。</div>
+            </div>
+        </div>
+    </div>
+</section>

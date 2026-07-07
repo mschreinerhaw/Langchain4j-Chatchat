@@ -3,8 +3,9 @@ package com.chatchat.mcpserver.livedata;
 import com.chatchat.agents.protocol.ModelProtocolJson;
 
 import com.chatchat.mcpserver.api.ApiServiceConfig;
+import com.chatchat.mcpserver.ops.HttpEndpointConfig;
 import com.chatchat.tools.livedata.LivedataApiDefinition;
-import com.chatchat.tools.livedata.LivedataAutoRegistrationProperties;
+import com.chatchat.tools.livedata.LivedataSettingsProvider;
 import com.chatchat.tools.livedata.LivedataSessionService;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -25,7 +26,7 @@ import java.util.Set;
 public class LivedataApiConfigMapper {
 
     private final ObjectMapper objectMapper;
-    private final LivedataAutoRegistrationProperties properties;
+    private final LivedataSettingsProvider settingsProvider;
 
     /**
      * Converts the value to api service config.
@@ -34,6 +35,11 @@ public class LivedataApiConfigMapper {
      * @return the converted api service config
      */
     public ApiServiceConfig toApiServiceConfig(LivedataApiDefinition definition) {
+        return toApiServiceConfig(definition, null);
+    }
+
+    public ApiServiceConfig toApiServiceConfig(LivedataApiDefinition definition, String gatewayId) {
+        var properties = settingsProvider.current();
         List<ParamDefinition> params = parseParams(definition.params());
         String serviceName = resolveServiceName(definition);
         String namespace = firstNonBlank(definition.namespace(), properties.getDefaultNamespace());
@@ -42,15 +48,44 @@ public class LivedataApiConfigMapper {
         config.setToolName(toToolName(definition));
         config.setTitle(firstNonBlank(definition.apiName(), definition.apiId(), serviceName));
         config.setDescription(toDescription(definition));
-        config.setMethod("POST");
-        config.setUrlTemplate(toUrlTemplate(definition, serviceName, namespace));
-        config.setHeadersJson(writeJson(Map.of("Content-Type", "application/json;charset=UTF-8")));
-        config.setBodyTemplate(toBodyTemplate(params, namespace));
+        config.setGatewayId(gatewayId);
+        if (gatewayId == null || gatewayId.isBlank()) {
+            config.setMethod("POST");
+            config.setUrlTemplate(toUrlTemplate(definition, serviceName, namespace));
+            config.setHeadersJson(writeJson(Map.of("Content-Type", "application/json;charset=UTF-8")));
+            config.setBodyTemplate(toBodyTemplate(params, namespace));
+        }
         config.setInputSchemaJson(toInputSchema(params));
         config.setEnabled(definition.state() == null || definition.state() == properties.getPublishedState());
         config.setTimeoutMs(properties.getTimeoutMs());
         config.setCacheEnabled(properties.isCacheEnabled());
         config.setCacheTtlSeconds(properties.getCacheTtlSeconds());
+        return config;
+    }
+
+    public HttpEndpointConfig toGatewayConfig(LivedataApiDefinition definition) {
+        var properties = settingsProvider.current();
+        List<ParamDefinition> params = parseParams(definition.params());
+        String serviceName = resolveServiceName(definition);
+        String namespace = firstNonBlank(definition.namespace(), properties.getDefaultNamespace());
+        HttpEndpointConfig config = new HttpEndpointConfig();
+        String toolName = "http_" + toToolName(definition);
+        if (toolName.length() > 128) {
+            toolName = toolName.substring(0, 118) + "_" + Integer.toHexString(toolName.hashCode());
+        }
+        config.setName("LiveData Gateway - " + firstNonBlank(definition.apiName(), definition.apiId(), serviceName));
+        config.setToolName(toolName);
+        config.setTitle(config.getName());
+        config.setDescription(toDescription(definition));
+        config.setMethod("POST");
+        config.setUrlTemplate(toUrlTemplate(definition, serviceName, namespace));
+        config.setHeadersJson(writeJson(Map.of("Content-Type", "application/json;charset=UTF-8")));
+        config.setBodyTemplate(toBodyTemplate(params, namespace));
+        config.setInputSchemaJson(toInputSchema(params));
+        config.setEnabled(true);
+        config.setCategory("api_gateway");
+        config.setTags("livedata,api_gateway");
+        config.setTimeoutMs(properties.getTimeoutMs());
         return config;
     }
 
@@ -61,6 +96,7 @@ public class LivedataApiConfigMapper {
      * @return the converted tool name
      */
     private String toToolName(LivedataApiDefinition definition) {
+        var properties = settingsProvider.current();
         String raw = firstNonBlank(definition.apiId(), definition.methodName(), definition.id());
         String normalized = raw == null ? "api" : raw.trim()
             .replaceAll("[^A-Za-z0-9_]+", "_")
@@ -81,6 +117,7 @@ public class LivedataApiConfigMapper {
      * @return the converted description
      */
     private String toDescription(LivedataApiDefinition definition) {
+        var properties = settingsProvider.current();
         List<String> parts = new ArrayList<>();
         addIfPresent(parts, definition.description());
         addIfPresent(parts, definition.apiName());
@@ -105,6 +142,7 @@ public class LivedataApiConfigMapper {
      * @return the converted url template
      */
     private String toUrlTemplate(LivedataApiDefinition definition, String serviceName, String namespace) {
+        var properties = settingsProvider.current();
         String baseUrl = trimTrailingSlash(properties.getServiceBaseUrl());
         String path = properties.getServicePathTemplate();
         if (path == null || path.isBlank()) {
@@ -129,6 +167,7 @@ public class LivedataApiConfigMapper {
      * @return the converted body template
      */
     private String toBodyTemplate(List<ParamDefinition> params, String namespace) {
+        var properties = settingsProvider.current();
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("sessionId", sessionIdTemplate());
         body.put("namespace", firstNonBlank(namespace, properties.getDefaultNamespace()));
@@ -160,6 +199,7 @@ public class LivedataApiConfigMapper {
      * @return the converted input schema
      */
     private String toInputSchema(List<ParamDefinition> params) {
+        var properties = settingsProvider.current();
         Map<String, Object> schema = new LinkedHashMap<>();
         Map<String, Object> propertiesNode = new LinkedHashMap<>();
         Set<String> required = new LinkedHashSet<>();

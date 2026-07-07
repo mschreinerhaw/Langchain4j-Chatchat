@@ -4,6 +4,8 @@ import com.chatchat.agents.protocol.ModelProtocolJson;
 
 import com.chatchat.mcpserver.audit.InvocationAuditService;
 import com.chatchat.mcpserver.cache.ApiResponseCacheService;
+import com.chatchat.mcpserver.ops.HttpEndpointConfig;
+import com.chatchat.mcpserver.ops.HttpEndpointConfigService;
 import com.chatchat.mcpserver.template.TemplateParameterValidator;
 import com.chatchat.tools.livedata.LivedataSessionService;
 import com.chatchat.common.tool.ToolLogSummarizer;
@@ -44,6 +46,7 @@ public class ApiInvokeService {
     private final ApiResponseCacheService cacheService;
     private final ObjectProvider<LivedataSessionService> livedataSessionServiceProvider;
     private final TemplateParameterValidator parameterValidator;
+    private final HttpEndpointConfigService gatewayConfigService;
 
     /**
      * Performs the invoke operation.
@@ -56,11 +59,26 @@ public class ApiInvokeService {
         long startedAt = System.currentTimeMillis();
         Map<String, Object> auditArgs = validatedTemplateArguments(config, arguments == null ? Map.of() : arguments);
         ApiInvokeResult result;
-        log.info("External API invoke started apiServiceId={} tool={} method={} urlTemplate={} args={}",
+        ApiHttpTransport transport;
+        try {
+            transport = httpTransport(config);
+        } catch (Exception ex) {
+            result = new ApiInvokeResult(false, 0, Map.of(), null, null, ex.getMessage());
+            auditService.recordApiCall(config, auditArgs, result, Math.max(0L, System.currentTimeMillis() - startedAt));
+            log.warn("External API transport resolution failed apiServiceId={} tool={} gatewayId={} error={}",
+                config.getId(),
+                config.getToolName(),
+                config.getGatewayId(),
+                ex.getMessage(),
+                ex);
+            return result;
+        }
+        log.info("External API invoke started apiServiceId={} tool={} gatewayId={} method={} urlTemplate={} args={}",
             config.getId(),
             config.getToolName(),
-            config.getMethod(),
-            config.getUrlTemplate(),
+            transport.gatewayId(),
+            transport.method(),
+            transport.urlTemplate(),
             ToolLogSummarizer.summarize(auditArgs));
 
         var cached = cacheService.get(config, auditArgs);
@@ -78,28 +96,30 @@ public class ApiInvokeService {
 
         try {
             HttpClient client = HttpClient.newBuilder()
-                .connectTimeout(Duration.ofMillis(Math.max(1000, config.getTimeoutMs())))
+                .connectTimeout(Duration.ofMillis(Math.max(1000, transport.timeoutMs())))
                 .followRedirects(HttpClient.Redirect.NORMAL)
                 .build();
-            Map<String, Object> renderArgs = enrichArguments(config, auditArgs, false);
-            HttpRequest request = buildRequest(config, renderArgs);
-            log.info("External API HTTP request prepared apiServiceId={} tool={} method={} uri={} timeoutMs={} args={}",
+            Map<String, Object> renderArgs = enrichArguments(transport, auditArgs, false);
+            HttpRequest request = buildRequest(transport, renderArgs);
+            log.info("External API HTTP request prepared apiServiceId={} tool={} gatewayId={} method={} uri={} timeoutMs={} args={}",
                 config.getId(),
                 config.getToolName(),
+                transport.gatewayId(),
                 request.method(),
                 safeUri(request.uri()),
-                config.getTimeoutMs(),
+                transport.timeoutMs(),
                 ToolLogSummarizer.summarize(renderArgs));
             HttpResponse<String> response = client.send(request, HttpResponse.BodyHandlers.ofString());
-            if (isAuthFailure(response) && usesLivedataSession(config)) {
-                renderArgs = enrichArguments(config, auditArgs, true);
-                request = buildRequest(config, renderArgs);
-                log.info("External API HTTP request retrying with refreshed session apiServiceId={} tool={} method={} uri={} timeoutMs={}",
+            if (isAuthFailure(response) && usesLivedataSession(transport)) {
+                renderArgs = enrichArguments(transport, auditArgs, true);
+                request = buildRequest(transport, renderArgs);
+                log.info("External API HTTP request retrying with refreshed session apiServiceId={} tool={} gatewayId={} method={} uri={} timeoutMs={}",
                     config.getId(),
                     config.getToolName(),
+                    transport.gatewayId(),
                     request.method(),
                     safeUri(request.uri()),
-                    config.getTimeoutMs());
+                    transport.timeoutMs());
                 response = client.send(request, HttpResponse.BodyHandlers.ofString());
             }
             result = toResult(response);
@@ -174,12 +194,12 @@ public class ApiInvokeService {
      * @return the built request
      * @throws IOException if the operation fails
      */
-    private HttpRequest buildRequest(ApiServiceConfig config, Map<String, Object> args) throws IOException {
+    private HttpRequest buildRequest(ApiHttpTransport transport, Map<String, Object> args) throws IOException {
         Set<String> consumed = new LinkedHashSet<>();
-        String method = config.getMethod().toUpperCase(Locale.ROOT);
-        String url = renderUrl(config.getUrlTemplate(), args, consumed);
-        Map<String, String> headers = renderHeaders(config.getHeadersJson(), args, consumed);
-        String body = renderBody(config, args, consumed);
+        String method = transport.method().toUpperCase(Locale.ROOT);
+        String url = renderUrl(transport.urlTemplate(), args, consumed);
+        Map<String, String> headers = renderHeaders(transport.headersJson(), args, consumed);
+        String body = renderBody(transport, args, consumed);
 
         if (method.equals("GET") || method.equals("DELETE")) {
             url = appendQueryParams(url, args, consumed);
@@ -191,7 +211,7 @@ public class ApiInvokeService {
 
         HttpRequest.Builder requestBuilder = HttpRequest.newBuilder()
             .uri(URI.create(url))
-            .timeout(Duration.ofMillis(Math.max(1000, config.getTimeoutMs())))
+            .timeout(Duration.ofMillis(Math.max(1000, transport.timeoutMs())))
             .method(method, publisher);
 
         headers.forEach(requestBuilder::header);
@@ -204,13 +224,13 @@ public class ApiInvokeService {
     /**
      * Performs the enrich arguments operation.
      *
-     * @param config the config value
+     * @param transport the transport value
      * @param args the args value
      * @param forceRefreshSession the force refresh session value
      * @return the operation result
      */
-    private Map<String, Object> enrichArguments(ApiServiceConfig config, Map<String, Object> args, boolean forceRefreshSession) {
-        if (!usesLivedataSession(config)) {
+    private Map<String, Object> enrichArguments(ApiHttpTransport transport, Map<String, Object> args, boolean forceRefreshSession) {
+        if (!usesLivedataSession(transport)) {
             return args;
         }
         LivedataSessionService sessionService = livedataSessionServiceProvider.getIfAvailable();
@@ -226,12 +246,12 @@ public class ApiInvokeService {
     /**
      * Returns whether uses livedata session.
      *
-     * @param config the config value
+     * @param transport the transport value
      * @return whether the condition is satisfied
      */
-    private boolean usesLivedataSession(ApiServiceConfig config) {
-        return config.getBodyTemplate() != null
-            && config.getBodyTemplate().contains("{{" + LivedataSessionService.SESSION_ARGUMENT + "}}");
+    private boolean usesLivedataSession(ApiHttpTransport transport) {
+        return transport.bodyTemplate() != null
+            && transport.bodyTemplate().contains("{{" + LivedataSessionService.SESSION_ARGUMENT + "}}");
     }
 
     /**
@@ -315,25 +335,70 @@ public class ApiInvokeService {
     /**
      * Performs the render body operation.
      *
-     * @param config the config value
+     * @param transport the transport value
      * @param args the args value
      * @param consumed the consumed value
      * @return the operation result
      * @throws IOException if the operation fails
      */
-    private String renderBody(ApiServiceConfig config, Map<String, Object> args, Set<String> consumed)
+    private String renderBody(ApiHttpTransport transport, Map<String, Object> args, Set<String> consumed)
         throws IOException {
-        String method = config.getMethod().toUpperCase(Locale.ROOT);
+        String method = transport.method().toUpperCase(Locale.ROOT);
         if (method.equals("GET") || method.equals("DELETE")) {
             return null;
         }
-        if (config.getBodyTemplate() != null && !config.getBodyTemplate().isBlank()) {
-            return replaceTokens(config.getBodyTemplate(), args, consumed, false);
+        if (transport.bodyTemplate() != null && !transport.bodyTemplate().isBlank()) {
+            return replaceTokens(transport.bodyTemplate(), args, consumed, false);
         }
         if (args.isEmpty()) {
             return null;
         }
         return ModelProtocolJson.compact(args);
+    }
+
+    private ApiHttpTransport httpTransport(ApiServiceConfig config) {
+        if (config.getGatewayId() != null && !config.getGatewayId().isBlank()) {
+            HttpEndpointConfig gateway = gatewayConfigService.getById(config.getGatewayId());
+            if (!gateway.isEnabled()) {
+                throw new IllegalStateException("API gateway asset is disabled: " + config.getGatewayId());
+            }
+            return new ApiHttpTransport(
+                gateway.getId(),
+                gateway.getName(),
+                firstText(gateway.getMethod(), "GET"),
+                gateway.getUrlTemplate(),
+                gateway.getHeadersJson(),
+                gateway.getBodyTemplate(),
+                gateway.getTimeoutMs() <= 0 ? 10000 : gateway.getTimeoutMs()
+            );
+        }
+        return new ApiHttpTransport(
+            null,
+            null,
+            firstText(config.getMethod(), "GET"),
+            config.getUrlTemplate(),
+            config.getHeadersJson(),
+            config.getBodyTemplate(),
+            config.getTimeoutMs() <= 0 ? 20000 : config.getTimeoutMs()
+        );
+    }
+
+    private String firstText(String value, String fallback) {
+        if (value == null || value.isBlank()) {
+            return fallback;
+        }
+        return value.trim();
+    }
+
+    private record ApiHttpTransport(
+        String gatewayId,
+        String gatewayName,
+        String method,
+        String urlTemplate,
+        String headersJson,
+        String bodyTemplate,
+        int timeoutMs
+    ) {
     }
 
     /**

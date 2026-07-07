@@ -37,10 +37,24 @@ public class HttpEndpointConfigService {
         return repository.findByEnabledTrueOrderByNameAsc();
     }
 
+    public java.util.Optional<HttpEndpointConfig> findByToolName(String toolName) {
+        if (toolName == null || toolName.isBlank()) {
+            return java.util.Optional.empty();
+        }
+        return repository.findByToolNameIgnoreCase(toolName.trim());
+    }
+
     @Transactional
     public HttpEndpointConfig create(HttpEndpointConfig config) {
         normalize(config, null);
         return repository.save(config);
+    }
+
+    @Transactional
+    public HttpEndpointConfig upsertByToolName(HttpEndpointConfig request) {
+        return findByToolName(request.getToolName())
+            .map(existing -> update(existing.getId(), request))
+            .orElseGet(() -> create(request));
     }
 
     @Transactional
@@ -98,7 +112,7 @@ public class HttpEndpointConfigService {
         config.setInputSchemaJson(normalizeJsonObject(config.getInputSchemaJson(), "inputSchema"));
         config.setGovernanceJson(normalizeJsonObject(config.getGovernanceJson(), "governance"));
         config.setEnvironment(normalizeEnvironment(config.getEnvironment()));
-        config.setCategory(firstText(config.getCategory(), "business_api").toLowerCase(Locale.ROOT));
+        config.setCategory(firstText(config.getCategory(), "api_gateway").toLowerCase(Locale.ROOT));
         config.setRoutingLabelsJson(normalizeJsonArray(mergedProtocolValues(config.getRoutingLabelsJson(), config.getRoutingLabels()), "routingLabels"));
         config.setCapabilitiesJson(firstText(
             normalizeJsonArray(mergedProtocolValues(config.getCapabilitiesJson(), config.getCapabilities()), "capabilities"),

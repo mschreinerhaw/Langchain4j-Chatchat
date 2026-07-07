@@ -4,16 +4,23 @@ import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.tool.ToolInput;
 import com.chatchat.common.tool.ToolOutput;
 import com.chatchat.mcpserver.audit.InvocationAuditService;
+import com.chatchat.mcpserver.cache.DatabaseQueryCacheService;
+import com.chatchat.mcpserver.sql.DynamicDateParamService;
 import com.chatchat.mcpserver.sql.SqlDatasourceConfig;
 import com.chatchat.mcpserver.sql.SqlDatasourceConfigService;
 import com.chatchat.mcpserver.sql.SqlScriptExecuteService;
+import com.chatchat.tools.builtin.DynamicJdbcDriverLoader;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 import java.util.Map;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyMap;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -24,13 +31,22 @@ class DatabaseQueryInvokeServiceTest {
     private final SqlDatasourceConfigService datasourceConfigService = mock(SqlDatasourceConfigService.class);
     private final SqlScriptExecuteService scriptExecuteService = mock(SqlScriptExecuteService.class);
     private final InvocationAuditService auditService = mock(InvocationAuditService.class);
+    private final DatabaseQueryCacheService cacheService = mock(DatabaseQueryCacheService.class);
     private final DatabaseQueryInvokeService service = new DatabaseQueryInvokeService(
         toolRegistry,
         datasourceConfigService,
         scriptExecuteService,
+        new DynamicDateParamService(mock(DynamicJdbcDriverLoader.class)),
         new ObjectMapper(),
-        auditService
+        auditService,
+        cacheService
     );
+
+    @BeforeEach
+    void setUpCache() {
+        when(cacheService.get(org.mockito.ArgumentMatchers.any(DatabaseQueryConfig.class), anyMap()))
+            .thenReturn(Optional.empty());
+    }
 
     @Test
     void passesDatasourceDatabaseTypeToDatabaseQueryTool() {
@@ -59,6 +75,50 @@ class DatabaseQueryInvokeServiceTest {
         assertThat(parameters).containsEntry("datasource_id", "asset-dm");
         assertThat(parameters).containsEntry("timeoutSeconds", 90);
         assertThat(parameters).containsEntry("timeout_seconds", 90);
+    }
+
+    @Test
+    void injectsDynamicTradeDateParametersBeforeCallingDatabaseQueryTool() {
+        DynamicDateParamService dateParamService = mock(DynamicDateParamService.class);
+        DatabaseQueryInvokeService localService = new DatabaseQueryInvokeService(
+            toolRegistry,
+            datasourceConfigService,
+            scriptExecuteService,
+            dateParamService,
+            new ObjectMapper(),
+            auditService,
+            cacheService
+        );
+        SqlDatasourceConfig datasource = dmDatasource();
+        String sql = "SELECT * FROM customer_asset WHERE stat_date = :trade_date";
+        when(toolRegistry.hasTool("database_query")).thenReturn(true);
+        when(datasourceConfigService.getEnabled("asset-dm")).thenReturn(datasource);
+        when(dateParamService.enrichParameters(anyMap(), eq(datasource), eq(sql)))
+            .thenReturn(Map.of("trade_date", "20260707", "month", "202607", "natural_date", "20260707"));
+        when(dateParamService.resolveSqlPlaceholders(eq(sql), eq(datasource))).thenReturn(sql);
+        when(toolRegistry.executeEnhancedTool(org.mockito.ArgumentMatchers.eq("database_query"),
+            org.mockito.ArgumentMatchers.any(ToolInput.class))).thenReturn(ToolOutput.success(Map.of("ok", true)));
+        DatabaseQueryConfig config = new DatabaseQueryConfig();
+        config.setId("query-asset");
+        config.setToolName("customer_asset_query");
+        config.setTitle("Customer asset query");
+        config.setDatasourceId("asset-dm");
+        config.setSqlTemplate(sql);
+        config.setMaxRows(100);
+        config.setTimeoutSeconds(30);
+
+        ToolOutput output = localService.invoke(config, Map.of());
+
+        ArgumentCaptor<ToolInput> inputCaptor = ArgumentCaptor.forClass(ToolInput.class);
+        verify(toolRegistry).executeEnhancedTool(org.mockito.ArgumentMatchers.eq("database_query"), inputCaptor.capture());
+        @SuppressWarnings("unchecked")
+        Map<String, Object> params = (Map<String, Object>) inputCaptor.getValue().getParameters().get("params");
+        assertThat(output.isSuccess()).isTrue();
+        assertThat(inputCaptor.getValue().getParameters()).containsEntry("sql", sql);
+        assertThat(params)
+            .containsEntry("trade_date", "20260707")
+            .containsEntry("month", "202607")
+            .containsEntry("natural_date", "20260707");
     }
 
     @Test

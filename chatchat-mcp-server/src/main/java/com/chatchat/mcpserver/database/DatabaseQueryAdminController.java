@@ -5,6 +5,7 @@ import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.response.ApiResponse;
 import com.chatchat.common.tool.ToolOutput;
 import com.chatchat.mcpserver.search.McpTemplateLuceneIndexService;
+import com.chatchat.mcpserver.sql.DynamicDateParamService;
 import com.chatchat.mcpserver.sql.SqlDatasourceConfig;
 import com.chatchat.mcpserver.sql.SqlDatasourceConfigService;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -38,6 +39,7 @@ public class DatabaseQueryAdminController {
     private final McpTemplateLuceneIndexService templateIndexService;
     private final ObjectMapper objectMapper;
     private final SqlDatasourceConfigService datasourceConfigService;
+    private final DynamicDateParamService dynamicDateParamService;
 
     /**
      * Lists the list.
@@ -186,6 +188,8 @@ public class DatabaseQueryAdminController {
         config.setUsageCount(request.usageCount() == null ? 0L : request.usageCount());
         config.setMaxRows(request.maxRows() == null ? 50 : request.maxRows());
         config.setTimeoutSeconds(request.timeoutSeconds() == null ? 30 : request.timeoutSeconds());
+        config.setCacheEnabled(request.cacheEnabled() != null && request.cacheEnabled());
+        config.setCacheTtlSeconds(request.cacheTtlSeconds() == null ? 300 : request.cacheTtlSeconds());
         config.setJdbcUrl(null);
         config.setDriverClass(null);
         config.setUsername(null);
@@ -227,6 +231,8 @@ public class DatabaseQueryAdminController {
             config.getUsageCount(),
             config.getMaxRows(),
             config.getTimeoutSeconds(),
+            config.isCacheEnabled(),
+            config.getCacheTtlSeconds(),
             null,
             null,
             null,
@@ -246,8 +252,6 @@ public class DatabaseQueryAdminController {
      */
     private Map<String, Object> toParameters(DatabaseQueryTestRequest request) {
         Map<String, Object> parameters = new LinkedHashMap<>();
-        parameters.put("sql", request.sql());
-        parameters.put("params", request.params() == null ? Map.of() : request.params());
         parameters.put("max_rows", request.maxRows());
         parameters.put("timeoutSeconds", request.timeoutSeconds());
         parameters.put("timeout_seconds", request.timeoutSeconds());
@@ -255,6 +259,12 @@ public class DatabaseQueryAdminController {
             throw new IllegalArgumentException("datasourceId is required");
         }
         SqlDatasourceConfig datasource = datasourceConfigService.getEnabled(request.datasourceId());
+        parameters.put("sql", dynamicDateParamService.resolveSqlPlaceholders(request.sql(), datasource));
+        parameters.put("params", dynamicDateParamService.enrichParameters(
+            request.params() == null ? Map.of() : request.params(),
+            datasource,
+            request.sql()
+        ));
         parameters.put("jdbc_url", datasource.getJdbcUrl());
         putIfPresent(parameters, "driver_class", datasource.getDriverClass());
         putIfPresent(parameters, "database_type", datasource.getDatabaseType());
@@ -381,6 +391,8 @@ public class DatabaseQueryAdminController {
         Long usageCount,
         Integer maxRows,
         Integer timeoutSeconds,
+        Boolean cacheEnabled,
+        Integer cacheTtlSeconds,
         String jdbcUrl,
         String driverClass,
         String username,
@@ -418,6 +430,8 @@ public class DatabaseQueryAdminController {
         long usageCount,
         int maxRows,
         int timeoutSeconds,
+        boolean cacheEnabled,
+        int cacheTtlSeconds,
         String jdbcUrl,
         String driverClass,
         String username,

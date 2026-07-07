@@ -4,8 +4,10 @@ import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.response.ApiResponse;
 import com.chatchat.common.tool.ToolOutput;
 import com.chatchat.mcpserver.search.McpTemplateLuceneIndexService;
+import com.chatchat.mcpserver.sql.DynamicDateParamService;
 import com.chatchat.mcpserver.sql.SqlDatasourceConfig;
 import com.chatchat.mcpserver.sql.SqlDatasourceConfigService;
+import com.chatchat.tools.builtin.DynamicJdbcDriverLoader;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -25,6 +27,7 @@ class DatabaseQueryAdminControllerTest {
     private final DatabaseQueryMcpToolPublisher publisher = mock(DatabaseQueryMcpToolPublisher.class);
     private final McpTemplateLuceneIndexService templateIndexService = mock(McpTemplateLuceneIndexService.class);
     private final SqlDatasourceConfigService datasourceConfigService = mock(SqlDatasourceConfigService.class);
+    private final DynamicDateParamService dynamicDateParamService = new DynamicDateParamService(mock(DynamicJdbcDriverLoader.class));
     private final DatabaseQueryAdminController controller = new DatabaseQueryAdminController(
         toolRegistry,
         configService,
@@ -32,7 +35,8 @@ class DatabaseQueryAdminControllerTest {
         publisher,
         templateIndexService,
         new ObjectMapper(),
-        datasourceConfigService
+        datasourceConfigService,
+        dynamicDateParamService
     );
 
     @Test
@@ -67,6 +71,7 @@ class DatabaseQueryAdminControllerTest {
         assertThat(parameters).containsEntry("datasource_id", "asset-dm");
         assertThat(parameters).containsEntry("timeoutSeconds", 75);
         assertThat(parameters).containsEntry("timeout_seconds", 75);
+        assertThat(parameters).containsKey("params");
     }
 
     private SqlDatasourceConfig dmDatasource() {

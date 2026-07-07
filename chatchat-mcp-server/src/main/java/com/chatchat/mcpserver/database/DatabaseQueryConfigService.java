@@ -165,6 +165,8 @@ public class DatabaseQueryConfigService {
         current.setUsageCount(draft.getUsageCount());
         current.setMaxRows(draft.getMaxRows());
         current.setTimeoutSeconds(draft.getTimeoutSeconds());
+        current.setCacheEnabled(draft.isCacheEnabled());
+        current.setCacheTtlSeconds(draft.getCacheTtlSeconds());
         current.setJdbcUrl(draft.getJdbcUrl());
         current.setDriverClass(draft.getDriverClass());
         current.setUsername(draft.getUsername());
@@ -268,6 +270,11 @@ public class DatabaseQueryConfigService {
         ));
         config.setMaxRows(config.getMaxRows() <= 0 ? 50 : Math.min(500, config.getMaxRows()));
         config.setTimeoutSeconds(config.getTimeoutSeconds() <= 0 ? 30 : Math.min(300, config.getTimeoutSeconds()));
+        if (config.getCacheTtlSeconds() <= 0) {
+            config.setCacheTtlSeconds(300);
+        } else {
+            config.setCacheTtlSeconds(Math.min(86400, config.getCacheTtlSeconds()));
+        }
         if (config.getDatasourceId() == null) {
             throw new IllegalArgumentException("datasourceId is required");
         }

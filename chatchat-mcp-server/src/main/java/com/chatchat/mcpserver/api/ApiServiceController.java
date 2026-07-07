@@ -156,6 +156,7 @@ public class ApiServiceController {
         config.setBusinessGroup(request.businessGroup());
         config.setBusinessGroupName(request.businessGroupName());
         config.setBusinessGroupDescription(request.businessGroupDescription());
+        config.setGatewayId(request.gatewayId());
         config.setMethod(request.method());
         config.setUrlTemplate(request.urlTemplate());
         config.setHeadersJson(writeJson(request.headers()));
@@ -184,6 +185,7 @@ public class ApiServiceController {
             config.getBusinessGroup(),
             config.getBusinessGroupName(),
             config.getBusinessGroupDescription(),
+            config.getGatewayId(),
             config.getMethod(),
             config.getUrlTemplate(),
             readJsonMap(config.getHeadersJson()),
@@ -240,6 +242,7 @@ public class ApiServiceController {
         String businessGroup,
         String businessGroupName,
         String businessGroupDescription,
+        String gatewayId,
         String method,
         String urlTemplate,
         Map<String, Object> headers,
@@ -264,6 +267,7 @@ public class ApiServiceController {
         String businessGroup,
         String businessGroupName,
         String businessGroupDescription,
+        String gatewayId,
         String method,
         String urlTemplate,
         Map<String, Object> headers,

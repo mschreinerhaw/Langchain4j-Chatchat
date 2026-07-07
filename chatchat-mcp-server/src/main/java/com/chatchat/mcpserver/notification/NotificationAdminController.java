@@ -36,6 +36,7 @@ public class NotificationAdminController {
 
     @PostMapping
     public ApiResponse<NotificationChannelView> create(@RequestBody NotificationChannelUpsertRequest request) {
+        validateHttpCreate(request);
         NotificationChannelConfig saved = configService.create(fromRequest(request));
         publisher.refresh();
         return ApiResponse.success(toView(saved), "Notification channel created");
@@ -112,6 +113,18 @@ public class NotificationAdminController {
         config.setTimeoutMs(request.timeoutMs() == null ? 10000 : request.timeoutMs());
         config.setMaxRetries(request.maxRetries() == null ? 1 : request.maxRetries());
         return config;
+    }
+
+    private void validateHttpCreate(NotificationChannelUpsertRequest request) {
+        String deliveryMode = request.deliveryMode() == null || request.deliveryMode().isBlank()
+            ? "HTTP"
+            : request.deliveryMode().trim();
+        if ("SMTP".equalsIgnoreCase(deliveryMode)) {
+            throw new IllegalArgumentException("新增告警只允许 HTTP/Webhook 方式");
+        }
+        if (request.bodyTemplate() == null || request.bodyTemplate().isBlank()) {
+            throw new IllegalArgumentException("HTTP 告警内容不能为空");
+        }
     }
 
     private NotificationChannelView toView(NotificationChannelConfig config) {

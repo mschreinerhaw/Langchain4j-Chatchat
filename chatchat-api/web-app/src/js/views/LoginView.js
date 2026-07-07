@@ -1,4 +1,4 @@
-import { LogIn, RefreshCw } from "@lucide/vue";
+import { BadgeCheck, LockKeyhole, LogIn, RefreshCw, ShieldCheck, UserRound } from "@lucide/vue";
 import "../../styles/pages/login.css";
 import { loginEnterprise } from "../../services/api";
 
@@ -7,8 +7,12 @@ const REMEMBER_KEY = "chatchat.login.remember";
 export default {
   name: "LoginView",
   components: {
+    BadgeCheck,
+    LockKeyhole,
     LogIn,
-    RefreshCw
+    RefreshCw,
+    ShieldCheck,
+    UserRound
   },
   emits: ["login-success"],
   data() {
@@ -20,7 +24,7 @@ export default {
         username: "admin",
         password: "",
         captcha: "",
-        rememberPassword: false
+        rememberAccount: false
       }
     };
   },
@@ -36,10 +40,8 @@ export default {
           return;
         }
         this.form.username = remembered.username || this.form.username;
-        this.form.password = remembered.username === "admin" && remembered.password === "admin"
-          ? ""
-          : remembered.password || this.form.password;
-        this.form.rememberPassword = true;
+        this.form.password = "";
+        this.form.rememberAccount = true;
       } catch (error) {
         localStorage.removeItem(REMEMBER_KEY);
       }
@@ -50,10 +52,9 @@ export default {
       this.form.captcha = "";
     },
     syncRememberedLogin() {
-      if (this.form.rememberPassword) {
+      if (this.form.rememberAccount) {
         localStorage.setItem(REMEMBER_KEY, JSON.stringify({
-          username: this.form.username,
-          password: this.form.password
+          username: this.form.username
         }));
         return;
       }

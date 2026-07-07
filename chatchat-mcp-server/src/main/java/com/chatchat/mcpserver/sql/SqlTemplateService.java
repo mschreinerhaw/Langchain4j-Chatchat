@@ -79,6 +79,7 @@ public class SqlTemplateService {
     private final ObjectMapper objectMapper;
     private final TemplateParameterValidator parameterValidator;
     private final SqlTemplateSeedProperties seedProperties;
+    private final DynamicDateParamService dynamicDateParamService;
 
     @Transactional
     public List<SqlTemplateConfig> listAll() {
@@ -145,6 +146,7 @@ public class SqlTemplateService {
             .filter(SqlTemplateConfig::isEnabled)
             .orElseThrow(() -> new IllegalArgumentException("SQL template not found or disabled: " + code));
         assertCompatible(config, datasource);
+        parameters = dynamicDateParamService.enrichParameters(parameters, datasource, config.getSqlTemplate());
         rejectUndeclaredRawSqlParameters(config, parameters);
         Map<String, Object> collectedParameters = parameterValidator.collect(
             config.getParameterSchemaJson(),
@@ -161,7 +163,8 @@ public class SqlTemplateService {
             datasource == null ? null : datasource.getId(), datasource == null ? null : datasource.getName(),
             datasource == null ? null : datasource.getEnvironment(), parameters, validatedParameters,
             truncateSql(config.getSqlTemplate()));
-        Matcher matcher = TOKEN.matcher(config.getSqlTemplate());
+        String dynamicSqlTemplate = dynamicDateParamService.resolveSqlPlaceholders(config.getSqlTemplate(), datasource);
+        Matcher matcher = TOKEN.matcher(dynamicSqlTemplate);
         StringBuffer buffer = new StringBuffer();
         while (matcher.find()) {
             String name = matcher.group(1);

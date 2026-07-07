@@ -37,10 +37,13 @@ public class ApiServiceConfig {
     @Column(length = 1000)
     private String businessGroupDescription;
 
-    @Column(nullable = false, length = 16)
+    @Column(length = 64)
+    private String gatewayId;
+
+    @Column(length = 16)
     private String method;
 
-    @Column(nullable = false, length = 2000)
+    @Column(length = 2000)
     private String urlTemplate;
 
     @Lob
@@ -192,6 +195,14 @@ public class ApiServiceConfig {
 
     public void setBusinessGroupDescription(String businessGroupDescription) {
         this.businessGroupDescription = businessGroupDescription;
+    }
+
+    public String getGatewayId() {
+        return gatewayId;
+    }
+
+    public void setGatewayId(String gatewayId) {
+        this.gatewayId = gatewayId;
     }
 
     /**

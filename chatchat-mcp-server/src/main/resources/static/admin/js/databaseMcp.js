@@ -4,6 +4,7 @@ import { apiFetch } from './http.js';
 const BASE_URL = `${API_BASE}/database-query`;
 const SEARCH_INDEX_URL = `${API_BASE}/mcp-search-index`;
 const TEMPLATE_DSL_URL = `${API_BASE}/template-dsl`;
+const TRADING_CALENDAR_URL = `${API_BASE}/dynamic-date-params/trading-calendar`;
 
 export function listDatabaseQueries() {
     return apiFetch(BASE_URL);
@@ -68,5 +69,30 @@ export function importDatabaseQueryTemplateDsl(request) {
             ...(request || {}),
             templateType: 'DATABASE_QUERY'
         })
+    });
+}
+
+export function getTradingCalendarConfig() {
+    return apiFetch(`${TRADING_CALENDAR_URL}/config`);
+}
+
+export function saveTradingCalendarConfig(config) {
+    return apiFetch(`${TRADING_CALENDAR_URL}/config`, {
+        method: 'PUT',
+        body: JSON.stringify(config || {})
+    });
+}
+
+export function testTradingCalendarConfig(config) {
+    return apiFetch(`${TRADING_CALENDAR_URL}/test`, {
+        method: 'POST',
+        body: JSON.stringify(config || {})
+    });
+}
+
+export function testTradingCalendarFunction(config) {
+    return apiFetch(`${TRADING_CALENDAR_URL}/function-test`, {
+        method: 'POST',
+        body: JSON.stringify(config || {})
     });
 }

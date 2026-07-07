@@ -130,9 +130,35 @@
                             <label class="form-label" for="headersJson">请求头 JSON</label>
                             <textarea id="headersJson" class="form-control codebox" rows="7" spellcheck="false">{}</textarea>
                         </div>
-                        <div class="col-lg-6">
-                            <label class="form-label" for="inputSchemaJson">入参 Schema JSON</label>
-                            <textarea id="inputSchemaJson" class="form-control codebox" rows="7" spellcheck="false">{
+                        <div class="col-12 api-param-config">
+                            <div class="api-param-config-head">
+                                <div>
+                                    <label class="form-label mb-1">API 参数配置</label>
+                                    <div class="text-secondary small">配置模型调用该 API 时需要传入的业务参数。</div>
+                                </div>
+                                <button id="addApiParamBtn" class="btn btn-outline-primary btn-sm" type="button">新增参数</button>
+                            </div>
+                            <div class="api-param-table-wrap">
+                                <table class="table table-sm align-middle mb-0 api-param-table">
+                                    <thead>
+                                        <tr>
+                                            <th>参数名</th>
+                                            <th>类型</th>
+                                            <th>必填</th>
+                                            <th>默认值</th>
+                                            <th>示例值</th>
+                                            <th>说明</th>
+                                            <th></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="apiParamRows">
+                                        <tr id="apiParamEmptyRow">
+                                            <td colspan="7" class="text-secondary text-center py-3">暂无参数。</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <textarea id="inputSchemaJson" class="d-none" spellcheck="false">{
   "type": "object",
   "properties": {},
   "required": [],

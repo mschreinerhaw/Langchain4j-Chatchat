@@ -2,10 +2,10 @@
     <div class="panel-head api-service-head">
         <div>
             <h2>资产中心</h2>
-            <div class="text-secondary small">服务器、数据库和 HTTP 请求资产会自动发布为 MCP Tool。</div>
+            <div class="text-secondary small">服务器、数据库和 API 网关资产会自动发布为 MCP Tool。</div>
         </div>
         <div class="btn-group btn-group-sm" role="group">
-            <button id="refreshOpsAssetToolsBtn" class="btn btn-outline-secondary" type="button">刷新运维/HTTP工具</button>
+            <button id="refreshOpsAssetToolsBtn" class="btn btn-outline-secondary" type="button">刷新运维/API网关工具</button>
             <button id="refreshSqlAssetToolsBtn" class="btn btn-outline-secondary" type="button">刷新数据库工具</button>
             <button id="rebuildAssetIndexBtn" class="btn btn-outline-primary" type="button">重建资产索引</button>
             <button id="rebuildTemplateIndexBtn" class="btn btn-outline-primary" type="button">重建模板索引</button>
@@ -20,7 +20,7 @@
             <button id="sqlAssetTabBtn" class="nav-link" type="button" data-asset-tab="sql">数据库资产</button>
         </li>
         <li class="nav-item" role="presentation">
-            <button id="httpAssetTabBtn" class="nav-link" type="button" data-asset-tab="http">HTTP 请求</button>
+            <button id="httpAssetTabBtn" class="nav-link" type="button" data-asset-tab="http">API 网关资产</button>
         </li>
         <li class="nav-item" role="presentation">
             <button id="commandTemplateTabBtn" class="nav-link" type="button" data-asset-tab="template">执行模板</button>
@@ -137,8 +137,8 @@
 
     <div id="httpAssetPane" class="d-none">
         <div class="bulk-toolbar">
-            <div class="fw-semibold">HTTP 请求 <span class="text-secondary small">显示 <span id="httpAssetFilteredCount">0</span> / 共 <span id="httpAssetCount">0</span> 个</span></div>
-            <button id="newHttpAssetBtn" class="btn btn-primary btn-sm" type="button">新增请求</button>
+            <div class="fw-semibold">API 网关资产 <span class="text-secondary small">显示 <span id="httpAssetFilteredCount">0</span> / 共 <span id="httpAssetCount">0</span> 个</span></div>
+            <button id="newHttpAssetBtn" class="btn btn-primary btn-sm" type="button">新增网关</button>
         </div>
         <div class="row g-2 align-items-end mb-3">
             <div class="col-md-4">
@@ -200,7 +200,7 @@
             <div class="template-create-actions">
                 <button id="newCommandTemplateBtn" class="btn btn-sm btn-outline-primary" type="button">新增 SSH 模板</button>
                 <button id="newSqlTemplateBtn" class="btn btn-sm btn-outline-primary" type="button">新增 SQL 运维模板</button>
-                <button id="newHttpTemplateBtn" class="btn btn-sm btn-outline-primary" type="button">新增 HTTP 请求资产</button>
+                <button id="newHttpTemplateBtn" class="btn btn-sm btn-outline-primary" type="button">新增 API 网关资产</button>
                 <button id="importTemplateDslBtn" class="btn btn-sm btn-outline-primary" type="button">导入模板</button>
                 <button id="exportTemplateDslBtn" class="btn btn-sm btn-outline-primary" type="button" disabled>导出模板</button>
             </div>
@@ -216,7 +216,7 @@
                     <option value="">全部类型</option>
                     <option value="ssh">SSH 命令</option>
                     <option value="sql">SQL 运维查询</option>
-                    <option value="http">HTTP 资产</option>
+                    <option value="http">API 网关资产</option>
                 </select>
             </div>
             <div class="col-md-4">
@@ -249,7 +249,7 @@
                         <option value="sql_metadata">元数据索引</option>
                         <option value="ssh_host_assets">服务器资产索引</option>
                         <option value="sql_datasource_assets">数据库资产索引</option>
-                        <option value="http_endpoint_assets">HTTP 资产索引</option>
+                    <option value="http_endpoint_assets">API 网关资产索引</option>
                         <option value="api_service_assets">API 服务资产索引</option>
                         <option value="templates">模板索引</option>
                         <option value="database_query">业务查询索引</option>
@@ -365,7 +365,7 @@
                     <option value="">全部资产索引</option>
                     <option value="ssh_host">服务器资产索引</option>
                     <option value="sql_datasource">数据库资产索引</option>
-                    <option value="http_endpoint">HTTP 资产索引</option>
+                    <option value="http_endpoint">API 网关资产索引</option>
                     <option value="api_service">API 服务资产索引</option>
                 </select>
             </div>
@@ -492,10 +492,60 @@
                         <div class="col-md-4"><label class="form-label" for="commandTemplateCategory">模板分类</label><input id="commandTemplateCategory" class="form-control" list="commandTemplateCategoryOptions" placeholder="system_diagnostic"><datalist id="commandTemplateCategoryOptions"><option value="system_diagnostic"></option><option value="host_diagnostic"></option><option value="maintenance_performance"></option><option value="maintenance_metadata"></option><option value="maintenance_lock"></option><option value="sql_diagnostic"></option><option value="sql_metadata"></option><option value="http_request"></option></datalist></div>
                         <div class="col-md-3 sql-template-field d-none"><label class="form-label" for="commandTemplateDatabaseType">数据库类型</label><select id="commandTemplateDatabaseType" class="form-select"><option value="generic">generic</option><option value="mysql">mysql</option><option value="postgresql">postgresql</option><option value="oracle">oracle</option><option value="hive">hive</option><option value="inceptor">inceptor</option><option value="goldendb">goldendb</option><option value="dm">dm</option><option value="tdsql">tdsql</option><option value="tidb">tidb</option><option value="kingbase">kingbase</option><option value="oceanbase">oceanbase</option><option value="sqlserver">sqlserver</option><option value="mariadb">mariadb</option><option value="clickhouse">clickhouse</option></select></div>
                         <div class="col-md-5 sql-template-field d-none"><label class="form-label" for="commandTemplateDatasourceId">绑定数据库资产</label><select id="commandTemplateDatasourceId" class="form-select"><option value="">任意兼容数据源</option></select></div>
-                        <div class="col-md-8"><label class="form-label" for="commandTemplateIntentSignalsJson">模型可见意图信号 JSON</label><textarea id="commandTemplateIntentSignalsJson" class="form-control codebox" rows="3" spellcheck="false">[]</textarea></div>
-                        <div class="col-12 sql-template-field d-none"><label class="form-label" for="commandTemplateRoutingLabelsJson">模板路由标签 JSON</label><textarea id="commandTemplateRoutingLabelsJson" class="form-control codebox" rows="3" spellcheck="false">[]</textarea></div>
+                        <div class="col-md-8">
+                            <label class="form-label" for="commandTemplateIntentSignalInput">模型可见意图信号</label>
+                            <div class="intent-signal-editor">
+                                <div class="intent-signal-input-row">
+                                    <input id="commandTemplateIntentSignalInput" class="form-control" placeholder="例如 docker_status、查看容器状态、磁盘巡检">
+                                    <button id="addCommandTemplateIntentSignalBtn" class="btn btn-outline-primary" type="button">新增</button>
+                                </div>
+                                <div id="commandTemplateIntentSignalList" class="intent-signal-list text-secondary">未配置</div>
+                                <textarea id="commandTemplateIntentSignalsJson" class="d-none" spellcheck="false">[]</textarea>
+                            </div>
+                        </div>
+                        <div class="col-12 sql-template-field d-none">
+                            <label class="form-label" for="commandTemplateRoutingLabelInput">模板路由标签</label>
+                            <div class="intent-signal-editor">
+                                <div class="intent-signal-input-row">
+                                    <input id="commandTemplateRoutingLabelInput" class="form-control" placeholder="例如 mysql、session、lock、slow_query">
+                                    <button id="addCommandTemplateRoutingLabelBtn" class="btn btn-outline-primary" type="button">新增</button>
+                                </div>
+                                <div id="commandTemplateRoutingLabelList" class="intent-signal-list text-secondary">未配置</div>
+                                <textarea id="commandTemplateRoutingLabelsJson" class="d-none" spellcheck="false">[]</textarea>
+                            </div>
+                        </div>
                         <div class="col-12"><label class="form-label" for="commandTemplateDescription">模型可见描述</label><textarea id="commandTemplateDescription" class="form-control" rows="2"></textarea></div>
-                        <div class="col-md-6"><label class="form-label" for="commandTemplateParameterSchemaJson">参数 Schema JSON</label><textarea id="commandTemplateParameterSchemaJson" class="form-control codebox" rows="8" spellcheck="false">{
+                        <div class="col-12 api-param-config command-template-param-config">
+                            <div class="api-param-config-head">
+                                <div>
+                                    <label class="form-label mb-1">模板参数配置</label>
+                                    <div class="text-secondary small">配置模型调用模板时需要传入的业务参数。</div>
+                                </div>
+                                <button id="addCommandTemplateParamBtn" class="btn btn-outline-primary btn-sm" type="button">新增参数</button>
+                            </div>
+                            <div class="param-contract-help">
+                                <strong>参数使用规范</strong>
+                                <span>模板里使用 <code>{{参数名}}</code> 引用参数，参数名需与下方表格一致，建议使用字母、数字和下划线，例如 <code>service_name</code>、<code>pid</code>。</span>
+                                <span>SSH 示例：<code>systemctl status {{service_name}}</code>；SQL 运维示例：<code>where session_id = {{session_id}}</code>。</span>
+                                <span>勾选“必填”表示模型必须把值放在 <code>parameters</code> 对象里；未勾选时可使用默认值或按场景省略。</span>
+                            </div>
+                            <div class="api-param-table-wrap">
+                                <table class="table table-sm align-middle mb-0 api-param-table command-template-param-table">
+                                    <thead>
+                                        <tr>
+                                            <th>参数名</th>
+                                            <th>类型</th>
+                                            <th>必填</th>
+                                            <th>默认值</th>
+                                            <th>示例值</th>
+                                            <th>说明</th>
+                                            <th></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="commandTemplateParamRows"></tbody>
+                                </table>
+                            </div>
+                            <textarea id="commandTemplateParameterSchemaJson" class="d-none" spellcheck="false">{
   "type": "object",
   "properties": {},
   "required": []
@@ -519,7 +569,7 @@
     <div class="modal-dialog modal-xl modal-dialog-scrollable">
         <div class="modal-content">
             <div class="modal-header">
-                <h2 id="httpAssetFormTitle" class="modal-title fs-5">HTTP 请求资产</h2>
+                <h2 id="httpAssetFormTitle" class="modal-title fs-5">API 网关资产</h2>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="关闭"></button>
             </div>
             <div class="modal-body">
@@ -533,25 +583,103 @@
                         <div class="col-md-2"><label class="form-label" for="httpAssetMethod">方法</label><select id="httpAssetMethod" class="form-select"><option>GET</option><option>POST</option><option>PUT</option><option>DELETE</option></select></div>
                         <div class="col-md-10"><label class="form-label" for="httpAssetUrlTemplate">URL 模板</label><input id="httpAssetUrlTemplate" class="form-control" placeholder="https://api.example.com/status?name={{name}}" required></div>
                         <div class="col-md-3"><label class="form-label" for="httpAssetEnvironment">环境</label><select id="httpAssetEnvironment" class="form-select"><option>DEV</option><option>TEST</option><option>UAT</option><option>PROD</option></select></div>
-                        <div class="col-md-3"><label class="form-label" for="httpAssetCategory">分类</label><select id="httpAssetCategory" class="form-select"><option value="business_api">业务接口</option><option value="monitoring">监控接口</option><option value="third_party">第三方接口</option><option value="webhook">Webhook</option><option value="ops">运维接口</option><option value="other">其他</option></select></div>
+                        <div class="col-md-3"><label class="form-label" for="httpAssetCategory">分类</label><select id="httpAssetCategory" class="form-select"><option value="api_gateway">API 网关</option><option value="business_api">业务接口</option><option value="monitoring">监控接口</option><option value="third_party">第三方接口</option><option value="webhook">Webhook</option><option value="ops">运维接口</option><option value="other">其他</option></select></div>
                         <div class="col-md-2"><label class="form-label" for="httpAssetEnabled">状态</label><select id="httpAssetEnabled" class="form-select"><option value="false">停用</option><option value="true">启用</option></select></div>
                         <div class="col-md-2"><label class="form-label" for="httpAssetTimeoutMs">超时秒</label><input id="httpAssetTimeoutMs" class="form-control" type="number" min="1" max="60" value="10"></div>
                         <div class="col-md-2"><label class="form-label" for="httpAssetTags">标签</label><input id="httpAssetTags" class="form-control" placeholder="monitor,prod"></div>
-                        <div class="col-md-6"><label class="form-label" for="httpAssetHeadersJson">Headers JSON</label><textarea id="httpAssetHeadersJson" class="form-control codebox" rows="6" spellcheck="false">{}</textarea></div>
-                        <div class="col-md-6"><label class="form-label" for="httpAssetInputSchemaJson">入参 Schema JSON</label><textarea id="httpAssetInputSchemaJson" class="form-control codebox" rows="6" spellcheck="false">{
+                        <div class="col-12 api-param-config http-header-config">
+                            <div class="api-param-config-head">
+                                <div>
+                                    <label class="form-label mb-1">Headers 配置</label>
+                                    <div class="text-secondary small">勾选常用 Header，或手动新增请求头。</div>
+                                </div>
+                                <button id="addHttpAssetHeaderBtn" class="btn btn-outline-primary btn-sm" type="button">新增 Header</button>
+                            </div>
+                            <div class="http-common-headers">
+                                <label class="form-check"><input class="form-check-input" type="checkbox" data-http-common-header="Accept"><span class="form-check-label">Accept: application/json</span></label>
+                                <label class="form-check"><input class="form-check-input" type="checkbox" data-http-common-header="Content-Type"><span class="form-check-label">Content-Type: application/json</span></label>
+                                <label class="form-check"><input class="form-check-input" type="checkbox" data-http-common-header="Authorization"><span class="form-check-label">Authorization: Bearer {{token}}</span></label>
+                                <label class="form-check"><input class="form-check-input" type="checkbox" data-http-common-header="X-Request-Id"><span class="form-check-label">X-Request-Id: {{request_id}}</span></label>
+                            </div>
+                            <div class="api-param-table-wrap mt-2">
+                                <table class="table table-sm align-middle mb-0 api-param-table http-header-table">
+                                    <thead>
+                                        <tr>
+                                            <th>Header 名称</th>
+                                            <th>Header 值</th>
+                                            <th></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="httpAssetHeaderRows"></tbody>
+                                </table>
+                            </div>
+                            <textarea id="httpAssetHeadersJson" class="d-none" spellcheck="false">{}</textarea>
+                        </div>
+                        <div class="col-12 api-param-config http-input-schema-config">
+                            <div class="api-param-config-head">
+                                <div>
+                                    <label class="form-label mb-1">入参配置</label>
+                                    <div class="text-secondary small">配置请求模板中可使用的模型入参。</div>
+                                </div>
+                                <button id="addHttpAssetParamBtn" class="btn btn-outline-primary btn-sm" type="button">新增参数</button>
+                            </div>
+                            <div class="param-contract-help">
+                                <strong>参数使用规范</strong>
+                                <span>URL、Headers 和 Body 模板使用 <code>{{参数名}}</code> 引用参数，参数名需与下方表格一致。</span>
+                                <span>URL 示例：<code>/status?name={{service_name}}</code>；Header 示例：<code>Authorization: Bearer {{token}}</code>；Body 字段值可写 <code>{{customer_id}}</code>。</span>
+                                <span>GET/DELETE 未被模板消费的入参会自动追加为查询参数；POST/PUT 未配置 Body 模板时会按入参生成请求体。</span>
+                            </div>
+                            <div class="api-param-table-wrap">
+                                <table class="table table-sm align-middle mb-0 api-param-table http-param-table">
+                                    <thead>
+                                        <tr>
+                                            <th>参数名</th>
+                                            <th>类型</th>
+                                            <th>必填</th>
+                                            <th>默认值</th>
+                                            <th>示例值</th>
+                                            <th>说明</th>
+                                            <th></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="httpAssetParamRows"></tbody>
+                                </table>
+                            </div>
+                            <textarea id="httpAssetInputSchemaJson" class="d-none" spellcheck="false">{
   "type": "object",
   "properties": {},
   "required": [],
   "additionalProperties": true
 }</textarea></div>
+                        <div class="col-12 api-param-config http-body-config">
+                            <div class="api-param-config-head">
+                                <div>
+                                    <label class="form-label mb-1">Body 模板</label>
+                                    <div class="text-secondary small">配置 JSON Body 字段和值模板，字段值可使用 <code>{{name}}</code> 占位。</div>
+                                </div>
+                                <button id="addHttpAssetBodyFieldBtn" class="btn btn-outline-primary btn-sm" type="button">新增字段</button>
+                            </div>
+                            <div class="api-param-table-wrap">
+                                <table class="table table-sm align-middle mb-0 api-param-table http-body-table">
+                                    <thead>
+                                        <tr>
+                                            <th>字段名</th>
+                                            <th>值模板</th>
+                                            <th></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="httpAssetBodyRows"></tbody>
+                                </table>
+                            </div>
+                            <textarea id="httpAssetBodyTemplate" class="d-none" spellcheck="false"></textarea>
+                        </div>
                         <div class="col-12"><label class="form-label" for="httpAssetGovernanceJson">Governance JSON</label><textarea id="httpAssetGovernanceJson" class="form-control codebox" rows="10" spellcheck="false"></textarea></div>
-                        <div class="col-12"><label class="form-label" for="httpAssetBodyTemplate">Body 模板</label><textarea id="httpAssetBodyTemplate" class="form-control codebox" rows="6" spellcheck="false" placeholder='{"name":"{{name}}"}'></textarea></div>
                     </div>
                 </form>
             </div>
             <div class="modal-footer">
-                <button id="testHttpAssetBtn" class="btn btn-outline-secondary" type="button">测试请求</button>
-                <button class="btn btn-primary" type="submit" form="httpAssetForm">保存请求</button>
+                <button id="testHttpAssetBtn" class="btn btn-outline-secondary" type="button">测试网关</button>
+                <button class="btn btn-primary" type="submit" form="httpAssetForm">保存网关</button>
             </div>
         </div>
     </div>

@@ -1,10 +1,14 @@
 package com.chatchat.mcpserver.sql;
 
 import com.chatchat.mcpserver.template.TemplateParameterValidator;
+import com.chatchat.tools.builtin.DynamicJdbcDriverLoader;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -25,12 +29,7 @@ class SqlTemplateServiceTest {
     @Test
     void doesNotSeedDefaultTemplatesUnlessExplicitlyEnabled() {
         SqlTemplateSeedProperties properties = new SqlTemplateSeedProperties();
-        SqlTemplateService service = new SqlTemplateService(
-            repository,
-            objectMapper,
-            new TemplateParameterValidator(objectMapper),
-            properties
-        );
+        SqlTemplateService service = service(properties);
         when(repository.findByCode(anyString())).thenReturn(Optional.empty());
         when(repository.findByEnabledTrueOrderByCodeAsc()).thenReturn(List.of());
 
@@ -43,12 +42,7 @@ class SqlTemplateServiceTest {
     void enabledDefaultSeedCreatesOnlyMaintenanceTemplates() {
         SqlTemplateSeedProperties properties = new SqlTemplateSeedProperties();
         properties.setSeedDefaultsEnabled(true);
-        SqlTemplateService service = new SqlTemplateService(
-            repository,
-            objectMapper,
-            new TemplateParameterValidator(objectMapper),
-            properties
-        );
+        SqlTemplateService service = service(properties);
         when(repository.findByCode(anyString())).thenReturn(Optional.empty());
         when(repository.findByEnabledTrueOrderByCodeAsc()).thenReturn(List.of());
 
@@ -202,12 +196,7 @@ class SqlTemplateServiceTest {
     void enabledDefaultSeedDeletesRetiredGenericTemplates() {
         SqlTemplateSeedProperties properties = new SqlTemplateSeedProperties();
         properties.setSeedDefaultsEnabled(true);
-        SqlTemplateService service = new SqlTemplateService(
-            repository,
-            objectMapper,
-            new TemplateParameterValidator(objectMapper),
-            properties
-        );
+        SqlTemplateService service = service(properties);
         SqlTemplateConfig tableCount = template("CHECK_TABLE_COUNT");
         SqlTemplateConfig recentData = template("CHECK_RECENT_DATA");
         SqlTemplateConfig taskResult = template("TASK_RESULT");
@@ -231,12 +220,7 @@ class SqlTemplateServiceTest {
     void refreshesExistingDefaultSqlTemplateDefinitionButPreservesDisabledState() {
         SqlTemplateSeedProperties properties = new SqlTemplateSeedProperties();
         properties.setSeedDefaultsEnabled(true);
-        SqlTemplateService service = new SqlTemplateService(
-            repository,
-            objectMapper,
-            new TemplateParameterValidator(objectMapper),
-            properties
-        );
+        SqlTemplateService service = service(properties);
         SqlTemplateConfig existing = template("MYSQL_SHOW_STATUS");
         existing.setTitle("Old status title");
         existing.setDescription("Old status description");
@@ -276,12 +260,7 @@ class SqlTemplateServiceTest {
     @Test
     void refreshesExistingDefaultSqlTemplateEvenWhenDefaultSeedIsDisabled() {
         SqlTemplateSeedProperties properties = new SqlTemplateSeedProperties();
-        SqlTemplateService service = new SqlTemplateService(
-            repository,
-            objectMapper,
-            new TemplateParameterValidator(objectMapper),
-            properties
-        );
+        SqlTemplateService service = service(properties);
         SqlTemplateConfig existing = template("MYSQL_SHOW_STATUS");
         existing.setTitle("旧状态标题");
         existing.setDescription("旧状态描述");
@@ -319,12 +298,7 @@ class SqlTemplateServiceTest {
     @Test
     void tableMetadataTemplateQuotesAndValidatesTableNameParameter() {
         SqlTemplateSeedProperties properties = new SqlTemplateSeedProperties();
-        SqlTemplateService service = new SqlTemplateService(
-            repository,
-            objectMapper,
-            new TemplateParameterValidator(objectMapper),
-            properties
-        );
+        SqlTemplateService service = service(properties);
         SqlTemplateConfig metadata = template("MYSQL_TABLE_METADATA");
         metadata.setSqlTemplate("SELECT column_name FROM information_schema.columns WHERE table_name = {{tableName}}");
         metadata.setParameterSchemaJson("""
@@ -352,12 +326,7 @@ class SqlTemplateServiceTest {
     @Test
     void rejectsRawSqlParameterWhenTemplateDoesNotDeclareIt() {
         SqlTemplateSeedProperties properties = new SqlTemplateSeedProperties();
-        SqlTemplateService service = new SqlTemplateService(
-            repository,
-            objectMapper,
-            new TemplateParameterValidator(objectMapper),
-            properties
-        );
+        SqlTemplateService service = service(properties);
         SqlTemplateConfig innodbTrx = template("MYSQL_INNODB_TRX");
         innodbTrx.setSqlTemplate("SELECT * FROM information_schema.INNODB_TRX");
         innodbTrx.setParameterSchemaJson("""
@@ -380,12 +349,7 @@ class SqlTemplateServiceTest {
     @Test
     void rejectsSqlSyntaxHiddenInsideTypedTemplateParameter() {
         SqlTemplateSeedProperties properties = new SqlTemplateSeedProperties();
-        SqlTemplateService service = new SqlTemplateService(
-            repository,
-            objectMapper,
-            new TemplateParameterValidator(objectMapper),
-            properties
-        );
+        SqlTemplateService service = service(properties);
         SqlTemplateConfig metadata = template("MYSQL_TABLE_METADATA");
         metadata.setSqlTemplate("SELECT column_name FROM information_schema.columns WHERE table_name = {{tableName}}");
         metadata.setParameterSchemaJson("""
@@ -410,12 +374,7 @@ class SqlTemplateServiceTest {
     @Test
     void rejectsDynamicSqlFragmentParameterEvenWhenSchemaDeclaresIt() {
         SqlTemplateSeedProperties properties = new SqlTemplateSeedProperties();
-        SqlTemplateService service = new SqlTemplateService(
-            repository,
-            objectMapper,
-            new TemplateParameterValidator(objectMapper),
-            properties
-        );
+        SqlTemplateService service = service(properties);
         SqlTemplateConfig template = template("MYSQL_CUSTOM_FILTER");
         template.setSqlTemplate("SELECT * FROM t WHERE {{whereClause}}");
         template.setParameterSchemaJson("""
@@ -444,5 +403,18 @@ class SqlTemplateServiceTest {
         config.setTitle(code);
         config.setSqlTemplate("SELECT 1");
         return config;
+    }
+
+    private SqlTemplateService service(SqlTemplateSeedProperties properties) {
+        return new SqlTemplateService(
+            repository,
+            objectMapper,
+            new TemplateParameterValidator(objectMapper),
+            properties,
+            new DynamicDateParamService(
+                mock(DynamicJdbcDriverLoader.class),
+                Clock.fixed(Instant.parse("2026-07-07T00:00:00Z"), ZoneId.of("Asia/Shanghai"))
+            )
+        );
     }
 }

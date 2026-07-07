@@ -27,6 +27,7 @@ import {
     importTemplateDsl
 } from './assetCenter.js';
 import {
+    confirmDangerAction,
     hideCommandTemplateModal,
     hideHttpAssetModal,
     hideSqlAssetModal,
@@ -89,6 +90,12 @@ const COMMAND_TEMPLATE_PAGE_SIZE = 12;
 const DEFAULT_HTTP_TIMEOUT_SECONDS = 10;
 const GOVERNANCE_MASK_FIELDS = ['phone', 'id_card', 'account_no'];
 const DEFAULT_SSH_COMMAND_TEMPLATE_CODES = [];
+const HTTP_COMMON_HEADERS = {
+    Accept: 'application/json',
+    'Content-Type': 'application/json',
+    Authorization: 'Bearer {{token}}',
+    'X-Request-Id': '{{request_id}}'
+};
 
 export function bindAssetCenterPanel(options = {}) {
     onError = options.onError || onError;
@@ -108,8 +115,31 @@ export function bindAssetCenterPanel(options = {}) {
     document.getElementById('sshAssetForm').addEventListener('submit', handleSshAssetSave);
     document.getElementById('sqlAssetForm').addEventListener('submit', handleSqlAssetSave);
     bindOptional('httpAssetForm', 'submit', handleHttpAssetSave);
+    bindOptional('addHttpAssetHeaderBtn', 'click', () => addHttpAssetHeaderRow());
+    bindOptional('httpAssetHeaderRows', 'click', handleHttpAssetHeaderRowsClick);
+    bindOptional('httpAssetHeaderRows', 'input', () => syncHttpAssetHeaders(false));
+    bindOptional('httpAssetHeaderRows', 'change', () => syncHttpAssetHeaders(false));
+    document.querySelectorAll('[data-http-common-header]').forEach(input => {
+        input.addEventListener('change', handleHttpCommonHeaderChange);
+    });
+    bindOptional('addHttpAssetParamBtn', 'click', () => addHttpAssetParamRow());
+    bindOptional('httpAssetParamRows', 'click', handleHttpAssetParamRowsClick);
+    bindOptional('httpAssetParamRows', 'input', () => syncHttpAssetInputSchema(false));
+    bindOptional('httpAssetParamRows', 'change', () => syncHttpAssetInputSchema(false));
+    bindOptional('addHttpAssetBodyFieldBtn', 'click', () => addHttpAssetBodyFieldRow());
+    bindOptional('httpAssetBodyRows', 'click', handleHttpAssetBodyRowsClick);
+    bindOptional('httpAssetBodyRows', 'input', () => syncHttpAssetBodyTemplate(false));
+    bindOptional('httpAssetBodyRows', 'change', () => syncHttpAssetBodyTemplate(false));
     bindOptional('commandTemplateForm', 'submit', handleCommandTemplateSave);
+    bindOptional('addCommandTemplateIntentSignalBtn', 'click', addCommandTemplateIntentSignalFromInput);
+    bindOptional('commandTemplateIntentSignalInput', 'keydown', handleCommandTemplateIntentSignalKeydown);
+    bindOptional('addCommandTemplateRoutingLabelBtn', 'click', addCommandTemplateRoutingLabelFromInput);
+    bindOptional('commandTemplateRoutingLabelInput', 'keydown', handleCommandTemplateRoutingLabelKeydown);
     bindOptional('commandTemplateCommand', 'input', updateCommandTemplateStructuredPreview);
+    bindOptional('addCommandTemplateParamBtn', 'click', () => addCommandTemplateParamRow());
+    bindOptional('commandTemplateParamRows', 'click', handleCommandTemplateParamRowsClick);
+    bindOptional('commandTemplateParamRows', 'input', () => syncCommandTemplateParameterSchema(false));
+    bindOptional('commandTemplateParamRows', 'change', () => syncCommandTemplateParameterSchema(false));
     document.getElementById('testSshAssetBtn').addEventListener('click', handleSshAssetTest);
     document.getElementById('testSqlAssetBtn').addEventListener('click', handleSqlAssetTest);
     bindOptional('testHttpAssetBtn', 'click', handleHttpAssetTest);
@@ -901,7 +931,7 @@ function filterHttpAssets() {
         if (httpAssetMethodFilter && String(asset.method || 'GET').toUpperCase() !== httpAssetMethodFilter.toUpperCase()) {
             return false;
         }
-        if (httpAssetCategoryFilter && String(asset.category || 'business_api') !== httpAssetCategoryFilter) {
+        if (httpAssetCategoryFilter && String(asset.category || 'api_gateway') !== httpAssetCategoryFilter) {
             return false;
         }
         if (!keyword) {
@@ -1046,6 +1076,7 @@ function formatMetadataScopeType(scopeType) {
 
 function formatHttpCategory(category) {
     const names = {
+        api_gateway: 'API 网关',
         business_api: '业务接口',
         monitoring: '监控接口',
         third_party: '第三方接口',
@@ -1535,7 +1566,12 @@ async function testHttpAssetFromCard(asset) {
 }
 
 async function removeSshAsset(asset) {
-    if (!window.confirm(`确定删除 ${asset.toolName || asset.name || '该服务器资产'} 吗？`)) return;
+    const confirmed = await confirmAssetDeletion({
+        title: '删除服务器资产',
+        message: '确定删除该服务器资产吗？',
+        target: asset.toolName || asset.name || asset.host || '未命名服务器资产'
+    });
+    if (!confirmed) return;
     try {
         await deleteSshAsset(asset.id);
         if (selectedSshAssetId === asset.id) {
@@ -1550,7 +1586,12 @@ async function removeSshAsset(asset) {
 }
 
 async function removeSqlAsset(asset) {
-    if (!window.confirm(`确定删除 ${asset.toolName || asset.name || '该数据库资产'} 吗？`)) return;
+    const confirmed = await confirmAssetDeletion({
+        title: '删除数据库资产',
+        message: '确定删除该数据库资产吗？',
+        target: asset.toolName || asset.name || asset.jdbcUrl || '未命名数据库资产'
+    });
+    if (!confirmed) return;
     try {
         await deleteSqlAsset(asset.id);
         if (selectedSqlAssetId === asset.id) {
@@ -1565,7 +1606,12 @@ async function removeSqlAsset(asset) {
 }
 
 async function removeHttpAsset(asset) {
-    if (!window.confirm(`确定删除 ${asset.toolName || asset.name || '该 HTTP 请求资产'} 吗？`)) return;
+    const confirmed = await confirmAssetDeletion({
+        title: '删除 API 网关资产',
+        message: '确定删除该 API 网关资产吗？',
+        target: asset.toolName || asset.name || asset.urlTemplate || '未命名 API 网关资产'
+    });
+    if (!confirmed) return;
     try {
         await deleteHttpAsset(asset.id);
         if (selectedHttpAssetId === asset.id) {
@@ -1584,7 +1630,13 @@ async function removeTemplateCatalogRow(template) {
         await removeHttpAsset(template);
         return;
     }
-    if (!window.confirm(`确定删除执行模板 ${template.code || template.title || ''} 吗？`)) return;
+    const confirmed = await confirmAssetDeletion({
+        title: '删除执行模板',
+        message: '确定删除该执行模板吗？',
+        target: template.code || template.title || '未命名执行模板',
+        detail: '删除后该模板将不能再被资产绑定或通过 MCP 工具调用。'
+    });
+    if (!confirmed) return;
     try {
         if (template.scope === 'sql') {
             await deleteSqlTemplate(template.id);
@@ -1600,6 +1652,16 @@ async function removeTemplateCatalogRow(template) {
     } catch (error) {
         onError(error);
     }
+}
+
+function confirmAssetDeletion({ title, message, target, detail }) {
+    return confirmDangerAction({
+        title: title || '删除确认',
+        message: message || '确认删除该资产吗？',
+        target: target || '',
+        detail: detail || '删除后配置将从资产中心移除，相关 MCP 工具会在刷新或重载后同步变化。',
+        confirmText: '确认删除'
+    });
 }
 
 async function handleOpsAssetRefresh() {
@@ -1917,6 +1979,7 @@ function truncateText(text, maxLength) {
 }
 
 function readCommandTemplateForm() {
+    syncCommandTemplateParameterSchema();
     const payload = {
         id: value('commandTemplateId'),
         code: value('commandTemplateCode'),
@@ -1958,7 +2021,10 @@ function fillCommandTemplateForm(template) {
     setValue('commandTemplateCategory', category);
     setValue('commandTemplateEnabled', String(template?.enabled ?? true));
     setValue('commandTemplateIntentSignalsJson', prettyJsonArray(template?.intentSignalsJson || '[]'));
+    setValue('commandTemplateIntentSignalInput', '');
+    renderCommandTemplateIntentSignals();
     setValue('commandTemplateParameterSchemaJson', prettyJsonObject(template?.parameterSchemaJson, defaultTemplateParameterSchema()));
+    renderCommandTemplateParamEditor(tryParseJsonObject(value('commandTemplateParameterSchemaJson')) || defaultTemplateParameterSchema());
     setValue('commandTemplateCommand', template?.commandTemplate || template?.sqlTemplate || defaultTemplateBody());
     updateCommandTemplateStructuredPreview();
     document.querySelectorAll('.sql-template-field').forEach(node => {
@@ -1968,6 +2034,327 @@ function fillCommandTemplateForm(template) {
     setValue('commandTemplateDatabaseType', template?.databaseType || 'generic');
     setValue('commandTemplateDatasourceId', template?.datasourceId || '');
     setValue('commandTemplateRoutingLabelsJson', prettyJsonArray(template?.routingLabelsJson || '[]'));
+    setValue('commandTemplateRoutingLabelInput', '');
+    renderCommandTemplateRoutingLabels();
+}
+
+function handleCommandTemplateIntentSignalKeydown(event) {
+    if (event.key !== 'Enter') {
+        return;
+    }
+    event.preventDefault();
+    addCommandTemplateIntentSignalFromInput();
+}
+
+function addCommandTemplateIntentSignalFromInput() {
+    const input = document.getElementById('commandTemplateIntentSignalInput');
+    const nextValue = input?.value.trim();
+    if (!nextValue) {
+        return;
+    }
+    const signals = commandTemplateIntentSignals();
+    if (!signals.includes(nextValue)) {
+        signals.push(nextValue);
+        setCommandTemplateIntentSignals(signals);
+    }
+    if (input) {
+        input.value = '';
+        input.focus();
+    }
+}
+
+function removeCommandTemplateIntentSignal(signal) {
+    setCommandTemplateIntentSignals(commandTemplateIntentSignals().filter(item => item !== signal));
+}
+
+function commandTemplateIntentSignals() {
+    return parseJsonArrayValue(value('commandTemplateIntentSignalsJson'))
+        .map(item => String(item || '').trim())
+        .filter(Boolean);
+}
+
+function setCommandTemplateIntentSignals(signals) {
+    const unique = [...new Set((signals || [])
+        .map(item => String(item || '').trim())
+        .filter(Boolean))];
+    setValue('commandTemplateIntentSignalsJson', JSON.stringify(unique, null, 2));
+    renderCommandTemplateIntentSignals();
+}
+
+function renderCommandTemplateIntentSignals() {
+    const node = document.getElementById('commandTemplateIntentSignalList');
+    if (!node) {
+        return;
+    }
+    const signals = commandTemplateIntentSignals();
+    node.innerHTML = '';
+    if (!signals.length) {
+        node.classList.add('text-secondary');
+        node.textContent = '未配置';
+        return;
+    }
+    node.classList.remove('text-secondary');
+    for (const signal of signals) {
+        const chip = document.createElement('button');
+        chip.type = 'button';
+        chip.className = 'intent-signal-chip';
+        chip.title = `移除 ${signal}`;
+        chip.innerHTML = `<span>${escapeHtml(signal)}</span><strong aria-hidden="true">×</strong>`;
+        chip.addEventListener('click', () => removeCommandTemplateIntentSignal(signal));
+        node.appendChild(chip);
+    }
+}
+
+function handleCommandTemplateRoutingLabelKeydown(event) {
+    if (event.key !== 'Enter') {
+        return;
+    }
+    event.preventDefault();
+    addCommandTemplateRoutingLabelFromInput();
+}
+
+function addCommandTemplateRoutingLabelFromInput() {
+    const input = document.getElementById('commandTemplateRoutingLabelInput');
+    const nextValue = input?.value.trim();
+    if (!nextValue) {
+        return;
+    }
+    const labels = commandTemplateRoutingLabels();
+    if (!labels.includes(nextValue)) {
+        labels.push(nextValue);
+        setCommandTemplateRoutingLabels(labels);
+    }
+    if (input) {
+        input.value = '';
+        input.focus();
+    }
+}
+
+function removeCommandTemplateRoutingLabel(label) {
+    setCommandTemplateRoutingLabels(commandTemplateRoutingLabels().filter(item => item !== label));
+}
+
+function commandTemplateRoutingLabels() {
+    return parseJsonArrayValue(value('commandTemplateRoutingLabelsJson'))
+        .map(item => String(item || '').trim())
+        .filter(Boolean);
+}
+
+function setCommandTemplateRoutingLabels(labels) {
+    const unique = [...new Set((labels || [])
+        .map(item => String(item || '').trim())
+        .filter(Boolean))];
+    setValue('commandTemplateRoutingLabelsJson', JSON.stringify(unique, null, 2));
+    renderCommandTemplateRoutingLabels();
+}
+
+function renderCommandTemplateRoutingLabels() {
+    const node = document.getElementById('commandTemplateRoutingLabelList');
+    if (!node) {
+        return;
+    }
+    const labels = commandTemplateRoutingLabels();
+    node.innerHTML = '';
+    if (!labels.length) {
+        node.classList.add('text-secondary');
+        node.textContent = '未配置';
+        return;
+    }
+    node.classList.remove('text-secondary');
+    for (const label of labels) {
+        const chip = document.createElement('button');
+        chip.type = 'button';
+        chip.className = 'intent-signal-chip';
+        chip.title = `移除 ${label}`;
+        chip.innerHTML = `<span>${escapeHtml(label)}</span><strong aria-hidden="true">×</strong>`;
+        chip.addEventListener('click', () => removeCommandTemplateRoutingLabel(label));
+        node.appendChild(chip);
+    }
+}
+
+function renderCommandTemplateParamEditor(schema = emptyParameterSchema()) {
+    const tbody = document.getElementById('commandTemplateParamRows');
+    if (!tbody) {
+        return;
+    }
+    const properties = schema?.properties && typeof schema.properties === 'object' ? schema.properties : {};
+    const required = new Set(Array.isArray(schema?.required) ? schema.required.map(String) : []);
+    tbody.innerHTML = Object.entries(properties)
+        .map(([name, definition]) => commandTemplateParamRow({
+            name,
+            type: definition?.type || 'string',
+            required: required.has(name),
+            defaultValue: definition?.default,
+            example: definition?.example,
+            description: definition?.description
+        }))
+        .join('');
+    syncCommandTemplateParameterSchema();
+}
+
+function addCommandTemplateParamRow(param = {}) {
+    const tbody = document.getElementById('commandTemplateParamRows');
+    if (!tbody) {
+        return;
+    }
+    tbody.insertAdjacentHTML('beforeend', commandTemplateParamRow({
+        name: '',
+        type: 'string',
+        required: true,
+        defaultValue: '',
+        example: '',
+        description: '',
+        ...param
+    }));
+    syncCommandTemplateParameterSchema(false);
+}
+
+function commandTemplateParamRow(param) {
+    return `
+        <tr data-command-template-param-row>
+            <td><input class="form-control form-control-sm" data-command-template-param-name value="${escapeHtml(param.name || '')}" placeholder="param_name"></td>
+            <td>
+                <select class="form-select form-select-sm" data-command-template-param-type>
+                    ${commandTemplateParamTypeOptions(param.type || 'string')}
+                </select>
+            </td>
+            <td class="api-param-required-cell"><input class="form-check-input" type="checkbox" data-command-template-param-required ${param.required ? 'checked' : ''}></td>
+            <td><input class="form-control form-control-sm" data-command-template-param-default value="${escapeHtml(formatTemplateParamValue(param.defaultValue))}"></td>
+            <td><input class="form-control form-control-sm" data-command-template-param-example value="${escapeHtml(formatTemplateParamValue(param.example))}"></td>
+            <td><input class="form-control form-control-sm" data-command-template-param-description value="${escapeHtml(param.description || '')}" placeholder="参数业务含义"></td>
+            <td><button class="btn btn-sm api-param-remove" type="button" data-command-template-param-remove title="删除参数">×</button></td>
+        </tr>`;
+}
+
+function commandTemplateParamTypeOptions(selectedType) {
+    return ['string', 'number', 'integer', 'boolean', 'object', 'array']
+        .map(type => `<option value="${type}" ${type === selectedType ? 'selected' : ''}>${commandTemplateParamTypeLabel(type)}</option>`)
+        .join('');
+}
+
+function commandTemplateParamTypeLabel(type) {
+    return {
+        string: '文本',
+        number: '数字',
+        integer: '整数',
+        boolean: '布尔',
+        object: '对象',
+        array: '数组'
+    }[type] || type;
+}
+
+function handleCommandTemplateParamRowsClick(event) {
+    if (!event.target?.matches?.('[data-command-template-param-remove]')) {
+        return;
+    }
+    event.target.closest('[data-command-template-param-row]')?.remove();
+    syncCommandTemplateParameterSchema();
+}
+
+function syncCommandTemplateParameterSchema(throwOnError = true) {
+    const target = document.getElementById('commandTemplateParameterSchemaJson');
+    if (!target) {
+        return emptyParameterSchema();
+    }
+    const schema = readCommandTemplateParameterSchema(throwOnError);
+    target.value = JSON.stringify(schema, null, 2);
+    return schema;
+}
+
+function readCommandTemplateParameterSchema(throwOnError = true) {
+    const schema = {
+        type: 'object',
+        properties: {},
+        required: []
+    };
+    const seen = new Set();
+    const rows = [...document.querySelectorAll('[data-command-template-param-row]')];
+    for (const row of rows) {
+        const name = row.querySelector('[data-command-template-param-name]')?.value.trim();
+        if (!name) {
+            continue;
+        }
+        if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) {
+            if (throwOnError) {
+                throw new Error(`模板参数名不合法：${name}`);
+            }
+            continue;
+        }
+        if (seen.has(name)) {
+            if (throwOnError) {
+                throw new Error(`模板参数名重复：${name}`);
+            }
+            continue;
+        }
+        seen.add(name);
+        const type = row.querySelector('[data-command-template-param-type]')?.value || 'string';
+        const definition = { type };
+        const description = row.querySelector('[data-command-template-param-description]')?.value.trim();
+        const defaultText = row.querySelector('[data-command-template-param-default]')?.value.trim();
+        const exampleText = row.querySelector('[data-command-template-param-example]')?.value.trim();
+        if (description) {
+            definition.description = description;
+        }
+        if (defaultText) {
+            try {
+                definition.default = parseTemplateParamValue(defaultText, type);
+            } catch (error) {
+                if (throwOnError) throw error;
+            }
+        }
+        if (exampleText) {
+            try {
+                definition.example = parseTemplateParamValue(exampleText, type);
+            } catch (error) {
+                if (throwOnError) throw error;
+            }
+        }
+        schema.properties[name] = definition;
+        if (row.querySelector('[data-command-template-param-required]')?.checked) {
+            schema.required.push(name);
+        }
+    }
+    return schema;
+}
+
+function parseTemplateParamValue(text, type) {
+    if (type === 'number') {
+        const parsed = Number(text);
+        if (!Number.isFinite(parsed)) {
+            throw new Error(`参数值不是有效数字：${text}`);
+        }
+        return parsed;
+    }
+    if (type === 'integer') {
+        const parsed = Number.parseInt(text, 10);
+        if (!Number.isFinite(parsed)) {
+            throw new Error(`参数值不是有效整数：${text}`);
+        }
+        return parsed;
+    }
+    if (type === 'boolean') {
+        if (['true', '1', '是', '开启'].includes(text.toLowerCase())) {
+            return true;
+        }
+        if (['false', '0', '否', '关闭'].includes(text.toLowerCase())) {
+            return false;
+        }
+        throw new Error(`参数值不是有效布尔值：${text}`);
+    }
+    if (type === 'object' || type === 'array') {
+        return JSON.parse(text);
+    }
+    return text;
+}
+
+function formatTemplateParamValue(value) {
+    if (value === undefined || value === null) {
+        return '';
+    }
+    if (typeof value === 'object') {
+        return JSON.stringify(value);
+    }
+    return String(value);
 }
 
 function updateCommandTemplateStructuredPreview() {
@@ -2525,7 +2912,340 @@ function fillSqlAssetForm(asset) {
     setValue('sqlAssetGovernanceJson', prettyJsonObject(asset?.governanceJson, defaultSqlDatasourceGovernance(asset)));
 }
 
+function renderHttpAssetHeaders(headers = {}) {
+    const tbody = document.getElementById('httpAssetHeaderRows');
+    if (!tbody) {
+        return;
+    }
+    tbody.innerHTML = Object.entries(headers || {})
+        .map(([name, headerValue]) => httpAssetHeaderRow(name, headerValue))
+        .join('');
+    syncHttpAssetHeaders(false);
+}
+
+function addHttpAssetHeaderRow(name = '', headerValue = '') {
+    const tbody = document.getElementById('httpAssetHeaderRows');
+    if (!tbody) {
+        return;
+    }
+    tbody.insertAdjacentHTML('beforeend', httpAssetHeaderRow(name, headerValue));
+    syncHttpAssetHeaders(false);
+}
+
+function httpAssetHeaderRow(name, headerValue) {
+    return `
+        <tr data-http-header-row>
+            <td><input class="form-control form-control-sm" data-http-header-name value="${escapeHtml(name || '')}" placeholder="Header-Name"></td>
+            <td><input class="form-control form-control-sm" data-http-header-value value="${escapeHtml(headerValue ?? '')}" placeholder="Header 值"></td>
+            <td><button class="btn btn-sm api-param-remove" type="button" data-http-header-remove title="删除 Header">×</button></td>
+        </tr>`;
+}
+
+function handleHttpAssetHeaderRowsClick(event) {
+    if (!event.target?.matches?.('[data-http-header-remove]')) {
+        return;
+    }
+    event.target.closest('[data-http-header-row]')?.remove();
+    syncHttpAssetHeaders(false);
+}
+
+function syncHttpAssetHeaders(throwOnError = true) {
+    const headers = readHttpAssetHeaders(throwOnError);
+    setValue('httpAssetHeadersJson', JSON.stringify(headers, null, 2));
+    updateHttpCommonHeaderChecks(headers);
+    return headers;
+}
+
+function readHttpAssetHeaders(throwOnError = true) {
+    const headers = {};
+    const seen = new Set();
+    for (const row of document.querySelectorAll('[data-http-header-row]')) {
+        const name = row.querySelector('[data-http-header-name]')?.value.trim();
+        const headerValue = row.querySelector('[data-http-header-value]')?.value.trim();
+        if (!name) {
+            continue;
+        }
+        const key = name.toLowerCase();
+        if (seen.has(key)) {
+            if (throwOnError) {
+                throw new Error(`Header 名称重复：${name}`);
+            }
+            continue;
+        }
+        seen.add(key);
+        headers[name] = headerValue || '';
+    }
+    return headers;
+}
+
+function handleHttpCommonHeaderChange(event) {
+    const name = event.target?.dataset?.httpCommonHeader;
+    if (!name) {
+        return;
+    }
+    const headers = readHttpAssetHeaders(false);
+    const defaultValue = HTTP_COMMON_HEADERS[name];
+    if (event.target.checked) {
+        if (!Object.prototype.hasOwnProperty.call(headers, name)) {
+            headers[name] = defaultValue;
+        }
+    } else if (headers[name] === defaultValue) {
+        delete headers[name];
+    }
+    renderHttpAssetHeaders(headers);
+}
+
+function updateHttpCommonHeaderChecks(headers = {}) {
+    document.querySelectorAll('[data-http-common-header]').forEach(input => {
+        input.checked = Object.prototype.hasOwnProperty.call(headers, input.dataset.httpCommonHeader);
+    });
+}
+
+function renderHttpAssetParamEditor(schema = httpAssetDefaultInputSchema()) {
+    const tbody = document.getElementById('httpAssetParamRows');
+    if (!tbody) {
+        return;
+    }
+    const properties = schema?.properties && typeof schema.properties === 'object' ? schema.properties : {};
+    const required = new Set(Array.isArray(schema?.required) ? schema.required.map(String) : []);
+    tbody.innerHTML = Object.entries(properties)
+        .map(([name, definition]) => httpAssetParamRow({
+            name,
+            type: definition?.type || 'string',
+            required: required.has(name),
+            defaultValue: definition?.default,
+            example: definition?.example,
+            description: definition?.description
+        }))
+        .join('');
+    syncHttpAssetInputSchema(false);
+}
+
+function addHttpAssetParamRow(param = {}) {
+    const tbody = document.getElementById('httpAssetParamRows');
+    if (!tbody) {
+        return;
+    }
+    tbody.insertAdjacentHTML('beforeend', httpAssetParamRow({
+        name: '',
+        type: 'string',
+        required: true,
+        defaultValue: '',
+        example: '',
+        description: '',
+        ...param
+    }));
+    syncHttpAssetInputSchema(false);
+}
+
+function httpAssetParamRow(param) {
+    return `
+        <tr data-http-param-row>
+            <td><input class="form-control form-control-sm" data-http-param-name value="${escapeHtml(param.name || '')}" placeholder="param_name"></td>
+            <td>
+                <select class="form-select form-select-sm" data-http-param-type>
+                    ${commandTemplateParamTypeOptions(param.type || 'string')}
+                </select>
+            </td>
+            <td class="api-param-required-cell"><input class="form-check-input" type="checkbox" data-http-param-required ${param.required ? 'checked' : ''}></td>
+            <td><input class="form-control form-control-sm" data-http-param-default value="${escapeHtml(formatTemplateParamValue(param.defaultValue))}"></td>
+            <td><input class="form-control form-control-sm" data-http-param-example value="${escapeHtml(formatTemplateParamValue(param.example))}"></td>
+            <td><input class="form-control form-control-sm" data-http-param-description value="${escapeHtml(param.description || '')}" placeholder="参数业务含义"></td>
+            <td><button class="btn btn-sm api-param-remove" type="button" data-http-param-remove title="删除参数">×</button></td>
+        </tr>`;
+}
+
+function handleHttpAssetParamRowsClick(event) {
+    if (!event.target?.matches?.('[data-http-param-remove]')) {
+        return;
+    }
+    event.target.closest('[data-http-param-row]')?.remove();
+    syncHttpAssetInputSchema(false);
+}
+
+function syncHttpAssetInputSchema(throwOnError = true) {
+    const schema = readHttpAssetInputSchema(throwOnError);
+    setValue('httpAssetInputSchemaJson', JSON.stringify(schema, null, 2));
+    return schema;
+}
+
+function readHttpAssetInputSchema(throwOnError = true) {
+    const schema = httpAssetDefaultInputSchema();
+    const seen = new Set();
+    for (const row of document.querySelectorAll('[data-http-param-row]')) {
+        const name = row.querySelector('[data-http-param-name]')?.value.trim();
+        if (!name) {
+            continue;
+        }
+        if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) {
+            if (throwOnError) {
+                throw new Error(`HTTP 入参名不合法：${name}`);
+            }
+            continue;
+        }
+        if (seen.has(name)) {
+            if (throwOnError) {
+                throw new Error(`HTTP 入参名重复：${name}`);
+            }
+            continue;
+        }
+        seen.add(name);
+        const type = row.querySelector('[data-http-param-type]')?.value || 'string';
+        const definition = { type };
+        const description = row.querySelector('[data-http-param-description]')?.value.trim();
+        const defaultText = row.querySelector('[data-http-param-default]')?.value.trim();
+        const exampleText = row.querySelector('[data-http-param-example]')?.value.trim();
+        if (description) {
+            definition.description = description;
+        }
+        if (defaultText) {
+            try {
+                definition.default = parseTemplateParamValue(defaultText, type);
+            } catch (error) {
+                if (throwOnError) throw error;
+            }
+        }
+        if (exampleText) {
+            try {
+                definition.example = parseTemplateParamValue(exampleText, type);
+            } catch (error) {
+                if (throwOnError) throw error;
+            }
+        }
+        schema.properties[name] = definition;
+        if (row.querySelector('[data-http-param-required]')?.checked) {
+            schema.required.push(name);
+        }
+    }
+    return schema;
+}
+
+function httpAssetDefaultInputSchema() {
+    return {
+        type: 'object',
+        properties: {},
+        required: [],
+        additionalProperties: true
+    };
+}
+
+function renderHttpAssetBodyTemplate(template) {
+    const tbody = document.getElementById('httpAssetBodyRows');
+    if (!tbody) {
+        return;
+    }
+    const text = String(template || '').trim();
+    if (!text) {
+        tbody.innerHTML = '';
+        syncHttpAssetBodyTemplate(false);
+        return;
+    }
+    const parsed = tryParseJson(text);
+    if (parsed && !Array.isArray(parsed) && typeof parsed === 'object') {
+        tbody.innerHTML = Object.entries(parsed)
+            .map(([name, bodyValue]) => httpAssetBodyFieldRow(name, formatHttpBodyFieldValue(bodyValue)))
+            .join('');
+    } else {
+        tbody.innerHTML = httpAssetBodyFieldRow('_raw', text);
+    }
+    syncHttpAssetBodyTemplate(false);
+}
+
+function addHttpAssetBodyFieldRow(name = '', bodyValue = '') {
+    const tbody = document.getElementById('httpAssetBodyRows');
+    if (!tbody) {
+        return;
+    }
+    tbody.insertAdjacentHTML('beforeend', httpAssetBodyFieldRow(name, bodyValue));
+    syncHttpAssetBodyTemplate(false);
+}
+
+function httpAssetBodyFieldRow(name, bodyValue) {
+    return `
+        <tr data-http-body-row>
+            <td><input class="form-control form-control-sm" data-http-body-name value="${escapeHtml(name || '')}" placeholder="field_name"></td>
+            <td><input class="form-control form-control-sm" data-http-body-value value="${escapeHtml(bodyValue ?? '')}" placeholder="{{param_name}} 或固定值"></td>
+            <td><button class="btn btn-sm api-param-remove" type="button" data-http-body-remove title="删除字段">×</button></td>
+        </tr>`;
+}
+
+function handleHttpAssetBodyRowsClick(event) {
+    if (!event.target?.matches?.('[data-http-body-remove]')) {
+        return;
+    }
+    event.target.closest('[data-http-body-row]')?.remove();
+    syncHttpAssetBodyTemplate(false);
+}
+
+function syncHttpAssetBodyTemplate(throwOnError = true) {
+    const bodyTemplate = readHttpAssetBodyTemplate(throwOnError);
+    setValue('httpAssetBodyTemplate', bodyTemplate);
+    return bodyTemplate;
+}
+
+function readHttpAssetBodyTemplate(throwOnError = true) {
+    const rows = [...document.querySelectorAll('[data-http-body-row]')];
+    const body = {};
+    const seen = new Set();
+    for (const row of rows) {
+        const name = row.querySelector('[data-http-body-name]')?.value.trim();
+        const bodyValue = row.querySelector('[data-http-body-value]')?.value.trim();
+        if (!name) {
+            continue;
+        }
+        if (name === '_raw') {
+            return bodyValue || '';
+        }
+        if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(name)) {
+            if (throwOnError) {
+                throw new Error(`Body 字段名不合法：${name}`);
+            }
+            continue;
+        }
+        if (seen.has(name)) {
+            if (throwOnError) {
+                throw new Error(`Body 字段名重复：${name}`);
+            }
+            continue;
+        }
+        seen.add(name);
+        body[name] = parseHttpBodyFieldValue(bodyValue || '');
+    }
+    return Object.keys(body).length ? JSON.stringify(body, null, 2) : '';
+}
+
+function parseHttpBodyFieldValue(text) {
+    const value = String(text || '').trim();
+    if (!value) {
+        return '';
+    }
+    if (value.includes('{{')) {
+        return value;
+    }
+    if (/^(true|false|null)$/i.test(value) || /^-?\d+(?:\.\d+)?$/.test(value) || /^[\[{]/.test(value)) {
+        try {
+            return JSON.parse(value);
+        } catch (error) {
+            return value;
+        }
+    }
+    return value;
+}
+
+function formatHttpBodyFieldValue(value) {
+    if (value === undefined || value === null) {
+        return value === null ? 'null' : '';
+    }
+    if (typeof value === 'object') {
+        return JSON.stringify(value);
+    }
+    return String(value);
+}
+
 function readHttpAssetForm() {
+    syncHttpAssetHeaders();
+    syncHttpAssetInputSchema();
+    syncHttpAssetBodyTemplate();
     const id = value('httpAssetId');
     const existing = id ? httpAssets.find(asset => asset.id === id) || {} : {};
     return {
@@ -2562,17 +3282,20 @@ function fillHttpAssetForm(asset) {
     setValue('httpAssetMethod', asset?.method || 'GET');
     setValue('httpAssetUrlTemplate', asset?.urlTemplate || '');
     setValue('httpAssetHeadersJson', prettyJsonObject(asset?.headersJson, {}));
+    renderHttpAssetHeaders(tryParseJsonObject(value('httpAssetHeadersJson')) || {});
     setValue('httpAssetBodyTemplate', asset?.bodyTemplate || '');
+    renderHttpAssetBodyTemplate(asset?.bodyTemplate || '');
     setValue('httpAssetInputSchemaJson', prettyJsonObject(asset?.inputSchemaJson, {
         type: 'object',
         properties: {},
         required: [],
         additionalProperties: true
     }));
+    renderHttpAssetParamEditor(tryParseJsonObject(value('httpAssetInputSchemaJson')) || httpAssetDefaultInputSchema());
     setValue('httpAssetGovernanceJson', prettyJsonObject(asset?.governanceJson, defaultHttpGovernance(asset)));
     setValue('httpAssetEnabled', String(asset?.enabled ?? false));
     setValue('httpAssetEnvironment', asset?.environment || 'DEV');
-    setValue('httpAssetCategory', asset?.category || 'business_api');
+    setValue('httpAssetCategory', asset?.category || 'api_gateway');
     setValue('httpAssetTags', asset?.tags || '');
     setValue('httpAssetTimeoutMs', String(millisToSeconds(asset?.timeoutMs, DEFAULT_HTTP_TIMEOUT_SECONDS)));
 }

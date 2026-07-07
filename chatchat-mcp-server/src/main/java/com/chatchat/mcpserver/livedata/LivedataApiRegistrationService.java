@@ -3,9 +3,9 @@ package com.chatchat.mcpserver.livedata;
 import com.chatchat.mcpserver.api.ApiMcpToolPublisher;
 import com.chatchat.mcpserver.api.ApiServiceConfig;
 import com.chatchat.mcpserver.api.ApiServiceConfigService;
+import com.chatchat.mcpserver.ops.HttpEndpointConfig;
+import com.chatchat.mcpserver.ops.HttpEndpointConfigService;
 import com.chatchat.tools.livedata.LivedataApiDefinition;
-import com.chatchat.tools.livedata.LivedataApiRepository;
-import com.chatchat.tools.livedata.LivedataAutoRegistrationProperties;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -20,10 +20,10 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class LivedataApiRegistrationService {
 
-    private final LivedataAutoRegistrationProperties properties;
-    private final LivedataApiRepository repository;
+    private final LivedataConfigService configService;
     private final LivedataApiConfigMapper mapper;
-    private final ApiServiceConfigService configService;
+    private final ApiServiceConfigService apiServiceConfigService;
+    private final HttpEndpointConfigService gatewayConfigService;
     private final ApiMcpToolPublisher publisher;
 
     /**
@@ -34,7 +34,7 @@ public class LivedataApiRegistrationService {
     public List<LivedataApiCandidate> listCandidates() {
         ensureEnabled();
         List<LivedataApiCandidate> candidates = new ArrayList<>();
-        for (LivedataApiDefinition definition : repository.findApis()) {
+        for (LivedataApiDefinition definition : configService.findApis()) {
             candidates.add(toCandidate(definition));
         }
         return candidates;
@@ -53,9 +53,9 @@ public class LivedataApiRegistrationService {
             throw new IllegalArgumentException("ids is required");
         }
 
-        boolean overwrite = overwriteExisting == null ? properties.isOverwriteExisting() : overwriteExisting;
+        boolean overwrite = overwriteExisting == null ? configService.current().isOverwriteExisting() : overwriteExisting;
         Map<String, LivedataApiDefinition> definitions = new LinkedHashMap<>();
-        for (LivedataApiDefinition definition : repository.findApis()) {
+        for (LivedataApiDefinition definition : configService.findApis()) {
             definitions.put(sourceId(definition), definition);
         }
 
@@ -71,13 +71,14 @@ public class LivedataApiRegistrationService {
                 continue;
             }
             try {
-                ApiServiceConfig config = mapper.toApiServiceConfig(definition);
-                boolean exists = configService.existsByToolName(config.getToolName());
+                HttpEndpointConfig gateway = gatewayConfigService.upsertByToolName(mapper.toGatewayConfig(definition));
+                ApiServiceConfig config = mapper.toApiServiceConfig(definition, gateway.getId());
+                boolean exists = apiServiceConfigService.existsByToolName(config.getToolName());
                 if (exists && !overwrite) {
                     skipped++;
                     continue;
                 }
-                configService.upsertByToolName(config);
+                apiServiceConfigService.upsertByToolName(config);
                 registered++;
             } catch (Exception ex) {
                 skipped++;
@@ -101,7 +102,7 @@ public class LivedataApiRegistrationService {
     private LivedataApiCandidate toCandidate(LivedataApiDefinition definition) {
         try {
             ApiServiceConfig config = mapper.toApiServiceConfig(definition);
-            ApiServiceConfig existing = configService.findByToolName(config.getToolName()).orElse(null);
+            ApiServiceConfig existing = apiServiceConfigService.findByToolName(config.getToolName()).orElse(null);
             return new LivedataApiCandidate(
                 sourceId(definition),
                 definition.apiId(),
@@ -150,7 +151,7 @@ public class LivedataApiRegistrationService {
      * Ensures the enabled.
      */
     private void ensureEnabled() {
-        if (!properties.isEnabled()) {
+        if (!configService.current().isEnabled()) {
             throw new IllegalStateException("LiveData manual API registration is disabled");
         }
     }

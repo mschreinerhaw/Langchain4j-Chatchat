@@ -32,6 +32,7 @@ public class SqlScriptExecuteService {
     private final SqlQueryExecuteService queryExecuteService;
     private final SqlTemplateService templateService;
     private final InvocationAuditService auditService;
+    private final DynamicDateParamService dynamicDateParamService;
 
     public SqlScriptResult execute(Map<String, Object> arguments) {
         long startedAt = System.currentTimeMillis();
@@ -302,7 +303,7 @@ public class SqlScriptExecuteService {
             throw new IllegalArgumentException("Use either script/sql or SQL template, not both");
         }
         if (script != null && !script.isBlank()) {
-            return script;
+            return dynamicDateParamService.resolveSqlPlaceholders(script, datasource);
         }
         if (template == null || template.isBlank()) {
             throw new IllegalArgumentException("Either script/sql or template is required");
@@ -313,7 +314,10 @@ public class SqlScriptExecuteService {
             request
         );
         request.put("parameters", parameters);
-        return templateService.render(template, parameters, datasource, request);
+        return dynamicDateParamService.resolveSqlPlaceholders(
+            templateService.render(template, parameters, datasource, request),
+            datasource
+        );
     }
 
     private String requestedTemplate(Map<String, Object> request) {

@@ -52,6 +52,17 @@ export function listLivedataApis() {
     return apiFetch(LIVEDATA_URL);
 }
 
+export function getLivedataConfig() {
+    return apiFetch(`${LIVEDATA_URL}/config`);
+}
+
+export function saveLivedataConfig(config) {
+    return apiFetch(`${LIVEDATA_URL}/config`, {
+        method: 'PUT',
+        body: JSON.stringify(config || {})
+    });
+}
+
 export function registerLivedataApis(ids, overwriteExisting) {
     return apiFetch(`${LIVEDATA_URL}/register`, {
         method: 'POST',
@@ -64,6 +75,10 @@ function toPayload(service) {
         toolName: service.toolName,
         title: service.title,
         description: service.description,
+        businessGroup: service.businessGroup,
+        businessGroupName: service.businessGroupName,
+        businessGroupDescription: service.businessGroupDescription,
+        gatewayId: service.gatewayId,
         method: service.method,
         urlTemplate: service.urlTemplate,
         headers: service.headers,

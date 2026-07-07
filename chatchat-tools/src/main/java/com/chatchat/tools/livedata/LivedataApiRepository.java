@@ -14,7 +14,7 @@ import java.util.List;
 public class LivedataApiRepository {
 
     private final DynamicJdbcDriverLoader driverLoader;
-    private final LivedataAutoRegistrationProperties properties;
+    private final LivedataSettingsProvider settingsProvider;
 
     /**
      * Finds the apis.
@@ -22,6 +22,7 @@ public class LivedataApiRepository {
      * @return the matching apis
      */
     public List<LivedataApiDefinition> findApis() {
+        LivedataAutoRegistrationProperties properties = settingsProvider.current();
         DataSource dataSource = driverLoader.createDataSource(
             properties.getJdbcUrl(),
             properties.getUsername(),
@@ -37,7 +38,7 @@ public class LivedataApiRepository {
             from %s
             %s
             order by update_time desc, create_time desc, id desc
-            """.formatted(safeTableName(properties.getTableName()), whereClause());
+            """.formatted(safeTableName(properties.getTableName()), whereClause(properties));
 
         return jdbcTemplate.query(sql, rowMapper());
     }
@@ -47,7 +48,7 @@ public class LivedataApiRepository {
      *
      * @return the operation result
      */
-    private String whereClause() {
+    private String whereClause(LivedataAutoRegistrationProperties properties) {
         if (properties.isIncludeUnpublishedAsDisabled()) {
             return "";
         }

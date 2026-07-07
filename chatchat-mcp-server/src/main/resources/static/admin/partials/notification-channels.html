@@ -3,7 +3,7 @@
         <div>
             <h2>通知告警</h2>
             <div class="text-secondary small">
-                每条启用的通知配置都会发布为一个 MCP 工具，调用后可发送邮件、短信、企业微信或钉钉通知。
+                仅支持邮件、短信、企业微信、钉钉四类告警渠道；新增告警统一按 HTTP/Webhook 方式配置。
             </div>
         </div>
         <div class="api-search">
@@ -13,7 +13,7 @@
     <div class="bulk-toolbar">
         <div class="text-secondary small">共 <span id="notificationTotalCount">0</span> 个渠道，匹配 <span id="notificationFilteredCount">0</span> 个</div>
         <div class="btn-group btn-group-sm" role="group" aria-label="Notification actions">
-            <button id="newNotificationChannelBtn" class="btn btn-primary" type="button">新增通知工具</button>
+            <button id="newNotificationChannelBtn" class="btn btn-outline-primary" type="button">新增告警</button>
             <button id="refreshNotificationToolsBtn" class="btn btn-outline-secondary" type="button">刷新 MCP 工具</button>
         </div>
     </div>
@@ -72,6 +72,7 @@
                                 <option value="HTTP">HTTP / Webhook</option>
                                 <option value="SMTP">SMTP 邮件</option>
                             </select>
+                            <div class="form-text">新增告警固定使用 HTTP / Webhook。</div>
                         </div>
                         <div class="col-md-3">
                             <label class="form-label" for="notificationMethod">HTTP 方法</label>
@@ -143,9 +144,9 @@
                             </div>
                         </div>
                         <div class="col-12 notification-http-field">
-                            <label class="form-label" for="notificationBodyTemplate">请求体模板</label>
-                            <textarea id="notificationBodyTemplate" class="form-control codebox" rows="7" spellcheck="false"></textarea>
-                            <div class="form-text">可用变量：{{receiver}}、{{title}}、{{content}}、{{level}}、{{sourceTaskId}}、{{channelSecret}}、{{smsAccount}}、{{smsToken}}、{{smsPassword}}、{{smsPlainPassword}}、{{smsMd5Password}}、{{smsReturnType}}、{{smsExtendCode}}</div>
+                            <label class="form-label" for="notificationBodyTemplate">告警内容 / 请求体模板</label>
+                            <textarea id="notificationBodyTemplate" class="form-control codebox" rows="7" spellcheck="false" placeholder='{"title":"{{title}}","content":"{{content}}","level":"{{level}}"}'></textarea>
+                            <div class="form-text">HTTP 告警必填，由用户自行维护请求体内容。可用变量：{{receiver}}、{{title}}、{{content}}、{{level}}、{{sourceTaskId}}、{{channelSecret}}、{{smsAccount}}、{{smsToken}}、{{smsPassword}}、{{smsPlainPassword}}、{{smsMd5Password}}、{{smsReturnType}}、{{smsExtendCode}}</div>
                         </div>
                         <div class="col-12 notification-smtp-field d-none">
                             <div class="microservice-box">

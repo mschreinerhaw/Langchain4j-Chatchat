@@ -1,8 +1,31 @@
-import { BadgeCheck, LockKeyhole, LogIn, RefreshCw, ShieldCheck, UserRound } from "@lucide/vue";
+import { BadgeCheck, LockKeyhole, LogIn, ShieldCheck, UserRound } from "@lucide/vue";
 import "../../styles/pages/login.css";
 import { loginEnterprise } from "../../services/api";
 
 const REMEMBER_KEY = "chatchat.login.remember";
+const CYCLE_FEATURE_INTERVAL = 30 * 1000;
+const CYCLE_FEATURES = [
+  {
+    title: "数据",
+    detail: "连接数据库、指标、报表和业务资产，支持自然语言查询与结果追溯。",
+    tags: ["SQL 查询", "指标解释", "结果引用"]
+  },
+  {
+    title: "知识",
+    detail: "检索制度、文档、知识库和操作手册，形成有引用依据的回答。",
+    tags: ["知识库", "制度问答", "证据引用"]
+  },
+  {
+    title: "办公",
+    detail: "自动生成日报、周报、分析报告、会议纪要和业务说明材料。",
+    tags: ["报告", "纪要", "材料生成"]
+  },
+  {
+    title: "协同",
+    detail: "对接待办、审批、消息和业务系统，把 AI 结果沉淀到流程中。",
+    tags: ["待办", "审批", "流程协同"]
+  }
+];
 
 export default {
   name: "LoginView",
@@ -10,7 +33,6 @@ export default {
     BadgeCheck,
     LockKeyhole,
     LogIn,
-    RefreshCw,
     ShieldCheck,
     UserRound
   },
@@ -20,19 +42,48 @@ export default {
       loading: false,
       error: "",
       captchaCode: "",
+      cycleFeatureIndex: 1,
+      cycleFeatureTimer: null,
+      cycleFeatures: CYCLE_FEATURES,
       form: {
-        username: "admin",
+        username: "",
         password: "",
         captcha: "",
         rememberAccount: false
       }
     };
   },
+  computed: {
+    activeCycleFeature() {
+      return this.cycleFeatures[this.cycleFeatureIndex] || this.cycleFeatures[0];
+    }
+  },
   mounted() {
     this.restoreRememberedLogin();
     this.refreshCaptcha();
+    this.startCycleFeatureTimer();
+  },
+  beforeUnmount() {
+    this.stopCycleFeatureTimer();
   },
   methods: {
+    startCycleFeatureTimer() {
+      this.stopCycleFeatureTimer();
+      this.cycleFeatureTimer = window.setInterval(() => {
+        this.cycleFeatureIndex = (this.cycleFeatureIndex + 1) % this.cycleFeatures.length;
+      }, CYCLE_FEATURE_INTERVAL);
+    },
+    stopCycleFeatureTimer() {
+      if (!this.cycleFeatureTimer) {
+        return;
+      }
+      window.clearInterval(this.cycleFeatureTimer);
+      this.cycleFeatureTimer = null;
+    },
+    setCycleFeature(index) {
+      this.cycleFeatureIndex = index;
+      this.startCycleFeatureTimer();
+    },
     restoreRememberedLogin() {
       try {
         const remembered = JSON.parse(localStorage.getItem(REMEMBER_KEY) || "null");

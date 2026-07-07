@@ -1,54 +1,71 @@
 <template>
   <main class="login-view">
+    <header class="login-brand" aria-label="Agent Runtime">
+      <img src="/agent-runtime-logo.svg" alt="Agent Runtime" />
+    </header>
+
     <section class="login-shell" aria-label="ChatChat 登录首页">
-      <section class="login-hero" aria-labelledby="login-hero-title">
-        <header class="login-brand">
-          <img src="/agent-runtime-logo.svg" alt="Agent Runtime" />
-        </header>
+      <section class="login-hero" aria-label="360°智能工作循环">
+        <div class="ai-cycle" aria-label="360°智能工作循环">
+          <div class="cycle-halo"></div>
+          <svg class="cycle-svg" viewBox="0 0 640 640" aria-hidden="true" focusable="false">
+            <defs>
+              <linearGradient id="loginCycleGradient" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#2563eb" />
+                <stop offset="45%" stop-color="#2f7df6" />
+                <stop offset="76%" stop-color="#14b8a6" />
+                <stop offset="100%" stop-color="#22c55e" />
+              </linearGradient>
+              <marker id="loginCycleArrowHead" markerWidth="22" markerHeight="22" refX="18" refY="11" orient="auto" markerUnits="userSpaceOnUse">
+                <path d="M2,2 L20,11 L2,20 Q7,11 2,2 Z" fill="#22c55e"></path>
+              </marker>
+            </defs>
+            <circle class="ring-bg" cx="320" cy="320" r="232"></circle>
+            <path class="ring-main" marker-end="url(#loginCycleArrowHead)" d="M320 88 A232 232 0 1 1 319.8 88"></path>
+            <path class="ring-light" d="M320 88 A232 232 0 1 1 319.8 88"></path>
+          </svg>
 
-        <div class="login-hero-copy">
-          <h1 id="login-hero-title">企业统一智能工作平台</h1>
-          <p>
-            一个入口连接数据、知识、业务与 AI 助手，让查询、分析、协同和办公形成完整闭环。
-          </p>
-        </div>
+          <div class="center-card">
+            <div class="ai-title">AI</div>
+            <div class="ai-desc">360° 智能工作循环</div>
+          </div>
 
-        <div class="work-cycle" aria-label="360°智能工作循环">
-          <div class="cycle-orbit" aria-hidden="true">
-            <div class="cycle-center">
-              <strong>AI</strong>
-              <span>360° 智能工作循环</span>
-            </div>
-            <div class="cycle-node node-data">
-              <strong>数据</strong>
-              <span>业务查询</span>
-            </div>
-            <div class="cycle-node node-knowledge">
-              <strong>知识</strong>
-              <span>制度检索</span>
-            </div>
-            <div class="cycle-node node-work">
-              <strong>办公</strong>
-              <span>报告生成</span>
-            </div>
-            <div class="cycle-node node-collab">
-              <strong>协同</strong>
-              <span>待办审批</span>
-            </div>
+          <div class="node-card node-top" :class="{ active: cycleFeatureIndex === 0 }" @mouseenter="setCycleFeature(0)">
+            <div class="node-icon"></div>
+            <div class="node-title">数据</div>
+            <div class="node-desc">业务查询</div>
           </div>
-          <div class="cycle-caption">
-            <strong>AI 贯穿业务全过程</strong>
-            <span>统一访问企业数据、知识库、业务系统和 AI 助手，沉淀可追溯的工作结果。</span>
+
+          <div class="node-card node-right green" :class="{ active: cycleFeatureIndex === 1 }" @mouseenter="setCycleFeature(1)">
+            <div class="node-icon"></div>
+            <div class="node-title">知识</div>
+            <div class="node-desc">制度检索</div>
           </div>
+
+          <div class="node-card node-bottom green" :class="{ active: cycleFeatureIndex === 2 }" @mouseenter="setCycleFeature(2)">
+            <div class="node-icon"></div>
+            <div class="node-title">办公</div>
+            <div class="node-desc">报告生成</div>
+          </div>
+
+          <div class="node-card node-left" :class="{ active: cycleFeatureIndex === 3 }" @mouseenter="setCycleFeature(3)">
+            <div class="node-icon"></div>
+            <div class="node-title">协同</div>
+            <div class="node-desc">待办审批</div>
+          </div>
+
+          <article class="cycle-info-card" :key="activeCycleFeature.title">
+            <h3>{{ activeCycleFeature.title }}</h3>
+            <p>{{ activeCycleFeature.detail }}</p>
+            <div class="cycle-tag-row">
+              <span v-for="tag in activeCycleFeature.tags" :key="tag">{{ tag }}</span>
+            </div>
+          </article>
         </div>
       </section>
 
       <section class="login-card" aria-labelledby="login-title">
         <div class="login-card-head">
-          <span class="login-secure-badge">
-            <ShieldCheck :size="16" />
-            安全登录
-          </span>
           <h2 id="login-title">欢迎登录</h2>
           <p>使用企业统一账号访问智能业务平台</p>
         </div>
@@ -79,7 +96,6 @@
               </span>
               <button type="button" class="captcha-code" title="刷新验证码" aria-label="刷新验证码" @click="refreshCaptcha">
                 <strong>{{ captchaCode }}</strong>
-                <RefreshCw :size="14" />
               </button>
             </span>
           </label>

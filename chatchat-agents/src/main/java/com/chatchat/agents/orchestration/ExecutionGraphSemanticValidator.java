@@ -161,12 +161,25 @@ class ExecutionGraphSemanticValidator {
         if (!normalizeIdentifier(table).equals(normalizeIdentifier(requestedTable))) {
             return false;
         }
+        if (isSqlMetadataSearchColumnFact(sqlMetadataFact)) {
+            return true;
+        }
         if (blank(query)) {
             return true;
         }
         String normalizedQuery = query.toLowerCase(Locale.ROOT);
         return normalizedQuery.contains(table.toLowerCase(Locale.ROOT))
             || normalizedQuery.contains(requestedTable.toLowerCase(Locale.ROOT));
+    }
+
+    private boolean isSqlMetadataSearchColumnFact(Map<String, Object> sqlMetadataFact) {
+        if (sqlMetadataFact == null || sqlMetadataFact.isEmpty()) {
+            return false;
+        }
+        return "mcp_sql_metadata_search_results_columns".equals(stringValue(sqlMetadataFact.get("source")))
+            && Boolean.TRUE.equals(sqlMetadataFact.get("semanticGatePassed"))
+            && integerValue(sqlMetadataFact.get("columnCount")) != null
+            && integerValue(sqlMetadataFact.get("columnCount")) > 0;
     }
 
     private String stepCategory(InterpretationPlanRuntime.StepExecution step) {

@@ -272,6 +272,65 @@ public class SqlMcpToolPublisher {
         return text.length() <= 2000 ? text : text.substring(0, 2000) + "...";
     }
 
+    private String summarizeMetadataSearchResult(Map<String, Object> result) {
+        List<Map<String, Object>> results = listOfMaps(result == null ? null : result.get("results"));
+        if (results.isEmpty()) {
+            return "SQL 元数据检索完成；未返回命中的表。";
+        }
+        StringBuilder text = new StringBuilder("SQL 元数据检索完成；命中 ")
+            .append(results.size())
+            .append(" 张表。");
+        int tableIndex = 1;
+        for (Map<String, Object> item : results.stream().limit(3).toList()) {
+            Map<String, Object> location = objectMap(item.get("location"));
+            String database = firstText(text(location, "schema"), text(location, "database"));
+            String table = firstText(text(location, "tableName"), text(location, "table"));
+            String tableComment = text(location, "tableComment");
+            List<Map<String, Object>> columns = listOfMaps(item.get("columns"));
+            text.append("\n\n## 表 ").append(tableIndex++).append(": `")
+                .append(escapeMarkdownInline(joinTableName(database, table)))
+                .append("`");
+            if (tableComment != null && !tableComment.isBlank()) {
+                text.append("\n\n").append(tableComment);
+            }
+            text.append("\n\n字段数：").append(item.getOrDefault("columnCount", columns.size()));
+            if (columns.isEmpty()) {
+                text.append("\n\n本次文本摘要未包含缓存字段元数据；可使用 includeColumns=true 重新调用 sql_metadata_search。");
+                continue;
+            }
+            text.append("\n\n| # | 字段 | 类型 | 键 | 可空 | 注释 |\n");
+            text.append("|---:|---|---|---|---|---|\n");
+            int columnIndex = 1;
+            for (Map<String, Object> column : columns.stream().limit(30).toList()) {
+                String name = firstText(firstText(text(column, "name"), text(column, "columnName")), text(column, "COLUMN_NAME"));
+                String type = firstText(
+                    firstText(text(column, "columnType"), text(column, "dataType")),
+                    firstText(text(column, "type"), text(column, "COLUMN_TYPE"))
+                );
+                String key = firstText(text(column, "columnKey"), text(column, "key"));
+                String comment = firstText(
+                    firstText(text(column, "comment"), text(column, "remarks")),
+                    text(column, "COLUMN_COMMENT")
+                );
+                text.append("| ").append(columnIndex++)
+                    .append(" | `").append(escapeMarkdownInline(name)).append("`")
+                    .append(" | `").append(escapeMarkdownInline(type)).append("`")
+                    .append(" | ").append(escapeMarkdownCell(key))
+                    .append(" | ").append(escapeMarkdownCell(nullableText(column.get("nullable"))))
+                    .append(" | ").append(escapeMarkdownCell(comment))
+                    .append(" |\n");
+            }
+            if (columns.size() > 30) {
+                text.append("\n文本摘要仅展示前 30 个字段；完整字段在 structuredContent.results[].columns 中保留。");
+            }
+        }
+        if (results.size() > 3) {
+            text.append("\n\n文本摘要仅展示前 3 张命中表；完整命中结果在 structuredContent.results 中保留。");
+        }
+        String value = text.toString();
+        return value.length() <= 6000 ? value : value.substring(0, 6000) + "\n\n[元数据摘要已截断；完整 structuredContent 已保留]";
+    }
+
     private McpServerFeatures.SyncToolSpecification sqlMetadataSearchTool() {
         McpSchema.Tool tool = McpSchema.Tool.builder()
             .name("sql_metadata_search")
@@ -292,7 +351,7 @@ public class SqlMcpToolPublisher {
                 () -> {
                     Map<String, Object> result = metadataSearchService.search(request.arguments());
                     return McpSchema.CallToolResult.builder()
-                        .addTextContent("SQL metadata search completed")
+                        .addTextContent(summarizeMetadataSearchResult(result))
                         .structuredContent(result)
                         .isError(false)
                         .build();
@@ -853,6 +912,60 @@ public class SqlMcpToolPublisher {
             map.put(String.valueOf(values[index]), values[index + 1]);
         }
         return map;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> objectMap(Object value) {
+        return value instanceof Map<?, ?> map ? (Map<String, Object>) map : Map.of();
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<Map<String, Object>> listOfMaps(Object value) {
+        if (!(value instanceof List<?> list)) {
+            return List.of();
+        }
+        List<Map<String, Object>> values = new ArrayList<>();
+        for (Object item : list) {
+            if (item instanceof Map<?, ?> map) {
+                values.add((Map<String, Object>) map);
+            }
+        }
+        return values;
+    }
+
+    private String joinTableName(String database, String table) {
+        if (database == null || database.isBlank()) {
+            return table == null ? "-" : table;
+        }
+        if (table == null || table.isBlank()) {
+            return database;
+        }
+        return database + "." + table;
+    }
+
+    private String nullableText(Object value) {
+        if (value == null) {
+            return "";
+        }
+        String text = String.valueOf(value);
+        if ("true".equalsIgnoreCase(text)) {
+            return "YES";
+        }
+        if ("false".equalsIgnoreCase(text)) {
+            return "NO";
+        }
+        return text;
+    }
+
+    private String escapeMarkdownInline(String value) {
+        return value == null ? "" : value.replace("`", "'");
+    }
+
+    private String escapeMarkdownCell(String value) {
+        if (value == null || value.isBlank()) {
+            return "-";
+        }
+        return value.replace("|", "\\|").replace("\r", " ").replace("\n", "<br>");
     }
 
     private void remove(String toolName) {

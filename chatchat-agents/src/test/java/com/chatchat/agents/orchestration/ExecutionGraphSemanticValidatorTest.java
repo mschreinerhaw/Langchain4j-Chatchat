@@ -59,6 +59,21 @@ class ExecutionGraphSemanticValidatorTest {
             .containsEntry("globalIntentMatch", false);
     }
 
+    @Test
+    void acceptsSqlMetadataSearchColumnsForBusinessSemanticQueryWithoutPhysicalTableName() {
+        Map<String, Object> state = validator.validate(
+            "TDH大数据集群中是否存在账户交易账户额度分析的表有哪些可以统计的指标",
+            executionResult(true),
+            sqlMetadataSearchFact()
+        );
+
+        assertThat(state)
+            .containsEntry("passed", true)
+            .containsEntry("globalIntentMatch", true);
+        Map<?, ?> sqlPath = (Map<?, ?>) state.get("sqlMetadataPath");
+        assertThat(sqlPath.get("valid")).isEqualTo(true);
+    }
+
     private InterpretationPlanRuntime.ExecutionResult executionResult(boolean priorStepsSucceed) {
         return new InterpretationPlanRuntime.ExecutionResult(
             priorStepsSucceed ? "completed" : "failed",
@@ -98,6 +113,18 @@ class ExecutionGraphSemanticValidatorTest {
             "table", "t_ad_dict_entr_supn",
             "requestedTable", tableMatches ? "t_ad_dict_entr_supn" : "t_other",
             "semanticGatePassed", tableMatches
+        );
+    }
+
+    private Map<String, Object> sqlMetadataSearchFact() {
+        return Map.of(
+            "schemaVersion", SqlMetadataAnswerRenderer.FACT_SCHEMA_VERSION,
+            "source", "mcp_sql_metadata_search_results_columns",
+            "stepId", 3,
+            "table", "ads_ids_secu_ast_liab_d_1",
+            "requestedTable", "ads_ids_secu_ast_liab_d_1",
+            "semanticGatePassed", true,
+            "columnCount", 12
         );
     }
 }

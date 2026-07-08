@@ -1,0 +1,233 @@
+<section id="apiServicesView" class="panel api-service-view">
+    <div class="panel-head api-service-head">
+        <div>
+            <h2>已注册 API</h2>
+            <div class="text-secondary small">共 <span id="serviceTotalCount">0</span> 个服务，匹配 <span id="serviceFilteredCount">0</span> 个，当前显示 <span id="serviceCount">0</span> 个</div>
+        </div>
+        <div class="api-search">
+            <input id="serviceSearchInput" class="form-control" type="search" placeholder="搜索工具名称、显示名称、描述或 URL">
+        </div>
+    </div>
+    <div class="bulk-toolbar">
+        <div class="text-secondary small">已选择 <span id="serviceSelectedCount">0</span> 个 API</div>
+        <div class="btn-group btn-group-sm" role="group" aria-label="API batch actions">
+            <button id="serviceSelectVisibleBtn" class="btn btn-outline-secondary" type="button">选择当前页</button>
+            <button id="serviceClearSelectionBtn" class="btn btn-outline-secondary" type="button">清空选择</button>
+            <button id="serviceBatchDeleteBtn" class="btn btn-outline-danger" type="button" disabled>删除选中</button>
+        </div>
+    </div>
+    <div id="serviceList" class="api-service-grid"></div>
+    <div class="service-pagination">
+        <div id="servicePageInfo" class="text-secondary small">第 1 / 1 页</div>
+        <div class="btn-group btn-group-sm" role="group" aria-label="API 服务分页">
+            <button id="servicePrevPageBtn" class="btn btn-outline-secondary" type="button">上一页</button>
+            <button id="serviceNextPageBtn" class="btn btn-outline-secondary" type="button">下一页</button>
+        </div>
+    </div>
+</section>
+
+<div class="modal fade" id="apiServiceModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="formTitle" class="modal-title fs-5">新增 API 服务</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="关闭"></button>
+            </div>
+            <div class="modal-body">
+                <form id="serviceForm" class="service-form">
+                    <input id="serviceId" type="hidden">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label" for="toolName">工具名称</label>
+                            <input id="toolName" class="form-control" placeholder="weather_api" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" for="title">显示名称</label>
+                            <input id="title" class="form-control" placeholder="天气查询 API" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label" for="method">请求方法</label>
+                            <select id="method" class="form-select">
+                                <option>GET</option>
+                                <option>POST</option>
+                                <option>PUT</option>
+                                <option>PATCH</option>
+                                <option>DELETE</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label" for="timeoutMs">超时时间（秒）</label>
+                            <input id="timeoutMs" class="form-control" type="number" min="1" step="1" value="20">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label" for="enabled">启用状态</label>
+                            <select id="enabled" class="form-select">
+                                <option value="true">启用</option>
+                                <option value="false">停用</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label" for="cacheEnabled">查询缓存</label>
+                            <select id="cacheEnabled" class="form-select">
+                                <option value="false">关闭</option>
+                                <option value="true">开启</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label" for="cacheTtlSeconds">缓存有效期（秒）</label>
+                            <input id="cacheTtlSeconds" class="form-control" type="number" min="1" step="1" value="300">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label" for="urlTemplate">URL 模板</label>
+                            <input id="urlTemplate" class="form-control" placeholder="https://api.example.com/weather?city={{city}}" required>
+                        </div>
+                        <div class="col-12">
+                            <div class="microservice-box">
+                                <div class="form-check form-switch mb-3">
+                                    <input id="microserviceMode" class="form-check-input" type="checkbox">
+                                    <label class="form-check-label" for="microserviceMode">微服务请求字段</label>
+                                </div>
+                                <div id="microserviceFields" class="row g-3 d-none">
+                                    <div class="col-md-6">
+                                        <label class="form-label" for="microSessionId">sessionId</label>
+                                        <input id="microSessionId" class="form-control" placeholder="efefb9ea8d00434dbf0a841e3d8dd12e">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label" for="microNamespace">namespace</label>
+                                        <input id="microNamespace" class="form-control" placeholder="livedata">
+                                    </div>
+                                    <div class="col-12">
+                                        <label class="form-label" for="microAmsToken">x-ams-token</label>
+                                        <input id="microAmsToken" class="form-control" placeholder="aaabfc8b3eebfdfdb9faf418c285048a">
+                                    </div>
+                                    <div class="col-12">
+                                        <label class="form-label" for="microDataJson">data JSON 参数</label>
+                                        <textarea id="microDataJson" class="form-control codebox" rows="5" spellcheck="false">{
+  "etl_date": "",
+  "fund_code": ""
+}</textarea>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label" for="description">工具描述</label>
+                            <textarea id="description" class="form-control" rows="2" placeholder="说明模型应在什么场景下使用这个 API"></textarea>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label" for="businessGroup">业务分组编码</label>
+                            <input id="businessGroup" class="form-control" placeholder="orders">
+                        </div>
+                        <div class="col-md-8">
+                            <label class="form-label" for="businessGroupName">业务分组名称</label>
+                            <input id="businessGroupName" class="form-control" placeholder="订单服务">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label" for="businessGroupDescription">业务分组描述</label>
+                            <textarea id="businessGroupDescription" class="form-control" rows="2" placeholder="描述该业务域，以及模型应在什么场景下选择该分组内的 API。"></textarea>
+                        </div>
+                        <div class="col-lg-6">
+                            <label class="form-label" for="headersJson">请求头 JSON</label>
+                            <textarea id="headersJson" class="form-control codebox" rows="7" spellcheck="false">{}</textarea>
+                        </div>
+                        <div class="col-12 api-param-config">
+                            <div class="api-param-config-head">
+                                <div>
+                                    <label class="form-label mb-1">API 参数配置</label>
+                                    <div class="text-secondary small">配置模型调用该 API 时需要传入的业务参数。</div>
+                                </div>
+                                <button id="addApiParamBtn" class="btn btn-outline-primary btn-sm" type="button">新增参数</button>
+                            </div>
+                            <div class="api-param-table-wrap">
+                                <table class="table table-sm align-middle mb-0 api-param-table">
+                                    <thead>
+                                        <tr>
+                                            <th>参数名</th>
+                                            <th>类型</th>
+                                            <th>必填</th>
+                                            <th>默认值</th>
+                                            <th>示例值</th>
+                                            <th>说明</th>
+                                            <th></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="apiParamRows">
+                                        <tr id="apiParamEmptyRow">
+                                            <td colspan="7" class="text-secondary text-center py-3">暂无参数。</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <textarea id="inputSchemaJson" class="d-none" spellcheck="false">{
+  "type": "object",
+  "properties": {},
+  "required": [],
+  "additionalProperties": false
+}</textarea>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label" for="bodyTemplate">请求体模板</label>
+                            <textarea id="bodyTemplate" class="form-control codebox" rows="5" spellcheck="false" placeholder='{"city":"{{city}}"}'></textarea>
+                            <label class="form-label mt-3" for="governanceJson">Governance JSON</label>
+                            <textarea id="governanceJson" class="form-control codebox" rows="10" spellcheck="false"></textarea>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button id="resetFormBtn" class="btn btn-outline-secondary" type="button">清空</button>
+                <button id="testServiceBtn" class="btn btn-outline-primary" type="button">测试调用</button>
+                <button class="btn btn-primary" type="submit" form="serviceForm">保存 API</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="livedataImportModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div>
+                    <h2 class="modal-title fs-5">导入 API</h2>
+                    <div class="text-secondary small">
+                        共 <span id="livedataApiTotalCount">0</span> 个 API，匹配 <span id="livedataApiFilteredCount">0</span> 个，已选择 <span id="livedataApiSelectedCount">0</span> 个
+                    </div>
+                </div>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="关闭"></button>
+            </div>
+            <div class="modal-body">
+                <div class="livedata-import-toolbar">
+                    <input id="livedataApiSearchInput" class="form-control" type="search" placeholder="搜索 API 名称、工具名称、服务名或 namespace">
+                    <button id="reloadLivedataApisBtn" class="btn btn-outline-secondary" type="button">重新加载</button>
+                    <button id="selectAllLivedataApisBtn" class="btn btn-outline-primary" type="button">选择当前列表</button>
+                    <button id="clearLivedataSelectionBtn" class="btn btn-outline-secondary" type="button">清空选择</button>
+                </div>
+                <div class="form-check form-switch livedata-overwrite">
+                    <input id="overwriteLivedataExisting" class="form-check-input" type="checkbox">
+                    <label class="form-check-label" for="overwriteLivedataExisting">覆盖已注册的同名工具</label>
+                </div>
+                <div class="table-responsive livedata-import-table">
+                    <table class="table table-sm align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th class="livedata-check-col"></th>
+                                <th>API</th>
+                                <th>工具名称</th>
+                                <th>服务</th>
+                                <th>状态</th>
+                                <th>版本</th>
+                            </tr>
+                        </thead>
+                        <tbody id="livedataApiBody">
+                            <tr><td colspan="6" class="text-secondary">暂无 LiveData API。</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">取消</button>
+                <button id="registerLivedataApisBtn" class="btn btn-primary" type="button">注册选中 API</button>
+            </div>
+        </div>
+    </div>
+</div>

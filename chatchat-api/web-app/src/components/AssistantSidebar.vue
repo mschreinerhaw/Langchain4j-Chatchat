@@ -1,7 +1,7 @@
 <template>
   <aside class="assistant-sidebar">
     <div class="brand-block">
-      <img class="brand-logo" :src="agentRuntimeLogo" alt="Agent Runtime">
+      <img class="brand-logo" :src="agentRuntimeLogo" alt="LiveRuntime">
       <button
         class="sidebar-toggle"
         type="button"

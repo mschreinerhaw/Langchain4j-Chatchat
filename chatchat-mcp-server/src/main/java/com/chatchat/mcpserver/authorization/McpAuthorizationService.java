@@ -36,6 +36,7 @@ public class McpAuthorizationService {
 
     private final McpAuthorizationProperties properties;
     private final ObjectMapper objectMapper;
+    private final McpSynchronizedRoleRepository roleRepository;
     private final HttpClient httpClient = HttpClient.newBuilder()
         .connectTimeout(Duration.ofSeconds(5))
         .build();
@@ -55,7 +56,9 @@ public class McpAuthorizationService {
             return;
         }
         try {
-            snapshotRef.set(fetchSnapshot());
+            Snapshot snapshot = fetchSnapshot();
+            snapshotRef.set(snapshot);
+            synchronizeRoles(snapshot);
         } catch (Exception ex) {
             log.warn("Failed to refresh MCP authorization snapshot: {}", ex.getMessage());
         }
@@ -80,7 +83,7 @@ public class McpAuthorizationService {
         if (principal.tenantId() == null && principal.userId() == null && principal.username() == null) {
             return AuthorizationDecision.denyDecision("MCP caller identity is missing");
         }
-        if (isAdminPrincipal(principal)) {
+        if (isAdminPrincipal(principal) || snapshot.hasRoleCode(principal, "SUPER_ADMIN")) {
             return AuthorizationDecision.allowDecision();
         }
 
@@ -123,17 +126,7 @@ public class McpAuthorizationService {
                 .filter(user -> user.username() == null || !"admin".equalsIgnoreCase(user.username()))
                 .map(user -> new UserView(user.id(), user.tenantId(), user.username(), user.roleIds()))
                 .toList(),
-            snapshot.rolesById().values().stream()
-                .filter(role -> !"admin".equalsIgnoreCase(role.roleCode()))
-                .map(role -> new RoleView(
-                    role.id(),
-                    role.tenantId(),
-                    role.roleCode(),
-                    role.roleName(),
-                    role.roleType(),
-                    role.status()
-                ))
-                .toList(),
+            localRoleViews(),
             snapshot.tools().stream()
                 .map(tool -> new ToolView(
                     tool.id(),
@@ -164,11 +157,62 @@ public class McpAuthorizationService {
 
     public AuthorizationSyncView refreshNow() {
         try {
-            snapshotRef.set(fetchSnapshot());
+            Snapshot snapshot = fetchSnapshot();
+            snapshotRef.set(snapshot);
+            synchronizeRoles(snapshot);
         } catch (Exception ex) {
             throw new IllegalStateException("failed to refresh MCP authorization snapshot: " + ex.getMessage(), ex);
         }
         return currentView();
+    }
+
+    public List<RoleView> roles(String tenantId) {
+        List<McpSynchronizedRole> roles = tenantId == null || tenantId.isBlank()
+            ? roleRepository.findAllByOrderByRoleNameAscRoleCodeAsc()
+            : roleRepository.findByTenantIdOrderByRoleNameAscRoleCodeAsc(tenantId);
+        return roles.stream().map(this::toRoleView).toList();
+    }
+
+    private List<RoleView> localRoleViews() {
+        return roleRepository.findAllByOrderByRoleNameAscRoleCodeAsc().stream()
+            .map(this::toRoleView)
+            .toList();
+    }
+
+    private RoleView toRoleView(McpSynchronizedRole role) {
+        return new RoleView(
+            role.getId(),
+            role.getTenantId(),
+            role.getRoleCode(),
+            role.getRoleName(),
+            role.getRoleType(),
+            role.getStatus()
+        );
+    }
+
+    private void synchronizeRoles(Snapshot snapshot) {
+        if (snapshot == null || snapshot.rolesById().isEmpty()) {
+            return;
+        }
+        Instant syncedAt = Instant.now();
+        List<McpSynchronizedRole> roles = snapshot.rolesById().values().stream()
+            .filter(role -> role.id() != null && !role.id().isBlank())
+            .filter(role -> !"admin".equalsIgnoreCase(role.roleCode()))
+            .map(role -> {
+                McpSynchronizedRole entity = roleRepository.findById(role.id()).orElseGet(McpSynchronizedRole::new);
+                entity.setId(role.id());
+                entity.setTenantId(blankToNull(role.tenantId()));
+                entity.setRoleCode(blankToNull(role.roleCode()));
+                entity.setRoleName(blankToNull(role.roleName()));
+                entity.setRoleType(blankToNull(role.roleType()));
+                entity.setStatus(blankToNull(role.status()));
+                entity.setSource("chatchat-api");
+                entity.setSyncedAt(syncedAt);
+                return entity;
+            })
+            .toList();
+        roleRepository.saveAll(roles);
+        log.info("MCP authorization roles synchronized count={}", roles.size());
     }
 
     public List<JsonNode> rolePermissions(String roleId, String tenantId) {
@@ -193,6 +237,23 @@ public class McpAuthorizationService {
         }
     }
 
+    public List<JsonNode> apiUsers(String tenantId) {
+        try {
+            String query = tenantId == null || tenantId.isBlank()
+                ? ""
+                : "?tenantId=" + encode(tenantId);
+            JsonNode data = apiJson("GET", "/api/v1/enterprise/users" + query, null);
+            if (!data.isArray()) {
+                return List.of();
+            }
+            List<JsonNode> result = new ArrayList<>();
+            data.forEach(result::add);
+            return result;
+        } catch (Exception ex) {
+            throw new IllegalStateException("failed to load api users: " + ex.getMessage(), ex);
+        }
+    }
+
     public JsonNode createRolePermission(RolePermissionRequest request) {
         try {
             Map<String, Object> body = new LinkedHashMap<>();
@@ -201,6 +262,7 @@ public class McpAuthorizationService {
             body.put("targetId", request.roleId());
             body.put("toolId", blankToNull(request.toolId()));
             body.put("localToolName", request.localToolName());
+            body.put("scopeExpression", blankToNull(request.scopeExpression()));
             body.put("effect", request.effect() == null || request.effect().isBlank() ? ALLOW : request.effect());
             body.put("enabled", request.enabled() == null || request.enabled());
             body.put("remark", blankToNull(request.remark()));
@@ -418,8 +480,21 @@ public class McpAuthorizationService {
             firstText(toolScope.capability(), text(arguments, "capability")),
             firstText(toolScope.action(), "query"),
             principal == null ? null : principal.tenantId(),
-            firstText(context == null ? null : context.domain(), text(arguments, "domain")),
+            firstText(context == null ? null : context.domain(), text(arguments, "domain"), assetDomain(arguments)),
             firstText(context == null ? null : context.permissionLevel(), text(arguments, "permissionLevel"), "read")
+        );
+    }
+
+    private String assetDomain(Map<String, Object> arguments) {
+        return firstText(
+            text(arguments, "assetDomain"),
+            text(arguments, "assetId"),
+            text(arguments, "toolName"),
+            text(arguments, "hostId"),
+            text(arguments, "datasourceId"),
+            text(arguments, "endpointId"),
+            text(arguments, "serviceId"),
+            text(arguments, "templateId")
         );
     }
 
@@ -449,6 +524,10 @@ public class McpAuthorizationService {
             case "document_search" -> new ToolScope("document", "document", "search");
             case "database_query" -> new ToolScope("database_query", "execute", "query");
             case "linux_command_execute" -> new ToolScope("ssh_host", "execute", "command");
+            case "http_request_execute" -> new ToolScope("http_endpoint", "execute", "request");
+            case "sql_query_execute" -> new ToolScope("sql_datasource", "execute", "query");
+            case "sql_script_execute" -> new ToolScope("sql_datasource", "execute", "script");
+            case "sql_metadata_search" -> new ToolScope("sql_datasource", "metadata", "search");
             default -> new ToolScope(null, null, null);
         };
     }
@@ -530,6 +609,7 @@ public class McpAuthorizationService {
         String roleId,
         String toolId,
         String localToolName,
+        String scopeExpression,
         String effect,
         Boolean enabled,
         String remark
@@ -603,7 +683,9 @@ public class McpAuthorizationService {
                     requestedScope.assetType(),
                     requestedScope.capability(),
                     requestedScope.action(),
-                    requestedScope.tenantId()
+                    requestedScope.tenantId(),
+                    requestedScope.domain(),
+                    requestedScope.level()
                 );
             } catch (IllegalArgumentException ex) {
                 return false;
@@ -757,6 +839,28 @@ public class McpAuthorizationService {
                 }
             }
             return matched;
+        }
+
+        boolean hasRoleCode(Principal principal, String roleCode) {
+            if (principal == null || principal.roleIds() == null || principal.roleIds().isEmpty()) {
+                return false;
+            }
+            String normalizedCode = normalize(roleCode);
+            String normalizedRoleId = normalize(roleCodeToId.get(normalizedCode));
+            for (String role : principal.roleIds()) {
+                String normalizedRole = normalize(role);
+                if (normalizedRole == null) {
+                    continue;
+                }
+                if (normalizedRole.equals(normalizedCode) || normalizedRole.equals(normalizedRoleId)) {
+                    return true;
+                }
+                Role matched = rolesById.get(normalizedRole);
+                if (matched != null && normalizedCode.equals(normalize(matched.roleCode()))) {
+                    return true;
+                }
+            }
+            return false;
         }
 
         private boolean sameTenant(String permissionTenantId, String callerTenantId) {

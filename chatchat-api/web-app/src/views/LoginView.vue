@@ -1,10 +1,10 @@
 <template>
   <main class="login-view">
-    <header class="login-brand" aria-label="Agent Runtime">
-      <img src="/agent-runtime-logo.svg" alt="Agent Runtime" />
+    <header class="login-brand" aria-label="LiveRuntime">
+      <img src="/agent-runtime-logo.svg" alt="LiveRuntime" />
     </header>
 
-    <section class="login-shell" aria-label="ChatChat 登录首页">
+    <section class="login-shell" aria-label="LiveRuntime 登录首页">
       <section class="login-hero" aria-label="360°智能工作循环">
         <div class="ai-cycle" aria-label="360°智能工作循环">
           <div class="cycle-halo"></div>
@@ -124,7 +124,7 @@
       </section>
     </section>
 
-    <footer class="login-footer">&copy; 2026 ChatChat Enterprise. All rights reserved.</footer>
+    <footer class="login-footer">&copy; 2026 LiveRuntime. All rights reserved.</footer>
   </main>
 </template>
 

@@ -14,8 +14,12 @@ class McpScopeExpressionTest {
 
         assertThat(scope.assetType()).isEqualTo("api_service");
         assertThat(scope.capability()).isEqualTo("asset");
-        assertThat(scope.matches("api_service", "asset", "query", "tenant-a")).isTrue();
-        assertThat(scope.matches("ssh_host", "asset", "query", "tenant-a")).isFalse();
-        assertThat(scope.matches("api_service", "asset", "query", "tenant-b")).isFalse();
+        assertThat(scope.domain()).isEqualTo("order");
+        assertThat(scope.level()).isEqualTo("read");
+        assertThat(scope.matches("api_service", "asset", "query", "tenant-a", "order", "read")).isTrue();
+        assertThat(scope.matches("ssh_host", "asset", "query", "tenant-a", "order", "read")).isFalse();
+        assertThat(scope.matches("api_service", "asset", "query", "tenant-b", "order", "read")).isFalse();
+        assertThat(scope.matches("api_service", "asset", "query", "tenant-a", "trade", "read")).isFalse();
+        assertThat(scope.matches("api_service", "asset", "query", "tenant-a", "order", "write")).isFalse();
     }
 }

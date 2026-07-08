@@ -1,0 +1,89 @@
+.database-calendar-panel .panel-heading {
+  align-items: center;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.database-import-panel .panel-heading {
+  align-items: center;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.database-calendar-panel .panel-actions,
+.database-import-panel .panel-actions {
+  gap: 8px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.database-calendar-panel .panel-actions .el-button,
+.database-import-panel .panel-actions .el-button {
+  min-width: 72px;
+  height: 32px;
+  margin-left: 0;
+}
+
+.database-import-panel .panel-actions .el-button--primary {
+  min-width: 92px;
+}
+
+.database-import-panel .el-row {
+  padding-top: 14px;
+}
+
+.database-calendar-form {
+  padding-top: 14px;
+  row-gap: 12px;
+}
+
+.database-calendar-form .field-help {
+  margin: 8px 0 0;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.database-calendar-function-field {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) auto;
+  align-items: end;
+  column-gap: 12px;
+  row-gap: 6px;
+}
+
+.database-calendar-function-field .form-label {
+  grid-column: 1 / -1;
+  margin-bottom: 0;
+}
+
+.database-calendar-function-field .el-select {
+  flex: 1 1 auto;
+  min-width: 260px;
+}
+
+.database-calendar-function-field .el-button {
+  min-width: 96px;
+  margin-left: 0;
+}
+
+@media (max-width: 900px) {
+  .database-calendar-panel .panel-heading,
+  .database-import-panel .panel-heading {
+    align-items: stretch;
+  }
+
+  .database-calendar-panel .panel-actions,
+  .database-import-panel .panel-actions {
+    justify-content: flex-start;
+  }
+
+  .database-calendar-function-field {
+    grid-template-columns: 1fr;
+  }
+
+  .database-calendar-function-field .el-select {
+    min-width: 0;
+  }
+}

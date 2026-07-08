@@ -987,7 +987,7 @@ function agentEventToExecutionStep(event = {}) {
       id: "backend-running",
       phaseOrder: STEP_PHASE_ORDER["backend-running"],
       title: "\u540e\u7aef\u6267\u884c\u4e2d",
-      detail: compactText(payload.message || "\u5df2\u8fdb\u5165 Agent Runtime", 72),
+      detail: compactText(payload.message || "\u5df2\u8fdb\u5165 LiveRuntime", 72),
       status: "done"
     };
   }

@@ -31,6 +31,17 @@ public class McpAuthorizationAdminController {
         return ApiResponse.success(authorizationService.refreshNow(), "MCP authorization synchronized");
     }
 
+    @GetMapping("/roles")
+    public ApiResponse<List<McpAuthorizationService.RoleView>> roles(
+        @RequestParam(name = "tenantId", required = false) String tenantId) {
+        return ApiResponse.success(authorizationService.roles(tenantId));
+    }
+
+    @GetMapping("/users")
+    public ApiResponse<List<JsonNode>> users(@RequestParam(name = "tenantId", required = false) String tenantId) {
+        return ApiResponse.success(authorizationService.apiUsers(tenantId));
+    }
+
     @GetMapping("/role-permissions")
     public ApiResponse<List<JsonNode>> rolePermissions(@RequestParam("roleId") String roleId,
                                                        @RequestParam(name = "tenantId", required = false) String tenantId) {

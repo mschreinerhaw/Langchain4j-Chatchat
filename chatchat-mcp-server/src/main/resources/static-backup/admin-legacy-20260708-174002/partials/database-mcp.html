@@ -1,0 +1,225 @@
+<section id="databaseMcpView" class="panel api-service-view d-none">
+    <div class="panel-head api-service-head">
+        <div>
+            <h2>已注册数据库查询</h2>
+            <div class="text-secondary small">面向分析场景的只读查询。共 <span id="databaseQueryTotalCount">0</span> 个查询，匹配 <span id="databaseQueryFilteredCount">0</span> 个，当前显示 <span id="databaseQueryCount">0</span> 个</div>
+        </div>
+        <div class="api-search">
+            <input id="databaseQuerySearchInput" class="form-control" type="search" placeholder="搜索工具名称、显示名称、描述或 SQL">
+        </div>
+    </div>
+    <div class="bulk-toolbar">
+        <div class="text-secondary small">已选择 <span id="databaseQuerySelectedCount">0</span> 个查询</div>
+        <div class="btn-group btn-group-sm" role="group" aria-label="Database query batch actions">
+            <button id="databaseQuerySelectVisibleBtn" class="btn btn-outline-secondary" type="button">选择当前页</button>
+            <button id="databaseQueryClearSelectionBtn" class="btn btn-outline-secondary" type="button">清空选择</button>
+            <button id="databaseQueryImportDslBtn" class="btn btn-outline-primary" type="button">导入模板</button>
+            <button id="databaseQueryExportDslBtn" class="btn btn-outline-primary" type="button" disabled>导出模板</button>
+            <button id="databaseQueryBatchDeleteBtn" class="btn btn-outline-danger" type="button" disabled>删除选中</button>
+        </div>
+    </div>
+    <div class="panel-section trading-calendar-config-panel p-0">
+        <button class="livedata-config-toggle collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#tradingCalendarConfigBody" aria-expanded="false" aria-controls="tradingCalendarConfigBody">
+            <span>
+                <strong>交易日数据源模板</strong>
+                <small class="text-secondary">必须绑定数据库资产和查询 SQL，用于解析 <code>trade_date</code>、<code>trade_date-1</code>、<code>trade_date+1</code> 等动态交易日参数。</small>
+            </span>
+        </button>
+        <div id="tradingCalendarConfigBody" class="collapse">
+            <div class="trading-calendar-config-body">
+                <div class="trading-calendar-actions mb-3">
+                    <div class="trading-calendar-function-test">
+                        <select id="tradingCalendarFunctionSelect" class="form-select form-select-sm" aria-label="选择交易日动态参数函数" disabled>
+                            <option value="trade_date">当前交易日 trade_date</option>
+                            <option value="trade_date-1">上一交易日 trade_date-1</option>
+                            <option value="trade_date+1">下一交易日 trade_date+1</option>
+                            <option value="today">当天自然日 today</option>
+                            <option value="month">当前月份 month</option>
+                            <option value="month_start">当月第一天 month_start</option>
+                            <option value="month_end">当月最后一天 month_end</option>
+                        </select>
+                        <button id="testTradingCalendarFunctionBtn" class="btn btn-outline-secondary btn-sm" type="button" title="函数数据日获取测试" disabled>测试函数</button>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button id="testTradingCalendarConfigBtn" class="btn btn-outline-secondary btn-sm" type="button">测试查询</button>
+                        <button id="saveTradingCalendarConfigBtn" class="btn btn-outline-primary btn-sm" type="button">保存配置</button>
+                    </div>
+                </div>
+                <div class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label small text-secondary" for="tradingCalendarDatasourceSelect">交易日数据库资产</label>
+                        <select id="tradingCalendarDatasourceSelect" class="form-select"></select>
+                    </div>
+                    <div class="col-md-8">
+                        <label class="form-label small text-secondary" for="tradingCalendarSqlInput">交易日查询 SQL</label>
+                        <textarea id="tradingCalendarSqlInput" class="form-control codebox" rows="2" spellcheck="false">select ZRR,JYR from dsc_cfg.t_xtjyr order by ZRR</textarea>
+                        <div class="form-text">SQL 必须返回两列：自然日 yyyyMMdd、交易日 yyyyMMdd；只允许 SELECT。</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div id="databaseQueryList" class="api-service-grid"></div>
+    <div class="service-pagination">
+        <div id="databaseQueryPageInfo" class="text-secondary small">第 1 / 1 页</div>
+        <div class="btn-group btn-group-sm" role="group" aria-label="数据库查询分页">
+            <button id="databaseQueryPrevPageBtn" class="btn btn-outline-secondary" type="button">上一页</button>
+            <button id="databaseQueryNextPageBtn" class="btn btn-outline-secondary" type="button">下一页</button>
+        </div>
+    </div>
+</section>
+
+<div class="modal fade" id="databaseQueryModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="databaseQueryFormTitle" class="modal-title fs-5">新增数据库查询</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="关闭"></button>
+            </div>
+            <div class="modal-body">
+                <form id="databaseQueryForm" class="database-query-form">
+                    <input id="databaseQueryId" type="hidden">
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label" for="databaseToolNameInput">工具名称</label>
+                            <input id="databaseToolNameInput" class="form-control" placeholder="query_active_services" required>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label" for="databaseTitleInput">显示名称</label>
+                            <input id="databaseTitleInput" class="form-control" placeholder="查询启用服务" required>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label" for="databaseDescriptionInput">工具描述</label>
+                            <textarea id="databaseDescriptionInput" class="form-control" rows="2" placeholder="说明模型应在什么场景下使用这个查询"></textarea>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label" for="databaseBusinessGroupInput">业务分组编码</label>
+                            <input id="databaseBusinessGroupInput" class="form-control" placeholder="orders">
+                        </div>
+                        <div class="col-md-8">
+                            <label class="form-label" for="databaseBusinessGroupNameInput">业务分组名称</label>
+                            <input id="databaseBusinessGroupNameInput" class="form-control" placeholder="订单分析">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label" for="databaseBusinessGroupDescriptionInput">业务分组描述</label>
+                            <textarea id="databaseBusinessGroupDescriptionInput" class="form-control" rows="2" placeholder="描述该业务域，以及模型应在什么场景下选择该分组内的查询模板。"></textarea>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label" for="databaseDatasourceSelect">数据库资产</label>
+                            <select id="databaseDatasourceSelect" class="form-select" required></select>
+                            <div class="form-text">只能选择资产中心已维护并启用的数据库资产。</div>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label" for="databaseSqlInput">SQL 模板</label>
+                            <textarea id="databaseSqlInput" class="form-control codebox" rows="6" spellcheck="false" placeholder="select id, name from your_table where status = :status" required></textarea>
+                            <div class="form-text">仅允许只读 SQL。命名参数使用 <code>:name</code>，动态日期参数由运行时统一计算。</div>
+                            <div class="mt-2 d-flex align-items-center gap-2 flex-wrap">
+                                <button id="databaseQuerySyncParamsBtn" class="btn btn-sm btn-outline-secondary" type="button">同步参数</button>
+                                <span id="databaseQueryParamSummary" class="text-secondary small"></span>
+                            </div>
+                        </div>
+                        <div id="databaseQueryStructuredPreviewWrap" class="col-12 d-none">
+                            <label class="form-label">模板步骤</label>
+                            <div id="databaseQueryStructuredPreview" class="template-steps-preview"></div>
+                        </div>
+                        <div class="col-12 database-param-config">
+                            <div class="api-param-config-head">
+                                <div>
+                                    <label class="form-label mb-1">查询参数配置</label>
+                                    <div class="text-secondary small">维护模型入参和页面测试值。日期参数可在“默认来源”中直接选择。</div>
+                                </div>
+                                <button id="addDatabaseParamBtn" class="btn btn-outline-primary btn-sm" type="button">新增参数</button>
+                            </div>
+                            <div class="api-param-table-wrap">
+                                <table class="table table-sm align-middle mb-0 api-param-table database-param-table">
+                                    <thead>
+                                        <tr>
+                                            <th>参数名</th>
+                                            <th>类型</th>
+                                            <th>必填</th>
+                                            <th>默认来源</th>
+                                            <th>测试值</th>
+                                            <th>示例值</th>
+                                            <th>说明</th>
+                                            <th></th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="databaseParamRows">
+                                        <tr id="databaseParamEmptyRow">
+                                            <td colspan="8" class="text-secondary text-center py-3">暂无参数，可从 SQL 模板同步生成。</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <textarea id="databaseParamsJson" class="d-none" spellcheck="false">{}</textarea>
+                        </div>
+                        <div class="col-lg-4">
+                            <label class="form-label" for="databaseMaxRowsInput">最大行数</label>
+                            <input id="databaseMaxRowsInput" class="form-control" type="number" min="1" max="500" value="50">
+                            <label class="form-label mt-3" for="databaseTimeoutSecondsInput">执行超时（秒）</label>
+                            <input id="databaseTimeoutSecondsInput" class="form-control" type="number" min="1" max="300" value="30">
+                            <div class="form-text">每个数据库查询模板独立生效，缓存策略在“缓存设置”中统一管理。</div>
+                        </div>
+                        <div class="col-12">
+                            <textarea id="databaseInputSchemaJson" class="d-none" spellcheck="false">{
+  "type": "object",
+  "properties": {},
+  "required": [],
+  "additionalProperties": false
+}</textarea>
+                            <label class="form-label mt-3" for="databaseGovernanceJson">Governance JSON</label>
+                            <textarea id="databaseGovernanceJson" class="form-control codebox" rows="10" spellcheck="false"></textarea>
+                        </div>
+                    </div>
+                </form>
+
+                <section class="result-section mt-4">
+                    <div class="result-section-head">
+                        <h3 class="fs-6 m-0">预览结果</h3>
+                        <span id="databaseQueryStatus" class="text-secondary small"></span>
+                    </div>
+                    <div id="databaseQueryResult" class="database-query-result text-secondary small">填写只读 SQL 后点击测试调用。</div>
+                </section>
+            </div>
+            <div class="modal-footer">
+                <button id="databaseQueryClearBtn" class="btn btn-outline-secondary" type="button">清空</button>
+                <button id="databaseQueryTestBtn" class="btn btn-outline-primary" type="submit" form="databaseQueryForm">测试调用</button>
+                <button id="databaseQuerySaveBtn" class="btn btn-primary" type="button">保存查询</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="databaseQueryDslImportModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 class="modal-title fs-5">导入数据库查询模板</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="关闭"></button>
+            </div>
+            <div class="modal-body">
+                <form id="databaseQueryDslImportForm" class="service-form">
+                    <div class="row g-3">
+                        <div class="col-12">
+                            <label class="form-label" for="databaseQueryDslDatasourceId">数据库资产</label>
+                            <select id="databaseQueryDslDatasourceId" class="form-select">
+                                <option value="">使用模板内 datasourceId</option>
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label" for="databaseQueryDslBody">模板 JSON</label>
+                            <textarea id="databaseQueryDslBody" class="form-control codebox" rows="18" spellcheck="false" placeholder='{"templateCode":"ORDER_QUERY","templateType":"DATABASE_QUERY","datasourceId":"...","steps":[{"stepCode":"QUERY","stepType":"SQL","sql":"select * from orders"}]}'></textarea>
+                        </div>
+                        <div class="col-12">
+                            <div id="databaseQueryDslImportResult" class="text-secondary small">粘贴模板 JSON 后点击“验证”。</div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button id="databaseQueryDslValidateBtn" class="btn btn-outline-secondary" type="button">验证</button>
+                <button id="databaseQueryDslImportSubmitBtn" class="btn btn-primary" type="submit" form="databaseQueryDslImportForm" disabled>验证并导入</button>
+            </div>
+        </div>
+    </div>
+</div>

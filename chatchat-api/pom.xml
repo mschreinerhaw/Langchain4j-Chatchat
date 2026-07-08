@@ -12,7 +12,7 @@
     </parent>
 
     <artifactId>chatchat-api</artifactId>
-    <name>ChatChat API Module</name>
+    <name>LiveRuntime API Module</name>
     <description>REST API, WebSocket support, and conversation engine</description>
 
     <dependencies>

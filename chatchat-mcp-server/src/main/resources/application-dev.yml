@@ -62,8 +62,8 @@ chatchat:
         password: 123456
         bearer-token: ""
     command-templates:
-      # Agent OS default: do not seed scenario-specific execution templates.
-      seed-defaults-enabled: false
+      # Seed built-in read-only SSH command templates for asset center management.
+      seed-defaults-enabled: true
     sql-templates:
       # Seed built-in read-only database maintenance templates.
       seed-defaults-enabled: true

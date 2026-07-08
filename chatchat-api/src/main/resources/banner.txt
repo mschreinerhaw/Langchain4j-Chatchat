@@ -5,8 +5,8 @@
 /_/  |_\__, /\___/_/ /_/\__/  /_/ |_|\__,_/_/ /_/\__/_/_/ /_/ /_/\___/
       /____/
 
- Agent Runtime Smart Workbench
- Enterprise Agent Runtime Platform
+ LiveRuntime Smart Workbench
+ Enterprise LiveRuntime Platform
  Task | Queue | Worker | Event | State | Storage
  Powered by Spring Boot, LangChain4j, and MCP
  Version: 1.0.0-SNAPSHOT

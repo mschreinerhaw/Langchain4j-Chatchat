@@ -132,7 +132,7 @@ export default {
         || task.errorMessage
         || task.answerSummary
         || task.question
-        || "需要你处理后，Agent Runtime 才能继续闭环。"
+        || "需要你处理后，LiveRuntime 才能继续闭环。"
       );
     },
     selectedTodoContentCanToggle() {

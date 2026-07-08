@@ -50,11 +50,18 @@ public record McpScopeExpression(
         );
     }
 
-    public boolean matches(String requestedAssetType, String requestedCapability, String requestedAction, String requestedTenantId) {
+    public boolean matches(String requestedAssetType,
+                           String requestedCapability,
+                           String requestedAction,
+                           String requestedTenantId,
+                           String requestedDomain,
+                           String requestedLevel) {
         return matchesPart(assetType, normalize(requestedAssetType))
             && matchesPart(capability, normalize(requestedCapability))
             && matchesPart(action, normalize(requestedAction))
-            && matchesPart(tenantId, text(requestedTenantId));
+            && matchesPart(tenantId, text(requestedTenantId))
+            && matchesPart(domain, text(requestedDomain))
+            && matchesPart(level, normalize(requestedLevel));
     }
 
     public String value() {

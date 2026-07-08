@@ -1,0 +1,221 @@
+<section id="notificationChannelsView" class="panel api-service-view d-none">
+    <div class="panel-head api-service-head">
+        <div>
+            <h2>通知告警</h2>
+            <div class="text-secondary small">
+                仅支持邮件、短信、企业微信、钉钉四类告警渠道；新增告警统一按 HTTP/Webhook 方式配置。
+            </div>
+        </div>
+        <div class="api-search">
+            <input id="notificationSearchInput" class="form-control" type="search" placeholder="搜索渠道、工具名称或描述">
+        </div>
+    </div>
+    <div class="bulk-toolbar">
+        <div class="text-secondary small">共 <span id="notificationTotalCount">0</span> 个渠道，匹配 <span id="notificationFilteredCount">0</span> 个</div>
+        <div class="btn-group btn-group-sm" role="group" aria-label="Notification actions">
+            <button id="newNotificationChannelBtn" class="btn btn-outline-primary" type="button">新增告警</button>
+            <button id="refreshNotificationToolsBtn" class="btn btn-outline-secondary" type="button">刷新 MCP 工具</button>
+        </div>
+    </div>
+    <div id="notificationChannelList" class="api-service-grid"></div>
+</section>
+
+<div class="modal fade" id="notificationChannelModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="notificationFormTitle" class="modal-title fs-5">通知渠道配置</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="关闭"></button>
+            </div>
+            <div class="modal-body">
+                <form id="notificationChannelForm" class="service-form">
+                    <input id="notificationId" type="hidden">
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label" for="notificationChannel">通知类型</label>
+                            <select id="notificationChannel" class="form-select" required>
+                                <option value="EMAIL">EMAIL</option>
+                                <option value="SMS">SMS</option>
+                                <option value="WECHAT_WORK">WECHAT_WORK</option>
+                                <option value="DINGTALK">DINGTALK</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label" for="notificationToolName">工具名称</label>
+                            <input id="notificationToolName" class="form-control" required>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label" for="notificationTitle">显示名称</label>
+                            <input id="notificationTitle" class="form-control" required>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label" for="notificationEnabled">发布状态</label>
+                            <select id="notificationEnabled" class="form-select">
+                                <option value="true">启用</option>
+                                <option value="false">下线</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label" for="notificationRuntimeAction">运行策略</label>
+                            <select id="notificationRuntimeAction" class="form-select">
+                                <option value="confirm_required">confirm_required</option>
+                                <option value="forbidden">forbidden</option>
+                            </select>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label" for="notificationDescription">工具描述</label>
+                            <textarea id="notificationDescription" class="form-control" rows="2"></textarea>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label" for="notificationDeliveryMode">发送模式</label>
+                            <select id="notificationDeliveryMode" class="form-select">
+                                <option value="HTTP">HTTP / Webhook</option>
+                                <option value="SMTP">SMTP 邮件</option>
+                            </select>
+                            <div class="form-text">新增告警固定使用 HTTP / Webhook。</div>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label" for="notificationMethod">HTTP 方法</label>
+                            <select id="notificationMethod" class="form-select">
+                                <option>POST</option>
+                                <option>PUT</option>
+                                <option>PATCH</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label" for="notificationTimeoutMs">超时毫秒</label>
+                            <input id="notificationTimeoutMs" class="form-control" type="number" min="1000" step="1000">
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label" for="notificationMaxRetries">失败重试次数</label>
+                            <input id="notificationMaxRetries" class="form-control" type="number" min="0" max="5">
+                        </div>
+                        <div class="col-12 notification-http-field">
+                            <label class="form-label" for="notificationEndpointUrl">Endpoint / Webhook URL</label>
+                            <input id="notificationEndpointUrl" class="form-control" placeholder="https://example.com/webhook?token={{channelSecret}}">
+                        </div>
+                        <div class="col-lg-6 notification-http-field">
+                            <label class="form-label" for="notificationHeadersJson">请求头 JSON</label>
+                            <textarea id="notificationHeadersJson" class="form-control codebox" rows="6" spellcheck="false">{}</textarea>
+                        </div>
+                        <div class="col-lg-6 notification-http-field">
+                            <label class="form-label" for="notificationSecret">渠道密钥</label>
+                            <input id="notificationSecret" class="form-control" type="password" autocomplete="new-password" placeholder="可在 URL/Header/Body 中用 {{channelSecret}}">
+                        </div>
+                        <div class="col-12 notification-sms-field d-none">
+                            <div class="microservice-box">
+                                <div class="fw-semibold mb-2">短信接收配置</div>
+                                <div class="row g-3">
+                                    <div class="col-12">
+                                        <label class="form-label" for="notificationDefaultReceiver">手机号接收人</label>
+                                        <input id="notificationDefaultReceiver" class="form-control" placeholder="13800000000，多个手机号用逗号分隔">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label" for="notificationSmsAccount">短信网关账号</label>
+                                        <input id="notificationSmsAccount" class="form-control" placeholder="xzxz">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label" for="notificationSmsReturnType">返回类型</label>
+                                        <input id="notificationSmsReturnType" class="form-control" placeholder="text">
+                                    </div>
+                                    <div class="col-12">
+                                        <label class="form-label" for="notificationSmsToken">短信接口 Token</label>
+                                        <input id="notificationSmsToken" class="form-control" type="password" autocomplete="new-password" placeholder="留空则不修改">
+                                    </div>
+                                    <div class="col-12">
+                                        <div class="form-check form-switch">
+                                            <input id="notificationSmsPasswordMd5" class="form-check-input" type="checkbox">
+                                            <label class="form-check-label" for="notificationSmsPasswordMd5">密码已是 MD5 密文</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label" for="notificationSmsPlainPassword">短信网关明文密码</label>
+                                        <input id="notificationSmsPlainPassword" class="form-control" type="password" autocomplete="new-password" placeholder="留空则不修改">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label" for="notificationSmsMd5Password">短信网关 MD5 密码</label>
+                                        <input id="notificationSmsMd5Password" class="form-control" placeholder="751CB3F4AA17C36186F4856C8982BF27">
+                                    </div>
+                                    <div class="col-12">
+                                        <label class="form-label" for="notificationSmsExtendCode">短信扩展码</label>
+                                        <input id="notificationSmsExtendCode" class="form-control" placeholder="不需要时留空">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-12 notification-http-field">
+                            <label class="form-label" for="notificationBodyTemplate">告警内容 / 请求体模板</label>
+                            <textarea id="notificationBodyTemplate" class="form-control codebox" rows="7" spellcheck="false" placeholder='{"title":"{{title}}","content":"{{content}}","level":"{{level}}"}'></textarea>
+                            <div class="form-text">HTTP 告警必填，由用户自行维护请求体内容。可用变量：{{receiver}}、{{title}}、{{content}}、{{level}}、{{sourceTaskId}}、{{channelSecret}}、{{smsAccount}}、{{smsToken}}、{{smsPassword}}、{{smsPlainPassword}}、{{smsMd5Password}}、{{smsReturnType}}、{{smsExtendCode}}</div>
+                        </div>
+                        <div class="col-12 notification-smtp-field d-none">
+                            <div class="microservice-box">
+                                <div class="fw-semibold mb-2">SMTP 邮件参数</div>
+                                <div class="row g-3">
+                                    <div class="col-md-6">
+                                        <label class="form-label" for="notificationEmailDefaultReceiver">收件人</label>
+                                        <input id="notificationEmailDefaultReceiver" class="form-control" placeholder="ops@example.com，多个邮箱用逗号分隔">
+                                    </div>
+                                    <div class="col-md-6">
+                                        <label class="form-label" for="notificationCcReceiver">抄送人</label>
+                                        <input id="notificationCcReceiver" class="form-control" placeholder="cc@example.com，多个邮箱用逗号分隔">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <label class="form-label" for="notificationSmtpHost">SMTP Host</label>
+                                        <input id="notificationSmtpHost" class="form-control" placeholder="smtp.example.com">
+                                    </div>
+                                    <div class="col-md-2">
+                                        <label class="form-label" for="notificationSmtpPort">端口</label>
+                                        <input id="notificationSmtpPort" class="form-control" type="number" min="1" placeholder="587">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label" for="notificationSmtpUsername">用户名</label>
+                                        <input id="notificationSmtpUsername" class="form-control" autocomplete="off">
+                                    </div>
+                                    <div class="col-md-3">
+                                        <label class="form-label" for="notificationSmtpPassword">密码</label>
+                                        <input id="notificationSmtpPassword" class="form-control" type="password" autocomplete="new-password">
+                                    </div>
+                                    <div class="col-12">
+                                        <label class="form-label" for="notificationSmtpFrom">发件人</label>
+                                        <input id="notificationSmtpFrom" class="form-control" placeholder="alerts@example.com">
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-check form-switch">
+                                            <input id="notificationSmtpAuthEnabled" class="form-check-input" type="checkbox">
+                                            <label class="form-check-label" for="notificationSmtpAuthEnabled">请求认证</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-check form-switch">
+                                            <input id="notificationSmtpStarttlsEnabled" class="form-check-input" type="checkbox">
+                                            <label class="form-check-label" for="notificationSmtpStarttlsEnabled">STARTTLS 连接</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-md-4">
+                                        <div class="form-check form-switch">
+                                            <input id="notificationSmtpSslEnabled" class="form-check-input" type="checkbox">
+                                            <label class="form-check-label" for="notificationSmtpSslEnabled">SSL 连接</label>
+                                        </div>
+                                    </div>
+                                    <div class="col-12">
+                                        <label class="form-label" for="notificationSmtpSslTrust">SSL 证书信任</label>
+                                        <input id="notificationSmtpSslTrust" class="form-control" placeholder="smtp.example.com 或 *">
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label" for="notificationTestPayloadJson">测试消息 JSON</label>
+                            <textarea id="notificationTestPayloadJson" class="form-control codebox" rows="6" spellcheck="false"></textarea>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button id="notificationTestBtn" class="btn btn-outline-primary" type="button">测试发送</button>
+                <button class="btn btn-primary" type="submit" form="notificationChannelForm">保存配置</button>
+            </div>
+        </div>
+    </div>
+</div>

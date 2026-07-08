@@ -63,7 +63,7 @@
             >
               <span class="todo-type" :class="todoTypeClass(todo.todoType)">{{ todoTypeLabel(todo.todoType) }}</span>
               <strong>{{ todo.title }}</strong>
-              <small>{{ todo.source || todo.agentId || "Agent Runtime" }}</small>
+              <small>{{ todo.source || todo.agentId || "LiveRuntime" }}</small>
               <time>{{ todoTime(todo) }}</time>
             </button>
             <button
@@ -181,7 +181,7 @@
         <dl>
           <div>
             <dt>来源Agent</dt>
-            <dd>{{ selectedTodo.source || selectedTodo.agentId || "Agent Runtime" }}</dd>
+            <dd>{{ selectedTodo.source || selectedTodo.agentId || "LiveRuntime" }}</dd>
           </div>
           <div>
             <dt>触发原因</dt>

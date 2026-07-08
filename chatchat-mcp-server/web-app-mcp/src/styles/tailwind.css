@@ -1,0 +1,48 @@
+@tailwind components;
+@tailwind utilities;
+
+@layer components {
+  .app-main {
+    @apply bg-slate-50;
+  }
+
+  .workspace-panel {
+    @apply border-slate-200/90 bg-white shadow-panel;
+  }
+
+  .el-workspace-card > .el-card__header {
+    @apply bg-gradient-to-r from-slate-50 via-white to-brand-50;
+  }
+
+  .panel-heading h2 {
+    @apply font-semibold text-slate-950;
+  }
+
+  .panel-heading p,
+  .table-subtle {
+    @apply text-slate-500;
+  }
+
+  .catalog-table,
+  .settings-table {
+    @apply overflow-hidden rounded-lg border border-slate-200;
+  }
+
+  .visual-list-tags,
+  .form-subsection,
+  .metric-card {
+    @apply border-slate-200 bg-slate-50/70;
+  }
+
+  .notification-card {
+    @apply border-slate-200 bg-white shadow-sm transition-shadow duration-150;
+  }
+
+  .notification-card:hover {
+    @apply shadow-panel;
+  }
+
+  .json-block {
+    @apply border-slate-800 shadow-inner;
+  }
+}

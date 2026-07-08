@@ -327,7 +327,7 @@ export default {
           this.timeline = { run: null, events: [], steps: [], observations: [], trace: null };
         }
       } catch (error) {
-        this.error = error.message || "Failed to load Agent Runtime.";
+        this.error = error.message || "Failed to load LiveRuntime.";
       } finally {
         this.loading = false;
       }

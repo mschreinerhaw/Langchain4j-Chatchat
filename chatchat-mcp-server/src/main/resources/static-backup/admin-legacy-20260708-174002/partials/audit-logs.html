@@ -1,0 +1,56 @@
+<section id="auditLogsView" class="panel d-none">
+    <div class="panel-head">
+        <div>
+            <h2>最近调用日志</h2>
+            <div class="text-secondary small">共 <span id="auditLogTotalCount">0</span> 条日志，匹配 <span id="auditLogFilteredCount">0</span> 条，当前显示 <span id="auditLogCount">0</span> 条</div>
+        </div>
+        <button id="reloadAuditBtn" class="btn btn-sm btn-outline-secondary" type="button">重新加载</button>
+    </div>
+    <div class="audit-toolbar">
+        <input id="auditLogSearchInput" class="form-control" type="search" placeholder="搜索工具、目标、调用方、错误或请求响应">
+        <select id="auditLogTargetTypeSelect" class="form-select" aria-label="日志类型">
+            <option value="">全部类型</option>
+            <option value="API_SERVICE">API 服务</option>
+            <option value="DATABASE_QUERY">数据库查询</option>
+            <option value="SQL_QUERY">SQL 查询</option>
+            <option value="LINUX_COMMAND">Linux 命令</option>
+            <option value="MCP_TRANSPORT">MCP 传输</option>
+        </select>
+        <select id="auditLogSuccessSelect" class="form-select" aria-label="调用结果">
+            <option value="">全部结果</option>
+            <option value="true">成功</option>
+            <option value="false">失败</option>
+        </select>
+        <select id="auditLogPageSizeSelect" class="form-select" aria-label="每页条数">
+            <option value="20">20 条/页</option>
+            <option value="50">50 条/页</option>
+            <option value="100">100 条/页</option>
+        </select>
+        <button id="auditLogSearchBtn" class="btn btn-primary" type="button">查询</button>
+        <button id="auditLogResetBtn" class="btn btn-outline-secondary" type="button">重置</button>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-sm align-middle">
+            <thead>
+            <tr>
+                <th>时间</th>
+                <th>调用方</th>
+                <th>模板</th>
+                <th>目标</th>
+                <th>状态</th>
+                <th>HTTP</th>
+                <th>耗时</th>
+                <th>错误</th>
+            </tr>
+            </thead>
+            <tbody id="auditLogBody"></tbody>
+        </table>
+    </div>
+    <div class="service-pagination">
+        <div id="auditLogPageInfo" class="text-secondary small">第 1 / 1 页</div>
+        <div class="btn-group btn-group-sm" role="group" aria-label="审计日志分页">
+            <button id="auditLogPrevPageBtn" class="btn btn-outline-secondary" type="button">上一页</button>
+            <button id="auditLogNextPageBtn" class="btn btn-outline-secondary" type="button">下一页</button>
+        </div>
+    </div>
+</section>

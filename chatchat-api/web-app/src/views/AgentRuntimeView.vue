@@ -2,7 +2,7 @@
   <section :class="['feature-view agent-runtime-view', { 'agent-runtime-embedded': embedded }]">
     <header v-if="!embedded" class="agent-runtime-head">
       <div>
-        <p>Agent Runtime</p>
+        <p>LiveRuntime</p>
         <h1>Run Control Plane</h1>
       </div>
       <div class="agent-runtime-actions">

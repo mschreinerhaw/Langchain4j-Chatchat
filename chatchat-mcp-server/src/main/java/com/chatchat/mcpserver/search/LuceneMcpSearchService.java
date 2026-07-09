@@ -95,6 +95,7 @@ public class LuceneMcpSearchService {
     private static final String MCP_IK_INDEX_ANALYZER = "chatchat_mcp_ik_index";
     private static final String MCP_IK_SEARCH_ANALYZER = "chatchat_mcp_ik_search";
     private static final String MCP_PINYIN_ANALYZER = "chatchat_mcp_pinyin";
+    private static final int OPEN_SEARCH_BULK_BATCH_SIZE = 100;
 
     private final LuceneSearchProperties properties;
     private final McpEmbeddingClient embeddingClient;
@@ -574,7 +575,10 @@ public class LuceneMcpSearchService {
         boolean vectorWritable = openSearchVectorSearchAvailable(index);
         int written = 0;
         int vectorized = 0;
+        int processed = 0;
+        int total = docs.size();
         for (Document doc : docs) {
+            processed++;
             Map<String, Object> source = sourceOf(doc);
             String id = String.valueOf(source.getOrDefault(FIELD_ID, ""));
             if (id.isBlank()) {
@@ -590,15 +594,41 @@ public class LuceneMcpSearchService {
             body.append(json(Map.of("index", Map.of("_index", index, "_id", id)))).append('\n');
             body.append(json(source)).append('\n');
             written++;
+            if (written % OPEN_SEARCH_BULK_BATCH_SIZE == 0) {
+                flushOpenSearchBulk(index, body);
+                log.info("MCP OpenSearch bulk progress index={} processed={}/{} written={} vectorized={} vectorWritable={}",
+                    index, processed, total, written, vectorized, vectorWritable);
+            }
         }
         if (body.length() > 0) {
-            requestRaw("POST", "/_bulk?refresh=true", body.toString(), false, "application/x-ndjson");
+            flushOpenSearchBulk(index, body);
         }
         if (embeddingClient.configured()) {
             log.info("MCP OpenSearch bulk vector status index={} vectorWritable={} vectorized={} docs={}",
                 index, vectorWritable, vectorized, written);
         }
         return written;
+    }
+
+    private void flushOpenSearchBulk(String index, StringBuilder body) {
+        if (body == null || body.length() == 0) {
+            return;
+        }
+        String response = requestRaw("POST", "/_bulk?refresh=true", body.toString(), false, "application/x-ndjson");
+        body.setLength(0);
+        if (response != null) {
+            try {
+                JsonNode root = objectMapper.readTree(response);
+                if (root.path("errors").asBoolean(false)) {
+                    JsonNode firstItem = root.path("items").isArray() && !root.path("items").isEmpty()
+                        ? root.path("items").path(0)
+                        : root.path("items");
+                    log.warn("MCP OpenSearch bulk completed with item errors index={} firstItem={}", index, firstItem);
+                }
+            } catch (JsonProcessingException ex) {
+                log.warn("MCP OpenSearch bulk response parse failed index={} error={}", index, ex.getMessage());
+            }
+        }
     }
 
     private List<SearchHit> searchOpenSearch(String indexName, Map<String, Object> query, int limit,

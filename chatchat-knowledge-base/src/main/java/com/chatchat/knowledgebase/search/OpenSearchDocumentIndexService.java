@@ -1,0 +1,1123 @@
+package com.chatchat.knowledgebase.search;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import jakarta.annotation.PostConstruct;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.stereotype.Component;
+
+import java.io.IOException;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
+import java.security.GeneralSecurityException;
+import java.security.SecureRandom;
+import java.security.cert.X509Certificate;
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Base64;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
+import java.util.LinkedHashSet;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLParameters;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
+
+@Slf4j
+@Component
+@RequiredArgsConstructor
+public class OpenSearchDocumentIndexService implements DocumentSearchIndex {
+
+    private static final String FILE_ID = "fileId";
+    private static final String FILE_NAME = "fileName";
+    private static final String CHUNK_ID = "chunkId";
+    private static final String CHUNK_INDEX = "chunkIndex";
+    private static final String CHUNK_TEXT = "chunkText";
+    private static final String CONTENT = "content";
+    private static final String DEFAULT_CONTENT_VECTOR = "contentVector";
+    private static final String TITLE_TEXT = "title";
+    private static final String SECTION = "section";
+    private static final String KEYWORDS_TEXT = "keywords";
+    private static final String CHUNK_TYPE = "chunkType";
+    private static final String POSITION_RATIO = "positionRatio";
+    private static final String SOURCE = "source";
+    private static final String TAGS = "tags";
+    private static final String COMPANIES = "companies";
+    private static final String INDUSTRIES = "industries";
+    private static final String TITLE_TOKENS = "titleTokens";
+    private static final String CONTENT_TOKENS = "contentTokens";
+    private static final String SOURCE_TOKENS = "sourceTokens";
+    private static final String KEYWORD_TOKENS = "keywordTokens";
+    private static final String TAG_TOKENS = "tagTokens";
+    private static final String COMPANY_TOKENS = "companyTokens";
+    private static final String INDUSTRY_TOKENS = "industryTokens";
+    private static final String TENANT_ID = "tenantId";
+    private static final String USER_ID = "userId";
+    private static final String VISIBILITY = "visibility";
+    private static final String PERMISSION_ROLE = "permissionRole";
+    private static final String DISABLE_HOSTNAME_VERIFICATION_PROPERTY = "jdk.internal.httpclient.disableHostnameVerification";
+    private static final String IK_INDEX_ANALYZER = "chatchat_ik_index";
+    private static final String IK_SEARCH_ANALYZER = "chatchat_ik_search";
+    private static final String PINYIN_ANALYZER = "chatchat_pinyin";
+    private static final String WHITESPACE_ANALYZER = "chatchat_whitespace";
+
+    private final SearchProperties properties;
+    private final SearchTokenizer tokenizer;
+    private final TextChunker chunker;
+    private final KeywordExtractor keywordExtractor;
+    private final QueryExpander queryExpander;
+    private final ChunkTypeClassifier chunkTypeClassifier;
+    private final OpenSearchEmbeddingClient embeddingClient;
+    private final ObjectMapper objectMapper;
+    private HttpClient httpClient;
+    private volatile boolean available;
+    private volatile boolean vectorAvailable;
+    private volatile boolean vectorRerankAvailable;
+    private volatile boolean knnSettingCheckWarningLogged;
+    private volatile boolean knnDisabledLogged;
+
+    @PostConstruct
+    public void open() {
+        SearchProperties.OpenSearch config = config();
+        this.httpClient = buildHttpClient(config);
+        if (!selected()) {
+            return;
+        }
+        try {
+            ensureIndex();
+            available = true;
+            log.info("OpenSearch document index ready url={} index={}", baseUrl(), indexName());
+        } catch (Exception ex) {
+            available = false;
+            log.warn("OpenSearch document index is unavailable url={} index={} error={}",
+                baseUrl(), indexName(), ex.getMessage(), ex);
+        }
+    }
+
+    @Override
+    public synchronized void indexLatest(SearchDocument document) {
+        if (!isAvailable() || document == null || document.getDocId() == null || document.getDocId().isBlank()) {
+            return;
+        }
+        deleteDocument(document.getDocId());
+        if (Boolean.FALSE.equals(document.getLatestVersion())) {
+            return;
+        }
+        List<Map<String, Object>> chunks = chunkDocuments(document);
+        bulkIndex(chunks);
+    }
+
+    @Override
+    public synchronized void deleteDocument(String docId) {
+        if (!isAvailable() || docId == null || docId.isBlank()) {
+            return;
+        }
+        Map<String, Object> body = Map.of("query", Map.of("term", Map.of(FILE_ID, docId)));
+        request("POST", "/" + indexName() + "/_delete_by_query?conflicts=proceed&refresh=true", body, true);
+    }
+
+    @Override
+    public synchronized void rebuildLatest(List<SearchDocument> documents) {
+        if (!isAvailable()) {
+            return;
+        }
+        request("POST", "/" + indexName() + "/_delete_by_query?conflicts=proceed&refresh=true",
+            Map.of("query", Map.of("match_all", Map.of())), true);
+        List<Map<String, Object>> batch = new ArrayList<>();
+        for (SearchDocument document : documents == null ? List.<SearchDocument>of() : documents) {
+            if (document == null || Boolean.FALSE.equals(document.getLatestVersion())) {
+                continue;
+            }
+            batch.addAll(chunkDocuments(document));
+            if (batch.size() >= Math.max(1, config().getBulkBatchSize())) {
+                bulkIndex(batch);
+                batch.clear();
+            }
+        }
+        if (!batch.isEmpty()) {
+            bulkIndex(batch);
+        }
+    }
+
+    @Override
+    public List<LuceneSearchHit> search(String keyword, int maxHits) {
+        return search(keyword, maxHits, SearchPermissionContext.system());
+    }
+
+    @Override
+    public synchronized List<LuceneSearchHit> search(String keyword, int maxHits, SearchPermissionContext permissionContext) {
+        if (!isAvailable() || keyword == null || keyword.isBlank()) {
+            return List.of();
+        }
+        String normalizedKeyword = queryExpander.normalizeQuery(keyword);
+        List<String> terms = queryExpander.expandTokens(
+            tokenizer.searchTokens(normalizedKeyword),
+            queryExpander.classifyIntentName(normalizedKeyword),
+            normalizedKeyword
+        ).stream()
+            .filter(term -> term != null && !term.isBlank())
+            .distinct()
+            .limit(Math.max(1, properties.getLuceneMaxQueryTerms()))
+            .toList();
+        terms = limitTerms(mergeTerms(terms, cjkTitleAwareQueryTerms(normalizedKeyword)), properties.getLuceneMaxQueryTerms());
+        if (terms.isEmpty()) {
+            return List.of();
+        }
+        int candidateLimit = Math.max(Math.max(1, maxHits), embeddingConfig().getVectorCandidateLimit());
+        Map<String, List<Float>> lexicalVectors = new LinkedHashMap<>();
+        List<LuceneSearchHit> lexicalHits = lexicalSearch(normalizedKeyword, terms, candidateLimit, permissionContext, lexicalVectors);
+        List<LuceneSearchHit> vectorHits = vectorSearch(normalizedKeyword, candidateLimit, permissionContext);
+        if (vectorHits.isEmpty()) {
+            vectorHits = vectorRerankHits(normalizedKeyword, lexicalHits, lexicalVectors, candidateLimit);
+        }
+        if (vectorHits.isEmpty()) {
+            return lexicalHits.stream().limit(Math.max(1, maxHits)).toList();
+        }
+        return hybridMerge(lexicalHits, vectorHits, normalizedKeyword, Math.max(1, maxHits));
+    }
+
+    private List<LuceneSearchHit> lexicalSearch(
+        String normalizedKeyword,
+        List<String> terms,
+        int maxHits,
+        SearchPermissionContext permissionContext,
+        Map<String, List<Float>> sourceVectors
+    ) {
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("size", Math.max(1, maxHits));
+        body.put("query", searchQuery(normalizedKeyword, terms, permissionContext));
+        JsonNode root = request("POST", "/" + indexName() + "/_search", body, false);
+        return parseHits(root, sourceVectors);
+    }
+
+    private List<LuceneSearchHit> vectorSearch(
+        String normalizedKeyword,
+        int maxHits,
+        SearchPermissionContext permissionContext
+    ) {
+        if (!vectorSearchAvailable()) {
+            return List.of();
+        }
+        List<Float> vector = embeddingClient.embed(normalizedKeyword);
+        if (vector.isEmpty()) {
+            return List.of();
+        }
+        Map<String, Object> bool = new LinkedHashMap<>();
+        bool.put("must", List.of(Map.of(
+            "knn", Map.of(vectorField(), Map.of(
+                "vector", vector,
+                "k", Math.max(1, maxHits)
+            ))
+        )));
+        bool.put("filter", searchFilters(permissionContext));
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("size", Math.max(1, maxHits));
+        body.put("query", Map.of("bool", bool));
+        try {
+            JsonNode root = request("POST", "/" + indexName() + "/_search", body, false);
+            return parseHits(root, null);
+        } catch (Exception ex) {
+            log.warn("OpenSearch vector search skipped index={} field={} error={}",
+                indexName(), vectorField(), ex.getMessage());
+            return List.of();
+        }
+    }
+
+    private List<LuceneSearchHit> vectorRerankHits(
+        String normalizedKeyword,
+        List<LuceneSearchHit> lexicalHits,
+        Map<String, List<Float>> sourceVectors,
+        int maxHits
+    ) {
+        if (!vectorRerankAvailable || !embeddingClient.enabled() || lexicalHits.isEmpty() || sourceVectors.isEmpty()) {
+            return List.of();
+        }
+        List<Float> queryVector = embeddingClient.embed(normalizedKeyword);
+        if (queryVector.isEmpty()) {
+            return List.of();
+        }
+        List<LuceneSearchHit> hits = new ArrayList<>();
+        for (LuceneSearchHit hit : lexicalHits) {
+            List<Float> vector = sourceVectors.get(hitKey(hit));
+            float score = cosine(queryVector, vector);
+            if (score > 0.0F) {
+                hits.add(withScore(hit, score));
+            }
+        }
+        return hits.stream()
+            .sorted(Comparator.comparing(LuceneSearchHit::score).reversed())
+            .limit(Math.max(1, maxHits))
+            .toList();
+    }
+
+    private List<LuceneSearchHit> parseHits(JsonNode root, Map<String, List<Float>> sourceVectors) {
+        List<LuceneSearchHit> hits = new ArrayList<>();
+        JsonNode hitNodes = root.path("hits").path("hits");
+        if (!hitNodes.isArray()) {
+            return List.of();
+        }
+        for (JsonNode hitNode : hitNodes) {
+            JsonNode source = hitNode.path("_source");
+            String docId = text(source, FILE_ID);
+            if (docId == null || docId.isBlank()) {
+                continue;
+            }
+            LuceneSearchHit hit = new LuceneSearchHit(
+                docId,
+                text(source, FILE_NAME),
+                text(source, SECTION),
+                text(source, CHUNK_TYPE),
+                text(source, CHUNK_ID),
+                intValue(source.path(CHUNK_INDEX), 0),
+                firstText(text(source, CONTENT), text(source, CHUNK_TEXT)),
+                floatValue(source.path(POSITION_RATIO), 1.0F),
+                floatValue(hitNode.path("_score"), 0.0F),
+                text(source, TENANT_ID),
+                text(source, USER_ID),
+                text(source, VISIBILITY),
+                stringList(source.path(PERMISSION_ROLE))
+            );
+            hits.add(hit);
+            if (sourceVectors != null) {
+                List<Float> vector = floatList(source.path(vectorField()));
+                if (!vector.isEmpty()) {
+                    sourceVectors.put(hitKey(hit), vector);
+                }
+            }
+        }
+        return hits;
+    }
+
+    private List<LuceneSearchHit> hybridMerge(
+        List<LuceneSearchHit> lexicalHits,
+        List<LuceneSearchHit> vectorHits,
+        String keyword,
+        int maxHits
+    ) {
+        SearchProperties.OpenSearch.Embedding config = embeddingConfig();
+        float maxLexical = maxScore(lexicalHits);
+        float maxVector = maxScore(vectorHits);
+        Map<String, HybridHit> merged = new LinkedHashMap<>();
+        for (LuceneSearchHit hit : lexicalHits) {
+            HybridHit score = merged.computeIfAbsent(hitKey(hit), key -> new HybridHit(hit));
+            score.lexical = normalizedScore(hit.score(), maxLexical);
+        }
+        for (LuceneSearchHit hit : vectorHits) {
+            HybridHit score = merged.computeIfAbsent(hitKey(hit), key -> new HybridHit(hit));
+            score.vector = normalizedScore(hit.score(), maxVector);
+        }
+        String lowerKeyword = keyword == null ? "" : keyword.toLowerCase(Locale.ROOT);
+        return merged.values().stream()
+            .map(hit -> hit.withScore(hybridScore(hit, lowerKeyword, config)))
+            .sorted(Comparator.comparing(LuceneSearchHit::score).reversed())
+            .limit(Math.max(1, maxHits))
+            .toList();
+    }
+
+    @Override
+    public boolean isAvailable() {
+        return selected() && available;
+    }
+
+    private boolean selected() {
+        SearchProperties.OpenSearch config = config();
+        return properties.isOpenSearchEngine() && config.isEnabled();
+    }
+
+    private void ensureIndex() {
+        if (request("HEAD", "/" + indexName(), null, true) != null) {
+            ensureVectorMappingIfNecessary();
+            return;
+        }
+        boolean vectorConfigured = embeddingClient.configured();
+        if (vectorConfigured) {
+            try {
+                request("PUT", "/" + indexName(), indexCreateBody(true), false);
+                vectorAvailable = true;
+                vectorRerankAvailable = true;
+                return;
+            } catch (Exception ex) {
+                vectorAvailable = false;
+                vectorRerankAvailable = false;
+                log.warn("OpenSearch KNN index creation failed index={} field={} error={}. "
+                        + "Creating lexical index and falling back when vector search is unavailable.",
+                    indexName(), vectorField(), ex.getMessage());
+            }
+        }
+        request("PUT", "/" + indexName(), indexCreateBody(false), false);
+        ensureVectorMappingIfNecessary();
+    }
+
+    private Map<String, Object> indexCreateBody(boolean includeVector) {
+        Map<String, Object> settings = new LinkedHashMap<>();
+        if (includeVector) {
+            settings.put("index", Map.of("knn", true));
+        }
+        settings.put("analysis", analysisSettings());
+        Map<String, Object> fields = new LinkedHashMap<>();
+        fields.put(FILE_ID, Map.of("type", "keyword"));
+        fields.put(CHUNK_ID, Map.of("type", "keyword"));
+        fields.put(CHUNK_INDEX, Map.of("type", "integer"));
+        fields.put(FILE_NAME, chineseTextMapping(true));
+        fields.put(TITLE_TEXT, chineseTextMapping(true));
+        fields.put(SECTION, chineseTextMapping(true));
+        fields.put(KEYWORDS_TEXT, chineseTextMapping(true));
+        fields.put(CONTENT, chineseTextMapping(false));
+        fields.put(CHUNK_TEXT, chineseTextMapping(false));
+        fields.put(SOURCE, chineseTextMapping(true));
+        fields.put(TAGS, Map.of("type", "keyword"));
+        fields.put(COMPANIES, Map.of("type", "keyword"));
+        fields.put(INDUSTRIES, Map.of("type", "keyword"));
+        fields.put(TITLE_TOKENS, tokenFieldMapping());
+        fields.put(CONTENT_TOKENS, tokenFieldMapping());
+        fields.put(SOURCE_TOKENS, tokenFieldMapping());
+        fields.put(KEYWORD_TOKENS, tokenFieldMapping());
+        fields.put(TAG_TOKENS, tokenFieldMapping());
+        fields.put(COMPANY_TOKENS, tokenFieldMapping());
+        fields.put(INDUSTRY_TOKENS, tokenFieldMapping());
+        fields.put(TENANT_ID, Map.of("type", "keyword"));
+        fields.put(USER_ID, Map.of("type", "keyword"));
+        fields.put(VISIBILITY, Map.of("type", "keyword"));
+        fields.put(PERMISSION_ROLE, Map.of("type", "keyword"));
+        fields.put(CHUNK_TYPE, Map.of("type", "keyword"));
+        fields.put(POSITION_RATIO, Map.of("type", "float"));
+        if (includeVector) {
+            fields.put(vectorField(), vectorFieldMapping());
+        }
+        Map<String, Object> body = Map.of(
+            "settings", settings,
+            "mappings", Map.of("properties", fields)
+        );
+        return body;
+    }
+
+    private Map<String, Object> searchQuery(String keyword, List<String> terms, SearchPermissionContext permissionContext) {
+        Map<String, Object> bool = new LinkedHashMap<>();
+        bool.put("must", List.of(Map.of(
+            "multi_match", Map.of(
+                "query", String.join(" ", terms),
+                "fields", List.of(
+                    TITLE_TOKENS + "^5.0",
+                    TITLE_TEXT + "^5.0",
+                    TITLE_TEXT + ".pinyin^3.2",
+                    FILE_NAME + "^4.0",
+                    FILE_NAME + ".pinyin^3.0",
+                    SECTION + "^4.0",
+                    SECTION + ".pinyin^2.8",
+                    KEYWORD_TOKENS + "^4.2",
+                    KEYWORDS_TEXT + "^4.0",
+                    KEYWORDS_TEXT + ".pinyin^2.6",
+                    TAG_TOKENS + "^4.5",
+                    TAGS + "^4.5",
+                    COMPANY_TOKENS + "^3.5",
+                    COMPANIES + "^3.5",
+                    INDUSTRY_TOKENS + "^3.5",
+                    INDUSTRIES + "^3.5",
+                    CONTENT_TOKENS + "^1.2",
+                    CONTENT + "^1.2",
+                    CHUNK_TEXT + "^1.2",
+                    SOURCE_TOKENS + "^0.7",
+                    SOURCE + "^0.7"
+                ),
+                "operator", "or"
+            )
+        )));
+        bool.put("filter", searchFilters(permissionContext));
+        return Map.of("bool", bool);
+    }
+
+    private List<Object> searchFilters(SearchPermissionContext permissionContext) {
+        List<Object> filters = new ArrayList<>();
+        if (properties.isTenantIsolationEnabled()) {
+            filters.add(Map.of("term", Map.of(TENANT_ID, normalizeTenant(permissionContext == null ? null : permissionContext.tenantId()))));
+        }
+        filters.add(permissionFilter(permissionContext));
+        return filters;
+    }
+
+    private Map<String, Object> permissionFilter(SearchPermissionContext permissionContext) {
+        SearchPermissionContext context = permissionContext == null ? SearchPermissionContext.system() : permissionContext;
+        String userId = normalizeUser(context.userId());
+        List<Object> should = new ArrayList<>();
+        should.add(Map.of("term", Map.of(VISIBILITY, "tenant")));
+        should.add(Map.of("term", Map.of(VISIBILITY, "public")));
+        should.add(Map.of("bool", Map.of("must", List.of(
+            Map.of("term", Map.of(VISIBILITY, "private")),
+            Map.of("term", Map.of(USER_ID, userId))
+        ))));
+        for (String role : normalizeRoles(context.roles())) {
+            should.add(Map.of("bool", Map.of("must", List.of(
+                Map.of("term", Map.of(VISIBILITY, "role")),
+                Map.of("term", Map.of(PERMISSION_ROLE, role))
+            ))));
+        }
+        should.add(Map.of("bool", Map.of("must", List.of(
+            Map.of("term", Map.of(VISIBILITY, "role")),
+            Map.of("term", Map.of(USER_ID, userId))
+        ))));
+        return Map.of("bool", Map.of("should", should, "minimum_should_match", 1));
+    }
+
+    private List<Map<String, Object>> chunkDocuments(SearchDocument document) {
+        List<TextChunker.TextChunk> chunks = chunker.splitChunks(
+            document.getContent(),
+            properties.getChunkSize(),
+            properties.getChunkOverlap()
+        );
+        if (chunks.isEmpty()) {
+            chunks = List.of(new TextChunker.TextChunk("", ""));
+        }
+        List<Map<String, Object>> docs = new ArrayList<>();
+        for (int i = 0; i < chunks.size(); i++) {
+            TextChunker.TextChunk chunk = chunks.get(i);
+            String chunkText = nullToEmpty(chunk.content());
+            Map<String, Object> source = new LinkedHashMap<>();
+            source.put(FILE_ID, document.getDocId());
+            source.put(FILE_NAME, nullToEmpty(document.getFileName()));
+            source.put(CHUNK_ID, document.getDocId() + "_" + i);
+            source.put(CHUNK_INDEX, i);
+            source.put(CHUNK_TEXT, chunkText);
+            source.put(CONTENT, chunkText);
+            source.put(TITLE_TEXT, nullToEmpty(document.getTitle()));
+            source.put(SECTION, nullToEmpty(chunk.section()));
+            source.put(KEYWORDS_TEXT, String.join(" ", keywordExtractor.mergeKeywords(document.getKeywords(), chunkText)));
+            source.put(CHUNK_TYPE, chunkTypeClassifier.classify(document, chunk));
+            source.put(POSITION_RATIO, positionRatio(i, chunks.size()));
+            source.put(SOURCE, nullToEmpty(document.getSource()));
+            source.put(TAGS, cleanList(document.getTags()));
+            source.put(COMPANIES, cleanList(document.getCompanies()));
+            source.put(INDUSTRIES, cleanList(document.getIndustries()));
+            source.put(TITLE_TOKENS, String.join(" ", TitleAwareTerms.extract(tokenizer, document.getTitle(), document.getFileName())));
+            source.put(CONTENT_TOKENS, tokenText(chunkText));
+            source.put(SOURCE_TOKENS, tokenText(document.getSource()));
+            source.put(KEYWORD_TOKENS, tokenText(document.getKeywords()));
+            source.put(TAG_TOKENS, tokenText(document.getTags()));
+            source.put(COMPANY_TOKENS, tokenText(document.getCompanies()));
+            source.put(INDUSTRY_TOKENS, tokenText(document.getIndustries()));
+            source.put(TENANT_ID, normalizeTenant(document.getTenantId()));
+            source.put(USER_ID, normalizeUser(document.getUserId()));
+            source.put(VISIBILITY, normalizeVisibility(document.getVisibility()));
+            source.put(PERMISSION_ROLE, normalizeRoles(document.getPermissionRoles()));
+            List<Float> vector = vectorIndexingAvailable()
+                ? embeddingClient.embed(embeddingInput(document, chunkText, chunk.section()))
+                : List.of();
+            if (!vector.isEmpty()) {
+                source.put(vectorField(), vector);
+            }
+            docs.add(source);
+        }
+        return docs;
+    }
+
+    private void bulkIndex(List<Map<String, Object>> docs) {
+        if (docs == null || docs.isEmpty()) {
+            return;
+        }
+        StringBuilder body = new StringBuilder();
+        for (Map<String, Object> doc : docs) {
+            String chunkId = String.valueOf(doc.get(CHUNK_ID));
+            body.append(json(Map.of("index", Map.of("_index", indexName(), "_id", chunkId)))).append('\n');
+            body.append(json(doc)).append('\n');
+        }
+        requestRaw("POST", "/_bulk?refresh=true", body.toString(), false, "application/x-ndjson");
+    }
+
+    private Map<String, Object> tokenFieldMapping() {
+        return Map.of("type", "text", "analyzer", WHITESPACE_ANALYZER, "search_analyzer", WHITESPACE_ANALYZER);
+    }
+
+    private Map<String, Object> analysisSettings() {
+        return Map.of(
+            "filter", Map.of(
+                "chatchat_pinyin_filter", Map.of(
+                    "type", "pinyin",
+                    "keep_full_pinyin", true,
+                    "keep_joined_full_pinyin", true,
+                    "keep_original", true,
+                    "limit_first_letter_length", 16,
+                    "lowercase", true,
+                    "remove_duplicated_term", true
+                )
+            ),
+            "analyzer", Map.of(
+                WHITESPACE_ANALYZER, Map.of(
+                    "type", "custom",
+                    "tokenizer", "whitespace",
+                    "filter", List.of("lowercase")
+                ),
+                IK_INDEX_ANALYZER, Map.of(
+                    "type", "custom",
+                    "tokenizer", "ik_max_word",
+                    "filter", List.of("lowercase", "icu_normalizer")
+                ),
+                IK_SEARCH_ANALYZER, Map.of(
+                    "type", "custom",
+                    "tokenizer", "ik_smart",
+                    "filter", List.of("lowercase", "icu_normalizer")
+                ),
+                PINYIN_ANALYZER, Map.of(
+                    "type", "custom",
+                    "tokenizer", "keyword",
+                    "filter", List.of("chatchat_pinyin_filter")
+                )
+            )
+        );
+    }
+
+    private Map<String, Object> chineseTextMapping(boolean pinyinSubField) {
+        Map<String, Object> mapping = new LinkedHashMap<>();
+        mapping.put("type", "text");
+        mapping.put("analyzer", IK_INDEX_ANALYZER);
+        mapping.put("search_analyzer", IK_SEARCH_ANALYZER);
+        if (pinyinSubField) {
+            mapping.put("fields", Map.of(
+                "keyword", Map.of("type", "keyword"),
+                "pinyin", Map.of("type", "text", "analyzer", PINYIN_ANALYZER, "search_analyzer", PINYIN_ANALYZER)
+            ));
+        }
+        return mapping;
+    }
+
+    private Map<String, Object> vectorFieldMapping() {
+        return Map.of(
+            "type", "knn_vector",
+            "dimension", Math.max(1, embeddingConfig().getDimension())
+        );
+    }
+
+    private void ensureVectorMappingIfNecessary() {
+        vectorAvailable = false;
+        vectorRerankAvailable = false;
+        if (!embeddingClient.configured()) {
+            return;
+        }
+        try {
+            JsonNode mapping = request("GET", "/" + indexName() + "/_mapping", null, false);
+            if (mappingHasVectorField(mapping)) {
+                boolean knnEnabled = indexKnnEnabled();
+                vectorAvailable = knnEnabled;
+                vectorRerankAvailable = true;
+                if (!knnEnabled) {
+                    logKnnDisabledOnce("OpenSearch KNN vector field exists but index.knn is disabled index={} field={}. "
+                            + "ANN search is unavailable; using vector rerank over lexical candidates.");
+                }
+                return;
+            }
+            if (mappingHasFloatVectorField(mapping)) {
+                vectorRerankAvailable = true;
+                return;
+            }
+            boolean knnEnabled = ensureKnnIndexSettingIfNecessary();
+            if (knnEnabled && tryAddKnnVectorMapping()) {
+                vectorAvailable = true;
+                vectorRerankAvailable = true;
+                log.info("OpenSearch KNN vector field mapping added index={} field={} dimension={}",
+                    indexName(), vectorField(), embeddingConfig().getDimension());
+                return;
+            }
+            if (tryAddFloatVectorMapping()) {
+                vectorRerankAvailable = true;
+                log.info("OpenSearch float vector field mapping added index={} field={}. "
+                        + "KNN is unavailable, using vector rerank over lexical candidates.",
+                    indexName(), vectorField());
+            }
+        } catch (Exception ex) {
+            vectorAvailable = false;
+            vectorRerankAvailable = false;
+            log.warn("OpenSearch vector mapping is not ready index={} field={} error={}. "
+                    + "Use a new index name or rebuild the index if vector search is enabled.",
+                indexName(), vectorField(), ex.getMessage());
+        }
+    }
+
+    private boolean tryAddKnnVectorMapping() {
+        try {
+            request("PUT", "/" + indexName() + "/_mapping",
+                Map.of("properties", Map.of(vectorField(), vectorFieldMapping())), false);
+            return true;
+        } catch (Exception ex) {
+            log.warn("OpenSearch KNN vector mapping unsupported index={} field={} error={}",
+                indexName(), vectorField(), ex.getMessage());
+            return false;
+        }
+    }
+
+    private boolean tryAddFloatVectorMapping() {
+        try {
+            request("PUT", "/" + indexName() + "/_mapping",
+                Map.of("properties", Map.of(vectorField(), Map.of("type", "float"))), false);
+            return true;
+        } catch (Exception ex) {
+            log.warn("OpenSearch float vector mapping failed index={} field={} error={}",
+                indexName(), vectorField(), ex.getMessage());
+            return false;
+        }
+    }
+
+    private boolean ensureKnnIndexSettingIfNecessary() {
+        if (indexKnnEnabled()) {
+            return true;
+        }
+        logKnnDisabledOnce("OpenSearch index.knn is disabled on existing index={} field={}. "
+            + "OpenSearch cannot update this final setting in-place; using lexical search with optional vector rerank.");
+        return false;
+    }
+
+    private boolean indexKnnEnabled() {
+        try {
+            JsonNode settings = request("GET", "/" + indexName() + "/_settings", null, false);
+            JsonNode indexNode = settings.path(indexName());
+            if (indexNode.isMissingNode() && settings.fields().hasNext()) {
+                indexNode = settings.fields().next().getValue();
+            }
+            return "true".equalsIgnoreCase(indexNode.path("settings").path("index").path("knn").asText());
+        } catch (Exception ex) {
+            if (!knnSettingCheckWarningLogged) {
+                knnSettingCheckWarningLogged = true;
+                log.warn("OpenSearch KNN index setting check failed index={} error={}. "
+                        + "Skipping ANN search for this startup; lexical/vector-rerank can still be used if mapping is available.",
+                    indexName(), ex.getMessage());
+            }
+            return false;
+        }
+    }
+
+    private void logKnnDisabledOnce(String message) {
+        if (knnDisabledLogged) {
+            return;
+        }
+        knnDisabledLogged = true;
+        log.info(message, indexName(), vectorField());
+    }
+
+    private JsonNode request(String method, String path, Object body, boolean allowNotFound) {
+        String raw = body == null ? "" : json(body);
+        return requestRaw(method, path, raw, allowNotFound, "application/json");
+    }
+
+    private JsonNode requestRaw(String method, String path, String body, boolean allowNotFound, String contentType) {
+        try {
+            HttpRequest.Builder builder = HttpRequest.newBuilder()
+                .uri(URI.create(baseUrl() + path))
+                .timeout(Duration.ofMillis(Math.max(1, config().getRequestTimeoutMs())))
+                .header("Accept", "application/json")
+                .header("Authorization", authorizationHeader());
+            if (!body.isBlank() || !"GET".equalsIgnoreCase(method) && !"HEAD".equalsIgnoreCase(method)) {
+                builder.header("Content-Type", contentType);
+            }
+            HttpRequest request = switch (method.toUpperCase(Locale.ROOT)) {
+                case "GET" -> builder.GET().build();
+                case "HEAD" -> builder.method("HEAD", HttpRequest.BodyPublishers.noBody()).build();
+                case "PUT" -> builder.PUT(HttpRequest.BodyPublishers.ofString(body)).build();
+                case "POST" -> builder.POST(HttpRequest.BodyPublishers.ofString(body)).build();
+                case "DELETE" -> builder.DELETE().build();
+                default -> builder.method(method, body.isBlank()
+                    ? HttpRequest.BodyPublishers.noBody()
+                    : HttpRequest.BodyPublishers.ofString(body)).build();
+            };
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            if (allowNotFound && response.statusCode() == 404) {
+                return null;
+            }
+            if (response.statusCode() < 200 || response.statusCode() >= 300) {
+                throw new IllegalStateException("OpenSearch request failed status=" + response.statusCode()
+                    + " path=" + path + " body=" + response.body());
+            }
+            if (response.body() == null || response.body().isBlank() || "HEAD".equalsIgnoreCase(method)) {
+                return objectMapper.createObjectNode();
+            }
+            return objectMapper.readTree(response.body());
+        } catch (IOException ex) {
+            throw new IllegalStateException("OpenSearch request failed path=" + path + ": " + ex.getMessage(), ex);
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("OpenSearch request interrupted path=" + path, ex);
+        }
+    }
+
+    private HttpClient buildHttpClient(SearchProperties.OpenSearch config) {
+        HttpClient.Builder builder = HttpClient.newBuilder()
+            .connectTimeout(Duration.ofMillis(Math.max(1, config.getConnectTimeoutMs())));
+        if (config.isInsecureSsl()) {
+            System.setProperty(DISABLE_HOSTNAME_VERIFICATION_PROPERTY, "true");
+            builder.sslContext(insecureSslContext());
+            SSLParameters sslParameters = new SSLParameters();
+            sslParameters.setEndpointIdentificationAlgorithm("");
+            builder.sslParameters(sslParameters);
+        }
+        return builder.build();
+    }
+
+    private SSLContext insecureSslContext() {
+        try {
+            TrustManager[] trustManagers = new TrustManager[] {
+                new X509TrustManager() {
+                    @Override
+                    public void checkClientTrusted(X509Certificate[] chain, String authType) {
+                    }
+
+                    @Override
+                    public void checkServerTrusted(X509Certificate[] chain, String authType) {
+                    }
+
+                    @Override
+                    public X509Certificate[] getAcceptedIssuers() {
+                        return new X509Certificate[0];
+                    }
+                }
+            };
+            SSLContext context = SSLContext.getInstance("TLS");
+            context.init(null, trustManagers, new SecureRandom());
+            return context;
+        } catch (GeneralSecurityException ex) {
+            throw new IllegalStateException("Failed to create insecure OpenSearch SSL context", ex);
+        }
+    }
+
+    private String json(Object value) {
+        try {
+            return objectMapper.writeValueAsString(value);
+        } catch (JsonProcessingException ex) {
+            throw new IllegalStateException("Failed to serialize OpenSearch payload", ex);
+        }
+    }
+
+    private String authorizationHeader() {
+        String token = config().getUsername() + ":" + config().getPassword();
+        return "Basic " + Base64.getEncoder().encodeToString(token.getBytes(StandardCharsets.UTF_8));
+    }
+
+    private SearchProperties.OpenSearch config() {
+        return properties.getOpenSearch() == null ? new SearchProperties.OpenSearch() : properties.getOpenSearch();
+    }
+
+    private String baseUrl() {
+        return trimTrailingSlash(config().getUrl());
+    }
+
+    private String indexName() {
+        String value = config().getIndexName();
+        return value == null || value.isBlank() ? "chatchat_documents" : value.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private String trimTrailingSlash(String value) {
+        String text = value == null || value.isBlank() ? "http://localhost:9200" : value.trim();
+        while (text.endsWith("/")) {
+            text = text.substring(0, text.length() - 1);
+        }
+        return text;
+    }
+
+    private float positionRatio(int index, int count) {
+        if (count <= 1) {
+            return 0.0F;
+        }
+        return (float) index / (float) (count - 1);
+    }
+
+    private String text(JsonNode node, String field) {
+        JsonNode value = node == null ? null : node.path(field);
+        return value == null || value.isMissingNode() || value.isNull() ? null : value.asText();
+    }
+
+    private String firstText(String first, String second) {
+        return first == null || first.isBlank() ? second : first;
+    }
+
+    private int intValue(JsonNode value, int fallback) {
+        return value == null || !value.isNumber() ? fallback : value.asInt();
+    }
+
+    private float floatValue(JsonNode value, float fallback) {
+        return value == null || !value.isNumber() ? fallback : (float) value.asDouble();
+    }
+
+    private List<String> stringList(JsonNode node) {
+        if (node == null || node.isMissingNode() || node.isNull()) {
+            return List.of();
+        }
+        if (!node.isArray()) {
+            return List.of(node.asText());
+        }
+        List<String> values = new ArrayList<>();
+        node.forEach(item -> {
+            if (!item.isNull() && !item.asText().isBlank()) {
+                values.add(item.asText());
+            }
+        });
+        return values;
+    }
+
+    private List<Float> floatList(JsonNode node) {
+        if (node == null || !node.isArray()) {
+            return List.of();
+        }
+        List<Float> values = new ArrayList<>();
+        for (JsonNode item : node) {
+            if (item.isNumber()) {
+                values.add((float) item.asDouble());
+            }
+        }
+        return values;
+    }
+
+    private List<String> cleanList(List<String> values) {
+        if (values == null) {
+            return List.of();
+        }
+        return values.stream()
+            .filter(value -> value != null && !value.isBlank())
+            .map(String::trim)
+            .distinct()
+            .toList();
+    }
+
+    private String tokenText(String value) {
+        return String.join(" ", tokenizer.tokenizeOccurrences(value));
+    }
+
+    private String tokenText(List<String> values) {
+        if (values == null || values.isEmpty()) {
+            return "";
+        }
+        List<String> tokens = new ArrayList<>();
+        for (String value : values) {
+            tokens.addAll(tokenizer.tokenizeOccurrences(value));
+        }
+        return String.join(" ", tokens);
+    }
+
+    private List<String> cjkTitleAwareQueryTerms(String keyword) {
+        if (!TitleAwareTerms.containsCjk(keyword)) {
+            return List.of();
+        }
+        return TitleAwareTerms.extract(tokenizer, keyword);
+    }
+
+    private List<String> mergeTerms(List<String> baseTerms, List<String> additionalTerms) {
+        Set<String> terms = new LinkedHashSet<>(baseTerms == null ? List.of() : baseTerms);
+        if (additionalTerms != null) {
+            additionalTerms.stream()
+                .filter(term -> term != null && !term.isBlank())
+                .forEach(terms::add);
+        }
+        return new ArrayList<>(terms);
+    }
+
+    private List<String> limitTerms(List<String> terms, int maxTerms) {
+        if (terms == null || terms.isEmpty()) {
+            return List.of();
+        }
+        int limit = maxTerms <= 0 ? terms.size() : maxTerms;
+        return terms.stream()
+            .filter(term -> term != null && !term.isBlank())
+            .map(String::trim)
+            .distinct()
+            .limit(limit)
+            .toList();
+    }
+
+    private List<String> normalizeRoles(List<String> roles) {
+        return cleanList(roles).stream()
+            .map(role -> role.toLowerCase(Locale.ROOT))
+            .toList();
+    }
+
+    private boolean mappingHasVectorField(JsonNode mapping) {
+        JsonNode propertiesNode = mapping.path(indexName()).path("mappings").path("properties");
+        if (propertiesNode.isMissingNode() && mapping.fields().hasNext()) {
+            propertiesNode = mapping.fields().next().getValue().path("mappings").path("properties");
+        }
+        JsonNode field = propertiesNode.path(vectorField());
+        return !field.isMissingNode()
+            && "knn_vector".equalsIgnoreCase(field.path("type").asText())
+            && field.path("dimension").asInt(embeddingConfig().getDimension()) == embeddingConfig().getDimension();
+    }
+
+    private boolean mappingHasFloatVectorField(JsonNode mapping) {
+        JsonNode propertiesNode = mapping.path(indexName()).path("mappings").path("properties");
+        if (propertiesNode.isMissingNode() && mapping.fields().hasNext()) {
+            propertiesNode = mapping.fields().next().getValue().path("mappings").path("properties");
+        }
+        JsonNode field = propertiesNode.path(vectorField());
+        return !field.isMissingNode() && "float".equalsIgnoreCase(field.path("type").asText());
+    }
+
+    private String vectorField() {
+        String configured = embeddingConfig().getVectorField();
+        return configured == null || configured.isBlank() ? DEFAULT_CONTENT_VECTOR : configured.trim();
+    }
+
+    private SearchProperties.OpenSearch.Embedding embeddingConfig() {
+        SearchProperties.OpenSearch openSearch = config();
+        return openSearch.getEmbedding() == null ? new SearchProperties.OpenSearch.Embedding() : openSearch.getEmbedding();
+    }
+
+    private boolean vectorSearchAvailable() {
+        return vectorAvailable && embeddingClient.enabled();
+    }
+
+    private boolean vectorIndexingAvailable() {
+        return (vectorAvailable || vectorRerankAvailable) && embeddingClient.enabled();
+    }
+
+    private String embeddingInput(SearchDocument document, String chunkText, String section) {
+        List<String> parts = new ArrayList<>();
+        addPart(parts, document.getTitle());
+        addPart(parts, document.getFileName());
+        addPart(parts, section);
+        addPart(parts, chunkText);
+        return String.join("\n", parts);
+    }
+
+    private void addPart(List<String> parts, String value) {
+        if (value != null && !value.isBlank()) {
+            parts.add(value.trim());
+        }
+    }
+
+    private float maxScore(List<LuceneSearchHit> hits) {
+        float max = 0.0F;
+        for (LuceneSearchHit hit : hits == null ? List.<LuceneSearchHit>of() : hits) {
+            max = Math.max(max, hit.score());
+        }
+        return max;
+    }
+
+    private float normalizedScore(float score, float maxScore) {
+        if (maxScore <= 0.0F || score <= 0.0F) {
+            return 0.0F;
+        }
+        return Math.min(1.0F, score / maxScore);
+    }
+
+    private float cosine(List<Float> left, List<Float> right) {
+        if (left == null || right == null || left.isEmpty() || right.isEmpty() || left.size() != right.size()) {
+            return 0.0F;
+        }
+        double dot = 0.0D;
+        double leftNorm = 0.0D;
+        double rightNorm = 0.0D;
+        for (int i = 0; i < left.size(); i++) {
+            double l = left.get(i);
+            double r = right.get(i);
+            dot += l * r;
+            leftNorm += l * l;
+            rightNorm += r * r;
+        }
+        if (leftNorm <= 0.0D || rightNorm <= 0.0D) {
+            return 0.0F;
+        }
+        return (float) Math.max(0.0D, dot / (Math.sqrt(leftNorm) * Math.sqrt(rightNorm)));
+    }
+
+    private LuceneSearchHit withScore(LuceneSearchHit hit, float score) {
+        return new LuceneSearchHit(
+            hit.docId(),
+            hit.fileName(),
+            hit.section(),
+            hit.chunkType(),
+            hit.chunkId(),
+            hit.chunkIndex(),
+            hit.chunkText(),
+            hit.positionRatio(),
+            score,
+            hit.tenantId(),
+            hit.userId(),
+            hit.visibility(),
+            hit.permissionRoles()
+        );
+    }
+
+    private float hybridScore(HybridHit hit, String lowerKeyword, SearchProperties.OpenSearch.Embedding config) {
+        return hit.lexical * config.getBm25Weight()
+            + hit.vector * config.getVectorWeight()
+            + titleSignal(hit.hit, lowerKeyword) * config.getTitleWeight()
+            + freshnessSignal(hit.hit) * config.getFreshnessWeight()
+            + authoritySignal(hit.hit) * config.getAuthorityWeight();
+    }
+
+    private float titleSignal(LuceneSearchHit hit, String lowerKeyword) {
+        if (lowerKeyword == null || lowerKeyword.isBlank()) {
+            return 0.0F;
+        }
+        String titleLike = (nullToEmpty(hit.fileName()) + " " + nullToEmpty(hit.section())).toLowerCase(Locale.ROOT);
+        return titleLike.contains(lowerKeyword) ? 1.0F : 0.0F;
+    }
+
+    private float freshnessSignal(LuceneSearchHit hit) {
+        return Math.max(0.0F, 1.0F - hit.positionRatio());
+    }
+
+    private float authoritySignal(LuceneSearchHit hit) {
+        return switch (normalizeVisibility(hit.visibility())) {
+            case "public", "tenant" -> 1.0F;
+            case "role" -> 0.8F;
+            default -> 0.6F;
+        };
+    }
+
+    private String hitKey(LuceneSearchHit hit) {
+        if (hit.chunkId() != null && !hit.chunkId().isBlank()) {
+            return hit.chunkId();
+        }
+        return hit.docId() + "_" + hit.chunkIndex();
+    }
+
+    private String normalizeTenant(String tenantId) {
+        return tenantId == null || tenantId.isBlank() ? "default" : tenantId.trim();
+    }
+
+    private String normalizeUser(String userId) {
+        return userId == null || userId.isBlank() ? "anonymous" : userId.trim();
+    }
+
+    private String normalizeVisibility(String visibility) {
+        String normalized = visibility == null ? "" : visibility.trim().toLowerCase(Locale.ROOT);
+        return switch (normalized) {
+            case "private", "role", "public" -> normalized;
+            default -> "tenant";
+        };
+    }
+
+    private String nullToEmpty(String value) {
+        return value == null ? "" : value;
+    }
+
+    private static class HybridHit {
+        private final LuceneSearchHit hit;
+        private float lexical;
+        private float vector;
+
+        private HybridHit(LuceneSearchHit hit) {
+            this.hit = hit;
+        }
+
+        private LuceneSearchHit withScore(float score) {
+            return new LuceneSearchHit(
+                hit.docId(),
+                hit.fileName(),
+                hit.section(),
+                hit.chunkType(),
+                hit.chunkId(),
+                hit.chunkIndex(),
+                hit.chunkText(),
+                hit.positionRatio(),
+                score,
+                hit.tenantId(),
+                hit.userId(),
+                hit.visibility(),
+                hit.permissionRoles()
+            );
+        }
+    }
+}

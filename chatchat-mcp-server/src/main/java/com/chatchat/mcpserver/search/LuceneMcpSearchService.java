@@ -30,6 +30,7 @@ import org.apache.lucene.search.ScoreDoc;
 import org.apache.lucene.search.TermQuery;
 import org.apache.lucene.search.TopDocs;
 import org.apache.lucene.store.FSDirectory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -103,6 +104,7 @@ public class LuceneMcpSearchService {
     private volatile HttpClient httpClient;
     private final Set<String> vectorCompatibilityWarnings = ConcurrentHashMap.newKeySet();
 
+    @Autowired
     public LuceneMcpSearchService(LuceneSearchProperties properties, McpEmbeddingClient embeddingClient) {
         this.properties = properties;
         this.embeddingClient = embeddingClient;

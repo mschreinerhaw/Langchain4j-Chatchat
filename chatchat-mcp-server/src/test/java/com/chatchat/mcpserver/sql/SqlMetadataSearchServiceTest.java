@@ -208,4 +208,79 @@ class SqlMetadataSearchServiceTest {
             .containsEntry("columnKey", "PRI")
             .containsEntry("comment", "步骤ID");
     }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void tableNameFallsBackToSemanticCandidatesWhenExactTableFilterFindsNothing() {
+        SqlDatasourceConfig datasource = new SqlDatasourceConfig();
+        datasource.setId("ds-tdh");
+        datasource.setName("TDH大数据集群");
+        datasource.setToolName("db_query_tdh_dev");
+        datasource.setEnvironment("DEV");
+        datasource.setDatabaseType("inceptor");
+
+        TableLocation accountQuota = new TableLocation(
+            "ds-tdh",
+            "gdp_ads",
+            "gdp_ads",
+            "ads_ids_secu_ast_liab_d_1",
+            "TABLE",
+            null,
+            "账户交易额度分析证券资产负债日增量表",
+            "ADS应用数据服务层",
+            0.9
+        );
+        TableLocation accountSummary = new TableLocation(
+            "ds-tdh",
+            "gdp_ads",
+            "gdp_ads",
+            "ads_acct_trade_quota_sum_d",
+            "TABLE",
+            null,
+            "账户交易额度分析汇总表",
+            "ADS应用数据服务层",
+            0.8
+        );
+
+        SqlDatasourceConfigService datasourceConfigService = mock(SqlDatasourceConfigService.class);
+        when(datasourceConfigService.listEnabled()).thenReturn(List.of(datasource));
+        MetadataIndexService metadataIndexService = mock(MetadataIndexService.class);
+        when(metadataIndexService.allTables(datasource)).thenReturn(List.of(accountQuota, accountSummary));
+        when(metadataIndexService.columns(datasource, accountQuota)).thenReturn(List.of());
+        when(metadataIndexService.columns(datasource, accountSummary)).thenReturn(List.of());
+        LuceneMcpSearchService luceneSearchService = mock(LuceneMcpSearchService.class);
+        when(luceneSearchService.enabled()).thenReturn(false);
+
+        SqlMetadataSearchService service = new SqlMetadataSearchService(
+            luceneSearchService,
+            datasourceConfigService,
+            metadataIndexService
+        );
+
+        Map<String, Object> semanticResult = service.search(Map.of(
+            "tableName", "账户交易额度分析",
+            "includeColumns", true,
+            "executionContext", Map.of("assetName", "TDH大数据集群", "env", "DEV", "databaseType", "inceptor")
+        ));
+
+        List<Map<String, Object>> semanticResults = (List<Map<String, Object>>) semanticResult.get("results");
+        assertThat(semanticResults).hasSize(2);
+        assertThat((Map<String, Object>) semanticResult.get("diagnostics"))
+            .containsEntry("tableNameFilterApplied", false)
+            .containsEntry("tableNameFilterMode", "no_exact_match_returning_semantic_candidates");
+
+        Map<String, Object> exactResult = service.search(Map.of(
+            "tableName", "ads_ids_secu_ast_liab_d_1",
+            "includeColumns", true,
+            "executionContext", Map.of("assetName", "TDH大数据集群", "env", "DEV", "databaseType", "inceptor")
+        ));
+
+        List<Map<String, Object>> exactResults = (List<Map<String, Object>>) exactResult.get("results");
+        assertThat(exactResults).hasSize(1);
+        assertThat((Map<String, Object>) exactResults.get(0).get("location"))
+            .containsEntry("table", "ads_ids_secu_ast_liab_d_1");
+        assertThat((Map<String, Object>) exactResult.get("diagnostics"))
+            .containsEntry("tableNameFilterApplied", true)
+            .containsEntry("tableNameFilterMode", "exact_table_match");
+    }
 }

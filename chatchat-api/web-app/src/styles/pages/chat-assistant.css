@@ -3476,18 +3476,21 @@
 }
 
 .prompt-card {
+  --composer-textarea-min-height: 58px;
+  --composer-textarea-max-height: 96px;
   flex: 0 0 auto;
   align-self: end;
   width: min(860px, calc(100% - 28px));
   max-width: 860px;
   margin: 0 auto;
   min-height: 120px;
-  max-height: 168px;
+  max-height: none;
   padding: 8px;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: rgba(255, 255, 255, 0.96);
   box-shadow: var(--shadow);
+  overflow: visible;
 }
 
 .chat-input-dock {
@@ -3563,20 +3566,22 @@
 
 .composer-box {
   position: relative;
-  min-height: 104px;
-  max-height: 152px;
+  display: grid;
+  grid-template-rows: minmax(var(--composer-textarea-min-height), auto) auto;
+  min-height: 112px;
   border: 1px solid #dce2ec;
   border-radius: 8px;
   background: #fff;
   box-shadow: inset 0 1px 1px rgba(17, 24, 39, 0.03);
+  overflow: hidden;
 }
 
 .composer-box textarea {
   width: 100%;
-  height: 58px;
-  min-height: 58px;
-  max-height: 104px;
-  padding: 10px 54px 0 14px;
+  height: var(--composer-textarea-min-height);
+  min-height: var(--composer-textarea-min-height);
+  max-height: var(--composer-textarea-max-height);
+  padding: 10px 58px 8px 14px;
   border: 0;
   outline: none;
   resize: none;
@@ -3584,6 +3589,7 @@
   color: #1f2937;
   background: transparent;
   line-height: 1.55;
+  scrollbar-gutter: stable;
 }
 
 .composer-box textarea::placeholder {
@@ -3601,7 +3607,9 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 10px;
-  padding: 0 12px 6px;
+  padding: 0 54px 8px 12px;
+  border-top: 1px solid rgba(220, 226, 236, 0.72);
+  background: #fff;
 }
 
 .composer-toolbar-group {
@@ -3711,7 +3719,7 @@
 .send-button {
   position: absolute;
   right: 10px;
-  top: 10px;
+  bottom: 10px;
   width: 34px;
   height: 34px;
   border-radius: 50%;

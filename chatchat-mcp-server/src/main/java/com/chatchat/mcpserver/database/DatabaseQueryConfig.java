@@ -44,23 +44,23 @@ public class DatabaseQueryConfig {
     private String businessGroupDescription;
 
     @Lob
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "longtext")
     private String sqlTemplate;
 
     @Lob
-    @Column
+    @Column(columnDefinition = "longtext")
     private String inputSchemaJson;
 
     @Lob
-    @Column
+    @Column(columnDefinition = "longtext")
     private String governanceJson;
 
     @Lob
-    @Column
+    @Column(columnDefinition = "longtext")
     private String routingLabelsJson;
 
     @Lob
-    @Column
+    @Column(columnDefinition = "longtext")
     private String capabilitiesJson;
 
     @Column(length = 128)
@@ -70,7 +70,7 @@ public class DatabaseQueryConfig {
     private String databaseType = "generic";
 
     @Lob
-    @Column
+    @Column(columnDefinition = "longtext")
     private String tagsJson;
 
     @Column(length = 32)

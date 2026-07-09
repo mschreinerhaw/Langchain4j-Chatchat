@@ -45,19 +45,19 @@ public class HttpEndpointConfig {
     private String urlTemplate;
 
     @Lob
-    @Column
+    @Column(columnDefinition = "longtext")
     private String headersJson;
 
     @Lob
-    @Column
+    @Column(columnDefinition = "longtext")
     private String bodyTemplate;
 
     @Lob
-    @Column
+    @Column(columnDefinition = "longtext")
     private String inputSchemaJson;
 
     @Lob
-    @Column
+    @Column(columnDefinition = "longtext")
     private String governanceJson;
 
     @Column(nullable = false)
@@ -73,11 +73,11 @@ public class HttpEndpointConfig {
     private String tags;
 
     @Lob
-    @Column
+    @Column(columnDefinition = "longtext")
     private String routingLabelsJson;
 
     @Lob
-    @Column
+    @Column(columnDefinition = "longtext")
     private String capabilitiesJson;
 
     @Transient

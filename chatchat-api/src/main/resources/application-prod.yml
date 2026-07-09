@@ -4,26 +4,26 @@ spring:
     version: 1.0.0-SNAPSHOT
   jpa:
     hibernate:
-      ddl-auto: ${CHAT_JPA_DDL_AUTO:update}
+      ddl-auto: update
     show-sql: false
-    database-platform: ${CHAT_JPA_DIALECT:org.hibernate.dialect.H2Dialect}
+    database-platform: org.hibernate.dialect.H2Dialect
     properties:
       hibernate:
         format_sql: false
   datasource:
     type: com.zaxxer.hikari.HikariDataSource
-    url: ${CHAT_DATASOURCE_URL:jdbc:h2:file:./data/h2/chatchat;MODE=MySQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE;DB_CLOSE_DELAY=-1}
-    driver-class-name: ${CHAT_DATASOURCE_DRIVER:org.h2.Driver}
-    username: ${CHAT_DATASOURCE_USERNAME:sa}
-    password: ${CHAT_DATASOURCE_PASSWORD:}
+    url: jdbc:h2:file:./data/h2/chatchat;MODE=MySQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: 
     hikari:
-      maximum-pool-size: ${CHAT_HIKARI_MAXIMUM_POOL_SIZE:20}
-      minimum-idle: ${CHAT_HIKARI_MINIMUM_IDLE:2}
-      connection-timeout: ${CHAT_HIKARI_CONNECTION_TIMEOUT_MS:30000}
+      maximum-pool-size: 20
+      minimum-idle: 2
+      connection-timeout: 30000
       idle-timeout: 300000
       max-lifetime: 1200000
-      auto-commit: ${CHAT_HIKARI_AUTO_COMMIT:true}
-      transaction-isolation: ${CHAT_HIKARI_TRANSACTION_ISOLATION:TRANSACTION_READ_COMMITTED}
+      auto-commit: true
+      transaction-isolation: TRANSACTION_READ_COMMITTED
   h2:
     console:
       enabled: false
@@ -39,7 +39,7 @@ spring:
   servlet:
     multipart:
       max-file-size: 5MB
-      max-request-size: ${CHAT_MULTIPART_MAX_REQUEST_SIZE:32MB}
+      max-request-size: 32MB
 
 server:
   port: 8080
@@ -51,8 +51,8 @@ server:
       max: 200
       min-spare: 10
     max-connections: 500
-    max-http-form-post-size: ${CHAT_TOMCAT_MAX_HTTP_FORM_POST_SIZE:33554432}
-    max-swallow-size: ${CHAT_TOMCAT_MAX_SWALLOW_SIZE:-1}
+    max-http-form-post-size: 33554432
+    max-swallow-size: -1
   error:
     include-stacktrace: on-param
     include-message: always
@@ -60,22 +60,22 @@ server:
 chatchat:
   mcp:
     center:
-      enabled: ${CHAT_MCP_CENTER_ENABLED:true}
-      base-url: ${CHAT_MCP_CENTER_BASE_URL:http://localhost:8090}
-      admin-username: ${CHAT_MCP_CENTER_ADMIN_USERNAME:}
-      admin-password: ${CHAT_MCP_CENTER_ADMIN_PASSWORD:}
-      admin-login-path: ${CHAT_MCP_CENTER_ADMIN_LOGIN_PATH:/api/v1/admin/auth/login}
-      service-list-path: ${CHAT_MCP_CENTER_SERVICE_LIST_PATH:/api/v1/mcp-services}
-      mcp-endpoint: ${CHAT_MCP_CENTER_MCP_ENDPOINT:/mcp}
-      standalone-service-id: ${CHAT_MCP_CENTER_STANDALONE_SERVICE_ID:chatchat-mcp-server}
-      standalone-service-name: ${CHAT_MCP_CENTER_STANDALONE_SERVICE_NAME:ChatChat MCP Server}
-      invocation-token: ${CHAT_MCP_CENTER_INVOCATION_TOKEN:${CHAT_MCP_INVOCATION_TOKEN:}}
-      timeout-ms: ${CHAT_MCP_CENTER_TIMEOUT_MS:0}
-      import-standalone-server: ${CHAT_MCP_CENTER_IMPORT_STANDALONE:true}
+      enabled: true
+      base-url: http://localhost:8090
+      admin-username: admin
+      admin-password: admin123
+      admin-login-path: /api/v1/admin/auth/login
+      service-list-path: /api/v1/mcp-services
+      mcp-endpoint: /mcp
+      standalone-service-id: chatchat-mcp-server
+      standalone-service-name: ChatChat MCP Server
+      invocation-token: mcp_test_8f3c7b2a9e6d4f10b5a92cdd0e7a6413
+      timeout-ms: 0
+      import-standalone-server: true
     stdio-proxy:
       enabled: true
       max-sessions: 32
-      request-timeout-ms: ${CHAT_MCP_STDIO_PROXY_REQUEST_TIMEOUT_MS:0}
+      request-timeout-ms: 0
       startup-timeout-ms: 15000
       idle-ttl-ms: 300000
       cleanup-interval-ms: 30000
@@ -97,87 +97,141 @@ chatchat:
       - qwen3.6-max-preview
 #    timeout: 300
     openai:
-      apiKey: ${OPENAI_API_KEY:}
+      apiKey: 
       baseUrl: https://dashscope.aliyuncs.com/compatible-mode/v1
 #      baseUrl: https://api.deepseek.com/v1
       timeout: 300
+      # Maximum model completion tokens. -1 means do not set a model-side token limit.
+      maxTokens: -1
       maxRetries: 3
       proxy:
-        enabled: ${OPENAI_PROXY_ENABLED:false}
-        host: ${OPENAI_PROXY_HOST:}
-        port: ${OPENAI_PROXY_PORT:0}
-        type: ${OPENAI_PROXY_TYPE:http}
+        enabled: false
+        host: 
+        port: 0
+        type: http
   agent-runtime:
-    store-type: ${CHAT_AGENT_RUNTIME_STORE_TYPE:rocksdb}
-    rocks-db-path: ${CHAT_AGENT_RUNTIME_ROCKSDB_PATH:./data/agent-runtime-rocksdb}
-    rocks-db-create-if-missing: ${CHAT_AGENT_RUNTIME_ROCKSDB_CREATE_IF_MISSING:true}
-    fail-interrupted-runs-on-startup: ${CHAT_AGENT_RUNTIME_FAIL_INTERRUPTED_RUNS_ON_STARTUP:true}
-    max-stored-runs: ${CHAT_AGENT_RUNTIME_MAX_STORED_RUNS:10000}
-    terminal-run-ttl-ms: ${CHAT_AGENT_RUNTIME_TERMINAL_RUN_TTL_MS:0}
+    store-type: rocksdb
+    rocks-db-path: ./data/agent-runtime-rocksdb
+    rocks-db-create-if-missing: true
+    fail-interrupted-runs-on-startup: true
+    max-stored-runs: 10000
+    terminal-run-ttl-ms: 0
+  api:
+    limits:
+      # Frontend search result chunk count. -1 means unlimited.
+      search-result-max-chunks: 3
+      # Frontend search result chunk character limit. -1 means unlimited.
+      search-result-chunk-max-chars: 1200
+      # Frontend search result summary character limit. -1 means unlimited.
+      search-result-summary-max-chars: 800
   agent:
     task:
-      queue-capacity: ${CHAT_AGENT_TASK_QUEUE_CAPACITY:1000}
-      core-pool-size: ${CHAT_AGENT_TASK_CORE_POOL_SIZE:4}
-      max-pool-size: ${CHAT_AGENT_TASK_MAX_POOL_SIZE:16}
-      keep-alive-seconds: ${CHAT_AGENT_TASK_KEEP_ALIVE_SECONDS:60}
-      list-limit: ${CHAT_AGENT_TASK_LIST_LIMIT:50}
+      queue-capacity: 1000
+      core-pool-size: 4
+      max-pool-size: 16
+      keep-alive-seconds: 60
+      list-limit: 50
       event-store:
-        type: ${CHAT_AGENT_EVENT_STORE_TYPE:rocksdb}
-        path: ${CHAT_AGENT_EVENT_STORE_PATH:./data/agent-event-rocksdb}
+        type: rocksdb
+        path: ./data/agent-event-rocksdb
         create-if-missing: true
   search:
-    store-path: ${CHAT_SEARCH_STORE_PATH:./data/search-rocksdb}
-    file-path: ${CHAT_SEARCH_FILE_PATH:./data/search-files}
+    store-path: ./data/search-rocksdb
+    file-path: ./data/search-files
     create-if-missing: true
-    max-upload-bytes: ${CHAT_SEARCH_MAX_UPLOAD_BYTES:5242880}
+    max-upload-bytes: 5242880
     default-limit: 20
     max-limit: 100
     summary-length: 180
-    fallback-candidate-limit: ${CHAT_SEARCH_FALLBACK_CANDIDATE_LIMIT:500}
-    fallback-empty-result-limit: ${CHAT_SEARCH_FALLBACK_EMPTY_RESULT_LIMIT:200}
-    fallback-exception-limit: ${CHAT_SEARCH_FALLBACK_EXCEPTION_LIMIT:100}
-    tenant-isolation-enabled: ${CHAT_SEARCH_TENANT_ISOLATION_ENABLED:false}
-    lucene-max-query-terms: ${CHAT_SEARCH_LUCENE_MAX_QUERY_TERMS:80}
-    lucene-max-negative-query-terms: ${CHAT_SEARCH_LUCENE_MAX_NEGATIVE_QUERY_TERMS:24}
-    lucene-mmr-candidate-limit: ${CHAT_SEARCH_LUCENE_MMR_CANDIDATE_LIMIT:120}
-    realtime-document-count-enabled: ${CHAT_SEARCH_REALTIME_DOCUMENT_COUNT_ENABLED:false}
+    # Startup full index rebuild is slow when documents grow. Upload/update/delete already syncs indexes incrementally.
+    # Set true only when local Lucene/OpenSearch index files were lost or need manual repair.
+    rebuild-on-startup: false
+    # 文档检索引擎：
+    # - lucene：默认值，使用本机磁盘索引，适合本地开发、单机快速部署。
+    # - opensearch：使用远程 OpenSearch 集群，适合多实例共享索引或生产集中检索。
+    # 启动脚本传 --search-engine=opensearch 会覆盖这里的配置。
+    engine: lucene
+    # 仅当 engine=opensearch 时生效。API 文档检索会把上传文档分片写入这个索引。
+    opensearch:
+      # false 表示即使 engine=opensearch 也不连接 OpenSearch，会回退到本地 Lucene。
+      enabled: true
+      # OpenSearch HTTPS 地址，支持带路径前缀但不要以 / 结尾。
+      url: https://192.168.195.221:9200
+      username: admin
+      password: apexSoft12345
+      # API 文档检索使用的索引名。
+      index-name: chatchat_documents
+      # 使用自签名 HTTPS 证书时设为 true；正式公网证书建议保持 false。
+      insecure-ssl: true
+      connect-timeout-ms: 5000
+      request-timeout-ms: 30000
+      # 重建索引时每批写入的文档分片数量。
+      bulk-batch-size: 200
+      embedding:
+        # 向量增强检索开关。开启后写入 contentVector，并在查询时做 BM25 + KNN 融合。
+        # 如果当前 OpenSearch 没有 knn_vector 能力，会自动降级为 BM25 候选集的向量重排。
+        enabled: true
+        # 阿里云百炼/DashScope OpenAI compatible embeddings 地址，替换 {WorkspaceId} 后使用。
+        endpoint: https://llm-7upawl16up8649rh.cn-beijing.maas.aliyuncs.com/compatible-mode/v1/embeddings
+        # 百炼 API Key。生产部署请在外部配置文件中填入；不要提交真实密钥。
+        api-key: "sk-720436c855ac470bb955388d0e8c9b89"
+        model: text-embedding-v4
+        # text-embedding-v4 默认按 1024 维建 knn_vector；如果模型输出维度变化，只需要改这里并重建索引。
+        dimension: 1024
+        vector-field: contentVector
+        max-input-chars: 6000
+        vector-candidate-limit: 50
+        # 融合排序权重：关键词、向量、标题/章节命中、位置新鲜度、公开/租户可见度。
+        bm25-weight: 0.45
+        vector-weight: 0.35
+        title-weight: 0.10
+        freshness-weight: 0.05
+        authority-weight: 0.05
+    fallback-candidate-limit: 500
+    fallback-empty-result-limit: 200
+    fallback-exception-limit: 100
+    tenant-isolation-enabled: false
+    lucene-max-query-terms: 80
+    lucene-max-negative-query-terms: 24
+    lucene-mmr-candidate-limit: 120
+    realtime-document-count-enabled: false
     query-budget:
-      max-doc-scan: ${CHAT_SEARCH_QUERY_BUDGET_MAX_DOC_SCAN:1000}
-      max-rocksdb-iter: ${CHAT_SEARCH_QUERY_BUDGET_MAX_ROCKSDB_ITER:2000}
+      max-doc-scan: 1000
+      max-rocksdb-iter: 2000
     retrieval-control:
-      enabled: ${CHAT_SEARCH_RETRIEVAL_CONTROL_ENABLED:true}
-      query-validation-enabled: ${CHAT_SEARCH_RETRIEVAL_QUERY_VALIDATION_ENABLED:true}
-      quality-scoring-enabled: ${CHAT_SEARCH_RETRIEVAL_QUALITY_SCORING_ENABLED:true}
-      max-search-calls: ${CHAT_SEARCH_RETRIEVAL_MAX_SEARCH_CALLS:1}
-      max-attempts: ${CHAT_SEARCH_RETRIEVAL_MAX_ATTEMPTS:1}
-      latency-ms: ${CHAT_SEARCH_RETRIEVAL_LATENCY_MS:100}
-      min-quality-score: ${CHAT_SEARCH_RETRIEVAL_MIN_QUALITY_SCORE:20.0}
-      min-specific-tokens: ${CHAT_SEARCH_RETRIEVAL_MIN_SPECIFIC_TOKENS:2}
+      enabled: true
+      query-validation-enabled: true
+      quality-scoring-enabled: true
+      max-search-calls: 1
+      max-attempts: 1
+      latency-ms: 100
+      min-quality-score: 20.0
+      min-specific-tokens: 2
     ocr:
-      enabled: ${CHAT_SEARCH_OCR_ENABLED:true}
-      language: ${CHAT_SEARCH_OCR_LANGUAGE:eng+chi_sim}
-      timeout-seconds: ${CHAT_SEARCH_OCR_TIMEOUT_SECONDS:60}
-      preserve-interword-spacing: ${CHAT_SEARCH_OCR_PRESERVE_INTERWORD_SPACING:true}
-      image-preprocessing-enabled: ${CHAT_SEARCH_OCR_IMAGE_PREPROCESSING_ENABLED:true}
-      pdf-strategy: ${CHAT_SEARCH_OCR_PDF_STRATEGY:auto}
-      marker: "${CHAT_SEARCH_OCR_MARKER:# OCR_TEXT}"
-      score-penalty: ${CHAT_SEARCH_OCR_SCORE_PENALTY:0.7}
+      enabled: true
+      language: eng+chi_sim
+      timeout-seconds: 60
+      preserve-interword-spacing: true
+      image-preprocessing-enabled: true
+      pdf-strategy: auto
+      marker: "# OCR_TEXT"
+      score-penalty: 0.7
   tools:
     calculator:
-      risk-level: ${CHAT_CALCULATOR_RISK_LEVEL:low}
-      operation-type: ${CHAT_CALCULATOR_OPERATION_TYPE:read}
-      timeout-ms: ${CHAT_CALCULATOR_TIMEOUT_MS:5000}
+      risk-level: low
+      operation-type: read
+      timeout-ms: 5000
       confirmation:
-        default: ${CHAT_CALCULATOR_CONFIRMATION:auto_execute}
+        default: auto_execute
       parameter-policy:
-        expression: ${CHAT_CALCULATOR_EXPRESSION_POLICY:auto_execute}
+        expression: auto_execute
     web-search:
-      risk-level: ${CHAT_WEB_SEARCH_RISK_LEVEL:low}
-      operation-type: ${CHAT_WEB_SEARCH_OPERATION_TYPE:read}
+      risk-level: low
+      operation-type: read
       confirmation:
-        default: ${CHAT_WEB_SEARCH_CONFIRMATION:auto_execute}
+        default: auto_execute
       parameter-policy:
-        query: ${CHAT_WEB_SEARCH_QUERY_POLICY:auto_execute}
+        query: auto_execute
       finance-sites:
         - id: sse
           name: Shanghai Stock Exchange
@@ -223,66 +277,68 @@ chatchat:
             - Security code and company name lookup
           description: Suitable for cross-market searches of listed company announcements, annual/interim/quarterly reports, ad hoc announcements, regulatory disclosures, security codes, and company names.
     document-search:
-      enabled: ${CHAT_DOCUMENT_SEARCH_ENABLED:true}
+      enabled: true
       # Runtime/API retrieval service address. For the standalone MCP Server, point this to the Runtime/API host.
-      api-base-url: ${CHAT_DOCUMENT_SEARCH_API_BASE_URL:${CHAT_RUNTIME_API_BASE_URL:http://localhost:8080}}
-      search-path: ${CHAT_DOCUMENT_SEARCH_PATH:/api/v1/search/document-search}
-      detail-path-template: ${CHAT_DOCUMENT_SEARCH_DETAIL_PATH_TEMPLATE:/api/v1/search/documents/{docId}}
-      timeout-ms: ${CHAT_DOCUMENT_SEARCH_TIMEOUT_MS:300000}
-      default-limit: ${CHAT_DOCUMENT_SEARCH_DEFAULT_LIMIT:5}
-      max-limit: ${CHAT_DOCUMENT_SEARCH_MAX_LIMIT:20}
+      api-base-url: http://localhost:8080
+      search-path: /api/v1/search/document-search
+      detail-path-template: /api/v1/search/documents/{docId}
+      timeout-ms: 300000
+      default-limit: 5
+      max-limit: 20
       auth:
-        enabled: ${CHAT_DOCUMENT_SEARCH_AUTH_ENABLED:true}
-        login-path: ${CHAT_DOCUMENT_SEARCH_AUTH_LOGIN_PATH:/api/v1/enterprise/auth/login}
-        username: ${CHAT_DOCUMENT_SEARCH_AUTH_USERNAME:}
-        password: ${CHAT_DOCUMENT_SEARCH_AUTH_PASSWORD:}
-        bearer-token: ${CHAT_DOCUMENT_SEARCH_AUTH_BEARER_TOKEN:}
-      risk-level: ${CHAT_DOCUMENT_SEARCH_RISK_LEVEL:medium}
+        enabled: true
+        login-path: /api/v1/enterprise/auth/login
+        username: 
+        password: 
+        bearer-token: 
+      risk-level: medium
       confirmation:
-        default: ${CHAT_DOCUMENT_SEARCH_CONFIRMATION:ask_before_execute}
+        default: ask_before_execute
     database-query:
-      risk-level: ${CHAT_DATABASE_QUERY_RISK_LEVEL:high}
-      operation-type: ${CHAT_DATABASE_QUERY_OPERATION_TYPE:read}
-      user-visible: ${CHAT_DATABASE_QUERY_USER_VISIBLE:false}
-      agent-compatible: ${CHAT_DATABASE_QUERY_AGENT_COMPATIBLE:false}
+      risk-level: high
+      operation-type: read
+      user-visible: false
+      agent-compatible: false
       confirmation:
-        default: ${CHAT_DATABASE_QUERY_CONFIRMATION:ask_before_execute}
+        default: ask_before_execute
       parameter-policy:
-        jdbc-url: ${CHAT_DATABASE_QUERY_JDBC_URL_POLICY:ask_before_execute}
-        password: ${CHAT_DATABASE_QUERY_PASSWORD_POLICY:ask_before_execute}
+        jdbc-url: ask_before_execute
+        password: ask_before_execute
     file-system:
-      risk-level: ${CHAT_FILE_SYSTEM_RISK_LEVEL:high}
-      operation-type: ${CHAT_FILE_SYSTEM_OPERATION_TYPE:read}
-      timeout-ms: ${CHAT_FILE_SYSTEM_TIMEOUT_MS:10000}
+      risk-level: high
+      operation-type: read
+      timeout-ms: 10000
       confirmation:
-        default: ${CHAT_FILE_SYSTEM_CONFIRMATION:ask_before_execute}
+        default: ask_before_execute
       parameter-policy:
-        path: ${CHAT_FILE_SYSTEM_PATH_POLICY:ask_before_execute}
+        path: ask_before_execute
   tool-runtime:
-    enforce-allowed-tools: ${CHAT_TOOL_RUNTIME_ENFORCE_ALLOWED_TOOLS:true}
-    enforce-authentication: ${CHAT_TOOL_RUNTIME_ENFORCE_AUTHENTICATION:true}
-    default-max-calls-per-minute: ${CHAT_TOOL_RUNTIME_DEFAULT_MAX_CALLS_PER_MINUTE:0}
-    circuit-breaker-failure-threshold: ${CHAT_TOOL_RUNTIME_CIRCUIT_THRESHOLD:3}
-    circuit-breaker-open-seconds: ${CHAT_TOOL_RUNTIME_CIRCUIT_OPEN_SECONDS:60}
-    top-tool-limit: ${CHAT_TOOL_RUNTIME_TOP_TOOL_LIMIT:6}
-    default-tool-timeout-ms: ${CHAT_TOOL_RUNTIME_DEFAULT_TOOL_TIMEOUT_MS:60000}
-    execution-core-pool-size: ${CHAT_TOOL_RUNTIME_EXECUTION_CORE_POOL_SIZE:4}
-    execution-max-pool-size: ${CHAT_TOOL_RUNTIME_EXECUTION_MAX_POOL_SIZE:32}
-    execution-queue-capacity: ${CHAT_TOOL_RUNTIME_EXECUTION_QUEUE_CAPACITY:256}
+    enforce-allowed-tools: true
+    enforce-authentication: true
+    default-max-calls-per-minute: 0
+    circuit-breaker-failure-threshold: 3
+    circuit-breaker-open-seconds: 60
+    top-tool-limit: 6
+    default-tool-timeout-ms: 60000
+    execution-core-pool-size: 4
+    execution-max-pool-size: 32
+    execution-queue-capacity: 256
   chat:
     defaultTimeout: 30
     streamingTimeout: 300
+    # User message length limit. -1 means unlimited when enforced by clients.
     maxMessageLength: 4096
     conversationHistorySize: 20
     context:
-      recent-message-limit: ${CHAT_CONTEXT_RECENT_MESSAGE_LIMIT:8}
-      summary-trigger-messages: ${CHAT_CONTEXT_SUMMARY_TRIGGER_MESSAGES:12}
-      summary-keep-recent-messages: ${CHAT_CONTEXT_SUMMARY_KEEP_RECENT_MESSAGES:6}
-      summary-max-chars: ${CHAT_CONTEXT_SUMMARY_MAX_CHARS:1600}
-      summary-enabled: ${CHAT_CONTEXT_SUMMARY_ENABLED:true}
+      recent-message-limit: 8
+      summary-trigger-messages: 12
+      summary-keep-recent-messages: 6
+      # Conversation summary character limit. -1 means unlimited.
+      summary-max-chars: 1600
+      summary-enabled: true
     detail-store:
       type: rocksdb
-      path: ${CHAT_DETAIL_STORE_PATH:./data/chat-rocksdb}
+      path: ./data/chat-rocksdb
       create-if-missing: true
 
 mcp-policy:

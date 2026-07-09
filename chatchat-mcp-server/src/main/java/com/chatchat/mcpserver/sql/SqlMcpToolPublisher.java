@@ -1,6 +1,7 @@
 package com.chatchat.mcpserver.sql;
 
 import com.chatchat.common.tool.ToolOutput;
+import com.chatchat.mcpserver.config.ChatChatMcpServerProperties;
 import com.chatchat.mcpserver.database.DatabaseQueryConfig;
 import com.chatchat.mcpserver.database.DatabaseQueryConfigService;
 import com.chatchat.mcpserver.database.DatabaseQueryInvokeService;
@@ -50,6 +51,7 @@ public class SqlMcpToolPublisher {
     private final AgentRuntimeGovernanceFactory governanceFactory;
     private final McpToolConcurrencyManager concurrencyManager;
     private final StandardToolExecutionResultFactory standardResultFactory;
+    private final ChatChatMcpServerProperties serverProperties;
     private final ObjectMapper objectMapper;
     private final Set<String> managedToolNames = ConcurrentHashMap.newKeySet();
 
@@ -301,7 +303,8 @@ public class SqlMcpToolPublisher {
             text.append("\n\n| # | 字段 | 类型 | 键 | 可空 | 注释 |\n");
             text.append("|---:|---|---|---|---|---|\n");
             int columnIndex = 1;
-            for (Map<String, Object> column : columns.stream().limit(30).toList()) {
+            List<Map<String, Object>> summaryColumns = limitedList(columns, sqlMetadataSearchSummaryMaxColumns());
+            for (Map<String, Object> column : summaryColumns) {
                 String name = firstText(firstText(text(column, "name"), text(column, "columnName")), text(column, "COLUMN_NAME"));
                 String type = firstText(
                     firstText(text(column, "columnType"), text(column, "dataType")),
@@ -320,15 +323,19 @@ public class SqlMcpToolPublisher {
                     .append(" | ").append(escapeMarkdownCell(comment))
                     .append(" |\n");
             }
-            if (columns.size() > 30) {
-                text.append("\n文本摘要仅展示前 30 个字段；完整字段在 structuredContent.results[].columns 中保留。");
+            if (summaryColumns.size() < columns.size()) {
+                text.append("\n文本摘要仅展示前 ").append(summaryColumns.size())
+                    .append(" 个字段；完整字段在 structuredContent.results[].columns 中保留。");
             }
         }
         if (results.size() > 3) {
             text.append("\n\n文本摘要仅展示前 3 张命中表；完整命中结果在 structuredContent.results 中保留。");
         }
         String value = text.toString();
-        return value.length() <= 6000 ? value : value.substring(0, 6000) + "\n\n[元数据摘要已截断；完整 structuredContent 已保留]";
+        int maxChars = sqlMetadataSearchSummaryMaxChars();
+        return maxChars < 0 || value.length() <= maxChars
+            ? value
+            : value.substring(0, maxChars) + "\n\n[元数据摘要已截断；完整 structuredContent 已保留]";
     }
 
     private McpServerFeatures.SyncToolSpecification sqlMetadataSearchTool() {
@@ -931,6 +938,30 @@ public class SqlMcpToolPublisher {
             }
         }
         return values;
+    }
+
+    private List<Map<String, Object>> limitedList(List<Map<String, Object>> values, int limit) {
+        if (values == null || values.isEmpty()) {
+            return List.of();
+        }
+        if (limit < 0 || values.size() <= limit) {
+            return values;
+        }
+        return values.stream().limit(Math.max(0, limit)).toList();
+    }
+
+    private int sqlMetadataSearchSummaryMaxChars() {
+        ChatChatMcpServerProperties.OutputProperties output = outputProperties();
+        return output == null ? 6_000 : output.getSqlMetadataSearchSummaryMaxChars();
+    }
+
+    private int sqlMetadataSearchSummaryMaxColumns() {
+        ChatChatMcpServerProperties.OutputProperties output = outputProperties();
+        return output == null ? 30 : output.getSqlMetadataSearchSummaryMaxColumns();
+    }
+
+    private ChatChatMcpServerProperties.OutputProperties outputProperties() {
+        return serverProperties == null ? new ChatChatMcpServerProperties.OutputProperties() : serverProperties.getOutput();
     }
 
     private String joinTableName(String database, String table) {

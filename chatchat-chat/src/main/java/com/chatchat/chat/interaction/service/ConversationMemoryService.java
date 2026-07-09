@@ -248,9 +248,13 @@ public class ConversationMemoryService {
         builder.append("You maintain compressed conversation context for a multi-turn AI assistant.\n")
             .append("Update the summary using the prior summary and the new transcript. ")
             .append("Keep durable facts, user goals, constraints, unresolved tasks, decisions, and important tool/document findings. ")
-            .append("Do not copy the transcript verbatim. Return only the updated summary, within ")
-            .append(properties.getSummaryMaxChars())
-            .append(" characters.\n\n");
+            .append("Do not copy the transcript verbatim. Return only the updated summary");
+        if (properties.getSummaryMaxChars() >= 0) {
+            builder.append(", within ")
+                .append(properties.getSummaryMaxChars())
+                .append(" characters");
+        }
+        builder.append(".\n\n");
         if (previousSummary != null && !previousSummary.isBlank()) {
             builder.append("Prior summary:\n").append(limit(previousSummary, properties.getSummaryMaxChars())).append("\n\n");
         }
@@ -261,7 +265,10 @@ public class ConversationMemoryService {
     private String fallbackSummary(String previousSummary, List<Conversation.Message> messages) {
         List<String> lines = new ArrayList<>();
         if (previousSummary != null && !previousSummary.isBlank()) {
-            lines.add(limit(previousSummary.trim(), Math.max(400, properties.getSummaryMaxChars() / 2)));
+            int previousSummaryLimit = properties.getSummaryMaxChars() < 0
+                ? -1
+                : Math.max(400, properties.getSummaryMaxChars() / 2);
+            lines.add(limit(previousSummary.trim(), previousSummaryLimit));
         }
         lines.add("Recent condensed context:");
         for (Conversation.Message message : messages) {
@@ -301,6 +308,9 @@ public class ConversationMemoryService {
     private String limit(String value, int maxChars) {
         if (value == null) {
             return "";
+        }
+        if (maxChars < 0) {
+            return value;
         }
         int max = Math.max(1, maxChars);
         if (value.length() <= max) {

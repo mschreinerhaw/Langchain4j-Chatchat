@@ -17,6 +17,7 @@ import java.util.Map;
 public class AdminAuthController {
 
     private final AdminAuthService authService;
+    private final AdminLoginAuditService loginAuditService;
 
     /**
      * Performs the login operation.
@@ -25,8 +26,16 @@ public class AdminAuthController {
      * @return the operation result
      */
     @PostMapping("/login")
-    public ApiResponse<AdminAuthService.LoginResult> login(@RequestBody LoginRequest request) {
-        return ApiResponse.success(authService.login(request.username(), request.password()), "Login success");
+    public ApiResponse<AdminAuthService.LoginResult> login(HttpServletRequest servletRequest, @RequestBody LoginRequest request) {
+        String username = request == null ? null : request.username();
+        try {
+            AdminAuthService.LoginResult result = authService.login(username, request == null ? null : request.password());
+            loginAuditService.recordSuccess(username, servletRequest);
+            return ApiResponse.success(result, "Login success");
+        } catch (RuntimeException ex) {
+            loginAuditService.recordFailure(username, ex.getMessage(), servletRequest);
+            throw ex;
+        }
     }
 
     /**

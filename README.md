@@ -447,6 +447,10 @@ mvn -pl chatchat-mcp-server -am spring-boot:run
 .\run-chat-api-mcp.bat -SkipBuild
 .\run-chat-api-mcp.bat -Clean
 .\run-chat-api-mcp.bat -WithTests
+run-chat-api-mcp.bat -Action restart -Database h2 -SearchEngine lucene
+run-chat-api-mcp.bat -Action restart -Database h2 -SearchEngine opensearch
+run-chat-api-mcp.bat -Action restart -Database mysql -SearchEngine lucene
+run-chat-api-mcp.bat -Action restart -Database mysql -SearchEngine opensearch
 ```
 
 日志在 `logs/local-dev/`，PID 在 `run/local-dev/`。我已验证 `status` 和 `.bat` 包装器能正常运行；没有跑完整构建/启动，避免直接拉起服务占端口。

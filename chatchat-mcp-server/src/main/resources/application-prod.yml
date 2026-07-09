@@ -6,12 +6,12 @@ spring:
     url: jdbc:h2:file:./data/h2/chatchat-mcp-server;MODE=MySQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE;DB_CLOSE_DELAY=-1
     driver-class-name: org.h2.Driver
     username: sa
-    password: ${CHAT_MCP_DATASOURCE_PASSWORD:}
+    password: 
     hikari:
       pool-name: ChatChatMcpHikariPool
-      maximum-pool-size: ${CHAT_MCP_HIKARI_MAXIMUM_POOL_SIZE:20}
-      minimum-idle: ${CHAT_MCP_HIKARI_MINIMUM_IDLE:2}
-      connection-timeout: ${CHAT_MCP_HIKARI_CONNECTION_TIMEOUT_MS:30000}
+      maximum-pool-size: 20
+      minimum-idle: 2
+      connection-timeout: 30000
       idle-timeout: 300000
       max-lifetime: 1200000
       auto-commit: true
@@ -40,38 +40,71 @@ server:
 chatchat:
   mcp:
     admin:
-      username: ${CHAT_MCP_ADMIN_USERNAME:}
-      password: ${CHAT_MCP_ADMIN_PASSWORD:}
+      username: admin
+      password: admin123
       token-ttl-minutes: 480
     security:
-      require-mcp-token: ${CHAT_MCP_REQUIRE_TOKEN:true}
-      invocation-token: ${CHAT_MCP_INVOCATION_TOKEN:}
+      require-mcp-token: true
+      invocation-token: mcp_test_8f3c7b2a9e6d4f10b5a92cdd0e7a6413
     authorization:
-      enabled: ${CHAT_MCP_AUTHORIZATION_ENABLED:false}
-      api-base-url: ${CHAT_MCP_AUTHORIZATION_API_BASE_URL:http://localhost:8080}
-      snapshot-path: ${CHAT_MCP_AUTHORIZATION_SNAPSHOT_PATH:/api/v1/enterprise/mcp-auth/snapshot}
-      refresh-interval-ms: ${CHAT_MCP_AUTHORIZATION_REFRESH_INTERVAL_MS:60000}
-      stale-ttl-seconds: ${CHAT_MCP_AUTHORIZATION_STALE_TTL_SECONDS:3600}
-      fail-open: ${CHAT_MCP_AUTHORIZATION_FAIL_OPEN:true}
-      require-tenant-context: ${CHAT_MCP_REQUIRE_TENANT_CONTEXT:true}
+      enabled: false
+      api-base-url: http://localhost:8080
+      snapshot-path: /api/v1/enterprise/mcp-auth/snapshot
+      refresh-interval-ms: 60000
+      stale-ttl-seconds: 3600
+      fail-open: true
+      require-tenant-context: true
       auth:
-        enabled: ${CHAT_MCP_AUTHORIZATION_AUTH_ENABLED:true}
-        login-path: ${CHAT_MCP_AUTHORIZATION_LOGIN_PATH:/api/v1/enterprise/auth/login}
-        username: ${CHAT_MCP_AUTHORIZATION_USERNAME:admin}
-        password: ${CHAT_MCP_AUTHORIZATION_PASSWORD:123456}
-        bearer-token: ${CHAT_MCP_AUTHORIZATION_BEARER_TOKEN:}
+        enabled: true
+        login-path: /api/v1/enterprise/auth/login
+        username: admin
+        password: 123456
+        bearer-token: 
     command-templates:
       # Agent OS default: do not seed scenario-specific execution templates.
-      seed-defaults-enabled: ${CHAT_MCP_SEED_COMMAND_TEMPLATES:false}
+      seed-defaults-enabled: false
     sql-templates:
       # Seed built-in read-only database maintenance templates.
-      seed-defaults-enabled: ${CHAT_MCP_SEED_SQL_TEMPLATES:true}
+      seed-defaults-enabled: true
     lucene:
-      enabled: ${CHAT_MCP_LUCENE_ENABLED:true}
-      index-dir: ${CHAT_MCP_LUCENE_INDEX_DIR:./data/lucene/mcp}
-      max-results: ${CHAT_MCP_LUCENE_MAX_RESULTS:50}
+      # MCP assets/templates/SQL metadata search master switch.
+      enabled: true
+      # Search engine:
+      # - lucene: default local disk index for quick development/deployment.
+      # - opensearch: shared remote OpenSearch index for multi-instance deployment.
+      # Startup scripts can override this with --search-engine=opensearch.
+      engine: lucene
+      # Local index directory when engine=lucene.
+      index-dir: ./data/lucene/mcp
+      max-results: 50
+      # Effective only when engine=opensearch. MCP creates separate indexes by asset/template type.
+      open-search:
+        # Set false to disable OpenSearch even if engine=opensearch.
+        enabled: true
+        # OpenSearch HTTPS endpoint.
+        url: https://192.168.195.221:9200
+        username: admin
+        password: apexSoft12345
+        # Use true for self-signed test clusters, equivalent to curl -k.
+        insecure-ssl: true
+        # MCP index prefix, for example chatchat_mcp_assets-sql-datasource.
+        index-prefix: chatchat_mcp_
+        request-timeout-ms: 30000
+        embedding:
+          # Optional semantic retrieval for MCP assets/templates. Effective only when engine=opensearch.
+          # Existing MCP indexes must be deleted and rebuilt once after enabling KNN vectors.
+          enabled: true
+          endpoint: https://llm-7upawl16up8649rh.cn-beijing.maas.aliyuncs.com/compatible-mode/v1/embeddings
+          api-key: "sk-720436c855ac470bb955388d0e8c9b89"
+          model: text-embedding-v4
+          dimension: 1024
+          vector-field: mcpContentVector
+          max-input-chars: 6000
+          vector-candidate-limit: 50
+          bm25-weight: 0.55
+          vector-weight: 0.45
     cache:
-      enabled: ${CHAT_MCP_CACHE_ENABLED:true}
+      enabled: true
       path: ./data/mcp-cache-rocksdb
       create-if-missing: true
       cleanup-interval-ms: 60000
@@ -83,16 +116,21 @@ chatchat:
       expose-agent-compatible-only: true
       excluded-tool-names: []
       instructions: "ChatChat standalone MCP server exposing LangChain4j-compatible tools."
+      output:
+        # sql_metadata_search text summary character limit. -1 means unlimited.
+        sql-metadata-search-summary-max-chars: 6000
+        # sql_metadata_search text summary field count limit. -1 means unlimited.
+        sql-metadata-search-summary-max-columns: 30
       document-search:
-        api-base-url: ${CHAT_MCP_DOCUMENT_SEARCH_API_BASE_URL:http://localhost:8080}
-        endpoint-path: ${CHAT_MCP_DOCUMENT_SEARCH_ENDPOINT_PATH:/api/v1/search/document-search}
-        timeout-ms: ${CHAT_MCP_DOCUMENT_SEARCH_TIMEOUT_MS:60000}
+        api-base-url: http://localhost:8080
+        endpoint-path: /api/v1/search/document-search
+        timeout-ms: 60000
         auth:
-          enabled: ${CHAT_MCP_DOCUMENT_SEARCH_AUTH_ENABLED:true}
-          login-path: ${CHAT_MCP_DOCUMENT_SEARCH_LOGIN_PATH:/api/v1/enterprise/auth/login}
-          username: ${CHAT_MCP_DOCUMENT_SEARCH_USERNAME:}
-          password: ${CHAT_MCP_DOCUMENT_SEARCH_PASSWORD:}
-          bearer-token: ${CHAT_MCP_DOCUMENT_SEARCH_BEARER_TOKEN:}
+          enabled: true
+          login-path: /api/v1/enterprise/auth/login
+          username: 
+          password: 
+          bearer-token: 
       concurrency:
         # Enables global/tool/user/agent concurrency guards for MCP tool calls.
         enabled: true
@@ -223,7 +261,7 @@ chatchat:
       # User-Agent sent when fetching target pages.
       user-agent: ChatChat-MCP-Crawler/1.0
       # Per-page HTTP timeout.
-      timeout-ms: ${CHAT_WEB_SEARCH_TIMEOUT_MS:0}
+      timeout-ms: 0
       # Maximum response bytes read before aborting a page fetch.
       max-body-bytes: 1048576
       # Maximum raw HTML characters retained for processing.
@@ -242,19 +280,19 @@ chatchat:
       include-html: true
       accept-language: en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7
       # Default crawl_url mode: browser = Playwright Chromium rendering; java = JSoup HTTP with browser-like headers; auto = browser when enabled.
-      default-mode: ${CHAT_WEB_CRAWLER_DEFAULT_MODE:browser}
+      default-mode: browser
       browser:
-        enabled: ${CHAT_WEB_CRAWLER_BROWSER_ENABLED:true}
-        browsers-path: ${PLAYWRIGHT_BROWSERS_PATH:playwright-browsers}
-        skip-browser-download: ${PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD:false}
-        navigation-timeout-ms: ${CHAT_WEB_CRAWLER_BROWSER_TIMEOUT_MS:0}
+        enabled: true
+        browsers-path: playwright-browsers
+        skip-browser-download: false
+        navigation-timeout-ms: 0
         accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8
         accept-language: en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7
         referer:
       proxy-pool:
         # Shared crawler proxy pool. Supports HTTP and SOCKS/SOCKS5; username/password are optional.
-        enabled: ${CHAT_WEB_CRAWLER_PROXY_ENABLED:false}
-        default-pool: ${CHAT_WEB_CRAWLER_PROXY_POOL:default}
+        enabled: false
+        default-pool: default
         proxies: []
         # Example:
         # proxies:
@@ -267,21 +305,21 @@ chatchat:
         #     password:
     livedata:
       # Enables the admin page to list and manually register LiveData APIs. Startup auto-sync is disabled.
-      enabled: ${CHAT_MCP_LIVEDATA_ENABLED:false}
-      jdbc-url: ${CHAT_MCP_LIVEDATA_JDBC_URL:}
-      username: ${CHAT_MCP_LIVEDATA_USERNAME:}
-      password: ${CHAT_MCP_LIVEDATA_PASSWORD:}
+      enabled: false
+      jdbc-url: 
+      username: 
+      password: 
       driver-class: com.mysql.cj.jdbc.Driver
       table-name: ld_dataservice_api
-      service-base-url: ${CHAT_MCP_LIVEDATA_SERVICE_BASE_URL:}
+      service-base-url: 
       service-path-template: /service/{serviceName}/call
       login-enabled: true
       login-path: /login
-      login-id: ${CHAT_MCP_LIVEDATA_LOGIN_ID:}
-      login-pwd: ${CHAT_MCP_LIVEDATA_LOGIN_PASSWORD:}
+      login-id: 
+      login-pwd: 
       login-timeout-ms: 10000
       session-ttl-seconds: 1800
-      ams-token: ${CHAT_MCP_LIVEDATA_AMS_TOKEN:}
+      ams-token: 
       default-namespace: livedata
       tool-name-prefix: livedata_
       published-state: 0
@@ -315,8 +353,8 @@ chatchat:
         # Login-based auth is used when bearer-token is empty.
         enabled: true
         login-path: /api/v1/enterprise/auth/login
-        username: ${CHAT_DOCUMENT_SEARCH_AUTH_USERNAME:}
-        password: ${CHAT_DOCUMENT_SEARCH_AUTH_PASSWORD:}
+        username: 
+        password: 
         bearer-token: ""
       risk-level: medium
       confirmation:
@@ -332,19 +370,19 @@ chatchat:
       provider: bing_html
       endpoint: https://cn.bing.com/search
       user-agent: ChatChat-MCP-Server/1.0
-      timeout-ms: ${CHAT_WEB_SEARCH_TIMEOUT_MS:0}
+      timeout-ms: 0
       max-results: 10
       fetch-pages: true
       max-pages-to-fetch: 3
       page-excerpt-chars: 2500
       page-max-bytes: 1048576
       fallback-enabled: true
-      default-mode: ${CHAT_WEB_SEARCH_MODE:browser}
-      browser-fallback-to-java: ${CHAT_WEB_SEARCH_BROWSER_FALLBACK_TO_JAVA:true}
+      default-mode: browser
+      browser-fallback-to-java: true
       site-search:
         enabled: true
-        default-mode: ${CHAT_WEB_SEARCH_SITE_SEARCH_MODE:java}
-        browser-fallback-to-java: ${CHAT_WEB_SEARCH_SITE_SEARCH_BROWSER_FALLBACK_TO_JAVA:true}
+        default-mode: java
+        browser-fallback-to-java: true
         max-pages-to-inspect: 3
         max-secondary-pages: 3
         max-links-per-page: 5
@@ -394,18 +432,18 @@ chatchat:
           description: Suitable for cross-market searches of listed company announcements, annual/interim/quarterly reports, ad hoc announcements, regulatory disclosures, security codes, and company names.
       browser:
         enabled: true
-        browsers-path: ${PLAYWRIGHT_BROWSERS_PATH:playwright-browsers}
-        skip-browser-download: ${CHAT_WEB_SEARCH_BROWSER_SKIP_DOWNLOAD:false}
-        persistent-enabled: ${CHAT_WEB_SEARCH_BROWSER_PERSISTENT_ENABLED:true}
-        navigation-timeout-ms: ${CHAT_WEB_SEARCH_BROWSER_NAVIGATION_TIMEOUT_MS:0}
+        browsers-path: playwright-browsers
+        skip-browser-download: false
+        persistent-enabled: true
+        navigation-timeout-ms: 0
         accept-language: zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7
         referer: https://cn.bing.com/
         tls-fingerprint-profile: jdk-default
       proxy-pool:
         # Used by web_search, finance_site_search, and generic_web_site_search in both Java and browser modes.
         # Supports HTTP and SOCKS/SOCKS5; username/password are optional.
-        enabled: ${CHAT_WEB_SEARCH_PROXY_ENABLED:false}
-        default-pool: ${CHAT_WEB_SEARCH_PROXY_POOL:default}
+        enabled: false
+        default-pool: default
         proxies: []
         # Example:
         # proxies:
@@ -482,8 +520,15 @@ logging:
   file:
     name: ./logs/chatchat-mcp-server.log
   level:
+    root: INFO
     com.chatchat: INFO
     io.modelcontextprotocol: INFO
+    org.springframework.boot.autoconfigure: WARN
+    org.springframework.boot.autoconfigure.logging.ConditionEvaluationReportLogger: WARN
+    org.hibernate: WARN
+    org.hibernate.SQL: WARN
+    org.hibernate.orm.jdbc.bind: WARN
+    org.hibernate.type.descriptor.sql.BasicBinder: WARN
   logback:
     rollingpolicy:
       max-file-size: 100MB

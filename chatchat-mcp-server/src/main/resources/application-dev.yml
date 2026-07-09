@@ -68,9 +68,42 @@ chatchat:
       # Seed built-in read-only database maintenance templates.
       seed-defaults-enabled: true
     lucene:
+      # MCP assets/templates/SQL metadata search master switch.
       enabled: true
+      # Search engine:
+      # - lucene: default local disk index for quick development/deployment.
+      # - opensearch: shared remote OpenSearch index for multi-instance deployment.
+      # Startup scripts can override this with --search-engine=opensearch.
+      engine: lucene
+      # Local index directory when engine=lucene.
       index-dir: ./data/lucene/mcp
       max-results: 50
+      # Effective only when engine=opensearch. MCP creates separate indexes by asset/template type.
+      open-search:
+        # Set false to disable OpenSearch even if engine=opensearch.
+        enabled: true
+        # OpenSearch HTTPS endpoint.
+        url: https://192.168.195.221:9200
+        username: admin
+        password: apexSoft12345
+        # Use true for self-signed test clusters, equivalent to curl -k.
+        insecure-ssl: true
+        # MCP index prefix, for example chatchat_mcp_assets-sql-datasource.
+        index-prefix: chatchat_mcp_
+        request-timeout-ms: 30000
+        embedding:
+          # Optional semantic retrieval for MCP assets/templates. Effective only when engine=opensearch.
+          # Existing MCP indexes must be deleted and rebuilt once after enabling KNN vectors.
+          enabled: true
+          endpoint: https://llm-7upawl16up8649rh.cn-beijing.maas.aliyuncs.com/compatible-mode/v1/embeddings
+          api-key: "sk-720436c855ac470bb955388d0e8c9b89"
+          model: text-embedding-v4
+          dimension: 1024
+          vector-field: mcpContentVector
+          max-input-chars: 6000
+          vector-candidate-limit: 50
+          bm25-weight: 0.55
+          vector-weight: 0.45
     cache:
       enabled: true
       path: ./data/mcp-cache-rocksdb
@@ -84,6 +117,11 @@ chatchat:
       expose-agent-compatible-only: true
       excluded-tool-names: []
       instructions: "ChatChat standalone MCP server exposing LangChain4j-compatible tools."
+      output:
+        # sql_metadata_search text summary character limit. -1 means unlimited.
+        sql-metadata-search-summary-max-chars: 6000
+        # sql_metadata_search text summary field count limit. -1 means unlimited.
+        sql-metadata-search-summary-max-columns: 30
       document-search:
         api-base-url: http://localhost:8080
         endpoint-path: /api/v1/search/document-search
@@ -476,8 +514,15 @@ logging:
   file:
     name: ./logs/chatchat-mcp-server.log
   level:
+    root: INFO
     com.chatchat: INFO
     io.modelcontextprotocol: INFO
+    org.springframework.boot.autoconfigure: WARN
+    org.springframework.boot.autoconfigure.logging.ConditionEvaluationReportLogger: WARN
+    org.hibernate: WARN
+    org.hibernate.SQL: WARN
+    org.hibernate.orm.jdbc.bind: WARN
+    org.hibernate.type.descriptor.sql.BasicBinder: WARN
   logback:
     rollingpolicy:
       max-file-size: 100MB
@@ -485,3 +530,39 @@ logging:
       total-size-cap: 3GB
   pattern:
     console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
+
+# ---------------------------------------------------------------------------
+# Development search-engine profiles.
+# Default dev = H2 + local Lucene.
+# MySQL test: enable mysql profile, for example dev,mysql.
+# OpenSearch test: enable search-opensearch profile, for example dev,search-opensearch.
+# MySQL + OpenSearch: enable dev,mysql,search-opensearch.
+# ---------------------------------------------------------------------------
+---
+spring:
+  config:
+    activate:
+      on-profile: search-lucene
+
+chatchat:
+  mcp:
+    lucene:
+      # Explicitly use local Lucene for easy switching with search-opensearch.
+      engine: lucene
+      # Development MCP Lucene index directory, isolated from package/prod runtime.
+      index-dir: ./data/lucene/mcp-dev
+
+---
+spring:
+  config:
+    activate:
+      on-profile: search-opensearch
+
+chatchat:
+  mcp:
+    lucene:
+      # Explicitly use OpenSearch. Startup --search-engine=opensearch overrides to the same value.
+      engine: opensearch
+      open-search:
+        # Development index prefix. MCP creates multiple indexes under this prefix.
+        index-prefix: chatchat_mcp_dev_

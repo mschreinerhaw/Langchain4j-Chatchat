@@ -96,10 +96,41 @@
 
       <section class="library-documents">
         <div class="library-summary">
+          <label v-if="canDeleteDocuments && pagedDocuments.length" class="library-select-all">
+            <input
+              type="checkbox"
+              :checked="allVisibleDocumentsSelected"
+              @change="toggleAllVisibleDocuments($event.target.checked)"
+            >
+            <span>{{ selectedDocumentCount ? `已选 ${selectedDocumentCount} 个` : "选择本页" }}</span>
+          </label>
           <span>{{ loading ? "加载中" : `共 ${documentCount} 份文档，匹配 ${total} 份，当前显示 ${pageStart}-${pageEnd} 份` }}</span>
+          <button
+            v-if="canDeleteDocuments && pagedDocuments.length"
+            type="button"
+            class="library-batch-delete-button"
+            :disabled="!selectedDocumentCount || loading"
+            @click="openDocumentBatchDeleteDialog"
+          >
+            <Trash2 :size="14" />
+            <span>批量删除</span>
+          </button>
         </div>
 
-        <article v-for="item in pagedDocuments" :key="item.docId" class="library-document">
+        <article
+          v-for="item in pagedDocuments"
+          :key="item.docId"
+          class="library-document"
+          :class="{ selected: selectedDocumentIdSet.has(item.docId), 'no-delete': !canDeleteDocuments }"
+        >
+          <label v-if="canDeleteDocuments" class="library-document-select" @click.stop>
+            <input
+              type="checkbox"
+              :checked="selectedDocumentIdSet.has(item.docId)"
+              :aria-label="`选择文档 ${item.title || item.docId}`"
+              @change="toggleDocumentSelection(item.docId, $event.target.checked)"
+            >
+          </label>
           <div>
             <strong>{{ item.title }}</strong>
             <p>{{ item.summary }}</p>
@@ -150,7 +181,7 @@
                   <RefreshCw :size="14" />
                   <span>{{ documentReindexingIds[item.docId] ? "重建中" : "重建索引" }}</span>
                 </button>
-                <button type="button" class="danger-action" @click="removeDocument(item)">
+                <button v-if="canDeleteDocuments" type="button" class="danger-action" @click="removeDocument(item)">
                   <Trash2 :size="14" />
                   <span>删除</span>
                 </button>
@@ -215,6 +246,44 @@
           <button type="button" class="secondary-button" :disabled="categoryDeleteSubmitting" @click="closeCategoryDeleteDialog">取消</button>
           <button type="button" class="danger-confirm-button" :disabled="categoryDeleteSubmitting" @click="submitCategoryDelete">
             {{ categoryDeleteSubmitting ? "删除中" : "确认删除" }}
+          </button>
+        </footer>
+      </section>
+    </div>
+
+    <div v-if="documentBatchDeleteDialogOpen" class="category-dialog-backdrop" @click.self="closeDocumentBatchDeleteDialog">
+      <section class="category-dialog delete-confirm-dialog">
+        <header>
+          <div>
+            <p>文档操作</p>
+            <h2>批量删除文档</h2>
+          </div>
+          <button type="button" class="viewer-close" :disabled="documentBatchDeleteSubmitting" @click="closeDocumentBatchDeleteDialog">x</button>
+        </header>
+
+        <div class="reindex-confirm-body delete-confirm-body">
+          <div class="reindex-confirm-icon delete-confirm-icon">
+            <Trash2 :size="22" />
+          </div>
+          <div>
+            <p class="reindex-confirm-title">
+              确认删除已选 {{ selectedDocumentCount }} 个文档？
+            </p>
+            <p class="reindex-confirm-text">
+              删除后这些文档会从知识库文档列表和检索索引中移除，此操作不可恢复。
+            </p>
+          </div>
+        </div>
+
+        <div class="delete-confirm-note">
+          <span>危险操作</span>
+          <strong>请确认这些文档不再需要被检索或引用后再删除。</strong>
+        </div>
+
+        <footer>
+          <button type="button" class="secondary-button" :disabled="documentBatchDeleteSubmitting" @click="closeDocumentBatchDeleteDialog">取消</button>
+          <button type="button" class="danger-confirm-button" :disabled="documentBatchDeleteSubmitting || !selectedDocumentCount" @click="submitDocumentBatchDelete">
+            {{ documentBatchDeleteSubmitting ? "删除中" : "确认删除" }}
           </button>
         </footer>
       </section>

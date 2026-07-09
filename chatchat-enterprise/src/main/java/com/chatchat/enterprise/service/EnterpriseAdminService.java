@@ -136,7 +136,6 @@ public class EnterpriseAdminService implements ApplicationRunner {
         }
         user.setLastLoginAt(Instant.now());
         userRepository.save(user);
-        audit(user.getTenantId(), user.getId(), user.getDisplayName(), "auth", "login", "sys_user", user.getId(), "login success");
         String tokenSeed = user.getId() + ":" + user.getUsername() + ":" + UUID.randomUUID();
         String token = Base64.getUrlEncoder().withoutPadding()
             .encodeToString(tokenSeed.getBytes(StandardCharsets.UTF_8));
@@ -169,8 +168,6 @@ public class EnterpriseAdminService implements ApplicationRunner {
         embedLoginTokenRepository.save(record);
         UserView userView = toUserView(user);
         activeTokenUsers.put(record.getToken(), userView);
-        audit(user.getTenantId(), user.getId(), user.getDisplayName(), "auth", "embed-login",
-            "embed_login_token", record.getId(), "embed login success");
         return new AuthResult(record.getToken(), userView, record.getExpiresAt(), true);
     }
 

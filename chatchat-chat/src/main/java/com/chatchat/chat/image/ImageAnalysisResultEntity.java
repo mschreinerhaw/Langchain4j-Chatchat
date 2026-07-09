@@ -48,13 +48,13 @@ public class ImageAnalysisResultEntity {
     @Column(name = "image_type", length = 32)
     private String imageType = "screenshot";
 
-    @Column(name = "extracted_text", length = 16000)
+    @Column(name = "extracted_text", columnDefinition = "TEXT")
     private String extractedText;
 
-    @Column(length = 8000)
+    @Column(columnDefinition = "TEXT")
     private String summary;
 
-    @Column(name = "structured_data_json", length = 16000)
+    @Column(name = "structured_data_json", columnDefinition = "TEXT")
     private String structuredDataJson;
 
     @Column

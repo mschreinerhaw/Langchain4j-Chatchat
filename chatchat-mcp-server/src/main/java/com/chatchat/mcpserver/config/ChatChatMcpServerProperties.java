@@ -18,6 +18,7 @@ public class ChatChatMcpServerProperties {
     private String instructions = "ChatChat standalone MCP server exposing LangChain4j-compatible tools.";
     private ConcurrencyProperties concurrency = new ConcurrencyProperties();
     private DocumentSearchProperties documentSearch = new DocumentSearchProperties();
+    private OutputProperties output = new OutputProperties();
 
     /**
      * Returns the name.
@@ -161,6 +162,43 @@ public class ChatChatMcpServerProperties {
      */
     public void setDocumentSearch(DocumentSearchProperties documentSearch) {
         this.documentSearch = documentSearch == null ? new DocumentSearchProperties() : documentSearch;
+    }
+
+    public OutputProperties getOutput() {
+        return output;
+    }
+
+    public void setOutput(OutputProperties output) {
+        this.output = output == null ? new OutputProperties() : output;
+    }
+
+    public static class OutputProperties {
+
+        /**
+         * Maximum characters for sql_metadata_search text summary. -1 means unlimited.
+         */
+        private int sqlMetadataSearchSummaryMaxChars = 6_000;
+
+        /**
+         * Maximum column rows shown in sql_metadata_search text summary. -1 means unlimited.
+         */
+        private int sqlMetadataSearchSummaryMaxColumns = 30;
+
+        public int getSqlMetadataSearchSummaryMaxChars() {
+            return sqlMetadataSearchSummaryMaxChars;
+        }
+
+        public void setSqlMetadataSearchSummaryMaxChars(int sqlMetadataSearchSummaryMaxChars) {
+            this.sqlMetadataSearchSummaryMaxChars = sqlMetadataSearchSummaryMaxChars;
+        }
+
+        public int getSqlMetadataSearchSummaryMaxColumns() {
+            return sqlMetadataSearchSummaryMaxColumns;
+        }
+
+        public void setSqlMetadataSearchSummaryMaxColumns(int sqlMetadataSearchSummaryMaxColumns) {
+            this.sqlMetadataSearchSummaryMaxColumns = sqlMetadataSearchSummaryMaxColumns;
+        }
     }
 
     public static class DocumentSearchProperties {

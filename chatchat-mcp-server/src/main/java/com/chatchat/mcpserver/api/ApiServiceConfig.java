@@ -47,19 +47,19 @@ public class ApiServiceConfig {
     private String urlTemplate;
 
     @Lob
-    @Column
+    @Column(columnDefinition = "longtext")
     private String headersJson;
 
     @Lob
-    @Column
+    @Column(columnDefinition = "longtext")
     private String bodyTemplate;
 
     @Lob
-    @Column
+    @Column(columnDefinition = "longtext")
     private String inputSchemaJson;
 
     @Lob
-    @Column
+    @Column(columnDefinition = "longtext")
     private String governanceJson;
 
     @Column(nullable = false)

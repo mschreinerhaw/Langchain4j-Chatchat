@@ -40,7 +40,7 @@ public class McpServiceConfig {
     @Column(length = 1024)
     private String authToken;
 
-    @Column(length = 4000)
+    @Column(columnDefinition = "TEXT")
     private String customHeadersJson;
 
     @Column(length = 32, nullable = false)
@@ -49,10 +49,10 @@ public class McpServiceConfig {
     @Column(length = 512)
     private String stdioCommand;
 
-    @Column(length = 4000)
+    @Column(columnDefinition = "TEXT")
     private String stdioArgsJson;
 
-    @Column(length = 4000)
+    @Column(columnDefinition = "TEXT")
     private String stdioEnvJson;
 
     @Column(length = 1024)

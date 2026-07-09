@@ -1,5 +1,7 @@
 package com.chatchat.api.controller;
 
+import com.chatchat.api.config.ApiLimitProperties;
+import com.chatchat.api.security.ApiAuthenticationFilter;
 import com.chatchat.api.search.CategoryReindexTaskService;
 import com.chatchat.knowledgebase.search.SearchDocument;
 import com.chatchat.knowledgebase.search.DocumentFileResource;
@@ -23,6 +25,7 @@ import com.chatchat.common.constants.AppConstants;
 import com.chatchat.common.response.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
@@ -41,6 +44,8 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 
 @RestController
@@ -49,14 +54,11 @@ import java.util.List;
 @Tag(name = "AI Search", description = "Investment research document search APIs")
 public class SearchController {
 
-    private static final int SEARCH_RESULT_MAX_CHUNKS = 3;
-    private static final int SEARCH_RESULT_CHUNK_MAX_CHARS = 1200;
-    private static final int SEARCH_RESULT_SUMMARY_MAX_CHARS = 800;
-
     private final SearchService searchService;
     private final SearchFeedbackService searchFeedbackService;
     private final DocumentSearchEvidenceService documentSearchEvidenceService;
     private final CategoryReindexTaskService categoryReindexTaskService;
+    private final ApiLimitProperties limitProperties;
 
     /**
      * Searches the search.
@@ -315,11 +317,45 @@ public class SearchController {
     public ApiResponse<Void> deleteDocument(@PathVariable("docId") String docId,
                                             @RequestParam(value = "tenantId", required = false) String tenantId,
                                             @RequestParam(value = "userId", required = false) String userId,
-                                            @RequestParam(value = "roles", required = false) String roles) {
+                                            @RequestParam(value = "roles", required = false) String roles,
+                                            HttpServletRequest request) {
+        if (!isAdminOperator(request)) {
+            return ApiResponse.error(403, "only admin can delete documents");
+        }
         if (!searchService.deleteDocument(docId, permissionContext(tenantId, userId, roles))) {
             return ApiResponse.notFound("document not found: " + docId);
         }
         return ApiResponse.success(null, "document deleted");
+    }
+
+    @PostMapping("/documents/delete/batch")
+    @Operation(summary = "Delete multiple uploaded documents")
+    public ApiResponse<DocumentBatchDeleteResult> deleteDocuments(@RequestBody DocumentBatchDeleteRequest request,
+                                                                  @RequestParam(value = "tenantId", required = false) String tenantId,
+                                                                  @RequestParam(value = "userId", required = false) String userId,
+                                                                  @RequestParam(value = "roles", required = false) String roles,
+                                                                  HttpServletRequest servletRequest) {
+        if (!isAdminOperator(servletRequest)) {
+            return ApiResponse.error(403, "only admin can delete documents");
+        }
+        List<String> docIds = normalizeDocIds(request == null ? null : request.docIds());
+        if (docIds.isEmpty()) {
+            return ApiResponse.badRequest("docIds are required");
+        }
+        SearchPermissionContext context = permissionContext(tenantId, userId, roles);
+        List<String> deletedDocIds = new ArrayList<>();
+        List<String> notFoundDocIds = new ArrayList<>();
+        for (String docId : docIds) {
+            if (searchService.deleteDocument(docId, context)) {
+                deletedDocIds.add(docId);
+            } else {
+                notFoundDocIds.add(docId);
+            }
+        }
+        return ApiResponse.success(
+            new DocumentBatchDeleteResult(deletedDocIds, notFoundDocIds, docIds.size()),
+            notFoundDocIds.isEmpty() ? "documents deleted" : "documents partially deleted"
+        );
     }
 
     @PostMapping("/documents/{docId}/reindex")
@@ -538,6 +574,12 @@ public class SearchController {
     public record DocumentCategoryUpdateRequest(String category) {
     }
 
+    public record DocumentBatchDeleteRequest(List<String> docIds) {
+    }
+
+    public record DocumentBatchDeleteResult(List<String> deletedDocIds, List<String> notFoundDocIds, int requestedCount) {
+    }
+
     /**
      * Performs the media type for operation.
      *
@@ -565,6 +607,27 @@ public class SearchController {
             return MediaType.parseMediaType("text/x-sql");
         }
         return MediaType.TEXT_PLAIN;
+    }
+
+    private List<String> normalizeDocIds(List<String> docIds) {
+        if (docIds == null || docIds.isEmpty()) {
+            return List.of();
+        }
+        LinkedHashSet<String> normalized = new LinkedHashSet<>();
+        for (String docId : docIds) {
+            if (docId != null && !docId.isBlank()) {
+                normalized.add(docId.trim());
+            }
+        }
+        return List.copyOf(normalized);
+    }
+
+    private boolean isAdminOperator(HttpServletRequest request) {
+        if (request == null) {
+            return false;
+        }
+        Object username = request.getAttribute(ApiAuthenticationFilter.CURRENT_USERNAME);
+        return username != null && "admin".equalsIgnoreCase(String.valueOf(username));
     }
 
     /**
@@ -620,7 +683,7 @@ public class SearchController {
         return new SearchResult(
             result.docId(),
             result.title(),
-            truncate(result.summary(), SEARCH_RESULT_SUMMARY_MAX_CHARS),
+            truncate(result.summary(), searchResultSummaryMaxChars()),
             result.source(),
             result.date(),
             result.fileName(),
@@ -651,8 +714,12 @@ public class SearchController {
         if (chunks == null || chunks.isEmpty()) {
             return List.of();
         }
-        return chunks.stream()
-            .limit(SEARCH_RESULT_MAX_CHUNKS)
+        java.util.stream.Stream<SearchMatchedChunk> stream = chunks.stream();
+        int maxChunks = searchResultMaxChunks();
+        if (maxChunks >= 0) {
+            stream = stream.limit(maxChunks);
+        }
+        return stream
             .map(chunk -> new SearchMatchedChunk(
                 chunk.fileId(),
                 chunk.fileName(),
@@ -661,8 +728,8 @@ public class SearchController {
                 chunk.chunkId(),
                 chunk.chunkIndex(),
                 chunk.positionRatio(),
-                truncate(chunk.content(), SEARCH_RESULT_CHUNK_MAX_CHARS),
-                truncate(chunk.text(), SEARCH_RESULT_CHUNK_MAX_CHARS),
+                truncate(chunk.content(), searchResultChunkMaxChars()),
+                truncate(chunk.text(), searchResultChunkMaxChars()),
                 chunk.score(),
                 chunk.tenantId(),
                 chunk.userId(),
@@ -673,10 +740,29 @@ public class SearchController {
     }
 
     private String truncate(String value, int maxChars) {
+        if (maxChars < 0) {
+            return value;
+        }
         if (value == null || value.length() <= maxChars) {
             return value;
         }
         return value.substring(0, maxChars) + "...";
+    }
+
+    private int searchResultMaxChunks() {
+        return apiLimits().getSearchResultMaxChunks();
+    }
+
+    private int searchResultChunkMaxChars() {
+        return apiLimits().getSearchResultChunkMaxChars();
+    }
+
+    private int searchResultSummaryMaxChars() {
+        return apiLimits().getSearchResultSummaryMaxChars();
+    }
+
+    private ApiLimitProperties apiLimits() {
+        return limitProperties == null ? new ApiLimitProperties() : limitProperties;
     }
 
     private List<String> parseCsv(String value) {

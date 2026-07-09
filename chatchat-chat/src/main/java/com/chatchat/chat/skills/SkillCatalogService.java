@@ -640,28 +640,28 @@ public class SkillCatalogService {
         ensureColumn("skill_config", "market_status", "varchar(32) default 'published'");
         ensureColumn("skill_config", "default_agent", "boolean default false");
         ensureColumn("skill_config", "model_name", "varchar(128)");
-        ensureColumn("skill_config", "preferred_tool_prefixes_json", "varchar(16000)");
-        ensureColumn("skill_config", "bound_mcp_service_ids_json", "varchar(16000)");
-        ensureColumn("skill_config", "bound_mcp_tool_names_json", "varchar(16000)");
-        ensureColumn("skill_config", "bound_document_ids_json", "varchar(16000)");
-        ensureColumn("skill_config", "bound_document_tags_json", "varchar(16000)");
-        ensureColumn("skill_config", "tool_configs_json", "varchar(16000)");
-        ensureColumn("skill_config", "routing_settings_json", "varchar(4000)");
-        ensureColumn("skill_config", "workflow_config_json", "varchar(16000)");
-        ensureColumn("skill_config", "quick_questions_json", "varchar(16000)");
+        ensureColumn("skill_config", "preferred_tool_prefixes_json", "text");
+        ensureColumn("skill_config", "bound_mcp_service_ids_json", "text");
+        ensureColumn("skill_config", "bound_mcp_tool_names_json", "text");
+        ensureColumn("skill_config", "bound_document_ids_json", "text");
+        ensureColumn("skill_config", "bound_document_tags_json", "text");
+        ensureColumn("skill_config", "tool_configs_json", "text");
+        ensureColumn("skill_config", "routing_settings_json", "text");
+        ensureColumn("skill_config", "workflow_config_json", "text");
+        ensureColumn("skill_config", "quick_questions_json", "text");
 
         ensureColumn("skill_config_version", "market_status", "varchar(32)");
         ensureColumn("skill_config_version", "default_agent", "boolean default false");
         ensureColumn("skill_config_version", "model_name", "varchar(128)");
-        ensureColumn("skill_config_version", "preferred_tool_prefixes_json", "varchar(16000)");
-        ensureColumn("skill_config_version", "bound_mcp_service_ids_json", "varchar(16000)");
-        ensureColumn("skill_config_version", "bound_mcp_tool_names_json", "varchar(16000)");
-        ensureColumn("skill_config_version", "bound_document_ids_json", "varchar(16000)");
-        ensureColumn("skill_config_version", "bound_document_tags_json", "varchar(16000)");
-        ensureColumn("skill_config_version", "tool_configs_json", "varchar(16000)");
-        ensureColumn("skill_config_version", "routing_settings_json", "varchar(4000)");
-        ensureColumn("skill_config_version", "workflow_config_json", "varchar(16000)");
-        ensureColumn("skill_config_version", "quick_questions_json", "varchar(16000)");
+        ensureColumn("skill_config_version", "preferred_tool_prefixes_json", "text");
+        ensureColumn("skill_config_version", "bound_mcp_service_ids_json", "text");
+        ensureColumn("skill_config_version", "bound_mcp_tool_names_json", "text");
+        ensureColumn("skill_config_version", "bound_document_ids_json", "text");
+        ensureColumn("skill_config_version", "bound_document_tags_json", "text");
+        ensureColumn("skill_config_version", "tool_configs_json", "text");
+        ensureColumn("skill_config_version", "routing_settings_json", "text");
+        ensureColumn("skill_config_version", "workflow_config_json", "text");
+        ensureColumn("skill_config_version", "quick_questions_json", "text");
     }
 
     /**

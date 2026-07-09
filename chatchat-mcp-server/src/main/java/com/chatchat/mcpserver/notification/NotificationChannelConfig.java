@@ -54,11 +54,11 @@ public class NotificationChannelConfig {
     private String endpointUrl;
 
     @Lob
-    @Column
+    @Column(columnDefinition = "longtext")
     private String headersJson;
 
     @Lob
-    @Column
+    @Column(columnDefinition = "longtext")
     private String bodyTemplate;
 
     @Column(length = 1000)

@@ -55,7 +55,7 @@ public class SshHostConfig {
     private String password;
 
     @Lob
-    @Column
+    @Column(columnDefinition = "longtext")
     private String privateKey;
 
     @Column(length = 1000)
@@ -74,11 +74,11 @@ public class SshHostConfig {
     private String tags;
 
     @Lob
-    @Column
+    @Column(columnDefinition = "longtext")
     private String routingLabelsJson;
 
     @Lob
-    @Column
+    @Column(columnDefinition = "longtext")
     private String capabilitiesJson;
 
     @Transient
@@ -91,11 +91,11 @@ public class SshHostConfig {
     private List<AssetExecutionTargetBinding> executionTargets = new ArrayList<>();
 
     @Lob
-    @Column
+    @Column(columnDefinition = "longtext")
     private String allowedCommandsJson;
 
     @Lob
-    @Column
+    @Column(columnDefinition = "longtext")
     private String governanceJson;
 
     @Column(nullable = false, length = 32)

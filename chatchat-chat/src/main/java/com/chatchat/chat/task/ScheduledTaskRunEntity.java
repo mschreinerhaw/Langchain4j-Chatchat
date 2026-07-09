@@ -49,7 +49,7 @@ public class ScheduledTaskRunEntity {
     @Column(length = 32, nullable = false)
     private String status = "SCHEDULED";
 
-    @Column(length = 4000, nullable = false)
+    @Column(columnDefinition = "TEXT", nullable = false)
     private String question;
 
     @Column(name = "fire_time", nullable = false)
@@ -61,7 +61,7 @@ public class ScheduledTaskRunEntity {
     @Column(name = "duration_ms")
     private Long durationMs;
 
-    @Column(name = "answer_summary", length = 4000)
+    @Column(name = "answer_summary", columnDefinition = "TEXT")
     private String answerSummary;
 
     @Column(name = "error_message", length = 1000)

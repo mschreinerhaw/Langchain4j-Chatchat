@@ -18,6 +18,8 @@ public class SearchProperties {
     private int defaultLimit = 20;
     private int maxLimit = 100;
     private int summaryLength = 180;
+    private boolean rebuildOnStartup = false;
+    private String engine = "lucene";
     private boolean luceneEnabled = true;
     private String luceneIndexPath = "./data/search-lucene";
     private int luceneMaxHits = 500;
@@ -33,6 +35,7 @@ public class SearchProperties {
     private RetrievalControl retrievalControl = new RetrievalControl();
     private HybridRetrieval hybridRetrieval = new HybridRetrieval();
     private Ocr ocr = new Ocr();
+    private OpenSearch openSearch = new OpenSearch();
     private boolean lucenePrfEnabled = true;
     private int lucenePrfTopN = 20;
     private int lucenePrfMaxTerms = 8;
@@ -95,5 +98,46 @@ public class SearchProperties {
         private String pdfStrategy = "auto";
         private String marker = "# OCR_TEXT";
         private float scorePenalty = 0.7F;
+    }
+
+    @Getter
+    @Setter
+    public static class OpenSearch {
+        private boolean enabled = true;
+        private String url = "";
+        private String username = "";
+        private String password = "";
+        private String indexName = "chatchat_documents";
+        private boolean insecureSsl = false;
+        private int connectTimeoutMs = 5000;
+        private int requestTimeoutMs = 30000;
+        private int bulkBatchSize = 200;
+        private Embedding embedding = new Embedding();
+
+        @Getter
+        @Setter
+        public static class Embedding {
+            private boolean enabled = false;
+            private String endpoint = "";
+            private String apiKey = "";
+            private String model = "";
+            private int dimension = 1024;
+            private String vectorField = "contentVector";
+            private int maxInputChars = 6000;
+            private int vectorCandidateLimit = 50;
+            private float bm25Weight = 0.45F;
+            private float vectorWeight = 0.35F;
+            private float titleWeight = 0.10F;
+            private float freshnessWeight = 0.05F;
+            private float authorityWeight = 0.05F;
+        }
+    }
+
+    public boolean isOpenSearchEngine() {
+        return "opensearch".equalsIgnoreCase(engine) || "open-search".equalsIgnoreCase(engine);
+    }
+
+    public boolean isLuceneEngine() {
+        return engine == null || engine.isBlank() || "lucene".equalsIgnoreCase(engine);
     }
 }

@@ -78,6 +78,30 @@ class McpToolConcurrencyManagerTest {
             .containsEntry("queue_timeout_seconds", 0L);
     }
 
+    @Test
+    void negativeMaxOutputCharsDisablesOutputTrimming() {
+        ChatChatMcpServerProperties properties = new ChatChatMcpServerProperties();
+        ChatChatMcpServerProperties.LimitProperties webSearchLimit =
+            new ChatChatMcpServerProperties.LimitProperties(1, 1, 1, 0, "http");
+        webSearchLimit.setMaxOutputChars(-1);
+        properties.getConcurrency().setTools(new LinkedHashMap<>(Map.of("web_search", webSearchLimit)));
+        manager = new McpToolConcurrencyManager(properties, new ObjectMapper());
+
+        String longText = "x".repeat(2000);
+        McpSchema.CallToolResult result = manager.execute("web_search", "http", Map.of(), () ->
+            McpSchema.CallToolResult.builder()
+                .addTextContent(longText)
+                .structuredContent(Map.of("payload", longText))
+                .isError(false)
+                .build());
+
+        assertThat(result.content()).hasSize(1);
+        McpSchema.TextContent text = (McpSchema.TextContent) result.content().get(0);
+        assertThat(text.text()).isEqualTo(longText);
+        assertThat(((Map<?, ?>) result.structuredContent()).get("payload")).isEqualTo(longText);
+        assertThat(manager.limitMeta("web_search", "http").get("max_output_chars")).isEqualTo(-1);
+    }
+
     private void sleep(long millis) {
         try {
             Thread.sleep(millis);

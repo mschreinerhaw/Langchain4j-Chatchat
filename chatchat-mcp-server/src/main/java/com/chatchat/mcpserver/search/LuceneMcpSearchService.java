@@ -1,6 +1,8 @@
 package com.chatchat.mcpserver.search;
 
-import lombok.RequiredArgsConstructor;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.lucene.analysis.Analyzer;
 import org.apache.lucene.analysis.TokenStream;
@@ -31,9 +33,19 @@ import org.apache.lucene.store.FSDirectory;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.security.GeneralSecurityException;
+import java.security.SecureRandom;
+import java.security.cert.X509Certificate;
+import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -41,10 +53,14 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
+import javax.net.ssl.SSLContext;
+import javax.net.ssl.SSLParameters;
+import javax.net.ssl.TrustManager;
+import javax.net.ssl.X509TrustManager;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class LuceneMcpSearchService {
 
@@ -73,13 +89,32 @@ public class LuceneMcpSearchService {
     private static final String FIELD_FULL_PATH = "fullPath";
     private static final String FIELD_TABLE_COMMENT = "tableComment";
     private static final String FIELD_DATABASE_COMMENT = "databaseComment";
+    private static final String DISABLE_HOSTNAME_VERIFICATION_PROPERTY = "jdk.internal.httpclient.disableHostnameVerification";
+    private static final String MCP_NGRAM_ANALYZER = "chatchat_mcp_ngram";
+    private static final String MCP_IK_INDEX_ANALYZER = "chatchat_mcp_ik_index";
+    private static final String MCP_IK_SEARCH_ANALYZER = "chatchat_mcp_ik_search";
+    private static final String MCP_PINYIN_ANALYZER = "chatchat_mcp_pinyin";
 
     private final LuceneSearchProperties properties;
+    private final McpEmbeddingClient embeddingClient;
 
     private final Analyzer analyzer = new NgramAnalyzer();
+    private final ObjectMapper objectMapper = new ObjectMapper();
+    private volatile HttpClient httpClient;
+    private final Set<String> vectorCompatibilityWarnings = ConcurrentHashMap.newKeySet();
+
+    public LuceneMcpSearchService(LuceneSearchProperties properties, McpEmbeddingClient embeddingClient) {
+        this.properties = properties;
+        this.embeddingClient = embeddingClient;
+    }
+
+    public LuceneMcpSearchService(LuceneSearchProperties properties) {
+        this(properties, new McpEmbeddingClient(properties, new ObjectMapper()));
+    }
 
     public boolean enabled() {
-        return properties != null && properties.isEnabled();
+        return properties != null && properties.isEnabled()
+            && (properties.isLuceneEngine() || openSearchEnabled());
     }
 
     public List<SearchHit> searchAssets(List<AssetDoc> docs, AssetSearchRequest request) {
@@ -205,6 +240,10 @@ public class LuceneMcpSearchService {
                     Collectors.toList()
                 ));
             for (Map.Entry<String, List<AssetDoc>> entry : docsByAssetType.entrySet()) {
+                if (openSearchSelected()) {
+                    rebuildOpenSearch(assetIndexName(entry.getKey()), entry.getValue().stream().map(this::assetDocument).toList());
+                    continue;
+                }
                 rebuild(assetIndexPath(entry.getKey()), entry.getValue().stream().map(this::assetDocument).toList());
             }
         } catch (Exception ex) {
@@ -223,6 +262,13 @@ public class LuceneMcpSearchService {
             return;
         }
         try {
+            if (openSearchSelected()) {
+                rebuildOpenSearch(assetIndexName(normalizedAssetType), safeAssetDocs(docs).stream()
+                    .filter(doc -> normalizedAssetType.equals(normalizeAssetType(doc.assetType())))
+                    .map(this::assetDocument)
+                    .toList());
+                return;
+            }
             rebuild(assetIndexPath(normalizedAssetType), safeAssetDocs(docs).stream()
                 .filter(doc -> normalizedAssetType.equals(normalizeAssetType(doc.assetType())))
                 .map(this::assetDocument)
@@ -247,6 +293,10 @@ public class LuceneMcpSearchService {
                     Collectors.toList()
                 ));
             for (Map.Entry<String, List<AssetDoc>> entry : docsByAssetType.entrySet()) {
+                if (openSearchSelected()) {
+                    upsertOpenSearch(assetIndexName(entry.getKey()), entry.getValue().stream().map(this::assetDocument).toList());
+                    continue;
+                }
                 upsert(assetIndexPath(entry.getKey()), entry.getValue().stream().map(this::assetDocument).toList());
             }
         } catch (Exception ex) {
@@ -265,6 +315,13 @@ public class LuceneMcpSearchService {
             return;
         }
         try {
+            if (openSearchSelected()) {
+                upsertOpenSearch(assetIndexName(normalizedAssetType), docs.stream()
+                    .filter(doc -> normalizedAssetType.equals(normalizeAssetType(doc.assetType())))
+                    .map(this::assetDocument)
+                    .toList());
+                return;
+            }
             upsert(assetIndexPath(normalizedAssetType), docs.stream()
                 .filter(doc -> normalizedAssetType.equals(normalizeAssetType(doc.assetType())))
                 .map(this::assetDocument)
@@ -283,6 +340,10 @@ public class LuceneMcpSearchService {
         try {
             String assetType = normalizeAssetType(effectiveRequest.assetType());
             if (assetType != null) {
+                if (openSearchSelected()) {
+                    return searchOpenSearch(assetIndexName(assetType), assetQueryBody(effectiveRequest),
+                        effectiveRequest.limit(), effectiveRequest.queryText(), assetFilterBody(effectiveRequest));
+                }
                 return search(assetIndexPath(assetType), assetQuery(effectiveRequest), effectiveRequest.limit());
             }
             return searchKnownAssetIndexes(effectiveRequest);
@@ -330,14 +391,26 @@ public class LuceneMcpSearchService {
     }
 
     private void rebuildTemplateIndex(String indexName, List<TemplateDoc> docs) throws IOException {
+        if (openSearchSelected()) {
+            rebuildOpenSearch(indexName, safeTemplateDocs(docs).stream().map(this::templateDocument).toList());
+            return;
+        }
         rebuild(indexPath(indexName), safeTemplateDocs(docs).stream().map(this::templateDocument).toList());
     }
 
     private void upsertTemplateIndex(String indexName, List<TemplateDoc> docs) throws IOException {
+        if (openSearchSelected()) {
+            upsertOpenSearch(indexName, safeTemplateDocs(docs).stream().map(this::templateDocument).toList());
+            return;
+        }
         upsert(indexPath(indexName), safeTemplateDocs(docs).stream().map(this::templateDocument).toList());
     }
 
     private List<SearchHit> searchTemplateIndex(String indexName, TemplateSearchRequest request) throws Exception {
+        if (openSearchSelected()) {
+            return searchOpenSearch(indexName, templateQueryBody(request), request.limit(), request.intentText(),
+                templateFilterBody(request));
+        }
         return search(indexPath(indexName), templateQuery(request), request.limit());
     }
 
@@ -363,6 +436,19 @@ public class LuceneMcpSearchService {
     }
 
     private List<SearchHit> searchKnownAssetIndexes(AssetSearchRequest request) throws Exception {
+        if (openSearchSelected()) {
+            List<SearchHit> hits = new ArrayList<>();
+            int limit = request.limit();
+            Map<String, Object> query = assetQueryBody(request);
+            Map<String, Object> vectorFilter = assetFilterBody(request);
+            for (String assetType : KNOWN_ASSET_TYPES) {
+                hits.addAll(searchOpenSearch(assetIndexName(assetType), query, limit, request.queryText(), vectorFilter));
+            }
+            return hits.stream()
+                .sorted(Comparator.comparingDouble(SearchHit::score).reversed())
+                .limit(Math.max(1, Math.min(maxResults(), limit)))
+                .toList();
+        }
         List<SearchHit> hits = new ArrayList<>();
         int limit = request.limit();
         Query query = assetQuery(request);
@@ -386,6 +472,9 @@ public class LuceneMcpSearchService {
     }
 
     private synchronized void rebuild(Path path, List<Document> docs) throws IOException {
+        long started = System.currentTimeMillis();
+        int count = docs == null ? 0 : docs.size();
+        log.info("MCP Lucene index rebuild start path={} docs={}", path, count);
         try (FSDirectory directory = FSDirectory.open(path);
              IndexWriter writer = new IndexWriter(directory, new IndexWriterConfig(analyzer))) {
             writer.deleteAll();
@@ -394,9 +483,14 @@ public class LuceneMcpSearchService {
             }
             writer.commit();
         }
+        log.info("MCP Lucene index rebuild finished path={} docs={} durationMs={}",
+            path, count, System.currentTimeMillis() - started);
     }
 
     private synchronized void upsert(Path path, List<Document> docs) throws IOException {
+        long started = System.currentTimeMillis();
+        int count = docs == null ? 0 : docs.size();
+        log.info("MCP Lucene index upsert start path={} docs={}", path, count);
         try (FSDirectory directory = FSDirectory.open(path);
              IndexWriter writer = new IndexWriter(directory, new IndexWriterConfig(analyzer))) {
             for (Document doc : docs) {
@@ -404,6 +498,8 @@ public class LuceneMcpSearchService {
             }
             writer.commit();
         }
+        log.info("MCP Lucene index upsert finished path={} docs={} durationMs={}",
+            path, count, System.currentTimeMillis() - started);
     }
 
     private List<SearchHit> search(Path path, Query query, int limit) throws IOException {
@@ -442,6 +538,174 @@ public class LuceneMcpSearchService {
         }
     }
 
+    private synchronized void rebuildOpenSearch(String indexName, List<Document> docs) {
+        String index = openSearchIndexName(indexName);
+        long started = System.currentTimeMillis();
+        int count = docs == null ? 0 : docs.size();
+        log.info("MCP OpenSearch index rebuild start index={} docs={} vectorEnabled={}",
+            index, count, embeddingClient.configured());
+        ensureOpenSearchIndex(index);
+        request("POST", "/" + index + "/_delete_by_query?conflicts=proceed&refresh=true",
+            Map.of("query", Map.of("match_all", Map.of())), true);
+        int written = bulkOpenSearch(index, docs);
+        log.info("MCP OpenSearch index rebuild finished index={} docs={} written={} durationMs={}",
+            index, count, written, System.currentTimeMillis() - started);
+    }
+
+    private synchronized void upsertOpenSearch(String indexName, List<Document> docs) {
+        String index = openSearchIndexName(indexName);
+        long started = System.currentTimeMillis();
+        int count = docs == null ? 0 : docs.size();
+        log.info("MCP OpenSearch index upsert start index={} docs={} vectorEnabled={}",
+            index, count, embeddingClient.configured());
+        ensureOpenSearchIndex(index);
+        int written = bulkOpenSearch(index, docs);
+        log.info("MCP OpenSearch index upsert finished index={} docs={} written={} durationMs={}",
+            index, count, written, System.currentTimeMillis() - started);
+    }
+
+    private int bulkOpenSearch(String index, List<Document> docs) {
+        if (docs == null || docs.isEmpty()) {
+            return 0;
+        }
+        StringBuilder body = new StringBuilder();
+        boolean vectorWritable = openSearchVectorSearchAvailable(index);
+        int written = 0;
+        int vectorized = 0;
+        for (Document doc : docs) {
+            Map<String, Object> source = sourceOf(doc);
+            String id = String.valueOf(source.getOrDefault(FIELD_ID, ""));
+            if (id.isBlank()) {
+                continue;
+            }
+            if (vectorWritable) {
+                List<Float> vector = embeddingClient.embed(embeddingInput(source));
+                if (!vector.isEmpty()) {
+                    source.put(vectorField(), vector);
+                    vectorized++;
+                }
+            }
+            body.append(json(Map.of("index", Map.of("_index", index, "_id", id)))).append('\n');
+            body.append(json(source)).append('\n');
+            written++;
+        }
+        if (body.length() > 0) {
+            requestRaw("POST", "/_bulk?refresh=true", body.toString(), false, "application/x-ndjson");
+        }
+        if (embeddingClient.configured()) {
+            log.info("MCP OpenSearch bulk vector status index={} vectorWritable={} vectorized={} docs={}",
+                index, vectorWritable, vectorized, written);
+        }
+        return written;
+    }
+
+    private List<SearchHit> searchOpenSearch(String indexName, Map<String, Object> query, int limit,
+                                             String semanticText, Map<String, Object> vectorFilter) {
+        String index = openSearchIndexName(indexName);
+        if (!openSearchIndexExists(index)) {
+            return List.of();
+        }
+        int resultLimit = Math.max(1, Math.min(maxResults(), limit));
+        Map<String, Object> body = new LinkedHashMap<>();
+        body.put("size", resultLimit);
+        body.put("query", query == null ? Map.of("match_all", Map.of()) : query);
+        List<SearchHit> lexicalHits = parseOpenSearchHits(index, request("POST", "/" + index + "/_search", body, false),
+            "opensearch_bm25");
+        List<SearchHit> vectorHits = searchOpenSearchVector(index, semanticText, resultLimit, vectorFilter);
+        if (vectorHits.isEmpty()) {
+            return lexicalHits;
+        }
+        return mergeOpenSearchHits(lexicalHits, vectorHits, resultLimit);
+    }
+
+    private List<SearchHit> searchOpenSearchVector(String index, String semanticText, int limit, Map<String, Object> vectorFilter) {
+        String text = normalizeText(semanticText);
+        if (!embeddingClient.enabled() || text == null || !openSearchVectorSearchAvailable(index)) {
+            return List.of();
+        }
+        List<Float> vector = embeddingClient.embed(text);
+        if (vector.isEmpty()) {
+            return List.of();
+        }
+        int vectorLimit = Math.max(limit, Math.max(1, embeddingConfig().getVectorCandidateLimit()));
+        Map<String, Object> knnOptions = new LinkedHashMap<>();
+        knnOptions.put("vector", vector);
+        knnOptions.put("k", vectorLimit);
+        if (vectorFilter != null && !vectorFilter.containsKey("match_all")) {
+            knnOptions.put("filter", vectorFilter);
+        }
+        Map<String, Object> body = Map.of(
+            "size", vectorLimit,
+            "query", Map.of("knn", Map.of(vectorField(), knnOptions))
+        );
+        try {
+            return parseOpenSearchHits(index, request("POST", "/" + index + "/_search", body, false), "opensearch_vector");
+        } catch (Exception ex) {
+            log.warn("MCP OpenSearch vector search failed index={} error={}", index, ex.getMessage());
+            return List.of();
+        }
+    }
+
+    private List<SearchHit> parseOpenSearchHits(String index, JsonNode root, String scoreReason) {
+        JsonNode nodes = root.path("hits").path("hits");
+        if (!nodes.isArray()) {
+            return List.of();
+        }
+        List<SearchHit> hits = new ArrayList<>();
+        for (JsonNode hitNode : nodes) {
+            JsonNode source = hitNode.path("_source");
+            String sourceName = text(source, "source");
+            float score = (float) hitNode.path("_score").asDouble(0.0D);
+            hits.add(new SearchHit(
+                firstText(text(source, FIELD_RESULT_ID), text(source, FIELD_ID)),
+                text(source, FIELD_KIND),
+                score,
+                sourceName == null || sourceName.isBlank()
+                    ? List.of(scoreReason + ":" + round(score))
+                    : List.of(scoreReason + ":" + round(score), "source:" + sourceName),
+                text(source, FIELD_ID),
+                sourceName,
+                text(source, FIELD_RESULT_ID),
+                text(source, FIELD_DATABASE),
+                text(source, FIELD_TABLE),
+                text(source, FIELD_FULL_PATH),
+                text(source, FIELD_TABLE_COMMENT),
+                text(source, FIELD_DATABASE_COMMENT),
+                text(source, FIELD_ASSET_TYPE),
+                text(source, FIELD_NAME),
+                text(source, FIELD_DESCRIPTION),
+                text(source, FIELD_CATEGORY),
+                text(source, FIELD_DB_TYPE),
+                text(source, FIELD_RISK_LEVEL)
+            ));
+        }
+        return hits;
+    }
+
+    private List<SearchHit> mergeOpenSearchHits(List<SearchHit> lexicalHits, List<SearchHit> vectorHits, int limit) {
+        Map<String, MergedSearchHit> merged = new LinkedHashMap<>();
+        float maxBm25 = maxScore(lexicalHits);
+        float maxVector = maxScore(vectorHits);
+        LuceneSearchProperties.OpenSearch.Embedding config = embeddingConfig();
+        for (SearchHit hit : lexicalHits) {
+            String key = mergeKey(hit);
+            MergedSearchHit mergedHit = merged.computeIfAbsent(key, ignored -> new MergedSearchHit(hit));
+            mergedHit.bm25 = maxBm25 <= 0 ? 0.0F : hit.score() / maxBm25;
+            mergedHit.reasons.addAll(hit.reasons());
+        }
+        for (SearchHit hit : vectorHits) {
+            String key = mergeKey(hit);
+            MergedSearchHit mergedHit = merged.computeIfAbsent(key, ignored -> new MergedSearchHit(hit));
+            mergedHit.vector = maxVector <= 0 ? 0.0F : hit.score() / maxVector;
+            mergedHit.reasons.addAll(hit.reasons());
+        }
+        return merged.values().stream()
+            .map(hit -> hit.toSearchHit(config.getBm25Weight(), config.getVectorWeight()))
+            .sorted(Comparator.comparingDouble(SearchHit::score).reversed())
+            .limit(limit)
+            .toList();
+    }
+
     private int maxResults() {
         return properties == null ? 50 : Math.max(1, properties.getMaxResults());
     }
@@ -469,6 +733,54 @@ public class LuceneMcpSearchService {
         return built.clauses().isEmpty() ? new MatchAllDocsQuery() : built;
     }
 
+    private Map<String, Object> assetQueryBody(AssetSearchRequest request) {
+        AssetSearchRequest effectiveRequest = effectiveAssetSearchRequest(request);
+        List<Object> must = new ArrayList<>();
+        addExactFilter(must, FIELD_ASSET_TYPE, effectiveRequest.assetType());
+        addExactFilter(must, FIELD_ENV, effectiveRequest.env());
+        addExactFilter(must, FIELD_DB_TYPE, effectiveRequest.dbType());
+        for (String label : effectiveRequest.labels()) {
+            addExactFilter(must, FIELD_LABEL, label);
+        }
+        String queryText = normalizeText(effectiveRequest.queryText());
+        if (queryText != null) {
+            String exact = normalizeExact(queryText);
+            List<Object> should = new ArrayList<>();
+            should.add(Map.of("multi_match", Map.of(
+                "query", queryText,
+                "fields", List.of(
+                    FIELD_NAME_TEXT + "^2.4",
+                    FIELD_NAME_TEXT + ".ngram^1.6",
+                    FIELD_NAME_TEXT + ".pinyin^1.8",
+                    FIELD_TEXT,
+                    FIELD_TEXT + ".ngram^1.1",
+                    FIELD_TEXT + ".pinyin^1.2",
+                    FIELD_TABLE + "^3.0",
+                    FIELD_FULL_PATH + "^4.0"
+                ),
+                "operator", "or"
+            )));
+            should.add(Map.of("term", Map.of(FIELD_ID, Map.of("value", exact, "boost", 3.0))));
+            should.add(Map.of("term", Map.of(FIELD_RESULT_ID, Map.of("value", exact, "boost", 3.0))));
+            should.add(Map.of("term", Map.of(FIELD_FULL_PATH, Map.of("value", exact, "boost", 4.0))));
+            should.add(Map.of("term", Map.of(FIELD_TABLE, Map.of("value", exact, "boost", 3.0))));
+            must.add(Map.of("bool", Map.of("should", should, "minimum_should_match", 1)));
+        }
+        return must.isEmpty() ? Map.of("match_all", Map.of()) : Map.of("bool", Map.of("must", must));
+    }
+
+    private Map<String, Object> assetFilterBody(AssetSearchRequest request) {
+        AssetSearchRequest effectiveRequest = effectiveAssetSearchRequest(request);
+        List<Object> filter = new ArrayList<>();
+        addExactFilter(filter, FIELD_ASSET_TYPE, effectiveRequest.assetType());
+        addExactFilter(filter, FIELD_ENV, effectiveRequest.env());
+        addExactFilter(filter, FIELD_DB_TYPE, effectiveRequest.dbType());
+        for (String label : effectiveRequest.labels()) {
+            addExactFilter(filter, FIELD_LABEL, label);
+        }
+        return filter.isEmpty() ? Map.of("match_all", Map.of()) : Map.of("bool", Map.of("filter", filter));
+    }
+
     private Query templateQuery(TemplateSearchRequest request) throws Exception {
         BooleanQuery.Builder root = new BooleanQuery.Builder();
         addExact(root, FIELD_ASSET_TYPE, request.assetType(), BooleanClause.Occur.MUST);
@@ -487,6 +799,51 @@ public class LuceneMcpSearchService {
         return built.clauses().isEmpty() ? new MatchAllDocsQuery() : built;
     }
 
+    private Map<String, Object> templateQueryBody(TemplateSearchRequest request) {
+        List<Object> must = new ArrayList<>();
+        addExactFilter(must, FIELD_ASSET_TYPE, request.assetType());
+        if (request.dbType() != null && !request.dbType().isBlank()) {
+            must.add(Map.of("bool", Map.of(
+                "should", List.of(
+                    Map.of("term", Map.of(FIELD_DB_TYPE, normalizeExact(request.dbType()))),
+                    Map.of("term", Map.of(FIELD_DB_TYPE, "generic"))
+                ),
+                "minimum_should_match", 1
+            )));
+        }
+        String queryText = normalizeText(request.intentText());
+        if (queryText != null) {
+            must.add(Map.of("multi_match", Map.of(
+                "query", queryText,
+                "fields", List.of(
+                    FIELD_INTENT_TEXT + "^2.4",
+                    FIELD_INTENT_TEXT + ".ngram^1.5",
+                    FIELD_INTENT_TEXT + ".pinyin^1.6",
+                    FIELD_TEXT,
+                    FIELD_TEXT + ".ngram^1.1",
+                    FIELD_TEXT + ".pinyin^1.2"
+                ),
+                "operator", "or"
+            )));
+        }
+        return must.isEmpty() ? Map.of("match_all", Map.of()) : Map.of("bool", Map.of("must", must));
+    }
+
+    private Map<String, Object> templateFilterBody(TemplateSearchRequest request) {
+        List<Object> filter = new ArrayList<>();
+        addExactFilter(filter, FIELD_ASSET_TYPE, request.assetType());
+        if (request.dbType() != null && !request.dbType().isBlank()) {
+            filter.add(Map.of("bool", Map.of(
+                "should", List.of(
+                    Map.of("term", Map.of(FIELD_DB_TYPE, normalizeExact(request.dbType()))),
+                    Map.of("term", Map.of(FIELD_DB_TYPE, "generic"))
+                ),
+                "minimum_should_match", 1
+            )));
+        }
+        return filter.isEmpty() ? Map.of("match_all", Map.of()) : Map.of("bool", Map.of("filter", filter));
+    }
+
     private Query textQuery(String value, String... fields) throws Exception {
         MultiFieldQueryParser parser = new MultiFieldQueryParser(fields, analyzer);
         parser.setDefaultOperator(MultiFieldQueryParser.Operator.OR);
@@ -501,6 +858,13 @@ public class LuceneMcpSearchService {
         String normalized = normalizeExact(value);
         if (normalized != null) {
             builder.add(new TermQuery(new Term(field, normalized)), occur);
+        }
+    }
+
+    private void addExactFilter(List<Object> filters, String field, String value) {
+        String normalized = normalizeExact(value);
+        if (normalized != null) {
+            filters.add(Map.of("term", Map.of(field, normalized)));
         }
     }
 
@@ -619,6 +983,378 @@ public class LuceneMcpSearchService {
         return null;
     }
 
+    private boolean openSearchSelected() {
+        return properties != null && properties.isOpenSearchEngine() && openSearchEnabled();
+    }
+
+    private boolean openSearchEnabled() {
+        return properties != null
+            && properties.getOpenSearch() != null
+            && properties.getOpenSearch().isEnabled();
+    }
+
+    private void ensureOpenSearchIndex(String index) {
+        if (openSearchIndexExists(index)) {
+            if (embeddingClient.configured()) {
+                openSearchVectorSearchAvailable(index);
+            }
+            return;
+        }
+        Map<String, Object> settings = new LinkedHashMap<>();
+        settings.put("index.max_ngram_diff", 13);
+        settings.put("analysis", openSearchAnalysisSettings());
+        if (embeddingClient.configured()) {
+            settings.put("index.knn", true);
+        }
+        Map<String, Object> mappings = new LinkedHashMap<>(Map.ofEntries(
+            Map.entry(FIELD_ID, Map.of("type", "keyword")),
+            Map.entry(FIELD_KIND, Map.of("type", "keyword")),
+            Map.entry(FIELD_ASSET_TYPE, Map.of("type", "keyword")),
+            Map.entry(FIELD_ENV, Map.of("type", "keyword")),
+            Map.entry(FIELD_DB_TYPE, Map.of("type", "keyword")),
+            Map.entry(FIELD_LABEL, Map.of("type", "keyword")),
+            Map.entry(FIELD_RESULT_ID, Map.of("type", "keyword")),
+            Map.entry(FIELD_DATABASE, Map.of("type", "keyword")),
+            Map.entry(FIELD_TABLE, Map.of("type", "keyword")),
+            Map.entry(FIELD_FULL_PATH, Map.of("type", "keyword")),
+            Map.entry(FIELD_RISK_LEVEL, Map.of("type", "keyword")),
+            Map.entry(FIELD_NAME, chineseTextMapping(false)),
+            Map.entry(FIELD_DESCRIPTION, chineseTextMapping(false)),
+            Map.entry(FIELD_CATEGORY, chineseTextMapping(false)),
+            Map.entry(FIELD_TABLE_COMMENT, chineseTextMapping(false)),
+            Map.entry(FIELD_DATABASE_COMMENT, chineseTextMapping(false)),
+            Map.entry(FIELD_NAME_TEXT, textMapping()),
+            Map.entry(FIELD_INTENT_TEXT, textMapping()),
+            Map.entry(FIELD_TEXT, textMapping()),
+            Map.entry("source", Map.of("type", "keyword"))
+        ));
+        if (embeddingClient.configured()) {
+            mappings.put(vectorField(), Map.of(
+                "type", "knn_vector",
+                "dimension", Math.max(1, embeddingConfig().getDimension())
+            ));
+        }
+        Map<String, Object> body = Map.of(
+            "settings", settings,
+            "mappings", Map.of("properties", mappings)
+        );
+        try {
+            request("PUT", "/" + index, body, false);
+            log.info("MCP OpenSearch index created index={} vectorEnabled={} vectorField={} dimension={}",
+                index, embeddingClient.configured(), vectorField(), embeddingConfig().getDimension());
+        } catch (Exception ex) {
+            if (!embeddingClient.configured()) {
+                throw ex;
+            }
+            log.warn("MCP OpenSearch KNN index creation failed index={} error={}. Falling back to lexical index.",
+                index, ex.getMessage());
+            settings.remove("index.knn");
+            mappings.remove(vectorField());
+            request("PUT", "/" + index, Map.of("settings", settings, "mappings", Map.of("properties", mappings)), false);
+            log.info("MCP OpenSearch index created index={} vectorEnabled=false", index);
+        }
+    }
+
+    private Map<String, Object> textMapping() {
+        return chineseTextMapping(true);
+    }
+
+    private Map<String, Object> openSearchAnalysisSettings() {
+        return Map.of(
+            "filter", Map.of(
+                "chatchat_mcp_ngram_filter", Map.of(
+                    "type", "ngram",
+                    "min_gram", 3,
+                    "max_gram", 16
+                ),
+                "chatchat_mcp_pinyin_filter", Map.of(
+                    "type", "pinyin",
+                    "keep_full_pinyin", true,
+                    "keep_joined_full_pinyin", true,
+                    "keep_original", true,
+                    "limit_first_letter_length", 16,
+                    "lowercase", true,
+                    "remove_duplicated_term", true
+                )
+            ),
+            "analyzer", Map.of(
+                MCP_NGRAM_ANALYZER, Map.of(
+                    "type", "custom",
+                    "tokenizer", "standard",
+                    "filter", List.of("lowercase", "asciifolding", "chatchat_mcp_ngram_filter")
+                ),
+                MCP_IK_INDEX_ANALYZER, Map.of(
+                    "type", "custom",
+                    "tokenizer", "ik_max_word",
+                    "filter", List.of("lowercase", "icu_normalizer")
+                ),
+                MCP_IK_SEARCH_ANALYZER, Map.of(
+                    "type", "custom",
+                    "tokenizer", "ik_smart",
+                    "filter", List.of("lowercase", "icu_normalizer")
+                ),
+                MCP_PINYIN_ANALYZER, Map.of(
+                    "type", "custom",
+                    "tokenizer", "keyword",
+                    "filter", List.of("chatchat_mcp_pinyin_filter")
+                )
+            )
+        );
+    }
+
+    private Map<String, Object> chineseTextMapping(boolean pinyinSubField) {
+        Map<String, Object> mapping = new LinkedHashMap<>();
+        mapping.put("type", "text");
+        mapping.put("analyzer", MCP_IK_INDEX_ANALYZER);
+        mapping.put("search_analyzer", MCP_IK_SEARCH_ANALYZER);
+        if (pinyinSubField) {
+            mapping.put("fields", Map.of(
+                "ngram", Map.of("type", "text", "analyzer", MCP_NGRAM_ANALYZER, "search_analyzer", "standard"),
+                "pinyin", Map.of("type", "text", "analyzer", MCP_PINYIN_ANALYZER, "search_analyzer", MCP_PINYIN_ANALYZER)
+            ));
+        }
+        return mapping;
+    }
+
+    private boolean openSearchIndexExists(String index) {
+        return request("HEAD", "/" + index, null, true) != null;
+    }
+
+    private Map<String, Object> sourceOf(Document document) {
+        Map<String, Object> source = new LinkedHashMap<>();
+        document.getFields().forEach(field -> {
+            String name = field.name();
+            String value = field.stringValue();
+            if (value == null || value.isBlank()) {
+                return;
+            }
+            Object existing = source.get(name);
+            if (existing == null) {
+                source.put(name, value);
+            } else if (existing instanceof List<?> list) {
+                if (!list.contains(value)) {
+                    List<Object> values = new ArrayList<>(list);
+                    values.add(value);
+                    source.put(name, values);
+                }
+            } else if (!existing.equals(value)) {
+                source.put(name, new ArrayList<>(List.of(existing, value)));
+            }
+        });
+        return source;
+    }
+
+    private JsonNode request(String method, String path, Object body, boolean allowNotFound) {
+        return requestRaw(method, path, body == null ? "" : json(body), allowNotFound, "application/json");
+    }
+
+    private boolean openSearchVectorSearchAvailable(String index) {
+        if (!embeddingClient.configured()) {
+            return false;
+        }
+        try {
+            JsonNode settings = request("GET", "/" + index + "/_settings", null, false);
+            boolean knnEnabled = settings.path(index).path("settings").path("index").path("knn").asBoolean(false);
+            JsonNode mapping = request("GET", "/" + index + "/_mapping", null, false);
+            String type = mapping.path(index).path("mappings").path("properties").path(vectorField()).path("type").asText("");
+            boolean available = knnEnabled && "knn_vector".equalsIgnoreCase(type);
+            if (!available && vectorCompatibilityWarnings.add(index)) {
+                log.warn("MCP OpenSearch vector search disabled for index={} because index.knn={} vectorField={} type={}. "
+                        + "Delete this MCP index and rebuild it to enable KNN vectors.",
+                    index, knnEnabled, vectorField(), type == null || type.isBlank() ? "<missing>" : type);
+            }
+            return available;
+        } catch (Exception ex) {
+            if (vectorCompatibilityWarnings.add(index)) {
+                log.warn("MCP OpenSearch vector compatibility check failed index={} error={}", index, ex.getMessage());
+            }
+            return false;
+        }
+    }
+
+    private LuceneSearchProperties.OpenSearch.Embedding embeddingConfig() {
+        LuceneSearchProperties.OpenSearch openSearch = properties == null ? null : properties.getOpenSearch();
+        if (openSearch == null || openSearch.getEmbedding() == null) {
+            return new LuceneSearchProperties.OpenSearch.Embedding();
+        }
+        return openSearch.getEmbedding();
+    }
+
+    private String vectorField() {
+        String value = embeddingConfig().getVectorField();
+        return value == null || value.isBlank() ? "mcpContentVector" : value.trim();
+    }
+
+    private String embeddingInput(Map<String, Object> source) {
+        return join(
+            sourceValue(source, FIELD_NAME),
+            sourceValue(source, FIELD_DESCRIPTION),
+            sourceValue(source, FIELD_CATEGORY),
+            sourceValue(source, FIELD_DATABASE),
+            sourceValue(source, FIELD_TABLE),
+            sourceValue(source, FIELD_FULL_PATH),
+            sourceValue(source, FIELD_TABLE_COMMENT),
+            sourceValue(source, FIELD_DATABASE_COMMENT),
+            sourceValue(source, FIELD_NAME_TEXT),
+            sourceValue(source, FIELD_INTENT_TEXT),
+            sourceValue(source, FIELD_TEXT)
+        );
+    }
+
+    private String sourceValue(Map<String, Object> source, String field) {
+        if (source == null || field == null) {
+            return null;
+        }
+        Object value = source.get(field);
+        if (value instanceof List<?> values) {
+            return values.stream()
+                .map(String::valueOf)
+                .filter(text -> !text.isBlank())
+                .collect(Collectors.joining(" "));
+        }
+        return value == null ? null : String.valueOf(value);
+    }
+
+    private float maxScore(List<SearchHit> hits) {
+        if (hits == null || hits.isEmpty()) {
+            return 0.0F;
+        }
+        float max = 0.0F;
+        for (SearchHit hit : hits) {
+            max = Math.max(max, hit.score());
+        }
+        return max;
+    }
+
+    private String mergeKey(SearchHit hit) {
+        return firstText(hit.documentId(), hit.resultId(), hit.id());
+    }
+
+    private JsonNode requestRaw(String method, String path, String body, boolean allowNotFound, String contentType) {
+        try {
+            HttpRequest.Builder builder = HttpRequest.newBuilder()
+                .uri(URI.create(openSearchBaseUrl() + path))
+                .timeout(Duration.ofMillis(Math.max(1, properties.getOpenSearch().getRequestTimeoutMs())))
+                .header("Accept", "application/json")
+                .header("Authorization", authorizationHeader());
+            if (!body.isBlank() || !"GET".equalsIgnoreCase(method) && !"HEAD".equalsIgnoreCase(method)) {
+                builder.header("Content-Type", contentType);
+            }
+            HttpRequest request = switch (method.toUpperCase(Locale.ROOT)) {
+                case "GET" -> builder.GET().build();
+                case "HEAD" -> builder.method("HEAD", HttpRequest.BodyPublishers.noBody()).build();
+                case "PUT" -> builder.PUT(HttpRequest.BodyPublishers.ofString(body)).build();
+                case "POST" -> builder.POST(HttpRequest.BodyPublishers.ofString(body)).build();
+                case "DELETE" -> builder.DELETE().build();
+                default -> builder.method(method, body.isBlank()
+                    ? HttpRequest.BodyPublishers.noBody()
+                    : HttpRequest.BodyPublishers.ofString(body)).build();
+            };
+            HttpResponse<String> response = httpClient().send(request, HttpResponse.BodyHandlers.ofString());
+            if (allowNotFound && response.statusCode() == 404) {
+                return null;
+            }
+            if (response.statusCode() < 200 || response.statusCode() >= 300) {
+                throw new IllegalStateException("OpenSearch request failed status=" + response.statusCode()
+                    + " path=" + path + " body=" + response.body());
+            }
+            if (response.body() == null || response.body().isBlank() || "HEAD".equalsIgnoreCase(method)) {
+                return objectMapper.createObjectNode();
+            }
+            return objectMapper.readTree(response.body());
+        } catch (IOException ex) {
+            throw new IllegalStateException("OpenSearch request failed path=" + path + ": " + ex.getMessage(), ex);
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("OpenSearch request interrupted path=" + path, ex);
+        }
+    }
+
+    private String json(Object value) {
+        try {
+            return objectMapper.writeValueAsString(value);
+        } catch (JsonProcessingException ex) {
+            throw new IllegalStateException("Failed to serialize OpenSearch payload", ex);
+        }
+    }
+
+    private String authorizationHeader() {
+        String token = properties.getOpenSearch().getUsername() + ":" + properties.getOpenSearch().getPassword();
+        return "Basic " + Base64.getEncoder().encodeToString(token.getBytes(StandardCharsets.UTF_8));
+    }
+
+    private HttpClient httpClient() {
+        HttpClient current = httpClient;
+        if (current != null) {
+            return current;
+        }
+        synchronized (this) {
+            if (httpClient == null) {
+                HttpClient.Builder builder = HttpClient.newBuilder();
+                if (properties.getOpenSearch().isInsecureSsl()) {
+                    System.setProperty(DISABLE_HOSTNAME_VERIFICATION_PROPERTY, "true");
+                    builder.sslContext(insecureSslContext());
+                    SSLParameters sslParameters = new SSLParameters();
+                    sslParameters.setEndpointIdentificationAlgorithm("");
+                    builder.sslParameters(sslParameters);
+                }
+                httpClient = builder.build();
+            }
+            return httpClient;
+        }
+    }
+
+    private SSLContext insecureSslContext() {
+        try {
+            TrustManager[] trustManagers = new TrustManager[] {
+                new X509TrustManager() {
+                    @Override
+                    public void checkClientTrusted(X509Certificate[] chain, String authType) {
+                    }
+
+                    @Override
+                    public void checkServerTrusted(X509Certificate[] chain, String authType) {
+                    }
+
+                    @Override
+                    public X509Certificate[] getAcceptedIssuers() {
+                        return new X509Certificate[0];
+                    }
+                }
+            };
+            SSLContext context = SSLContext.getInstance("TLS");
+            context.init(null, trustManagers, new SecureRandom());
+            return context;
+        } catch (GeneralSecurityException ex) {
+            throw new IllegalStateException("Failed to create insecure OpenSearch SSL context", ex);
+        }
+    }
+
+    private String openSearchBaseUrl() {
+        String value = properties.getOpenSearch().getUrl();
+        String text = value == null || value.isBlank() ? "http://localhost:9200" : value.trim();
+        while (text.endsWith("/")) {
+            text = text.substring(0, text.length() - 1);
+        }
+        return text;
+    }
+
+    private String openSearchIndexName(String name) {
+        String prefix = properties.getOpenSearch().getIndexPrefix() == null ? "" : properties.getOpenSearch().getIndexPrefix();
+        return (prefix + name).toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9_\\-]+", "-");
+    }
+
+    private String text(JsonNode node, String field) {
+        JsonNode value = node == null ? null : node.path(field);
+        if (value == null || value.isMissingNode() || value.isNull()) {
+            return null;
+        }
+        if (value.isArray() && !value.isEmpty()) {
+            return value.get(0).asText();
+        }
+        return value.asText();
+    }
+
     private double round(double value) {
         return Math.round(value * 1000.0) / 1000.0;
     }
@@ -705,6 +1441,44 @@ public class LuceneMcpSearchService {
                                         String dbType,
                                         String intentText,
                                         int limit) {
+    }
+
+    private static class MergedSearchHit {
+
+        private final SearchHit hit;
+        private final Set<String> reasons = new LinkedHashSet<>();
+        private float bm25;
+        private float vector;
+
+        private MergedSearchHit(SearchHit hit) {
+            this.hit = hit;
+        }
+
+        private SearchHit toSearchHit(float bm25Weight, float vectorWeight) {
+            float score = bm25 * bm25Weight + vector * vectorWeight;
+            List<String> mergedReasons = new ArrayList<>(reasons);
+            mergedReasons.add("hybrid_score:" + (Math.round(score * 1000.0) / 1000.0));
+            return new SearchHit(
+                hit.id(),
+                hit.kind(),
+                score,
+                mergedReasons,
+                hit.documentId(),
+                hit.source(),
+                hit.resultId(),
+                hit.database(),
+                hit.table(),
+                hit.fullPath(),
+                hit.tableComment(),
+                hit.databaseComment(),
+                hit.assetType(),
+                hit.name(),
+                hit.description(),
+                hit.category(),
+                hit.dbType(),
+                hit.riskLevel()
+            );
+        }
     }
 
     public record SearchHit(String id,

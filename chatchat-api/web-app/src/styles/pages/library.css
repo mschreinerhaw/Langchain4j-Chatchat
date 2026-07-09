@@ -258,14 +258,59 @@
 }
 
 .library-view .library-summary {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
   margin-bottom: 10px;
   color: var(--muted);
   font-size: 13px;
 }
 
+.library-view .library-summary > span {
+  flex: 1;
+  min-width: 220px;
+}
+
+.library-view .library-select-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 32px;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.library-view .library-select-all input,
+.library-view .library-document-select input {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--primary);
+}
+
+.library-view .library-batch-delete-button {
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid #fda29b;
+  border-radius: 8px;
+  padding: 0 10px;
+  background: #fff;
+  color: #b42318;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.library-view .library-batch-delete-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
 .library-view .library-document {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 120px;
+  grid-template-columns: 24px minmax(0, 1fr) 120px;
   gap: 12px;
   align-items: start;
   padding: 16px 18px;
@@ -274,6 +319,22 @@
   border-radius: 8px;
   background: #fff;
   box-shadow: 0 10px 28px rgba(30, 58, 112, 0.06);
+}
+
+.library-view .library-document.selected {
+  border-color: rgba(37, 99, 235, 0.38);
+  background: rgba(37, 99, 235, 0.04);
+}
+
+.library-view .library-document.no-delete {
+  grid-template-columns: minmax(0, 1fr) 120px;
+}
+
+.library-view .library-document-select {
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .library-view .library-document strong {

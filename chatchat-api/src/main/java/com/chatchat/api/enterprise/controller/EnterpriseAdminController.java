@@ -1,5 +1,11 @@
 package com.chatchat.api.enterprise.controller;
 
+import com.chatchat.api.enterprise.LoginAuditService;
+import com.chatchat.api.security.ApiAuthenticationFilter;
+import com.chatchat.chat.skills.SkillCatalogService;
+import com.chatchat.chat.skills.SkillDefinition;
+import com.chatchat.common.constants.AppConstants;
+import com.chatchat.common.response.ApiResponse;
 import com.chatchat.enterprise.entity.DataSourceConfig;
 import com.chatchat.enterprise.entity.McpToolAsset;
 import com.chatchat.enterprise.entity.McpToolPermission;
@@ -16,12 +22,7 @@ import com.chatchat.enterprise.repository.SysAuditLogRepository;
 import com.chatchat.enterprise.repository.SysOrgRepository;
 import com.chatchat.enterprise.repository.SysRoleRepository;
 import com.chatchat.enterprise.repository.SysTenantRepository;
-import com.chatchat.api.security.ApiAuthenticationFilter;
 import com.chatchat.enterprise.service.EnterpriseAdminService;
-import com.chatchat.common.constants.AppConstants;
-import com.chatchat.common.response.ApiResponse;
-import com.chatchat.chat.skills.SkillCatalogService;
-import com.chatchat.chat.skills.SkillDefinition;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
@@ -54,6 +55,7 @@ public class EnterpriseAdminController {
     private final DataSourceConfigRepository dataSourceRepository;
     private final SysAuditLogRepository auditLogRepository;
     private final SkillCatalogService skillCatalogService;
+    private final LoginAuditService loginAuditService;
 
     /**
      * Performs the login operation.
@@ -63,8 +65,19 @@ public class EnterpriseAdminController {
      */
     @PostMapping("/auth/login")
     @Operation(summary = "Development login endpoint")
-    public ApiResponse<EnterpriseAdminService.AuthResult> login(@RequestBody LoginRequest request) {
-        return ApiResponse.success(adminService.login(request.username(), request.password()), "login success");
+    public ApiResponse<EnterpriseAdminService.AuthResult> login(
+        HttpServletRequest servletRequest,
+        @RequestBody LoginRequest request
+    ) {
+        String username = request == null ? null : request.username();
+        try {
+            EnterpriseAdminService.AuthResult result = adminService.login(username, request == null ? null : request.password());
+            loginAuditService.recordSuccess("login", username, result, servletRequest);
+            return ApiResponse.success(result, "login success");
+        } catch (RuntimeException ex) {
+            loginAuditService.recordFailure("login", username, ex.getMessage(), servletRequest);
+            throw ex;
+        }
     }
 
     /**
@@ -75,8 +88,18 @@ public class EnterpriseAdminController {
      */
     @PostMapping("/auth/embed-login")
     @Operation(summary = "Admin embed-token login endpoint")
-    public ApiResponse<EnterpriseAdminService.AuthResult> embedLogin(@RequestBody EmbedLoginRequest request) {
-        return ApiResponse.success(adminService.loginWithEmbedToken(request.token()), "login success");
+    public ApiResponse<EnterpriseAdminService.AuthResult> embedLogin(
+        HttpServletRequest servletRequest,
+        @RequestBody EmbedLoginRequest request
+    ) {
+        try {
+            EnterpriseAdminService.AuthResult result = adminService.loginWithEmbedToken(request == null ? null : request.token());
+            loginAuditService.recordSuccess("embed-login", null, result, servletRequest);
+            return ApiResponse.success(result, "login success");
+        } catch (RuntimeException ex) {
+            loginAuditService.recordFailure("embed-login", null, ex.getMessage(), servletRequest);
+            throw ex;
+        }
     }
 
     /**
@@ -638,6 +661,21 @@ public class EnterpriseAdminController {
             ? auditLogRepository.findTop100ByOrderByCreatedAtDesc()
             : auditLogRepository.findTop100ByTenantIdOrderByCreatedAtDesc(tenantId);
         return ApiResponse.success(data);
+    }
+
+    @GetMapping("/audit-logs/logins")
+    @Operation(summary = "List recent user login audit logs")
+    public ApiResponse<LoginAuditService.LoginAuditPage> listLoginAuditLogs(
+        @RequestParam(name = "page", required = false) Integer page,
+        @RequestParam(name = "pageSize", required = false) Integer pageSize,
+        @RequestParam(name = "tenantId", required = false) String tenantId,
+        @RequestParam(name = "actionName", required = false) String actionName,
+        @RequestParam(name = "result", required = false) String result,
+        @RequestParam(name = "keyword", required = false) String keyword
+    ) {
+        return ApiResponse.success(loginAuditService.searchLoginAudits(
+            new LoginAuditService.LoginAuditSearchQuery(page, pageSize, tenantId, actionName, result, keyword)
+        ));
     }
 
     public record LoginRequest(String username, String password) {

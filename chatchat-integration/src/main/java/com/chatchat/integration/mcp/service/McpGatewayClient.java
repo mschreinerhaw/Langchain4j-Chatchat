@@ -921,7 +921,7 @@ public class McpGatewayClient {
         }
         String fallbackToken = fallbackStandaloneInvocationToken(config);
         if (fallbackToken != null) {
-            headers.putIfAbsent("X-MCP-TOKEN", fallbackToken);
+            headers.put("X-MCP-TOKEN", fallbackToken);
         }
         return headers.isEmpty() ? Map.of() : headers;
     }

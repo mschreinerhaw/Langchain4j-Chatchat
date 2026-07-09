@@ -859,6 +859,13 @@ export function deleteSearchDocument(docId, filters = {}) {
   });
 }
 
+export function deleteSearchDocuments(docIds, filters = {}) {
+  return apiRequest(`/search/documents/delete/batch${searchPermissionQuery(filters)}`, {
+    method: "POST",
+    body: JSON.stringify({ docIds: Array.isArray(docIds) ? docIds : [] })
+  });
+}
+
 export function reindexSearchDocument(docId, filters = {}) {
   return apiRequest(`/search/documents/${encodeURIComponent(docId)}/reindex${searchPermissionQuery(filters)}`, {
     method: "POST"
@@ -1091,6 +1098,17 @@ export function fetchUsers(tenantId = "") {
   }
   const query = params.toString();
   return apiRequest(`/enterprise/users${query ? `?${query}` : ""}`);
+}
+
+export function fetchLoginAuditLogs(filters = {}) {
+  const params = new URLSearchParams();
+  Object.entries(filters || {}).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && String(value) !== "") {
+      params.set(key, String(value));
+    }
+  });
+  const query = params.toString();
+  return apiRequest(`/enterprise/audit-logs/logins${query ? `?${query}` : ""}`);
 }
 
 export function createUser(payload) {

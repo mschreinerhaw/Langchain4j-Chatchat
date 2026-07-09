@@ -2,10 +2,12 @@ package com.chatchat.enterprise.repository;
 
 import com.chatchat.enterprise.entity.SysAuditLog;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
+import java.util.Collection;
 import java.util.List;
 
-public interface SysAuditLogRepository extends JpaRepository<SysAuditLog, String> {
+public interface SysAuditLogRepository extends JpaRepository<SysAuditLog, String>, JpaSpecificationExecutor<SysAuditLog> {
     /**
      * Finds the top100 by order by created at desc.
      *
@@ -37,4 +39,12 @@ public interface SysAuditLogRepository extends JpaRepository<SysAuditLog, String
      * @return the matching top100 by tenant id and module name order by created at desc
      */
     List<SysAuditLog> findTop100ByTenantIdAndModuleNameOrderByCreatedAtDesc(String tenantId, String moduleName);
+
+    List<SysAuditLog> findTop100ByModuleNameAndActionNameInOrderByCreatedAtDesc(String moduleName, Collection<String> actionNames);
+
+    List<SysAuditLog> findTop100ByTenantIdAndModuleNameAndActionNameInOrderByCreatedAtDesc(
+        String tenantId,
+        String moduleName,
+        Collection<String> actionNames
+    );
 }

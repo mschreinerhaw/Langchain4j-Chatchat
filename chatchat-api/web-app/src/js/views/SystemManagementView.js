@@ -29,6 +29,7 @@ import {
   fetchEmbedLoginTokens,
   fetchAgentOptions,
   fetchEnterpriseSummary,
+  fetchLoginAuditLogs,
   fetchOrgs,
   fetchPermissions,
   fetchRoleAuthorization,
@@ -118,6 +119,14 @@ export default {
       orgs: [],
       roles: [],
       users: [],
+      loginAuditLogs: [],
+      loginAuditTotal: 0,
+      loginAuditPage: 1,
+      loginAuditPageSize: 20,
+      loginAuditKeyword: "",
+      loginAuditAction: "",
+      loginAuditResult: "",
+      loginAuditTenantId: "",
       permissions: [],
       agentOptions: [],
       embedTokens: [],
@@ -325,6 +334,45 @@ export default {
         { label: "30 天", value: 2592000 },
         { label: "永久", value: 0 }
       ];
+    },
+    loginAuditRows() {
+      return this.loginAuditLogs.map((audit) => {
+        const detail = this.parseAuditDetail(audit.detail);
+        return {
+          ...audit,
+          detailData: detail,
+          loginTime: this.formatDateTime(audit.createdAt),
+          loginUser: detail.username || detail.attemptedUsername || audit.actorName || "-",
+          loginAction: this.loginActionLabel(audit.actionName),
+          loginResult: this.loginResultLabel(audit.result),
+          tenantName: this.tenantName(detail.tenantId || audit.tenantId),
+          ipAddress: detail.ipAddress || "-",
+          macAddress: detail.macAddress || "-",
+          userAgent: detail.userAgent || "-",
+          failureReason: detail.reason || audit.detail || ""
+        };
+      });
+    },
+    loginAuditPageCount() {
+      return Math.max(1, Math.ceil(this.loginAuditTotal / Math.max(1, this.loginAuditPageSize)));
+    },
+    loginAuditPageStart() {
+      return this.loginAuditTotal === 0 ? 0 : (this.loginAuditPage - 1) * this.loginAuditPageSize + 1;
+    },
+    loginAuditPageEnd() {
+      return Math.min(this.loginAuditTotal, this.loginAuditPage * this.loginAuditPageSize);
+    },
+    loginAuditPageButtons() {
+      const total = this.loginAuditPageCount;
+      const current = Math.min(this.loginAuditPage, total);
+      const start = Math.max(1, current - 2);
+      const end = Math.min(total, start + 4);
+      const adjustedStart = Math.max(1, end - 4);
+      const buttons = [];
+      for (let page = adjustedStart; page <= end; page += 1) {
+        buttons.push(page);
+      }
+      return buttons;
     }
   },
   mounted() {
@@ -365,15 +413,18 @@ export default {
       if (!this.selectedTenantId) {
         return;
       }
-      const [orgs, roles, users, summary] = await Promise.all([
+      const [orgs, roles, users, loginAudits, summary] = await Promise.all([
         fetchOrgs(this.selectedTenantId),
         fetchRoles(this.selectedTenantId),
         fetchUsers(this.selectedTenantId),
+        fetchLoginAuditLogs(this.loginAuditQuery()),
         fetchEnterpriseSummary()
       ]);
       this.orgs = Array.isArray(orgs) ? orgs : [];
       this.roles = Array.isArray(roles) ? roles : [];
       this.users = Array.isArray(users) ? users : [];
+      this.loginAuditLogs = Array.isArray(loginAudits) ? loginAudits : [];
+      this.applyLoginAuditPage(loginAudits);
       this.summary = summary || this.summary;
       const nextRole = this.roles.find((role) => role.id === keepRoleId) || this.roles[0];
       if (nextRole) {
@@ -920,6 +971,63 @@ export default {
         this.loading = false;
       }
     },
+    async loadLoginAuditLogs() {
+      this.loading = true;
+      try {
+        const logs = await fetchLoginAuditLogs(this.loginAuditQuery());
+        this.applyLoginAuditPage(logs);
+        this.setNotice("登录审计已刷新");
+      } catch (error) {
+        this.setNotice(error.message || "登录审计加载失败", true);
+      } finally {
+        this.loading = false;
+      }
+    },
+    loginAuditQuery() {
+      return {
+        page: this.loginAuditPage,
+        pageSize: this.loginAuditPageSize,
+        tenantId: this.loginAuditTenantId,
+        actionName: this.loginAuditAction,
+        result: this.loginAuditResult,
+        keyword: this.loginAuditKeyword
+      };
+    },
+    applyLoginAuditPage(page) {
+      if (Array.isArray(page)) {
+        this.loginAuditLogs = page;
+        this.loginAuditTotal = page.length;
+        return;
+      }
+      this.loginAuditLogs = Array.isArray(page?.items) ? page.items : [];
+      this.loginAuditTotal = Number(page?.total ?? page?.filteredCount ?? this.loginAuditLogs.length) || 0;
+      this.loginAuditPage = Number(page?.page) || this.loginAuditPage;
+      this.loginAuditPageSize = Number(page?.pageSize) || this.loginAuditPageSize;
+    },
+    async searchLoginAuditLogs() {
+      this.loginAuditPage = 1;
+      await this.loadLoginAuditLogs();
+    },
+    async changeLoginAuditPage(page) {
+      const nextPage = Math.min(Math.max(1, page), this.loginAuditPageCount);
+      if (nextPage === this.loginAuditPage) {
+        return;
+      }
+      this.loginAuditPage = nextPage;
+      await this.loadLoginAuditLogs();
+    },
+    async changeLoginAuditPageSize(event) {
+      this.loginAuditPageSize = Number(event?.target?.value || event || 20);
+      this.loginAuditPage = 1;
+      await this.loadLoginAuditLogs();
+    },
+    tenantName(tenantId) {
+      if (!tenantId) {
+        return "未识别租户";
+      }
+      const tenant = this.tenants.find((item) => item.id === tenantId);
+      return tenant?.tenantName || tenant?.tenantCode || tenantId;
+    },
     orgName(orgId) {
       return this.orgs.find((org) => org.id === orgId)?.orgName || "未分配组织";
     },
@@ -947,6 +1055,31 @@ export default {
         locked: "锁定"
       };
       return labels[status] || status || "启用";
+    },
+    loginActionLabel(actionName) {
+      const labels = {
+        login: "密码登录",
+        "embed-login": "嵌入登录"
+      };
+      return labels[actionName] || actionName || "登录";
+    },
+    loginResultLabel(result) {
+      const labels = {
+        success: "成功",
+        failure: "失败"
+      };
+      return labels[result] || result || "-";
+    },
+    parseAuditDetail(detail) {
+      if (!detail || typeof detail !== "string") {
+        return {};
+      }
+      try {
+        const parsed = JSON.parse(detail);
+        return parsed && typeof parsed === "object" ? parsed : {};
+      } catch (error) {
+        return {};
+      }
     },
     isAdminUser(user) {
       return String(user?.username || "").toLowerCase() === "admin";

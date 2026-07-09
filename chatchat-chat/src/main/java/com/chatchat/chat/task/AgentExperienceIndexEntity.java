@@ -84,10 +84,10 @@ public class AgentExperienceIndexEntity {
     @Column(name = "success_rate")
     private double successRate;
 
-    @Column(name = "best_practice", length = 4000)
+    @Column(name = "best_practice", columnDefinition = "TEXT")
     private String bestPractice;
 
-    @Column(name = "avoid_pattern", length = 4000)
+    @Column(name = "avoid_pattern", columnDefinition = "TEXT")
     private String avoidPattern;
 
     @Column(name = "last_experience_id", length = 64)

@@ -1,6 +1,7 @@
 package com.chatchat.mcpserver.sql;
 
 import com.chatchat.common.tool.ToolOutput;
+import com.chatchat.mcpserver.config.ChatChatMcpServerProperties;
 import com.chatchat.mcpserver.database.DatabaseQueryConfig;
 import com.chatchat.mcpserver.database.DatabaseQueryConfigService;
 import com.chatchat.mcpserver.database.DatabaseQueryInvokeService;
@@ -63,6 +64,7 @@ class SqlMcpToolPublisherTest {
             governanceFactory,
             concurrencyManager,
             new StandardToolExecutionResultFactory(),
+            new ChatChatMcpServerProperties(),
             new ObjectMapper()
         );
 
@@ -122,6 +124,7 @@ class SqlMcpToolPublisherTest {
             governanceFactory,
             concurrencyManager,
             new StandardToolExecutionResultFactory(),
+            new ChatChatMcpServerProperties(),
             new ObjectMapper()
         );
 
@@ -165,6 +168,7 @@ class SqlMcpToolPublisherTest {
             governanceFactory,
             concurrencyManager,
             new StandardToolExecutionResultFactory(),
+            new ChatChatMcpServerProperties(),
             new ObjectMapper()
         );
 
@@ -177,5 +181,51 @@ class SqlMcpToolPublisherTest {
         ));
 
         assertThat(level).isEqualTo("sql_script");
+    }
+
+    @Test
+    void metadataSearchSummarySupportsUnlimitedConfiguredLimits() throws Exception {
+        ChatChatMcpServerProperties properties = new ChatChatMcpServerProperties();
+        properties.getOutput().setSqlMetadataSearchSummaryMaxChars(-1);
+        properties.getOutput().setSqlMetadataSearchSummaryMaxColumns(-1);
+        SqlMcpToolPublisher publisher = new SqlMcpToolPublisher(
+            mcpSyncServer,
+            datasourceConfigService,
+            sqlTemplateService,
+            null,
+            scriptExecuteService,
+            metadataSearchService,
+            databaseQueryConfigService,
+            databaseQueryInvokeService,
+            executionTargetRouter,
+            assetMetadataFactory,
+            governanceFactory,
+            concurrencyManager,
+            new StandardToolExecutionResultFactory(),
+            properties,
+            new ObjectMapper()
+        );
+
+        Method method = SqlMcpToolPublisher.class.getDeclaredMethod("summarizeMetadataSearchResult", Map.class);
+        method.setAccessible(true);
+        String summary = String.valueOf(method.invoke(publisher, Map.of(
+            "results", List.of(Map.of(
+                "location", Map.of("schema", "gdp_ads", "table", "ads_ids_secu_ast_liab_d_1"),
+                "columnCount", 35,
+                "columns", java.util.stream.IntStream.rangeClosed(1, 35)
+                    .mapToObj(index -> Map.of(
+                        "name", "COL_" + index,
+                        "columnType", "varchar(32)",
+                        "nullable", true,
+                        "comment", "字段" + index
+                    ))
+                    .toList()
+            ))
+        )));
+
+        assertThat(summary)
+            .contains("`COL_35`")
+            .doesNotContain("元数据摘要已截断")
+            .doesNotContain("文本摘要仅展示前");
     }
 }

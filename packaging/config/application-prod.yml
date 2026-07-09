@@ -5,7 +5,7 @@ spring:
   servlet:
     multipart:
       max-file-size: 5MB
-      max-request-size: ${CHAT_MULTIPART_MAX_REQUEST_SIZE:32MB}
+      max-request-size: 32MB
   datasource:
     url: jdbc:h2:file:./data/h2/chatchat;MODE=MySQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE;DB_CLOSE_DELAY=-1
     driver-class-name: org.h2.Driver
@@ -52,8 +52,8 @@ server:
       max: 200
       min-spare: 10
     max-connections: 500
-    max-http-form-post-size: ${CHAT_TOMCAT_MAX_HTTP_FORM_POST_SIZE:33554432}
-    max-swallow-size: ${CHAT_TOMCAT_MAX_SWALLOW_SIZE:-1}
+    max-http-form-post-size: 33554432
+    max-swallow-size: -1
   error:
     include-stacktrace: never
     include-message: never
@@ -63,20 +63,20 @@ chatchat:
     center:
       enabled: true
       base-url: http://localhost:8090
-      admin-username: ${CHAT_MCP_CENTER_ADMIN_USERNAME:}
-      admin-password: ${CHAT_MCP_CENTER_ADMIN_PASSWORD:}
+      admin-username: admin
+      admin-password: admin123
       admin-login-path: /api/v1/admin/auth/login
       service-list-path: /api/v1/mcp-services
       mcp-endpoint: /mcp
       standalone-service-id: chatchat-mcp-server
       standalone-service-name: ChatChat MCP Server
-      invocation-token: ${CHAT_MCP_CENTER_INVOCATION_TOKEN:${CHAT_MCP_INVOCATION_TOKEN:}}
+      invocation-token: mcp_test_8f3c7b2a9e6d4f10b5a92cdd0e7a6413
       timeout-ms: 90000
       import-standalone-server: true
     stdio-proxy:
       enabled: true
       max-sessions: 32
-      request-timeout-ms: ${CHAT_MCP_STDIO_PROXY_REQUEST_TIMEOUT_MS:0}
+      request-timeout-ms: 0
       startup-timeout-ms: 15000
       idle-ttl-ms: 300000
       cleanup-interval-ms: 30000
@@ -91,9 +91,11 @@ chatchat:
     defaultChatModel: qwen3.6-plus
     timeout: 300
     openai:
-      apiKey: ${OPENAI_API_KEY:}
+      apiKey: 
       baseUrl: https://dashscope.aliyuncs.com/compatible-mode/v1
       timeout: 300
+      # Maximum model completion tokens. -1 means do not set a model-side token limit.
+      maxTokens: -1
       maxRetries: 3
       proxy:
         enabled: false
@@ -101,12 +103,12 @@ chatchat:
         port: 0
         type: http
   agent-runtime:
-    store-type: ${CHAT_AGENT_RUNTIME_STORE_TYPE:rocksdb}
-    rocks-db-path: ${CHAT_AGENT_RUNTIME_ROCKSDB_PATH:./data/agent-runtime-rocksdb}
-    rocks-db-create-if-missing: ${CHAT_AGENT_RUNTIME_ROCKSDB_CREATE_IF_MISSING:true}
-    fail-interrupted-runs-on-startup: ${CHAT_AGENT_RUNTIME_FAIL_INTERRUPTED_RUNS_ON_STARTUP:true}
-    max-stored-runs: ${CHAT_AGENT_RUNTIME_MAX_STORED_RUNS:10000}
-    terminal-run-ttl-ms: ${CHAT_AGENT_RUNTIME_TERMINAL_RUN_TTL_MS:0}
+    store-type: rocksdb
+    rocks-db-path: ./data/agent-runtime-rocksdb
+    rocks-db-create-if-missing: true
+    fail-interrupted-runs-on-startup: true
+    max-stored-runs: 10000
+    terminal-run-ttl-ms: 0
   agent:
     task:
       queue-capacity: 1000
@@ -126,6 +128,50 @@ chatchat:
     default-limit: 20
     max-limit: 100
     summary-length: 180
+    # Startup full index rebuild is slow when documents grow. Upload/update/delete already syncs indexes incrementally.
+    # Set true only when local Lucene/OpenSearch index files were lost or need manual repair.
+    rebuild-on-startup: false
+    # 文档检索引擎：
+    # - lucene：默认值，使用本机磁盘索引，适合本地开发、单机快速部署。
+    # - opensearch：使用远程 OpenSearch 集群，适合多实例共享索引或生产集中检索。
+    # 启动脚本传 --search-engine=opensearch 会覆盖这里的配置。
+    engine: lucene
+    # 仅当 engine=opensearch 时生效。API 文档检索会把上传文档分片写入这个索引。
+    opensearch:
+      # false 表示即使 engine=opensearch 也不连接 OpenSearch，会回退到本地 Lucene。
+      enabled: true
+      # OpenSearch HTTPS 地址，支持带路径前缀但不要以 / 结尾。
+      url: https://192.168.195.221:9200
+      username: admin
+      password: apexSoft12345
+      # API 文档检索使用的索引名。
+      index-name: chatchat_documents
+      # 使用自签名 HTTPS 证书时设为 true；正式公网证书建议保持 false。
+      insecure-ssl: true
+      connect-timeout-ms: 5000
+      request-timeout-ms: 30000
+      # 重建索引时每批写入的文档分片数量。
+      bulk-batch-size: 200
+      embedding:
+        # 向量增强检索开关。开启后写入 contentVector，并在查询时做 BM25 + KNN 融合。
+        # 如果当前 OpenSearch 没有 knn_vector 能力，会自动降级为 BM25 候选集的向量重排。
+        enabled: true
+        # 阿里云百炼/DashScope OpenAI compatible embeddings 地址，替换 {WorkspaceId} 后使用。
+        endpoint: https://llm-7upawl16up8649rh.cn-beijing.maas.aliyuncs.com/compatible-mode/v1/embeddings
+        # 百炼 API Key。生产部署请在外部配置文件中填入；不要提交真实密钥。
+        api-key: "sk-720436c855ac470bb955388d0e8c9b89"
+        model: text-embedding-v4
+        # text-embedding-v4 默认按 1024 维建 knn_vector；如果模型输出维度变化，只需要改这里并重建索引。
+        dimension: 1024
+        vector-field: contentVector
+        max-input-chars: 6000
+        vector-candidate-limit: 50
+        # 融合排序权重：关键词、向量、标题/章节命中、位置新鲜度、公开/租户可见度。
+        bm25-weight: 0.45
+        vector-weight: 0.35
+        title-weight: 0.10
+        freshness-weight: 0.05
+        authority-weight: 0.05
     fallback-candidate-limit: 500
     fallback-empty-result-limit: 200
     fallback-exception-limit: 100
@@ -157,12 +203,28 @@ chatchat:
   chat:
     defaultTimeout: 30
     streamingTimeout: 300
+    # User message length limit. -1 means unlimited when enforced by clients.
     maxMessageLength: 4096
     conversationHistorySize: 20
+    context:
+      recent-message-limit: 8
+      summary-trigger-messages: 12
+      summary-keep-recent-messages: 6
+      # Conversation summary character limit. -1 means unlimited.
+      summary-max-chars: 1600
+      summary-enabled: true
     detail-store:
       type: rocksdb
       path: ./data/chat-rocksdb
       create-if-missing: true
+  api:
+    limits:
+      # Frontend search result chunk count. -1 means unlimited.
+      search-result-max-chunks: 3
+      # Frontend search result chunk character limit. -1 means unlimited.
+      search-result-chunk-max-chars: 1200
+      # Frontend search result summary character limit. -1 means unlimited.
+      search-result-summary-max-chars: 800
   tools:
     calculator:
       risk-level: low
@@ -235,8 +297,8 @@ chatchat:
       auth:
         enabled: true
         login-path: /api/v1/enterprise/auth/login
-        username: ${CHAT_DOCUMENT_SEARCH_AUTH_USERNAME:}
-        password: ${CHAT_DOCUMENT_SEARCH_AUTH_PASSWORD:}
+        username: 
+        password: 
         bearer-token: ""
       risk-level: medium
       confirmation:
@@ -261,16 +323,16 @@ chatchat:
       parameter-policy:
         path: ask_before_execute
   tool-runtime:
-    enforce-allowed-tools: ${CHAT_TOOL_RUNTIME_ENFORCE_ALLOWED_TOOLS:true}
-    enforce-authentication: ${CHAT_TOOL_RUNTIME_ENFORCE_AUTHENTICATION:true}
-    default-max-calls-per-minute: ${CHAT_TOOL_RUNTIME_DEFAULT_MAX_CALLS_PER_MINUTE:0}
-    circuit-breaker-failure-threshold: ${CHAT_TOOL_RUNTIME_CIRCUIT_THRESHOLD:3}
-    circuit-breaker-open-seconds: ${CHAT_TOOL_RUNTIME_CIRCUIT_OPEN_SECONDS:60}
-    top-tool-limit: ${CHAT_TOOL_RUNTIME_TOP_TOOL_LIMIT:6}
-    default-tool-timeout-ms: ${CHAT_TOOL_RUNTIME_DEFAULT_TOOL_TIMEOUT_MS:60000}
-    execution-core-pool-size: ${CHAT_TOOL_RUNTIME_EXECUTION_CORE_POOL_SIZE:4}
-    execution-max-pool-size: ${CHAT_TOOL_RUNTIME_EXECUTION_MAX_POOL_SIZE:32}
-    execution-queue-capacity: ${CHAT_TOOL_RUNTIME_EXECUTION_QUEUE_CAPACITY:256}
+    enforce-allowed-tools: true
+    enforce-authentication: true
+    default-max-calls-per-minute: 0
+    circuit-breaker-failure-threshold: 3
+    circuit-breaker-open-seconds: 60
+    top-tool-limit: 6
+    default-tool-timeout-ms: 60000
+    execution-core-pool-size: 4
+    execution-max-pool-size: 32
+    execution-queue-capacity: 256
 
 mcp-policy:
   enabled: true

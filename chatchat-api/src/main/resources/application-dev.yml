@@ -106,6 +106,8 @@ chatchat:
 #      baseUrl: https://api.deepseek.com/v1
       # 0 means do not set a client-side model request timeout.
       timeout: 300000
+      # Maximum model completion tokens. -1 means do not set a model-side token limit.
+      maxTokens: -1
       maxRetries: 3
       proxy:
         enabled: false
@@ -119,6 +121,14 @@ chatchat:
     fail-interrupted-runs-on-startup: true
     max-stored-runs: 10000
     terminal-run-ttl-ms: 0
+  api:
+    limits:
+      # Frontend search result chunk count. -1 means unlimited.
+      search-result-max-chunks: 3
+      # Frontend search result chunk character limit. -1 means unlimited.
+      search-result-chunk-max-chars: 1200
+      # Frontend search result summary character limit. -1 means unlimited.
+      search-result-summary-max-chars: 800
   agent:
     task:
       queue-capacity: 1000
@@ -138,6 +148,50 @@ chatchat:
     default-limit: 20
     max-limit: 100
     summary-length: 180
+    # Startup full index rebuild is slow when documents grow. Upload/update/delete already syncs indexes incrementally.
+    # Set true only when local Lucene/OpenSearch index files were lost or need manual repair.
+    rebuild-on-startup: false
+    # 文档检索引擎：
+    # - lucene：默认值，使用本机磁盘索引，适合本地开发、单机快速部署。
+    # - opensearch：使用远程 OpenSearch 集群，适合多实例共享索引或生产集中检索。
+    # 启动脚本传 --search-engine=opensearch 会覆盖这里的配置。
+    engine: lucene
+    # 仅当 engine=opensearch 时生效。API 文档检索会把上传文档分片写入这个索引。
+    opensearch:
+      # false 表示即使 engine=opensearch 也不连接 OpenSearch，会回退到本地 Lucene。
+      enabled: true
+      # OpenSearch HTTPS 地址，支持带路径前缀但不要以 / 结尾。
+      url: https://192.168.195.221:9200
+      username: admin
+      password: apexSoft12345
+      # API 文档检索使用的索引名。
+      index-name: chatchat_documents
+      # 开发/测试集群如果使用自签名 HTTPS 证书，设为 true，等价于 curl -k。
+      insecure-ssl: true
+      connect-timeout-ms: 5000
+      request-timeout-ms: 30000
+      # 重建索引时每批写入的文档分片数量。
+      bulk-batch-size: 200
+      embedding:
+        # 向量增强检索开关。开启后写入 contentVector，并在查询时做 BM25 + KNN 融合。
+        # 如果当前 OpenSearch 没有 knn_vector 能力，会自动降级为 BM25 候选集的向量重排。
+        enabled: true
+        # 阿里云百炼/DashScope OpenAI compatible embeddings 地址，替换 {WorkspaceId} 后使用。
+        endpoint: https://llm-7upawl16up8649rh.cn-beijing.maas.aliyuncs.com/compatible-mode/v1/embeddings
+        # 百炼 API Key。开发测试可直接填值；不要提交真实密钥。
+        api-key: "sk-720436c855ac470bb955388d0e8c9b89"
+        model: text-embedding-v4
+        # text-embedding-v4 默认按 1024 维建 knn_vector；如果模型输出维度变化，只需要改这里并重建索引。
+        dimension: 1024
+        vector-field: contentVector
+        max-input-chars: 6000
+        vector-candidate-limit: 50
+        # 融合排序权重：关键词、向量、标题/章节命中、位置新鲜度、公开/租户可见度。
+        bm25-weight: 0.45
+        vector-weight: 0.35
+        title-weight: 0.10
+        freshness-weight: 0.05
+        authority-weight: 0.05
     fallback-candidate-limit: 500
     fallback-empty-result-limit: 200
     fallback-exception-limit: 100
@@ -278,12 +332,14 @@ chatchat:
   chat:
     defaultTimeout: 30
     streamingTimeout: 300
+    # User message length limit. -1 means unlimited when enforced by clients.
     maxMessageLength: 4096
     conversationHistorySize: 20
     context:
       recent-message-limit: 8
       summary-trigger-messages: 12
       summary-keep-recent-messages: 6
+      # Conversation summary character limit. -1 means unlimited.
       summary-max-chars: 1600
       summary-enabled: true
     detail-store:
@@ -420,3 +476,37 @@ management:
     distribution:
       percentiles-histogram:
         http.server.requests: true
+
+# ---------------------------------------------------------------------------
+# 开发检索引擎组合 profile
+# 默认 dev = H2 + 本地 Lucene。
+# MySQL 测试：激活 mysql profile，例如 dev,mysql。
+# OpenSearch 测试：激活 search-opensearch profile，例如 dev,search-opensearch。
+# MySQL + OpenSearch：激活 dev,mysql,search-opensearch。
+# ---------------------------------------------------------------------------
+---
+spring:
+  config:
+    activate:
+      on-profile: search-lucene
+
+chatchat:
+  search:
+    # 显式使用本地 Lucene，便于和 search-opensearch profile 来回切换。
+    engine: lucene
+    # 开发环境 Lucene 索引目录，避免和生产/打包运行目录混用。
+    lucene-index-path: ./data/search-lucene-dev
+
+---
+spring:
+  config:
+    activate:
+      on-profile: search-opensearch
+
+chatchat:
+  search:
+    # 显式使用 OpenSearch。启动脚本 --search-engine=opensearch 等价于覆盖这个值。
+    engine: opensearch
+    opensearch:
+      # 开发环境独立索引名，避免污染生产文档检索索引。
+      index-name: chatchat_documents_dev

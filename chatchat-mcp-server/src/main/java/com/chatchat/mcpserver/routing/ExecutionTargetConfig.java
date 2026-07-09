@@ -45,7 +45,7 @@ public class ExecutionTargetConfig {
     private String selectorValue;
 
     @Lob
-    @Column
+    @Column(columnDefinition = "longtext")
     private String labelsJson;
 
     @Column(nullable = false)

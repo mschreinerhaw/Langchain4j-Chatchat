@@ -172,7 +172,7 @@ public class McpToolConcurrencyManager {
         meta.put("queue_size", Math.max(0, limit.getQueueSize()));
         meta.put("queue_timeout_seconds", Math.max(0, limit.getQueueTimeoutSeconds()));
         meta.put("runtime_level", firstText(limit.getRuntimeLevel(), normalizeRuntimeLevel(toolName, runtimeLevel)));
-        meta.put("max_output_chars", Math.max(1_000, limit.getMaxOutputChars()));
+        meta.put("max_output_chars", normalizedMaxOutputChars(limit.getMaxOutputChars()));
         meta.put("retry_attempts", Math.max(0, limit.getRetryAttempts()));
         meta.put("failure_threshold", Math.max(1, limit.getFailureThreshold()));
         meta.put("circuit_open_seconds", Math.max(1, limit.getCircuitOpenSeconds()));
@@ -325,7 +325,17 @@ public class McpToolConcurrencyManager {
         if (result == null) {
             return limitResult("FAILED", toolName, runtimeLevel, "MCP tool returned null result");
         }
-        int maxChars = Math.max(1_000, limit.getMaxOutputChars());
+        int maxChars = normalizedMaxOutputChars(limit.getMaxOutputChars());
+        if (maxChars < 0) {
+            Map<String, Object> meta = new LinkedHashMap<>(result.meta() == null ? Map.of() : result.meta());
+            meta.putIfAbsent("mcp_tool_limit", limitMeta(toolName, runtimeLevel));
+            return McpSchema.CallToolResult.builder()
+                .content(result.content())
+                .structuredContent(result.structuredContent())
+                .isError(Boolean.TRUE.equals(result.isError()))
+                .meta(meta)
+                .build();
+        }
         List<McpSchema.Content> content = trimContent(result.content(), maxChars);
         Object structured = trimValue(result.structuredContent(), maxChars, new Counter());
         Map<String, Object> meta = new LinkedHashMap<>(result.meta() == null ? Map.of() : result.meta());
@@ -352,6 +362,10 @@ public class McpToolConcurrencyManager {
             }
         }
         return trimmed;
+    }
+
+    private int normalizedMaxOutputChars(int configured) {
+        return configured < 0 ? -1 : Math.max(1_000, configured);
     }
 
     private Object trimValue(Object value, int maxChars, Counter counter) {

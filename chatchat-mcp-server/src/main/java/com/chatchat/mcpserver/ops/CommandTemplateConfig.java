@@ -36,7 +36,7 @@ public class CommandTemplateConfig {
     private String commandTemplate;
 
     @Lob
-    @Column
+    @Column(columnDefinition = "longtext")
     private String parameterSchemaJson;
 
     @Column(length = 32)
@@ -46,7 +46,11 @@ public class CommandTemplateConfig {
     private String category = "system_diagnostic";
 
     @Lob
-    @Column
+    @Column(columnDefinition = "longtext")
+    private String governanceJson;
+
+    @Lob
+    @Column(columnDefinition = "longtext")
     private String intentSignalsJson;
 
     @Column(nullable = false)

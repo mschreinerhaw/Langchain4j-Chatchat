@@ -6,11 +6,15 @@ import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication(scanBasePackages = {
+    "com.chatchat.common",
     "com.chatchat.agents.tool",
     "com.chatchat.tools",
     "com.chatchat.mcpserver"
 })
-@ConfigurationPropertiesScan
+@ConfigurationPropertiesScan(basePackages = {
+    "com.chatchat.common",
+    "com.chatchat.mcpserver"
+})
 @EnableScheduling
 public class ChatChatMcpServerApplication {
 

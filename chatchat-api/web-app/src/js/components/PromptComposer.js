@@ -152,12 +152,17 @@ export default {
       if (!textarea) {
         return;
       }
-      const minHeight = 58;
-      const maxHeight = 104;
+      const styles = window.getComputedStyle(textarea);
+      const minHeight = this.cssPixelValue(styles.getPropertyValue("min-height"), 58);
+      const maxHeight = this.cssPixelValue(styles.getPropertyValue("max-height"), 96);
       textarea.style.height = `${minHeight}px`;
       const nextHeight = Math.min(maxHeight, Math.max(minHeight, textarea.scrollHeight));
       textarea.style.height = `${nextHeight}px`;
       textarea.style.overflowY = textarea.scrollHeight > maxHeight ? "auto" : "hidden";
+    },
+    cssPixelValue(value, fallback) {
+      const parsed = Number.parseFloat(String(value || ""));
+      return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
     },
     focusComposer() {
       this.$nextTick(() => {

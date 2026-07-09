@@ -12,6 +12,13 @@ export default {
       users: [],
       currentUser: null,
       userKeyword: '',
+      loginAudits: [],
+      loginAuditKeyword: '',
+      loginAuditAction: '',
+      loginAuditResult: '',
+      loginAuditPage: 1,
+      loginAuditPageSize: 20,
+      loginAuditTotal: 0,
       roles: [],
       permissions: [],
       permissionKeyword: '',
@@ -75,6 +82,29 @@ export default {
       const start = (this.permissionPage - 1) * this.permissionPageSize;
       return this.filteredPermissions.slice(start, start + this.permissionPageSize);
     },
+    loginAuditRows() {
+      return this.loginAudits.map(item => {
+        const detail = this.parseJson(item.detail);
+        return {
+          ...item,
+          detailData: detail,
+          createdAtText: this.formatTime(item.createdAt),
+          actionLabel: this.loginAuditActionLabel(item.actionName),
+          resultLabel: this.loginAuditResultLabel(item.result),
+          reason: detail.reason || '',
+          userAgentText: item.userAgent || detail.userAgent || '-'
+        };
+      });
+    },
+    loginAuditPageCount() {
+      return Math.max(1, Math.ceil(this.loginAuditTotal / Math.max(1, this.loginAuditPageSize)));
+    },
+    loginAuditPageStart() {
+      return this.loginAuditTotal === 0 ? 0 : (this.loginAuditPage - 1) * this.loginAuditPageSize + 1;
+    },
+    loginAuditPageEnd() {
+      return Math.min(this.loginAuditTotal, this.loginAuditPage * this.loginAuditPageSize);
+    },
     authorizationDialogTitle() {
       const roleName = this.selectedRole?.roleName || this.selectedRole?.roleCode || this.selectedRole?.id || '';
       return roleName ? `管理授权 - ${roleName}` : '管理授权';
@@ -110,6 +140,7 @@ export default {
   mounted() {
     this.loadUsers();
     this.loadRoles();
+    this.loadLoginAudits(false);
   },
   methods: {
     async loadUsers() {
@@ -194,6 +225,62 @@ export default {
       await this.run(async () => {
         this.roles = await authorizationApi.roles() || [];
       }, '本地角色已刷新', false);
+    },
+    async loadLoginAudits(toast = false) {
+      await this.run(async () => {
+        const page = await authApi.loginAudits({
+          page: this.loginAuditPage,
+          pageSize: this.loginAuditPageSize,
+          actionName: this.loginAuditAction,
+          result: this.loginAuditResult,
+          keyword: this.loginAuditKeyword
+        });
+        this.loginAudits = Array.isArray(page?.items) ? page.items : [];
+        this.loginAuditTotal = Number(page?.total || 0);
+        this.loginAuditPage = Number(page?.page || this.loginAuditPage);
+        this.loginAuditPageSize = Number(page?.pageSize || this.loginAuditPageSize);
+      }, '登录审计已刷新', toast);
+    },
+    searchLoginAudits() {
+      this.loginAuditPage = 1;
+      return this.loadLoginAudits(true);
+    },
+    changeLoginAuditPage(page) {
+      this.loginAuditPage = Math.min(Math.max(1, page), this.loginAuditPageCount);
+      return this.loadLoginAudits(false);
+    },
+    changeLoginAuditPageSize(size) {
+      this.loginAuditPageSize = Number(size) || 20;
+      this.loginAuditPage = 1;
+      return this.loadLoginAudits(false);
+    },
+    loginAuditActionLabel(actionName) {
+      const labels = {
+        'admin-login': '管理员登录'
+      };
+      return labels[actionName] || actionName || '登录';
+    },
+    loginAuditResultLabel(result) {
+      const labels = {
+        success: '成功',
+        failure: '失败'
+      };
+      return labels[result] || result || '-';
+    },
+    formatTime(value) {
+      if (!value) return '-';
+      const timestamp = typeof value === 'number' ? value : Date.parse(value);
+      if (!Number.isFinite(timestamp)) return String(value);
+      return new Date(timestamp).toLocaleString();
+    },
+    parseJson(value) {
+      if (!value || typeof value !== 'string') return {};
+      try {
+        const parsed = JSON.parse(value);
+        return parsed && typeof parsed === 'object' ? parsed : {};
+      } catch (error) {
+        return {};
+      }
     },
     async openAuthorizationDialog(role) {
       this.selectedRole = role;

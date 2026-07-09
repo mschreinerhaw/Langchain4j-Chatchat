@@ -33,11 +33,11 @@ public class SqlTemplateConfig {
     private String description;
 
     @Lob
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "longtext")
     private String sqlTemplate;
 
     @Lob
-    @Column
+    @Column(columnDefinition = "longtext")
     private String parameterSchemaJson;
 
     @Column(length = 32)
@@ -53,11 +53,11 @@ public class SqlTemplateConfig {
     private String datasourceId;
 
     @Lob
-    @Column
+    @Column(columnDefinition = "longtext")
     private String routingLabelsJson;
 
     @Lob
-    @Column
+    @Column(columnDefinition = "longtext")
     private String intentSignalsJson;
 
     @Column(nullable = false)

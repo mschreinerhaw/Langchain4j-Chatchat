@@ -45,13 +45,13 @@ public class AgentTaskLatestEntity {
     @Column(length = 32, nullable = false)
     private String status = "PENDING";
 
-    @Column(length = 4000)
+    @Column(columnDefinition = "TEXT")
     private String question;
 
-    @Column(name = "answer_summary", length = 4000)
+    @Column(name = "answer_summary", columnDefinition = "TEXT")
     private String answerSummary;
 
-    @Column(name = "error_message", length = 4000)
+    @Column(name = "error_message", columnDefinition = "TEXT")
     private String errorMessage;
 
     @Column(name = "feedback_useful")

@@ -51,10 +51,10 @@ public class AgentExperienceEntity {
     @Column(name = "scenario_name", length = 256)
     private String scenarioName;
 
-    @Column(length = 4000)
+    @Column(columnDefinition = "TEXT")
     private String question;
 
-    @Column(name = "answer_summary", length = 4000)
+    @Column(name = "answer_summary", columnDefinition = "TEXT")
     private String answerSummary;
 
     @Column(name = "feedback_useful")
@@ -81,16 +81,16 @@ public class AgentExperienceEntity {
     @Column(name = "attribution_summary", length = 1000)
     private String attributionSummary;
 
-    @Column(name = "success_pattern_json", length = 4000)
+    @Column(name = "success_pattern_json", columnDefinition = "TEXT")
     private String successPatternJson;
 
-    @Column(name = "improvement_suggestions_json", length = 4000)
+    @Column(name = "improvement_suggestions_json", columnDefinition = "TEXT")
     private String improvementSuggestionsJson;
 
-    @Column(name = "primary_factors_json", length = 4000)
+    @Column(name = "primary_factors_json", columnDefinition = "TEXT")
     private String primaryFactorsJson;
 
-    @Column(name = "model_raw_output", length = 4000)
+    @Column(name = "model_raw_output", columnDefinition = "TEXT")
     private String modelRawOutput;
 
     @Column(name = "create_time", nullable = false)

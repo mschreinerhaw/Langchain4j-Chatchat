@@ -28,7 +28,7 @@ public class TradingCalendarConfig {
     private String datasourceId;
 
     @Lob
-    @Column
+    @Column(columnDefinition = "longtext")
     private String sqlTemplate = DEFAULT_SQL;
 
     @Column(nullable = false)

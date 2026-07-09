@@ -11,6 +11,12 @@ param(
     [int]$McpPort = 8090,
     [int]$StartupTimeoutSeconds = 120,
 
+    [ValidateSet("", "h2", "mysql")]
+    [string]$Database = "",
+
+    [ValidateSet("", "lucene", "opensearch")]
+    [string]$SearchEngine = "",
+
     [string]$ApiArgs = "",
     [string]$McpArgs = ""
 )
@@ -27,6 +33,7 @@ $ApiOutLog = Join-Path $LogRoot "chatchat-api.out.log"
 $ApiErrLog = Join-Path $LogRoot "chatchat-api.err.log"
 $McpOutLog = Join-Path $LogRoot "chatchat-mcp-server.out.log"
 $McpErrLog = Join-Path $LogRoot "chatchat-mcp-server.err.log"
+$EffectiveProfile = $null
 
 function Assert-ProjectRoot {
     if (-not (Test-Path $RootPom)) {
@@ -133,6 +140,41 @@ function Test-PortOpen {
     finally {
         $Client.Dispose()
     }
+}
+
+function Get-EffectiveProfile {
+    $Profiles = New-Object System.Collections.Generic.List[string]
+    foreach ($Item in ($Profile -split ",")) {
+        $Value = $Item.Trim()
+        if ($Value -and -not $Profiles.Contains($Value)) {
+            $Profiles.Add($Value)
+        }
+    }
+
+    if ($Profiles.Count -eq 0) {
+        $Profiles.Add("dev")
+    }
+
+    if ($Database) {
+        while ($Profiles.Contains("mysql")) {
+            [void]$Profiles.Remove("mysql")
+        }
+        if ($Database -eq "mysql") {
+            $Profiles.Add("mysql")
+        }
+    }
+
+    if ($SearchEngine) {
+        while ($Profiles.Contains("search-lucene")) {
+            [void]$Profiles.Remove("search-lucene")
+        }
+        while ($Profiles.Contains("search-opensearch")) {
+            [void]$Profiles.Remove("search-opensearch")
+        }
+        $Profiles.Add("search-$SearchEngine")
+    }
+
+    return ($Profiles -join ",")
 }
 
 function Stop-ManagedApp {
@@ -257,10 +299,15 @@ function Start-ManagedApp {
     }
 
     $Java = Get-JavaCommand
-    $ArgumentLine = (($env:JAVA_OPTS, "-jar", "`"$JarPath`"", "--spring.profiles.active=$Profile", "--server.port=$Port", $ExtraArgs) |
+    $JavaOptions = $env:JAVA_OPTS
+    if ($EffectiveProfile -match "(^|,)search-opensearch(,|$)" -and $JavaOptions -notmatch "jdk\.internal\.httpclient\.disableHostnameVerification") {
+        $JavaOptions = (($JavaOptions, "-Djdk.internal.httpclient.disableHostnameVerification=true") |
+            Where-Object { -not [string]::IsNullOrWhiteSpace($_) }) -join " "
+    }
+    $ArgumentLine = (($JavaOptions, "-jar", "`"$JarPath`"", "--debug=false", "--spring.profiles.active=$EffectiveProfile", "--server.port=$Port", $ExtraArgs) |
         Where-Object { -not [string]::IsNullOrWhiteSpace($_) }) -join " "
 
-    Write-Host "Starting $Name on port $Port ..."
+    Write-Host "Starting $Name on port $Port with profiles '$EffectiveProfile' ..."
     $Process = Start-Process `
         -FilePath $Java `
         -ArgumentList $ArgumentLine `
@@ -313,6 +360,7 @@ function Write-ManagedStatus {
 
 Assert-ProjectRoot
 New-Item -ItemType Directory -Force -Path $RunRoot, $LogRoot | Out-Null
+$EffectiveProfile = Get-EffectiveProfile
 
 switch ($Action) {
     "status" {
@@ -341,6 +389,7 @@ switch ($Action) {
 
         Write-Host ""
         Write-Host "Ready:"
+        Write-Host "  Profiles: $EffectiveProfile"
         Write-Host "  API: http://localhost:$ApiPort"
         Write-Host "  MCP admin: http://localhost:$McpPort/admin"
         Write-Host "  MCP endpoint: http://localhost:$McpPort/mcp"
@@ -363,6 +412,7 @@ switch ($Action) {
 
         Write-Host ""
         Write-Host "Ready:"
+        Write-Host "  Profiles: $EffectiveProfile"
         Write-Host "  API: http://localhost:$ApiPort"
         Write-Host "  MCP admin: http://localhost:$McpPort/admin"
         Write-Host "  MCP endpoint: http://localhost:$McpPort/mcp"

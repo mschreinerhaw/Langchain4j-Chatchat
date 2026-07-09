@@ -69,7 +69,7 @@ public class SearchService {
     private static final int REINDEX_PROGRESS_INTERVAL = 20;
 
     private final RocksDbSearchStore store;
-    private final LuceneDocumentIndexService luceneStore;
+    private final DocumentSearchIndex luceneStore;
     private final SearchTokenizer tokenizer;
     private final DocumentTextExtractor textExtractor;
     private final KeywordExtractor keywordExtractor;
@@ -81,6 +81,10 @@ public class SearchService {
      */
     @PostConstruct
     public void rebuildLuceneIndex() {
+        if (!properties.isRebuildOnStartup()) {
+            log.info("search_rebuild_startup_skipped reason=disabled");
+            return;
+        }
         if (!luceneStore.isAvailable()) {
             log.info("search_rebuild_lucene_skipped reason=lucene_unavailable");
             return;
@@ -106,13 +110,31 @@ public class SearchService {
         if (request == null) {
             throw new IllegalArgumentException("document payload is required");
         }
+        long startedAt = System.nanoTime();
         SearchDocument document = normalizeDocument(request);
+        log.info(
+            "search_document_save_start docId={} title={} source={} tenantId={} userId={} contentChars={}",
+            document.getDocId(),
+            safeLogValue(document.getTitle(), 80),
+            safeLogValue(document.getSource(), 60),
+            document.getTenantId(),
+            document.getUserId(),
+            lengthOf(document.getContent())
+        );
         SearchIndexData oldIndexData = store.get(document.getDocId())
             .map(this::buildIndexData)
             .orElse(null);
         SearchIndexData indexData = buildIndexData(document);
         store.put(document, indexData, oldIndexData);
         syncLuceneIndex(document);
+        log.info(
+            "search_document_save_complete docId={} title={} keywords={} tags={} durationMs={}",
+            document.getDocId(),
+            safeLogValue(document.getTitle(), 80),
+            cleanList(document.getKeywords()).size(),
+            cleanList(document.getTags()).size(),
+            elapsedMs(startedAt)
+        );
         return document;
     }
 
@@ -168,6 +190,18 @@ public class SearchService {
         if (!textExtractor.supports(originalFileName)) {
             throw new IllegalArgumentException("unsupported file type: " + originalFileName);
         }
+        long startedAt = System.nanoTime();
+        SearchPermissionContext context = permissionContext == null ? SearchPermissionContext.system() : permissionContext;
+        log.info(
+            "search_document_upload_start fileName={} fileSize={} title={} tenantId={} userId={} visibility={} roles={}",
+            safeLogValue(originalFileName, 100),
+            file.getSize(),
+            safeLogValue(title, 80),
+            context.tenantId(),
+            context.userId(),
+            safeLogValue(visibility, 40),
+            permissionRoles == null ? context.roles().size() : permissionRoles.size()
+        );
 
         String resolvedTitle = isBlank(title) ? stripExtension(originalFileName) : title.trim();
         normalizeExistingVersionFamily(resolvedTitle);
@@ -183,7 +217,6 @@ public class SearchService {
         if (isBlank(content)) {
             throw new IllegalArgumentException("document content is empty after extraction");
         }
-        SearchPermissionContext context = permissionContext == null ? SearchPermissionContext.system() : permissionContext;
 
         SearchDocument document = SearchDocument.builder()
             .docId(docId)
@@ -213,6 +246,17 @@ public class SearchService {
 
         SearchDocument saved = createOrUpdate(document);
         markPreviousVersionsNotLatest(saved);
+        log.info(
+            "search_document_upload_complete docId={} title={} fileName={} version={} contentChars={} keywords={} tags={} durationMs={}",
+            saved.getDocId(),
+            safeLogValue(saved.getTitle(), 80),
+            safeLogValue(saved.getFileName(), 100),
+            versionOf(saved),
+            lengthOf(saved.getContent()),
+            cleanList(saved.getKeywords()).size(),
+            cleanList(saved.getTags()).size(),
+            elapsedMs(startedAt)
+        );
         return saved;
     }
 
@@ -281,6 +325,18 @@ public class SearchService {
         int pageNumber = normalizePage(page);
         String focusedKeyword = queryExpander.focusQuery(keyword);
         String normalizedKeyword = queryExpander.normalizeQuery(keyword);
+        log.info(
+            "search_document_search_start query='{}' tag={} company={} industry={} docIds={} page={} pageSize={} tenantId={} userId={}",
+            safeLogQuery(normalizedKeyword),
+            safeLogValue(tag, 60),
+            safeLogValue(company, 60),
+            safeLogValue(industry, 60),
+            parseList(docIds).size(),
+            pageNumber,
+            pageSize,
+            context.tenantId(),
+            context.userId()
+        );
         List<String> queryTokens = tokenizer.searchTokens(normalizedKeyword);
         List<String> focusedQueryTokens = tokenizer.searchTokens(focusedKeyword);
         QueryIntent queryIntent = queryExpander.classifyIntent(normalizedKeyword);
@@ -291,6 +347,13 @@ public class SearchService {
             && expandedQueryTokens.isEmpty()
             && noFilters(tag, company, industry)
             && scopedDocumentIds.isEmpty()) {
+            log.info(
+                "search_document_search_complete query='{}' resultTotal=0 pageResults=0 page={} pageSize={} reason=no_match durationMs={}",
+                safeLogQuery(normalizedKeyword),
+                pageNumber,
+                pageSize,
+                elapsedMs(startedAt)
+            );
             return emptySearchPage(keyword, pageSize, pageNumber, startedAt, "no_match", context);
         }
         List<String> significantTerms = significantQueryTerms(focusedKeyword, focusedQueryTokens);
@@ -321,6 +384,16 @@ public class SearchService {
             context
         );
         if (luceneOutcome.page() != null) {
+            SearchPage pageResult = luceneOutcome.page();
+            log.info(
+                "search_document_search_complete query='{}' resultTotal={} pageResults={} page={} pageSize={} source=primary_index durationMs={}",
+                safeLogQuery(normalizedKeyword),
+                pageResult.total(),
+                pageResult.results() == null ? 0 : pageResult.results().size(),
+                pageNumber,
+                pageSize,
+                elapsedMs(startedAt)
+            );
             return luceneOutcome.page();
         }
         Map<String, Integer> scores = new HashMap<>();
@@ -411,6 +484,15 @@ public class SearchService {
 
         int documentCount = onlineDocumentCount(context);
         int totalPages = totalPages(allResults.size(), pageSize);
+        log.info(
+            "search_document_search_complete query='{}' resultTotal={} pageResults={} page={} pageSize={} source=fallback durationMs={}",
+            safeLogQuery(normalizedKeyword),
+            allResults.size(),
+            results.size(),
+            pageNumber,
+            pageSize,
+            elapsedMs(startedAt)
+        );
         return new SearchPage(
             keyword,
             queryTokens,
@@ -441,6 +523,18 @@ public class SearchService {
         int pageNumber = normalizePage(page);
         String focusedKeyword = queryExpander.focusQuery(keyword);
         String normalizedKeyword = queryExpander.normalizeQuery(keyword);
+        log.info(
+            "search_document_frontend_start query='{}' tag={} company={} industry={} docIds={} page={} pageSize={} tenantId={} userId={}",
+            safeLogQuery(normalizedKeyword),
+            safeLogValue(tag, 60),
+            safeLogValue(company, 60),
+            safeLogValue(industry, 60),
+            parseList(docIds).size(),
+            pageNumber,
+            pageSize,
+            context.tenantId(),
+            context.userId()
+        );
         List<String> queryTokens = tokenizer.searchTokens(normalizedKeyword);
         List<String> focusedQueryTokens = tokenizer.searchTokens(focusedKeyword);
         String queryIntentName = queryExpander.classifyIntentName(normalizedKeyword);
@@ -546,6 +640,16 @@ public class SearchService {
             .toList();
 
         int totalPages = totalPages(allResults.size(), pageSize);
+        log.info(
+            "search_document_frontend_complete query='{}' resultTotal={} pageResults={} page={} pageSize={} candidates={} durationMs={}",
+            safeLogQuery(normalizedKeyword),
+            allResults.size(),
+            results.size(),
+            pageNumber,
+            pageSize,
+            candidates.size(),
+            elapsedMs(startedAt)
+        );
         return new SearchPage(
             keyword,
             queryTokens,
@@ -984,39 +1088,64 @@ public class SearchService {
         String newCategory = normalizeCategory(newName);
         validateMutableCategory(oldCategory);
         validateMutableCategory(newCategory);
+        long startedAt = System.nanoTime();
+        log.info("search_library_category_rename_start oldCategory={} newCategory={}", oldCategory, newCategory);
         if (oldCategory.equals(newCategory)) {
+            log.info(
+                "search_library_category_rename_complete oldCategory={} newCategory={} affected=0 reason=same_category durationMs={}",
+                oldCategory,
+                newCategory,
+                elapsedMs(startedAt)
+            );
             return new LibraryCategory(newCategory, countDocumentsByCategory(newCategory));
         }
 
         store.deleteCategory(oldCategory);
         store.putCategory(newCategory);
-        loadAllDocuments().stream()
+        List<SearchDocument> affectedDocuments = loadAllDocuments().stream()
             .filter(document -> document.getTags() != null
                 && document.getTags().stream().anyMatch(tag -> normalizeCategory(tag).equals(oldCategory)))
-            .forEach(document -> {
+            .toList();
+        affectedDocuments.forEach(document -> {
                 SearchIndexData oldIndexData = buildIndexData(document);
                 document.setTags(replaceCategoryTag(document.getTags(), oldCategory, newCategory));
                 document.setUpdatedAt(Instant.now().toEpochMilli());
                 store.put(document, buildIndexData(document), oldIndexData);
                 syncLuceneIndex(document);
             });
+        log.info(
+            "search_library_category_rename_complete oldCategory={} newCategory={} affected={} durationMs={}",
+            oldCategory,
+            newCategory,
+            affectedDocuments.size(),
+            elapsedMs(startedAt)
+        );
         return new LibraryCategory(newCategory, countDocumentsByCategory(newCategory));
     }
 
     public boolean deleteCategory(String name) {
         String category = normalizeCategory(name);
         validateMutableCategory(category);
+        long startedAt = System.nanoTime();
+        log.info("search_library_category_delete_start category={}", category);
         store.deleteCategory(category);
-        loadAllDocuments().stream()
+        List<SearchDocument> affectedDocuments = loadAllDocuments().stream()
             .filter(document -> document.getTags() != null
                 && document.getTags().stream().anyMatch(tag -> normalizeCategory(tag).equals(category)))
-            .forEach(document -> {
+            .toList();
+        affectedDocuments.forEach(document -> {
                 SearchIndexData oldIndexData = buildIndexData(document);
                 document.setTags(removeCategoryTag(document.getTags(), category));
                 document.setUpdatedAt(Instant.now().toEpochMilli());
                 store.put(document, buildIndexData(document), oldIndexData);
                 syncLuceneIndex(document);
             });
+        log.info(
+            "search_library_category_delete_complete category={} affected={} durationMs={}",
+            category,
+            affectedDocuments.size(),
+            elapsedMs(startedAt)
+        );
         return true;
     }
 
@@ -1025,15 +1154,42 @@ public class SearchService {
                                                            SearchPermissionContext permissionContext) {
         String normalizedCategory = normalizeCategory(category);
         validateMutableCategory(normalizedCategory);
-        return get(docId, permissionContext).map(document -> {
+        SearchPermissionContext context = permissionContext == null ? SearchPermissionContext.system() : permissionContext;
+        long startedAt = System.nanoTime();
+        log.info(
+            "search_document_category_update_start docId={} category={} tenantId={} userId={}",
+            docId,
+            normalizedCategory,
+            context.tenantId(),
+            context.userId()
+        );
+        Optional<SearchDocument> result = get(docId, context).map(document -> {
             SearchIndexData oldIndexData = buildIndexData(document);
+            List<String> previousTags = cleanList(document.getTags());
             document.setTags(assignPrimaryCategory(document.getTags(), normalizedCategory));
             document.setUpdatedAt(Instant.now().toEpochMilli());
             store.put(document, buildIndexData(document), oldIndexData);
             syncLuceneIndex(document);
             store.putCategory(normalizedCategory);
+            log.info(
+                "search_document_category_update_complete docId={} category={} previousTags={} tags={} durationMs={}",
+                document.getDocId(),
+                normalizedCategory,
+                previousTags,
+                cleanList(document.getTags()),
+                elapsedMs(startedAt)
+            );
             return document;
         });
+        if (result.isEmpty()) {
+            log.info(
+                "search_document_category_update_not_found docId={} category={} durationMs={}",
+                docId,
+                normalizedCategory,
+                elapsedMs(startedAt)
+            );
+        }
+        return result;
     }
 
     private void validateMutableCategory(String category) {
@@ -1202,8 +1358,23 @@ public class SearchService {
     }
 
     public boolean deleteDocument(String docId, SearchPermissionContext permissionContext) {
-        Optional<SearchDocument> document = get(docId, permissionContext);
+        SearchPermissionContext context = permissionContext == null ? SearchPermissionContext.system() : permissionContext;
+        long startedAt = System.nanoTime();
+        log.info(
+            "search_document_delete_start docId={} tenantId={} userId={}",
+            docId,
+            context.tenantId(),
+            context.userId()
+        );
+        Optional<SearchDocument> document = get(docId, context);
         if (document.isEmpty()) {
+            log.info(
+                "search_document_delete_not_found docId={} tenantId={} userId={} durationMs={}",
+                docId,
+                context.tenantId(),
+                context.userId(),
+                elapsedMs(startedAt)
+            );
             return false;
         }
         SearchDocument target = document.get();
@@ -1213,20 +1384,32 @@ public class SearchService {
         luceneStore.deleteDocument(target.getDocId());
         deleteOriginalFile(target);
 
+        String promotedDocId = null;
         if (wasLatest) {
-            family.stream()
+            Optional<SearchDocument> previousVersion = family.stream()
                 .filter(candidate -> !candidate.getDocId().equals(target.getDocId()))
                 .max(Comparator
                     .comparingInt(this::versionOf)
-                    .thenComparing(SearchDocument::getUpdatedAt, Comparator.nullsLast(Comparator.naturalOrder())))
-                .ifPresent(previous -> {
+                    .thenComparing(SearchDocument::getUpdatedAt, Comparator.nullsLast(Comparator.naturalOrder())));
+            if (previousVersion.isPresent()) {
+                SearchDocument previous = previousVersion.get();
                     SearchIndexData oldIndexData = buildIndexData(previous);
                     previous.setLatestVersion(true);
                     previous.setUpdatedAt(Instant.now().toEpochMilli());
                     store.put(previous, buildIndexData(previous), oldIndexData);
                     syncLuceneIndex(previous);
-                });
+                promotedDocId = previous.getDocId();
+            }
         }
+        log.info(
+            "search_document_delete_complete docId={} title={} fileName={} wasLatest={} promotedDocId={} durationMs={}",
+            target.getDocId(),
+            safeLogValue(target.getTitle(), 80),
+            safeLogValue(target.getFileName(), 100),
+            wasLatest,
+            promotedDocId,
+            elapsedMs(startedAt)
+        );
         return true;
     }
 

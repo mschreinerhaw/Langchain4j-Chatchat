@@ -40,6 +40,10 @@ public class ModelsConfig {
         private String apiKey;
         private String baseUrl = "https://api.openai.com/v1";
         private int timeout = 30;
+        /**
+         * Maximum completion tokens sent to the model. -1 means do not set a model-side limit.
+         */
+        private int maxTokens = -1;
         private int maxRetries = 3;
         private ProxyConfig proxy = new ProxyConfig();
     }

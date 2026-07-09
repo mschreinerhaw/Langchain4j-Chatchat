@@ -30,10 +30,10 @@ public class SkillConfigEntity {
     @Column(length = 1024)
     private String description;
 
-    @Column(length = 16000)
+    @Column(columnDefinition = "TEXT")
     private String usageScenariosJson;
 
-    @Column(length = 16000)
+    @Column(columnDefinition = "TEXT")
     private String skillTagsJson;
 
     @Column(length = 32, nullable = false)
@@ -42,37 +42,37 @@ public class SkillConfigEntity {
     @Column(length = 128)
     private String modelName;
 
-    @Column(length = 16000)
+    @Column(columnDefinition = "TEXT")
     private String systemPrompt;
 
-    @Column(length = 4000)
+    @Column(columnDefinition = "TEXT")
     private String firstUseGreeting;
 
-    @Column(length = 16000)
+    @Column(columnDefinition = "TEXT")
     private String preferredToolPrefixesJson;
 
-    @Column(length = 16000)
+    @Column(columnDefinition = "TEXT")
     private String boundMcpServiceIdsJson;
 
-    @Column(length = 16000)
+    @Column(columnDefinition = "TEXT")
     private String boundMcpToolNamesJson;
 
-    @Column(length = 16000)
+    @Column(columnDefinition = "TEXT")
     private String boundDocumentIdsJson;
 
-    @Column(length = 16000)
+    @Column(columnDefinition = "TEXT")
     private String boundDocumentTagsJson;
 
-    @Column(length = 16000)
+    @Column(columnDefinition = "TEXT")
     private String toolConfigsJson;
 
-    @Column(length = 4000)
+    @Column(columnDefinition = "TEXT")
     private String routingSettingsJson;
 
-    @Column(length = 16000)
+    @Column(columnDefinition = "TEXT")
     private String workflowConfigJson;
 
-    @Column(length = 16000)
+    @Column(columnDefinition = "TEXT")
     private String quickQuestionsJson;
 
     @Column(length = 32, nullable = false)

@@ -51,6 +51,9 @@ public class LangChain4jConfig {
         if (modelsConfig.getOpenai().getTimeout() > 0) {
             builder.timeout(Duration.ofSeconds(modelsConfig.getOpenai().getTimeout()));
         }
+        if (modelsConfig.getOpenai().getMaxTokens() > 0) {
+            builder.maxTokens(modelsConfig.getOpenai().getMaxTokens());
+        }
 
         HttpClientBuilder httpClientBuilder = resolveOpenAiHttpClientBuilder();
         if (httpClientBuilder != null) {

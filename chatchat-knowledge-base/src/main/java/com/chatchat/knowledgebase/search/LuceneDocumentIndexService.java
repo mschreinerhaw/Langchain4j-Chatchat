@@ -43,7 +43,7 @@ import java.util.Set;
 @Slf4j
 @Component
 @RequiredArgsConstructor
-public class LuceneDocumentIndexService {
+public class LuceneDocumentIndexService implements DocumentSearchIndex {
 
     private static final String FILE_ID = "fileId";
     private static final String FILE_NAME = "fileName";

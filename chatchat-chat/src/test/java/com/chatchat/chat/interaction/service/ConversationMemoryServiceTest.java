@@ -2,12 +2,14 @@ package com.chatchat.chat.interaction.service;
 
 import com.chatchat.chat.conversation.Conversation;
 import com.chatchat.chat.conversation.ConversationService;
+import com.chatchat.chat.conversation.ConversationSummary;
 import com.chatchat.chat.interaction.model.InteractionResponse;
 import com.chatchat.chat.interaction.model.InteractionSource;
 import com.chatchat.common.interaction.InteractionToolTrace;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.langchain4j.model.chat.ChatModel;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.ObjectProvider;
 
 import java.util.ArrayList;
@@ -71,6 +73,41 @@ class ConversationMemoryServiceTest {
         memoryService.maybeRefreshSummary("conv-1");
 
         verify(conversationService, never()).saveSummary(anyString(), anyString(), anyString(), anyString());
+    }
+
+    @Test
+    void refreshSummarySupportsUnlimitedSummaryMaxChars() {
+        ConversationService conversationService = mock(ConversationService.class);
+        @SuppressWarnings("unchecked")
+        ObjectProvider<ChatModel> chatModelProvider = mock(ObjectProvider.class);
+        ConversationContextProperties properties = new ConversationContextProperties();
+        properties.setSummaryTriggerMessages(2);
+        properties.setSummaryKeepRecentMessages(1);
+        properties.setSummaryMaxChars(-1);
+        ConversationMemoryService memoryService = new ConversationMemoryService(
+            conversationService,
+            new ObjectMapper(),
+            chatModelProvider,
+            properties
+        );
+
+        String longPriorSummary = "prior-" + "x".repeat(900);
+        when(chatModelProvider.getIfAvailable()).thenReturn(null);
+        when(conversationService.latestSummary("conv-1")).thenReturn(Optional.of(new ConversationSummary(
+            "summary-1",
+            "conv-1",
+            longPriorSummary,
+            "m-old",
+            "m-old",
+            java.time.LocalDateTime.now()
+        )));
+        when(conversationService.summaryCandidates("conv-1", 1)).thenReturn(messages(2));
+
+        memoryService.maybeRefreshSummary("conv-1");
+
+        ArgumentCaptor<String> summaryCaptor = ArgumentCaptor.forClass(String.class);
+        verify(conversationService).saveSummary(eq("conv-1"), summaryCaptor.capture(), eq("m-0"), eq("m-1"));
+        assertThat(summaryCaptor.getValue()).contains(longPriorSummary);
     }
 
     @Test

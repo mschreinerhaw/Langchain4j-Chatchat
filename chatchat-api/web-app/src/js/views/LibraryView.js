@@ -8,6 +8,7 @@ import {
   createResearchCategory,
   deleteResearchCategory,
   deleteSearchDocument,
+  deleteSearchDocuments,
   fetchDocumentFile,
   fetchResearchCategoryReindexStatus,
   fetchResearchLibrary,
@@ -99,6 +100,9 @@ export default {
       documentDeleteDialogOpen: false,
       documentDeleteItem: null,
       documentDeleteSubmitting: false,
+      selectedDocumentIds: [],
+      documentBatchDeleteDialogOpen: false,
+      documentBatchDeleteSubmitting: false,
       viewerOpen: false,
       viewerLoading: false,
       viewerError: "",
@@ -118,6 +122,9 @@ export default {
         tenantId: this.effectiveTenantId,
         userId: this.userId
       };
+    },
+    canDeleteDocuments() {
+      return String(this.userId || "").toLowerCase() === "admin";
     },
     permissionQuery() {
       const params = new URLSearchParams();
@@ -175,6 +182,23 @@ export default {
     pagedDocuments() {
       return this.documents;
     },
+    visibleDocumentIds() {
+      return this.pagedDocuments.map((document) => document?.docId).filter(Boolean);
+    },
+    selectedDocumentIdSet() {
+      return new Set(this.selectedDocumentIds);
+    },
+    selectedDocumentCount() {
+      return this.canDeleteDocuments ? this.selectedDocumentIds.length : 0;
+    },
+    selectedDocuments() {
+      const selected = this.selectedDocumentIdSet;
+      return this.documents.filter((document) => selected.has(document.docId));
+    },
+    allVisibleDocumentsSelected() {
+      return this.visibleDocumentIds.length > 0
+        && this.visibleDocumentIds.every((docId) => this.selectedDocumentIdSet.has(docId));
+    },
     pageStart() {
       if (!this.documents.length) {
         return 0;
@@ -201,6 +225,7 @@ export default {
     },
     documents() {
       this.clampPage();
+      this.pruneSelectedDocuments();
     }
   },
   activated() {
@@ -333,6 +358,42 @@ export default {
     },
     closeDocumentActions() {
       this.openDocumentActionId = "";
+    },
+    toggleDocumentSelection(docId, checked) {
+      if (!this.canDeleteDocuments) {
+        return;
+      }
+      if (!docId) {
+        return;
+      }
+      const selected = new Set(this.selectedDocumentIds);
+      if (checked) {
+        selected.add(docId);
+      } else {
+        selected.delete(docId);
+      }
+      this.selectedDocumentIds = [...selected];
+    },
+    toggleAllVisibleDocuments(checked) {
+      if (!this.canDeleteDocuments) {
+        return;
+      }
+      const selected = new Set(this.selectedDocumentIds);
+      this.visibleDocumentIds.forEach((docId) => {
+        if (checked) {
+          selected.add(docId);
+        } else {
+          selected.delete(docId);
+        }
+      });
+      this.selectedDocumentIds = [...selected];
+    },
+    clearDocumentSelection() {
+      this.selectedDocumentIds = [];
+    },
+    pruneSelectedDocuments() {
+      const visible = new Set(this.visibleDocumentIds);
+      this.selectedDocumentIds = this.selectedDocumentIds.filter((docId) => visible.has(docId));
     },
     async refreshCategoryReindexStatus(options = {}) {
       if (this.categoryReindexStatusLoading) {
@@ -615,9 +676,64 @@ export default {
       }
     },
     async removeDocument(item) {
+      if (!this.canDeleteDocuments) {
+        return;
+      }
       this.openDocumentDeleteDialog(item);
     },
+    openDocumentBatchDeleteDialog() {
+      if (!this.canDeleteDocuments) {
+        return;
+      }
+      if (!this.selectedDocumentCount) {
+        return;
+      }
+      this.closeCategoryActions();
+      this.closeDocumentActions();
+      this.documentBatchDeleteDialogOpen = true;
+      this.error = "";
+    },
+    closeDocumentBatchDeleteDialog() {
+      if (this.documentBatchDeleteSubmitting) {
+        return;
+      }
+      this.documentBatchDeleteDialogOpen = false;
+    },
+    async submitDocumentBatchDelete() {
+      if (!this.canDeleteDocuments) {
+        return;
+      }
+      const docIds = [...this.selectedDocumentIds];
+      if (!docIds.length || this.documentBatchDeleteSubmitting) {
+        return;
+      }
+      this.documentBatchDeleteSubmitting = true;
+      this.loading = true;
+      this.error = "";
+      try {
+        const result = await deleteSearchDocuments(docIds, this.permissionFilters);
+        const deletedDocIds = Array.isArray(result?.deletedDocIds) ? result.deletedDocIds : [];
+        const notFoundDocIds = Array.isArray(result?.notFoundDocIds) ? result.notFoundDocIds : [];
+        this.documentBatchDeleteDialogOpen = false;
+        this.clearDocumentSelection();
+        if (this.viewerDocument?.docId && deletedDocIds.includes(this.viewerDocument.docId)) {
+          this.closeDocument();
+        }
+        this.message = notFoundDocIds.length
+          ? `已删除 ${deletedDocIds.length} 个文档，${notFoundDocIds.length} 个文档未找到或无权限。`
+          : `已删除 ${deletedDocIds.length} 个文档。`;
+        await this.loadLibrary();
+      } catch (error) {
+        this.error = error.message || "批量删除文档失败";
+      } finally {
+        this.loading = false;
+        this.documentBatchDeleteSubmitting = false;
+      }
+    },
     openDocumentDeleteDialog(item) {
+      if (!this.canDeleteDocuments) {
+        return;
+      }
       const docId = item?.docId;
       if (!docId) {
         return;
@@ -647,6 +763,7 @@ export default {
         await deleteSearchDocument(docId, this.permissionFilters);
         this.documentDeleteDialogOpen = false;
         this.documentDeleteItem = null;
+        this.selectedDocumentIds = this.selectedDocumentIds.filter((selectedDocId) => selectedDocId !== docId);
         this.message = "文档已删除。";
         if (this.viewerDocument?.docId === docId) {
           this.closeDocument();

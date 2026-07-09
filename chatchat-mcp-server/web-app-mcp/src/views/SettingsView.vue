@@ -177,6 +177,82 @@
         </footer>
       </el-tab-pane>
 
+      <el-tab-pane label="登录审计" name="loginAudits">
+        <div class="settings-section-head">
+          <div>
+            <h3>用户登录审计</h3>
+            <p>查看 MCP 管理后台登录成功、失败、来源 IP、MAC 和终端信息。</p>
+          </div>
+          <div class="panel-actions login-audit-filters">
+            <el-input
+              v-model.trim="loginAuditKeyword"
+              class="settings-search"
+              clearable
+              placeholder="搜索用户、IP、MAC、终端、失败原因"
+              @keyup.enter="searchLoginAudits"
+            >
+              <template #prefix>
+                <el-icon><Search /></el-icon>
+              </template>
+            </el-input>
+            <el-select v-model="loginAuditAction" class="login-audit-filter" placeholder="方式" @change="searchLoginAudits">
+              <el-option label="全部方式" value="" />
+              <el-option label="管理员登录" value="admin-login" />
+            </el-select>
+            <el-select v-model="loginAuditResult" class="login-audit-filter" placeholder="结果" @change="searchLoginAudits">
+              <el-option label="全部结果" value="" />
+              <el-option label="成功" value="success" />
+              <el-option label="失败" value="failure" />
+            </el-select>
+            <el-button plain :loading="busy" @click="searchLoginAudits">
+              <el-icon><Refresh /></el-icon>
+              <span>查询</span>
+            </el-button>
+          </div>
+        </div>
+
+        <el-table class="settings-table" :data="loginAuditRows" border stripe empty-text="暂无登录审计">
+          <el-table-column prop="createdAtText" label="时间" min-width="170" />
+          <el-table-column label="用户" min-width="150">
+            <template #default="{ row }">
+              <strong>{{ row.username || 'anonymous' }}</strong>
+              <div class="table-subtle">{{ row.reason || row.id }}</div>
+            </template>
+          </el-table-column>
+          <el-table-column prop="actionLabel" label="方式" width="130" />
+          <el-table-column label="结果" width="100">
+            <template #default="{ row }">
+              <el-tag :type="row.result === 'success' ? 'success' : 'danger'" effect="light">
+                {{ row.resultLabel }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column prop="ipAddress" label="IP" min-width="150" />
+          <el-table-column prop="macAddress" label="MAC" min-width="160">
+            <template #default="{ row }">{{ row.macAddress || '-' }}</template>
+          </el-table-column>
+          <el-table-column label="终端" min-width="260" show-overflow-tooltip>
+            <template #default="{ row }">{{ row.userAgentText }}</template>
+          </el-table-column>
+        </el-table>
+
+        <footer class="pagination-row">
+          <el-text type="info">
+            显示 {{ loginAuditPageStart }}-{{ loginAuditPageEnd }} 条，共 {{ loginAuditTotal }} 条
+          </el-text>
+          <el-pagination
+            background
+            layout="sizes, prev, pager, next, jumper"
+            :current-page="loginAuditPage"
+            :page-size="loginAuditPageSize"
+            :page-sizes="[10, 20, 50, 100]"
+            :total="loginAuditTotal"
+            @current-change="changeLoginAuditPage"
+            @size-change="changeLoginAuditPageSize"
+          />
+        </footer>
+      </el-tab-pane>
+
     </el-tabs>
 
     <el-dialog

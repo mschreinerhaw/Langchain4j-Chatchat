@@ -35,6 +35,14 @@
         <ShieldCheck :size="16" />
         <span>角色管理</span>
       </button>
+      <button
+        type="button"
+        :class="{ active: activeManagementTab === 'logins' }"
+        @click="activeManagementTab = 'logins'"
+      >
+        <KeyRound :size="16" />
+        <span>登录审计</span>
+      </button>
     </nav>
 
     <div class="rbac-board">
@@ -117,7 +125,7 @@
         </div>
       </aside>
 
-      <aside v-else class="rbac-panel role-panel system-tab-panel">
+      <aside v-else-if="activeManagementTab === 'roles'" class="rbac-panel role-panel system-tab-panel">
         <div class="panel-head">
           <div>
             <p>角色</p>
@@ -179,6 +187,100 @@
             </span>
           </div>
         </div>
+      </aside>
+
+      <aside v-else class="rbac-panel login-audit-panel system-tab-panel">
+        <div class="panel-head">
+          <div>
+            <p>审计</p>
+            <h2>登录行为</h2>
+          </div>
+          <div class="mini-actions">
+            <button type="button" title="刷新登录审计" @click="searchLoginAuditLogs" :disabled="loading">
+              <RefreshCw :size="14" />
+              刷新
+            </button>
+          </div>
+        </div>
+
+        <div class="login-audit-toolbar">
+          <input
+            v-model.trim="loginAuditKeyword"
+            type="search"
+            placeholder="搜索用户、IP、MAC、终端、失败原因"
+            @keydown.enter="searchLoginAuditLogs"
+          />
+          <select v-model="loginAuditTenantId" @change="searchLoginAuditLogs">
+            <option value="">全部租户</option>
+            <option v-for="tenant in tenants" :key="tenant.id" :value="tenant.id">
+              {{ tenant.tenantName || tenant.tenantCode || tenant.id }}
+            </option>
+          </select>
+          <select v-model="loginAuditAction" @change="searchLoginAuditLogs">
+            <option value="">全部方式</option>
+            <option value="login">密码登录</option>
+            <option value="embed-login">嵌入登录</option>
+          </select>
+          <select v-model="loginAuditResult" @change="searchLoginAuditLogs">
+            <option value="">全部结果</option>
+            <option value="success">成功</option>
+            <option value="failure">失败</option>
+          </select>
+          <button type="button" class="ghost-button compact-button" @click="searchLoginAuditLogs" :disabled="loading">查询</button>
+        </div>
+
+        <div class="login-audit-table">
+          <div class="login-audit-head">
+            <span>时间</span>
+            <span>用户</span>
+            <span>租户</span>
+            <span>方式</span>
+            <span>结果</span>
+            <span>IP</span>
+            <span>MAC</span>
+            <span>终端</span>
+          </div>
+          <div v-for="audit in loginAuditRows" :key="audit.id" class="login-audit-row">
+            <span>{{ audit.loginTime }}</span>
+            <span>
+              <strong>{{ audit.loginUser }}</strong>
+              <small>{{ audit.detailData.displayName || audit.actorId || "未识别账户" }}</small>
+            </span>
+            <span>{{ audit.tenantName }}</span>
+            <span>{{ audit.loginAction }}</span>
+            <span>
+              <em :class="['status-pill', audit.result]">{{ audit.loginResult }}</em>
+            </span>
+            <span>{{ audit.ipAddress }}</span>
+            <span>{{ audit.macAddress }}</span>
+            <span :title="audit.failureReason || audit.userAgent">
+              <small>{{ audit.userAgent }}</small>
+            </span>
+          </div>
+          <div v-if="loginAuditRows.length === 0" class="empty-state">暂无登录审计</div>
+        </div>
+
+        <nav class="login-audit-pagination" aria-label="登录审计分页">
+          <span>显示 {{ loginAuditPageStart }}-{{ loginAuditPageEnd }} 条，共 {{ loginAuditTotal }} 条</span>
+          <select :value="loginAuditPageSize" @change="changeLoginAuditPageSize">
+            <option :value="10">10 条/页</option>
+            <option :value="20">20 条/页</option>
+            <option :value="50">50 条/页</option>
+            <option :value="100">100 条/页</option>
+          </select>
+          <button type="button" :disabled="loginAuditPage <= 1 || loading" @click="changeLoginAuditPage(loginAuditPage - 1)">上一页</button>
+          <button
+            v-for="pageNumber in loginAuditPageButtons"
+            :key="pageNumber"
+            type="button"
+            :class="{ active: pageNumber === loginAuditPage }"
+            :disabled="loading"
+            @click="changeLoginAuditPage(pageNumber)"
+          >
+            {{ pageNumber }}
+          </button>
+          <button type="button" :disabled="loginAuditPage >= loginAuditPageCount || loading" @click="changeLoginAuditPage(loginAuditPage + 1)">下一页</button>
+        </nav>
       </aside>
 
     </div>

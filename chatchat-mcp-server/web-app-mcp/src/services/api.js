@@ -5,6 +5,13 @@ const SEARCH_INDEX_URL = `${API_BASE}/mcp-search-index`;
 
 export const authApi = {
   currentUser: () => apiFetch(`${API_BASE}/admin/auth/me`),
+  loginAudits: params => {
+    const query = new URLSearchParams();
+    Object.entries(params || {}).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && String(value) !== '') query.set(key, value);
+    });
+    return apiFetch(`${API_BASE}/admin/login-audits${query.toString() ? `?${query}` : ''}`);
+  },
   changePassword: (currentPassword, newPassword) => apiFetch(`${API_BASE}/admin/auth/password`, {
     method: 'POST',
     body: JSON.stringify({ currentPassword, newPassword })

@@ -49,6 +49,14 @@
   flex: 1;
 }
 
+.login-audit-filters {
+  flex: 1;
+}
+
+.login-audit-filter {
+  width: 150px;
+}
+
 .authorization-toolbar {
   display: grid;
   grid-template-columns: minmax(150px, 180px) minmax(160px, 220px) minmax(220px, 1fr);
@@ -86,7 +94,12 @@
   }
 
   .settings-search,
-  .settings-permission-tools {
+  .settings-permission-tools,
+  .login-audit-filters {
+    width: 100%;
+  }
+
+  .login-audit-filter {
     width: 100%;
   }
 

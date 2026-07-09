@@ -74,16 +74,17 @@ public class SqlMetadataSearchService {
         String query = firstText(rawQuery, requestedTableName, tableName, assetName);
         int limit = boundedInt(input.get("limit"), 10, 1, 30);
         boolean includeColumns = includeColumnsByDefault(input.get("includeColumns"));
+        String exactTableFilter = tableName;
+        String tableLabelFilter = looksLikeTableIdentifier(requestedTableName) ? tableName : null;
 
         List<Candidate> candidates = new ArrayList<>();
-        candidates.addAll(luceneCandidates(query, tableName, lookupNamespace, env, databaseType, limit));
+        candidates.addAll(luceneCandidates(query, tableLabelFilter, lookupNamespace, env, databaseType, limit));
         if (candidates.isEmpty()) {
-            candidates.addAll(cacheCandidates(query, tableName, lookupNamespace, assetName, env, databaseType, limit));
+            candidates.addAll(cacheCandidates(query, lookupNamespace, assetName, env, databaseType, limit));
         }
 
-        List<Map<String, Object>> results = candidates.stream()
+        List<Candidate> uniqueCandidates = candidates.stream()
             .filter(candidate -> matchesDatabase(candidate.table(), lookupNamespace))
-            .filter(candidate -> matchesTable(candidate.table(), tableName))
             .collect(java.util.stream.Collectors.toMap(
                 candidate -> candidate.datasource().getId() + "::" + normalize(candidate.table().database()) + "::" + normalize(candidate.table().table()),
                 candidate -> candidate,
@@ -93,6 +94,12 @@ public class SqlMetadataSearchService {
             .values()
             .stream()
             .sorted(Comparator.comparingDouble(Candidate::score).reversed())
+            .toList();
+        List<Candidate> tableFilteredCandidates = exactTableMatches(uniqueCandidates, exactTableFilter);
+        boolean tableNameFilterApplied = !tableFilteredCandidates.isEmpty();
+        List<Candidate> selectedCandidates = tableNameFilterApplied ? tableFilteredCandidates : uniqueCandidates;
+
+        List<Map<String, Object>> results = selectedCandidates.stream()
             .limit(limit)
             .map(candidate -> toResult(candidate, includeColumns, database))
             .toList();
@@ -119,6 +126,9 @@ public class SqlMetadataSearchService {
             ),
             "diagnostics", mapOf(
                 "source", luceneSearchService != null && luceneSearchService.enabled() ? "lucene_metadata_table_index" : "metadata_cache",
+                "candidateCountBeforeTableFilter", uniqueCandidates.size(),
+                "tableNameFilterApplied", tableNameFilterApplied,
+                "tableNameFilterMode", tableNameFilterApplied ? "exact_table_match" : "no_exact_match_returning_semantic_candidates",
                 "durationMs", (System.nanoTime() - startedAt) / 1_000_000
             )
         );
@@ -173,20 +183,19 @@ public class SqlMetadataSearchService {
     }
 
     private List<Candidate> cacheCandidates(String query,
-                                            String tableName,
                                             String database,
                                             String assetName,
                                             String env,
                                             String databaseType,
                                             int limit) {
-        String normalizedQuery = normalize(firstText(tableName, query));
+        String normalizedQuery = normalize(query);
         List<Candidate> values = new ArrayList<>();
         for (SqlDatasourceConfig datasource : datasourceConfigService.listEnabled()) {
             if (!matchesDatasource(datasource, assetName, env, databaseType)) {
                 continue;
             }
             for (TableLocation table : metadataIndexService.allTables(datasource)) {
-                if (!matchesDatabase(table, database) || !matchesTable(table, tableName)) {
+                if (!matchesDatabase(table, database)) {
                     continue;
                 }
                 double score = cacheScore(normalizedQuery, table);
@@ -312,6 +321,15 @@ public class SqlMetadataSearchService {
         return tableName == null
             || table == null
             || equalsNormalized(tableName, table.table());
+    }
+
+    private List<Candidate> exactTableMatches(List<Candidate> candidates, String tableName) {
+        if (candidates == null || candidates.isEmpty() || tableName == null || tableName.isBlank()) {
+            return List.of();
+        }
+        return candidates.stream()
+            .filter(candidate -> matchesTable(candidate.table(), tableName))
+            .toList();
     }
 
     private double cacheScore(String query, TableLocation table) {

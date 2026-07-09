@@ -76,11 +76,11 @@ public class SqlDatasourceConfig {
     private int metadataRefreshIntervalMinutes = 60;
 
     @Lob
-    @Column
+    @Column(columnDefinition = "longtext")
     private String routingLabelsJson;
 
     @Lob
-    @Column
+    @Column(columnDefinition = "longtext")
     private String capabilitiesJson;
 
     @Transient
@@ -99,23 +99,23 @@ public class SqlDatasourceConfig {
     private int defaultMaxRows = 1000;
 
     @Lob
-    @Column
+    @Column(columnDefinition = "longtext")
     private String sensitiveTablesJson;
 
     @Lob
-    @Column
+    @Column(columnDefinition = "longtext")
     private String sensitiveFieldsJson;
 
     @Lob
-    @Column
+    @Column(columnDefinition = "longtext")
     private String allowedTablesJson;
 
     @Lob
-    @Column
+    @Column(columnDefinition = "longtext")
     private String allowedTemplatesJson;
 
     @Lob
-    @Column
+    @Column(columnDefinition = "longtext")
     private String governanceJson;
 
     @Column(nullable = false)

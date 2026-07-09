@@ -1,9 +1,9 @@
 spring:
   datasource:
-    url: jdbc:mysql://localhost:3306/chatchat?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    url: jdbc:mysql://192.168.195.221:3306/live_runtime_api?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
     driver-class-name: com.mysql.cj.jdbc.Driver
-    username: chatchat
-    password:
+    username: livebos
+    password: apexSoft123!
     hikari:
       maximum-pool-size: 20
       minimum-idle: 5
@@ -12,5 +12,15 @@ spring:
       max-lifetime: 1800000
   jpa:
     hibernate:
-      ddl-auto: validate
+      ddl-auto: update
     database-platform: org.hibernate.dialect.MySQLDialect
+
+chatchat:
+  datasource-migration:
+    enabled: false
+    source-url: jdbc:h2:file:./data/h2/chatchat;MODE=MySQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE;DB_CLOSE_DELAY=-1
+    source-driver-class-name: org.h2.Driver
+    source-username: sa
+    source-password: 
+    replace-existing: false
+    batch-size: 500

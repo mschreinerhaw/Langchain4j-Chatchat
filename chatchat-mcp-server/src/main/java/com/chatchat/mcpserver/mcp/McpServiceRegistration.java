@@ -41,11 +41,11 @@ public class McpServiceRegistration {
     private String environment = "DEV";
 
     @Lob
-    @Column
+    @Column(columnDefinition = "longtext")
     private String routingLabelsJson;
 
     @Lob
-    @Column
+    @Column(columnDefinition = "longtext")
     private String capabilitiesJson;
 
     @Transient

@@ -40,7 +40,7 @@ public class SqlAdminController {
         SqlDatasourceConfig saved = datasourceConfigService.create(request);
         refreshMetadataWhenRequested(saved);
         publisher.refresh();
-        assetLuceneIndexService.refreshAll();
+        assetLuceneIndexService.upsertSqlDatasource(saved);
         return ApiResponse.success(saved, "SQL datasource created");
     }
 
@@ -50,7 +50,7 @@ public class SqlAdminController {
         SqlDatasourceConfig saved = datasourceConfigService.update(id, request);
         refreshMetadataWhenRequested(saved);
         publisher.refresh();
-        assetLuceneIndexService.refreshAll();
+        assetLuceneIndexService.upsertSqlDatasource(saved);
         return ApiResponse.success(saved, "SQL datasource updated");
     }
 
@@ -58,7 +58,7 @@ public class SqlAdminController {
     public ApiResponse<Void> deleteDatasource(@PathVariable("id") String id) {
         datasourceConfigService.delete(id);
         publisher.refresh();
-        assetLuceneIndexService.refreshAll();
+        assetLuceneIndexService.refresh("sql_datasource");
         return ApiResponse.success(null, "SQL datasource deleted");
     }
 
@@ -71,7 +71,7 @@ public class SqlAdminController {
     public ApiResponse<MetadataIndexService.MetadataRefreshResult> refreshDatasourceMetadata(@PathVariable("id") String id) {
         SqlDatasourceConfig datasource = datasourceConfigService.getEnabled(id);
         MetadataIndexService.MetadataRefreshResult result = metadataIndexService.refreshDatasource(datasource);
-        assetLuceneIndexService.refreshAll();
+        assetLuceneIndexService.upsertSqlDatasource(datasource);
         String message = result.error() == null || result.error().isBlank()
             ? "SQL datasource metadata refreshed"
             : "SQL datasource metadata refresh completed with errors";
@@ -90,7 +90,7 @@ public class SqlAdminController {
         datasourceConfigService.getById(id);
         SqlMetadataAssetRegistry saved = metadataAssetRegistryService.save(id, request);
         metadataIndexService.invalidate(id);
-        assetLuceneIndexService.refreshAll();
+        assetLuceneIndexService.refresh("sql_datasource");
         return ApiResponse.success(saved, "SQL metadata asset registered");
     }
 
@@ -102,7 +102,7 @@ public class SqlAdminController {
         request.setId(assetId);
         SqlMetadataAssetRegistry saved = metadataAssetRegistryService.save(id, request);
         metadataIndexService.invalidate(id);
-        assetLuceneIndexService.refreshAll();
+        assetLuceneIndexService.refresh("sql_datasource");
         return ApiResponse.success(saved, "SQL metadata asset updated");
     }
 
@@ -112,7 +112,7 @@ public class SqlAdminController {
         datasourceConfigService.getById(id);
         metadataAssetRegistryService.delete(id, assetId);
         metadataIndexService.invalidate(id);
-        assetLuceneIndexService.refreshAll();
+        assetLuceneIndexService.refresh("sql_datasource");
         return ApiResponse.success(null, "SQL metadata asset deleted");
     }
 

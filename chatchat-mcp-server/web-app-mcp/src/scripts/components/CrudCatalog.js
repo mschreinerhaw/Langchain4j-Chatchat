@@ -153,7 +153,11 @@ export default {
       return this.templatePickerFilteredItems.slice(start, start + this.templatePickerPageSize);
     },
     databasePreviewData() {
-      return this.formTestResult?.data || {};
+      const data = this.formTestResult?.data || {};
+      if (Array.isArray(data.resultSets) && data.resultSets.length) {
+        return data.resultSets.find(item => item.success !== false) || data.resultSets[0];
+      }
+      return data;
     },
     databasePreviewColumns() {
       return Array.isArray(this.databasePreviewData.columns) ? this.databasePreviewData.columns : [];
@@ -232,6 +236,9 @@ export default {
         const params = parseObjectValue(this.form[field.paramsKey], {});
         this.schemaDraft[field.key] = databaseSchemaToRows(schema, params);
       });
+      this.formFields.filter(field => field.type === 'databaseSqlSteps').forEach(field => {
+        this.form[field.key] = normalizeDatabaseSqlSteps(this.form[field.key], this.form.sqlTemplate);
+      });
       this.formFields.filter(field => field.unitScale).forEach(field => {
         const value = Number(this.form[field.key]);
         if (Number.isFinite(value)) {
@@ -286,6 +293,15 @@ export default {
         payload[field.schemaKey] = rowsToDatabaseSchema(rows);
         payload[field.paramsKey] = rowsToDatabaseParams(rows);
         delete payload[field.key];
+      });
+      this.formFields.filter(field => field.type === 'databaseSqlSteps').forEach(field => {
+        payload[field.key] = normalizeDatabaseSqlSteps(this.form[field.key], this.form.sqlTemplate)
+          .map((step, index) => ({
+            ...step,
+            executionOrder: index + 1,
+            parameters: parseJsonObject(step.parametersJson || '{}', {})
+          }));
+        payload.sqlTemplate = payload[field.key][0]?.sqlContent || payload.sqlTemplate || '';
       });
       this.formFields.filter(field => field.unitScale).forEach(field => {
         const value = Number(payload[field.key]);
@@ -524,7 +540,7 @@ export default {
       }
     },
     syncDatabaseParamsFromSql(field, notifyUser = false) {
-      const params = extractDatabaseQueryParameters(this.form[field.sqlKey] || '');
+      const params = extractDatabaseQueryParameters(this.databaseSqlTextForField(field));
       const rows = [...(this.schemaDraft[field.key] || [])];
       let added = 0;
       params.forEach(param => {
@@ -562,9 +578,48 @@ export default {
       }
     },
     databaseParamSummary(field) {
-      const params = extractDatabaseQueryParameters(this.form[field.sqlKey] || '');
+      const params = extractDatabaseQueryParameters(this.databaseSqlTextForField(field));
       if (!params.length) return '';
       return `参数：${params.map(param => param.dynamic ? `${param.name}:自动` : param.name).join(', ')}`;
+    },
+    databaseSqlTextForField(field) {
+      const steps = normalizeDatabaseSqlSteps(this.form[field.sqlStepsKey], this.form[field.sqlKey]);
+      if (steps.length) {
+        return steps.map(step => step.sqlContent || '').join('\n');
+      }
+      return this.form[field.sqlKey] || '';
+    },
+    databaseSqlSteps(field) {
+      this.form[field.key] = normalizeDatabaseSqlSteps(this.form[field.key], this.form.sqlTemplate);
+      return this.form[field.key];
+    },
+    addDatabaseSqlStep(field, source = {}) {
+      const steps = normalizeDatabaseSqlSteps(this.form[field.key], this.form.sqlTemplate);
+      steps.push(databaseSqlStepRow({ executionOrder: steps.length + 1, ...source }, steps.length));
+      this.form[field.key] = resequenceDatabaseSqlSteps(steps);
+    },
+    copyDatabaseSqlStep(field, index) {
+      const steps = normalizeDatabaseSqlSteps(this.form[field.key], this.form.sqlTemplate);
+      const copy = databaseSqlStepRow({
+        ...steps[index],
+        sqlCode: `${steps[index]?.sqlCode || 'SQL'}_COPY`,
+        sqlName: `${steps[index]?.sqlName || 'SQL'} Copy`
+      }, index + 1);
+      steps.splice(index + 1, 0, copy);
+      this.form[field.key] = resequenceDatabaseSqlSteps(steps);
+    },
+    removeDatabaseSqlStep(field, index) {
+      const steps = normalizeDatabaseSqlSteps(this.form[field.key], this.form.sqlTemplate);
+      steps.splice(index, 1);
+      this.form[field.key] = resequenceDatabaseSqlSteps(steps);
+    },
+    moveDatabaseSqlStep(field, index, delta) {
+      const steps = normalizeDatabaseSqlSteps(this.form[field.key], this.form.sqlTemplate);
+      const nextIndex = index + delta;
+      if (nextIndex < 0 || nextIndex >= steps.length) return;
+      const [item] = steps.splice(index, 1);
+      steps.splice(nextIndex, 0, item);
+      this.form[field.key] = resequenceDatabaseSqlSteps(steps);
     },
     appendDatabasePreviewParam(field, sampleValue) {
       return this.appendDatabasePreviewParams([field], { [field]: sampleValue });
@@ -842,6 +897,53 @@ function rowsToDatabaseParams(rows) {
     result[name] = coerceParamValue(row.testValue, row.type || 'string');
     return result;
   }, {});
+}
+
+function normalizeDatabaseSqlSteps(value, legacySql = '') {
+  const raw = Array.isArray(value) ? value : [];
+  const steps = raw
+    .filter(Boolean)
+    .map((step, index) => databaseSqlStepRow(step, index));
+  if (!steps.length && legacySql) {
+    steps.push(databaseSqlStepRow({
+      sqlCode: 'SQL_1',
+      sqlName: 'SQL 1',
+      sqlDescription: 'Primary result set returned by this query template.',
+      sqlContent: legacySql,
+      executionOrder: 1,
+      enabled: true,
+      failureStrategy: 'STOP'
+    }, 0));
+  }
+  return resequenceDatabaseSqlSteps(steps);
+}
+
+function databaseSqlStepRow(step = {}, index = 0) {
+  const parameters = step.parameters && typeof step.parameters === 'object' && !Array.isArray(step.parameters)
+    ? step.parameters
+    : parseObjectValue(step.parametersJson, {});
+  return {
+    sqlCode: step.sqlCode || `SQL_${index + 1}`,
+    sqlName: step.sqlName || `SQL ${index + 1}`,
+    sqlDescription: step.sqlDescription || step.description || '',
+    sqlContent: step.sqlContent || step.sql || '',
+    executionOrder: Number(step.executionOrder || index + 1),
+    enabled: step.enabled !== false,
+    timeoutSeconds: Number(step.timeoutSeconds || 30),
+    failureStrategy: String(step.failureStrategy || 'STOP').toUpperCase() === 'CONTINUE' ? 'CONTINUE' : 'STOP',
+    maxResultRows: Number(step.maxResultRows || step.maxRows || 50),
+    parameters,
+    parametersJson: prettyJson(parameters, {})
+  };
+}
+
+function resequenceDatabaseSqlSteps(steps) {
+  return (steps || []).map((step, index) => ({
+    ...step,
+    executionOrder: index + 1,
+    sqlCode: step.sqlCode || `SQL_${index + 1}`,
+    sqlName: step.sqlName || `SQL ${index + 1}`
+  }));
 }
 
 const DATABASE_DYNAMIC_PARAMS = new Set([

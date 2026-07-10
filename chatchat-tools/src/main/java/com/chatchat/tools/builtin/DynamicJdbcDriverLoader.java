@@ -202,11 +202,12 @@ public class DynamicJdbcDriverLoader {
         if (current != null) {
             return current;
         }
-        LoadedDrivers loaded = doLoadDrivers(scopedDriverLibPath(scope), scope);
+        List<Path> scopedPaths = scopedDriverLibPaths(scope);
+        LoadedDrivers loaded = doLoadDrivers(scopedPaths, scope);
         if (loaded.jarPaths().isEmpty()) {
             closeQuietly(loaded.classLoader());
             log.info("No scoped JDBC driver jars found for databaseType={} under {}; falling back to {}",
-                scope, scopedDriverLibPath(scope), Path.of(properties.getDriverLibPath()).toAbsolutePath().normalize());
+                scope, scopedPaths, globalDriverLibPaths());
             return loadDrivers();
         }
         if (reference.compareAndSet(null, loaded)) {
@@ -222,12 +223,32 @@ public class DynamicJdbcDriverLoader {
      * @return the operation result
      */
     private LoadedDrivers doLoadDrivers() {
-        return doLoadDrivers(Path.of(properties.getDriverLibPath()).toAbsolutePath().normalize(), null);
+        return doLoadDrivers(globalDriverLibPaths(), null);
     }
 
     private LoadedDrivers doLoadDrivers(Path libPath, String scope) {
+        return doLoadDrivers(List.of(libPath), scope);
+    }
+
+    private LoadedDrivers doLoadDrivers(List<Path> libPaths, String scope) {
         List<URL> urls = new ArrayList<>();
         List<Path> jarPaths = new ArrayList<>();
+        for (Path libPath : libPaths) {
+            scanDriverJars(libPath, urls, jarPaths);
+        }
+
+        URLClassLoader classLoader = new URLClassLoader(urls.toArray(URL[]::new), getClass().getClassLoader());
+        List<Driver> drivers = new ArrayList<>();
+        loadServiceDrivers(jarPaths, classLoader, drivers);
+        if (scope == null) {
+            log.info("Loaded {} external JDBC driver(s) from {}", drivers.size(), libPaths);
+        } else {
+            log.info("Loaded {} scoped external JDBC driver(s) for databaseType={} from {}", drivers.size(), scope, libPaths);
+        }
+        return new LoadedDrivers(classLoader, drivers, jarPaths);
+    }
+
+    private void scanDriverJars(Path libPath, List<URL> urls, List<Path> jarPaths) {
         if (Files.isDirectory(libPath)) {
             try (Stream<Path> stream = Files.list(libPath)) {
                 stream
@@ -247,16 +268,6 @@ public class DynamicJdbcDriverLoader {
         } else {
             log.info("JDBC driver lib path does not exist yet: {}", libPath);
         }
-
-        URLClassLoader classLoader = new URLClassLoader(urls.toArray(URL[]::new), getClass().getClassLoader());
-        List<Driver> drivers = new ArrayList<>();
-        loadServiceDrivers(jarPaths, classLoader, drivers);
-        if (scope == null) {
-            log.info("Loaded {} external JDBC driver(s) from {}", drivers.size(), libPath);
-        } else {
-            log.info("Loaded {} scoped external JDBC driver(s) for databaseType={} from {}", drivers.size(), scope, libPath);
-        }
-        return new LoadedDrivers(classLoader, drivers, jarPaths);
     }
 
     private void loadServiceDrivers(List<Path> jarPaths, URLClassLoader classLoader, List<Driver> drivers) {
@@ -318,8 +329,23 @@ public class DynamicJdbcDriverLoader {
         return current.getClass().getSimpleName() + (message == null || message.isBlank() ? "" : ": " + message);
     }
 
-    private Path scopedDriverLibPath(String scope) {
-        return Path.of(properties.getDriverLibPath()).resolve(scope).toAbsolutePath().normalize();
+    private List<Path> globalDriverLibPaths() {
+        Path base = Path.of(properties.getDriverLibPath()).toAbsolutePath().normalize();
+        Path drivers = base.resolve("drivers").toAbsolutePath().normalize();
+        if ("drivers".equalsIgnoreCase(base.getFileName() == null ? "" : base.getFileName().toString())) {
+            return List.of(base);
+        }
+        return List.of(base, drivers);
+    }
+
+    private List<Path> scopedDriverLibPaths(String scope) {
+        Path base = Path.of(properties.getDriverLibPath()).toAbsolutePath().normalize();
+        Path legacyScoped = base.resolve(scope).toAbsolutePath().normalize();
+        if ("drivers".equalsIgnoreCase(base.getFileName() == null ? "" : base.getFileName().toString())) {
+            return List.of(legacyScoped);
+        }
+        Path packagedScoped = base.resolve("drivers").resolve(scope).toAbsolutePath().normalize();
+        return List.of(legacyScoped, packagedScoped);
     }
 
     private String normalizeScope(String databaseType) {

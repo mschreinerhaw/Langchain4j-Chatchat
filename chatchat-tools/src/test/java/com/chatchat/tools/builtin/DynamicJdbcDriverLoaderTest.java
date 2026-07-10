@@ -29,10 +29,32 @@ class DynamicJdbcDriverLoaderTest {
         properties.setDriverLibPath(driverRoot.toString());
         DynamicJdbcDriverLoader loader = new DynamicJdbcDriverLoader(properties);
 
-        assertThat(loader.createDataSource("jdbc:scoped:demo", "", "", "", "dm")).isNotNull();
-        assertThatThrownBy(() -> loader.createDataSource("jdbc:scoped:demo", "", "", "", "kingbase"))
-            .isInstanceOf(IllegalArgumentException.class)
-            .hasMessageContaining("No JDBC driver found");
+        try {
+            assertThat(loader.createDataSource("jdbc:scoped:demo", "", "", "", "dm")).isNotNull();
+            assertThatThrownBy(() -> loader.createDataSource("jdbc:scoped:demo", "", "", "", "kingbase"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("No JDBC driver found");
+        } finally {
+            loader.reloadDrivers();
+        }
+    }
+
+    @Test
+    void loadsDriverFromPackagedDriversDatabaseTypeSubdirectory() throws Exception {
+        Path libRoot = tempDir.resolve("lib");
+        Path scopedRoot = libRoot.resolve("drivers").resolve("inceptor");
+        Files.createDirectories(scopedRoot);
+        createScopedDriverJar(scopedRoot.resolve("scoped-driver.jar"));
+
+        DatabaseToolProperties properties = new DatabaseToolProperties();
+        properties.setDriverLibPath(libRoot.toString());
+        DynamicJdbcDriverLoader loader = new DynamicJdbcDriverLoader(properties);
+
+        try {
+            assertThat(loader.createDataSource("jdbc:scoped:demo", "", "", "", "inceptor")).isNotNull();
+        } finally {
+            loader.reloadDrivers();
+        }
     }
 
     private void createScopedDriverJar(Path jarPath) throws Exception {

@@ -212,6 +212,18 @@ public class OpenSearchMcpSearchService {
             .toList();
     }
 
+    public boolean logicalIndexExists(String indexName) {
+        if (!enabled() || indexName == null || indexName.isBlank()) {
+            return false;
+        }
+        try {
+            return physicalIndexExists(openSearchIndexName(indexName));
+        } catch (Exception ex) {
+            log.warn("MCP OpenSearch index existence check failed index={} error={}", indexName, ex.getMessage());
+            return false;
+        }
+    }
+
     @PreDestroy
     public void close() {
         RestClient current = restClient;
@@ -346,7 +358,7 @@ public class OpenSearchMcpSearchService {
     private List<LuceneMcpSearchService.SearchHit> search(String indexName, Map<String, Object> query, int limit,
                                                           String semanticText, Map<String, Object> vectorFilter) {
         String index = openSearchIndexName(indexName);
-        if (!indexExists(index)) {
+        if (!physicalIndexExists(index)) {
             return List.of();
         }
         int resultLimit = Math.max(1, Math.min(maxResults(), limit));
@@ -721,7 +733,7 @@ public class OpenSearchMcpSearchService {
         return mapping;
     }
 
-    private boolean indexExists(String index) {
+    private boolean physicalIndexExists(String index) {
         return request("HEAD", "/" + index, null, true) != null;
     }
 

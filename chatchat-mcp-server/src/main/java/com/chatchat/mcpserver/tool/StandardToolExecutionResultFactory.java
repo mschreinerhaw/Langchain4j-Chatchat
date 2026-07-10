@@ -327,6 +327,8 @@ public class StandardToolExecutionResultFactory {
         Map<String, Object> resultData = rawData instanceof Map<?, ?> map
             ? new LinkedHashMap<>((Map<String, Object>) map)
             : mapOf("value", rawData);
+        boolean multiSql = resultData.get("resultSets") instanceof List<?>
+            || resultData.get("results") instanceof List<?>;
         resultData.putIfAbsent("columnMetadata", databaseQueryColumnMetadata(resultData));
         String statement = firstText(
             stringValue(resultData.get("sql")),
@@ -336,8 +338,8 @@ public class StandardToolExecutionResultFactory {
         String errorMessage = output == null ? "database_query returned no output" : output.getErrorMessage();
         Map<String, Object> analysisContext = databaseQueryAnalysisContext(config);
         Map<String, Object> payload = base(
-            "sql_query",
-            "sql_result.v1",
+            multiSql ? "sql_result_sets" : "sql_query",
+            multiSql ? "database_query_multi_sql_result.v1" : "sql_result.v1",
             "structured",
             success,
             durationMs,
@@ -349,8 +351,11 @@ public class StandardToolExecutionResultFactory {
             "name", config == null ? null : config.getTitle(),
             "toolName", toolName,
             "environment", null,
-            "template", config == null ? null : mapOf(
+                "template", config == null ? null : mapOf(
                 "templateId", config.getToolName(),
+                "templateName", config.getTitle(),
+                "description", config.getDescription(),
+                "implementationSteps", config.getImplementationSteps(),
                 "intent", firstText(config.getTemplateIntent(), "general_query"),
                 "businessGroup", mapOf(
                     "code", firstText(config.getBusinessGroup(), "default"),
@@ -365,6 +370,8 @@ public class StandardToolExecutionResultFactory {
         payload.put("analysisContext", analysisContext);
         payload.put("operation", mapOf(
             "type", "sql.query",
+            "executionMode", multiSql ? "SEQUENTIAL_MULTI_SQL" : "SINGLE_SQL",
+            "resultSetCount", resultData.get("resultSetCount"),
             "statement", statement,
             "timeoutSeconds", config == null ? null : config.getTimeoutSeconds(),
             "purpose", arguments == null ? null : arguments.get("purpose"),
@@ -379,7 +386,7 @@ public class StandardToolExecutionResultFactory {
         payload.put("execution", execution(
             toolName,
             durationMs,
-            List.of(step(
+            multiSql ? databaseQueryMultiSqlSteps(resultData, arguments, durationMs, errorMessage) : List.of(step(
                 1,
                 "sql",
                 mapOf(
@@ -410,10 +417,66 @@ public class StandardToolExecutionResultFactory {
             ))
         ));
         payload.put("executionGraph", graph(
-            List.of(graphNode("sql_query", "sql.query", success, durationMs)),
+            multiSql
+                ? databaseQueryMultiSqlGraphNodes(resultData)
+                : List.of(graphNode("sql_query", "sql.query", success, durationMs)),
             List.of()
         ));
         return payload;
+    }
+
+    private List<Map<String, Object>> databaseQueryMultiSqlSteps(Map<String, Object> resultData,
+                                                                 Map<String, Object> arguments,
+                                                                 long durationMs,
+                                                                 String errorMessage) {
+        List<Map<String, Object>> resultSets = listOfMaps(firstPresent(resultData.get("resultSets"), resultData.get("results")));
+        if (resultSets.isEmpty()) {
+            return List.of(step(1, "sql", Map.of(), resultData, false, durationMs, errorMessage, Map.of()));
+        }
+        return resultSets.stream()
+            .map(resultSet -> {
+                int index = intValue(resultSet.get("executionOrder"), resultSets.indexOf(resultSet) + 1);
+                return step(
+                    index,
+                    "sql_result_set",
+                    mapOf(
+                        "sqlCode", resultSet.get("sqlCode"),
+                        "sqlName", resultSet.get("sqlName"),
+                        "description", resultSet.get("description"),
+                        "statement", resultSet.get("sql"),
+                        "parameters", arguments == null ? Map.of() : arguments
+                    ),
+                    resultSet,
+                    Boolean.TRUE.equals(resultSet.get("success")),
+                    longValue(resultSet.get("durationMs"), 0L),
+                    stringValue(resultSet.get("errorMessage")),
+                    mapOf(
+                        "sqlCode", resultSet.get("sqlCode"),
+                        "sqlName", resultSet.get("sqlName"),
+                        "resultSetDescription", resultSet.get("description"),
+                        "rowCount", resultSet.get("rowCount")
+                    )
+                );
+            })
+            .toList();
+    }
+
+    private List<Map<String, Object>> databaseQueryMultiSqlGraphNodes(Map<String, Object> resultData) {
+        List<Map<String, Object>> resultSets = listOfMaps(firstPresent(resultData.get("resultSets"), resultData.get("results")));
+        return resultSets.stream()
+            .map(resultSet -> graphNode(
+                "sql_result_set_" + intValue(resultSet.get("executionOrder"), resultSets.indexOf(resultSet) + 1),
+                "sql.query",
+                Boolean.TRUE.equals(resultSet.get("success")),
+                longValue(resultSet.get("durationMs"), 0L),
+                mapOf(
+                    "sqlCode", resultSet.get("sqlCode"),
+                    "sqlName", resultSet.get("sqlName"),
+                    "description", resultSet.get("description"),
+                    "rowCount", resultSet.get("rowCount")
+                )
+            ))
+            .toList();
     }
 
     private Map<String, Object> databaseQueryAnalysisContext(DatabaseQueryConfig config) {
@@ -427,6 +490,8 @@ public class StandardToolExecutionResultFactory {
             "schemaVersion", "database_query_analysis_context.v1",
             "templateId", config.getToolName(),
             "templateTitle", config.getTitle(),
+            "templateDescription", config.getDescription(),
+            "implementationSteps", config.getImplementationSteps(),
             "templateIntent", firstText(config.getTemplateIntent(), "general_query"),
             "businessGroupCode", groupCode,
             "businessGroupName", groupName,
@@ -678,6 +743,40 @@ public class StandardToolExecutionResultFactory {
 
     private String stringValue(Object value) {
         return value == null ? null : String.valueOf(value);
+    }
+
+    private Object firstPresent(Object... values) {
+        if (values == null) {
+            return null;
+        }
+        for (Object value : values) {
+            if (value != null) {
+                return value;
+            }
+        }
+        return null;
+    }
+
+    private int intValue(Object value, int fallback) {
+        if (value instanceof Number number) {
+            return number.intValue();
+        }
+        try {
+            return value == null ? fallback : Integer.parseInt(String.valueOf(value));
+        } catch (Exception ex) {
+            return fallback;
+        }
+    }
+
+    private long longValue(Object value, long fallback) {
+        if (value instanceof Number number) {
+            return number.longValue();
+        }
+        try {
+            return value == null ? fallback : Long.parseLong(String.valueOf(value));
+        } catch (Exception ex) {
+            return fallback;
+        }
     }
 
     @SuppressWarnings("unchecked")

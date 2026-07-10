@@ -413,6 +413,28 @@
   text-align: center;
 }
 
+.database-sql-step-editor {
+  display: grid;
+  gap: 12px;
+  width: 100%;
+}
+
+.database-sql-step-card {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.database-sql-step-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
 .database-preview-panel {
   margin-top: 12px;
   border: 1px solid var(--line);
@@ -517,6 +539,11 @@
   }
 
   .database-param-toolbar {
+    flex-direction: column;
+  }
+
+  .database-sql-step-head {
+    align-items: flex-start;
     flex-direction: column;
   }
 

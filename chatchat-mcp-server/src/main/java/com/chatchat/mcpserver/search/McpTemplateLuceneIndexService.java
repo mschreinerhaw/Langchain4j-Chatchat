@@ -57,7 +57,30 @@ public class McpTemplateLuceneIndexService {
     @Order(Ordered.LOWEST_PRECEDENCE)
     @EventListener(ApplicationReadyEvent.class)
     public void onApplicationReady() {
-        refreshAll();
+        initializeMissingIndexes();
+    }
+
+    public synchronized void initializeMissingIndexes() {
+        if (luceneSearchService == null || !luceneSearchService.enabled()) {
+            log.info("MCP template index startup check skipped because search index is disabled");
+            return;
+        }
+        boolean refreshed = false;
+        if (!luceneSearchService.templateIndexExists()) {
+            refreshTemplateIndex();
+            refreshed = true;
+        }
+        if (!luceneSearchService.databaseQueryTemplateIndexExists()) {
+            refreshDatabaseQueryTemplateIndex();
+            refreshed = true;
+        }
+        if (!luceneSearchService.apiServiceTemplateIndexExists()) {
+            refreshApiServiceTemplateIndex();
+            refreshed = true;
+        }
+        if (!refreshed) {
+            log.info("MCP template index startup check skipped rebuild because all template indexes already exist");
+        }
     }
 
     public synchronized void refreshAll() {
@@ -118,8 +141,13 @@ public class McpTemplateLuceneIndexService {
     }
 
     public void upsertDatabaseQueryTemplates(List<DatabaseQueryConfig> templates) {
-        refreshDatabaseQueryTemplateIndex();
-        log.info("MCP Lucene database query template index rebuilt after {} changed templates", safe(templates).size());
+        if (luceneSearchService == null || !luceneSearchService.enabled()) {
+            return;
+        }
+        List<LuceneMcpSearchService.TemplateDoc> docs = databaseQueryAssetDocsForChangedTemplates(templates);
+        luceneSearchService.upsertDatabaseQueryTemplates(docs);
+        log.info("MCP Lucene database query template index upserted {} datasource asset docs after {} changed templates",
+            docs.size(), safe(templates).size());
     }
 
     public void upsertApiServiceTemplates(List<ApiServiceConfig> templates) {
@@ -226,6 +254,53 @@ public class McpTemplateLuceneIndexService {
                     .templates()
                     .add(config);
             });
+        }
+        return grouped.values().stream()
+            .map(this::databaseQueryAssetDoc)
+            .toList();
+    }
+
+    private List<LuceneMcpSearchService.TemplateDoc> databaseQueryAssetDocsForChangedTemplates(List<DatabaseQueryConfig> templates) {
+        Set<String> datasourceIds = new LinkedHashSet<>();
+        for (DatabaseQueryConfig template : safe(templates)) {
+            if (template == null || template.getDatasourceId() == null || template.getDatasourceId().isBlank()) {
+                continue;
+            }
+            datasourceIds.add(template.getDatasourceId());
+        }
+        if (datasourceIds.isEmpty()) {
+            return List.of();
+        }
+        Map<String, SqlDatasourceConfig> datasources = new LinkedHashMap<>();
+        for (String datasourceId : datasourceIds) {
+            try {
+                SqlDatasourceConfig datasource = datasourceConfigService.getEnabled(datasourceId);
+                if (datasource != null) {
+                    datasources.put(datasourceId, datasource);
+                }
+            } catch (Exception ignored) {
+                // Disabled or deleted datasources are cleared by explicit rebuild paths.
+            }
+        }
+        if (datasources.isEmpty()) {
+            return List.of();
+        }
+        Map<String, DatabaseQueryAssetTemplates> grouped = new LinkedHashMap<>();
+        for (DatabaseQueryConfig config : safe(databaseQueryConfigService.listAll())) {
+            if (config == null || !config.isEnabled() || config.getDatasourceId() == null) {
+                continue;
+            }
+            SqlDatasourceConfig datasource = datasources.get(config.getDatasourceId());
+            if (datasource == null) {
+                continue;
+            }
+            String key = firstText(datasource.getId(), firstText(datasource.getName(), datasource.getToolName()));
+            if (key == null) {
+                continue;
+            }
+            grouped.computeIfAbsent(key, ignored -> new DatabaseQueryAssetTemplates(datasource, new ArrayList<>()))
+                .templates()
+                .add(config);
         }
         return grouped.values().stream()
             .map(this::databaseQueryAssetDoc)

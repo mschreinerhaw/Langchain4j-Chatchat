@@ -127,7 +127,11 @@ public class DatabaseQueryAdminController {
 
     private void refreshPublishedTemplates(DatabaseQueryConfig saved) {
         publisher.refresh();
-        templateIndexService.upsertDatabaseQueryTemplates(List.of(saved));
+        if (saved != null && saved.isEnabled()) {
+            templateIndexService.upsertDatabaseQueryTemplates(List.of(saved));
+        } else {
+            templateIndexService.refreshDatabaseQueryTemplateIndex();
+        }
     }
 
     /**
@@ -154,6 +158,19 @@ public class DatabaseQueryAdminController {
         if (!toolRegistry.hasTool(TOOL_NAME)) {
             return ApiResponse.internalError("database_query tool is not registered");
         }
+        if (request.sqlSteps() != null && !request.sqlSteps().isEmpty()) {
+            DatabaseQueryConfig draft = new DatabaseQueryConfig();
+            draft.setId("draft");
+            draft.setToolName("draft_database_query");
+            draft.setTitle("Draft database query");
+            draft.setDatasourceId(request.datasourceId());
+            draft.setSqlTemplate(request.sql());
+            draft.setSqlStepsJson(writeSqlSteps(request.sqlSteps()));
+            draft.setMaxRows(request.maxRows() == null ? 50 : request.maxRows());
+            draft.setTimeoutSeconds(request.timeoutSeconds() == null ? 30 : request.timeoutSeconds());
+            draft.setCapabilitiesJson(ModelProtocolJson.compact(List.of("database_query", "sql_query_execute", "jdbc")));
+            return ApiResponse.success(invokeService.invoke(draft, request.params()));
+        }
         return ApiResponse.success(invokeService.invoke(toParameters(request)));
     }
 
@@ -169,10 +186,12 @@ public class DatabaseQueryAdminController {
         config.setTitle(request.title());
         config.setDatasourceId(request.datasourceId());
         config.setDescription(request.description());
+        config.setImplementationSteps(request.implementationSteps());
         config.setBusinessGroup(request.businessGroup());
         config.setBusinessGroupName(request.businessGroupName());
         config.setBusinessGroupDescription(request.businessGroupDescription());
         config.setSqlTemplate(request.sqlTemplate());
+        config.setSqlStepsJson(writeSqlSteps(request.sqlSteps()));
         config.setInputSchemaJson(writeJson(request.inputSchema()));
         config.setGovernanceJson(writeJson(request.governance()));
         config.setRoutingLabelsJson(request.routingLabelsJson());
@@ -212,10 +231,12 @@ public class DatabaseQueryAdminController {
             config.getTitle(),
             config.getDatasourceId(),
             config.getDescription(),
+            config.getImplementationSteps(),
             config.getBusinessGroup(),
             config.getBusinessGroupName(),
             config.getBusinessGroupDescription(),
             config.getSqlTemplate(),
+            readSqlSteps(config.getSqlStepsJson()),
             readJsonMap(config.getInputSchemaJson()),
             readJsonMap(config.getGovernanceJson()),
             config.getRoutingLabelsJson(),
@@ -308,6 +329,17 @@ public class DatabaseQueryAdminController {
         }
     }
 
+    private String writeSqlSteps(List<DatabaseQuerySqlStep> values) {
+        if (values == null || values.isEmpty()) {
+            return null;
+        }
+        try {
+            return ModelProtocolJson.compact(values);
+        } catch (RuntimeException e) {
+            throw new IllegalArgumentException("sqlSteps is invalid");
+        }
+    }
+
     /**
      * Reads the json map.
      *
@@ -340,6 +372,17 @@ public class DatabaseQueryAdminController {
         }
     }
 
+    private List<DatabaseQuerySqlStep> readSqlSteps(String json) {
+        if (json == null || json.isBlank()) {
+            return List.of();
+        }
+        try {
+            return objectMapper.readValue(json, new TypeReference<List<DatabaseQuerySqlStep>>() {});
+        } catch (Exception ex) {
+            return List.of();
+        }
+    }
+
     /**
      * Stores the if present.
      *
@@ -355,6 +398,7 @@ public class DatabaseQueryAdminController {
 
     public record DatabaseQueryTestRequest(
         String sql,
+        List<DatabaseQuerySqlStep> sqlSteps,
         Map<String, Object> params,
         Integer maxRows,
         Integer timeoutSeconds,
@@ -372,10 +416,12 @@ public class DatabaseQueryAdminController {
         String title,
         String datasourceId,
         String description,
+        String implementationSteps,
         String businessGroup,
         String businessGroupName,
         String businessGroupDescription,
         String sqlTemplate,
+        List<DatabaseQuerySqlStep> sqlSteps,
         Map<String, Object> inputSchema,
         Map<String, Object> governance,
         String routingLabelsJson,
@@ -411,10 +457,12 @@ public class DatabaseQueryAdminController {
         String title,
         String datasourceId,
         String description,
+        String implementationSteps,
         String businessGroup,
         String businessGroupName,
         String businessGroupDescription,
         String sqlTemplate,
+        List<DatabaseQuerySqlStep> sqlSteps,
         Map<String, Object> inputSchema,
         Map<String, Object> governance,
         String routingLabelsJson,

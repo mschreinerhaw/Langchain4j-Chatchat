@@ -12,6 +12,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -92,6 +93,30 @@ class DatabaseQueryConfigServiceTest {
     }
 
     @Test
+    void normalizesConfiguredSqlStepsAndKeepsFirstSqlAsLegacyTemplate() throws Exception {
+        DatabaseQueryConfig draft = query();
+        draft.setDatasourceId("asset-1");
+        draft.setSqlTemplate("");
+        draft.setImplementationSteps("Run summary SQL before detail SQL.");
+        draft.setSqlStepsJson(new ObjectMapper().writeValueAsString(List.of(
+            sqlStep("summary", "Summary rows", "select count(*) cnt from orders", 2, null),
+            sqlStep("detail", "Active order rows", "select * from orders where status = :status", 1,
+                Map.of("status", "ACTIVE"))
+        )));
+        when(toolRegistry.hasTool("query_orders")).thenReturn(false);
+        when(apiServiceConfigRepository.findByToolNameIgnoreCase("query_orders")).thenReturn(Optional.empty());
+        when(repository.findByToolNameIgnoreCase("query_orders")).thenReturn(Optional.empty());
+        when(datasourceConfigService.getEnabled("asset-1")).thenReturn(datasource("asset-1"));
+        when(repository.save(any(DatabaseQueryConfig.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        DatabaseQueryConfig saved = service.create(draft);
+
+        assertThat(saved.getImplementationSteps()).contains("summary SQL");
+        assertThat(saved.getSqlTemplate()).isEqualTo("select * from orders where status = :status");
+        assertThat(saved.getSqlStepsJson()).contains("DETAIL", "SUMMARY", "Active order rows", "Summary rows");
+    }
+
+    @Test
     void searchesDatabaseQueryTemplatesThroughLucene() {
         DatabaseQueryConfigService searchable = new DatabaseQueryConfigService(
             repository,
@@ -132,6 +157,23 @@ class DatabaseQueryConfigServiceTest {
         config.setTimeoutSeconds(30);
         config.setEnabled(true);
         return config;
+    }
+
+    private DatabaseQuerySqlStep sqlStep(String code,
+                                         String description,
+                                         String sql,
+                                         int executionOrder,
+                                         Map<String, Object> parameters) {
+        DatabaseQuerySqlStep step = new DatabaseQuerySqlStep();
+        step.setSqlCode(code);
+        step.setSqlName(code);
+        step.setSqlDescription(description);
+        step.setSqlContent(sql);
+        step.setExecutionOrder(executionOrder);
+        step.setEnabled(true);
+        step.setFailureStrategy("STOP");
+        step.setParameters(parameters);
+        return step;
     }
 
     private SqlDatasourceConfig datasource(String id) {

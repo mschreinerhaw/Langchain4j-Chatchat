@@ -3,6 +3,7 @@ package com.chatchat.mcpserver.api;
 import com.chatchat.agents.protocol.ModelProtocolJson;
 
 import com.chatchat.common.response.ApiResponse;
+import com.chatchat.mcpserver.search.McpAssetLuceneIndexService;
 import com.chatchat.mcpserver.search.McpTemplateLuceneIndexService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -30,6 +31,7 @@ public class ApiServiceController {
     private final ApiMcpToolPublisher publisher;
     private final ApiInvokeService invokeService;
     private final McpTemplateLuceneIndexService templateIndexService;
+    private final McpAssetLuceneIndexService assetIndexService;
     private final ObjectMapper objectMapper;
 
     /**
@@ -51,7 +53,7 @@ public class ApiServiceController {
     @PostMapping
     public ApiResponse<ApiServiceView> create(@RequestBody ApiServiceUpsertRequest request) {
         ApiServiceConfig saved = configService.create(fromRequest(request));
-        refreshPublishedTemplates();
+        refreshPublishedTemplates(saved);
         return ApiResponse.success(toView(saved), "API service registered");
     }
 
@@ -66,7 +68,7 @@ public class ApiServiceController {
     public ApiResponse<ApiServiceView> update(@PathVariable("id") String id,
                                               @RequestBody ApiServiceUpsertRequest request) {
         ApiServiceConfig saved = configService.update(id, fromRequest(request));
-        refreshPublishedTemplates();
+        refreshPublishedTemplates(saved);
         return ApiResponse.success(toView(saved), "API service updated");
     }
 
@@ -107,7 +109,11 @@ public class ApiServiceController {
     public ApiResponse<ApiServiceView> setEnabled(@PathVariable("id") String id,
                                                   @RequestParam("enabled") boolean enabled) {
         ApiServiceConfig saved = configService.setEnabled(id, enabled);
-        refreshPublishedTemplates();
+        if (saved.isEnabled()) {
+            refreshPublishedTemplates(saved);
+        } else {
+            refreshPublishedTemplates();
+        }
         return ApiResponse.success(toView(saved), "API service status updated");
     }
 
@@ -140,6 +146,13 @@ public class ApiServiceController {
     private void refreshPublishedTemplates() {
         publisher.refresh();
         templateIndexService.refreshApiServiceTemplateIndex();
+        assetIndexService.refresh("api_service");
+    }
+
+    private void refreshPublishedTemplates(ApiServiceConfig saved) {
+        publisher.refresh();
+        templateIndexService.upsertApiServiceTemplates(List.of(saved));
+        assetIndexService.upsertApiService(saved);
     }
 
     /**

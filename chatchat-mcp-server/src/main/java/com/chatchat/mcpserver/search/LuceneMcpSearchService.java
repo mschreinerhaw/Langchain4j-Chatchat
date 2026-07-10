@@ -16,6 +16,7 @@ import org.apache.lucene.document.TextField;
 import org.apache.lucene.index.DirectoryReader;
 import org.apache.lucene.index.IndexWriter;
 import org.apache.lucene.index.IndexWriterConfig;
+import org.apache.lucene.index.IndexNotFoundException;
 import org.apache.lucene.index.Term;
 import org.apache.lucene.queryparser.classic.MultiFieldQueryParser;
 import org.apache.lucene.search.BooleanClause;
@@ -106,11 +107,11 @@ public class LuceneMcpSearchService {
         try {
             if (normalizeAssetType(effectiveRequest.assetType()) != null) {
                 String assetType = normalizeAssetType(effectiveRequest.assetType());
-                indexAssets(assetType, safeAssetDocs(docs).stream()
+                upsertAssets(assetType, safeAssetDocs(docs).stream()
                     .filter(doc -> assetType.equals(normalizeAssetType(doc.assetType())))
                     .toList());
             } else {
-                indexAssets(docs);
+                upsertAssets(docs);
             }
             return searchAssets(effectiveRequest);
         } catch (Exception ex) {
@@ -417,6 +418,44 @@ public class LuceneMcpSearchService {
     public String assetIndexName(String assetType) {
         String normalizedAssetType = normalizeAssetType(assetType);
         return normalizedAssetType == null ? "assets-unknown" : ASSET_INDEX_PREFIX + normalizedAssetType.replace('_', '-');
+    }
+
+    public boolean assetIndexExists(String assetType) {
+        String normalizedAssetType = normalizeAssetType(assetType);
+        return normalizedAssetType != null && namedIndexExists(assetIndexName(normalizedAssetType));
+    }
+
+    public boolean templateIndexExists() {
+        return namedIndexExists(TEMPLATE_INDEX);
+    }
+
+    public boolean databaseQueryTemplateIndexExists() {
+        return namedIndexExists(DATABASE_QUERY_TEMPLATE_INDEX);
+    }
+
+    public boolean apiServiceTemplateIndexExists() {
+        return namedIndexExists(API_SERVICE_TEMPLATE_INDEX);
+    }
+
+    private boolean namedIndexExists(String indexName) {
+        if (!enabled() || indexName == null || indexName.isBlank()) {
+            return false;
+        }
+        if (openSearchSelected()) {
+            return openSearchSearchService.logicalIndexExists(indexName);
+        }
+        Path path = indexPath(indexName);
+        if (!Files.isDirectory(path)) {
+            return false;
+        }
+        try (FSDirectory directory = FSDirectory.open(path)) {
+            return DirectoryReader.indexExists(directory);
+        } catch (IndexNotFoundException ignored) {
+            return false;
+        } catch (Exception ex) {
+            log.warn("MCP Lucene index existence check failed path={}: {}", path, ex.getMessage());
+            return false;
+        }
     }
 
     private Path assetIndexPath(String assetType) {

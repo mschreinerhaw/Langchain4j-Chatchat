@@ -37,7 +37,7 @@ public class OpsAdminController {
     public ApiResponse<SshHostConfig> createHost(@RequestBody SshHostConfig request) {
         SshHostConfig saved = hostConfigService.create(request);
         publisher.refresh();
-        assetLuceneIndexService.refreshAll();
+        assetLuceneIndexService.upsertSshHost(saved);
         return ApiResponse.success(saved, "SSH host created");
     }
 
@@ -46,7 +46,7 @@ public class OpsAdminController {
                                                  @RequestBody SshHostConfig request) {
         SshHostConfig saved = hostConfigService.update(id, request);
         publisher.refresh();
-        assetLuceneIndexService.refreshAll();
+        assetLuceneIndexService.upsertSshHost(saved);
         return ApiResponse.success(saved, "SSH host updated");
     }
 
@@ -54,7 +54,7 @@ public class OpsAdminController {
     public ApiResponse<Void> deleteHost(@PathVariable("id") String id) {
         hostConfigService.delete(id);
         publisher.refresh();
-        assetLuceneIndexService.refreshAll();
+        assetLuceneIndexService.refresh("ssh_host");
         return ApiResponse.success(null, "SSH host deleted");
     }
 
@@ -72,7 +72,7 @@ public class OpsAdminController {
     public ApiResponse<HttpEndpointConfig> createHttpEndpoint(@RequestBody HttpEndpointConfig request) {
         HttpEndpointConfig saved = httpEndpointConfigService.create(request);
         publisher.refresh();
-        assetLuceneIndexService.refreshAll();
+        assetLuceneIndexService.upsertHttpEndpoint(saved);
         return ApiResponse.success(saved, "HTTP endpoint created");
     }
 
@@ -81,7 +81,7 @@ public class OpsAdminController {
                                                               @RequestBody HttpEndpointConfig request) {
         HttpEndpointConfig saved = httpEndpointConfigService.update(id, request);
         publisher.refresh();
-        assetLuceneIndexService.refreshAll();
+        assetLuceneIndexService.upsertHttpEndpoint(saved);
         return ApiResponse.success(saved, "HTTP endpoint updated");
     }
 
@@ -89,7 +89,7 @@ public class OpsAdminController {
     public ApiResponse<Void> deleteHttpEndpoint(@PathVariable("id") String id) {
         httpEndpointConfigService.delete(id);
         publisher.refresh();
-        assetLuceneIndexService.refreshAll();
+        assetLuceneIndexService.refresh("http_endpoint");
         return ApiResponse.success(null, "HTTP endpoint deleted");
     }
 

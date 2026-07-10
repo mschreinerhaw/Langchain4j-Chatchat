@@ -14,6 +14,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
@@ -146,10 +148,12 @@ public class DatabaseQueryConfigService {
         current.setTitle(draft.getTitle());
         current.setDatasourceId(draft.getDatasourceId());
         current.setDescription(draft.getDescription());
+        current.setImplementationSteps(draft.getImplementationSteps());
         current.setBusinessGroup(draft.getBusinessGroup());
         current.setBusinessGroupName(draft.getBusinessGroupName());
         current.setBusinessGroupDescription(draft.getBusinessGroupDescription());
         current.setSqlTemplate(draft.getSqlTemplate());
+        current.setSqlStepsJson(draft.getSqlStepsJson());
         current.setInputSchemaJson(draft.getInputSchemaJson());
         current.setGovernanceJson(draft.getGovernanceJson());
         current.setRoutingLabelsJson(draft.getRoutingLabelsJson());
@@ -254,10 +258,13 @@ public class DatabaseQueryConfigService {
         config.setTitle(blankToNull(config.getTitle()) == null ? toolName : config.getTitle().trim());
         config.setDatasourceId(blankToNull(config.getDatasourceId()));
         config.setDescription(blankToNull(config.getDescription()));
+        config.setImplementationSteps(blankToNull(config.getImplementationSteps()));
         config.setBusinessGroup(normalizeBusinessGroup(config.getBusinessGroup()));
         config.setBusinessGroupName(firstText(blankToNull(config.getBusinessGroupName()), config.getBusinessGroup()));
         config.setBusinessGroupDescription(blankToNull(config.getBusinessGroupDescription()));
-        config.setSqlTemplate(normalizeRequired(config.getSqlTemplate(), "sql"));
+        List<DatabaseQuerySqlStep> sqlSteps = normalizeSqlSteps(config);
+        config.setSqlStepsJson(sqlSteps.isEmpty() ? null : writeSqlSteps(sqlSteps));
+        config.setSqlTemplate(normalizeSqlTemplate(config, sqlSteps));
         config.setInputSchemaJson(normalizeJsonObject(config.getInputSchemaJson()));
         config.setGovernanceJson(normalizeJsonObject(config.getGovernanceJson(), "governance"));
         config.setRoutingLabelsJson(normalizeJsonArray(
@@ -301,6 +308,93 @@ public class DatabaseQueryConfigService {
      */
     private String normalizeJsonObject(String json) {
         return normalizeJsonObject(json, "inputSchema");
+    }
+
+    private List<DatabaseQuerySqlStep> normalizeSqlSteps(DatabaseQueryConfig config) {
+        List<DatabaseQuerySqlStep> steps = readSqlSteps(config.getSqlStepsJson());
+        if (steps.isEmpty()) {
+            return List.of();
+        }
+        List<DatabaseQuerySqlStep> normalized = new ArrayList<>();
+        Set<String> codes = new LinkedHashSet<>();
+        Set<Integer> orders = new LinkedHashSet<>();
+        for (int index = 0; index < steps.size(); index++) {
+            DatabaseQuerySqlStep source = steps.get(index);
+            if (source == null) {
+                continue;
+            }
+            DatabaseQuerySqlStep step = new DatabaseQuerySqlStep();
+            int executionOrder = source.getExecutionOrder() == null || source.getExecutionOrder() <= 0
+                ? index + 1
+                : source.getExecutionOrder();
+            String code = blankToNull(source.getSqlCode());
+            if (code == null) {
+                code = "SQL_" + executionOrder;
+            }
+            code = code.trim().toUpperCase(Locale.ROOT).replaceAll("[^A-Z0-9_\\-]", "_");
+            if (code.isBlank()) {
+                code = "SQL_" + executionOrder;
+            }
+            if (!codes.add(code)) {
+                throw new IllegalArgumentException("sqlSteps sqlCode duplicated: " + code);
+            }
+            if (!orders.add(executionOrder)) {
+                throw new IllegalArgumentException("sqlSteps executionOrder duplicated: " + executionOrder);
+            }
+            step.setSqlCode(code);
+            step.setSqlName(normalizeRequired(source.getSqlName(), "sqlSteps[" + index + "].sqlName"));
+            step.setSqlDescription(normalizeRequired(source.getSqlDescription(), "sqlSteps[" + index + "].sqlDescription"));
+            step.setSqlContent(normalizeRequired(source.getSqlContent(), "sqlSteps[" + index + "].sqlContent"));
+            step.setExecutionOrder(executionOrder);
+            step.setEnabled(source.getEnabled() == null || source.getEnabled());
+            int timeout = source.getTimeoutSeconds() == null || source.getTimeoutSeconds() <= 0
+                ? config.getTimeoutSeconds()
+                : source.getTimeoutSeconds();
+            step.setTimeoutSeconds(Math.max(1, Math.min(300, timeout)));
+            String failureStrategy = firstText(source.getFailureStrategy(), "STOP").trim().toUpperCase(Locale.ROOT);
+            if (!Set.of("STOP", "CONTINUE").contains(failureStrategy)) {
+                throw new IllegalArgumentException("sqlSteps[" + index + "].failureStrategy must be STOP or CONTINUE");
+            }
+            step.setFailureStrategy(failureStrategy);
+            int maxRows = source.getMaxResultRows() == null || source.getMaxResultRows() <= 0
+                ? config.getMaxRows()
+                : source.getMaxResultRows();
+            step.setMaxResultRows(Math.max(1, Math.min(1000, maxRows)));
+            step.setParameters(source.getParameters());
+            normalized.add(step);
+        }
+        normalized.sort(Comparator.comparing(DatabaseQuerySqlStep::getExecutionOrder));
+        return normalized;
+    }
+
+    private String normalizeSqlTemplate(DatabaseQueryConfig config, List<DatabaseQuerySqlStep> sqlSteps) {
+        if (sqlSteps != null && !sqlSteps.isEmpty()) {
+            return sqlSteps.stream()
+                .filter(DatabaseQuerySqlStep::enabled)
+                .findFirst()
+                .map(DatabaseQuerySqlStep::getSqlContent)
+                .orElseGet(() -> firstText(config.getSqlTemplate(), "-- multi SQL template has no enabled SQL step"));
+        }
+        return normalizeRequired(config.getSqlTemplate(), "sql");
+    }
+
+    private String writeSqlSteps(List<DatabaseQuerySqlStep> steps) {
+        try {
+            return ModelProtocolJson.compact(steps == null ? List.of() : steps);
+        } catch (RuntimeException ex) {
+            throw new IllegalArgumentException("sqlSteps must be valid JSON");
+        }
+    }
+
+    private List<DatabaseQuerySqlStep> readSqlSteps(String json) {
+        if (json == null || json.isBlank()) {
+            return List.of();
+        }
+        try {
+            return objectMapper.readValue(json, new TypeReference<List<DatabaseQuerySqlStep>>() {});
+        } catch (Exception ex) {
+            throw new IllegalArgumentException("sqlSteps must be a valid JSON array");
+        }
     }
 
     /**
@@ -381,9 +475,16 @@ public class DatabaseQueryConfigService {
         labels.add(firstText(config.getBusinessGroup(), ""));
         labels.add(firstText(config.getBusinessGroupName(), ""));
         labels.add(firstText(config.getBusinessGroupDescription(), ""));
+        labels.add(firstText(config.getImplementationSteps(), ""));
         labels.add(firstText(config.getToolName(), ""));
         labels.add(firstText(config.getTitle(), ""));
         labels.add(firstText(config.getSqlTemplate(), ""));
+        readSqlSteps(config.getSqlStepsJson()).forEach(step -> {
+            labels.add(firstText(step.getSqlCode(), ""));
+            labels.add(firstText(step.getSqlName(), ""));
+            labels.add(firstText(step.getSqlDescription(), ""));
+            labels.add(firstText(step.getSqlContent(), ""));
+        });
         datasourceFor(config).ifPresent(datasource -> {
             labels.add(firstText(datasource.getName(), ""));
             labels.add(firstText(datasource.getTitle(), ""));
@@ -398,6 +499,7 @@ public class DatabaseQueryConfigService {
             "database_query",
             firstText(config.getTitle(), config.getToolName()),
             firstText(config.getDescription(), "") + " "
+                + firstText(config.getImplementationSteps(), "") + " "
                 + firstText(config.getBusinessGroupName(), "") + " "
                 + firstText(config.getBusinessGroupDescription(), "") + " "
                 + firstText(config.getSqlTemplate(), "") + " "

@@ -17,6 +17,7 @@ import org.mockito.ArgumentCaptor;
 
 import java.util.Map;
 import java.util.Optional;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyMap;
@@ -183,6 +184,84 @@ class DatabaseQueryInvokeServiceTest {
         assertThat(data.get("mode")).isEqualTo("agent_runtime_template_dsl");
         assertThat(data.get("templateDsl").toString()).contains("DM_INSTANCE_STATUS", "SESSION_STAT");
         assertThat(data.get("results").toString()).contains("OPTIONAL_LOCK", "Session statistics", "analysisHint");
+    }
+
+    @Test
+    void invokesConfiguredSqlStepsSequentiallyAndReturnsResultSetDescriptions() throws Exception {
+        when(toolRegistry.hasTool("database_query")).thenReturn(true);
+        when(datasourceConfigService.getEnabled("asset-dm")).thenReturn(dmDatasource());
+        when(toolRegistry.executeEnhancedTool(org.mockito.ArgumentMatchers.eq("database_query"),
+            org.mockito.ArgumentMatchers.any(ToolInput.class))).thenAnswer(invocation -> {
+                ToolInput input = invocation.getArgument(1);
+                String sql = String.valueOf(input.getParameters().get("sql"));
+                @SuppressWarnings("unchecked")
+                Map<String, Object> params = (Map<String, Object>) input.getParameters().get("params");
+                return ToolOutput.success(Map.of(
+                    "sql", sql,
+                    "columns", List.of("NAME", "VALUE"),
+                    "rows", List.of(Map.of("NAME", params.getOrDefault("status", "all"), "VALUE", 1)),
+                    "rowCount", 1
+                ));
+            });
+        DatabaseQueryConfig config = new DatabaseQueryConfig();
+        config.setId("query-multi");
+        config.setToolName("db_query_multi");
+        config.setTitle("Multi SQL query");
+        config.setDescription("Template level description");
+        config.setImplementationSteps("First read summary, then read active detail.");
+        config.setDatasourceId("asset-dm");
+        config.setSqlTemplate("SELECT 1");
+        config.setMaxRows(20);
+        config.setTimeoutSeconds(30);
+        config.setSqlStepsJson(new ObjectMapper().writeValueAsString(List.of(
+            sqlStep("SUMMARY", "Summary result", "SELECT COUNT(*) CNT FROM ORDERS", 1, null),
+            sqlStep("ACTIVE_DETAIL", "Active detail rows", "SELECT * FROM ORDERS WHERE STATUS = :status", 2,
+                Map.of("status", "ACTIVE"))
+        )));
+
+        ToolOutput output = service.invoke(config, Map.of("tenantId", "t1"));
+
+        assertThat(output.isSuccess()).isTrue();
+        Map<?, ?> data = (Map<?, ?>) output.getData();
+        assertThat(data.get("mode")).isEqualTo("database_query_multi_sql");
+        assertThat(data.get("executionMode")).isEqualTo("SEQUENTIAL");
+        assertThat(data.get("resultSetCount")).isEqualTo(2);
+        @SuppressWarnings("unchecked")
+        List<Map<String, Object>> resultSets = (List<Map<String, Object>>) data.get("resultSets");
+        assertThat(resultSets)
+            .extracting(item -> item.get("sqlCode"))
+            .containsExactly("SUMMARY", "ACTIVE_DETAIL");
+        assertThat(resultSets)
+            .extracting(item -> item.get("resultSetDescription"))
+            .containsExactly("Summary result", "Active detail rows");
+
+        ArgumentCaptor<ToolInput> inputCaptor = ArgumentCaptor.forClass(ToolInput.class);
+        verify(toolRegistry, org.mockito.Mockito.times(2))
+            .executeEnhancedTool(org.mockito.ArgumentMatchers.eq("database_query"), inputCaptor.capture());
+        assertThat(inputCaptor.getAllValues())
+            .extracting(input -> input.getParameters().get("sql"))
+            .containsExactly("SELECT COUNT(*) CNT FROM ORDERS", "SELECT * FROM ORDERS WHERE STATUS = :status");
+        @SuppressWarnings("unchecked")
+        Map<String, Object> secondParams =
+            (Map<String, Object>) inputCaptor.getAllValues().get(1).getParameters().get("params");
+        assertThat(secondParams).containsEntry("status", "ACTIVE");
+    }
+
+    private DatabaseQuerySqlStep sqlStep(String code,
+                                         String description,
+                                         String sql,
+                                         int executionOrder,
+                                         Map<String, Object> parameters) {
+        DatabaseQuerySqlStep step = new DatabaseQuerySqlStep();
+        step.setSqlCode(code);
+        step.setSqlName(code);
+        step.setSqlDescription(description);
+        step.setSqlContent(sql);
+        step.setExecutionOrder(executionOrder);
+        step.setEnabled(true);
+        step.setFailureStrategy("STOP");
+        step.setParameters(parameters);
+        return step;
     }
 
     private SqlDatasourceConfig dmDatasource() {

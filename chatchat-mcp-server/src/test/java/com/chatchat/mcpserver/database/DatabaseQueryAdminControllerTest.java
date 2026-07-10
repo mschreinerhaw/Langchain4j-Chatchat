@@ -48,6 +48,7 @@ class DatabaseQueryAdminControllerTest {
         DatabaseQueryAdminController.DatabaseQueryTestRequest request =
             new DatabaseQueryAdminController.DatabaseQueryTestRequest(
                 "SELECT 1",
+                null,
                 Map.of(),
                 1,
                 75,

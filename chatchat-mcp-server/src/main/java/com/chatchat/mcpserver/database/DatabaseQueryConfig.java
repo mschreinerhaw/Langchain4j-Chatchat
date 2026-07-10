@@ -34,6 +34,10 @@ public class DatabaseQueryConfig {
     @Column(length = 1000)
     private String description;
 
+    @Lob
+    @Column(columnDefinition = "longtext")
+    private String implementationSteps;
+
     @Column(length = 128)
     private String businessGroup = "default";
 
@@ -46,6 +50,10 @@ public class DatabaseQueryConfig {
     @Lob
     @Column(nullable = false, columnDefinition = "longtext")
     private String sqlTemplate;
+
+    @Lob
+    @Column(columnDefinition = "longtext")
+    private String sqlStepsJson;
 
     @Lob
     @Column(columnDefinition = "longtext")
@@ -169,6 +177,8 @@ public class DatabaseQueryConfig {
     public void setDatasourceId(String datasourceId) { this.datasourceId = datasourceId; }
     public String getDescription() { return description; }
     public void setDescription(String description) { this.description = description; }
+    public String getImplementationSteps() { return implementationSteps; }
+    public void setImplementationSteps(String implementationSteps) { this.implementationSteps = implementationSteps; }
     public String getBusinessGroup() { return businessGroup; }
     public void setBusinessGroup(String businessGroup) { this.businessGroup = businessGroup; }
     public String getBusinessGroupName() { return businessGroupName; }
@@ -177,6 +187,8 @@ public class DatabaseQueryConfig {
     public void setBusinessGroupDescription(String businessGroupDescription) { this.businessGroupDescription = businessGroupDescription; }
     public String getSqlTemplate() { return sqlTemplate; }
     public void setSqlTemplate(String sqlTemplate) { this.sqlTemplate = sqlTemplate; }
+    public String getSqlStepsJson() { return sqlStepsJson; }
+    public void setSqlStepsJson(String sqlStepsJson) { this.sqlStepsJson = sqlStepsJson; }
     public String getInputSchemaJson() { return inputSchemaJson; }
     public void setInputSchemaJson(String inputSchemaJson) { this.inputSchemaJson = inputSchemaJson; }
     public String getGovernanceJson() { return governanceJson; }

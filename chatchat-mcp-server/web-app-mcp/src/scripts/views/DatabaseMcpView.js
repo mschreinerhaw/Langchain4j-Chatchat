@@ -33,7 +33,8 @@ export default {
         timeoutSeconds: 30,
         inputSchema,
         parameters: {},
-        governance: {}
+        governance: {},
+        sqlSteps: []
       },
       columns: [
         { key: 'toolName', label: '工具名称', type: 'code' },
@@ -81,17 +82,25 @@ export default {
           section: 'basic'
         },
         {
-          key: 'sqlTemplate',
-          label: 'SQL 模板',
+          key: 'implementationSteps',
+          label: '功能实现步骤',
           type: 'textarea',
-          rows: 7,
+          rows: 4,
+          span: 'col-12',
+          placeholder: '1. 查询客户基础信息。\n2. 查询客户资产汇总。\n3. 汇总多个结果集进行分析。',
+          help: '说明多条 SQL 的执行顺序和模型应如何理解这些结果集。',
+          section: 'basic'
+        },
+        {
+          key: 'sqlSteps',
+          label: 'SQL 明细',
+          type: 'databaseSqlSteps',
           required: true,
           span: 'col-12',
-          placeholder: 'select * from orders where customer_id = :customerId and trade_date >= :startDate',
-          help: '只允许只读 SQL。动态参数请使用 :参数名，并在“输入参数”中维护同名参数。',
+          help: '每条 SQL 需要填写结果集描述。执行时按顺序串行执行，第一期不支持 SQL 结果相互引用。',
           section: 'query',
           sectionTitle: '查询模板',
-          sectionSubtitle: '维护只读 SQL 和模型调用时需要传入的参数。'
+          sectionSubtitle: '维护一个或多个只读 SQL，以及每个结果集的业务含义。'
         },
         {
           key: 'queryParameters',
@@ -100,6 +109,7 @@ export default {
           schemaKey: 'inputSchema',
           paramsKey: 'parameters',
           sqlKey: 'sqlTemplate',
+          sqlStepsKey: 'sqlSteps',
           defaultSchema: inputSchema,
           span: 'col-12',
           tableTitle: '查询参数配置',
@@ -193,6 +203,7 @@ export default {
     testDraft(payload) {
       return api.testDraft({
         sql: payload.sqlTemplate,
+        sqlSteps: payload.sqlSteps || [],
         params: payload.parameters || {},
         maxRows: payload.maxRows,
         timeoutSeconds: payload.timeoutSeconds,

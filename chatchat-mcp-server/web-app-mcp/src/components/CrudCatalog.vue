@@ -288,6 +288,61 @@
                     </div>
                   </div>
                 </div>
+                <div v-else-if="field.type === 'databaseSqlSteps'" class="database-sql-step-editor">
+                  <div class="database-param-toolbar">
+                    <div>
+                      <strong>SQL 明细列表</strong>
+                      <p>按顺序串行执行。每条 SQL 的结果集描述会随执行结果返回给模型。</p>
+                    </div>
+                    <div class="database-param-actions">
+                      <el-button type="primary" plain @click="addDatabaseSqlStep(field)">新增 SQL</el-button>
+                    </div>
+                  </div>
+                  <div
+                    v-for="(entry, index) in databaseSqlSteps(field)"
+                    :key="`${field.key}-sql-step-${index}`"
+                    class="database-sql-step-card"
+                  >
+                    <div class="database-sql-step-head">
+                      <strong>{{ entry.sqlName || `SQL ${index + 1}` }}</strong>
+                      <div class="database-param-actions">
+                        <el-switch v-model="entry.enabled" active-text="启用" inactive-text="停用" />
+                        <el-button plain size="small" :disabled="index === 0" @click="moveDatabaseSqlStep(field, index, -1)">上移</el-button>
+                        <el-button plain size="small" :disabled="index >= databaseSqlSteps(field).length - 1" @click="moveDatabaseSqlStep(field, index, 1)">下移</el-button>
+                        <el-button plain size="small" @click="copyDatabaseSqlStep(field, index)">复制</el-button>
+                        <el-button plain type="danger" size="small" @click="removeDatabaseSqlStep(field, index)">删除</el-button>
+                      </div>
+                    </div>
+                    <el-row :gutter="10">
+                      <el-col :xs="24" :md="6"><el-input v-model.trim="entry.sqlCode" placeholder="SQL 编码" /></el-col>
+                      <el-col :xs="24" :md="8"><el-input v-model.trim="entry.sqlName" placeholder="SQL 名称" /></el-col>
+                      <el-col :xs="12" :md="4">
+                        <el-input-number v-model="entry.timeoutSeconds" class="w-100" :min="1" :max="300" controls-position="right" placeholder="超时" />
+                      </el-col>
+                      <el-col :xs="12" :md="3">
+                        <el-input-number v-model="entry.maxResultRows" class="w-100" :min="1" :max="1000" controls-position="right" placeholder="行数" />
+                      </el-col>
+                      <el-col :xs="24" :md="3">
+                        <el-select v-model="entry.failureStrategy" class="w-100">
+                          <el-option label="失败停止" value="STOP" />
+                          <el-option label="失败继续" value="CONTINUE" />
+                        </el-select>
+                      </el-col>
+                      <el-col :xs="24">
+                        <el-input v-model="entry.sqlDescription" type="textarea" :rows="2" placeholder="结果集描述：说明一行代表什么、包含哪些指标、在分析中的用途。" />
+                      </el-col>
+                      <el-col :xs="24">
+                        <el-input v-model="entry.sqlContent" class="codebox" type="textarea" :rows="6" spellcheck="false" placeholder="SELECT ..." />
+                      </el-col>
+                      <el-col :xs="24">
+                        <el-input v-model="entry.parametersJson" class="codebox" type="textarea" :rows="2" spellcheck="false" placeholder='该 SQL 独立参数 JSON，例如 {"status":"1"}' />
+                      </el-col>
+                    </el-row>
+                  </div>
+                  <div v-if="!databaseSqlSteps(field).length" class="database-param-empty">
+                    暂无 SQL 明细，点击“新增 SQL”开始配置。
+                  </div>
+                </div>
                 <div v-else-if="field.type === 'jsonObjectString' || field.type === 'jsonObject'" class="visual-object-editor">
                   <el-text v-if="!objectDraft[field.key]?.length" type="info">
                     {{ field.emptyText || '暂无键值，点击下方按钮新增。' }}

@@ -25,6 +25,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.Comparator;
 import java.util.stream.Collectors;
 
 @Service
@@ -71,7 +72,9 @@ public class DatabaseQueryInvokeService {
                     config.getToolName(),
                     Math.max(0L, System.currentTimeMillis() - startedAt));
             } else {
-                output = invoke(parameters);
+                output = hasSqlSteps(config)
+                    ? invokeConfiguredSqlSteps(config, parameters, startedAt)
+                    : invoke(parameters);
                 if (output.getMetadata() != null) {
                     output.getMetadata().putIfAbsent("cacheHit", false);
                 }
@@ -235,6 +238,140 @@ public class DatabaseQueryInvokeService {
         return output == null ? ToolOutput.failure("database_query tool returned no output") : output;
     }
 
+    private ToolOutput invokeConfiguredSqlSteps(DatabaseQueryConfig config,
+                                                Map<String, Object> baseParameters,
+                                                long startedAt) {
+        List<DatabaseQuerySqlStep> steps = readSqlSteps(config.getSqlStepsJson()).stream()
+            .filter(DatabaseQuerySqlStep::enabled)
+            .sorted(Comparator.comparing(DatabaseQuerySqlStep::getExecutionOrder))
+            .toList();
+        if (steps.isEmpty()) {
+            return ToolOutput.failure("database query template has no enabled SQL steps");
+        }
+        List<Map<String, Object>> resultSets = new java.util.ArrayList<>();
+        boolean stopped = false;
+        boolean stoppedByFailure = false;
+        int failedCount = 0;
+        String errorMessage = null;
+        for (DatabaseQuerySqlStep stepConfig : steps) {
+            long stepStartedAt = System.currentTimeMillis();
+            Map<String, Object> stepParameters = parametersForSqlStep(config, baseParameters, stepConfig);
+            ToolOutput step = invokeSingleStatement(stepParameters);
+            long stepDurationMs = Math.max(0L, System.currentTimeMillis() - stepStartedAt);
+            Map<String, Object> resultSet = resultSet(config, stepConfig, stepParameters, step, stepDurationMs);
+            resultSets.add(resultSet);
+            if (!step.isSuccess()) {
+                failedCount += 1;
+                errorMessage = step.getErrorMessage();
+                if (!"CONTINUE".equalsIgnoreCase(stepConfig.getFailureStrategy())) {
+                    stopped = true;
+                    stoppedByFailure = true;
+                    break;
+                }
+            }
+        }
+        long durationMs = Math.max(0L, System.currentTimeMillis() - startedAt);
+        Map<String, Object> firstSuccess = firstSuccessResult(resultSets);
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("mode", "database_query_multi_sql");
+        data.put("schemaVersion", "database_query_multi_sql_result.v1");
+        data.put("templateId", config.getToolName());
+        data.put("templateName", config.getTitle());
+        data.put("templateDescription", config.getDescription());
+        data.put("implementationSteps", config.getImplementationSteps());
+        data.put("executionMode", "SEQUENTIAL");
+        data.put("resultSetCount", resultSets.size());
+        data.put("configuredSqlCount", steps.size());
+        data.put("failedResultSetCount", failedCount);
+        data.put("stopped", stopped);
+        data.put("stoppedByFailure", stoppedByFailure);
+        data.put("possiblyPartial", stopped || failedCount > 0);
+        data.put("resultSets", resultSets);
+        data.put("results", resultSets);
+        data.put("columns", firstSuccess.getOrDefault("columns", List.of()));
+        data.put("rows", firstSuccess.getOrDefault("rows", List.of()));
+        data.put("rowCount", firstSuccess.getOrDefault("rowCount", 0));
+        data.put("maxRows", firstSuccess.getOrDefault("maxRows", config.getMaxRows()));
+        data.put("possiblyTruncated", firstSuccess.getOrDefault("possiblyTruncated", false));
+        ToolOutput output = stoppedByFailure
+            ? ToolOutput.failure(errorMessage == null ? "Database query SQL step failed" : errorMessage)
+            : ToolOutput.success(data, failedCount > 0
+                ? "Database query completed with partial SQL step failures"
+                : "Database query completed successfully");
+        output.setData(data);
+        output.setExecutionTimeMs(durationMs);
+        output.getMetadata().put("executionMode", "database_query_multi_sql");
+        output.getMetadata().put("resultSetCount", resultSets.size());
+        output.getMetadata().put("failedResultSetCount", failedCount);
+        return output;
+    }
+
+    private Map<String, Object> parametersForSqlStep(DatabaseQueryConfig config,
+                                                     Map<String, Object> baseParameters,
+                                                     DatabaseQuerySqlStep stepConfig) {
+        Map<String, Object> parameters = new LinkedHashMap<>(baseParameters);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> baseParams = baseParameters.get("params") instanceof Map<?, ?> map
+            ? new LinkedHashMap<>((Map<String, Object>) map)
+            : new LinkedHashMap<>();
+        baseParams.putAll(stepConfig.getParameters() == null ? Map.of() : stepConfig.getParameters());
+        SqlDatasourceConfig datasource = datasourceConfigService.getEnabled(config.getDatasourceId());
+        Map<String, Object> resolvedParams = dynamicDateParamService.enrichParameters(
+            baseParams,
+            datasource,
+            stepConfig.getSqlContent()
+        );
+        String sql = dynamicDateParamService.resolveSqlPlaceholders(stepConfig.getSqlContent(), datasource);
+        parameters.put("sql", sql);
+        parameters.put("params", resolvedParams);
+        int maxRows = stepConfig.getMaxResultRows() == null || stepConfig.getMaxResultRows() <= 0
+            ? config.getMaxRows()
+            : stepConfig.getMaxResultRows();
+        int timeoutSeconds = stepConfig.getTimeoutSeconds() == null || stepConfig.getTimeoutSeconds() <= 0
+            ? config.getTimeoutSeconds()
+            : stepConfig.getTimeoutSeconds();
+        parameters.put("max_rows", maxRows);
+        parameters.put("maxRows", maxRows);
+        parameters.put("timeoutSeconds", timeoutSeconds);
+        parameters.put("timeout_seconds", timeoutSeconds);
+        return parameters;
+    }
+
+    private Map<String, Object> resultSet(DatabaseQueryConfig config,
+                                          DatabaseQuerySqlStep stepConfig,
+                                          Map<String, Object> stepParameters,
+                                          ToolOutput step,
+                                          long durationMs) {
+        Map<String, Object> data = mapValue(step.getData());
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("sqlCode", stepConfig.getSqlCode());
+        result.put("sqlName", stepConfig.getSqlName());
+        result.put("description", stepConfig.getSqlDescription());
+        result.put("resultSetDescription", stepConfig.getSqlDescription());
+        result.put("executionOrder", stepConfig.getExecutionOrder());
+        result.put("success", step.isSuccess());
+        result.put("status", step.isSuccess() ? "success" : "failed");
+        result.put("durationMs", durationMs);
+        result.put("failureStrategy", firstText(stepConfig.getFailureStrategy(), "STOP"));
+        result.put("sql", data.getOrDefault("sql", stepParameters.get("sql")));
+        result.put("columns", data.getOrDefault("columns", List.of()));
+        result.put("columnMetadata", data.getOrDefault("columnMetadata", List.of()));
+        result.put("rows", data.getOrDefault("rows", List.of()));
+        result.put("rowCount", data.getOrDefault("rowCount", 0));
+        result.put("returnedRowCount", rowCount(data.get("rows")));
+        result.put("maxRows", data.getOrDefault("maxRows", stepParameters.getOrDefault("max_rows", config.getMaxRows())));
+        result.put("possiblyTruncated", data.getOrDefault("possiblyTruncated", false));
+        result.put("errorMessage", step.getErrorMessage());
+        return result;
+    }
+
+    private Map<String, Object> firstSuccessResult(List<Map<String, Object>> resultSets) {
+        return resultSets.stream()
+            .filter(item -> Boolean.TRUE.equals(item.get("success")))
+            .findFirst()
+            .orElseGet(() -> resultSets.isEmpty() ? Map.of() : resultSets.get(0));
+    }
+
     /**
      * Converts the value to parameters.
      *
@@ -247,14 +384,21 @@ public class DatabaseQueryInvokeService {
             throw new IllegalArgumentException("database query requires an enabled datasource asset");
         }
         SqlDatasourceConfig datasource = datasourceConfigService.getEnabled(config.getDatasourceId());
+        String sqlContext = hasSqlSteps(config)
+            ? readSqlSteps(config.getSqlStepsJson()).stream()
+                .map(DatabaseQuerySqlStep::getSqlContent)
+                .filter(value -> value != null && !value.isBlank())
+                .collect(Collectors.joining("\n"))
+            : config.getSqlTemplate();
         Map<String, Object> resolvedArguments = dynamicDateParamService.enrichParameters(
             arguments,
             datasource,
-            config.getSqlTemplate()
+            sqlContext
         );
-        String resolvedSql = dynamicDateParamService.resolveSqlPlaceholders(config.getSqlTemplate(), datasource);
         Map<String, Object> parameters = new LinkedHashMap<>();
-        parameters.put("sql", resolvedSql);
+        if (!hasSqlSteps(config)) {
+            parameters.put("sql", dynamicDateParamService.resolveSqlPlaceholders(config.getSqlTemplate(), datasource));
+        }
         parameters.put("params", resolvedArguments);
         parameters.put("max_rows", config.getMaxRows());
         parameters.put("timeoutSeconds", config.getTimeoutSeconds());
@@ -268,6 +412,21 @@ public class DatabaseQueryInvokeService {
         parameters.put("datasource_name", datasource.getName());
         parameters.put("reload_drivers", false);
         return parameters;
+    }
+
+    private boolean hasSqlSteps(DatabaseQueryConfig config) {
+        return config != null && config.getSqlStepsJson() != null && !config.getSqlStepsJson().isBlank();
+    }
+
+    private List<DatabaseQuerySqlStep> readSqlSteps(String json) {
+        if (json == null || json.isBlank()) {
+            return List.of();
+        }
+        try {
+            return objectMapper.readValue(json, new TypeReference<List<DatabaseQuerySqlStep>>() {});
+        } catch (Exception ex) {
+            throw new IllegalArgumentException("sqlSteps must be a valid JSON array");
+        }
     }
 
     private TemplatePlan sqlPlan(String sql) {
@@ -316,6 +475,22 @@ public class DatabaseQueryInvokeService {
     @SuppressWarnings("unchecked")
     private Map<String, Object> mapValue(Object value) {
         return value instanceof Map<?, ?> map ? (Map<String, Object>) map : Map.of();
+    }
+
+    private int rowCount(Object rows) {
+        return rows instanceof List<?> list ? list.size() : 0;
+    }
+
+    private String firstText(String... values) {
+        if (values == null) {
+            return null;
+        }
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value.trim();
+            }
+        }
+        return null;
     }
 
     /**

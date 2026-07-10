@@ -150,8 +150,16 @@ public class DatabaseQueryToolSpecFactory {
                 "businessGroupCode", firstText(config.getBusinessGroup(), "default"),
                 "businessGroupName", firstText(config.getBusinessGroupName(), firstText(config.getBusinessGroup(), "default")),
                 "businessGroupDescription", firstText(config.getBusinessGroupDescription(), ""),
+                "templateDescription", firstText(config.getDescription(), ""),
+                "implementationSteps", firstText(config.getImplementationSteps(), ""),
                 "templateIntent", firstText(config.getTemplateIntent(), "general_query")
             ));
+            Object resultSets = firstPresent(map.get("resultSets"), map.get("results"));
+            if (resultSets instanceof List<?>) {
+                summary.put("executionMode", "SEQUENTIAL_MULTI_SQL");
+                summary.put("resultSetCount", map.get("resultSetCount"));
+                summary.put("resultSets", resultSets);
+            }
             summary.put("rowCount", map.get("rowCount"));
             summary.put("columns", map.get("columns"));
             summary.put("rows", map.get("rows"));
@@ -162,6 +170,18 @@ public class DatabaseQueryToolSpecFactory {
             }
         }
         return String.valueOf(data);
+    }
+
+    private Object firstPresent(Object... values) {
+        if (values == null) {
+            return null;
+        }
+        for (Object value : values) {
+            if (value != null) {
+                return value;
+            }
+        }
+        return null;
     }
 
     /**

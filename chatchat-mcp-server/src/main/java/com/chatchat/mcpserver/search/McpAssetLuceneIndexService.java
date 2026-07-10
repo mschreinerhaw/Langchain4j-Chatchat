@@ -1,7 +1,10 @@
 package com.chatchat.mcpserver.search;
 
+import com.chatchat.mcpserver.api.ApiServiceConfig;
 import com.chatchat.mcpserver.api.ApiServiceConfigService;
+import com.chatchat.mcpserver.ops.HttpEndpointConfig;
 import com.chatchat.mcpserver.ops.HttpEndpointConfigService;
+import com.chatchat.mcpserver.ops.SshHostConfig;
 import com.chatchat.mcpserver.ops.SshHostConfigService;
 import com.chatchat.mcpserver.routing.AssetMetadataFactory;
 import com.chatchat.mcpserver.sql.MetadataIndex;
@@ -28,6 +31,8 @@ import java.util.Map;
 @RequiredArgsConstructor
 public class McpAssetLuceneIndexService {
 
+    private static final List<String> KNOWN_ASSET_TYPES = List.of("ssh_host", "sql_datasource", "http_endpoint", "api_service");
+
     private final LuceneMcpSearchService luceneSearchService;
     private final SshHostConfigService hostConfigService;
     private final SqlDatasourceConfigService datasourceConfigService;
@@ -39,7 +44,30 @@ public class McpAssetLuceneIndexService {
     @Order(Ordered.LOWEST_PRECEDENCE)
     @EventListener(ApplicationReadyEvent.class)
     public void onApplicationReady() {
-        refreshAll();
+        initializeMissingIndexes();
+    }
+
+    public synchronized Map<String, Object> initializeMissingIndexes() {
+        if (luceneSearchService == null || !luceneSearchService.enabled()) {
+            log.info("MCP asset index startup check skipped because search index is disabled");
+            return Map.of("enabled", false, "indexed", 0, "startupSkipped", true);
+        }
+        List<String> missing = KNOWN_ASSET_TYPES.stream()
+            .filter(assetType -> !luceneSearchService.assetIndexExists(assetType))
+            .toList();
+        if (missing.isEmpty()) {
+            log.info("MCP asset index startup check skipped rebuild because all typed asset indexes already exist");
+            return Map.of("enabled", true, "indexed", 0, "startupSkipped", true, "missingIndexes", List.of());
+        }
+        Map<String, Object> summary = new LinkedHashMap<>();
+        int indexed = 0;
+        for (String assetType : missing) {
+            Map<String, Object> item = refresh(assetType);
+            summary.put(assetType, item);
+            indexed += intValue(item.get("indexed"));
+        }
+        log.info("MCP asset index startup initialized missing indexes={} indexed={}", missing, indexed);
+        return Map.of("enabled", true, "indexed", indexed, "startupSkipped", false, "missingIndexes", missing, "indexes", summary);
     }
 
     public synchronized Map<String, Object> refreshAll() {
@@ -115,6 +143,46 @@ public class McpAssetLuceneIndexService {
         };
     }
 
+    public synchronized Map<String, Object> upsertSshHost(SshHostConfig host) {
+        if (host == null || !host.isEnabled()) {
+            return refresh("ssh_host");
+        }
+        List<LuceneMcpSearchService.AssetDoc> docs = List.of(assetDoc(assetMetadataFactory.sshAsset(host)));
+        luceneSearchService.upsertAssets("ssh_host", docs);
+        return singleIndexSummary("service", "ssh_host", docs.size());
+    }
+
+    public synchronized Map<String, Object> upsertSqlDatasource(SqlDatasourceConfig datasource) {
+        if (datasource == null || !datasource.isEnabled()) {
+            return refresh("sql_datasource");
+        }
+        List<LuceneMcpSearchService.AssetDoc> docs = sqlAssetDocs(List.of(datasource));
+        luceneSearchService.upsertAssets("sql_datasource", docs);
+        long tableDocCount = docs.stream().filter(doc -> "metadata_table".equals(doc.source())).count();
+        Map<String, Object> summary = new LinkedHashMap<>(singleIndexSummary("database", "sql_datasource", docs.size()));
+        summary.put("sqlDatasourceCount", 1);
+        summary.put("sqlTableCount", tableDocCount);
+        return summary;
+    }
+
+    public synchronized Map<String, Object> upsertHttpEndpoint(HttpEndpointConfig endpoint) {
+        if (endpoint == null || !endpoint.isEnabled()) {
+            return refresh("http_endpoint");
+        }
+        List<LuceneMcpSearchService.AssetDoc> docs = List.of(assetDoc(assetMetadataFactory.httpEndpoint(endpoint)));
+        luceneSearchService.upsertAssets("http_endpoint", docs);
+        return singleIndexSummary("http", "http_endpoint", docs.size());
+    }
+
+    public synchronized Map<String, Object> upsertApiService(ApiServiceConfig config) {
+        if (config == null || !config.isEnabled()) {
+            return refresh("api_service");
+        }
+        List<LuceneMcpSearchService.AssetDoc> docs = List.of(apiServiceAssetDoc(config));
+        luceneSearchService.upsertAssets("api_service", docs);
+        return singleIndexSummary("apiService", "api_service", docs.size());
+    }
+
     private Map<String, Object> singleIndexSummary(String key, String assetType, int indexed) {
         Map<String, Object> index = Map.of(
             "assetType", assetType,
@@ -163,28 +231,32 @@ public class McpAssetLuceneIndexService {
     private List<LuceneMcpSearchService.AssetDoc> apiServiceAssetDocs() {
         List<LuceneMcpSearchService.AssetDoc> docs = new ArrayList<>();
         safe(apiServiceConfigService.listEnabled()).stream()
-            .map(config -> new LuceneMcpSearchService.AssetDoc(
-                config.getId(),
-                "api_service",
-                config.getToolName(),
-                firstText(config.getTitle(), config.getToolName()),
-                config.getToolName(),
-                null,
-                null,
-                apiServiceLabels(config.getToolName(), config.getTitle(), config.getDescription(),
-                    config.getBusinessGroup(), config.getBusinessGroupName(), config.getBusinessGroupDescription(), config.getMethod()),
-                "api_service_asset_registry",
-                null,
-                null,
-                null,
-                null,
-                joinPath(config.getDescription(), config.getBusinessGroup(), config.getBusinessGroupName(),
-                    config.getBusinessGroupDescription(), config.getMethod()),
-                null,
-                null
-            ))
+            .map(this::apiServiceAssetDoc)
             .forEach(docs::add);
         return docs;
+    }
+
+    private LuceneMcpSearchService.AssetDoc apiServiceAssetDoc(ApiServiceConfig config) {
+        return new LuceneMcpSearchService.AssetDoc(
+            config.getId(),
+            "api_service",
+            config.getToolName(),
+            firstText(config.getTitle(), config.getToolName()),
+            config.getToolName(),
+            null,
+            null,
+            apiServiceLabels(config.getToolName(), config.getTitle(), config.getDescription(),
+                config.getBusinessGroup(), config.getBusinessGroupName(), config.getBusinessGroupDescription(), config.getMethod()),
+            "api_service_asset_registry",
+            null,
+            null,
+            null,
+            null,
+            joinPath(config.getDescription(), config.getBusinessGroup(), config.getBusinessGroupName(),
+                config.getBusinessGroupDescription(), config.getMethod()),
+            null,
+            null
+        );
     }
 
     private String normalizeAssetType(String assetType) {
@@ -363,5 +435,16 @@ public class McpAssetLuceneIndexService {
 
     private <T> List<T> safe(List<T> values) {
         return values == null ? List.of() : values;
+    }
+
+    private int intValue(Object value) {
+        if (value instanceof Number number) {
+            return number.intValue();
+        }
+        try {
+            return value == null ? 0 : Integer.parseInt(String.valueOf(value));
+        } catch (Exception ignored) {
+            return 0;
+        }
     }
 }

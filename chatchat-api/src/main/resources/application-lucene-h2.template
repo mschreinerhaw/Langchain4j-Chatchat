@@ -1,0 +1,118 @@
+﻿# ChatChat API preset: Lucene + H2.
+# Rename or copy this file to an application-*.yml file that Spring Boot loads.
+# Example: application-dev.yml for local development.
+
+spring:
+  application:
+    name: chatchat
+    version: 1.0.0-SNAPSHOT
+  datasource:
+    type: com.zaxxer.hikari.HikariDataSource
+    url: "jdbc:h2:file:./data/h2/chatchat;MODE=MySQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE;DB_CLOSE_DELAY=-1"
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  h2:
+    console:
+      enabled: false
+  jpa:
+    hibernate:
+      ddl-auto: update
+    database-platform: org.hibernate.dialect.H2Dialect
+    show-sql: false
+  web:
+    resources:
+      static-locations: classpath:/static/
+  mvc:
+    static-path-pattern: /**
+    throw-exception-if-no-handler-found: true
+  resources:
+    add-mappings: false
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 32MB
+
+server:
+  port: ${CHATCHAT_API_PORT:8080}
+  servlet:
+    context-path: /
+  shutdown: graceful
+  tomcat:
+    max-http-form-post-size: 33554432
+    max-swallow-size: -1
+
+chatchat:
+  internal-credential:
+    enabled: true
+    username: ${CHATCHAT_INTERNAL_USERNAME:chatchat_mcp_internal}
+    encrypted-secret: ${CHATCHAT_INTERNAL_ENCRYPTED_SECRET:}
+    secret: ${CHATCHAT_INTERNAL_SECRET:chatchat_internal_default_secret}
+    crypto-key: ${CHATCHAT_INTERNAL_CRYPTO_KEY:}
+    crypto-key-file: ${CHATCHAT_INTERNAL_CRYPTO_KEY_FILE:}
+  mcp:
+    center:
+      enabled: true
+      base-url: ${CHATCHAT_MCP_CENTER_BASE_URL:http://localhost:8090}
+      admin-username: ${CHATCHAT_INTERNAL_USERNAME:chatchat_mcp_internal}
+      encrypted-admin-password: ${CHATCHAT_INTERNAL_ENCRYPTED_SECRET:}
+      admin-password: ${CHATCHAT_INTERNAL_SECRET:chatchat_internal_default_secret}
+      encrypted-invocation-token: ${CHATCHAT_INTERNAL_ENCRYPTED_SECRET:}
+      invocation-token: ${CHATCHAT_INTERNAL_SECRET:chatchat_internal_default_secret}
+      timeout-ms: 0
+      import-standalone-server: true
+    stdio-proxy:
+      enabled: true
+      command-allow-list:
+        - npx
+        - node
+        - uvx
+        - python
+        - python3
+  models:
+    defaultProvider: openai
+    defaultChatModel: ${CHATCHAT_DEFAULT_CHAT_MODEL:deepseek-v4-pro}
+    availableChatModels:
+      - ${CHATCHAT_DEFAULT_CHAT_MODEL:deepseek-v4-pro}
+    openai:
+      apiKey: ${OPENAI_API_KEY:${DASHSCOPE_API_KEY:}}
+      baseUrl: ${OPENAI_BASE_URL:https://api.deepseek.com}
+      timeout: ${OPENAI_TIMEOUT_MS:300000}
+      maxTokens: ${OPENAI_MAX_TOKENS:-1}
+      maxRetries: ${OPENAI_MAX_RETRIES:3}
+  search:
+    engine: lucene
+    store-path: ./data/search-rocksdb
+    file-path: ./data/search-files
+    lucene-index-path: ./data/search-lucene
+    rebuild-on-startup: false
+  tools:
+    document-search:
+      api-base-url: ${CHATCHAT_API_BASE_URL:http://localhost:8080}
+      auth:
+        username: ${CHATCHAT_INTERNAL_USERNAME:chatchat_mcp_internal}
+        encrypted-password: ${CHATCHAT_INTERNAL_ENCRYPTED_SECRET:}
+        password: ${CHATCHAT_INTERNAL_SECRET:chatchat_internal_default_secret}
+        bearer-token: ${CHATCHAT_API_AUTH_BEARER_TOKEN:}
+
+springdoc:
+  api-docs:
+    path: /api-docs
+    enabled: true
+  swagger-ui:
+    enabled: false
+
+logging:
+  file:
+    name: logs/chatchat.log
+  level:
+    com.chatchat: INFO
+    org.springframework.web: INFO
+    org.springframework.security: INFO
+    org.hibernate: WARN
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics,info

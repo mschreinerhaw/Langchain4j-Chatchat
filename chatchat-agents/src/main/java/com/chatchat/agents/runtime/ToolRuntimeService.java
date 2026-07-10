@@ -312,7 +312,23 @@ public class ToolRuntimeService {
         putIfAbsentText(context, "userId", request.getUserId());
         putIfAbsentText(context, "requestId", request.getRequestId());
         putIfAbsentText(context, "conversationId", request.getConversationId());
+        copyRuntimeAttribute(context, request.getAttributes(), "mcpExecutionContext");
+        copyRuntimeAttribute(context, request.getAttributes(), "defaultDataAsset");
+        copyRuntimeAttribute(context, request.getAttributes(), "assetSelectionPolicy");
+        copyRuntimeAttribute(context, request.getAttributes(), "mcpWorkflow");
+        copyRuntimeAttribute(context, request.getAttributes(), "workflowContext");
+        copyRuntimeAttribute(context, request.getAttributes(), "workflowVariables");
         toolInput.setContext(context);
+    }
+
+    private void copyRuntimeAttribute(Map<String, Object> context, Map<String, Object> attributes, String key) {
+        if (context == null || attributes == null || key == null || key.isBlank()) {
+            return;
+        }
+        Object value = attributes.get(key);
+        if (value != null) {
+            context.putIfAbsent(key, value);
+        }
     }
 
     private void putIfAbsentText(Map<String, Object> values, String key, String value) {

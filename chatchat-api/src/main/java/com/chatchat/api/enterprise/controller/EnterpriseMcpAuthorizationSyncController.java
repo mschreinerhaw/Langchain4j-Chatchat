@@ -2,6 +2,7 @@ package com.chatchat.api.enterprise.controller;
 
 import com.chatchat.common.constants.AppConstants;
 import com.chatchat.common.response.ApiResponse;
+import com.chatchat.common.security.InternalCredentialProperties;
 import com.chatchat.enterprise.entity.McpToolAsset;
 import com.chatchat.enterprise.entity.McpToolPermission;
 import com.chatchat.enterprise.entity.SysRole;
@@ -29,6 +30,7 @@ public class EnterpriseMcpAuthorizationSyncController {
     private final SysRoleRepository roleRepository;
     private final McpToolAssetRepository toolAssetRepository;
     private final McpToolPermissionRepository toolPermissionRepository;
+    private final InternalCredentialProperties internalCredentialProperties;
 
     @GetMapping("/snapshot")
     @Operation(summary = "Pull the current MCP authorization snapshot")
@@ -36,7 +38,9 @@ public class EnterpriseMcpAuthorizationSyncController {
         return ApiResponse.success(new McpAuthorizationSnapshot(
             Instant.now(),
             adminService.listUserViews(null).stream()
-                .filter(user -> user.username() == null || !"admin".equalsIgnoreCase(user.username()))
+                .filter(user -> user.username() == null
+                    || (!"admin".equalsIgnoreCase(user.username())
+                    && !internalCredentialProperties.resolvedUsername().equalsIgnoreCase(user.username())))
                 .toList(),
             roleRepository.findAll().stream()
                 .filter(role -> !isAdminRole(role))

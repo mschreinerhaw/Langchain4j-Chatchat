@@ -960,10 +960,14 @@ public class SearchService {
             SearchPermissionContext context = permissionContext == null ? SearchPermissionContext.system() : permissionContext;
             List<LuceneSearchHit> hits = luceneStore.search(keyword, properties.getLuceneMaxHits(), context);
             Map<String, Integer> safeTitleMemoryScores = titleMemoryScores == null ? Map.of() : titleMemoryScores;
+            String activeIndexEngine = activeIndexEngine();
+            String vectorStatus = vectorStatus();
             if (hits.isEmpty() && safeTitleMemoryScores.isEmpty()) {
                 log.info(
-                    "lucene_candidate_union query='{}' luceneHits=0 luceneDocCandidates=0 memoryCandidates=0 unionCandidates=0",
-                    safeLogQuery(keyword)
+                    "document_index_candidate_union query='{}' engine={} vectorStatus={} indexHits=0 indexDocCandidates=0 memoryCandidates=0 unionCandidates=0",
+                    safeLogQuery(keyword),
+                    activeIndexEngine,
+                    vectorStatus
                 );
                 return LuceneSearchOutcome.emptyResult();
             }
@@ -997,8 +1001,10 @@ public class SearchService {
             );
             int unionCandidateCount = candidates.size();
             log.info(
-                "lucene_candidate_union query='{}' luceneHits={} luceneDocCandidates={} memoryCandidates={} unionCandidates={}",
+                "document_index_candidate_union query='{}' engine={} vectorStatus={} indexHits={} indexDocCandidates={} memoryCandidates={} unionCandidates={}",
                 safeLogQuery(keyword),
+                activeIndexEngine,
+                vectorStatus,
                 hits.size(),
                 luceneDocCandidateCount,
                 safeTitleMemoryScores.size(),
@@ -1037,8 +1043,10 @@ public class SearchService {
                 .sorted(resultComparator())
                 .toList();
             log.info(
-                "lucene_search_result query='{}' unionCandidates={} postHardFilterCandidates={} scoredCandidates={} relevanceResults={}",
+                "document_index_search_result query='{}' engine={} vectorStatus={} unionCandidates={} postHardFilterCandidates={} scoredCandidates={} relevanceResults={}",
                 safeLogQuery(keyword),
+                activeIndexEngine,
+                vectorStatus,
                 unionCandidateCount,
                 postHardFilterCandidateCount,
                 rankedCandidates.size(),
@@ -2046,9 +2054,21 @@ public class SearchService {
                 luceneStore.deleteDocument(document.getDocId());
             }
         } catch (Exception ex) {
-            log.warn("Failed to synchronize Lucene index for document {}: {}",
-                document.getDocId(), ex.getMessage(), ex);
+            log.warn("Failed to synchronize document index engine={} docId={} error={}",
+                activeIndexEngine(), document.getDocId(), ex.getMessage(), ex);
         }
+    }
+
+    private String activeIndexEngine() {
+        return luceneStore instanceof CompositeDocumentSearchIndexService composite
+            ? composite.activeEngineName()
+            : luceneStore.getClass().getSimpleName();
+    }
+
+    private String vectorStatus() {
+        return luceneStore instanceof CompositeDocumentSearchIndexService composite
+            ? composite.vectorStatus()
+            : "not_applicable";
     }
 
     /**

@@ -22,85 +22,21 @@ mkdir -p "$APP_HOME/logs" "$APP_HOME/run" "$APP_HOME/data" "$EXT_LIB_DIR" "$DRIV
 
 . "$APP_HOME/bin/load-env.sh"
 
-DB_MODE="${CHAT_DATABASE_MODE:-}"
-SEARCH_ENGINE="${CHATCHAT_SEARCH_ENGINE:-}"
 REMAINING_ARGS=""
 while [ "$#" -gt 0 ]; do
-  case "$1" in
-    --database=*)
-      DB_MODE="${1#--database=}"
-      ;;
-    --database)
-      shift
-      if [ "$#" -eq 0 ]; then
-        echo "--database requires h2 or mysql" >&2
-        exit 1
-      fi
-      DB_MODE="$1"
-      ;;
-    --mysql)
-      DB_MODE="mysql"
-      ;;
-    --h2)
-      DB_MODE="h2"
-      ;;
-    --search-engine=*)
-      SEARCH_ENGINE="${1#--search-engine=}"
-      ;;
-    --search-engine)
-      shift
-      if [ "$#" -eq 0 ]; then
-        echo "--search-engine requires lucene or opensearch" >&2
-        exit 1
-      fi
-      SEARCH_ENGINE="$1"
-      ;;
-    --lucene)
-      SEARCH_ENGINE="lucene"
-      ;;
-    --opensearch)
-      SEARCH_ENGINE="opensearch"
-      ;;
-    *)
-      REMAINING_ARGS="${REMAINING_ARGS}${REMAINING_ARGS:+ }$1"
-      ;;
-  esac
+  REMAINING_ARGS="${REMAINING_ARGS}${REMAINING_ARGS:+ }$1"
   shift
 done
 
-if [ -n "$DB_MODE" ]; then
-  DB_MODE_NORMALIZED="$(printf '%s' "$DB_MODE" | tr '[:upper:]' '[:lower:]')"
-  case "$DB_MODE_NORMALIZED" in
-    mysql) export SPRING_PROFILES_ACTIVE="prod,mysql" ;;
-    h2) export SPRING_PROFILES_ACTIVE="prod" ;;
-    *)
-      echo "Unsupported database mode: $DB_MODE. Use h2 or mysql." >&2
-      exit 1
-      ;;
-  esac
-else
-  export SPRING_PROFILES_ACTIVE="${SPRING_PROFILES_ACTIVE:-prod}"
-fi
-
-if [ -n "$SEARCH_ENGINE" ]; then
-  SEARCH_ENGINE_NORMALIZED="$(printf '%s' "$SEARCH_ENGINE" | tr '[:upper:]' '[:lower:]')"
-  case "$SEARCH_ENGINE_NORMALIZED" in
-    lucene) export CHATCHAT_SEARCH_ENGINE="lucene" ;;
-    opensearch|open-search) export CHATCHAT_SEARCH_ENGINE="opensearch" ;;
-    *)
-      echo "Unsupported search engine: $SEARCH_ENGINE. Use lucene or opensearch." >&2
-      exit 1
-      ;;
-  esac
-fi
-
 JAVA_OPTIONS="${JAVA_OPTS:-}"
-if [ "${CHATCHAT_SEARCH_ENGINE:-}" = "opensearch" ]; then
-  case " $JAVA_OPTIONS " in
-    *" -Djdk.internal.httpclient.disableHostnameVerification=true "*) ;;
-    *) JAVA_OPTIONS="${JAVA_OPTIONS}${JAVA_OPTIONS:+ }-Djdk.internal.httpclient.disableHostnameVerification=true" ;;
-  esac
-fi
+case "${CHATCHAT_OPENSEARCH_INSECURE_SSL:-false}" in
+  true|TRUE|True|1|yes|YES|Yes)
+    case " $JAVA_OPTIONS " in
+      *" -Djdk.internal.httpclient.disableHostnameVerification=true "*) ;;
+      *) JAVA_OPTIONS="${JAVA_OPTIONS}${JAVA_OPTIONS:+ }-Djdk.internal.httpclient.disableHostnameVerification=true" ;;
+    esac
+    ;;
+esac
 
 if [ -f "$PID_FILE" ]; then
   PID="$(cat "$PID_FILE")"

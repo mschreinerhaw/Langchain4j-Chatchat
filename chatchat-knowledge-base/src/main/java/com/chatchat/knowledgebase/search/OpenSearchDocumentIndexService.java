@@ -4,22 +4,34 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.http.HttpEntity;
+import org.apache.http.HttpHost;
+import org.apache.http.StatusLine;
+import org.apache.http.auth.AuthScope;
+import org.apache.http.auth.UsernamePasswordCredentials;
+import org.apache.http.client.CredentialsProvider;
+import org.apache.http.conn.ssl.NoopHostnameVerifier;
+import org.apache.http.entity.ContentType;
+import org.apache.http.entity.StringEntity;
+import org.apache.http.impl.client.BasicCredentialsProvider;
+import org.apache.http.ssl.SSLContexts;
+import org.apache.http.util.EntityUtils;
+import org.opensearch.client.Request;
+import org.opensearch.client.Response;
+import org.opensearch.client.ResponseException;
+import org.opensearch.client.RestClient;
+import org.opensearch.client.RestClientBuilder;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.net.URI;
-import java.net.http.HttpClient;
-import java.net.http.HttpRequest;
-import java.net.http.HttpResponse;
+import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
 import java.security.GeneralSecurityException;
-import java.security.SecureRandom;
-import java.security.cert.X509Certificate;
-import java.time.Duration;
 import java.util.ArrayList;
-import java.util.Base64;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -28,9 +40,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.LinkedHashSet;
 import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLParameters;
-import javax.net.ssl.TrustManager;
-import javax.net.ssl.X509TrustManager;
 
 @Slf4j
 @Component
@@ -64,7 +73,6 @@ public class OpenSearchDocumentIndexService implements DocumentSearchIndex {
     private static final String USER_ID = "userId";
     private static final String VISIBILITY = "visibility";
     private static final String PERMISSION_ROLE = "permissionRole";
-    private static final String DISABLE_HOSTNAME_VERIFICATION_PROPERTY = "jdk.internal.httpclient.disableHostnameVerification";
     private static final String IK_INDEX_ANALYZER = "chatchat_ik_index";
     private static final String IK_SEARCH_ANALYZER = "chatchat_ik_search";
     private static final String PINYIN_ANALYZER = "chatchat_pinyin";
@@ -78,7 +86,7 @@ public class OpenSearchDocumentIndexService implements DocumentSearchIndex {
     private final ChunkTypeClassifier chunkTypeClassifier;
     private final OpenSearchEmbeddingClient embeddingClient;
     private final ObjectMapper objectMapper;
-    private HttpClient httpClient;
+    private RestClient restClient;
     private volatile boolean available;
     private volatile boolean vectorAvailable;
     private volatile boolean vectorRerankAvailable;
@@ -88,7 +96,7 @@ public class OpenSearchDocumentIndexService implements DocumentSearchIndex {
     @PostConstruct
     public void open() {
         SearchProperties.OpenSearch config = config();
-        this.httpClient = buildHttpClient(config);
+        this.restClient = buildRestClient(config);
         if (!selected()) {
             return;
         }
@@ -103,17 +111,58 @@ public class OpenSearchDocumentIndexService implements DocumentSearchIndex {
         }
     }
 
+    @PreDestroy
+    public void close() {
+        if (restClient == null) {
+            return;
+        }
+        try {
+            restClient.close();
+        } catch (IOException ex) {
+            log.warn("Failed to close OpenSearch REST client url={} error={}", baseUrl(), ex.getMessage());
+        }
+    }
+
     @Override
     public synchronized void indexLatest(SearchDocument document) {
         if (!isAvailable() || document == null || document.getDocId() == null || document.getDocId().isBlank()) {
             return;
         }
+        long startedAt = System.nanoTime();
         deleteDocument(document.getDocId());
         if (Boolean.FALSE.equals(document.getLatestVersion())) {
+            log.info("opensearch_index_document_deleted_non_latest docId={} index={} durationMs={}",
+                document.getDocId(), indexName(), elapsedMs(startedAt));
             return;
         }
         List<Map<String, Object>> chunks = chunkDocuments(document);
-        bulkIndex(chunks);
+        int vectorized = vectorizedCount(chunks);
+        int vectorDimension = firstVectorDimension(chunks);
+        long vectorBytes = estimatedVectorBytes(chunks);
+        log.info(
+            "opensearch_index_document_start docId={} index={} chunks={} vectorConfigured={} vectorSearchReady={} vectorRerankReady={} vectorized={} vectorDimension={} vectorBytes={}",
+            document.getDocId(),
+            indexName(),
+            chunks.size(),
+            embeddingClient.configured(),
+            vectorAvailable,
+            vectorRerankAvailable,
+            vectorized,
+            vectorDimension,
+            vectorBytes
+        );
+        long bulkBytes = bulkIndex(chunks);
+        log.info(
+            "opensearch_index_document_complete docId={} index={} chunks={} vectorized={} vectorDimension={} vectorBytes={} bulkBytes={} durationMs={}",
+            document.getDocId(),
+            indexName(),
+            chunks.size(),
+            vectorized,
+            vectorDimension,
+            vectorBytes,
+            bulkBytes,
+            elapsedMs(startedAt)
+        );
     }
 
     @Override
@@ -328,6 +377,22 @@ public class OpenSearchDocumentIndexService implements DocumentSearchIndex {
         return selected() && available;
     }
 
+    public boolean isVectorSearchReady() {
+        return vectorSearchAvailable();
+    }
+
+    public boolean isVectorRerankReady() {
+        return vectorIndexingAvailable();
+    }
+
+    public boolean isEmbeddingConfigured() {
+        return embeddingClient.configured();
+    }
+
+    public boolean isEmbeddingEnabled() {
+        return embeddingClient.enabled();
+    }
+
     private boolean selected() {
         SearchProperties.OpenSearch config = config();
         return properties.isOpenSearchEngine() && config.isEnabled();
@@ -518,9 +583,9 @@ public class OpenSearchDocumentIndexService implements DocumentSearchIndex {
         return docs;
     }
 
-    private void bulkIndex(List<Map<String, Object>> docs) {
+    private long bulkIndex(List<Map<String, Object>> docs) {
         if (docs == null || docs.isEmpty()) {
-            return;
+            return 0L;
         }
         StringBuilder body = new StringBuilder();
         for (Map<String, Object> doc : docs) {
@@ -528,7 +593,51 @@ public class OpenSearchDocumentIndexService implements DocumentSearchIndex {
             body.append(json(Map.of("index", Map.of("_index", indexName(), "_id", chunkId)))).append('\n');
             body.append(json(doc)).append('\n');
         }
-        requestRaw("POST", "/_bulk?refresh=true", body.toString(), false, "application/x-ndjson");
+        String payload = body.toString();
+        requestRaw("POST", "/_bulk?refresh=true", payload, false, "application/x-ndjson");
+        return payload.getBytes(StandardCharsets.UTF_8).length;
+    }
+
+    private int vectorizedCount(List<Map<String, Object>> docs) {
+        if (docs == null || docs.isEmpty()) {
+            return 0;
+        }
+        int count = 0;
+        for (Map<String, Object> doc : docs) {
+            if (doc != null && doc.get(vectorField()) instanceof List<?> vector && !vector.isEmpty()) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    private int firstVectorDimension(List<Map<String, Object>> docs) {
+        if (docs == null || docs.isEmpty()) {
+            return 0;
+        }
+        for (Map<String, Object> doc : docs) {
+            if (doc != null && doc.get(vectorField()) instanceof List<?> vector && !vector.isEmpty()) {
+                return vector.size();
+            }
+        }
+        return 0;
+    }
+
+    private long estimatedVectorBytes(List<Map<String, Object>> docs) {
+        if (docs == null || docs.isEmpty()) {
+            return 0L;
+        }
+        long total = 0L;
+        for (Map<String, Object> doc : docs) {
+            if (doc != null && doc.get(vectorField()) instanceof List<?> vector && !vector.isEmpty()) {
+                total += (long) vector.size() * Float.BYTES;
+            }
+        }
+        return total;
+    }
+
+    private long elapsedMs(long startedAt) {
+        return (System.nanoTime() - startedAt) / 1_000_000L;
     }
 
     private Map<String, Object> tokenFieldMapping() {
@@ -706,81 +815,135 @@ public class OpenSearchDocumentIndexService implements DocumentSearchIndex {
 
     private JsonNode requestRaw(String method, String path, String body, boolean allowNotFound, String contentType) {
         try {
-            HttpRequest.Builder builder = HttpRequest.newBuilder()
-                .uri(URI.create(baseUrl() + path))
-                .timeout(Duration.ofMillis(Math.max(1, config().getRequestTimeoutMs())))
-                .header("Accept", "application/json")
-                .header("Authorization", authorizationHeader());
+            Request request = new Request(method.toUpperCase(Locale.ROOT), endpointPath(path));
+            applyQueryParameters(request, path);
             if (!body.isBlank() || !"GET".equalsIgnoreCase(method) && !"HEAD".equalsIgnoreCase(method)) {
-                builder.header("Content-Type", contentType);
+                request.setEntity(new StringEntity(body, ContentType.create(contentType, StandardCharsets.UTF_8)));
             }
-            HttpRequest request = switch (method.toUpperCase(Locale.ROOT)) {
-                case "GET" -> builder.GET().build();
-                case "HEAD" -> builder.method("HEAD", HttpRequest.BodyPublishers.noBody()).build();
-                case "PUT" -> builder.PUT(HttpRequest.BodyPublishers.ofString(body)).build();
-                case "POST" -> builder.POST(HttpRequest.BodyPublishers.ofString(body)).build();
-                case "DELETE" -> builder.DELETE().build();
-                default -> builder.method(method, body.isBlank()
-                    ? HttpRequest.BodyPublishers.noBody()
-                    : HttpRequest.BodyPublishers.ofString(body)).build();
-            };
-            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-            if (allowNotFound && response.statusCode() == 404) {
+            Response response = restClient.performRequest(request);
+            StatusLine status = response.getStatusLine();
+            String responseBody = entityString(response.getEntity());
+            if (allowNotFound && status.getStatusCode() == 404) {
                 return null;
             }
-            if (response.statusCode() < 200 || response.statusCode() >= 300) {
-                throw new IllegalStateException("OpenSearch request failed status=" + response.statusCode()
-                    + " path=" + path + " body=" + response.body());
+            if (status.getStatusCode() < 200 || status.getStatusCode() >= 300) {
+                throw new IllegalStateException("OpenSearch request failed status=" + status.getStatusCode()
+                    + " path=" + path + " body=" + responseBody);
             }
-            if (response.body() == null || response.body().isBlank() || "HEAD".equalsIgnoreCase(method)) {
+            if (responseBody == null || responseBody.isBlank() || "HEAD".equalsIgnoreCase(method)) {
                 return objectMapper.createObjectNode();
             }
-            return objectMapper.readTree(response.body());
+            return objectMapper.readTree(responseBody);
+        } catch (ResponseException ex) {
+            Response response = ex.getResponse();
+            int status = response == null ? 0 : response.getStatusLine().getStatusCode();
+            if (allowNotFound && status == 404) {
+                return null;
+            }
+            String responseBody = response == null ? "" : entityStringQuietly(response.getEntity());
+            throw new IllegalStateException("OpenSearch request failed status=" + status
+                + " path=" + path + " body=" + responseBody, ex);
         } catch (IOException ex) {
             throw new IllegalStateException("OpenSearch request failed path=" + path + ": " + ex.getMessage(), ex);
-        } catch (InterruptedException ex) {
-            Thread.currentThread().interrupt();
-            throw new IllegalStateException("OpenSearch request interrupted path=" + path, ex);
         }
     }
 
-    private HttpClient buildHttpClient(SearchProperties.OpenSearch config) {
-        HttpClient.Builder builder = HttpClient.newBuilder()
-            .connectTimeout(Duration.ofMillis(Math.max(1, config.getConnectTimeoutMs())));
-        if (config.isInsecureSsl()) {
-            System.setProperty(DISABLE_HOSTNAME_VERIFICATION_PROPERTY, "true");
-            builder.sslContext(insecureSslContext());
-            SSLParameters sslParameters = new SSLParameters();
-            sslParameters.setEndpointIdentificationAlgorithm("");
-            builder.sslParameters(sslParameters);
+    private RestClient buildRestClient(SearchProperties.OpenSearch config) {
+        URI uri = URI.create(baseUrl());
+        RestClientBuilder builder = RestClient.builder(new HttpHost(uri.getHost(), port(uri), scheme(uri)))
+            .setRequestConfigCallback(requestConfig -> requestConfig
+                .setConnectTimeout(Math.max(1, config.getConnectTimeoutMs()))
+                .setSocketTimeout(Math.max(1, config.getRequestTimeoutMs())));
+        String pathPrefix = pathPrefix(uri);
+        if (!pathPrefix.isBlank()) {
+            builder.setPathPrefix(pathPrefix);
         }
+
+        CredentialsProvider credentialsProvider = new BasicCredentialsProvider();
+        if (!blank(config.getUsername()) || !blank(config.getPassword())) {
+            credentialsProvider.setCredentials(AuthScope.ANY,
+                new UsernamePasswordCredentials(nullToEmpty(config.getUsername()), nullToEmpty(config.getPassword())));
+        }
+        builder.setHttpClientConfigCallback(httpClient -> {
+            httpClient.setDefaultCredentialsProvider(credentialsProvider);
+            if (config.isInsecureSsl()) {
+                httpClient.setSSLContext(insecureSslContext());
+                httpClient.setSSLHostnameVerifier(NoopHostnameVerifier.INSTANCE);
+            }
+            return httpClient;
+        });
         return builder.build();
     }
 
     private SSLContext insecureSslContext() {
         try {
-            TrustManager[] trustManagers = new TrustManager[] {
-                new X509TrustManager() {
-                    @Override
-                    public void checkClientTrusted(X509Certificate[] chain, String authType) {
-                    }
-
-                    @Override
-                    public void checkServerTrusted(X509Certificate[] chain, String authType) {
-                    }
-
-                    @Override
-                    public X509Certificate[] getAcceptedIssuers() {
-                        return new X509Certificate[0];
-                    }
-                }
-            };
-            SSLContext context = SSLContext.getInstance("TLS");
-            context.init(null, trustManagers, new SecureRandom());
-            return context;
+            return SSLContexts.custom()
+                .loadTrustMaterial(null, (chain, authType) -> true)
+                .build();
         } catch (GeneralSecurityException ex) {
             throw new IllegalStateException("Failed to create insecure OpenSearch SSL context", ex);
         }
+    }
+
+    private String entityString(HttpEntity entity) throws IOException {
+        return entity == null ? "" : EntityUtils.toString(entity, StandardCharsets.UTF_8);
+    }
+
+    private String entityStringQuietly(HttpEntity entity) {
+        try {
+            return entityString(entity);
+        } catch (IOException ex) {
+            return "Failed to read OpenSearch response body: " + ex.getMessage();
+        }
+    }
+
+    private String endpointPath(String path) {
+        int queryIndex = path.indexOf('?');
+        return queryIndex < 0 ? path : path.substring(0, queryIndex);
+    }
+
+    private void applyQueryParameters(Request request, String path) {
+        int queryIndex = path.indexOf('?');
+        if (queryIndex < 0 || queryIndex == path.length() - 1) {
+            return;
+        }
+        String query = path.substring(queryIndex + 1);
+        for (String pair : query.split("&")) {
+            if (pair.isBlank()) {
+                continue;
+            }
+            int equalsIndex = pair.indexOf('=');
+            String key = equalsIndex < 0 ? pair : pair.substring(0, equalsIndex);
+            String value = equalsIndex < 0 ? "" : pair.substring(equalsIndex + 1);
+            request.addParameter(urlDecode(key), urlDecode(value));
+        }
+    }
+
+    private String urlDecode(String value) {
+        return URLDecoder.decode(value, StandardCharsets.UTF_8);
+    }
+
+    private int port(URI uri) {
+        if (uri.getPort() > 0) {
+            return uri.getPort();
+        }
+        return "https".equalsIgnoreCase(scheme(uri)) ? 443 : 80;
+    }
+
+    private String scheme(URI uri) {
+        return uri.getScheme() == null || uri.getScheme().isBlank() ? "http" : uri.getScheme();
+    }
+
+    private String pathPrefix(URI uri) {
+        String path = uri.getRawPath();
+        if (path == null || path.isBlank() || "/".equals(path)) {
+            return "";
+        }
+        return path.endsWith("/") ? path.substring(0, path.length() - 1) : path;
+    }
+
+    private boolean blank(String value) {
+        return value == null || value.isBlank();
     }
 
     private String json(Object value) {
@@ -789,11 +952,6 @@ public class OpenSearchDocumentIndexService implements DocumentSearchIndex {
         } catch (JsonProcessingException ex) {
             throw new IllegalStateException("Failed to serialize OpenSearch payload", ex);
         }
-    }
-
-    private String authorizationHeader() {
-        String token = config().getUsername() + ":" + config().getPassword();
-        return "Basic " + Base64.getEncoder().encodeToString(token.getBytes(StandardCharsets.UTF_8));
     }
 
     private SearchProperties.OpenSearch config() {

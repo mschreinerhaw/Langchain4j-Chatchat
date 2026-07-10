@@ -5,8 +5,11 @@ import com.chatchat.chat.interaction.model.InteractionMode;
 import com.chatchat.chat.interaction.model.InteractionRequest;
 import com.chatchat.chat.interaction.model.InteractionResponse;
 import com.chatchat.chat.interaction.service.InteractionOrchestrationService;
+import com.chatchat.chat.skills.SkillCatalogService;
+import com.chatchat.chat.skills.SkillDefinition;
 import com.chatchat.common.constants.AppConstants;
 import com.chatchat.common.response.ApiResponse;
+import com.chatchat.enterprise.service.EnterpriseAdminService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.servlet.http.HttpServletRequest;
@@ -32,6 +35,8 @@ import java.util.concurrent.Executors;
 public class InteractionController {
 
     private final InteractionOrchestrationService orchestrationService;
+    private final SkillCatalogService skillCatalogService;
+    private final EnterpriseAdminService enterpriseAdminService;
 
     /**
      * Performs the chat operation.
@@ -44,7 +49,8 @@ public class InteractionController {
     public ApiResponse<InteractionResponse> chat(@RequestBody InteractionRequest request,
                                                  HttpServletRequest servletRequest) {
         try {
-            bindRequestTenant(request, servletRequest);
+            bindRequestIdentity(request, servletRequest);
+            authorizeAgentAccess(request, servletRequest);
             InteractionResponse response = orchestrationService.chat(request);
             return ApiResponse.success(response, "Interaction completed");
         } catch (IllegalArgumentException e) {
@@ -64,8 +70,14 @@ public class InteractionController {
     @Operation(summary = "Unified chat endpoint with SSE progressive response")
     public SseEmitter streamChat(@RequestBody InteractionRequest request,
                                  HttpServletRequest servletRequest) {
-        bindRequestTenant(request, servletRequest);
+        bindRequestIdentity(request, servletRequest);
         SseEmitter emitter = new SseEmitter(0L);
+        try {
+            authorizeAgentAccess(request, servletRequest);
+        } catch (IllegalArgumentException e) {
+            sendErrorEvent(emitter, e.getMessage());
+            return emitter;
+        }
         ExecutorService executor = Executors.newSingleThreadExecutor();
         executor.execute(() -> {
             try {
@@ -198,15 +210,40 @@ public class InteractionController {
         return value == null ? "" : value;
     }
 
-    private void bindRequestTenant(InteractionRequest request, HttpServletRequest servletRequest) {
+    private void bindRequestIdentity(InteractionRequest request, HttpServletRequest servletRequest) {
         if (request == null) {
             return;
         }
         String currentTenantId = requestAttribute(servletRequest, ApiAuthenticationFilter.CURRENT_TENANT_ID);
+        String currentUserId = requestAttribute(servletRequest, ApiAuthenticationFilter.CURRENT_USER_ID);
         if (currentTenantId != null && !currentTenantId.isBlank()) {
             request.setTenantId(currentTenantId.trim());
         } else if (request.getTenantId() == null || request.getTenantId().isBlank()) {
             request.setTenantId("default");
+        }
+        if (currentUserId != null && !currentUserId.isBlank()) {
+            request.setUserId(currentUserId.trim());
+        }
+    }
+
+    private void authorizeAgentAccess(InteractionRequest request, HttpServletRequest servletRequest) {
+        if (request == null || InteractionMode.from(request.getMode()) != InteractionMode.AGENT_CHAT) {
+            return;
+        }
+        String skillId = request.getSkillId() == null ? null : request.getSkillId().trim();
+        if (skillId == null || skillId.isBlank()) {
+            return;
+        }
+        SkillDefinition skill = skillCatalogService.resolve(skillId);
+        if (skill == null || !"published".equalsIgnoreCase(skill.marketStatus())) {
+            throw new IllegalArgumentException("AGENT_ACCESS_DENIED: Agent is not published.");
+        }
+        String currentUserId = requestAttribute(servletRequest, ApiAuthenticationFilter.CURRENT_USER_ID);
+        if (currentUserId == null || currentUserId.isBlank()) {
+            return;
+        }
+        if (!enterpriseAdminService.canAccessAgent(currentUserId, skill.id())) {
+            throw new IllegalArgumentException("AGENT_ACCESS_DENIED: 当前用户所属角色未被授权使用该 Agent。");
         }
     }
 

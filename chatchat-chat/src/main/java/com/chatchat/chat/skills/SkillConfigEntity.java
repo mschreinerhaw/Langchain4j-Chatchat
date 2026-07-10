@@ -73,6 +73,12 @@ public class SkillConfigEntity {
     private String workflowConfigJson;
 
     @Column(columnDefinition = "TEXT")
+    private String defaultDataAssetJson;
+
+    @Column(columnDefinition = "TEXT")
+    private String assetSelectionPolicyJson;
+
+    @Column(columnDefinition = "TEXT")
     private String quickQuestionsJson;
 
     @Column(length = 32, nullable = false)

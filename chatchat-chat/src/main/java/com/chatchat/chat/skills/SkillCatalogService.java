@@ -48,6 +48,8 @@ public class SkillCatalogService {
         "toolConfigs",
         "routingSettings",
         "workflowConfig",
+        "defaultDataAsset",
+        "assetSelectionPolicy",
         "quickQuestions"
     );
 
@@ -266,6 +268,8 @@ public class SkillCatalogService {
             toolConfigs,
             normalizeRoutingSettings(draft.routingSettings()),
             normalizeWorkflowConfig(draft.workflowConfig()),
+            normalizeDefaultDataAsset(draft.defaultDataAsset()),
+            normalizeAssetSelectionPolicy(draft.assetSelectionPolicy()),
             normalizeList(draft.quickQuestions()),
             marketStatus,
             resolveDefaultAgentFlag(draft.defaultAgent(), existing)
@@ -293,6 +297,8 @@ public class SkillCatalogService {
         entity.setToolConfigsJson(writeToolConfigsJson(normalized.toolConfigs()));
         entity.setRoutingSettingsJson(writeRoutingSettingsJson(normalized.routingSettings()));
         entity.setWorkflowConfigJson(writeWorkflowConfigJson(normalized.workflowConfig()));
+        entity.setDefaultDataAssetJson(writeDefaultDataAssetJson(normalized.defaultDataAsset()));
+        entity.setAssetSelectionPolicyJson(writeAssetSelectionPolicyJson(normalized.assetSelectionPolicy()));
         entity.setQuickQuestionsJson(writeListJson(normalized.quickQuestions()));
         entity.setMarketStatus(normalized.marketStatus());
         entity.setDefaultAgent(Boolean.TRUE.equals(normalized.defaultAgent()));
@@ -354,6 +360,8 @@ public class SkillCatalogService {
         current.setToolConfigsJson(target.getToolConfigsJson());
         current.setRoutingSettingsJson(target.getRoutingSettingsJson());
         current.setWorkflowConfigJson(target.getWorkflowConfigJson());
+        current.setDefaultDataAssetJson(target.getDefaultDataAssetJson());
+        current.setAssetSelectionPolicyJson(target.getAssetSelectionPolicyJson());
         current.setQuickQuestionsJson(target.getQuickQuestionsJson());
         current.setMarketStatus(normalizeMarketStatus(target.getMarketStatus()) == null
             ? defaultMarketStatus(id)
@@ -475,6 +483,8 @@ public class SkillCatalogService {
             readToolConfigsJson(entity.getToolConfigsJson()),
             readRoutingSettingsJson(entity.getRoutingSettingsJson()),
             readWorkflowConfigJson(entity.getWorkflowConfigJson()),
+            readDefaultDataAssetJson(entity.getDefaultDataAssetJson()),
+            readAssetSelectionPolicyJson(entity.getAssetSelectionPolicyJson()),
             readListJson(entity.getQuickQuestionsJson()),
             normalizeMarketStatus(entity.getMarketStatus()) == null
                 ? defaultMarketStatus(entity.getId())
@@ -510,6 +520,8 @@ public class SkillCatalogService {
             readToolConfigsJson(entity.getToolConfigsJson()),
             readRoutingSettingsJson(entity.getRoutingSettingsJson()),
             readWorkflowConfigJson(entity.getWorkflowConfigJson()),
+            readDefaultDataAssetJson(entity.getDefaultDataAssetJson()),
+            readAssetSelectionPolicyJson(entity.getAssetSelectionPolicyJson()),
             readListJson(entity.getQuickQuestionsJson()),
             normalizeMarketStatus(entity.getMarketStatus()) == null
                 ? defaultMarketStatus(entity.getSkillId())
@@ -548,6 +560,8 @@ public class SkillCatalogService {
         version.setToolConfigsJson(source.getToolConfigsJson());
         version.setRoutingSettingsJson(source.getRoutingSettingsJson());
         version.setWorkflowConfigJson(source.getWorkflowConfigJson());
+        version.setDefaultDataAssetJson(source.getDefaultDataAssetJson());
+        version.setAssetSelectionPolicyJson(source.getAssetSelectionPolicyJson());
         version.setQuickQuestionsJson(source.getQuickQuestionsJson());
         version.setMarketStatus(source.getMarketStatus());
         version.setDefaultAgent(source.isDefaultAgent());
@@ -648,6 +662,8 @@ public class SkillCatalogService {
         ensureColumn("skill_config", "tool_configs_json", "text");
         ensureColumn("skill_config", "routing_settings_json", "text");
         ensureColumn("skill_config", "workflow_config_json", "text");
+        ensureColumn("skill_config", "default_data_asset_json", "text");
+        ensureColumn("skill_config", "asset_selection_policy_json", "text");
         ensureColumn("skill_config", "quick_questions_json", "text");
 
         ensureColumn("skill_config_version", "market_status", "varchar(32)");
@@ -661,6 +677,8 @@ public class SkillCatalogService {
         ensureColumn("skill_config_version", "tool_configs_json", "text");
         ensureColumn("skill_config_version", "routing_settings_json", "text");
         ensureColumn("skill_config_version", "workflow_config_json", "text");
+        ensureColumn("skill_config_version", "default_data_asset_json", "text");
+        ensureColumn("skill_config_version", "asset_selection_policy_json", "text");
         ensureColumn("skill_config_version", "quick_questions_json", "text");
     }
 
@@ -1070,6 +1088,30 @@ public class SkillCatalogService {
         }
     }
 
+    private String writeDefaultDataAssetJson(SkillDefinition.DefaultDataAsset defaultDataAsset) {
+        SkillDefinition.DefaultDataAsset normalized = normalizeDefaultDataAsset(defaultDataAsset);
+        if (normalized == null) {
+            return null;
+        }
+        try {
+            return objectMapper.writeValueAsString(normalized);
+        } catch (JsonProcessingException e) {
+            throw new IllegalArgumentException("failed to serialize default data asset", e);
+        }
+    }
+
+    private String writeAssetSelectionPolicyJson(SkillDefinition.AssetSelectionPolicy policy) {
+        SkillDefinition.AssetSelectionPolicy normalized = normalizeAssetSelectionPolicy(policy);
+        if (normalized == null) {
+            return null;
+        }
+        try {
+            return objectMapper.writeValueAsString(normalized);
+        } catch (JsonProcessingException e) {
+            throw new IllegalArgumentException("failed to serialize asset selection policy", e);
+        }
+    }
+
     /**
      * Reads the list json.
      *
@@ -1150,6 +1192,74 @@ public class SkillCatalogService {
         } catch (Exception ignored) {
             return Map.of();
         }
+    }
+
+    private SkillDefinition.DefaultDataAsset readDefaultDataAssetJson(String json) {
+        if (json == null || json.isBlank()) {
+            return null;
+        }
+        try {
+            return normalizeDefaultDataAsset(objectMapper.readValue(json, SkillDefinition.DefaultDataAsset.class));
+        } catch (Exception ignored) {
+            return null;
+        }
+    }
+
+    private SkillDefinition.AssetSelectionPolicy readAssetSelectionPolicyJson(String json) {
+        if (json == null || json.isBlank()) {
+            return defaultAssetSelectionPolicy();
+        }
+        try {
+            return normalizeAssetSelectionPolicy(objectMapper.readValue(json, SkillDefinition.AssetSelectionPolicy.class));
+        } catch (Exception ignored) {
+            return defaultAssetSelectionPolicy();
+        }
+    }
+
+    private SkillDefinition.DefaultDataAsset normalizeDefaultDataAsset(SkillDefinition.DefaultDataAsset asset) {
+        if (asset == null) {
+            return null;
+        }
+        String assetId = normalizeText(asset.assetId());
+        String assetName = normalizeText(asset.assetName());
+        if (assetId == null && assetName == null) {
+            return null;
+        }
+        String assetType = normalizeText(asset.assetType());
+        return new SkillDefinition.DefaultDataAsset(
+            assetId,
+            assetName,
+            assetType == null ? "DATABASE" : assetType,
+            normalizeText(asset.warehouseId()),
+            asset.enabled() == null ? Boolean.TRUE : asset.enabled()
+        );
+    }
+
+    private SkillDefinition.AssetSelectionPolicy normalizeAssetSelectionPolicy(SkillDefinition.AssetSelectionPolicy policy) {
+        if (policy == null) {
+            return defaultAssetSelectionPolicy();
+        }
+        String strategy = normalizeText(policy.strategy());
+        Double minRelevanceScore = policy.minRelevanceScore();
+        if (minRelevanceScore == null || minRelevanceScore.isNaN() || minRelevanceScore < 0.0D) {
+            minRelevanceScore = 0.7D;
+        }
+        minRelevanceScore = Math.min(1.0D, minRelevanceScore);
+        return new SkillDefinition.AssetSelectionPolicy(
+            strategy == null ? "SEARCH_FIRST_DEFAULT_FALLBACK" : strategy,
+            minRelevanceScore,
+            policy.fallbackWhenEmpty() == null ? Boolean.TRUE : policy.fallbackWhenEmpty(),
+            policy.fallbackWhenInvalid() == null ? Boolean.TRUE : policy.fallbackWhenInvalid()
+        );
+    }
+
+    private SkillDefinition.AssetSelectionPolicy defaultAssetSelectionPolicy() {
+        return new SkillDefinition.AssetSelectionPolicy(
+            "SEARCH_FIRST_DEFAULT_FALLBACK",
+            0.7D,
+            true,
+            true
+        );
     }
 
     /**
@@ -1257,6 +1367,8 @@ public class SkillCatalogService {
         List<SkillToolConfig> toolConfigs,
         SkillRoutingSettings routingSettings,
         Map<String, Object> workflowConfig,
+        SkillDefinition.DefaultDataAsset defaultDataAsset,
+        SkillDefinition.AssetSelectionPolicy assetSelectionPolicy,
         List<String> quickQuestions,
         String marketStatus,
         Boolean defaultAgent,

@@ -135,6 +135,8 @@ public class AssetDiscoveryService {
         List<Map<String, Object>> matchedAll = matchingAssetsFromLucene(allAssets, assetType, filters, Math.max(limit + 1, MAX_LIMIT));
         List<Map<String, Object>> matched = matchedAll.stream().limit(limit).toList();
         List<Map<String, Object>> unavailableMatched = unavailableAssets(assetType, filters, limit);
+        AssetSelection selection = applyDefaultAssetFallback(arguments, allAssets, matched, broadDiscovery, assetType);
+        matched = selection.assets();
         Map<String, Object> compactFilters = compactFilters(filters);
 
         return mapOf(
@@ -161,6 +163,7 @@ public class AssetDiscoveryService {
             "broadDiscovery", broadDiscovery,
             "broadDiscoveryAdvice", broadDiscovery ? broadDiscoveryAdvice(matched.size()) : null,
             "emptyResultAdvice", matched.isEmpty() ? emptyResultAdvice(compactFilters, unavailableMatched) : null,
+            "assetSelectionAudit", selection.audit(),
             "routingDecision", routingDecision(target, startedAt),
             "assets", matched,
             "unavailableAssets", unavailableMatched
@@ -251,8 +254,9 @@ public class AssetDiscoveryService {
         });
         LuceneMcpSearchService.AssetSearchRequest request = assetSearchRequest(assetType, filters, limit);
         List<LuceneMcpSearchService.SearchHit> hits = luceneSearchService.searchAssets(request);
+        double maxScore = hits.stream().mapToDouble(LuceneMcpSearchService.SearchHit::score).max().orElse(0.0D);
         List<Map<String, Object>> luceneMatched = hits.stream()
-            .map(hit -> byId.get(hit.id()))
+            .map(hit -> annotateSearchHit(byId.get(hit.id()), hit, maxScore))
             .filter(asset -> asset != null)
             .limit(limit)
             .toList();
@@ -283,6 +287,197 @@ public class AssetDiscoveryService {
             return new AssetFallback(fuzzy, !fuzzy.isEmpty());
         }
         return new AssetFallback(assets.stream().limit(limit).toList(), false);
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> annotateSearchHit(Map<String, Object> metadata,
+                                                  LuceneMcpSearchService.SearchHit hit,
+                                                  double maxScore) {
+        if (metadata == null || hit == null) {
+            return null;
+        }
+        Map<String, Object> annotated = new LinkedHashMap<>(metadata);
+        Map<String, Object> routingHints = metadata.get("routingHints") instanceof Map<?, ?> map
+            ? new LinkedHashMap<>((Map<String, Object>) map)
+            : new LinkedHashMap<>();
+        double rawScore = hit.score();
+        double normalizedScore = maxScore > 0.0D ? rawScore / maxScore : 1.0D;
+        routingHints.put("assetSelection", mapOf(
+            "strategy", "asset_search",
+            "source", hit.source() == null ? "asset_index" : hit.source(),
+            "score", Math.round(rawScore * 1000.0D) / 1000.0D,
+            "normalizedScore", Math.round(Math.min(1.0D, normalizedScore) * 1000.0D) / 1000.0D,
+            "reasons", hit.reasons()
+        ));
+        annotated.put("routingHints", routingHints);
+        return annotated;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Double bestRelevanceScore(List<Map<String, Object>> matched) {
+        if (matched == null || matched.isEmpty()) {
+            return null;
+        }
+        Double best = null;
+        for (Map<String, Object> metadata : matched) {
+            Object routingHintsValue = metadata == null ? null : metadata.get("routingHints");
+            if (!(routingHintsValue instanceof Map<?, ?> routingHints)) {
+                continue;
+            }
+            Object selectionValue = routingHints.get("assetSelection");
+            if (!(selectionValue instanceof Map<?, ?> selection)) {
+                continue;
+            }
+            Double score = optionalNumber(firstValue((Map<String, Object>) selection, "normalizedScore", "score"));
+            if (score != null && (best == null || score > best)) {
+                best = score;
+            }
+        }
+        return best;
+    }
+
+    private AssetSelection applyDefaultAssetFallback(Map<String, Object> arguments,
+                                                     List<Map<String, Object>> assets,
+                                                     List<Map<String, Object>> matched,
+                                                     boolean broadDiscovery,
+                                                     String assetType) {
+        Map<String, Object> defaultAsset = defaultDataAsset(arguments);
+        Map<String, Object> policy = assetSelectionPolicy(arguments);
+        boolean fallbackWhenEmpty = booleanValue(policy.get("fallbackWhenEmpty"), true);
+        boolean fallbackWhenInvalid = booleanValue(policy.get("fallbackWhenInvalid"), true);
+        double minRelevanceScore = numberValue(policy.get("minRelevanceScore"), 0.7D);
+        Double bestRelevanceScore = bestRelevanceScore(matched);
+        boolean searchEmpty = matched == null || matched.isEmpty();
+        boolean ambiguous = broadDiscovery && matched != null && matched.size() > 1;
+        boolean lowRelevance = bestRelevanceScore != null && bestRelevanceScore < minRelevanceScore;
+        boolean shouldFallback = (searchEmpty && fallbackWhenEmpty)
+            || ((ambiguous || lowRelevance) && fallbackWhenInvalid);
+        Map<String, Object> audit = new LinkedHashMap<>();
+        audit.put("strategy", text(policy.get("strategy")) == null ? "SEARCH_FIRST_DEFAULT_FALLBACK" : text(policy.get("strategy")));
+        audit.put("assetSearchCalled", true);
+        audit.put("searchReturnedCount", matched == null ? 0 : matched.size());
+        audit.put("minRelevanceScore", minRelevanceScore);
+        audit.put("bestRelevanceScore", bestRelevanceScore);
+        audit.put("fallbackWhenEmpty", fallbackWhenEmpty);
+        audit.put("fallbackWhenInvalid", fallbackWhenInvalid);
+        audit.put("fallbackTriggered", false);
+        audit.put("fallbackReason", null);
+
+        if (!shouldFallback) {
+            audit.put("finalSource", "search");
+            return new AssetSelection(matched == null ? List.of() : matched, audit);
+        }
+        if (defaultAsset.isEmpty() || !booleanValue(defaultAsset.get("enabled"), true)) {
+            audit.put("finalSource", "none");
+            audit.put("fallbackTriggered", false);
+            audit.put("fallbackReason", searchEmpty ? "search_empty_no_enabled_default_asset" : "ambiguous_no_enabled_default_asset");
+            return new AssetSelection(List.of(), audit);
+        }
+        Map<String, Object> fallback = findDefaultAsset(assets, defaultAsset, assetType);
+        if (fallback == null) {
+            audit.put("finalSource", "none");
+            audit.put("fallbackTriggered", false);
+            audit.put("fallbackReason", "default_asset_not_found_or_type_mismatch");
+            audit.put("defaultDataAsset", defaultAsset);
+            return new AssetSelection(List.of(), audit);
+        }
+        String reason = searchEmpty ? "search_empty" : (lowRelevance ? "low_relevance_search_result" : "ambiguous_search_result");
+        audit.put("finalSource", "defaultDataAsset");
+        audit.put("fallbackTriggered", true);
+        audit.put("fallbackReason", reason);
+        audit.put("defaultDataAsset", defaultAsset);
+        audit.put("selectedAsset", assetSummary(fallback));
+        log.info("asset_query default asset fallback assetType={} reason={} selected={} searchReturned={}",
+            assetType, reason, assetSummary(fallback), matched == null ? 0 : matched.size());
+        return new AssetSelection(List.of(annotateDefaultFallback(fallback, reason)), audit);
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> defaultDataAsset(Map<String, Object> arguments) {
+        Object value = firstValue(arguments, "defaultDataAsset", "default_data_asset");
+        if (value instanceof Map<?, ?> map) {
+            return new LinkedHashMap<>((Map<String, Object>) map);
+        }
+        return Map.of();
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> assetSelectionPolicy(Map<String, Object> arguments) {
+        Object value = firstValue(arguments, "assetSelectionPolicy", "asset_selection_policy");
+        if (value instanceof Map<?, ?> map) {
+            return new LinkedHashMap<>((Map<String, Object>) map);
+        }
+        return Map.of();
+    }
+
+    private Map<String, Object> findDefaultAsset(List<Map<String, Object>> assets,
+                                                 Map<String, Object> defaultAsset,
+                                                 String requestedAssetType) {
+        String defaultAssetType = normalizeDefaultAssetType(text(defaultAsset.get("assetType")));
+        if (requestedAssetType != null && defaultAssetType != null && !equalsNormalized(requestedAssetType, defaultAssetType)) {
+            return null;
+        }
+        String assetId = text(firstValue(defaultAsset, "assetId", "id"));
+        String assetName = text(firstValue(defaultAsset, "assetName", "name"));
+        for (Map<String, Object> asset : safeList(assets)) {
+            if (defaultAssetType != null && !equalsNormalized(defaultAssetType, asset.get("assetType"))) {
+                continue;
+            }
+            Map<?, ?> node = assetNode(asset);
+            if (assetId != null && equalsNormalized(assetId, node.get("id"))) {
+                return asset;
+            }
+            if (assetName != null && assetNameMatches(node, assetName)) {
+                return asset;
+            }
+        }
+        return null;
+    }
+
+    private String normalizeDefaultAssetType(String assetType) {
+        String normalized = normalize(assetType);
+        if (normalized == null) {
+            return "sql_datasource";
+        }
+        return switch (normalized) {
+            case "database", "db", "datasource", "sql", "sql_datasource" -> "sql_datasource";
+            case "http", "http_endpoint", "api" -> "http_endpoint";
+            case "ssh", "host", "ssh_host" -> "ssh_host";
+            default -> normalized;
+        };
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<?, ?> assetNode(Map<String, Object> metadata) {
+        return metadata != null && metadata.get("asset") instanceof Map<?, ?> map
+            ? (Map<String, Object>) map
+            : Map.of();
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> annotateDefaultFallback(Map<String, Object> metadata, String reason) {
+        Map<String, Object> annotated = new LinkedHashMap<>(metadata);
+        Map<String, Object> routingHints = metadata.get("routingHints") instanceof Map<?, ?> map
+            ? new LinkedHashMap<>((Map<String, Object>) map)
+            : new LinkedHashMap<>();
+        routingHints.put("assetSelection", mapOf(
+            "strategy", "SEARCH_FIRST_DEFAULT_FALLBACK",
+            "source", "defaultDataAsset",
+            "fallbackTriggered", true,
+            "reason", reason
+        ));
+        annotated.put("routingHints", routingHints);
+        return annotated;
+    }
+
+    private Map<String, Object> assetSummary(Map<String, Object> metadata) {
+        Map<?, ?> asset = assetNode(metadata);
+        return mapOf(
+            "assetId", asset.get("id"),
+            "assetName", firstText(text(asset.get("displayName")), text(asset.get("name"))),
+            "assetType", metadata == null ? null : metadata.get("assetType"),
+            "enabled", asset.get("enabled")
+        );
     }
 
     private LuceneMcpSearchService.AssetSearchRequest assetSearchRequest(String assetType,
@@ -800,6 +995,41 @@ public class AssetDiscoveryService {
         return value == null || String.valueOf(value).isBlank() ? null : String.valueOf(value).trim();
     }
 
+    private boolean booleanValue(Object value, boolean fallback) {
+        if (value == null) {
+            return fallback;
+        }
+        if (value instanceof Boolean bool) {
+            return bool;
+        }
+        String text = String.valueOf(value).trim();
+        if (text.isBlank()) {
+            return fallback;
+        }
+        return "true".equalsIgnoreCase(text) || "1".equals(text) || "yes".equalsIgnoreCase(text);
+    }
+
+    private double numberValue(Object value, double fallback) {
+        Double number = optionalNumber(value);
+        return number == null ? fallback : number;
+    }
+
+    private Double optionalNumber(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof Number number) {
+            double result = number.doubleValue();
+            return Double.isFinite(result) ? result : null;
+        }
+        try {
+            double result = Double.parseDouble(String.valueOf(value).trim());
+            return Double.isFinite(result) ? result : null;
+        } catch (NumberFormatException ex) {
+            return null;
+        }
+    }
+
     private String firstText(String... values) {
         if (values == null) {
             return null;
@@ -838,6 +1068,9 @@ public class AssetDiscoveryService {
     }
 
     private record AssetFallback(List<Map<String, Object>> assets, boolean fuzzyUsed) {
+    }
+
+    private record AssetSelection(List<Map<String, Object>> assets, Map<String, Object> audit) {
     }
 
     private record AssetNameCandidate(Map<String, Object> asset, String field, double score) {

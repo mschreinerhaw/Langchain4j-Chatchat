@@ -122,6 +122,25 @@ function defaultWorkflowConfig() {
   };
 }
 
+function defaultDataAssetForm() {
+  return {
+    assetId: "",
+    assetName: "",
+    assetType: "DATABASE",
+    warehouseId: "",
+    enabled: false
+  };
+}
+
+function defaultAssetSelectionPolicy() {
+  return {
+    strategy: "SEARCH_FIRST_DEFAULT_FALLBACK",
+    minRelevanceScore: 0.7,
+    fallbackWhenEmpty: true,
+    fallbackWhenInvalid: true
+  };
+}
+
 function emptyForm() {
   return {
     id: "",
@@ -139,6 +158,8 @@ function emptyForm() {
     toolConfigs: [],
     routingSettings: defaultRoutingSettings(),
     workflowConfig: defaultWorkflowConfig(),
+    defaultDataAsset: defaultDataAssetForm(),
+    assetSelectionPolicy: defaultAssetSelectionPolicy(),
     quickQuestions: "",
     marketStatus: "draft",
     defaultAgent: false
@@ -481,6 +502,10 @@ export default {
         agent?.defaultAgent ? "default agent" : "",
         agent?.defaultMode,
         agent?.modelName,
+        agent?.defaultDataAsset?.assetId,
+        agent?.defaultDataAsset?.assetName,
+        agent?.defaultDataAsset?.assetType,
+        agent?.defaultDataAsset?.warehouseId,
         ...(agent?.usageScenarios || []),
         ...(agent?.skillTags || []),
         ...(agent?.quickQuestions || []),
@@ -584,6 +609,8 @@ export default {
           ...(agent?.routingSettings || {})
         },
         workflowConfig: this.normalizeWorkflowConfig(agent?.workflowConfig, parseList(agent?.boundMcpToolNames)),
+        defaultDataAsset: this.normalizeDefaultDataAsset(agent?.defaultDataAsset, false),
+        assetSelectionPolicy: this.normalizeAssetSelectionPolicy(agent?.assetSelectionPolicy),
         quickQuestions: joinList(agent?.quickQuestions),
         marketStatus: agent?.marketStatus || "draft",
         defaultAgent: !!agent?.defaultAgent
@@ -596,6 +623,7 @@ export default {
       const maxParallelCalls = Number(this.form.routingSettings.maxParallelCalls) || 3;
       const maxRelevantMcpTools = Number(this.form.routingSettings.maxRelevantMcpTools) || 3;
       const workflowConfig = this.normalizeWorkflowConfig(this.form.workflowConfig, selectedToolNames);
+      const defaultDataAsset = this.normalizeDefaultDataAsset(this.form.defaultDataAsset, false);
       this.form.workflowConfig = workflowConfig;
       return {
         id: this.form.id,
@@ -620,9 +648,37 @@ export default {
           maxRelevantMcpTools: Math.max(1, Math.min(20, maxRelevantMcpTools))
         },
         workflowConfig,
+        defaultDataAsset: defaultDataAsset.enabled ? defaultDataAsset : null,
+        assetSelectionPolicy: this.normalizeAssetSelectionPolicy(this.form.assetSelectionPolicy),
         quickQuestions: parseList(this.form.quickQuestions),
         marketStatus: this.form.marketStatus || "draft",
         defaultAgent: !!this.form.defaultAgent
+      };
+    },
+    normalizeDefaultDataAsset(value, enabledFallback = false) {
+      const source = value && typeof value === "object" ? value : {};
+      const assetId = textValue(source.assetId ?? source.id ?? source.asset_id);
+      const assetName = textValue(source.assetName ?? source.name ?? source.asset_name);
+      const assetType = textValue(source.assetType ?? source.type ?? source.asset_type) || "DATABASE";
+      const warehouseId = textValue(source.warehouseId ?? source.warehouse_id ?? source.catalogId);
+      return {
+        assetId,
+        assetName,
+        assetType,
+        warehouseId,
+        enabled: source.enabled === undefined ? enabledFallback : booleanValue(source.enabled)
+      };
+    },
+    normalizeAssetSelectionPolicy(value) {
+      const source = value && typeof value === "object" ? value : {};
+      const minRelevanceScore = Number(source.minRelevanceScore ?? source.min_relevance_score ?? 0.7);
+      return {
+        strategy: textValue(source.strategy) || "SEARCH_FIRST_DEFAULT_FALLBACK",
+        minRelevanceScore: Number.isFinite(minRelevanceScore)
+          ? Math.max(0, Math.min(1, minRelevanceScore))
+          : 0.7,
+        fallbackWhenEmpty: source.fallbackWhenEmpty === undefined ? true : booleanValue(source.fallbackWhenEmpty),
+        fallbackWhenInvalid: source.fallbackWhenInvalid === undefined ? true : booleanValue(source.fallbackWhenInvalid)
       };
     },
     normalizeImportedAgent(row, index) {
@@ -638,6 +694,27 @@ export default {
       const modelName = textValue(fieldValue(row, [
         "modelName", "model", "模型", "使用模型", "绑定模型"
       ]));
+      const defaultAsset = this.normalizeDefaultDataAsset({
+        assetId: fieldValue(row, [
+          "defaultDataAssetId", "defaultAssetId", "assetId", "默认数据资产ID", "默认资产ID", "资产ID"
+        ]),
+        assetName: fieldValue(row, [
+          "defaultDataAssetName", "defaultAssetName", "assetName", "默认数据资产", "默认数据资产名称", "默认资产名称", "资产名称"
+        ]),
+        assetType: fieldValue(row, [
+          "defaultDataAssetType", "defaultAssetType", "assetType", "默认资产类型", "资产类型"
+        ]),
+        warehouseId: fieldValue(row, [
+          "warehouseId", "defaultWarehouseId", "默认仓库ID", "仓库ID"
+        ]),
+        enabled: fieldValue(row, [
+          "defaultDataAssetEnabled", "defaultAssetEnabled", "启用默认数据资产", "默认资产启用"
+        ])
+      });
+      defaultAsset.enabled = !!(defaultAsset.assetId || defaultAsset.assetName)
+        && (textValue(fieldValue(row, [
+          "defaultDataAssetEnabled", "defaultAssetEnabled", "启用默认数据资产", "默认资产启用"
+        ])) ? defaultAsset.enabled : true);
       const payload = {
         id,
         name,
@@ -675,6 +752,8 @@ export default {
           ...(row?.routingSettings && typeof row.routingSettings === "object" ? row.routingSettings : {})
         },
         workflowConfig: defaultWorkflowConfig(),
+        defaultDataAsset: defaultAsset.enabled ? defaultAsset : null,
+        assetSelectionPolicy: defaultAssetSelectionPolicy(),
         quickQuestions: listValue(fieldValue(row, [
           "quickQuestions", "questions", "quickPrompts", "快捷问题", "推荐问题", "示例问题"
         ])),

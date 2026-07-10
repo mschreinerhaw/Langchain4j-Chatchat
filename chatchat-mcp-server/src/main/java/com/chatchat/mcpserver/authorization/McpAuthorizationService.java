@@ -1,5 +1,6 @@
 package com.chatchat.mcpserver.authorization;
 
+import com.chatchat.common.security.InternalCredentialProperties;
 import com.chatchat.mcpserver.mcp.McpInvocationContext;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -35,6 +36,7 @@ public class McpAuthorizationService {
     private static final String DENY = "deny";
 
     private final McpAuthorizationProperties properties;
+    private final InternalCredentialProperties internalCredentialProperties;
     private final ObjectMapper objectMapper;
     private final McpSynchronizedRoleRepository roleRepository;
     private final HttpClient httpClient = HttpClient.newBuilder()
@@ -329,8 +331,8 @@ public class McpAuthorizationService {
             return null;
         }
         String body = objectMapper.writeValueAsString(Map.of(
-            "username", auth.getUsername(),
-            "password", auth.getPassword()
+            "username", authUsername(auth.getUsername()),
+            "password", authPassword(auth.getEncryptedPassword(), auth.getPassword())
         ));
         HttpRequest request = HttpRequest.newBuilder()
             .uri(uri(auth.getLoginPath()))
@@ -372,10 +374,24 @@ public class McpAuthorizationService {
     private boolean isLoginAuthConfigured() {
         McpAuthorizationProperties.Auth auth = properties.getAuth();
         return auth.isEnabled()
-            && auth.getUsername() != null
-            && !auth.getUsername().isBlank()
-            && auth.getPassword() != null
-            && !auth.getPassword().isBlank();
+            && !authUsername(auth.getUsername()).isBlank()
+            && !authPassword(auth.getEncryptedPassword(), auth.getPassword()).isBlank();
+    }
+
+    private String authUsername(String configuredUsername) {
+        String username = configuredUsername == null ? "" : configuredUsername.trim();
+        if (!username.isBlank()) {
+            return username;
+        }
+        return internalCredentialProperties == null ? "" : internalCredentialProperties.resolvedUsername();
+    }
+
+    private String authPassword(String encryptedPassword, String plainPassword) {
+        if (internalCredentialProperties == null) {
+            return plainPassword == null ? "" : plainPassword.trim();
+        }
+        String resolved = internalCredentialProperties.resolveSecret(encryptedPassword, plainPassword);
+        return resolved.isBlank() ? internalCredentialProperties.resolvedSecret() : resolved;
     }
 
     private URI uri(String path) {

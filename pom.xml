@@ -17,6 +17,7 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <spring-boot.version>3.5.3</spring-boot.version>
         <langchain4j.version>1.14.1</langchain4j.version>
+        <opensearch.client.version>2.12.0</opensearch.client.version>
         <rocksdb.version>10.10.1.1</rocksdb.version>
         <playwright.version>1.53.0</playwright.version>
         <lombok.version>1.18.32</lombok.version>
@@ -133,6 +134,13 @@
                     <configuration>
                         <source>17</source>
                         <target>17</target>
+                        <annotationProcessorPaths>
+                            <path>
+                                <groupId>org.projectlombok</groupId>
+                                <artifactId>lombok</artifactId>
+                                <version>${lombok.version}</version>
+                            </path>
+                        </annotationProcessorPaths>
                     </configuration>
                 </plugin>
                 <plugin>

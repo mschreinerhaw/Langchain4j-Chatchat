@@ -286,6 +286,7 @@ public class ChatChatMcpServerProperties {
             private String loginPath = "/api/v1/enterprise/auth/login";
             private String username = "admin";
             private String password = "123456";
+            private String encryptedPassword = "";
             private String bearerToken = "";
 
             public boolean isEnabled() {
@@ -318,6 +319,14 @@ public class ChatChatMcpServerProperties {
 
             public void setPassword(String password) {
                 this.password = password;
+            }
+
+            public String getEncryptedPassword() {
+                return encryptedPassword;
+            }
+
+            public void setEncryptedPassword(String encryptedPassword) {
+                this.encryptedPassword = encryptedPassword;
             }
 
             public String getBearerToken() {

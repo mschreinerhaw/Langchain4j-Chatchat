@@ -251,7 +251,7 @@ Windows:
 ## Production Notes
 
 - Configure `OPENAI_API_KEY` before enabling OpenAI-compatible model calls.
-- Use `config/application-mysql.yml` with `APP_ARGS=--spring.profiles.active=mysql` when deploying with MySQL.
+- Select the runtime mode by copying an `application-*.template` preset to the active `config/application-*.yml` file.
 - Apache Tika jars are copied to `lib/ext` during packaging. Put other optional non-JDBC library jars in `lib/ext`, or directly under `lib`.
 - Put external JDBC driver jars in `lib/drivers`.
 - Runtime JVM options can be passed with `JAVA_OPTS`; extra Spring Boot arguments can be passed with `APP_ARGS`.

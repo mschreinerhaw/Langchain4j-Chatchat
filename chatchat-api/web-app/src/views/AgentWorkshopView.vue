@@ -115,8 +115,11 @@
           </ul>
         </section>
 
-        <div v-if="agent.defaultAgent || agent.skillTags?.length" class="agent-tags">
+        <div v-if="agent.defaultAgent || agent.defaultDataAsset?.enabled || agent.skillTags?.length" class="agent-tags">
           <span v-if="agent.defaultAgent" class="agent-default-tag">默认Agent</span>
+          <span v-if="agent.defaultDataAsset?.enabled" class="agent-default-asset-tag">
+            默认资产：{{ agent.defaultDataAsset.assetName || agent.defaultDataAsset.assetId }}
+          </span>
           <span v-for="tag in agent.skillTags" :key="`${agent.id}-${tag}`">{{ tag }}</span>
         </div>
 
@@ -285,6 +288,51 @@
             <span>快捷问题</span>
             <textarea v-model="form.quickQuestions" rows="3" placeholder="每行一个问题"></textarea>
           </label>
+          <section class="default-data-asset-settings wide-field">
+            <label class="checkbox-row">
+              <input v-model="form.defaultDataAsset.enabled" type="checkbox">
+              <span>启用默认数据资产</span>
+            </label>
+            <label>
+              <span>资产ID</span>
+              <input v-model.trim="form.defaultDataAsset.assetId" placeholder="asset_100086">
+            </label>
+            <label>
+              <span>资产名称</span>
+              <input v-model.trim="form.defaultDataAsset.assetName" placeholder="客户经营分析数据仓库">
+            </label>
+            <label>
+              <span>资产类型</span>
+              <select v-model="form.defaultDataAsset.assetType">
+                <option value="DATABASE">DATABASE</option>
+                <option value="sql_datasource">sql_datasource</option>
+                <option value="http_endpoint">http_endpoint</option>
+                <option value="ssh_host">ssh_host</option>
+              </select>
+            </label>
+            <label>
+              <span>仓库ID</span>
+              <input v-model.trim="form.defaultDataAsset.warehouseId" placeholder="warehouse_001">
+            </label>
+            <label>
+              <span>最低相关度</span>
+              <input
+                v-model.number="form.assetSelectionPolicy.minRelevanceScore"
+                type="number"
+                min="0"
+                max="1"
+                step="0.05"
+              >
+            </label>
+            <label class="checkbox-row">
+              <input v-model="form.assetSelectionPolicy.fallbackWhenEmpty" type="checkbox">
+              <span>检索为空时兜底</span>
+            </label>
+            <label class="checkbox-row">
+              <input v-model="form.assetSelectionPolicy.fallbackWhenInvalid" type="checkbox">
+              <span>检索不可用时兜底</span>
+            </label>
+          </section>
           <section class="agent-tool-picker wide-field">
             <div class="agent-tool-picker-head">
               <div>

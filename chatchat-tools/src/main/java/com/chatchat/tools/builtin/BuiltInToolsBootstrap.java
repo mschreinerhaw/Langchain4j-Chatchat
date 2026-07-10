@@ -1,6 +1,7 @@
 package com.chatchat.tools.builtin;
 
 import com.chatchat.agents.tool.ToolRegistry;
+import com.chatchat.common.security.InternalSecretCipher;
 import com.chatchat.common.tool.ToolInput;
 import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolOutput;
@@ -1031,8 +1032,8 @@ public class BuiltInToolsBootstrap {
          * @throws InterruptedException if the operation fails
          */
         private String loginForDocumentSearchToken() throws IOException, InterruptedException {
-            String username = environment.getProperty("chatchat.tools.document-search.auth.username", "admin");
-            String password = environment.getProperty("chatchat.tools.document-search.auth.password", "123456");
+            String username = documentSearchAuthUsername();
+            String password = documentSearchAuthPassword();
             if (username == null || username.isBlank() || password == null || password.isBlank()) {
                 return "";
             }
@@ -1129,9 +1130,33 @@ public class BuiltInToolsBootstrap {
         }
 
         private boolean hasDocumentSearchLoginCredentials() {
-            String username = environment.getProperty("chatchat.tools.document-search.auth.username", "admin");
-            String password = environment.getProperty("chatchat.tools.document-search.auth.password", "123456");
+            String username = documentSearchAuthUsername();
+            String password = documentSearchAuthPassword();
             return username != null && !username.isBlank() && password != null && !password.isBlank();
+        }
+
+        private String documentSearchAuthUsername() {
+            String username = environment.getProperty("chatchat.tools.document-search.auth.username", "");
+            if (username != null && !username.isBlank()) {
+                return username.trim();
+            }
+            return environment.getProperty("chatchat.internal-credential.username", "chatchat_mcp_internal").trim();
+        }
+
+        private String documentSearchAuthPassword() {
+            String cryptoKey = environment.getProperty("chatchat.internal-credential.crypto-key", "");
+            String encrypted = firstNonBlank(
+                environment.getProperty("chatchat.tools.document-search.auth.encrypted-password", ""),
+                environment.getProperty("chatchat.internal-credential.encrypted-secret", "")
+            );
+            if (encrypted != null && !encrypted.isBlank()) {
+                return InternalSecretCipher.decryptIfNecessary(encrypted, cryptoKey);
+            }
+            String password = firstNonBlank(
+                environment.getProperty("chatchat.tools.document-search.auth.password", ""),
+                environment.getProperty("chatchat.internal-credential.secret", "")
+            );
+            return InternalSecretCipher.decryptIfNecessary(password, cryptoKey);
         }
 
         /**

@@ -11,12 +11,6 @@ param(
     [int]$McpPort = 8090,
     [int]$StartupTimeoutSeconds = 120,
 
-    [ValidateSet("", "h2", "mysql")]
-    [string]$Database = "",
-
-    [ValidateSet("", "lucene", "opensearch")]
-    [string]$SearchEngine = "",
-
     [string]$ApiArgs = "",
     [string]$McpArgs = ""
 )
@@ -155,25 +149,6 @@ function Get-EffectiveProfile {
         $Profiles.Add("dev")
     }
 
-    if ($Database) {
-        while ($Profiles.Contains("mysql")) {
-            [void]$Profiles.Remove("mysql")
-        }
-        if ($Database -eq "mysql") {
-            $Profiles.Add("mysql")
-        }
-    }
-
-    if ($SearchEngine) {
-        while ($Profiles.Contains("search-lucene")) {
-            [void]$Profiles.Remove("search-lucene")
-        }
-        while ($Profiles.Contains("search-opensearch")) {
-            [void]$Profiles.Remove("search-opensearch")
-        }
-        $Profiles.Add("search-$SearchEngine")
-    }
-
     return ($Profiles -join ",")
 }
 
@@ -300,10 +275,6 @@ function Start-ManagedApp {
 
     $Java = Get-JavaCommand
     $JavaOptions = $env:JAVA_OPTS
-    if ($EffectiveProfile -match "(^|,)search-opensearch(,|$)" -and $JavaOptions -notmatch "jdk\.internal\.httpclient\.disableHostnameVerification") {
-        $JavaOptions = (($JavaOptions, "-Djdk.internal.httpclient.disableHostnameVerification=true") |
-            Where-Object { -not [string]::IsNullOrWhiteSpace($_) }) -join " "
-    }
     $ArgumentLine = (($JavaOptions, "-jar", "`"$JarPath`"", "--debug=false", "--spring.profiles.active=$EffectiveProfile", "--server.port=$Port", $ExtraArgs) |
         Where-Object { -not [string]::IsNullOrWhiteSpace($_) }) -join " "
 

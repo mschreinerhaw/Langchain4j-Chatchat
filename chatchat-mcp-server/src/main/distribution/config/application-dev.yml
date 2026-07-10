@@ -1,500 +1,108 @@
-spring:
+﻿spring:
   application:
     name: chatchat-mcp-server
   datasource:
-    url: jdbc:h2:file:./data/h2/chatchat-mcp-server;MODE=MySQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE;DB_CLOSE_DELAY=-1
-    driver-class-name: org.h2.Driver
-    username: sa
-    password: 
-    hikari:
-      pool-name: ChatChatMcpHikariPool
-      maximum-pool-size: 20
-      minimum-idle: 2
-      connection-timeout: 30000
-      idle-timeout: 300000
-      max-lifetime: 1200000
-      auto-commit: true
-      transaction-isolation: TRANSACTION_READ_COMMITTED
+    type: com.zaxxer.hikari.HikariDataSource
+    url: "${CHATCHAT_MCP_MYSQL_URL:jdbc:mysql://localhost:3306/chatchat_mcp?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true}"
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    username: ${CHATCHAT_MCP_MYSQL_USERNAME:chatchat}
+    password: ${CHATCHAT_MCP_MYSQL_ENCRYPTED_PASSWORD:${CHATCHAT_MCP_MYSQL_PASSWORD:}}
   h2:
     console:
       enabled: false
-      path: /h2-console
-      settings:
-        web-allow-others: false
   jpa:
     hibernate:
       ddl-auto: update
-    database-platform: org.hibernate.dialect.H2Dialect
+    database-platform: org.hibernate.dialect.MySQLDialect
     show-sql: false
-    properties:
-      hibernate:
-        format_sql: true
 
 server:
-  port: 8090
+  port: ${CHATCHAT_MCP_PORT:8090}
   servlet:
     context-path: /
   shutdown: graceful
 
 chatchat:
+  internal-credential:
+    enabled: true
+    username: ${CHATCHAT_INTERNAL_USERNAME:chatchat_mcp_internal}
+    encrypted-secret: ${CHATCHAT_INTERNAL_ENCRYPTED_SECRET:}
+    secret: ${CHATCHAT_INTERNAL_SECRET:chatchat_internal_default_secret}
+    crypto-key: ${CHATCHAT_INTERNAL_CRYPTO_KEY:}
+    crypto-key-file: ${CHATCHAT_INTERNAL_CRYPTO_KEY_FILE:}
   mcp:
     admin:
-      username: admin
-      password: admin123
-      token-ttl-minutes: 480
+      username: ${CHATCHAT_MCP_ADMIN_USERNAME:admin}
+      password: ${CHATCHAT_MCP_ADMIN_PASSWORD:admin123}
+      encrypted-password: ${CHATCHAT_MCP_ADMIN_ENCRYPTED_PASSWORD:}
+      token-ttl-minutes: ${CHATCHAT_MCP_ADMIN_TOKEN_TTL_MINUTES:480}
     security:
       require-mcp-token: true
-      invocation-token: mcp_test_8f3c7b2a9e6d4f10b5a92cdd0e7a6413
+      encrypted-invocation-token: ${CHATCHAT_INTERNAL_ENCRYPTED_SECRET:}
+      invocation-token: ${CHATCHAT_INTERNAL_SECRET:chatchat_internal_default_secret}
     authorization:
-      enabled: false
-      api-base-url: http://localhost:8080
-      snapshot-path: /api/v1/enterprise/mcp-auth/snapshot
-      refresh-interval-ms: 60000
-      stale-ttl-seconds: 3600
-      fail-open: true
-      require-tenant-context: true
+      enabled: ${CHATCHAT_MCP_AUTHORIZATION_ENABLED:false}
+      api-base-url: ${CHATCHAT_API_BASE_URL:http://localhost:8080}
       auth:
-        enabled: true
-        login-path: /api/v1/enterprise/auth/login
-        username: admin
-        password: 123456
-        bearer-token: ""
+        username: ${CHATCHAT_INTERNAL_USERNAME:chatchat_mcp_internal}
+        encrypted-password: ${CHATCHAT_INTERNAL_ENCRYPTED_SECRET:}
+        password: ${CHATCHAT_INTERNAL_SECRET:chatchat_internal_default_secret}
+        bearer-token: ${CHATCHAT_API_AUTH_BEARER_TOKEN:}
     command-templates:
-      seed-defaults-enabled: false
+      seed-defaults-enabled: true
     sql-templates:
       seed-defaults-enabled: true
     lucene:
-      # MCP assets/templates/SQL metadata search master switch.
       enabled: true
-      # Search engine:
-      # - lucene: default local disk index for quick development/deployment.
-      # - opensearch: shared remote OpenSearch index for multi-instance deployment.
-      # Startup scripts can override this with --search-engine=opensearch.
-      engine: lucene
-      # Local index directory when engine=lucene.
+      engine: opensearch
       index-dir: ./data/lucene/mcp
-      max-results: 50
-      # Effective only when engine=opensearch. MCP creates separate indexes by asset/template type.
       open-search:
-        # Set false to disable OpenSearch even if engine=opensearch.
         enabled: true
-        # OpenSearch HTTPS endpoint.
-        url: https://192.168.195.221:9200
-        username: admin
-        password: apexSoft12345
-        # Use true for self-signed test clusters, equivalent to curl -k.
-        insecure-ssl: true
-        # MCP index prefix, for example chatchat_mcp_assets-sql-datasource.
-        index-prefix: chatchat_mcp_
+        url: ${CHATCHAT_OPENSEARCH_URL:https://localhost:9200}
+        username: ${CHATCHAT_OPENSEARCH_USERNAME:admin}
+        password: ${CHATCHAT_OPENSEARCH_ENCRYPTED_PASSWORD:${CHATCHAT_OPENSEARCH_PASSWORD:}}
+        index-prefix: ${CHATCHAT_MCP_OPENSEARCH_INDEX_PREFIX:chatchat_mcp_dev_}
+        insecure-ssl: ${CHATCHAT_OPENSEARCH_INSECURE_SSL:true}
         request-timeout-ms: 30000
         embedding:
-          # Optional semantic retrieval for MCP assets/templates. Effective only when engine=opensearch.
-          # Existing MCP indexes must be deleted and rebuilt once after enabling KNN vectors.
-          enabled: true
-          endpoint: https://llm-7upawl16up8649rh.cn-beijing.maas.aliyuncs.com/compatible-mode/v1/embeddings
-          api-key: "sk-720436c855ac470bb955388d0e8c9b89"
-          model: text-embedding-v4
-          dimension: 1024
+          enabled: ${CHATCHAT_OPENSEARCH_EMBEDDING_ENABLED:false}
+          endpoint: ${CHATCHAT_EMBEDDING_ENDPOINT:https://llm-7upawl16up8649rh.cn-beijing.maas.aliyuncs.com/compatible-mode/v1/embeddings}
+          api-key: sk-720436c855ac470bb955388d0e8c9b89
+          model: ${CHATCHAT_EMBEDDING_MODEL:text-embedding-v4}
+          dimension: ${CHATCHAT_EMBEDDING_DIMENSION:1024}
           vector-field: mcpContentVector
           max-input-chars: 6000
           vector-candidate-limit: 50
-          bm25-weight: 0.55
-          vector-weight: 0.45
-    cache:
-      enabled: true
-      path: ./data/mcp-cache-rocksdb
-      create-if-missing: true
-      cleanup-interval-ms: 60000
-      cleanup-batch-size: 500
     server:
-      name: chatchat-langchain4j-mcp-server
-      version: 1.0.0-SNAPSHOT
       endpoint: /mcp
-      expose-agent-compatible-only: true
-      excluded-tool-names: []
-      instructions: "ChatChat standalone MCP server exposing LangChain4j-compatible tools."
-      output:
-        # sql_metadata_search text summary character limit. -1 means unlimited.
-        sql-metadata-search-summary-max-chars: 6000
-        # sql_metadata_search text summary field count limit. -1 means unlimited.
-        sql-metadata-search-summary-max-columns: 30
-      concurrency:
-        # Enables global/tool/user/agent concurrency guards for MCP tool calls.
-        enabled: true
-        # Global limit shared by all MCP tool calls.
-        global:
-          max-concurrency: 64
-          queue-size: 128
-          queue-timeout-seconds: 5
-          timeout-seconds: 30
-          runtime-level: global
-        # Default limit used when no runtime-level or tool-specific limit matches.
-        defaults:
-          max-concurrency: 8
-          queue-size: 64
-          queue-timeout-seconds: 5
-          timeout-seconds: 30
-          runtime-level: tool
-          max-output-chars: 200000
-          retry-attempts: 0
-          failure-threshold: 5
-          circuit-open-seconds: 30
-        # Per-user limit when a request carries user identity fields.
-        user:
-          max-concurrency: 8
-          queue-size: 64
-          queue-timeout-seconds: 5
-          timeout-seconds: 30
-          runtime-level: user
-        # Per-agent limit when a request carries agent identity fields.
-        agent:
-          max-concurrency: 4
-          queue-size: 32
-          queue-timeout-seconds: 5
-          timeout-seconds: 30
-          runtime-level: agent
-        # Runtime-level defaults for tool families.
-        runtime-levels:
-          ssh:
-            max-concurrency: 2
-            queue-size: 32
-            queue-timeout-seconds: 10
-            timeout-seconds: 30
-            runtime-level: ssh
-          sql:
-            max-concurrency: 5
-            queue-size: 64
-            queue-timeout-seconds: 10
-            timeout-seconds: 30
-            runtime-level: sql
-          http:
-            max-concurrency: 30
-            queue-size: 256
-            queue-timeout-seconds: 5
-            timeout-seconds: 30
-            runtime-level: http
-          notification:
-            max-concurrency: 10
-            queue-size: 128
-            queue-timeout-seconds: 5
-            timeout-seconds: 30
-            runtime-level: notification
-        # Tool-specific overrides. 0 means wait for completion; users can cancel long-running web calls manually.
-        tools:
-          document_search:
-            max-concurrency: 8
-            queue-size: 64
-            queue-timeout-seconds: 5
-            timeout-seconds: 300
-            runtime-level: tool
-          web_search:
-            max-concurrency: 2
-            queue-size: 32
-            queue-timeout-seconds: 0
-            timeout-seconds: 0
-            runtime-level: http
-          finance_site_search:
-            max-concurrency: 2
-            queue-size: 32
-            queue-timeout-seconds: 0
-            timeout-seconds: 0
-            runtime-level: http
-          generic_web_site_search:
-            max-concurrency: 2
-            queue-size: 32
-            queue-timeout-seconds: 0
-            timeout-seconds: 0
-            runtime-level: http
-          web_page_analyze:
-            max-concurrency: 2
-            queue-size: 32
-            queue-timeout-seconds: 0
-            timeout-seconds: 0
-            runtime-level: http
-          site_intelligence_resolver:
-            max-concurrency: 2
-            queue-size: 32
-            queue-timeout-seconds: 0
-            timeout-seconds: 0
-            runtime-level: http
-          retrieve_financial_evidence:
-            max-concurrency: 2
-            queue-size: 32
-            queue-timeout-seconds: 0
-            timeout-seconds: 0
-            runtime-level: http
-          web_crawler:
-            max-concurrency: 2
-            queue-size: 32
-            queue-timeout-seconds: 0
-            timeout-seconds: 0
-            runtime-level: http
-          crawl_url:
-            max-concurrency: 2
-            queue-size: 32
-            queue-timeout-seconds: 0
-            timeout-seconds: 0
-            runtime-level: http
-          search_and_extract:
-            max-concurrency: 2
-            queue-size: 32
-            queue-timeout-seconds: 0
-            timeout-seconds: 0
-            runtime-level: http
+      document-search:
+        api-base-url: ${CHATCHAT_API_BASE_URL:http://localhost:8080}
+        auth:
+          username: ${CHATCHAT_INTERNAL_USERNAME:chatchat_mcp_internal}
+          encrypted-password: ${CHATCHAT_INTERNAL_ENCRYPTED_SECRET:}
+          password: ${CHATCHAT_INTERNAL_SECRET:chatchat_internal_default_secret}
+          bearer-token: ${CHATCHAT_API_AUTH_BEARER_TOKEN:}
   tools:
-    web-crawler:
-      # Enables page crawling for search_and_extract evidence enrichment.
-      enabled: true
-      # User-Agent sent when fetching target pages.
-      user-agent: ChatChat-MCP-Crawler/1.0
-      # Per-page HTTP timeout.
-      # 0 means wait for web search/page fetch completion without a local request timeout.
-      timeout-ms: 0
-      # Maximum response bytes read before aborting a page fetch.
-      max-body-bytes: 1048576
-      # Maximum raw HTML characters retained for processing.
-      max-html-chars: 200000
-      # Maximum readable text characters retained after cleaning.
-      max-text-chars: 120000
-      # Evidence chunk size and overlap for downstream ranking.
-      chunk-chars: 1200
-      chunk-overlap-chars: 120
-      max-chunks: 20
-      # Follow wrapper pages whose content/requestedUrl points to another URL.
-      max-follow-urls: 5
-      # Cache crawled pages for seven days.
-      cache-ttl-seconds: 604800
-      # Include raw HTML in cached page records for debugging and reprocessing.
-      include-html: true
-      accept-language: en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7
-      # Default crawl_url mode: browser = Playwright Chromium rendering; java = JSoup HTTP with browser-like headers; auto = browser when enabled.
-      default-mode: browser
-      browser:
-        enabled: true
-        browsers-path: ${PLAYWRIGHT_BROWSERS_PATH:playwright-browsers}
-        skip-browser-download: ${PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD:false}
-        navigation-timeout-ms: 0
-        accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8
-        accept-language: en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7
-        referer:
-      proxy-pool:
-        # Shared crawler proxy pool. Supports HTTP and SOCKS/SOCKS5; username/password are optional.
-        enabled: false
-        default-pool: default
-        proxies: []
-        # Example:
-        # proxies:
-        #   - id: proxy-a
-        #     pool: default
-        #     type: HTTP
-        #     host: 127.0.0.1
-        #     port: 7890
-        #     username:
-        #     password:
-        #   - id: proxy-b
-        #     pool: search
-        #     type: SOCKS5
-        #     host: 127.0.0.1
-        #     port: 1080
-        #     tenant-ids: [tenant-a]
-        #     task-ids: [task-a]
-    livedata:
-      # Runtime values are maintained on the admin page. Database access is bound through a database asset.
-      enabled: false
-    calculator:
-      # Safe local arithmetic tool.
-      risk-level: low
-      operation-type: read
-      timeout-ms: 5000
-      confirmation:
-        default: auto_execute
-      parameter-policy:
-        expression: auto_execute
     document-search:
-      # Retrieves documents from the ChatChat runtime/API service.
       enabled: true
-      # Runtime/API retrieval service address. Set this when MCP Server and Runtime are deployed separately.
-      api-base-url: http://localhost:8080
-      search-path: /api/v1/search/document-search
-      detail-path-template: /api/v1/search/documents/{docId}
-      timeout-ms: 300000
-      default-limit: 5
-      max-limit: 20
+      api-base-url: ${CHATCHAT_API_BASE_URL:http://localhost:8080}
       auth:
-        # Login-based auth is used when bearer-token is empty.
-        enabled: true
-        login-path: /api/v1/enterprise/auth/login
-        username: admin
-        password: 123456
-        bearer-token: ""
-      risk-level: medium
-      confirmation:
-        default: ask_before_execute
+        username: ${CHATCHAT_INTERNAL_USERNAME:chatchat_mcp_internal}
+        encrypted-password: ${CHATCHAT_INTERNAL_ENCRYPTED_SECRET:}
+        password: ${CHATCHAT_INTERNAL_SECRET:chatchat_internal_default_secret}
+        bearer-token: ${CHATCHAT_API_AUTH_BEARER_TOKEN:}
     web-search:
       enabled: true
-      risk-level: low
-      operation-type: read
-      confirmation:
-        default: auto_execute
-      parameter-policy:
-        query: auto_execute
       provider: bing_html
       endpoint: https://cn.bing.com/search
-      user-agent: ChatChat-MCP-Server/1.0
-      # 0 means wait for web_search completion without a local request timeout.
       timeout-ms: 0
-      max-results: 10
-      fetch-pages: true
-      max-pages-to-fetch: 3
-      page-excerpt-chars: 2500
-      page-max-bytes: 1048576
-      fallback-enabled: true
-      default-mode: browser
-      browser-fallback-to-java: true
-      site-search:
-        enabled: true
-        default-mode: java
-        browser-fallback-to-java: true
-        max-pages-to-inspect: 3
-        max-secondary-pages: 3
-        max-links-per-page: 5
-      finance-sites:
-        - id: sse
-          name: Shanghai Stock Exchange
-          domain: www.sse.com.cn
-          homepage-url: https://www.sse.com.cn/
-          search-url-template: https://www.sse.com.cn/home/search/index.shtml?webswd={keyword}
-          query-param: webswd
-          default-mode: java
-          information-types:
-            - SSE listed company announcements
-            - Periodic reports
-            - Ad hoc announcements
-            - Regulatory disclosures
-            - Security code and company name lookup
-          description: Suitable for searching Shanghai-listed company announcements, annual/interim/quarterly reports, ad hoc announcements, regulatory disclosures, security codes, and company names.
-        - id: szse
-          name: Shenzhen Stock Exchange
-          domain: www.szse.cn
-          homepage-url: https://www.szse.cn/
-          search-url-template: https://www.szse.cn/application/search/index.html?keyword={keyword}
-          query-param: keyword
-          default-mode: browser
-          information-types:
-            - SZSE listed company announcements
-            - Periodic reports
-            - Ad hoc announcements
-            - Regulatory disclosures
-            - Security code and company name lookup
-          description: Suitable for searching Shenzhen Main Board and ChiNext company announcements, periodic reports, ad hoc announcements, regulatory disclosures, security codes, and company names.
-        - id: cninfo
-          name: CNINFO
-          domain: www.cninfo.com.cn
-          homepage-url: https://www.cninfo.com.cn/
-          search-url-template: https://www.cninfo.com.cn/new/fulltextSearch?notautosubmit=&keyWord={keyword}
-          query-param: keyWord
-          default-mode: browser
-          information-types:
-            - CNINFO full-text search
-            - Listed company announcements
-            - Periodic reports
-            - Ad hoc announcements
-            - Regulatory disclosures
-            - Security code and company name lookup
-          description: Suitable for cross-market searches of listed company announcements, annual/interim/quarterly reports, ad hoc announcements, regulatory disclosures, security codes, and company names.
       browser:
-        enabled: true
         browsers-path: ${PLAYWRIGHT_BROWSERS_PATH:playwright-browsers}
         skip-browser-download: ${CHAT_WEB_SEARCH_BROWSER_SKIP_DOWNLOAD:false}
-        persistent-enabled: true
-        # 0 disables Playwright navigation timeout.
-        navigation-timeout-ms: 0
-        accept-language: zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7
-        referer: https://cn.bing.com/
-        tls-fingerprint-profile: jdk-default
-      proxy-pool:
-        # Used by web_search, finance_site_search, and generic_web_site_search in both Java and browser modes.
-        # Supports HTTP and SOCKS/SOCKS5; username/password are optional.
-        enabled: false
-        default-pool: default
-        proxies: []
-        # Example:
-        # proxies:
-        #   - id: proxy-a
-        #     pool: default
-        #     type: HTTP
-        #     host: 127.0.0.1
-        #     port: 7890
-        #     username:
-        #     password:
-        #   - id: proxy-b
-        #     pool: search
-        #     type: SOCKS5
-        #     host: 127.0.0.1
-        #     port: 1080
-        #     tenant-ids: [tenant-a]
-        #     task-ids: [task-a]
-      retry:
-        max-attempts: 3
-        backoff-ms: 500
-        retry-status-codes: [403, 408, 429, 500, 502, 503, 504]
-        retry-body-keywords:
-          - captcha
-          - verify you are human
-          - too many requests
-      rate-limit:
-        enabled: true
-        max-concurrency: 5
-        qps: 1.0
-        daily-limit: 1000
-      cookie:
-        enabled: true
-        persist: false
-        store-path: ./data/web-search-cookies.json
-        isolation: proxy_task
-      allow-list:
-        enabled: false
-        domains:
-          - bing.com
-          - duckduckgo.com
-          - google.com
-          - news.google.com
-          - finance.yahoo.com
-          - reuters.com
-          - bloomberg.com
-          - localhost
-          - 127.0.0.1
-      audit:
-        enabled: true
-        include-in-result: true
-    database-query:
-      # Read-only SQL query tool for configured external databases.
-      enabled: true
-      risk-level: high
-      operation-type: read
-      user-visible: false
-      agent-compatible: false
-      confirmation:
-        default: ask_before_execute
-      parameter-policy:
-        # JDBC URL and password require confirmation because they may reveal sensitive infrastructure.
-        jdbc-url: ask_before_execute
-        password: ask_before_execute
-      default-max-rows: 50
-      max-rows: 500
-      # Statement timeout for database calls.
-      query-timeout-seconds: 15
-      # Extra JDBC drivers can be placed here in release packages.
-      driver-lib-path: ./lib/drivers
-    file-system:
-      # Local file inspection tool. Keep confirmation enabled because paths may expose sensitive files.
-      risk-level: high
-      operation-type: read
-      timeout-ms: 10000
-      confirmation:
-        default: ask_before_execute
-      parameter-policy:
-        path: ask_before_execute
+    web-crawler:
+      browser:
+        browsers-path: ${PLAYWRIGHT_BROWSERS_PATH:playwright-browsers}
+        skip-browser-download: ${PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD:false}
 
 logging:
   file:
@@ -504,51 +112,4 @@ logging:
     com.chatchat: INFO
     io.modelcontextprotocol: INFO
     org.springframework.boot.autoconfigure: WARN
-    org.springframework.boot.autoconfigure.logging.ConditionEvaluationReportLogger: WARN
     org.hibernate: WARN
-    org.hibernate.SQL: WARN
-    org.hibernate.orm.jdbc.bind: WARN
-    org.hibernate.type.descriptor.sql.BasicBinder: WARN
-  logback:
-    rollingpolicy:
-      max-file-size: 100MB
-      max-history: 30
-      total-size-cap: 3GB
-  pattern:
-    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
-
-# ---------------------------------------------------------------------------
-# Development search-engine profiles.
-# Default dev = H2 + local Lucene.
-# MySQL test: enable mysql profile, for example dev,mysql.
-# OpenSearch test: enable search-opensearch profile, for example dev,search-opensearch.
-# MySQL + OpenSearch: enable dev,mysql,search-opensearch.
-# ---------------------------------------------------------------------------
----
-spring:
-  config:
-    activate:
-      on-profile: search-lucene
-
-chatchat:
-  mcp:
-    lucene:
-      # Explicitly use local Lucene for easy switching with search-opensearch.
-      engine: lucene
-      # Development MCP Lucene index directory, isolated from package/prod runtime.
-      index-dir: ./data/lucene/mcp-dev
-
----
-spring:
-  config:
-    activate:
-      on-profile: search-opensearch
-
-chatchat:
-  mcp:
-    lucene:
-      # Explicitly use OpenSearch. Startup --search-engine=opensearch overrides to the same value.
-      engine: opensearch
-      open-search:
-        # Development index prefix. MCP creates multiple indexes under this prefix.
-        index-prefix: chatchat_mcp_dev_

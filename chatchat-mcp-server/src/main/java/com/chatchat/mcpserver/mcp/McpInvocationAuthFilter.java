@@ -1,5 +1,6 @@
 package com.chatchat.mcpserver.mcp;
 
+import com.chatchat.common.security.InternalCredentialProperties;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -19,6 +20,7 @@ public class McpInvocationAuthFilter extends OncePerRequestFilter {
 
     private final McpSecurityProperties securityProperties;
     private final McpServiceRegistryService registryService;
+    private final InternalCredentialProperties internalCredentialProperties;
     private final ObjectMapper objectMapper;
 
     /**
@@ -39,7 +41,7 @@ public class McpInvocationAuthFilter extends OncePerRequestFilter {
         }
 
         String token = resolveInvocationToken(request);
-        if (securityProperties.matchesInvocationToken(token) || registryService.isValidToken(token)) {
+        if (securityProperties.matchesInvocationToken(token, internalCredentialProperties) || registryService.isValidToken(token)) {
             filterChain.doFilter(request, response);
             return;
         }

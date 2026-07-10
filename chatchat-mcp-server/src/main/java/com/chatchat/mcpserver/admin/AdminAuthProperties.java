@@ -7,6 +7,7 @@ public class AdminAuthProperties {
 
     private String username = "";
     private String password = "";
+    private String encryptedPassword = "";
     private String passwordStorePath = "./data/admin-password.properties";
     private long tokenTtlMinutes = 480;
 
@@ -44,6 +45,14 @@ public class AdminAuthProperties {
      */
     public void setPassword(String password) {
         this.password = password;
+    }
+
+    public String getEncryptedPassword() {
+        return encryptedPassword;
+    }
+
+    public void setEncryptedPassword(String encryptedPassword) {
+        this.encryptedPassword = encryptedPassword;
     }
 
     /**

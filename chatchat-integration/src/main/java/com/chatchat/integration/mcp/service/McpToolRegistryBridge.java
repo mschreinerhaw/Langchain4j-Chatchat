@@ -401,6 +401,9 @@ public class McpToolRegistryBridge {
         if (conversationId != null) {
             arguments.putIfAbsent("conversationId", conversationId);
         }
+        copyContextMap(arguments, inputContext, "defaultDataAsset");
+        copyContextMap(arguments, inputContext, "assetSelectionPolicy");
+        copyContextMap(arguments, inputContext, "mcpExecutionContext");
 
         Map<String, Object> mcpContext = arguments.get("mcpContext") instanceof Map<?, ?> map
             ? new LinkedHashMap<>((Map<String, Object>) map)
@@ -421,6 +424,17 @@ public class McpToolRegistryBridge {
             mcpContext.putIfAbsent("conversationId", conversationId);
         }
         arguments.put("mcpContext", mcpContext);
+    }
+
+    @SuppressWarnings("unchecked")
+    private void copyContextMap(Map<String, Object> arguments, Map<String, Object> inputContext, String key) {
+        if (arguments == null || inputContext == null || key == null || key.isBlank() || arguments.containsKey(key)) {
+            return;
+        }
+        Object value = inputContext.get(key);
+        if (value instanceof Map<?, ?> map && !map.isEmpty()) {
+            arguments.put(key, new LinkedHashMap<>((Map<String, Object>) map));
+        }
     }
 
     private String firstText(String... values) {

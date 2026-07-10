@@ -1,0 +1,139 @@
+﻿# ChatChat API preset: OpenSearch + MySQL.
+# Rename or copy this file to an application-*.yml file that Spring Boot loads.
+# Example: application-prod.yml for production-like deployment.
+
+spring:
+  application:
+    name: chatchat
+    version: 1.0.0-SNAPSHOT
+  datasource:
+    type: com.zaxxer.hikari.HikariDataSource
+    url: "${CHATCHAT_API_MYSQL_URL:jdbc:mysql://localhost:3306/chatchat_api?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true}"
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    username: ${CHATCHAT_API_MYSQL_USERNAME:chatchat}
+    password: ${CHATCHAT_API_MYSQL_ENCRYPTED_PASSWORD:${CHATCHAT_API_MYSQL_PASSWORD:}}
+  h2:
+    console:
+      enabled: false
+  jpa:
+    hibernate:
+      ddl-auto: update
+    database-platform: org.hibernate.dialect.MySQLDialect
+    show-sql: false
+  web:
+    resources:
+      static-locations: classpath:/static/
+  mvc:
+    static-path-pattern: /**
+    throw-exception-if-no-handler-found: true
+  resources:
+    add-mappings: false
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 32MB
+
+server:
+  port: ${CHATCHAT_API_PORT:8080}
+  servlet:
+    context-path: /
+  shutdown: graceful
+  tomcat:
+    max-http-form-post-size: 33554432
+    max-swallow-size: -1
+  error:
+    include-stacktrace: never
+    include-message: never
+
+chatchat:
+  internal-credential:
+    enabled: true
+    username: ${CHATCHAT_INTERNAL_USERNAME:chatchat_mcp_internal}
+    encrypted-secret: ${CHATCHAT_INTERNAL_ENCRYPTED_SECRET:}
+    secret: ${CHATCHAT_INTERNAL_SECRET:chatchat_internal_default_secret}
+    crypto-key: ${CHATCHAT_INTERNAL_CRYPTO_KEY:}
+    crypto-key-file: ${CHATCHAT_INTERNAL_CRYPTO_KEY_FILE:}
+  mcp:
+    center:
+      enabled: true
+      base-url: ${CHATCHAT_MCP_CENTER_BASE_URL:http://localhost:8090}
+      admin-username: ${CHATCHAT_INTERNAL_USERNAME:chatchat_mcp_internal}
+      encrypted-admin-password: ${CHATCHAT_INTERNAL_ENCRYPTED_SECRET:}
+      admin-password: ${CHATCHAT_INTERNAL_SECRET:chatchat_internal_default_secret}
+      encrypted-invocation-token: ${CHATCHAT_INTERNAL_ENCRYPTED_SECRET:}
+      invocation-token: ${CHATCHAT_INTERNAL_SECRET:chatchat_internal_default_secret}
+      timeout-ms: 300000
+      import-standalone-server: true
+    stdio-proxy:
+      enabled: true
+      command-allow-list:
+        - npx
+        - node
+        - uvx
+        - python
+        - python3
+  models:
+    defaultProvider: openai
+    defaultChatModel: ${CHATCHAT_DEFAULT_CHAT_MODEL:deepseek-v4-pro}
+    availableChatModels:
+      - ${CHATCHAT_DEFAULT_CHAT_MODEL:deepseek-v4-pro}
+    openai:
+      apiKey: ${OPENAI_API_KEY:${DASHSCOPE_API_KEY:}}
+      baseUrl: ${OPENAI_BASE_URL:https://api.openai.com/v1}
+      timeout: ${OPENAI_TIMEOUT_MS:300000}
+      maxTokens: ${OPENAI_MAX_TOKENS:-1}
+      maxRetries: ${OPENAI_MAX_RETRIES:3}
+  search:
+    engine: opensearch
+    store-path: ./data/search-rocksdb
+    file-path: ./data/search-files
+    rebuild-on-startup: false
+    opensearch:
+      enabled: true
+      url: ${CHATCHAT_OPENSEARCH_URL:https://localhost:9200}
+      username: ${CHATCHAT_OPENSEARCH_USERNAME:admin}
+      password: ${CHATCHAT_OPENSEARCH_ENCRYPTED_PASSWORD:${CHATCHAT_OPENSEARCH_PASSWORD:}}
+      index-name: ${CHATCHAT_API_OPENSEARCH_INDEX:chatchat_documents}
+      insecure-ssl: ${CHATCHAT_OPENSEARCH_INSECURE_SSL:true}
+      connect-timeout-ms: 5000
+      request-timeout-ms: 30000
+      bulk-batch-size: 200
+      embedding:
+        enabled: ${CHATCHAT_OPENSEARCH_EMBEDDING_ENABLED:false}
+        endpoint: ${CHATCHAT_EMBEDDING_ENDPOINT:}
+        api-key: ${CHATCHAT_EMBEDDING_ENCRYPTED_API_KEY:${CHATCHAT_EMBEDDING_API_KEY:}}
+        model: ${CHATCHAT_EMBEDDING_MODEL:text-embedding-v4}
+        dimension: ${CHATCHAT_EMBEDDING_DIMENSION:1024}
+        vector-field: contentVector
+        max-input-chars: 6000
+        vector-candidate-limit: 50
+  tools:
+    document-search:
+      api-base-url: ${CHATCHAT_API_BASE_URL:http://localhost:8080}
+      auth:
+        username: ${CHATCHAT_INTERNAL_USERNAME:chatchat_mcp_internal}
+        encrypted-password: ${CHATCHAT_INTERNAL_ENCRYPTED_SECRET:}
+        password: ${CHATCHAT_INTERNAL_SECRET:chatchat_internal_default_secret}
+        bearer-token: ${CHATCHAT_API_AUTH_BEARER_TOKEN:}
+
+springdoc:
+  api-docs:
+    path: /api-docs
+    enabled: true
+  swagger-ui:
+    enabled: false
+
+logging:
+  file:
+    name: logs/chatchat.log
+  level:
+    com.chatchat: INFO
+    org.springframework.web: INFO
+    org.springframework.security: INFO
+    org.hibernate: WARN
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics,info

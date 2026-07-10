@@ -1,0 +1,102 @@
+﻿# ChatChat MCP Server preset: Lucene + H2.
+# Rename or copy this file to an application-*.yml file that Spring Boot loads.
+# Example: application-dev.yml for local development.
+
+spring:
+  application:
+    name: chatchat-mcp-server
+  datasource:
+    type: com.zaxxer.hikari.HikariDataSource
+    url: "jdbc:h2:file:./data/h2/chatchat-mcp-server;MODE=MySQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE;DB_CLOSE_DELAY=-1"
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  h2:
+    console:
+      enabled: false
+  jpa:
+    hibernate:
+      ddl-auto: update
+    database-platform: org.hibernate.dialect.H2Dialect
+    show-sql: false
+
+server:
+  port: ${CHATCHAT_MCP_PORT:8090}
+  servlet:
+    context-path: /
+  shutdown: graceful
+
+chatchat:
+  internal-credential:
+    enabled: true
+    username: ${CHATCHAT_INTERNAL_USERNAME:chatchat_mcp_internal}
+    encrypted-secret: ${CHATCHAT_INTERNAL_ENCRYPTED_SECRET:}
+    secret: ${CHATCHAT_INTERNAL_SECRET:chatchat_internal_default_secret}
+    crypto-key: ${CHATCHAT_INTERNAL_CRYPTO_KEY:}
+    crypto-key-file: ${CHATCHAT_INTERNAL_CRYPTO_KEY_FILE:}
+  mcp:
+    admin:
+      username: ${CHATCHAT_MCP_ADMIN_USERNAME:admin}
+      password: ${CHATCHAT_MCP_ADMIN_PASSWORD:admin123}
+      encrypted-password: ${CHATCHAT_MCP_ADMIN_ENCRYPTED_PASSWORD:}
+      token-ttl-minutes: ${CHATCHAT_MCP_ADMIN_TOKEN_TTL_MINUTES:480}
+    security:
+      require-mcp-token: true
+      encrypted-invocation-token: ${CHATCHAT_INTERNAL_ENCRYPTED_SECRET:}
+      invocation-token: ${CHATCHAT_INTERNAL_SECRET:chatchat_internal_default_secret}
+    authorization:
+      enabled: ${CHATCHAT_MCP_AUTHORIZATION_ENABLED:false}
+      api-base-url: ${CHATCHAT_API_BASE_URL:http://localhost:8080}
+      auth:
+        username: ${CHATCHAT_INTERNAL_USERNAME:chatchat_mcp_internal}
+        encrypted-password: ${CHATCHAT_INTERNAL_ENCRYPTED_SECRET:}
+        password: ${CHATCHAT_INTERNAL_SECRET:chatchat_internal_default_secret}
+        bearer-token: ${CHATCHAT_API_AUTH_BEARER_TOKEN:}
+    command-templates:
+      seed-defaults-enabled: true
+    sql-templates:
+      seed-defaults-enabled: true
+    lucene:
+      enabled: true
+      engine: lucene
+      index-dir: ./data/lucene/mcp
+    server:
+      endpoint: /mcp
+      document-search:
+        api-base-url: ${CHATCHAT_API_BASE_URL:http://localhost:8080}
+        auth:
+          username: ${CHATCHAT_INTERNAL_USERNAME:chatchat_mcp_internal}
+          encrypted-password: ${CHATCHAT_INTERNAL_ENCRYPTED_SECRET:}
+          password: ${CHATCHAT_INTERNAL_SECRET:chatchat_internal_default_secret}
+          bearer-token: ${CHATCHAT_API_AUTH_BEARER_TOKEN:}
+  tools:
+    document-search:
+      enabled: true
+      api-base-url: ${CHATCHAT_API_BASE_URL:http://localhost:8080}
+      auth:
+        username: ${CHATCHAT_INTERNAL_USERNAME:chatchat_mcp_internal}
+        encrypted-password: ${CHATCHAT_INTERNAL_ENCRYPTED_SECRET:}
+        password: ${CHATCHAT_INTERNAL_SECRET:chatchat_internal_default_secret}
+        bearer-token: ${CHATCHAT_API_AUTH_BEARER_TOKEN:}
+    web-search:
+      enabled: true
+      provider: bing_html
+      endpoint: https://cn.bing.com/search
+      timeout-ms: 0
+      browser:
+        browsers-path: ${PLAYWRIGHT_BROWSERS_PATH:playwright-browsers}
+        skip-browser-download: ${CHAT_WEB_SEARCH_BROWSER_SKIP_DOWNLOAD:false}
+    web-crawler:
+      browser:
+        browsers-path: ${PLAYWRIGHT_BROWSERS_PATH:playwright-browsers}
+        skip-browser-download: ${PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD:false}
+
+logging:
+  file:
+    name: ./logs/chatchat-mcp-server.log
+  level:
+    root: INFO
+    com.chatchat: INFO
+    io.modelcontextprotocol: INFO
+    org.springframework.boot.autoconfigure: WARN
+    org.hibernate: WARN

@@ -1,5 +1,6 @@
 package com.chatchat.mcpserver.mcp;
 
+import com.chatchat.common.security.InternalCredentialProperties;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 @ConfigurationProperties(prefix = "chatchat.mcp.security")
@@ -7,6 +8,7 @@ public class McpSecurityProperties {
 
     private boolean requireMcpToken = true;
     private String invocationToken = "";
+    private String encryptedInvocationToken = "";
 
     /**
      * Returns whether is require mcp token.
@@ -34,11 +36,32 @@ public class McpSecurityProperties {
         this.invocationToken = invocationToken;
     }
 
+    public String getEncryptedInvocationToken() {
+        return encryptedInvocationToken;
+    }
+
+    public void setEncryptedInvocationToken(String encryptedInvocationToken) {
+        this.encryptedInvocationToken = encryptedInvocationToken;
+    }
+
     public boolean matchesInvocationToken(String token) {
+        return matchesInvocationToken(token, null);
+    }
+
+    public boolean matchesInvocationToken(String token, InternalCredentialProperties internalCredentialProperties) {
+        String configuredToken = resolvedInvocationToken(internalCredentialProperties);
         return token != null
             && !token.isBlank()
-            && invocationToken != null
-            && !invocationToken.isBlank()
-            && invocationToken.trim().equals(token.trim());
+            && configuredToken != null
+            && !configuredToken.isBlank()
+            && configuredToken.trim().equals(token.trim());
+    }
+
+    public String resolvedInvocationToken(InternalCredentialProperties internalCredentialProperties) {
+        if (internalCredentialProperties == null) {
+            return invocationToken == null ? "" : invocationToken.trim();
+        }
+        String resolved = internalCredentialProperties.resolveSecret(encryptedInvocationToken, invocationToken);
+        return resolved.isBlank() ? internalCredentialProperties.resolvedSecret() : resolved;
     }
 }

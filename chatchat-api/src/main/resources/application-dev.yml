@@ -1,33 +1,21 @@
-spring:
+﻿spring:
   application:
     name: chatchat
     version: 1.0.0-SNAPSHOT
-  jpa:
-    hibernate:
-      ddl-auto: update
-    show-sql: false
-    database-platform: org.hibernate.dialect.H2Dialect
-    properties:
-      hibernate:
-        format_sql: false
   datasource:
     type: com.zaxxer.hikari.HikariDataSource
-    url: jdbc:h2:file:./data/h2/chatchat;MODE=MySQL;DATABASE_TO_LOWER=TRUE;CASE_INSENSITIVE_IDENTIFIERS=TRUE;DB_CLOSE_DELAY=-1
-    driver-class-name: org.h2.Driver
-    username: sa
-    password: 
-    hikari:
-      maximum-pool-size: 20
-      minimum-idle: 2
-      connection-timeout: 30000
-      idle-timeout: 300000
-      max-lifetime: 1200000
-      auto-commit: true
-      transaction-isolation: TRANSACTION_READ_COMMITTED
+    url: "${CHATCHAT_API_MYSQL_URL:jdbc:mysql://192.168.195.221:3306/live_runtime_api?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true}"
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    username: ${CHATCHAT_API_MYSQL_USERNAME:livebos}
+    password: ${CHATCHAT_API_MYSQL_ENCRYPTED_PASSWORD:apexSoft123!}
   h2:
     console:
       enabled: false
-      path: /h2-console
+  jpa:
+    hibernate:
+      ddl-auto: update
+    database-platform: org.hibernate.dialect.MySQLDialect
+    show-sql: false
   web:
     resources:
       static-locations: classpath:/static/
@@ -42,44 +30,35 @@ spring:
       max-request-size: 32MB
 
 server:
-  port: 8080
+  port: ${CHATCHAT_API_PORT:8080}
   servlet:
     context-path: /
   shutdown: graceful
   tomcat:
-    threads:
-      max: 200
-      min-spare: 10
-    max-connections: 500
     max-http-form-post-size: 33554432
     max-swallow-size: -1
-  error:
-    include-stacktrace: on-param
-    include-message: always
 
 chatchat:
+  internal-credential:
+    enabled: true
+    username: ${CHATCHAT_INTERNAL_USERNAME:chatchat_mcp_internal}
+    encrypted-secret: ${CHATCHAT_INTERNAL_ENCRYPTED_SECRET:}
+    secret: ${CHATCHAT_INTERNAL_SECRET:chatchat_internal_default_secret}
+    crypto-key: ${CHATCHAT_INTERNAL_CRYPTO_KEY:}
+    crypto-key-file: ${CHATCHAT_INTERNAL_CRYPTO_KEY_FILE:}
   mcp:
     center:
       enabled: true
-      base-url: http://localhost:8090
-      admin-username: admin
-      admin-password: admin123
-      admin-login-path: /api/v1/admin/auth/login
-      service-list-path: /api/v1/mcp-services
-      mcp-endpoint: /mcp
-      standalone-service-id: chatchat-mcp-server
-      standalone-service-name: ChatChat MCP Server
-      invocation-token: mcp_test_8f3c7b2a9e6d4f10b5a92cdd0e7a6413
-      timeout-ms: 300000
+      base-url: ${CHATCHAT_MCP_CENTER_BASE_URL:http://localhost:8090}
+      admin-username: ${CHATCHAT_INTERNAL_USERNAME:chatchat_mcp_internal}
+      encrypted-admin-password: ${CHATCHAT_INTERNAL_ENCRYPTED_SECRET:}
+      admin-password: ${CHATCHAT_INTERNAL_SECRET:chatchat_internal_default_secret}
+      encrypted-invocation-token: ${CHATCHAT_INTERNAL_ENCRYPTED_SECRET:}
+      invocation-token: ${CHATCHAT_INTERNAL_SECRET:chatchat_internal_default_secret}
+      timeout-ms: 0
       import-standalone-server: true
     stdio-proxy:
       enabled: true
-      max-sessions: 32
-      # 0 means wait for MCP tool completion without a proxy request timeout.
-      request-timeout-ms: 0
-      startup-timeout-ms: 15000
-      idle-ttl-ms: 300000
-      cleanup-interval-ms: 30000
       command-allow-list:
         - npx
         - node
@@ -88,425 +67,64 @@ chatchat:
         - python3
   models:
     defaultProvider: openai
-    defaultChatModel: deepseek-v4-pro
+    defaultChatModel: ${CHATCHAT_DEFAULT_CHAT_MODEL:deepseek-v4-pro}
     availableChatModels:
-#      - qwen3.6-plus
-      - deepseek-v4-pro
-#      - qwen3.5-35b-a3b
-#      - qwen3.6-35b-a3b
-#      - qwen-flash-character
-#      - qwen3.6-max-preview
-#    timeout: 0
+      - ${CHATCHAT_DEFAULT_CHAT_MODEL:deepseek-v4-pro}
     openai:
-      # OpenAI-compatible API key. For DashScope compatible mode, set DASHSCOPE_API_KEY or OPENAI_API_KEY.
-#      api-key: sk-720436c855ac470bb955388d0e8c9b89
-      api-key: sk-7f5c64a84f774201829be1dc7193d09a
-#      baseUrl: https://dashscope.aliyuncs.com/compatible-mode/v1
-      baseUrl: https://api.deepseek.com
-#      baseUrl: https://api.deepseek.com/v1
-      # 0 means do not set a client-side model request timeout.
-      timeout: 300000
-      # Maximum model completion tokens. -1 means do not set a model-side token limit.
-      maxTokens: -1
-      maxRetries: 3
-      proxy:
-        enabled: false
-        host: 
-        port: 0
-        type: http
-  agent-runtime:
-    store-type: rocksdb
-    rocks-db-path: ./data/agent-runtime-rocksdb
-    rocks-db-create-if-missing: true
-    fail-interrupted-runs-on-startup: true
-    max-stored-runs: 10000
-    terminal-run-ttl-ms: 0
-  api:
-    limits:
-      # Frontend search result chunk count. -1 means unlimited.
-      search-result-max-chunks: 3
-      # Frontend search result chunk character limit. -1 means unlimited.
-      search-result-chunk-max-chars: 1200
-      # Frontend search result summary character limit. -1 means unlimited.
-      search-result-summary-max-chars: 800
-  agent:
-    task:
-      queue-capacity: 1000
-      core-pool-size: 4
-      max-pool-size: 16
-      keep-alive-seconds: 60
-      list-limit: 50
-      event-store:
-        type: rocksdb
-        path: ./data/agent-event-rocksdb
-        create-if-missing: true
+      apiKey: sk-7f5c64a84f774201829be1dc7193d09a
+      baseUrl: ${OPENAI_BASE_URL:https://api.deepseek.com}
+      timeout: ${OPENAI_TIMEOUT_MS:300000}
+      maxTokens: ${OPENAI_MAX_TOKENS:-1}
+      maxRetries: ${OPENAI_MAX_RETRIES:3}
   search:
+    engine: opensearch
     store-path: ./data/search-rocksdb
     file-path: ./data/search-files
-    create-if-missing: true
-    max-upload-bytes: 5242880
-    default-limit: 20
-    max-limit: 100
-    summary-length: 180
-    # Startup full index rebuild is slow when documents grow. Upload/update/delete already syncs indexes incrementally.
-    # Set true only when local Lucene/OpenSearch index files were lost or need manual repair.
     rebuild-on-startup: false
-    # 文档检索引擎：
-    # - lucene：默认值，使用本机磁盘索引，适合本地开发、单机快速部署。
-    # - opensearch：使用远程 OpenSearch 集群，适合多实例共享索引或生产集中检索。
-    # 启动脚本传 --search-engine=opensearch 会覆盖这里的配置。
-    engine: lucene
-    # 仅当 engine=opensearch 时生效。API 文档检索会把上传文档分片写入这个索引。
     opensearch:
-      # false 表示即使 engine=opensearch 也不连接 OpenSearch，会回退到本地 Lucene。
       enabled: true
-      # OpenSearch HTTPS 地址，支持带路径前缀但不要以 / 结尾。
-      url: https://192.168.195.221:9200
-      username: admin
-      password: apexSoft12345
-      # API 文档检索使用的索引名。
-      index-name: chatchat_documents
-      # 开发/测试集群如果使用自签名 HTTPS 证书，设为 true，等价于 curl -k。
-      insecure-ssl: true
+      url: ${CHATCHAT_OPENSEARCH_URL:https://192.168.195.221:9200}
+      username: ${CHATCHAT_OPENSEARCH_USERNAME:admin}
+      password: ${CHATCHAT_OPENSEARCH_ENCRYPTED_PASSWORD:apexSoft12345}
+      index-name: ${CHATCHAT_API_OPENSEARCH_INDEX:chatchat_documents_dev}
+      insecure-ssl: ${CHATCHAT_OPENSEARCH_INSECURE_SSL:true}
       connect-timeout-ms: 5000
       request-timeout-ms: 30000
-      # 重建索引时每批写入的文档分片数量。
       bulk-batch-size: 200
       embedding:
-        # 向量增强检索开关。开启后写入 contentVector，并在查询时做 BM25 + KNN 融合。
-        # 如果当前 OpenSearch 没有 knn_vector 能力，会自动降级为 BM25 候选集的向量重排。
-        enabled: true
-        # 阿里云百炼/DashScope OpenAI compatible embeddings 地址，替换 {WorkspaceId} 后使用。
-        endpoint: https://llm-7upawl16up8649rh.cn-beijing.maas.aliyuncs.com/compatible-mode/v1/embeddings
-        # 百炼 API Key。开发测试可直接填值；不要提交真实密钥。
-        api-key: "sk-720436c855ac470bb955388d0e8c9b89"
-        model: text-embedding-v4
-        # text-embedding-v4 默认按 1024 维建 knn_vector；如果模型输出维度变化，只需要改这里并重建索引。
-        dimension: 1024
+        enabled: ${CHATCHAT_OPENSEARCH_EMBEDDING_ENABLED:true}
+        endpoint: ${CHATCHAT_EMBEDDING_ENDPOINT:https://llm-7upawl16up8649rh.cn-beijing.maas.aliyuncs.com/compatible-mode/v1/embeddings}
+        api-key: sk-720436c855ac470bb955388d0e8c9b89
+        model: ${CHATCHAT_EMBEDDING_MODEL:text-embedding-v4}
+        dimension: ${CHATCHAT_EMBEDDING_DIMENSION:1024}
         vector-field: contentVector
         max-input-chars: 6000
         vector-candidate-limit: 50
-        # 融合排序权重：关键词、向量、标题/章节命中、位置新鲜度、公开/租户可见度。
-        bm25-weight: 0.45
-        vector-weight: 0.35
-        title-weight: 0.10
-        freshness-weight: 0.05
-        authority-weight: 0.05
-    fallback-candidate-limit: 500
-    fallback-empty-result-limit: 200
-    fallback-exception-limit: 100
-    tenant-isolation-enabled: false
-    lucene-max-query-terms: 80
-    lucene-max-negative-query-terms: 24
-    lucene-mmr-candidate-limit: 120
-    realtime-document-count-enabled: false
-    query-budget:
-      max-doc-scan: 1000
-      max-rocksdb-iter: 2000
-    retrieval-control:
-      enabled: true
-      query-validation-enabled: true
-      quality-scoring-enabled: true
-      max-search-calls: 1
-      max-attempts: 1
-      latency-ms: 100
-      min-quality-score: 20.0
-      min-specific-tokens: 2
-    ocr:
-      enabled: true
-      language: eng+chi_sim
-      timeout-seconds: 60
-      preserve-interword-spacing: true
-      image-preprocessing-enabled: true
-      pdf-strategy: auto
-      marker: "# OCR_TEXT"
-      score-penalty: 0.7
   tools:
-    calculator:
-      risk-level: low
-      operation-type: read
-      timeout-ms: 0
-      confirmation:
-        default: auto_execute
-      parameter-policy:
-        expression: auto_execute
-    web-search:
-      risk-level: low
-      operation-type: read
-      confirmation:
-        default: auto_execute
-      parameter-policy:
-        query: auto_execute
-      finance-sites:
-        - id: sse
-          name: Shanghai Stock Exchange
-          domain: www.sse.com.cn
-          homepage-url: https://www.sse.com.cn/
-          search-url-template: https://www.sse.com.cn/home/search/index.shtml?webswd={keyword}
-          query-param: webswd
-          default-mode: java
-          information-types:
-            - SSE listed company announcements
-            - Periodic reports
-            - Ad hoc announcements
-            - Regulatory disclosures
-            - Security code and company name lookup
-          description: Suitable for searching Shanghai-listed company announcements, annual/interim/quarterly reports, ad hoc announcements, regulatory disclosures, security codes, and company names.
-        - id: szse
-          name: Shenzhen Stock Exchange
-          domain: www.szse.cn
-          homepage-url: https://www.szse.cn/
-          search-url-template: https://www.szse.cn/application/search/index.html?keyword={keyword}
-          query-param: keyword
-          default-mode: browser
-          information-types:
-            - SZSE listed company announcements
-            - Periodic reports
-            - Ad hoc announcements
-            - Regulatory disclosures
-            - Security code and company name lookup
-          description: Suitable for searching Shenzhen Main Board and ChiNext company announcements, periodic reports, ad hoc announcements, regulatory disclosures, security codes, and company names.
-        - id: cninfo
-          name: CNINFO
-          domain: www.cninfo.com.cn
-          homepage-url: https://www.cninfo.com.cn/
-          search-url-template: https://www.cninfo.com.cn/new/fulltextSearch?notautosubmit=&keyWord={keyword}
-          query-param: keyWord
-          default-mode: browser
-          information-types:
-            - CNINFO full-text search
-            - Listed company announcements
-            - Periodic reports
-            - Ad hoc announcements
-            - Regulatory disclosures
-            - Security code and company name lookup
-          description: Suitable for cross-market searches of listed company announcements, annual/interim/quarterly reports, ad hoc announcements, regulatory disclosures, security codes, and company names.
     document-search:
-      enabled: true
-      # Runtime/API retrieval service address. For the standalone MCP Server, point this to the Runtime/API host.
-      api-base-url: http://localhost:8080
-      search-path: /api/v1/search/document-search
-      detail-path-template: /api/v1/search/documents/{docId}
-      timeout-ms: 300000
-      default-limit: 5
-      max-limit: 20
+      api-base-url: ${CHATCHAT_API_BASE_URL:http://localhost:8080}
       auth:
-        enabled: true
-        login-path: /api/v1/enterprise/auth/login
-        username: admin
-        password: 123456
-        bearer-token: 
-      risk-level: medium
-      confirmation:
-        default: ask_before_execute
-    database-query:
-      risk-level: high
-      operation-type: read
-      user-visible: false
-      agent-compatible: false
-      confirmation:
-        default: ask_before_execute
-      parameter-policy:
-        jdbc-url: ask_before_execute
-        password: ask_before_execute
-    file-system:
-      risk-level: high
-      operation-type: read
-      timeout-ms: 0
-      confirmation:
-        default: ask_before_execute
-      parameter-policy:
-        path: ask_before_execute
-  tool-runtime:
-    enforce-allowed-tools: true
-    enforce-authentication: true
-    default-max-calls-per-minute: 0
-    circuit-breaker-failure-threshold: 3
-    circuit-breaker-open-seconds: 60
-    top-tool-limit: 6
-    # 0 means wait for tool completion without a runtime timeout.
-    default-tool-timeout-ms: 0
-    execution-core-pool-size: 4
-    execution-max-pool-size: 32
-    execution-queue-capacity: 256
-  chat:
-    defaultTimeout: 30
-    streamingTimeout: 300
-    # User message length limit. -1 means unlimited when enforced by clients.
-    maxMessageLength: 4096
-    conversationHistorySize: 20
-    context:
-      recent-message-limit: 8
-      summary-trigger-messages: 12
-      summary-keep-recent-messages: 6
-      # Conversation summary character limit. -1 means unlimited.
-      summary-max-chars: 1600
-      summary-enabled: true
-    detail-store:
-      type: rocksdb
-      path: ./data/chat-rocksdb
-      create-if-missing: true
-
-mcp-policy:
-  enabled: true
-  risk-policy:
-    low: auto_execute
-    medium: ask_before_execute
-    high: ask_before_execute
-    forbidden: deny
-  tool-policy:
-    calculator: auto_execute
-    query_dictionary: auto_execute
-    web_search: auto_execute
-    document_search: ask_before_execute
-    database_query: ask_before_execute
-    file_system: ask_before_execute
-    send_email: ask_before_execute
-    delete_record: deny
-  parameter-policy:
-    send_email:
-      recipient_count_gt_10: ask_before_execute
-      external_domain: ask_before_execute
-    execute_sql:
-      contains_delete: deny
-      contains_update: ask_before_execute
-      contains_drop: deny
-    query_customer_asset:
-      customer_detail: ask_before_execute
-      branch_summary: auto_execute
-    calculator:
-      expression: auto_execute
-    web_search:
-      query: auto_execute
-    document_search:
-      document_ids: ask_before_execute
-      tags: auto_execute
-    database_query:
-      contains_delete: deny
-      contains_update: ask_before_execute
-      contains_drop: deny
-      jdbc_url: ask_before_execute
-      password: ask_before_execute
-    file_system:
-      operation: ask_before_execute
-      path: ask_before_execute
-
-mcp-workflow:
-  enabled: true
-  workflows:
-    customer_asset_analysis:
-      execution-strategy:
-        mode: sequential
-        stop-on-error: true
-        max-steps: 6
-        allow-parallel: false
-      steps:
-        - step: 1
-          tool: get_user_permission
-          required: true
-        - step: 2
-          tool: query_customer_basic_info
-          required: true
-        - step: 3
-          tool: query_customer_asset_summary
-          required: true
-          confirmation: ask_before_execute
-        - step: 4
-          tool: query_customer_position_detail
-          required: false
-          depends-on:
-            - query_customer_basic_info
-            - query_customer_asset_summary
-        - step: 5
-          tool: query_high_value_customer_profile
-          required: false
-          condition: asset_total > 1000000
-        - step: 6
-          tool: generate_analysis_report
-          required: true
-          depends-on:
-            - query_customer_asset_summary
-  tool-dependencies:
-    query_customer_position_detail:
-      depends-on:
-        - query_customer_basic_info
-        - query_customer_asset_summary
-    generate_analysis_report:
-      depends-on:
-        - query_customer_asset_summary
+        username: ${CHATCHAT_INTERNAL_USERNAME:chatchat_mcp_internal}
+        password: ${CHATCHAT_INTERNAL_SECRET:chatchat_internal_default_secret}
 
 springdoc:
   api-docs:
     path: /api-docs
     enabled: true
   swagger-ui:
-    path: /swagger-ui.html
     enabled: false
-    display-request-duration: true
-    try-it-out-enabled: true
-  show-actuator: false
-  use-fqn: false
 
 logging:
+  file:
+    name: logs/chatchat.log
   level:
-    com.chatchat: INFO
+    com.chatchat: DEBUG
     org.springframework.web: INFO
     org.springframework.security: DEBUG
     org.hibernate: WARN
-    org.hibernate.SQL: WARN
-    org.hibernate.orm.jdbc.bind: WARN
-    org.hibernate.type.descriptor.sql.BasicBinder: WARN
-  pattern:
-    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
-    file: "%d{yyyy-MM-dd HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n"
-  file:
-    name: logs/chatchat.log
-    max-size: 10MB
-    max-history: 30
 
 management:
   endpoints:
     web:
       exposure:
         include: health,metrics,info
-  endpoint:
-    health:
-      show-details: when-authorized
-  metrics:
-    distribution:
-      percentiles-histogram:
-        http.server.requests: true
-
-# ---------------------------------------------------------------------------
-# 开发检索引擎组合 profile
-# 默认 dev = H2 + 本地 Lucene。
-# MySQL 测试：激活 mysql profile，例如 dev,mysql。
-# OpenSearch 测试：激活 search-opensearch profile，例如 dev,search-opensearch。
-# MySQL + OpenSearch：激活 dev,mysql,search-opensearch。
-# ---------------------------------------------------------------------------
----
-spring:
-  config:
-    activate:
-      on-profile: search-lucene
-
-chatchat:
-  search:
-    # 显式使用本地 Lucene，便于和 search-opensearch profile 来回切换。
-    engine: lucene
-    # 开发环境 Lucene 索引目录，避免和生产/打包运行目录混用。
-    lucene-index-path: ./data/search-lucene-dev
-
----
-spring:
-  config:
-    activate:
-      on-profile: search-opensearch
-
-chatchat:
-  search:
-    # 显式使用 OpenSearch。启动脚本 --search-engine=opensearch 等价于覆盖这个值。
-    engine: opensearch
-    opensearch:
-      # 开发环境独立索引名，避免污染生产文档检索索引。
-      index-name: chatchat_documents_dev

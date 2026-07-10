@@ -1,5 +1,6 @@
 package com.chatchat.integration.mcp.service;
 
+import com.chatchat.common.security.InternalCredentialProperties;
 import com.chatchat.integration.mcp.entity.McpServiceConfig;
 import com.chatchat.integration.mcp.config.McpCenterProperties;
 import com.chatchat.integration.mcp.model.McpToolDefinition;
@@ -78,6 +79,7 @@ public class McpGatewayClient {
 
     private final ObjectMapper objectMapper;
     private final McpCenterProperties centerProperties;
+    private final InternalCredentialProperties internalCredentialProperties;
     private final McpStdioProxyService stdioProxyService;
     private final WebClient directWebClient = WebClient.builder().build();
     private final Map<String, ManagedSdkClient> sdkClientCache = new ConcurrentHashMap<>();
@@ -983,7 +985,7 @@ public class McpGatewayClient {
         if (config == null || centerProperties == null) {
             return null;
         }
-        String token = normalizeText(centerProperties.getInvocationToken());
+        String token = normalizeText(centerProperties.resolvedInvocationToken(internalCredentialProperties));
         if (token == null || !isStandaloneCenterService(config)) {
             return null;
         }

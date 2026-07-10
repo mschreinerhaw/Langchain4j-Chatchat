@@ -1,5 +1,6 @@
 package com.chatchat.mcpserver.admin;
 
+import com.chatchat.common.security.InternalCredentialProperties;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -15,6 +16,7 @@ public class AdminAuthService {
 
     private final AdminAuthProperties properties;
     private final AdminPasswordStore passwordStore;
+    private final InternalCredentialProperties internalCredentialProperties;
     private final SecureRandom secureRandom = new SecureRandom();
     private final Map<String, TokenSession> sessions = new ConcurrentHashMap<>();
 
@@ -26,12 +28,20 @@ public class AdminAuthService {
      * @return the operation result
      */
     public LoginResult login(String username, String password) {
+        if (matchesInternalAccount(username, password)) {
+            String token = newToken();
+            long ttlMinutes = Math.max(1, properties.getTokenTtlMinutes());
+            Instant expiresAt = Instant.now().plusSeconds(ttlMinutes * 60);
+            String internalUsername = internalCredentialProperties.resolvedUsername();
+            sessions.put(token, new TokenSession(internalUsername, expiresAt));
+            return new LoginResult(token, internalUsername, expiresAt.toEpochMilli());
+        }
         if (properties.getUsername() == null || properties.getUsername().isBlank()
-            || (!passwordStore.hasOverride() && (properties.getPassword() == null || properties.getPassword().isBlank()))) {
+            || (!passwordStore.hasOverride() && resolvedAdminPassword().isBlank())) {
             throw new IllegalStateException("MCP admin username/password is not configured");
         }
         if (!constantTimeEquals(properties.getUsername(), username)
-            || !passwordStore.matches(password, properties.getPassword())) {
+            || !passwordStore.matches(password, resolvedAdminPassword())) {
             throw new IllegalArgumentException("Invalid username or password");
         }
 
@@ -90,7 +100,7 @@ public class AdminAuthService {
             throw new SecurityException("只有 admin 用户可以修改管理员密码");
         }
         if (currentPassword == null || currentPassword.isBlank()
-            || !passwordStore.matches(currentPassword, properties.getPassword())) {
+            || !passwordStore.matches(currentPassword, resolvedAdminPassword())) {
             throw new IllegalArgumentException("当前密码不正确");
         }
         if (newPassword == null || newPassword.length() < 8 || newPassword.length() > 128) {
@@ -123,6 +133,23 @@ public class AdminAuthService {
         byte[] bytes = new byte[32];
         secureRandom.nextBytes(bytes);
         return Base64.getUrlEncoder().withoutPadding().encodeToString(bytes);
+    }
+
+    private boolean matchesInternalAccount(String username, String password) {
+        if (internalCredentialProperties == null || !internalCredentialProperties.isEnabled()) {
+            return false;
+        }
+        String internalSecret = internalCredentialProperties.resolvedSecret();
+        return !internalSecret.isBlank()
+            && constantTimeEquals(internalCredentialProperties.resolvedUsername(), username)
+            && constantTimeEquals(internalSecret, password);
+    }
+
+    private String resolvedAdminPassword() {
+        if (internalCredentialProperties == null) {
+            return properties.getPassword() == null ? "" : properties.getPassword().trim();
+        }
+        return internalCredentialProperties.resolveSecret(properties.getEncryptedPassword(), properties.getPassword());
     }
 
     /**

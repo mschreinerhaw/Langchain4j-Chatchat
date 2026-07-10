@@ -78,7 +78,7 @@ public class AgentWorkshopController {
         Map<String, List<String>> mcpToolsByServiceId = mcpToolsByServiceId();
         List<AgentCard> allAgents = skillCatalogService.list().stream()
             .map(skill -> toAgentCard(skill, availableTools, mcpToolsByServiceId))
-            .filter(agent -> canCurrentUserAccessAgent(request, agent.id()))
+            .filter(agent -> canCurrentUserViewAgent(request, agent.id(), agent.marketStatus()))
             .toList();
         List<AgentCard> filteredAgents = allAgents.stream()
             .filter(agent -> matchesAgentFilters(agent, keyword, category, status, model))
@@ -130,10 +130,11 @@ public class AgentWorkshopController {
     @Operation(summary = "Get one Agent workshop configuration")
     public ApiResponse<AgentCard> getAgent(@PathVariable("agentId") String agentId,
                                            HttpServletRequest request) {
-        if (!canCurrentUserAccessAgent(request, agentId)) {
+        SkillDefinition skill = skillCatalogService.resolve(agentId);
+        if (!canCurrentUserViewAgent(request, skill.id(), skill.marketStatus())) {
             return ApiResponse.badRequest("Current role is not allowed to use this Agent");
         }
-        return ApiResponse.success(toAgentCard(skillCatalogService.resolve(agentId), availableTools(), mcpToolsByServiceId()));
+        return ApiResponse.success(toAgentCard(skill, availableTools(), mcpToolsByServiceId()));
     }
 
     /**
@@ -260,6 +261,8 @@ public class AgentWorkshopController {
             skill.toolConfigs(),
             skill.routingSettings(),
             skill.workflowConfig(),
+            skill.defaultDataAsset(),
+            skill.assetSelectionPolicy(),
             skill.quickQuestions(),
             skill.marketStatus(),
             marketStatusLabel(skill.marketStatus()),
@@ -473,10 +476,16 @@ public class AgentWorkshopController {
             .toList();
     }
 
-    private boolean canCurrentUserAccessAgent(HttpServletRequest request, String agentId) {
+    private boolean canCurrentUserViewAgent(HttpServletRequest request, String agentId, String marketStatus) {
         String currentUserId = currentUserId(request);
         if (currentUserId == null) {
             return true;
+        }
+        if (enterpriseAdminService.hasAllAgentAccess(currentUserId)) {
+            return true;
+        }
+        if (!"published".equalsIgnoreCase(marketStatus)) {
+            return false;
         }
         return enterpriseAdminService.canAccessAgent(currentUserId, agentId);
     }
@@ -547,6 +556,8 @@ public class AgentWorkshopController {
             request.getToolConfigs(),
             request.getRoutingSettings(),
             request.getWorkflowConfig(),
+            request.getDefaultDataAsset(),
+            request.getAssetSelectionPolicy(),
             request.getQuickQuestions(),
             request.getMarketStatus(),
             request.getDefaultAgent()
@@ -638,6 +649,8 @@ public class AgentWorkshopController {
         private List<SkillToolConfig> toolConfigs;
         private SkillRoutingSettings routingSettings;
         private Map<String, Object> workflowConfig;
+        private SkillDefinition.DefaultDataAsset defaultDataAsset;
+        private SkillDefinition.AssetSelectionPolicy assetSelectionPolicy;
         private List<String> quickQuestions;
         private String marketStatus;
         private Boolean defaultAgent;
@@ -725,6 +738,8 @@ public class AgentWorkshopController {
         List<SkillToolConfig> toolConfigs,
         SkillRoutingSettings routingSettings,
         Map<String, Object> workflowConfig,
+        SkillDefinition.DefaultDataAsset defaultDataAsset,
+        SkillDefinition.AssetSelectionPolicy assetSelectionPolicy,
         List<String> quickQuestions,
         String marketStatus,
         String marketStatusLabel,

@@ -1,5 +1,6 @@
 package com.chatchat.integration.mcp.service;
 
+import com.chatchat.common.security.InternalCredentialProperties;
 import com.chatchat.integration.mcp.config.McpCenterProperties;
 import com.chatchat.integration.mcp.entity.McpServiceConfig;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -29,6 +30,7 @@ public class McpCenterSyncService {
     private final McpServiceConfigService configService;
     private final McpToolRegistryBridge registryBridge;
     private final ObjectMapper objectMapper;
+    private final InternalCredentialProperties internalCredentialProperties;
     private final WebClient webClient = WebClient.builder().build();
 
     /**
@@ -101,7 +103,7 @@ public class McpCenterSyncService {
         config.setProtocol(PROTOCOL_STREAMABLE_HTTP);
         config.setEnabled(true);
         config.setTimeoutMs(0);
-        config.setCustomHeadersJson(writeInvocationHeaders(properties.getInvocationToken()));
+        config.setCustomHeadersJson(writeInvocationHeaders(properties.resolvedInvocationToken(internalCredentialProperties)));
 
         McpServiceConfig saved = configService.upsertImported(
             safeImportedId(properties.getStandaloneServiceId()),
@@ -143,8 +145,8 @@ public class McpCenterSyncService {
      */
     private String loginAdmin() {
         Map<String, String> payload = Map.of(
-            "username", properties.getAdminUsername(),
-            "password", properties.getAdminPassword()
+            "username", properties.resolvedAdminUsername(internalCredentialProperties),
+            "password", properties.resolvedAdminPassword(internalCredentialProperties)
         );
         Object raw = blockWithOptionalTimeout(webClient.post()
             .uri(buildUrl(properties.getBaseUrl(), properties.getAdminLoginPath()))

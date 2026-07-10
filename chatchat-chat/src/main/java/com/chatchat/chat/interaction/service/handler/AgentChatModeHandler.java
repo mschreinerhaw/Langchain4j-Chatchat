@@ -94,9 +94,12 @@ public class AgentChatModeHandler implements InteractionModeHandler {
                 toolPolicy.availableTools()
             );
         String systemPrompt = appendResponseContract(
-            appendMcpExecutionContext(
-                appendExperienceContext(resolveSystemPrompt(request, skill, context), experienceContext),
-                executionContext
+            appendDefaultDataAssetPolicy(
+                appendMcpExecutionContext(
+                    appendExperienceContext(resolveSystemPrompt(request, skill, context), experienceContext),
+                    executionContext
+                ),
+                skill
             ),
             request
         );
@@ -385,6 +388,10 @@ public class AgentChatModeHandler implements InteractionModeHandler {
             Object explicitWorkflow = skill.workflowConfig().get("mcpWorkflow");
             attributes.put("mcpWorkflow", explicitWorkflow == null ? skill.workflowConfig() : explicitWorkflow);
         }
+        if (skill != null && skill.defaultDataAsset() != null && Boolean.TRUE.equals(skill.defaultDataAsset().enabled())) {
+            attributes.put("defaultDataAsset", defaultDataAssetAttributes(skill.defaultDataAsset()));
+            attributes.put("assetSelectionPolicy", assetSelectionPolicyAttributes(skill.assetSelectionPolicy()));
+        }
         if (executionContext != null && !executionContext.isEmpty()) {
             attributes.put("mcpExecutionContext", executionContext);
         }
@@ -393,6 +400,53 @@ public class AgentChatModeHandler implements InteractionModeHandler {
             attributes.put("mcpToolConfigs", toolConfigs);
         }
         return attributes.isEmpty() ? Map.of() : attributes;
+    }
+
+    private String appendDefaultDataAssetPolicy(String systemPrompt, SkillDefinition skill) {
+        if (skill == null || skill.defaultDataAsset() == null || !Boolean.TRUE.equals(skill.defaultDataAsset().enabled())) {
+            return systemPrompt;
+        }
+        SkillDefinition.DefaultDataAsset asset = skill.defaultDataAsset();
+        StringBuilder builder = new StringBuilder();
+        if (systemPrompt != null && !systemPrompt.isBlank()) {
+            builder.append(systemPrompt.trim()).append("\n\n");
+        }
+        builder.append("Default data asset fallback policy.\n")
+            .append("- For data query, data analysis, SQL, metadata, or database operations, first call the asset discovery tool to retrieve matching data assets.\n")
+            .append("- Use retrieved assets when they are relevant, authorized, enabled, available, and uniquely identify the target scope.\n")
+            .append("- If asset discovery returns no usable asset or ambiguous assets, fall back to the Agent default data asset: ")
+            .append(firstText(asset.assetName(), asset.assetId(), "configured default data asset"))
+            .append(".\n")
+            .append("- The default asset is only a fallback scope and must not bypass asset permission, status, or connectivity validation.\n");
+        return builder.toString();
+    }
+
+    private Map<String, Object> defaultDataAssetAttributes(SkillDefinition.DefaultDataAsset asset) {
+        if (asset == null) {
+            return Map.of();
+        }
+        Map<String, Object> values = new LinkedHashMap<>();
+        putIfPresent(values, "assetId", asset.assetId());
+        putIfPresent(values, "assetName", asset.assetName());
+        putIfPresent(values, "assetType", asset.assetType());
+        putIfPresent(values, "warehouseId", asset.warehouseId());
+        values.put("enabled", Boolean.TRUE.equals(asset.enabled()));
+        return values;
+    }
+
+    private Map<String, Object> assetSelectionPolicyAttributes(SkillDefinition.AssetSelectionPolicy policy) {
+        Map<String, Object> values = new LinkedHashMap<>();
+        values.put("strategy", policy == null || policy.strategy() == null ? "SEARCH_FIRST_DEFAULT_FALLBACK" : policy.strategy());
+        values.put("minRelevanceScore", policy == null || policy.minRelevanceScore() == null ? 0.7D : policy.minRelevanceScore());
+        values.put("fallbackWhenEmpty", policy == null || policy.fallbackWhenEmpty() == null || policy.fallbackWhenEmpty());
+        values.put("fallbackWhenInvalid", policy == null || policy.fallbackWhenInvalid() == null || policy.fallbackWhenInvalid());
+        return values;
+    }
+
+    private void putIfPresent(Map<String, Object> values, String key, String value) {
+        if (values != null && key != null && value != null && !value.isBlank()) {
+            values.put(key, value.trim());
+        }
     }
 
     /**
@@ -579,5 +633,17 @@ public class AgentChatModeHandler implements InteractionModeHandler {
 
     private Object firstPresent(Object first, Object second) {
         return first == null ? second : first;
+    }
+
+    private String firstText(String... values) {
+        if (values == null) {
+            return null;
+        }
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value.trim();
+            }
+        }
+        return null;
     }
 }

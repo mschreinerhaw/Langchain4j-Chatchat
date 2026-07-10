@@ -1,5 +1,6 @@
 package com.chatchat.mcpserver.search;
 
+import com.chatchat.common.security.InternalCredentialProperties;
 import com.chatchat.mcpserver.config.ChatChatMcpServerProperties;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -23,14 +24,18 @@ public class DocumentSearchAdminClient {
 
     private final ObjectMapper objectMapper;
     private final ChatChatMcpServerProperties.DocumentSearchProperties properties;
+    private final InternalCredentialProperties internalCredentialProperties;
     private final HttpClient httpClient;
     private volatile String documentSearchToken;
 
     @Autowired
-    public DocumentSearchAdminClient(ObjectMapper objectMapper, ChatChatMcpServerProperties properties) {
+    public DocumentSearchAdminClient(ObjectMapper objectMapper,
+                                     ChatChatMcpServerProperties properties,
+                                     InternalCredentialProperties internalCredentialProperties) {
         this(
             objectMapper,
             properties == null ? new ChatChatMcpServerProperties.DocumentSearchProperties() : properties.getDocumentSearch(),
+            internalCredentialProperties,
             HttpClient.newBuilder()
                 .followRedirects(HttpClient.Redirect.NORMAL)
                 .build()
@@ -39,9 +44,11 @@ public class DocumentSearchAdminClient {
 
     DocumentSearchAdminClient(ObjectMapper objectMapper,
                               ChatChatMcpServerProperties.DocumentSearchProperties properties,
+                              InternalCredentialProperties internalCredentialProperties,
                               HttpClient httpClient) {
         this.objectMapper = objectMapper;
         this.properties = properties == null ? new ChatChatMcpServerProperties.DocumentSearchProperties() : properties;
+        this.internalCredentialProperties = internalCredentialProperties;
         this.httpClient = httpClient;
     }
 
@@ -143,8 +150,8 @@ public class DocumentSearchAdminClient {
     private String loginForToken() throws IOException, InterruptedException {
         ChatChatMcpServerProperties.DocumentSearchProperties.AuthProperties auth = authProperties();
         String body = objectMapper.writeValueAsString(Map.of(
-            "username", text(auth.getUsername(), ""),
-            "password", text(auth.getPassword(), "")
+            "username", authUsername(auth.getUsername()),
+            "password", authPassword(auth.getEncryptedPassword(), auth.getPassword())
         ));
         URI loginUri = loginUri();
         HttpRequest loginRequest = HttpRequest.newBuilder(loginUri)
@@ -201,7 +208,24 @@ public class DocumentSearchAdminClient {
 
     private boolean hasLoginCredentials() {
         ChatChatMcpServerProperties.DocumentSearchProperties.AuthProperties auth = authProperties();
-        return !text(auth.getUsername(), "").isBlank() && !text(auth.getPassword(), "").isBlank();
+        return !authUsername(auth.getUsername()).isBlank()
+            && !authPassword(auth.getEncryptedPassword(), auth.getPassword()).isBlank();
+    }
+
+    private String authUsername(String configuredUsername) {
+        String username = text(configuredUsername, "");
+        if (!username.isBlank()) {
+            return username;
+        }
+        return internalCredentialProperties == null ? "" : internalCredentialProperties.resolvedUsername();
+    }
+
+    private String authPassword(String encryptedPassword, String plainPassword) {
+        if (internalCredentialProperties == null) {
+            return text(plainPassword, "");
+        }
+        String resolved = internalCredentialProperties.resolveSecret(encryptedPassword, plainPassword);
+        return resolved.isBlank() ? internalCredentialProperties.resolvedSecret() : resolved;
     }
 
     private ChatChatMcpServerProperties.DocumentSearchProperties.AuthProperties authProperties() {

@@ -1923,6 +1923,7 @@
 
 .agent-workshop-view .dialog-body label,
 .agent-workshop-view .agent-tool-picker,
+.agent-workshop-view .default-data-asset-settings,
 .agent-workshop-view .agent-document-picker {
   display: grid;
   gap: 7px;
@@ -1954,7 +1955,8 @@
 }
 
 .agent-workshop-view .wide-field,
-.agent-workshop-view .routing-settings {
+.agent-workshop-view .routing-settings,
+.agent-workshop-view .default-data-asset-settings {
   grid-column: 1 / -1;
 }
 
@@ -2498,6 +2500,28 @@
   border: 1px solid var(--line);
   border-radius: 8px;
   background: var(--surface-soft);
+}
+
+.agent-workshop-view .default-data-asset-settings {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--surface-soft);
+}
+
+.agent-workshop-view .default-data-asset-settings .checkbox-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.agent-workshop-view .default-data-asset-settings .checkbox-row input {
+  width: 16px;
+  height: 16px;
+  padding: 0;
 }
 
 .agent-workshop-view .routing-settings .checkbox-row {
@@ -3288,6 +3312,7 @@
   .agent-workshop-view .workflow-step-row,
   .agent-workshop-view .workflow-step-controls,
   .agent-workshop-view .workflow-dependencies,
+  .agent-workshop-view .default-data-asset-settings,
   .agent-workshop-view .routing-settings {
     display: grid;
     grid-template-columns: 1fr;

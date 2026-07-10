@@ -1,5 +1,6 @@
 package com.chatchat.mcpserver.search;
 
+import com.chatchat.common.security.InternalCredentialProperties;
 import com.chatchat.mcpserver.config.ChatChatMcpServerProperties;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -96,6 +97,7 @@ class DocumentSearchAdminClientTest {
         DocumentSearchAdminClient client = new DocumentSearchAdminClient(
             objectMapper,
             properties,
+            new InternalCredentialProperties(),
             HttpClient.newHttpClient()
         );
 

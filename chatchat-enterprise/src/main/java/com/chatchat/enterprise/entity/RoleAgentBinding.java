@@ -7,6 +7,8 @@ import jakarta.persistence.Table;
 import lombok.Getter;
 import lombok.Setter;
 
+import java.time.Instant;
+
 @Getter
 @Setter
 @Entity
@@ -27,4 +29,13 @@ public class RoleAgentBinding extends EnterpriseAuditable {
 
     @Column(name = "agent_id", length = 64, nullable = false)
     private String agentId;
+
+    @Column(name = "enabled", nullable = false)
+    private boolean enabled = true;
+
+    @Column(name = "effective_time")
+    private Instant effectiveTime;
+
+    @Column(name = "expire_time")
+    private Instant expireTime;
 }

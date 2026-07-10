@@ -52,6 +52,29 @@ public class CompositeDocumentSearchIndexService implements DocumentSearchIndex 
         return delegate().isAvailable();
     }
 
+    public String activeEngineName() {
+        return delegate() == openSearchIndex ? "opensearch" : "lucene";
+    }
+
+    public String vectorStatus() {
+        if (delegate() != openSearchIndex) {
+            return "not_applicable";
+        }
+        if (!openSearchIndex.isEmbeddingConfigured()) {
+            return "embedding_not_configured";
+        }
+        if (!openSearchIndex.isEmbeddingEnabled()) {
+            return "embedding_disabled_or_incomplete";
+        }
+        if (openSearchIndex.isVectorSearchReady()) {
+            return "knn_vector";
+        }
+        if (openSearchIndex.isVectorRerankReady()) {
+            return "vector_rerank";
+        }
+        return "vector_unavailable";
+    }
+
     private DocumentSearchIndex delegate() {
         if (properties.isOpenSearchEngine()) {
             if (openSearchIndex.isAvailable()) {

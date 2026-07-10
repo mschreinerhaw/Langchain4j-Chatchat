@@ -180,6 +180,8 @@ public class DataQueryController {
                 item.toolConfigs(),
                 item.routingSettings(),
                 item.workflowConfig(),
+                item.defaultDataAsset(),
+                item.assetSelectionPolicy(),
                 item.quickQuestions(),
                 item.marketStatus(),
                 Boolean.TRUE.equals(item.defaultAgent()),
@@ -444,6 +446,8 @@ public class DataQueryController {
         private List<SkillToolConfig> toolConfigs;
         private SkillRoutingSettings routingSettings;
         private Map<String, Object> workflowConfig;
+        private SkillDefinition.DefaultDataAsset defaultDataAsset;
+        private SkillDefinition.AssetSelectionPolicy assetSelectionPolicy;
         private List<String> quickQuestions;
         private String marketStatus;
         private Boolean defaultAgent;
@@ -472,6 +476,8 @@ public class DataQueryController {
         List<SkillToolConfig> toolConfigs,
         SkillRoutingSettings routingSettings,
         Map<String, Object> workflowConfig,
+        SkillDefinition.DefaultDataAsset defaultDataAsset,
+        SkillDefinition.AssetSelectionPolicy assetSelectionPolicy,
         List<String> quickQuestions,
         String marketStatus,
         boolean defaultAgent,
@@ -986,6 +992,8 @@ public class DataQueryController {
             skill.toolConfigs(),
             skill.routingSettings(),
             skill.workflowConfig(),
+            skill.defaultDataAsset(),
+            skill.assetSelectionPolicy(),
             skill.quickQuestions(),
             skill.marketStatus(),
             Boolean.TRUE.equals(skill.defaultAgent()),
@@ -1024,6 +1032,8 @@ public class DataQueryController {
             request.getToolConfigs(),
             request.getRoutingSettings(),
             request.getWorkflowConfig(),
+            request.getDefaultDataAsset(),
+            request.getAssetSelectionPolicy(),
             request.getQuickQuestions(),
             request.getMarketStatus(),
             request.getDefaultAgent()
@@ -1048,6 +1058,8 @@ public class DataQueryController {
         List<SkillToolConfig> toolConfigs,
         SkillRoutingSettings routingSettings,
         Map<String, Object> workflowConfig,
+        SkillDefinition.DefaultDataAsset defaultDataAsset,
+        SkillDefinition.AssetSelectionPolicy assetSelectionPolicy,
         List<String> quickQuestions,
         String marketStatus,
         boolean defaultAgent,

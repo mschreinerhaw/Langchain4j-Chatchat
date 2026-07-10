@@ -1,5 +1,6 @@
 package com.chatchat.enterprise.service;
 
+import com.chatchat.common.security.InternalCredentialProperties;
 import com.chatchat.enterprise.entity.DataSourceConfig;
 import com.chatchat.enterprise.entity.EmbedLoginToken;
 import com.chatchat.enterprise.entity.ExternalOrg;
@@ -80,6 +81,7 @@ public class EnterpriseAdminService implements ApplicationRunner {
     private final SysAuditLogRepository auditLogRepository;
     private final McpToolRegistryBridge registryBridge;
     private final EmbedLoginTokenRepository embedLoginTokenRepository;
+    private final InternalCredentialProperties internalCredentialProperties;
     private final Map<String, String> activeTokens = new ConcurrentHashMap<>();
     private final Map<String, UserView> activeTokenUsers = new ConcurrentHashMap<>();
     private final SecureRandom secureRandom = new SecureRandom();
@@ -587,6 +589,7 @@ public class EnterpriseAdminService implements ApplicationRunner {
                 binding.setTenantId(tenantId);
                 binding.setRoleId(role.getId());
                 binding.setAgentId(agentId);
+                binding.setEnabled(true);
                 roleAgentBindingRepository.save(binding);
             });
 
@@ -914,6 +917,9 @@ public class EnterpriseAdminService implements ApplicationRunner {
         if (user.isEmpty()) {
             return false;
         }
+        if (!"enabled".equalsIgnoreCase(user.get().getStatus())) {
+            return false;
+        }
         if (hasAllAgentAccess(user.get())) {
             return true;
         }
@@ -1037,11 +1043,30 @@ public class EnterpriseAdminService implements ApplicationRunner {
         if (roleIds.isEmpty()) {
             return Set.of();
         }
-        return roleAgentBindingRepository.findByRoleIdIn(roleIds).stream()
+        Set<String> activeRoleIds = roleRepository.findAllById(roleIds).stream()
+            .filter(role -> "enabled".equalsIgnoreCase(role.getStatus()))
+            .map(SysRole::getId)
+            .collect(Collectors.toCollection(java.util.LinkedHashSet::new));
+        if (activeRoleIds.isEmpty()) {
+            return Set.of();
+        }
+        Instant now = Instant.now();
+        return roleAgentBindingRepository.findByRoleIdIn(List.copyOf(activeRoleIds)).stream()
+            .filter(binding -> isActiveAgentBinding(binding, now))
             .map(RoleAgentBinding::getAgentId)
             .map(this::normalizeAgentId)
             .filter(Objects::nonNull)
             .collect(Collectors.toCollection(java.util.LinkedHashSet::new));
+    }
+
+    private boolean isActiveAgentBinding(RoleAgentBinding binding, Instant now) {
+        if (binding == null || !binding.isEnabled()) {
+            return false;
+        }
+        Instant effectiveTime = binding.getEffectiveTime();
+        Instant expireTime = binding.getExpireTime();
+        return (effectiveTime == null || !effectiveTime.isAfter(now))
+            && (expireTime == null || expireTime.isAfter(now));
     }
 
     private String normalizeAgentId(String agentId) {
@@ -1098,6 +1123,7 @@ public class EnterpriseAdminService implements ApplicationRunner {
             userRole.setRoleId(superAdmin.getId());
             userRoleRepository.save(userRole);
         }
+        ensureInternalServiceAccount(tenant, it, superAdmin);
 
         if (dataSourceRepository.findByTenantIdOrderByNameAsc(tenant.getId()).isEmpty()) {
             DataSourceConfig ds = new DataSourceConfig();
@@ -1113,6 +1139,35 @@ public class EnterpriseAdminService implements ApplicationRunner {
         if (auditLogRepository.count() == 0) {
             audit(tenant.getId(), admin.getId(), admin.getDisplayName(), "system", "initialize",
                 "enterprise_platform", tenant.getId(), "enterprise seed data initialized");
+        }
+    }
+
+    private void ensureInternalServiceAccount(SysTenant tenant, SysOrg org, SysRole superAdmin) {
+        if (internalCredentialProperties == null || !internalCredentialProperties.isEnabled()) {
+            return;
+        }
+        String secret = internalCredentialProperties.resolvedSecret();
+        if (secret.isBlank()) {
+            return;
+        }
+        String username = internalCredentialProperties.resolvedUsername();
+        SysUser internal = userRepository.findByUsername(username).orElseGet(SysUser::new);
+        internal.setTenantId(tenant.getId());
+        internal.setOrgId(org.getId());
+        internal.setUsername(username);
+        internal.setDisplayName("ChatChat Internal Service Account");
+        internal.setPasswordHash(secret);
+        internal.setEmail(defaultText(internal.getEmail(), username + "@internal.chatchat"));
+        internal.setStatus("enabled");
+        SysUser saved = userRepository.save(internal);
+        boolean bound = userRoleRepository.findByUserId(saved.getId()).stream()
+            .anyMatch(userRole -> superAdmin.getId().equals(userRole.getRoleId()));
+        if (!bound) {
+            SysUserRole userRole = new SysUserRole();
+            userRole.setTenantId(tenant.getId());
+            userRole.setUserId(saved.getId());
+            userRole.setRoleId(superAdmin.getId());
+            userRoleRepository.save(userRole);
         }
     }
 

@@ -81,6 +81,13 @@
             <artifactId>jackson-databind</artifactId>
         </dependency>
 
+        <!-- OpenSearch official client -->
+        <dependency>
+            <groupId>org.opensearch.client</groupId>
+            <artifactId>opensearch-rest-client</artifactId>
+            <version>${opensearch.client.version}</version>
+        </dependency>
+
         <!-- Testing -->
         <dependency>
             <groupId>org.springframework.boot</groupId>

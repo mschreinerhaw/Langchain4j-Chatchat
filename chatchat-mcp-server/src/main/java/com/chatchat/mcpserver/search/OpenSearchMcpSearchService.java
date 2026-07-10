@@ -461,7 +461,7 @@ public class OpenSearchMcpSearchService {
     }
 
     private void ensureIndex(String index) {
-        if (indexExists(index)) {
+        if (physicalIndexExists(index)) {
             if (embeddingClient.configured()) {
                 vectorSearchAvailable(index);
             }

@@ -254,16 +254,26 @@ public class AssetDiscoveryService {
         });
         LuceneMcpSearchService.AssetSearchRequest request = assetSearchRequest(assetType, filters, limit);
         List<LuceneMcpSearchService.SearchHit> hits = luceneSearchService.searchAssets(request);
-        double maxScore = hits.stream().mapToDouble(LuceneMcpSearchService.SearchHit::score).max().orElse(0.0D);
-        List<Map<String, Object>> luceneMatched = hits.stream()
+        Map<String, LuceneMcpSearchService.SearchHit> bestHitByAssetId = new LinkedHashMap<>();
+        hits.forEach(hit -> {
+            String id = hit == null ? null : hit.id();
+            if (id != null && byId.containsKey(id)) {
+                bestHitByAssetId.merge(id, hit,
+                    (current, candidate) -> candidate.score() > current.score() ? candidate : current);
+            }
+        });
+        double maxScore = bestHitByAssetId.values().stream()
+            .mapToDouble(LuceneMcpSearchService.SearchHit::score)
+            .max()
+            .orElse(0.0D);
+        List<Map<String, Object>> luceneMatched = bestHitByAssetId.values().stream()
             .map(hit -> annotateSearchHit(byId.get(hit.id()), hit, maxScore))
-            .filter(asset -> asset != null)
             .limit(limit)
             .toList();
         if (!luceneMatched.isEmpty()) {
-            log.info("asset_query lucene search assetType={} filters={} registryCandidates={} luceneHits={} returned={} hitIds={}",
-                assetType, compactFilters(filters), assets.size(), hits.size(), luceneMatched.size(),
-                hits.stream().map(LuceneMcpSearchService.SearchHit::id).limit(limit).toList());
+            log.info("asset_query lucene search assetType={} filters={} registryCandidates={} luceneHits={} uniqueAssetHits={} returned={} hitIds={}",
+                assetType, compactFilters(filters), assets.size(), hits.size(), bestHitByAssetId.size(), luceneMatched.size(),
+                bestHitByAssetId.keySet().stream().limit(limit).toList());
             return luceneMatched;
         }
         AssetFallback fallback = registryFallbackAssets(assets, filters, limit);

@@ -4,6 +4,7 @@ import com.chatchat.mcpserver.ops.HttpEndpointConfig;
 import com.chatchat.mcpserver.ops.HttpEndpointConfigService;
 import com.chatchat.mcpserver.ops.SshHostConfig;
 import com.chatchat.mcpserver.ops.SshHostConfigService;
+import com.chatchat.mcpserver.search.LuceneMcpSearchService;
 import com.chatchat.mcpserver.sql.SqlDatasourceConfig;
 import com.chatchat.mcpserver.sql.SqlDatasourceConfigService;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -394,6 +395,48 @@ class AssetDiscoveryServiceTest {
             .containsEntry("possiblyTruncated", true);
     }
 
+    @Test
+    void deduplicatesTableSearchHitsByDatabaseAssetId() {
+        SshHostConfigService hostService = mock(SshHostConfigService.class);
+        SqlDatasourceConfigService datasourceService = mock(SqlDatasourceConfigService.class);
+        HttpEndpointConfigService httpService = mock(HttpEndpointConfigService.class);
+        LuceneMcpSearchService searchService = mock(LuceneMcpSearchService.class);
+        SqlDatasourceConfig datasource = datasource("db-1", "customer-warehouse", "DEV", "[\"account\"]");
+        when(hostService.listEnabled()).thenReturn(List.of());
+        when(datasourceService.listEnabled()).thenReturn(List.of(datasource));
+        when(httpService.listEnabled()).thenReturn(List.of());
+        when(searchService.enabled()).thenReturn(true);
+        when(searchService.searchAssets(org.mockito.ArgumentMatchers.any()))
+            .thenReturn(List.of(
+                searchHit("db-1", "db-1:customer.account", 0.8F, "account"),
+                searchHit("db-1", "db-1:customer.account_balance", 1.0F, "account_balance"),
+                searchHit("db-1", "db-1:customer.account_trade", 0.9F, "account_trade")
+            ));
+        AssetDiscoveryService service = new AssetDiscoveryService(
+            hostService,
+            datasourceService,
+            httpService,
+            new AssetMetadataFactory(new ObjectMapper()),
+            searchService,
+            new TargetKindRegistry()
+        );
+
+        Map<String, Object> result = service.query(Map.of(
+            "targetKind", "database",
+            "confidence", 0.95,
+            "filters", Map.of("intent", "account analysis"),
+            "trace", trace(),
+            "limit", 10
+        ));
+
+        assertThat(result).containsEntry("returnedCount", 1).containsEntry("possiblyTruncated", false);
+        assertThat((List<?>) result.get("assets")).hasSize(1);
+        Map<?, ?> metadata = (Map<?, ?>) ((List<?>) result.get("assets")).get(0);
+        Map<?, ?> routingHints = (Map<?, ?>) metadata.get("routingHints");
+        Map<?, ?> selection = (Map<?, ?>) routingHints.get("assetSelection");
+        assertThat(selection.get("normalizedScore")).isEqualTo(1.0D);
+    }
+
     private AssetDiscoveryService service(SshHostConfigService hostService,
                                           SqlDatasourceConfigService datasourceService,
                                           HttpEndpointConfigService httpService) {
@@ -407,6 +450,13 @@ class AssetDiscoveryServiceTest {
 
     private Map<String, Object> trace() {
         return Map.of("plannerVersion", "v1.0", "model", "unit-test");
+    }
+
+    private LuceneMcpSearchService.SearchHit searchHit(String assetId, String documentId, float score, String table) {
+        return new LuceneMcpSearchService.SearchHit(
+            assetId, "asset", score, List.of("opensearch_bm25:" + score), documentId,
+            "metadata_table", assetId, "customer", table, "customer." + table, null, null
+        );
     }
 
     private SshHostConfig sshHost(String id, String name, String env, String routingLabelsJson) {

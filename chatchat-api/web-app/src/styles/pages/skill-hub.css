@@ -1960,6 +1960,23 @@
   grid-column: 1 / -1;
 }
 
+.agent-workshop-view .default-data-asset-heading {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.agent-workshop-view .default-data-asset-heading strong {
+  color: var(--text);
+  font-size: 14px;
+}
+
+.agent-workshop-view .default-data-asset-heading span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
 .agent-workshop-view .agent-import-dialog {
   width: min(840px, 100%);
 }

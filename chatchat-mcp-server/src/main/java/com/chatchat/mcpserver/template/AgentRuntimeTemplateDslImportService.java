@@ -4,6 +4,7 @@ import com.chatchat.agents.protocol.ModelProtocolJson;
 import com.chatchat.mcpserver.database.DatabaseQueryConfig;
 import com.chatchat.mcpserver.database.DatabaseQueryConfigService;
 import com.chatchat.mcpserver.database.DatabaseQueryMcpToolPublisher;
+import com.chatchat.mcpserver.database.DatabaseQuerySqlStep;
 import com.chatchat.mcpserver.ops.CommandTemplateConfig;
 import com.chatchat.mcpserver.ops.CommandTemplateService;
 import com.chatchat.mcpserver.ops.OpsMcpToolPublisher;
@@ -61,6 +62,7 @@ public class AgentRuntimeTemplateDslImportService {
         AgentRuntimeTemplateDsl.TemplatePlan plan = validation.plan();
         Map<String, Object> root = readRoot(request.dsl());
         String dsl = request.dsl().trim();
+        List<DatabaseQuerySqlStep> sqlSteps = databaseQuerySqlSteps(root);
         Object saved;
         String savedId;
         if ("linux_command_template".equals(registry)) {
@@ -106,10 +108,12 @@ public class AgentRuntimeTemplateDslImportService {
             config.setTitle(plan.templateName());
             config.setDatasourceId(firstText(text(root.get("datasourceId")), text(root.get("datasource_id")), request.datasourceId()));
             config.setDescription(firstText(text(root.get("description")), plan.templateName()));
+            config.setImplementationSteps(text(root.get("implementationSteps")));
             config.setBusinessGroup(firstText(text(root.get("businessGroup")), text(root.get("category")), "default"));
             config.setBusinessGroupName(firstText(text(root.get("businessGroupName")), text(root.get("category")), "default"));
             config.setBusinessGroupDescription(text(root.get("businessGroupDescription")));
             config.setSqlTemplate(dsl);
+            config.setSqlStepsJson(sqlSteps.isEmpty() ? null : jsonArrayObjects(sqlSteps));
             config.setInputSchemaJson(jsonObject(root.get("parameterSchema"), emptyParameterSchema()));
             config.setGovernanceJson(jsonObject(firstPresent(root, "governance", "analysisPolicy"), Map.of()));
             config.setRoutingLabelsJson(jsonArray(stringList(firstPresent(root, "routingLabels", "labels"))));
@@ -156,7 +160,8 @@ public class AgentRuntimeTemplateDslImportService {
         try {
             root = readRoot(request.dsl());
             String requestedType = firstText(request.templateType(), text(root.get("templateType")), "LINUX_CMD");
-            plan = AgentRuntimeTemplateDsl.parse(request.dsl(), text(root.get("templateCode")), requestedType, defaultStepType(requestedType));
+            String parseDsl = dslForParsing(request.dsl(), root, requestedType);
+            plan = AgentRuntimeTemplateDsl.parse(parseDsl, text(root.get("templateCode")), requestedType, defaultStepType(requestedType));
         } catch (IllegalArgumentException ex) {
             return invalid(List.of(ex.getMessage()));
         }
@@ -186,6 +191,7 @@ public class AgentRuntimeTemplateDslImportService {
         normalized.put("category", text(root.get("category")));
         normalized.put("datasourceId", firstText(text(root.get("datasourceId")), text(root.get("datasource_id")), request.datasourceId()));
         normalized.put("intentSignals", intentSignals(root, plan));
+        normalized.put("sqlStepCount", databaseQuerySqlSteps(root).size());
         return new ValidationResult(errors.isEmpty(), errors, warnings, registry, plan, normalized);
     }
 
@@ -265,6 +271,73 @@ public class AgentRuntimeTemplateDslImportService {
                 errors.add("step " + step.stepCode() + " command/sql is required");
             }
         }
+    }
+
+    private String dslForParsing(String dsl, Map<String, Object> root, String requestedType) {
+        if (AgentRuntimeTemplateDsl.looksLikeDsl(dsl)) {
+            return dsl;
+        }
+        List<DatabaseQuerySqlStep> sqlSteps = databaseQuerySqlSteps(root);
+        if (sqlSteps.isEmpty()) {
+            return dsl;
+        }
+        Map<String, Object> normalized = new LinkedHashMap<>(root);
+        normalized.put("templateType", firstText(text(root.get("templateType")), requestedType, "DATABASE_QUERY"));
+        normalized.put("steps", sqlSteps.stream()
+            .map(step -> mapOf(
+                "stepCode", step.getSqlCode(),
+                "stepName", step.getSqlName(),
+                "stepType", "SQL",
+                "order", step.getExecutionOrder(),
+                "command", step.getSqlContent(),
+                "required", !"CONTINUE".equalsIgnoreCase(firstText(step.getFailureStrategy(), "STOP")),
+                "timeoutSeconds", step.getTimeoutSeconds(),
+                "analysisHint", step.getSqlDescription()
+            ))
+            .toList());
+        return ModelProtocolJson.compact(normalized);
+    }
+
+    private List<DatabaseQuerySqlStep> databaseQuerySqlSteps(Map<String, Object> root) {
+        Object raw = firstPresent(root, "sqlSteps", "sql_steps");
+        if (!(raw instanceof Iterable<?> iterable)) {
+            return List.of();
+        }
+        List<DatabaseQuerySqlStep> steps = new ArrayList<>();
+        int index = 0;
+        for (Object item : iterable) {
+            if (!(item instanceof Map<?, ?> rawMap)) {
+                index++;
+                continue;
+            }
+            Map<String, Object> map = castMap(rawMap);
+            int order = integer(firstPresent(map, "executionOrder", "order"), index + 1);
+            String code = firstText(text(firstPresent(map, "sqlCode", "stepCode", "code")), "SQL_" + order);
+            String name = firstText(text(firstPresent(map, "sqlName", "stepName", "name")), code);
+            String description = firstText(
+                text(firstPresent(map, "sqlDescription", "resultSetDescription", "analysisHint", "description")),
+                name
+            );
+            String sql = firstText(text(firstPresent(map, "sqlContent", "sql", "command", "sqlTemplate")));
+            if (sql == null) {
+                index++;
+                continue;
+            }
+            DatabaseQuerySqlStep step = new DatabaseQuerySqlStep();
+            step.setSqlCode(code);
+            step.setSqlName(name);
+            step.setSqlDescription(description);
+            step.setSqlContent(sql);
+            step.setExecutionOrder(order);
+            step.setEnabled(bool(firstPresent(map, "enabled"), true));
+            step.setTimeoutSeconds(integerObject(firstPresent(map, "timeoutSeconds", "timeout_seconds")));
+            step.setFailureStrategy(firstText(text(firstPresent(map, "failureStrategy", "onFailure")), "STOP"));
+            step.setMaxResultRows(integerObject(firstPresent(map, "maxResultRows", "maxRows", "max_rows")));
+            step.setParameters(objectMap(firstPresent(map, "parameters", "params", "inputParams")));
+            steps.add(step);
+            index++;
+        }
+        return steps;
     }
 
     private String targetRegistry(ImportRequest request, AgentRuntimeTemplateDsl.TemplatePlan plan) {
@@ -426,6 +499,14 @@ public class AgentRuntimeTemplateDslImportService {
         }
     }
 
+    private String jsonArrayObjects(List<?> values) {
+        try {
+            return ModelProtocolJson.compact(values == null ? List.of() : values);
+        } catch (Exception ex) {
+            return "[]";
+        }
+    }
+
     private List<String> stringList(Object value) {
         if (value instanceof Iterable<?> iterable) {
             List<String> values = new ArrayList<>();
@@ -440,14 +521,6 @@ public class AgentRuntimeTemplateDslImportService {
             return List.of();
         }
         return List.of(String.valueOf(value).trim());
-    }
-
-    private int integer(Object value, int fallback) {
-        try {
-            return value == null ? fallback : Integer.parseInt(String.valueOf(value));
-        } catch (Exception ignored) {
-            return fallback;
-        }
     }
 
     private int firstInt(Integer value, int fallback) {
@@ -482,6 +555,31 @@ public class AgentRuntimeTemplateDslImportService {
 
     private String normalizeType(String value) {
         return value == null ? "" : value.trim().toUpperCase(Locale.ROOT).replace('-', '_');
+    }
+
+    private Integer integerObject(Object value) {
+        if (value == null || String.valueOf(value).isBlank()) {
+            return null;
+        }
+        return integer(value, 0);
+    }
+
+    private int integer(Object value, int fallback) {
+        if (value instanceof Number number) {
+            return number.intValue();
+        }
+        try {
+            return Integer.parseInt(String.valueOf(value));
+        } catch (Exception ignored) {
+            return fallback;
+        }
+    }
+
+    private Map<String, Object> objectMap(Object value) {
+        if (value instanceof Map<?, ?> map) {
+            return castMap(map);
+        }
+        return Map.of();
     }
 
     private boolean equalsIgnoreCase(String left, String right) {

@@ -590,8 +590,7 @@ export default {
       return this.form[field.sqlKey] || '';
     },
     databaseSqlSteps(field) {
-      this.form[field.key] = normalizeDatabaseSqlSteps(this.form[field.key], this.form.sqlTemplate);
-      return this.form[field.key];
+      return Array.isArray(this.form[field.key]) ? this.form[field.key] : [];
     },
     addDatabaseSqlStep(field, source = {}) {
       const steps = normalizeDatabaseSqlSteps(this.form[field.key], this.form.sqlTemplate);

@@ -289,27 +289,27 @@
             <textarea v-model="form.quickQuestions" rows="3" placeholder="每行一个问题"></textarea>
           </label>
           <section class="default-data-asset-settings wide-field">
+            <div class="default-data-asset-heading">
+              <strong>数据库资产绑定</strong>
+              <span>仅支持绑定数据库资产；启用后，该数据库将作为 Agent 检索无结果时的默认数据来源。</span>
+            </div>
             <label class="checkbox-row">
               <input v-model="form.defaultDataAssetEnabled" type="checkbox">
-              <span>启用默认数据资产</span>
+              <span>启用默认数据库资产</span>
             </label>
             <label>
-              <span>默认数据资产名称</span>
-              <input v-model.trim="form.defaultDataAssetName" placeholder="客户经营分析数据仓库">
-            </label>
-            <label>
-              <span>资产类型</span>
-              <select v-model="form.defaultDataAssetType">
-                <option value="DATABASE">DATABASE</option>
-                <option value="sql_datasource">sql_datasource</option>
-                <option value="http_endpoint">http_endpoint</option>
-                <option value="ssh_host">ssh_host</option>
-              </select>
+              <span>数据库资产名称</span>
+              <input
+                v-model.trim="form.defaultDataAssetName"
+                :disabled="!form.defaultDataAssetEnabled"
+                placeholder="例如：客户经营分析数据库"
+              >
             </label>
             <label>
               <span>最低相关度</span>
               <input
                 v-model.number="form.assetSelectionMinRelevanceScore"
+                :disabled="!form.defaultDataAssetEnabled"
                 type="number"
                 min="0"
                 max="1"
@@ -317,11 +317,11 @@
               >
             </label>
             <label class="checkbox-row">
-              <input v-model="form.assetFallbackWhenEmpty" type="checkbox">
+              <input v-model="form.assetFallbackWhenEmpty" :disabled="!form.defaultDataAssetEnabled" type="checkbox">
               <span>检索为空时兜底</span>
             </label>
             <label class="checkbox-row">
-              <input v-model="form.assetFallbackWhenInvalid" type="checkbox">
+              <input v-model="form.assetFallbackWhenInvalid" :disabled="!form.defaultDataAssetEnabled" type="checkbox">
               <span>检索不可用时兜底</span>
             </label>
           </section>

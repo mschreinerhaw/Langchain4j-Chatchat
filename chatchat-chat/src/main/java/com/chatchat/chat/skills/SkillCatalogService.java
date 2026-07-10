@@ -1225,11 +1225,10 @@ public class SkillCatalogService {
         if (assetId == null && assetName == null) {
             return null;
         }
-        String assetType = normalizeText(asset.assetType());
         return new SkillDefinition.DefaultDataAsset(
             assetId,
             assetName,
-            assetType == null ? "DATABASE" : assetType,
+            "DATABASE",
             normalizeText(asset.warehouseId()),
             asset.enabled() == null ? Boolean.TRUE : asset.enabled()
         );

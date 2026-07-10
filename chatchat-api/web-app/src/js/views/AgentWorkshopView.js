@@ -125,8 +125,7 @@ function defaultWorkflowConfig() {
 function defaultDataAssetForm() {
   return {
     defaultDataAssetEnabled: false,
-    defaultDataAssetName: "",
-    defaultDataAssetType: "DATABASE"
+    defaultDataAssetName: ""
   };
 }
 
@@ -656,8 +655,7 @@ export default {
       const asset = this.normalizeDefaultDataAsset(value, false);
       return {
         defaultDataAssetEnabled: !!asset.enabled,
-        defaultDataAssetName: asset.assetName,
-        defaultDataAssetType: asset.assetType || "DATABASE"
+        defaultDataAssetName: asset.assetName
       };
     },
     assetSelectionPolicyToForm(value) {
@@ -671,7 +669,6 @@ export default {
     defaultDataAssetFromForm() {
       return this.normalizeDefaultDataAsset({
         assetName: this.form.defaultDataAssetName,
-        assetType: this.form.defaultDataAssetType,
         enabled: this.form.defaultDataAssetEnabled
       }, false);
     },
@@ -687,12 +684,11 @@ export default {
       const source = value && typeof value === "object" ? value : {};
       const assetId = textValue(source.assetId ?? source.id ?? source.asset_id);
       const assetName = textValue(source.assetName ?? source.name ?? source.asset_name);
-      const assetType = textValue(source.assetType ?? source.type ?? source.asset_type) || "DATABASE";
       const warehouseId = textValue(source.warehouseId ?? source.warehouse_id ?? source.catalogId);
       return {
         assetId,
         assetName,
-        assetType,
+        assetType: "DATABASE",
         warehouseId,
         enabled: source.enabled === undefined ? enabledFallback : booleanValue(source.enabled)
       };

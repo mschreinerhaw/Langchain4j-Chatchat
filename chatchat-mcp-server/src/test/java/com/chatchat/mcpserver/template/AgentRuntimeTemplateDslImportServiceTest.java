@@ -1,5 +1,6 @@
 package com.chatchat.mcpserver.template;
 
+import com.chatchat.mcpserver.database.DatabaseQueryConfig;
 import com.chatchat.mcpserver.database.DatabaseQueryConfigService;
 import com.chatchat.mcpserver.database.DatabaseQueryMcpToolPublisher;
 import com.chatchat.mcpserver.ops.CommandTemplateConfig;
@@ -167,5 +168,67 @@ class AgentRuntimeTemplateDslImportServiceTest {
         verify(sqlTemplateService).save(any(SqlTemplateConfig.class));
         verify(opsPublisher).refresh();
         verify(sqlPublisher).refresh();
+    }
+
+    @Test
+    void importsBatchDatabaseQuerySqlStepsIntoDatabaseQueryRegistry() {
+        when(databaseQueryConfigService.listAll()).thenReturn(List.of());
+        when(databaseQueryConfigService.create(any(DatabaseQueryConfig.class))).thenAnswer(invocation -> {
+            DatabaseQueryConfig config = invocation.getArgument(0);
+            config.setId("database-query-1");
+            return config;
+        });
+        String dsl = """
+            [
+              {
+                "templateCode": "CUSTOMER_ANALYSIS",
+                "templateName": "Customer analysis",
+                "templateType": "DATABASE_QUERY",
+                "datasourceId": "ds-1",
+                "description": "Analyze customer order data",
+                "implementationSteps": "Run summary first, then detail rows.",
+                "sqlSteps": [
+                  {
+                    "sqlCode": "SUMMARY",
+                    "sqlName": "Summary",
+                    "sqlDescription": "Summary result set",
+                    "sqlContent": "select count(*) cnt from orders",
+                    "executionOrder": 1
+                  },
+                  {
+                    "sqlCode": "DETAIL",
+                    "sqlName": "Detail rows",
+                    "sqlDescription": "Detail result set",
+                    "sqlContent": "select * from orders where status = :status",
+                    "executionOrder": 2,
+                    "parameters": {
+                      "status": "ACTIVE"
+                    }
+                  }
+                ]
+              }
+            ]
+            """;
+
+        AgentRuntimeTemplateDslImportService.ValidationResult validation = service.validate(
+            new AgentRuntimeTemplateDslImportService.ImportRequest(dsl, "DATABASE_QUERY", null, null)
+        );
+        AgentRuntimeTemplateDslImportService.ImportResult result = service.importTemplate(
+            new AgentRuntimeTemplateDslImportService.ImportRequest(dsl, "DATABASE_QUERY", null, null)
+        );
+
+        assertThat(validation.valid()).isTrue();
+        assertThat(validation.targetRegistry()).isEqualTo("batch");
+        assertThat(result.targetRegistry()).isEqualTo("batch");
+        assertThat(result.normalized()).containsEntry("importedCount", 1);
+        ArgumentCaptor<DatabaseQueryConfig> captor = ArgumentCaptor.forClass(DatabaseQueryConfig.class);
+        verify(databaseQueryConfigService).create(captor.capture());
+        assertThat(captor.getValue().getToolName()).isEqualTo("CUSTOMER_ANALYSIS");
+        assertThat(captor.getValue().getDatasourceId()).isEqualTo("ds-1");
+        assertThat(captor.getValue().getImplementationSteps()).contains("Run summary first");
+        assertThat(captor.getValue().getSqlStepsJson())
+            .contains("SUMMARY", "DETAIL", "Summary result set", "select * from orders where status = :status");
+        verify(databaseQueryPublisher).refresh();
+        verify(templateIndexService).upsertDatabaseQueryTemplates(any());
     }
 }

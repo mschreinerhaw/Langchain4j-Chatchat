@@ -290,20 +290,16 @@
           </label>
           <section class="default-data-asset-settings wide-field">
             <label class="checkbox-row">
-              <input v-model="form.defaultDataAsset.enabled" type="checkbox">
+              <input v-model="form.defaultDataAssetEnabled" type="checkbox">
               <span>启用默认数据资产</span>
             </label>
             <label>
-              <span>资产ID</span>
-              <input v-model.trim="form.defaultDataAsset.assetId" placeholder="asset_100086">
-            </label>
-            <label>
-              <span>资产名称</span>
-              <input v-model.trim="form.defaultDataAsset.assetName" placeholder="客户经营分析数据仓库">
+              <span>默认数据资产名称</span>
+              <input v-model.trim="form.defaultDataAssetName" placeholder="客户经营分析数据仓库">
             </label>
             <label>
               <span>资产类型</span>
-              <select v-model="form.defaultDataAsset.assetType">
+              <select v-model="form.defaultDataAssetType">
                 <option value="DATABASE">DATABASE</option>
                 <option value="sql_datasource">sql_datasource</option>
                 <option value="http_endpoint">http_endpoint</option>
@@ -311,13 +307,9 @@
               </select>
             </label>
             <label>
-              <span>仓库ID</span>
-              <input v-model.trim="form.defaultDataAsset.warehouseId" placeholder="warehouse_001">
-            </label>
-            <label>
               <span>最低相关度</span>
               <input
-                v-model.number="form.assetSelectionPolicy.minRelevanceScore"
+                v-model.number="form.assetSelectionMinRelevanceScore"
                 type="number"
                 min="0"
                 max="1"
@@ -325,11 +317,11 @@
               >
             </label>
             <label class="checkbox-row">
-              <input v-model="form.assetSelectionPolicy.fallbackWhenEmpty" type="checkbox">
+              <input v-model="form.assetFallbackWhenEmpty" type="checkbox">
               <span>检索为空时兜底</span>
             </label>
             <label class="checkbox-row">
-              <input v-model="form.assetSelectionPolicy.fallbackWhenInvalid" type="checkbox">
+              <input v-model="form.assetFallbackWhenInvalid" type="checkbox">
               <span>检索不可用时兜底</span>
             </label>
           </section>

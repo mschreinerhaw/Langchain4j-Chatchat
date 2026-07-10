@@ -124,20 +124,17 @@ function defaultWorkflowConfig() {
 
 function defaultDataAssetForm() {
   return {
-    assetId: "",
-    assetName: "",
-    assetType: "DATABASE",
-    warehouseId: "",
-    enabled: false
+    defaultDataAssetEnabled: false,
+    defaultDataAssetName: "",
+    defaultDataAssetType: "DATABASE"
   };
 }
 
 function defaultAssetSelectionPolicy() {
   return {
-    strategy: "SEARCH_FIRST_DEFAULT_FALLBACK",
-    minRelevanceScore: 0.7,
-    fallbackWhenEmpty: true,
-    fallbackWhenInvalid: true
+    assetSelectionMinRelevanceScore: 0.7,
+    assetFallbackWhenEmpty: true,
+    assetFallbackWhenInvalid: true
   };
 }
 
@@ -158,8 +155,8 @@ function emptyForm() {
     toolConfigs: [],
     routingSettings: defaultRoutingSettings(),
     workflowConfig: defaultWorkflowConfig(),
-    defaultDataAsset: defaultDataAssetForm(),
-    assetSelectionPolicy: defaultAssetSelectionPolicy(),
+    ...defaultDataAssetForm(),
+    ...defaultAssetSelectionPolicy(),
     quickQuestions: "",
     marketStatus: "draft",
     defaultAgent: false
@@ -609,8 +606,8 @@ export default {
           ...(agent?.routingSettings || {})
         },
         workflowConfig: this.normalizeWorkflowConfig(agent?.workflowConfig, parseList(agent?.boundMcpToolNames)),
-        defaultDataAsset: this.normalizeDefaultDataAsset(agent?.defaultDataAsset, false),
-        assetSelectionPolicy: this.normalizeAssetSelectionPolicy(agent?.assetSelectionPolicy),
+        ...this.defaultDataAssetToForm(agent?.defaultDataAsset),
+        ...this.assetSelectionPolicyToForm(agent?.assetSelectionPolicy),
         quickQuestions: joinList(agent?.quickQuestions),
         marketStatus: agent?.marketStatus || "draft",
         defaultAgent: !!agent?.defaultAgent
@@ -623,7 +620,7 @@ export default {
       const maxParallelCalls = Number(this.form.routingSettings.maxParallelCalls) || 3;
       const maxRelevantMcpTools = Number(this.form.routingSettings.maxRelevantMcpTools) || 3;
       const workflowConfig = this.normalizeWorkflowConfig(this.form.workflowConfig, selectedToolNames);
-      const defaultDataAsset = this.normalizeDefaultDataAsset(this.form.defaultDataAsset, false);
+      const defaultDataAsset = this.defaultDataAssetFromForm();
       this.form.workflowConfig = workflowConfig;
       return {
         id: this.form.id,
@@ -649,11 +646,42 @@ export default {
         },
         workflowConfig,
         defaultDataAsset: defaultDataAsset.enabled ? defaultDataAsset : null,
-        assetSelectionPolicy: this.normalizeAssetSelectionPolicy(this.form.assetSelectionPolicy),
+        assetSelectionPolicy: this.assetSelectionPolicyFromForm(),
         quickQuestions: parseList(this.form.quickQuestions),
         marketStatus: this.form.marketStatus || "draft",
         defaultAgent: !!this.form.defaultAgent
       };
+    },
+    defaultDataAssetToForm(value) {
+      const asset = this.normalizeDefaultDataAsset(value, false);
+      return {
+        defaultDataAssetEnabled: !!asset.enabled,
+        defaultDataAssetName: asset.assetName,
+        defaultDataAssetType: asset.assetType || "DATABASE"
+      };
+    },
+    assetSelectionPolicyToForm(value) {
+      const policy = this.normalizeAssetSelectionPolicy(value);
+      return {
+        assetSelectionMinRelevanceScore: policy.minRelevanceScore,
+        assetFallbackWhenEmpty: policy.fallbackWhenEmpty,
+        assetFallbackWhenInvalid: policy.fallbackWhenInvalid
+      };
+    },
+    defaultDataAssetFromForm() {
+      return this.normalizeDefaultDataAsset({
+        assetName: this.form.defaultDataAssetName,
+        assetType: this.form.defaultDataAssetType,
+        enabled: this.form.defaultDataAssetEnabled
+      }, false);
+    },
+    assetSelectionPolicyFromForm() {
+      return this.normalizeAssetSelectionPolicy({
+        strategy: "SEARCH_FIRST_DEFAULT_FALLBACK",
+        minRelevanceScore: this.form.assetSelectionMinRelevanceScore,
+        fallbackWhenEmpty: this.form.assetFallbackWhenEmpty,
+        fallbackWhenInvalid: this.form.assetFallbackWhenInvalid
+      });
     },
     normalizeDefaultDataAsset(value, enabledFallback = false) {
       const source = value && typeof value === "object" ? value : {};
@@ -753,7 +781,12 @@ export default {
         },
         workflowConfig: defaultWorkflowConfig(),
         defaultDataAsset: defaultAsset.enabled ? defaultAsset : null,
-        assetSelectionPolicy: defaultAssetSelectionPolicy(),
+        assetSelectionPolicy: {
+          strategy: "SEARCH_FIRST_DEFAULT_FALLBACK",
+          minRelevanceScore: 0.7,
+          fallbackWhenEmpty: true,
+          fallbackWhenInvalid: true
+        },
         quickQuestions: listValue(fieldValue(row, [
           "quickQuestions", "questions", "quickPrompts", "快捷问题", "推荐问题", "示例问题"
         ])),

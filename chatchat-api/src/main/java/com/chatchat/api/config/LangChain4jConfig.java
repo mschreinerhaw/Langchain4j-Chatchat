@@ -48,8 +48,9 @@ public class LangChain4jConfig {
             .maxRetries(modelsConfig.getOpenai().getMaxRetries())
             .logRequests(false)
             .logResponses(false);
-        if (modelsConfig.getOpenai().getTimeout() > 0) {
-            builder.timeout(Duration.ofSeconds(modelsConfig.getOpenai().getTimeout()));
+        Duration timeout = resolveOpenAiTimeout();
+        if (!timeout.isZero() && !timeout.isNegative()) {
+            builder.timeout(timeout);
         }
         if (modelsConfig.getOpenai().getMaxTokens() > 0) {
             builder.maxTokens(modelsConfig.getOpenai().getMaxTokens());
@@ -61,6 +62,17 @@ public class LangChain4jConfig {
         }
 
         return builder.build();
+    }
+
+    private Duration resolveOpenAiTimeout() {
+        int timeout = modelsConfig.getOpenai().getTimeout();
+        if (timeout <= 0) {
+            return Duration.ZERO;
+        }
+        if (timeout >= 1000) {
+            return Duration.ofMillis(timeout);
+        }
+        return Duration.ofSeconds(timeout);
     }
 
     /**

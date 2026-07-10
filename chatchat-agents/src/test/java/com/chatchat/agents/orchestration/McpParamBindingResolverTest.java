@@ -12,6 +12,38 @@ class McpParamBindingResolverTest {
     private final McpParamBindingResolver resolver = new McpParamBindingResolver();
 
     @Test
+    void removesProtocolFieldsFromTemplateDiscoveryFilters() {
+        Map<String, Object> result = resolver.resolve(
+            "mcp_chatchat_mcp_server_ssh_template_query",
+            null,
+            Map.of(
+                "candidates", List.of(Map.of("targetKind", "host", "confidence", 0.9)),
+                "finalDecision", "host",
+                "confidence", 0.9,
+                "filters", Map.of(
+                    "assetName", "TDH scheduler",
+                    "env", "DEV",
+                    "intent", "list java processes",
+                    "trace", Map.of("plannerVersion", "v1.1"),
+                    "finalDecision", "host",
+                    "filtersSchemaVersion", "target_filters.v1"
+                ),
+                "trace", Map.of("plannerVersion", "v1.1")
+            ),
+            "list java processes"
+        );
+
+        Map<?, ?> filters = (Map<?, ?>) result.get("filters");
+        assertThat(filters.get("assetName")).isEqualTo("TDH scheduler");
+        assertThat(filters.get("env")).isEqualTo("DEV");
+        assertThat(filters.get("intent")).isEqualTo("list java processes");
+        assertThat(filters.containsKey("trace")).isFalse();
+        assertThat(filters.containsKey("finalDecision")).isFalse();
+        assertThat(filters.containsKey("filtersSchemaVersion")).isFalse();
+        assertThat(result.get("trace")).isInstanceOf(Map.class);
+    }
+
+    @Test
     void enrichesTemplateQueryWithBilingualMetadataSignalsWhenModelOnlyProvidedChineseIntent() {
         Map<String, Object> result = resolver.resolve(
             "mcp_chatchat_mcp_server_template_query",

@@ -3654,6 +3654,82 @@ class InterpretationPlanRuntimeTest {
         );
     }
 
+    @Test
+    @SuppressWarnings("unchecked")
+    void removesProtocolFieldsFromDiscoveryFiltersBeforeToolCall() throws Exception {
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            mock(ToolRuntimeService.class),
+            new InterpretationPlanValidator(),
+            mock(InterpretationPlanRuntime.DagExecutionController.class)
+        );
+        InterpretationPlan.Step step = new InterpretationPlan.Step(
+            2,
+            "mcp_tool",
+            "mcp_chatchat_mcp_server_ssh_template_query",
+            Map.of(
+                "candidates", List.of(Map.of("targetKind", "database", "confidence", 0.9)),
+                "finalDecision", "database",
+                "filters", Map.of(
+                    "assetName", "TDH scheduler",
+                    "env", "DEV",
+                    "intent", "list java processes",
+                    "trace", Map.of("plannerVersion", "v1.1"),
+                    "finalDecision", "host",
+                    "filtersSchemaVersion", "target_filters.v1"
+                ),
+                "trace", Map.of("plannerVersion", "v1.1")
+            ),
+            List.of(),
+            null,
+            null
+        );
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("system_operation", "list java processes", "low"),
+            context(),
+            new InterpretationPlan.Plan(List.of(
+                step,
+                new InterpretationPlan.Step(3, "final_answer", "", Map.of("answer", "done"), List.of(2), null, null)
+            )),
+            new InterpretationPlan.ExecutionPolicy(
+                2,
+                false,
+                List.of("mcp_chatchat_mcp_server_ssh_template_query"),
+                List.of(),
+                30000
+            ),
+            review()
+        );
+        InterpretationPlanRuntime.ExecutionRequest request = new InterpretationPlanRuntime.ExecutionRequest(
+            plan,
+            mock(ToolRegistry.class),
+            List.of("mcp_chatchat_mcp_server_ssh_template_query"),
+            "tenant-1",
+            "req-filter-sanitize",
+            "conv-filter-sanitize",
+            "user-1",
+            Map.of("executionTraceId", "trace-runtime-filter-sanitize")
+        );
+        Method method = InterpretationPlanRuntime.class.getDeclaredMethod(
+            "resolvedStepInput",
+            InterpretationPlan.Step.class,
+            InterpretationPlanRuntime.ExecutionRequest.class,
+            Map.class
+        );
+        method.setAccessible(true);
+
+        Map<String, Object> resolved = (Map<String, Object>) method.invoke(runtime, step, request, Map.of());
+
+        Map<String, Object> filters = (Map<String, Object>) resolved.get("filters");
+        assertThat(filters)
+            .containsEntry("assetName", "TDH scheduler")
+            .containsEntry("env", "DEV")
+            .containsEntry("intent", "list java processes")
+            .doesNotContainKeys("trace", "finalDecision", "filtersSchemaVersion");
+        assertThat(resolved).containsEntry("finalDecision", "host");
+        assertThat(resolved.get("trace").toString()).contains("routingForcedByTypedDiscoveryTool=true");
+    }
+
     private InterpretationPlan.Context context() {
         return new InterpretationPlan.Context(List.of(), List.of(), List.of(), List.of());
     }

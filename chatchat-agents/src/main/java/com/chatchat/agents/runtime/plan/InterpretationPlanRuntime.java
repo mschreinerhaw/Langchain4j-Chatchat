@@ -35,6 +35,39 @@ public class InterpretationPlanRuntime {
 
     private static final String AGENT_RUN_ID_ATTRIBUTE = "__agentRunId";
     private static final ObjectMapper RESULT_OBJECT_MAPPER = new ObjectMapper();
+    private static final Set<String> DISCOVERY_FILTER_PROTOCOL_FIELDS = Set.of(
+        "trace",
+        "routingTrace",
+        "routing_trace",
+        "candidates",
+        "routingCandidates",
+        "routing_candidates",
+        "finalDecision",
+        "final_decision",
+        "selectedTargetKind",
+        "selected_target_kind",
+        "targetKind",
+        "target_kind",
+        "assetType",
+        "asset_type",
+        "confidence",
+        "filtersSchemaVersion",
+        "filters_schema_version",
+        "mcpContext",
+        "mcp_context",
+        "tenantId",
+        "tenant_id",
+        "userId",
+        "user_id",
+        "requestId",
+        "request_id",
+        "conversationId",
+        "conversation_id",
+        "toolName",
+        "tool_name",
+        "remoteTool",
+        "remote_tool"
+    );
     private final ToolRuntimeService toolRuntimeService;
     private final InterpretationPlanValidator validator;
     private final InterpretationPlanOptimizer optimizer;
@@ -2379,6 +2412,7 @@ public class InterpretationPlanRuntime {
         }
         normalizeTypedDiscoveryRoutingDecision(step, request, input);
         ensureRoutingDecisionInput(step, request, input);
+        sanitizeDiscoveryFilters(input);
         input.putIfAbsent("filtersSchemaVersion", "target_filters.v1");
         Object trace = firstMapValue(input, "trace", "routingTrace", "routing_trace");
         if (trace instanceof Map<?, ?> traceMap && !traceMap.isEmpty()) {
@@ -2388,6 +2422,25 @@ public class InterpretationPlanRuntime {
             return;
         }
         input.put("trace", routingTraceForStep(step, request));
+    }
+
+    @SuppressWarnings("unchecked")
+    private void sanitizeDiscoveryFilters(Map<String, Object> input) {
+        Object filters = input == null ? null : firstMapValue(input, "filters", "executionContext", "mcpExecutionContext");
+        if (!(filters instanceof Map<?, ?> map)) {
+            return;
+        }
+        Map<String, Object> mutableFilters = map instanceof LinkedHashMap<?, ?>
+            ? (Map<String, Object>) map
+            : new LinkedHashMap<>((Map<String, Object>) map);
+        DISCOVERY_FILTER_PROTOCOL_FIELDS.forEach(mutableFilters::remove);
+        if (input.containsKey("filters") || !input.containsKey("executionContext")) {
+            input.put("filters", mutableFilters);
+        } else if (input.containsKey("executionContext")) {
+            input.put("executionContext", mutableFilters);
+        } else {
+            input.put("mcpExecutionContext", mutableFilters);
+        }
     }
 
     private void normalizeTypedDiscoveryRoutingDecision(InterpretationPlan.Step step,

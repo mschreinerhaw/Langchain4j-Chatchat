@@ -76,6 +76,39 @@ class McpParamBindingResolver {
         "resourceKind",
         "resource_kind"
     );
+    private static final List<String> FILTER_PROTOCOL_FIELDS = List.of(
+        "trace",
+        "routingTrace",
+        "routing_trace",
+        "candidates",
+        "routingCandidates",
+        "routing_candidates",
+        "finalDecision",
+        "final_decision",
+        "selectedTargetKind",
+        "selected_target_kind",
+        "targetKind",
+        "target_kind",
+        "assetType",
+        "asset_type",
+        "confidence",
+        "filtersSchemaVersion",
+        "filters_schema_version",
+        "mcpContext",
+        "mcp_context",
+        "tenantId",
+        "tenant_id",
+        "userId",
+        "user_id",
+        "requestId",
+        "request_id",
+        "conversationId",
+        "conversation_id",
+        "toolName",
+        "tool_name",
+        "remoteTool",
+        "remote_tool"
+    );
     private static final String FILTERS_SCHEMA_VERSION = "target_filters.v1";
     private static final double TARGET_KIND_CONFIDENCE_THRESHOLD = 0.60;
     private static final double INTENT_RETRIEVAL_THRESHOLD = 0.75;
@@ -909,6 +942,7 @@ class McpParamBindingResolver {
         }
         CONCRETE_TARGET_FIELDS.forEach(values::remove);
         RAW_EXECUTION_FIELDS.forEach(values::remove);
+        FILTER_PROTOCOL_FIELDS.forEach(values::remove);
     }
 
     @SuppressWarnings("unchecked")

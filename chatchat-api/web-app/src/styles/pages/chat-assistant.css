@@ -1271,13 +1271,13 @@
 }
 
 .message-markdown .tool-evidence-details {
-  margin: 12px 0;
-  border: 1px solid #e5e7eb;
+  margin: 14px 0 10px;
+  border: 1px dashed #cbd5e1;
   border-radius: 7px;
   background: #f8fafc;
   color: #64748b;
-  font-size: 12px;
-  line-height: 1.6;
+  font-size: 11px;
+  line-height: 1.55;
 }
 
 .message-markdown .tool-evidence-details summary {
@@ -1286,7 +1286,7 @@
   justify-content: space-between;
   gap: 10px;
   padding: 8px 10px;
-  color: #475569;
+  color: #334155;
   font-size: 12px;
   font-weight: 750;
   cursor: pointer;
@@ -1311,7 +1311,13 @@
 .message-markdown .tool-evidence-body p,
 .message-markdown .tool-evidence-body li {
   color: #64748b;
-  font-size: 12px;
+  font-size: 11px;
+}
+
+.message-markdown .tool-evidence-body p,
+.message-markdown .tool-evidence-body li,
+.message-markdown .tool-evidence-body small {
+  opacity: 0.88;
 }
 
 .message-markdown .tool-evidence-body ol,
@@ -1332,11 +1338,11 @@
 }
 
 .message-markdown .tool-evidence-item {
-  padding: 10px;
-  border: 1px solid #e2e8f0;
+  padding: 9px;
+  border: 1px solid #e5e7eb;
   border-left: 3px solid #94a3b8;
   border-radius: 6px;
-  background: #ffffff;
+  background: #fbfdff;
 }
 
 .message-markdown .tool-evidence-item.success {
@@ -1362,7 +1368,7 @@
 .message-markdown .tool-evidence-item header strong {
   display: block;
   min-width: 0;
-  font-size: 12px;
+  font-size: 11px;
   line-height: 1.4;
 }
 
@@ -1419,8 +1425,8 @@
 
 .message-markdown .tool-evidence-meta dd {
   margin: 0;
-  color: #334155;
-  font-size: 12px;
+  color: #475569;
+  font-size: 11px;
   overflow-wrap: anywhere;
 }
 
@@ -1458,8 +1464,9 @@
   margin: 8px 0 0;
   padding: 7px 8px;
   border-radius: 5px;
-  background: #f8fafc;
-  color: #334155;
+  background: #f1f5f9;
+  color: #64748b;
+  font-size: 11px;
   overflow-wrap: anywhere;
 }
 

@@ -558,6 +558,10 @@ public class SqlMcpToolPublisher {
     private McpSchema.JsonSchema metadataSearchInputSchema() {
         return new McpSchema.JsonSchema("object", Map.ofEntries(
             Map.entry("query", Map.of("type", "string", "description", "Free-text table/database search query, for example a table name, table comment/business meaning, database description, schema.table, or asset.database.table path.")),
+            Map.entry("searchTerm", Map.of("type", "string", "description", "Alias of query for compatibility. Prefer query.")),
+            Map.entry("keyword", Map.of("type", "string", "description", "Alias of query for compatibility. Prefer query.")),
+            Map.entry("keywords", Map.of("type", "string", "description", "Alias of query for compatibility. Prefer query.")),
+            Map.entry("searchText", Map.of("type", "string", "description", "Alias of query for compatibility. Prefer query.")),
             Map.entry("tableName", Map.of("type", "string", "description", "Optional explicit table name from the user request.")),
             Map.entry("database", Map.of("type", "string", "description", "Optional database/schema name filter.")),
             Map.entry("schema", Map.of("type", "string", "description", "Alias of database.")),

@@ -47,29 +47,23 @@ public class SqlMetadataSearchService {
             text(mcpContext.get("traceId")),
             shortUuid()
         );
-        String rawQuery = repairMojibake(firstText(text(input.get("query")), text(input.get("q"))));
-        String requestedTableName = firstText(
-            repairMojibake(text(input.get("tableName"))),
-            repairMojibake(text(input.get("table_name"))),
-            repairMojibake(text(executionContext.get("tableName"))),
-            repairMojibake(text(executionContext.get("table_name"))),
-            looksLikeTableIdentifier(rawQuery) ? rawQuery : null
-        );
-        String requestedDatabase = firstText(
-            repairMojibake(text(input.get("database"))),
-            repairMojibake(text(input.get("schema"))),
-            repairMojibake(text(input.get("schemaName"))),
-            repairMojibake(text(input.get("databaseName"))),
-            repairMojibake(text(executionContext.get("database"))),
-            repairMojibake(text(executionContext.get("schema"))),
-            repairMojibake(text(executionContext.get("schemaName"))),
-            repairMojibake(text(executionContext.get("databaseName")))
-        );
-        SqlTableNameParser.QualifiedTable qualifiedTable = SqlTableNameParser.parse(requestedTableName, requestedDatabase);
-        String tableName = qualifiedTable.table();
-        String database = qualifiedTable.database();
-        String schema = qualifiedTable.schema();
-        String lookupNamespace = firstText(schema, database);
+        String rawTableName = repairMojibake(firstText(
+            text(input.get("tableName")),
+            text(input.get("table_name")),
+            text(executionContext.get("tableName")),
+            text(executionContext.get("table_name"))
+        ));
+        String rawQuery = repairMojibake(firstText(
+            text(input.get("query")),
+            text(input.get("q")),
+            text(input.get("searchTerm")),
+            text(input.get("search_term")),
+            text(input.get("keyword")),
+            text(input.get("keywords")),
+            text(input.get("searchText")),
+            text(input.get("search_text")),
+            looksLikeTableIdentifier(rawTableName) ? null : rawTableName
+        ));
         String assetName = firstText(
             repairMojibake(text(input.get("assetName"))),
             repairMojibake(text(input.get("asset_name"))),
@@ -80,6 +74,26 @@ public class SqlMetadataSearchService {
             repairMojibake(text(defaultDataAsset.get("asset_name"))),
             repairMojibake(text(defaultDataAsset.get("name")))
         );
+        String requestedTableName = firstText(
+            looksLikeTableIdentifier(rawTableName) ? rawTableName : null,
+            looksLikeTableIdentifier(rawQuery) ? rawQuery : null
+        );
+        String rawRequestedDatabase = firstText(
+            repairMojibake(text(input.get("database"))),
+            repairMojibake(text(input.get("schema"))),
+            repairMojibake(text(input.get("schemaName"))),
+            repairMojibake(text(input.get("databaseName"))),
+            repairMojibake(text(executionContext.get("database"))),
+            repairMojibake(text(executionContext.get("schema"))),
+            repairMojibake(text(executionContext.get("schemaName"))),
+            repairMojibake(text(executionContext.get("databaseName")))
+        );
+        String requestedDatabase = looksLikeTableIdentifier(rawRequestedDatabase) ? rawRequestedDatabase : null;
+        SqlTableNameParser.QualifiedTable qualifiedTable = SqlTableNameParser.parse(requestedTableName, requestedDatabase);
+        String tableName = qualifiedTable.table();
+        String database = qualifiedTable.database();
+        String schema = qualifiedTable.schema();
+        String lookupNamespace = firstText(schema, database);
         String assetId = firstText(
             text(input.get("assetId")),
             text(input.get("asset_id")),

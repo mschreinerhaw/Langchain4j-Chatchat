@@ -139,7 +139,7 @@ export default {
       return this.displayUserId.slice(0, 2).toUpperCase();
     },
     assistantDisplayName() {
-      return this.activeAgent?.name || "闁叉垼鐎洪弬鍥ㄣ€傞崚鍡樼€芥稉鎾愁啀";
+      return this.activeAgent?.name || "AI Assistant";
     },
     hasStreamingMessage() {
       return this.messages.some((message) => message.streaming || this.isExecutionRunning(message));
@@ -255,46 +255,13 @@ export default {
     },
     runtimeStageCards(message = {}) {
       const steps = this.visibleExecutionSteps(message);
-      const normalized = steps.length ? steps : this.defaultRunningSteps(message);
-      const stageTemplates = [
-        { key: "planner", title: "Planner" },
-        { key: "memory", title: "Memory" },
-        { key: "asset", title: "Asset Search" },
-        { key: "knowledge", title: "Knowledge Search" },
-        { key: "sql_generate", title: "SQL Generate" },
-        { key: "sql_execute", title: "SQL Execute" },
-        { key: "analysis", title: "Python Analysis" },
-        { key: "answer", title: "Answer Assembly" }
-      ];
-      const matched = new Set();
-      const cards = stageTemplates.map((stage, index) => {
-        const step = normalized.find((item) => this.runtimeStepMatchesStage(item, stage));
-        if (step) {
-          matched.add(step.id);
-          return {
-            ...step,
-            id: `${message.id || "message"}-${stage.key}`,
-            title: stage.title,
-            order: index
-          };
-        }
-        return {
-          id: `${message.id || "message"}-${stage.key}`,
-          title: stage.title,
-          detail: "",
-          status: index === 0 ? "done" : "pending",
-          order: index
-        };
-      });
-      const extras = normalized
-        .filter((step) => !matched.has(step.id))
-        .slice(-3)
+      return steps
+        .filter((step) => String(step.status || "").toLowerCase() !== "pending")
         .map((step, index) => ({
           ...step,
-          id: `${step.id || "extra"}-${index}`,
-          order: cards.length + index
+          id: step.id || `${message.id || "message"}-runtime-step-${index}`,
+          order: index
         }));
-      return [...cards, ...extras];
     },
     runtimeStepMatchesStage(step = {}, stage = {}) {
       const text = `${step.title || ""} ${step.detail || ""} ${step.type || ""} ${step.toolName || ""}`.toLowerCase();
@@ -326,7 +293,8 @@ export default {
         return hasAny(["answer", "assembly", "response", "final"]);
       }
       return false;
-    },    runtimeCurrentStage(message = {}) {
+    },
+    runtimeCurrentStage(message = {}) {
       const active = this.runtimeStageCards(message)
         .find((step) => String(step.status || "").toLowerCase() === "active");
       return active?.title || (this.isExecutionRunning(message) ? "Runtime Working" : this.executionTitle(message));
@@ -489,7 +457,7 @@ export default {
       if (rows.length < 1) {
         return null;
       }
-      const title = this.nearestTableTitle(table) || `閺屻儴顕楃紒鎾寸亯 ${index + 1}`;
+      const title = this.nearestTableTitle(table) || `闂傚倸鍊搁崐鎼佸磹閹间礁纾归柟闂寸绾惧綊鏌熼梻瀵割槮缁惧墽鎳撻—鍐偓锝庝簼閹癸綁鏌ｉ鐐搭棞闁靛棙甯掗～婵嬫晲閸涱剙顥氬┑掳鍊楁慨鐑藉磻閻愮儤鍋嬮柣妯荤湽閳ь兛绶氬鎾閻樻爠鍥ㄧ厱闁斥晛鍟ㄦ禒锔剧磼椤旂懓澧插ǎ鍥э躬閹瑩顢旈崟銊ヤ壕闁哄稁鍘肩粈澶屾喐韫囨洖鍨濆┑鐘宠壘缁狅綁鏌ｅΟ鐑樷枙婵☆偅绮撳铏圭矓閸℃顏存繛鍫熸礋閺岋綁骞樼€靛憡鍣紓浣介哺閹稿骞忛崨瀛橆棃婵炴垶鐭幃锝嗙節閻㈤潧浠滈柟鍐茬箻閺佸啴濮€閵堝懓鎽曢梺鏂ユ櫅閸燁垱鍒婇幘顔界厱闁圭偓娼欑徊濠氭煕閹惧綊鍝虹紒缁樼洴閺佹劙宕ㄩ鑺ュ€烽梻浣瑰濞诧附绂嶅┑鍥┾攳濠电姴娲ら柋鍥煛閸モ晛浠滅紒鎰☉椤啴濡堕崱妯烘殫闂佸摜濮甸崝娆撱€佸▎蹇ｅ悑闁搞儮鏅濋敍婵囩箾鏉堝墽鍒伴柟纰卞亝缁傚秵銈ｉ崘鈺冨幈闁瑰吋鐣崹褰掑煝閺囩偐鏀介柍銉ョ－閸╋絾顨ラ悙瀵稿闁瑰嘲鎳庨～銏沪閻愵剙鏆梻鍌氬€烽懗鍓佸垝椤栨凹娼栧┑鐘宠壘閸屻劎鎲歌箛鏇炲灊閻犲洤妯婂鈺呭级閸稑濡奸柡瀣灥閳规垿鎮╃拠褍浼愰梺缁橆殔濡繂鐣烽妷銊ｄ汗闁圭儤鎸鹃崢浠嬫⒑閸濆嫬鏆欐繛鏉戝€垮畷?${index + 1}`;
       return {
         title,
         columns: headers,
@@ -510,7 +478,7 @@ export default {
     },
     collapseToolEvidenceHtml(html = "") {
       const source = String(html || "");
-      const headingMatch = /<h2>\s*瀹搞儱鍙块幍褑顢戠拠浣瑰祦\s*<\/h2>/i.exec(source);
+      const headingMatch = /<h2>\s*闂傚倸鍊搁崐鎼佸磹閹间礁纾圭€瑰嫭鍣磋ぐ鎺戠倞妞ゆ帒顦伴弲顏堟偡濠婂啰效闁挎繄鍋涢埞鎴犫偓锝庡亝濞呭洭姊虹粙璺ㄧ効濠碘€虫川缁瑨绠涢弮鍌滅槇闂侀潧楠忕徊浠嬫偂閹扮増鐓曢柡鍐ｅ亾婵炲弶绮庨崚鎺撶節濮橆剙鍞ㄥ銈嗘尵閸犳捇宕㈤崡鐑嗘富闁靛牆妫楁慨褏绱掗幓鎺戔挃缂侇喖鐗撻崺鈧い鎺戝€荤壕濂告煟閹伴潧澧柛鏂诲€栫换娑氫焊閺嶃倕浜鹃柟棰佺劍缂嶅骸鈹戦悙鍙夆枙濞存粌鐖煎顐﹀幢濞戞瑧鍘撻悷婊勭矒瀹曟粌鈽夊顒€鐏婇梺鍝勫暙閻楀棛绮荤紒妯镐簻闁哄啫娲﹂ˉ澶愭煕閹捐埖鍤€闁宠鍨堕獮濠囨煕婵犲啯绀嬫鐐诧龚缁犳稑鈽夊▎蹇庣暗闂備礁鎼ú銊︽叏閻㈢绐楅柟鐗堟緲缁犺绻涢敐搴″濠碘剝鎮傞弻宥堫檨闁告挻鐟╁畷顖炲级閹寸姵娈鹃梺闈浥堥弲鈺呭极瀹ュ棛绡€濠电偞鍎虫禍鍓х磽娴ｈ娈旀い锕傛涧椤繐煤椤忓拋妫冨┑鐐村灥绾绢厾娑甸埀顒勬⒒娴ｅ憡鍟炴繛璇х畵瀹曟垿宕ㄧ€涙ê鈧潧螖閿濆懎鏆為柍閿嬪笒闇夐柨婵嗗椤掔喖鏌￠埀顒佸鐎涙鍘靛┑鐐跺蔼椤斿﹦鑺辨禒瀣厵鐎瑰嫭澹嗙粔娲煙椤斿搫鐏查柟顔瑰墲閹棃鏁愰崨顓夋洖鈹戦敍鍕杭闁稿﹥鐗犲畷褰掓偂鎼存ɑ鐏冮梺鍝勬川婵兘鎮虫繝姘厸闁告劧绲芥禍鎯ь渻閵堝啫濡搁柛搴ｆ暬楠炲啫鈻庤箛锝呮櫊濡炪倖姊婚崢褎绔熸惔銊︹拻濞达絿鐡旈崵鍐煕閻樺啿娴€殿喗鐓￠幃鈺呮嚑椤掍焦顔曟繝娈垮枟閵囨盯宕戦幘缁樼厵鐎规洖娲ら埢鍫熴亜閵忊槅娈滈柛鈹惧亾濡炪倖甯掔€氼參鎮￠埀顒勬煛婢跺﹦澧戦柛鏂挎捣瀵囧焵椤掑嫭鈷戞慨鐟版搐閻忓弶绻涙担鍐插椤╃兘鏌嶉崫鍕櫤闁绘挻鐟︾换娑㈡嚑妫版繂鏁界紓浣靛妿閺咁偊鍩€椤掆偓閻忔艾顭垮鈧弫鍐敂閸曨厽娈剧紓浣割儓椤曟娊寮崼婵堝姦濡炪倖甯掗崐缁樼▔瀹ュ鐓熸俊顖濆亹鐢盯鏌ｉ幘瀵告噰闁哄瞼鍠栭、娑㈠幢濡も偓閺嬨倝鏌￠崱鎰伈婵﹤鎼叅閻犲洦褰冪粻褰掓⒑缂佹﹩娈旈柨鏇ㄤ簼娣囧﹪鎮界粙璺槹濡炪倖鐗楀銊╁储閹间焦鈷戦梺顐ゅ仜閼活垱鏅剁€涙ü绻?<\/h2>/i.exec(source);
       if (!headingMatch) {
         return source;
       }
@@ -526,7 +494,7 @@ export default {
       return [
         before,
         '<details class="tool-evidence-details">',
-        '<summary><span>瀹搞儱鍙块幍褑顢戠拠浣瑰祦</span><small>閻愮懓鍤仦鏇炵磻</small></summary>',
+        '<summary><span>闂傚倸鍊搁崐鎼佸磹閹间礁纾圭€瑰嫭鍣磋ぐ鎺戠倞妞ゆ帒顦伴弲顏堟偡濠婂啰效闁挎繄鍋涢埞鎴犫偓锝庡亝濞呭洭姊虹粙璺ㄧ効濠碘€虫川缁瑨绠涢弮鍌滅槇闂侀潧楠忕徊浠嬫偂閹扮増鐓曢柡鍐ｅ亾婵炲弶绮庨崚鎺撶節濮橆剙鍞ㄥ銈嗘尵閸犳捇宕㈤崡鐑嗘富闁靛牆妫楁慨褏绱掗幓鎺戔挃缂侇喖鐗撻崺鈧い鎺戝€荤壕濂告煟閹伴潧澧柛鏂诲€栫换娑氫焊閺嶃倕浜鹃柟棰佺劍缂嶅骸鈹戦悙鍙夆枙濞存粌鐖煎顐﹀幢濞戞瑧鍘撻悷婊勭矒瀹曟粌鈽夊顒€鐏婇梺鍝勫暙閻楀棛绮荤紒妯镐簻闁哄啫娲﹂ˉ澶愭煕閹捐埖鍤€闁宠鍨堕獮濠囨煕婵犲啯绀嬫鐐诧龚缁犳稑鈽夊▎蹇庣暗闂備礁鎼ú銊︽叏閻㈢绐楅柟鐗堟緲缁犺绻涢敐搴″濠碘剝鎮傞弻宥堫檨闁告挻鐟╁畷顖炲级閹寸姵娈鹃梺闈浥堥弲鈺呭极瀹ュ棛绡€濠电偞鍎虫禍鍓х磽娴ｈ娈旀い锕傛涧椤繐煤椤忓拋妫冨┑鐐村灥绾绢厾娑甸埀顒勬⒒娴ｅ憡鍟炴繛璇х畵瀹曟垿宕ㄧ€涙ê鈧潧螖閿濆懎鏆為柍閿嬪笒闇夐柨婵嗗椤掔喖鏌￠埀顒佸鐎涙鍘靛┑鐐跺蔼椤斿﹦鑺辨禒瀣厵鐎瑰嫭澹嗙粔娲煙椤斿搫鐏查柟顔瑰墲閹棃鏁愰崨顓夋洖鈹戦敍鍕杭闁稿﹥鐗犲畷褰掓偂鎼存ɑ鐏冮梺鍝勬川婵兘鎮虫繝姘厸闁告劧绲芥禍鎯ь渻閵堝啫濡搁柛搴ｆ暬楠炲啫鈻庤箛锝呮櫊濡炪倖姊婚崢褎绔熸惔銊︹拻濞达絿鐡旈崵鍐煕閻樺啿娴€殿喗鐓￠幃鈺呮嚑椤掍焦顔曟繝娈垮枟閵囨盯宕戦幘缁樼厵鐎规洖娲ら埢鍫熴亜閵忊槅娈滈柛鈹惧亾濡炪倖甯掔€氼參鎮￠埀顒勬煛婢跺﹦澧戦柛鏂挎捣瀵囧焵椤掑嫭鈷戞慨鐟版搐閻忓弶绻涙担鍐插椤╃兘鏌嶉崫鍕櫤闁绘挻鐟︾换娑㈡嚑妫版繂鏁界紓浣靛妿閺咁偊鍩€椤掆偓閻忔艾顭垮鈧弫鍐敂閸曨厽娈剧紓浣割儓椤曟娊寮崼婵堝姦濡炪倖甯掗崐缁樼▔瀹ュ鐓熸俊顖濆亹鐢盯鏌ｉ幘瀵告噰闁哄瞼鍠栭、娑㈠幢濡も偓閺嬨倝鏌￠崱鎰伈婵?/span><small>闂傚倸鍊搁崐鎼佸磹閹间礁纾归柟闂寸绾惧綊鏌熼梻瀵割槮缁炬儳缍婇弻锝夊箣閿濆憛鎾绘煕閵堝懎顏柡灞剧洴楠炴﹢鎳犻澶嬓滈梻浣规偠閸斿秶鎹㈤崘顔嘉﹂柛鏇ㄥ灠閸愨偓濡炪倖鍔﹀鈧紒顔煎缁辨挻鎷呴幓鎺嶅濠电姰鍨煎▔娑㈩敄閸曨厽宕查柛鈩冪⊕閻撳繘鏌涢锝囩畺闁革絾妞介弻娑㈡晲閸涱喛纭€缂備浇椴哥敮锟犲箖閳哄懏顥堟繛鎴炲笚閻庝即姊绘担鍛婃儓闁活剙銈稿畷浼村冀椤撶姴绁﹂梺纭呮彧缁犳垹绮诲☉銏♀拻闁割偆鍠撻埊鏇熴亜閺傚灝顏慨濠勭帛閹峰懘宕ㄦ繝鍌涙畼濠电儑绲藉ú锕€顪冩禒瀣櫜闁绘劖娼欑欢鐐烘煙闁箑鍔﹂柨鏇炲€归悡鏇㈡煛閸ャ儱濡奸柣蹇曞У娣囧﹪顢曢敐蹇氣偓鍧楁煛鐏炲墽娲撮柍銉畵楠炲鈹戦崶鈺€澹曠紓鍌氬€风粈渚€顢栭崨顖涘床闁圭増婢橀悡姗€鏌熸潏楣冩闁稿﹦鍏橀弻銈囧枈閸楃偛顫梺鍛婃煥閹诧紕鎹㈠☉姘ｅ亾濞戞瑯鐒介柣顓滃€曢湁婵犲﹤绨肩花缁樸亜閺囶亞绋荤紒缁樼箓椤繈顢橀悢鍓蹭户闂傚倷鑳剁划顖炩€﹂崼顫剨婵炲棙鎸哥壕褰掓煟閹邦喖鍔嬮柍閿嬪灴閹宕烽鐐愶綁鏌曢崱妤€鏆炲ǎ鍥э躬閹瑩寮堕幋鐐剁檨婵°倗濮烽崑娑㈩敄閸℃蛋鍥偋閸喎鍔呴梺鎸庣箓濞村嫮妲?/small></summary>',
         `<div class="tool-evidence-body">${this.formatToolEvidenceBody(body)}</div>`,
         '</details>',
         after
@@ -551,19 +519,19 @@ export default {
       const codeMatch = /<code[^>]*>([\s\S]*?)<\/code>/i.exec(fragment);
       const text = this.decodeHtml(fragment.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim());
       const toolName = this.decodeHtml(codeMatch?.[1] || "").trim() || this.firstToolEvidenceToken(text);
-      const semantic = this.matchToolEvidenceText(text, /[\[銆怾\s*([^\]銆慮+)\s*[\]銆慮\s*[:锛歖/);
-      const status = text.includes("鎴愬姛") || /\bsuccess\b/i.test(text)
+      const semantic = this.matchToolEvidenceText(text, /[\[\u3010]\s*([^\]\u3011]+)\s*[\]\u3011]\s*[:\uFF1A]/);
+      const status = /\b(success|succeeded|ok)\b/i.test(text) || text.includes("\u6210\u529f")
         ? "success"
-        : text.includes("澶辫触") || /\b(failed|error)\b/i.test(text)
+        : /\b(failed|failure|error)\b/i.test(text) || text.includes("\u5931\u8d25")
           ? "failed"
           : this.matchToolEvidenceText(text, /\b(success|failed|error)\b/i);
-      const evidenceType = this.matchToolEvidenceText(text, /(?:璇佹嵁绫诲瀷|evidence\s*type)\s*[=:锛歖?\s*([A-Za-z0-9_-]+)/i);
-      const durationMs = this.matchToolEvidenceText(text, /(?:鑰楁椂\s*ms|duration\s*ms)\s*[=:锛歖?\s*(\d+)/i);
-      const outputKeyText = this.matchToolEvidenceText(text, /(?:杈撳嚭閿畖output\s*keys?)\s*[=:锛歖\s*(.*?)(?:\s*(?:绛塡s*\d+\s*椤箌summary|鎽樿)\s*[=:锛歖|$)/i);
-      const outputKeyTotal = this.matchToolEvidenceText(text, /(?:杈撳嚭閿畖output\s*keys?)\s*[=:锛歖.*?绛塡s*(\d+)\s*椤?i);
-      const summary = this.matchToolEvidenceText(text, /(?:鎽樿|summary)\s*[=:锛歖\s*(.+)$/i);
+      const evidenceType = this.matchToolEvidenceText(text, /(?:\u8bc1\u636e\u7c7b\u578b|evidence\s*type)\s*[=:\uFF1A]?\s*([A-Za-z0-9_-]+)/i);
+      const durationMs = this.matchToolEvidenceText(text, /(?:\u8017\u65f6\s*ms|duration\s*ms)\s*[=:\uFF1A]?\s*(\d+)/i);
+      const outputKeyText = this.matchToolEvidenceText(text, /(?:\u8f93\u51fa\u952e|output\s*keys?)\s*[=:\uFF1A]\s*(.*?)(?:\s*(?:\u7b49\s*\d+\s*\u9879|summary|\u6458\u8981)\s*[=:\uFF1A]|$)/i);
+      const outputKeyTotal = this.matchToolEvidenceText(text, /(?:\u8f93\u51fa\u952e|output\s*keys?)\s*[=:\uFF1A].*?\u7b49\s*(\d+)\s*\u9879/i);
+      const summary = this.matchToolEvidenceText(text, /(?:\u6458\u8981|summary)\s*[=:\uFF1A]\s*(.+)$/i);
       const outputKeys = String(outputKeyText || "")
-        .split(/[,锛宂\s*/)
+        .split(/[,\uFF0C]\s*/)
         .map((item) => item.trim())
         .filter(Boolean);
       if (!toolName && !semantic && !status && !evidenceType && !durationMs && !outputKeys.length && !summary) {
@@ -573,7 +541,7 @@ export default {
         toolName,
         semantic,
         status: status || "-",
-        statusClass: /fail|error|婢惰精瑙?i.test(status || "") ? "failed" : "success",
+        statusClass: /fail|error/i.test(status || "") ? "failed" : "success",
         evidenceType: evidenceType || "-",
         durationMs: durationMs || "",
         outputKeys,
@@ -591,7 +559,7 @@ export default {
         : '<span class="tool-evidence-muted">-</span>';
       const total = item.outputKeyTotal || item.outputKeys.length;
       const more = Number(total) > outputKeys.length
-        ? `<span class="tool-evidence-more">閸?${escapeHtml(total)} 妞?/span>`
+        ? `<span class="tool-evidence-more">${escapeHtml(total)} total</span>`
         : "";
       return [
         `<article class="tool-evidence-item ${escapeHtml(item.statusClass)}">`,
@@ -603,13 +571,13 @@ export default {
         `<span class="tool-evidence-status">${escapeHtml(item.status || "-")}</span>`,
         '</header>',
         '<dl class="tool-evidence-meta">',
-        `<div><dt>鐠囦焦宓佺猾璇茬€?/dt><dd>${escapeHtml(item.evidenceType || "-")}</dd></div>`,
-        `<div><dt>閼版妞?/dt><dd>${duration}</dd></div>`,
+        `<div><dt>Evidence</dt><dd>${escapeHtml(item.evidenceType || "-")}</dd></div>`,
+        `<div><dt>Duration</dt><dd>${duration}</dd></div>`,
         '</dl>',
         '<section class="tool-evidence-keys">',
-        `<strong>鏉堟挸鍤柨?/strong><div>${keyChips}${more}</div>`,
+        `<strong>Output keys</strong><div>${keyChips}${more}</div>`,
         '</section>',
-        item.summary ? `<p class="tool-evidence-summary"><strong>閹芥顩?/strong>${escapeHtml(item.summary)}</p>` : "",
+        item.summary ? `<p class="tool-evidence-summary"><strong>Summary</strong>${escapeHtml(item.summary)}</p>` : "",
         '</article>'
       ].join("");
     },
@@ -618,7 +586,7 @@ export default {
       return match?.[1] ? String(match[1]).trim() : "";
     },
     firstToolEvidenceToken(text = "") {
-      const match = /^\s*([^\s閿涘矉绱盷+)/.exec(String(text || ""));
+      const match = /^\s*([^\s:]+)/.exec(String(text || ""));
       return match?.[1] || "";
     },
     decodeHtml(value = "") {
@@ -725,7 +693,7 @@ export default {
         const titleParts = [databaseName, schemaName, tableName].filter(Boolean);
         section = {
           id: identity,
-          title: titleParts.length ? titleParts.join(".") : `閸忓啯鏆熼幑顔肩摟濞?${sections.length + 1}`,
+          title: titleParts.length ? titleParts.join(".") : `闂傚倸鍊搁崐鎼佸磹閹间礁纾归柟闂寸绾惧綊鏌熼梻瀵割槮缁炬儳缍婇弻锝夊箣閿濆憛鎾绘煕閵堝懎顏柡灞剧洴椤㈡洟鏁愰崱娆欑穿闂備線鈧偛鑻晶鍓х磼閻樿櫕灏柣锝夋敱缁虹晫绮欏▎鐐秱闂備胶鍋ㄩ崕閬嶅疮鐠恒劏濮抽柕澶嗘櫆閳锋帒霉閿濆懏鍟為悹鎰ㄢ偓鎰佺唵鐟滃酣銆冮崨绮光偓锕傚垂椤曞懏寤洪梺閫炲苯澧存鐐插暣瀹曠螖婵犲啯娅撳┑鐘愁問閸犳宕濋幒鏃囧С濠电姵纰嶉埛鎴︽煕濠靛棗顏柍璇差樀閺屾稓鈧綆浜滈顏嗙磼閸屾稑绗掓い顓滃姂瀹曠喖顢楅埀顒€顕ｉ崸妤佺厽闁绘柨鎽滈幊鍐倵濮樼厧娅嶇€规洩缍侀崺鈧い鎺戝閳锋垿鏌涘┑鍡楊伀闁绘帟娉曠槐鎾愁吋閸曨収妲銈嗘穿缂嶄線銆佸璺虹劦妞ゆ巻鍋撻柣锝囧厴楠炴帡骞嬮鐔峰厞婵＄偑鍊栭崹鐓庘枖閺囩姵鏆滄繛鎴炴皑绾句粙鏌涚仦鎹愬闁逞屽墰閸忔﹢骞婂Δ鍛殝闁割煈鍋勫鍧楁⒑閸濆嫷妲归柛鈺佺墦瀹曠敻寮撮姀锛勫幈濡炪倖鍔х徊鍓х矆閳ь剚淇婂Δ鈧幊妯侯潖濞差亜宸濆┑鐘插暙椤︹晠姊洪幖鐐插濠㈢懓妫濋幃顕€骞嗚閸氬顭跨捄渚剳闁告﹢浜跺娲濞戣鲸效闂佹悶鍔庨弫璇茬暦閹邦垬浜归柟鐑樻尭閸撶敻妫呴銏″缂佸甯￠崺娑㈠箳閹炽劌缍婇弫鎰板川椤斿吋娈橀梺鑽ゅУ閸斞呮崲濠靛钃熼柨鐔哄Т濡炶棄霉閿濆娅滈柛鐘诧躬閹鎲撮崟顒傦紱闂佸憡顨嗘繛濠囨偘椤曗偓瀹曞爼顢楁径瀣珦闂備浇濮ら敋妞わ富鍨抽懞?${sections.length + 1}`,
           comment: this.metadataText(result.comment || result.tableComment || result.description || result.summary),
           columns: [],
           columnIndex: new Set()
@@ -1110,34 +1078,10 @@ export default {
     defaultRunningSteps(message = {}) {
       return [
         {
-          id: `${message.id || "message"}-planner`,
-          title: "Planner",
-          detail: "Intent and run plan resolved",
-          status: "done"
-        },
-        {
-          id: `${message.id || "message"}-memory`,
-          title: "Memory",
-          detail: "Runtime context prepared",
-          status: "done"
-        },
-        {
-          id: `${message.id || "message"}-asset-search`,
-          title: "Asset Search",
-          detail: "Selecting tools and data assets",
+          id: `${message.id || "message"}-runtime-start`,
+          title: "Starting run",
+          detail: "Waiting for the first execution event",
           status: "active"
-        },
-        {
-          id: `${message.id || "message"}-sql-execute`,
-          title: "SQL Execute",
-          detail: "Waiting for execution contract",
-          status: "pending"
-        },
-        {
-          id: `${message.id || "message"}-answer`,
-          title: "Answer Assembly",
-          detail: "Waiting for observations",
-          status: "pending"
         }
       ];
     },
@@ -1152,14 +1096,13 @@ export default {
       }
       const citationUrls = [];
       const nextContent = normalizedContent.replace(
-        /閵嗘€絪*(瀵洜鏁缂冩垿銆墊閺夈儲绨畖source)\s*(\d+)\s*閵嗘啋[閿涚睜[]\s*(瀵洜鏁缂冩垿銆墊閺夈儲绨畖source)\s*(\d+)\s*[閿涚祿]]|(?:瀵洜鏁缂冩垿銆墊閺夈儲绨畖source)\s*(\d+)/gi,
+        /(?:\[(source|ref|citation)\s*(\d+)\]|\b(source|ref|citation)\s*(\d+)\b)/gi,
         (...args) => {
           const match = args[0];
-          const boxedPrefix = args[1];
-          const boxedNumber = args[2];
-          const bracketPrefix = args[3];
-          const bracketNumber = args[4];
-          const plainNumber = args[5];
+          const bracketPrefix = args[1];
+          const bracketNumber = args[2];
+          const plainPrefix = args[3];
+          const plainNumber = args[4];
           const offset = args[args.length - 2];
           const source = args[args.length - 1];
 
@@ -1170,8 +1113,8 @@ export default {
             return match;
           }
 
-          const prefix = boxedPrefix || bracketPrefix || this.plainCitationPrefix(match) || "瀵洜鏁?;
-          const normalizedNumber = Number(boxedNumber || bracketNumber || plainNumber);
+          const prefix = bracketPrefix || plainPrefix || this.plainCitationPrefix(match) || "source";
+          const normalizedNumber = Number(bracketNumber || plainNumber);
           if (!Number.isInteger(normalizedNumber) || normalizedNumber < 1) {
             return match;
           }
@@ -1334,17 +1277,16 @@ export default {
         && /[()]/.test(text);
     },
     plainCitationPrefix(value) {
-      const match = String(value || "").match(/^(瀵洜鏁缂冩垿銆墊閺夈儲绨畖source)/i);
+      const match = String(value || "").match(/^(source|ref|citation)/i);
       return match?.[1] || "";
     },
     normalizeCitationPrefix(value) {
       const prefix = String(value || "").toLowerCase();
-      if (prefix === "source" || prefix === "缂冩垿銆? || prefix === "閺夈儲绨?) {
-        return "瀵洜鏁?;
+      if (prefix === "ref" || prefix === "citation") {
+        return "source";
       }
-      return value || "瀵洜鏁?;
-    },
-    escapeMarkdownTitle(value) {
+      return prefix || "source";
+    },    escapeMarkdownTitle(value) {
       return String(value || "").replace(/"/g, "&quot;");
     },
     parseEvidenceReasoning(content) {
@@ -2083,7 +2025,7 @@ export default {
       let activeKey = "";
       for (const rawLine of lines.slice(titleIndex + 1)) {
         const line = String(rawLine || "");
-        const fieldMatch = line.match(/^\s*[-*]\s+\*{0,2}(answer|citations|confidence|missingInfo)\*{0,2}\s*[:閿涙瓥\s*(.*)$/i);
+        const fieldMatch = line.match(/^\s*[-*]\s+\*{0,2}(answer|citations|confidence|missingInfo)\*{0,2}\s*:\s*(.*)$/i);
         if (fieldMatch) {
           activeKey = fieldMatch[1].toLowerCase();
           fields[activeKey] = fieldMatch[2].trim();
@@ -2107,14 +2049,14 @@ export default {
     },
     splitEvidenceCitationText(value) {
       return String(value || "")
-        .split(/[閿?閿?]\s*/)
+        .split(/[闂?闂?]\s*/)
         .map((item) => item.trim())
         .filter(Boolean);
     },
     renderEvidenceAnswer(evidenceAnswer, citationUrls) {
       const env = { webCitationUrls: citationUrls };
       const confidence = evidenceAnswer.confidence || "";
-      const confidenceLabel = confidence.split(/\s+[璺?]\s+|[:閿涙瓥/)[0]?.trim() || confidence.trim();
+      const confidenceLabel = confidence.split(/\s+[-|]\s+|:/)[0]?.trim() || confidence.trim();
       const confidenceClass = this.evidenceConfidenceClass(confidenceLabel);
       const citationItems = evidenceAnswer.citations.length
         ? evidenceAnswer.citations
@@ -2267,7 +2209,7 @@ export default {
       if (!rows.length) {
         return [];
       }
-      const header = `閸?${catalog.totalMatched || rows.length} 瀵媴绱濆鑼剁箲閸?${rows.length} 瀵?{catalog.catalogTruncated ? "閿涘本绔婚崡鏇炲嚒閹搭亝鏌? : ""}`;
+      const header = `${catalog.totalMatched || rows.length} matched, returned ${rows.length}${catalog.catalogTruncated ? ", truncated" : ""}`;
       const body = rows.map((row, index) => [
         index + 1,
         row.database || "-",
@@ -2276,11 +2218,11 @@ export default {
         row.tableComment || "-",
         row.score || "-"
       ].join("\t"));
-      return [header, "鎼村繐褰縗t閺佺増宓佹惔鎻瑃濡€崇础\t鐞涖劌鎮昞t鐞涖劍鏁為柌濂瑃鐠囧嫬鍨?, ...body];
+      return [header, "#\tdatabase\tschema\ttable\tcomment\tscore", ...body];
     },
     copyMetadataColumnLines(sections = []) {
       return sections.flatMap((section) => {
-        const header = `${section.title} (${section.columns.length} 娑擃亜鐡у▓?`;
+        const header = `${section.title} (${section.columns.length} fields)`;
         const rows = section.columns.map((column) => [
           column.ordinal,
           column.name,
@@ -2289,7 +2231,7 @@ export default {
           column.nullable || "-",
           column.comment || "-"
         ].join("\t"));
-        return [header, "鎼村繐褰縗t鐎涙顔岄崥宄攖缁鐎穃t闁跨敍t閸欘垳鈹朶t濞夈劑鍣?, ...rows];
+        return [header, "ordinal\tname\ttype\tkey\tnullable\tcomment", ...rows];
       });
     },
     copyUiRenderContractText(contract = {}) {
@@ -2338,7 +2280,7 @@ export default {
           const title = this.cleanUiCitationTitle(page?.title || page?.docId || "", index);
           const url = page?.url || "";
           const snippet = this.cleanUiProtocolText(page?.snippet || "");
-          return [`閺傚洦銆?${rank}: ${title}`, url, snippet].filter(Boolean).join(" - ");
+          return [`闂傚倸鍊搁崐鎼佸磹閹间礁纾归柟闂寸绾惧綊鏌熼梻瀵割槮缁惧墽鎳撻—鍐偓锝庝簼閹癸綁鏌ｉ鐐搭棞闁靛棙甯掗～婵嬫晲閸涱剙顥氬┑掳鍊楁慨鐑藉磻閻愮儤鍋嬮柣妯荤湽閳ь兛绶氬鎾閳╁啯鐝栭梻渚€鈧偛鑻晶鏉款熆鐟欏嫭绀嬬€规洜鍏橀、姗€鎮╃喊澶屽簥闂備浇顕ч崙鐣岀礊閸℃稑纾婚柟鎹愬煐椤洟鏌嶉崫鍕偓鑽ょ不閸撗€鍋撻悷鏉款棌闁哥姵娲滈懞杈ㄧ附閸涘﹦鍘搁梺鍛婁緱閸犳氨绮婚悙鐑樼厸閻忕偛澧介妴鎺懨归悪鍛洭缂佽鲸甯℃慨鈧柣妯诲墯閸?${rank}: ${title}`, url, snippet].filter(Boolean).join(" - ");
         })
         .filter(Boolean);
     },
@@ -2346,10 +2288,10 @@ export default {
       return pages
         .map((page, index) => {
           const rank = page?.rank || index + 1;
-          const title = page?.title || page?.url || "瀵洜鏁?;
+          const title = page?.title || page?.url || "Untitled source";
           const url = page?.url || "";
           const snippet = page?.snippet || "";
-          return [`瀵洜鏁?${rank}: ${title}`, url, snippet].filter(Boolean).join(" - ");
+          return [`闂傚倸鍊搁崐鎼佸磹閹间礁纾圭€瑰嫭鍣磋ぐ鎺戠倞妞ゆ帒顦伴弲顏堟偡濠婂啰绠婚柛鈹惧亾濡炪倖甯婇懗鍫曞煝閹剧粯鐓涢柛娑卞灠閳诲牓鏌曢崱鏇狀槮闁宠閰ｉ獮姗€宕橀幓鎺撴殢濠碉紕鍋戦崐鏍箰妤ｅ啫纾婚柣鏂垮悑閸嬫﹢鏌曟径鍫濆姉闁衡偓娴犲绠抽柟鎯版绾惧綊鏌熼悧鍫熺凡缁炬儳顭烽弻鐔煎礈瑜忕敮娑㈡煕鐎ｎ亜鈧潡寮婚弴銏犻唶婵犻潧娴傚Λ銈囩磽娴ｅ弶顎嗛柛瀣尭閳规垿鎮╅崹顐ｆ瘎婵犳鍠楅幐鍐茬暦閹邦喚纾兼俊顖滅帛閻濈兘姊洪崫鍕偍闁搞劍妞介幃?${rank}: ${title}`, url, snippet].filter(Boolean).join(" - ");
         })
         .filter(Boolean);
     },

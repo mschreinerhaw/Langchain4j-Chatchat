@@ -338,13 +338,141 @@ public class SqlMcpToolPublisher {
             : value.substring(0, maxChars) + "\n\n[元数据摘要已截断；完整 structuredContent 已保留]";
     }
 
+    private String summarizeMetadataSearchResultV2(Map<String, Object> result) {
+        List<Map<String, Object>> tableCatalog = listOfMaps(result == null ? null : result.get("tableCatalog"));
+        List<Map<String, Object>> topTables = listOfMaps(result == null ? null : result.get("topTables"));
+        if (topTables.isEmpty()) {
+            topTables = listOfMaps(result == null ? null : result.get("results"));
+        }
+        int totalMatched = intValue(result == null ? null : result.get("totalMatched"), tableCatalog.size());
+        int catalogReturnedCount = intValue(result == null ? null : result.get("catalogReturnedCount"), tableCatalog.size());
+        int returnedDetailCount = intValue(result == null ? null : result.get("returnedDetailCount"), topTables.size());
+        boolean hasMore = booleanValue(result == null ? null : result.get("hasMore"));
+        boolean catalogTruncated = booleanValue(result == null ? null : result.get("catalogTruncated"));
+        boolean detailTruncated = booleanValue(result == null ? null : result.get("detailTruncated"));
+        if (totalMatched <= 0 && tableCatalog.isEmpty() && topTables.isEmpty()) {
+            return "SQL metadata search completed; no matched tables were returned.";
+        }
+        StringBuilder text = new StringBuilder("SQL metadata search completed. ")
+            .append("totalMatched=").append(totalMatched)
+            .append(", catalogReturnedCount=").append(catalogReturnedCount)
+            .append(", catalogTruncated=").append(catalogTruncated)
+            .append(", returnedDetailCount=").append(returnedDetailCount)
+            .append(", hasMore=").append(hasMore)
+            .append(", detailTruncated=").append(detailTruncated)
+            .append(".\n\n")
+            .append("Use tableCatalog as the matched table list and topTables as the detailed Top ")
+            .append(returnedDetailCount)
+            .append(" tables. Do not describe topTables/results as the full matched table count.");
+        appendMetadataCatalogSummary(text, tableCatalog);
+        appendMetadataTopTableSummary(text, topTables);
+        return boundedMetadataSummary(text.toString());
+    }
+
+    private void appendMetadataCatalogSummary(StringBuilder text, List<Map<String, Object>> tableCatalog) {
+        if (tableCatalog == null || tableCatalog.isEmpty()) {
+            return;
+        }
+        text.append("\n\n## Matched table catalog");
+        text.append("\n\n| # | Database | Schema | Table | Comment |\n");
+        text.append("|---:|---|---|---|---|\n");
+        int catalogIndex = 1;
+        for (Map<String, Object> item : tableCatalog.stream().limit(20).toList()) {
+            text.append("| ").append(catalogIndex++)
+                .append(" | ").append(escapeMarkdownCell(text(item, "database")))
+                .append(" | ").append(escapeMarkdownCell(text(item, "schema")))
+                .append(" | `").append(escapeMarkdownInline(firstText(text(item, "tableName"), text(item, "table")))).append("`")
+                .append(" | ").append(escapeMarkdownCell(text(item, "tableComment")))
+                .append(" |\n");
+        }
+        if (tableCatalog.size() > 20) {
+            text.append("\nText summary shows first 20 catalog rows; full returned catalog is in structuredContent.tableCatalog.");
+        }
+    }
+
+    private void appendMetadataTopTableSummary(StringBuilder text, List<Map<String, Object>> topTables) {
+        if (topTables == null || topTables.isEmpty()) {
+            return;
+        }
+        text.append("\n\n## Top table details");
+        int tableIndex = 1;
+        for (Map<String, Object> item : topTables.stream().limit(5).toList()) {
+            Map<String, Object> location = objectMap(item.get("location"));
+            String database = firstText(text(location, "schema"), text(location, "database"));
+            String table = firstText(text(location, "tableName"), text(location, "table"));
+            String tableComment = text(location, "tableComment");
+            List<Map<String, Object>> columns = listOfMaps(item.get("columns"));
+            text.append("\n\n### Table ").append(tableIndex++).append(": `")
+                .append(escapeMarkdownInline(joinTableName(database, table)))
+                .append("`");
+            if (tableComment != null && !tableComment.isBlank()) {
+                text.append("\n\n").append(tableComment);
+            }
+            text.append("\n\ncolumnCount: ").append(item.getOrDefault("columnCount", columns.size()));
+            if (columns.isEmpty()) {
+                text.append("\n\nNo cached columns were included in this detail item.");
+                continue;
+            }
+            text.append("\n\n| # | Column | Type | Key | Nullable | Comment |\n");
+            text.append("|---:|---|---|---|---|---|\n");
+            int columnIndex = 1;
+            List<Map<String, Object>> summaryColumns = limitedList(columns, sqlMetadataSearchSummaryMaxColumns());
+            for (Map<String, Object> column : summaryColumns) {
+                String name = firstText(firstText(text(column, "name"), text(column, "columnName")), text(column, "COLUMN_NAME"));
+                String type = firstText(
+                    firstText(text(column, "columnType"), text(column, "dataType")),
+                    firstText(text(column, "type"), text(column, "COLUMN_TYPE"))
+                );
+                String key = firstText(text(column, "columnKey"), text(column, "key"));
+                String comment = firstText(
+                    firstText(text(column, "comment"), text(column, "remarks")),
+                    text(column, "COLUMN_COMMENT")
+                );
+                text.append("| ").append(columnIndex++)
+                    .append(" | `").append(escapeMarkdownInline(name)).append("`")
+                    .append(" | `").append(escapeMarkdownInline(type)).append("`")
+                    .append(" | ").append(escapeMarkdownCell(key))
+                    .append(" | ").append(escapeMarkdownCell(nullableText(column.get("nullable"))))
+                    .append(" | ").append(escapeMarkdownCell(comment))
+                    .append(" |\n");
+            }
+            if (summaryColumns.size() < columns.size()) {
+                text.append("\nText summary shows first ").append(summaryColumns.size())
+                    .append(" columns; full columns are in structuredContent.topTables[].columns.");
+            }
+        }
+    }
+
+    private String boundedMetadataSummary(String value) {
+        int maxChars = sqlMetadataSearchSummaryMaxChars();
+        return maxChars < 0 || value.length() <= maxChars
+            ? value
+            : value.substring(0, maxChars) + "\n\n[Metadata text summary truncated; full structuredContent is preserved.]";
+    }
+
+    private int intValue(Object value, int fallback) {
+        if (value == null) {
+            return fallback;
+        }
+        try {
+            return Integer.parseInt(String.valueOf(value));
+        } catch (Exception ignored) {
+            return fallback;
+        }
+    }
+
+    private boolean booleanValue(Object value) {
+        return value != null && Boolean.parseBoolean(String.valueOf(value));
+    }
+
     private McpServerFeatures.SyncToolSpecification sqlMetadataSearchTool() {
         McpSchema.Tool tool = McpSchema.Tool.builder()
             .name("sql_metadata_search")
             .title("SQL metadata table search")
             .description("Read-only Lucene-backed metadata retrieval tool for locating datasource/database/table entries before SQL template execution. "
                 + "Use this before database_ops_template_search and sql_query_execute when the user mentions a table name, table comment, business meaning, or when schema/database is unknown. "
-                + "When an explicit tableName/schema.table is provided, it returns cached column metadata including column name, type, key, nullability, ordinal position, and comment. "
+                + "The structured result separates tableCatalog, the lightweight matched table list, from topTables, the detailed Top 5 tables with cached column metadata. "
+                + "Never treat topTables/results as the full matched table count; use totalMatched, catalogReturnedCount, and catalogTruncated. "
                 + "It returns logical routing context and table locations from the metadata index; it never returns JDBC URLs or raw SQL.")
             .inputSchema(metadataSearchInputSchema())
             .meta(metadataSearchMeta())
@@ -356,9 +484,19 @@ public class SqlMcpToolPublisher {
                 "sql",
                 request.arguments(),
                 () -> {
+                    long startedAt = System.currentTimeMillis();
                     Map<String, Object> result = metadataSearchService.search(request.arguments());
+                    long searchDurationMs = Math.max(0L, System.currentTimeMillis() - startedAt);
+                    long summaryStartedAt = System.currentTimeMillis();
+                    String summary = summarizeMetadataSearchResultV2(result);
+                    long summaryDurationMs = Math.max(0L, System.currentTimeMillis() - summaryStartedAt);
+                    log.info("sql_metadata_search tool result prepared count={} searchDurationMs={} summaryDurationMs={} diagnostics={}",
+                        result == null ? null : result.get("count"),
+                        searchDurationMs,
+                        summaryDurationMs,
+                        result == null ? null : result.get("diagnostics"));
                     return McpSchema.CallToolResult.builder()
-                        .addTextContent(summarizeMetadataSearchResult(result))
+                        .addTextContent(summary)
                         .structuredContent(result)
                         .isError(false)
                         .build();
@@ -418,18 +556,25 @@ public class SqlMcpToolPublisher {
     }
 
     private McpSchema.JsonSchema metadataSearchInputSchema() {
-        return new McpSchema.JsonSchema("object", Map.of(
-            "query", Map.of("type", "string", "description", "Free-text table/database search query, for example a table name, table comment/business meaning, database description, schema.table, or asset.database.table path."),
-            "tableName", Map.of("type", "string", "description", "Optional explicit table name from the user request."),
-            "database", Map.of("type", "string", "description", "Optional database/schema name filter."),
-            "schema", Map.of("type", "string", "description", "Alias of database."),
-            "assetName", Map.of("type", "string", "description", "Optional logical datasource asset name, never a datasourceId."),
-            "executionContext", Map.of(
+        return new McpSchema.JsonSchema("object", Map.ofEntries(
+            Map.entry("query", Map.of("type", "string", "description", "Free-text table/database search query, for example a table name, table comment/business meaning, database description, schema.table, or asset.database.table path.")),
+            Map.entry("tableName", Map.of("type", "string", "description", "Optional explicit table name from the user request.")),
+            Map.entry("database", Map.of("type", "string", "description", "Optional database/schema name filter.")),
+            Map.entry("schema", Map.of("type", "string", "description", "Alias of database.")),
+            Map.entry("assetId", Map.of("type", "string", "description", "Optional logical datasource asset id resolved by asset discovery or configured default data asset.")),
+            Map.entry("assetName", Map.of("type", "string", "description", "Optional logical datasource asset name.")),
+            Map.entry("defaultDataAsset", Map.of(
                 "type", "object",
-                "description", "Logical datasource context such as assetName, env, databaseType, database/schema, or tableName. Concrete target fields are forbidden."
-            ),
-            "limit", Map.of("type", "integer", "minimum", 1, "maximum", 30),
-            "includeColumns", Map.of("type", "boolean", "description", "Optional; true includes cached column metadata for matched tables. Defaults to true; set false only for lightweight routing lookup.")
+                "description", "Configured default data asset context copied from the agent skill; used only as metadata retrieval scope fallback."
+            )),
+            Map.entry("executionContext", Map.of(
+                "type", "object",
+                "description", "Logical datasource context such as assetId, assetName, env, databaseType, database/schema, or tableName. Concrete endpoint fields are forbidden."
+            )),
+            Map.entry("limit", Map.of("type", "integer", "minimum", 1, "description", "Deprecated legacy field. It is not used for detailed table count; use catalogLimit or detailLimit instead.")),
+            Map.entry("catalogLimit", Map.of("type", "integer", "minimum", 1, "description", "Optional maximum number of lightweight tableCatalog rows returned. Defaults to 200.")),
+            Map.entry("detailLimit", Map.of("type", "integer", "minimum", 1, "description", "Optional maximum number of detailed topTables returned. Defaults to 5.")),
+            Map.entry("includeColumns", Map.of("type", "boolean", "description", "Optional; true includes cached column metadata for matched tables. Defaults to true; set false only for lightweight routing lookup."))
         ), List.of(), false, null, null);
     }
 
@@ -540,13 +685,35 @@ public class SqlMcpToolPublisher {
         meta.put("runtime_action", "allow");
         meta.put("runtimeAction", "allow");
         meta.put("outputSchema", SqlMetadataSearchService.RESULT_SCHEMA_VERSION);
+        meta.put("toolResultInstruction", String.join("\n",
+            "SQL metadata search result contract:",
+            "- totalMatched is the actual matched table count.",
+            "- tableCatalog is the lightweight matched table catalog; use it to understand the candidate table range.",
+            "- topTables contains only the highest-ranked detailed tables and is limited by detailLimit.",
+            "- topTables/results do not represent all matched tables.",
+            "- hasMore/detailTruncated indicates additional matched tables do not have detailed payloads in this response."
+        ));
+        meta.put("resultSchema", mutableMap(
+            "schemaVersion", SqlMetadataSearchService.RESULT_SCHEMA_VERSION,
+            "totalMatched", "Actual matched table count before detail limiting.",
+            "catalogReturnedCount", "Number of lightweight tableCatalog rows returned.",
+            "catalogTruncated", "True when tableCatalog was capped by catalogLimit.",
+            "detailLimit", "Maximum number of detailed topTables returned.",
+            "returnedDetailCount", "Number of detailed topTables returned.",
+            "hasMore", "True when matched tables remain outside the detailed topTables payload.",
+            "tableCatalog", "Lightweight matched table catalog with database/schema/tableName/tableComment/score. This is the candidate range.",
+            "topTables", "Detailed highest-ranked tables with columns and SQL execution binding. This is not the full matched set.",
+            "results", "Backward-compatible alias of topTables."
+        ));
         meta.put("doesNotExecuteSql", true);
         meta.put("indexBackend", "lucene_metadata_table_index");
         meta.put("forbiddenTargetFields", List.of("datasourceId", "jdbcUrl", "url", "connectionString"));
         meta.put("resultShape", mutableMap(
-            "tableLocationPath", "results[].location",
-            "executionContextPath", "results[].sqlExecutionBinding.executionContext",
-            "templateParameterPath", "results[].sqlExecutionBinding.parameters",
+            "catalogPath", "tableCatalog",
+            "detailPath", "topTables",
+            "tableLocationPath", "topTables[].location",
+            "executionContextPath", "topTables[].sqlExecutionBinding.executionContext",
+            "templateParameterPath", "topTables[].sqlExecutionBinding.parameters",
             "nextTool", "database_ops_template_search then sql_query_execute"
         ));
         meta.put("mcp_tool_limit", concurrencyManager.limitMeta("sql_metadata_search", "sql"));

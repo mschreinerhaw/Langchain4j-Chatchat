@@ -8,7 +8,7 @@
       <div class="runtime-actions">
         <label class="runtime-filter">
           <span>租户</span>
-          <input v-model.trim="tenantId" type="text" placeholder="租户编号" @keyup.enter="loadRuntime" />
+          <input v-model.trim="runtimeTenantId" type="text" placeholder="租户编号" @keyup.enter="loadRuntime" />
         </label>
         <button type="button" :disabled="loading" @click="loadRuntime">
           <RefreshCw :size="16" stroke-width="2" />

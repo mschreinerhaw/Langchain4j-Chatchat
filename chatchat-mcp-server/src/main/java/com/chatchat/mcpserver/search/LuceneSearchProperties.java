@@ -34,6 +34,7 @@ public class LuceneSearchProperties {
         private String indexPrefix = "chatchat_mcp_";
         private boolean insecureSsl = false;
         private int requestTimeoutMs = 30000;
+        private boolean debugSearch = false;
         private Embedding embedding = new Embedding();
 
         @Data

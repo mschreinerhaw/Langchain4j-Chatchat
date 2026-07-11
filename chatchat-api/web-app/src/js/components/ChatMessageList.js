@@ -139,7 +139,7 @@ export default {
       return this.displayUserId.slice(0, 2).toUpperCase();
     },
     assistantDisplayName() {
-      return this.activeAgent?.name || "金融文档分析专家";
+      return this.activeAgent?.name || "闁叉垼鐎洪弬鍥ㄣ€傞崚鍡樼€芥稉鎾愁啀";
     },
     hasStreamingMessage() {
       return this.messages.some((message) => message.streaming || this.isExecutionRunning(message));
@@ -232,6 +232,168 @@ export default {
     assistantName(message = {}) {
       return message.agentName || this.assistantDisplayName;
     },
+    runtimeAvatarLabel(message = {}) {
+      return this.isExecutionRunning(message) || message.streaming ? "RUN" : "AI";
+    },
+    runtimeRunId(message = {}) {
+      const raw = message.taskId || message.runId || message.id || "";
+      const text = String(raw || "").replace(/[^A-Za-z0-9-]/g, "");
+      return text ? `Run #${text.slice(-12)}` : "Run #pending";
+    },
+    runtimeElapsed(message = {}) {
+      const started = Number(message.startedAt || message.timestamp || Date.now());
+      const elapsed = Math.max(0, Date.now() - started);
+      if (elapsed < 1000) {
+        return "0.0s";
+      }
+      if (elapsed < 60_000) {
+        return `${(elapsed / 1000).toFixed(1)}s`;
+      }
+      const minutes = Math.floor(elapsed / 60_000);
+      const seconds = Math.floor((elapsed % 60_000) / 1000);
+      return `${minutes}m ${seconds}s`;
+    },
+    runtimeStageCards(message = {}) {
+      const steps = this.visibleExecutionSteps(message);
+      const normalized = steps.length ? steps : this.defaultRunningSteps(message);
+      const stageTemplates = [
+        { key: "planner", title: "Planner" },
+        { key: "memory", title: "Memory" },
+        { key: "asset", title: "Asset Search" },
+        { key: "knowledge", title: "Knowledge Search" },
+        { key: "sql_generate", title: "SQL Generate" },
+        { key: "sql_execute", title: "SQL Execute" },
+        { key: "analysis", title: "Python Analysis" },
+        { key: "answer", title: "Answer Assembly" }
+      ];
+      const matched = new Set();
+      const cards = stageTemplates.map((stage, index) => {
+        const step = normalized.find((item) => this.runtimeStepMatchesStage(item, stage));
+        if (step) {
+          matched.add(step.id);
+          return {
+            ...step,
+            id: `${message.id || "message"}-${stage.key}`,
+            title: stage.title,
+            order: index
+          };
+        }
+        return {
+          id: `${message.id || "message"}-${stage.key}`,
+          title: stage.title,
+          detail: "",
+          status: index === 0 ? "done" : "pending",
+          order: index
+        };
+      });
+      const extras = normalized
+        .filter((step) => !matched.has(step.id))
+        .slice(-3)
+        .map((step, index) => ({
+          ...step,
+          id: `${step.id || "extra"}-${index}`,
+          order: cards.length + index
+        }));
+      return [...cards, ...extras];
+    },
+    runtimeStepMatchesStage(step = {}, stage = {}) {
+      const text = `${step.title || ""} ${step.detail || ""} ${step.type || ""} ${step.toolName || ""}`.toLowerCase();
+      const hasAny = (terms) => terms.some((term) => text.includes(String(term).toLowerCase()));
+      const key = stage.key;
+      if (key === "planner") {
+        return hasAny(["plan", "planner", "problem_identification", "tool_discovery"]);
+      }
+      if (key === "memory") {
+        return hasAny(["memory", "context", "history", "summary"]);
+      }
+      if (key === "asset") {
+        return hasAny(["asset", "metadata", "table", "database_asset", "sql_metadata"]);
+      }
+      if (key === "knowledge") {
+        return hasAny(["knowledge", "document", "web", "search"])
+          && !hasAny(["asset", "metadata", "database_asset", "sql_metadata"]);
+      }
+      if (key === "sql_generate") {
+        return hasAny(["sql generate", "generate sql"]);
+      }
+      if (key === "sql_execute") {
+        return hasAny(["sql execute", "execute sql", "sql_query", "query"]);
+      }
+      if (key === "analysis") {
+        return hasAny(["python", "analysis", "calculate", "compute"]);
+      }
+      if (key === "answer") {
+        return hasAny(["answer", "assembly", "response", "final"]);
+      }
+      return false;
+    },    runtimeCurrentStage(message = {}) {
+      const active = this.runtimeStageCards(message)
+        .find((step) => String(step.status || "").toLowerCase() === "active");
+      return active?.title || (this.isExecutionRunning(message) ? "Runtime Working" : this.executionTitle(message));
+    },
+    runtimeProgress(message = {}) {
+      const cards = this.runtimeStageCards(message);
+      if (!cards.length) {
+        return 0;
+      }
+      const weights = cards.map((step) => {
+        const status = String(step.status || "").toLowerCase();
+        if (["done", "partial", "empty"].includes(status)) {
+          return 1;
+        }
+        if (status === "active") {
+          return 0.55;
+        }
+        return 0;
+      });
+      const progress = weights.reduce((sum, value) => sum + value, 0) / cards.length;
+      return Math.max(5, Math.min(98, Math.round(progress * 100)));
+    },
+    runtimeStatusLabel(message = {}) {
+      if (message.status === "waiting") {
+        return "Awaiting confirmation";
+      }
+      if (message.status === "failed") {
+        return "Failed";
+      }
+      if (message.status === "cancelled") {
+        return "Cancelled";
+      }
+      return this.isExecutionRunning(message) || message.streaming ? "Running" : "Completed";
+    },
+    runtimeStageStatusText(step = {}) {
+      const status = String(step.status || "pending").toLowerCase();
+      if (status === "done") {
+        return "Complete";
+      }
+      if (status === "active") {
+        return "Running";
+      }
+      if (status === "partial") {
+        return "Partial";
+      }
+      if (status === "empty") {
+        return "Skipped";
+      }
+      if (status === "error") {
+        return "Error";
+      }
+      if (status === "cancelled") {
+        return "Cancelled";
+      }
+      return "Waiting";
+    },
+    runtimeEvents(message = {}) {
+      const cards = this.runtimeStageCards(message)
+        .filter((step) => !["pending"].includes(String(step.status || "").toLowerCase()))
+        .slice(-6);
+      const base = Number(message.timestamp || Date.now());
+      return cards.map((step, index) => ({
+        id: `${step.id}-event`,
+        time: this.formatTime(base + index * 1000),
+        label: `${step.title} - ${this.runtimeStageStatusText(step)}`
+      }));
+    },
     renderMarkdown(content, message = {}) {
       const prepared = this.prepareMarkdownContent(String(content ?? ""), message);
       const uiContract = this.uiRenderContract(message, prepared.content);
@@ -264,12 +426,12 @@ export default {
           const toolbar = doc.createElement("div");
           toolbar.className = "query-result-table-toolbar";
           const summary = doc.createElement("span");
-          summary.textContent = `${payload.rows.length} 行 / ${payload.columns.length} 列`;
+          summary.textContent = `${payload.rows.length} rows / ${payload.columns.length} columns`;
           const button = doc.createElement("button");
           button.type = "button";
           button.className = "query-result-chart-button";
           button.dataset.resultChartPayload = encodeURIComponent(JSON.stringify(payload));
-          button.textContent = "图形化分析";
+          button.textContent = "Chart analysis";
           toolbar.append(summary, button);
           table.parentNode.insertBefore(wrapper, table);
           wrapper.append(toolbar, table);
@@ -277,7 +439,7 @@ export default {
         });
         if (tablePayloads.length > 1 && firstWrapper?.parentNode) {
           const multiPayload = {
-            title: "多数据集对比分析",
+            title: "Multi dataset comparison",
             datasets: tablePayloads.map((item, index) => ({
               id: `dataset_${index + 1}`,
               ...item.payload
@@ -288,12 +450,12 @@ export default {
           const toolbar = doc.createElement("div");
           toolbar.className = "query-result-table-toolbar";
           const summary = doc.createElement("span");
-          summary.textContent = `${tablePayloads.length} 个数据集可分析`;
+          summary.textContent = `${tablePayloads.length} datasets available`;
           const button = doc.createElement("button");
           button.type = "button";
           button.className = "query-result-chart-button";
           button.dataset.resultChartPayload = encodeURIComponent(JSON.stringify(multiPayload));
-          button.textContent = "多数据集分析";
+          button.textContent = "Compare datasets";
           toolbar.append(summary, button);
           multiToolbar.append(toolbar);
           firstWrapper.parentNode.insertBefore(multiToolbar, firstWrapper);
@@ -327,7 +489,7 @@ export default {
       if (rows.length < 1) {
         return null;
       }
-      const title = this.nearestTableTitle(table) || `查询结果 ${index + 1}`;
+      const title = this.nearestTableTitle(table) || `閺屻儴顕楃紒鎾寸亯 ${index + 1}`;
       return {
         title,
         columns: headers,
@@ -348,7 +510,7 @@ export default {
     },
     collapseToolEvidenceHtml(html = "") {
       const source = String(html || "");
-      const headingMatch = /<h2>\s*工具执行证据\s*<\/h2>/i.exec(source);
+      const headingMatch = /<h2>\s*瀹搞儱鍙块幍褑顢戠拠浣瑰祦\s*<\/h2>/i.exec(source);
       if (!headingMatch) {
         return source;
       }
@@ -364,7 +526,7 @@ export default {
       return [
         before,
         '<details class="tool-evidence-details">',
-        '<summary><span>工具执行证据</span><small>点击展开</small></summary>',
+        '<summary><span>瀹搞儱鍙块幍褑顢戠拠浣瑰祦</span><small>閻愮懓鍤仦鏇炵磻</small></summary>',
         `<div class="tool-evidence-body">${this.formatToolEvidenceBody(body)}</div>`,
         '</details>',
         after
@@ -389,19 +551,19 @@ export default {
       const codeMatch = /<code[^>]*>([\s\S]*?)<\/code>/i.exec(fragment);
       const text = this.decodeHtml(fragment.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim());
       const toolName = this.decodeHtml(codeMatch?.[1] || "").trim() || this.firstToolEvidenceToken(text);
-      const semantic = this.matchToolEvidenceText(text, /[【[]\s*([^】\]]+)\s*[】\]]\s*[:：]/);
-      const status = text.includes("成功")
-        ? "成功"
-        : text.includes("失败")
-          ? "失败"
+      const semantic = this.matchToolEvidenceText(text, /[\[銆怾\s*([^\]銆慮+)\s*[\]銆慮\s*[:锛歖/);
+      const status = text.includes("鎴愬姛") || /\bsuccess\b/i.test(text)
+        ? "success"
+        : text.includes("澶辫触") || /\b(failed|error)\b/i.test(text)
+          ? "failed"
           : this.matchToolEvidenceText(text, /\b(success|failed|error)\b/i);
-      const evidenceType = this.matchToolEvidenceText(text, /证据类型\s*([A-Za-z0-9_-]+)/);
-      const durationMs = this.matchToolEvidenceText(text, /耗时\s*ms\s*=\s*(\d+)/i);
-      const outputKeyText = this.matchToolEvidenceText(text, /输出键\s*=\s*(.*?)(?:\s*等\s*\d+\s*项|[；;]\s*摘要\s*=|$)/);
-      const outputKeyTotal = this.matchToolEvidenceText(text, /输出键\s*=.*?等\s*(\d+)\s*项/);
-      const summary = this.matchToolEvidenceText(text, /摘要\s*=\s*(.+)$/);
+      const evidenceType = this.matchToolEvidenceText(text, /(?:璇佹嵁绫诲瀷|evidence\s*type)\s*[=:锛歖?\s*([A-Za-z0-9_-]+)/i);
+      const durationMs = this.matchToolEvidenceText(text, /(?:鑰楁椂\s*ms|duration\s*ms)\s*[=:锛歖?\s*(\d+)/i);
+      const outputKeyText = this.matchToolEvidenceText(text, /(?:杈撳嚭閿畖output\s*keys?)\s*[=:锛歖\s*(.*?)(?:\s*(?:绛塡s*\d+\s*椤箌summary|鎽樿)\s*[=:锛歖|$)/i);
+      const outputKeyTotal = this.matchToolEvidenceText(text, /(?:杈撳嚭閿畖output\s*keys?)\s*[=:锛歖.*?绛塡s*(\d+)\s*椤?i);
+      const summary = this.matchToolEvidenceText(text, /(?:鎽樿|summary)\s*[=:锛歖\s*(.+)$/i);
       const outputKeys = String(outputKeyText || "")
-        .split(/[,，]\s*/)
+        .split(/[,锛宂\s*/)
         .map((item) => item.trim())
         .filter(Boolean);
       if (!toolName && !semantic && !status && !evidenceType && !durationMs && !outputKeys.length && !summary) {
@@ -411,7 +573,7 @@ export default {
         toolName,
         semantic,
         status: status || "-",
-        statusClass: /fail|error|失败/i.test(status || "") ? "failed" : "success",
+        statusClass: /fail|error|婢惰精瑙?i.test(status || "") ? "failed" : "success",
         evidenceType: evidenceType || "-",
         durationMs: durationMs || "",
         outputKeys,
@@ -429,7 +591,7 @@ export default {
         : '<span class="tool-evidence-muted">-</span>';
       const total = item.outputKeyTotal || item.outputKeys.length;
       const more = Number(total) > outputKeys.length
-        ? `<span class="tool-evidence-more">共 ${escapeHtml(total)} 项</span>`
+        ? `<span class="tool-evidence-more">閸?${escapeHtml(total)} 妞?/span>`
         : "";
       return [
         `<article class="tool-evidence-item ${escapeHtml(item.statusClass)}">`,
@@ -441,13 +603,13 @@ export default {
         `<span class="tool-evidence-status">${escapeHtml(item.status || "-")}</span>`,
         '</header>',
         '<dl class="tool-evidence-meta">',
-        `<div><dt>证据类型</dt><dd>${escapeHtml(item.evidenceType || "-")}</dd></div>`,
-        `<div><dt>耗时</dt><dd>${duration}</dd></div>`,
+        `<div><dt>鐠囦焦宓佺猾璇茬€?/dt><dd>${escapeHtml(item.evidenceType || "-")}</dd></div>`,
+        `<div><dt>閼版妞?/dt><dd>${duration}</dd></div>`,
         '</dl>',
         '<section class="tool-evidence-keys">',
-        `<strong>输出键</strong><div>${keyChips}${more}</div>`,
+        `<strong>鏉堟挸鍤柨?/strong><div>${keyChips}${more}</div>`,
         '</section>',
-        item.summary ? `<p class="tool-evidence-summary"><strong>摘要</strong>${escapeHtml(item.summary)}</p>` : "",
+        item.summary ? `<p class="tool-evidence-summary"><strong>閹芥顩?/strong>${escapeHtml(item.summary)}</p>` : "",
         '</article>'
       ].join("");
     },
@@ -456,7 +618,7 @@ export default {
       return match?.[1] ? String(match[1]).trim() : "";
     },
     firstToolEvidenceToken(text = "") {
-      const match = /^\s*([^\s，；]+)/.exec(String(text || ""));
+      const match = /^\s*([^\s閿涘矉绱盷+)/.exec(String(text || ""));
       return match?.[1] || "";
     },
     decodeHtml(value = "") {
@@ -469,6 +631,250 @@ export default {
         nbsp: " "
       };
       return String(value || "").replace(/&([^;]+);/g, (match, entity) => entities[entity] || match);
+    },
+    metadataColumnSections(message = {}) {
+      const traces = Array.isArray(message.traces) ? message.traces : [];
+      if (!traces.length) {
+        return [];
+      }
+      const sections = [];
+      const sectionIndex = new Map();
+      traces.forEach((trace) => {
+        [
+          trace?.output,
+          trace?.structuredContent,
+          trace?.data,
+          trace?.result,
+          trace?.toolOutput,
+          trace?.response,
+          trace
+        ].forEach((candidate) => {
+          this.collectMetadataColumnSections(
+            this.parseMetadataTracePayload(candidate),
+            sections,
+            sectionIndex,
+            new WeakSet()
+          );
+        });
+      });
+      return sections;
+    },
+    parseMetadataTracePayload(value) {
+      if (!value || typeof value !== "string") {
+        return value;
+      }
+      const text = value.trim();
+      if (!text || !/^[{\[]/.test(text)) {
+        return value;
+      }
+      try {
+        return JSON.parse(text);
+      } catch (error) {
+        return value;
+      }
+    },
+    collectMetadataColumnSections(value, sections, sectionIndex, visited) {
+      const current = this.parseMetadataTracePayload(value);
+      if (!current || typeof current !== "object") {
+        return;
+      }
+      if (visited.has(current)) {
+        return;
+      }
+      visited.add(current);
+      if (Array.isArray(current)) {
+        current.forEach((item) => this.collectMetadataColumnSections(item, sections, sectionIndex, visited));
+        return;
+      }
+      if (this.looksLikeMetadataColumns(current.columns)) {
+        this.addMetadataColumnSection(current, sections, sectionIndex);
+      }
+      Object.entries(current).forEach(([key, child]) => {
+        if (key === "columns") {
+          return;
+        }
+        this.collectMetadataColumnSections(child, sections, sectionIndex, visited);
+      });
+    },
+    looksLikeMetadataColumns(columns) {
+      if (!Array.isArray(columns) || !columns.length) {
+        return false;
+      }
+      const first = columns.find((item) => item && typeof item === "object");
+      if (!first) {
+        return false;
+      }
+      return !!(first.name || first.columnName || first.fieldName)
+        && !!(first.dataType || first.columnType || first.type || first.table || first.schema || first.ordinalPosition !== undefined);
+    },
+    addMetadataColumnSection(result = {}, sections, sectionIndex) {
+      const rawColumns = Array.isArray(result.columns) ? result.columns : [];
+      const firstColumn = rawColumns.find((item) => item && typeof item === "object") || {};
+      const tableName = this.metadataText(result.tableName || result.table || result.name || firstColumn.table);
+      const schemaName = this.metadataText(result.schemaName || result.schema || firstColumn.schema);
+      const databaseName = this.metadataText(result.databaseName || result.database || firstColumn.database);
+      const datasourceId = this.metadataText(result.datasourceId || firstColumn.datasourceId);
+      const identity = [
+        datasourceId,
+        databaseName,
+        schemaName,
+        tableName || `metadata-${sections.length + 1}`
+      ].join(".");
+      let section = sectionIndex.get(identity);
+      if (!section) {
+        const titleParts = [databaseName, schemaName, tableName].filter(Boolean);
+        section = {
+          id: identity,
+          title: titleParts.length ? titleParts.join(".") : `閸忓啯鏆熼幑顔肩摟濞?${sections.length + 1}`,
+          comment: this.metadataText(result.comment || result.tableComment || result.description || result.summary),
+          columns: [],
+          columnIndex: new Set()
+        };
+        sectionIndex.set(identity, section);
+        sections.push(section);
+      }
+      rawColumns
+        .map((column, index) => this.normalizeMetadataColumn(column, index, section))
+        .filter(Boolean)
+        .forEach((column) => {
+          if (section.columnIndex.has(column.id)) {
+            return;
+          }
+          section.columnIndex.add(column.id);
+          section.columns.push(column);
+        });
+      section.columns.sort((left, right) => left.sortOrdinal - right.sortOrdinal || left.name.localeCompare(right.name));
+    },
+    normalizeMetadataColumn(column = {}, index = 0, section = {}) {
+      if (!column || typeof column !== "object") {
+        return null;
+      }
+      const name = this.metadataText(column.name || column.columnName || column.fieldName);
+      if (!name) {
+        return null;
+      }
+      const ordinalValue = Number(column.ordinalPosition ?? column.position ?? column.ordinal ?? index);
+      const sortOrdinal = Number.isFinite(ordinalValue) ? ordinalValue : index;
+      const ordinal = sortOrdinal >= 0 ? sortOrdinal + 1 : index + 1;
+      const nullable = column.nullable === true
+        ? "Yes"
+        : column.nullable === false
+          ? "No"
+          : this.metadataText(column.nullable || column.isNullable || "");
+      return {
+        id: `${section.id || "metadata"}:${name}`,
+        name,
+        type: this.metadataText(column.dataType || column.columnType || column.type),
+        key: this.metadataText(column.columnKey || column.key || column.primaryKey),
+        nullable: nullable || "-",
+        comment: this.metadataText(column.comment || column.description || column.remark),
+        ordinal,
+        sortOrdinal
+      };
+    },
+    metadataText(value) {
+      if (value === null || value === undefined) {
+        return "";
+      }
+      if (typeof value === "object") {
+        return "";
+      }
+      return String(value).trim();
+    },
+    metadataTableCatalog(message = {}) {
+      const traces = Array.isArray(message.traces) ? message.traces : [];
+      const catalog = {
+        totalMatched: 0,
+        catalogTruncated: false,
+        rows: []
+      };
+      if (!traces.length) {
+        return catalog;
+      }
+      const seen = new Set();
+      traces.forEach((trace) => {
+        [
+          trace?.output,
+          trace?.structuredContent,
+          trace?.data,
+          trace?.result,
+          trace?.toolOutput,
+          trace?.response,
+          trace
+        ].forEach((candidate) => {
+          this.collectMetadataTableCatalog(
+            this.parseMetadataTracePayload(candidate),
+            catalog,
+            seen,
+            new WeakSet()
+          );
+        });
+      });
+      if (!catalog.totalMatched) {
+        catalog.totalMatched = catalog.rows.length;
+      }
+      catalog.rows = catalog.rows.map((row, index) => ({
+        ...row,
+        index: index + 1
+      }));
+      return catalog;
+    },
+    collectMetadataTableCatalog(value, catalog, seen, visited) {
+      const current = this.parseMetadataTracePayload(value);
+      if (!current || typeof current !== "object") {
+        return;
+      }
+      if (visited.has(current)) {
+        return;
+      }
+      visited.add(current);
+      if (Array.isArray(current)) {
+        current.forEach((item) => this.collectMetadataTableCatalog(item, catalog, seen, visited));
+        return;
+      }
+      if (Array.isArray(current.tableCatalog)) {
+        const totalMatched = Number(current.totalMatched);
+        if (Number.isFinite(totalMatched) && totalMatched > catalog.totalMatched) {
+          catalog.totalMatched = totalMatched;
+        }
+        catalog.catalogTruncated = catalog.catalogTruncated || current.catalogTruncated === true;
+        current.tableCatalog
+          .map((item) => this.normalizeMetadataCatalogRow(item))
+          .filter(Boolean)
+          .forEach((row) => {
+            if (seen.has(row.id)) {
+              return;
+            }
+            seen.add(row.id);
+            catalog.rows.push(row);
+          });
+      }
+      Object.entries(current).forEach(([key, child]) => {
+        if (key === "tableCatalog") {
+          return;
+        }
+        this.collectMetadataTableCatalog(child, catalog, seen, visited);
+      });
+    },
+    normalizeMetadataCatalogRow(item = {}) {
+      if (!item || typeof item !== "object") {
+        return null;
+      }
+      const tableName = this.metadataText(item.tableName || item.table || item.name);
+      if (!tableName) {
+        return null;
+      }
+      const database = this.metadataText(item.database || item.databaseName);
+      const schema = this.metadataText(item.schema || item.schemaName);
+      const assetId = this.metadataText(item.assetId || item.datasourceId);
+      return {
+        id: [assetId, database, schema, tableName].join("."),
+        database,
+        schema,
+        tableName,
+        tableComment: this.metadataText(item.tableComment || item.comment || item.description),
+        score: this.metadataText(item.score)
+      };
     },
     extractUiResponse(message = {}) {
       const candidates = [
@@ -704,16 +1110,34 @@ export default {
     defaultRunningSteps(message = {}) {
       return [
         {
-          id: `${message.id || "message"}-sync-events`,
-          title: "\u540c\u6b65\u6267\u884c\u72b6\u6001",
-          detail: "\u6b63\u5728\u83b7\u53d6\u540e\u7aef\u8fd0\u884c\u4e8b\u4ef6",
+          id: `${message.id || "message"}-planner`,
+          title: "Planner",
+          detail: "Intent and run plan resolved",
           status: "done"
         },
         {
-          id: `${message.id || "message"}-waiting-progress`,
-          title: "\u7b49\u5f85\u4e0b\u4e00\u6b65",
-          detail: "\u5de5\u5177\u6216\u6a21\u578b\u6267\u884c\u4e2d",
+          id: `${message.id || "message"}-memory`,
+          title: "Memory",
+          detail: "Runtime context prepared",
+          status: "done"
+        },
+        {
+          id: `${message.id || "message"}-asset-search`,
+          title: "Asset Search",
+          detail: "Selecting tools and data assets",
           status: "active"
+        },
+        {
+          id: `${message.id || "message"}-sql-execute`,
+          title: "SQL Execute",
+          detail: "Waiting for execution contract",
+          status: "pending"
+        },
+        {
+          id: `${message.id || "message"}-answer`,
+          title: "Answer Assembly",
+          detail: "Waiting for observations",
+          status: "pending"
         }
       ];
     },
@@ -728,7 +1152,7 @@ export default {
       }
       const citationUrls = [];
       const nextContent = normalizedContent.replace(
-        /【\s*(引用|网页|来源|source)\s*(\d+)\s*】|[［\[]\s*(引用|网页|来源|source)\s*(\d+)\s*[］\]]|(?:引用|网页|来源|source)\s*(\d+)/gi,
+        /閵嗘€絪*(瀵洜鏁缂冩垿銆墊閺夈儲绨畖source)\s*(\d+)\s*閵嗘啋[閿涚睜[]\s*(瀵洜鏁缂冩垿銆墊閺夈儲绨畖source)\s*(\d+)\s*[閿涚祿]]|(?:瀵洜鏁缂冩垿銆墊閺夈儲绨畖source)\s*(\d+)/gi,
         (...args) => {
           const match = args[0];
           const boxedPrefix = args[1];
@@ -746,7 +1170,7 @@ export default {
             return match;
           }
 
-          const prefix = boxedPrefix || bracketPrefix || this.plainCitationPrefix(match) || "引用";
+          const prefix = boxedPrefix || bracketPrefix || this.plainCitationPrefix(match) || "瀵洜鏁?;
           const normalizedNumber = Number(boxedNumber || bracketNumber || plainNumber);
           if (!Number.isInteger(normalizedNumber) || normalizedNumber < 1) {
             return match;
@@ -769,14 +1193,14 @@ export default {
           const before = source.slice(Math.max(0, offset - 360), offset);
           return EXECUTED_SQL_CONTEXT_RE.test(before) ? "" : match;
         })
-        .replace(/(^|\n)\s*(?:执行的?\s*SQL|实际执行语句|查询语句|具体语句|Executed\s+SQL|SQL\s+Statement)\s*[:：]\s*[^\n]*(?=\n|$)/gi, "$1")
+        .replace(/(^|\n)\s*(?:\u6267\u884c\u7684?\s*SQL|\u5b9e\u9645\u6267\u884c\u8bed\u53e5|\u67e5\u8be2\u8bed\u53e5|\u5177\u4f53\u8bed\u53e5|Executed\s+SQL|SQL\s+Statement)\s*[:\uFF1A]\s*[^\n]*(?=\n|$)/gi, "$1")
         .replace(/\n{3,}/g, "\n\n")
         .trim();
     },
     stripInternalDocumentRefs(content) {
       return String(content || "")
         .replace(INTERNAL_DOCUMENT_REF_RE, "")
-        .replace(/[ \t]*[(（]\s*(?:confidence|missingInfo)\s*[)）]/gi, "")
+        .replace(/[ \t]*[\(\uFF08]\s*(?:confidence|missingInfo)\s*[\)\uFF09]/gi, "")
         .replace(/[ \t]*[\[\uFF3B][ \t]*[\]\uFF3D][ \t]*/g, " ")
         .replace(/[ \t]+([,.;:!?\uFF0C\u3002\uFF1B\uFF1A])/g, "$1")
         .replace(/([,.;:!?\uFF0C\u3002\uFF1B\uFF1A])[ \t]*[\[\uFF3B][ \t]*[\]\uFF3D]/g, "$1")
@@ -910,15 +1334,15 @@ export default {
         && /[()]/.test(text);
     },
     plainCitationPrefix(value) {
-      const match = String(value || "").match(/^(引用|网页|来源|source)/i);
+      const match = String(value || "").match(/^(瀵洜鏁缂冩垿銆墊閺夈儲绨畖source)/i);
       return match?.[1] || "";
     },
     normalizeCitationPrefix(value) {
       const prefix = String(value || "").toLowerCase();
-      if (prefix === "source" || prefix === "网页" || prefix === "来源") {
-        return "引用";
+      if (prefix === "source" || prefix === "缂冩垿銆? || prefix === "閺夈儲绨?) {
+        return "瀵洜鏁?;
       }
-      return value || "引用";
+      return value || "瀵洜鏁?;
     },
     escapeMarkdownTitle(value) {
       return String(value || "").replace(/"/g, "&quot;");
@@ -1105,7 +1529,7 @@ export default {
         ? this.renderEvidenceExecutionAnswer(fallback, citationUrls)
         : markdown.render(cleaned, env);
       const reason = Array.isArray(errors) && errors.length
-        ? `<span>${escapeHtml(errors.slice(0, 3).join("；"))}</span>`
+        ? `<span>${escapeHtml(errors.slice(0, 3).join("; "))}</span>`
         : "";
       return [
         `<p class="evidence-structure-fallback">v2 structure fallback${reason}</p>`,
@@ -1659,7 +2083,7 @@ export default {
       let activeKey = "";
       for (const rawLine of lines.slice(titleIndex + 1)) {
         const line = String(rawLine || "");
-        const fieldMatch = line.match(/^\s*[-*]\s+\*{0,2}(answer|citations|confidence|missingInfo)\*{0,2}\s*[:：]\s*(.*)$/i);
+        const fieldMatch = line.match(/^\s*[-*]\s+\*{0,2}(answer|citations|confidence|missingInfo)\*{0,2}\s*[:閿涙瓥\s*(.*)$/i);
         if (fieldMatch) {
           activeKey = fieldMatch[1].toLowerCase();
           fields[activeKey] = fieldMatch[2].trim();
@@ -1683,14 +2107,14 @@ export default {
     },
     splitEvidenceCitationText(value) {
       return String(value || "")
-        .split(/[，,；;]\s*/)
+        .split(/[閿?閿?]\s*/)
         .map((item) => item.trim())
         .filter(Boolean);
     },
     renderEvidenceAnswer(evidenceAnswer, citationUrls) {
       const env = { webCitationUrls: citationUrls };
       const confidence = evidenceAnswer.confidence || "";
-      const confidenceLabel = confidence.split(/\s+[·-]\s+|[:：]/)[0]?.trim() || confidence.trim();
+      const confidenceLabel = confidence.split(/\s+[璺?]\s+|[:閿涙瓥/)[0]?.trim() || confidence.trim();
       const confidenceClass = this.evidenceConfidenceClass(confidenceLabel);
       const citationItems = evidenceAnswer.citations.length
         ? evidenceAnswer.citations
@@ -1818,17 +2242,55 @@ export default {
       const sourceLines = this.copySourceLines(message.sources || []);
       const documentLines = this.copyDocumentPageLines(extractDocumentSearchPagesFromTraces(message.traces || []));
       const pageLines = this.copyWebPageLines(extractWebSearchPagesFromTraces(message.traces || []));
+      const metadataCatalogLines = this.copyMetadataCatalogLines(this.metadataTableCatalog(message));
+      const metadataColumnLines = this.copyMetadataColumnLines(this.metadataColumnSections(message));
 
       if (sourceLines.length) {
-        sections.push(["内部文档来源", ...sourceLines].join("\n"));
+        sections.push(["Internal sources", ...sourceLines].join("\n"));
       }
       if (documentLines.length) {
-        sections.push(["引用文档", ...documentLines].join("\n"));
+        sections.push(["Referenced documents", ...documentLines].join("\n"));
       }
       if (pageLines.length) {
-        sections.push(["网络搜索引用", ...pageLines].join("\n"));
+        sections.push(["Web search citations", ...pageLines].join("\n"));
+      }
+      if (metadataCatalogLines.length) {
+        sections.push(["Matched table catalog", ...metadataCatalogLines].join("\n"));
+      }
+      if (metadataColumnLines.length) {
+        sections.push(["Metadata fields", ...metadataColumnLines].join("\n"));
       }
       return sections.join("\n\n").trim();
+    },
+    copyMetadataCatalogLines(catalog = {}) {
+      const rows = Array.isArray(catalog.rows) ? catalog.rows : [];
+      if (!rows.length) {
+        return [];
+      }
+      const header = `閸?${catalog.totalMatched || rows.length} 瀵媴绱濆鑼剁箲閸?${rows.length} 瀵?{catalog.catalogTruncated ? "閿涘本绔婚崡鏇炲嚒閹搭亝鏌? : ""}`;
+      const body = rows.map((row, index) => [
+        index + 1,
+        row.database || "-",
+        row.schema || "-",
+        row.tableName || "-",
+        row.tableComment || "-",
+        row.score || "-"
+      ].join("\t"));
+      return [header, "鎼村繐褰縗t閺佺増宓佹惔鎻瑃濡€崇础\t鐞涖劌鎮昞t鐞涖劍鏁為柌濂瑃鐠囧嫬鍨?, ...body];
+    },
+    copyMetadataColumnLines(sections = []) {
+      return sections.flatMap((section) => {
+        const header = `${section.title} (${section.columns.length} 娑擃亜鐡у▓?`;
+        const rows = section.columns.map((column) => [
+          column.ordinal,
+          column.name,
+          column.type || "-",
+          column.key || "-",
+          column.nullable || "-",
+          column.comment || "-"
+        ].join("\t"));
+        return [header, "鎼村繐褰縗t鐎涙顔岄崥宄攖缁鐎穃t闁跨敍t閸欘垳鈹朶t濞夈劑鍣?, ...rows];
+      });
     },
     copyUiRenderContractText(contract = {}) {
       const sections = [];
@@ -1876,7 +2338,7 @@ export default {
           const title = this.cleanUiCitationTitle(page?.title || page?.docId || "", index);
           const url = page?.url || "";
           const snippet = this.cleanUiProtocolText(page?.snippet || "");
-          return [`文档 ${rank}: ${title}`, url, snippet].filter(Boolean).join(" - ");
+          return [`閺傚洦銆?${rank}: ${title}`, url, snippet].filter(Boolean).join(" - ");
         })
         .filter(Boolean);
     },
@@ -1884,10 +2346,10 @@ export default {
       return pages
         .map((page, index) => {
           const rank = page?.rank || index + 1;
-          const title = page?.title || page?.url || "引用";
+          const title = page?.title || page?.url || "瀵洜鏁?;
           const url = page?.url || "";
           const snippet = page?.snippet || "";
-          return [`引用 ${rank}: ${title}`, url, snippet].filter(Boolean).join(" - ");
+          return [`瀵洜鏁?${rank}: ${title}`, url, snippet].filter(Boolean).join(" - ");
         })
         .filter(Boolean);
     },

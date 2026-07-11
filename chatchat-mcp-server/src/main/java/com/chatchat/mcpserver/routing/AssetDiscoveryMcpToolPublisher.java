@@ -74,7 +74,7 @@ public class AssetDiscoveryMcpToolPublisher {
             .name(toolName)
             .title(title)
             .description(description + " "
-                + "Prefer logical context filters when known; if none are known it can return capped redacted candidate assets. "
+                + "Prefer logical context filters when known; if none are known it returns redacted candidate assets. "
                 + "It forces assetType=" + assetType + " and targetKind=" + targetKind
                 + ", so model mistakes cannot route this request into another asset type. "
                 + "It never returns hostnames, IP addresses, JDBC URLs, or endpoint URLs. The result returns a single canonical redacted assets[] view.")
@@ -157,8 +157,7 @@ public class AssetDiscoveryMcpToolPublisher {
             "limit", Map.of(
                 "type", "integer",
                 "minimum", 1,
-                "maximum", AssetDiscoveryService.MAX_LIMIT,
-                "description", "Maximum number of assets returned; capped at 20"
+                "description", "Optional maximum number of assets returned. Omit this field to return all matched assets."
             ),
             "view", Map.of(
                 "type", "string",
@@ -190,11 +189,11 @@ public class AssetDiscoveryMcpToolPublisher {
             "matchPolicy", "exact_asset_name_or_explicit_label",
             "broadDiscovery", mapOf(
                 "enabled", true,
-                "maxResults", AssetDiscoveryService.MAX_LIMIT,
+                "maxResults", "unlimited unless request.limit is provided",
                 "redactedCandidatesOnly", true,
                 "useWhen", "no exact assetName/env/cluster/service/target/database label is known"
             ),
-            "maxResults", AssetDiscoveryService.MAX_LIMIT,
+            "maxResults", "unlimited unless request.limit is provided",
             "routingPolicyVersion", AssetMetadataFactory.ROUTING_POLICY_VERSION,
             "routingProtocol", mapOf(
                 "forcedTargetKind", targetKind,

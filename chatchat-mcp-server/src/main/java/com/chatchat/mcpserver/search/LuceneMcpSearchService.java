@@ -814,7 +814,17 @@ public class LuceneMcpSearchService {
                                      String env,
                                      String dbType,
                                      List<String> labels,
-                                     int limit) {
+                                     int limit,
+                                     String searchRequestId) {
+
+        public AssetSearchRequest(String assetType,
+                                  String queryText,
+                                  String env,
+                                  String dbType,
+                                  List<String> labels,
+                                  int limit) {
+            this(assetType, queryText, env, dbType, labels, limit, null);
+        }
 
         public AssetSearchRequest {
             labels = labels == null ? List.of() : labels;

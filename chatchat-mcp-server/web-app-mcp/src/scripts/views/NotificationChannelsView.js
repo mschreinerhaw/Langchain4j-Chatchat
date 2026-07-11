@@ -3,7 +3,7 @@ import { notificationApi as api } from '../../services/api';
 import { parseJsonObject, prettyJson } from '../../utils/json';
 import '../../styles/views/notification-channels.css';
 
-const defaultHeaders = { 'Content-Type': 'application/json' };
+const defaultHeaders = { 'Content-Type': 'application/json; charset=UTF-8' };
 
 const defaultTestPayload = {
   receiver: 'ops@example.com',

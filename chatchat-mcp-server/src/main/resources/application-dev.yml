@@ -3,7 +3,7 @@
     name: chatchat-mcp-server
   datasource:
     type: com.zaxxer.hikari.HikariDataSource
-    url: "${CHATCHAT_MCP_MYSQL_URL:jdbc:mysql://192.168.195.221:3306/live_runtime_mcp?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true}"
+    url: "${CHATCHAT_MCP_MYSQL_URL:jdbc:mysql://192.168.195.221:3306/live_runtime_mcp?useUnicode=true&characterEncoding=UTF-8&connectionCollation=utf8mb4_unicode_ci&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true}"
     driver-class-name: com.mysql.cj.jdbc.Driver
     username: ${CHATCHAT_MCP_MYSQL_USERNAME:livebos}
     password: ${CHATCHAT_MCP_MYSQL_ENCRYPTED_PASSWORD:apexSoft123!}
@@ -20,6 +20,10 @@ server:
   port: ${CHATCHAT_MCP_PORT:8090}
   servlet:
     context-path: /
+    encoding:
+      charset: UTF-8
+      enabled: true
+      force: true
   shutdown: graceful
 
 chatchat:
@@ -64,6 +68,7 @@ chatchat:
         index-prefix: ${CHATCHAT_MCP_OPENSEARCH_INDEX_PREFIX:chatchat_mcp_dev_}
         insecure-ssl: ${CHATCHAT_OPENSEARCH_INSECURE_SSL:true}
         request-timeout-ms: 30000
+        debug-search: ${CHATCHAT_MCP_OPENSEARCH_DEBUG_SEARCH:true}
         embedding:
           enabled: ${CHATCHAT_OPENSEARCH_EMBEDDING_ENABLED:false}
           endpoint: ${CHATCHAT_EMBEDDING_ENDPOINT:https://llm-7upawl16up8649rh.cn-beijing.maas.aliyuncs.com/compatible-mode/v1/embeddings}
@@ -105,6 +110,9 @@ chatchat:
         skip-browser-download: ${PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD:false}
 
 logging:
+  charset:
+    console: UTF-8
+    file: UTF-8
   file:
     name: ./logs/chatchat-mcp-server.log
   level:

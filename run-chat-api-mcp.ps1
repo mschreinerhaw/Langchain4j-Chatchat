@@ -211,11 +211,42 @@ function Invoke-Build {
         Write-Host "Building modules: mvn $($MavenArgs -join ' ')"
         & mvn @MavenArgs
         if ($LASTEXITCODE -ne 0) {
+            if ($Clean -and (Clear-ApiStaticOutputForCleanRetry)) {
+                Write-Host "Retrying Maven build after clearing chatchat-api static output ..."
+                & mvn @MavenArgs
+            }
+        }
+        if ($LASTEXITCODE -ne 0) {
             throw "Maven build failed."
         }
     }
     finally {
         Pop-Location
+    }
+}
+
+function Clear-ApiStaticOutputForCleanRetry {
+    $StaticOutput = Join-Path $ProjectRoot "chatchat-api\target\classes\static"
+    $ApiTarget = Join-Path $ProjectRoot "chatchat-api\target"
+
+    if (-not (Test-Path $StaticOutput)) {
+        return $false
+    }
+
+    $ResolvedStaticOutput = Resolve-Path -LiteralPath $StaticOutput -ErrorAction Stop
+    $ResolvedApiTarget = Resolve-Path -LiteralPath $ApiTarget -ErrorAction Stop
+    if (-not $ResolvedStaticOutput.Path.StartsWith($ResolvedApiTarget.Path, [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw "Refusing to remove unexpected static output path: $($ResolvedStaticOutput.Path)"
+    }
+
+    try {
+        Remove-Item -LiteralPath $ResolvedStaticOutput.Path -Recurse -Force -ErrorAction Stop
+        Write-Host "Cleared stale static output: $($ResolvedStaticOutput.Path)"
+        return $true
+    }
+    catch {
+        Write-Warning "Could not clear stale static output '$($ResolvedStaticOutput.Path)': $($_.Exception.Message)"
+        return $false
     }
 }
 

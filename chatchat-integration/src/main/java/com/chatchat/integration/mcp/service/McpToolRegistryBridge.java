@@ -141,6 +141,10 @@ public class McpToolRegistryBridge {
         extraMetadata.put("serviceId", service.getId());
         extraMetadata.put("remoteToolName", definition.name());
         extraMetadata.put("inputSchema", definition.inputSchema() == null ? Map.of() : definition.inputSchema());
+        if (definition.meta() != null && !definition.meta().isEmpty()) {
+            extraMetadata.put("mcpToolMeta", definition.meta());
+            copyToolResultInstruction(extraMetadata, definition.meta());
+        }
         if (definition.timeoutMillis() != null) {
             extraMetadata.put("remoteTimeoutMs", definition.timeoutMillis());
         }
@@ -240,6 +244,25 @@ public class McpToolRegistryBridge {
         return value == null || value.isEmpty() ? null : value;
     }
 
+    private void copyToolResultInstruction(Map<String, Object> target, Map<String, Object> meta) {
+        if (target == null || meta == null || meta.isEmpty()) {
+            return;
+        }
+        Object instruction = firstPresent(
+            meta.get("toolResultInstruction"),
+            meta.get("tool_result_instruction"),
+            meta.get("resultInstruction"),
+            meta.get("result_instruction")
+        );
+        if (instruction != null && !String.valueOf(instruction).isBlank()) {
+            target.put("toolResultInstruction", instruction);
+        }
+        Object resultSchema = firstPresent(meta.get("resultSchema"), meta.get("result_schema"), meta.get("outputSchema"));
+        if (resultSchema != null) {
+            target.put("toolResultSchema", resultSchema);
+        }
+    }
+
     private class McpEnhancedTool implements ToolRegistry.EnhancedTool {
 
         private final String serviceId;
@@ -300,13 +323,17 @@ public class McpToolRegistryBridge {
                 metadata.getTimeoutMillis()
             );
             if (!result.success()) {
-                log.warn("MCP bridge tool call failed localTool={} serviceId={} remoteTool={} requestId={} durationMs={} error={} result={}",
+                log.warn("MCP bridge tool call failed localTool={} serviceId={} remoteTool={} requestId={} durationMs={} errorCode={} action={} retryable={} error={} executionState={} result={}",
                     metadata.getId(),
                     serviceId,
                     remoteToolName,
                     input.getRequestId(),
                     Math.max(0L, System.currentTimeMillis() - startedAt),
+                    result.errorCode(),
+                    result.action(),
+                    result.retryable(),
                     result.errorMessage(),
+                    result.executionState(),
                     ToolLogSummarizer.summarize(result.data()));
                 return failureOutput(result);
             }
@@ -319,6 +346,10 @@ public class McpToolRegistryBridge {
                 result.message(),
                 ToolLogSummarizer.summarize(result.data()));
             ToolOutput output = ToolOutput.success(result.data(), result.message() == null ? "MCP call success" : result.message());
+            if (output.getMetadata() == null) {
+                output.setMetadata(new LinkedHashMap<>());
+            }
+            copyToolResultInstruction(output.getMetadata(), metadata.getMetadata());
             enrichOutputMetadata(output, result);
             return output;
         }
@@ -451,6 +482,18 @@ public class McpToolRegistryBridge {
 
     private String stringValue(Object value) {
         return value == null ? null : String.valueOf(value);
+    }
+
+    private Object firstPresent(Object... values) {
+        if (values == null) {
+            return null;
+        }
+        for (Object value : values) {
+            if (value != null) {
+                return value;
+            }
+        }
+        return null;
     }
 
     public record RegisteredMcpTool(

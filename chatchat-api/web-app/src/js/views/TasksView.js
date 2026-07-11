@@ -29,6 +29,7 @@ import {
 import { notifyAgentTaskCancelled } from "../utils/agentTaskEvents";
 
 const DEFAULT_RUNTIME_PAGE_SIZE = 10;
+const RUNTIME_REFRESH_INTERVAL_MS = 5000;
 const PLAN_NODE_WIDTH = 310;
 const PLAN_NODE_HEIGHT = 118;
 const PLAN_NODE_HORIZONTAL_PADDING = 40;
@@ -56,6 +57,10 @@ export default {
     userId: {
       type: String,
       default: "default-user"
+    },
+    tenantId: {
+      type: String,
+      default: ""
     }
   },
   data() {
@@ -64,7 +69,7 @@ export default {
       eventsLoading: false,
       planLoading: false,
       error: "",
-      tenantId: this.userId || "",
+      runtimeTenantId: this.tenantId || this.userId || "",
       activeTab: "tasks",
       effectActiveTab: "agents",
       experienceActiveTab: "scenarios",
@@ -78,6 +83,8 @@ export default {
       governanceLevelFilter: "",
       auditSearchQuery: "",
       auditOutcomeFilter: "",
+      runtimeRefreshTimer: null,
+      runtimeRefreshing: false,
       pageSize: DEFAULT_RUNTIME_PAGE_SIZE,
       runtimePages: {
         tasks: 1,
@@ -465,8 +472,24 @@ export default {
   },
   mounted() {
     this.loadRuntime();
+    this.startRuntimePolling();
+  },
+  beforeUnmount() {
+    this.stopRuntimePolling();
   },
   watch: {
+    tenantId(value) {
+      const nextTenantId = value || this.userId || "";
+      if (nextTenantId && nextTenantId !== this.runtimeTenantId) {
+        this.runtimeTenantId = nextTenantId;
+        this.loadRuntime({ silent: true });
+      }
+    },
+    userId(value) {
+      if (!this.runtimeTenantId && value) {
+        this.runtimeTenantId = value;
+      }
+    },
     taskSearchQuery() {
       this.resetRuntimePage("tasks");
     },
@@ -514,32 +537,65 @@ export default {
     }
   },
   methods: {
-    async loadRuntime() {
-      await this.loadLegacyRuntime();
+    async loadRuntime(options = {}) {
+      await this.loadLegacyRuntime(options);
     },
-    async loadLegacyRuntime() {
-      this.loading = true;
-      this.error = "";
+    startRuntimePolling() {
+      this.stopRuntimePolling();
+      this.runtimeRefreshTimer = window.setInterval(() => {
+        this.refreshRuntimeSnapshot();
+      }, RUNTIME_REFRESH_INTERVAL_MS);
+    },
+    stopRuntimePolling() {
+      if (this.runtimeRefreshTimer) {
+        window.clearInterval(this.runtimeRefreshTimer);
+        this.runtimeRefreshTimer = null;
+      }
+    },
+    async refreshRuntimeSnapshot() {
+      if (this.runtimeRefreshing || this.loading) {
+        return;
+      }
+      this.runtimeRefreshing = true;
       try {
+        await this.loadRuntime({ silent: true });
+        if (this.selectedTask?.taskId && (this.activeTab === "events" || this.isActiveTask(this.selectedTask))) {
+          await this.reloadEvents({ silent: true });
+        }
+        if (this.selectedTask?.taskId && this.activeTab === "plan" && this.isActiveTask(this.selectedTask)) {
+          await this.loadPlanDag({ silent: true });
+        }
+      } finally {
+        this.runtimeRefreshing = false;
+      }
+    },
+    async loadLegacyRuntime(options = {}) {
+      const silent = !!options.silent;
+      if (!silent) {
+        this.loading = true;
+        this.error = "";
+      }
+      try {
+        const selectedTaskId = this.selectedTask?.taskId || "";
         const [summary, audits, effects, experiences, governance] = await Promise.all([
           fetchAgentRuntimeSummary({
-            tenantId: this.tenantId,
+            tenantId: this.runtimeTenantId,
             latestLimit: 100
           }),
           fetchAgentRuntimeToolAudits({
-            tenantId: this.tenantId,
+            tenantId: this.runtimeTenantId,
             limit: 100
           }),
           fetchAgentEffectAnalytics({
-            tenantId: this.tenantId,
+            tenantId: this.runtimeTenantId,
             lowScoreLimit: 100
           }),
           fetchAgentExperiences({
-            tenantId: this.tenantId,
+            tenantId: this.runtimeTenantId,
             limit: 100
           }),
           fetchToolGovernance({
-            tenantId: this.tenantId
+            tenantId: this.runtimeTenantId
           })
         ]);
         this.summary = summary;
@@ -555,6 +611,15 @@ export default {
           sessionStorage.removeItem("chatchat.runtime.selectedTaskId");
           await this.selectTask(pendingTask);
           this.activeTab = "events";
+        } else if (selectedTaskId) {
+          const refreshedTask = this.tasks.find((task) => task.taskId === selectedTaskId);
+          if (refreshedTask) {
+            this.selectedTask = refreshedTask;
+            this.syncFeedbackDraft(refreshedTask);
+          } else {
+            this.selectedTask = null;
+            this.selectedEvents = [];
+          }
         } else if (!this.selectedTask && this.tasks.length > 0) {
           await this.selectTask(this.tasks[0]);
         } else if (this.selectedTask && !this.tasks.some((task) => task.taskId === this.selectedTask.taskId)) {
@@ -562,9 +627,13 @@ export default {
           this.selectedEvents = [];
         }
       } catch (error) {
-        this.error = error.message || "加载运行监控失败。";
+        if (!silent) {
+          this.error = error.message || "加载运行监控失败。";
+        }
       } finally {
-        this.loading = false;
+        if (!silent) {
+          this.loading = false;
+        }
       }
     },
     activateTab(key) {
@@ -602,17 +671,20 @@ export default {
         reasonCategory: task?.feedbackReasonCategory || ""
       };
     },
-    async reloadEvents() {
+    async reloadEvents(options = {}) {
       if (!this.selectedTask?.taskId) {
         this.selectedEvents = [];
         return;
       }
-      this.eventsLoading = true;
+      const silent = !!options.silent;
+      if (!silent) {
+        this.eventsLoading = true;
+      }
       try {
         const events = await fetchAgentTaskEvents(
           this.selectedTask.taskId,
           120,
-          this.selectedTask.tenantId || this.tenantId
+          this.selectedTask.tenantId || this.runtimeTenantId
         );
         this.selectedEvents = Array.isArray(events) ? events : [];
         this.runtimePages = {
@@ -620,22 +692,29 @@ export default {
           events: this.clampedRuntimePage("events", this.filteredEvents.length)
         };
       } catch (error) {
-        this.error = error.message || "加载事件链路失败。";
-        this.selectedEvents = [];
+        if (!silent) {
+          this.error = error.message || "加载事件链路失败。";
+          this.selectedEvents = [];
+        }
       } finally {
-        this.eventsLoading = false;
+        if (!silent) {
+          this.eventsLoading = false;
+        }
       }
     },
-    async loadPlanDag() {
+    async loadPlanDag(options = {}) {
       if (!this.selectedTask?.taskId) {
         this.selectedPlanDag = null;
         this.selectedPlanVersions = [];
         return;
       }
-      this.planLoading = true;
-      this.error = "";
+      const silent = !!options.silent;
+      if (!silent) {
+        this.planLoading = true;
+        this.error = "";
+      }
       try {
-        const tenantId = this.selectedTask.tenantId || this.tenantId;
+        const tenantId = this.selectedTask.tenantId || this.runtimeTenantId;
         const [dag, versions] = await Promise.all([
           fetchAgentTaskPlanDag(this.selectedTask.taskId, tenantId),
           fetchAgentTaskPlanVersions(this.selectedTask.taskId, tenantId)
@@ -645,11 +724,15 @@ export default {
         this.selectedPlanDag = dag || this.planPayloadFromRecord(latestVersion);
         this.resetPlanDagView();
       } catch (error) {
-        this.error = error.message || "加载计划图失败。";
-        this.selectedPlanDag = null;
-        this.selectedPlanVersions = [];
+        if (!silent) {
+          this.error = error.message || "加载计划图失败。";
+          this.selectedPlanDag = null;
+          this.selectedPlanVersions = [];
+        }
       } finally {
-        this.planLoading = false;
+        if (!silent) {
+          this.planLoading = false;
+        }
       }
     },
     selectPlanVersion(version) {
@@ -886,7 +969,7 @@ export default {
     },
     isActiveTask(task) {
       const normalized = String(task?.status || "").toUpperCase();
-      return ["PENDING", "RUNNING", "WAIT_TOOL", "WAIT_MODEL", "WAIT_CONFIRMATION"].includes(normalized);
+      return ["PENDING", "RUNNING", "WAIT_TOOL", "WAIT_MODEL", "WAIT_CONFIRMATION", "WAITING_CONFIRM"].includes(normalized);
     },
     isCancellingTask(task) {
       return !!this.cancellingTaskIds[task?.taskId];
@@ -900,7 +983,7 @@ export default {
         [task.taskId]: true
       };
       try {
-        const cancelledTask = await cancelAgentTask(task.taskId, task.tenantId || this.tenantId);
+        const cancelledTask = await cancelAgentTask(task.taskId, task.tenantId || this.runtimeTenantId);
         const cancellation = {
           ...task,
           ...(cancelledTask || {}),
@@ -929,8 +1012,8 @@ export default {
       this.feedbackSubmitting = true;
       this.error = "";
       try {
-        const updated = await submitAgentTaskFeedback(this.selectedTask.taskId, this.selectedTask.tenantId || this.tenantId, {
-          tenantId: this.selectedTask.tenantId || this.tenantId,
+        const updated = await submitAgentTaskFeedback(this.selectedTask.taskId, this.selectedTask.tenantId || this.runtimeTenantId, {
+          tenantId: this.selectedTask.tenantId || this.runtimeTenantId,
           userId: this.selectedTask.userId || this.userId,
           useful: this.feedbackDraft.useful,
           adopted: this.feedbackDraft.adopted,
@@ -958,7 +1041,7 @@ export default {
       }
       try {
         await updateConversationHistoryStatus(task.userId || this.userId, historyId, {
-          tenantId: task.tenantId || this.tenantId,
+          tenantId: task.tenantId || this.runtimeTenantId,
           conversationId: historyId,
           status: "cancelled"
         });

@@ -167,12 +167,14 @@ public class AgentTaskService {
         long pendingTasks = statusCounts.getOrDefault("PENDING", 0L);
         long waitToolTasks = statusCounts.getOrDefault("WAIT_TOOL", 0L);
         long waitModelTasks = statusCounts.getOrDefault("WAIT_MODEL", 0L);
+        long waitConfirmationTasks = statusCounts.getOrDefault("WAIT_CONFIRMATION", 0L)
+            + statusCounts.getOrDefault("WAITING_CONFIRM", 0L);
         long runningTasks = statusCounts.getOrDefault("RUNNING", 0L);
         long waitingTasks = waitToolTasks + waitModelTasks;
         long successTasks = statusCounts.getOrDefault("SUCCESS", 0L);
         long failedTasks = statusCounts.getOrDefault("FAILED", 0L);
         long cancelledTasks = statusCounts.getOrDefault("CANCELLED", 0L);
-        long activeTasks = pendingTasks + runningTasks + waitingTasks;
+        long activeTasks = pendingTasks + runningTasks + waitingTasks + waitConfirmationTasks;
         long queueDepth = pendingTasks + waitToolTasks;
         long tenantCount = totalTasks > 0 ? 1 : 0;
         long activeWorkerCount = workerStates.values().stream().filter(AtomicBoolean::get).count();

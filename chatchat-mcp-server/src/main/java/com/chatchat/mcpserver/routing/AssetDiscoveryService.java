@@ -24,8 +24,8 @@ public class AssetDiscoveryService {
 
     public static final String QUERY_SCHEMA_VERSION = "asset_query.v1";
     public static final String RESULT_SCHEMA_VERSION = "asset_query_result.v1";
-    public static final int DEFAULT_LIMIT = 10;
-    public static final int MAX_LIMIT = 20;
+    public static final int DEFAULT_LIMIT = -1;
+    public static final int MAX_LIMIT = Integer.MAX_VALUE;
     private static final double FUZZY_NAME_MIN_SCORE = 0.46D;
     private static final double FUZZY_NAME_NEAR_TIE_DELTA = 0.08D;
 
@@ -132,8 +132,8 @@ public class AssetDiscoveryService {
             return reviewResult(target, filters, limit, startedAt);
         }
         List<Map<String, Object>> allAssets = allAssets(assetType);
-        List<Map<String, Object>> matchedAll = matchingAssetsFromLucene(allAssets, assetType, filters, Math.max(limit + 1, MAX_LIMIT));
-        List<Map<String, Object>> matched = matchedAll.stream().limit(limit).toList();
+        List<Map<String, Object>> matchedAll = matchingAssetsFromLucene(allAssets, assetType, filters, searchLimit(limit, allAssets.size()));
+        List<Map<String, Object>> matched = applyLimit(matchedAll, limit);
         List<Map<String, Object>> unavailableMatched = unavailableAssets(assetType, filters, limit);
         AssetSelection selection = applyDefaultAssetFallback(arguments, allAssets, matched, broadDiscovery, assetType);
         matched = selection.assets();
@@ -151,15 +151,15 @@ public class AssetDiscoveryService {
                 "readOnly", true,
                 "requiresContextFilter", false,
                 "broadDiscovery", "allowed_redacted_candidates_only",
-                "maxResults", MAX_LIMIT,
+                "maxResults", limitValue(DEFAULT_LIMIT),
                 "redaction", "concrete target fields are never returned"
             ),
             "filters", compactFilters,
             "assetType", assetType,
-            "limit", limit,
+            "limit", limitValue(limit),
             "returnedCount", matched.size(),
             "unavailableCount", unavailableMatched.size(),
-            "possiblyTruncated", matchedAll.size() > limit,
+            "possiblyTruncated", !unlimited(limit) && matchedAll.size() > limit,
             "broadDiscovery", broadDiscovery,
             "broadDiscoveryAdvice", broadDiscovery ? broadDiscoveryAdvice(matched.size()) : null,
             "emptyResultAdvice", matched.isEmpty() ? emptyResultAdvice(compactFilters, unavailableMatched) : null,
@@ -184,7 +184,7 @@ public class AssetDiscoveryService {
             "assetType", target.definition().assetType(),
             "filtersSchemaVersion", target.filtersSchemaVersion(),
             "filters", compactFilters(filters),
-            "limit", limit,
+            "limit", limitValue(limit),
             "returnedCount", 0,
             "assets", List.of(),
             "unavailableAssets", List.of(),
@@ -266,14 +266,14 @@ public class AssetDiscoveryService {
             .mapToDouble(LuceneMcpSearchService.SearchHit::score)
             .max()
             .orElse(0.0D);
-        List<Map<String, Object>> luceneMatched = bestHitByAssetId.values().stream()
+        List<Map<String, Object>> luceneMatchedAll = bestHitByAssetId.values().stream()
             .map(hit -> annotateSearchHit(byId.get(hit.id()), hit, maxScore))
-            .limit(limit)
             .toList();
+        List<Map<String, Object>> luceneMatched = applyLimit(luceneMatchedAll, limit);
         if (!luceneMatched.isEmpty()) {
             log.info("asset_query lucene search assetType={} filters={} registryCandidates={} luceneHits={} uniqueAssetHits={} returned={} hitIds={}",
                 assetType, compactFilters(filters), assets.size(), hits.size(), bestHitByAssetId.size(), luceneMatched.size(),
-                bestHitByAssetId.keySet().stream().limit(limit).toList());
+                applyLimit(bestHitByAssetId.keySet().stream().toList(), limit));
             return luceneMatched;
         }
         AssetFallback fallback = registryFallbackAssets(assets, filters, limit);
@@ -284,10 +284,9 @@ public class AssetDiscoveryService {
 
     private AssetFallback registryFallbackAssets(List<Map<String, Object>> assets, Map<String, Object> filters, int limit) {
         List<Map<String, Object>> exact = hasContextFilter(filters)
-            ? assets.stream()
+            ? applyLimit(assets.stream()
                 .filter(asset -> matches(asset, filters))
-                .limit(limit)
-                .toList()
+                .toList(), limit)
             : List.of();
         if (!exact.isEmpty()) {
             return new AssetFallback(exact, false);
@@ -296,7 +295,7 @@ public class AssetDiscoveryService {
         if (!fuzzy.isEmpty() || hasContextFilter(filters) || hasRetrievalFilter(filters)) {
             return new AssetFallback(fuzzy, !fuzzy.isEmpty());
         }
-        return new AssetFallback(assets.stream().limit(limit).toList(), false);
+        return new AssetFallback(applyLimit(assets, limit), false);
     }
 
     @SuppressWarnings("unchecked")
@@ -573,9 +572,11 @@ public class AssetDiscoveryService {
                 Object assetNode = asset.get("asset");
                 return assetNode instanceof Map<?, ?> map && !Boolean.TRUE.equals(map.get("enabled"));
             })
-            .limit(limit)
             .map(this::unavailableAssetSummary)
-            .toList();
+            .collect(java.util.stream.Collectors.collectingAndThen(
+                java.util.stream.Collectors.toList(),
+                values -> applyLimit(values, limit)
+            ));
     }
 
     @SuppressWarnings("unchecked")
@@ -670,7 +671,7 @@ public class AssetDiscoveryService {
             return List.of();
         }
         return candidates.stream()
-            .limit(Math.max(1, limit))
+            .limit(effectiveLimit(limit, candidates.size()))
             .map(candidate -> annotateFuzzyMatch(candidate.asset(), requestedAssetName, candidate.field(), candidate.score()))
             .toList();
     }
@@ -878,10 +879,37 @@ public class AssetDiscoveryService {
             return DEFAULT_LIMIT;
         }
         try {
-            return Math.max(1, Math.min(MAX_LIMIT, Integer.parseInt(String.valueOf(value))));
+            int parsed = Integer.parseInt(String.valueOf(value));
+            return parsed > 0 ? parsed : DEFAULT_LIMIT;
         } catch (NumberFormatException ignored) {
             return DEFAULT_LIMIT;
         }
+    }
+
+    private boolean unlimited(int limit) {
+        return limit <= 0;
+    }
+
+    private Object limitValue(int limit) {
+        return unlimited(limit) ? "unlimited" : limit;
+    }
+
+    private int searchLimit(int limit, int fallbackSize) {
+        return unlimited(limit) ? Math.max(1, fallbackSize) : limit;
+    }
+
+    private int effectiveLimit(int limit, int size) {
+        return unlimited(limit) ? Math.max(0, size) : Math.max(1, limit);
+    }
+
+    private <T> List<T> applyLimit(List<T> values, int limit) {
+        if (values == null || values.isEmpty()) {
+            return List.of();
+        }
+        if (unlimited(limit)) {
+            return values;
+        }
+        return values.stream().limit(limit).toList();
     }
 
     private void rejectConcreteTargetFields(Map<String, Object> filters) {

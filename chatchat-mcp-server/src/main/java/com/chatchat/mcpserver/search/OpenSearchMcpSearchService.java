@@ -38,6 +38,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 import javax.net.ssl.SSLContext;
@@ -113,7 +114,8 @@ public class OpenSearchMcpSearchService {
     }
 
     public List<LuceneMcpSearchService.SearchHit> searchTemplates(LuceneMcpSearchService.TemplateSearchRequest request) {
-        return search(TEMPLATE_INDEX, templateQueryBody(request), request.limit(), request.intentText(), templateFilterBody(request));
+        return search(TEMPLATE_INDEX, templateQueryBody(request), request.limit(), request.intentText(), templateFilterBody(request),
+            generatedSearchRequestId());
     }
 
     public void indexDatabaseQueryTemplates(List<LuceneMcpSearchService.TemplateDoc> docs) {
@@ -126,7 +128,7 @@ public class OpenSearchMcpSearchService {
 
     public List<LuceneMcpSearchService.SearchHit> searchDatabaseQueryTemplates(LuceneMcpSearchService.TemplateSearchRequest request) {
         return search(DATABASE_QUERY_TEMPLATE_INDEX, templateQueryBody(request), request.limit(), request.intentText(),
-            templateFilterBody(request));
+            templateFilterBody(request), generatedSearchRequestId());
     }
 
     public void indexApiServiceTemplates(List<LuceneMcpSearchService.TemplateDoc> docs) {
@@ -139,7 +141,7 @@ public class OpenSearchMcpSearchService {
 
     public List<LuceneMcpSearchService.SearchHit> searchApiServiceTemplates(LuceneMcpSearchService.TemplateSearchRequest request) {
         return search(API_SERVICE_TEMPLATE_INDEX, templateQueryBody(request), request.limit(), request.intentText(),
-            templateFilterBody(request));
+            templateFilterBody(request), generatedSearchRequestId());
     }
 
     public void indexAssets(List<LuceneMcpSearchService.AssetDoc> docs) {
@@ -195,16 +197,18 @@ public class OpenSearchMcpSearchService {
     public List<LuceneMcpSearchService.SearchHit> searchAssets(LuceneMcpSearchService.AssetSearchRequest request) {
         LuceneMcpSearchService.AssetSearchRequest effectiveRequest = effectiveAssetSearchRequest(request);
         String assetType = normalizeAssetType(effectiveRequest.assetType());
+        String searchRequestId = firstText(effectiveRequest.searchRequestId(), generatedSearchRequestId());
         if (assetType != null) {
             return search(assetIndexName(assetType), assetQueryBody(effectiveRequest), effectiveRequest.limit(),
-                effectiveRequest.queryText(), assetFilterBody(effectiveRequest));
+                effectiveRequest.queryText(), assetFilterBody(effectiveRequest), searchRequestId);
         }
         List<LuceneMcpSearchService.SearchHit> hits = new ArrayList<>();
         int limit = effectiveRequest.limit();
         Map<String, Object> query = assetQueryBody(effectiveRequest);
         Map<String, Object> vectorFilter = assetFilterBody(effectiveRequest);
         for (String knownAssetType : KNOWN_ASSET_TYPES) {
-            hits.addAll(search(assetIndexName(knownAssetType), query, limit, effectiveRequest.queryText(), vectorFilter));
+            hits.addAll(search(assetIndexName(knownAssetType), query, limit, effectiveRequest.queryText(), vectorFilter,
+                searchRequestId));
         }
         return hits.stream()
             .sorted(Comparator.comparingDouble(LuceneMcpSearchService.SearchHit::score).reversed())
@@ -356,7 +360,8 @@ public class OpenSearchMcpSearchService {
     }
 
     private List<LuceneMcpSearchService.SearchHit> search(String indexName, Map<String, Object> query, int limit,
-                                                          String semanticText, Map<String, Object> vectorFilter) {
+                                                          String semanticText, Map<String, Object> vectorFilter,
+                                                          String searchRequestId) {
         String index = openSearchIndexName(indexName);
         if (!physicalIndexExists(index)) {
             return List.of();
@@ -365,14 +370,18 @@ public class OpenSearchMcpSearchService {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("size", resultLimit);
         body.put("query", query == null ? Map.of("match_all", Map.of()) : query);
-        List<LuceneMcpSearchService.SearchHit> lexicalHits =
-            parseHits(request("POST", "/" + index + "/_search", body, false), "opensearch_bm25");
-        List<LuceneMcpSearchService.SearchHit> vectorHits = searchVector(index, semanticText, resultLimit, vectorFilter);
+        long startedAt = System.nanoTime();
+        JsonNode lexicalRoot = request("POST", "/" + index + "/_search", body, false);
+        debugSearch(searchRequestId, "lexical", index, body, lexicalRoot, elapsedMs(startedAt));
+        List<LuceneMcpSearchService.SearchHit> lexicalHits = parseHits(lexicalRoot, "opensearch_bm25");
+        List<LuceneMcpSearchService.SearchHit> vectorHits = searchVector(index, semanticText, resultLimit, vectorFilter,
+            searchRequestId);
         return vectorHits.isEmpty() ? lexicalHits : mergeHits(lexicalHits, vectorHits, resultLimit);
     }
 
     private List<LuceneMcpSearchService.SearchHit> searchVector(String index, String semanticText, int limit,
-                                                                Map<String, Object> vectorFilter) {
+                                                                Map<String, Object> vectorFilter,
+                                                                String searchRequestId) {
         String text = normalizeText(semanticText);
         if (!embeddingClient.enabled() || text == null || !vectorSearchAvailable(index)) {
             return List.of();
@@ -393,11 +402,65 @@ public class OpenSearchMcpSearchService {
             "query", Map.of("knn", Map.of(vectorField(), knnOptions))
         );
         try {
-            return parseHits(request("POST", "/" + index + "/_search", body, false), "opensearch_vector");
+            long startedAt = System.nanoTime();
+            JsonNode vectorRoot = request("POST", "/" + index + "/_search", body, false);
+            debugSearch(searchRequestId, "vector", index, body, vectorRoot, elapsedMs(startedAt));
+            return parseHits(vectorRoot, "opensearch_vector");
         } catch (Exception ex) {
-            log.warn("MCP OpenSearch vector search failed index={} error={}", index, ex.getMessage());
+            log.warn("MCP OpenSearch vector search failed searchRequestId={} index={} error={}",
+                searchRequestId, index, ex.getMessage());
             return List.of();
         }
+    }
+
+    private void debugSearch(String searchRequestId, String phase, String index, Map<String, Object> body,
+                             JsonNode response, long durationMs) {
+        if (!searchDebugEnabled() && !log.isDebugEnabled()) {
+            return;
+        }
+        log.info("MCP OpenSearch search debug searchRequestId={} phase={} index={} durationMs={} dsl={}",
+            searchRequestId, phase, index, durationMs, safeJson(body));
+        JsonNode hits = response == null ? null : response.path("hits");
+        String total = hits == null || hits.isMissingNode() ? "unknown" : hits.path("total").toString();
+        log.info("MCP OpenSearch search debug searchRequestId={} phase={} index={} durationMs={} hitsTotal={} hitsSample={}",
+            searchRequestId, phase, index, durationMs, total, hitsSample(hits));
+    }
+
+    private boolean searchDebugEnabled() {
+        return openSearchConfig().isDebugSearch();
+    }
+
+    private String hitsSample(JsonNode hits) {
+        if (hits == null || hits.isMissingNode()) {
+            return "[]";
+        }
+        JsonNode nodes = hits.path("hits");
+        if (!nodes.isArray()) {
+            return "[]";
+        }
+        List<Map<String, Object>> sample = new ArrayList<>();
+        int count = 0;
+        for (JsonNode hitNode : nodes) {
+            if (count++ >= 3) {
+                break;
+            }
+            JsonNode source = hitNode.path("_source");
+            Map<String, Object> item = new LinkedHashMap<>();
+            item.put("_id", text(hitNode, "_id"));
+            item.put("_index", text(hitNode, "_index"));
+            item.put("_score", hitNode.path("_score").asDouble(0.0D));
+            item.put("source", text(source, "source"));
+            item.put("id", text(source, FIELD_ID));
+            item.put("resultId", text(source, FIELD_RESULT_ID));
+            item.put("assetType", text(source, FIELD_ASSET_TYPE));
+            item.put("env", text(source, FIELD_ENV));
+            item.put("dbType", text(source, FIELD_DB_TYPE));
+            item.put("database", text(source, FIELD_DATABASE));
+            item.put("table", text(source, FIELD_TABLE));
+            item.put("tableComment", text(source, FIELD_TABLE_COMMENT));
+            sample.add(compactMap(item));
+        }
+        return safeJson(sample);
     }
 
     private List<LuceneMcpSearchService.SearchHit> parseHits(JsonNode root, String scoreReason) {
@@ -612,10 +675,48 @@ public class OpenSearchMcpSearchService {
     }
 
     private void addExactFilter(List<Object> filters, String field, String value) {
+        if (FIELD_ENV.equals(field)) {
+            List<String> variants = exactFilterVariants(value, true);
+            if (variants.isEmpty()) {
+                return;
+            }
+            if (variants.size() == 1) {
+                filters.add(Map.of("term", Map.of(field, variants.get(0))));
+                return;
+            }
+            filters.add(Map.of("bool", Map.of(
+                "should", variants.stream()
+                    .map(item -> Map.of("term", Map.of(field, item)))
+                    .toList(),
+                "minimum_should_match", 1
+            )));
+            return;
+        }
         String normalized = normalizeExact(value);
         if (normalized != null) {
             filters.add(Map.of("term", Map.of(field, normalized)));
         }
+    }
+
+    private List<String> exactFilterVariants(String value, boolean includeUppercase) {
+        String text = value == null || value.isBlank() ? null : value.trim();
+        if (text == null) {
+            return List.of();
+        }
+        List<String> values = new ArrayList<>();
+        addVariant(values, text);
+        addVariant(values, normalizeExact(text));
+        if (includeUppercase) {
+            addVariant(values, text.toUpperCase(Locale.ROOT));
+        }
+        return values;
+    }
+
+    private void addVariant(List<String> values, String value) {
+        if (value == null || value.isBlank() || values.contains(value)) {
+            return;
+        }
+        values.add(value);
     }
 
     private Map<String, Object> assetSource(LuceneMcpSearchService.AssetDoc doc) {
@@ -893,6 +994,36 @@ public class OpenSearchMcpSearchService {
         } catch (JsonProcessingException ex) {
             throw new IllegalStateException("Failed to serialize OpenSearch payload", ex);
         }
+    }
+
+    private String safeJson(Object value) {
+        try {
+            return objectMapper.writeValueAsString(value);
+        } catch (JsonProcessingException ex) {
+            return String.valueOf(value);
+        }
+    }
+
+    private Map<String, Object> compactMap(Map<String, Object> value) {
+        if (value == null || value.isEmpty()) {
+            return Map.of();
+        }
+        Map<String, Object> result = new LinkedHashMap<>();
+        for (Map.Entry<String, Object> entry : value.entrySet()) {
+            Object item = entry.getValue();
+            if (item != null && !String.valueOf(item).isBlank()) {
+                result.put(entry.getKey(), item);
+            }
+        }
+        return result;
+    }
+
+    private String generatedSearchRequestId() {
+        return UUID.randomUUID().toString().replace("-", "").substring(0, 8);
+    }
+
+    private long elapsedMs(long startedAtNanos) {
+        return Math.max(0L, (System.nanoTime() - startedAtNanos) / 1_000_000);
     }
 
     private LuceneMcpSearchService.AssetSearchRequest effectiveAssetSearchRequest(LuceneMcpSearchService.AssetSearchRequest request) {

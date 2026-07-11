@@ -438,6 +438,7 @@ public class McpGatewayClient {
     private McpToolInvokeResult invokeToolViaDirectStreamableHttp(McpServiceConfig config, int requestTimeoutMs,
                                                                   String toolName, Map<String, Object> arguments,
                                                                   Exception sdkFailure) {
+        long startedAt = System.currentTimeMillis();
         try {
             DirectMcpSession session = openDirectStreamableHttpSession(config, requestTimeoutMs);
             try {
@@ -454,21 +455,29 @@ public class McpGatewayClient {
                     sdkFailure == null ? 0 : 1,
                     arguments
                 );
-                log.info("Direct MCP streamable HTTP invoke fallback completed serviceId={} service={} remoteTool={} success={} result={}",
+                log.info("Direct MCP streamable HTTP invoke fallback completed serviceId={} service={} remoteTool={} success={} durationMs={} errorCode={} action={} retryable={} error={} executionState={} result={}",
                     config.getId(),
                     config.getName(),
                     toolName,
                     result.success(),
+                    Math.max(0L, System.currentTimeMillis() - startedAt),
+                    result.errorCode(),
+                    result.action(),
+                    result.retryable(),
+                    result.errorMessage(),
+                    result.executionState(),
                     ToolLogSummarizer.summarize(result.data()));
                 return result;
             } finally {
                 closeDirectStreamableHttpSession(session);
             }
         } catch (Exception ex) {
-            log.warn("Direct MCP streamable HTTP invoke fallback failed serviceId={} service={} remoteTool={} sdkError={} error={}",
+            log.warn("Direct MCP streamable HTTP invoke fallback failed serviceId={} service={} remoteTool={} timeoutMs={} durationMs={} sdkError={} error={}",
                 config.getId(),
                 config.getName(),
                 toolName,
+                requestTimeoutMs <= 0 ? "unbounded" : requestTimeoutMs,
+                Math.max(0L, System.currentTimeMillis() - startedAt),
                 sdkFailure == null ? "" : sdkFailure.getMessage(),
                 ex.getMessage(),
                 ex);
@@ -1361,6 +1370,7 @@ public class McpGatewayClient {
                 inputSchema = objectMapper.convertValue(schemaMap, new TypeReference<>() {});
             }
             Map<String, Object> governance = governanceMap(map);
+            Map<String, Object> meta = asMap(firstPresent(map.get("_meta"), map.get("meta")));
 
             tools.add(new McpToolDefinition(
                 name,
@@ -1380,7 +1390,8 @@ public class McpGatewayClient {
                 firstMap(map, governance, "permissions", "permission", "permission_policy"),
                 firstMap(map, governance, "input_policy", "inputPolicy"),
                 firstMap(map, governance, "output_policy", "outputPolicy"),
-                firstLong(map, governance, "timeoutMillis", "timeout_ms", "timeoutMs")
+                firstLong(map, governance, "timeoutMillis", "timeout_ms", "timeoutMs"),
+                meta
             ));
         }
         return tools;
@@ -1536,10 +1547,7 @@ public class McpGatewayClient {
 
         Object isError = map.get("isError");
         if (Boolean.TRUE.equals(isError)) {
-            String message = stringValue(map.get("message"));
-            if (message == null || message.isBlank()) {
-                message = stringValue(map.get("content"));
-            }
+            String message = toolErrorMessage(map);
             McpToolInvokeResult classified = failureResult(message == null ? "MCP tool error" : message);
             return new McpToolInvokeResult(
                 false,
@@ -1566,6 +1574,48 @@ public class McpGatewayClient {
             map
         );
         return new McpToolInvokeResult(true, data, stringValue(map.get("message")), null);
+    }
+
+    private String toolErrorMessage(Map<String, Object> map) {
+        if (map == null || map.isEmpty()) {
+            return null;
+        }
+        Map<String, Object> structured = asMap(firstPresent(
+            map.get("structuredContent"),
+            map.get("structured_content"),
+            map.get("data")
+        ));
+        String message = firstText(
+            stringValue(map.get("message")),
+            stringValue(structured.get("errorMessage")),
+            stringValue(structured.get("error")),
+            textContent(map.get("content")),
+            stringValue(map.get("content"))
+        );
+        String status = firstText(stringValue(structured.get("status")), stringValue(asMap(map.get("_meta")).get("status")));
+        if (message != null && status != null && !message.toLowerCase(Locale.ROOT).contains(status.toLowerCase(Locale.ROOT))) {
+            return status + ": " + message;
+        }
+        return message;
+    }
+
+    @SuppressWarnings("unchecked")
+    private String textContent(Object content) {
+        if (!(content instanceof List<?> list) || list.isEmpty()) {
+            return null;
+        }
+        List<String> values = new ArrayList<>();
+        for (Object item : list) {
+            if (item instanceof Map<?, ?> map) {
+                Object text = ((Map<String, Object>) map).get("text");
+                if (text != null && !String.valueOf(text).isBlank()) {
+                    values.add(String.valueOf(text));
+                }
+            } else if (item != null && !String.valueOf(item).isBlank()) {
+                values.add(String.valueOf(item));
+            }
+        }
+        return values.isEmpty() ? null : String.join("\n", values);
     }
 
     /**

@@ -20,6 +20,10 @@ server:
   port: ${CHATCHAT_MCP_PORT:8090}
   servlet:
     context-path: /
+    encoding:
+      charset: UTF-8
+      enabled: true
+      force: true
   shutdown: graceful
 
 chatchat:
@@ -88,6 +92,9 @@ chatchat:
         skip-browser-download: ${PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD:false}
 
 logging:
+  charset:
+    console: UTF-8
+    file: UTF-8
   file:
     name: ./logs/chatchat-mcp-server.log
   level:

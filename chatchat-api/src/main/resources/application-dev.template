@@ -45,6 +45,10 @@ server:
   port: 8080
   servlet:
     context-path: /
+    encoding:
+      charset: UTF-8
+      enabled: true
+      force: true
   shutdown: graceful
   tomcat:
     threads:
@@ -443,6 +447,9 @@ springdoc:
   use-fqn: false
 
 logging:
+  charset:
+    console: UTF-8
+    file: UTF-8
   level:
     com.chatchat: INFO
     org.springframework.web: INFO

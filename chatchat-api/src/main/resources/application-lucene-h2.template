@@ -37,6 +37,10 @@ server:
   port: ${CHATCHAT_API_PORT:8080}
   servlet:
     context-path: /
+    encoding:
+      charset: UTF-8
+      enabled: true
+      force: true
   shutdown: graceful
   tomcat:
     max-http-form-post-size: 33554432
@@ -103,6 +107,9 @@ springdoc:
     enabled: false
 
 logging:
+  charset:
+    console: UTF-8
+    file: UTF-8
   file:
     name: logs/chatchat.log
   level:

@@ -369,7 +369,7 @@ class AssetDiscoveryServiceTest {
     }
 
     @Test
-    void capsLimitAtTwenty() {
+    void respectsRequestedLimitWithoutTwentyCap() {
         SshHostConfigService hostService = mock(SshHostConfigService.class);
         SqlDatasourceConfigService datasourceService = mock(SqlDatasourceConfigService.class);
         HttpEndpointConfigService httpService = mock(HttpEndpointConfigService.class);
@@ -389,10 +389,10 @@ class AssetDiscoveryServiceTest {
             "limit", 100
         ));
 
-        assertThat((List<?>) result.get("assets")).hasSize(20);
+        assertThat((List<?>) result.get("assets")).hasSize(25);
         assertThat(result)
-            .containsEntry("limit", 20)
-            .containsEntry("possiblyTruncated", true);
+            .containsEntry("limit", 100)
+            .containsEntry("possiblyTruncated", false);
     }
 
     @Test

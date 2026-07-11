@@ -11,7 +11,7 @@ export async function apiFetch(url, options = {}) {
   const headers = new Headers(options.headers || {});
   headers.set('Authorization', `Bearer ${token}`);
   if (options.body && !headers.has('Content-Type')) {
-    headers.set('Content-Type', 'application/json');
+    headers.set('Content-Type', 'application/json; charset=UTF-8');
   }
 
   const response = await fetch(url, { ...options, headers });

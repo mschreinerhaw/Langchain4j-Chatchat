@@ -4,7 +4,7 @@
     version: 1.0.0-SNAPSHOT
   datasource:
     type: com.zaxxer.hikari.HikariDataSource
-    url: "${CHATCHAT_API_MYSQL_URL:jdbc:mysql://192.168.195.221:3306/live_runtime_api?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true}"
+    url: "${CHATCHAT_API_MYSQL_URL:jdbc:mysql://192.168.195.221:3306/live_runtime_api?useUnicode=true&characterEncoding=UTF-8&connectionCollation=utf8mb4_unicode_ci&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true}"
     driver-class-name: com.mysql.cj.jdbc.Driver
     username: ${CHATCHAT_API_MYSQL_USERNAME:livebos}
     password: ${CHATCHAT_API_MYSQL_ENCRYPTED_PASSWORD:apexSoft123!}
@@ -33,6 +33,10 @@ server:
   port: ${CHATCHAT_API_PORT:8080}
   servlet:
     context-path: /
+    encoding:
+      charset: UTF-8
+      enabled: true
+      force: true
   shutdown: graceful
   tomcat:
     max-http-form-post-size: 33554432
@@ -115,6 +119,9 @@ springdoc:
     enabled: false
 
 logging:
+  charset:
+    console: UTF-8
+    file: UTF-8
   file:
     name: logs/chatchat.log
   level:

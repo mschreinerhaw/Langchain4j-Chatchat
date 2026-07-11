@@ -26,7 +26,7 @@ export async function apiRequest(path, options = {}) {
   const response = await fetch(`${API_BASE}${path}`, {
     ...options,
     headers: {
-      "Content-Type": "application/json",
+      "Content-Type": "application/json; charset=UTF-8",
       ...(session?.token ? { Authorization: `Bearer ${session.token}` } : {}),
       ...(options.headers || {})
     }
@@ -1320,7 +1320,7 @@ async function fetchEventStream(path, payload, handlers) {
   const response = await fetch(`${API_BASE}${path}`, {
     method: "POST",
     headers: {
-      "Content-Type": "application/json",
+      "Content-Type": "application/json; charset=UTF-8",
       ...(session?.token ? { Authorization: `Bearer ${session.token}` } : {})
     },
     body: JSON.stringify(payload)

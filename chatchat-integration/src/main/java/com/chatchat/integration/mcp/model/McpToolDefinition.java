@@ -1,5 +1,6 @@
 package com.chatchat.integration.mcp.model;
 
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 public record McpToolDefinition(
@@ -15,7 +16,8 @@ public record McpToolDefinition(
     Map<String, Object> permissions,
     Map<String, Object> inputPolicy,
     Map<String, Object> outputPolicy,
-    Long timeoutMillis
+    Long timeoutMillis,
+    Map<String, Object> meta
 ) {
     /**
      * Creates a new McpToolDefinition instance.
@@ -25,6 +27,10 @@ public record McpToolDefinition(
      * @param inputSchema the input schema value
      */
     public McpToolDefinition(String name, String description, Map<String, Object> inputSchema) {
-        this(name, description, inputSchema, null, null, null, null, null, Map.of(), Map.of(), Map.of(), Map.of(), null);
+        this(name, description, inputSchema, null, null, null, null, null, Map.of(), Map.of(), Map.of(), Map.of(), null, Map.of());
+    }
+
+    public McpToolDefinition {
+        meta = meta == null ? Map.of() : new LinkedHashMap<>(meta);
     }
 }

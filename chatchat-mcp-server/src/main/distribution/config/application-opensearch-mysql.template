@@ -7,7 +7,7 @@ spring:
     name: chatchat-mcp-server
   datasource:
     type: com.zaxxer.hikari.HikariDataSource
-    url: "${CHATCHAT_MCP_MYSQL_URL:jdbc:mysql://localhost:3306/chatchat_mcp?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true}"
+    url: "${CHATCHAT_MCP_MYSQL_URL:jdbc:mysql://localhost:3306/chatchat_mcp?useUnicode=true&characterEncoding=UTF-8&connectionCollation=utf8mb4_unicode_ci&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true}"
     driver-class-name: com.mysql.cj.jdbc.Driver
     username: ${CHATCHAT_MCP_MYSQL_USERNAME:chatchat}
     password: ${CHATCHAT_MCP_MYSQL_ENCRYPTED_PASSWORD:${CHATCHAT_MCP_MYSQL_PASSWORD:}}
@@ -68,6 +68,7 @@ chatchat:
         index-prefix: ${CHATCHAT_MCP_OPENSEARCH_INDEX_PREFIX:chatchat_mcp_}
         insecure-ssl: ${CHATCHAT_OPENSEARCH_INSECURE_SSL:true}
         request-timeout-ms: 30000
+        debug-search: ${CHATCHAT_MCP_OPENSEARCH_DEBUG_SEARCH:false}
         embedding:
           enabled: ${CHATCHAT_OPENSEARCH_EMBEDDING_ENABLED:false}
           endpoint: ${CHATCHAT_EMBEDDING_ENDPOINT:}

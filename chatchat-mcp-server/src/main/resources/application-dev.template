@@ -35,6 +35,10 @@ server:
   port: 8090
   servlet:
     context-path: /
+    encoding:
+      charset: UTF-8
+      enabled: true
+      force: true
   shutdown: graceful
 
 chatchat:
@@ -524,6 +528,9 @@ chatchat:
         path: ask_before_execute
 
 logging:
+  charset:
+    console: UTF-8
+    file: UTF-8
   file:
     name: ./logs/chatchat-mcp-server.log
   level:

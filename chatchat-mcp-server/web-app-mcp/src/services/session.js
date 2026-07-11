@@ -21,7 +21,7 @@ export function getUser() {
 export async function login(username, password) {
   const response = await fetch(`${API_BASE}/admin/auth/login`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json; charset=UTF-8' },
     body: JSON.stringify({ username, password })
   });
   const payload = await response.json().catch(() => ({}));

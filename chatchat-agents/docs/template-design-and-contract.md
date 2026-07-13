@@ -2,6 +2,8 @@
 
 本文档定义 `chatchat-agents` 模块的模板设计、计划执行边界和强制工具执行契约。
 
+模型总结与工具事实之间的边界由 [`Agent Runtime 事实落地契约`](../../docs/agent-runtime-fact-grounding-contract.md) 统一定义。
+
 ## 模块职责
 
 `chatchat-agents` 是 Agent Runtime、planner、InterpretationPlan、工具编排、结果 review 和最终总结的核心模块。
@@ -21,6 +23,7 @@
 - planner 可以补充、排序、参数化工具步骤，但不能删除用户强制要求的工具。
 - rewriter 可以修复计划，但必须保留 pending required tools。
 - finalizer 只能基于已完成工具 observation 或明确阻断原因生成回答。
+- Runtime 必须在 final synthesis 前提供不可覆盖的工具事实块，并在回答生成后校验事实是否被模型篡改。
 
 ## Required Tool Execution Contract
 

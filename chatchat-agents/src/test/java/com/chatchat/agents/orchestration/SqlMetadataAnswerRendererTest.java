@@ -38,8 +38,9 @@ class SqlMetadataAnswerRendererTest {
         SqlMetadataAnswerRenderer.RenderedSqlMetadata evidence = renderer.renderEvidence(result);
 
         assertThat(markdown)
+            .contains("## 实际检索到的数据库对象")
             .contains("`livebos.os_historystep`")
-            .contains("- 字段数：`3`")
+            .contains("已返回物理表：`1`")
             .contains("`ID`")
             .contains("bigint")
             .contains("涓婚敭ID")
@@ -48,12 +49,59 @@ class SqlMetadataAnswerRendererTest {
             .contains("`STATUS`")
             .contains("状态");
         assertThat(evidence.metadata())
-            .containsEntry("source", "mcp_sql_metadata_search_results_columns")
+            .containsEntry("source", "mcp_sql_metadata_search_catalog")
+            .containsEntry("authoritativeOnly", true)
             .containsEntry("semanticGatePassed", true)
             .containsEntry("columnCount", 3)
-            .containsEntry("schema", "livebos")
-            .containsEntry("table", "os_historystep")
-            .containsEntry("requestedTable", "os_historystep");
+            .containsEntry("catalogReturnedCount", 1);
+    }
+
+    @Test
+    void rendersOnlyRetrievedCatalogAndDoesNotAddInferredWarehouseLayers() {
+        SqlMetadataAnswerRenderer renderer = new SqlMetadataAnswerRenderer();
+        Map<String, Object> output = Map.of(
+            "totalMatched", 2,
+            "catalogReturnedCount", 2,
+            "catalogTruncated", false,
+            "tableCatalog", List.of(
+                Map.of("database", "finance", "schema", "public", "tableName", "customer_return_fact", "tableType", "BASE TABLE"),
+                Map.of("database", "finance", "schema", "public", "tableName", "market_index_quote", "tableType", "BASE TABLE")
+            ),
+            "topTables", List.of()
+        );
+        InterpretationPlanRuntime.ExecutionResult result = new InterpretationPlanRuntime.ExecutionResult(
+            "completed", true, false, null, null,
+            List.of(new InterpretationPlanRuntime.StepExecution(
+                1, "mcp_tool", "sql_metadata_search", true, output, null, null, null, 12
+            )),
+            Map.of(), 12
+        );
+
+        String markdown = renderer.render(result);
+
+        assertThat(markdown)
+            .contains("`customer_return_fact`")
+            .contains("`market_index_quote`")
+            .contains("工具未返回上述匹配表的字段明细")
+            .doesNotContain("ADS", "DWS", "DWD", "DIM", "可能表名示例", "补充推荐");
+    }
+
+    @Test
+    void reportsNoVerifiedPhysicalTablesInsteadOfInventingExamples() {
+        SqlMetadataAnswerRenderer renderer = new SqlMetadataAnswerRenderer();
+        InterpretationPlanRuntime.ExecutionResult result = new InterpretationPlanRuntime.ExecutionResult(
+            "completed", true, false, null, null,
+            List.of(new InterpretationPlanRuntime.StepExecution(
+                1, "mcp_tool", "sql_metadata_search", true,
+                Map.of("totalMatched", 0, "results", List.of()), null, null, null, 8
+            )),
+            Map.of(), 8
+        );
+
+        assertThat(renderer.render(result))
+            .contains("未检索到可验证的物理表")
+            .contains("不会提供推测的分层、表名示例或常见表推荐")
+            .doesNotContain("ads_", "dws_", "dwd_");
     }
 
     @Test

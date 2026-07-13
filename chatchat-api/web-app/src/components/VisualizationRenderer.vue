@@ -2,7 +2,7 @@
   <section v-if="panelSpec" class="visualization-renderer visualization-panel" :class="`layout-${panelSpec.layout}`">
     <header class="visualization-header">
       <div>
-        <p>{{ panelSpec.analysisType || "BI Panel" }}</p>
+        <p>{{ panelSpec.analysisType || "分析面板" }}</p>
         <h3>{{ panelSpec.title }}</h3>
       </div>
     </header>
@@ -36,7 +36,7 @@
         <h3>{{ title }}</h3>
       </div>
       <div class="visualization-actions">
-        <nav v-if="availableViews.length > 1" class="visualization-tabs" aria-label="Visualization views">
+        <nav v-if="availableViews.length > 1" class="visualization-tabs" aria-label="可视化视图切换">
           <button
             v-for="view in availableViews"
             :key="view"

@@ -77,6 +77,7 @@ class StandardToolExecutionResultFactoryTest {
         assertThat((List<?>) data.get("rows")).hasSize(50);
         assertThat(data.get("rowCount")).isEqualTo(60);
         assertThat(data.get("returnedRowCount")).isEqualTo(50);
+        assertThat(data.get("complete")).isEqualTo(false);
         assertThat(data.get("possiblyTruncated")).isEqualTo(true);
         assertThat(data.get("truncationStrategy")).isEqualTo("LIMIT_50");
         assertThat(limits.get("truncationStrategy")).isEqualTo("LIMIT_50");
@@ -179,6 +180,65 @@ class StandardToolExecutionResultFactoryTest {
         List<?> nonZeroStepIndexes = (List<?>) diagnostics.get("nonZeroStepIndexes");
         assertThat(nonZeroStepIndexes).hasSize(1);
         assertThat(nonZeroStepIndexes.get(0)).isEqualTo(1);
+    }
+
+    @Test
+    void linuxResultPreservesHeadTailAndFailureFactsForLongStreams() {
+        String stdout = "STDOUT_HEAD\n" + "x".repeat(70_000) + "\nSTDOUT_TAIL";
+        String stderr = "STDERR_HEAD\n" + "y".repeat(70_000) + "\nFATAL_ERROR_AT_TAIL";
+        LinuxCommandStepResult step = new LinuxCommandStepResult(
+            1,
+            "LONG_CHECK",
+            "Long check",
+            "SHELL",
+            true,
+            "inspect the tail error",
+            "long-check",
+            "hash-long",
+            2,
+            stdout,
+            stderr,
+            42,
+            false
+        );
+        LinuxCommandResult result = new LinuxCommandResult(
+            true,
+            "host-1",
+            "10.0.0.1",
+            "ssh_host",
+            "PROD",
+            "LONG_CHECK",
+            "long-check",
+            "hash",
+            List.of(step),
+            1,
+            "long-check",
+            2,
+            stdout,
+            stderr,
+            42,
+            null,
+            Map.of()
+        );
+
+        Map<String, Object> envelope = factory.fromLinuxCommand(result);
+        Map<?, ?> data = (Map<?, ?>) envelope.get("data");
+        Map<?, ?> limits = (Map<?, ?>) data.get("outputLimits");
+        Map<?, ?> returnedStep = (Map<?, ?>) ((List<?>) data.get("steps")).get(0);
+
+        assertThat(data.get("exitCode")).isEqualTo(2);
+        assertThat(data.get("commandSuccess")).isEqualTo(false);
+        assertThat(limits.get("stdoutTruncated")).isEqualTo(true);
+        assertThat(limits.get("stderrTruncated")).isEqualTo(true);
+        assertThat(String.valueOf(data.get("stdout")))
+            .contains("STDOUT_HEAD")
+            .contains("[truncated")
+            .contains("STDOUT_TAIL");
+        assertThat(String.valueOf(data.get("stderr")))
+            .contains("STDERR_HEAD")
+            .contains("FATAL_ERROR_AT_TAIL");
+        assertThat(returnedStep.get("stderrTruncated")).isEqualTo(true);
+        assertThat(String.valueOf(returnedStep.get("stderr"))).contains("FATAL_ERROR_AT_TAIL");
     }
 
     @Test

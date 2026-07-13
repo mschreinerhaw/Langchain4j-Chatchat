@@ -9,6 +9,7 @@ import com.chatchat.agents.runtime.AgentRunRequest;
 import com.chatchat.agents.runtime.AgentRunResult;
 import com.chatchat.agents.runtime.AgentRunStatus;
 import com.chatchat.agents.runtime.AgentRunStore;
+import com.chatchat.agents.runtime.AgentRuntimeFactGroundingContract;
 import com.chatchat.agents.runtime.DefaultAgentAnswerReviewer;
 import com.chatchat.agents.runtime.DefaultAgentObservationPipeline;
 import com.chatchat.agents.runtime.InMemoryAgentRunStore;
@@ -90,6 +91,7 @@ public class AgentOrchestrator {
     private final InterpretationPlanStore interpretationPlanStore;
     private final InterpretationPlanDagConverter interpretationPlanDagConverter = new InterpretationPlanDagConverter();
     private final SqlMetadataAnswerRenderer sqlMetadataAnswerRenderer = new SqlMetadataAnswerRenderer();
+    private final SqlMetadataGroundingGuard sqlMetadataGroundingGuard = new SqlMetadataGroundingGuard();
     private final ExecutionGraphSemanticValidator executionGraphSemanticValidator = new ExecutionGraphSemanticValidator();
     private final InterpretationPlanWorkflowGuard interpretationPlanWorkflowGuard = new InterpretationPlanWorkflowGuard();
 
@@ -392,6 +394,7 @@ public class AgentOrchestrator {
         metadata.put("mandatoryTools", mandatoryTools);
         metadata.put("workflowMandatoryTools", workflowMandatoryTools);
         metadata.put("executionPolicy", runtimeExecutionPolicy(requireToolBeforeFinal));
+        metadata.put("factGroundingContract", AgentRuntimeFactGroundingContract.metadata());
         metadata.put("requiredToolExecutions", requiredToolExecutionContracts);
         if (!workflowMandatoryResolution.skippedTools().isEmpty()) {
             metadata.put("workflowSkippedTools", workflowMandatoryResolution.skippedTools());
@@ -1192,6 +1195,7 @@ public class AgentOrchestrator {
         policy.put("userSelectedToolsMustRun", requireToolBeforeFinal);
         policy.put("modelCanSuggestSkip", false);
         policy.put("finalAnswerRequiresToolCompletion", requireToolBeforeFinal);
+        policy.put("factGroundingContractVersion", AgentRuntimeFactGroundingContract.CONTRACT_VERSION);
         return policy;
     }
 
@@ -1422,7 +1426,16 @@ public class AgentOrchestrator {
                 "storedObservationCount", storedObservations.size()
             )
         );
-        String prompt = buildInterpretationPlanSummaryPrompt(query, systemPrompt, result, observations, storedObservations);
+        SqlMetadataAnswerRenderer.RenderedSqlMetadata renderedSqlMetadata = sqlMetadataAnswerRenderer.renderEvidence(result);
+        String structuredSqlMetadata = renderedSqlMetadata.markdown();
+        String prompt = buildInterpretationPlanSummaryPrompt(
+            query,
+            systemPrompt,
+            result,
+            observations,
+            storedObservations,
+            structuredSqlMetadata
+        );
         String runId = stringValue(runtimeAttributes == null ? null : runtimeAttributes.get(AGENT_RUN_ID_ATTRIBUTE));
         long startedAt = System.currentTimeMillis();
         log.info("agentModelRequest phase=interpretation_plan_summary runId={} stage={} modelClass={} promptChars={} stepCount={} storedObservationCount={}",
@@ -1447,8 +1460,6 @@ public class AgentOrchestrator {
             metadata.put("interpretationPlanSummaryStage", stage);
             metadata.put("interpretationPlanStoredObservationCount", storedObservations.size());
         }
-        SqlMetadataAnswerRenderer.RenderedSqlMetadata renderedSqlMetadata = sqlMetadataAnswerRenderer.renderEvidence(result);
-        String structuredSqlMetadata = renderedSqlMetadata.markdown();
         if (!structuredSqlMetadata.isBlank()) {
             if (metadata != null) {
                 metadata.put("structuredSqlMetadataRendered", true);
@@ -1461,6 +1472,19 @@ public class AgentOrchestrator {
                 metadata.put("executionGraphSemanticState", graphSemanticState);
                 metadata.put("executionGraphSemanticPassed", graphSemanticState.get("passed"));
                 metadata.put("executionGraphSemanticReason", graphSemanticState.get("reason"));
+            }
+            if ("mcp_sql_metadata_search_catalog".equals(renderedSqlMetadata.metadata().get("source"))) {
+                answer = rewriteUngroundedSqlMetadataSummary(
+                    activeChatModel,
+                    query,
+                    structuredSqlMetadata,
+                    renderedSqlMetadata.metadata(),
+                    answer,
+                    metadata
+                );
+                if (metadata != null) {
+                    metadata.put("sqlMetadataGroundingValidated", true);
+                }
             }
             answer = mergeStructuredSqlMetadataAnswer(structuredSqlMetadata, answer);
         }
@@ -1486,7 +1510,7 @@ public class AgentOrchestrator {
             return modelAnswer == null ? "" : modelAnswer;
         }
         String answer = modelAnswer == null ? "" : modelAnswer.trim();
-        if (answer.contains("## 元数据依据") && answer.contains("## 字段结构")) {
+        if (answer.contains(structuredSqlMetadata.trim())) {
             return answer;
         }
         if (answer.isBlank()) {
@@ -1495,11 +1519,42 @@ public class AgentOrchestrator {
         return structuredSqlMetadata.trim() + "\n\n## 分析结论\n\n" + answer;
     }
 
+    private String rewriteUngroundedSqlMetadataSummary(ChatModel activeChatModel,
+                                                       String query,
+                                                       String structuredEvidence,
+                                                       Map<String, Object> factMetadata,
+                                                       String draft,
+                                                       Map<String, Object> runtimeMetadata) {
+        String summary = draft == null ? "" : draft.trim();
+        List<String> violations = sqlMetadataGroundingGuard.violations(summary, factMetadata);
+        int rewriteCount = 0;
+        while (!violations.isEmpty() && rewriteCount < 2 && activeChatModel != null) {
+            rewriteCount++;
+            summary = activeChatModel.chat(sqlMetadataGroundingGuard.rewritePrompt(
+                query,
+                structuredEvidence,
+                summary,
+                violations
+            ));
+            summary = summary == null ? "" : summary.trim();
+            violations = sqlMetadataGroundingGuard.violations(summary, factMetadata);
+        }
+        if (runtimeMetadata != null) {
+            runtimeMetadata.put("sqlMetadataGroundingRewriteCount", rewriteCount);
+            runtimeMetadata.put("sqlMetadataGroundingViolations", violations);
+        }
+        if (!violations.isEmpty()) {
+            return sqlMetadataGroundingGuard.safeSummary();
+        }
+        return summary;
+    }
+
     private String buildInterpretationPlanSummaryPrompt(String query,
                                                         String systemPrompt,
                                                         InterpretationPlanRuntime.ExecutionResult result,
                                                         List<String> observations,
-                                                        List<AgentObservation> storedObservations) {
+                                                        List<AgentObservation> storedObservations,
+                                                        String authoritativeSqlMetadata) {
         StringBuilder prompt = new StringBuilder();
         if (systemPrompt != null && !systemPrompt.isBlank()) {
             prompt.append("System instruction:\n").append(systemPrompt).append("\n\n");
@@ -1516,7 +1571,18 @@ public class AgentOrchestrator {
         prompt.append("- If some step truly failed with no usable output, state the limitation and do not use that failed result as evidence.\n");
         prompt.append("- Do not display executed SQL statements, scripts, or query text in the user-facing answer. Mention only the template/tool and returned data.\n");
         prompt.append("- A shortened output preview in this prompt is not evidence that the tool output itself was truncated. Claim truncation only when output facts contain explicitTruncation=true or the output has an explicit _truncated/[truncated] marker.\n");
-        prompt.append("- Do not invent facts that are not present in the step outputs or observations.\n\n");
+        prompt.append("- Do not invent facts that are not present in the step outputs or observations.\n");
+        prompt.append("- For SQL metadata discovery, cite every recommended table by the exact physical identifier returned by the tool (database/schema/tableName when available). Keep any Chinese business description separate; never use it as a substitute for the physical table name.\n");
+        prompt.append("- When returned metadata includes columns, list the exact physical column names under their corresponding physical table and preserve returned type/key/comment details. Never translate, rename, or invent identifiers.\n");
+        prompt.append("- If column metadata was not returned for a matched table, say so explicitly instead of presenting illustrative fields as facts.\n\n");
+        prompt.append("- Database layering labels (for example ADS/DWS/DWD/DIM), table names, schemas, databases, and fields are evidence facts only when the current tool output explicitly returned them. Never infer a layer from a naming convention. Never output 'possible table examples', 'common tables', or supplemental table recommendations that were not retrieved.\n");
+        prompt.append(AgentRuntimeFactGroundingContract.promptSection());
+        if (authoritativeSqlMetadata != null && !authoritativeSqlMetadata.isBlank()) {
+            prompt.append("\nAuthoritative SQL metadata fact block (non-overridable):\n")
+                .append(authoritativeSqlMetadata)
+                .append("\n\n")
+                .append("Summarize and explain this fact block for the user's goal. Do not alter its identifiers, counts, completeness state, table/field descriptions, or introduce additional database objects.\n");
+        }
         prompt.append("User query:\n").append(query == null ? "" : query).append("\n\n");
         if (result != null && result.finalAnswer() != null && !result.finalAnswer().isBlank()) {
             prompt.append("Plan final answer hint, not authoritative evidence:\n")
@@ -1575,7 +1641,7 @@ public class AgentOrchestrator {
         if (observations != null && !observations.isEmpty()) {
             prompt.append("\nIn-memory observations:\n");
             observations.forEach(observation -> prompt.append("- ")
-                .append(shortObservationText(observation, 1000))
+                .append(observation)
                 .append("\n"));
         }
         prompt.append("\nReturn only the final user-facing Markdown answer, no JSON.");
@@ -1702,6 +1768,7 @@ public class AgentOrchestrator {
         prompt.append("Return strict JSON only with this shape:\n");
         prompt.append("{\"satisfied\":true|false,\"reason\":\"short reason\",\"review_answer\":\"optional audit note, not user-facing final answer\",\"selected_urls\":[\"https://...\"],\"useful_refs\":[\"doc://...#chunk=0\"],\"rejected_refs\":[\"doc://...#chunk=1\"],\"relevance\":0.0,\"answerability\":0.0,\"supportsQuestionAspect\":[\"process\"],\"missingAspects\":[\"constraints\"],\"usefulness\":\"HIGH|MEDIUM|LOW\",\"shouldExpandQuery\":true|false,\"confidence\":0.0}\n");
         prompt.append("Rules:\n");
+        prompt.append(AgentRuntimeFactGroundingContract.promptSection());
         prompt.append("- Decide whether this tool output is sufficient for the current plan step and user request.\n");
         prompt.append("- If satisfied=false, explain missing aspects, but never discard succeeded SQL/database rows merely because they are partial or imperfect.\n");
         prompt.append("- For SQL/database outputs, any returned rows, columns, metrics, or result sets are usable partial evidence. Mark them satisfied=true when they can support any part of the answer, and list gaps in missingAspects.\n");
@@ -1818,6 +1885,18 @@ public class AgentOrchestrator {
         putIfPresent(facts, "status", root.get("status"));
         putIfPresent(facts, "errorMessage", root.get("errorMessage"));
 
+        if (isSqlMetadataSearchResult(root)) {
+            putIfPresent(facts, "totalMatched", root.get("totalMatched"));
+            putIfPresent(facts, "catalogReturnedCount", root.get("catalogReturnedCount"));
+            putIfPresent(facts, "returnedDetailCount", firstNonNull(root.get("detailReturnedCount"), root.get("returnedDetailCount")));
+            putIfPresent(facts, "catalogTruncated", root.get("catalogTruncated"));
+            putIfPresent(facts, "detailTruncated", root.get("detailTruncated"));
+            facts.put("explicitTruncation", Boolean.TRUE.equals(root.get("catalogTruncated")));
+            facts.put("truncationSemantics",
+                "catalogTruncated controls physical table-name completeness; detailTruncated only controls column-detail completeness");
+            return facts;
+        }
+
         Map<String, Object> target = asMap(root.get("target"));
         if (!target.isEmpty()) {
             facts.put("target", compactMap(target, "type", "id", "name", "address", "ipAddress", "toolName", "environment"));
@@ -1840,9 +1919,14 @@ public class AgentOrchestrator {
                 "outputMode",
                 "rowCount",
                 "returnedRowCount",
+                "complete",
                 "possiblyTruncated",
                 "truncationStrategy"
             );
+            Map<String, Object> outputLimits = asMap(data.get("outputLimits"));
+            if (!outputLimits.isEmpty()) {
+                dataFacts.put("outputLimits", outputLimits);
+            }
             Integer stdoutLength = outputLength(data.get("stdout"));
             Integer stderrLength = outputLength(data.get("stderr"));
             if (stdoutLength != null) {
@@ -1873,6 +1957,15 @@ public class AgentOrchestrator {
             .filter(entry -> entry.getValue() != null)
             .filter(entry -> !(entry.getValue() instanceof Map<?, ?> map && map.isEmpty()))
             .collect(LinkedHashMap::new, (map, entry) -> map.put(entry.getKey(), entry.getValue()), LinkedHashMap::putAll);
+    }
+
+    private boolean isSqlMetadataSearchResult(Map<String, Object> root) {
+        String schemaVersion = stringValue(root == null ? null : root.get("schemaVersion"));
+        return schemaVersion != null && schemaVersion.toLowerCase().contains("sql_metadata_search_result");
+    }
+
+    private Object firstNonNull(Object first, Object second) {
+        return first == null ? second : first;
     }
 
     private Map<String, Object> firstNonEmptyMap(Object first, Object second) {
@@ -1915,10 +2008,9 @@ public class AgentOrchestrator {
             for (Map.Entry<?, ?> entry : map.entrySet()) {
                 String key = entry.getKey() == null ? "" : String.valueOf(entry.getKey());
                 Object item = entry.getValue();
-                if ("_truncated".equals(key) && Boolean.TRUE.equals(item)) {
-                    return true;
-                }
-                if ("possiblyTruncated".equals(key) && Boolean.TRUE.equals(item)) {
+                if (("_truncated".equals(key)
+                    || "possiblyTruncated".equals(key)
+                    || key.endsWith("Truncated")) && Boolean.TRUE.equals(item)) {
                     return true;
                 }
                 if (hasExplicitTruncationMarker(item, depth + 1, counter)) {
@@ -1936,7 +2028,7 @@ public class AgentOrchestrator {
             return false;
         }
         if (value instanceof String text) {
-            return text.contains("...[truncated]") || text.equals("[truncated]") || text.contains("...<truncated>");
+            return text.contains("...[truncated") || text.equals("[truncated]") || text.contains("...<truncated>");
         }
         return false;
     }

@@ -237,16 +237,21 @@ export default {
       return normalizeSingleRenderableSpec(this.spec);
     },
     title() {
-      return compact(this.normalizedSpec?.title) || "Auto Visualization";
+      return compact(this.normalizedSpec?.title) || "自动可视化";
     },
     chartLabel() {
       if (this.isMetrics) {
-        return "Metrics";
+        return "指标卡";
       }
       if (this.normalizedSpec?.type === "table") {
-        return "Table";
+        return "数据表格";
       }
-      return `${this.chartType || "chart"} chart`;
+      return {
+        bar: "柱状图",
+        line: "折线图",
+        pie: "饼图",
+        scatter: "散点图"
+      }[this.chartType] || "数据图表";
     },
     rows() {
       return this.normalizedSpec?.rows || [];

@@ -1,6 +1,7 @@
 package com.chatchat.agents.orchestration;
 
 import com.chatchat.agents.protocol.ModelProtocolJson;
+import com.chatchat.agents.runtime.AgentRuntimeFactGroundingContract;
 import com.chatchat.agents.runtime.plan.InterpretationPlan;
 import com.chatchat.agents.runtime.plan.InterpretationPlanJsonSchema;
 import com.chatchat.agents.runtime.plan.InterpretationPlanValidator;
@@ -182,6 +183,7 @@ class AgentPlanner {
         prompt.append("- Required dependency_contracts MUST also appear in the target step depends_on. Optional dependency_contracts MUST include condition or reason; do not add optional tools as depends_on unless you decide they are needed for this user request.\n");
         prompt.append("- Add plan.edge_contracts when a later step needs a typed field from an earlier tool output.\n");
         prompt.append("- If information is missing, add missing_info and plan the smallest safe retrieval/tool step instead of inventing facts.\n\n");
+        prompt.append(AgentRuntimeFactGroundingContract.promptSection());
         prompt.append("MCP interaction contract:\n");
         prompt.append("- Follow one of two MCP chains: tool/capability description -> template discovery -> template judgment -> executor tool executes template -> final summary; OR asset discovery -> asset judgment -> asset associated templates -> template judgment -> executor tool executes template -> final summary.\n");
         prompt.append("- Template ids, template names, mcpToolName, and execution.callTool values returned by discovery are template names, not Agent Runtime workflow tool names.\n");

@@ -24,6 +24,8 @@ public class StandardToolExecutionResultFactory {
 
     public static final String SCHEMA_VERSION = "tool_execution_result.v1";
     public static final int SQL_RESULT_ROW_LIMIT = 50;
+    static final int LINUX_AGGREGATE_STREAM_LIMIT = 24_000;
+    static final int LINUX_STEP_STREAM_TOTAL_BUDGET = 100_000;
 
     public Map<String, Object> fromSql(SqlQueryResult result) {
         Map<String, Object> payload = base(
@@ -58,16 +60,18 @@ public class StandardToolExecutionResultFactory {
             "truncationStrategy", "LIMIT_50"
         );
         payload.put("limits", limits);
+        boolean possiblyTruncated = result.possiblyTruncated() || result.rowCount() > rows.size();
         Map<String, Object> data = mapOf(
-            "columns", result.columns(),
-            "columnMetadata", result.columnMetadata(),
-            "rows", rows,
             "rowCount", result.rowCount(),
             "returnedRowCount", rows.size(),
-            "possiblyTruncated", result.possiblyTruncated() || result.rowCount() > rows.size(),
+            "complete", !possiblyTruncated,
+            "possiblyTruncated", possiblyTruncated,
             "truncationStrategy", "LIMIT_50",
+            "columns", result.columns(),
+            "columnMetadata", result.columnMetadata(),
             "governance", sqlOutputGovernance(result, rows.size()),
-            "diagnostics", result.diagnostics()
+            "diagnostics", result.diagnostics(),
+            "rows", rows
         );
         payload.put("data", data);
         payload.put("execution", execution(
@@ -217,6 +221,14 @@ public class StandardToolExecutionResultFactory {
 
     public Map<String, Object> fromLinuxCommand(LinuxCommandResult result) {
         Map<String, Object> diagnostics = linuxCommandDiagnostics(result);
+        List<LinuxCommandStepResult> rawSteps = result.steps() == null ? List.of() : result.steps();
+        int perStepStreamLimit = Math.min(
+            LINUX_AGGREGATE_STREAM_LIMIT,
+            Math.max(4_000, LINUX_STEP_STREAM_TOTAL_BUDGET / Math.max(2, rawSteps.size() * 2))
+        );
+        List<Map<String, Object>> boundedSteps = stepResults(rawSteps, perStepStreamLimit);
+        BoundedText stdout = boundedText(result.stdout(), LINUX_AGGREGATE_STREAM_LIMIT);
+        BoundedText stderr = boundedText(result.stderr(), LINUX_AGGREGATE_STREAM_LIMIT);
         Map<String, Object> payload = base(
             "ssh_command",
             "ssh_steps.v1",
@@ -246,21 +258,32 @@ public class StandardToolExecutionResultFactory {
         payload.put("data", mapOf(
             "exitCode", result.exitCode(),
             "transportSuccess", result.success(),
-            "commandSuccess", result.steps().stream().allMatch(LinuxCommandStepResult::success),
-            "nonZeroStepIndexes", result.steps().stream()
+            "commandSuccess", rawSteps.stream().allMatch(LinuxCommandStepResult::success),
+            "nonZeroStepIndexes", rawSteps.stream()
                 .filter(step -> !step.success())
                 .map(LinuxCommandStepResult::stepIndex)
                 .toList(),
-            "steps", stepResults(result.steps()),
             "failedStepIndex", result.failedStepIndex(),
             "failedCommand", result.failedCommand(),
             "outputMode", "separated",
-            "stdout", result.stdout(),
-            "stderr", result.stderr(),
-            "diagnostics", diagnostics
+            "diagnostics", diagnostics,
+            "outputLimits", mapOf(
+                "strategy", "HEAD_TAIL_PER_STREAM",
+                "aggregateStreamLimit", LINUX_AGGREGATE_STREAM_LIMIT,
+                "perStepStreamLimit", perStepStreamLimit,
+                "stdoutOriginalLength", stdout.originalLength(),
+                "stdoutReturnedLength", stdout.value().length(),
+                "stdoutTruncated", stdout.truncated(),
+                "stderrOriginalLength", stderr.originalLength(),
+                "stderrReturnedLength", stderr.value().length(),
+                "stderrTruncated", stderr.truncated()
+            ),
+            "steps", boundedSteps,
+            "stdout", stdout.value(),
+            "stderr", stderr.value()
         ));
-        payload.put("execution", result.execution());
-        payload.put("executionGraph", graph(stepGraphNodes(result.steps()), stepGraphEdges(result.steps())));
+        payload.put("execution", linuxExecution(result, rawSteps, perStepStreamLimit));
+        payload.put("executionGraph", graph(stepGraphNodes(rawSteps), stepGraphEdges(rawSteps)));
         return payload;
     }
 
@@ -517,22 +540,92 @@ public class StandardToolExecutionResultFactory {
         return payload;
     }
 
-    private List<Map<String, Object>> stepResults(List<LinuxCommandStepResult> steps) {
+    private List<Map<String, Object>> stepResults(List<LinuxCommandStepResult> steps, int streamLimit) {
         if (steps == null) {
             return List.of();
         }
         return steps.stream()
-            .map(step -> mapOf(
-                "stepIndex", step.stepIndex(),
-                "command", step.command(),
-                "commandHash", step.commandHash(),
-                "exitCode", step.exitCode(),
-                "success", step.success(),
-                "durationMs", step.durationMs(),
-                "stdout", step.stdout(),
-                "stderr", step.stderr()
-            ))
+            .map(step -> boundedStepResult(step, streamLimit))
             .toList();
+    }
+
+    private Map<String, Object> boundedStepResult(LinuxCommandStepResult step, int streamLimit) {
+        BoundedText stdout = boundedText(step.stdout(), streamLimit);
+        BoundedText stderr = boundedText(step.stderr(), streamLimit);
+        return mapOf(
+            "stepIndex", step.stepIndex(),
+            "stepCode", step.stepCode(),
+            "stepName", step.stepName(),
+            "stepType", step.stepType(),
+            "required", step.required(),
+            "analysisHint", step.analysisHint(),
+            "command", step.command(),
+            "commandHash", step.commandHash(),
+            "exitCode", step.exitCode(),
+            "success", step.success(),
+            "durationMs", step.durationMs(),
+            "stdoutOriginalLength", stdout.originalLength(),
+            "stdoutReturnedLength", stdout.value().length(),
+            "stdoutTruncated", stdout.truncated(),
+            "stderrOriginalLength", stderr.originalLength(),
+            "stderrReturnedLength", stderr.value().length(),
+            "stderrTruncated", stderr.truncated(),
+            "stdout", stdout.value(),
+            "stderr", stderr.value()
+        );
+    }
+
+    private Map<String, Object> linuxExecution(LinuxCommandResult result,
+                                               List<LinuxCommandStepResult> steps,
+                                               int streamLimit) {
+        return execution(
+            result.toolName(),
+            result.durationMs(),
+            steps.stream().map(step -> {
+                Map<String, Object> bounded = boundedStepResult(step, streamLimit);
+                return step(
+                    step.stepIndex(),
+                    "command",
+                    mapOf(
+                        "stepCode", step.stepCode(),
+                        "stepName", step.stepName(),
+                        "stepType", step.stepType(),
+                        "required", step.required(),
+                        "analysisHint", step.analysisHint(),
+                        "command", step.command(),
+                        "commandHash", step.commandHash()
+                    ),
+                    bounded,
+                    step.success(),
+                    step.durationMs(),
+                    step.success() ? null : bounded.get("stderr").toString(),
+                    mapOf(
+                        "exitCode", step.exitCode(),
+                        "stdoutTruncated", bounded.get("stdoutTruncated"),
+                        "stderrTruncated", bounded.get("stderrTruncated")
+                    )
+                );
+            }).toList()
+        );
+    }
+
+    private BoundedText boundedText(String value, int limit) {
+        String text = value == null ? "" : value;
+        int max = Math.max(256, limit);
+        if (text.length() <= max) {
+            return new BoundedText(text, text.length(), false);
+        }
+        String markerTemplate = "\n...[truncated %d chars; preserving tail]...\n";
+        String marker = markerTemplate.formatted(Math.max(0, text.length() - max));
+        for (int attempt = 0; attempt < 3; attempt++) {
+            int retained = Math.max(2, max - marker.length());
+            marker = markerTemplate.formatted(Math.max(0, text.length() - retained));
+        }
+        int available = Math.max(2, max - marker.length());
+        int headLength = available / 2;
+        int tailLength = available - headLength;
+        String bounded = text.substring(0, headLength) + marker + text.substring(text.length() - tailLength);
+        return new BoundedText(bounded, text.length(), true);
     }
 
     private Map<String, Object> linuxCommandDiagnostics(LinuxCommandResult result) {
@@ -743,6 +836,9 @@ public class StandardToolExecutionResultFactory {
 
     private String stringValue(Object value) {
         return value == null ? null : String.valueOf(value);
+    }
+
+    private record BoundedText(String value, int originalLength, boolean truncated) {
     }
 
     private Object firstPresent(Object... values) {

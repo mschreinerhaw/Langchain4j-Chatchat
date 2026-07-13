@@ -13,7 +13,11 @@
         }
       ]"
     >
-      <div class="message-avatar">{{ message.role === "user" ? userAvatarLabel : runtimeAvatarLabel(message) }}</div>
+      <div
+        class="message-avatar"
+        :title="message.role === 'user' ? displayUserId : assistantName(message)"
+        :aria-label="message.role === 'user' ? displayUserId : assistantName(message)"
+      >{{ message.role === "user" ? userAvatarLabel : runtimeAvatarLabel(message) }}</div>
       <div class="message-bubble">
         <div class="message-meta">
           <strong>{{ message.role === "user" ? displayUserId : assistantName(message) }}</strong>
@@ -34,65 +38,71 @@
           </div>
         </div>
         <section
-          v-if="shouldShowSteps(message) || (message.role === 'assistant' && message.streaming && !message.content)"
+          v-if="shouldShowSteps(message) || (message.role === 'assistant' && message.streaming)"
           class="runtime-execution-panel"
-          :class="{ compact: !!message.content, running: isExecutionRunning(message) || message.streaming }"
+          :class="{ compact: !!message.content, running: isExecutionRunning(message) || message.streaming, completed: runtimeStatusLabel(message) === '完成' }"
         >
           <header class="runtime-execution-header">
             <div class="runtime-run-mark" aria-hidden="true">
               <span></span>
             </div>
             <div class="runtime-run-title">
-              <span>LiveRuntime</span>
+              <span>整体过程</span>
               <strong>{{ runtimeRunId(message) }}</strong>
             </div>
             <div class="runtime-run-meta">
-              <small>{{ runtimeElapsed(message) }}</small>
+              <small v-if="runtimeElapsed(message)">{{ runtimeElapsed(message) }}</small>
               <b>{{ runtimeStatusLabel(message) }}</b>
             </div>
           </header>
-          <div class="runtime-command-line">
-            <span aria-hidden="true">$</span>
-            <strong>{{ runtimeCurrentStage(message) }}</strong>
-            <i>{{ runtimeStatusLabel(message) }}</i>
-          </div>
           <div class="runtime-progress-track" aria-hidden="true">
             <span :style="{ width: `${runtimeProgress(message)}%` }"></span>
           </div>
-          <div class="runtime-progress-meta">
-            <span>{{ runtimeProgress(message) }}%</span>
-            <small>{{ runtimeCurrentStage(message) }}</small>
-          </div>
-          <div class="runtime-execution-body">
-            <ol class="runtime-stage-grid">
-              <li
-              v-for="step in runtimeStageCards(message)"
-              :key="step.id"
-              :class="stepStatusClass(step)"
+        </section>
+        <section
+          v-if="message.role === 'assistant' && runtimeToolCalls(message).length"
+          class="runtime-tool-timeline"
+          aria-label="工具调用过程"
+        >
+          <header>
+            <button
+              type="button"
+              :aria-expanded="toolCallsExpanded(message).toString()"
+              @click="toggleToolCalls(message)"
             >
-                <span class="runtime-step-glyph" aria-hidden="true"></span>
-                <div>
-                  <b>{{ step.title }}</b>
-                  <small>{{ step.detail || runtimeStageStatusText(step) }}</small>
-                </div>
-                <em>{{ runtimeStageStatusText(step) }}</em>
-              </li>
-            </ol>
-            <aside class="runtime-current-stage">
-              <span>Current Stage</span>
-              <strong>{{ runtimeCurrentStage(message) }}</strong>
-              <small>{{ runtimeStatusLabel(message) }} - {{ runtimeElapsed(message) }}</small>
-            </aside>
-          </div>
-          <div class="runtime-event-stream">
-            <strong>Events</strong>
-            <ol>
-              <li v-for="event in runtimeEvents(message)" :key="event.id">
-                <time>{{ event.time }}</time>
-                <span>&gt; {{ event.label }}</span>
-              </li>
-            </ol>
-          </div>
+              <span class="runtime-tool-heading">
+                <ChevronDown v-if="toolCallsExpanded(message)" :size="15" />
+                <ChevronRight v-else :size="15" />
+                <strong>工具调用</strong>
+              </span>
+              <small
+                class="runtime-tool-summary-status"
+                :class="runtimeToolStatusClass(message)"
+                aria-live="polite"
+              >
+                <i aria-hidden="true"></i>
+                {{ runtimeToolStatusLabel(message) }}
+              </small>
+            </button>
+          </header>
+          <ol v-show="toolCallsExpanded(message)">
+            <li
+              v-for="call in runtimeToolCalls(message)"
+              :key="call.id"
+              :class="{ done: toolCallDone(call), failed: toolCallFailed(call), active: !toolCallDone(call) && !toolCallFailed(call) }"
+            >
+              <span class="runtime-tool-status" aria-hidden="true">
+                <Check v-if="toolCallDone(call)" :size="14" stroke-width="2.6" />
+                <CircleX v-else-if="toolCallFailed(call)" :size="14" stroke-width="2.4" />
+                <i v-else></i>
+              </span>
+              <div>
+                <code>{{ call.name }}</code>
+                <small v-if="call.detail">{{ call.detail }}</small>
+              </div>
+              <em>{{ call.latencyMs ? `${call.latencyMs}ms` : (toolCallDone(call) ? '完成' : toolCallFailed(call) ? '失败' : '运行中') }}</em>
+            </li>
+          </ol>
         </section>
         <div
           v-if="messageHasRenderableContent(message)"
@@ -106,10 +116,10 @@
         >
           <header>
             <div>
-              <strong>Matched Table Catalog</strong>
+              <strong>工具命中的物理表</strong>
               <small>
-                Total {{ metadataTableCatalog(message).totalMatched }} tables, returned {{ metadataTableCatalog(message).rows.length }}
-                <template v-if="metadataTableCatalog(message).catalogTruncated">, catalog truncated</template>
+                共命中 {{ metadataTableCatalog(message).totalMatched }} 张，当前展示 {{ metadataTableCatalog(message).rows.length }} 张
+                <template v-if="metadataTableCatalog(message).catalogTruncated">，结果已截断</template>
               </small>
             </div>
           </header>
@@ -118,11 +128,11 @@
               <thead>
                 <tr>
                   <th>#</th>
-                  <th>Database</th>
+                  <th>数据库</th>
                   <th>Schema</th>
-                  <th>Table</th>
-                  <th>Comment</th>
-                  <th>Score</th>
+                  <th>物理表名</th>
+                  <th>表说明</th>
+                  <th>匹配分</th>
                 </tr>
               </thead>
               <tbody>
@@ -152,18 +162,18 @@
                 <strong>{{ section.title }}</strong>
                 <small v-if="section.comment">{{ section.comment }}</small>
               </div>
-              <span>{{ section.columns.length }} fields</span>
+              <span>{{ section.columns.length }} 个字段</span>
             </header>
             <div class="metadata-column-table-scroll">
               <table class="metadata-column-table">
                 <thead>
                   <tr>
                     <th>#</th>
-                    <th>Field</th>
-                    <th>Type</th>
-                    <th>Key</th>
-                    <th>Nullable</th>
-                    <th>Comment</th>
+                    <th>真实字段名</th>
+                    <th>类型</th>
+                    <th>键</th>
+                    <th>可空</th>
+                    <th>字段说明</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -185,7 +195,7 @@
           :spec="message.visualizationSpec"
           @drill-down="handleVisualizationDrillDown(message, $event)"
         />
-        <div v-if="message.latencyMs" class="message-extra">鑰楁椂 {{ message.latencyMs }}ms</div>
+        <div v-if="message.latencyMs" class="message-extra">耗时 {{ message.latencyMs }}ms</div>
         <ResponseReferences
           v-if="message.role === 'assistant' && !message.streaming && !isExecutionRunning(message) && message.status !== 'waiting'"
           :sources="message.sources || []"
@@ -193,7 +203,7 @@
           :tool-traces="message.traces || []"
           compact
         />
-        <div v-if="canShowEvaluation(message)" class="message-feedback" aria-label="鍥炵瓟璇勪环">
+        <div v-if="canShowEvaluation(message)" class="message-feedback" aria-label="回答评价">
           <button
             v-for="option in feedbackOptions"
             :key="option.value"
@@ -201,7 +211,7 @@
             class="message-feedback-button"
             :class="{ unresolved: option.value === 'unresolved' }"
             :disabled="message.feedbackSubmitting"
-            :title="`璇勪环涓?{option.label}`"
+            :title="`评价为${option.label}`"
             @click="$emit('feedback', { message, action: option.value })"
           >
             <CircleX v-if="option.value === 'unresolved'" :size="16" stroke-width="2.2" />
@@ -209,7 +219,7 @@
             <span>{{ option.label }}</span>
           </button>
         </div>
-        <p v-else-if="message.feedbackTime" class="message-feedback-done">鎰熻阿璇勪环</p>
+        <p v-else-if="message.feedbackTime" class="message-feedback-done">感谢评价</p>
         <p v-if="message.feedbackError" class="message-feedback-error">{{ message.feedbackError }}</p>
       </div>
     </article>
@@ -246,7 +256,7 @@
             <span>Reasoning Path</span>
             <h2>{{ reasoningModal.title }}</h2>
           </div>
-          <button type="button" aria-label="鍏抽棴" @click="closeReasoningModal">脳</button>
+          <button type="button" aria-label="关闭" @click="closeReasoningModal">×</button>
         </header>
 
         <div class="reasoning-modal-metrics">
@@ -310,7 +320,7 @@
         :class="{ floating: chartAnalysisFloating, fullscreen: chartAnalysisFullscreen }"
         role="dialog"
         :aria-modal="(!chartAnalysisFloating).toString()"
-        aria-label="鏌ヨ缁撴灉鍥捐〃鍒嗘瀽"
+        aria-label="查询结果图形分析"
         :style="chartAnalysisWindowStyle()"
       >
         <header
@@ -318,15 +328,15 @@
           @pointerdown="startChartAnalysisDrag"
         >
           <div>
-            <span>鍥捐〃鍒嗘瀽</span>
+            <span>图形分析</span>
             <h2>{{ chartAnalysisActiveDataset()?.title || chartAnalysisModal.title }}</h2>
           </div>
-          <div class="result-chart-window-actions" aria-label="chart window actions">
+          <div class="result-chart-window-actions" aria-label="图形分析窗口操作">
             <button
               type="button"
               :class="{ active: chartAnalysisFloating }"
-              :title="chartAnalysisFloating ? 'Dock window' : 'Float window'"
-              :aria-label="chartAnalysisFloating ? 'Dock window' : 'Float window'"
+              :title="chartAnalysisFloating ? '停靠窗口' : '浮动窗口'"
+              :aria-label="chartAnalysisFloating ? '停靠窗口' : '浮动窗口'"
               @click="toggleChartAnalysisFloating"
             >
               <PinOff v-if="chartAnalysisFloating" :size="16" />
@@ -334,20 +344,20 @@
             </button>
             <button
               type="button"
-              :title="chartAnalysisFullscreen ? 'Exit fullscreen' : 'Fullscreen'"
-              :aria-label="chartAnalysisFullscreen ? 'Exit fullscreen' : 'Fullscreen'"
+              :title="chartAnalysisFullscreen ? '退出全屏' : '全屏'"
+              :aria-label="chartAnalysisFullscreen ? '退出全屏' : '全屏'"
               @click="toggleChartAnalysisFullscreen"
             >
               <Minimize2 v-if="chartAnalysisFullscreen" :size="16" />
               <Maximize2 v-else :size="16" />
             </button>
-            <button type="button" aria-label="Close" title="Close" @click="closeChartAnalysisModal">
+            <button type="button" aria-label="关闭" title="关闭" @click="closeChartAnalysisModal">
               <X :size="18" />
             </button>
           </div>
         </header>
 
-        <nav v-if="chartAnalysisDatasetCount() > 1" class="result-chart-dataset-tabs" aria-label="Dataset switch">
+        <nav v-if="chartAnalysisDatasetCount() > 1" class="result-chart-dataset-tabs" aria-label="数据集切换">
           <button
             v-for="dataset in chartAnalysisModal.datasets"
             :key="dataset.id"
@@ -356,7 +366,7 @@
             @click="setChartAnalysisDataset(dataset.id)"
           >
             <span>{{ dataset.title }}</span>
-            <small>{{ dataset.rows.length }} rows / {{ dataset.columns.length }} fields</small>
+            <small>{{ dataset.rows.length }} 行 / {{ dataset.columns.length }} 个字段</small>
           </button>
         </nav>
 
@@ -365,13 +375,13 @@
             <span>
               <ChevronDown v-if="chartAnalysisSettingsOpen" :size="16" />
               <ChevronRight v-else :size="16" />
-              Chart settings
+              图表设置
             </span>
             <small>{{ chartAnalysisSemanticSummary() }}</small>
           </button>
           <div v-if="chartAnalysisSettingsOpen" class="result-chart-controls">
             <label>
-              <span>鍥捐〃绫诲瀷</span>
+              <span>图表类型</span>
               <select
                 :value="chartAnalysisActiveDataset()?.chartType"
                 @change="setChartField('chartType', $event.target.value)"
@@ -382,7 +392,7 @@
               </select>
             </label>
             <label>
-              <span>X 杞?/ 缁村害</span>
+              <span>X 轴 / 维度</span>
               <select
                 :value="chartAnalysisActiveDataset()?.xKey"
                 @change="setChartField('xKey', $event.target.value)"
@@ -393,7 +403,7 @@
               </select>
             </label>
             <label>
-              <span>Y 杞?/ 鎸囨爣</span>
+              <span>Y 轴 / 指标</span>
               <select
                 :value="chartAnalysisActiveDataset()?.yKey"
                 @change="setChartField('yKey', $event.target.value)"
@@ -404,12 +414,12 @@
               </select>
             </label>
             <label>
-              <span>Group field</span>
+              <span>分组字段</span>
               <select
                 :value="chartAnalysisActiveDataset()?.groupKey"
                 @change="setChartField('groupKey', $event.target.value)"
               >
-                <option value="">No group</option>
+                <option value="">不分组</option>
                 <option v-for="column in chartAnalysisActiveDataset()?.columns || []" :key="column" :value="column">
                   {{ column }}
                 </option>
@@ -418,19 +428,19 @@
           </div>
         </section>
 
-        <section class="result-chart-collapsible result-chart-column-picker" :class="{ open: chartAnalysisColumnsOpen }" aria-label="Drill-down data columns">
+        <section class="result-chart-collapsible result-chart-column-picker" :class="{ open: chartAnalysisColumnsOpen }" aria-label="下钻数据列">
           <button type="button" class="result-chart-collapsible-toggle" @click="toggleChartAnalysisColumnsPanel">
             <span>
               <ChevronDown v-if="chartAnalysisColumnsOpen" :size="16" />
               <ChevronRight v-else :size="16" />
-              Drill-down columns
+              下钻数据列
             </span>
-            <small>{{ chartAnalysisActiveDataset()?.selectedColumns?.length || 0 }} / {{ chartAnalysisActiveDataset()?.columns?.length || 0 }} selected</small>
+            <small>已选 {{ chartAnalysisActiveDataset()?.selectedColumns?.length || 0 }} / {{ chartAnalysisActiveDataset()?.columns?.length || 0 }}</small>
           </button>
           <div v-if="chartAnalysisColumnsOpen" class="result-chart-column-body">
             <div class="result-chart-column-actions">
-              <button type="button" @click="selectAllChartAnalysisColumns">Select all</button>
-              <button type="button" @click="clearChartAnalysisColumns">Clear</button>
+              <button type="button" @click="selectAllChartAnalysisColumns">全选</button>
+              <button type="button" @click="clearChartAnalysisColumns">清空</button>
             </div>
             <div class="result-chart-column-list">
               <label v-for="column in chartAnalysisActiveDataset()?.columns || []" :key="column">
@@ -455,9 +465,9 @@
         />
 
         <footer>
-          <span>{{ chartAnalysisActiveDataset()?.rows?.length || 0 }} rows, {{ chartAnalysisActiveDataset()?.columns?.length || 0 }} fields</span>
-          <button type="button" :disabled="!(chartAnalysisActiveDataset()?.selectedColumns?.length)" @click="drillDownChartAnalysis">Drill down</button>
-          <button type="button" @click="closeChartAnalysisModal">鍏抽棴</button>
+          <span>{{ chartAnalysisActiveDataset()?.rows?.length || 0 }} 行，{{ chartAnalysisActiveDataset()?.columns?.length || 0 }} 个字段</span>
+          <button type="button" :disabled="!(chartAnalysisActiveDataset()?.selectedColumns?.length)" @click="drillDownChartAnalysis">下钻分析</button>
+          <button type="button" @click="closeChartAnalysisModal">关闭</button>
         </footer>
         <span class="result-chart-resize-grip" aria-hidden="true"></span>
       </section>

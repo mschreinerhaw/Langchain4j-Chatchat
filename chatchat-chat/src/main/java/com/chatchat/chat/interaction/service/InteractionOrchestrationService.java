@@ -105,8 +105,11 @@ public class InteractionOrchestrationService {
             .history(memoryService.recent(tenantId, conversationId, historyWindow))
             .build();
 
-        request.setQuery(appendImageContext(request.getQuery(), buildImageContext(request)));
-        memoryService.append(conversationId, "user", request.getQuery());
+        String originalQuery = request.getQuery();
+        request.setQuery(appendImageContext(originalQuery, buildImageContext(request)));
+        if (!latestMessageIsSameUserQuestion(context.history(), originalQuery)) {
+            memoryService.append(conversationId, "user", request.getQuery());
+        }
         InteractionResponse response = handler.handle(request, context);
 
         if (response == null) {
@@ -136,6 +139,22 @@ public class InteractionOrchestrationService {
         log.info("[{}] Interaction completed. mode={}, conversationId={}",
             requestId, mode.code(), conversationId);
         return response;
+    }
+
+    static boolean latestMessageIsSameUserQuestion(List<ConversationMemoryService.MessageSnapshot> history,
+                                                   String query) {
+        if (history == null || history.isEmpty() || query == null || query.isBlank()) {
+            return false;
+        }
+        for (int index = history.size() - 1; index >= 0; index--) {
+            ConversationMemoryService.MessageSnapshot message = history.get(index);
+            if (message == null || message.content() == null || message.content().isBlank()) {
+                continue;
+            }
+            return "user".equalsIgnoreCase(message.role())
+                && message.content().trim().equals(query.trim());
+        }
+        return false;
     }
 
     private String appendImageContext(String query, String imageContext) {

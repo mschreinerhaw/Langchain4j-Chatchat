@@ -4,6 +4,7 @@ import com.chatchat.common.tool.ToolOutput;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -11,6 +12,161 @@ import static org.assertj.core.api.Assertions.assertThat;
 class ToolObservationBuilderEvidenceTest {
 
     private final ToolObservationBuilder builder = new ToolObservationBuilder(new EvidenceTrustEvaluator());
+
+    @Test
+    void preservesCompleteSqlMetadataCatalogAndReturnedColumnDetails() {
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("schemaVersion", "sql_metadata_search_result.v1");
+        metadata.put("success", true);
+        metadata.put("totalMatched", 2);
+        metadata.put("catalogReturnedCount", 2);
+        metadata.put("detailReturnedCount", 1);
+        metadata.put("catalogTruncated", false);
+        metadata.put("detailTruncated", true);
+        metadata.put("hasMore", true);
+        metadata.put("tableCatalog", List.of(
+            Map.of(
+                "database", "gdp_ads",
+                "schema", "gdp_ads",
+                "tableName", "ads_fund_performance_d_i",
+                "tableComment", "基金业绩指标表"
+            ),
+            Map.of(
+                "database", "gdp_dwd",
+                "schema", "gdp_dwd",
+                "tableName", "dwd_fund_net_value_d_i",
+                "tableComment", "基金每日净值表"
+            )
+        ));
+        metadata.put("topTables", List.of(Map.of(
+            "location", Map.of(
+                "database", "gdp_ads",
+                "schema", "gdp_ads",
+                "tableName", "ads_fund_performance_d_i",
+                "tableComment", "基金业绩指标表"
+            ),
+            "columns", List.of(
+                Map.of("name", "fund_code", "columnType", "string", "comment", "基金代码"),
+                Map.of("name", "ret_1y", "columnType", "decimal(18,6)", "comment", "近一年累计收益率")
+            )
+        )));
+        String longRawOutput = "ignored-prefix-" + "x".repeat(1200) + "-raw-output-end";
+        ToolOutput output = ToolOutput.success(metadata, "MCP call success");
+
+        String observation = builder.buildSuccessObservation(
+            "mcp_chatchat_mcp_server_sql_metadata_search",
+            output,
+            longRawOutput
+        );
+
+        assertThat(observation)
+            .contains("totalMatched=2")
+            .contains("catalogReturnedCount=2")
+            .contains("catalogTruncated=false")
+            .contains("detailReturnedCount=1")
+            .contains("detailTruncated=true")
+            .contains("table=ads_fund_performance_d_i")
+            .contains("table=dwd_fund_net_value_d_i")
+            .contains("name=fund_code, type=string, comment=基金代码")
+            .contains("name=ret_1y, type=decimal(18,6), comment=近一年累计收益率")
+            .contains("detailTruncated=true only means some catalog entries do not include column details")
+            .doesNotContain("ignored-prefix");
+    }
+
+    @Test
+    void ordinaryToolObservationIsNotBlindlyCutAtSixHundredCharacters() {
+        String outputText = "start-" + "x".repeat(900) + "-authoritative-tail";
+        ToolOutput output = ToolOutput.success(Map.of("success", true), "ok");
+
+        String observation = builder.buildSuccessObservation("custom_business_tool", output, outputText);
+
+        assertThat(observation)
+            .contains("start-")
+            .contains("-authoritative-tail");
+    }
+
+    @Test
+    void sqlExecutionObservationPreservesRowsAndExplicitPartialSemantics() {
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("schemaVersion", "tool_execution_result.v1");
+        result.put("kind", "sql_query");
+        result.put("success", true);
+        result.put("status", "success");
+        result.put("target", Map.of("name", "TDH数据仓库", "environment", "DEV"));
+        result.put("limits", Map.of("truncationStrategy", "LIMIT_50"));
+        result.put("data", Map.of(
+            "rowCount", 120,
+            "returnedRowCount", 2,
+            "complete", false,
+            "possiblyTruncated", true,
+            "truncationStrategy", "LIMIT_50",
+            "columns", List.of("fund_code", "ret_1y"),
+            "rows", List.of(
+                Map.of("fund_code", "F001", "ret_1y", "0.1200"),
+                Map.of("fund_code", "F002", "ret_1y", "0.0800")
+            )
+        ));
+
+        String observation = builder.buildSuccessObservation(
+            "mcp_chatchat_mcp_server_sql_query_execute",
+            ToolOutput.success(result, "MCP call success"),
+            "raw output should not be used"
+        );
+
+        assertThat(observation)
+            .contains("rowCount=120, returnedRowCount=2, partial=true")
+            .contains("truncationStrategy=LIMIT_50")
+            .contains("fund_code=F001")
+            .contains("ret_1y=0.0800")
+            .contains("never describe them as the full result")
+            .doesNotContain("raw output should not be used");
+    }
+
+    @Test
+    void linuxExecutionObservationPreservesLineBreaksAndTailError() {
+        Map<String, Object> step = new LinkedHashMap<>();
+        step.put("stepIndex", 1);
+        step.put("stepCode", "CHECK_SERVICE");
+        step.put("success", false);
+        step.put("exitCode", 2);
+        step.put("stdoutOriginalLength", 20);
+        step.put("stdoutTruncated", false);
+        step.put("stderrOriginalLength", 44);
+        step.put("stderrTruncated", true);
+        step.put("stdout", "line one\nline two");
+        step.put("stderr", "error head\n...[truncated]...\nFATAL tail error");
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("schemaVersion", "tool_execution_result.v1");
+        result.put("kind", "ssh_command");
+        result.put("success", true);
+        result.put("target", Map.of("name", "prod-host", "environment", "PROD"));
+        result.put("data", Map.of(
+            "transportSuccess", true,
+            "commandSuccess", false,
+            "exitCode", 2,
+            "failedStepIndex", 1,
+            "steps", List.of(step),
+            "outputLimits", Map.of(
+                "strategy", "HEAD_TAIL_PER_STREAM",
+                "stdoutTruncated", false,
+                "stderrTruncated", true
+            )
+        ));
+
+        String observation = builder.buildSuccessObservation(
+            "mcp_chatchat_mcp_server_linux_command_execute",
+            ToolOutput.success(result, "MCP call success"),
+            "ignored"
+        );
+
+        assertThat(observation)
+            .contains("transportSuccess=true, commandSuccess=false, exitCode=2")
+            .contains("stepCode=CHECK_SERVICE")
+            .contains("line one\nline two")
+            .contains("FATAL tail error")
+            .contains("stderrTruncated=true")
+            .contains("transportSuccess describes SSH transport only");
+    }
 
     @Test
     void includesUnifiedEvidenceContextForDocumentSearch() {

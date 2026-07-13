@@ -4,8 +4,10 @@ import com.chatchat.agents.runtime.plan.InterpretationPlanRuntime;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Renders SQL table metadata evidence into deterministic Markdown.
@@ -41,8 +43,11 @@ class SqlMetadataAnswerRenderer {
         if (output.isEmpty()) {
             return RenderedSqlMetadata.empty();
         }
+        if (metadataSearch) {
+            return renderMetadataSearchStep(step, output);
+        }
         Map<String, Object> data = sqlDataMap(output);
-        Map<String, Object> metadataSearchResult = metadataSearch ? firstMetadataSearchResult(output) : Map.of();
+        Map<String, Object> metadataSearchResult = Map.of();
         Map<String, Object> metadataSearchLocation = asMap(metadataSearchResult.get("location"));
         Map<String, Object> metadataSearchAsset = asMap(metadataSearchResult.get("asset"));
         Map<String, Object> metadataSearchBinding = asMap(metadataSearchResult.get("sqlExecutionBinding"));
@@ -174,6 +179,141 @@ class SqlMetadataAnswerRenderer {
         metadata.put("semanticGateReason", gate.get("reason"));
         metadata.entrySet().removeIf(entry -> entry.getValue() == null);
         return new RenderedSqlMetadata(markdown.toString().trim(), Map.copyOf(metadata));
+    }
+
+    private RenderedSqlMetadata renderMetadataSearchStep(InterpretationPlanRuntime.StepExecution step,
+                                                          Map<String, Object> output) {
+        Map<String, Object> payload = metadataSearchPayload(output, 0);
+        List<Map<String, Object>> catalog = rowMaps(payload.get("tableCatalog"));
+        List<Map<String, Object>> details = rowMaps(payload.get("topTables"));
+        if (details.isEmpty()) {
+            details = rowMaps(payload.get("results"));
+        }
+        if (catalog.isEmpty() && !details.isEmpty()) {
+            List<Map<String, Object>> derived = new ArrayList<>();
+            for (Map<String, Object> detail : details) {
+                Map<String, Object> location = asMap(detail.get("location"));
+                derived.add(location.isEmpty() ? detail : location);
+            }
+            catalog = derived;
+        }
+
+        int totalMatched = firstInteger(payload.get("totalMatched"), catalog.size());
+        boolean catalogTruncated = booleanValue(payload.get("catalogTruncated"));
+        Set<String> evidenceIdentifiers = new LinkedHashSet<>();
+        StringBuilder markdown = new StringBuilder();
+        markdown.append("## 实际检索到的数据库对象\n\n");
+        markdown.append("> 以下数据库、Schema、物理表名和字段均直接来自本次 `sql_metadata_search` 结构化结果；未返回的内容不会推断或补充。\n\n");
+        if (catalog.isEmpty()) {
+            markdown.append("本次工具未检索到可验证的物理表。不会提供推测的分层、表名示例或常见表推荐。\n");
+        } else {
+            markdown.append("- 匹配数量：`").append(totalMatched).append("`\n");
+            markdown.append("- 已返回物理表：`").append(catalog.size()).append("`\n");
+            markdown.append("- 表目录是否截断：`").append(catalogTruncated).append("`\n\n");
+            markdown.append("| # | 数据库 | Schema | 物理表名 | 类型 | 表说明 |\n");
+            markdown.append("|---:|---|---|---|---|---|\n");
+            for (int index = 0; index < catalog.size(); index++) {
+                Map<String, Object> table = catalog.get(index);
+                String database = firstNonBlank(value(table, "database", "databaseName", "catalog"), "");
+                String schema = firstNonBlank(value(table, "schema", "schemaName"), "");
+                String tableName = firstNonBlank(value(table, "tableName", "table"), "");
+                addIdentifier(evidenceIdentifiers, database);
+                addIdentifier(evidenceIdentifiers, schema);
+                addIdentifier(evidenceIdentifiers, tableName);
+                addIdentifier(evidenceIdentifiers, qualifiedName(schema, tableName));
+                markdown.append("| ").append(index + 1)
+                    .append(" | ").append(escapeCell(firstNonBlank(database, "-")))
+                    .append(" | ").append(escapeCell(firstNonBlank(schema, "-")))
+                    .append(" | `").append(escapeCell(firstNonBlank(tableName, "-"))).append("`")
+                    .append(" | ").append(escapeCell(firstNonBlank(value(table, "tableType", "type"), "-")))
+                    .append(" | ").append(escapeCell(firstNonBlank(value(table, "tableComment", "comment"), "-")))
+                    .append(" |\n");
+            }
+        }
+
+        int returnedColumnCount = 0;
+        for (Map<String, Object> detail : details) {
+            Map<String, Object> location = asMap(detail.get("location"));
+            Map<String, Object> table = location.isEmpty() ? detail : location;
+            List<Map<String, Object>> columns = rowMaps(detail.get("columns"));
+            if (columns.isEmpty()) {
+                continue;
+            }
+            returnedColumnCount += columns.size();
+            markdown.append("\n## 字段：`").append(escapeInline(qualifiedName(
+                firstNonBlank(value(table, "schema", "schemaName", "database", "databaseName"), ""),
+                firstNonBlank(value(table, "tableName", "table"), "")
+            ))).append("`\n\n");
+            markdown.append("| # | 物理字段名 | 类型 | 键 | 可空 | 字段说明 |\n");
+            markdown.append("|---:|---|---|---|---|---|\n");
+            for (int index = 0; index < columns.size(); index++) {
+                Map<String, Object> column = columns.get(index);
+                String columnName = firstNonBlank(value(column, "name", "columnName", "COLUMN_NAME"), "");
+                addIdentifier(evidenceIdentifiers, columnName);
+                markdown.append("| ").append(index + 1)
+                    .append(" | `").append(escapeCell(firstNonBlank(columnName, "-"))).append("`")
+                    .append(" | `").append(escapeCell(firstNonBlank(value(column, "columnType", "dataType", "COLUMN_TYPE"), "-"))).append("`")
+                    .append(" | ").append(escapeCell(firstNonBlank(value(column, "columnKey", "COLUMN_KEY", "key"), "-")))
+                    .append(" | ").append(escapeCell(firstNonBlank(value(column, "nullable", "IS_NULLABLE"), "-")))
+                    .append(" | ").append(escapeCell(firstNonBlank(value(column, "comment", "columnComment", "COLUMN_COMMENT"), "-")))
+                    .append(" |\n");
+            }
+        }
+        if (!catalog.isEmpty() && returnedColumnCount == 0) {
+            markdown.append("\n## 字段信息\n\n工具未返回上述匹配表的字段明细，因而不补充示例字段。\n");
+        }
+
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("schemaVersion", FACT_SCHEMA_VERSION);
+        metadata.put("source", "mcp_sql_metadata_search_catalog");
+        metadata.put("dataTruthValidated", true);
+        metadata.put("authoritativeOnly", true);
+        metadata.put("toolName", step.toolName());
+        metadata.put("stepId", step.stepId());
+        metadata.put("totalMatched", totalMatched);
+        metadata.put("catalogReturnedCount", catalog.size());
+        metadata.put("catalogTruncated", catalogTruncated);
+        metadata.put("columnCount", returnedColumnCount);
+        metadata.put("evidenceIdentifiers", List.copyOf(evidenceIdentifiers));
+        metadata.put("semanticGatePassed", toolSucceeded(step));
+        metadata.put("semanticGateReason", toolSucceeded(step) ? "structured_metadata_catalog_returned" : "metadata_tool_not_successful");
+        return new RenderedSqlMetadata(markdown.toString().trim(), Map.copyOf(metadata));
+    }
+
+    private void addIdentifier(Set<String> identifiers, String value) {
+        if (identifiers != null && !blank(value) && !"-".equals(value)) {
+            identifiers.add(value);
+        }
+    }
+
+    private Map<String, Object> metadataSearchPayload(Object value, int depth) {
+        if (value == null || depth > 8) {
+            return Map.of();
+        }
+        Map<String, Object> map = asMap(value);
+        if (map.isEmpty()) {
+            return Map.of();
+        }
+        if (map.containsKey("tableCatalog") || map.containsKey("topTables") || map.containsKey("results")
+            || map.containsKey("totalMatched")) {
+            return map;
+        }
+        for (String key : List.of("structuredContent", "structured_content", "data", "result", "payload", "body", "output")) {
+            Map<String, Object> nested = metadataSearchPayload(map.get(key), depth + 1);
+            if (!nested.isEmpty()) {
+                return nested;
+            }
+        }
+        return map;
+    }
+
+    private int firstInteger(Object value, int fallback) {
+        Integer parsed = integerValue(value);
+        return parsed == null ? fallback : parsed;
+    }
+
+    private boolean booleanValue(Object value) {
+        return value instanceof Boolean bool ? bool : value != null && Boolean.parseBoolean(String.valueOf(value));
     }
 
     private Map<String, Object> semanticGate(InterpretationPlanRuntime.StepExecution step,

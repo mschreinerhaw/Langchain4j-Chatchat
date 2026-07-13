@@ -69,6 +69,7 @@ public class DefaultAgentAnswerReviewer implements AgentAnswerReviewer {
         prompt.append("Reject answers that only point to documents/tools, summarize where information may be, or avoid giving the concrete requested result.\n");
         prompt.append("A good answer must directly address the user request, use the available observations as evidence, and clearly state missing evidence when the observations are insufficient.\n");
         prompt.append("Do not invent facts that are absent from the observations.\n");
+        prompt.append(AgentRuntimeFactGroundingContract.promptSection());
         prompt.append("If both document_search and web_search observations are available, the answer must distinguish internal document evidence from web verification evidence and explicitly handle conflicts.\n");
         prompt.append("If an observation says a tool failed, the answer must not claim that the failed tool provided supporting evidence.\n");
         prompt.append("If an observation says the Evidence trust policy requests more evidence, reject answers that present unsupported strong claims.\n");

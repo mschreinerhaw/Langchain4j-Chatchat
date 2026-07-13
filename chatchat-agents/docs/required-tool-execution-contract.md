@@ -2,6 +2,8 @@
 
 本文档定义 Agent Runtime 对用户勾选工具、能力、资产范围的强制执行契约。该契约属于运行时安全边界，不是 planner prompt 建议，也不是模型可自行裁剪的业务规则。
 
+工具执行完成后的事实使用和模型总结必须同时遵守 [`Agent Runtime 事实落地契约`](../../docs/agent-runtime-fact-grounding-contract.md)。
+
 ## Engineering Values
 
 Agent Runtime 必须坚持契约精神和朴实价值。
@@ -45,7 +47,14 @@ Runtime 在进入 planner/reviewer/finalizer 前必须构造统一协议：
   "executionPolicy": {
     "userSelectedToolsMustRun": true,
     "modelCanSuggestSkip": false,
-    "finalAnswerRequiresToolCompletion": true
+    "finalAnswerRequiresToolCompletion": true,
+    "factGroundingContractVersion": "agent_runtime_fact_grounding_v1"
+  },
+  "factGroundingContract": {
+    "contractVersion": "agent_runtime_fact_grounding_v1",
+    "factAuthority": "TOOL_STRUCTURED_OUTPUT",
+    "modelRole": "INTERPRET_AND_SUMMARIZE_WITHIN_FACT_BOUNDARY",
+    "runtimeRole": "PRESERVE_VALIDATE_AND_REWRITE_ON_FACT_MUTATION"
   },
   "requiredToolExecutions": [
     {
@@ -158,6 +167,8 @@ Finalizer:
 - 只基于已完成工具 observation 总结
 - 遇到 `PLAN_INVALID_REQUIRED_TOOL_NOT_EXECUTED` 时返回阻断结果，不合成业务结论
 - 如果没有可追溯事实证据，必须返回证据不足说明，不能生成确定性业务判断
+- 必须让模型基于原始结构化事实进行总结，而不是用固定模板替代模型分析。
+- 必须校验模型是否新增、改名、替换或否定工具事实；发现篡改时基于原始证据触发重写。
 
 ## Evidence Grounding Rule
 

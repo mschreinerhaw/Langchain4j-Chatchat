@@ -473,6 +473,7 @@ public class SqlMcpToolPublisher {
                 + "Use this before database_ops_template_search and sql_query_execute when the user mentions a table name, table comment, business meaning, or when schema/database is unknown. "
                 + "The structured result separates tableCatalog, the lightweight matched table list, from topTables, the detailed Top 5 tables with cached column metadata. "
                 + "Never treat topTables/results as the full matched table count; use totalMatched, catalogReturnedCount, and catalogTruncated. "
+                + "In user-facing answers always cite exact physical identifiers from tableCatalog/topTables.location and list exact topTables.columns under the corresponding table when returned; never replace identifiers with translated business descriptions or guessed fields. "
                 + "It returns logical routing context and table locations from the metadata index; it never returns JDBC URLs or raw SQL.")
             .inputSchema(metadataSearchInputSchema())
             .meta(metadataSearchMeta())

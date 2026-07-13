@@ -61,6 +61,15 @@ class ToolObservationBuilder {
         if (isDocumentSearchToolName(toolName)) {
             return buildDocumentSearchObservation(toolName, output, data, outputText, reviewMetadata);
         }
+        if (isSqlMetadataSearchToolName(toolName) && !asMap(data).isEmpty()) {
+            return buildSqlMetadataSearchObservation(toolName, output, data);
+        }
+        if (isSqlExecutionToolName(toolName) && !asMap(data).isEmpty()) {
+            return buildSqlExecutionObservation(toolName, output, data);
+        }
+        if (isLinuxCommandExecutionToolName(toolName) && !asMap(data).isEmpty()) {
+            return buildLinuxCommandObservation(toolName, output, data);
+        }
 
         StringBuilder observation = new StringBuilder("Tool ")
             .append(toolName)
@@ -70,7 +79,7 @@ class ToolObservationBuilder {
             if (message != null && !message.isBlank()) {
                 observation.append(" Message: ").append(shortObservationText(message, 400));
             }
-            String summary = shortObservationText(outputText, 600);
+            String summary = observationText(outputText);
             if (summary != null && !summary.isBlank()) {
                 observation.append(" Output summary: ").append(summary);
             }
@@ -120,6 +129,268 @@ class ToolObservationBuilder {
         }
         observation.append("Citation rule: append the matching [网页N] label immediately after any sentence that uses facts from that page.");
         return normalizeWebCitationLabels(observation.toString());
+    }
+
+    private String buildSqlMetadataSearchObservation(String toolName, ToolOutput output, Object data) {
+        Map<String, Object> root = asMap(data);
+        Map<String, Object> nestedData = asMap(root.get("data"));
+        if (!nestedData.isEmpty() && root.get("tableCatalog") == null && root.get("topTables") == null) {
+            root = nestedData;
+        }
+
+        List<Map<String, Object>> catalog = mapList(root.get("tableCatalog"));
+        List<Map<String, Object>> details = mapList(root.get("topTables"));
+        if (details.isEmpty()) {
+            details = mapList(root.get("results"));
+        }
+
+        String totalMatched = firstNonBlank(stringValue(root.get("totalMatched")), String.valueOf(catalog.size()));
+        String catalogReturned = firstNonBlank(stringValue(root.get("catalogReturnedCount")), String.valueOf(catalog.size()));
+        String detailReturned = firstNonBlank(
+            stringValue(root.get("detailReturnedCount")),
+            firstNonBlank(stringValue(root.get("returnedDetailCount")), String.valueOf(details.size()))
+        );
+        boolean catalogTruncated = booleanValue(root.get("catalogTruncated"));
+        boolean detailTruncated = booleanValue(root.get("detailTruncated")) || booleanValue(root.get("hasMore"));
+
+        StringBuilder observation = new StringBuilder("Tool ")
+            .append(toolName)
+            .append(" succeeded.");
+        String message = output == null ? null : output.getMessage();
+        if (message != null && !message.isBlank()) {
+            observation.append(" Message: ").append(shortObservationText(message, 400));
+        }
+        observation.append("\nSQL metadata search facts (authoritative structured result):")
+            .append(" totalMatched=").append(totalMatched)
+            .append(", catalogReturnedCount=").append(catalogReturned)
+            .append(", catalogTruncated=").append(catalogTruncated)
+            .append(", detailReturnedCount=").append(detailReturned)
+            .append(", detailTruncated=").append(detailTruncated)
+            .append('.');
+        observation.append("\nCompleteness rule: catalogTruncated=false means the physical table catalog below is complete. ")
+            .append("detailTruncated=true only means some catalog entries do not include column details; it never means table names are unavailable. ")
+            .append("Do not claim that table names were hidden or not returned when catalogReturnedCount is positive.");
+
+        observation.append("\nMatched physical table catalog (preserve identifiers exactly):");
+        if (catalog.isEmpty()) {
+            observation.append("\n- No physical table catalog entries were returned.");
+        } else {
+            for (int i = 0; i < catalog.size(); i++) {
+                Map<String, Object> table = catalog.get(i);
+                observation.append("\n- ").append(i + 1).append(". ")
+                    .append(tableIdentity(table));
+                appendFact(observation, "type", firstNonBlank(stringValue(table.get("tableType")), stringValue(table.get("type"))));
+                appendFact(observation, "comment", firstNonBlank(stringValue(table.get("tableComment")), stringValue(table.get("comment"))));
+                appendFact(observation, "score", stringValue(table.get("score")));
+            }
+        }
+
+        observation.append("\nDetailed table metadata returned by the tool:");
+        if (details.isEmpty()) {
+            observation.append("\n- No column detail payloads were returned.");
+        } else {
+            for (int i = 0; i < details.size(); i++) {
+                Map<String, Object> detail = details.get(i);
+                Map<String, Object> location = asMap(detail.get("location"));
+                Map<String, Object> table = location.isEmpty() ? detail : location;
+                List<Map<String, Object>> columns = mapList(detail.get("columns"));
+                observation.append("\nTable ").append(i + 1).append(": ").append(tableIdentity(table));
+                appendFact(observation, "comment", firstNonBlank(stringValue(table.get("tableComment")), stringValue(table.get("comment"))));
+                observation.append("\n  Columns (").append(columns.size()).append("):");
+                if (columns.isEmpty()) {
+                    observation.append(" none returned");
+                    continue;
+                }
+                for (Map<String, Object> column : columns) {
+                    observation.append("\n  - name=").append(firstNonBlank(
+                        stringValue(column.get("name")),
+                        firstNonBlank(stringValue(column.get("columnName")), stringValue(column.get("COLUMN_NAME")))
+                    ));
+                    appendFact(observation, "type", firstNonBlank(
+                        stringValue(column.get("columnType")),
+                        firstNonBlank(stringValue(column.get("dataType")), stringValue(column.get("COLUMN_TYPE")))
+                    ));
+                    appendFact(observation, "key", firstNonBlank(stringValue(column.get("columnKey")), stringValue(column.get("COLUMN_KEY"))));
+                    appendFact(observation, "nullable", firstNonBlank(stringValue(column.get("nullable")), stringValue(column.get("IS_NULLABLE"))));
+                    appendFact(observation, "comment", firstNonBlank(
+                        stringValue(column.get("comment")),
+                        firstNonBlank(stringValue(column.get("columnComment")), stringValue(column.get("COLUMN_COMMENT")))
+                    ));
+                }
+            }
+        }
+        observation.append("\nAnswer rule: cite the exact physical identifiers above and list exact returned column names with their table. ")
+            .append("Keep model-inferred business recommendations separate from tool facts and never replace physical identifiers with invented examples.");
+        return observation.toString();
+    }
+
+    private String buildSqlExecutionObservation(String toolName, ToolOutput output, Object data) {
+        Map<String, Object> root = unwrapStructuredRoot(data);
+        Map<String, Object> resultData = asMap(root.get("data"));
+        Map<String, Object> target = asMap(root.get("target"));
+        Map<String, Object> limits = asMap(root.get("limits"));
+        StringBuilder observation = successObservationHeader(toolName, output);
+        observation.append("\nSQL execution facts (authoritative structured result):")
+            .append(" success=").append(firstNonBlank(stringValue(root.get("success")), "unknown"))
+            .append(", status=").append(firstNonBlank(stringValue(root.get("status")), "unknown"));
+        appendFact(observation, "datasource", firstNonBlank(stringValue(target.get("name")), stringValue(target.get("toolName"))));
+        appendFact(observation, "environment", stringValue(target.get("environment")));
+        appendFact(observation, "durationMs", stringValue(root.get("durationMs")));
+        observation.append('.');
+
+        List<Map<String, Object>> resultSets = mapList(resultData.get("results"));
+        if (resultSets.isEmpty()) {
+            appendSqlResultSet(observation, resultData, 1, limits);
+        } else {
+            observation.append("\nSQL script resultSetCount=").append(resultSets.size()).append('.');
+            for (int i = 0; i < resultSets.size(); i++) {
+                appendSqlResultSet(observation, resultSets.get(i), i + 1, limits);
+            }
+        }
+        observation.append("\nSQL completeness rule: rowCount is the tool-reported result size and returnedRowCount is the number of rows available below. ")
+            .append("possiblyTruncated=true or complete=false means the rows are partial; never describe them as the full result. ")
+            .append("Even when partial, preserve and report the returned rows and metrics exactly.");
+        return observation.toString();
+    }
+
+    private void appendSqlResultSet(StringBuilder observation,
+                                    Map<String, Object> result,
+                                    int index,
+                                    Map<String, Object> limits) {
+        List<Map<String, Object>> rows = mapList(result.get("rows"));
+        Object rowCount = result.get("rowCount");
+        Object returnedRowCount = result.get("returnedRowCount");
+        if (returnedRowCount == null) {
+            returnedRowCount = rows.size();
+        }
+        boolean partial = booleanValue(result.get("possiblyTruncated"))
+            || Boolean.FALSE.equals(result.get("complete"));
+        observation.append("\nResult set ").append(index).append(':')
+            .append(" rowCount=").append(rowCount == null ? rows.size() : rowCount)
+            .append(", returnedRowCount=").append(returnedRowCount)
+            .append(", partial=").append(partial);
+        appendFact(observation, "truncationStrategy", firstNonBlank(
+            stringValue(result.get("truncationStrategy")),
+            stringValue(limits.get("truncationStrategy"))
+        ));
+        appendFact(observation, "stepName", stringValue(result.get("stepName")));
+        appendFact(observation, "analysisHint", stringValue(result.get("analysisHint")));
+        observation.append('.');
+        Object columns = result.get("columns");
+        if (columns != null) {
+            observation.append("\n  Columns: ").append(columns);
+        }
+        Object columnMetadata = result.get("columnMetadata");
+        if (columnMetadata != null) {
+            observation.append("\n  Column metadata: ").append(columnMetadata);
+        }
+        if (rows.isEmpty()) {
+            observation.append("\n  Rows: none returned.");
+            return;
+        }
+        observation.append("\n  Returned rows:");
+        for (int i = 0; i < rows.size(); i++) {
+            observation.append("\n  - row ").append(i + 1).append(": ").append(rows.get(i));
+        }
+    }
+
+    private String buildLinuxCommandObservation(String toolName, ToolOutput output, Object data) {
+        Map<String, Object> root = unwrapStructuredRoot(data);
+        Map<String, Object> resultData = asMap(root.get("data"));
+        Map<String, Object> target = asMap(root.get("target"));
+        Map<String, Object> outputLimits = asMap(resultData.get("outputLimits"));
+        List<Map<String, Object>> steps = mapList(resultData.get("steps"));
+        StringBuilder observation = successObservationHeader(toolName, output);
+        observation.append("\nLinux command execution facts (authoritative structured result):")
+            .append(" transportSuccess=").append(firstNonBlank(stringValue(resultData.get("transportSuccess")), "unknown"))
+            .append(", commandSuccess=").append(firstNonBlank(stringValue(resultData.get("commandSuccess")), "unknown"))
+            .append(", exitCode=").append(firstNonBlank(stringValue(resultData.get("exitCode")), "unknown"));
+        appendFact(observation, "host", firstNonBlank(stringValue(target.get("name")), stringValue(target.get("address"))));
+        appendFact(observation, "environment", stringValue(target.get("environment")));
+        appendFact(observation, "failedStepIndex", stringValue(resultData.get("failedStepIndex")));
+        observation.append('.');
+        if (!outputLimits.isEmpty()) {
+            observation.append("\nOutput completeness: strategy=")
+                .append(firstNonBlank(stringValue(outputLimits.get("strategy")), "unknown"));
+            appendFact(observation, "stdoutOriginalLength", stringValue(outputLimits.get("stdoutOriginalLength")));
+            appendFact(observation, "stdoutReturnedLength", stringValue(outputLimits.get("stdoutReturnedLength")));
+            appendFact(observation, "stdoutTruncated", stringValue(outputLimits.get("stdoutTruncated")));
+            appendFact(observation, "stderrOriginalLength", stringValue(outputLimits.get("stderrOriginalLength")));
+            appendFact(observation, "stderrReturnedLength", stringValue(outputLimits.get("stderrReturnedLength")));
+            appendFact(observation, "stderrTruncated", stringValue(outputLimits.get("stderrTruncated")));
+            observation.append('.');
+        }
+        if (steps.isEmpty()) {
+            appendStream(observation, "stdout", stringValue(resultData.get("stdout")));
+            appendStream(observation, "stderr", stringValue(resultData.get("stderr")));
+        } else {
+            observation.append("\nExecuted steps (").append(steps.size()).append("):");
+            for (Map<String, Object> step : steps) {
+                observation.append("\nStep ").append(firstNonBlank(stringValue(step.get("stepIndex")), "?"))
+                    .append(": success=").append(firstNonBlank(stringValue(step.get("success")), "unknown"))
+                    .append(", exitCode=").append(firstNonBlank(stringValue(step.get("exitCode")), "unknown"));
+                appendFact(observation, "stepCode", stringValue(step.get("stepCode")));
+                appendFact(observation, "stepName", stringValue(step.get("stepName")));
+                appendFact(observation, "analysisHint", stringValue(step.get("analysisHint")));
+                appendFact(observation, "stdoutOriginalLength", stringValue(step.get("stdoutOriginalLength")));
+                appendFact(observation, "stdoutTruncated", stringValue(step.get("stdoutTruncated")));
+                appendFact(observation, "stderrOriginalLength", stringValue(step.get("stderrOriginalLength")));
+                appendFact(observation, "stderrTruncated", stringValue(step.get("stderrTruncated")));
+                observation.append('.');
+                appendStream(observation, "step stdout", stringValue(step.get("stdout")));
+                appendStream(observation, "step stderr", stringValue(step.get("stderr")));
+            }
+        }
+        observation.append("\nLinux completeness rule: transportSuccess describes SSH transport only; commandSuccess and each exitCode describe command outcome. ")
+            .append("A truncated stream remains partial evidence. Always report non-zero exit codes and preserve tail errors shown above.");
+        return observation.toString();
+    }
+
+    private void appendStream(StringBuilder observation, String label, String value) {
+        if (value == null || value.isEmpty()) {
+            return;
+        }
+        observation.append("\n---BEGIN ").append(label.toUpperCase()).append("---\n")
+            .append(value)
+            .append("\n---END ").append(label.toUpperCase()).append("---");
+    }
+
+    private StringBuilder successObservationHeader(String toolName, ToolOutput output) {
+        StringBuilder observation = new StringBuilder("Tool ").append(toolName).append(" succeeded.");
+        String message = output == null ? null : output.getMessage();
+        if (message != null && !message.isBlank()) {
+            observation.append(" Message: ").append(shortObservationText(message, 400));
+        }
+        return observation;
+    }
+
+    private Map<String, Object> unwrapStructuredRoot(Object data) {
+        Map<String, Object> root = asMap(data);
+        for (String key : List.of("structuredContent", "structured_content", "payload", "result")) {
+            Map<String, Object> nested = asMap(root.get(key));
+            if (!nested.isEmpty()) {
+                return nested;
+            }
+        }
+        return root;
+    }
+
+    private void appendFact(StringBuilder target, String name, String value) {
+        if (value != null && !value.isBlank()) {
+            target.append(", ").append(name).append('=').append(value.replaceAll("[\\r\\n]+", " ").trim());
+        }
+    }
+
+    private String tableIdentity(Map<String, Object> table) {
+        String database = stringValue(table.get("database"));
+        String schema = firstNonBlank(stringValue(table.get("schema")), stringValue(table.get("schemaName")));
+        String name = firstNonBlank(
+            stringValue(table.get("tableName")),
+            firstNonBlank(stringValue(table.get("table")), stringValue(table.get("name")))
+        );
+        return "database=" + firstNonBlank(database, "-")
+            + ", schema=" + firstNonBlank(schema, "-")
+            + ", table=" + firstNonBlank(name, "-");
     }
 
     String buildFailureObservation(String toolName, ToolOutput output) {
@@ -670,6 +941,24 @@ class ToolObservationBuilder {
             || (semantic.contains("document") && semantic.contains("search"));
     }
 
+    private boolean isSqlMetadataSearchToolName(String toolName) {
+        String semantic = toolSemanticKey(toolName);
+        return "sql_metadata_search".equals(semantic) || semantic.endsWith("_sql_metadata_search");
+    }
+
+    private boolean isSqlExecutionToolName(String toolName) {
+        String semantic = toolSemanticKey(toolName);
+        return "sql_query_execute".equals(semantic)
+            || semantic.endsWith("_sql_query_execute")
+            || "sql_script_execute".equals(semantic)
+            || semantic.endsWith("_sql_script_execute");
+    }
+
+    private boolean isLinuxCommandExecutionToolName(String toolName) {
+        String semantic = toolSemanticKey(toolName);
+        return "linux_command_execute".equals(semantic) || semantic.endsWith("_linux_command_execute");
+    }
+
     private String toolSemanticKey(String toolName) {
         if (toolName == null) {
             return "";
@@ -709,6 +998,27 @@ class ToolObservationBuilder {
         return Map.of();
     }
 
+    private List<Map<String, Object>> mapList(Object value) {
+        List<Map<String, Object>> values = new ArrayList<>();
+        if (!(value instanceof Collection<?> collection)) {
+            return values;
+        }
+        for (Object item : collection) {
+            Map<String, Object> map = asMap(item);
+            if (!map.isEmpty()) {
+                values.add(map);
+            }
+        }
+        return values;
+    }
+
+    private boolean booleanValue(Object value) {
+        if (value instanceof Boolean bool) {
+            return bool;
+        }
+        return value != null && Boolean.parseBoolean(String.valueOf(value));
+    }
+
     private String shortText(String value) {
         if (value == null || value.isBlank()) {
             return null;
@@ -724,6 +1034,13 @@ class ToolObservationBuilder {
         String normalized = value.replaceAll("\\s+", " ").trim();
         int limit = Math.max(80, maxChars);
         return normalized.length() <= limit ? normalized : normalized.substring(0, limit);
+    }
+
+    private String observationText(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        return value.replaceAll("\\s+", " ").trim();
     }
 
     private String normalizeWebCitationLabels(String value) {

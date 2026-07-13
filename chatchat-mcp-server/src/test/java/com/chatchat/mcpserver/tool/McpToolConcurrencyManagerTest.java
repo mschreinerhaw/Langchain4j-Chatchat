@@ -102,6 +102,51 @@ class McpToolConcurrencyManagerTest {
         assertThat(manager.limitMeta("web_search", "http").get("max_output_chars")).isEqualTo(-1);
     }
 
+    @Test
+    void structuredLimitPreservesExecutionFactsAndStreamTail() {
+        ChatChatMcpServerProperties properties = new ChatChatMcpServerProperties();
+        ChatChatMcpServerProperties.LimitProperties sshLimit =
+            new ChatChatMcpServerProperties.LimitProperties(1, 1, 1, 0, "ssh");
+        sshLimit.setMaxOutputChars(1_000);
+        properties.getConcurrency().setTools(new LinkedHashMap<>(Map.of("linux_command_execute", sshLimit)));
+        manager = new McpToolConcurrencyManager(properties, new ObjectMapper());
+
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("exitCode", 2);
+        data.put("transportSuccess", true);
+        data.put("commandSuccess", false);
+        data.put("stderr", "failure detail\nFATAL_ERROR_AT_TAIL");
+        data.put("stdout", "OUTPUT_HEAD\n" + "x".repeat(2_000) + "\nOUTPUT_TAIL");
+        Map<String, Object> structured = new LinkedHashMap<>();
+        structured.put("schemaVersion", "tool_execution_result.v1");
+        structured.put("kind", "ssh_command");
+        structured.put("success", true);
+        structured.put("status", "success");
+        structured.put("data", data);
+        structured.put("execution", Map.of("duplicate", "z".repeat(2_000)));
+
+        McpSchema.CallToolResult result = manager.execute("linux_command_execute", "ssh", Map.of(), () ->
+            McpSchema.CallToolResult.builder()
+                .addTextContent("Operation completed")
+                .structuredContent(structured)
+                .isError(false)
+                .build());
+
+        Map<?, ?> returned = (Map<?, ?>) result.structuredContent();
+        Map<?, ?> returnedData = (Map<?, ?>) returned.get("data");
+        assertThat(returned.get("schemaVersion")).isEqualTo("tool_execution_result.v1");
+        assertThat(returned.get("success")).isEqualTo(true);
+        assertThat(returned.get("_truncated")).isEqualTo(true);
+        assertThat(returned.get("outputTruncation")).isNotNull();
+        assertThat(returnedData.get("exitCode")).isEqualTo(2);
+        assertThat(returnedData.get("transportSuccess")).isEqualTo(true);
+        assertThat(returnedData.get("commandSuccess")).isEqualTo(false);
+        assertThat(String.valueOf(returnedData.get("stderr"))).contains("FATAL_ERROR_AT_TAIL");
+        assertThat(String.valueOf(returnedData.get("stdout")))
+            .contains("OUTPUT_HEAD")
+            .contains("OUTPUT_TAIL");
+    }
+
     private void sleep(long millis) {
         try {
             Thread.sleep(millis);

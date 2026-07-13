@@ -337,7 +337,19 @@ public class McpToolConcurrencyManager {
                 .build();
         }
         List<McpSchema.Content> content = trimContent(result.content(), maxChars);
-        Object structured = trimValue(result.structuredContent(), maxChars, new Counter());
+        Counter structuredCounter = new Counter();
+        Object structured = trimValue(result.structuredContent(), maxChars, structuredCounter);
+        if (structuredCounter.truncated && structured instanceof Map<?, ?> map) {
+            Map<String, Object> marked = new LinkedHashMap<>();
+            map.forEach((key, value) -> marked.put(String.valueOf(key), value));
+            marked.put("_truncated", true);
+            marked.put("outputTruncation", Map.of(
+                "strategy", "STRUCTURE_AWARE_HEAD_TAIL",
+                "maxOutputChars", maxChars,
+                "message", "Structured output exceeded the MCP transport budget; scalar execution facts were prioritized."
+            ));
+            structured = marked;
+        }
         Map<String, Object> meta = new LinkedHashMap<>(result.meta() == null ? Map.of() : result.meta());
         meta.putIfAbsent("mcp_tool_limit", limitMeta(toolName, runtimeLevel));
         return McpSchema.CallToolResult.builder()
@@ -380,9 +392,15 @@ public class McpToolConcurrencyManager {
         }
         if (value instanceof Map<?, ?> map) {
             Map<String, Object> copy = new LinkedHashMap<>();
-            for (Map.Entry<?, ?> entry : map.entrySet()) {
+            List<Map.Entry<?, ?>> entries = new ArrayList<>(map.entrySet());
+            entries.sort((left, right) -> Integer.compare(
+                outputFieldPriority(String.valueOf(left.getKey())),
+                outputFieldPriority(String.valueOf(right.getKey()))
+            ));
+            for (Map.Entry<?, ?> entry : entries) {
                 if (counter.value >= maxChars) {
                     copy.put("_truncated", true);
+                    counter.truncated = true;
                     break;
                 }
                 copy.put(String.valueOf(entry.getKey()), trimValue(entry.getValue(), maxChars, counter));
@@ -394,6 +412,7 @@ public class McpToolConcurrencyManager {
             for (Object item : iterable) {
                 if (counter.value >= maxChars) {
                     copy.add(Map.of("_truncated", true));
+                    counter.truncated = true;
                     break;
                 }
                 copy.add(trimValue(item, maxChars, counter));
@@ -417,6 +436,7 @@ public class McpToolConcurrencyManager {
         }
         int remaining = maxChars - counter.value;
         if (remaining <= 0) {
+            counter.truncated = true;
             return "[truncated]";
         }
         if (text.length() <= remaining) {
@@ -424,7 +444,32 @@ public class McpToolConcurrencyManager {
             return text;
         }
         counter.value = maxChars;
-        return text.substring(0, Math.max(0, remaining)) + "...[truncated]";
+        counter.truncated = true;
+        String marker = "\n...[truncated; preserving tail]...\n";
+        if (remaining <= marker.length() + 2) {
+            return text.substring(0, Math.max(0, remaining)) + "...[truncated]";
+        }
+        int available = remaining - marker.length();
+        int headLength = available / 2;
+        int tailLength = available - headLength;
+        return text.substring(0, headLength) + marker + text.substring(text.length() - tailLength);
+    }
+
+    private int outputFieldPriority(String key) {
+        if (key == null) {
+            return 50;
+        }
+        return switch (key) {
+            case "schemaVersion", "kind", "dataSchema", "payloadType", "success", "status",
+                 "error", "errorMessage", "exitCode", "transportSuccess", "commandSuccess",
+                 "failedStepIndex", "nonZeroStepIndexes", "rowCount", "returnedRowCount",
+                 "complete", "possiblyTruncated", "catalogTruncated", "detailTruncated" -> 0;
+            case "target", "limits", "outputLimits", "columns", "columnMetadata", "diagnostics" -> 1;
+            case "data", "steps", "results", "rows", "stderr" -> 2;
+            case "stdout", "operation", "executionGraph" -> 3;
+            case "execution" -> 4;
+            default -> 10;
+        };
     }
 
     private McpSchema.CallToolResult limitResult(String status, String toolName, String runtimeLevel, String message) {
@@ -562,6 +607,7 @@ public class McpToolConcurrencyManager {
     private static final class Counter {
 
         private int value;
+        private boolean truncated;
     }
 
     private static final class ToolThreadFactory implements ThreadFactory {

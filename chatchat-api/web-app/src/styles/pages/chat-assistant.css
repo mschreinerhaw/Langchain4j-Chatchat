@@ -517,6 +517,21 @@
   line-height: 1.2;
 }
 
+.runtime-execution-panel.completed {
+  box-shadow: inset 3px 0 0 #16a34a;
+}
+
+.runtime-execution-panel.completed .runtime-run-mark span {
+  background: #16a34a;
+  box-shadow: 0 0 0 5px rgba(22, 163, 74, 0.14);
+}
+
+.runtime-execution-panel.completed .runtime-run-meta b {
+  border-color: #bbdfca;
+  background: #effaf3;
+  color: #168555;
+}
+
 .runtime-command-line {
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
@@ -738,6 +753,206 @@
 .runtime-event-stream time {
   color: #667085;
   font-variant-numeric: tabular-nums;
+}
+
+.runtime-tool-timeline {
+  display: grid;
+  gap: 8px;
+  margin: 2px 0 14px;
+  color: #344054;
+}
+
+.runtime-tool-timeline > header {
+  margin: 0;
+}
+
+.runtime-tool-timeline > header button {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 3px 2px;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+}
+
+.runtime-tool-heading {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.runtime-tool-timeline > header button:hover strong {
+  color: #1d4ed8;
+}
+
+.runtime-tool-timeline > header strong {
+  color: #475467;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.runtime-tool-timeline > header small {
+  color: #667085;
+  font-size: 11px;
+}
+
+.runtime-tool-summary-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  white-space: nowrap;
+  font-weight: 750;
+}
+
+.runtime-tool-summary-status i {
+  width: 7px;
+  height: 7px;
+  flex: 0 0 7px;
+  border-radius: 999px;
+  background: #98a2b3;
+}
+
+.runtime-tool-summary-status.running {
+  color: #2563eb;
+}
+
+.runtime-tool-summary-status.running i {
+  background: #2563eb;
+  box-shadow: 0 0 0 4px rgb(37 99 235 / 12%);
+  animation: runtime-tool-status-pulse 1.2s ease-in-out infinite;
+}
+
+.runtime-tool-summary-status.completed {
+  color: #039855;
+}
+
+.runtime-tool-summary-status.completed i {
+  background: #12b76a;
+}
+
+.runtime-tool-summary-status.failed {
+  color: #d92d20;
+}
+
+.runtime-tool-summary-status.failed i {
+  background: #f04438;
+}
+
+.runtime-tool-timeline ol {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.runtime-tool-timeline li {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  min-height: 34px;
+  padding: 5px 8px;
+  border-radius: 6px;
+  background: #f8fafc;
+}
+
+.runtime-tool-timeline li.active {
+  background: #f4f8ff;
+}
+
+.runtime-tool-timeline li.failed {
+  background: #fff6f6;
+}
+
+.runtime-tool-status {
+  width: 18px;
+  height: 18px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  color: #fff;
+  background: #16a34a;
+}
+
+.runtime-tool-timeline li.failed .runtime-tool-status {
+  background: #dc2626;
+}
+
+.runtime-tool-timeline li.active .runtime-tool-status {
+  background: #dbeafe;
+}
+
+.runtime-tool-status i {
+  width: 8px;
+  height: 8px;
+  border: 2px solid #2563eb;
+  border-right-color: transparent;
+  border-radius: 999px;
+  animation: runtime-tool-spin 0.8s linear infinite;
+}
+
+.runtime-tool-timeline li > div {
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.runtime-tool-timeline code {
+  color: #172554;
+  font-size: 12px;
+  font-weight: 750;
+  overflow-wrap: anywhere;
+}
+
+.runtime-tool-timeline li > div small {
+  min-width: 0;
+  color: #667085;
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.runtime-tool-timeline em {
+  color: #667085;
+  font-size: 11px;
+  font-style: normal;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.runtime-tool-timeline li.done em {
+  color: #168555;
+}
+
+.runtime-tool-timeline li.failed em {
+  color: #b42318;
+}
+
+@keyframes runtime-tool-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes runtime-tool-status-pulse {
+  0%, 100% {
+    opacity: 0.55;
+    transform: scale(0.82);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 @keyframes runtime-pulse {

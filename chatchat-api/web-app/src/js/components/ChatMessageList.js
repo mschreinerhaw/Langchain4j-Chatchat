@@ -122,6 +122,8 @@ export default {
       copiedMessageId: "",
       copiedResetTimer: null,
       codeCopyResetTimers: new Set(),
+      collapsedToolCallMessageIds: new Set(),
+      expandedCompletedToolCallMessageIds: new Set(),
       reasoningModal: null,
       feedbackOptions: [
         { value: "useful", label: "\u6709\u7528" },
@@ -139,7 +141,7 @@ export default {
       return this.displayUserId.slice(0, 2).toUpperCase();
     },
     assistantDisplayName() {
-      return this.activeAgent?.name || "AI Assistant";
+      return this.activeAgent?.name || "\u52a9\u624b";
     },
     hasStreamingMessage() {
       return this.messages.some((message) => message.streaming || this.isExecutionRunning(message));
@@ -153,8 +155,37 @@ export default {
     this.codeCopyResetTimers.clear();
   },
   methods: {
+    toolCallMessageKey(message = {}) {
+      return String(message.id || message.taskId || message.runId || "");
+    },
+    toolCallsExpanded(message = {}) {
+      const key = this.toolCallMessageKey(message);
+      if (key && this.expandedCompletedToolCallMessageIds.has(key)) {
+        return true;
+      }
+      if (key && this.collapsedToolCallMessageIds.has(key)) {
+        return false;
+      }
+      return this.runtimeToolStatusClass(message) === "running";
+    },
+    toggleToolCalls(message = {}) {
+      const key = this.toolCallMessageKey(message);
+      if (!key) {
+        return;
+      }
+      if (this.toolCallsExpanded(message)) {
+        this.expandedCompletedToolCallMessageIds.delete(key);
+        this.collapsedToolCallMessageIds.add(key);
+      } else {
+        this.collapsedToolCallMessageIds.delete(key);
+        if (this.runtimeToolStatusClass(message) !== "running") {
+          this.expandedCompletedToolCallMessageIds.add(key);
+        }
+      }
+    },
     shouldShowSteps(message = {}) {
-      return message.role === "assistant" && this.isExecutionRunning(message);
+      return message.role === "assistant"
+        && (!!message.taskId || (Array.isArray(message.steps) && message.steps.length > 0));
     },
     messageHasRenderableContent(message = {}) {
       return !!String(message.content || "").trim() || !!this.extractUiResponse(message)?.answer;
@@ -169,12 +200,16 @@ export default {
     visibleExecutionSteps(message = {}) {
       const steps = Array.isArray(message.steps) ? message.steps : [];
       const running = this.isExecutionRunning(message);
-      const visible = running && !steps.length ? this.defaultRunningSteps(message) : (running ? steps : steps.slice(-8));
+      const visible = running && !steps.length ? this.defaultRunningSteps(message) : steps.slice(-40);
       const normalized = visible.map((step, index) => ({
         id: step.id || `${message.id || "message"}-step-${index}`,
         title: step.title || "\u6267\u884c\u6b65\u9aa4",
         detail: step.detail || "",
-        status: step.status || "pending"
+        status: step.status || "pending",
+        type: step.type || "",
+        toolName: step.toolName || "",
+        timestamp: step.timestamp || message.timestamp || Date.now(),
+        latencyMs: step.latencyMs
       }));
       if (!running || normalized.some((step) => String(step.status || "").toLowerCase() === "active")) {
         return normalized;
@@ -230,10 +265,22 @@ export default {
         && !["waiting", "cancelled", "failed", "streaming", "running"].includes(status);
     },
     assistantName(message = {}) {
-      return message.agentName || this.assistantDisplayName;
+      return String(message.agentName || this.assistantDisplayName || "\u52a9\u624b").trim() || "\u52a9\u624b";
+    },
+    assistantAvatarLabel(message = {}) {
+      const name = this.assistantName(message);
+      const characters = Array.from(name);
+      if (/[\u3400-\u9fff]/u.test(name)) {
+        return characters.slice(0, 2).join("");
+      }
+      const words = name.split(/[\s_-]+/u).filter(Boolean);
+      if (words.length > 1) {
+        return words.slice(0, 2).map((word) => Array.from(word)[0]).join("").toUpperCase();
+      }
+      return characters.slice(0, 2).join("").toUpperCase() || "\u52a9\u624b";
     },
     runtimeAvatarLabel(message = {}) {
-      return this.isExecutionRunning(message) || message.streaming ? "RUN" : "AI";
+      return this.isExecutionRunning(message) || message.streaming ? "RUN" : this.assistantAvatarLabel(message);
     },
     runtimeRunId(message = {}) {
       const raw = message.taskId || message.runId || message.id || "";
@@ -242,7 +289,12 @@ export default {
     },
     runtimeElapsed(message = {}) {
       const started = Number(message.startedAt || message.timestamp || Date.now());
-      const elapsed = Math.max(0, Date.now() - started);
+      const running = this.isExecutionRunning(message) || message.streaming;
+      const recorded = Number(message.latencyMs || (message.finishedAt ? Number(message.finishedAt) - started : 0));
+      if (!running && !(recorded > 0)) {
+        return "";
+      }
+      const elapsed = Math.max(0, running ? Date.now() - started : recorded);
       if (elapsed < 1000) {
         return "0.0s";
       }
@@ -295,11 +347,17 @@ export default {
       return false;
     },
     runtimeCurrentStage(message = {}) {
+      if (!this.isExecutionRunning(message) && !message.streaming) {
+        return this.runtimeStatusLabel(message);
+      }
       const active = this.runtimeStageCards(message)
         .find((step) => String(step.status || "").toLowerCase() === "active");
       return active?.title || (this.isExecutionRunning(message) ? "Runtime Working" : this.executionTitle(message));
     },
     runtimeProgress(message = {}) {
+      if (!this.isExecutionRunning(message) && !message.streaming && !["failed", "cancelled"].includes(message.status)) {
+        return 100;
+      }
       const cards = this.runtimeStageCards(message);
       if (!cards.length) {
         return 0;
@@ -319,15 +377,18 @@ export default {
     },
     runtimeStatusLabel(message = {}) {
       if (message.status === "waiting") {
-        return "Awaiting confirmation";
+        return "等待确认";
       }
       if (message.status === "failed") {
-        return "Failed";
+        return "失败";
       }
       if (message.status === "cancelled") {
-        return "Cancelled";
+        return "已取消";
       }
-      return this.isExecutionRunning(message) || message.streaming ? "Running" : "Completed";
+      if (message.status === "partial") {
+        return "部分完成";
+      }
+      return this.isExecutionRunning(message) || message.streaming ? "Run" : "完成";
     },
     runtimeStageStatusText(step = {}) {
       const status = String(step.status || "pending").toLowerCase();
@@ -362,6 +423,68 @@ export default {
         label: `${step.title} - ${this.runtimeStageStatusText(step)}`
       }));
     },
+    runtimeToolCalls(message = {}) {
+      const steps = this.visibleExecutionSteps(message)
+        .filter((step) => step.toolName && ["TOOL_CALL", "TOOL_RESULT", "RUNTIME_STEP", "RUNTIME_OBSERVATION"].includes(String(step.type || "").toUpperCase()));
+      const explicit = steps.filter((step) => ["TOOL_CALL", "TOOL_RESULT"].includes(String(step.type || "").toUpperCase()));
+      const selected = explicit.length ? explicit : steps.filter((step) => String(step.type || "").toUpperCase().startsWith("RUNTIME_"));
+      if (selected.length) {
+        return selected.map((step, index) => {
+          const status = !this.isExecutionRunning(message) && !message.streaming && step.status === "active"
+            ? "done"
+            : step.status;
+          return {
+            id: step.id || `${message.id || "message"}-tool-${index}`,
+            name: step.toolName,
+            detail: step.detail || step.title || "",
+            status,
+            latencyMs: step.latencyMs,
+            timestamp: step.timestamp
+          };
+        });
+      }
+      return (Array.isArray(message.traces) ? message.traces : [])
+        .filter((trace) => trace?.toolName || trace?.displayName)
+        .map((trace, index) => ({
+          id: `trace:${trace.toolName || trace.displayName}:${trace.startedAt || index}`,
+          name: trace.displayName || trace.toolName,
+          detail: trace.displayName && trace.toolName && trace.displayName !== trace.toolName ? trace.toolName : "",
+          status: trace.success === false ? "error" : "done",
+          latencyMs: trace.durationMs,
+          timestamp: trace.startedAt || message.timestamp
+        }));
+    },
+    toolCallDone(call = {}) {
+      return ["done", "partial", "empty"].includes(String(call.status || "").toLowerCase());
+    },
+    toolCallFailed(call = {}) {
+      return ["error", "failed", "cancelled"].includes(String(call.status || "").toLowerCase());
+    },
+    runtimeToolStatusClass(message = {}) {
+      const calls = this.runtimeToolCalls(message);
+      const messageStatus = String(message.status || "").toLowerCase();
+      if (["failed", "cancelled"].includes(messageStatus) || calls.some((call) => this.toolCallFailed(call))) {
+        return "failed";
+      }
+      if (
+        this.isExecutionRunning(message)
+        || message.streaming
+        || calls.some((call) => !this.toolCallDone(call) && !this.toolCallFailed(call))
+      ) {
+        return "running";
+      }
+      return "completed";
+    },
+    runtimeToolStatusLabel(message = {}) {
+      const status = this.runtimeToolStatusClass(message);
+      if (status === "failed") {
+        return "失败";
+      }
+      if (status === "running") {
+        return "正在内部运行";
+      }
+      return `完成（${this.runtimeToolCalls(message).length} 项）`;
+    },
     renderMarkdown(content, message = {}) {
       const prepared = this.prepareMarkdownContent(String(content ?? ""), message);
       const uiContract = this.uiRenderContract(message, prepared.content);
@@ -394,12 +517,12 @@ export default {
           const toolbar = doc.createElement("div");
           toolbar.className = "query-result-table-toolbar";
           const summary = doc.createElement("span");
-          summary.textContent = `${payload.rows.length} rows / ${payload.columns.length} columns`;
+          summary.textContent = `${payload.rows.length} 行 / ${payload.columns.length} 列`;
           const button = doc.createElement("button");
           button.type = "button";
           button.className = "query-result-chart-button";
           button.dataset.resultChartPayload = encodeURIComponent(JSON.stringify(payload));
-          button.textContent = "Chart analysis";
+          button.textContent = "图形分析";
           toolbar.append(summary, button);
           table.parentNode.insertBefore(wrapper, table);
           wrapper.append(toolbar, table);
@@ -407,7 +530,7 @@ export default {
         });
         if (tablePayloads.length > 1 && firstWrapper?.parentNode) {
           const multiPayload = {
-            title: "Multi dataset comparison",
+            title: "多数据集对比",
             datasets: tablePayloads.map((item, index) => ({
               id: `dataset_${index + 1}`,
               ...item.payload
@@ -418,12 +541,12 @@ export default {
           const toolbar = doc.createElement("div");
           toolbar.className = "query-result-table-toolbar";
           const summary = doc.createElement("span");
-          summary.textContent = `${tablePayloads.length} datasets available`;
+          summary.textContent = `共 ${tablePayloads.length} 个数据集`;
           const button = doc.createElement("button");
           button.type = "button";
           button.className = "query-result-chart-button";
           button.dataset.resultChartPayload = encodeURIComponent(JSON.stringify(multiPayload));
-          button.textContent = "Compare datasets";
+          button.textContent = "对比数据集";
           toolbar.append(summary, button);
           multiToolbar.append(toolbar);
           firstWrapper.parentNode.insertBefore(multiToolbar, firstWrapper);
@@ -457,9 +580,9 @@ export default {
       if (rows.length < 1) {
         return null;
       }
-      const title = this.nearestTableTitle(table) || `闂傚倸鍊搁崐鎼佸磹閹间礁纾归柟闂寸绾惧綊鏌熼梻瀵割槮缁惧墽鎳撻—鍐偓锝庝簼閹癸綁鏌ｉ鐐搭棞闁靛棙甯掗～婵嬫晲閸涱剙顥氬┑掳鍊楁慨鐑藉磻閻愮儤鍋嬮柣妯荤湽閳ь兛绶氬鎾閻樻爠鍥ㄧ厱闁斥晛鍟ㄦ禒锔剧磼椤旂懓澧插ǎ鍥э躬閹瑩顢旈崟銊ヤ壕闁哄稁鍘肩粈澶屾喐韫囨洖鍨濆┑鐘宠壘缁狅綁鏌ｅΟ鐑樷枙婵☆偅绮撳铏圭矓閸℃顏存繛鍫熸礋閺岋綁骞樼€靛憡鍣紓浣介哺閹稿骞忛崨瀛橆棃婵炴垶鐭幃锝嗙節閻㈤潧浠滈柟鍐茬箻閺佸啴濮€閵堝懓鎽曢梺鏂ユ櫅閸燁垱鍒婇幘顔界厱闁圭偓娼欑徊濠氭煕閹惧綊鍝虹紒缁樼洴閺佹劙宕ㄩ鑺ュ€烽梻浣瑰濞诧附绂嶅┑鍥┾攳濠电姴娲ら柋鍥煛閸モ晛浠滅紒鎰☉椤啴濡堕崱妯烘殫闂佸摜濮甸崝娆撱€佸▎蹇ｅ悑闁搞儮鏅濋敍婵囩箾鏉堝墽鍒伴柟纰卞亝缁傚秵銈ｉ崘鈺冨幈闁瑰吋鐣崹褰掑煝閺囩偐鏀介柍銉ョ－閸╋絾顨ラ悙瀵稿闁瑰嘲鎳庨～銏沪閻愵剙鏆梻鍌氬€烽懗鍓佸垝椤栨凹娼栧┑鐘宠壘閸屻劎鎲歌箛鏇炲灊閻犲洤妯婂鈺呭级閸稑濡奸柡瀣灥閳规垿鎮╃拠褍浼愰梺缁橆殔濡繂鐣烽妷銊ｄ汗闁圭儤鎸鹃崢浠嬫⒑閸濆嫬鏆欐繛鏉戝€垮畷?${index + 1}`;
+      const fallbackTitle = `查询结果 ${index + 1}`;
       return {
-        title,
+        title: this.nearestTableTitle(table) || fallbackTitle,
         columns: headers,
         rows
       };
@@ -648,6 +771,10 @@ export default {
     },
     collectMetadataColumnSections(value, sections, sectionIndex, visited) {
       const current = this.parseMetadataTracePayload(value);
+      if (typeof current === "string") {
+        this.collectMetadataColumnSectionsFromText(current, sections, sectionIndex);
+        return;
+      }
       if (!current || typeof current !== "object") {
         return;
       }
@@ -669,6 +796,48 @@ export default {
         this.collectMetadataColumnSections(child, sections, sectionIndex, visited);
       });
     },
+    collectMetadataColumnSectionsFromText(text = "", sections, sectionIndex) {
+      const source = String(text || "");
+      const tablePattern = /###\s+Table\s+\d+\s*:\s*`([^`]+)`([\s\S]*?)(?=\n###\s+Table\s+\d+\s*:|\n##\s+|$)/gi;
+      for (const match of source.matchAll(tablePattern)) {
+        const qualifiedName = this.stripMetadataMarkdownCell(match[1]);
+        const body = match[2] || "";
+        const lines = body.split(/\r?\n/).filter((line) => /^\s*\|/.test(line));
+        const headerIndex = lines.findIndex((line) => /\|\s*(?:Column|Field|字段)/i.test(line));
+        if (!qualifiedName || headerIndex < 0) {
+          continue;
+        }
+        const columns = lines.slice(headerIndex + 2)
+          .map((line) => this.metadataMarkdownCells(line))
+          .filter((cells) => cells.length >= 6 && /^\d+$/.test(cells[0]))
+          .map((cells, index) => ({
+            ordinalPosition: Number(cells[0]) - 1 || index,
+            name: cells[1],
+            columnType: cells[2],
+            columnKey: cells[3],
+            nullable: cells[4],
+            comment: cells[5]
+          }));
+        if (columns.length) {
+          this.addMetadataColumnSection({ tableName: qualifiedName, columns }, sections, sectionIndex);
+        }
+      }
+    },
+    metadataMarkdownCells(line = "") {
+      const protectedPipes = String(line || "").replace(/\\\|/g, "\u0000");
+      return protectedPipes
+        .replace(/^\s*\|/, "")
+        .replace(/\|\s*$/, "")
+        .split("|")
+        .map((cell) => this.stripMetadataMarkdownCell(cell.replace(/\u0000/g, "|")));
+    },
+    stripMetadataMarkdownCell(value = "") {
+      return String(value || "")
+        .trim()
+        .replace(/^`+|`+$/g, "")
+        .replace(/\\([|`])/g, "$1")
+        .trim();
+    },
     looksLikeMetadataColumns(columns) {
       if (!Array.isArray(columns) || !columns.length) {
         return false;
@@ -683,10 +852,11 @@ export default {
     addMetadataColumnSection(result = {}, sections, sectionIndex) {
       const rawColumns = Array.isArray(result.columns) ? result.columns : [];
       const firstColumn = rawColumns.find((item) => item && typeof item === "object") || {};
-      const tableName = this.metadataText(result.tableName || result.table || result.name || firstColumn.table);
-      const schemaName = this.metadataText(result.schemaName || result.schema || firstColumn.schema);
-      const databaseName = this.metadataText(result.databaseName || result.database || firstColumn.database);
-      const datasourceId = this.metadataText(result.datasourceId || firstColumn.datasourceId);
+      const location = result.location && typeof result.location === "object" ? result.location : {};
+      const tableName = this.metadataText(result.tableName || result.table || location.tableName || location.table || result.name || firstColumn.table);
+      const schemaName = this.metadataText(result.schemaName || result.schema || location.schemaName || location.schema || firstColumn.schema);
+      const databaseName = this.metadataText(result.databaseName || result.database || location.databaseName || location.database || firstColumn.database);
+      const datasourceId = this.metadataText(result.datasourceId || result.assetId || location.datasourceId || location.assetId || firstColumn.datasourceId);
       const identity = [
         datasourceId,
         databaseName,
@@ -698,8 +868,8 @@ export default {
         const titleParts = [databaseName, schemaName, tableName].filter(Boolean);
         section = {
           id: identity,
-          title: titleParts.length ? titleParts.join(".") : `闂傚倸鍊搁崐鎼佸磹閹间礁纾归柟闂寸绾惧綊鏌熼梻瀵割槮缁炬儳缍婇弻锝夊箣閿濆憛鎾绘煕閵堝懎顏柡灞剧洴椤㈡洟鏁愰崱娆欑穿闂備線鈧偛鑻晶鍓х磼閻樿櫕灏柣锝夋敱缁虹晫绮欏▎鐐秱闂備胶鍋ㄩ崕閬嶅疮鐠恒劏濮抽柕澶嗘櫆閳锋帒霉閿濆懏鍟為悹鎰ㄢ偓鎰佺唵鐟滃酣銆冮崨绮光偓锕傚垂椤曞懏寤洪梺閫炲苯澧存鐐插暣瀹曠螖婵犲啯娅撳┑鐘愁問閸犳宕濋幒鏃囧С濠电姵纰嶉埛鎴︽煕濠靛棗顏柍璇差樀閺屾稓鈧綆浜滈顏嗙磼閸屾稑绗掓い顓滃姂瀹曠喖顢楅埀顒€顕ｉ崸妤佺厽闁绘柨鎽滈幊鍐倵濮樼厧娅嶇€规洩缍侀崺鈧い鎺戝閳锋垿鏌涘┑鍡楊伀闁绘帟娉曠槐鎾愁吋閸曨収妲銈嗘穿缂嶄線銆佸璺虹劦妞ゆ巻鍋撻柣锝囧厴楠炴帡骞嬮鐔峰厞婵＄偑鍊栭崹鐓庘枖閺囩姵鏆滄繛鎴炴皑绾句粙鏌涚仦鎹愬闁逞屽墰閸忔﹢骞婂Δ鍛殝闁割煈鍋勫鍧楁⒑閸濆嫷妲归柛鈺佺墦瀹曠敻寮撮姀锛勫幈濡炪倖鍔х徊鍓х矆閳ь剚淇婂Δ鈧幊妯侯潖濞差亜宸濆┑鐘插暙椤︹晠姊洪幖鐐插濠㈢懓妫濋幃顕€骞嗚閸氬顭跨捄渚剳闁告﹢浜跺娲濞戣鲸效闂佹悶鍔庨弫璇茬暦閹邦垬浜归柟鐑樻尭閸撶敻妫呴銏″缂佸甯￠崺娑㈠箳閹炽劌缍婇弫鎰板川椤斿吋娈橀梺鑽ゅУ閸斞呮崲濠靛钃熼柨鐔哄Т濡炶棄霉閿濆娅滈柛鐘诧躬閹鎲撮崟顒傦紱闂佸憡顨嗘繛濠囨偘椤曗偓瀹曞爼顢楁径瀣珦闂備浇濮ら敋妞わ富鍨抽懞?${sections.length + 1}`,
-          comment: this.metadataText(result.comment || result.tableComment || result.description || result.summary),
+          title: titleParts.length ? titleParts.join(".") : `元数据字段组 ${sections.length + 1}`,
+          comment: this.metadataText(result.comment || result.tableComment || location.tableComment || location.comment || result.description || result.summary),
           columns: [],
           columnIndex: new Set()
         };
@@ -722,7 +892,7 @@ export default {
       if (!column || typeof column !== "object") {
         return null;
       }
-      const name = this.metadataText(column.name || column.columnName || column.fieldName);
+      const name = this.metadataText(column.name || column.columnName || column.fieldName || column.COLUMN_NAME);
       if (!name) {
         return null;
       }
@@ -737,10 +907,10 @@ export default {
       return {
         id: `${section.id || "metadata"}:${name}`,
         name,
-        type: this.metadataText(column.dataType || column.columnType || column.type),
-        key: this.metadataText(column.columnKey || column.key || column.primaryKey),
+        type: this.metadataText(column.dataType || column.columnType || column.type || column.COLUMN_TYPE || column.DATA_TYPE),
+        key: this.metadataText(column.columnKey || column.key || column.primaryKey || column.COLUMN_KEY),
         nullable: nullable || "-",
-        comment: this.metadataText(column.comment || column.description || column.remark),
+        comment: this.metadataText(column.comment || column.description || column.remark || column.remarks || column.COLUMN_COMMENT),
         ordinal,
         sortOrdinal
       };
@@ -794,6 +964,10 @@ export default {
     },
     collectMetadataTableCatalog(value, catalog, seen, visited) {
       const current = this.parseMetadataTracePayload(value);
+      if (typeof current === "string") {
+        this.collectMetadataTableCatalogFromText(current, catalog, seen);
+        return;
+      }
       if (!current || typeof current !== "object") {
         return;
       }
@@ -822,12 +996,62 @@ export default {
             catalog.rows.push(row);
           });
       }
+      if (current.location && Array.isArray(current.columns)) {
+        const row = this.normalizeMetadataCatalogRow({
+          ...current.location,
+          assetId: current.assetId || current.datasourceId || current.location.assetId || current.location.datasourceId,
+          score: current.score,
+          tableComment: current.tableComment || current.comment || current.location.tableComment || current.location.comment
+        });
+        if (row && !seen.has(row.id)) {
+          seen.add(row.id);
+          catalog.rows.push(row);
+        }
+      }
       Object.entries(current).forEach(([key, child]) => {
         if (key === "tableCatalog") {
           return;
         }
         this.collectMetadataTableCatalog(child, catalog, seen, visited);
       });
+    },
+    collectMetadataTableCatalogFromText(text = "", catalog, seen) {
+      const source = String(text || "");
+      const totalMatch = /totalMatched\s*=\s*(\d+)/i.exec(source);
+      if (totalMatch) {
+        catalog.totalMatched = Math.max(catalog.totalMatched, Number(totalMatch[1]) || 0);
+      }
+      catalog.catalogTruncated = catalog.catalogTruncated || /catalogTruncated\s*=\s*true/i.test(source);
+      const catalogSection = /##\s+Matched table catalog([\s\S]*?)(?=\n##\s+|$)/i.exec(source)?.[1] || "";
+      const lines = catalogSection.split(/\r?\n/).filter((line) => /^\s*\|/.test(line));
+      const headerIndex = lines.findIndex((line) => /\|\s*Table\s*\|/i.test(line));
+      if (headerIndex >= 0) {
+        lines.slice(headerIndex + 2)
+          .map((line) => this.metadataMarkdownCells(line))
+          .filter((cells) => cells.length >= 5 && /^\d+$/.test(cells[0]))
+          .map((cells) => this.normalizeMetadataCatalogRow({
+            database: cells[1],
+            schema: cells[2],
+            tableName: cells[3],
+            tableComment: cells[4]
+          }))
+          .filter(Boolean)
+          .forEach((row) => {
+            if (!seen.has(row.id)) {
+              seen.add(row.id);
+              catalog.rows.push(row);
+            }
+          });
+      }
+      const detailPattern = /###\s+Table\s+\d+\s*:\s*`([^`]+)`/gi;
+      for (const match of source.matchAll(detailPattern)) {
+        const qualifiedName = this.stripMetadataMarkdownCell(match[1]);
+        const row = this.normalizeMetadataCatalogRow({ tableName: qualifiedName });
+        if (row && !seen.has(row.id)) {
+          seen.add(row.id);
+          catalog.rows.push(row);
+        }
+      }
     },
     normalizeMetadataCatalogRow(item = {}) {
       if (!item || typeof item !== "object") {

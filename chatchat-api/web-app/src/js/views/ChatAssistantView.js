@@ -61,6 +61,9 @@ const RESPONSE_RENDER_CONTRACT = {
     "- Prefer markdown tables for structured query rows.",
     "- Preserve and display any rows/fields that were actually returned, even when they are partial, incomplete, unexpected, or fail the user's ideal metric requirements.",
     "- Never replace returned structured data with only a data-gap explanation; show the available data first, then label quality issues, missing fields, and uncertainty separately.",
+    "- For metadata/table discovery answers, always show the exact physical table identifier returned by the tool (database/schema/tableName when available); a Chinese business description must be a separate description and must never replace the physical identifier.",
+    "- When the metadata tool returns columns for a table, display those exact physical column names together with that table, including type/key/comment when available. Never rename, translate, or invent physical table or column identifiers.",
+    "- If a matched table has no returned column metadata, explicitly state that its fields were not returned by the tool; do not provide illustrative or guessed fields as facts.",
     "- Emit visualizationSpec/dataVisualization only when chart semantics are explicit: chartType, xKey/xLabel, series[{name,yKey,unit?}], and a short insight summary.",
     "- Do not guess chart axes or metrics from column order; if semantics are uncertain, return a table and let the frontend user choose chart fields manually."
   ].join("\n"),
@@ -171,12 +174,12 @@ function dedupeAdjacentUserMessages(messages = []) {
   return deduped;
 }
 
-function isEmptyRestoredAssistant(message = {}) {
+function isNonAnswerRestoredAssistant(message = {}) {
+  const uiAnswer = String(message?.uiResponse?.answer || "").trim();
   return message?.role === "assistant"
     && !String(message.content || "").trim()
-    && !(Array.isArray(message.sources) && message.sources.length)
-    && !(Array.isArray(message.traces) && message.traces.length)
-    && !(Array.isArray(message.steps) && message.steps.length);
+    && !uiAnswer
+    && !message.visualizationSpec;
 }
 
 function collapseDuplicateRestoredTurns(messages = []) {
@@ -188,9 +191,15 @@ function collapseDuplicateRestoredTurns(messages = []) {
     const realPreviousUserIndex = previousUserIndex < 0 ? -1 : collapsed.length - 1 - previousUserIndex;
     const duplicateUser = message?.role === "user"
       && realPreviousUserIndex >= 0
-      && collapsed.slice(realPreviousUserIndex + 1).every(isEmptyRestoredAssistant);
+      && collapsed.slice(realPreviousUserIndex + 1).every(isNonAnswerRestoredAssistant);
     if (duplicateUser) {
-      collapsed.splice(realPreviousUserIndex);
+      const previous = collapsed[realPreviousUserIndex];
+      collapsed[realPreviousUserIndex] = {
+        ...message,
+        id: previous.id || message.id,
+        timestamp: previous.timestamp || message.timestamp
+      };
+      continue;
     }
     collapsed.push(message);
   }
@@ -883,17 +892,26 @@ function eventStepId(event = {}, payload = {}) {
     if (isFinalAnswerRuntimeStep(runtimePayload)) {
       return "final-answer";
     }
-    return runtimeToolNameOf(runtimePayload) ? "tool-execution" : "planning";
+    const runtimeToolName = runtimeToolNameOf(runtimePayload);
+    if (runtimeToolName) {
+      const runtimeStep = runtimePayload.step || runtimePayload.stepId || runtimePayload.action || eventOrderValue(event);
+      return `runtime-tool:${runtimeStep}:${runtimeToolName}`;
+    }
+    return "planning";
   }
   if (type === "RUNTIME_OBSERVATION") {
     const runtimePayload = runtimePayloadOf(payload);
-    return runtimeToolNameOf(runtimePayload) ? "tool-execution" : "analysis";
+    const runtimeToolName = runtimeToolNameOf(runtimePayload);
+    return runtimeToolName ? `runtime-observation:${runtimeToolName}:${eventOrderValue(event)}` : "analysis";
   }
   if (type === "THINK") {
     return "analysis";
   }
-  if (type === "TOOL_CALL" || type === "TOOL_RESULT") {
-    return "tool-execution";
+  if (type === "TOOL_CALL") {
+    return `tool-call:${event.eventId || eventOrderValue(event)}`;
+  }
+  if (type === "TOOL_RESULT") {
+    return `tool-call:${event.parentEventId || event.eventId || eventOrderValue(event)}`;
   }
   if (type === "ANSWER" || type === "RESULT") {
     return "final-answer";
@@ -1118,10 +1136,30 @@ function initialExecutionSteps(agentName = "") {
 }
 
 function mergeExecutionSteps(previousSteps = [], events = []) {
+  const activeRuntimeTools = new Map();
   const eventSteps = events
     .filter(Boolean)
     .sort((left, right) => eventOrderValue(left) - eventOrderValue(right))
-    .map(agentEventToExecutionStep)
+    .map((event) => {
+      const step = agentEventToExecutionStep(event);
+      if (!step) {
+        return null;
+      }
+      const type = normalizeEventType(event);
+      const payload = parseJsonPayload(event.payload);
+      const runtimePayload = runtimePayloadOf(payload);
+      const runtimeToolName = runtimeToolNameOf(runtimePayload) || step.toolName;
+      if (type === "RUNTIME_STEP" && runtimeToolName) {
+        activeRuntimeTools.set(runtimeToolName, step.id);
+      } else if (type === "RUNTIME_OBSERVATION" && runtimeToolName && activeRuntimeTools.has(runtimeToolName)) {
+        step.id = activeRuntimeTools.get(runtimeToolName);
+        step.title = "调用工具";
+        step.toolName = runtimeToolName;
+        step.status = "done";
+        activeRuntimeTools.delete(runtimeToolName);
+      }
+      return step;
+    })
     .filter(Boolean);
   if (!eventSteps.length) {
     return previousSteps.length ? previousSteps : initialExecutionSteps();

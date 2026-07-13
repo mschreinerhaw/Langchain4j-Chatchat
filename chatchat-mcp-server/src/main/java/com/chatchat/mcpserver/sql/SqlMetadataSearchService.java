@@ -234,6 +234,7 @@ public class SqlMetadataSearchService {
                 "catalogRule", "tableCatalog is the lightweight list of matched tables. Do not treat topTables/results as the full matched set.",
                 "detailRule", "topTables/results contain detailed metadata only for the highest ranked tables.",
                 "answerRule", "Use totalMatched, catalogReturnedCount, catalogTruncated, and returnedDetailCount when describing completeness. Do not say tool response limits hid results unless catalogTruncated is true.",
+                "evidenceRule", "Always cite exact database/schema/tableName identifiers from tableCatalog or topTables[].location. When topTables[].columns is present, list those exact physical column names with the corresponding table. Keep business descriptions separate and never invent or translate identifiers.",
                 "nextStep", "Use topTables[].sqlExecutionBinding or a tableCatalog row when calling sql_query_execute. Do not invent schemaName/databaseName.",
                 "templateStep", "Call database_ops_template_search for the same assetName/env, then use the returned templateId and parameterSchema."
             ),

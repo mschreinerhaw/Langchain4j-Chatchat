@@ -1,5 +1,6 @@
 package com.chatchat.mcpserver.web;
 
+import com.chatchat.mcpserver.mcp.McpToolApplicability;
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.tool.ToolInput;
 import com.chatchat.common.tool.ToolMetadata;
@@ -154,7 +155,15 @@ public class WebKnowledgeMcpToolRegistrar implements McpServerToolRegistrar {
                 "searchStage", "primary",
                 "outputContract", "short search result snippets only",
                 "modes", List.of("java", "browser", "auto"),
-                "browserFallback", "browser mode falls back to Java HTTP fetching when Playwright fails"
+                "browserFallback", "browser mode falls back to Java HTTP fetching when Playwright fails",
+                McpToolApplicability.META_KEY, McpToolApplicability.of(
+                    "web:public_search_discovery",
+                    "Public web search candidate discovery",
+                    List.of("web"),
+                    "Search the public web and return titles, URLs and short snippets for model-side relevance judgment.",
+                    List.of("Find candidate public pages before a bound page-analysis or crawler tool is invoked."),
+                    List.of("Crawling full pages", "Private or authenticated data", "Selecting or replacing Agent-bound tools")
+                )
             ))
             .build();
     }

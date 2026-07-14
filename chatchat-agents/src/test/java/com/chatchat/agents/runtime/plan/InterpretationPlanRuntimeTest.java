@@ -1340,7 +1340,7 @@ class InterpretationPlanRuntimeTest {
     }
 
     @Test
-    void normalizesMismatchedBusinessTemplateRoutingDecisionBeforeMcpCall() {
+    void preservesPlannerRoutingDecisionBeforeMcpCall() {
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         when(toolRegistry.hasTool(any())).thenReturn(true);
         when(toolRegistry.getToolMetadata(any())).thenAnswer(invocation ->
@@ -1398,11 +1398,66 @@ class InterpretationPlanRuntimeTest {
         ArgumentCaptor<ToolRuntimeRequest> captor = ArgumentCaptor.forClass(ToolRuntimeRequest.class);
         verify(toolRuntimeService).execute(captor.capture());
         Map<String, Object> parameters = captor.getValue().getToolInput().getParameters();
-        assertThat(parameters).containsEntry("finalDecision", "business_database_query");
-        assertThat(parameters.get("candidates").toString()).contains("business_database_query").doesNotContain("targetKind=database");
-        assertThat(parameters.get("trace").toString())
-            .contains("routingForcedByTypedDiscoveryTool=true")
-            .contains("originalFinalDecision=database");
+        assertThat(parameters).containsEntry("finalDecision", "database");
+        assertThat(parameters.get("candidates").toString()).contains("targetKind=database");
+        assertThat(parameters.get("trace").toString()).doesNotContain("routingForcedByTypedDiscoveryTool");
+    }
+
+    @Test
+    void executesExactUserBoundDatabaseOpsTemplateToolWithoutBusinessSubstitution() {
+        String requestedTool = "mcp_chatchat_mcp_server_database_ops_template_search";
+        String otherTool = "mcp_chatchat_mcp_server_business_query_template_search";
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool(any())).thenReturn(true);
+        when(toolRegistry.getToolMetadata(any())).thenAnswer(invocation ->
+            ToolMetadata.builder().id(invocation.getArgument(0)).riskLevel("low").build());
+        ToolRuntimeService toolRuntimeService = mock(ToolRuntimeService.class);
+        when(toolRuntimeService.execute(any())).thenAnswer(invocation -> {
+            ToolRuntimeRequest toolRequest = invocation.getArgument(0);
+            return new ToolRuntimeExecution(
+                ToolOutput.success(Map.of("templates", List.of())),
+                ToolMetadata.builder().id(toolRequest.getToolName()).build(),
+                null,
+                "success",
+                Map.of()
+            );
+        });
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            toolRuntimeService,
+            new InterpretationPlanValidator(),
+            scriptedController(List.of(List.of(1), List.of(2)))
+        );
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("database_ops", "analyze mysql status", "low"),
+            context(),
+            new InterpretationPlan.Plan(List.of(
+                new InterpretationPlan.Step(1, "mcp_tool", requestedTool,
+                    Map.of("finalDecision", "database", "filters", Map.of("intent", "market volatility alert")),
+                    List.of(), null, null),
+                new InterpretationPlan.Step(2, "final_answer", "", Map.of("answer", "done"), List.of(1), null, null)
+            )),
+            new InterpretationPlan.ExecutionPolicy(2, false, List.of(requestedTool), List.of(), 30000),
+            review()
+        );
+
+        InterpretationPlanRuntime.ExecutionResult result = runtime.execute(new InterpretationPlanRuntime.ExecutionRequest(
+            plan,
+            toolRegistry,
+            List.of(requestedTool, otherTool),
+            "tenant-1",
+            "req-bound-database-ops-template",
+            "conv-bound-database-ops-template",
+            "user-1",
+            Map.of()
+        ));
+
+        assertThat(result.success()).isTrue();
+        ArgumentCaptor<ToolRuntimeRequest> captor = ArgumentCaptor.forClass(ToolRuntimeRequest.class);
+        verify(toolRuntimeService).execute(captor.capture());
+        assertThat(captor.getValue().getToolName()).isEqualTo(requestedTool);
+        assertThat(captor.getValue().getToolInput().getParameters())
+            .containsEntry("finalDecision", "database");
     }
 
     @Test
@@ -1809,8 +1864,7 @@ class InterpretationPlanRuntimeTest {
     }
 
     @Test
-    @SuppressWarnings("unchecked")
-    void injectsDatabaseRoutingDecisionForAssetDiscoveryWhenPlannerOnlyProvidedFilters() throws Exception {
+    void rejectsMissingRoutingDecisionWithoutRuntimeInference() throws Exception {
         InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
             mock(ToolRuntimeService.class),
             new InterpretationPlanValidator(),
@@ -1871,24 +1925,12 @@ class InterpretationPlanRuntimeTest {
         method.setAccessible(true);
 
         Map<String, Object> resolved = (Map<String, Object>) method.invoke(runtime, step, request, Map.of());
-
-        assertThat(resolved)
-            .containsEntry("finalDecision", "database")
-            .containsEntry("filtersSchemaVersion", "target_filters.v1");
-        List<Map<String, Object>> candidates = (List<Map<String, Object>>) resolved.get("candidates");
-        assertThat(candidates).hasSize(1);
-        assertThat(candidates.get(0)).containsEntry("targetKind", "database");
-        Map<String, Object> trace = (Map<String, Object>) resolved.get("trace");
-        assertThat(trace)
-            .containsEntry("routingInferred", true);
-        assertThat(String.valueOf(trace.get("routingInferReason")))
-            .contains("missing finalDecision/targetKind")
-            .contains("downstream target kind=database");
+        assertThat(resolved).doesNotContainKeys("finalDecision", "targetKind", "assetType");
     }
 
     @Test
     @SuppressWarnings("unchecked")
-    void rejectsAmbiguousRoutingWhenDatabaseAndHostDownstreamExistWithoutClearIntent() throws Exception {
+    void doesNotInferRoutingFromDatabaseAndHostDownstreamTools() throws Exception {
         InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
             mock(ToolRuntimeService.class),
             new InterpretationPlanValidator(),
@@ -1948,12 +1990,12 @@ class InterpretationPlanRuntimeTest {
         );
         method.setAccessible(true);
 
-        assertThatThrownBy(() -> method.invoke(runtime, step, request, Map.of()))
-            .hasRootCauseMessage("ROUTING_AMBIGUOUS: downstream contains multiple target kinds: [business_database_query, host]");
+        Map<String, Object> resolved = (Map<String, Object>) method.invoke(runtime, step, request, Map.of());
+        assertThat(resolved).doesNotContainKeys("finalDecision", "targetKind", "assetType");
     }
 
     @Test
-    void failsBeforeToolExecutionWhenRoutingDecisionMissingAndNoDownstreamTargetKindExists() {
+    void passesMissingRoutingDecisionThroughWithoutRuntimeInference() {
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         when(toolRegistry.hasTool("mcp_chatchat_mcp_server_sql_datasource_asset_query")).thenReturn(true);
         when(toolRegistry.getToolMetadata(any())).thenReturn(ToolMetadata.builder().riskLevel("low").build());
@@ -1996,12 +2038,12 @@ class InterpretationPlanRuntimeTest {
 
         assertThat(result.success()).isFalse();
         assertThat(result.status()).isEqualTo("STEP_FAILED");
-        assertThat(result.errorMessage())
-            .contains("ROUTING_TARGET_REQUIRED")
-            .contains("planner must regenerate discovery input");
+        assertThat(result.errorMessage()).doesNotContain("ROUTING_TARGET_REQUIRED");
         assertThat(result.steps()).hasSize(1);
-        assertThat(result.steps().get(0).errorMessage()).contains("ROUTING_TARGET_REQUIRED");
-        verify(toolRuntimeService, never()).execute(any());
+        ArgumentCaptor<ToolRuntimeRequest> captor = ArgumentCaptor.forClass(ToolRuntimeRequest.class);
+        verify(toolRuntimeService).execute(captor.capture());
+        assertThat(captor.getValue().getToolInput().getParameters())
+            .doesNotContainKeys("finalDecision", "targetKind", "assetType");
     }
 
     @Test
@@ -3522,9 +3564,9 @@ class InterpretationPlanRuntimeTest {
                     new InterpretationPlan.Step(
                         1,
                         "mcp_tool",
-                        "mcp_chatchat_mcp_server_sql_datasource_template_query",
+                        "mcp_chatchat_mcp_server_database_query_template_query",
                         Map.of(
-                            "finalDecision", "database",
+                            "finalDecision", "business_database_query",
                             "filters", Map.of(
                                 "intent", "分析行情数据发生较大波动时异常提醒数据",
                                 "bilingualIntent", List.of("行情波动", "异常提醒", "market data volatility", "alert")
@@ -3570,7 +3612,7 @@ class InterpretationPlanRuntimeTest {
                 3,
                 false,
                 List.of(
-                    "mcp_chatchat_mcp_server_sql_datasource_template_query",
+                    "mcp_chatchat_mcp_server_database_query_template_query",
                     "mcp_chatchat_mcp_server_sql_query_execute"
                 ),
                 List.of(),
@@ -3726,8 +3768,8 @@ class InterpretationPlanRuntimeTest {
             .containsEntry("env", "DEV")
             .containsEntry("intent", "list java processes")
             .doesNotContainKeys("trace", "finalDecision", "filtersSchemaVersion");
-        assertThat(resolved).containsEntry("finalDecision", "host");
-        assertThat(resolved.get("trace").toString()).contains("routingForcedByTypedDiscoveryTool=true");
+        assertThat(resolved).containsEntry("finalDecision", "database");
+        assertThat(resolved.get("trace").toString()).doesNotContain("routingForcedByTypedDiscoveryTool");
     }
 
     private InterpretationPlan.Context context() {

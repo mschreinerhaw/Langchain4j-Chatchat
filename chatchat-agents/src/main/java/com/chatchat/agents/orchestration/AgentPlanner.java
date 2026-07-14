@@ -76,7 +76,8 @@ class AgentPlanner {
             documentSearchTool,
             verificationWebSearchTool,
             normalizeList(availableTools),
-            query
+            query,
+            experiencePrior(runtimeAttributes)
         );
         String runId = stringValue(runtimeAttributes == null ? null : runtimeAttributes.get("__agentRunId"));
         int maxAttempts = plannerRepairAttempts(runtimeAttributes);
@@ -85,6 +86,7 @@ class AgentPlanner {
         String lastRaw = null;
         String logRunId = runId == null ? "" : runId;
         List<PlanCandidate> candidates = new ArrayList<>();
+        boolean experienceOptimizationRequested = false;
         for (int attempt = 1; attempt <= maxAttempts; attempt++) {
             long startedAt = System.currentTimeMillis();
             log.info("agentModelRequest phase=planner runId={} attempt={}/{} modelClass={} promptChars={} toolCount={} observationCount={}",
@@ -116,10 +118,41 @@ class AgentPlanner {
             }
             candidates.add(planCandidate(attempt, raw, lastDecision, validationContext));
             if (decision != null && !plannerPlanInvalid(decision)) {
+                PlanCandidate currentCandidate = candidates.get(candidates.size() - 1);
+                if (!experienceOptimizationRequested
+                    && attempt < maxAttempts
+                    && shouldOptimizeFromExperience(currentCandidate, validationContext)) {
+                    experienceOptimizationRequested = true;
+                    currentPrompt = buildExperienceOptimizationPrompt(
+                        prompt, raw, currentCandidate, attempt + 1, maxAttempts);
+                    continue;
+                }
                 PlanRewriteContext rewriteContext = planRewriteContext(candidates);
+                if (experienceOptimizationRequested) {
+                    PlanCandidate baseline = candidates.stream()
+                        .filter(candidate -> candidate != null
+                            && candidate.decision() != null
+                            && !plannerPlanInvalid(candidate.decision()))
+                        .findFirst()
+                        .orElse(currentCandidate);
+                    if (!sameExperienceWorkflowContract(baseline.decision(), currentCandidate.decision())) {
+                        return withAttributionMetadata(
+                            baseline.decision(),
+                            baseline,
+                            rewriteContext,
+                            "Rejected experience optimization candidate because it changed the user-bound workflow contract.",
+                            false,
+                            List.of("experience_workflow_mutation_rejected")
+                        );
+                    }
+                    AgentDecision optimized = attributeAndSelectBestPlan(rewriteContext, validationContext, logRunId);
+                    if (optimized != null) {
+                        return optimized;
+                    }
+                }
                 return withAttributionMetadata(
                     decision,
-                    candidates.get(candidates.size() - 1),
+                    currentCandidate,
                     rewriteContext,
                     "Selected the first runtime-valid plan candidate.",
                     false,
@@ -185,34 +218,20 @@ class AgentPlanner {
         prompt.append("- If information is missing, add missing_info and plan the smallest safe retrieval/tool step instead of inventing facts.\n\n");
         prompt.append(AgentRuntimeFactGroundingContract.promptSection());
         prompt.append("MCP interaction contract:\n");
-        prompt.append("- Follow one of two MCP chains: tool/capability description -> template discovery -> template judgment -> executor tool executes template -> final summary; OR asset discovery -> asset judgment -> asset associated templates -> template judgment -> executor tool executes template -> final summary.\n");
+        prompt.append("- The user-bound workflow tool names, required flags, dependencies, and order are the execution contract. Do not insert, replace, or reorder tools based on intent, keywords, metadata, or returned template names.\n");
         prompt.append("- Template ids, template names, mcpToolName, and execution.callTool values returned by discovery are template names, not Agent Runtime workflow tool names.\n");
         prompt.append("- Do not put a returned template name into plan.steps[].tool_name. Put it into template/templateId and call the declared executor tool such as sql_query_execute, database_query_execute, linux_command_execute, or http_request_execute.\n");
         prompt.append("- Finding a template or asset is not execution evidence. final_answer must depend on the actual executor step or an explicit error/permission observation.\n\n");
-        String sqlTemplateQueryTool = matchingAvailableTool(availableTools, "database_ops_template_search");
-        String sqlMetadataSearchTool = matchingAvailableTool(availableTools, "sql_metadata_search");
-        prompt.append("SQL template execution contract:\n");
-        if (sqlTemplateQueryTool != null) {
-            prompt.append("- For SQL datasource maintenance, metadata, or diagnostics, call ")
-                .append(sqlTemplateQueryTool)
-                .append(" and bind the selected returned templates[].templateId into sql_query_execute.templateId.\n");
-        } else {
-            prompt.append("- No SQL template discovery tool is available in this request. Do not add database_ops_template_search/template_query steps. Only call sql_query_execute when a concrete templateId and parameter contract already appear in Available tools metadata, prior observations, or user-provided governed context; otherwise stop at final_answer with the missing template-discovery requirement.\n");
-        }
-        if (sqlMetadataSearchTool != null) {
-            prompt.append("- For SQL table analysis or unknown schema/database, call ")
-                .append(sqlMetadataSearchTool)
-                .append(" before SQL execution. Pass the explicit tableName from the user request and includeColumns=true so cached column names/types/comments are returned. Use results[].sqlExecutionBinding as the authoritative source for schemaName/databaseName/tableName.\n");
-        } else {
-            prompt.append("- If sql_metadata_search is not available, do not guess schema/database/table binding from free text; use already observed structured metadata only.\n");
-        }
-        prompt.append("- sql_query_execute with templateId MUST pass only fields declared by templates[].parameterSchema under input.parameters.\n");
-        prompt.append("- Treat templates[].parameterSchema, templates[].requiredParameters, templates[].parameterContract, and templates[].invocationExample as the binding contract. If requiredParameters contains tableName, copy the table name from the user request or sql_metadata_search result into input.parameters.tableName before calling sql_query_execute.\n");
-        prompt.append("- Never call sql_query_execute with templateId and parameters={} when the selected template has any required parameter. Missing required template parameters must be repaired by adding a prior discovery/planning step or by binding the value from user input/tool output.\n");
-        prompt.append("- sql_query_execute MUST include logical executionContext from typed asset discovery, user-provided context, template routing metadata, sql_metadata_search/table-location evidence, or an observed invocationExample. Use database_asset_search when the request needs datasource asset confirmation, unless prior template discovery evidence supplies executable routing metadata.\n");
+        prompt.append("Data template execution contract:\n");
+        prompt.append("- Use only the exact tools present in Available tools and the configured workflow; tool metadata may describe input/output contracts but must not cause tool substitution.\n");
+        prompt.append("- Bind the selected discovery result's declared template identifier, execution tool, execution context, parameter schema, required parameters, and invocation example into the executor step exactly as returned.\n");
+        prompt.append("- Table/schema metadata is discovery evidence, not query-result evidence. A final answer that claims computed or retrieved data must depend on the declared executor step.\n");
+        prompt.append("- If the configured workflow lacks a required discovery or executor tool, report the missing bound tool instead of inventing or selecting another tool.\n");
+        prompt.append("- Never call a template executor with empty parameters when its discovered contract declares required parameters. Repair the plan with a prior discovery step or bind values from user input/tool output.\n");
+        prompt.append("- Template execution must include the logical execution context declared by asset discovery, template routing metadata, metadata-location evidence, or an observed invocation example.\n");
         prompt.append("- Do not put JSONPath strings such as $.assets[0].asset.name inside executionContext. Use plan.bindings only when a prior observed step really returns that field.\n");
-        prompt.append("- Never put raw SQL such as SHOW CREATE TABLE, DESC/DESCRIBE, SELECT, SHOW STATUS, or information_schema queries inside input.parameters.sql/rawSql/query/statement.\n");
-        prompt.append("- Do not invent SQL template names. If a requested analysis needs table metadata, choose an observed returned TABLE_METADATA template and pass tableName from the user/query context. Pass schemaName/databaseName only when it came from sql_metadata_search results[].sqlExecutionBinding.parameters or a table-location template; never bind assetName to schemaName.\n\n");
+        prompt.append("- Never put a raw command/query inside a discovered template's parameter container unless that exact field is declared by its parameter schema.\n");
+        prompt.append("- Do not invent template names or bind an asset display name as a database/schema name; use only structured discovery outputs.\n\n");
         prompt.append("Template-governed HTTP/API/SSH execution contract:\n");
         prompt.append("- HTTP/API/SSH execution must follow the same template governance as SQL: discover/select a registered template, read templates[].parameterSchema/requiredParameters/parameterContract/invocationExample, then call the execution tool with only declared parameters.\n");
         prompt.append("- For http_request_execute, use template from http_endpoint_template_query.templates[].templateId and put all endpoint arguments under input.parameters. Do not pass raw url, uri, method, headers, body, host, hostname, ip, or endpointId.\n");
@@ -480,6 +499,7 @@ class AgentPlanner {
                     .append(": ")
                     .append(firstNonBlank(configuredDescription, metadata.getDescription()))
                     .append("\n");
+                appendApplicability(sb, metadata);
             } else {
                 ToolRegistry.Tool simpleTool = toolRegistry.getTool(toolName);
                 String description = simpleTool == null ? "No description available" : simpleTool.getDescription();
@@ -489,6 +509,31 @@ class AgentPlanner {
             }
         }
         return sb.toString();
+    }
+
+    private void appendApplicability(StringBuilder prompt, ToolMetadata metadata) {
+        if (prompt == null || metadata == null) {
+            return;
+        }
+        Map<String, Object> toolMetadata = asMap(metadata.getMetadata());
+        Map<String, Object> mcpMeta = asMap(toolMetadata.get("mcpToolMeta"));
+        Map<String, Object> applicability = asMap(mcpMeta.get("applicability"));
+        if (applicability.isEmpty()) {
+            return;
+        }
+        String summary = stringValue(applicability.get("summary"));
+        String scopeLabel = stringValue(applicability.get("scopeLabel"));
+        List<String> useWhen = stringList(applicability.get("useWhen"));
+        List<String> notFor = stringList(applicability.get("notFor"));
+        prompt.append("  Applicable scope (descriptive metadata only; never authorizes adding, selecting, or replacing tools): ")
+            .append(firstNonBlank(summary, firstNonBlank(scopeLabel, "Declared by MCP publisher")))
+            .append("\n");
+        if (!useWhen.isEmpty()) {
+            prompt.append("  Use when: ").append(String.join("; ", useWhen)).append("\n");
+        }
+        if (!notFor.isEmpty()) {
+            prompt.append("  Not for: ").append(String.join("; ", notFor)).append("\n");
+        }
     }
 
     private String configuredToolDescription(String toolName, Map<String, Object> runtimeAttributes) {
@@ -1362,6 +1407,58 @@ class AgentPlanner {
         return prompt.toString();
     }
 
+    private boolean shouldOptimizeFromExperience(PlanCandidate candidate,
+                                                 PlannerValidationContext validationContext) {
+        if (candidate == null || validationContext == null || validationContext.experiencePrior() == null) {
+            return false;
+        }
+        Map<String, Object> prior = validationContext.experiencePrior();
+        if (prior.isEmpty() || longValue(prior.get("failedCount")) <= 0) {
+            return false;
+        }
+        Object scoreValue = candidate.deterministicScoreDetails().get("experienceFit");
+        int score = scoreValue instanceof Number number ? number.intValue() : 0;
+        return score < 6;
+    }
+
+    private String buildExperienceOptimizationPrompt(String originalPrompt,
+                                                     String previousOutput,
+                                                     PlanCandidate candidate,
+                                                     int nextAttempt,
+                                                     int maxAttempts) {
+        StringBuilder prompt = new StringBuilder(originalPrompt).append("\n\n");
+        prompt.append("The previous plan is runtime-valid, but historical feedback shows a repeated execution weakness.\n");
+        prompt.append("Experience optimization attempt: ").append(nextAttempt).append('/').append(maxAttempts).append("\n");
+        prompt.append("Experience score details: ").append(candidate.deterministicScoreDetails().get("experience")).append("\n");
+        prompt.append("Previous valid plan:\n").append(previousOutput == null ? "" : previousOutput).append("\n\n");
+        prompt.append("Return a complete strict InterpretationPlan JSON that improves only explicit bindings, edge contracts, validation, bounded rewrite, timeout or fallback policy. ");
+        prompt.append("The MCP tool names, required flags, dependency order and user-bound workflow must remain exactly unchanged. ");
+        prompt.append("Do not add, replace, remove, skip or reorder any MCP tool. ");
+        prompt.append("If the previous plan already contains the safest applicable policy, return it unchanged.");
+        return prompt.toString();
+    }
+
+    private boolean sameExperienceWorkflowContract(AgentDecision baseline, AgentDecision candidate) {
+        InterpretationPlan baselinePlan = baseline == null ? null : baseline.interpretationPlan();
+        InterpretationPlan candidatePlan = candidate == null ? null : candidate.interpretationPlan();
+        if (baselinePlan == null || candidatePlan == null) {
+            return baselinePlan == candidatePlan;
+        }
+        List<String> baselineSteps = baselinePlan.steps().stream()
+            .filter(InterpretationPlan.Step::mcpToolAction)
+            .map(step -> canonicalToolName(step.toolName()) + "|" + normalizeIntegerList(step.dependsOn()))
+            .toList();
+        List<String> candidateSteps = candidatePlan.steps().stream()
+            .filter(InterpretationPlan.Step::mcpToolAction)
+            .map(step -> canonicalToolName(step.toolName()) + "|" + normalizeIntegerList(step.dependsOn()))
+            .toList();
+        return baselineSteps.equals(candidateSteps);
+    }
+
+    private List<Integer> normalizeIntegerList(List<Integer> values) {
+        return values == null ? List.of() : values.stream().filter(java.util.Objects::nonNull).toList();
+    }
+
     private PlanRewriteContext planRewriteContext(List<PlanCandidate> candidates) {
         List<PlanCandidate> values = candidates == null ? List.of() : List.copyOf(candidates);
         PlanCandidate last = values.isEmpty() ? null : values.get(values.size() - 1);
@@ -1458,6 +1555,7 @@ class AgentPlanner {
                 "dagValidity", 0,
                 "executionCost", 0,
                 "runtimePolicyFit", 0,
+                "experienceFit", 0,
                 "total", 0
             );
         }
@@ -1467,7 +1565,13 @@ class AgentPlanner {
         int runtimePolicyFit = runtimePolicyFitScore(plan, decision, validationContext);
         Map<String, Object> coverage = coverageScoreDetails(plan, validationContext);
         int coverageScore = ((Number) coverage.getOrDefault("coverageScore", 0)).intValue();
-        int total = Math.max(0, Math.min(100, toolAvailability + dagValidity + executionCost + runtimePolicyFit + coverageScore));
+        Map<String, Object> experience = experienceFitScoreDetails(plan, validationContext);
+        int experienceFit = ((Number) experience.getOrDefault("experienceFit", 0)).intValue();
+        int baseTotal = toolAvailability + dagValidity + executionCost + runtimePolicyFit + coverageScore;
+        boolean experienceApplied = Boolean.TRUE.equals(experience.get("applied"));
+        int total = experienceApplied
+            ? Math.max(0, Math.min(100, (int) Math.round(baseTotal * 0.9D) + experienceFit))
+            : Math.max(0, Math.min(100, baseTotal));
         Map<String, Object> details = new LinkedHashMap<>();
         details.put("toolAvailability", toolAvailability);
         details.put("dagValidity", dagValidity);
@@ -1475,8 +1579,118 @@ class AgentPlanner {
         details.put("runtimePolicyFit", runtimePolicyFit);
         details.put("coverageScore", coverageScore);
         details.put("coverage", coverage);
+        details.put("experienceFit", experienceFit);
+        details.put("experience", experience);
+        details.put("baseTotal", Math.max(0, Math.min(100, baseTotal)));
         details.put("total", total);
         return details;
+    }
+
+    private Map<String, Object> experienceFitScoreDetails(InterpretationPlan plan,
+                                                          PlannerValidationContext validationContext) {
+        Map<String, Object> prior = validationContext == null || validationContext.experiencePrior() == null
+            ? Map.of()
+            : validationContext.experiencePrior();
+        if (prior.isEmpty() || plan == null) {
+            return Map.of("experienceFit", 0, "applied", false, "reasons", List.of());
+        }
+        List<String> reasons = new ArrayList<>();
+        int score = 0;
+        Double confidenceValue = doubleValue(prior.get("confidence"));
+        double confidence = confidenceValue == null ? 0D : confidenceValue;
+        if (confidence > 0D) {
+            int confidenceScore = Math.max(1, (int) Math.round(Math.min(1D, confidence) * 2D));
+            score += confidenceScore;
+            reasons.add("confidence_supported:" + confidenceScore);
+        }
+        String candidateToolChain = plan.steps().stream()
+            .filter(InterpretationPlan.Step::mcpToolAction)
+            .map(InterpretationPlan.Step::toolName)
+            .filter(tool -> tool != null && !tool.isBlank())
+            .map(this::canonicalToolName)
+            .collect(java.util.stream.Collectors.joining(">"));
+        boolean preferredChainMatched = stringList(prior.get("preferredToolChains")).stream()
+            .map(this::canonicalToolChain)
+            .anyMatch(chain -> !chain.isBlank() && chain.equals(candidateToolChain));
+        if (preferredChainMatched) {
+            score += 2;
+            reasons.add("successful_bound_workflow_matched");
+        }
+        long failedCount = longValue(prior.get("failedCount"));
+        if (failedCount > 0) {
+            InterpretationPlan.ExecutionPolicy policy = plan.executionPolicy();
+            if (policy != null && policy.maxRewriteTimes() != null && policy.maxRewriteTimes() > 0) {
+                score += 2;
+                reasons.add("failure_history_has_bounded_rewrite");
+            }
+            if (policy != null && policy.fallbackMode() != null && !policy.fallbackMode().isBlank()) {
+                score += 2;
+                reasons.add("failure_history_has_fallback");
+            }
+        }
+        if (Boolean.TRUE.equals(prior.get("bindingFailureObserved"))
+            && plan.plan() != null
+            && ((plan.plan().bindings() != null && !plan.plan().bindings().isEmpty())
+                || (plan.plan().edgeContracts() != null && !plan.plan().edgeContracts().isEmpty()))) {
+            score += 2;
+            reasons.add("binding_failure_history_has_explicit_contract");
+        }
+        score = Math.min(10, score);
+        Map<String, Object> details = new LinkedHashMap<>();
+        details.put("experienceFit", score);
+        details.put("applied", true);
+        details.put("matchedExperienceIds", stringList(prior.get("matchedExperienceIds")));
+        details.put("workflowMutationAllowed", false);
+        details.put("candidateToolChain", candidateToolChain);
+        details.put("reasons", reasons);
+        return details;
+    }
+
+    private Map<String, Object> experiencePrior(Map<String, Object> runtimeAttributes) {
+        if (runtimeAttributes == null || !(runtimeAttributes.get("experiencePrior") instanceof Map<?, ?> values)) {
+            return Map.of();
+        }
+        Map<String, Object> prior = new LinkedHashMap<>();
+        values.forEach((key, value) -> {
+            if (key != null && value != null) {
+                prior.put(String.valueOf(key), value);
+            }
+        });
+        return Map.copyOf(prior);
+    }
+
+    private String canonicalToolChain(String toolChain) {
+        if (toolChain == null || toolChain.isBlank()) {
+            return "";
+        }
+        return List.of(toolChain.split(">"))
+            .stream()
+            .map(this::canonicalToolName)
+            .filter(value -> !value.isBlank())
+            .collect(java.util.stream.Collectors.joining(">"));
+    }
+
+    private String canonicalToolName(String toolName) {
+        if (toolName == null) {
+            return "";
+        }
+        String normalized = toolName.trim().toLowerCase(Locale.ROOT);
+        int marker = normalized.lastIndexOf("_mcp_server_");
+        return marker >= 0 ? normalized.substring(marker + "_mcp_server_".length()) : normalized;
+    }
+
+    private long longValue(Object value) {
+        if (value instanceof Number number) {
+            return number.longValue();
+        }
+        if (value == null || String.valueOf(value).isBlank()) {
+            return 0L;
+        }
+        try {
+            return Long.parseLong(String.valueOf(value));
+        } catch (NumberFormatException ignored) {
+            return 0L;
+        }
     }
 
     private int toolAvailabilityScore(InterpretationPlan plan, PlannerValidationContext validationContext) {
@@ -2245,7 +2459,7 @@ class AgentPlanner {
         if ("template_query".equals(semantic) || "template_discovery".equals(semantic)) {
             return "template_discovery";
         }
-        if (semantic.endsWith("_asset_query") || "database_asset_search".equals(semantic)) {
+        if (semantic.endsWith("_asset_query")) {
             return "asset_discovery";
         }
         if (semantic.endsWith("_template_query") || semantic.endsWith("_template_search")) {
@@ -2261,36 +2475,18 @@ class AgentPlanner {
         for (String availableTool : availableTools) {
             String semantic = toolSemanticKey(availableTool);
             if (semanticToolName.equals(semantic)
-                || semanticAliasMatches(semanticToolName, semantic)
                 || ("asset_discovery".equals(semanticToolName) && "asset_query".equals(semantic))
                 || ("template_discovery".equals(semanticToolName) && "template_query".equals(semantic))
                 || ("asset_discovery".equals(semanticToolName) && semantic.endsWith("_asset_query"))
-                || ("asset_discovery".equals(semanticToolName) && "database_asset_search".equals(semantic))
                 || ("template_discovery".equals(semanticToolName) && semantic.endsWith("_template_query"))
                 || ("template_discovery".equals(semanticToolName) && semantic.endsWith("_template_search"))
                 || ("asset_query".equals(semanticToolName) && semantic.endsWith("_asset_query"))
-                || ("asset_query".equals(semanticToolName) && "database_asset_search".equals(semantic))
                 || ("template_query".equals(semanticToolName) && semantic.endsWith("_template_query"))
                 || ("template_query".equals(semanticToolName) && semantic.endsWith("_template_search"))) {
                 return availableTool;
             }
         }
         return null;
-    }
-
-    private boolean semanticAliasMatches(String expected, String actual) {
-        if (expected == null || actual == null) {
-            return false;
-        }
-        return switch (expected) {
-            case "database_ops_template_search", "sql_datasource_template_query" ->
-                "database_ops_template_search".equals(actual) || "sql_datasource_template_query".equals(actual);
-            case "business_query_template_search", "database_query_template_query" ->
-                "business_query_template_search".equals(actual) || "database_query_template_query".equals(actual);
-            case "database_asset_search", "sql_datasource_asset_query" ->
-                "database_asset_search".equals(actual) || "sql_datasource_asset_query".equals(actual);
-            default -> false;
-        };
     }
 
     private String toolSemanticKey(String toolName) {
@@ -2322,7 +2518,6 @@ class AgentPlanner {
     private boolean isAssetDiscoverySemantic(String semantic) {
         return "asset_discovery".equals(semantic)
             || "asset_query".equals(semantic)
-            || "database_asset_search".equals(semantic)
             || (semantic != null && semantic.endsWith("_asset_query"));
     }
 
@@ -2413,8 +2608,19 @@ record PlannerValidationContext(
     String documentSearchTool,
     String verificationWebSearchTool,
     List<String> availableTools,
-    String query
+    String query,
+    Map<String, Object> experiencePrior
 ) {
+    PlannerValidationContext(List<String> mandatoryTools,
+                             boolean requireToolBeforeFinal,
+                             boolean requireDocumentWebVerification,
+                             String documentSearchTool,
+                             String verificationWebSearchTool,
+                             List<String> availableTools,
+                             String query) {
+        this(mandatoryTools, requireToolBeforeFinal, requireDocumentWebVerification,
+            documentSearchTool, verificationWebSearchTool, availableTools, query, Map.of());
+    }
 }
 
 record AgentDecision(

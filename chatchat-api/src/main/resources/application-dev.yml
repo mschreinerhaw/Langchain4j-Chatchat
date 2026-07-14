@@ -95,7 +95,12 @@ chatchat:
       connect-timeout-ms: 5000
       request-timeout-ms: 30000
       bulk-batch-size: 200
+      max-query-terms: ${CHATCHAT_OPENSEARCH_MAX_QUERY_TERMS:20}
+      max-query-chars: ${CHATCHAT_OPENSEARCH_MAX_QUERY_CHARS:500}
+      max-permission-roles: ${CHATCHAT_OPENSEARCH_MAX_PERMISSION_ROLES:64}
+      log-query-dsl: ${CHATCHAT_OPENSEARCH_LOG_QUERY_DSL:true}
       embedding:
+        request-timeout-ms: 300000
         enabled: ${CHATCHAT_OPENSEARCH_EMBEDDING_ENABLED:true}
         endpoint: ${CHATCHAT_EMBEDDING_ENDPOINT:https://llm-7upawl16up8649rh.cn-beijing.maas.aliyuncs.com/compatible-mode/v1/embeddings}
         api-key: sk-720436c855ac470bb955388d0e8c9b89

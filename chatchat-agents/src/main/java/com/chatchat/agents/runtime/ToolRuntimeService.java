@@ -1478,6 +1478,7 @@ public class ToolRuntimeService {
         }
         String value = normalizePolicyKey(confirmation);
         return switch (value) {
+            case "inherit", "inherit_policy" -> null;
             case "none", "no", "false", "auto", "auto_execute" -> ToolRuntimeAction.AUTO_EXECUTE;
             case "required_always", "required", "always", "ask_before_execute", "confirm_required", "confirmation_required" ->
                 ToolRuntimeAction.ASK_BEFORE_EXECUTE;

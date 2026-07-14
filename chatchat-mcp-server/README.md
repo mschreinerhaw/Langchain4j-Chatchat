@@ -156,6 +156,33 @@ chatchat:
 
 `max-output-chars`, `retry-attempts`, `failure-threshold`, and `circuit-open-seconds` can be set on defaults, runtime levels, or a specific tool. Keep `retry-attempts` at `0` for SSH/SQL unless the command or query is known to be idempotent.
 
+## OpenSearch search bulkheads
+
+MCP OpenSearch retrieval has separate bounded admission controls for lexical BM25 and vector KNN work. They do not share one large queue: a saturated vector path degrades to BM25, while an exhausted lexical queue returns quickly so the calling asset/template tool can use its existing source-registry fallback. HTTP 429 responses are retried at most once with a short randomized backoff.
+
+```yaml
+chatchat:
+  mcp:
+    lucene:
+      open-search:
+        search-concurrency:
+          enabled: true
+          request-timeout-ms: 8000
+          retry-429-attempts: 1
+          retry-backoff-min-ms: 100
+          retry-backoff-max-ms: 300
+          lexical:
+            max-running: 12
+            queue-capacity: 30
+            queue-timeout-ms: 1500
+          vector:
+            max-running: 4
+            queue-capacity: 10
+            queue-timeout-ms: 500
+```
+
+The request timeout above applies to each OpenSearch `_search` request. The independent internet embedding timeout remains controlled by `embedding.request-timeout-ms` and defaults to five minutes.
+
 ## Web Search anti-blocking controls
 
 The built-in `web_search` tool supports Playwright browser rendering, browser-like request headers, proxy pools, IP rotation, retry-on-block, QPS/concurrency/day limits, isolated cookies, allow-list checks, and request audit logs.

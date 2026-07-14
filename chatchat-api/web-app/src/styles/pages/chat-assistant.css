@@ -4182,6 +4182,16 @@
   font-size: 13px;
 }
 
+.chat-upload-notice {
+  margin: 0;
+  padding: 9px 12px;
+  border: 1px solid #b7e4c7;
+  border-radius: 8px;
+  background: #f0fff4;
+  color: #247a45;
+  font-size: 13px;
+}
+
 .image-context-bar {
   width: min(860px, calc(100% - 28px));
   max-width: 860px;

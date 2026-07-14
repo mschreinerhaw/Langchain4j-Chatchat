@@ -65,6 +65,25 @@ class SearchEngineCompatibilityTest {
     }
 
     @Test
+    void openSearchQueryFailureFallsBackToLocalLucene() {
+        SearchProperties properties = new SearchProperties();
+        properties.setEngine("opensearch");
+        LuceneDocumentIndexService lucene = mock(LuceneDocumentIndexService.class);
+        OpenSearchDocumentIndexService openSearch = mock(OpenSearchDocumentIndexService.class);
+        LuceneSearchHit hit = hit("clause-overflow-fallback");
+        when(openSearch.isAvailable()).thenReturn(true);
+        when(openSearch.search(eq("复杂查询"), eq(10), any(SearchPermissionContext.class)))
+            .thenThrow(new IllegalStateException("too_many_nested_clauses"));
+        when(lucene.isAvailable()).thenReturn(true);
+        when(lucene.search(eq("复杂查询"), eq(10), any(SearchPermissionContext.class))).thenReturn(List.of(hit));
+
+        CompositeDocumentSearchIndexService index = new CompositeDocumentSearchIndexService(properties, lucene, openSearch);
+
+        assertThat(index.search("复杂查询", 10)).containsExactly(hit);
+        verify(lucene).search(eq("复杂查询"), eq(10), any(SearchPermissionContext.class));
+    }
+
+    @Test
     void embeddingClientStaysDisabledForLocalLuceneEngine() {
         SearchProperties properties = new SearchProperties();
         properties.setEngine("lucene");

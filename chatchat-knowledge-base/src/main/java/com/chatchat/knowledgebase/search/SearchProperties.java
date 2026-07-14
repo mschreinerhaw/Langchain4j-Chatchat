@@ -112,6 +112,10 @@ public class SearchProperties {
         private int connectTimeoutMs = 5000;
         private int requestTimeoutMs = 30000;
         private int bulkBatchSize = 200;
+        private int maxQueryTerms = 20;
+        private int maxQueryChars = 500;
+        private int maxPermissionRoles = 64;
+        private boolean logQueryDsl = false;
         private Embedding embedding = new Embedding();
 
         @Getter
@@ -124,6 +128,7 @@ public class SearchProperties {
             private int dimension = 1024;
             private String vectorField = "contentVector";
             private int maxInputChars = 6000;
+            private int requestTimeoutMs = 300000;
             private int vectorCandidateLimit = 50;
             private float bm25Weight = 0.45F;
             private float vectorWeight = 0.35F;

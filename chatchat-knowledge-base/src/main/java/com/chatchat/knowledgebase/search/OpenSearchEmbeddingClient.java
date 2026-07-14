@@ -55,7 +55,7 @@ class OpenSearchEmbeddingClient {
         try {
             HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(config.getEndpoint().trim()))
-                .timeout(Duration.ofMillis(Math.max(1, openSearchConfig().getRequestTimeoutMs())))
+                .timeout(Duration.ofMillis(Math.max(1, config.getRequestTimeoutMs())))
                 .header("Accept", "application/json")
                 .header("Content-Type", "application/json")
                 .header("Authorization", "Bearer " + config.getApiKey().trim())

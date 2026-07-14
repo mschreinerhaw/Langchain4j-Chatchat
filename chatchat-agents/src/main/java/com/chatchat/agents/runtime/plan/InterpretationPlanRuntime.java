@@ -2410,8 +2410,6 @@ public class InterpretationPlanRuntime {
                 input.put("filters", mutableFilters);
             }
         }
-        normalizeTypedDiscoveryRoutingDecision(step, request, input);
-        ensureRoutingDecisionInput(step, request, input);
         sanitizeDiscoveryFilters(input);
         input.putIfAbsent("filtersSchemaVersion", "target_filters.v1");
         Object trace = firstMapValue(input, "trace", "routingTrace", "routing_trace");
@@ -2440,202 +2438,6 @@ public class InterpretationPlanRuntime {
             input.put("executionContext", mutableFilters);
         } else {
             input.put("mcpExecutionContext", mutableFilters);
-        }
-    }
-
-    private void normalizeTypedDiscoveryRoutingDecision(InterpretationPlan.Step step,
-                                                        ExecutionRequest request,
-                                                        Map<String, Object> input) {
-        String targetKind = targetKindFromToolSemanticKey(toolSemanticKey(step == null ? null : step.toolName()));
-        if (targetKind == null || targetKind.isBlank()) {
-            return;
-        }
-        Object currentDecision = firstMapValue(input, "finalDecision", "final_decision", "targetKind", "target_kind");
-        Object currentCandidates = input.get("candidates");
-        boolean needsCorrection = currentDecision == null
-            || String.valueOf(currentDecision).isBlank()
-            || !targetKind.equals(targetKindFromToolSemanticKey(String.valueOf(currentDecision)))
-            || !candidateSetContainsOnlyTargetKind(currentCandidates, targetKind);
-        if (!needsCorrection) {
-            return;
-        }
-        Map<String, Object> trace = mutableRoutingTrace(input, step, request);
-        if (currentDecision != null && !String.valueOf(currentDecision).isBlank()) {
-            trace.put("originalFinalDecision", currentDecision);
-        }
-        if (currentCandidates != null) {
-            trace.put("originalCandidates", currentCandidates);
-        }
-        trace.put("routingForcedByTypedDiscoveryTool", true);
-        trace.put("forcedTargetKind", targetKind);
-        input.put("finalDecision", targetKind);
-        input.put("candidates", List.of(Map.of(
-            "targetKind", targetKind,
-            "confidence", candidateConfidence(currentCandidates, 1.0)
-        )));
-        input.put("trace", trace);
-    }
-
-    private boolean candidateSetContainsOnlyTargetKind(Object candidates, String targetKind) {
-        if (!(candidates instanceof Iterable<?> iterable)) {
-            return false;
-        }
-        boolean seen = false;
-        for (Object item : iterable) {
-            if (!(item instanceof Map<?, ?> map)) {
-                return false;
-            }
-            Object value = firstMapValue(map, "targetKind", "target_kind", "queryDomain", "query_domain", "domain");
-            if (value == null || !targetKind.equals(targetKindFromToolSemanticKey(String.valueOf(value)))) {
-                return false;
-            }
-            seen = true;
-        }
-        return seen;
-    }
-
-    private double candidateConfidence(Object candidates, double fallback) {
-        if (!(candidates instanceof Iterable<?> iterable)) {
-            return fallback;
-        }
-        double max = fallback;
-        for (Object item : iterable) {
-            if (!(item instanceof Map<?, ?> map)) {
-                continue;
-            }
-            Object value = firstMapValue(map, "confidence", "targetConfidence", "routingConfidence");
-            if (value == null) {
-                continue;
-            }
-            try {
-                max = Math.max(max, Double.parseDouble(String.valueOf(value)));
-            } catch (NumberFormatException ignored) {
-                // Ignore malformed model confidence and keep the fallback.
-            }
-        }
-        return max;
-    }
-
-    private void ensureRoutingDecisionInput(InterpretationPlan.Step step,
-                                            ExecutionRequest request,
-                                            Map<String, Object> input) {
-        if (input == null || hasNonBlank(input, "finalDecision", "targetKind", "assetType", "type")) {
-            return;
-        }
-        RoutingInference inference = inferRoutingTargetKind(step, request == null ? null : request.plan(), input);
-        if (inference.ambiguous()) {
-            throw new IllegalStateException("ROUTING_AMBIGUOUS: " + inference.reason());
-        }
-        if (inference.targetKind() == null || inference.targetKind().isBlank()) {
-            throw new IllegalStateException(
-                "ROUTING_TARGET_REQUIRED: missing finalDecision/targetKind and no unique downstream target kind; "
-                    + "planner must regenerate discovery input with candidates[] and finalDecision, or configure "
-                    + "mcpWorkflow/dependsOn so runtime can infer a target kind."
-            );
-        }
-        input.put("finalDecision", inference.targetKind());
-        input.put("candidates", List.of(Map.of(
-            "targetKind", inference.targetKind(),
-            "confidence", 0.8
-        )));
-        Map<String, Object> trace = mutableRoutingTrace(input, step, request);
-        trace.put("routingInferred", true);
-        trace.put("routingInferReason", inference.reason());
-        input.put("trace", trace);
-    }
-
-    private RoutingInference inferRoutingTargetKind(InterpretationPlan.Step step,
-                                                    InterpretationPlan plan,
-                                                    Map<String, Object> input) {
-        if (plan != null && plan.plan() != null && plan.plan().steps() != null && step != null && step.id() != null) {
-            List<String> downstreamTargets = downstreamTargetKinds(plan, step.id());
-            if (downstreamTargets.size() > 1) {
-                return RoutingInference.ambiguous("downstream contains multiple target kinds: " + downstreamTargets);
-            }
-            if (downstreamTargets.size() == 1) {
-                String targetKind = downstreamTargets.get(0);
-                return RoutingInference.inferred(targetKind,
-                    "missing finalDecision/targetKind, inferred from downstream target kind=" + targetKind);
-            }
-        }
-        return RoutingInference.none();
-    }
-
-    private Map<String, Object> mutableRoutingTrace(Map<String, Object> input,
-                                                    InterpretationPlan.Step step,
-                                                    ExecutionRequest request) {
-        Object trace = firstMapValue(input, "trace", "routingTrace", "routing_trace");
-        if (trace instanceof Map<?, ?> traceMap && !traceMap.isEmpty()) {
-            Map<String, Object> mutable = new LinkedHashMap<>();
-            traceMap.forEach((key, value) -> {
-                if (key != null) {
-                    mutable.put(String.valueOf(key), value);
-                }
-            });
-            return mutable;
-        }
-        return routingTraceForStep(step, request);
-    }
-
-    private List<String> downstreamTargetKinds(InterpretationPlan plan, Integer sourceStepId) {
-        if (plan == null || plan.plan() == null || plan.plan().steps() == null || sourceStepId == null) {
-            return List.of();
-        }
-        Set<String> targetKinds = new LinkedHashSet<>();
-        List<Integer> frontier = new ArrayList<>(List.of(sourceStepId));
-        List<Integer> visited = new ArrayList<>();
-        while (!frontier.isEmpty()) {
-            Integer current = frontier.remove(0);
-            if (current == null || visited.contains(current)) {
-                continue;
-            }
-            visited.add(current);
-            for (InterpretationPlan.Step candidate : plan.plan().steps()) {
-                if (candidate == null || candidate.dependsOn() == null || !candidate.dependsOn().contains(current)) {
-                    continue;
-                }
-                String semantic = toolSemanticKey(candidate.toolName());
-                String targetKind = targetKindFromToolSemanticKey(semantic);
-                if (targetKind != null) {
-                    targetKinds.add(targetKind);
-                }
-                frontier.add(candidate.id());
-            }
-        }
-        return new ArrayList<>(targetKinds);
-    }
-
-    private String targetKindFromToolSemanticKey(String semantic) {
-        if (semantic == null || semantic.isBlank()) {
-            return null;
-        }
-        if (semantic.contains("database_query") || semantic.contains("business_database_query")
-            || semantic.contains("business_query_template_search")) {
-            return "business_database_query";
-        }
-        if (semantic.contains("database") || semantic.contains("sql_query")) {
-            return "database";
-        }
-        if (semantic.contains("linux_command") || semantic.contains("ssh")) {
-            return "host";
-        }
-        if (semantic.contains("http")) {
-            return "http";
-        }
-        return null;
-    }
-
-    private record RoutingInference(String targetKind, String reason, boolean ambiguous) {
-        private static RoutingInference inferred(String targetKind, String reason) {
-            return new RoutingInference(targetKind, reason, false);
-        }
-
-        private static RoutingInference ambiguous(String reason) {
-            return new RoutingInference(null, reason, true);
-        }
-
-        private static RoutingInference none() {
-            return new RoutingInference(null, null, false);
         }
     }
 
@@ -2759,6 +2561,10 @@ public class InterpretationPlanRuntime {
             return null;
         }
         Object value = valueAtPath(source.output(), binding.outputPath());
+        if (value != null) {
+            return value;
+        }
+        value = canonicalProtocolValue(source.output(), binding.inputField());
         if (value != null) {
             return value;
         }
@@ -3194,6 +3000,10 @@ public class InterpretationPlanRuntime {
         if (value != null || field == null || field.isBlank()) {
             return value;
         }
+        value = canonicalProtocolValue(output, field);
+        if (value != null) {
+            return value;
+        }
         String key = contractFieldKey(field);
         if ("assettype".equals(key) || "asset.type".equals(key)) {
             return firstValueAtAnyPath(
@@ -3225,6 +3035,40 @@ public class InterpretationPlanRuntime {
             );
         }
         return null;
+    }
+
+    /**
+     * Resolves logical protocol fields from a canonical asset discovery view when a
+     * model emitted a legacy or abbreviated path. Resolution is based on the result
+     * shape, not on a concrete MCP tool name, so user-bound tools remain portable.
+     */
+    private Object canonicalProtocolValue(Object output, String requestedField) {
+        if (output == null || requestedField == null || requestedField.isBlank()) {
+            return null;
+        }
+        Object canonicalAsset = firstValueAtAnyPath(output, "$.assets[0].asset");
+        if (!(canonicalAsset instanceof Map<?, ?>)) {
+            return null;
+        }
+        String key = contractFieldKey(requestedField);
+        return switch (key) {
+            case "assetname", "name", "displayname" -> firstValueAtAnyPath(output,
+                "$.assets[0].asset.name",
+                "$.assets[0].asset.displayName");
+            case "env", "environment" -> firstValueAtAnyPath(output,
+                "$.assets[0].asset.environment",
+                "$.assets[0].asset.env");
+            case "databaserole" -> firstValueAtAnyPath(output,
+                "$.assets[0].asset.databaseRole",
+                "$.assets[0].asset.database_role");
+            case "assettype", "asset.type" -> firstValueAtAnyPath(output,
+                "$.assets[0].asset.type",
+                "$.assets[0].asset.assetType");
+            case "toolname" -> firstValueAtAnyPath(output,
+                "$.assets[0].asset.toolName",
+                "$.assets[0].asset.tool_name");
+            default -> null;
+        };
     }
 
     private Object firstValueAtAnyPath(Object output, String... paths) {

@@ -36,6 +36,34 @@ public class LuceneSearchProperties {
         private int requestTimeoutMs = 30000;
         private boolean debugSearch = false;
         private Embedding embedding = new Embedding();
+        private SearchConcurrency searchConcurrency = new SearchConcurrency();
+
+        @Data
+        public static class SearchConcurrency {
+            private boolean enabled = true;
+            private int requestTimeoutMs = 8000;
+            private int retry429Attempts = 1;
+            private int retryBackoffMinMs = 100;
+            private int retryBackoffMaxMs = 300;
+            private Limit lexical = new Limit(12, 30, 1500);
+            private Limit vector = new Limit(4, 10, 500);
+        }
+
+        @Data
+        public static class Limit {
+            private int maxRunning;
+            private int queueCapacity;
+            private int queueTimeoutMs;
+
+            public Limit() {
+            }
+
+            public Limit(int maxRunning, int queueCapacity, int queueTimeoutMs) {
+                this.maxRunning = maxRunning;
+                this.queueCapacity = queueCapacity;
+                this.queueTimeoutMs = queueTimeoutMs;
+            }
+        }
 
         @Data
         public static class Embedding {
@@ -46,6 +74,7 @@ public class LuceneSearchProperties {
             private int dimension = 1024;
             private String vectorField = "mcpContentVector";
             private int maxInputChars = 6000;
+            private int requestTimeoutMs = 300000;
             private int vectorCandidateLimit = 50;
             private float bm25Weight = 0.55F;
             private float vectorWeight = 0.45F;

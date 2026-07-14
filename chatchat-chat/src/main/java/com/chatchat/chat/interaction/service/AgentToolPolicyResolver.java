@@ -51,10 +51,8 @@ public class AgentToolPolicyResolver {
             availableTools = discoverDefaultTools(request.getSkillId());
         }
         availableTools = normalizeToolNames(availableTools);
-        availableTools = applyExecutionContextRouting(request, availableTools);
 
         WorkflowToolResolution workflowTools = resolveRequiredWorkflowTools(skill, availableTools);
-        availableTools = mergeToolNames(availableTools, workflowTools.autoAddedTools());
 
         boolean documentWorkflowRequested = isDocumentWorkflowRequested(request, skill);
         if (documentWorkflowRequested) {
@@ -107,85 +105,6 @@ public class AgentToolPolicyResolver {
                 .add(tool.localToolName())
         );
         return skillCatalogService.resolveTools(skillId, agentVisibleToolNames(), mcpToolsByServiceId);
-    }
-
-    private List<String> applyExecutionContextRouting(InteractionRequest request, List<String> availableTools) {
-        if (!hasExecutionContext(request)) {
-            return availableTools;
-        }
-        List<McpToolRegistryBridge.RegisteredMcpTool> registeredTools = mcpToolRegistryBridge.listRegisteredTools();
-        if (registeredTools.isEmpty()) {
-            return availableTools;
-        }
-        Map<String, McpToolRegistryBridge.RegisteredMcpTool> toolsByLocalName = new LinkedHashMap<>();
-        for (McpToolRegistryBridge.RegisteredMcpTool tool : registeredTools) {
-            toolsByLocalName.put(tool.localToolName(), tool);
-        }
-        String linuxGateway = registeredTools.stream()
-            .filter(tool -> "linux_command_execute".equals(tool.remoteToolName()))
-            .map(McpToolRegistryBridge.RegisteredMcpTool::localToolName)
-            .filter(toolRegistry::hasTool)
-            .findFirst()
-            .orElse(null);
-        String sqlGateway = registeredTools.stream()
-            .filter(tool -> "sql_query_execute".equals(tool.remoteToolName()))
-            .map(McpToolRegistryBridge.RegisteredMcpTool::localToolName)
-            .filter(toolRegistry::hasTool)
-            .findFirst()
-            .orElse(null);
-        String httpGateway = registeredTools.stream()
-            .filter(tool -> "http_request_execute".equals(tool.remoteToolName()))
-            .map(McpToolRegistryBridge.RegisteredMcpTool::localToolName)
-            .filter(toolRegistry::hasTool)
-            .findFirst()
-            .orElse(null);
-        if (linuxGateway == null && sqlGateway == null && httpGateway == null) {
-            return availableTools;
-        }
-
-        LinkedHashSet<String> routed = new LinkedHashSet<>();
-        boolean removedLinuxAsset = false;
-        boolean removedSqlAsset = false;
-        boolean removedHttpAsset = false;
-        for (String toolName : normalizeToolNames(availableTools)) {
-            McpToolRegistryBridge.RegisteredMcpTool registered = toolsByLocalName.get(toolName);
-            String remoteToolName = registered == null ? "" : normalizeToolName(registered.remoteToolName());
-            if (linuxGateway != null && remoteToolName.startsWith("ssh_")) {
-                removedLinuxAsset = true;
-                continue;
-            }
-            if (sqlGateway != null && remoteToolName.startsWith("db_query_")) {
-                removedSqlAsset = true;
-                continue;
-            }
-            if (httpGateway != null && remoteToolName.startsWith("http_")
-                && !"http_request_execute".equals(remoteToolName)) {
-                removedHttpAsset = true;
-                continue;
-            }
-            routed.add(toolName);
-        }
-        if (removedLinuxAsset && linuxGateway != null) {
-            routed.add(linuxGateway);
-        }
-        if (removedSqlAsset && sqlGateway != null) {
-            routed.add(sqlGateway);
-        }
-        if (removedHttpAsset && httpGateway != null) {
-            routed.add(httpGateway);
-        }
-        return new ArrayList<>(routed);
-    }
-
-    private boolean hasExecutionContext(InteractionRequest request) {
-        if (request == null || request.getToolInput() == null) {
-            return false;
-        }
-        Object context = request.getToolInput().get("mcpExecutionContext");
-        if (!(context instanceof Map<?, ?>)) {
-            context = request.getToolInput().get("executionContext");
-        }
-        return context instanceof Map<?, ?> map && !map.isEmpty();
     }
 
     /**
@@ -280,11 +199,11 @@ public class AgentToolPolicyResolver {
                 skipped.put(configuredTool, "required workflow tool is not registered in MCP registry");
                 continue;
             }
-            requiredTools.add(localTool);
             if (!normalizedAvailableTools.contains(localTool)) {
-                autoAddedTools.add(localTool);
-                normalizedAvailableTools = mergeToolNames(normalizedAvailableTools, List.of(localTool));
+                skipped.put(configuredTool, "required workflow tool is not bound/available for this Agent");
+                continue;
             }
+            requiredTools.add(localTool);
         }
         return new WorkflowToolResolution(
             new ArrayList<>(requiredTools),
@@ -362,34 +281,7 @@ public class AgentToolPolicyResolver {
                 return registeredTool.localToolName();
             }
         }
-        List<String> aliases = workflowToolAliases(normalized);
-        for (McpToolRegistryBridge.RegisteredMcpTool registeredTool : registeredTools) {
-            if (registeredTool == null || !toolRegistry.hasTool(registeredTool.localToolName())) {
-                continue;
-            }
-            String remote = normalizeToolName(registeredTool.remoteToolName());
-            String local = normalizeToolName(registeredTool.localToolName());
-            for (String alias : aliases) {
-                if (alias.equals(remote) || local.endsWith("_" + alias)) {
-                    return registeredTool.localToolName();
-                }
-            }
-        }
         return null;
-    }
-
-    private List<String> workflowToolAliases(String normalizedToolName) {
-        return switch (normalizedToolName) {
-            case "asset_query", "asset_discovery" -> List.of("asset_query");
-            case "template_query", "template_retrieval" -> List.of("template_query");
-            case "database_query", "database_diagnosis", "sql_query" ->
-                List.of("business_query_template_search", "database_query_template_query", "database_query", "sql_query_execute");
-            case "database_execute", "sql_execute", "database_change" ->
-                List.of("database_execute", "sql_execute", "sql_write_execute");
-            case "host_diagnosis", "linux_command", "linux_command_execute" ->
-                List.of("linux_command_execute");
-            default -> List.of(normalizedToolName);
-        };
     }
 
     /**

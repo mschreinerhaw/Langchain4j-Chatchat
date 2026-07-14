@@ -49,6 +49,16 @@ public class AgentRuntimeGovernanceFactory {
             putAlias(meta, "timeoutMillis", metadata.getTimeoutMillis());
             putAlias(meta, "timeout_ms", metadata.getTimeoutMillis());
         }
+        if (metadata != null && metadata.getMetadata() != null) {
+            Object applicability = metadata.getMetadata().get("applicability");
+            if (applicability instanceof Map<?, ?>) {
+                meta.put("applicability", applicability);
+            }
+            Object tags = metadata.getMetadata().get("tags");
+            if (tags instanceof Iterable<?>) {
+                meta.put("tags", tags);
+            }
+        }
         return meta;
     }
 

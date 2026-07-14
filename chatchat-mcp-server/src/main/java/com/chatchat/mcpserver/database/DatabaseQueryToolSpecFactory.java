@@ -1,5 +1,6 @@
 package com.chatchat.mcpserver.database;
 
+import com.chatchat.mcpserver.mcp.McpToolApplicability;
 import com.chatchat.agents.protocol.ModelProtocolJson;
 
 import com.chatchat.common.tool.ToolOutput;
@@ -239,6 +240,14 @@ public class DatabaseQueryToolSpecFactory {
         ));
         values.put("routingLabels", readJsonList(config.getRoutingLabelsJson()));
         values.put("capabilities", readJsonList(config.getCapabilitiesJson()));
+        values.put(McpToolApplicability.META_KEY, McpToolApplicability.of(
+            "database_query:business_query_execution",
+            "Business database query: " + config.getToolName(),
+            List.of("database_query"),
+            "Execute the published business-query template " + config.getToolName() + " with its declared parameters.",
+            List.of("The bound tool directly represents the requested registered business query."),
+            List.of("Database operations analysis", "Ad-hoc SQL", "Schema discovery", "Selecting or replacing Agent-bound tools")
+        ));
         return values;
     }
 

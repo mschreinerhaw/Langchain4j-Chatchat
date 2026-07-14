@@ -87,12 +87,18 @@ public class AgentChatModeHandler implements InteractionModeHandler {
         SkillDefinition skill = skillCatalogService.resolve(request.getSkillId());
         AgentToolPolicyResolver.ToolPolicy toolPolicy = toolPolicyResolver.resolve(request, skill);
         Map<String, Object> executionContext = mcpExecutionContext(request, skill);
-        String experienceContext = learningService == null ? "" : learningService.buildRuntimeExperienceContext(
+        AgentLearningService.RuntimeExperienceContext runtimeExperience = learningService == null
+            ? AgentLearningService.RuntimeExperienceContext.empty()
+            : learningService.resolveRuntimeExperience(
                 request.getTenantId(),
                 skill == null ? request.getSkillId() : skill.id(),
                 request.getQuery(),
                 toolPolicy.availableTools()
             );
+        if (runtimeExperience == null) {
+            runtimeExperience = AgentLearningService.RuntimeExperienceContext.empty();
+        }
+        String experienceContext = runtimeExperience.prompt();
         String systemPrompt = appendResponseContract(
             appendDefaultDataAssetPolicy(
                 appendMcpExecutionContext(
@@ -107,7 +113,10 @@ public class AgentChatModeHandler implements InteractionModeHandler {
             ? skill.modelName()
             : request.getModelName();
 
-        Map<String, Object> runtimeAttributes = runtimeAttributes(request, skill, executionContext);
+        Map<String, Object> runtimeAttributes = new LinkedHashMap<>(runtimeAttributes(request, skill, executionContext));
+        if (!runtimeExperience.plannerPrior().isEmpty()) {
+            runtimeAttributes.put("experiencePrior", runtimeExperience.plannerPrior());
+        }
         AgentRunResult result = executeThroughRuntime(
             request,
             context,
@@ -134,6 +143,10 @@ public class AgentChatModeHandler implements InteractionModeHandler {
         metadata.put("historyUsed", context.history() == null ? 0 : context.history().size());
         metadata.put("summaryUsed", context.conversationSummary() != null && !context.conversationSummary().isBlank());
         metadata.put("experienceHintsUsed", !experienceContext.isBlank());
+        metadata.put("matchedExperienceIds", runtimeExperience.matchedExperienceIds());
+        if (!runtimeExperience.plannerPrior().isEmpty()) {
+            metadata.put("experiencePrior", runtimeExperience.plannerPrior());
+        }
         if (!executionContext.isEmpty()) {
             metadata.put("mcpExecutionContext", executionContext);
         }

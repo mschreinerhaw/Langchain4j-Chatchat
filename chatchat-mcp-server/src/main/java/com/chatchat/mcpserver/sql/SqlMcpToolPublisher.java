@@ -5,6 +5,7 @@ import com.chatchat.mcpserver.config.ChatChatMcpServerProperties;
 import com.chatchat.mcpserver.database.DatabaseQueryConfig;
 import com.chatchat.mcpserver.database.DatabaseQueryConfigService;
 import com.chatchat.mcpserver.database.DatabaseQueryInvokeService;
+import com.chatchat.mcpserver.mcp.McpToolApplicability;
 import com.chatchat.mcpserver.tool.AgentRuntimeGovernanceFactory;
 import com.chatchat.mcpserver.tool.McpToolConcurrencyManager;
 import com.chatchat.mcpserver.tool.StandardToolExecutionResultFactory;
@@ -629,6 +630,14 @@ public class SqlMcpToolPublisher {
             governanceFactory.toMeta("sql_gateway", "sql_query_execute", governance, null));
         meta.put("runtime_action", "confirm_required");
         meta.put("runtimeAction", "confirm_required");
+        meta.put(McpToolApplicability.META_KEY, McpToolApplicability.of(
+            "sql_datasource:template_execution",
+            "Governed SQL query execution",
+            List.of("sql_datasource", "database_query"),
+            "Execute a registered read-only SQL template against a logically routed SQL datasource.",
+            List.of("A bound plan already has a registered template id, validated parameters and a logical execution target."),
+            List.of("Ad-hoc raw SQL", "Write or DDL statements", "Schema discovery", "Selecting or replacing Agent-bound tools")
+        ));
         meta.put("allowedStatements", List.of("SELECT", "SHOW", "DESCRIBE", "EXPLAIN"));
         meta.put("templateRegistrySupported", true);
         meta.put("targetRoutingRequired", true);
@@ -661,6 +670,14 @@ public class SqlMcpToolPublisher {
             governanceFactory.toMeta("sql_gateway", "sql_script_execute", governance, null));
         meta.put("runtime_action", "confirm_required");
         meta.put("runtimeAction", "confirm_required");
+        meta.put(McpToolApplicability.META_KEY, McpToolApplicability.of(
+            "sql_datasource:script_execution",
+            "Governed read-only SQL script execution",
+            List.of("sql_datasource"),
+            "Execute a bounded multi-statement read-only SQL script against a logically routed datasource.",
+            List.of("A bound workflow explicitly requires multiple read-only result sets and has a logical target."),
+            List.of("Write or DDL statements", "Single-template business queries", "Schema discovery", "Selecting or replacing Agent-bound tools")
+        ));
         meta.put("allowedStatements", List.of("SELECT", "SHOW", "DESCRIBE", "DESC", "EXPLAIN"));
         meta.put("maxStatements", 10);
         meta.put("returnsMultipleResultSets", true);
@@ -689,6 +706,14 @@ public class SqlMcpToolPublisher {
             governanceFactory.toMeta("sql_gateway", "sql_metadata_search", governance, null));
         meta.put("runtime_action", "allow");
         meta.put("runtimeAction", "allow");
+        meta.put(McpToolApplicability.META_KEY, McpToolApplicability.of(
+            "sql_datasource:schema_discovery",
+            "SQL schema metadata discovery",
+            List.of("sql_datasource"),
+            "Search indexed database, table and column metadata without executing business SQL.",
+            List.of("The model needs schema facts to understand or prepare a query for a bound SQL tool."),
+            List.of("Executing SQL", "Reading business row data", "Selecting or replacing Agent-bound tools")
+        ));
         meta.put("outputSchema", SqlMetadataSearchService.RESULT_SCHEMA_VERSION);
         meta.put("toolResultInstruction", String.join("\n",
             "SQL metadata search result contract:",
@@ -718,8 +743,7 @@ public class SqlMcpToolPublisher {
             "detailPath", "topTables",
             "tableLocationPath", "topTables[].location",
             "executionContextPath", "topTables[].sqlExecutionBinding.executionContext",
-            "templateParameterPath", "topTables[].sqlExecutionBinding.parameters",
-            "nextTool", "database_ops_template_search then sql_query_execute"
+            "templateParameterPath", "topTables[].sqlExecutionBinding.parameters"
         ));
         meta.put("mcp_tool_limit", concurrencyManager.limitMeta("sql_metadata_search", "sql"));
         return meta;

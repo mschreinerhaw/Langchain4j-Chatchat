@@ -195,6 +195,7 @@ export default {
       agentPage: 1,
       agentPageSize: 6,
       toolSearchQuery: "",
+      toolBackendServiceTypeFilter: "all",
       toolGroupMode: "service",
       error: "",
       dialogError: "",
@@ -257,26 +258,47 @@ export default {
     normalizedMcpTools() {
       return this.registeredMcpTools
         .filter((tool) => tool?.localToolName)
-        .map((tool) => ({
-          ...tool,
-          localToolName: String(tool.localToolName),
-          serviceName: tool.serviceName || "",
-          serviceId: tool.serviceId || "",
-          displayName: tool.displayName || "",
-          remoteToolName: tool.remoteToolName || "",
-          description: tool.description || "",
-          outputType: tool.outputType || "",
-          categories: Array.isArray(tool.categories) ? tool.categories.filter(Boolean) : [],
-          tags: Array.isArray(tool.tags) ? tool.tags.filter(Boolean) : [],
-          parameters: Array.isArray(tool.parameters) ? tool.parameters : []
-        }));
+        .map((tool) => {
+          const applicability = tool.applicability && typeof tool.applicability === "object"
+            ? tool.applicability
+            : {};
+          const declaredBackendTypes = Array.isArray(applicability.backendServiceTypes)
+            ? applicability.backendServiceTypes.map((type) => String(type || "").trim().toLowerCase()).filter(Boolean)
+            : [];
+          const legacyBackendType = String(tool.backendServiceType || "").trim().toLowerCase();
+          const backendServiceTypes = uniqueList([
+            ...declaredBackendTypes,
+            ...(legacyBackendType ? [legacyBackendType] : [])
+          ]);
+          return {
+            ...tool,
+            localToolName: String(tool.localToolName),
+            serviceName: tool.serviceName || "",
+            serviceId: tool.serviceId || "",
+            displayName: tool.displayName || "",
+            remoteToolName: tool.remoteToolName || "",
+            description: tool.description || "",
+            backendServiceType: legacyBackendType || backendServiceTypes[0] || "",
+            backendServiceTypes,
+            outputType: tool.outputType || "",
+            category: tool.category || "",
+            categories: Array.isArray(tool.categories) ? tool.categories.filter(Boolean) : [],
+            tags: Array.isArray(tool.tags) ? tool.tags.filter(Boolean) : [],
+            parameters: Array.isArray(tool.parameters) ? tool.parameters : [],
+            applicability,
+            applicabilitySummary: applicability.summary || applicability.scopeLabel || ""
+          };
+        });
     },
     filteredMcpTools() {
       const keyword = this.toolSearchQuery.trim().toLowerCase();
-      if (!keyword) {
-        return this.normalizedMcpTools;
-      }
-      return this.normalizedMcpTools.filter((tool) => this.toolSearchText(tool).includes(keyword));
+      return this.normalizedMcpTools.filter((tool) => {
+        const typeMatches = this.toolBackendServiceTypeFilter === "all"
+          || (this.toolBackendServiceTypeFilter === "undeclared" && !tool.backendServiceTypes.length)
+          || tool.backendServiceTypes.includes(this.toolBackendServiceTypeFilter);
+        const keywordMatches = !keyword || this.toolSearchText(tool).includes(keyword);
+        return typeMatches && keywordMatches;
+      });
     },
     mcpToolGroups() {
       const selected = new Set(this.selectedToolNames);
@@ -334,7 +356,9 @@ export default {
     },
     mcpToolGroupSummary() {
       if (!this.filteredMcpTools.length) {
-        return this.toolSearchQuery ? "没有匹配工具" : "暂无工具";
+        return this.toolSearchQuery || this.toolBackendServiceTypeFilter !== "all"
+          ? "没有匹配工具"
+          : "暂无工具";
       }
       return `${this.mcpToolGroups.length} 个${this.toolGroupModeLabel}分组`;
     },
@@ -344,6 +368,20 @@ export default {
         { value: "category", label: "按分类" },
         { value: "tag", label: "按标签" }
       ];
+    },
+    mcpBackendServiceTypeOptions() {
+      const types = uniqueList(this.normalizedMcpTools
+        .flatMap((tool) => tool.backendServiceTypes)
+        .filter(Boolean))
+        .sort((left, right) => this.backendServiceTypeLabel(left).localeCompare(this.backendServiceTypeLabel(right), "zh-CN"));
+      const options = [
+        { value: "all", label: "全部后端类型" },
+        ...types.map((type) => ({ value: type, label: this.backendServiceTypeLabel(type) }))
+      ];
+      if (this.normalizedMcpTools.some((tool) => !tool.backendServiceTypes.length)) {
+        options.push({ value: "undeclared", label: "未声明类型" });
+      }
+      return options;
     },
     importPreviewLabel() {
       if (this.importItems.length) {
@@ -446,7 +484,14 @@ export default {
         tool?.description,
         tool?.serviceId,
         tool?.serviceName,
+        tool?.backendServiceType,
         tool?.outputType,
+        tool?.applicability?.scopeId,
+        tool?.applicability?.scopeLabel,
+        tool?.applicability?.summary,
+        ...(Array.isArray(tool?.applicability?.backendServiceTypes) ? tool.applicability.backendServiceTypes : []),
+        ...(Array.isArray(tool?.applicability?.useWhen) ? tool.applicability.useWhen : []),
+        ...(Array.isArray(tool?.applicability?.notFor) ? tool.applicability.notFor : []),
         ...(tool?.categories || []),
         ...(tool?.tags || []),
         ...(tool?.parameters || []).flatMap((parameter) => [
@@ -456,6 +501,37 @@ export default {
         ])
       ];
       return fields.map((field) => String(field || "").toLowerCase()).join(" ");
+    },
+    backendServiceTypeLabel(type) {
+      const normalized = String(type || "").trim().toLowerCase();
+      const labels = {
+        sql_datasource: "SQL 数据源",
+        database_query: "数据库业务查询",
+        ssh_host: "SSH 主机",
+        http_endpoint: "HTTP 端点",
+        api_service: "API 服务",
+        web: "Web 服务",
+        data: "数据服务"
+      };
+      return labels[normalized] || String(type || "未声明类型");
+    },
+    backendServiceTypesLabel(tool) {
+      const types = Array.isArray(tool?.backendServiceTypes) ? tool.backendServiceTypes : [];
+      return types.length ? types.map((type) => this.backendServiceTypeLabel(type)).join(" / ") : "未声明类型";
+    },
+    applicabilityTooltip(tool) {
+      const applicability = tool?.applicability || {};
+      const lines = [tool?.localToolName];
+      if (applicability.summary || applicability.scopeLabel) {
+        lines.push(`适用范围：${applicability.summary || applicability.scopeLabel}`);
+      }
+      if (Array.isArray(applicability.useWhen) && applicability.useWhen.length) {
+        lines.push(`适合：${applicability.useWhen.join("；")}`);
+      }
+      if (Array.isArray(applicability.notFor) && applicability.notFor.length) {
+        lines.push(`不适合：${applicability.notFor.join("；")}`);
+      }
+      return lines.filter(Boolean).join("\n");
     },
     documentSearchText(document) {
       const fields = [
@@ -1035,12 +1111,15 @@ export default {
       const selectedSet = new Set(selected);
       const steps = selected.map((toolName, index) => {
         const existing = byTool.get(toolName) || {};
+        const confirmation = existing.confirmation && String(existing.confirmation).trim()
+          ? String(existing.confirmation).trim()
+          : "auto_execute";
         return {
           step: index + 1,
           tool: toolName,
           required: existing.required !== false,
           condition: existing.condition || "",
-          confirmation: existing.confirmation || "",
+          confirmation,
           dependsOn: uniqueList(Array.isArray(existing.dependsOn) ? existing.dependsOn : [])
             .filter((dependency) => selectedSet.has(dependency) && dependency !== toolName)
         };

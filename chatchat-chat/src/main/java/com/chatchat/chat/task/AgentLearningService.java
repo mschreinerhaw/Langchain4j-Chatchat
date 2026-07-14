@@ -17,6 +17,9 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
+import java.util.LinkedHashSet;
+import java.util.Comparator;
 
 @Slf4j
 @Service
@@ -101,39 +104,71 @@ public class AgentLearningService {
     }
 
     public String buildRuntimeExperienceContext(String tenantId, String agentId, String query, List<String> availableTools) {
+        return resolveRuntimeExperience(tenantId, agentId, query, availableTools).prompt();
+    }
+
+    public RuntimeExperienceContext resolveRuntimeExperience(String tenantId,
+                                                             String agentId,
+                                                             String query,
+                                                             List<String> availableTools) {
         if (!properties.isEnabled() || tenantId == null || tenantId.isBlank()) {
-            return "";
+            return RuntimeExperienceContext.empty();
         }
         String scenario = scenarioKey(query);
         String intentType = intentType(query, null);
-        List<AgentExperienceIndexEntity> candidates = indexRepository.findRuntimeCandidates(
+        int candidateLimit = Math.max(6, Math.min(properties.getRuntimeCandidateLimit(), 100));
+        Map<String, AgentExperienceIndexEntity> candidateMap = new LinkedHashMap<>();
+        addRuntimeCandidates(candidateMap, indexRepository.findRuntimeCandidates(
             tenantId.trim(),
             normalizeNullable(agentId),
             scenario,
             intentType,
-            PageRequest.of(0, 6)
-        );
-        if (candidates.isEmpty()) {
-            candidates = indexRepository.findRuntimeCandidates(
+            PageRequest.of(0, candidateLimit)
+        ));
+        addRuntimeCandidates(candidateMap, indexRepository.findRuntimeCandidates(
+            tenantId.trim(),
+            normalizeNullable(agentId),
+            null,
+            intentType,
+            PageRequest.of(0, candidateLimit)
+        ));
+        if (candidateMap.size() < candidateLimit) {
+            addRuntimeCandidates(candidateMap, indexRepository.findRuntimeCandidates(
                 tenantId.trim(),
-                normalizeNullable(agentId),
+                null,
                 null,
                 intentType,
-                PageRequest.of(0, 6)
-            );
+                PageRequest.of(0, candidateLimit)
+            ));
         }
-        List<AgentExperienceIndexEntity> matched = candidates.stream()
-            .filter(index -> matchesRuntimeFilters(index, query, availableTools))
-            .limit(3)
+        int hintLimit = Math.max(1, Math.min(properties.getRuntimeHintLimit(), 10));
+        List<RuntimeMatch> matched = candidateMap.values().stream()
+            .map(index -> runtimeMatch(index, scenario, query, availableTools))
+            .filter(match -> match.score() > 0D)
+            .filter(this::runtimeSampleEligible)
+            .sorted(Comparator.comparingDouble(RuntimeMatch::score).reversed()
+                .thenComparing(match -> match.index().getUpdatedAt(), Comparator.nullsLast(Comparator.reverseOrder())))
+            .limit(hintLimit)
             .toList();
         if (matched.isEmpty()) {
-            return "";
+            return RuntimeExperienceContext.empty();
         }
         StringBuilder builder = new StringBuilder("Experience hints from structured runtime index:\n");
-        for (AgentExperienceIndexEntity index : matched) {
-            builder.append("- Scenario: ").append(index.getScenario())
+        List<Map<String, Object>> hints = new ArrayList<>();
+        Set<String> preferredToolChains = new LinkedHashSet<>();
+        Set<String> avoidToolChains = new LinkedHashSet<>();
+        long totalSamples = 0L;
+        long totalFailures = 0L;
+        double weightedConfidence = 0D;
+        boolean bindingFailureObserved = false;
+        for (RuntimeMatch match : matched) {
+            AgentExperienceIndexEntity index = match.index();
+            double confidence = successConfidence(index);
+            builder.append("- Experience ID: ").append(index.getId())
+                .append(", scenario: ").append(index.getScenario())
                 .append(", intent: ").append(firstText(index.getIntentType(), "general"))
                 .append(", successRate: ").append(round(index.getSuccessRate())).append("%")
+                .append(", confidence: ").append(round(confidence))
                 .append(", samples: ").append(index.getSampleCount()).append("\n");
             if (index.getBestPractice() != null && !index.getBestPractice().isBlank()) {
                 builder.append("  Best practice: ").append(index.getBestPractice()).append("\n");
@@ -141,9 +176,130 @@ public class AgentLearningService {
             if (index.getAvoidPattern() != null && !index.getAvoidPattern().isBlank()) {
                 builder.append("  Avoid: ").append(index.getAvoidPattern()).append("\n");
             }
+            Map<String, Object> hint = new LinkedHashMap<>();
+            hint.put("experienceIndexId", index.getId());
+            hint.put("scenario", index.getScenario());
+            hint.put("intentType", index.getIntentType());
+            hint.put("toolChain", firstText(index.getToolChain(), ""));
+            hint.put("errorCode", firstText(index.getErrorCode(), ""));
+            hint.put("sampleCount", index.getSampleCount());
+            hint.put("failedCount", index.getFailedCount());
+            hint.put("successRate", round(index.getSuccessRate()));
+            hint.put("confidence", round(confidence));
+            hint.put("matchScore", round(match.score()));
+            hints.add(hint);
+            totalSamples += index.getSampleCount();
+            totalFailures += index.getFailedCount();
+            weightedConfidence += confidence * Math.max(1L, index.getSampleCount());
+            String toolChain = firstText(index.getToolChain(), "");
+            if (!toolChain.isBlank() && index.getSuccessRate() >= 67D) {
+                preferredToolChains.add(toolChain);
+            }
+            if (!toolChain.isBlank() && (index.getFailedCount() > 0 || index.getSuccessRate() <= 33D)) {
+                avoidToolChains.add(toolChain);
+            }
+            bindingFailureObserved = bindingFailureObserved
+                || firstText(index.getErrorCode(), "").toUpperCase(Locale.ROOT).contains("BINDING");
         }
-        builder.append("Use these hints as prior experience, but verify against the current user question and runtime evidence.");
-        return builder.toString();
+        builder.append("Use these hints only to improve bindings, validation, retry and fallback policy. ")
+            .append("Never add, replace, remove or reorder the user's bound workflow tools.");
+        Map<String, Object> plannerPrior = new LinkedHashMap<>();
+        plannerPrior.put("schemaVersion", "agent_experience_prior.v1");
+        plannerPrior.put("matchedExperienceIds", hints.stream().map(hint -> hint.get("experienceIndexId")).toList());
+        plannerPrior.put("hints", hints);
+        plannerPrior.put("preferredToolChains", List.copyOf(preferredToolChains));
+        plannerPrior.put("avoidToolChains", List.copyOf(avoidToolChains));
+        plannerPrior.put("sampleCount", totalSamples);
+        plannerPrior.put("failedCount", totalFailures);
+        plannerPrior.put("confidence", round(totalSamples <= 0 ? 0D : weightedConfidence / totalSamples));
+        plannerPrior.put("bindingFailureObserved", bindingFailureObserved);
+        plannerPrior.put("workflowMutationAllowed", false);
+        return new RuntimeExperienceContext(builder.toString(), List.copyOf(hints), Map.copyOf(plannerPrior));
+    }
+
+    private void addRuntimeCandidates(Map<String, AgentExperienceIndexEntity> target,
+                                      List<AgentExperienceIndexEntity> candidates) {
+        if (candidates == null) {
+            return;
+        }
+        for (AgentExperienceIndexEntity candidate : candidates) {
+            if (candidate != null && candidate.getId() != null) {
+                target.putIfAbsent(candidate.getId(), candidate);
+            }
+        }
+    }
+
+    private RuntimeMatch runtimeMatch(AgentExperienceIndexEntity index,
+                                      String scenario,
+                                      String query,
+                                      List<String> availableTools) {
+        if (index == null) {
+            return new RuntimeMatch(index, 0D);
+        }
+        double score = 0D;
+        if (scenario != null && scenario.equals(index.getScenario())) {
+            score += 5D;
+        }
+        String queryText = query == null ? "" : query.toLowerCase(Locale.ROOT);
+        long keywordMatches = splitValues(index.getKeywords()).stream()
+            .filter(value -> queryText.contains(value.toLowerCase(Locale.ROOT)))
+            .count();
+        score += Math.min(4D, keywordMatches * 1.5D);
+        if (score <= 0D) {
+            return new RuntimeMatch(index, 0D);
+        }
+        if (availableTools != null && index.getToolName() != null
+            && availableTools.stream().anyMatch(tool -> sameToolName(tool, index.getToolName()))) {
+            score += 0.5D;
+        }
+        score += Math.min(1.5D, successConfidence(index) * 1.5D);
+        return new RuntimeMatch(index, score);
+    }
+
+    private boolean runtimeSampleEligible(RuntimeMatch match) {
+        AgentExperienceIndexEntity index = match.index();
+        if (index == null) {
+            return false;
+        }
+        int minimumSamples = Math.max(1, properties.getMinimumRuntimeSamples());
+        return index.getSampleCount() >= minimumSamples
+            || (index.getFailedCount() > 0 && match.score() >= 2D);
+    }
+
+    private double successConfidence(AgentExperienceIndexEntity index) {
+        if (index == null || index.getSampleCount() <= 0) {
+            return 0D;
+        }
+        double trials = index.getSampleCount() * 3D;
+        double successes = index.getUsefulCount() + index.getAdoptedCount() + index.getResolvedCount();
+        double probability = successes / trials;
+        double z = 1.96D;
+        double denominator = 1D + z * z / trials;
+        double centre = probability + z * z / (2D * trials);
+        double margin = z * Math.sqrt((probability * (1D - probability) + z * z / (4D * trials)) / trials);
+        return Math.max(0D, (centre - margin) / denominator);
+    }
+
+    private List<String> splitValues(String values) {
+        if (values == null || values.isBlank()) {
+            return List.of();
+        }
+        return List.of(values.split(",")).stream()
+            .map(String::trim)
+            .filter(value -> !value.isBlank())
+            .distinct()
+            .toList();
+    }
+
+    private boolean sameToolName(String left, String right) {
+        if (left == null || right == null) {
+            return false;
+        }
+        String normalizedLeft = left.trim().toLowerCase(Locale.ROOT);
+        String normalizedRight = right.trim().toLowerCase(Locale.ROOT);
+        return normalizedLeft.equals(normalizedRight)
+            || normalizedLeft.endsWith("_" + normalizedRight)
+            || normalizedRight.endsWith("_" + normalizedLeft);
     }
 
     private Attribution analyze(AgentTaskLatestEntity task, AgentTaskFeedbackRequest feedback) {
@@ -405,27 +561,16 @@ public class AgentLearningService {
     }
 
     private int feedbackScore(AgentTaskLatestEntity task) {
-        int score = 10;
-        score += signalScore(task.getFeedbackUseful(), 30);
-        score += signalScore(task.getFeedbackAdopted(), 30);
-        score += signalScore(task.getFeedbackResolved(), 30);
-        if (task.getFeedbackReasonCategory() != null && !task.getFeedbackReasonCategory().isBlank()) {
-            score += 5;
+        List<Boolean> signals = java.util.stream.Stream.of(
+            task.getFeedbackUseful(),
+            task.getFeedbackAdopted(),
+            task.getFeedbackResolved()
+        ).filter(value -> value != null).toList();
+        if (signals.isEmpty()) {
+            return 50;
         }
-        if (task.getFeedbackComment() != null && !task.getFeedbackComment().isBlank()) {
-            score += 5;
-        }
-        return Math.max(0, Math.min(100, score));
-    }
-
-    private int signalScore(Boolean value, int weight) {
-        if (Boolean.TRUE.equals(value)) {
-            return weight;
-        }
-        if (Boolean.FALSE.equals(value)) {
-            return -weight / 2;
-        }
-        return 0;
+        long positives = signals.stream().filter(Boolean.TRUE::equals).count();
+        return (int) Math.round(positives * 100D / signals.size());
     }
 
     private String scenarioKey(String question) {
@@ -667,6 +812,24 @@ public class AgentLearningService {
     ) {
     }
 
+    private record RuntimeMatch(AgentExperienceIndexEntity index, double score) {
+    }
+
+    public record RuntimeExperienceContext(String prompt,
+                                           List<Map<String, Object>> hints,
+                                           Map<String, Object> plannerPrior) {
+        public static RuntimeExperienceContext empty() {
+            return new RuntimeExperienceContext("", List.of(), Map.of());
+        }
+
+        public List<String> matchedExperienceIds() {
+            return hints == null ? List.of() : hints.stream()
+                .map(hint -> String.valueOf(hint.getOrDefault("experienceIndexId", "")))
+                .filter(value -> !value.isBlank())
+                .toList();
+        }
+    }
+
     private final class IndexAccumulator {
         private final String indexKey;
         private final AgentExperienceEntity seed;
@@ -676,9 +839,8 @@ public class AgentLearningService {
         private long resolvedCount;
         private long failedCount;
         private long sampleCount;
-        private String bestPractice;
-        private String avoidPattern;
-        private String feedbackResult = "partial";
+        private final Set<String> bestPractices = new LinkedHashSet<>();
+        private final Set<String> avoidPatterns = new LinkedHashSet<>();
         private String lastExperienceId;
 
         private IndexAccumulator(String indexKey, AgentExperienceEntity seed, RuntimeSample sample) {
@@ -701,9 +863,8 @@ public class AgentLearningService {
             if ("failed".equals(feedbackResult(experience))) {
                 failedCount += 1;
             }
-            feedbackResult = feedbackResult(experience);
-            bestPractice = firstText(joinList(readList(experience.getSuccessPatternJson())), bestPractice);
-            avoidPattern = firstText(joinList(readList(experience.getImprovementSuggestionsJson())), avoidPattern);
+            bestPractices.addAll(readList(experience.getSuccessPatternJson()));
+            avoidPatterns.addAll(readList(experience.getImprovementSuggestionsJson()));
             lastExperienceId = experience.getExperienceId();
         }
 
@@ -720,17 +881,30 @@ public class AgentLearningService {
             entity.setToolName(sample.toolName());
             entity.setErrorCode(sample.errorCode());
             entity.setDataSource(sample.dataSource());
-            entity.setFeedbackResult(feedbackResult);
+            entity.setFeedbackResult(aggregateFeedbackResult());
             entity.setUsefulCount(usefulCount);
             entity.setAdoptedCount(adoptedCount);
             entity.setResolvedCount(resolvedCount);
             entity.setFailedCount(failedCount);
             entity.setSampleCount(sampleCount);
             entity.setSuccessRate(successRate(usefulCount, adoptedCount, resolvedCount, sampleCount));
-            entity.setBestPractice(bestPractice);
-            entity.setAvoidPattern(avoidPattern);
+            entity.setBestPractice(joinList(bestPractices.stream().toList()));
+            entity.setAvoidPattern(joinList(avoidPatterns.stream().toList()));
             entity.setLastExperienceId(lastExperienceId);
             return entity;
+        }
+
+        private String aggregateFeedbackResult() {
+            if (sampleCount > 0 && failedCount == sampleCount) {
+                return "failed";
+            }
+            if (sampleCount > 0
+                && usefulCount == sampleCount
+                && adoptedCount == sampleCount
+                && resolvedCount == sampleCount) {
+                return "success";
+            }
+            return "partial";
         }
 
         private String joinList(List<String> values) {

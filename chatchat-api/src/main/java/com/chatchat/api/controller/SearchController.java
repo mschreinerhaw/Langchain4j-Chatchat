@@ -38,6 +38,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
@@ -57,6 +58,7 @@ public class SearchController {
     private final SearchService searchService;
     private final SearchFeedbackService searchFeedbackService;
     private final DocumentSearchEvidenceService documentSearchEvidenceService;
+    private final DocumentUploadCancellationRegistry uploadCancellationRegistry;
     private final CategoryReindexTaskService categoryReindexTaskService;
     private final ApiLimitProperties limitProperties;
 
@@ -485,6 +487,7 @@ public class SearchController {
     @PostMapping(value = "/documents/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Operation(summary = "Upload and index one local document")
     public ApiResponse<SearchDocument> uploadDocument(@RequestParam("file") MultipartFile file,
+                                                     @RequestHeader(value = "X-Upload-Request-Id", required = false) String uploadRequestId,
                                                      @RequestParam(value = "title", required = false) String title,
                                                      @RequestParam(value = "source", required = false) String source,
                                                      @RequestParam(value = "date", required = false) String date,
@@ -499,27 +502,33 @@ public class SearchController {
                                                      @RequestParam(value = "roles", required = false) String roles,
                                                      @RequestParam(value = "visibility", required = false) String visibility,
                                                      @RequestParam(value = "permissionRoles", required = false) String permissionRoles) {
-        SearchDocument document = searchService.upload(
-            file,
-            title,
-            source,
-            date,
-            tags,
-            companies,
-            industries,
-            keywords,
-            documentType,
-            fallbackContent,
-            permissionContext(tenantId, userId, roles),
-            visibility,
-            parseCsv(permissionRoles)
-        );
-        return ApiResponse.success(document, "Document uploaded and indexed");
+        uploadCancellationRegistry.register(uploadRequestId);
+        try {
+            SearchDocument document = searchService.upload(
+                file,
+                title,
+                source,
+                date,
+                tags,
+                companies,
+                industries,
+                keywords,
+                documentType,
+                fallbackContent,
+                permissionContext(tenantId, userId, roles),
+                visibility,
+                parseCsv(permissionRoles)
+            );
+            return ApiResponse.success(document, "Document uploaded and indexed");
+        } finally {
+            uploadCancellationRegistry.complete(uploadRequestId);
+        }
     }
 
     @PostMapping(value = "/documents/upload/batch", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @Operation(summary = "Upload and index multiple local documents with required category")
     public ApiResponse<List<SearchDocument>> uploadDocuments(@RequestParam("files") List<MultipartFile> files,
+                                                            @RequestHeader(value = "X-Upload-Request-Id", required = false) String uploadRequestId,
                                                             @RequestParam("category") String category,
                                                             @RequestParam(value = "source", required = false) String source,
                                                             @RequestParam(value = "date", required = false) String date,
@@ -541,25 +550,37 @@ public class SearchController {
         }
         String mergedTags = mergeCategoryTag(category, tags);
         SearchPermissionContext context = permissionContext(tenantId, userId, roles);
-        List<SearchDocument> documents = files.stream()
-            .filter(file -> file != null && !file.isEmpty())
-            .map(file -> searchService.upload(
-                file,
-                null,
-                source,
-                date,
-                mergedTags,
-                companies,
-                industries,
-                keywords,
-                documentType,
-                null,
-                context,
-                visibility,
-                parseCsv(permissionRoles)
-            ))
-            .toList();
-        return ApiResponse.success(documents, "Documents uploaded and indexed");
+        uploadCancellationRegistry.register(uploadRequestId);
+        try {
+            List<SearchDocument> documents = files.stream()
+                .filter(file -> file != null && !file.isEmpty())
+                .map(file -> searchService.upload(
+                    file,
+                    null,
+                    source,
+                    date,
+                    mergedTags,
+                    companies,
+                    industries,
+                    keywords,
+                    documentType,
+                    null,
+                    context,
+                    visibility,
+                    parseCsv(permissionRoles)
+                ))
+                .toList();
+            return ApiResponse.success(documents, "Documents uploaded and indexed");
+        } finally {
+            uploadCancellationRegistry.complete(uploadRequestId);
+        }
+    }
+
+    @PostMapping("/documents/upload/{uploadRequestId}/cancel")
+    @Operation(summary = "Cancel one active document upload and indexing request")
+    public ApiResponse<Boolean> cancelDocumentUpload(@PathVariable("uploadRequestId") String uploadRequestId) {
+        boolean cancelled = uploadCancellationRegistry.cancel(uploadRequestId);
+        return ApiResponse.success(cancelled, cancelled ? "Document upload cancellation requested" : "Upload is no longer active");
     }
 
     public record CategoryCreateRequest(String name) {

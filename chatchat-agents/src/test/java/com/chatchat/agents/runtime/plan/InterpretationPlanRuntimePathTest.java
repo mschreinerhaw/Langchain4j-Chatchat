@@ -96,4 +96,39 @@ class InterpretationPlanRuntimePathTest {
 
         assertThat(value).isEqualTo("DEV");
     }
+
+    @Test
+    void resolvesLogicalAssetAliasesFromCanonicalAssetView() throws Exception {
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            mock(ToolRuntimeService.class),
+            new InterpretationPlanValidator(),
+            mock(InterpretationPlanRuntime.DagExecutionController.class)
+        );
+        Method method = InterpretationPlanRuntime.class.getDeclaredMethod(
+            "canonicalProtocolValue",
+            Object.class,
+            String.class
+        );
+        method.setAccessible(true);
+        Object output = Map.of(
+            "structuredContent", Map.of(
+                "assets", List.of(Map.of(
+                    "asset", Map.of(
+                        "name", "248-test-database",
+                        "environment", "DEV",
+                        "type", "sql_datasource"
+                    )
+                ))
+            )
+        );
+
+        assertThat(method.invoke(runtime, output, "assets[0].assetName"))
+            .isEqualTo("248-test-database");
+        assertThat(method.invoke(runtime, output, "$.assets[0].name"))
+            .isEqualTo("248-test-database");
+        assertThat(method.invoke(runtime, output, "executionContext.env"))
+            .isEqualTo("DEV");
+        assertThat(method.invoke(runtime, output, "assets[0].assetType"))
+            .isEqualTo("sql_datasource");
+    }
 }

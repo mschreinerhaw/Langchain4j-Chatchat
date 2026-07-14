@@ -1,5 +1,6 @@
 package com.chatchat.mcpserver.ops;
 
+import com.chatchat.mcpserver.mcp.McpToolApplicability;
 import com.chatchat.mcpserver.routing.TargetKindRegistry;
 import io.modelcontextprotocol.server.McpServerFeatures;
 import io.modelcontextprotocol.server.McpSyncServer;
@@ -503,6 +504,14 @@ public class TemplateDiscoveryMcpToolPublisher {
             "riskLevel", "low",
             "targetKind", targetKind,
             "assetType", assetType,
+            McpToolApplicability.META_KEY, McpToolApplicability.of(
+                assetType + ":template_discovery",
+                domainLabel + " template discovery",
+                List.of(assetType),
+                "Search governed operation templates in the " + domainLabel + " domain.",
+                List.of("Resolve a registered template id and parameter contract before a bound execution tool is invoked."),
+                List.of("Executing the template", "Returning raw execution specifications", "Selecting or replacing Agent-bound tools")
+            ),
             "toolBoundary", mapOf(
                 "toolName", toolName,
                 "forcedAssetType", assetType,
@@ -548,6 +557,14 @@ public class TemplateDiscoveryMcpToolPublisher {
             "riskLevel", "low",
             "targetKind", "business_database_query",
             "assetType", "database_query",
+            McpToolApplicability.META_KEY, McpToolApplicability.of(
+                "database_query:business_template_discovery",
+                "Business database query template discovery",
+                List.of("database_query"),
+                "Search registered business-query templates and their parameter contracts.",
+                List.of("The user requests a governed business query represented by a registered database-query template."),
+                List.of("Database operations analysis", "Ad-hoc SQL generation", "Executing a query", "Selecting or replacing Agent-bound tools")
+            ),
             "confirmation", mapOf("default", "auto_execute", "allow_user_override", false),
             "resultShape", mapOf(
                 "canonical", "templates[]",

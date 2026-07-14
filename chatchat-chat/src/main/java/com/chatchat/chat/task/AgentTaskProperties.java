@@ -17,7 +17,7 @@ public class AgentTaskProperties {
     private int keepAliveSeconds = 60;
     private int listLimit = 50;
     private int recoveryBatchSize = 200;
-    private int confirmationWaitSeconds = 180;
+    private int confirmationWaitSeconds = 600;
     private long schedulerScanMs = 30000;
     private int schedulerBatchSize = 100;
     private int schedulerDefaultMaxRetries = 2;

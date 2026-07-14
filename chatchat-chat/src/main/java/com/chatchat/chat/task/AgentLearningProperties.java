@@ -15,4 +15,7 @@ public class AgentLearningProperties {
     private boolean modelAttributionEnabled = true;
     private int experienceLimit = 20;
     private int scenarioLimit = 8;
+    private int runtimeCandidateLimit = 24;
+    private int runtimeHintLimit = 3;
+    private int minimumRuntimeSamples = 2;
 }

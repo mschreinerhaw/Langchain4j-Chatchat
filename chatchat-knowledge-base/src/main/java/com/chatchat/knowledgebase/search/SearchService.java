@@ -24,6 +24,7 @@ import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.CancellationException;
 
 @Slf4j
 @Service
@@ -180,6 +181,7 @@ public class SearchService {
                                  SearchPermissionContext permissionContext,
                                  String visibility,
                                  List<String> permissionRoles) {
+        ensureUploadActive();
         if (file == null || file.isEmpty()) {
             throw new IllegalArgumentException("file is required");
         }
@@ -212,52 +214,83 @@ public class SearchService {
             .map(document -> nextVersion(versionGroupId, resolvedTitle))
             .orElse(1);
         Path savedFile = saveOriginalFile(file, docId, originalFileName);
-        String extractedContent = textExtractor.extractText(savedFile, originalFileName);
-        String content = !isBlank(extractedContent) ? extractedContent : nullToEmpty(fallbackContent);
-        if (isBlank(content)) {
-            throw new IllegalArgumentException("document content is empty after extraction");
+        try {
+            ensureUploadActive();
+            String extractedContent = textExtractor.extractText(savedFile, originalFileName);
+            ensureUploadActive();
+            String content = !isBlank(extractedContent) ? extractedContent : nullToEmpty(fallbackContent);
+            if (isBlank(content)) {
+                throw new IllegalArgumentException("document content is empty after extraction");
+            }
+
+            SearchDocument document = SearchDocument.builder()
+                .docId(docId)
+                .title(resolvedTitle)
+                .content(content)
+                .source(isBlank(source) ? "local_upload" : source.trim())
+                .date(isBlank(date) ? LocalDate.now().toString() : date.trim())
+                .tags(parseList(tags))
+                .companies(parseList(companies))
+                .industries(parseList(industries))
+                .keywords(keywordExtractor.mergeKeywords(parseList(keywords), content))
+                .fileName(originalFileName)
+                .filePath(savedFile.toString())
+                .documentType(resolveDocumentType(documentType, originalFileName))
+                .fileSize(file.getSize())
+                .uploadedAt(Instant.now().toEpochMilli())
+                .updatedAt(Instant.now().toEpochMilli())
+                .versionGroupId(versionGroupId)
+                .version(version)
+                .latestVersion(true)
+                .tenantId(normalizeTenant(context.tenantId()))
+                .userId(normalizeUser(context.userId()))
+                .visibility(normalizeVisibility(visibility))
+                .permissionRoles(cleanList(permissionRoles == null ? context.roles() : permissionRoles))
+                .lifecycleStatus(DocumentLifecycleStatus.INDEXED)
+                .build();
+
+            SearchDocument saved = createOrUpdate(document);
+            ensureUploadActive();
+            markPreviousVersionsNotLatest(saved);
+            log.info(
+                "search_document_upload_complete docId={} title={} fileName={} version={} contentChars={} keywords={} tags={} durationMs={}",
+                saved.getDocId(),
+                safeLogValue(saved.getTitle(), 80),
+                safeLogValue(saved.getFileName(), 100),
+                versionOf(saved),
+                lengthOf(saved.getContent()),
+                cleanList(saved.getKeywords()).size(),
+                cleanList(saved.getTags()).size(),
+                elapsedMs(startedAt)
+            );
+            return saved;
+        } catch (CancellationException ex) {
+            cleanupCancelledUpload(docId, savedFile, context);
+            log.info("search_document_upload_cancelled docId={} fileName={} durationMs={}",
+                docId, safeLogValue(originalFileName, 100), elapsedMs(startedAt));
+            throw ex;
         }
+    }
 
-        SearchDocument document = SearchDocument.builder()
-            .docId(docId)
-            .title(resolvedTitle)
-            .content(content)
-            .source(isBlank(source) ? "local_upload" : source.trim())
-            .date(isBlank(date) ? LocalDate.now().toString() : date.trim())
-            .tags(parseList(tags))
-            .companies(parseList(companies))
-            .industries(parseList(industries))
-            .keywords(keywordExtractor.mergeKeywords(parseList(keywords), content))
-            .fileName(originalFileName)
-            .filePath(savedFile.toString())
-            .documentType(resolveDocumentType(documentType, originalFileName))
-            .fileSize(file.getSize())
-            .uploadedAt(Instant.now().toEpochMilli())
-            .updatedAt(Instant.now().toEpochMilli())
-            .versionGroupId(versionGroupId)
-            .version(version)
-            .latestVersion(true)
-            .tenantId(normalizeTenant(context.tenantId()))
-            .userId(normalizeUser(context.userId()))
-            .visibility(normalizeVisibility(visibility))
-            .permissionRoles(cleanList(permissionRoles == null ? context.roles() : permissionRoles))
-            .lifecycleStatus(DocumentLifecycleStatus.INDEXED)
-            .build();
+    private void ensureUploadActive() {
+        if (Thread.currentThread().isInterrupted()) {
+            throw new CancellationException("document upload cancelled");
+        }
+    }
 
-        SearchDocument saved = createOrUpdate(document);
-        markPreviousVersionsNotLatest(saved);
-        log.info(
-            "search_document_upload_complete docId={} title={} fileName={} version={} contentChars={} keywords={} tags={} durationMs={}",
-            saved.getDocId(),
-            safeLogValue(saved.getTitle(), 80),
-            safeLogValue(saved.getFileName(), 100),
-            versionOf(saved),
-            lengthOf(saved.getContent()),
-            cleanList(saved.getKeywords()).size(),
-            cleanList(saved.getTags()).size(),
-            elapsedMs(startedAt)
-        );
-        return saved;
+    private void cleanupCancelledUpload(String docId, Path savedFile, SearchPermissionContext context) {
+        boolean interrupted = Thread.interrupted();
+        try {
+            if (!deleteDocument(docId, context) && savedFile != null) {
+                Files.deleteIfExists(savedFile);
+            }
+        } catch (Exception cleanupError) {
+            log.warn("search_document_upload_cancel_cleanup_failed docId={} error={}", docId, cleanupError.getMessage(), cleanupError);
+        } finally {
+            if (interrupted) {
+                Thread.currentThread().interrupt();
+            }
+        }
     }
 
     /**

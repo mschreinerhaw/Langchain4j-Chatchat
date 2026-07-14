@@ -152,7 +152,12 @@ chatchat:
       request-timeout-ms: 30000
       # 重建索引时每批写入的文档分片数量。
       bulk-batch-size: 200
+      max-query-terms: ${CHATCHAT_OPENSEARCH_MAX_QUERY_TERMS:20}
+      max-query-chars: ${CHATCHAT_OPENSEARCH_MAX_QUERY_CHARS:500}
+      max-permission-roles: ${CHATCHAT_OPENSEARCH_MAX_PERMISSION_ROLES:64}
+      log-query-dsl: ${CHATCHAT_OPENSEARCH_LOG_QUERY_DSL:false}
       embedding:
+        request-timeout-ms: 300000
         # 向量增强检索开关。开启后写入 contentVector，并在查询时做 BM25 + KNN 融合。
         # 如果当前 OpenSearch 没有 knn_vector 能力，会自动降级为 BM25 候选集的向量重排。
         enabled: true

@@ -65,7 +65,22 @@ chatchat:
         insecure-ssl: ${CHATCHAT_OPENSEARCH_INSECURE_SSL:true}
         request-timeout-ms: 30000
         debug-search: ${CHATCHAT_MCP_OPENSEARCH_DEBUG_SEARCH:true}
+        search-concurrency:
+          enabled: ${CHATCHAT_MCP_SEARCH_CONCURRENCY_ENABLED:true}
+          request-timeout-ms: ${CHATCHAT_MCP_SEARCH_REQUEST_TIMEOUT_MS:8000}
+          retry-429-attempts: ${CHATCHAT_MCP_SEARCH_RETRY_429_ATTEMPTS:1}
+          retry-backoff-min-ms: 100
+          retry-backoff-max-ms: 300
+          lexical:
+            max-running: ${CHATCHAT_MCP_SEARCH_LEXICAL_MAX_RUNNING:12}
+            queue-capacity: 30
+            queue-timeout-ms: 1500
+          vector:
+            max-running: ${CHATCHAT_MCP_SEARCH_VECTOR_MAX_RUNNING:4}
+            queue-capacity: 10
+            queue-timeout-ms: 500
         embedding:
+          request-timeout-ms: ${CHATCHAT_EMBEDDING_REQUEST_TIMEOUT_MS:300000}
           enabled: ${CHATCHAT_OPENSEARCH_EMBEDDING_ENABLED:false}
           endpoint: ${CHATCHAT_EMBEDDING_ENDPOINT:https://llm-7upawl16up8649rh.cn-beijing.maas.aliyuncs.com/compatible-mode/v1/embeddings}
           api-key: sk-720436c855ac470bb955388d0e8c9b89

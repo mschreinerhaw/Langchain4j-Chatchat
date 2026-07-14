@@ -336,6 +336,12 @@ public class AgentTaskService {
     public AgentTaskResponse confirm(String tenantId, String taskId, AgentTaskSubmitRequest request) {
         String normalizedTaskId = requireText(taskId, "Task ID cannot be empty");
         AgentTaskLatestEntity task = getTaskForTenant(tenantId, normalizedTaskId);
+        Optional<TaskConfirmEntity> latestConfirmation = taskConfirmRepository.findTopByTaskIdOrderByCreatedAtDesc(normalizedTaskId);
+        if (latestConfirmation.isPresent()
+            && "CONFIRMED".equals(normalizeStatus(latestConfirmation.get().getStatus()))
+            && ACTIVE_STATUSES.contains(normalizeStatus(task.getStatus()))) {
+            return AgentTaskResponse.from(task);
+        }
         validateConfirmationBeforeResume(normalizedTaskId, request == null ? null : request.getUserId());
         if (request == null) {
             request = new AgentTaskSubmitRequest();
@@ -409,6 +415,13 @@ public class AgentTaskService {
      */
     @Transactional
     public AgentTaskResponse recordFeedback(String tenantId, String taskId, AgentTaskFeedbackRequest request) {
+        AgentTaskResponse response = persistFeedback(tenantId, taskId, request);
+        recordFeedbackExperience(tenantId, taskId, request);
+        return response;
+    }
+
+    @Transactional
+    public AgentTaskResponse persistFeedback(String tenantId, String taskId, AgentTaskFeedbackRequest request) {
         AgentTaskLatestEntity task = getTaskForTenant(tenantId, taskId);
         String currentStatus = normalizeStatus(task.getStatus());
         if (!TERMINAL_STATUSES.contains(currentStatus)) {
@@ -430,12 +443,17 @@ public class AgentTaskService {
         task.setFeedbackTime(Instant.now());
         AgentTaskLatestEntity saved = latestRepository.save(task);
         saveFeedbackEvent(saved, firstText(request.getUserId(), saved.getUserId()));
+        return AgentTaskResponse.from(saved);
+    }
+
+    @Transactional
+    public void recordFeedbackExperience(String tenantId, String taskId, AgentTaskFeedbackRequest request) {
+        AgentTaskLatestEntity saved = getTaskForTenant(tenantId, taskId);
         try {
             learningService.recordExperience(saved, request);
         } catch (Exception ex) {
             log.warn("Failed to record Agent experience for taskId={}: {}", saved.getTaskId(), ex.getMessage());
         }
-        return AgentTaskResponse.from(saved);
     }
 
     /**
@@ -466,7 +484,7 @@ public class AgentTaskService {
             request.setQuery(task.getQuestion());
         }
         if (!runningTaskThreads.containsKey(task.getTaskId())) {
-            throw new IllegalStateException("No active worker is waiting for MCP confirmation: " + task.getTaskId());
+            return resumePersistedConfirmation(task, request);
         }
         task.setStatus("RUNNING");
         task.setErrorMessage(null);
@@ -491,6 +509,77 @@ public class AgentTaskService {
         eventStore.save(confirmationEvent);
         eventBus.publishConfirmation(confirmationEvent);
         return AgentTaskResponse.from(task);
+    }
+
+    private AgentTaskResponse resumePersistedConfirmation(AgentTaskLatestEntity task,
+                                                          AgentTaskSubmitRequest confirmationRequest) {
+        AgentTaskSubmitRequest resumed = loadQuestionPayload(task).toSubmitRequest();
+        Map<String, Object> toolInput = new LinkedHashMap<>(resumed.getToolInput() == null
+            ? Map.of()
+            : resumed.getToolInput());
+        if (confirmationRequest != null && confirmationRequest.getToolInput() != null) {
+            Object confirmation = confirmationRequest.getToolInput().get("mcpConfirmation");
+            if (confirmation != null) {
+                toolInput.put("mcpConfirmation", confirmation);
+            }
+        }
+        Map<String, Object> pending = persistedPendingToolExecution(task);
+        if (pending.isEmpty()) {
+            throw new IllegalStateException("Pending MCP tool execution is unavailable for confirmation resume: " + task.getTaskId());
+        }
+        toolInput.put("mcpPendingToolExecution", pending);
+        resumed.setToolInput(toolInput);
+        resumed.setTenantId(task.getTenantId());
+        resumed.setSessionId(task.getSessionId());
+        resumed.setUserId(firstText(confirmationRequest == null ? null : confirmationRequest.getUserId(), task.getUserId()));
+        resumed.setAgentId(firstText(confirmationRequest == null ? null : confirmationRequest.getAgentId(), task.getAgentId()));
+        resumed.setQuery(firstText(confirmationRequest == null ? null : confirmationRequest.getQuery(), task.getQuestion()));
+
+        task.setStatus("PENDING");
+        task.setErrorMessage(null);
+        task.setUpdateTime(Instant.now());
+        latestRepository.save(task);
+        markLatestConfirmation(task.getTaskId(), "CONFIRMED", resumed.getUserId());
+        eventBus.clearResults(task.getTaskId());
+        saveStatusEvent(task, "PENDING", Map.of("message", "Confirmed MCP execution queued for durable resume"));
+        queueQuestion(task, resumed, false);
+        return AgentTaskResponse.from(task);
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> persistedPendingToolExecution(AgentTaskLatestEntity task) {
+        List<AgentEvent> events = eventStore.listByTask(
+            task.getTenantId(), task.getSessionId(), task.getTaskId(), properties.getListLimit());
+        for (int index = events.size() - 1; index >= 0; index--) {
+            AgentEvent event = events.get(index);
+            if (event == null || !"TOOL_CALL".equalsIgnoreCase(event.getType()) || event.getPayload() == null) {
+                continue;
+            }
+            try {
+                Map<String, Object> payload = objectMapper.readValue(event.getPayload(), Map.class);
+                Object runtimeValue = payload.get("runtime");
+                if (!(runtimeValue instanceof Map<?, ?> runtime)
+                    || !"confirmation_required".equalsIgnoreCase(String.valueOf(runtime.get("outcome")))) {
+                    continue;
+                }
+                Map<String, Object> pending = new LinkedHashMap<>();
+                pending.put("toolName", payload.get("toolName"));
+                pending.put("input", payload.get("input") instanceof Map<?, ?> ? payload.get("input") : Map.of());
+                Object executionPlan = runtime.get("executionPlan");
+                if (executionPlan instanceof Map<?, ?>) {
+                    pending.put("executionPlan", executionPlan);
+                }
+                Object confirmation = runtime.get("confirmation");
+                if (confirmation instanceof Map<?, ?>) {
+                    pending.put("confirmation", confirmation);
+                }
+                return pending;
+            } catch (JsonProcessingException ex) {
+                log.warn("Failed to restore pending MCP confirmation from task event: taskId={}, eventId={}, error={}",
+                    task.getTaskId(), event.getEventId(), ex.getMessage());
+            }
+        }
+        return Map.of();
     }
 
     /**
@@ -524,6 +613,10 @@ public class AgentTaskService {
         }
         int recovered = 0;
         for (AgentTaskLatestEntity task : tasks.stream().limit(properties.getRecoveryBatchSize()).toList()) {
+            String status = normalizeStatus(task.getStatus());
+            if ("WAIT_CONFIRMATION".equals(status) || "WAITING_CONFIRM".equals(status)) {
+                continue;
+            }
             AgentEvent questionEvent = loadQuestionEvent(task);
             updateLatest(task.getTaskId(), "PENDING", null, null);
             saveStatusEvent(task, "PENDING", Map.of("message", "Task recovered after runtime restart"));

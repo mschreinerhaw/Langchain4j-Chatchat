@@ -17,7 +17,7 @@ import static org.mockito.Mockito.when;
 class AgentToolPolicyResolverTest {
 
     @Test
-    void autoAddsRegisteredRequiredMcpWorkflowToolsToVisibleAndRequiredTools() {
+    void doesNotAutoAddRegisteredWorkflowToolThatUserDidNotBind() {
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         SkillCatalogService skillCatalogService = mock(SkillCatalogService.class);
         McpToolRegistryBridge mcpToolRegistryBridge = mock(McpToolRegistryBridge.class);
@@ -47,10 +47,11 @@ class AgentToolPolicyResolverTest {
             ))
         );
 
-        assertThat(policy.availableTools()).contains(assetTool, templateTool);
-        assertThat(policy.requiredTools()).containsExactly(assetTool, templateTool);
-        assertThat(policy.workflowAutoAddedTools()).containsExactly(assetTool);
-        assertThat(policy.skippedToolReasons()).isEmpty();
+        assertThat(policy.availableTools()).containsExactly(templateTool);
+        assertThat(policy.requiredTools()).containsExactly(templateTool);
+        assertThat(policy.workflowAutoAddedTools()).isEmpty();
+        assertThat(policy.skippedToolReasons())
+            .containsEntry("asset_query", "required workflow tool is not bound/available for this Agent");
     }
 
     @Test

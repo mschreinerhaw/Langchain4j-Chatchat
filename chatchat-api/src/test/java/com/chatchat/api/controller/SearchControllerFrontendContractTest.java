@@ -33,6 +33,7 @@ class SearchControllerFrontendContractTest {
             searchService,
             mock(SearchFeedbackService.class),
             mock(DocumentSearchEvidenceService.class),
+            new DocumentUploadCancellationRegistry(),
             mock(CategoryReindexTaskService.class),
             new ApiLimitProperties()
         );
@@ -91,6 +92,7 @@ class SearchControllerFrontendContractTest {
             searchService,
             mock(SearchFeedbackService.class),
             mock(DocumentSearchEvidenceService.class),
+            new DocumentUploadCancellationRegistry(),
             mock(CategoryReindexTaskService.class),
             limits
         );
@@ -194,6 +196,7 @@ class SearchControllerFrontendContractTest {
             searchService,
             mock(SearchFeedbackService.class),
             mock(DocumentSearchEvidenceService.class),
+            new DocumentUploadCancellationRegistry(),
             mock(CategoryReindexTaskService.class),
             new ApiLimitProperties()
         );
@@ -221,6 +224,7 @@ class SearchControllerFrontendContractTest {
             mock(SearchService.class),
             mock(SearchFeedbackService.class),
             mock(DocumentSearchEvidenceService.class),
+            new DocumentUploadCancellationRegistry(),
             mock(CategoryReindexTaskService.class),
             new ApiLimitProperties()
         );

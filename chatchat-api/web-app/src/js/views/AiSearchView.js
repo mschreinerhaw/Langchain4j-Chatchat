@@ -1,5 +1,6 @@
 ﻿import "../../styles/pages/ai-search.css";
 import {
+  cancelSearchDocumentUpload,
   deleteSearchDocument,
   fetchResearchLibrary,
   getSearchDocument,
@@ -73,6 +74,8 @@ export default {
       pageCount: 1,
       loading: false,
       uploading: false,
+      documentUploadController: null,
+      documentUploadRequestId: "",
       viewerOpen: false,
       viewerLoading: false,
       viewerError: "",
@@ -81,6 +84,7 @@ export default {
       showUploadDialog: false,
       error: "",
       uploadError: "",
+      uploadNotice: "",
       uploadCategories: [],
       uploadCategoriesLoading: false,
       uploadForm: defaultUploadForm(),
@@ -175,6 +179,7 @@ export default {
     },
     async openUploadDialog() {
       this.uploadError = "";
+      this.uploadNotice = "";
       if (!this.uploadForm.date) {
         this.uploadForm.date = todayString();
       }
@@ -187,6 +192,7 @@ export default {
       }
       this.showUploadDialog = false;
       this.uploadError = "";
+      this.uploadNotice = "";
     },
     async loadUploadCategories() {
       this.uploadCategoriesLoading = true;
@@ -262,6 +268,11 @@ export default {
       }
       this.uploading = true;
       this.uploadError = "";
+      this.uploadNotice = "";
+      const uploadRequestId = `upload-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+      const uploadController = new AbortController();
+      this.documentUploadRequestId = uploadRequestId;
+      this.documentUploadController = uploadController;
       try {
         const formData = new FormData();
         formData.append("source", this.uploadForm.source);
@@ -273,22 +284,42 @@ export default {
         formData.append("userId", this.userId);
         let documents = [];
         if (files.length > 1) {
-          documents = await uploadSearchDocumentsInBatches(formData, files);
+          documents = await uploadSearchDocumentsInBatches(formData, files, {
+            signal: uploadController.signal,
+            uploadRequestId
+          });
         } else {
           formData.append("file", files[0]);
           formData.append("title", this.uploadForm.title);
           formData.set("tags", [category, this.uploadForm.tags].filter(Boolean).join(","));
-          documents = [await uploadSearchDocument(formData)];
+          documents = [await uploadSearchDocument(formData, {
+            signal: uploadController.signal,
+            uploadRequestId
+          })];
         }
-        (Array.isArray(documents) ? documents : [documents]).forEach((document) => this.recordDocumentActivity(document, "VIEW"));
-        this.showUploadDialog = false;
+        const uploadedDocuments = Array.isArray(documents) ? documents : [documents];
+        uploadedDocuments.forEach((document) => this.recordDocumentActivity(document, "VIEW"));
+        this.uploadNotice = `已上传 ${uploadedDocuments.length} 个文档，请点击右上角关闭按钮关闭窗口。`;
         this.resetUploadForm();
-        this.$emit("navigate", "library");
       } catch (error) {
-        this.uploadError = error.message || "上传失败";
+        this.uploadError = error?.name === "AbortError" ? "上传已终止。" : (error.message || "上传失败");
       } finally {
+        if (this.documentUploadController === uploadController) {
+          this.documentUploadController = null;
+          this.documentUploadRequestId = "";
+        }
         this.uploading = false;
       }
+    },
+    async terminateDocumentUpload() {
+      if (!this.uploading || !this.documentUploadController) {
+        return;
+      }
+      const uploadRequestId = this.documentUploadRequestId;
+      const cancellation = cancelSearchDocumentUpload(uploadRequestId).catch(() => false);
+      this.documentUploadController.abort();
+      this.uploadError = "正在终止上传...";
+      await cancellation;
     },
     async openResult(result) {
       if (!result?.docId) {

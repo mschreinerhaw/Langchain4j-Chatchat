@@ -1,5 +1,6 @@
 package com.chatchat.mcpserver.api;
 
+import com.chatchat.mcpserver.mcp.McpToolApplicability;
 import com.chatchat.agents.protocol.ModelProtocolJson;
 
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -198,6 +199,14 @@ public class ApiToolSpecFactory {
         values.put("targetRoutingRequired", false);
         values.put("templateId", config.getToolName());
         values.put("businessGroup", businessGroupMeta(config));
+        values.put(McpToolApplicability.META_KEY, McpToolApplicability.of(
+            "api_service:published_operation",
+            "Published API operation: " + config.getToolName(),
+            List.of("api_service"),
+            "Invoke the published API operation " + config.getToolName() + " with its declared parameter contract.",
+            List.of("The user-bound tool directly represents the required external API operation."),
+            List.of("Discovering unrelated APIs", "Changing the bound endpoint", "Selecting or replacing Agent-bound tools")
+        ));
         return values;
     }
 

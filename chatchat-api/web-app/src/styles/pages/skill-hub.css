@@ -2114,7 +2114,7 @@
 
 .agent-workshop-view .agent-tool-searchbar {
   display: grid;
-  grid-template-columns: minmax(240px, 1fr) 150px auto;
+  grid-template-columns: minmax(240px, 1fr) 170px 150px auto;
   align-items: end;
   gap: 10px;
 }
@@ -2307,6 +2307,14 @@
   font-size: 12px;
   font-style: normal;
   font-weight: 700;
+}
+
+.agent-workshop-view .agent-tool-check .agent-tool-applicability {
+  overflow: visible;
+  color: #48617d;
+  line-height: 1.45;
+  text-overflow: clip;
+  white-space: normal;
 }
 
 .agent-workshop-view .agent-tool-empty {

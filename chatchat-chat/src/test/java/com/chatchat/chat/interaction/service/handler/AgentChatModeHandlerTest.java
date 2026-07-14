@@ -637,7 +637,7 @@ class AgentChatModeHandlerTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    void mcpExecutionContextReplacesConcreteAssetToolsWithGateway() {
+    void mcpExecutionContextPreservesUserBoundConcreteTools() {
         AgentOrchestrator orchestrator = mock(AgentOrchestrator.class);
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         SkillCatalogService skillCatalogService = mock(SkillCatalogService.class);
@@ -729,7 +729,7 @@ class AgentChatModeHandlerTest {
         );
 
         assertThat(availableTools.getValue())
-            .containsExactly("mcp_ops_linux_command_execute");
+            .containsExactly("mcp_ops_ssh_dn_a_01");
     }
 
     private SkillDefinition skillWithWebSearch() {

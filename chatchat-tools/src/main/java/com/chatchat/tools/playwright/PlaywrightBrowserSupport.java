@@ -9,6 +9,8 @@ import lombok.extern.slf4j.Slf4j;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.PosixFilePermission;
+import java.util.EnumSet;
 import java.util.LinkedHashMap;
 import java.util.Locale;
 import java.util.Map;
@@ -83,6 +85,7 @@ public class PlaywrightBrowserSupport {
             env.put("PLAYWRIGHT_BROWSERS_PATH", normalizedPath);
             logPlaywrightBrowsersPath(normalizedPath);
             if (containsPlaywrightChromiumInstall(Path.of(normalizedPath))) {
+                ensureChromiumExecutables(Path.of(normalizedPath));
                 env.put("PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD", "1");
                 logPlaywrightSkipDownload(normalizedPath);
             }
@@ -142,6 +145,43 @@ public class PlaywrightBrowserSupport {
                     || name.startsWith("chromium_headless_shell-"));
         } catch (IOException ex) {
             return false;
+        }
+    }
+
+    void ensureChromiumExecutables(Path browsersPath) {
+        if (browsersPath == null || !Files.isDirectory(browsersPath)
+            || !"linux".equals(playwrightPlatformDirectoryName())) {
+            return;
+        }
+        try (java.util.stream.Stream<Path> paths = Files.walk(browsersPath, 5)) {
+            paths.filter(Files::isRegularFile)
+                .filter(this::isChromiumLauncher)
+                .forEach(this::ensureExecutable);
+        } catch (IOException ex) {
+            log.warn("{} could not inspect Playwright Chromium permissions under {}: {}",
+                logPrefix, browsersPath, ex.getMessage());
+        }
+    }
+
+    private boolean isChromiumLauncher(Path path) {
+        String name = path.getFileName() == null ? "" : path.getFileName().toString();
+        return "headless_shell".equals(name) || "chrome".equals(name) || "chrome-wrapper".equals(name);
+    }
+
+    private void ensureExecutable(Path launcher) {
+        if (Files.isExecutable(launcher)) {
+            return;
+        }
+        try {
+            EnumSet<PosixFilePermission> permissions = EnumSet.copyOf(Files.getPosixFilePermissions(launcher));
+            permissions.add(PosixFilePermission.OWNER_EXECUTE);
+            permissions.add(PosixFilePermission.GROUP_EXECUTE);
+            permissions.add(PosixFilePermission.OTHERS_EXECUTE);
+            Files.setPosixFilePermissions(launcher, permissions);
+            log.info("{} repaired executable permission for Playwright Chromium launcher: {}", logPrefix, launcher);
+        } catch (UnsupportedOperationException | IOException | SecurityException ex) {
+            log.warn("{} Playwright Chromium launcher is not executable and permission repair failed for {}: {}",
+                logPrefix, launcher, ex.getMessage());
         }
     }
 

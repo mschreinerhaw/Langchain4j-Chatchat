@@ -1199,14 +1199,16 @@ export function syncEnterpriseUsers(tenantId = "") {
   });
 }
 
-export async function uploadSearchDocument(formData) {
+export async function uploadSearchDocument(formData, options = {}) {
   const session = getStoredAuthSession();
   const response = await fetch(`${API_BASE}/search/documents/upload`, {
     method: "POST",
     headers: {
-      ...(session?.token ? { Authorization: `Bearer ${session.token}` } : {})
+      ...(session?.token ? { Authorization: `Bearer ${session.token}` } : {}),
+      ...(options.uploadRequestId ? { "X-Upload-Request-Id": options.uploadRequestId } : {})
     },
-    body: formData
+    body: formData,
+    signal: options.signal
   });
   const payload = await readJsonSafely(response);
   notifyAuthRequiredIfNeeded(response, payload, "/search/documents/upload");
@@ -1216,14 +1218,16 @@ export async function uploadSearchDocument(formData) {
   return unwrapApiPayload(payload, "/search/documents/upload");
 }
 
-export async function uploadSearchDocuments(formData) {
+export async function uploadSearchDocuments(formData, options = {}) {
   const session = getStoredAuthSession();
   const response = await fetch(`${API_BASE}/search/documents/upload/batch`, {
     method: "POST",
     headers: {
-      ...(session?.token ? { Authorization: `Bearer ${session.token}` } : {})
+      ...(session?.token ? { Authorization: `Bearer ${session.token}` } : {}),
+      ...(options.uploadRequestId ? { "X-Upload-Request-Id": options.uploadRequestId } : {})
     },
-    body: formData
+    body: formData,
+    signal: options.signal
   });
   const payload = await readJsonSafely(response);
   notifyAuthRequiredIfNeeded(response, payload, "/search/documents/upload/batch");
@@ -1248,13 +1252,26 @@ export async function uploadSearchDocumentsInBatches(formData, files, options = 
     const batchFormData = cloneFormDataWithoutFiles(formData);
     batches[index].forEach((file) => batchFormData.append("files", file));
     try {
-      const result = await uploadSearchDocuments(batchFormData);
+      const result = await uploadSearchDocuments(batchFormData, options);
       uploaded.push(...(Array.isArray(result) ? result : [result]));
     } catch (error) {
+      if (error?.name === "AbortError") {
+        throw error;
+      }
       throw new Error(`第 ${index + 1}/${batches.length} 批上传失败：${error.message || "上传失败"}`);
     }
   }
   return uploaded;
+}
+
+export function cancelSearchDocumentUpload(uploadRequestId) {
+  const normalized = String(uploadRequestId || "").trim();
+  if (!normalized) {
+    return Promise.resolve(false);
+  }
+  return apiRequest(`/search/documents/upload/${encodeURIComponent(normalized)}/cancel`, {
+    method: "POST"
+  });
 }
 
 function createUploadBatches(files, maxFiles, maxBytes) {

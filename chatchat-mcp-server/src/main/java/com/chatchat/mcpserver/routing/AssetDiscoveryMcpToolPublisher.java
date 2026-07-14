@@ -1,5 +1,6 @@
 package com.chatchat.mcpserver.routing;
 
+import com.chatchat.mcpserver.mcp.McpToolApplicability;
 import io.modelcontextprotocol.server.McpServerFeatures;
 import io.modelcontextprotocol.server.McpSyncServer;
 import io.modelcontextprotocol.spec.McpSchema;
@@ -179,6 +180,14 @@ public class AssetDiscoveryMcpToolPublisher {
             "confirmation", mapOf("default", "auto_execute", "allow_user_override", false),
             "targetKind", targetKind,
             "assetType", assetType,
+            McpToolApplicability.META_KEY, McpToolApplicability.of(
+                assetType + ":asset_discovery",
+                "Asset discovery for " + assetType,
+                List.of(assetType),
+                "Find registered " + assetType + " assets and return redacted logical routing metadata.",
+                List.of("Discover an asset before invoking a bound tool that requires a logical execution target."),
+                List.of("Executing operations", "Returning credentials or connection details", "Selecting or replacing Agent-bound tools")
+            ),
             "toolBoundary", mapOf(
                 "toolName", toolName,
                 "forcedAssetType", assetType,

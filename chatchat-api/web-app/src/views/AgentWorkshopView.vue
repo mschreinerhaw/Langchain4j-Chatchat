@@ -350,6 +350,14 @@
                 >
               </label>
               <label>
+                <span>后端服务类型</span>
+                <select v-model="toolBackendServiceTypeFilter">
+                  <option v-for="option in mcpBackendServiceTypeOptions" :key="option.value" :value="option.value">
+                    {{ option.label }}
+                  </option>
+                </select>
+              </label>
+              <label>
                 <span>分组方式</span>
                 <select v-model="toolGroupMode">
                   <option v-for="option in mcpToolGroupOptions" :key="option.value" :value="option.value">
@@ -376,7 +384,7 @@
                     :key="tool.localToolName"
                     class="agent-tool-check"
                     :class="{ active: selectedToolNames.includes(tool.localToolName) }"
-                    :title="tool.localToolName"
+                    :title="applicabilityTooltip(tool)"
                   >
                     <input
                       type="checkbox"
@@ -385,7 +393,13 @@
                     >
                     <span>
                       <strong>{{ tool.displayName || tool.remoteToolName || tool.localToolName }}</strong>
-                      <small>{{ tool.serviceName || tool.serviceId || "未归属服务" }}</small>
+                      <small>
+                        {{ tool.serviceName || tool.serviceId || "未归属服务" }}
+                        · {{ backendServiceTypesLabel(tool) }}
+                      </small>
+                      <small v-if="tool.applicabilitySummary" class="agent-tool-applicability">
+                        适用范围：{{ tool.applicabilitySummary }}
+                      </small>
                       <em>{{ tool.localToolName }}</em>
                     </span>
                   </label>
@@ -459,7 +473,7 @@
                     <label>
                       <span>确认策略</span>
                       <select v-model="step.confirmation">
-                        <option value="">继承策略</option>
+                        <option value="inherit_policy">继承策略</option>
                         <option value="auto_execute">自动执行</option>
                         <option value="ask_before_execute">执行前确认</option>
                         <option value="deny">禁止执行</option>

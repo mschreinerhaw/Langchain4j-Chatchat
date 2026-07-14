@@ -28,17 +28,17 @@
       <p v-if="uploadNotice" class="chat-status-notice">{{ uploadNotice }}</p>
       <p v-if="errorMessage" class="chat-error">{{ errorMessage }}</p>
 
-      <div v-if="pendingMcpConfirmation" class="mcp-confirm-backdrop" @click.self="cancelMcpConfirmation">
+      <div v-if="pendingMcpConfirmation" class="mcp-confirm-backdrop">
         <section class="mcp-confirm-dialog" role="dialog" aria-modal="true" aria-label="MCP tool confirmation">
           <header>
             <div>
               <p>MCP Policy Check</p>
               <h2>Confirm tool execution</h2>
             </div>
-            <button type="button" class="dialog-close" :disabled="loading" @click="cancelMcpConfirmation">x</button>
+            <button type="button" class="dialog-close" :disabled="loading" title="拒绝并结束任务" @click="denyMcpConfirmation">x</button>
           </header>
           <p class="mcp-confirm-timeout">
-            该操作需要确认，3分钟内未确认将自动取消任务。剩余 {{ pendingMcpCountdownText }}
+            该操作需要确认。确认期间任务保持等待状态，剩余 {{ pendingMcpCountdownText }}
           </p>
           <dl>
             <div>
@@ -73,7 +73,7 @@
             </select>
           </label>
           <footer>
-            <button type="button" class="secondary-button" :disabled="loading" @click="cancelMcpConfirmation">Cancel</button>
+            <button type="button" class="secondary-button" :disabled="loading" @click="denyMcpConfirmation">取消任务</button>
             <button type="button" class="danger-button" :disabled="loading" @click="denyMcpConfirmation">Deny</button>
             <button type="button" class="primary-button" :disabled="loading" @click="confirmMcpExecution">Confirm</button>
           </footer>
@@ -113,7 +113,7 @@
         </button>
       </div>
 
-      <div v-if="uploadDialogOpen" class="chat-upload-backdrop" @click.self="closeUploadDialog">
+      <div v-if="uploadDialogOpen" class="chat-upload-backdrop">
         <form class="chat-upload-dialog" @submit.prevent="uploadChatDocument">
           <header>
             <div>
@@ -196,9 +196,10 @@
           </label>
 
           <p v-if="uploadError" class="chat-error">{{ uploadError }}</p>
+          <p v-if="uploadNotice" class="chat-upload-notice">{{ uploadNotice }}</p>
 
           <footer>
-            <button type="button" class="secondary-button" :disabled="uploadingDocument" @click="closeUploadDialog">取消</button>
+            <button v-if="uploadingDocument" type="button" class="secondary-button" @click="terminateDocumentUpload">终止上传</button>
             <button type="submit" class="primary-button" :disabled="uploadingDocument">
               {{ uploadingDocument ? "上传中" : "上传文档" }}
             </button>

@@ -3,6 +3,7 @@ import PromptComposer from "../../components/PromptComposer.vue";
 import {
   analyzeChatImage,
   apiRequest,
+  cancelSearchDocumentUpload,
   fetchAgentTaskEvents,
   fetchAgentRuntimeSummary,
   fetchResearchLibrary,
@@ -1344,6 +1345,8 @@ export default {
       restoredRunning: false,
       uploadDialogOpen: false,
       uploadingDocument: false,
+      documentUploadController: null,
+      documentUploadRequestId: "",
       uploadError: "",
       uploadNotice: "",
       uploadCategories: [],
@@ -2651,6 +2654,10 @@ export default {
       this.uploadingDocument = true;
       this.uploadError = "";
       this.uploadNotice = "";
+      const uploadRequestId = `upload-${uid()}`;
+      const uploadController = new AbortController();
+      this.documentUploadRequestId = uploadRequestId;
+      this.documentUploadController = uploadController;
       try {
         const formData = new FormData();
         formData.append("source", this.uploadForm.source);
@@ -2660,12 +2667,18 @@ export default {
         formData.append("documentType", this.uploadForm.documentType);
         let uploadedDocuments = [];
         if (files.length > 1) {
-          uploadedDocuments = await uploadSearchDocumentsInBatches(formData, files);
+          uploadedDocuments = await uploadSearchDocumentsInBatches(formData, files, {
+            signal: uploadController.signal,
+            uploadRequestId
+          });
         } else {
           formData.append("file", files[0]);
           formData.append("title", this.uploadForm.title);
           formData.set("tags", [category, this.uploadForm.tags].filter(Boolean).join(","));
-          uploadedDocuments = [await uploadSearchDocument(formData)];
+          uploadedDocuments = [await uploadSearchDocument(formData, {
+            signal: uploadController.signal,
+            uploadRequestId
+          })];
         }
         const documents = Array.isArray(uploadedDocuments) ? uploadedDocuments : [uploadedDocuments];
         const docIds = documents.map((document) => this.extractUploadedDocId(document)).filter(Boolean);
@@ -2682,15 +2695,28 @@ export default {
             ? `文档已上传到文档库，共 ${docIds.length} 个。`
             : "文档已上传，但未能识别返回的文档 ID。";
         }
-        this.closeAfterUpload();
+        this.resetUploadAfterSuccess();
       } catch (error) {
-        this.uploadError = error.message || "上传失败";
+        this.uploadError = error?.name === "AbortError" ? "上传已终止。" : (error.message || "上传失败");
       } finally {
+        if (this.documentUploadController === uploadController) {
+          this.documentUploadController = null;
+          this.documentUploadRequestId = "";
+        }
         this.uploadingDocument = false;
       }
     },
-    closeAfterUpload() {
-      this.uploadDialogOpen = false;
+    async terminateDocumentUpload() {
+      if (!this.uploadingDocument || !this.documentUploadController) {
+        return;
+      }
+      const uploadRequestId = this.documentUploadRequestId;
+      const cancellation = cancelSearchDocumentUpload(uploadRequestId).catch(() => false);
+      this.documentUploadController.abort();
+      this.uploadError = "正在终止上传...";
+      await cancellation;
+    },
+    resetUploadAfterSuccess() {
       this.uploadError = "";
       this.uploadForm = defaultUploadForm();
       const input = this.$refs.chatUploadFile;
@@ -3128,7 +3154,7 @@ export default {
       if (Number.isFinite(timestamp) && timestamp > Date.now()) {
         return new Date(timestamp).toISOString();
       }
-      return new Date(Date.now() + 180000).toISOString();
+      return new Date(Date.now() + 600000).toISOString();
     },
     startConfirmationTimer() {
       this.clearConfirmationTimer();
@@ -3211,12 +3237,8 @@ export default {
           remember: this.confirmationRemember || undefined
         }
       };
-      this.pendingMcpConfirmation = null;
-      this.pendingMcpRequest = null;
-      this.pendingMcpTaskId = "";
-      this.pendingMcpExpiredAt = "";
+      const confirmingToken = this.pendingMcpConfirmation.token;
       this.clearConfirmationTimer();
-      this.confirmationRemember = "";
 
       const runContext = this.createRunContext(query);
       runContext.messages = this.messages;
@@ -3234,6 +3256,9 @@ export default {
           this.emitActiveConversationSnapshot(query, "pending", runContext);
           await this.saveHistory(query, "pending", runContext);
           return;
+        }
+        if (this.pendingMcpConfirmation?.token === confirmingToken) {
+          this.cancelMcpConfirmation();
         }
         if (answerState?.cancelled) {
           runContext.status = "cancelled";
@@ -3262,9 +3287,12 @@ export default {
         await this.saveHistory(query, "completed", runContext);
       } catch (error) {
         runContext.status = "failed";
+        if (this.pendingMcpConfirmation?.token === confirmingToken) {
+          this.startConfirmationTimer();
+        }
         if (this.isActiveRun(runContext)) {
-          this.errorMessage = error.message || "MCP confirmation execution failed";
-          this.conversationStatus = "failed";
+          this.errorMessage = `${error.message || "MCP confirmation execution failed"}，待确认操作仍保留，可重试。`;
+          this.conversationStatus = "pending";
         }
       } finally {
         if (!this.pendingMcpConfirmation) {

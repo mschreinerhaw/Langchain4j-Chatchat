@@ -11,6 +11,7 @@ import org.apache.http.StatusLine;
 import org.apache.http.auth.AuthScope;
 import org.apache.http.auth.UsernamePasswordCredentials;
 import org.apache.http.client.CredentialsProvider;
+import org.apache.http.client.config.RequestConfig;
 import org.apache.http.conn.ssl.NoopHostnameVerifier;
 import org.apache.http.entity.ContentType;
 import org.apache.http.entity.StringEntity;
@@ -18,6 +19,7 @@ import org.apache.http.impl.client.BasicCredentialsProvider;
 import org.apache.http.ssl.SSLContexts;
 import org.apache.http.util.EntityUtils;
 import org.opensearch.client.Request;
+import org.opensearch.client.RequestOptions;
 import org.opensearch.client.Response;
 import org.opensearch.client.ResponseException;
 import org.opensearch.client.RestClient;
@@ -40,6 +42,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.stream.Collectors;
 import javax.net.ssl.SSLContext;
 
@@ -81,6 +84,8 @@ public class OpenSearchMcpSearchService {
     private final LuceneSearchProperties properties;
     private final McpEmbeddingClient embeddingClient;
     private final ObjectMapper objectMapper;
+    private final OpenSearchSearchBulkhead lexicalSearchBulkhead;
+    private final OpenSearchSearchBulkhead vectorSearchBulkhead;
     private final Set<String> vectorCompatibilityWarnings = ConcurrentHashMap.newKeySet();
     private volatile RestClient restClient;
 
@@ -91,6 +96,11 @@ public class OpenSearchMcpSearchService {
         this.properties = properties;
         this.embeddingClient = embeddingClient;
         this.objectMapper = objectMapper == null ? new ObjectMapper() : objectMapper;
+        LuceneSearchProperties.OpenSearch.SearchConcurrency concurrency = searchConcurrencyConfig();
+        this.lexicalSearchBulkhead = new OpenSearchSearchBulkhead(
+            "lexical", concurrency.isEnabled(), concurrency.getLexical());
+        this.vectorSearchBulkhead = new OpenSearchSearchBulkhead(
+            "vector", concurrency.isEnabled(), concurrency.getVector());
     }
 
     public OpenSearchMcpSearchService(LuceneSearchProperties properties, McpEmbeddingClient embeddingClient) {
@@ -371,7 +381,15 @@ public class OpenSearchMcpSearchService {
         body.put("size", resultLimit);
         body.put("query", query == null ? Map.of("match_all", Map.of()) : query);
         long startedAt = System.nanoTime();
-        JsonNode lexicalRoot = request("POST", "/" + index + "/_search", body, false);
+        JsonNode lexicalRoot;
+        try {
+            lexicalRoot = lexicalSearchBulkhead.execute(
+                () -> searchRequest("POST", "/" + index + "/_search", body));
+        } catch (OpenSearchSearchBulkhead.SearchRejectedException ex) {
+            log.warn("MCP OpenSearch search busy searchRequestId={} phase={} index={} waiting={} reason={}",
+                searchRequestId, ex.bulkhead(), index, lexicalSearchBulkhead.waitingCount(), ex.getMessage());
+            return List.of();
+        }
         debugSearch(searchRequestId, "lexical", index, body, lexicalRoot, elapsedMs(startedAt));
         List<LuceneMcpSearchService.SearchHit> lexicalHits = parseHits(lexicalRoot, "opensearch_bm25");
         List<LuceneMcpSearchService.SearchHit> vectorHits = searchVector(index, semanticText, resultLimit, vectorFilter,
@@ -386,26 +404,32 @@ public class OpenSearchMcpSearchService {
         if (!embeddingClient.enabled() || text == null || !vectorSearchAvailable(index)) {
             return List.of();
         }
-        List<Float> vector = embeddingClient.embed(text);
-        if (vector.isEmpty()) {
-            return List.of();
-        }
-        int vectorLimit = Math.max(limit, Math.max(1, embeddingConfig().getVectorCandidateLimit()));
-        Map<String, Object> knnOptions = new LinkedHashMap<>();
-        knnOptions.put("vector", vector);
-        knnOptions.put("k", vectorLimit);
-        if (vectorFilter != null && !vectorFilter.containsKey("match_all")) {
-            knnOptions.put("filter", vectorFilter);
-        }
-        Map<String, Object> body = Map.of(
-            "size", vectorLimit,
-            "query", Map.of("knn", Map.of(vectorField(), knnOptions))
-        );
         try {
-            long startedAt = System.nanoTime();
-            JsonNode vectorRoot = request("POST", "/" + index + "/_search", body, false);
-            debugSearch(searchRequestId, "vector", index, body, vectorRoot, elapsedMs(startedAt));
-            return parseHits(vectorRoot, "opensearch_vector");
+            return vectorSearchBulkhead.execute(() -> {
+                List<Float> vector = embeddingClient.embed(text);
+                if (vector.isEmpty()) {
+                    return List.of();
+                }
+                int vectorLimit = Math.max(limit, Math.max(1, embeddingConfig().getVectorCandidateLimit()));
+                Map<String, Object> knnOptions = new LinkedHashMap<>();
+                knnOptions.put("vector", vector);
+                knnOptions.put("k", vectorLimit);
+                if (vectorFilter != null && !vectorFilter.containsKey("match_all")) {
+                    knnOptions.put("filter", vectorFilter);
+                }
+                Map<String, Object> body = Map.of(
+                    "size", vectorLimit,
+                    "query", Map.of("knn", Map.of(vectorField(), knnOptions))
+                );
+                long startedAt = System.nanoTime();
+                JsonNode vectorRoot = searchRequest("POST", "/" + index + "/_search", body);
+                debugSearch(searchRequestId, "vector", index, body, vectorRoot, elapsedMs(startedAt));
+                return parseHits(vectorRoot, "opensearch_vector");
+            });
+        } catch (OpenSearchSearchBulkhead.SearchRejectedException ex) {
+            log.info("MCP OpenSearch vector search degraded to BM25 searchRequestId={} index={} waiting={} reason={}",
+                searchRequestId, index, vectorSearchBulkhead.waitingCount(), ex.getMessage());
+            return List.of();
         } catch (Exception ex) {
             log.warn("MCP OpenSearch vector search failed searchRequestId={} index={} error={}",
                 searchRequestId, index, ex.getMessage());
@@ -866,10 +890,39 @@ public class OpenSearchMcpSearchService {
         return requestRaw(method, path, body == null ? "" : json(body), allowNotFound, "application/json");
     }
 
+    private JsonNode searchRequest(String method, String path, Object body) {
+        LuceneSearchProperties.OpenSearch.SearchConcurrency concurrency = searchConcurrencyConfig();
+        int retryAttempts = Math.max(0, concurrency.getRetry429Attempts());
+        for (int attempt = 0; ; attempt++) {
+            try {
+                return requestRaw(method, path, body == null ? "" : json(body), false, "application/json",
+                    Math.max(1, concurrency.getRequestTimeoutMs()));
+            } catch (IllegalStateException ex) {
+                if (attempt >= retryAttempts || !isTooManyRequests(ex)) {
+                    throw ex;
+                }
+                log.info("MCP OpenSearch search throttled path={} retryAttempt={}/{}", path, attempt + 1, retryAttempts);
+                sleepBeforeRetry(concurrency);
+            }
+        }
+    }
+
     private JsonNode requestRaw(String method, String path, String body, boolean allowNotFound, String contentType) {
+        return requestRaw(method, path, body, allowNotFound, contentType, 0);
+    }
+
+    private JsonNode requestRaw(String method, String path, String body, boolean allowNotFound, String contentType,
+                                int requestTimeoutMs) {
         try {
             Request request = new Request(method.toUpperCase(Locale.ROOT), endpointPath(path));
             applyQueryParameters(request, path);
+            if (requestTimeoutMs > 0) {
+                request.setOptions(RequestOptions.DEFAULT.toBuilder().setRequestConfig(RequestConfig.custom()
+                    .setConnectTimeout(Math.min(requestTimeoutMs, Math.max(1, openSearchConfig().getRequestTimeoutMs())))
+                    .setConnectionRequestTimeout(requestTimeoutMs)
+                    .setSocketTimeout(requestTimeoutMs)
+                    .build()));
+            }
             if (!body.isBlank() || !"GET".equalsIgnoreCase(method) && !"HEAD".equalsIgnoreCase(method)) {
                 request.setEntity(new StringEntity(body, ContentType.create(contentType, StandardCharsets.UTF_8)));
             }
@@ -898,6 +951,30 @@ public class OpenSearchMcpSearchService {
                 + " path=" + path + " body=" + responseBody, ex);
         } catch (IOException ex) {
             throw new IllegalStateException("OpenSearch request failed path=" + path + ": " + ex.getMessage(), ex);
+        }
+    }
+
+    private boolean isTooManyRequests(Throwable throwable) {
+        Throwable current = throwable;
+        while (current != null) {
+            String message = current.getMessage();
+            if (message != null && message.contains("status=429")) {
+                return true;
+            }
+            current = current.getCause();
+        }
+        return false;
+    }
+
+    private void sleepBeforeRetry(LuceneSearchProperties.OpenSearch.SearchConcurrency concurrency) {
+        int minimum = Math.max(0, concurrency.getRetryBackoffMinMs());
+        int maximum = Math.max(minimum, concurrency.getRetryBackoffMaxMs());
+        int delay = minimum == maximum ? minimum : ThreadLocalRandom.current().nextInt(minimum, maximum + 1);
+        try {
+            Thread.sleep(delay);
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("Interrupted while retrying OpenSearch request", ex);
         }
     }
 
@@ -1046,6 +1123,11 @@ public class OpenSearchMcpSearchService {
         return properties == null || properties.getOpenSearch() == null
             ? new LuceneSearchProperties.OpenSearch()
             : properties.getOpenSearch();
+    }
+
+    private LuceneSearchProperties.OpenSearch.SearchConcurrency searchConcurrencyConfig() {
+        LuceneSearchProperties.OpenSearch.SearchConcurrency concurrency = openSearchConfig().getSearchConcurrency();
+        return concurrency == null ? new LuceneSearchProperties.OpenSearch.SearchConcurrency() : concurrency;
     }
 
     private LuceneSearchProperties.OpenSearch.Embedding embeddingConfig() {

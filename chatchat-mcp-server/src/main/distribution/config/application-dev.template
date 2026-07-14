@@ -98,7 +98,22 @@ chatchat:
         # MCP index prefix, for example chatchat_mcp_assets-sql-datasource.
         index-prefix: chatchat_mcp_
         request-timeout-ms: 30000
+        search-concurrency:
+          enabled: ${CHATCHAT_MCP_SEARCH_CONCURRENCY_ENABLED:true}
+          request-timeout-ms: ${CHATCHAT_MCP_SEARCH_REQUEST_TIMEOUT_MS:8000}
+          retry-429-attempts: ${CHATCHAT_MCP_SEARCH_RETRY_429_ATTEMPTS:1}
+          retry-backoff-min-ms: 100
+          retry-backoff-max-ms: 300
+          lexical:
+            max-running: ${CHATCHAT_MCP_SEARCH_LEXICAL_MAX_RUNNING:12}
+            queue-capacity: 30
+            queue-timeout-ms: 1500
+          vector:
+            max-running: ${CHATCHAT_MCP_SEARCH_VECTOR_MAX_RUNNING:4}
+            queue-capacity: 10
+            queue-timeout-ms: 500
         embedding:
+          request-timeout-ms: ${CHATCHAT_EMBEDDING_REQUEST_TIMEOUT_MS:300000}
           # Optional semantic retrieval for MCP assets/templates. Effective only when engine=opensearch.
           # Existing MCP indexes must be deleted and rebuilt once after enabling KNN vectors.
           enabled: true

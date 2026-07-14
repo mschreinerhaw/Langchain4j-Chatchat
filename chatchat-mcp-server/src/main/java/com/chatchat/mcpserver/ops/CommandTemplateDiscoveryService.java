@@ -247,11 +247,11 @@ public class CommandTemplateDiscoveryService {
             Math.max(limit, MAX_LIMIT)
         );
         List<ScoredTemplate<SqlTemplateConfig>> candidates = templates.stream()
-            .filter(template -> luceneHits.containsKey(template.getCode()))
+            .filter(template -> templateSearchHit(luceneHits, template.getCode()) != null)
             .filter(template -> sqlTemplateCompatibleWithRequestedType(template, filters, datasources, assetScoped))
             .filter(template -> sqlTemplateAuthorizedByDatasource(template, datasources, assetScoped))
             .map(template -> new ScoredTemplate<>(template,
-                decision(luceneAdjusted(relevance(template, sqlRetrievalFilters), luceneHits.get(template.getCode())),
+                decision(luceneAdjusted(relevance(template, sqlRetrievalFilters), templateSearchHit(luceneHits, template.getCode())),
                     intent, template.getDatabaseType(),
                     selectedSqlAssetType(datasources, assetScoped), riskLevel(template))))
             .toList();
@@ -269,6 +269,23 @@ public class CommandTemplateDiscoveryService {
             result.put("templateRegistryDiagnostics", registryDiagnostics);
         }
         return result;
+    }
+
+    private LuceneMcpSearchService.SearchHit templateSearchHit(
+        Map<String, LuceneMcpSearchService.SearchHit> hits, String templateCode) {
+        if (hits == null || hits.isEmpty() || templateCode == null) {
+            return null;
+        }
+        LuceneMcpSearchService.SearchHit exact = hits.get(templateCode);
+        if (exact != null) {
+            return exact;
+        }
+        String normalizedCode = normalize(templateCode);
+        return hits.entrySet().stream()
+            .filter(entry -> normalizedCode != null && normalizedCode.equals(normalize(entry.getKey())))
+            .map(Map.Entry::getValue)
+            .findFirst()
+            .orElse(null);
     }
 
     private Map<String, Object> queryHttpTemplates(String assetType,

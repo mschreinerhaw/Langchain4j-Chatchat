@@ -17,6 +17,7 @@ import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.CancellationException;
 import java.util.stream.Collectors;
 
 /**
@@ -140,6 +141,15 @@ public class GlobalExceptionHandler {
             WebRequest request) {
 
         log.debug("Client disconnected before response completed: {}", ex.getMessage());
+        return ResponseEntity.status(CLIENT_CLOSED_REQUEST).build();
+    }
+
+    @ExceptionHandler(CancellationException.class)
+    public ResponseEntity<Void> handleCancellationException(
+            CancellationException ex,
+            WebRequest request) {
+
+        log.debug("Request cancelled by user: {}", ex.getMessage());
         return ResponseEntity.status(CLIENT_CLOSED_REQUEST).build();
     }
 

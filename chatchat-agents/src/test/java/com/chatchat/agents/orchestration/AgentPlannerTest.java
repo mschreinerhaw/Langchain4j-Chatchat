@@ -1,6 +1,7 @@
 package com.chatchat.agents.orchestration;
 
 import com.chatchat.agents.tool.ToolRegistry;
+import com.chatchat.agents.runtime.plan.InterpretationPlan;
 import com.chatchat.common.tool.ToolInput;
 import com.chatchat.common.tool.ToolMetadata;
 import com.chatchat.common.tool.ToolOutput;
@@ -17,6 +18,25 @@ import java.util.Set;
 import static org.assertj.core.api.Assertions.assertThat;
 
 class AgentPlannerTest {
+
+    @Test
+    void describesPublisherApplicabilityWithoutTurningItIntoToolSelectionPolicy() throws Exception {
+        AgentPlanner planner = new AgentPlanner(new TestToolRegistry(true), new ObjectMapper());
+        Method method = AgentPlanner.class.getDeclaredMethod("describeTools", List.class, Map.class);
+        method.setAccessible(true);
+
+        String description = (String) method.invoke(
+            planner,
+            List.of("mcp_chatchat_mcp_server_sql_query_execute"),
+            Map.of()
+        );
+
+        assertThat(description)
+            .contains("Governed SQL query execution")
+            .contains("Use when: A registered template and logical target are available")
+            .contains("Not for: Ad-hoc SQL; Selecting or replacing Agent-bound tools")
+            .contains("descriptive metadata only; never authorizes adding, selecting, or replacing tools");
+    }
 
     @Test
     void mcpControlPlanePromptDoesNotTeachInventedDockerServiceLabels() throws Exception {
@@ -665,7 +685,74 @@ class AgentPlannerTest {
         assertThat(filters.containsKey("service")).isFalse();
     }
 
+    @Test
+    @SuppressWarnings("unchecked")
+    void experiencePriorRewardsResilienceWithoutChangingWorkflowTools() throws Exception {
+        AgentPlanner planner = new AgentPlanner(new TestToolRegistry(), new ObjectMapper());
+        String tool = "mcp_chatchat_mcp_server_asset_query";
+        List<InterpretationPlan.Step> steps = List.of(
+            new InterpretationPlan.Step(1, "mcp_tool", tool, Map.of(), List.of(), null, null),
+            new InterpretationPlan.Step(2, "final_answer", "", Map.of("answer", "done"), List.of(1), null, null)
+        );
+        InterpretationPlan resilientPlan = new InterpretationPlan(
+            "1.0", null, null, new InterpretationPlan.Plan(steps),
+            new InterpretationPlan.ExecutionPolicy(2, false, List.of(tool), List.of(), null, 1, "partial_result"),
+            null
+        );
+        InterpretationPlan barePlan = new InterpretationPlan(
+            "1.0", null, null, new InterpretationPlan.Plan(steps),
+            new InterpretationPlan.ExecutionPolicy(2, false, List.of(tool), List.of(), null, 0, null),
+            null
+        );
+        Map<String, Object> prior = Map.of(
+            "matchedExperienceIds", List.of("exp-1"),
+            "preferredToolChains", List.of("asset_query"),
+            "failedCount", 2,
+            "confidence", 0.7,
+            "workflowMutationAllowed", false
+        );
+        PlannerValidationContext context = new PlannerValidationContext(
+            List.of(tool), true, false, null, null, List.of(tool), "discover assets", prior
+        );
+        Method scoreMethod = AgentPlanner.class.getDeclaredMethod(
+            "deterministicPlanScoreDetails", AgentDecision.class, PlannerValidationContext.class);
+        scoreMethod.setAccessible(true);
+        AgentDecision resilientDecision = new AgentDecision("plan", null, Map.of(), null, null, Map.of(), true, resilientPlan);
+        AgentDecision bareDecision = new AgentDecision("plan", null, Map.of(), null, null, Map.of(), true, barePlan);
+        Map<String, Object> resilientScore = (Map<String, Object>) scoreMethod.invoke(planner, resilientDecision, context);
+        Map<String, Object> bareScore = (Map<String, Object>) scoreMethod.invoke(planner, bareDecision, context);
+
+        assertThat((Integer) resilientScore.get("experienceFit")).isGreaterThan((Integer) bareScore.get("experienceFit"));
+        assertThat((Integer) resilientScore.get("total")).isGreaterThan((Integer) bareScore.get("total"));
+        Map<String, Object> experience = (Map<String, Object>) resilientScore.get("experience");
+        assertThat(experience.get("matchedExperienceIds")).isEqualTo(List.of("exp-1"));
+        assertThat(experience.get("workflowMutationAllowed")).isEqualTo(false);
+        assertThat(experience.get("candidateToolChain")).isEqualTo("asset_query");
+        Method optimizeMethod = AgentPlanner.class.getDeclaredMethod(
+            "shouldOptimizeFromExperience", PlanCandidate.class, PlannerValidationContext.class);
+        optimizeMethod.setAccessible(true);
+        PlanCandidate bareCandidate = new PlanCandidate(
+            1, "A", "{}", bareDecision, "NONE", "fingerprint",
+            (Integer) bareScore.get("total"), bareScore);
+        assertThat((Boolean) optimizeMethod.invoke(planner, bareCandidate, context)).isTrue();
+        Method workflowMethod = AgentPlanner.class.getDeclaredMethod(
+            "sameExperienceWorkflowContract", AgentDecision.class, AgentDecision.class);
+        workflowMethod.setAccessible(true);
+        assertThat((Boolean) workflowMethod.invoke(planner, bareDecision, resilientDecision)).isTrue();
+        InterpretationPlan mutatedPlan = new InterpretationPlan(
+            "1.0", null, null,
+            new InterpretationPlan.Plan(List.of(
+                new InterpretationPlan.Step(1, "final_answer", "", Map.of("answer", "done"), List.of(), null, null)
+            )),
+            barePlan.executionPolicy(), null
+        );
+        AgentDecision mutatedDecision = new AgentDecision(
+            "plan", null, Map.of(), null, null, Map.of(), true, mutatedPlan);
+        assertThat((Boolean) workflowMethod.invoke(planner, bareDecision, mutatedDecision)).isFalse();
+    }
+
     private static class TestToolRegistry implements ToolRegistry {
+        private final boolean includeApplicability;
         private final Set<String> tools = Set.of(
             "mcp_chatchat_mcp_server_asset_query",
             "mcp_chatchat_mcp_server_template_query",
@@ -674,6 +761,14 @@ class AgentPlannerTest {
             "mcp_chatchat_mcp_server_sql_query_execute",
             "mcp_chatchat_mcp_server_linux_command_execute"
         );
+
+        private TestToolRegistry() {
+            this(false);
+        }
+
+        private TestToolRegistry(boolean includeApplicability) {
+            this.includeApplicability = includeApplicability;
+        }
 
         @Override
         public void registerTool(String toolName, Tool tool) {
@@ -698,11 +793,22 @@ class AgentPlannerTest {
             if (!hasTool(toolName)) {
                 return null;
             }
-            return ToolMetadata.builder()
+            ToolMetadata.ToolMetadataBuilder builder = ToolMetadata.builder()
                 .id(toolName)
                 .riskLevel("low")
-                .parameters(parameters(toolName))
-                .build();
+                .parameters(parameters(toolName));
+            if (includeApplicability && "mcp_chatchat_mcp_server_sql_query_execute".equals(toolName)) {
+                builder.description("SQL execution gateway").metadata(Map.of(
+                    "mcpToolMeta", Map.of(
+                        "applicability", Map.of(
+                            "scopeLabel", "Governed SQL query execution",
+                            "useWhen", List.of("A registered template and logical target are available"),
+                            "notFor", List.of("Ad-hoc SQL", "Selecting or replacing Agent-bound tools")
+                        )
+                    )
+                ));
+            }
+            return builder.build();
         }
 
         @Override

@@ -1,5 +1,6 @@
 package com.chatchat.mcpserver.tool;
 
+import com.chatchat.mcpserver.mcp.McpToolApplicability;
 import com.chatchat.agents.protocol.ModelProtocolJson;
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.tool.ToolInput;
@@ -96,7 +97,12 @@ public class ToolRegistryMcpAdapter {
             .title(metadata == null ? name : metadata.getTitle())
             .description(description(toolRegistry, name, metadata))
             .inputSchema(toInputSchema(name, metadata))
-            .meta(withLimitMeta(governanceFactory.metaForToolMetadata("builtin_tool", name, metadata), name, runtimeLevel))
+            .meta(withLimitMeta(
+                governanceFactory.metaForToolMetadata("builtin_tool", name, metadata),
+                name,
+                runtimeLevel,
+                metadata
+            ))
             .build();
 
         return List.of(McpServerFeatures.SyncToolSpecification.builder()
@@ -413,9 +419,22 @@ public class ToolRegistryMcpAdapter {
         return baseDescription;
     }
 
-    private Map<String, Object> withLimitMeta(Map<String, Object> meta, String toolName, String runtimeLevel) {
+    private Map<String, Object> withLimitMeta(Map<String, Object> meta,
+                                              String toolName,
+                                              String runtimeLevel,
+                                              ToolMetadata metadata) {
         Map<String, Object> values = new LinkedHashMap<>(meta == null ? Map.of() : meta);
         values.put("mcp_tool_limit", concurrencyManager.limitMeta(toolName, runtimeLevel));
+        values.computeIfAbsent(McpToolApplicability.META_KEY, ignored -> McpToolApplicability.of(
+            "mcp_tool:" + toolName,
+            metadata == null || metadata.getTitle() == null || metadata.getTitle().isBlank()
+                ? toolName
+                : metadata.getTitle(),
+            List.of(),
+            descriptionFromMetadata(toolName, metadata),
+            List.of("The user-bound tool description and parameter contract match the requested operation."),
+            List.of("Selecting, adding or replacing Agent-bound tools")
+        ));
         if (isDocumentSearchToolName(toolName)) {
             values.put("result_contract", "document_evidence_chunks");
             values.put("contract_version", "document_evidence_v1");
@@ -423,6 +442,13 @@ public class ToolRegistryMcpAdapter {
             values.put("default_debug", false);
         }
         return values;
+    }
+
+    private String descriptionFromMetadata(String toolName, ToolMetadata metadata) {
+        if (metadata != null && metadata.getDescription() != null && !metadata.getDescription().isBlank()) {
+            return metadata.getDescription();
+        }
+        return "Use the published MCP tool " + toolName + " according to its declared parameter contract.";
     }
 
     private String parameterDescription(String toolName, ToolParameter parameter) {

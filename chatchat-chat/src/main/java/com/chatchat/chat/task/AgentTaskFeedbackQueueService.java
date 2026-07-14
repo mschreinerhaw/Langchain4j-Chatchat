@@ -7,9 +7,7 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Service;
 
-import java.time.Instant;
 import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -46,8 +44,7 @@ public class AgentTaskFeedbackQueueService {
         String normalizedTaskId = normalizeTaskId(taskId);
         AgentTaskFeedbackRequest feedback = copyAndValidate(request);
 
-        AgentTaskResponse current = taskService.get(normalizedTenantId, normalizedTaskId)
-            .orElseThrow(() -> new IllegalArgumentException("Task not found: " + normalizedTaskId));
+        AgentTaskResponse persisted = taskService.persistFeedback(normalizedTenantId, normalizedTaskId, feedback);
 
         BlockingQueue<FeedbackCommand> queue = tenantQueues.computeIfAbsent(
             normalizedTenantId,
@@ -55,10 +52,12 @@ public class AgentTaskFeedbackQueueService {
         );
         boolean queued = queue.offer(new FeedbackCommand(normalizedTenantId, normalizedTaskId, feedback));
         if (!queued) {
-            throw new IllegalStateException("Feedback queue is full for tenant: " + normalizedTenantId);
+            log.warn("Agent feedback was persisted but experience attribution queue is full for tenant={}, taskId={}",
+                normalizedTenantId, normalizedTaskId);
+            return persisted;
         }
         startWorker(normalizedTenantId);
-        return optimisticResponse(current, feedback);
+        return persisted;
     }
 
     /**
@@ -112,7 +111,7 @@ public class AgentTaskFeedbackQueueService {
 
     private void process(FeedbackCommand command) {
         try {
-            taskService.recordFeedback(command.tenantId(), command.taskId(), command.request());
+            taskService.recordFeedbackExperience(command.tenantId(), command.taskId(), command.request());
         } catch (IllegalArgumentException ex) {
             log.warn(
                 "Discarded invalid Agent feedback for tenant={}, taskId={}: {}",
@@ -144,29 +143,6 @@ public class AgentTaskFeedbackQueueService {
         return copy;
     }
 
-    private AgentTaskResponse optimisticResponse(AgentTaskResponse current, AgentTaskFeedbackRequest feedback) {
-        Instant feedbackTime = Instant.now();
-        return new AgentTaskResponse(
-            current.taskId(),
-            current.tenantId(),
-            current.userId(),
-            current.agentId(),
-            current.sessionId(),
-            current.status(),
-            current.question(),
-            current.answerSummary(),
-            current.errorMessage(),
-            Optional.ofNullable(feedback.getUseful()).orElse(current.feedbackUseful()),
-            Optional.ofNullable(feedback.getAdopted()).orElse(current.feedbackAdopted()),
-            Optional.ofNullable(feedback.getResolved()).orElse(current.feedbackResolved()),
-            firstText(feedback.getComment(), current.feedbackComment()),
-            firstText(feedback.getReasonCategory(), current.feedbackReasonCategory()),
-            feedbackTime,
-            current.createTime(),
-            current.updateTime()
-        );
-    }
-
     private String normalizeTenant(String tenantId) {
         if (tenantId == null || tenantId.isBlank()) {
             throw new IllegalArgumentException("tenantId is required");
@@ -179,13 +155,6 @@ public class AgentTaskFeedbackQueueService {
             throw new IllegalArgumentException("taskId is required");
         }
         return taskId.trim();
-    }
-
-    private String firstText(String primary, String fallback) {
-        if (primary != null && !primary.isBlank()) {
-            return primary;
-        }
-        return fallback;
     }
 
     private record FeedbackCommand(String tenantId, String taskId, AgentTaskFeedbackRequest request) {

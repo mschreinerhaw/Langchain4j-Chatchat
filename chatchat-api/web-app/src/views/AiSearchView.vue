@@ -74,7 +74,7 @@
       </div>
     </section>
 
-    <div v-if="showUploadDialog" class="upload-dialog-backdrop" @click.self="closeUploadDialog">
+    <div v-if="showUploadDialog" class="upload-dialog-backdrop">
       <form class="upload-dialog" @submit.prevent="uploadDocument">
         <header>
           <div>
@@ -148,9 +148,10 @@
         <input v-model="uploadForm.tags" placeholder="标签，多个用逗号分隔">
 
         <p v-if="uploadError" class="search-error">{{ uploadError }}</p>
+        <p v-if="uploadNotice" class="search-upload-notice">{{ uploadNotice }}</p>
 
         <footer>
-          <button type="button" class="secondary-button" :disabled="uploading" @click="closeUploadDialog">取消</button>
+          <button v-if="uploading" type="button" class="secondary-button" @click="terminateDocumentUpload">终止上传</button>
           <button type="submit" class="primary-button" :disabled="uploading">
             {{ uploading ? "上传中" : "上传文档" }}
           </button>

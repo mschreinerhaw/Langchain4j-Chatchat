@@ -77,6 +77,22 @@ public class OpenSearchDocumentIndexService implements DocumentSearchIndex {
     private static final String IK_SEARCH_ANALYZER = "chatchat_ik_search";
     private static final String PINYIN_ANALYZER = "chatchat_pinyin";
     private static final String WHITESPACE_ANALYZER = "chatchat_whitespace";
+    private static final int SIMPLIFIED_QUERY_TERM_LIMIT = 10;
+    private static final List<String> TOKEN_SEARCH_FIELDS = List.of(
+        TITLE_TOKENS + "^5.0", KEYWORD_TOKENS + "^4.2", TAG_TOKENS + "^4.5",
+        COMPANY_TOKENS + "^3.5", INDUSTRY_TOKENS + "^3.5", CONTENT_TOKENS + "^1.2"
+    );
+    private static final List<String> TEXT_SEARCH_FIELDS = List.of(
+        TITLE_TEXT + "^5.0", FILE_NAME + "^4.0", SECTION + "^4.0",
+        KEYWORDS_TEXT + "^4.0", CONTENT + "^1.2", CHUNK_TEXT + "^1.2"
+    );
+    private static final List<String> PINYIN_SEARCH_FIELDS = List.of(
+        TITLE_TEXT + ".pinyin^3.2", FILE_NAME + ".pinyin^3.0",
+        SECTION + ".pinyin^2.8", KEYWORDS_TEXT + ".pinyin^2.6"
+    );
+    private static final List<String> SIMPLIFIED_SEARCH_FIELDS = List.of(
+        TITLE_TEXT + "^5.0", FILE_NAME + "^4.0", KEYWORDS_TEXT + "^3.0", CONTENT
+    );
 
     private final SearchProperties properties;
     private final SearchTokenizer tokenizer;
@@ -207,6 +223,7 @@ public class OpenSearchDocumentIndexService implements DocumentSearchIndex {
         if (!isAvailable() || keyword == null || keyword.isBlank()) {
             return List.of();
         }
+        String focusedKeyword = queryExpander.focusQuery(keyword);
         String normalizedKeyword = queryExpander.normalizeQuery(keyword);
         List<String> terms = queryExpander.expandTokens(
             tokenizer.searchTokens(normalizedKeyword),
@@ -217,13 +234,16 @@ public class OpenSearchDocumentIndexService implements DocumentSearchIndex {
             .distinct()
             .limit(Math.max(1, properties.getLuceneMaxQueryTerms()))
             .toList();
-        terms = limitTerms(mergeTerms(terms, cjkTitleAwareQueryTerms(normalizedKeyword)), properties.getLuceneMaxQueryTerms());
+        terms = limitTerms(
+            mergeTerms(terms, cjkTitleAwareQueryTerms(normalizedKeyword)),
+            Math.min(properties.getLuceneMaxQueryTerms(), Math.max(1, config().getMaxQueryTerms()))
+        );
         if (terms.isEmpty()) {
             return List.of();
         }
         int candidateLimit = Math.max(Math.max(1, maxHits), embeddingConfig().getVectorCandidateLimit());
         Map<String, List<Float>> lexicalVectors = new LinkedHashMap<>();
-        List<LuceneSearchHit> lexicalHits = lexicalSearch(normalizedKeyword, terms, candidateLimit, permissionContext, lexicalVectors);
+        List<LuceneSearchHit> lexicalHits = lexicalSearch(focusedKeyword, terms, candidateLimit, permissionContext, lexicalVectors);
         List<LuceneSearchHit> vectorHits = vectorSearch(normalizedKeyword, candidateLimit, permissionContext);
         if (vectorHits.isEmpty()) {
             vectorHits = vectorRerankHits(normalizedKeyword, lexicalHits, lexicalVectors, candidateLimit);
@@ -244,7 +264,22 @@ public class OpenSearchDocumentIndexService implements DocumentSearchIndex {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("size", Math.max(1, maxHits));
         body.put("query", searchQuery(normalizedKeyword, terms, permissionContext));
-        JsonNode root = request("POST", "/" + indexName() + "/_search", body, false);
+        logSearchQuery("primary", normalizedKeyword, terms, body);
+        JsonNode root;
+        try {
+            root = request("POST", "/" + indexName() + "/_search", body, false);
+        } catch (IllegalStateException ex) {
+            if (!isClauseOverflow(ex)) {
+                throw ex;
+            }
+            Map<String, Object> simplifiedBody = new LinkedHashMap<>();
+            simplifiedBody.put("size", Math.max(1, maxHits));
+            simplifiedBody.put("query", simplifiedSearchQuery(terms, permissionContext));
+            log.warn("opensearch_query_clause_overflow index={} terms={} action=simplify_once",
+                indexName(), terms == null ? 0 : terms.size());
+            logSearchQuery("simplified", normalizedKeyword, terms, simplifiedBody);
+            root = request("POST", "/" + indexName() + "/_search", simplifiedBody, false);
+        }
         return parseHits(root, sourceVectors);
     }
 
@@ -465,39 +500,97 @@ public class OpenSearchDocumentIndexService implements DocumentSearchIndex {
         return body;
     }
 
-    private Map<String, Object> searchQuery(String keyword, List<String> terms, SearchPermissionContext permissionContext) {
+    Map<String, Object> searchQuery(String keyword, List<String> terms, SearchPermissionContext permissionContext) {
+        List<String> boundedTerms = limitTerms(
+            terms,
+            Math.min(Math.max(1, config().getMaxQueryTerms()), Math.max(1, properties.getLuceneMaxQueryTerms()))
+        );
+        List<Object> should = new ArrayList<>();
+        if (!boundedTerms.isEmpty()) {
+            should.add(multiMatchQuery(
+                String.join(" ", boundedTerms),
+                TOKEN_SEARCH_FIELDS
+            ));
+            should.add(Map.of("terms", Map.of(TAGS, boundedTerms)));
+            should.add(Map.of("terms", Map.of(COMPANIES, boundedTerms)));
+            should.add(Map.of("terms", Map.of(INDUSTRIES, boundedTerms)));
+        }
+        String boundedKeyword = limitQueryText(keyword, config().getMaxQueryChars());
+        if (boundedKeyword != null) {
+            should.add(multiMatchQuery(
+                boundedKeyword,
+                TEXT_SEARCH_FIELDS
+            ));
+            should.add(multiMatchQuery(
+                pinyinQueryText(boundedKeyword, boundedTerms),
+                PINYIN_SEARCH_FIELDS
+            ));
+        }
         Map<String, Object> bool = new LinkedHashMap<>();
-        bool.put("must", List.of(Map.of(
-            "multi_match", Map.of(
-                "query", String.join(" ", terms),
-                "fields", List.of(
-                    TITLE_TOKENS + "^5.0",
-                    TITLE_TEXT + "^5.0",
-                    TITLE_TEXT + ".pinyin^3.2",
-                    FILE_NAME + "^4.0",
-                    FILE_NAME + ".pinyin^3.0",
-                    SECTION + "^4.0",
-                    SECTION + ".pinyin^2.8",
-                    KEYWORD_TOKENS + "^4.2",
-                    KEYWORDS_TEXT + "^4.0",
-                    KEYWORDS_TEXT + ".pinyin^2.6",
-                    TAG_TOKENS + "^4.5",
-                    TAGS + "^4.5",
-                    COMPANY_TOKENS + "^3.5",
-                    COMPANIES + "^3.5",
-                    INDUSTRY_TOKENS + "^3.5",
-                    INDUSTRIES + "^3.5",
-                    CONTENT_TOKENS + "^1.2",
-                    CONTENT + "^1.2",
-                    CHUNK_TEXT + "^1.2",
-                    SOURCE_TOKENS + "^0.7",
-                    SOURCE + "^0.7"
-                ),
-                "operator", "or"
-            )
-        )));
+        bool.put("should", should);
+        bool.put("minimum_should_match", 1);
         bool.put("filter", searchFilters(permissionContext));
         return Map.of("bool", bool);
+    }
+
+    private Map<String, Object> simplifiedSearchQuery(List<String> terms, SearchPermissionContext permissionContext) {
+        List<String> boundedTerms = limitTerms(terms, SIMPLIFIED_QUERY_TERM_LIMIT);
+        String query = boundedTerms.isEmpty() ? "_none_" : String.join(" ", boundedTerms);
+        Map<String, Object> bool = new LinkedHashMap<>();
+        bool.put("must", List.of(multiMatchQuery(query, SIMPLIFIED_SEARCH_FIELDS)));
+        bool.put("filter", searchFilters(permissionContext));
+        return Map.of("bool", bool);
+    }
+
+    private Map<String, Object> multiMatchQuery(String query, List<String> fields) {
+        return Map.of("multi_match", Map.of(
+            "query", query,
+            "fields", fields,
+            "operator", "or"
+        ));
+    }
+
+    private String limitQueryText(String query, int maxChars) {
+        if (query == null || query.isBlank()) {
+            return null;
+        }
+        String normalized = query.trim();
+        int limit = Math.max(1, maxChars);
+        return normalized.length() <= limit ? normalized : normalized.substring(0, limit);
+    }
+
+    private String pinyinQueryText(String boundedKeyword, List<String> boundedTerms) {
+        List<String> pinyinTerms = limitTerms(boundedTerms, SIMPLIFIED_QUERY_TERM_LIMIT);
+        return pinyinTerms.isEmpty() ? boundedKeyword : String.join(" ", pinyinTerms);
+    }
+
+    private void logSearchQuery(String mode, String keyword, List<String> terms, Map<String, Object> body) {
+        int termCount = terms == null ? 0 : terms.size();
+        log.info(
+            "opensearch_search_query_stats index={} mode={} queryChars={} terms={} tokenFields={} textFields={} pinyinFields={} permissionRoleLimit={}",
+            indexName(), mode, keyword == null ? 0 : keyword.length(), termCount,
+            TOKEN_SEARCH_FIELDS.size(), TEXT_SEARCH_FIELDS.size(), PINYIN_SEARCH_FIELDS.size(),
+            Math.max(0, config().getMaxPermissionRoles())
+        );
+        if (config().isLogQueryDsl()) {
+            log.info("opensearch_search_query_dsl index={} mode={} body={}", indexName(), mode, json(body));
+        } else if (log.isDebugEnabled()) {
+            log.debug("opensearch_search_query_dsl index={} mode={} body={}", indexName(), mode, json(body));
+        }
+    }
+
+    boolean isClauseOverflow(Throwable throwable) {
+        Throwable current = throwable;
+        while (current != null) {
+            String message = current.getMessage() == null ? "" : current.getMessage().toLowerCase(Locale.ROOT);
+            if (message.contains("too_many_nested_clauses")
+                || message.contains("too_many_clauses")
+                || message.contains("maxclausecount")) {
+                return true;
+            }
+            current = current.getCause();
+        }
+        return false;
     }
 
     private List<Object> searchFilters(SearchPermissionContext permissionContext) {
@@ -519,7 +612,9 @@ public class OpenSearchDocumentIndexService implements DocumentSearchIndex {
             Map.of("term", Map.of(VISIBILITY, "private")),
             Map.of("term", Map.of(USER_ID, userId))
         ))));
-        for (String role : normalizeRoles(context.roles())) {
+        for (String role : normalizeRoles(context.roles()).stream()
+            .limit(Math.max(0, config().getMaxPermissionRoles()))
+            .toList()) {
             should.add(Map.of("bool", Map.of("must", List.of(
                 Map.of("term", Map.of(VISIBILITY, "role")),
                 Map.of("term", Map.of(PERMISSION_ROLE, role))

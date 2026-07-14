@@ -149,14 +149,21 @@ public class McpToolRegistryBridge {
             extraMetadata.put("remoteTimeoutMs", definition.timeoutMillis());
         }
 
+        String category = firstText(definition.category(), "mcp_external");
+        List<String> categories = distinctStrings(List.of("mcp", "external", category));
+        List<String> tags = new ArrayList<>(List.of("mcp", sanitize(service.getName())));
+        tags.addAll(stringList(definition.meta() == null ? null : definition.meta().get("tags")));
+        tags = distinctStrings(tags);
+        Map<String, Object> applicability = applicability(definition);
+
         ToolMetadata metadata = ToolMetadata.builder()
             .id(localName)
             .title(definition.name())
             .description(definition.description())
             .version("1.0.0")
             .author("MCP:" + service.getName())
-            .categories(List.of("mcp", "external"))
-            .category(firstText(definition.category(), "mcp_external"))
+            .categories(categories)
+            .category(category)
             .riskLevel(firstText(definition.riskLevel(), "medium"))
             .operationType(firstText(definition.operationType(), "read"))
             .runtimeLevel(definition.runtimeLevel())
@@ -176,7 +183,7 @@ public class McpToolRegistryBridge {
                     .required(false)
                     .build()
             ))
-            .tags(List.of("mcp", sanitize(service.getName())))
+            .tags(tags)
             .metadata(extraMetadata)
             .build();
 
@@ -188,8 +195,85 @@ public class McpToolRegistryBridge {
             service.getId(),
             service.getName(),
             definition.name(),
-            definition.description()
+            definition.description(),
+            backendServiceType(definition),
+            category,
+            categories,
+            tags,
+            applicability
         ));
+    }
+
+    private Map<String, Object> applicability(McpToolDefinition definition) {
+        if (definition == null || definition.meta() == null) {
+            return Map.of();
+        }
+        Object value = definition.meta().get("applicability");
+        if (!(value instanceof Map<?, ?> raw)) {
+            return Map.of();
+        }
+        Map<String, Object> result = new LinkedHashMap<>();
+        raw.forEach((key, item) -> {
+            if (key != null) {
+                result.put(String.valueOf(key), item);
+            }
+        });
+        return Map.copyOf(result);
+    }
+
+    /**
+     * Reads the backend service type declared by the MCP tool itself. No tool-name inference is used.
+     */
+    private String backendServiceType(McpToolDefinition definition) {
+        if (definition == null || definition.meta() == null || definition.meta().isEmpty()) {
+            return null;
+        }
+        Map<String, Object> meta = definition.meta();
+        Map<String, Object> applicability = applicability(definition);
+        List<String> declaredTypes = stringList(applicability.get("backendServiceTypes"));
+        Object declared = firstPresent(
+            declaredTypes.isEmpty() ? null : declaredTypes.get(0),
+            meta.get("backendServiceType"),
+            meta.get("backend_service_type"),
+            meta.get("serviceType"),
+            meta.get("service_type"),
+            meta.get("resourceType"),
+            meta.get("resource_type"),
+            meta.get("assetType"),
+            meta.get("asset_type")
+        );
+        return declared == null || String.valueOf(declared).isBlank()
+            ? null
+            : String.valueOf(declared).trim();
+    }
+
+    private List<String> stringList(Object value) {
+        if (value == null) {
+            return List.of();
+        }
+        List<String> result = new ArrayList<>();
+        if (value instanceof Iterable<?> iterable) {
+            for (Object item : iterable) {
+                if (item != null && !String.valueOf(item).isBlank()) {
+                    result.add(String.valueOf(item).trim());
+                }
+            }
+        } else if (!String.valueOf(value).isBlank()) {
+            result.add(String.valueOf(value).trim());
+        }
+        return List.copyOf(result);
+    }
+
+    private List<String> distinctStrings(Iterable<String> values) {
+        Set<String> distinct = new LinkedHashSet<>();
+        if (values != null) {
+            for (String value : values) {
+                if (value != null && !value.isBlank()) {
+                    distinct.add(value.trim());
+                }
+            }
+        }
+        return List.copyOf(distinct);
     }
 
     /**
@@ -501,8 +585,37 @@ public class McpToolRegistryBridge {
         String serviceId,
         String serviceName,
         String remoteToolName,
-        String description
+        String description,
+        String backendServiceType,
+        String category,
+        List<String> categories,
+        List<String> tags,
+        Map<String, Object> applicability
     ) {
+        public RegisteredMcpTool(String localToolName,
+                                 String serviceId,
+                                 String serviceName,
+                                 String remoteToolName,
+                                 String description) {
+            this(localToolName, serviceId, serviceName, remoteToolName, description, null,
+                null, List.of(), List.of(), Map.of());
+        }
+
+        public RegisteredMcpTool(String localToolName,
+                                 String serviceId,
+                                 String serviceName,
+                                 String remoteToolName,
+                                 String description,
+                                 String backendServiceType) {
+            this(localToolName, serviceId, serviceName, remoteToolName, description, backendServiceType,
+                null, List.of(), List.of(), Map.of());
+        }
+
+        public RegisteredMcpTool {
+            categories = categories == null ? List.of() : List.copyOf(categories);
+            tags = tags == null ? List.of() : List.copyOf(tags);
+            applicability = applicability == null ? Map.of() : Map.copyOf(applicability);
+        }
     }
 
     /**

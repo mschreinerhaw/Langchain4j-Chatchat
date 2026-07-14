@@ -1667,6 +1667,25 @@
   gap: 13px;
 }
 
+.agent-workshop-view .agent-card.export-selected {
+  border-color: rgba(47, 124, 246, 0.48);
+  box-shadow: 0 12px 30px rgba(47, 124, 246, 0.12);
+}
+
+.agent-workshop-view .agent-export-select {
+  width: fit-content;
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+}
+
+.agent-workshop-view .agent-export-select input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  padding: 0;
+}
+
 .agent-workshop-view .agent-card > * {
   min-width: 0;
 }

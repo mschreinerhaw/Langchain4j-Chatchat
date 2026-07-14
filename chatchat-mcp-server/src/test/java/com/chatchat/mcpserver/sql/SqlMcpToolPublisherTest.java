@@ -10,6 +10,7 @@ import com.chatchat.mcpserver.routing.ExecutionTargetRouter;
 import com.chatchat.mcpserver.tool.AgentRuntimeGovernanceFactory;
 import com.chatchat.mcpserver.tool.McpToolConcurrencyManager;
 import com.chatchat.mcpserver.tool.StandardToolExecutionResultFactory;
+import com.chatchat.tools.builtin.DatabaseToolProperties;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.modelcontextprotocol.server.McpSyncServer;
 import org.junit.jupiter.api.Test;
@@ -63,7 +64,7 @@ class SqlMcpToolPublisherTest {
             assetMetadataFactory,
             governanceFactory,
             concurrencyManager,
-            new StandardToolExecutionResultFactory(),
+            new StandardToolExecutionResultFactory(new DatabaseToolProperties()),
             new ChatChatMcpServerProperties(),
             new ObjectMapper()
         );
@@ -123,7 +124,7 @@ class SqlMcpToolPublisherTest {
             assetMetadataFactory,
             governanceFactory,
             concurrencyManager,
-            new StandardToolExecutionResultFactory(),
+            new StandardToolExecutionResultFactory(new DatabaseToolProperties()),
             new ChatChatMcpServerProperties(),
             new ObjectMapper()
         );
@@ -167,7 +168,7 @@ class SqlMcpToolPublisherTest {
             assetMetadataFactory,
             governanceFactory,
             concurrencyManager,
-            new StandardToolExecutionResultFactory(),
+            new StandardToolExecutionResultFactory(new DatabaseToolProperties()),
             new ChatChatMcpServerProperties(),
             new ObjectMapper()
         );
@@ -201,7 +202,7 @@ class SqlMcpToolPublisherTest {
             assetMetadataFactory,
             governanceFactory,
             concurrencyManager,
-            new StandardToolExecutionResultFactory(),
+            new StandardToolExecutionResultFactory(new DatabaseToolProperties()),
             properties,
             new ObjectMapper()
         );

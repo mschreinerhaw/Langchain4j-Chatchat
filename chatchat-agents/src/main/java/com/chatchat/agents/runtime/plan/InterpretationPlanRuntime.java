@@ -25,6 +25,8 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
@@ -34,6 +36,20 @@ import java.util.stream.Collectors;
 public class InterpretationPlanRuntime {
 
     private static final String AGENT_RUN_ID_ATTRIBUTE = "__agentRunId";
+    private static final String ORIGINAL_USER_QUERY_ATTRIBUTE = "originalUserQuery";
+    private static final String AGENT_RUNTIME_ENVIRONMENT_ATTRIBUTE = "agentRuntimeEnvironment";
+    private static final Pattern EXPLICIT_ENV_ASSIGNMENT_PATTERN = Pattern.compile(
+        "(?iu)(?:\\benv(?:ironment)?\\b|\\u73af\\u5883)\\s*(?:[:=]|\\u4e3a|\\u662f)\\s*"
+            + "(DEV|TEST|UAT|PROD|\\u5f00\\u53d1|\\u6d4b\\u8bd5|\\u9884\\u53d1|\\u751f\\u4ea7)"
+    );
+    private static final Pattern EXPLICIT_ENV_QUALIFIER_PATTERN = Pattern.compile(
+        "(?iu)(DEV|TEST|UAT|PROD|\\u5f00\\u53d1|\\u6d4b\\u8bd5|\\u9884\\u53d1|\\u751f\\u4ea7)\\s*"
+            + "(?:\\u73af\\u5883|\\u96c6\\u7fa4|\\benv(?:ironment)?\\b)"
+    );
+    private static final Pattern EXPLICIT_ENV_ENGLISH_PATTERN = Pattern.compile(
+        "(?iu)\\b(?:in|on|under)\\s+(?:the\\s+)?(DEV|TEST|UAT|PROD)"
+            + "(?:\\s+(?:env(?:ironment)?|cluster))?\\b"
+    );
     private static final ObjectMapper RESULT_OBJECT_MAPPER = new ObjectMapper();
     private static final Set<String> DISCOVERY_FILTER_PROTOCOL_FIELDS = Set.of(
         "trace",
@@ -1371,9 +1387,10 @@ public class InterpretationPlanRuntime {
         hydrateExecutionContextFromTemplate(step, completed, input);
         hydrateSqlMetadataParametersFromMetadataSearch(step, completed, input);
         repairTableScopedSqlTemplate(step, completed, input);
+        enforceAgentRuntimeEnvironment(step, request, input);
         validateRequiredTemplateParameters(step, completed, input);
         validateRequiredExecutionTemplate(step, input);
-        normalizeDiscoveryRoutingInput(step, request, input);
+        normalizeDiscoveryRoutingInput(step, request, completed, input);
         if (!isCrawlerTool(step.toolName())) {
             return input;
         }
@@ -2388,6 +2405,7 @@ public class InterpretationPlanRuntime {
     @SuppressWarnings("unchecked")
     private void normalizeDiscoveryRoutingInput(InterpretationPlan.Step step,
                                                 ExecutionRequest request,
+                                                Map<Integer, StepExecution> completed,
                                                 Map<String, Object> input) {
         if (step == null || input == null || !isRoutingDiscoveryTool(step.toolName())) {
             return;
@@ -2397,8 +2415,11 @@ public class InterpretationPlanRuntime {
             input.put("filters", new LinkedHashMap<>());
             filters = input.get("filters");
         }
+        sanitizeDiscoveryFilters(input);
+        sanitizeDiscoveryEnvironment(step, request, completed, input);
+        filters = firstMapValue(input, "filters", "executionContext", "mcpExecutionContext");
         if (filters instanceof Map<?, ?> filterMap && !hasAssetConstraint(filterMap)) {
-            String searchText = planGoalSearchText(request == null ? null : request.plan());
+            String searchText = discoverySearchText(request);
             if (searchText != null && !searchText.isBlank() && !hasRetrievalSignal(filterMap)) {
                 @SuppressWarnings("unchecked")
                 Map<String, Object> mutableFilters = filterMap instanceof LinkedHashMap<?, ?>
@@ -2420,6 +2441,183 @@ public class InterpretationPlanRuntime {
             return;
         }
         input.put("trace", routingTraceForStep(step, request));
+    }
+
+    @SuppressWarnings("unchecked")
+    private void sanitizeDiscoveryEnvironment(InterpretationPlan.Step step,
+                                              ExecutionRequest request,
+                                              Map<Integer, StepExecution> completed,
+                                              Map<String, Object> input) {
+        Object filtersValue = input == null ? null : firstMapValue(input, "filters", "executionContext", "mcpExecutionContext");
+        if (!(filtersValue instanceof Map<?, ?> filters)) {
+            return;
+        }
+        Map<String, Object> mutable = filters instanceof LinkedHashMap<?, ?>
+            ? (Map<String, Object>) filters
+            : new LinkedHashMap<>((Map<String, Object>) filters);
+        Object rawValue = firstNonBlankObject(mutable.get("env"), mutable.get("environment"));
+        if (rawValue == null) {
+            return;
+        }
+        String rawEnvironment = String.valueOf(rawValue).trim();
+        String canonical = canonicalProtocolEnvironment(rawEnvironment);
+        String explicit = explicitEnvironment(originalUserQuery(request));
+        boolean observed = environmentObserved(completed, canonical);
+        boolean requestAttribute = environmentFromAttributes(request, canonical);
+        boolean originalQueryAvailable = originalUserQuery(request) != null;
+        boolean accepted = canonical != null
+            && (observed || requestAttribute || !originalQueryAvailable || canonical.equals(explicit));
+        mutable.remove("environment");
+        if (accepted) {
+            mutable.put("env", canonical);
+        } else {
+            mutable.remove("env");
+            log.info("InterpretationPlan discovery environment filter dropped: stepId={}, tool={}, value={}, reason={}",
+                step == null ? null : step.id(), step == null ? null : step.toolName(), rawEnvironment,
+                canonical == null ? "not_protocol_enum" : "not_explicit_or_observed");
+        }
+        input.put("filters", mutable);
+    }
+
+    @SuppressWarnings("unchecked")
+    private void enforceAgentRuntimeEnvironment(InterpretationPlan.Step step,
+                                                ExecutionRequest request,
+                                                Map<String, Object> input) {
+        String configured = agentRuntimeEnvironment(request);
+        if (configured == null || step == null || input == null || !step.mcpToolAction()) {
+            return;
+        }
+        if (isRoutingDiscoveryTool(step.toolName())) {
+            Object existing = firstMapValue(input, "filters", "executionContext", "mcpExecutionContext");
+            Map<String, Object> filters = existing instanceof Map<?, ?> map
+                ? new LinkedHashMap<>((Map<String, Object>) map)
+                : new LinkedHashMap<>();
+            logEnvironmentCorrection(step, firstNonBlankObject(filters.get("env"), filters.get("environment")), configured);
+            filters.remove("environment");
+            filters.put("env", configured);
+            input.put("filters", filters);
+            return;
+        }
+        if (!isExecutionContextTool(step.toolName())) {
+            return;
+        }
+        Object existing = firstMapValue(input, "executionContext", "mcpExecutionContext");
+        Map<String, Object> context = existing instanceof Map<?, ?> map
+            ? new LinkedHashMap<>((Map<String, Object>) map)
+            : new LinkedHashMap<>();
+        logEnvironmentCorrection(step, firstNonBlankObject(context.get("env"), context.get("environment")), configured);
+        context.remove("environment");
+        context.put("env", configured);
+        input.remove("env");
+        input.remove("environment");
+        input.remove("mcpExecutionContext");
+        input.put("executionContext", context);
+    }
+
+    private String agentRuntimeEnvironment(ExecutionRequest request) {
+        if (request == null || request.attributes() == null) {
+            return null;
+        }
+        Object value = request.attributes().get(AGENT_RUNTIME_ENVIRONMENT_ATTRIBUTE);
+        if (value == null) {
+            Object workflow = request.attributes().get("mcpWorkflow");
+            if (workflow instanceof Map<?, ?> map) {
+                value = map.get("runtimeEnvironment");
+            }
+        }
+        return canonicalProtocolEnvironment(value == null ? null : String.valueOf(value));
+    }
+
+    private void logEnvironmentCorrection(InterpretationPlan.Step step, Object actual, String configured) {
+        if (actual == null || configured.equals(canonicalProtocolEnvironment(String.valueOf(actual)))) {
+            return;
+        }
+        log.info("InterpretationPlan MCP environment corrected from Agent configuration: stepId={}, tool={}, modelEnv={}, agentEnv={}",
+            step.id(), step.toolName(), actual, configured);
+    }
+
+    private String discoverySearchText(ExecutionRequest request) {
+        String original = originalUserQuery(request);
+        return original == null ? planGoalSearchText(request == null ? null : request.plan()) : original;
+    }
+
+    private String originalUserQuery(ExecutionRequest request) {
+        if (request == null || request.attributes() == null) {
+            return null;
+        }
+        Object value = request.attributes().get(ORIGINAL_USER_QUERY_ATTRIBUTE);
+        return value == null || String.valueOf(value).isBlank() ? null : String.valueOf(value).trim();
+    }
+
+    private boolean environmentFromAttributes(ExecutionRequest request, String expected) {
+        if (expected == null || request == null || request.attributes() == null) {
+            return false;
+        }
+        if (expected.equals(agentRuntimeEnvironment(request))) {
+            return true;
+        }
+        Object value = firstNonBlankObject(
+            request.attributes().get("env"),
+            request.attributes().get("environment")
+        );
+        return expected.equals(canonicalProtocolEnvironment(value == null ? null : String.valueOf(value)));
+    }
+
+    private boolean environmentObserved(Map<Integer, StepExecution> completed, String expected) {
+        if (expected == null || completed == null || completed.isEmpty()) {
+            return false;
+        }
+        for (StepExecution execution : completed.values()) {
+            Object value = firstValueAtAnyPath(execution == null ? null : execution.output(),
+                "$.assets[0].asset.environment",
+                "$.assets[0].asset.env",
+                "$.asset.environment",
+                "$.environment",
+                "$.env");
+            if (expected.equals(canonicalProtocolEnvironment(value == null ? null : String.valueOf(value)))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private String explicitEnvironment(String query) {
+        if (query == null || query.isBlank()) {
+            return null;
+        }
+        for (Pattern pattern : List.of(
+            EXPLICIT_ENV_ASSIGNMENT_PATTERN,
+            EXPLICIT_ENV_QUALIFIER_PATTERN,
+            EXPLICIT_ENV_ENGLISH_PATTERN
+        )) {
+            Matcher matcher = pattern.matcher(query);
+            if (matcher.find()) {
+                return canonicalEnvironmentToken(matcher.group(1));
+            }
+        }
+        return null;
+    }
+
+    private String canonicalProtocolEnvironment(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        String normalized = value.trim().toUpperCase(Locale.ROOT);
+        return Set.of("DEV", "TEST", "UAT", "PROD").contains(normalized) ? normalized : null;
+    }
+
+    private String canonicalEnvironmentToken(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        String normalized = value.trim().toUpperCase(Locale.ROOT);
+        return switch (normalized) {
+            case "DEV", "\u5f00\u53d1" -> "DEV";
+            case "TEST", "\u6d4b\u8bd5" -> "TEST";
+            case "UAT", "\u9884\u53d1" -> "UAT";
+            case "PROD", "\u751f\u4ea7" -> "PROD";
+            default -> null;
+        };
     }
 
     @SuppressWarnings("unchecked")

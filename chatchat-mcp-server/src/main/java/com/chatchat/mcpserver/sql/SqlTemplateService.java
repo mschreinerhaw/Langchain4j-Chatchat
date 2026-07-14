@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -178,6 +179,26 @@ public class SqlTemplateService {
             config.getCode(), datasource == null ? null : datasource.getId(), datasource == null ? null : datasource.getName(),
             datasource == null ? null : datasource.getEnvironment(), truncateSql(renderedSql));
         return renderedSql;
+    }
+
+    public Map<String, Object> executionMetadata(String code) {
+        if (code == null || code.isBlank()) {
+            return Map.of();
+        }
+        ensureDefaults();
+        SqlTemplateConfig config = repository.findByCode(code.trim().toUpperCase(Locale.ROOT))
+            .filter(SqlTemplateConfig::isEnabled)
+            .orElse(null);
+        if (config == null) {
+            return Map.of();
+        }
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("templateId", config.getCode());
+        metadata.put("businessName", config.getTitle());
+        metadata.put("businessDescription", config.getDescription());
+        metadata.put("category", config.getCategory());
+        metadata.put("riskLevel", config.getRiskLevel());
+        return metadata;
     }
 
     public SqlTemplateConfig getById(String id) {

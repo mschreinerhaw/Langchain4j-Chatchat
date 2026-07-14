@@ -1,6 +1,7 @@
 package com.chatchat.mcpserver.sql;
 
 import com.chatchat.mcpserver.audit.InvocationAuditService;
+import com.chatchat.tools.builtin.DatabaseToolProperties;
 import com.chatchat.tools.builtin.DynamicJdbcDriverLoader;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -41,6 +42,7 @@ public class SqlQueryExecuteService {
     private final ObjectMapper objectMapper;
     private final DynamicJdbcDriverLoader driverLoader;
     private final DynamicDateParamService dynamicDateParamService;
+    private final DatabaseToolProperties databaseToolProperties;
 
     public SqlQueryResult execute(Map<String, Object> arguments) {
         long startedAt = System.currentTimeMillis();
@@ -49,7 +51,7 @@ public class SqlQueryExecuteService {
         String normalizedSql = null;
         SqlQueryResult result;
         int timeoutSeconds = 30;
-        int maxRows = 1000;
+        int maxRows = configuredDefaultMaxRows();
         Map<String, Object> diagnostics = new LinkedHashMap<>();
         try {
             datasource = datasourceConfigService.getEnabled(text(request, "datasourceId"));
@@ -57,6 +59,7 @@ public class SqlQueryExecuteService {
             timeoutSeconds = normalizeTimeout(request.get("timeoutSeconds"), datasource.getDefaultTimeoutSeconds());
             maxRows = normalizeMaxRows(request.get("maxRows"), datasource.getDefaultMaxRows());
             diagnostics.putAll(baseDiagnostics(datasource, request));
+            diagnostics.put("templateMetadata", templateService.executionMetadata(requestedTemplate(request)));
             String sql = resolveSql(request, datasource);
             diagnostics.put("templateParameters", new LinkedHashMap<>(mapValue(request.get("parameters"))));
             diagnostics.put("executionContext", contextFrom(request));
@@ -64,7 +67,7 @@ public class SqlQueryExecuteService {
             String executableSql = normalizeSingleStatementSql(sql);
             normalizedSql = safetyService.validateAndNormalizeScriptStatement(executableSql, maxRows);
             validateAllowedTables(datasource, normalizedSql);
-            log.info("MCP SQL query execution requested: datasourceId={}, datasourceName={}, env={}, tool={}, templateId={}, timeoutSeconds={}, maxRows={}, purpose={}, sourceTaskId={}, sql={}",
+            log.info("MCP execution detail: executionType=SQL_QUERY, datasourceId={}, datasourceName={}, env={}, tool={}, templateId={}, timeoutSeconds={}, maxRows={}, purpose={}, sourceTaskId={}, sql={}",
                 datasource.getId(), datasource.getName(), datasource.getEnvironment(), datasource.getToolName(),
                 requestedTemplate(request), timeoutSeconds, maxRows, text(request, "purpose"), text(request, "sourceTaskId"),
                 truncateSql(normalizedSql));
@@ -316,6 +319,7 @@ public class SqlQueryExecuteService {
         repairedRequest.put("selfHealingAttempted", true);
 
         Map<String, Object> repairDiagnostics = baseDiagnostics(datasource, repairedRequest);
+        repairDiagnostics.put("templateMetadata", templateService.executionMetadata(requestedTemplate(repairedRequest)));
         repairDiagnostics.put("templateParameters", new LinkedHashMap<>(repairedParameters));
         repairDiagnostics.put("executionContext", contextFrom(repairedRequest));
         repairDiagnostics.put("tableResolution", repairedRequest.get("tableResolution"));
@@ -924,10 +928,29 @@ public class SqlQueryExecuteService {
     }
 
     int normalizeMaxRows(Object value, int fallback) {
+        int configuredMinimum = minRowsLimit();
+        int configuredLimit = maxRowsLimit();
+        int requested;
         if (value instanceof Number number) {
-            return Math.max(1, Math.min(number.intValue(), 5000));
+            requested = number.intValue();
+        } else {
+            requested = fallback > 0 ? fallback : configuredDefaultMaxRows();
         }
-        return Math.max(1, Math.min(fallback, 5000));
+        return Math.max(configuredMinimum, Math.min(requested, configuredLimit));
+    }
+
+    private int configuredDefaultMaxRows() {
+        int configuredMinimum = minRowsLimit();
+        int configuredLimit = maxRowsLimit();
+        return Math.max(configuredMinimum, Math.min(databaseToolProperties.getDefaultMaxRows(), configuredLimit));
+    }
+
+    int minRowsLimit() {
+        return Math.max(1, Math.min(databaseToolProperties.getMinRows(), maxRowsLimit()));
+    }
+
+    int maxRowsLimit() {
+        return Math.max(1, databaseToolProperties.getMaxRows());
     }
 
     private String text(Map<String, Object> map, String key) {

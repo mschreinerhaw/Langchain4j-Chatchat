@@ -889,6 +889,11 @@ public class SkillCatalogService {
         Map<String, Object> normalized = new LinkedHashMap<>();
         Object enabled = config.get("enabled");
         normalized.put("enabled", !(enabled instanceof Boolean bool) || bool);
+        Object configuredEnvironment = firstObject(config, "runtimeEnvironment", "runtime_environment");
+        String runtimeEnvironment = normalizeRuntimeEnvironment(configuredEnvironment);
+        if (runtimeEnvironment != null) {
+            normalized.put("runtimeEnvironment", runtimeEnvironment);
+        }
         putText(normalized, "workflow", firstObject(config, "workflow", "workflowId", "id", "name"));
         Object mcpWorkflow = config.get("mcpWorkflow");
         if (mcpWorkflow instanceof List<?> || mcpWorkflow instanceof Map<?, ?>) {
@@ -974,6 +979,20 @@ public class SkillCatalogService {
             normalized.put("parallelSteps", normalizedParallelSteps);
         }
         return normalized;
+    }
+
+    private String normalizeRuntimeEnvironment(Object value) {
+        String environment = value == null ? null : normalizeText(String.valueOf(value));
+        if (environment == null) {
+            return null;
+        }
+        String canonical = environment.toUpperCase(Locale.ROOT);
+        if (!Set.of("DEV", "TEST", "UAT", "PROD").contains(canonical)) {
+            throw new IllegalArgumentException(
+                "workflowConfig.runtimeEnvironment must be one of DEV, TEST, UAT, PROD"
+            );
+        }
+        return canonical;
     }
 
     /**

@@ -29,7 +29,8 @@ class SqlQueryExecuteServiceTest {
     private final SqlTemplateService templateService = mock(SqlTemplateService.class);
     private final MetadataResolverService metadataResolverService = mock(MetadataResolverService.class);
     private final InvocationAuditService auditService = mock(InvocationAuditService.class);
-    private final DynamicJdbcDriverLoader driverLoader = new DynamicJdbcDriverLoader(new DatabaseToolProperties());
+    private final DatabaseToolProperties databaseToolProperties = new DatabaseToolProperties();
+    private final DynamicJdbcDriverLoader driverLoader = new DynamicJdbcDriverLoader(databaseToolProperties);
     private final DynamicDateParamService dynamicDateParamService = new DynamicDateParamService(
         driverLoader,
         Clock.fixed(Instant.parse("2026-07-07T00:00:00Z"), ZoneId.of("Asia/Shanghai"))
@@ -42,7 +43,8 @@ class SqlQueryExecuteServiceTest {
         auditService,
         new ObjectMapper(),
         driverLoader,
-        dynamicDateParamService
+        dynamicDateParamService,
+        databaseToolProperties
     );
     private final SqlScriptExecuteService scriptService = new SqlScriptExecuteService(
         datasourceConfigService,
@@ -52,6 +54,19 @@ class SqlQueryExecuteServiceTest {
         auditService,
         dynamicDateParamService
     );
+
+    @Test
+    void configuredRowBoundsConstrainEveryQueryRequest() {
+        databaseToolProperties.setMinRows(10);
+        databaseToolProperties.setDefaultMaxRows(40);
+        databaseToolProperties.setMaxRows(200);
+
+        assertThat(service.normalizeMaxRows(null, 0)).isEqualTo(40);
+        assertThat(service.normalizeMaxRows(2, 50)).isEqualTo(10);
+        assertThat(service.normalizeMaxRows(120, 50)).isEqualTo(120);
+        assertThat(service.normalizeMaxRows(5000, 50)).isEqualTo(200);
+        assertThat(service.normalizeMaxRows(null, 800)).isEqualTo(200);
+    }
 
     @Test
     void queryResultIncludesColumnMetadataCommentsAndMaskingGovernance() throws Exception {

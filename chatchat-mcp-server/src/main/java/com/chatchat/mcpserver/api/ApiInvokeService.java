@@ -101,7 +101,7 @@ public class ApiInvokeService {
                 .build();
             Map<String, Object> renderArgs = enrichArguments(transport, auditArgs, false);
             HttpRequest request = buildRequest(transport, renderArgs);
-            log.info("External API HTTP request prepared apiServiceId={} tool={} gatewayId={} method={} uri={} timeoutMs={} args={}",
+            log.info("MCP execution detail: executionType=HTTP_REQUEST, apiServiceId={}, tool={}, gatewayId={}, method={}, uri={}, timeoutMs={}, args={}",
                 config.getId(),
                 config.getToolName(),
                 transport.gatewayId(),
@@ -113,7 +113,7 @@ public class ApiInvokeService {
             if (isAuthFailure(response) && usesLivedataSession(transport)) {
                 renderArgs = enrichArguments(transport, auditArgs, true);
                 request = buildRequest(transport, renderArgs);
-                log.info("External API HTTP request retrying with refreshed session apiServiceId={} tool={} gatewayId={} method={} uri={} timeoutMs={}",
+                log.info("MCP execution detail: executionType=HTTP_REQUEST_RETRY, apiServiceId={}, tool={}, gatewayId={}, method={}, uri={}, timeoutMs={}, reason=refreshed_session",
                     config.getId(),
                     config.getToolName(),
                     transport.gatewayId(),

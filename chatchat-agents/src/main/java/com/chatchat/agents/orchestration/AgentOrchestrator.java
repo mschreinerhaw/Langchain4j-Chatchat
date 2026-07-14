@@ -342,7 +342,12 @@ public class AgentOrchestrator {
                                              boolean requireBoundToolCall,
                                              Map<String, Object> runtimeAttributes) {
         List<String> tools = availableTools == null ? List.of() : availableTools;
-        Map<String, Object> requestRuntimeAttributes = runtimeGuard.attributesWithDeadline(runtimeAttributes);
+        Map<String, Object> requestRuntimeAttributes = new LinkedHashMap<>(
+            runtimeGuard.attributesWithDeadline(runtimeAttributes)
+        );
+        if (query != null && !query.isBlank()) {
+            requestRuntimeAttributes.putIfAbsent("originalUserQuery", query);
+        }
         BooleanSupplier cancellationCheck = runtimeGuard.cancellationCheck(requestRuntimeAttributes);
         int maxSteps = runtimeGuard.maxSteps(requestRuntimeAttributes);
         int maxToolCalls = runtimeGuard.maxToolCalls(requestRuntimeAttributes);

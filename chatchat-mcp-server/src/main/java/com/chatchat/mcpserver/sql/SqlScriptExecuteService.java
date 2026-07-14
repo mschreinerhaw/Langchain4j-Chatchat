@@ -48,6 +48,7 @@ public class SqlScriptExecuteService {
             maxRowsPerStatement = queryExecuteService.normalizeMaxRows(firstValue(request, "maxRowsPerStatement", "maxRows"), datasource.getDefaultMaxRows());
             diagnostics.putAll(queryExecuteService.baseDiagnostics(datasource, request));
             diagnostics.put("scriptMode", "read_only_multi_result");
+            diagnostics.put("templateMetadata", templateService.executionMetadata(requestedTemplate(request)));
             String script = resolveScript(request, datasource);
             TemplatePlan plan = scriptPlan(requestedTemplate(request), script, maxRowsPerStatement);
             diagnostics.put("statementCount", plan.steps().size());
@@ -127,6 +128,9 @@ public class SqlScriptExecuteService {
                 TemplateStep step = statements.get(index);
                 String sql = step.command();
                 long stepStartedAt = System.currentTimeMillis();
+                log.info("MCP execution detail: executionType=SQL_SCRIPT_STEP, datasourceId={}, datasourceName={}, statementIndex={}, stepCode={}, stepName={}, timeoutSeconds={}, maxRows={}, sql={}",
+                    datasource.getId(), datasource.getName(), index + 1, step.stepCode(), step.stepName(),
+                    timeoutSeconds, maxRowsPerStatement, sql);
                 try {
                     results.add(executeSingle(connection, statement, datasource, step, index + 1, maxRowsPerStatement, sensitiveFields, stepStartedAt));
                 } catch (Exception ex) {

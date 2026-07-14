@@ -8,6 +8,8 @@ import com.chatchat.mcpserver.ops.LinuxCommandStepResult;
 import com.chatchat.mcpserver.sql.SqlQueryResult;
 import com.chatchat.mcpserver.sql.SqlScriptResult;
 import com.chatchat.mcpserver.sql.SqlScriptStatementResult;
+import com.chatchat.tools.builtin.DatabaseToolProperties;
+import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
 import java.nio.charset.StandardCharsets;
@@ -20,14 +22,17 @@ import java.util.Map;
 import java.util.UUID;
 
 @Component
+@RequiredArgsConstructor
 public class StandardToolExecutionResultFactory {
 
     public static final String SCHEMA_VERSION = "tool_execution_result.v1";
-    public static final int SQL_RESULT_ROW_LIMIT = 50;
     static final int LINUX_AGGREGATE_STREAM_LIMIT = 24_000;
     static final int LINUX_STEP_STREAM_TOTAL_BUDGET = 100_000;
 
+    private final DatabaseToolProperties databaseToolProperties;
+
     public Map<String, Object> fromSql(SqlQueryResult result) {
+        Map<String, Object> safeDiagnostics = modelSafeMap(result.diagnostics());
         Map<String, Object> payload = base(
             "sql_query",
             "sql_result.v1",
@@ -43,21 +48,23 @@ public class StandardToolExecutionResultFactory {
             "toolName", result.toolName(),
             "environment", result.environment()
         ));
+        payload.put("sourceMetadata", sqlSourceMetadata(result));
         payload.put("operation", mapOf(
             "type", "sql.query",
             "statement", result.normalizedSql() == null ? result.sql() : result.normalizedSql(),
             "timeoutSeconds", result.timeoutSeconds(),
             "purpose", result.purpose(),
             "sourceTaskId", result.sourceTaskId(),
-            "diagnostics", result.diagnostics()
+            "diagnostics", safeDiagnostics
         ));
+        int rowLimit = sqlResultRowLimit();
         List<Map<String, Object>> rows = result.rows() == null
             ? List.of()
-            : result.rows().stream().limit(SQL_RESULT_ROW_LIMIT).toList();
+            : result.rows().stream().limit(rowLimit).toList();
         Map<String, Object> limits = mapOf(
             "maxRowsRequested", result.maxRows(),
-            "maxRowsReturnedToModel", SQL_RESULT_ROW_LIMIT,
-            "truncationStrategy", "LIMIT_50"
+            "maxRowsReturnedToModel", rowLimit,
+            "truncationStrategy", sqlTruncationStrategy()
         );
         payload.put("limits", limits);
         boolean possiblyTruncated = result.possiblyTruncated() || result.rowCount() > rows.size();
@@ -66,11 +73,11 @@ public class StandardToolExecutionResultFactory {
             "returnedRowCount", rows.size(),
             "complete", !possiblyTruncated,
             "possiblyTruncated", possiblyTruncated,
-            "truncationStrategy", "LIMIT_50",
+            "truncationStrategy", sqlTruncationStrategy(),
             "columns", result.columns(),
             "columnMetadata", result.columnMetadata(),
             "governance", sqlOutputGovernance(result, rows.size()),
-            "diagnostics", result.diagnostics(),
+            "diagnostics", safeDiagnostics,
             "rows", rows
         );
         payload.put("data", data);
@@ -95,7 +102,7 @@ public class StandardToolExecutionResultFactory {
                     "possiblyTruncated", data.get("possiblyTruncated"),
                     "governance", data.get("governance"),
                     "meta", limits,
-                    "diagnostics", result.diagnostics()
+                    "diagnostics", safeDiagnostics
                 ),
                 result.success(),
                 result.durationMs(),
@@ -111,6 +118,7 @@ public class StandardToolExecutionResultFactory {
     }
 
     public Map<String, Object> fromSqlScript(SqlScriptResult result) {
+        Map<String, Object> safeDiagnostics = modelSafeMap(result.diagnostics());
         Map<String, Object> payload = base(
             "sql_script",
             "sql_script_result.v1",
@@ -126,6 +134,7 @@ public class StandardToolExecutionResultFactory {
             "toolName", result.toolName(),
             "environment", result.environment()
         ));
+        payload.put("sourceMetadata", sqlScriptSourceMetadata(result));
         payload.put("operation", mapOf(
             "type", "sql.script",
             "statementCount", result.statementCount(),
@@ -133,21 +142,21 @@ public class StandardToolExecutionResultFactory {
             "maxRowsPerStatement", result.maxRowsPerStatement(),
             "purpose", result.purpose(),
             "sourceTaskId", result.sourceTaskId(),
-            "diagnostics", result.diagnostics()
+            "diagnostics", safeDiagnostics
         ));
         List<Map<String, Object>> resultSets = result.results().stream()
             .map(this::scriptResultSet)
             .toList();
         payload.put("limits", mapOf(
             "maxRowsPerStatementRequested", result.maxRowsPerStatement(),
-            "maxRowsReturnedToModelPerStatement", SQL_RESULT_ROW_LIMIT,
-            "truncationStrategy", "LIMIT_50_PER_STATEMENT"
+            "maxRowsReturnedToModelPerStatement", sqlResultRowLimit(),
+            "truncationStrategy", sqlTruncationStrategy() + "_PER_STATEMENT"
         ));
         payload.put("data", mapOf(
             "statementCount", result.statementCount(),
             "resultSetCount", resultSets.size(),
             "results", resultSets,
-            "diagnostics", result.diagnostics()
+            "diagnostics", safeDiagnostics
         ));
         payload.put("execution", execution(
             "sql_script_execute",
@@ -197,7 +206,7 @@ public class StandardToolExecutionResultFactory {
     private Map<String, Object> scriptResultSet(SqlScriptStatementResult result) {
         List<Map<String, Object>> rows = result.rows() == null
             ? List.of()
-            : result.rows().stream().limit(SQL_RESULT_ROW_LIMIT).toList();
+            : result.rows().stream().limit(sqlResultRowLimit()).toList();
         return mapOf(
             "statementIndex", result.statementIndex(),
             "stepCode", result.stepCode(),
@@ -206,6 +215,7 @@ public class StandardToolExecutionResultFactory {
             "required", result.required(),
             "analysisHint", result.analysisHint(),
             "statement", result.sql(),
+            "sourceMetadata", sqlStatementSourceMetadata(result),
             "success", result.success(),
             "columns", result.columns(),
             "columnMetadata", result.columnMetadata(),
@@ -213,9 +223,9 @@ public class StandardToolExecutionResultFactory {
             "rowCount", result.rowCount(),
             "returnedRowCount", rows.size(),
             "possiblyTruncated", result.possiblyTruncated() || result.rowCount() > rows.size(),
-            "truncationStrategy", "LIMIT_50",
+            "truncationStrategy", sqlTruncationStrategy(),
             "errorMessage", result.errorMessage(),
-            "diagnostics", result.diagnostics()
+            "diagnostics", modelSafeMap(result.diagnostics())
         );
     }
 
@@ -247,6 +257,7 @@ public class StandardToolExecutionResultFactory {
             "toolName", result.toolName(),
             "environment", result.environment()
         ));
+        payload.put("sourceMetadata", linuxSourceMetadata(result));
         payload.put("operation", mapOf(
             "type", "ssh.command_steps",
             "template", result.template(),
@@ -303,6 +314,7 @@ public class StandardToolExecutionResultFactory {
             "toolName", "http_request",
             "environment", null
         ));
+        payload.put("sourceMetadata", httpSourceMetadata(result));
         payload.put("operation", mapOf(
             "type", "http.request",
             "method", result.method(),
@@ -390,6 +402,27 @@ public class StandardToolExecutionResultFactory {
                 "owner", firstText(config.getOwner(), "admin")
             )
         ));
+        payload.put("sourceMetadata", sourceMetadata(
+            multiSql ? "SQL_QUERY_STEPS" : "SQL_QUERY",
+            multiSql ? "database_query_template" : "sql_statement",
+            toolName,
+            mapOf(
+                "type", "database",
+                "id", config == null ? null : firstText(config.getDatasourceId(), config.getId()),
+                "name", config == null ? null : config.getTitle(),
+                "environment", null
+            ),
+            mapOf(
+                "statementHash", sha256(statement),
+                "executionMode", multiSql ? "SEQUENTIAL_MULTI_SQL" : "SINGLE_SQL"
+            ),
+            config == null ? "Database query" : firstText(config.getTitle(), config.getToolName()),
+            config == null
+                ? stringValue(arguments == null ? null : arguments.get("purpose"))
+                : firstText(config.getDescription(), config.getBusinessGroupDescription(),
+                    stringValue(arguments == null ? null : arguments.get("purpose"))),
+            config == null ? "database_query" : firstText(config.getBusinessGroup(), "database_query")
+        ));
         payload.put("analysisContext", analysisContext);
         payload.put("operation", mapOf(
             "type", "sql.query",
@@ -405,7 +438,7 @@ public class StandardToolExecutionResultFactory {
             "maxRowsReturnedToModel", resultData.get("maxRows"),
             "truncationStrategy", "DATABASE_QUERY_MAX_ROWS"
         ));
-        payload.put("data", resultData);
+        payload.put("data", modelSafeMap(resultData));
         payload.put("execution", execution(
             toolName,
             durationMs,
@@ -454,7 +487,7 @@ public class StandardToolExecutionResultFactory {
                                                                  String errorMessage) {
         List<Map<String, Object>> resultSets = listOfMaps(firstPresent(resultData.get("resultSets"), resultData.get("results")));
         if (resultSets.isEmpty()) {
-            return List.of(step(1, "sql", Map.of(), resultData, false, durationMs, errorMessage, Map.of()));
+            return List.of(step(1, "sql", Map.of(), modelSafeMap(resultData), false, durationMs, errorMessage, Map.of()));
         }
         return resultSets.stream()
             .map(resultSet -> {
@@ -469,7 +502,7 @@ public class StandardToolExecutionResultFactory {
                         "statement", resultSet.get("sql"),
                         "parameters", arguments == null ? Map.of() : arguments
                     ),
-                    resultSet,
+                    modelSafeMap(resultSet),
                     Boolean.TRUE.equals(resultSet.get("success")),
                     longValue(resultSet.get("durationMs"), 0L),
                     stringValue(resultSet.get("errorMessage")),
@@ -540,6 +573,145 @@ public class StandardToolExecutionResultFactory {
         return payload;
     }
 
+    private Map<String, Object> sqlSourceMetadata(SqlQueryResult result) {
+        Map<String, Object> template = nestedMap(result.diagnostics(), "templateMetadata");
+        String statement = result.normalizedSql() == null ? result.sql() : result.normalizedSql();
+        return sourceMetadata(
+            "SQL_QUERY",
+            "sql_statement",
+            result.toolName(),
+            mapOf("type", "database", "id", result.datasourceId(), "name", result.datasourceName(),
+                "environment", result.environment()),
+            mapOf("statementHash", sha256(statement), "templateId", template.get("templateId")),
+            firstText(stringValue(template.get("businessName")), result.purpose(), "SQL query"),
+            firstText(stringValue(template.get("businessDescription")), result.purpose()),
+            firstText(stringValue(template.get("category")), "database_query")
+        );
+    }
+
+    private Map<String, Object> sqlScriptSourceMetadata(SqlScriptResult result) {
+        Map<String, Object> template = nestedMap(result.diagnostics(), "templateMetadata");
+        return sourceMetadata(
+            "SQL_SCRIPT",
+            "sql_script",
+            result.toolName(),
+            mapOf("type", "database", "id", result.datasourceId(), "name", result.datasourceName(),
+                "environment", result.environment()),
+            mapOf("scriptHash", sha256(result.script()), "templateId", template.get("templateId"),
+                "statementCount", result.statementCount()),
+            firstText(stringValue(template.get("businessName")), result.purpose(), "SQL script"),
+            firstText(stringValue(template.get("businessDescription")), result.purpose()),
+            firstText(stringValue(template.get("category")), "database_query")
+        );
+    }
+
+    private Map<String, Object> sqlStatementSourceMetadata(SqlScriptStatementResult result) {
+        return sourceMetadata(
+            "SQL_SCRIPT_STEP",
+            "sql_statement",
+            "sql_script_execute",
+            Map.of(),
+            mapOf("statementIndex", result.statementIndex(), "stepCode", result.stepCode(),
+                "statementHash", sha256(result.sql())),
+            firstText(result.stepName(), result.stepCode(), "SQL step " + result.statementIndex()),
+            firstText(result.analysisHint(), result.stepName()),
+            "database_query_step"
+        );
+    }
+
+    private Map<String, Object> linuxSourceMetadata(LinuxCommandResult result) {
+        Map<String, Object> request = result.request() == null ? Map.of() : result.request();
+        return sourceMetadata(
+            "LINUX_COMMAND",
+            "shell_command",
+            result.toolName(),
+            mapOf("type", "server", "id", result.hostId(), "name", result.host(),
+                "environment", result.environment()),
+            mapOf("template", result.template(), "commandHash", result.commandHash()),
+            firstText(stringValue(request.get("templateTitle")), result.template(), "Linux command"),
+            firstText(stringValue(request.get("templateDescription")), stringValue(request.get("reason"))),
+            firstText(stringValue(request.get("templateCategory")), "system_operation")
+        );
+    }
+
+    private Map<String, Object> httpSourceMetadata(HttpRequestToolResult result) {
+        Map<String, Object> metadata = result.sourceMetadata() == null ? Map.of() : result.sourceMetadata();
+        return sourceMetadata(
+            "HTTP_REQUEST",
+            "http_request",
+            firstText(stringValue(metadata.get("toolName")), "http_request"),
+            mapOf("type", "http_endpoint", "id", metadata.get("endpointId"),
+                "name", firstText(stringValue(metadata.get("endpointName")), "HTTP endpoint"),
+                "environment", metadata.get("environment")),
+            mapOf("method", result.method(), "endpointId", metadata.get("endpointId")),
+            firstText(stringValue(metadata.get("businessName")), stringValue(metadata.get("endpointName")), "HTTP request"),
+            stringValue(metadata.get("businessDescription")),
+            firstText(stringValue(metadata.get("category")), "http_api")
+        );
+    }
+
+    private Map<String, Object> sourceMetadata(String executionType, String sourceType, String toolName,
+                                               Map<String, Object> asset, Map<String, Object> operation,
+                                               String businessName, String businessDescription, String category) {
+        return mapOf(
+            "schemaVersion", "execution_source.v1",
+            "executionType", executionType,
+            "sourceType", sourceType,
+            "toolName", toolName,
+            "asset", asset == null ? Map.of() : asset,
+            "operation", operation == null ? Map.of() : operation,
+            "business", mapOf(
+                "name", businessName,
+                "description", businessDescription,
+                "category", category
+            )
+        );
+    }
+
+    @SuppressWarnings("unchecked")
+    private Object modelSafeValue(Object value) {
+        if (value instanceof Map<?, ?> map) {
+            Map<String, Object> safe = new LinkedHashMap<>();
+            map.forEach((key, item) -> {
+                String name = String.valueOf(key);
+                if (!isDatabaseConnectionUrlKey(name)) {
+                    safe.put(name, modelSafeValue(item));
+                }
+            });
+            return safe;
+        }
+        if (value instanceof Iterable<?> iterable) {
+            List<Object> safe = new java.util.ArrayList<>();
+            iterable.forEach(item -> safe.add(modelSafeValue(item)));
+            return safe;
+        }
+        return value;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> modelSafeMap(Map<String, Object> value) {
+        if (value == null || value.isEmpty()) {
+            return Map.of();
+        }
+        return (Map<String, Object>) modelSafeValue(value);
+    }
+
+    private boolean isDatabaseConnectionUrlKey(String key) {
+        String normalized = key == null ? "" : key.replace("_", "").replace("-", "")
+            .toLowerCase(java.util.Locale.ROOT);
+        return normalized.equals("jdbcurl")
+            || normalized.equals("databaseurl")
+            || normalized.equals("connectionurl");
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> nestedMap(Map<String, Object> source, String key) {
+        if (source == null || !(source.get(key) instanceof Map<?, ?> value)) {
+            return Map.of();
+        }
+        return new LinkedHashMap<>((Map<String, Object>) value);
+    }
+
     private List<Map<String, Object>> stepResults(List<LinuxCommandStepResult> steps, int streamLimit) {
         if (steps == null) {
             return List.of();
@@ -561,6 +733,17 @@ public class StandardToolExecutionResultFactory {
             "analysisHint", step.analysisHint(),
             "command", step.command(),
             "commandHash", step.commandHash(),
+            "sourceMetadata", sourceMetadata(
+                "LINUX_COMMAND_STEP",
+                "shell_command",
+                "linux_command_execute",
+                Map.of(),
+                mapOf("stepIndex", step.stepIndex(), "stepCode", step.stepCode(),
+                    "commandHash", step.commandHash()),
+                firstText(step.stepName(), step.stepCode(), "Linux command step " + step.stepIndex()),
+                firstText(step.analysisHint(), step.stepName()),
+                "system_operation_step"
+            ),
             "exitCode", step.exitCode(),
             "success", step.success(),
             "durationMs", step.durationMs(),
@@ -729,7 +912,7 @@ public class StandardToolExecutionResultFactory {
             "rowCount", result.rowCount(),
             "returnedRowCount", returnedRowCount,
             "possiblyTruncated", result.possiblyTruncated() || result.rowCount() > returnedRowCount,
-            "truncationStrategy", "LIMIT_50",
+            "truncationStrategy", sqlTruncationStrategy(),
             "maskedColumns", maskedColumns(result.columnMetadata()),
             "columnCommentsIncluded", hasColumnComments(result.columnMetadata())
         );
@@ -836,6 +1019,14 @@ public class StandardToolExecutionResultFactory {
 
     private String stringValue(Object value) {
         return value == null ? null : String.valueOf(value);
+    }
+
+    private int sqlResultRowLimit() {
+        return Math.max(1, databaseToolProperties.getMaxRows());
+    }
+
+    private String sqlTruncationStrategy() {
+        return "LIMIT_" + sqlResultRowLimit();
     }
 
     private record BoundedText(String value, int originalLength, boolean truncated) {

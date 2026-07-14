@@ -1737,6 +1737,246 @@ class InterpretationPlanRuntimeTest {
 
     @Test
     @SuppressWarnings("unchecked")
+    void dropsPlannerEnvironmentExtractedFromAssetProperNameAndRestoresUserQuery() throws Exception {
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            mock(ToolRuntimeService.class),
+            new InterpretationPlanValidator(),
+            mock(InterpretationPlanRuntime.DagExecutionController.class)
+        );
+        InterpretationPlan.Step step = new InterpretationPlan.Step(
+            1,
+            "mcp_tool",
+            "mcp_chatchat_mcp_server_database_asset_search",
+            Map.of(
+                "finalDecision", "database",
+                "filters", Map.of("env", "\u6d4b\u8bd5"),
+                "limit", 20
+            ),
+            List.of(),
+            null,
+            null
+        );
+        String userQuery = "\u5206\u6790248\u6d4b\u8bd5\u6570\u636e\u5e93";
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("data_query", userQuery, "low"),
+            context(),
+            new InterpretationPlan.Plan(List.of(
+                step,
+                new InterpretationPlan.Step(2, "final_answer", "", Map.of("answer", "done"), List.of(1), null, null)
+            )),
+            new InterpretationPlan.ExecutionPolicy(
+                2,
+                false,
+                List.of("mcp_chatchat_mcp_server_database_asset_search"),
+                List.of(),
+                30000
+            ),
+            review()
+        );
+        InterpretationPlanRuntime.ExecutionRequest request = new InterpretationPlanRuntime.ExecutionRequest(
+            plan,
+            mock(ToolRegistry.class),
+            List.of("mcp_chatchat_mcp_server_database_asset_search"),
+            "tenant-1",
+            "req-env-proper-name",
+            "conv-env-proper-name",
+            "user-1",
+            Map.of("originalUserQuery", userQuery)
+        );
+        Method method = InterpretationPlanRuntime.class.getDeclaredMethod(
+            "resolvedStepInput",
+            InterpretationPlan.Step.class,
+            InterpretationPlanRuntime.ExecutionRequest.class,
+            Map.class
+        );
+        method.setAccessible(true);
+
+        Map<String, Object> resolved = (Map<String, Object>) method.invoke(runtime, step, request, Map.of());
+
+        Map<String, Object> filters = (Map<String, Object>) resolved.get("filters");
+        assertThat(filters)
+            .doesNotContainKeys("env", "environment")
+            .containsEntry("intent", userQuery)
+            .containsEntry("goal", userQuery);
+        assertThat((List<String>) filters.get("queryTerms")).containsExactly(userQuery);
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void keepsCanonicalPlannerEnvironmentWhenUserExplicitlySpecifiedIt() throws Exception {
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            mock(ToolRuntimeService.class),
+            new InterpretationPlanValidator(),
+            mock(InterpretationPlanRuntime.DagExecutionController.class)
+        );
+        InterpretationPlan.Step step = new InterpretationPlan.Step(
+            1,
+            "mcp_tool",
+            "mcp_chatchat_mcp_server_database_asset_search",
+            Map.of("finalDecision", "database", "filters", Map.of("env", "test")),
+            List.of(),
+            null,
+            null
+        );
+        String userQuery = "\u5728TEST\u73af\u5883\u5206\u6790248\u6570\u636e\u5e93";
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("data_query", userQuery, "low"),
+            context(),
+            new InterpretationPlan.Plan(List.of(step)),
+            new InterpretationPlan.ExecutionPolicy(
+                1,
+                false,
+                List.of("mcp_chatchat_mcp_server_database_asset_search"),
+                List.of(),
+                30000
+            ),
+            review()
+        );
+        InterpretationPlanRuntime.ExecutionRequest request = new InterpretationPlanRuntime.ExecutionRequest(
+            plan,
+            mock(ToolRegistry.class),
+            List.of("mcp_chatchat_mcp_server_database_asset_search"),
+            "tenant-1",
+            "req-explicit-env",
+            "conv-explicit-env",
+            "user-1",
+            Map.of("originalUserQuery", userQuery)
+        );
+        Method method = InterpretationPlanRuntime.class.getDeclaredMethod(
+            "resolvedStepInput",
+            InterpretationPlan.Step.class,
+            InterpretationPlanRuntime.ExecutionRequest.class,
+            Map.class
+        );
+        method.setAccessible(true);
+
+        Map<String, Object> resolved = (Map<String, Object>) method.invoke(runtime, step, request, Map.of());
+
+        Map<String, Object> filters = (Map<String, Object>) resolved.get("filters");
+        assertThat(filters.get("env")).isEqualTo("TEST");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void configuredAgentEnvironmentOverridesPlannerDiscoveryEnvironment() throws Exception {
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            mock(ToolRuntimeService.class),
+            new InterpretationPlanValidator(),
+            mock(InterpretationPlanRuntime.DagExecutionController.class)
+        );
+        InterpretationPlan.Step step = new InterpretationPlan.Step(
+            1,
+            "mcp_tool",
+            "mcp_chatchat_mcp_server_database_asset_search",
+            Map.of("finalDecision", "database", "filters", Map.of("env", "TEST")),
+            List.of(),
+            null,
+            null
+        );
+        String userQuery = "在TEST环境分析数据库";
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("data_query", userQuery, "low"),
+            context(),
+            new InterpretationPlan.Plan(List.of(step)),
+            new InterpretationPlan.ExecutionPolicy(
+                1,
+                false,
+                List.of("mcp_chatchat_mcp_server_database_asset_search"),
+                List.of(),
+                30000
+            ),
+            review()
+        );
+        InterpretationPlanRuntime.ExecutionRequest request = new InterpretationPlanRuntime.ExecutionRequest(
+            plan,
+            mock(ToolRegistry.class),
+            List.of("mcp_chatchat_mcp_server_database_asset_search"),
+            "tenant-1",
+            "req-agent-env",
+            "conv-agent-env",
+            "user-1",
+            Map.of(
+                "originalUserQuery", userQuery,
+                "agentRuntimeEnvironment", "DEV"
+            )
+        );
+        Method method = InterpretationPlanRuntime.class.getDeclaredMethod(
+            "resolvedStepInput",
+            InterpretationPlan.Step.class,
+            InterpretationPlanRuntime.ExecutionRequest.class,
+            Map.class
+        );
+        method.setAccessible(true);
+
+        Map<String, Object> resolved = (Map<String, Object>) method.invoke(runtime, step, request, Map.of());
+
+        assertThat((Map<String, Object>) resolved.get("filters")).containsEntry("env", "DEV");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void configuredAgentEnvironmentOverridesSqlExecutionEnvironment() throws Exception {
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            mock(ToolRuntimeService.class),
+            new InterpretationPlanValidator(),
+            mock(InterpretationPlanRuntime.DagExecutionController.class)
+        );
+        InterpretationPlan.Step step = new InterpretationPlan.Step(
+            1,
+            "mcp_tool",
+            "mcp_chatchat_mcp_server_sql_query_execute",
+            Map.of(
+                "templateId", "MYSQL_STATUS",
+                "executionContext", Map.of("assetName", "248-test-db", "env", "TEST")
+            ),
+            List.of(),
+            null,
+            null
+        );
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("data_query", "分析数据库", "low"),
+            context(),
+            new InterpretationPlan.Plan(List.of(step)),
+            new InterpretationPlan.ExecutionPolicy(
+                1,
+                false,
+                List.of("mcp_chatchat_mcp_server_sql_query_execute"),
+                List.of(),
+                30000
+            ),
+            review()
+        );
+        InterpretationPlanRuntime.ExecutionRequest request = new InterpretationPlanRuntime.ExecutionRequest(
+            plan,
+            mock(ToolRegistry.class),
+            List.of("mcp_chatchat_mcp_server_sql_query_execute"),
+            "tenant-1",
+            "req-agent-sql-env",
+            "conv-agent-sql-env",
+            "user-1",
+            Map.of("agentRuntimeEnvironment", "DEV")
+        );
+        Method method = InterpretationPlanRuntime.class.getDeclaredMethod(
+            "resolvedStepInput",
+            InterpretationPlan.Step.class,
+            InterpretationPlanRuntime.ExecutionRequest.class,
+            Map.class
+        );
+        method.setAccessible(true);
+
+        Map<String, Object> resolved = (Map<String, Object>) method.invoke(runtime, step, request, Map.of());
+
+        assertThat((Map<String, Object>) resolved.get("executionContext"))
+            .containsEntry("assetName", "248-test-db")
+            .containsEntry("env", "DEV");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
     void injectsRetrievalIntentForSshDiscoveryWhenPlannerOmittedFilter() throws Exception {
         InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
             mock(ToolRuntimeService.class),

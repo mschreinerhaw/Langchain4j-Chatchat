@@ -23,6 +23,7 @@ import org.springframework.stereotype.Component;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -401,6 +402,11 @@ public class AgentChatModeHandler implements InteractionModeHandler {
             Object explicitWorkflow = skill.workflowConfig().get("mcpWorkflow");
             attributes.put("mcpWorkflow", explicitWorkflow == null ? skill.workflowConfig() : explicitWorkflow);
         }
+        String runtimeEnvironment = agentRuntimeEnvironment(skill);
+        if (runtimeEnvironment != null) {
+            attributes.put("agentRuntimeEnvironment", runtimeEnvironment);
+            attributes.put("env", runtimeEnvironment);
+        }
         if (skill != null && skill.defaultDataAsset() != null && Boolean.TRUE.equals(skill.defaultDataAsset().enabled())) {
             attributes.put("defaultDataAsset", defaultDataAssetAttributes(skill.defaultDataAsset()));
             attributes.put("assetSelectionPolicy", assetSelectionPolicyAttributes(skill.assetSelectionPolicy()));
@@ -519,7 +525,24 @@ public class AgentChatModeHandler implements InteractionModeHandler {
                 context.putAll(sanitizeExecutionContext((Map<String, Object>) map));
             }
         }
+        String runtimeEnvironment = agentRuntimeEnvironment(skill);
+        if (runtimeEnvironment != null) {
+            context.remove("environment");
+            context.put("env", runtimeEnvironment);
+        }
         return context.isEmpty() ? Map.of() : Map.copyOf(context);
+    }
+
+    private String agentRuntimeEnvironment(SkillDefinition skill) {
+        if (skill == null || skill.workflowConfig() == null) {
+            return null;
+        }
+        Object value = skill.workflowConfig().get("runtimeEnvironment");
+        if (value == null || String.valueOf(value).isBlank()) {
+            return null;
+        }
+        String normalized = String.valueOf(value).trim().toUpperCase(Locale.ROOT);
+        return Set.of("DEV", "TEST", "UAT", "PROD").contains(normalized) ? normalized : null;
     }
 
     private Map<String, Object> sanitizeExecutionContext(Map<String, Object> rawContext) {

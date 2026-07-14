@@ -66,20 +66,20 @@ class AgentToolArgumentResolverTest {
     void linuxGatewayBindsLogicalContextFromUserQuery() {
         Map<String, Object> result = resolver.applyToolDefaults(
             "mcp_chatchat_mcp_server_linux_command_execute",
-            Map.of("query", "check prod hive status", "template", "SERVICE_STATUS"),
+            Map.of("query", "check hive status in prod environment", "template", "SERVICE_STATUS"),
             List.of(),
             List.of(),
-            "check prod hive status",
+            "check hive status in prod environment",
             5
         );
 
         assertThat(result).doesNotContainKey("query");
         assertThat(result)
             .containsEntry("template", "SERVICE_STATUS")
-            .containsEntry("reason", "check prod hive status");
+            .containsEntry("reason", "check hive status in prod environment");
         assertThat(result.get("executionContext"))
             .isInstanceOfSatisfying(Map.class, context -> assertThat(context)
-                .containsEntry("env", "prod")
+                .containsEntry("env", "PROD")
                 .containsEntry("service", "hive"));
         assertThat(result.get("parameters"))
             .isInstanceOfSatisfying(Map.class, parameters -> assertThat(parameters)
@@ -124,11 +124,11 @@ class AgentToolArgumentResolverTest {
                 "confidence", 0.9,
                 "filters", Map.of(),
                 "trace", trace(),
-                "query", "check prod hive status"
+                "query", "check hive status in prod environment"
             ),
             List.of(),
             List.of(),
-            "check prod hive status",
+            "check hive status in prod environment",
             5
         );
 
@@ -139,9 +139,9 @@ class AgentToolArgumentResolverTest {
             .containsEntry("limit", 10);
         assertThat(result.get("filters"))
             .isInstanceOfSatisfying(Map.class, filters -> assertThat(filters)
-                .containsEntry("env", "prod")
+                .containsEntry("env", "PROD")
                 .containsEntry("service", "hive")
-                .containsEntry("intent", "check prod hive status"));
+                .containsEntry("intent", "check hive status in prod environment"));
     }
 
     @Test
@@ -195,7 +195,7 @@ class AgentToolArgumentResolverTest {
         assertThat(result.get("filters"))
             .isInstanceOfSatisfying(Map.class, filters -> assertThat(filters)
                 .containsEntry("intent", "Analyze 248 test database table t_ad_dict_entr_supn")
-                .containsEntry("env", "test"));
+                .doesNotContainKey("env"));
         assertThat(result.get("trace"))
             .isInstanceOfSatisfying(Map.class, trace -> assertThat(trace)
                 .containsEntry("source", "agent_tool_argument_resolver")

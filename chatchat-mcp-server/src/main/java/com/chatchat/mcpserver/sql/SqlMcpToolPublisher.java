@@ -516,7 +516,7 @@ public class SqlMcpToolPublisher {
                 "additionalProperties", true
             ),
             "timeoutSeconds", Map.of("type", "integer", "minimum", 1, "maximum", 60),
-            "maxRows", Map.of("type", "integer", "minimum", 1, "maximum", 5000),
+            "maxRows", Map.of("type", "integer", "minimum", executeService.minRowsLimit(), "maximum", executeService.maxRowsLimit()),
             "purpose", Map.of("type", "string", "description", "查询目的，必须展示给用户确认并写入审计"),
             "sourceTaskId", Map.of("type", "string")
         ), List.of(), false, null, null);
@@ -537,7 +537,7 @@ public class SqlMcpToolPublisher {
                 "description", "Logical datasource context such as env, cluster, database, databaseRole, targetType, service, or labels"
             ),
             "timeoutSeconds", Map.of("type", "integer", "minimum", 1, "maximum", 60),
-            "maxRows", Map.of("type", "integer", "minimum", 1, "maximum", 5000),
+            "maxRows", Map.of("type", "integer", "minimum", executeService.minRowsLimit(), "maximum", executeService.maxRowsLimit()),
             "purpose", Map.of("type", "string", "description", "Query purpose for confirmation and audit"),
             "sourceTaskId", Map.of("type", "string")
         ), List.of("executionContext"), false, null, null);
@@ -551,7 +551,7 @@ public class SqlMcpToolPublisher {
                 "description", "Logical datasource context such as env, cluster, database, databaseRole, targetType, service, or labels"
             ),
             "timeoutSeconds", Map.of("type", "integer", "minimum", 1, "maximum", 300),
-            "maxRowsPerStatement", Map.of("type", "integer", "minimum", 1, "maximum", 5000),
+            "maxRowsPerStatement", Map.of("type", "integer", "minimum", executeService.minRowsLimit(), "maximum", executeService.maxRowsLimit()),
             "purpose", Map.of("type", "string", "description", "Query purpose for confirmation and audit"),
             "sourceTaskId", Map.of("type", "string")
         ), List.of("script", "executionContext"), false, null, null);

@@ -6,6 +6,7 @@ import com.chatchat.mcpserver.ops.HttpRequestToolResult;
 import com.chatchat.mcpserver.ops.LinuxCommandResult;
 import com.chatchat.mcpserver.ops.LinuxCommandStepResult;
 import com.chatchat.mcpserver.sql.SqlQueryResult;
+import com.chatchat.tools.builtin.DatabaseToolProperties;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
@@ -16,7 +17,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 class StandardToolExecutionResultFactoryTest {
 
-    private final StandardToolExecutionResultFactory factory = new StandardToolExecutionResultFactory();
+    private final DatabaseToolProperties databaseToolProperties = databaseToolProperties();
+    private final StandardToolExecutionResultFactory factory = new StandardToolExecutionResultFactory(databaseToolProperties);
 
     @Test
     void sqlResultUsesStandardEnvelopeAndLimitsRowsForModel() {
@@ -47,7 +49,11 @@ class StandardToolExecutionResultFactoryTest {
             12,
             "debug",
             "task-1",
-            null
+            null,
+            Map.of("connection", Map.of(
+                "jdbcUrl", "jdbc:mysql://db.internal:3306/customer",
+                "catalog", "customer"
+            ))
         );
 
         Map<String, Object> envelope = factory.fromSql(result);
@@ -60,6 +66,9 @@ class StandardToolExecutionResultFactoryTest {
         Map<?, ?> governance = (Map<?, ?>) output.get("governance");
         Map<?, ?> firstColumn = (Map<?, ?>) ((List<?>) output.get("columnMetadata")).get(0);
         Map<?, ?> graph = (Map<?, ?>) envelope.get("executionGraph");
+        Map<?, ?> sourceMetadata = (Map<?, ?>) envelope.get("sourceMetadata");
+        Map<?, ?> sourceOperation = (Map<?, ?>) sourceMetadata.get("operation");
+        Map<?, ?> sourceBusiness = (Map<?, ?>) sourceMetadata.get("business");
 
         assertThat(envelope).containsEntry("schemaVersion", StandardToolExecutionResultFactory.SCHEMA_VERSION);
         assertThat(envelope).containsEntry("kind", "sql_query");
@@ -82,6 +91,12 @@ class StandardToolExecutionResultFactoryTest {
         assertThat(data.get("truncationStrategy")).isEqualTo("LIMIT_50");
         assertThat(limits.get("truncationStrategy")).isEqualTo("LIMIT_50");
         assertThat(graph.get("schemaVersion")).isEqualTo("execution_graph.v1");
+        assertThat(sourceMetadata.get("schemaVersion")).isEqualTo("execution_source.v1");
+        assertThat(sourceMetadata.get("executionType")).isEqualTo("SQL_QUERY");
+        assertThat(sourceOperation.containsKey("statement")).isFalse();
+        assertThat(sourceOperation.get("statementHash")).isNotNull();
+        assertThat(sourceBusiness.get("description")).isEqualTo("debug");
+        assertThat(envelope.toString()).doesNotContain("jdbc:mysql://", "db.internal", "jdbcUrl");
     }
 
     @Test
@@ -119,6 +134,8 @@ class StandardToolExecutionResultFactoryTest {
         Map<?, ?> secondOutput = (Map<?, ?>) secondStep.get("output");
         Map<?, ?> diagnostics = (Map<?, ?>) data.get("diagnostics");
         Map<?, ?> graph = (Map<?, ?>) envelope.get("executionGraph");
+        Map<?, ?> sourceMetadata = (Map<?, ?>) envelope.get("sourceMetadata");
+        Map<?, ?> sourceOperation = (Map<?, ?>) sourceMetadata.get("operation");
 
         assertThat(envelope).containsEntry("schemaVersion", StandardToolExecutionResultFactory.SCHEMA_VERSION);
         assertThat(envelope).containsEntry("kind", "ssh_command");
@@ -142,6 +159,9 @@ class StandardToolExecutionResultFactoryTest {
         assertThat((List<?>) data.get("steps")).hasSize(2);
         assertThat((List<?>) graph.get("nodes")).hasSize(2);
         assertThat((List<?>) graph.get("edges")).hasSize(1);
+        assertThat(sourceMetadata.get("executionType")).isEqualTo("LINUX_COMMAND");
+        assertThat(sourceOperation.containsKey("command")).isFalse();
+        assertThat(sourceOperation.get("commandHash")).isEqualTo("hash");
     }
 
     @Test
@@ -180,6 +200,12 @@ class StandardToolExecutionResultFactoryTest {
         List<?> nonZeroStepIndexes = (List<?>) diagnostics.get("nonZeroStepIndexes");
         assertThat(nonZeroStepIndexes).hasSize(1);
         assertThat(nonZeroStepIndexes.get(0)).isEqualTo(1);
+    }
+
+    private static DatabaseToolProperties databaseToolProperties() {
+        DatabaseToolProperties properties = new DatabaseToolProperties();
+        properties.setMaxRows(50);
+        return properties;
     }
 
     @Test
@@ -252,7 +278,15 @@ class StandardToolExecutionResultFactoryTest {
             "{\"status\":\"ok\"}",
             Map.of("content-type", "application/json"),
             20,
-            null
+            null,
+            Map.of(
+                "toolName", "service_health",
+                "endpointId", "endpoint-1",
+                "endpointName", "Health API",
+                "businessName", "Service health",
+                "businessDescription", "Checks whether the business service is available",
+                "category", "monitoring"
+            )
         );
 
         Map<String, Object> envelope = factory.fromHttp(result);
@@ -261,6 +295,9 @@ class StandardToolExecutionResultFactoryTest {
         Map<?, ?> step = (Map<?, ?>) ((List<?>) execution.get("steps")).get(0);
         Map<?, ?> input = (Map<?, ?>) step.get("input");
         Map<?, ?> output = (Map<?, ?>) step.get("output");
+        Map<?, ?> sourceMetadata = (Map<?, ?>) envelope.get("sourceMetadata");
+        Map<?, ?> sourceOperation = (Map<?, ?>) sourceMetadata.get("operation");
+        Map<?, ?> sourceBusiness = (Map<?, ?>) sourceMetadata.get("business");
 
         assertThat(envelope).containsEntry("schemaVersion", StandardToolExecutionResultFactory.SCHEMA_VERSION);
         assertThat(envelope).containsEntry("kind", "http_request");
@@ -272,6 +309,11 @@ class StandardToolExecutionResultFactoryTest {
         assertThat(output.get("statusCode")).isEqualTo(200);
         assertThat(data.get("statusCode")).isEqualTo(200);
         assertThat(envelope).containsKey("executionGraph");
+        assertThat(sourceMetadata.get("executionType")).isEqualTo("HTTP_REQUEST");
+        assertThat(sourceMetadata.get("toolName")).isEqualTo("service_health");
+        assertThat(sourceOperation.get("method")).isEqualTo("GET");
+        assertThat(sourceOperation.containsKey("url")).isFalse();
+        assertThat(sourceBusiness.get("description")).isEqualTo("Checks whether the business service is available");
     }
 
     @Test

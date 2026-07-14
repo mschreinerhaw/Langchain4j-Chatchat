@@ -42,11 +42,14 @@
         <div class="agent-light-actions">
           <button type="button" class="light-button primary-light" @click="openCreateDialog">新增Agent</button>
           <button type="button" class="light-button" @click="openImportDialog">批量导入</button>
-          <button type="button" class="light-button" :disabled="filteredAgents.length === 0" @click="exportAgentsAsJson">
-            导出JSON
+          <button type="button" class="light-button" :disabled="selectedAgentCount === 0" @click="exportAgentsAsJson">
+            导出已选JSON（{{ selectedAgentCount }}）
           </button>
-          <button type="button" class="light-button" :disabled="filteredAgents.length === 0" @click="exportAgentsAsTable">
-            导出表格
+          <button type="button" class="light-button" :disabled="selectedAgentCount === 0" @click="exportAgentsAsTable">
+            导出已选表格（{{ selectedAgentCount }}）
+          </button>
+          <button v-if="selectedAgentCount" type="button" class="light-button" @click="clearAgentExportSelection">
+            清除勾选
           </button>
           <button type="button" class="light-button" :disabled="loading" @click="loadWorkshop">
             {{ loading ? "刷新中" : "刷新" }}
@@ -95,7 +98,21 @@
     <p v-else-if="agentTotal === 0" class="agent-empty">没有匹配的Agent，请换一个关键词。</p>
 
     <div v-else class="feature-grid">
-      <article v-for="agent in paginatedAgents" :key="agent.id" class="feature-card agent-card">
+      <article
+        v-for="agent in paginatedAgents"
+        :key="agent.id"
+        class="feature-card agent-card"
+        :class="{ 'export-selected': isAgentSelectedForExport(agent) }"
+      >
+        <label class="agent-export-select">
+          <input
+            type="checkbox"
+            :checked="isAgentSelectedForExport(agent)"
+            :aria-label="`选择导出 ${agent.name || agent.id}`"
+            :title="`选择导出 ${agent.name || agent.id}`"
+            @change="setAgentExportSelection(agent, $event.target.checked)"
+          >
+        </label>
         <div class="agent-card-head">
           <span>{{ agent.shortName || agentBadge(agent) }}</span>
           <div>
@@ -131,6 +148,10 @@
           <div>
             <dt>模型</dt>
             <dd>{{ agent.modelName || defaultModelName() || "默认模型" }}</dd>
+          </div>
+          <div>
+            <dt>环境</dt>
+            <dd>{{ agentRuntimeEnvironmentLabel(agent) }}</dd>
           </div>
           <div>
             <dt>工具</dt>
@@ -263,6 +284,17 @@
                 {{ model.label || model.value }}
               </option>
             </select>
+          </label>
+          <label>
+            <span>运行环境</span>
+            <select v-model="form.workflowConfig.runtimeEnvironment">
+              <option value="">未指定（跟随资产）</option>
+              <option value="DEV">DEV</option>
+              <option value="TEST">TEST</option>
+              <option value="UAT">UAT</option>
+              <option value="PROD">PROD</option>
+            </select>
+            <small>与 MCP 资产环境一致；设置后作为计划和工具执行的权威环境。</small>
           </label>
           <label>
             <span>标签</span>

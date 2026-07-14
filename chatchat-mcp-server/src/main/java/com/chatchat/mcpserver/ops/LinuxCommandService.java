@@ -66,6 +66,9 @@ public class LinuxCommandService {
             assertExecutionCapability(host);
             String requestedTemplate = assertTemplateAllowed(host, text(request, "template"));
             CommandTemplateConfig template = getAllowedTemplate(host, requestedTemplate);
+            request.put("templateTitle", template.getTitle());
+            request.put("templateDescription", template.getDescription());
+            request.put("templateCategory", template.getCategory());
             Map<String, Object> collectedParameters = parameterValidator.collect(
                 template.getParameterSchemaJson(),
                 mapValue(request.get("parameters")),
@@ -224,8 +227,9 @@ public class LinuxCommandService {
         List<TemplateStep> commandSteps = plan.steps();
         for (int index = 0; index < commandSteps.size(); index++) {
             TemplateStep current = commandSteps.get(index);
-            log.info("MCP Linux command SSH exec command: hostId={}, template={}, step={}/{}, command={}",
-                host.getId(), template, index + 1, commandSteps.size(), current.command());
+            log.info("MCP execution detail: executionType=LINUX_COMMAND, tool={}, hostId={}, hostName={}, endpoint={}:{}, env={}, template={}, step={}/{}, command={}",
+                host.getToolName(), host.getId(), host.getName(), host.getHostname(), normalizePort(host.getPort()),
+                host.getEnvironment(), template, index + 1, commandSteps.size(), current.command());
             long stepStartedAt = System.currentTimeMillis();
             LinuxCommandStepResult step;
             try {

@@ -51,7 +51,7 @@ public class HttpRequestToolService {
             int timeoutMs = normalizeTimeout(request.get("timeoutMs"));
             Map<String, String> headers = readHeaders(request.get("headers"));
             Object body = request.get("body");
-            log.info("MCP HTTP request execution started: tool={}, endpointId={}, method={}, url={}, timeoutMs={}, sourceTaskId={}, headers={}, body={}",
+            log.info("MCP execution detail: executionType=HTTP_REQUEST, tool={}, endpointId={}, method={}, url={}, timeoutMs={}, sourceTaskId={}, headers={}, body={}",
                 text(request, "toolName"), text(request, "endpointId"), method, redactUrl(url), timeoutMs,
                 text(request, "sourceTaskId"), redact(headers), truncate(toLogText(redact(body))));
             HttpRequest.Builder builder = HttpRequest.newBuilder()
@@ -82,7 +82,8 @@ public class HttpRequestToolService {
                 response.body(),
                 Map.copyOf(response.headers().map()),
                 durationMs,
-                response.statusCode() >= 200 && response.statusCode() < 300 ? null : "HTTP " + response.statusCode()
+                response.statusCode() >= 200 && response.statusCode() < 300 ? null : "HTTP " + response.statusCode(),
+                httpSourceMetadata(request, method, url)
             );
         } catch (Exception ex) {
             long durationMs = Math.max(0, System.currentTimeMillis() - startedAt);
@@ -95,7 +96,8 @@ public class HttpRequestToolService {
                 null,
                 Map.of(),
                 durationMs,
-                ex.getMessage()
+                ex.getMessage(),
+                httpSourceMetadata(request, text(request, "method"), text(request, "url"))
             );
         }
         logHttpResult(request, result);
@@ -110,8 +112,37 @@ public class HttpRequestToolService {
         request.put("toolName", config.getToolName());
         request.put("endpointId", config.getId());
         request.put("endpointName", config.getName());
+        request.put("endpointTitle", config.getTitle());
+        request.put("endpointDescription", config.getDescription());
+        request.put("endpointCategory", config.getCategory());
         request.put("environment", config.getEnvironment());
         return execute(request);
+    }
+
+    private Map<String, Object> httpSourceMetadata(Map<String, Object> request, String method, String url) {
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("toolName", text(request, "toolName"));
+        metadata.put("endpointId", text(request, "endpointId"));
+        metadata.put("endpointName", text(request, "endpointName"));
+        metadata.put("environment", text(request, "environment"));
+        metadata.put("method", method);
+        metadata.put("url", url);
+        metadata.put("businessName", firstNonBlank(text(request, "endpointTitle"), text(request, "endpointName")));
+        metadata.put("businessDescription", text(request, "endpointDescription"));
+        metadata.put("category", text(request, "endpointCategory"));
+        return metadata;
+    }
+
+    private String firstNonBlank(String... values) {
+        if (values == null) {
+            return null;
+        }
+        for (String value : values) {
+            if (value != null && !value.isBlank()) {
+                return value;
+            }
+        }
+        return null;
     }
 
     @SuppressWarnings("unchecked")

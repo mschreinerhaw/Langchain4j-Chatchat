@@ -500,10 +500,10 @@ public class BuiltInToolsBootstrap {
                 ToolParameter.builder()
                     .name("max_rows")
                     .type("integer")
-                    .description("Maximum number of rows to return.")
+                    .description("User-requested row count, constrained by the server configured minimum and maximum.")
                     .required(false)
                     .defaultValue(databaseToolProperties.getDefaultMaxRows())
-                    .minimum(1)
+                    .minimum(databaseToolProperties.getMinRows())
                     .maximum(databaseToolProperties.getMaxRows())
                     .build()
                 ,
@@ -1654,6 +1654,9 @@ public class BuiltInToolsBootstrap {
                 int queryTimeoutSeconds = resolveQueryTimeoutSeconds(input);
                 Map<String, Object> params = resolveParams(input);
 
+                log.info("Database query SQL executing: maxRows={}, timeoutSeconds={}, sql={}",
+                    maxRows, queryTimeoutSeconds, safeSql);
+
                 JdbcTemplate jdbcTemplate = new JdbcTemplate(dataSource);
                 jdbcTemplate.setMaxRows(maxRows);
                 jdbcTemplate.setQueryTimeout(queryTimeoutSeconds);
@@ -1764,7 +1767,9 @@ public class BuiltInToolsBootstrap {
         private int resolveMaxRows(ToolInput input) {
             Number requested = input.getParameterAsNumber("max_rows");
             int value = requested == null ? properties.getDefaultMaxRows() : requested.intValue();
-            return Math.max(1, Math.min(properties.getMaxRows(), value));
+            int maximum = Math.max(1, properties.getMaxRows());
+            int minimum = Math.max(1, Math.min(properties.getMinRows(), maximum));
+            return Math.max(minimum, Math.min(maximum, value));
         }
 
         private int resolveQueryTimeoutSeconds(ToolInput input) {

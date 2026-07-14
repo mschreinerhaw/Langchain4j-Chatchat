@@ -1,12 +1,12 @@
-﻿spring:
+spring:
   application:
     name: chatchat-mcp-server
   datasource:
     type: com.zaxxer.hikari.HikariDataSource
-    url: "${CHATCHAT_MCP_MYSQL_URL:jdbc:mysql://localhost:3306/chatchat_mcp?useUnicode=true&characterEncoding=UTF-8&connectionCollation=utf8mb4_unicode_ci&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true}"
+    url: "jdbc:mysql://localhost:3306/chatchat_mcp?useUnicode=true&characterEncoding=UTF-8&connectionCollation=utf8mb4_unicode_ci&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true"
     driver-class-name: com.mysql.cj.jdbc.Driver
-    username: ${CHATCHAT_MCP_MYSQL_USERNAME:chatchat}
-    password: ${CHATCHAT_MCP_MYSQL_ENCRYPTED_PASSWORD:${CHATCHAT_MCP_MYSQL_PASSWORD:}}
+    username: chatchat
+    password:
   h2:
     console:
       enabled: false
@@ -17,7 +17,7 @@
     show-sql: false
 
 server:
-  port: ${CHATCHAT_MCP_PORT:8090}
+  port: 8090
   servlet:
     context-path: /
   shutdown: graceful
@@ -25,29 +25,29 @@ server:
 chatchat:
   internal-credential:
     enabled: true
-    username: ${CHATCHAT_INTERNAL_USERNAME:chatchat_mcp_internal}
-    encrypted-secret: ${CHATCHAT_INTERNAL_ENCRYPTED_SECRET:}
-    secret: ${CHATCHAT_INTERNAL_SECRET:chatchat_internal_default_secret}
-    crypto-key: ${CHATCHAT_INTERNAL_CRYPTO_KEY:}
-    crypto-key-file: ${CHATCHAT_INTERNAL_CRYPTO_KEY_FILE:}
+    username: chatchat_mcp_internal
+    encrypted-secret:
+    secret: chatchat_internal_default_secret
+    crypto-key:
+    crypto-key-file:
   mcp:
     admin:
-      username: ${CHATCHAT_MCP_ADMIN_USERNAME:admin}
-      password: ${CHATCHAT_MCP_ADMIN_PASSWORD:admin123}
-      encrypted-password: ${CHATCHAT_MCP_ADMIN_ENCRYPTED_PASSWORD:}
-      token-ttl-minutes: ${CHATCHAT_MCP_ADMIN_TOKEN_TTL_MINUTES:480}
+      username: admin
+      password: admin123
+      encrypted-password:
+      token-ttl-minutes: 480
     security:
       require-mcp-token: true
-      encrypted-invocation-token: ${CHATCHAT_INTERNAL_ENCRYPTED_SECRET:}
-      invocation-token: ${CHATCHAT_INTERNAL_SECRET:chatchat_internal_default_secret}
+      encrypted-invocation-token:
+      invocation-token: chatchat_internal_default_secret
     authorization:
-      enabled: ${CHATCHAT_MCP_AUTHORIZATION_ENABLED:false}
-      api-base-url: ${CHATCHAT_API_BASE_URL:http://localhost:8080}
+      enabled: false
+      api-base-url: http://localhost:8080
       auth:
-        username: ${CHATCHAT_INTERNAL_USERNAME:chatchat_mcp_internal}
-        encrypted-password: ${CHATCHAT_INTERNAL_ENCRYPTED_SECRET:}
-        password: ${CHATCHAT_INTERNAL_SECRET:chatchat_internal_default_secret}
-        bearer-token: ${CHATCHAT_API_AUTH_BEARER_TOKEN:}
+        username: chatchat_mcp_internal
+        encrypted-password:
+        password: chatchat_internal_default_secret
+        bearer-token:
     command-templates:
       seed-defaults-enabled: true
     sql-templates:
@@ -58,67 +58,67 @@ chatchat:
       index-dir: ./data/lucene/mcp
       open-search:
         enabled: true
-        url: ${CHATCHAT_OPENSEARCH_URL:https://localhost:9200}
-        username: ${CHATCHAT_OPENSEARCH_USERNAME:admin}
-        password: ${CHATCHAT_OPENSEARCH_ENCRYPTED_PASSWORD:${CHATCHAT_OPENSEARCH_PASSWORD:}}
-        index-prefix: ${CHATCHAT_MCP_OPENSEARCH_INDEX_PREFIX:chatchat_mcp_dev_}
-        insecure-ssl: ${CHATCHAT_OPENSEARCH_INSECURE_SSL:true}
+        url: https://localhost:9200
+        username: admin
+        password:
+        index-prefix: chatchat_mcp_dev_
+        insecure-ssl: true
         request-timeout-ms: 30000
-        debug-search: ${CHATCHAT_MCP_OPENSEARCH_DEBUG_SEARCH:true}
+        debug-search: true
         search-concurrency:
-          enabled: ${CHATCHAT_MCP_SEARCH_CONCURRENCY_ENABLED:true}
-          request-timeout-ms: ${CHATCHAT_MCP_SEARCH_REQUEST_TIMEOUT_MS:8000}
-          retry-429-attempts: ${CHATCHAT_MCP_SEARCH_RETRY_429_ATTEMPTS:1}
+          enabled: true
+          request-timeout-ms: 8000
+          retry-429-attempts: 1
           retry-backoff-min-ms: 100
           retry-backoff-max-ms: 300
           lexical:
-            max-running: ${CHATCHAT_MCP_SEARCH_LEXICAL_MAX_RUNNING:12}
+            max-running: 12
             queue-capacity: 30
             queue-timeout-ms: 1500
           vector:
-            max-running: ${CHATCHAT_MCP_SEARCH_VECTOR_MAX_RUNNING:4}
+            max-running: 4
             queue-capacity: 10
             queue-timeout-ms: 500
         embedding:
-          request-timeout-ms: ${CHATCHAT_EMBEDDING_REQUEST_TIMEOUT_MS:300000}
-          enabled: ${CHATCHAT_OPENSEARCH_EMBEDDING_ENABLED:false}
-          endpoint: ${CHATCHAT_EMBEDDING_ENDPOINT:https://llm-7upawl16up8649rh.cn-beijing.maas.aliyuncs.com/compatible-mode/v1/embeddings}
+          request-timeout-ms: 300000
+          enabled: false
+          endpoint: https://llm-7upawl16up8649rh.cn-beijing.maas.aliyuncs.com/compatible-mode/v1/embeddings
           api-key: sk-720436c855ac470bb955388d0e8c9b89
-          model: ${CHATCHAT_EMBEDDING_MODEL:text-embedding-v4}
-          dimension: ${CHATCHAT_EMBEDDING_DIMENSION:1024}
+          model: text-embedding-v4
+          dimension: 1024
           vector-field: mcpContentVector
           max-input-chars: 6000
           vector-candidate-limit: 50
     server:
       endpoint: /mcp
       document-search:
-        api-base-url: ${CHATCHAT_API_BASE_URL:http://localhost:8080}
+        api-base-url: http://localhost:8080
         auth:
-          username: ${CHATCHAT_INTERNAL_USERNAME:chatchat_mcp_internal}
-          encrypted-password: ${CHATCHAT_INTERNAL_ENCRYPTED_SECRET:}
-          password: ${CHATCHAT_INTERNAL_SECRET:chatchat_internal_default_secret}
-          bearer-token: ${CHATCHAT_API_AUTH_BEARER_TOKEN:}
+          username: chatchat_mcp_internal
+          encrypted-password:
+          password: chatchat_internal_default_secret
+          bearer-token:
   tools:
     document-search:
       enabled: true
-      api-base-url: ${CHATCHAT_API_BASE_URL:http://localhost:8080}
+      api-base-url: http://localhost:8080
       auth:
-        username: ${CHATCHAT_INTERNAL_USERNAME:chatchat_mcp_internal}
-        encrypted-password: ${CHATCHAT_INTERNAL_ENCRYPTED_SECRET:}
-        password: ${CHATCHAT_INTERNAL_SECRET:chatchat_internal_default_secret}
-        bearer-token: ${CHATCHAT_API_AUTH_BEARER_TOKEN:}
+        username: chatchat_mcp_internal
+        encrypted-password:
+        password: chatchat_internal_default_secret
+        bearer-token:
     web-search:
       enabled: true
       provider: bing_html
       endpoint: https://cn.bing.com/search
       timeout-ms: 0
       browser:
-        browsers-path: ${PLAYWRIGHT_BROWSERS_PATH:playwright-browsers}
-        skip-browser-download: ${CHAT_WEB_SEARCH_BROWSER_SKIP_DOWNLOAD:false}
+        browsers-path: playwright-browsers
+        skip-browser-download: false
     web-crawler:
       browser:
-        browsers-path: ${PLAYWRIGHT_BROWSERS_PATH:playwright-browsers}
-        skip-browser-download: ${PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD:false}
+        browsers-path: playwright-browsers
+        skip-browser-download: false
 
 logging:
   file:

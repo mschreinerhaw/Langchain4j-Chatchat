@@ -15,6 +15,8 @@ public class DatabaseToolProperties {
 
     private int defaultMaxRows = 50;
 
+    private int minRows = 1;
+
     private int maxRows = 500;
 
     private int queryTimeoutSeconds = 15;

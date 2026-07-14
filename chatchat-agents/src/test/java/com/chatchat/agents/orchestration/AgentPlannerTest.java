@@ -138,6 +138,49 @@ class AgentPlannerTest {
     }
 
     @Test
+    void plannerPromptTreatsConfiguredAgentEnvironmentAsAuthoritative() throws Exception {
+        AgentPlanner planner = new AgentPlanner(new TestToolRegistry(), new ObjectMapper());
+        Method method = AgentPlanner.class.getDeclaredMethod(
+            "buildPlannerPrompt",
+            String.class,
+            String.class,
+            List.class,
+            List.class,
+            List.class,
+            List.class,
+            List.class,
+            boolean.class,
+            boolean.class,
+            String.class,
+            String.class,
+            Map.class
+        );
+        method.setAccessible(true);
+
+        String prompt = (String) method.invoke(
+            planner,
+            "分析测试数据库",
+            "",
+            List.of(),
+            List.of(),
+            List.of(),
+            List.of(),
+            List.of(),
+            false,
+            false,
+            null,
+            null,
+            Map.of("agentRuntimeEnvironment", "DEV")
+        );
+
+        assertThat(prompt)
+            .contains("Agent runtime environment contract")
+            .contains("configured runtime environment is DEV")
+            .contains("authoritative for MCP discovery filters and executionContext.env")
+            .contains("keep DEV and do not guess or override it");
+    }
+
+    @Test
     void normalizesRecoverableInterpretationPlanBeforeValidation() throws Exception {
         AgentPlanner planner = new AgentPlanner(new TestToolRegistry(), new ObjectMapper());
         List<String> requiredTools = List.of(

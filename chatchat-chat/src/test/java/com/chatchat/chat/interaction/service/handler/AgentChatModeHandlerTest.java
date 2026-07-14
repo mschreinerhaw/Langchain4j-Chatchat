@@ -637,6 +637,60 @@ class AgentChatModeHandlerTest {
 
     @Test
     @SuppressWarnings("unchecked")
+    void configuredAgentEnvironmentOverridesRequestEnvironment() {
+        AgentOrchestrator orchestrator = mock(AgentOrchestrator.class);
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        SkillCatalogService skillCatalogService = mock(SkillCatalogService.class);
+        McpToolRegistryBridge mcpToolRegistryBridge = mock(McpToolRegistryBridge.class);
+        AgentToolPolicyResolver toolPolicyResolver = new AgentToolPolicyResolver(
+            toolRegistry,
+            skillCatalogService,
+            mcpToolRegistryBridge
+        );
+        AgentChatModeHandler handler = new AgentChatModeHandler(
+            orchestrator,
+            skillCatalogService,
+            toolPolicyResolver
+        );
+
+        when(skillCatalogService.resolve("ops")).thenReturn(skillWithRuntimeEnvironment("DEV"));
+        when(mcpToolRegistryBridge.listRegisteredTools()).thenReturn(List.of());
+        when(orchestrator.executeAgent(
+            anyString(), isNull(), anyList(), anyString(), isNull(), anyList(), anyList(),
+            anyString(), anyString(), anyString(), anyString(), anyInt(), anyList(), anyBoolean(), anyMap()
+        )).thenReturn(agentResult("ok"));
+
+        InteractionRequest request = InteractionRequest.builder()
+            .mode("agent_chat")
+            .skillId("ops")
+            .query("分析测试数据库")
+            .userId("u1")
+            .toolInput(Map.of("executionContext", Map.of("env", "PROD")))
+            .build();
+        InteractionContext context = InteractionContext.builder()
+            .requestId("req-agent-env")
+            .conversationId("conv-agent-env")
+            .mode(InteractionMode.AGENT_CHAT)
+            .history(List.of())
+            .build();
+
+        handler.handle(request, context);
+
+        ArgumentCaptor<Map<String, Object>> attributes = ArgumentCaptor.forClass(Map.class);
+        verify(orchestrator).executeAgent(
+            anyString(), isNull(), anyList(), anyString(), isNull(), anyList(), anyList(),
+            anyString(), anyString(), anyString(), anyString(), anyInt(), anyList(), anyBoolean(), attributes.capture()
+        );
+
+        assertThat(attributes.getValue())
+            .containsEntry("agentRuntimeEnvironment", "DEV")
+            .containsEntry("env", "DEV");
+        assertThat((Map<String, Object>) attributes.getValue().get("mcpExecutionContext"))
+            .containsEntry("env", "DEV");
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
     void mcpExecutionContextPreservesUserBoundConcreteTools() {
         AgentOrchestrator orchestrator = mock(AgentOrchestrator.class);
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
@@ -738,6 +792,34 @@ class AgentChatModeHandlerTest {
 
     private SkillDefinition skillWithoutWebSearch() {
         return skill(List.of());
+    }
+
+    private SkillDefinition skillWithRuntimeEnvironment(String environment) {
+        SkillDefinition base = skill(List.of());
+        return new SkillDefinition(
+            base.id(),
+            base.label(),
+            base.description(),
+            base.usageScenarios(),
+            base.skillTags(),
+            base.defaultMode(),
+            base.modelName(),
+            base.systemPrompt(),
+            base.firstUseGreeting(),
+            base.preferredToolPrefixes(),
+            base.boundMcpServiceIds(),
+            base.boundMcpToolNames(),
+            base.boundDocumentIds(),
+            base.boundDocumentTags(),
+            base.toolConfigs(),
+            base.routingSettings(),
+            Map.of("runtimeEnvironment", environment),
+            base.defaultDataAsset(),
+            base.assetSelectionPolicy(),
+            base.quickQuestions(),
+            base.marketStatus(),
+            base.defaultAgent()
+        );
     }
 
     private SkillDefinition skillWithDocumentsAndWebSearch() {

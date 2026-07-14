@@ -109,6 +109,7 @@ function defaultRoutingSettings() {
 function defaultWorkflowConfig() {
   return {
     enabled: true,
+    runtimeEnvironment: "",
     workflow: "",
     executionStrategy: {
       mode: "sequential",
@@ -120,6 +121,11 @@ function defaultWorkflowConfig() {
     toolDependencies: {},
     parallelSteps: []
   };
+}
+
+function normalizeRuntimeEnvironment(value) {
+  const environment = String(value || "").trim().toUpperCase();
+  return ["DEV", "TEST", "UAT", "PROD"].includes(environment) ? environment : "";
 }
 
 function defaultDataAssetForm() {
@@ -171,6 +177,8 @@ export default {
       agentCategories: [],
       agentTotal: 0,
       agentPageCount: 1,
+      selectedAgentIds: [],
+      selectedAgentTemplates: {},
       availableTools: [],
       registeredMcpTools: [],
       models: [],
@@ -244,6 +252,9 @@ export default {
     },
     paginatedAgents() {
       return this.agents;
+    },
+    selectedAgentCount() {
+      return this.selectedAgentIds.length;
     },
     agentPageButtons() {
       const total = this.totalAgentPages;
@@ -426,6 +437,7 @@ export default {
         });
         this.summary = payload?.summary || {};
         this.agents = Array.isArray(payload?.agents) ? payload.agents : [];
+        this.refreshSelectedAgentTemplates();
         this.agentCategories = Array.isArray(payload?.agentCategories) ? payload.agentCategories : [];
         this.agentTotal = payload?.page?.total ?? this.agents.length;
         this.agentPage = payload?.page?.page || this.agentPage;
@@ -562,6 +574,9 @@ export default {
     documentCountLabel(agent) {
       const count = Number(agent?.boundDocumentCount ?? (agent?.boundDocumentIds || []).length ?? 0);
       return `${Number.isFinite(count) ? count : 0} 个`;
+    },
+    agentRuntimeEnvironmentLabel(agent) {
+      return normalizeRuntimeEnvironment(agent?.workflowConfig?.runtimeEnvironment) || "跟随资产";
     },
     agentSearchText(agent) {
       const fields = [
@@ -794,6 +809,9 @@ export default {
       const modelName = textValue(fieldValue(row, [
         "modelName", "model", "模型", "使用模型", "绑定模型"
       ]));
+      const runtimeEnvironment = normalizeRuntimeEnvironment(fieldValue(row, [
+        "runtimeEnvironment", "environment", "env", "运行环境", "环境"
+      ]));
       const defaultAsset = this.normalizeDefaultDataAsset({
         assetId: fieldValue(row, [
           "defaultDataAssetId", "defaultAssetId", "assetId", "默认数据资产ID", "默认资产ID", "资产ID"
@@ -851,7 +869,10 @@ export default {
           ...defaultRoutingSettings(),
           ...(row?.routingSettings && typeof row.routingSettings === "object" ? row.routingSettings : {})
         },
-        workflowConfig: defaultWorkflowConfig(),
+        workflowConfig: {
+          ...defaultWorkflowConfig(),
+          runtimeEnvironment
+        },
         defaultDataAsset: defaultAsset.enabled ? defaultAsset : null,
         assetSelectionPolicy: {
           strategy: "SEARCH_FIRST_DEFAULT_FALLBACK",
@@ -981,12 +1002,55 @@ export default {
         this.importing = false;
       }
     },
+    isAgentSelectedForExport(agent) {
+      return !!agent?.id && this.selectedAgentIds.includes(agent.id);
+    },
+    setAgentExportSelection(agent, selected) {
+      const id = String(agent?.id || "").trim();
+      if (!id) {
+        return;
+      }
+      const ids = new Set(this.selectedAgentIds);
+      const templates = { ...this.selectedAgentTemplates };
+      const templateKey = `agent:${id}`;
+      if (selected) {
+        ids.add(id);
+        templates[templateKey] = agent;
+      } else {
+        ids.delete(id);
+        delete templates[templateKey];
+      }
+      this.selectedAgentIds = [...ids];
+      this.selectedAgentTemplates = templates;
+    },
+    refreshSelectedAgentTemplates() {
+      if (!this.selectedAgentIds.length) {
+        return;
+      }
+      const templates = { ...this.selectedAgentTemplates };
+      this.agents.forEach((agent) => {
+        if (agent?.id && this.selectedAgentIds.includes(agent.id)) {
+          templates[`agent:${agent.id}`] = agent;
+        }
+      });
+      this.selectedAgentTemplates = templates;
+    },
+    clearAgentExportSelection() {
+      this.selectedAgentIds = [];
+      this.selectedAgentTemplates = {};
+    },
+    selectedAgentsForExport() {
+      return this.selectedAgentIds
+        .map((id) => this.selectedAgentTemplates[`agent:${id}`])
+        .filter((agent) => agent?.id);
+    },
     exportAgentRows() {
-      return this.filteredAgents.map((agent) => ({
+      return this.selectedAgentsForExport().map((agent) => ({
         agentId: agent.id,
         agentName: agent.name,
         mode: agent.defaultMode || "agent_chat",
         model: agent.modelName || this.defaultModelName() || "default",
+        runtimeEnvironment: normalizeRuntimeEnvironment(agent.workflowConfig?.runtimeEnvironment),
         tags: agent.skillTags || [],
         businessDescription: agent.description || "",
         businessScenarios: agent.usageScenarios || [],
@@ -1001,9 +1065,14 @@ export default {
       }));
     },
     exportAgentsAsJson() {
+      const rows = this.exportAgentRows();
+      if (!rows.length) {
+        this.error = "请先勾选需要导出的 Agent 模板。";
+        return;
+      }
       this.downloadFile(
         "agent-workshop-export.json",
-        JSON.stringify(this.exportAgentRows(), null, 2),
+        JSON.stringify(rows, null, 2),
         "application/json;charset=utf-8"
       );
     },
@@ -1017,6 +1086,10 @@ export default {
         boundDocumentIds: joinList(agent.boundDocumentIds),
         boundDocumentTags: joinList(agent.boundDocumentTags)
       }));
+      if (!rows.length) {
+        this.error = "请先勾选需要导出的 Agent 模板。";
+        return;
+      }
       const workbook = XLSX.utils.book_new();
       const worksheet = XLSX.utils.json_to_sheet(rows);
       XLSX.utils.book_append_sheet(workbook, worksheet, "Agents");
@@ -1133,6 +1206,7 @@ export default {
       const parallelSteps = uniqueList(base.parallelSteps || []).filter((toolName) => selectedSet.has(toolName));
       return {
         enabled: base.enabled !== false,
+        runtimeEnvironment: normalizeRuntimeEnvironment(base.runtimeEnvironment),
         workflow: base.workflow || (this.form?.id ? `${this.form.id}_workflow` : "agent_workflow"),
         executionStrategy: base.executionStrategy,
         steps,
@@ -1200,9 +1274,16 @@ export default {
       this.saving = true;
       try {
         const payload = this.formToPayload();
-        this.dialogMode === "create"
+        const saved = this.dialogMode === "create"
           ? await createWorkshopAgent(payload)
           : await updateWorkshopAgent(this.activeAgent.id, payload);
+        const requestedEnvironment = normalizeRuntimeEnvironment(payload.workflowConfig?.runtimeEnvironment);
+        const persistedEnvironment = normalizeRuntimeEnvironment(saved?.workflowConfig?.runtimeEnvironment);
+        if (requestedEnvironment !== persistedEnvironment) {
+          throw new Error(
+            `Agent 保存后环境回读不一致：提交 ${requestedEnvironment || "未指定"}，返回 ${persistedEnvironment || "未指定"}`
+          );
+        }
         this.closeAfterSave();
         await this.loadWorkshop();
       } catch (error) {
@@ -1228,6 +1309,7 @@ export default {
       this.error = "";
       try {
         await deleteWorkshopAgent(agent.id);
+        this.setAgentExportSelection(agent, false);
         await this.loadWorkshop();
       } catch (error) {
         this.error = error.message || "Agent删除失败";

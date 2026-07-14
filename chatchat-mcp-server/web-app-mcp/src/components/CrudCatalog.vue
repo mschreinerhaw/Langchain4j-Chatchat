@@ -110,7 +110,7 @@
                 <strong>{{ section.title }}</strong>
                 <small v-if="section.subtitle">{{ section.subtitle }}</small>
               </span>
-              <span class="form-section-count">{{ section.fields.length }} 项</span>
+              <span class="form-section-count">{{ section.fields.length }} 个配置区</span>
             </button>
             <el-row v-show="!isFormSectionCollapsed(section.key)" class="form-section-grid" :gutter="12">
               <template v-for="field in section.fields" :key="field.key">
@@ -289,6 +289,12 @@
                   </div>
                 </div>
                 <div v-else-if="field.type === 'databaseSqlSteps'" class="database-sql-step-editor">
+                  <el-alert
+                    type="info"
+                    :closable="false"
+                    show-icon
+                    title="SQL 名称用于区分多个结果集；系统内部编码会自动生成，无需手工维护。"
+                  />
                   <div class="database-param-toolbar">
                     <div>
                       <strong>SQL 明细列表</strong>
@@ -314,28 +320,43 @@
                       </div>
                     </div>
                     <el-row :gutter="10">
-                      <el-col :xs="24" :md="6"><el-input v-model.trim="entry.sqlCode" placeholder="SQL 编码" /></el-col>
-                      <el-col :xs="24" :md="8"><el-input v-model.trim="entry.sqlName" placeholder="SQL 名称" /></el-col>
-                      <el-col :xs="12" :md="4">
-                        <el-input-number v-model="entry.timeoutSeconds" class="w-100" :min="1" :max="300" controls-position="right" placeholder="超时" />
+                      <el-col :xs="24" :md="8">
+                        <el-form-item label="SQL 名称">
+                          <el-input v-model.trim="entry.sqlName" placeholder="例如 InnoDB 状态" />
+                        </el-form-item>
                       </el-col>
-                      <el-col :xs="12" :md="3">
-                        <el-input-number v-model="entry.maxResultRows" class="w-100" :min="1" :max="1000" controls-position="right" placeholder="行数" />
+                      <el-col :xs="12" :md="5">
+                        <el-form-item label="超时（秒）">
+                          <el-input-number v-model="entry.timeoutSeconds" class="w-100" :min="1" :max="300" controls-position="right" />
+                        </el-form-item>
                       </el-col>
-                      <el-col :xs="24" :md="3">
-                        <el-select v-model="entry.failureStrategy" class="w-100">
-                          <el-option label="失败停止" value="STOP" />
-                          <el-option label="失败继续" value="CONTINUE" />
-                        </el-select>
+                      <el-col :xs="12" :md="5">
+                        <el-form-item label="自定义返回行数">
+                          <el-input-number v-model="entry.maxResultRows" class="w-100" :min="1" controls-position="right" />
+                        </el-form-item>
+                      </el-col>
+                      <el-col :xs="24" :md="6">
+                        <el-form-item label="失败策略">
+                          <el-select v-model="entry.failureStrategy" class="w-100">
+                            <el-option label="失败停止" value="STOP" />
+                            <el-option label="失败继续" value="CONTINUE" />
+                          </el-select>
+                        </el-form-item>
                       </el-col>
                       <el-col :xs="24">
-                        <el-input v-model="entry.sqlDescription" type="textarea" :rows="2" placeholder="结果集描述：说明一行代表什么、包含哪些指标、在分析中的用途。" />
+                        <el-form-item label="结果集说明">
+                          <el-input v-model="entry.sqlDescription" type="textarea" :rows="2" placeholder="说明一行代表什么、包含哪些指标，以及模型应如何使用该结果集。" />
+                        </el-form-item>
                       </el-col>
                       <el-col :xs="24">
-                        <el-input v-model="entry.sqlContent" class="codebox" type="textarea" :rows="6" spellcheck="false" placeholder="SELECT ..." />
+                        <el-form-item label="只读 SQL">
+                          <el-input v-model="entry.sqlContent" class="codebox" type="textarea" :rows="6" spellcheck="false" placeholder="填写 SELECT、SHOW、DESCRIBE 或 EXPLAIN 查询" />
+                        </el-form-item>
                       </el-col>
                       <el-col :xs="24">
-                        <el-input v-model="entry.parametersJson" class="codebox" type="textarea" :rows="2" spellcheck="false" placeholder='该 SQL 独立参数 JSON，例如 {"status":"1"}' />
+                        <el-form-item label="SQL 独立参数（JSON，可选）">
+                          <el-input v-model="entry.parametersJson" class="codebox" type="textarea" :rows="2" spellcheck="false" placeholder='仅填写该 SQL 占位符需要的固定参数，例如 {"status":"1"}；没有参数时保留 {}' />
+                        </el-form-item>
                       </el-col>
                     </el-row>
                   </div>

@@ -222,6 +222,7 @@ class AgentPlanner {
         prompt.append("- Template ids, template names, mcpToolName, and execution.callTool values returned by discovery are template names, not Agent Runtime workflow tool names.\n");
         prompt.append("- Do not put a returned template name into plan.steps[].tool_name. Put it into template/templateId and call the declared executor tool such as sql_query_execute, database_query_execute, linux_command_execute, or http_request_execute.\n");
         prompt.append("- Finding a template or asset is not execution evidence. final_answer must depend on the actual executor step or an explicit error/permission observation.\n\n");
+        appendAgentRuntimeEnvironmentContract(prompt, runtimeAttributes);
         prompt.append("Data template execution contract:\n");
         prompt.append("- Use only the exact tools present in Available tools and the configured workflow; tool metadata may describe input/output contracts but must not cause tool substitution.\n");
         prompt.append("- Bind the selected discovery result's declared template identifier, execution tool, execution context, parameter schema, required parameters, and invocation example into the executor step exactly as returned.\n");
@@ -509,6 +510,26 @@ class AgentPlanner {
             }
         }
         return sb.toString();
+    }
+
+    private void appendAgentRuntimeEnvironmentContract(StringBuilder prompt,
+                                                       Map<String, Object> runtimeAttributes) {
+        if (prompt == null || runtimeAttributes == null) {
+            return;
+        }
+        Object configured = runtimeAttributes.get("agentRuntimeEnvironment");
+        if (configured == null) {
+            return;
+        }
+        String environment = String.valueOf(configured).trim().toUpperCase(Locale.ROOT);
+        if (!Set.of("DEV", "TEST", "UAT", "PROD").contains(environment)) {
+            return;
+        }
+        prompt.append("Agent runtime environment contract:\n")
+            .append("- The configured runtime environment is ").append(environment).append(".\n")
+            .append("- This value is authoritative for MCP discovery filters and executionContext.env. ")
+            .append("If user wording or model inference suggests another environment, keep ")
+            .append(environment).append(" and do not guess or override it.\n\n");
     }
 
     private void appendApplicability(StringBuilder prompt, ToolMetadata metadata) {

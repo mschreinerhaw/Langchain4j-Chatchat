@@ -1,13 +1,13 @@
-﻿spring:
+spring:
   application:
     name: chatchat
     version: 1.0.0-SNAPSHOT
   datasource:
     type: com.zaxxer.hikari.HikariDataSource
-    url: "${CHATCHAT_API_MYSQL_URL:jdbc:mysql://192.168.195.221:3306/live_runtime_api?useUnicode=true&characterEncoding=UTF-8&connectionCollation=utf8mb4_unicode_ci&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true}"
+    url: "jdbc:mysql://192.168.195.221:3306/live_runtime_api?useUnicode=true&characterEncoding=UTF-8&connectionCollation=utf8mb4_unicode_ci&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true"
     driver-class-name: com.mysql.cj.jdbc.Driver
-    username: ${CHATCHAT_API_MYSQL_USERNAME:livebos}
-    password: ${CHATCHAT_API_MYSQL_ENCRYPTED_PASSWORD:apexSoft123!}
+    username: livebos
+    password: apexSoft123!
   h2:
     console:
       enabled: false
@@ -30,7 +30,7 @@
       max-request-size: 32MB
 
 server:
-  port: ${CHATCHAT_API_PORT:8080}
+  port: 8080
   servlet:
     context-path: /
     encoding:
@@ -45,20 +45,20 @@ server:
 chatchat:
   internal-credential:
     enabled: true
-    username: ${CHATCHAT_INTERNAL_USERNAME:chatchat_mcp_internal}
-    encrypted-secret: ${CHATCHAT_INTERNAL_ENCRYPTED_SECRET:}
-    secret: ${CHATCHAT_INTERNAL_SECRET:chatchat_internal_default_secret}
-    crypto-key: ${CHATCHAT_INTERNAL_CRYPTO_KEY:}
-    crypto-key-file: ${CHATCHAT_INTERNAL_CRYPTO_KEY_FILE:}
+    username: chatchat_mcp_internal
+    encrypted-secret:
+    secret: chatchat_internal_default_secret
+    crypto-key:
+    crypto-key-file:
   mcp:
     center:
       enabled: true
-      base-url: ${CHATCHAT_MCP_CENTER_BASE_URL:http://localhost:8090}
-      admin-username: ${CHATCHAT_INTERNAL_USERNAME:chatchat_mcp_internal}
-      encrypted-admin-password: ${CHATCHAT_INTERNAL_ENCRYPTED_SECRET:}
-      admin-password: ${CHATCHAT_INTERNAL_SECRET:chatchat_internal_default_secret}
-      encrypted-invocation-token: ${CHATCHAT_INTERNAL_ENCRYPTED_SECRET:}
-      invocation-token: ${CHATCHAT_INTERNAL_SECRET:chatchat_internal_default_secret}
+      base-url: http://localhost:8090
+      admin-username: chatchat_mcp_internal
+      encrypted-admin-password:
+      admin-password: chatchat_internal_default_secret
+      encrypted-invocation-token:
+      invocation-token: chatchat_internal_default_secret
       timeout-ms: 0
       import-standalone-server: true
     stdio-proxy:
@@ -71,15 +71,15 @@ chatchat:
         - python3
   models:
     defaultProvider: openai
-    defaultChatModel: ${CHATCHAT_DEFAULT_CHAT_MODEL:deepseek-v4-pro}
+    defaultChatModel: deepseek-v4-pro
     availableChatModels:
-      - ${CHATCHAT_DEFAULT_CHAT_MODEL:deepseek-v4-pro}
+      - deepseek-v4-pro
     openai:
       apiKey: sk-7f5c64a84f774201829be1dc7193d09a
-      baseUrl: ${OPENAI_BASE_URL:https://api.deepseek.com}
-      timeout: ${OPENAI_TIMEOUT_MS:300000}
-      maxTokens: ${OPENAI_MAX_TOKENS:-1}
-      maxRetries: ${OPENAI_MAX_RETRIES:3}
+      baseUrl: https://api.deepseek.com
+      timeout: 300000
+      maxTokens: -1
+      maxRetries: 3
   search:
     engine: opensearch
     store-path: ./data/search-rocksdb
@@ -87,34 +87,34 @@ chatchat:
     rebuild-on-startup: false
     opensearch:
       enabled: true
-      url: ${CHATCHAT_OPENSEARCH_URL:https://192.168.195.221:9200}
-      username: ${CHATCHAT_OPENSEARCH_USERNAME:admin}
-      password: ${CHATCHAT_OPENSEARCH_ENCRYPTED_PASSWORD:apexSoft12345}
-      index-name: ${CHATCHAT_API_OPENSEARCH_INDEX:chatchat_documents_dev}
-      insecure-ssl: ${CHATCHAT_OPENSEARCH_INSECURE_SSL:true}
+      url: https://192.168.195.221:9200
+      username: admin
+      password: apexSoft12345
+      index-name: chatchat_documents_dev
+      insecure-ssl: true
       connect-timeout-ms: 5000
       request-timeout-ms: 30000
       bulk-batch-size: 200
-      max-query-terms: ${CHATCHAT_OPENSEARCH_MAX_QUERY_TERMS:20}
-      max-query-chars: ${CHATCHAT_OPENSEARCH_MAX_QUERY_CHARS:500}
-      max-permission-roles: ${CHATCHAT_OPENSEARCH_MAX_PERMISSION_ROLES:64}
-      log-query-dsl: ${CHATCHAT_OPENSEARCH_LOG_QUERY_DSL:true}
+      max-query-terms: 20
+      max-query-chars: 500
+      max-permission-roles: 64
+      log-query-dsl: true
       embedding:
         request-timeout-ms: 300000
-        enabled: ${CHATCHAT_OPENSEARCH_EMBEDDING_ENABLED:true}
-        endpoint: ${CHATCHAT_EMBEDDING_ENDPOINT:https://llm-7upawl16up8649rh.cn-beijing.maas.aliyuncs.com/compatible-mode/v1/embeddings}
+        enabled: true
+        endpoint: https://llm-7upawl16up8649rh.cn-beijing.maas.aliyuncs.com/compatible-mode/v1/embeddings
         api-key: sk-720436c855ac470bb955388d0e8c9b89
-        model: ${CHATCHAT_EMBEDDING_MODEL:text-embedding-v4}
-        dimension: ${CHATCHAT_EMBEDDING_DIMENSION:1024}
+        model: text-embedding-v4
+        dimension: 1024
         vector-field: contentVector
         max-input-chars: 6000
         vector-candidate-limit: 50
   tools:
     document-search:
-      api-base-url: ${CHATCHAT_API_BASE_URL:http://localhost:8080}
+      api-base-url: http://localhost:8080
       auth:
-        username: ${CHATCHAT_INTERNAL_USERNAME:chatchat_mcp_internal}
-        password: ${CHATCHAT_INTERNAL_SECRET:chatchat_internal_default_secret}
+        username: chatchat_mcp_internal
+        password: chatchat_internal_default_secret
 
 springdoc:
   api-docs:

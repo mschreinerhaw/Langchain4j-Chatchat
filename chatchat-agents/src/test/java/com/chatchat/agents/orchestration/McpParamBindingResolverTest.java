@@ -12,6 +12,43 @@ class McpParamBindingResolverTest {
     private final McpParamBindingResolver resolver = new McpParamBindingResolver();
 
     @Test
+    void doesNotInferEnvironmentFromDatabaseAssetProperName() {
+        Map<String, Object> result = resolver.resolve(
+            "mcp_chatchat_mcp_server_sql_datasource_asset_query",
+            null,
+            Map.of(
+                "finalDecision", "database",
+                "confidence", 0.95,
+                "filters", Map.of()
+            ),
+            "\u5206\u6790248\u6d4b\u8bd5\u6570\u636e\u5e93"
+        );
+
+        Map<?, ?> filters = (Map<?, ?>) result.get("filters");
+        assertThat(filters.containsKey("env")).isFalse();
+        assertThat(filters.get("queryTerms"))
+            .asInstanceOf(org.assertj.core.api.InstanceOfAssertFactories.LIST)
+            .contains("\u5206\u6790248\u6d4b\u8bd5\u6570\u636e\u5e93");
+    }
+
+    @Test
+    void infersCanonicalEnvironmentOnlyFromExplicitEnvironmentExpression() {
+        Map<String, Object> result = resolver.resolve(
+            "mcp_chatchat_mcp_server_sql_datasource_asset_query",
+            null,
+            Map.of(
+                "finalDecision", "database",
+                "confidence", 0.95,
+                "filters", Map.of()
+            ),
+            "\u5728TEST\u73af\u5883\u5206\u6790248\u6570\u636e\u5e93"
+        );
+
+        Map<?, ?> filters = (Map<?, ?>) result.get("filters");
+        assertThat(filters.get("env")).isEqualTo("TEST");
+    }
+
+    @Test
     void removesProtocolFieldsFromTemplateDiscoveryFilters() {
         Map<String, Object> result = resolver.resolve(
             "mcp_chatchat_mcp_server_ssh_template_query",

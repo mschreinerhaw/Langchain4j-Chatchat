@@ -9,11 +9,26 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 /**
  * Normalizes loose planner arguments into the logical MCP gateway contracts.
  */
 class McpParamBindingResolver {
+
+    private static final Pattern ENV_ASSIGNMENT_PATTERN = Pattern.compile(
+        "(?iu)(?:\\benv(?:ironment)?\\b|\\u73af\\u5883)\\s*(?:[:=]|\\u4e3a|\\u662f)\\s*"
+            + "(DEV|TEST|UAT|PROD|\\u5f00\\u53d1|\\u6d4b\\u8bd5|\\u9884\\u53d1|\\u751f\\u4ea7)"
+    );
+    private static final Pattern ENV_QUALIFIER_PATTERN = Pattern.compile(
+        "(?iu)(DEV|TEST|UAT|PROD|\\u5f00\\u53d1|\\u6d4b\\u8bd5|\\u9884\\u53d1|\\u751f\\u4ea7)\\s*"
+            + "(?:\\u73af\\u5883|\\u96c6\\u7fa4|\\benv(?:ironment)?\\b)"
+    );
+    private static final Pattern ENV_ENGLISH_CONTEXT_PATTERN = Pattern.compile(
+        "(?iu)\\b(?:in|on|under)\\s+(?:the\\s+)?(DEV|TEST|UAT|PROD)"
+            + "(?:\\s+(?:env(?:ironment)?|cluster))?\\b"
+    );
 
     static final String STATUS_KEY = "__runtimeParamBindingStatus";
     static final String ERROR_KEY = "__runtimeParamBindingError";
@@ -568,23 +583,34 @@ class McpParamBindingResolver {
     }
 
     private String inferEnvironment(String query) {
-        String text = normalize(query);
-        if (text == null) {
+        if (query == null || query.isBlank()) {
             return null;
         }
-        if (containsAny(text, "生产", "prod", "production", "线上")) {
-            return "prod";
-        }
-        if (containsAny(text, "测试", "test", "testing", "qa")) {
-            return "test";
-        }
-        if (containsAny(text, "开发", "dev", "develop", "development")) {
-            return "dev";
-        }
-        if (containsAny(text, "预发", "staging", "stage", "uat")) {
-            return "staging";
+        for (Pattern pattern : List.of(
+            ENV_ASSIGNMENT_PATTERN,
+            ENV_QUALIFIER_PATTERN,
+            ENV_ENGLISH_CONTEXT_PATTERN
+        )) {
+            Matcher matcher = pattern.matcher(query);
+            if (matcher.find()) {
+                return canonicalEnvironment(matcher.group(1));
+            }
         }
         return null;
+    }
+
+    private String canonicalEnvironment(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        String normalized = value.trim().toUpperCase(Locale.ROOT);
+        return switch (normalized) {
+            case "DEV", "\u5f00\u53d1" -> "DEV";
+            case "TEST", "\u6d4b\u8bd5" -> "TEST";
+            case "UAT", "\u9884\u53d1" -> "UAT";
+            case "PROD", "\u751f\u4ea7" -> "PROD";
+            default -> null;
+        };
     }
 
     private String inferService(String query) {

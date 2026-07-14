@@ -179,6 +179,9 @@ public class DatabaseQueryInvokeService {
             TemplateStep current = statements.get(index);
             Map<String, Object> stepParameters = new LinkedHashMap<>(parameters);
             stepParameters.put("sql", current.command());
+            log.info("MCP execution detail: executionType=SQL_SCRIPT_STEP, source=database_query, statementIndex={}, stepCode={}, stepName={}, maxRows={}, sql={}",
+                index + 1, current.stepCode(), current.stepName(),
+                stepParameters.getOrDefault("max_rows", stepParameters.get("maxRows")), current.command());
             ToolOutput step = invokeSingleStatement(stepParameters);
             Map<String, Object> data = mapValue(step.getData());
             Map<String, Object> result = new LinkedHashMap<>();
@@ -256,6 +259,10 @@ public class DatabaseQueryInvokeService {
         for (DatabaseQuerySqlStep stepConfig : steps) {
             long stepStartedAt = System.currentTimeMillis();
             Map<String, Object> stepParameters = parametersForSqlStep(config, baseParameters, stepConfig);
+            log.info("MCP execution detail: executionType=SQL_QUERY_STEP, source=database_query, databaseQueryId={}, tool={}, executionOrder={}, sqlCode={}, sqlName={}, maxRows={}, timeoutSeconds={}, sql={}",
+                config.getId(), config.getToolName(), stepConfig.getExecutionOrder(), stepConfig.getSqlCode(),
+                stepConfig.getSqlName(), stepParameters.getOrDefault("max_rows", stepParameters.get("maxRows")),
+                stepParameters.getOrDefault("timeoutSeconds", stepParameters.get("timeout_seconds")), stepParameters.get("sql"));
             ToolOutput step = invokeSingleStatement(stepParameters);
             long stepDurationMs = Math.max(0L, System.currentTimeMillis() - stepStartedAt);
             Map<String, Object> resultSet = resultSet(config, stepConfig, stepParameters, step, stepDurationMs);

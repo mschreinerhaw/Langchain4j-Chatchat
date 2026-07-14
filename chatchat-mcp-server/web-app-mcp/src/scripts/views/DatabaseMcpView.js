@@ -134,7 +134,7 @@ export default {
           min: 1,
           step: 1,
           placeholder: '50',
-          help: '限制单次查询返回的最大行数，避免大结果集拖慢服务。',
+          help: '用户可为当前模板自定义返回行数；执行时服务端会强制限制在 chatchat.tools.database-query.min-rows 与 max-rows 之间。',
           section: 'runtime'
         },
         {

@@ -1,3 +1,13 @@
 ﻿spring:
   profiles:
     default: dev
+
+chatchat:
+  tools:
+    database-query:
+      # Global hard lower bound for a user/template requested row limit.
+      min-rows: ${CHATCHAT_DATABASE_QUERY_MIN_ROWS:1}
+      # Default row count when a datasource, template, or request does not specify one.
+      default-max-rows: ${CHATCHAT_DATABASE_QUERY_DEFAULT_MAX_ROWS:50}
+      # Global hard limit enforced by the JDBC execution layer for every database query.
+      max-rows: ${CHATCHAT_DATABASE_QUERY_MAX_ROWS:500}

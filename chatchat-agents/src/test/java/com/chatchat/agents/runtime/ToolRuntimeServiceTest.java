@@ -794,6 +794,46 @@ class ToolRuntimeServiceTest {
         verify(toolRegistry, times(2)).executeEnhancedTool(any(), any());
     }
 
+    @Test
+    void workflowFailureDoesNotBlockRewrittenPlanAttemptInSameRun() {
+        String toolName = "mcp_chatchat_mcp_server_database_asset_search";
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.getToolMetadata(toolName)).thenReturn(ToolMetadata.builder()
+            .id(toolName)
+            .title("Database asset search")
+            .categories(List.of("mcp"))
+            .build());
+        when(toolRegistry.executeEnhancedTool(any(), any())).thenReturn(
+            ToolOutput.failure("invalid planner input"),
+            ToolOutput.success("repaired asset result")
+        );
+        ToolRuntimeService service = new ToolRuntimeService(
+            toolRegistry,
+            new ObjectMapper(),
+            properties(),
+            new McpPolicyProperties(),
+            new McpWorkflowProperties(),
+            List.of(),
+            List.of()
+        );
+        Map<String, Object> workflowConfig = Map.of(
+            "enabled", true,
+            "workflow", "database_fact_workflow",
+            "executionStrategy", Map.of("mode", "sequential", "stopOnError", true),
+            "steps", List.of(Map.of("step", 1, "tool", toolName, "required", true))
+        );
+
+        ToolRuntimeExecution failed = service.execute(agentWorkflowAttemptRequest(toolName, workflowConfig, 0));
+        ToolRuntimeExecution stoppedInSameAttempt = service.execute(agentWorkflowAttemptRequest(toolName, workflowConfig, 0));
+        ToolRuntimeExecution rewrittenAttempt = service.execute(agentWorkflowAttemptRequest(toolName, workflowConfig, 1));
+
+        assertThat(failed.output().isSuccess()).isFalse();
+        assertThat(stoppedInSameAttempt.output().getErrorMessage()).contains("previous required step failed");
+        assertThat(rewrittenAttempt.output().isSuccess()).isTrue();
+        assertThat(rewrittenAttempt.output().getDataAsString()).isEqualTo("repaired asset result");
+        verify(toolRegistry, times(2)).executeEnhancedTool(any(), any());
+    }
+
     private ToolRuntimeProperties properties() {
         ToolRuntimeProperties properties = new ToolRuntimeProperties();
         properties.setEnforceAllowedTools(true);
@@ -839,6 +879,26 @@ class ToolRuntimeServiceTest {
             .allowedTools(allowedTools)
             .toolInput(ToolInput.builder().userId("user-agent-workflow").parameters(Map.of()).build())
             .attributes(Map.of("mcpWorkflow", workflowConfig))
+            .build();
+    }
+
+    private ToolRuntimeRequest agentWorkflowAttemptRequest(String toolName,
+                                                           Object workflowConfig,
+                                                           int attempt) {
+        return ToolRuntimeRequest.builder()
+            .toolName(toolName)
+            .runtimeMode("interpretation_plan")
+            .requestId("req-rewrite-attempt")
+            .conversationId("conv-rewrite-attempt")
+            .tenantId("tenant-1")
+            .userId("user-agent-workflow")
+            .allowedTools(List.of(toolName))
+            .toolInput(ToolInput.builder().userId("user-agent-workflow").parameters(Map.of()).build())
+            .attributes(Map.of(
+                "mcpWorkflow", workflowConfig,
+                "__agentRunId", "run-rewrite-attempt",
+                "workflowExecutionAttempt", attempt
+            ))
             .build();
     }
 

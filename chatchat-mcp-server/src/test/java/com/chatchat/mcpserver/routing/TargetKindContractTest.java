@@ -208,6 +208,16 @@ class TargetKindContractTest {
     }
 
     @Test
+    void publishesAllowedFilterFieldsAsRoutingProtocolMetadata() {
+        Map<String, Object> metadata = registry.protocolMetadata("asset_query");
+        Map<?, ?> fieldsByKind = (Map<?, ?>) metadata.get("allowedFilterFieldsByTargetKind");
+
+        assertThat(((List<?>) fieldsByKind.get("database")).stream().map(String::valueOf).toList())
+            .contains("assetname", "intent", "queryterms", "retrievalsignals")
+            .doesNotContain("business_line");
+    }
+
+    @Test
     void rejectsMissingTrace() {
         assertThatThrownBy(() -> registry.resolveForTool(
             "asset_query",

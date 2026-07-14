@@ -13,6 +13,7 @@ import com.chatchat.agents.runtime.ToolRuntimeService;
 import com.chatchat.agents.orchestration.McpToolRouter;
 import com.chatchat.common.tool.ToolOutput;
 import com.chatchat.common.tool.ToolInput;
+import com.chatchat.common.tool.ToolMetadata;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
@@ -2415,7 +2416,7 @@ public class InterpretationPlanRuntime {
             input.put("filters", new LinkedHashMap<>());
             filters = input.get("filters");
         }
-        sanitizeDiscoveryFilters(input);
+        sanitizeDiscoveryFilters(step, request, input);
         sanitizeDiscoveryEnvironment(step, request, completed, input);
         filters = firstMapValue(input, "filters", "executionContext", "mcpExecutionContext");
         if (filters instanceof Map<?, ?> filterMap && !hasAssetConstraint(filterMap)) {
@@ -2431,7 +2432,7 @@ public class InterpretationPlanRuntime {
                 input.put("filters", mutableFilters);
             }
         }
-        sanitizeDiscoveryFilters(input);
+        sanitizeDiscoveryFilters(step, request, input);
         input.putIfAbsent("filtersSchemaVersion", "target_filters.v1");
         Object trace = firstMapValue(input, "trace", "routingTrace", "routing_trace");
         if (trace instanceof Map<?, ?> traceMap && !traceMap.isEmpty()) {
@@ -2621,7 +2622,9 @@ public class InterpretationPlanRuntime {
     }
 
     @SuppressWarnings("unchecked")
-    private void sanitizeDiscoveryFilters(Map<String, Object> input) {
+    private void sanitizeDiscoveryFilters(InterpretationPlan.Step step,
+                                          ExecutionRequest request,
+                                          Map<String, Object> input) {
         Object filters = input == null ? null : firstMapValue(input, "filters", "executionContext", "mcpExecutionContext");
         if (!(filters instanceof Map<?, ?> map)) {
             return;
@@ -2630,12 +2633,109 @@ public class InterpretationPlanRuntime {
             ? (Map<String, Object>) map
             : new LinkedHashMap<>((Map<String, Object>) map);
         DISCOVERY_FILTER_PROTOCOL_FIELDS.forEach(mutableFilters::remove);
+        repairDiscoveryFiltersFromToolMetadata(step, request, mutableFilters);
         if (input.containsKey("filters") || !input.containsKey("executionContext")) {
             input.put("filters", mutableFilters);
         } else if (input.containsKey("executionContext")) {
             input.put("executionContext", mutableFilters);
         } else {
             input.put("mcpExecutionContext", mutableFilters);
+        }
+    }
+
+    private void repairDiscoveryFiltersFromToolMetadata(InterpretationPlan.Step step,
+                                                        ExecutionRequest request,
+                                                        Map<String, Object> filters) {
+        DiscoveryFilterContract contract = discoveryFilterContract(step, request);
+        if (filters == null || filters.isEmpty() || contract.allowedFields().isEmpty()) {
+            return;
+        }
+        List<String> semanticSignals = new ArrayList<>();
+        List<String> removedFields = new ArrayList<>();
+        List<String> forbiddenFields = new ArrayList<>();
+        for (Map.Entry<String, Object> entry : new ArrayList<>(filters.entrySet())) {
+            String canonical = canonicalFilterField(entry.getKey());
+            if (contract.allowedFields().contains(canonical)) {
+                continue;
+            }
+            filters.remove(entry.getKey());
+            if (contract.forbiddenFields().contains(canonical)) {
+                forbiddenFields.add(entry.getKey());
+                continue;
+            }
+            removedFields.add(entry.getKey());
+            appendSemanticFilterSignals(semanticSignals, entry.getKey(), entry.getValue());
+        }
+        if (!semanticSignals.isEmpty() && contract.allowedFields().contains("retrievalsignals")) {
+            LinkedHashSet<String> merged = new LinkedHashSet<>(stringValues(filters.get("retrievalSignals")));
+            merged.addAll(semanticSignals);
+            filters.put("retrievalSignals", new ArrayList<>(merged));
+        }
+        if (!removedFields.isEmpty() || !forbiddenFields.isEmpty()) {
+            log.info("InterpretationPlan discovery filters repaired from MCP metadata: stepId={}, tool={}, semanticFields={}, forbiddenFields={}",
+                step == null ? null : step.id(), step == null ? null : step.toolName(), removedFields, forbiddenFields);
+        }
+    }
+
+    private DiscoveryFilterContract discoveryFilterContract(InterpretationPlan.Step step, ExecutionRequest request) {
+        if (step == null || request == null || request.toolRegistry() == null) {
+            return DiscoveryFilterContract.empty();
+        }
+        ToolMetadata metadata = request.toolRegistry().getToolMetadata(step.toolName());
+        if (metadata == null || metadata.getMetadata() == null) {
+            return DiscoveryFilterContract.empty();
+        }
+        Map<String, Object> metadataMap = asStringMap(metadata.getMetadata());
+        Map<String, Object> mcpMeta = asStringMap(metadataMap.get("mcpToolMeta"));
+        Map<String, Object> routingProtocol = asStringMap(mcpMeta.get("routingProtocol"));
+        Set<String> allowed = stringValues(routingProtocol.get("allowedFilterFields")).stream()
+            .map(this::canonicalFilterField)
+            .filter(value -> !value.isBlank())
+            .collect(Collectors.toCollection(LinkedHashSet::new));
+        Set<String> forbidden = stringValues(mcpMeta.get("forbiddenConcreteTargetFields")).stream()
+            .map(this::canonicalFilterField)
+            .filter(value -> !value.isBlank())
+            .collect(Collectors.toCollection(LinkedHashSet::new));
+        return new DiscoveryFilterContract(allowed, forbidden);
+    }
+
+    private void appendSemanticFilterSignals(List<String> target, String field, Object value) {
+        if (target == null || value == null || value instanceof Map<?, ?>) {
+            return;
+        }
+        for (String item : stringValues(value)) {
+            if (item == null || item.isBlank()) {
+                continue;
+            }
+            target.add(field + ":" + item);
+            target.add(item);
+        }
+    }
+
+    private List<String> stringValues(Object value) {
+        if (value == null) {
+            return List.of();
+        }
+        if (value instanceof Iterable<?> iterable) {
+            List<String> values = new ArrayList<>();
+            for (Object item : iterable) {
+                if (item != null && !String.valueOf(item).isBlank()) {
+                    values.add(String.valueOf(item).trim());
+                }
+            }
+            return values;
+        }
+        String text = String.valueOf(value).trim();
+        return text.isBlank() ? List.of() : List.of(text);
+    }
+
+    private String canonicalFilterField(String value) {
+        return value == null ? "" : value.trim().toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]", "");
+    }
+
+    private record DiscoveryFilterContract(Set<String> allowedFields, Set<String> forbiddenFields) {
+        private static DiscoveryFilterContract empty() {
+            return new DiscoveryFilterContract(Set.of(), Set.of());
         }
     }
 

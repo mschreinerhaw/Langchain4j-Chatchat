@@ -251,12 +251,19 @@ public class TargetKindRegistry {
             .toList();
     }
 
+    public Set<String> allowedFilterFieldsForTargetKind(String targetKind) {
+        TargetKindDefinition definition = byKind.get(normalizeTargetKind(targetKind));
+        return definition == null ? Set.of() : Set.copyOf(definition.allowedFilterFields());
+    }
+
     public Map<String, Object> protocolMetadata(String toolName) {
         String normalizedTool = normalizeToolName(toolName);
         Map<String, Object> mapping = new LinkedHashMap<>();
+        Map<String, Object> allowedFilterFields = new LinkedHashMap<>();
         byKind.values().forEach(definition -> {
             if (definition.allowedTools().contains(normalizedTool) || "document".equals(definition.targetKind())) {
                 mapping.put(definition.targetKind(), definition.assetType());
+                allowedFilterFields.put(definition.targetKind(), List.copyOf(definition.allowedFilterFields()));
             }
         });
         return mapOf(
@@ -271,6 +278,7 @@ public class TargetKindRegistry {
             "confidenceThreshold", MIN_CONFIDENCE,
             "allowedTargetKinds", allowedTargetKindsForTool(normalizedTool),
             "targetKindToAssetType", mapping,
+            "allowedFilterFieldsByTargetKind", allowedFilterFields,
             "doNotInferFromKeywords", true
         );
     }

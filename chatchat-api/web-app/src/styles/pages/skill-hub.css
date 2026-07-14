@@ -1958,8 +1958,9 @@
   grid-template-columns: 18px minmax(0, 1fr);
   align-items: center;
   align-content: center;
+  align-self: end;
   gap: 8px;
-  min-height: 42px;
+  min-height: 38px;
 }
 
 .agent-workshop-view .dialog-body .default-agent-row input {

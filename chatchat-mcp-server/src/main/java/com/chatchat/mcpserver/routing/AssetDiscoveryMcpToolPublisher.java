@@ -28,6 +28,7 @@ public class AssetDiscoveryMcpToolPublisher {
 
     private final McpSyncServer mcpSyncServer;
     private final AssetDiscoveryService assetDiscoveryService;
+    private final TargetKindRegistry targetKindRegistry;
 
     @Order(Ordered.LOWEST_PRECEDENCE)
     @EventListener(ApplicationReadyEvent.class)
@@ -208,6 +209,7 @@ public class AssetDiscoveryMcpToolPublisher {
                 "forcedTargetKind", targetKind,
                 "forcedAssetType", assetType,
                 "filtersSchemaVersion", TargetKindRegistry.FILTERS_SCHEMA_VERSION,
+                "allowedFilterFields", List.copyOf(targetKindRegistry.allowedFilterFieldsForTargetKind(targetKind)),
                 "doNotInferFromKeywords", true
             ),
             "indexPolicy", mapOf(

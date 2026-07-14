@@ -2291,8 +2291,22 @@ public class ToolRuntimeService {
         String user = normalizeText(request == null ? null : request.getUserId());
         String conversation = normalizeText(request == null ? null : request.getConversationId());
         String scope = firstText(workflowRunScope(request), firstText(conversation, "adhoc"));
+        String attempt = workflowExecutionAttempt(request);
         return firstText(tenant, "default") + "::" + firstText(user, "anonymous")
-            + "::" + scope + "::" + firstText(workflowName, "global");
+            + "::" + scope + "::attempt=" + firstText(attempt, "0")
+            + "::" + firstText(workflowName, "global");
+    }
+
+    private String workflowExecutionAttempt(ToolRuntimeRequest request) {
+        if (request == null || request.getAttributes() == null) {
+            return null;
+        }
+        Object value = firstPresent(
+            request.getAttributes().get("workflowExecutionAttempt"),
+            request.getAttributes().get("interpretationPlanAttempt"),
+            request.getAttributes().get("workflowAttempt")
+        );
+        return normalizeText(stringValue(value));
     }
 
     private String workflowRunScope(ToolRuntimeRequest request) {

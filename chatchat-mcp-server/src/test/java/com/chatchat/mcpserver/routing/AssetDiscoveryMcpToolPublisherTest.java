@@ -22,7 +22,8 @@ class AssetDiscoveryMcpToolPublisherTest {
         McpSyncServer server = mock(McpSyncServer.class);
         AssetDiscoveryMcpToolPublisher publisher = new AssetDiscoveryMcpToolPublisher(
             server,
-            mock(AssetDiscoveryService.class)
+            mock(AssetDiscoveryService.class),
+            new TargetKindRegistry()
         );
 
         publisher.refresh();
@@ -47,7 +48,8 @@ class AssetDiscoveryMcpToolPublisherTest {
     void sshAssetQueryToolIsTypedReadOnlyAndAutoExecute() throws Exception {
         AssetDiscoveryMcpToolPublisher publisher = new AssetDiscoveryMcpToolPublisher(
             mock(McpSyncServer.class),
-            mock(AssetDiscoveryService.class)
+            mock(AssetDiscoveryService.class),
+            new TargetKindRegistry()
         );
         Method assetQueryTool = AssetDiscoveryMcpToolPublisher.class.getDeclaredMethod(
             "assetQueryTool", String.class, String.class, String.class, String.class, String.class);
@@ -67,6 +69,7 @@ class AssetDiscoveryMcpToolPublisherTest {
         Map<?, ?> confirmation = (Map<?, ?>) meta.get("confirmation");
         Map<?, ?> boundary = (Map<?, ?>) meta.get("toolBoundary");
         Map<?, ?> indexPolicy = (Map<?, ?>) meta.get("indexPolicy");
+        Map<?, ?> routingProtocol = (Map<?, ?>) meta.get("routingProtocol");
 
         assertThat(tool.name()).isEqualTo(AssetDiscoveryMcpToolPublisher.SSH_ASSET_TOOL_NAME);
         assertThat(meta.get("runtimeAction")).isEqualTo("read_only");
@@ -78,13 +81,16 @@ class AssetDiscoveryMcpToolPublisherTest {
         assertThat(indexPolicy.get("logicalIndex")).isEqualTo("asset:ssh_host");
         assertThat(confirmation.get("default")).isEqualTo("auto_execute");
         assertThat(confirmation.get("allow_user_override")).isEqualTo(false);
+        assertThat(((List<?>) routingProtocol.get("allowedFilterFields")).stream().map(String::valueOf).toList())
+            .contains("assetname", "intent", "queryterms", "retrievalsignals");
     }
 
     @Test
     void typedAssetArgumentsForceAssetTypeAndTargetKind() throws Exception {
         AssetDiscoveryMcpToolPublisher publisher = new AssetDiscoveryMcpToolPublisher(
             mock(McpSyncServer.class),
-            mock(AssetDiscoveryService.class)
+            mock(AssetDiscoveryService.class),
+            new TargetKindRegistry()
         );
         Method argumentsMethod = AssetDiscoveryMcpToolPublisher.class.getDeclaredMethod(
             "forcedAssetArguments", Map.class, String.class, String.class, String.class);

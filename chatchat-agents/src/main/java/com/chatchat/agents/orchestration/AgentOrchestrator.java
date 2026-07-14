@@ -866,7 +866,7 @@ public class AgentOrchestrator {
             conversationId,
             userId,
             tools,
-            runtimeAttributes
+            workflowAttemptAttributes(runtimeAttributes, 0)
         ));
         recordPlanRuntimeResult("initial", firstResult, traces, observations, metadata);
         saveInterpretationPlanSnapshot("initial_result", plan, tenantId, requestId, runtimeAttributes, metadata, firstResult);
@@ -981,7 +981,7 @@ public class AgentOrchestrator {
                 conversationId,
                 userId,
                 tools,
-                runtimeAttributes
+                workflowAttemptAttributes(runtimeAttributes, rewriteCount)
             ));
             recordPlanRuntimeResult(rewriteCount == 1 ? "rewrite" : "rewrite" + rewriteCount, currentResult, traces, observations, metadata);
             saveInterpretationPlanSnapshot(
@@ -1193,6 +1193,12 @@ public class AgentOrchestrator {
             userId,
             runtimeAttributes == null ? Map.of() : runtimeAttributes
         );
+    }
+
+    private Map<String, Object> workflowAttemptAttributes(Map<String, Object> runtimeAttributes, int attempt) {
+        Map<String, Object> attributes = new LinkedHashMap<>(runtimeAttributes == null ? Map.of() : runtimeAttributes);
+        attributes.put("workflowExecutionAttempt", Math.max(0, attempt));
+        return attributes;
     }
 
     private Map<String, Object> runtimeExecutionPolicy(boolean requireToolBeforeFinal) {

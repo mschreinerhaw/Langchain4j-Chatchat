@@ -539,6 +539,13 @@ class AgentPlanner {
         Map<String, Object> toolMetadata = asMap(metadata.getMetadata());
         Map<String, Object> mcpMeta = asMap(toolMetadata.get("mcpToolMeta"));
         Map<String, Object> applicability = asMap(mcpMeta.get("applicability"));
+        Map<String, Object> routingProtocol = asMap(mcpMeta.get("routingProtocol"));
+        List<String> allowedFilterFields = stringList(routingProtocol.get("allowedFilterFields"));
+        if (!allowedFilterFields.isEmpty()) {
+            prompt.append("  MCP-declared allowed logical filter fields: ")
+                .append(String.join(", ", allowedFilterFields))
+                .append(". Put unsupported business concepts into an allowed semantic retrieval field instead of inventing filter keys.\n");
+        }
         if (applicability.isEmpty()) {
             return;
         }

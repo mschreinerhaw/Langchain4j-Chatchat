@@ -1664,6 +1664,66 @@ class InterpretationPlanRuntimeTest {
 
     @Test
     @SuppressWarnings("unchecked")
+    void repairsUnsupportedLogicalFiltersFromPublishedMcpContract() throws Exception {
+        String toolName = "mcp_chatchat_mcp_server_database_asset_search";
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.getToolMetadata(toolName)).thenReturn(ToolMetadata.builder()
+            .id(toolName)
+            .metadata(Map.of("mcpToolMeta", Map.of(
+                "routingProtocol", Map.of("allowedFilterFields", List.of(
+                    "assetname", "intent", "queryterms", "retrievalsignals"
+                )),
+                "forbiddenConcreteTargetFields", List.of("jdbcUrl", "datasourceId")
+            )))
+            .build());
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            mock(ToolRuntimeService.class),
+            new InterpretationPlanValidator(),
+            mock(InterpretationPlanRuntime.DagExecutionController.class)
+        );
+        InterpretationPlan.Step step = new InterpretationPlan.Step(
+            1,
+            "mcp_tool",
+            toolName,
+            Map.of("filters", Map.of(
+                "business_line", "证券",
+                "jdbcUrl", "jdbc:mysql://not-forwarded"
+            )),
+            List.of(),
+            null,
+            null
+        );
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("data_query", "分析证券持仓市值", "low"),
+            context(),
+            new InterpretationPlan.Plan(List.of(step)),
+            new InterpretationPlan.ExecutionPolicy(1, false, List.of(toolName), List.of(), 30000),
+            review()
+        );
+        InterpretationPlanRuntime.ExecutionRequest request = new InterpretationPlanRuntime.ExecutionRequest(
+            plan, toolRegistry, List.of(toolName), "tenant-1", "req-filter-contract",
+            "conv-filter-contract", "user-1", Map.of()
+        );
+        Method method = InterpretationPlanRuntime.class.getDeclaredMethod(
+            "resolvedStepInput",
+            InterpretationPlan.Step.class,
+            InterpretationPlanRuntime.ExecutionRequest.class,
+            Map.class
+        );
+        method.setAccessible(true);
+
+        Map<String, Object> resolved = (Map<String, Object>) method.invoke(runtime, step, request, Map.of());
+        Map<String, Object> filters = (Map<String, Object>) resolved.get("filters");
+
+        assertThat(filters).doesNotContainKeys("business_line", "jdbcUrl");
+        assertThat((List<String>) filters.get("retrievalSignals"))
+            .contains("business_line:证券", "证券")
+            .noneMatch(value -> value.contains("jdbc:mysql"));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
     void injectsRetrievalIntentForDatabaseDiscoveryWhenPlannerOmittedFilter() throws Exception {
         InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
             mock(ToolRuntimeService.class),

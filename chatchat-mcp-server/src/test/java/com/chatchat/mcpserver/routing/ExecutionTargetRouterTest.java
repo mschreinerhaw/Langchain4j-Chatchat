@@ -335,6 +335,28 @@ class ExecutionTargetRouterTest {
     }
 
     @Test
+    void boundDatabaseAssetOverridesModelExecutionTarget() {
+        SshHostConfigService hostService = mock(SshHostConfigService.class);
+        SqlDatasourceConfigService datasourceService = mock(SqlDatasourceConfigService.class);
+        ExecutionTargetService targetService = mock(ExecutionTargetService.class);
+        ExecutionTargetRouter router = router(hostService, datasourceService, targetService);
+        when(targetService.listEnabledByAssetType(ExecutionTargetService.ASSET_TYPE_SQL_DATASOURCE)).thenReturn(List.of());
+        SqlDatasourceConfig bound = datasource("ds-tdh", "TDH数据仓库", "sql_tdh", "DEV", null);
+        SqlDatasourceConfig requested = datasource("ds-248", "248测试数据库", "sql_248", "DEV", null);
+        when(datasourceService.listEnabled()).thenReturn(List.of(bound, requested));
+
+        Map<String, Object> routed = router.routeSqlQuery(Map.of(
+            "templateId", "TABLE_OVERVIEW",
+            "executionContext", Map.of("assetName", "248测试数据库", "env", "DEV"),
+            "defaultDataAsset", Map.of("assetName", "TDH数据仓库", "assetType", "DATABASE", "enabled", true)
+        ));
+
+        assertThat(routed)
+            .containsEntry("datasourceId", "ds-tdh")
+            .doesNotContainKey("executionContext");
+    }
+
+    @Test
     void routesSqlQueryWhenLogicalContextWasPlacedInsideTemplateParameters() {
         SshHostConfigService hostService = mock(SshHostConfigService.class);
         SqlDatasourceConfigService datasourceService = mock(SqlDatasourceConfigService.class);

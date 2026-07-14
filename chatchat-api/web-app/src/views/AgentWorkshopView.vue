@@ -135,7 +135,7 @@
         <div v-if="agent.defaultAgent || agent.defaultDataAsset?.enabled || agent.skillTags?.length" class="agent-tags">
           <span v-if="agent.defaultAgent" class="agent-default-tag">默认Agent</span>
           <span v-if="agent.defaultDataAsset?.enabled" class="agent-default-asset-tag">
-            默认资产：{{ agent.defaultDataAsset.assetName || agent.defaultDataAsset.assetId }}
+            绑定资产：{{ agent.defaultDataAsset.assetName || agent.defaultDataAsset.assetId }}
           </span>
           <span v-for="tag in agent.skillTags" :key="`${agent.id}-${tag}`">{{ tag }}</span>
         </div>
@@ -323,11 +323,11 @@
           <section class="default-data-asset-settings wide-field">
             <div class="default-data-asset-heading">
               <strong>数据库资产绑定</strong>
-              <span>仅支持绑定数据库资产；启用后，该数据库将作为 Agent 检索无结果时的默认数据来源。</span>
+              <span>仅支持绑定数据库资产；启用后，Agent 的数据库检索与执行将固定使用该资产，不会切换到其他数据库。</span>
             </div>
             <label class="checkbox-row">
               <input v-model="form.defaultDataAssetEnabled" type="checkbox">
-              <span>启用默认数据库资产</span>
+              <span>启用数据库资产绑定</span>
             </label>
             <label>
               <span>数据库资产名称</span>
@@ -336,25 +336,6 @@
                 :disabled="!form.defaultDataAssetEnabled"
                 placeholder="例如：客户经营分析数据库"
               >
-            </label>
-            <label>
-              <span>最低相关度</span>
-              <input
-                v-model.number="form.assetSelectionMinRelevanceScore"
-                :disabled="!form.defaultDataAssetEnabled"
-                type="number"
-                min="0"
-                max="1"
-                step="0.05"
-              >
-            </label>
-            <label class="checkbox-row">
-              <input v-model="form.assetFallbackWhenEmpty" :disabled="!form.defaultDataAssetEnabled" type="checkbox">
-              <span>检索为空时兜底</span>
-            </label>
-            <label class="checkbox-row">
-              <input v-model="form.assetFallbackWhenInvalid" :disabled="!form.defaultDataAssetEnabled" type="checkbox">
-              <span>检索不可用时兜底</span>
             </label>
           </section>
           <section class="agent-tool-picker wide-field">

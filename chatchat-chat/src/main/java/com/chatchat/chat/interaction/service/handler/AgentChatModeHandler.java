@@ -430,13 +430,13 @@ public class AgentChatModeHandler implements InteractionModeHandler {
         if (systemPrompt != null && !systemPrompt.isBlank()) {
             builder.append(systemPrompt.trim()).append("\n\n");
         }
-        builder.append("Default data asset fallback policy.\n")
-            .append("- For data query, data analysis, SQL, metadata, or database operations, first call the asset discovery tool to retrieve matching data assets.\n")
-            .append("- Use retrieved assets when they are relevant, authorized, enabled, available, and uniquely identify the target scope.\n")
-            .append("- If asset discovery returns no usable asset or ambiguous assets, fall back to the Agent default data asset: ")
+        builder.append("Bound database asset policy.\n")
+            .append("- For data query, data analysis, SQL, metadata, or database operations, the configured bound asset is the authoritative and exclusive database scope: ")
             .append(firstText(asset.assetName(), asset.assetId(), "configured default data asset"))
             .append(".\n")
-            .append("- The default asset is only a fallback scope and must not bypass asset permission, status, or connectivity validation.\n");
+            .append("- Do not replace it with an asset name inferred from the request, conversation history, or model-generated plan.\n")
+            .append("- If the bound asset is unavailable, report the failure; never fall back to a searched or unrelated asset.\n")
+            .append("- The binding does not bypass asset permission, status, or connectivity validation.\n");
         return builder.toString();
     }
 
@@ -455,10 +455,10 @@ public class AgentChatModeHandler implements InteractionModeHandler {
 
     private Map<String, Object> assetSelectionPolicyAttributes(SkillDefinition.AssetSelectionPolicy policy) {
         Map<String, Object> values = new LinkedHashMap<>();
-        values.put("strategy", policy == null || policy.strategy() == null ? "SEARCH_FIRST_DEFAULT_FALLBACK" : policy.strategy());
-        values.put("minRelevanceScore", policy == null || policy.minRelevanceScore() == null ? 0.7D : policy.minRelevanceScore());
-        values.put("fallbackWhenEmpty", policy == null || policy.fallbackWhenEmpty() == null || policy.fallbackWhenEmpty());
-        values.put("fallbackWhenInvalid", policy == null || policy.fallbackWhenInvalid() == null || policy.fallbackWhenInvalid());
+        values.put("strategy", "BOUND_ASSET_ONLY");
+        values.put("minRelevanceScore", 1.0D);
+        values.put("fallbackWhenEmpty", false);
+        values.put("fallbackWhenInvalid", false);
         return values;
     }
 

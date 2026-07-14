@@ -137,9 +137,9 @@ function defaultDataAssetForm() {
 
 function defaultAssetSelectionPolicy() {
   return {
-    assetSelectionMinRelevanceScore: 0.7,
-    assetFallbackWhenEmpty: true,
-    assetFallbackWhenInvalid: true
+    assetSelectionMinRelevanceScore: 1,
+    assetFallbackWhenEmpty: false,
+    assetFallbackWhenInvalid: false
   };
 }
 
@@ -765,10 +765,10 @@ export default {
     },
     assetSelectionPolicyFromForm() {
       return this.normalizeAssetSelectionPolicy({
-        strategy: "SEARCH_FIRST_DEFAULT_FALLBACK",
-        minRelevanceScore: this.form.assetSelectionMinRelevanceScore,
-        fallbackWhenEmpty: this.form.assetFallbackWhenEmpty,
-        fallbackWhenInvalid: this.form.assetFallbackWhenInvalid
+        strategy: "BOUND_ASSET_ONLY",
+        minRelevanceScore: 1,
+        fallbackWhenEmpty: false,
+        fallbackWhenInvalid: false
       });
     },
     normalizeDefaultDataAsset(value, enabledFallback = false) {
@@ -785,15 +785,11 @@ export default {
       };
     },
     normalizeAssetSelectionPolicy(value) {
-      const source = value && typeof value === "object" ? value : {};
-      const minRelevanceScore = Number(source.minRelevanceScore ?? source.min_relevance_score ?? 0.7);
       return {
-        strategy: textValue(source.strategy) || "SEARCH_FIRST_DEFAULT_FALLBACK",
-        minRelevanceScore: Number.isFinite(minRelevanceScore)
-          ? Math.max(0, Math.min(1, minRelevanceScore))
-          : 0.7,
-        fallbackWhenEmpty: source.fallbackWhenEmpty === undefined ? true : booleanValue(source.fallbackWhenEmpty),
-        fallbackWhenInvalid: source.fallbackWhenInvalid === undefined ? true : booleanValue(source.fallbackWhenInvalid)
+        strategy: "BOUND_ASSET_ONLY",
+        minRelevanceScore: 1,
+        fallbackWhenEmpty: false,
+        fallbackWhenInvalid: false
       };
     },
     normalizeImportedAgent(row, index) {
@@ -875,10 +871,10 @@ export default {
         },
         defaultDataAsset: defaultAsset.enabled ? defaultAsset : null,
         assetSelectionPolicy: {
-          strategy: "SEARCH_FIRST_DEFAULT_FALLBACK",
-          minRelevanceScore: 0.7,
-          fallbackWhenEmpty: true,
-          fallbackWhenInvalid: true
+          strategy: "BOUND_ASSET_ONLY",
+          minRelevanceScore: 1,
+          fallbackWhenEmpty: false,
+          fallbackWhenInvalid: false
         },
         quickQuestions: listValue(fieldValue(row, [
           "quickQuestions", "questions", "quickPrompts", "快捷问题", "推荐问题", "示例问题"

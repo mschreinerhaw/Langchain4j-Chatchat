@@ -65,14 +65,14 @@ public class SqlMetadataSearchService {
             looksLikeTableIdentifier(rawTableName) ? null : rawTableName
         ));
         String assetName = firstText(
+            repairMojibake(text(defaultDataAsset.get("assetName"))),
+            repairMojibake(text(defaultDataAsset.get("asset_name"))),
+            repairMojibake(text(defaultDataAsset.get("name"))),
             repairMojibake(text(input.get("assetName"))),
             repairMojibake(text(input.get("asset_name"))),
             repairMojibake(text(executionContext.get("assetName"))),
             repairMojibake(text(executionContext.get("asset_name"))),
-            repairMojibake(text(executionContext.get("name"))),
-            repairMojibake(text(defaultDataAsset.get("assetName"))),
-            repairMojibake(text(defaultDataAsset.get("asset_name"))),
-            repairMojibake(text(defaultDataAsset.get("name")))
+            repairMojibake(text(executionContext.get("name")))
         );
         String requestedTableName = firstText(
             looksLikeTableIdentifier(rawTableName) ? rawTableName : null,
@@ -95,32 +95,32 @@ public class SqlMetadataSearchService {
         String schema = qualifiedTable.schema();
         String lookupNamespace = firstText(schema, database);
         String assetId = firstText(
+            text(defaultDataAsset.get("assetId")),
+            text(defaultDataAsset.get("asset_id")),
+            text(defaultDataAsset.get("id")),
             text(input.get("assetId")),
             text(input.get("asset_id")),
             text(executionContext.get("assetId")),
-            text(executionContext.get("asset_id")),
-            text(defaultDataAsset.get("assetId")),
-            text(defaultDataAsset.get("asset_id")),
-            text(defaultDataAsset.get("id"))
+            text(executionContext.get("asset_id"))
         );
         String env = firstText(
+            text(defaultDataAsset.get("env")),
+            text(defaultDataAsset.get("environment")),
             text(input.get("env")),
             text(input.get("environment")),
             text(executionContext.get("env")),
-            text(executionContext.get("environment")),
-            text(defaultDataAsset.get("env")),
-            text(defaultDataAsset.get("environment"))
+            text(executionContext.get("environment"))
         );
         String databaseType = firstText(
+            text(defaultDataAsset.get("databaseType")),
+            text(defaultDataAsset.get("dbType")),
+            text(defaultDataAsset.get("dialect")),
             text(input.get("databaseType")),
             text(input.get("dbType")),
             text(input.get("dialect")),
             text(executionContext.get("databaseType")),
             text(executionContext.get("dbType")),
-            text(executionContext.get("dialect")),
-            text(defaultDataAsset.get("databaseType")),
-            text(defaultDataAsset.get("dbType")),
-            text(defaultDataAsset.get("dialect"))
+            text(executionContext.get("dialect"))
         );
         String query = firstText(rawQuery, requestedTableName, tableName, assetName);
         String retrievalQuery = expandMetadataSearchQuery(query);

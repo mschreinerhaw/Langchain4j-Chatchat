@@ -98,6 +98,7 @@ public class ExecutionTargetRouter {
     public Map<String, Object> routeSqlQuery(Map<String, Object> arguments) {
         Map<String, Object> request = copyArguments(arguments);
         rejectConcreteTarget(request, "datasourceId", "jdbcUrl", "url", "connectionString");
+        enforceBoundSqlAsset(request);
         Map<String, Object> context = executionContext(request, true);
         requireExecutionContext(context, "sql_query_execute");
         SqlDatasourceConfig datasource = resolveSqlDatasource(request, context);
@@ -126,6 +127,40 @@ public class ExecutionTargetRouter {
         ));
         request.put("routingDecisionLog", routingDecisionLog);
         return request;
+    }
+
+    @SuppressWarnings("unchecked")
+    private void enforceBoundSqlAsset(Map<String, Object> request) {
+        if (request == null) {
+            return;
+        }
+        Object configured = firstObject(request, "defaultDataAsset", "default_data_asset");
+        if (!(configured instanceof Map<?, ?> raw)) {
+            return;
+        }
+        Map<String, Object> bound = new LinkedHashMap<>((Map<String, Object>) raw);
+        if (!booleanValue(bound.get("enabled"), true)) {
+            return;
+        }
+        String assetName = firstText(text(bound.get("assetName")), text(bound.get("name")));
+        if (assetName == null) {
+            throw new IllegalArgumentException("Bound database asset is enabled but assetName is missing");
+        }
+        Map<String, Object> context = executionContext(request, true);
+        Object previousAsset = firstObject(context, "assetName", "asset_name", "name");
+        context.remove("asset_name");
+        context.remove("name");
+        context.put("assetName", assetName);
+        String environment = firstText(text(bound.get("env")), text(bound.get("environment")));
+        if (environment != null) {
+            context.remove("environment");
+            context.put("env", environment);
+        }
+        removeExecutionContext(request);
+        request.put("executionContext", context);
+        if (previousAsset != null && !assetName.equals(String.valueOf(previousAsset))) {
+            log.info("MCP SQL routing target corrected by bound asset: requestedAsset={}, boundAsset={}", previousAsset, assetName);
+        }
     }
 
     public RoutedHttpEndpoint routeHttpRequest(Map<String, Object> arguments) {
@@ -836,6 +871,18 @@ public class ExecutionTargetRouter {
 
     private String text(Object value) {
         return value == null || String.valueOf(value).isBlank() ? null : String.valueOf(value).trim();
+    }
+
+    private boolean booleanValue(Object value, boolean fallback) {
+        if (value == null) {
+            return fallback;
+        }
+        if (value instanceof Boolean bool) {
+            return bool;
+        }
+        String normalized = String.valueOf(value).trim();
+        return normalized.isBlank() ? fallback
+            : "true".equalsIgnoreCase(normalized) || "1".equals(normalized) || "yes".equalsIgnoreCase(normalized);
     }
 
     private boolean equalsNormalized(String first, String second) {

@@ -437,6 +437,39 @@ class AssetDiscoveryServiceTest {
         assertThat(selection.get("normalizedScore")).isEqualTo(1.0D);
     }
 
+    @Test
+    void boundDatabaseAssetIsExclusiveAndNeverActsAsFallback() {
+        SshHostConfigService hostService = mock(SshHostConfigService.class);
+        SqlDatasourceConfigService datasourceService = mock(SqlDatasourceConfigService.class);
+        HttpEndpointConfigService httpService = mock(HttpEndpointConfigService.class);
+        AssetDiscoveryService service = service(hostService, datasourceService, httpService);
+        when(hostService.listEnabled()).thenReturn(List.of());
+        when(datasourceService.listEnabled()).thenReturn(List.of(
+            datasource("ds-tdh", "TDH数据仓库", "DEV", null),
+            datasource("ds-248", "248测试数据库", "DEV", null)
+        ));
+        when(httpService.listEnabled()).thenReturn(List.of());
+
+        Map<String, Object> result = service.query(Map.of(
+            "targetKind", "database",
+            "confidence", 0.95,
+            "filters", Map.of("assetName", "248测试数据库"),
+            "defaultDataAsset", Map.of("assetName", "TDH数据仓库", "assetType", "DATABASE", "enabled", true),
+            "assetSelectionPolicy", Map.of("strategy", "SEARCH_FIRST_DEFAULT_FALLBACK", "fallbackWhenEmpty", true),
+            "trace", trace(),
+            "limit", 10
+        ));
+
+        assertThat(result).containsEntry("returnedCount", 1);
+        Map<?, ?> metadata = (Map<?, ?>) ((List<?>) result.get("assets")).get(0);
+        Map<?, ?> asset = (Map<?, ?>) metadata.get("asset");
+        assertThat(asset.get("name")).isEqualTo("TDH数据仓库");
+        Map<?, ?> routingHints = (Map<?, ?>) metadata.get("routingHints");
+        Map<?, ?> selection = (Map<?, ?>) routingHints.get("assetSelection");
+        assertThat(selection.get("strategy")).isEqualTo("BOUND_ASSET_ONLY");
+        assertThat(selection.get("fallbackTriggered")).isEqualTo(false);
+    }
+
     private AssetDiscoveryService service(SshHostConfigService hostService,
                                           SqlDatasourceConfigService datasourceService,
                                           HttpEndpointConfigService httpService) {

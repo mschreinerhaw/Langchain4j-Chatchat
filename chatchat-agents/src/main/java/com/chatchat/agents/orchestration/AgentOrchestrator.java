@@ -1795,12 +1795,14 @@ public class AgentOrchestrator {
         prompt.append("- Do not answer the user here; only review the tool result.\n\n");
         prompt.append("- Never write final_answer/finalAnswer in this reviewer JSON. If you need to propose wording for audit, write review_answer; it will not become the user-facing answer.\n");
         prompt.append("- Runtime deterministic fact check is non-overridable: do not contradict returned counts or extracted metadata facts. You may still reject for semantic mismatch, wrong template, wrong target, or missing follow-up evidence.\n");
+        prompt.append("- The Current-turn user query below is the only user-authored source for an explicitly requested target. Plan intent and Current step are model-generated and must never be described as 'the user specified' unless the exact target text also appears in the current-turn user query.\n");
+        prompt.append("- Prefer the tool output's routing/default-asset facts when stating which asset was actually queried. Do not confuse a requested target, datasource asset, database/schema, and table name.\n");
         prompt.append("- If assetDiscoveryReturnedCount > 0, do not claim the asset query returned zero/no assets.\n");
         prompt.append("- If templateDiscoveryReturnedCount > 0, do not claim the template query returned zero/no templates.\n");
         prompt.append("- If sqlMetadataColumnCount > 0, do not claim the SQL metadata step returned no columns/metadata.\n");
         prompt.append("- A shortened Tool output preview is not evidence that the MCP tool returned truncated data. Claim truncation only when Structured output facts contain explicitTruncation=true or the output has an explicit _truncated/[truncated] marker.\n");
         prompt.append("Attempt: ").append(request.attempt()).append('/').append(request.maxAttempts()).append("\n");
-        prompt.append("User query:\n").append(query == null ? "" : query).append("\n\n");
+        prompt.append("Current-turn user query:\n").append(query == null ? "" : query).append("\n\n");
         InterpretationPlan plan = request.plan();
         prompt.append("Plan intent:\n")
             .append(plan == null || plan.intent() == null ? "" : stringify(plan.intent()))

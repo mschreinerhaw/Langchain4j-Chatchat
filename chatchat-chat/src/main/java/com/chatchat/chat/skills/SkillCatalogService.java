@@ -1254,29 +1254,15 @@ public class SkillCatalogService {
     }
 
     private SkillDefinition.AssetSelectionPolicy normalizeAssetSelectionPolicy(SkillDefinition.AssetSelectionPolicy policy) {
-        if (policy == null) {
-            return defaultAssetSelectionPolicy();
-        }
-        String strategy = normalizeText(policy.strategy());
-        Double minRelevanceScore = policy.minRelevanceScore();
-        if (minRelevanceScore == null || minRelevanceScore.isNaN() || minRelevanceScore < 0.0D) {
-            minRelevanceScore = 0.7D;
-        }
-        minRelevanceScore = Math.min(1.0D, minRelevanceScore);
-        return new SkillDefinition.AssetSelectionPolicy(
-            strategy == null ? "SEARCH_FIRST_DEFAULT_FALLBACK" : strategy,
-            minRelevanceScore,
-            policy.fallbackWhenEmpty() == null ? Boolean.TRUE : policy.fallbackWhenEmpty(),
-            policy.fallbackWhenInvalid() == null ? Boolean.TRUE : policy.fallbackWhenInvalid()
-        );
+        return defaultAssetSelectionPolicy();
     }
 
     private SkillDefinition.AssetSelectionPolicy defaultAssetSelectionPolicy() {
         return new SkillDefinition.AssetSelectionPolicy(
-            "SEARCH_FIRST_DEFAULT_FALLBACK",
-            0.7D,
-            true,
-            true
+            "BOUND_ASSET_ONLY",
+            1.0D,
+            false,
+            false
         );
     }
 

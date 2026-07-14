@@ -285,7 +285,7 @@
               </option>
             </select>
           </label>
-          <label>
+          <label class="runtime-environment-field">
             <span>运行环境</span>
             <select v-model="form.workflowConfig.runtimeEnvironment">
               <option value="">未指定（跟随资产）</option>

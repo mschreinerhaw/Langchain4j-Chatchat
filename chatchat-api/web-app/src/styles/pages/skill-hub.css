@@ -1973,6 +1973,10 @@
   color: var(--text);
 }
 
+.agent-workshop-view .dialog-body .runtime-environment-field {
+  transform: translateY(14px);
+}
+
 .agent-workshop-view .wide-field,
 .agent-workshop-view .routing-settings,
 .agent-workshop-view .default-data-asset-settings {

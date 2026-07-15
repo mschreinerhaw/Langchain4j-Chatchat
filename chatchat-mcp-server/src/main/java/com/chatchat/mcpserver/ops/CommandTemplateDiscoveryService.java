@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 @Service
 @Slf4j
@@ -47,6 +48,9 @@ public class CommandTemplateDiscoveryService {
     private static final double TYPE_WEIGHT = 0.20;
     private static final double POPULARITY_WEIGHT = 0.05;
     private static final double SAFETY_WEIGHT = 0.05;
+    private static final Pattern BINDING_PLACEHOLDER_PATTERN = Pattern.compile(
+        "\\{\\{\\s*bindings\\.[A-Za-z0-9_.\\-\\[\\]]+\\s*}}"
+    );
 
     private static final List<String> CONCRETE_TARGET_FIELDS = List.of(
         "hostId",
@@ -144,6 +148,7 @@ public class CommandTemplateDiscoveryService {
     public Map<String, Object> query(Map<String, Object> arguments) {
         long startedAt = System.nanoTime();
         Map<String, Object> filters = filters(arguments);
+        rejectUnresolvedBindingPlaceholders(filters, "filters");
         rejectConcreteTargetFields(filters);
         TargetKindRegistry.Resolution target = targetKindRegistry.resolveForTool(
             "template_query",
@@ -2373,6 +2378,24 @@ public class CommandTemplateDiscoveryService {
             if (value != null && !String.valueOf(value).isBlank()) {
                 throw new IllegalArgumentException("Concrete target or raw execution field is not allowed in template_query: " + field);
             }
+        }
+    }
+
+    private void rejectUnresolvedBindingPlaceholders(Object value, String path) {
+        if (value instanceof Map<?, ?> map) {
+            for (Map.Entry<?, ?> entry : map.entrySet()) {
+                rejectUnresolvedBindingPlaceholders(entry.getValue(), path + "." + String.valueOf(entry.getKey()));
+            }
+            return;
+        }
+        if (value instanceof List<?> list) {
+            for (int index = 0; index < list.size(); index++) {
+                rejectUnresolvedBindingPlaceholders(list.get(index), path + "[" + index + "]");
+            }
+            return;
+        }
+        if (value instanceof String text && BINDING_PLACEHOLDER_PATTERN.matcher(text).find()) {
+            throw new IllegalArgumentException("Unresolved Agent Runtime binding placeholder is not allowed in template_query at " + path);
         }
     }
 

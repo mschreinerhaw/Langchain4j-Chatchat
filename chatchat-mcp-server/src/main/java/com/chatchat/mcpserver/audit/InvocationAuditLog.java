@@ -22,6 +22,16 @@ public class InvocationAuditLog {
 
     private String caller;
 
+    private String auditCategory;
+
+    private String commandType;
+
+    private String username;
+
+    private String datasourceName;
+
+    private String commandSummary;
+
     private boolean success;
 
     private Integer statusCode;
@@ -166,6 +176,46 @@ public class InvocationAuditLog {
      */
     public void setCaller(String caller) {
         this.caller = caller;
+    }
+
+    public String getAuditCategory() {
+        return auditCategory;
+    }
+
+    public void setAuditCategory(String auditCategory) {
+        this.auditCategory = auditCategory;
+    }
+
+    public String getCommandType() {
+        return commandType;
+    }
+
+    public void setCommandType(String commandType) {
+        this.commandType = commandType;
+    }
+
+    public String getUsername() {
+        return username;
+    }
+
+    public void setUsername(String username) {
+        this.username = username;
+    }
+
+    public String getDatasourceName() {
+        return datasourceName;
+    }
+
+    public void setDatasourceName(String datasourceName) {
+        this.datasourceName = datasourceName;
+    }
+
+    public String getCommandSummary() {
+        return commandSummary;
+    }
+
+    public void setCommandSummary(String commandSummary) {
+        this.commandSummary = commandSummary;
     }
 
     /**

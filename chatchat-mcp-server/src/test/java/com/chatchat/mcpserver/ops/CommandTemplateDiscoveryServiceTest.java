@@ -26,6 +26,26 @@ import static org.mockito.Mockito.when;
 class CommandTemplateDiscoveryServiceTest {
 
     @Test
+    void rejectsUnresolvedAgentRuntimeBindingPlaceholder() {
+        CommandTemplateDiscoveryService service = service(
+            mock(CommandTemplateService.class),
+            mock(SshHostConfigService.class)
+        );
+
+        assertThatThrownBy(() -> service.query(Map.of(
+            "targetKind", "database",
+            "confidence", 0.9,
+            "filters", Map.of(
+                "assetName", "{{bindings.assetName}}",
+                "env", "DEV"
+            ),
+            "trace", trace()
+        )))
+            .isInstanceOf(IllegalArgumentException.class)
+            .hasMessageContaining("filters.assetName");
+    }
+
+    @Test
     void queriesTemplatesByExactAssetAllowlistWithoutRawCommand() {
         CommandTemplateService templateService = mock(CommandTemplateService.class);
         SshHostConfigService hostService = mock(SshHostConfigService.class);

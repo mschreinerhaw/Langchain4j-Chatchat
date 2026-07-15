@@ -42,6 +42,8 @@ public class InvocationAuditService {
     private static final int MAX_DETAIL_LENGTH = 200_000;
     private static final int DEFAULT_PAGE_SIZE = 20;
     private static final int MAX_PAGE_SIZE = 200;
+    private static final int MAX_COMMAND_SUMMARY_LENGTH = 500;
+    private static final String COMMAND_EXECUTION_CATEGORY = "COMMAND_EXECUTION";
 
     private final McpRocksDbStore rocksDbStore;
     private final ObjectMapper objectMapper;
@@ -233,6 +235,8 @@ public class InvocationAuditService {
         log.setToolName(result.toolName() == null ? "linux_command_execute" : result.toolName());
         setTemplate(log, "ssh_command", result.template(), result.template());
         log.setCaller(auditCaller(result.request()));
+        setCommandAudit(log, "LINUX_COMMAND", log.getCaller(),
+            host == null ? result.host() : host.getName(), result.command());
         log.setSuccess(result.success());
         log.setStatusCode(result.exitCode());
         log.setDurationMs(result.durationMs());
@@ -280,6 +284,9 @@ public class InvocationAuditService {
         log.setToolName(result.toolName() == null ? "sql_query_execute" : result.toolName());
         setTemplate(log, "sql_template", template, template);
         log.setCaller(auditCaller(arguments));
+        setCommandAudit(log, "SQL_QUERY", log.getCaller(),
+            datasource == null ? result.datasourceName() : datasource.getName(),
+            firstNonBlank(result.normalizedSql(), result.sql()));
         log.setSuccess(result.success());
         log.setStatusCode(result.success() ? 200 : 0);
         log.setDurationMs(result.durationMs());
@@ -320,6 +327,8 @@ public class InvocationAuditService {
         log.setTargetName((datasource == null ? result.datasourceName() : datasource.getName()) + " / " + result.environment());
         log.setToolName("sql_script_execute");
         log.setCaller(auditCaller(arguments));
+        setCommandAudit(log, "SQL_SCRIPT", log.getCaller(),
+            datasource == null ? result.datasourceName() : datasource.getName(), result.script());
         log.setSuccess(result.success());
         log.setStatusCode(result.success() ? 200 : 0);
         log.setDurationMs(result.durationMs());
@@ -368,6 +377,8 @@ public class InvocationAuditService {
         log.setToolName(config.getToolName());
         setTemplate(log, "database_query", config.getToolName(), firstNonBlank(config.getTitle(), config.getToolName()));
         log.setCaller(auditCaller(arguments));
+        setCommandAudit(log, "DATABASE_QUERY", log.getCaller(),
+            firstNonBlank(config.getTitle(), config.getDatasourceId()), config.getSqlTemplate());
         log.setSuccess(result != null && result.isSuccess());
         log.setStatusCode(log.isSuccess() ? 200 : 0);
         log.setDurationMs(durationMs);
@@ -503,6 +514,29 @@ public class InvocationAuditService {
         log.setTemplateName(trimToNull(templateName));
     }
 
+    private void setCommandAudit(InvocationAuditLog log, String commandType, String username,
+                                 String datasourceName, String command) {
+        if (log == null) {
+            return;
+        }
+        log.setAuditCategory(COMMAND_EXECUTION_CATEGORY);
+        log.setCommandType(trimToNull(commandType));
+        log.setUsername(firstNonBlank(username, "mcp-tool"));
+        log.setDatasourceName(trimToNull(datasourceName));
+        log.setCommandSummary(commandSummary(command));
+    }
+
+    private String commandSummary(String command) {
+        String normalized = trimToNull(command);
+        if (normalized == null) {
+            return null;
+        }
+        normalized = normalized.replaceAll("\\s+", " ").trim();
+        return normalized.length() <= MAX_COMMAND_SUMMARY_LENGTH
+            ? normalized
+            : normalized.substring(0, MAX_COMMAND_SUMMARY_LENGTH) + "...";
+    }
+
     private String auditCaller(Map<String, Object> arguments) {
         McpInvocationContext.Context context = McpInvocationContext.current();
         return firstNonBlank(
@@ -575,6 +609,10 @@ public class InvocationAuditService {
             trimToNull(query.templateType()),
             trimToNull(query.templateId()),
             trimToNull(query.caller()),
+            trimToNull(query.auditCategory()),
+            trimToNull(query.commandType()),
+            trimToNull(query.username()),
+            trimToNull(query.datasourceName()),
             query.success(),
             query.statusCode(),
             query.from(),
@@ -631,6 +669,18 @@ public class InvocationAuditService {
         if (query.caller() != null && !containsIgnoreCase(log.getCaller(), query.caller())) {
             return false;
         }
+        if (query.auditCategory() != null && !equalsIgnoreCase(log.getAuditCategory(), query.auditCategory())) {
+            return false;
+        }
+        if (query.commandType() != null && !equalsIgnoreCase(log.getCommandType(), query.commandType())) {
+            return false;
+        }
+        if (query.username() != null && !containsIgnoreCase(log.getUsername(), query.username())) {
+            return false;
+        }
+        if (query.datasourceName() != null && !containsIgnoreCase(log.getDatasourceName(), query.datasourceName())) {
+            return false;
+        }
         if (query.success() != null && log.isSuccess() != query.success()) {
             return false;
         }
@@ -664,6 +714,11 @@ public class InvocationAuditService {
             || containsIgnoreCase(log.getTemplateId(), keyword)
             || containsIgnoreCase(log.getTemplateName(), keyword)
             || containsIgnoreCase(log.getCaller(), keyword)
+            || containsIgnoreCase(log.getUsername(), keyword)
+            || containsIgnoreCase(log.getAuditCategory(), keyword)
+            || containsIgnoreCase(log.getCommandType(), keyword)
+            || containsIgnoreCase(log.getDatasourceName(), keyword)
+            || containsIgnoreCase(log.getCommandSummary(), keyword)
             || containsIgnoreCase(log.getErrorMessage(), keyword)
             || containsIgnoreCase(log.getRequestSummary(), keyword)
             || containsIgnoreCase(log.getResponseSummary(), keyword)
@@ -851,6 +906,10 @@ public class InvocationAuditService {
         String templateType,
         String templateId,
         String caller,
+        String auditCategory,
+        String commandType,
+        String username,
+        String datasourceName,
         Boolean success,
         Integer statusCode,
         Long from,
@@ -862,7 +921,7 @@ public class InvocationAuditService {
          * @return the operation result
          */
         public static AuditLogSearchQuery recent() {
-            return new AuditLogSearchQuery(1, 100, null, null, null, null, null, null, null, null, null, null, null);
+            return new AuditLogSearchQuery(1, 100, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null);
         }
     }
 

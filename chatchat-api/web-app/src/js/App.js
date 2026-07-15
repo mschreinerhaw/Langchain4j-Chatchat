@@ -32,6 +32,7 @@ import {
 } from "../services/api";
 import { notifyAgentTaskCancelled, onAgentTaskCancelled } from "./utils/agentTaskEvents";
 import { clearChatRuntimeState, mergeChatRuntimeState } from "./utils/chatRuntimeState";
+import floatingDrag from "./directives/floatingDrag";
 import "../styles/app.css";
 
 const USER_ID = "mx_48991534";
@@ -88,6 +89,9 @@ export default {
     LoginView,
     Plus,
     RightPanel
+  },
+  directives: {
+    floatingDrag
   },
   data() {
     const storedAuthSession = getStoredAuthSession();

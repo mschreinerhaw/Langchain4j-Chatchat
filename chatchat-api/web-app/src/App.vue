@@ -36,12 +36,13 @@
 
     <button
       class="floating-new-conversation"
+      v-floating-drag
       type="button"
       title="新建对话"
       aria-label="新建对话"
       @click="handleNewConversation"
     >
-      <Plus :size="20" stroke-width="2.2" aria-hidden="true" />
+      <Plus :size="16" stroke-width="2.2" aria-hidden="true" />
       <span>新建对话</span>
     </button>
 

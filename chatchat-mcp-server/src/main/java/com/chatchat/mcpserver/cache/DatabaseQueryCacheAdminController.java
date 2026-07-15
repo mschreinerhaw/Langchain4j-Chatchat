@@ -51,13 +51,12 @@ public class DatabaseQueryCacheAdminController {
     public ApiResponse<DatabaseQueryCacheStatsView> stats() {
         DatabaseQueryCacheService.CacheStats stats = cacheService.stats();
         boolean redisAvailable = redisCacheStore.isConnected();
-        boolean templateCachingEnabled = configService.current().isEnabled() && queryConfigService.listAll().stream()
-            .anyMatch(config -> config.isEnabled() && config.isCacheEnabled());
+        boolean cacheEnabled = configService.current().isEnabled();
         return ApiResponse.success(new DatabaseQueryCacheStatsView(
             rocksDbStore.isUsable() || redisAvailable,
             rocksDbStore.isUsable(),
             redisAvailable,
-            templateCachingEnabled,
+            cacheEnabled,
             stats.entries(),
             stats.expiredEntries(),
             stats.bytes(),

@@ -46,7 +46,10 @@ export default {
   },
   computed: {
     status() {
-      return this.stats.cacheEnabled && this.stats.storeAvailable ? '运行中' : '未启用';
+      if (!this.config.enabled) {
+        return '未启用';
+      }
+      return this.stats.storeAvailable ? '运行中' : '存储不可用';
     },
     bytes() {
       return formatBytes(this.stats.bytes || 0);

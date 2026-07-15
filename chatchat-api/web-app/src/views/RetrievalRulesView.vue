@@ -15,15 +15,15 @@
 
       <div class="keyword-rule-actions">
         <button type="button" class="primary" title="创建规则" @click="openCreateRule">
-          <Plus :size="18" stroke-width="2" />
+          <Plus :size="15" stroke-width="2" />
           <span>创建规则</span>
         </button>
         <button type="button" :disabled="rulesLoading" title="发布全部规则" @click="publishAllRules">
-          <Send :size="16" stroke-width="2" />
+          <Send :size="14" stroke-width="2" />
           <span>发布全部</span>
         </button>
         <button type="button" :disabled="rulesLoading" title="刷新规则缓存" @click="refreshRules">
-          <RefreshCw :size="16" stroke-width="2" />
+          <RefreshCw :size="14" stroke-width="2" />
           <span>刷新</span>
         </button>
       </div>
@@ -307,7 +307,7 @@
         <footer>
           <button type="button" title="取消" @click="closeRuleDialog">取消</button>
           <button type="submit" class="primary" :disabled="rulesLoading" title="保存规则">
-            <Save :size="16" stroke-width="2" />
+            <Save :size="14" stroke-width="2" />
             <span>{{ currentRuleForm.id ? "更新规则" : "创建规则" }}</span>
           </button>
         </footer>

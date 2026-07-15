@@ -3086,17 +3086,17 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 38px;
-  border-radius: 10px;
-  padding: 0 14px;
+  min-height: 32px;
+  border-radius: 8px;
+  padding: 0 10px;
   border-color: #e5e7eb;
-  font-size: 13px;
+  font-size: 12px;
   line-height: 1;
   box-shadow: none;
 }
 
 .keyword-rule-actions .primary {
-  min-width: 138px;
+  min-width: 106px;
   border-color: #2563eb;
   background: #2563eb;
   box-shadow: 0 8px 18px rgb(37 99 235 / 16%);
@@ -3312,4 +3312,12 @@
   .keyword-rule-version {
     flex-wrap: wrap;
   }
+}
+
+.keyword-rule-modal footer button {
+  min-height: 34px;
+  gap: 6px;
+  padding: 0 12px;
+  border-radius: 8px;
+  font-size: 13px;
 }

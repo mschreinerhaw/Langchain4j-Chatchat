@@ -2821,7 +2821,13 @@ class InterpretationPlanRuntimeTest {
                         "templates", List.of(Map.of(
                             "schemaVersion", "command_template.v1",
                             "id", "MYSQL_TABLE_METADATA",
-                            "templateId", "MYSQL_TABLE_METADATA"
+                            "templateId", "MYSQL_TABLE_METADATA",
+                            "parameterSchema", Map.of(
+                                "type", "object",
+                                "properties", Map.of(),
+                                "required", List.of()
+                            ),
+                            "invocationExample", Map.of("parameters", Map.of())
                         ))
                     )),
                     ToolMetadata.builder().id(request.getToolName()).build(),
@@ -2853,8 +2859,14 @@ class InterpretationPlanRuntimeTest {
                         ), List.of(1), null, null),
                     new InterpretationPlan.Step(3, "final_answer", "", Map.of("answer", "done"), List.of(2), null, null)
                 ),
-                List.of(new InterpretationPlan.EdgeContract(1, 2, "templateId", "string", true)),
-                List.of(new InterpretationPlan.Binding(1, "$.templates[0].templateId", 2, "templateId", "jsonpath", true)),
+                List.of(
+                    new InterpretationPlan.EdgeContract(1, 2, "templateId", "string", true),
+                    new InterpretationPlan.EdgeContract(1, 2, "templates[0].parameterSchema.required", "object", false)
+                ),
+                List.of(
+                    new InterpretationPlan.Binding(1, "$.templates[0].templateId", 2, "templateId", "jsonpath", true),
+                    new InterpretationPlan.Binding(1, "$.templates[0].parameterSchema", 2, "parameters", "jsonpath", false)
+                ),
                 null
             ),
             new InterpretationPlan.ExecutionPolicy(
@@ -2888,6 +2900,8 @@ class InterpretationPlanRuntimeTest {
         assertThat(result.success()).isTrue();
         assertThat(captor.getAllValues().get(1).getToolInput().getParameters())
             .containsEntry("templateId", "MYSQL_TABLE_METADATA");
+        assertThat(captor.getAllValues().get(1).getToolInput().getParameters().get("parameters"))
+            .isEqualTo(Map.of());
     }
 
     @Test
@@ -3504,6 +3518,10 @@ class InterpretationPlanRuntimeTest {
         ArgumentCaptor<ToolRuntimeRequest> captor = ArgumentCaptor.forClass(ToolRuntimeRequest.class);
         verify(toolRuntimeService, times(1)).execute(captor.capture());
         Map<?, ?> parameters = captor.getValue().getToolInput().getParameters();
+        assertThat(((List<?>) captor.getValue().getAttributes().get("workflowCompletedTools")).stream()
+            .map(String::valueOf).toList())
+            .contains("mcp_chatchat_mcp_server_sql_datasource_asset_query",
+                "mcp_chatchat_mcp_server_sql_datasource_template_query");
         Map<?, ?> executionContext = (Map<?, ?>) parameters.get("executionContext");
         assertThat(parameters.get("templateId")).isEqualTo("MYSQL_INNODB_STATUS");
         assertThat(executionContext.get("assetName")).isEqualTo("閺堫剙婀碝ySQL濞村鐦張宥呭");

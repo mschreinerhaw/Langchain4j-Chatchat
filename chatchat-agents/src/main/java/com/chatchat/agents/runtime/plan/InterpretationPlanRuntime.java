@@ -694,6 +694,14 @@ public class InterpretationPlanRuntime {
         }
         attributes.put("executionPlan", executionPlan);
         attributes.put("completedPlanStepIds", new ArrayList<>(completed.keySet()));
+        List<String> completedTools = completed.values().stream()
+            .filter(execution -> execution != null && execution.success())
+            .map(StepExecution::toolName)
+            .filter(tool -> tool != null && !tool.isBlank())
+            .distinct()
+            .toList();
+        attributes.put("workflowCompletedTools", completedTools);
+        attributes.put("completedTools", completedTools);
         return attributes;
     }
 
@@ -2011,13 +2019,20 @@ public class InterpretationPlanRuntime {
             return;
         }
         List<String> required = requiredTemplateParameters(template);
-        if (required.isEmpty()) {
-            return;
-        }
         Object existing = input.get("parameters");
         Map<String, Object> parameters = existing instanceof Map<?, ?> map
             ? new LinkedHashMap<>((Map<String, Object>) map)
             : new LinkedHashMap<>();
+        if (isJsonSchemaObject(parameters)) {
+            parameters = new LinkedHashMap<>();
+            input.put("parameters", parameters);
+            log.warn("InterpretationPlan removed parameter schema mistakenly bound as execution values stepId={} tool={} templateId={}",
+                step.id(), step.toolName(), templateId);
+        }
+        if (required.isEmpty()) {
+            input.put("parameters", parameters);
+            return;
+        }
         boolean changed = false;
         for (String requiredName : required) {
             if (requiredName == null || requiredName.isBlank() || hasNonBlank(parameters, requiredName)) {
@@ -2032,6 +2047,16 @@ public class InterpretationPlanRuntime {
         if (changed || existing instanceof Map<?, ?>) {
             input.put("parameters", parameters);
         }
+    }
+
+    private boolean isJsonSchemaObject(Map<String, Object> values) {
+        if (values == null || values.isEmpty()) {
+            return false;
+        }
+        Object type = values.get("type");
+        return "object".equalsIgnoreCase(type == null ? "" : String.valueOf(type))
+            && values.get("properties") instanceof Map<?, ?>
+            && (values.get("required") == null || values.get("required") instanceof Iterable<?>);
     }
 
     @SuppressWarnings("unchecked")
@@ -3314,7 +3339,12 @@ public class InterpretationPlanRuntime {
                     + " from step " + contract.from() + " for step " + contract.to())
                 : new ContractCheck(true, null);
         }
-        String type = contract.type() == null ? "any" : contract.type().trim().toLowerCase();
+        String declaredType = contract.type() == null ? "any" : contract.type().trim().toLowerCase();
+        String type = canonicalEdgeContractType(contract.field(), declaredType);
+        if (!type.equals(declaredType)) {
+            log.warn("InterpretationPlan edge contract type normalized field={} declaredType={} canonicalType={} fromStep={} toStep={}",
+                contract.field(), declaredType, type, contract.from(), contract.to());
+        }
         boolean matches = switch (type) {
             case "any" -> true;
             case "array" -> value instanceof List<?>;
@@ -3329,6 +3359,19 @@ public class InterpretationPlanRuntime {
                 + " expected " + type + " but was " + value.getClass().getSimpleName());
         }
         return new ContractCheck(true, null);
+    }
+
+    private String canonicalEdgeContractType(String field, String declaredType) {
+        String normalized = field == null ? "" : field.replace("_", "").toLowerCase(Locale.ROOT);
+        if ((normalized.contains("parameterschema.") || normalized.contains("inputschema.")
+            || normalized.contains("schema.")) && normalized.endsWith(".required")) {
+            return "array";
+        }
+        if ((normalized.contains("parameterschema.") || normalized.contains("inputschema.")
+            || normalized.contains("schema.")) && normalized.endsWith(".properties")) {
+            return "object";
+        }
+        return declaredType;
     }
 
     private ContractCheck checkContract(InterpretationPlan.EdgeContract contract, Object output) {

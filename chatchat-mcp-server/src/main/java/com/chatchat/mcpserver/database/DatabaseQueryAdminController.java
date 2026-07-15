@@ -74,7 +74,12 @@ public class DatabaseQueryAdminController {
     @PutMapping("/{id}")
     public ApiResponse<DatabaseQueryView> update(@PathVariable("id") String id,
                                                  @RequestBody DatabaseQueryUpsertRequest request) {
-        DatabaseQueryConfig saved = configService.update(id, fromRequest(request));
+        DatabaseQueryConfig current = configService.getById(id);
+        DatabaseQueryConfig draft = fromRequest(request);
+        if (request.cacheEnabled() == null) draft.setCacheEnabled(current.isCacheEnabled());
+        if (request.cacheTtlSeconds() == null) draft.setCacheTtlSeconds(current.getCacheTtlSeconds());
+        if (request.cacheStorage() == null || request.cacheStorage().isBlank()) draft.setCacheStorage(current.getCacheStorage());
+        DatabaseQueryConfig saved = configService.update(id, draft);
         refreshPublishedTemplates(saved);
         return ApiResponse.success(toView(saved), "Database query updated");
     }
@@ -209,6 +214,7 @@ public class DatabaseQueryAdminController {
         config.setTimeoutSeconds(request.timeoutSeconds() == null ? 30 : request.timeoutSeconds());
         config.setCacheEnabled(request.cacheEnabled() != null && request.cacheEnabled());
         config.setCacheTtlSeconds(request.cacheTtlSeconds() == null ? 300 : request.cacheTtlSeconds());
+        config.setCacheStorage(request.cacheStorage() == null ? "ROCKSDB" : request.cacheStorage());
         config.setJdbcUrl(null);
         config.setDriverClass(null);
         config.setUsername(null);
@@ -254,6 +260,7 @@ public class DatabaseQueryAdminController {
             config.getTimeoutSeconds(),
             config.isCacheEnabled(),
             config.getCacheTtlSeconds(),
+            config.getCacheStorage(),
             null,
             null,
             null,
@@ -439,6 +446,7 @@ public class DatabaseQueryAdminController {
         Integer timeoutSeconds,
         Boolean cacheEnabled,
         Integer cacheTtlSeconds,
+        String cacheStorage,
         String jdbcUrl,
         String driverClass,
         String username,
@@ -480,6 +488,7 @@ public class DatabaseQueryAdminController {
         int timeoutSeconds,
         boolean cacheEnabled,
         int cacheTtlSeconds,
+        String cacheStorage,
         String jdbcUrl,
         String driverClass,
         String username,

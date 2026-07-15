@@ -377,8 +377,10 @@ public class InvocationAuditService {
         log.setToolName(config.getToolName());
         setTemplate(log, "database_query", config.getToolName(), firstNonBlank(config.getTitle(), config.getToolName()));
         log.setCaller(auditCaller(arguments));
-        setCommandAudit(log, "DATABASE_QUERY", log.getCaller(),
-            firstNonBlank(config.getTitle(), config.getDatasourceId()), config.getSqlTemplate());
+        if (config.getSqlStepsJson() == null || config.getSqlStepsJson().isBlank()) {
+            setCommandAudit(log, "DATABASE_QUERY", log.getCaller(),
+                firstNonBlank(config.getTitle(), config.getDatasourceId()), config.getSqlTemplate());
+        }
         log.setSuccess(result != null && result.isSuccess());
         log.setStatusCode(log.isSuccess() ? 200 : 0);
         log.setDurationMs(durationMs);
@@ -396,6 +398,44 @@ public class InvocationAuditService {
         response.put("success", result != null && result.isSuccess());
         response.put("data", result == null ? null : result.getData());
         response.put("errorMessage", result == null ? "database_query returned no output" : result.getErrorMessage());
+        log.setResponseSummary(toJsonSummary(redact(response)));
+        log.setCreatedAt(Instant.now());
+        save(log);
+    }
+
+    public void recordDatabaseQueryStepCall(DatabaseQueryConfig config,
+                                            String nodeCode,
+                                            String nodeName,
+                                            String datasourceName,
+                                            String sql,
+                                            Map<String, Object> arguments,
+                                            ToolOutput result,
+                                            long durationMs) {
+        if (!rocksDbStore.isUsable()) return;
+        InvocationAuditLog log = new InvocationAuditLog();
+        log.setId(UUID.randomUUID().toString());
+        log.setTargetType("DATABASE_QUERY_STEP");
+        log.setTargetId(config.getId() + ":" + nodeCode);
+        log.setTargetName(firstNonBlank(nodeName, nodeCode));
+        log.setToolName(config.getToolName());
+        setTemplate(log, "database_query", config.getToolName(), firstNonBlank(config.getTitle(), config.getToolName()));
+        log.setCaller(auditCaller(arguments));
+        setCommandAudit(log, "SQL_QUERY", log.getCaller(), firstNonBlank(datasourceName, config.getDatasourceId()), sql);
+        log.setSuccess(result != null && result.isSuccess());
+        log.setStatusCode(log.isSuccess() ? 200 : 0);
+        log.setDurationMs(durationMs);
+        log.setErrorMessage(limit(result == null ? "database query node returned no output" : result.getErrorMessage()));
+        Map<String, Object> request = new LinkedHashMap<>();
+        request.put("templateId", config.getToolName());
+        request.put("nodeCode", nodeCode);
+        request.put("nodeName", nodeName);
+        request.put("parameters", arguments);
+        request.put("auditContext", auditContext(arguments));
+        log.setRequestSummary(toJsonSummary(redact(request)));
+        Map<String, Object> response = new LinkedHashMap<>();
+        response.put("success", log.isSuccess());
+        response.put("data", result == null ? null : result.getData());
+        response.put("errorMessage", result == null ? null : result.getErrorMessage());
         log.setResponseSummary(toJsonSummary(redact(response)));
         log.setCreatedAt(Instant.now());
         save(log);

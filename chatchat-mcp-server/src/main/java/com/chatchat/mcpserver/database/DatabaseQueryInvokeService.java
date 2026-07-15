@@ -5,6 +5,7 @@ import com.chatchat.common.tool.ToolInput;
 import com.chatchat.common.tool.ToolLogSummarizer;
 import com.chatchat.common.tool.ToolOutput;
 import com.chatchat.mcpserver.audit.InvocationAuditService;
+import com.chatchat.mcpserver.mcp.McpInvocationContext;
 import com.chatchat.mcpserver.cache.DatabaseQueryCacheService;
 import com.chatchat.mcpserver.sql.DynamicDateParamService;
 import com.chatchat.mcpserver.sql.SqlDatasourceConfig;
@@ -13,11 +14,17 @@ import com.chatchat.mcpserver.sql.SqlScriptExecuteService;
 import com.chatchat.mcpserver.template.AgentRuntimeTemplateDsl;
 import com.chatchat.mcpserver.template.AgentRuntimeTemplateDsl.TemplatePlan;
 import com.chatchat.mcpserver.template.AgentRuntimeTemplateDsl.TemplateStep;
+import com.chatchat.tools.workflow.SqlWorkflowEngine;
+import com.chatchat.tools.workflow.SqlWorkflowExecution;
+import com.chatchat.tools.workflow.SqlWorkflowNode;
+import com.chatchat.tools.workflow.SqlWorkflowNodeResult;
+import com.chatchat.tools.workflow.SqlWorkflowParameterMapping;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Value;
 
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -42,6 +49,10 @@ public class DatabaseQueryInvokeService {
     private final ObjectMapper objectMapper;
     private final InvocationAuditService auditService;
     private final DatabaseQueryCacheService cacheService;
+    private final SqlWorkflowEngine workflowEngine = new SqlWorkflowEngine();
+
+    @Value("${chatchat.tools.database-query.workflow.max-parallelism:4}")
+    private int workflowMaxParallelism = 4;
 
     /**
      * Performs the invoke operation.
@@ -81,6 +92,8 @@ public class DatabaseQueryInvokeService {
                 cacheService.put(config, parameters, output);
             }
         } catch (Exception ex) {
+            log.warn("Database query invoke failed databaseQueryId={} tool={} error={}",
+                config == null ? null : config.getId(), config == null ? null : config.getToolName(), ex.getMessage(), ex);
             output = ToolOutput.failure(ex.getMessage());
             output.setExecutionTimeMs(Math.max(0L, System.currentTimeMillis() - startedAt));
         }
@@ -146,7 +159,7 @@ public class DatabaseQueryInvokeService {
         }
         ToolInput input = ToolInput.builder()
             .requestId(UUID.randomUUID().toString())
-            .userId("admin")
+            .userId(invocationUserId(parameters))
             .parameters(parameters)
             .build();
         ToolOutput output = toolRegistry.executeEnhancedTool(TOOL_NAME, input);
@@ -234,7 +247,7 @@ public class DatabaseQueryInvokeService {
     private ToolOutput invokeSingleStatement(Map<String, Object> parameters) {
         ToolInput input = ToolInput.builder()
             .requestId(UUID.randomUUID().toString())
-            .userId("admin")
+            .userId(invocationUserId(parameters))
             .parameters(parameters)
             .build();
         ToolOutput output = toolRegistry.executeEnhancedTool(TOOL_NAME, input);
@@ -251,63 +264,125 @@ public class DatabaseQueryInvokeService {
         if (steps.isEmpty()) {
             return ToolOutput.failure("database query template has no enabled SQL steps");
         }
-        List<Map<String, Object>> resultSets = new java.util.ArrayList<>();
-        boolean stopped = false;
-        boolean stoppedByFailure = false;
-        int failedCount = 0;
-        String errorMessage = null;
-        for (DatabaseQuerySqlStep stepConfig : steps) {
+        Map<String, DatabaseQuerySqlStep> stepConfigs = steps.stream().collect(Collectors.toMap(
+            DatabaseQuerySqlStep::getSqlCode, item -> item, (first, ignored) -> first, LinkedHashMap::new));
+        boolean dependencyWorkflow = steps.stream().anyMatch(step -> Boolean.TRUE.equals(step.getWorkflowEnabled()));
+        List<SqlWorkflowNode> workflowNodes = dependencyWorkflow
+            ? steps.stream().map(this::toWorkflowNode).toList()
+            : legacySequentialWorkflowNodes(steps);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> userInput = baseParameters.get("params") instanceof Map<?, ?> map
+            ? new LinkedHashMap<>((Map<String, Object>) map) : new LinkedHashMap<>();
+        Map<String, Object> systemContext = new LinkedHashMap<>();
+        systemContext.put("currentUser", invocationUserId(userInput));
+        systemContext.put("datasourceId", baseParameters.get("datasource_id"));
+        systemContext.put("datasourceName", baseParameters.get("datasource_name"));
+        SqlWorkflowExecution execution = workflowEngine.execute(
+            workflowNodes,
+            userInput,
+            systemContext,
+            workflowMaxParallelism,
+            (node, resolvedParameters) -> {
+            DatabaseQuerySqlStep stepConfig = stepConfigs.get(node.code());
             long stepStartedAt = System.currentTimeMillis();
-            Map<String, Object> stepParameters = parametersForSqlStep(config, baseParameters, stepConfig);
+            Map<String, Object> stepParameters = parametersForSqlStep(config, baseParameters, stepConfig, resolvedParameters);
             log.info("MCP execution detail: executionType=SQL_QUERY_STEP, source=database_query, databaseQueryId={}, tool={}, executionOrder={}, sqlCode={}, sqlName={}, maxRows={}, timeoutSeconds={}, sql={}",
                 config.getId(), config.getToolName(), stepConfig.getExecutionOrder(), stepConfig.getSqlCode(),
                 stepConfig.getSqlName(), stepParameters.getOrDefault("max_rows", stepParameters.get("maxRows")),
                 stepParameters.getOrDefault("timeoutSeconds", stepParameters.get("timeout_seconds")), stepParameters.get("sql"));
             ToolOutput step = invokeSingleStatement(stepParameters);
             long stepDurationMs = Math.max(0L, System.currentTimeMillis() - stepStartedAt);
-            Map<String, Object> resultSet = resultSet(config, stepConfig, stepParameters, step, stepDurationMs);
-            resultSets.add(resultSet);
-            if (!step.isSuccess()) {
-                failedCount += 1;
-                errorMessage = step.getErrorMessage();
-                if (!"CONTINUE".equalsIgnoreCase(stepConfig.getFailureStrategy())) {
-                    stopped = true;
-                    stoppedByFailure = true;
-                    break;
-                }
-            }
-        }
-        long durationMs = Math.max(0L, System.currentTimeMillis() - startedAt);
-        Map<String, Object> firstSuccess = firstSuccessResult(resultSets);
+            auditService.recordDatabaseQueryStepCall(
+                config, stepConfig.getSqlCode(), stepConfig.getSqlName(),
+                text(baseParameters, "datasource_name"), String.valueOf(stepParameters.get("sql")),
+                resolvedParameters, step, stepDurationMs);
+            return new SqlWorkflowNodeResult(step.isSuccess(), mapValue(step.getData()), step.getErrorMessage(), stepDurationMs);
+        });
+        List<Map<String, Object>> resultSets = execution.steps().stream()
+            .map(item -> resultSet(config, stepConfigs.get(item.node().code()), item))
+            .toList();
+        List<Map<String, Object>> modelResultSets = resultSets.stream()
+            .filter(item -> Boolean.TRUE.equals(item.get("returnToModel")))
+            .toList();
+        int failedCount = (int) execution.steps().stream().filter(item -> "FAILED".equals(item.status())).count();
+        int skippedCount = (int) execution.steps().stream().filter(item -> "SKIPPED".equals(item.status())).count();
+        long durationMs = execution.durationMs();
+        Map<String, Object> firstSuccess = firstSuccessResult(modelResultSets);
         Map<String, Object> data = new LinkedHashMap<>();
-        data.put("mode", "database_query_multi_sql");
-        data.put("schemaVersion", "database_query_multi_sql_result.v1");
+        data.put("mode", dependencyWorkflow ? "database_query_workflow" : "database_query_multi_sql");
+        data.put("schemaVersion", dependencyWorkflow
+            ? "database_query_workflow_result.v1" : "database_query_multi_sql_result.v1");
+        data.put("tool", Map.of(
+            "name", config.getToolName(),
+            "title", firstText(config.getTitle(), config.getToolName()),
+            "description", firstText(config.getDescription(), ""),
+            "implementationSteps", firstText(config.getImplementationSteps(), "")
+        ));
+        data.put("execution", Map.of(
+            "executionNo", execution.executionNo(),
+            "status", execution.status(),
+            "executionMode", dependencyWorkflow ? "DEPENDENCY_GRAPH" : "SEQUENTIAL",
+            "executionLevels", execution.executionLevels(),
+            "executedNodeCount", resultSets.size() - skippedCount,
+            "successNodeCount", resultSets.size() - failedCount - skippedCount,
+            "failedNodeCount", failedCount,
+            "skippedNodeCount", skippedCount,
+            "durationMs", durationMs
+        ));
         data.put("templateId", config.getToolName());
         data.put("templateName", config.getTitle());
         data.put("templateDescription", config.getDescription());
         data.put("implementationSteps", config.getImplementationSteps());
-        data.put("executionMode", "SEQUENTIAL");
+        data.put("executionMode", dependencyWorkflow ? "DEPENDENCY_GRAPH" : "SEQUENTIAL");
+        data.put("executionLevels", execution.executionLevels());
         data.put("resultSetCount", resultSets.size());
         data.put("configuredSqlCount", steps.size());
         data.put("failedResultSetCount", failedCount);
-        data.put("stopped", stopped);
-        data.put("stoppedByFailure", stoppedByFailure);
-        data.put("possiblyPartial", stopped || failedCount > 0);
-        data.put("resultSets", resultSets);
-        data.put("results", resultSets);
+        data.put("skippedResultSetCount", skippedCount);
+        data.put("stopped", "FAILED".equals(execution.status()));
+        data.put("stoppedByFailure", "FAILED".equals(execution.status()));
+        data.put("possiblyPartial", failedCount > 0 || skippedCount > 0);
+        data.put("steps", modelResultSets);
+        data.put("resultSets", modelResultSets);
+        data.put("results", modelResultSets);
+        data.put("nodeExecutions", resultSets.stream().map(item -> Map.of(
+            "nodeCode", item.get("nodeCode"),
+            "nodeName", item.get("nodeName"),
+            "dependencies", item.get("dependencies"),
+            "executionOrder", item.get("executionOrder"),
+            "executionLevel", item.get("executionLevel"),
+            "success", item.get("success"),
+            "status", item.get("status"),
+            "rowCount", item.get("rowCount"),
+            "durationMs", item.get("durationMs")
+        )).toList());
+        data.put("modelGuidance", Map.of(
+            "analysisObjective", firstText(config.getDescription(), config.getTitle()),
+            "resultRelationships", steps.stream().map(step -> step.getDependencies().isEmpty()
+                ? step.getSqlCode() + " is a workflow entry result"
+                : step.getSqlCode() + " depends on " + String.join(", ", step.getDependencies())).toList(),
+            "cautions", steps.stream()
+                .map(DatabaseQuerySqlStep::getResultSemantic)
+                .map(DatabaseQueryResultSemantic::getEmptyMeaning)
+                .filter(value -> value != null && !value.isBlank())
+                .distinct().toList()
+        ));
         data.put("columns", firstSuccess.getOrDefault("columns", List.of()));
         data.put("rows", firstSuccess.getOrDefault("rows", List.of()));
         data.put("rowCount", firstSuccess.getOrDefault("rowCount", 0));
         data.put("maxRows", firstSuccess.getOrDefault("maxRows", config.getMaxRows()));
         data.put("possiblyTruncated", firstSuccess.getOrDefault("possiblyTruncated", false));
-        ToolOutput output = stoppedByFailure
-            ? ToolOutput.failure(errorMessage == null ? "Database query SQL step failed" : errorMessage)
+        String firstError = execution.steps().stream().filter(item -> item.result() != null && !item.result().success())
+            .map(item -> item.result().errorMessage()).filter(value -> value != null && !value.isBlank()).findFirst().orElse(null);
+        ToolOutput output = "FAILED".equals(execution.status())
+            ? ToolOutput.failure(firstError == null ? "Database query workflow failed" : firstError)
             : ToolOutput.success(data, failedCount > 0
-                ? "Database query completed with partial SQL step failures"
-                : "Database query completed successfully");
+                ? "Database query workflow completed with partial node failures"
+                : "Database query workflow completed successfully");
         output.setData(data);
         output.setExecutionTimeMs(durationMs);
-        output.getMetadata().put("executionMode", "database_query_multi_sql");
+        output.getMetadata().put("executionMode", dependencyWorkflow ? "database_query_workflow" : "database_query_multi_sql");
+        output.getMetadata().put("executionNo", execution.executionNo());
         output.getMetadata().put("resultSetCount", resultSets.size());
         output.getMetadata().put("failedResultSetCount", failedCount);
         return output;
@@ -315,16 +390,12 @@ public class DatabaseQueryInvokeService {
 
     private Map<String, Object> parametersForSqlStep(DatabaseQueryConfig config,
                                                      Map<String, Object> baseParameters,
-                                                     DatabaseQuerySqlStep stepConfig) {
+                                                     DatabaseQuerySqlStep stepConfig,
+                                                     Map<String, Object> resolvedParameters) {
         Map<String, Object> parameters = new LinkedHashMap<>(baseParameters);
-        @SuppressWarnings("unchecked")
-        Map<String, Object> baseParams = baseParameters.get("params") instanceof Map<?, ?> map
-            ? new LinkedHashMap<>((Map<String, Object>) map)
-            : new LinkedHashMap<>();
-        baseParams.putAll(stepConfig.getParameters() == null ? Map.of() : stepConfig.getParameters());
         SqlDatasourceConfig datasource = datasourceConfigService.getEnabled(config.getDatasourceId());
         Map<String, Object> resolvedParams = dynamicDateParamService.enrichParameters(
-            baseParams,
+            resolvedParameters,
             datasource,
             stepConfig.getSqlContent()
         );
@@ -346,30 +417,72 @@ public class DatabaseQueryInvokeService {
 
     private Map<String, Object> resultSet(DatabaseQueryConfig config,
                                           DatabaseQuerySqlStep stepConfig,
-                                          Map<String, Object> stepParameters,
-                                          ToolOutput step,
-                                          long durationMs) {
-        Map<String, Object> data = mapValue(step.getData());
+                                          SqlWorkflowExecution.StepExecution execution) {
+        Map<String, Object> data = execution.result() == null ? Map.of() : execution.result().data();
         Map<String, Object> result = new LinkedHashMap<>();
+        result.put("step", execution.executionOrder());
+        result.put("executionLevel", execution.executionLevel());
+        result.put("nodeCode", stepConfig.getSqlCode());
+        result.put("nodeName", stepConfig.getSqlName());
         result.put("sqlCode", stepConfig.getSqlCode());
         result.put("sqlName", stepConfig.getSqlName());
         result.put("description", stepConfig.getSqlDescription());
         result.put("resultSetDescription", stepConfig.getSqlDescription());
-        result.put("executionOrder", stepConfig.getExecutionOrder());
-        result.put("success", step.isSuccess());
-        result.put("status", step.isSuccess() ? "success" : "failed");
-        result.put("durationMs", durationMs);
+        result.put("resultSemantic", objectMapper.convertValue(stepConfig.getResultSemantic(), new TypeReference<Map<String, Object>>() {}));
+        result.put("dependencies", stepConfig.getDependencies());
+        List<Map<String, Object>> parameterMappings = objectMapper.convertValue(stepConfig.getParameterMappings(),
+            new TypeReference<List<Map<String, Object>>>() {});
+        result.put("parameterMapping", parameterMappings);
+        result.put("parameterMappings", parameterMappings);
+        result.put("resolvedParameters", execution.resolvedParameters());
+        result.put("returnToModel", stepConfig.getReturnToModel() == null || stepConfig.getReturnToModel());
+        result.put("executionOrder", execution.executionOrder());
+        result.put("configuredOrder", stepConfig.getExecutionOrder());
+        result.put("success", "SUCCESS".equals(execution.status()));
+        result.put("status", execution.status());
+        result.put("durationMs", execution.result() == null ? 0L : execution.result().durationMs());
         result.put("failureStrategy", firstText(stepConfig.getFailureStrategy(), "STOP"));
-        result.put("sql", data.getOrDefault("sql", stepParameters.get("sql")));
+        result.put("emptyResultStrategy", firstText(stepConfig.getEmptyResultStrategy(), "CONTINUE"));
+        result.put("sql", data.getOrDefault("sql", stepConfig.getSqlContent()));
         result.put("columns", data.getOrDefault("columns", List.of()));
         result.put("columnMetadata", data.getOrDefault("columnMetadata", List.of()));
         result.put("rows", data.getOrDefault("rows", List.of()));
         result.put("rowCount", data.getOrDefault("rowCount", 0));
         result.put("returnedRowCount", rowCount(data.get("rows")));
-        result.put("maxRows", data.getOrDefault("maxRows", stepParameters.getOrDefault("max_rows", config.getMaxRows())));
+        result.put("maxRows", data.getOrDefault("maxRows", stepConfig.getMaxResultRows()));
         result.put("possiblyTruncated", data.getOrDefault("possiblyTruncated", false));
-        result.put("errorMessage", step.getErrorMessage());
+        result.put("errorMessage", execution.result() == null ? null : execution.result().errorMessage());
+        result.put("skipReason", execution.skipReason());
         return result;
+    }
+
+    private SqlWorkflowNode toWorkflowNode(DatabaseQuerySqlStep step) {
+        return new SqlWorkflowNode(
+            step.getSqlCode(), step.getSqlName(), step.getSqlDescription(), step.getSqlContent(),
+            step.getExecutionOrder(), step.getDependencies(),
+            step.getParameterMappings().stream().map(mapping -> new SqlWorkflowParameterMapping(
+                mapping.getParameter(), mapping.getSourceType(), mapping.getSourceKey(), mapping.getSourceNode(),
+                mapping.getSourceExpression(), mapping.getDefaultValue(), Boolean.TRUE.equals(mapping.getRequired())
+            )).toList(),
+            step.getParameters(), step.getFailureStrategy(), step.getEmptyResultStrategy(),
+            step.getTimeoutSeconds() == null || step.getTimeoutSeconds() <= 0 ? 30 : step.getTimeoutSeconds(),
+            step.getMaxResultRows() == null || step.getMaxResultRows() <= 0 ? 50 : step.getMaxResultRows()
+        );
+    }
+
+    private List<SqlWorkflowNode> legacySequentialWorkflowNodes(List<DatabaseQuerySqlStep> steps) {
+        List<SqlWorkflowNode> nodes = new java.util.ArrayList<>();
+        String previous = null;
+        for (DatabaseQuerySqlStep step : steps) {
+            SqlWorkflowNode node = toWorkflowNode(step);
+            nodes.add(new SqlWorkflowNode(
+                node.code(), node.name(), node.description(), node.sql(), node.displayOrder(),
+                previous == null ? List.of() : List.of(previous), node.parameterMappings(), node.staticParameters(),
+                node.failureStrategy(), node.emptyResultStrategy(), node.timeoutSeconds(), node.maxRows()
+            ));
+            previous = node.code();
+        }
+        return nodes;
     }
 
     private Map<String, Object> firstSuccessResult(List<Map<String, Object>> resultSets) {
@@ -498,6 +611,20 @@ public class DatabaseQueryInvokeService {
             }
         }
         return null;
+    }
+
+    private String invocationUserId(Map<String, Object> parameters) {
+        McpInvocationContext.Context context = McpInvocationContext.current();
+        Map<String, Object> nested = mapValue(parameters == null ? null : parameters.get("params"));
+        return firstText(
+            context == null ? null : context.userId(),
+            context == null ? null : context.username(),
+            text(parameters, "userId"),
+            text(parameters, "username"),
+            text(nested, "userId"),
+            text(nested, "username"),
+            "mcp-tool"
+        );
     }
 
     /**

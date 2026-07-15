@@ -111,6 +111,9 @@ public class DatabaseQueryConfig {
     @Column
     private Integer cacheTtlSeconds = 300;
 
+    @Column(length = 32)
+    private String cacheStorage = "ROCKSDB";
+
     @Column(length = 2000)
     private String jdbcUrl;
 
@@ -164,6 +167,9 @@ public class DatabaseQueryConfig {
         }
         if (cacheTtlSeconds == null || cacheTtlSeconds <= 0) {
             cacheTtlSeconds = 300;
+        }
+        if (cacheStorage == null || cacheStorage.isBlank()) {
+            cacheStorage = "ROCKSDB";
         }
     }
 
@@ -223,6 +229,8 @@ public class DatabaseQueryConfig {
     public void setCacheEnabled(boolean cacheEnabled) { this.cacheEnabled = cacheEnabled; }
     public int getCacheTtlSeconds() { return cacheTtlSeconds == null || cacheTtlSeconds <= 0 ? 300 : cacheTtlSeconds; }
     public void setCacheTtlSeconds(int cacheTtlSeconds) { this.cacheTtlSeconds = cacheTtlSeconds; }
+    public String getCacheStorage() { return cacheStorage == null || cacheStorage.isBlank() ? "ROCKSDB" : cacheStorage; }
+    public void setCacheStorage(String cacheStorage) { this.cacheStorage = cacheStorage; }
     public String getJdbcUrl() { return jdbcUrl; }
     public void setJdbcUrl(String jdbcUrl) { this.jdbcUrl = jdbcUrl; }
     public String getDriverClass() { return driverClass; }

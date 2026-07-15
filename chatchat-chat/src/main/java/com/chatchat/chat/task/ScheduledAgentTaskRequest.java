@@ -23,6 +23,7 @@ public class ScheduledAgentTaskRequest {
     private Long retryDelaySeconds;
     private String question;
     private Boolean notifyEnabled;
+    private Boolean tradingDayOnly;
     private AgentTaskSubmitRequest payload;
     private String payloadJson;
 }

@@ -116,10 +116,11 @@ public class SshHostConfigService {
         config.setEnvironment(normalizeEnvironment(config.getEnvironment()));
         config.setRuntimeAction("confirm_required");
         config.setRoutingLabelsJson(normalizeStringArray(mergedProtocolValues(config.getRoutingLabelsJson(), config.getRoutingLabels()), "routingLabels"));
-        config.setCapabilitiesJson(firstText(
-            normalizeStringArray(mergedProtocolValues(config.getCapabilitiesJson(), config.getCapabilities()), "capabilities"),
-            ModelProtocolJson.compact(List.of("ssh", "linux_command_execute"))
-        ));
+        String capabilitiesJson = normalizeStringArray(
+            mergedProtocolValues(config.getCapabilitiesJson(), config.getCapabilities()), "capabilities");
+        config.setCapabilitiesJson("[]".equals(capabilitiesJson)
+            ? ModelProtocolJson.compact(List.of("ssh", "linux_command_execute"))
+            : capabilitiesJson);
         config.setTags(mergeTags(config.getTags(), config.getRoutingLabelsJson(), config.getCapabilitiesJson()));
         config.setAllowedCommandsJson(normalizeJsonArray(config.getAllowedCommandsJson(), "allowedCommands"));
         config.setGovernanceJson(normalizeJsonObject(config.getGovernanceJson(), "governance"));

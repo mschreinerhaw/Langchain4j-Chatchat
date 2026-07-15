@@ -23,6 +23,7 @@ export default {
     refreshAction: { type: Function, default: null },
     rebuildAction: { type: Function, default: null },
     rebuildLabel: { type: String, default: '' },
+    rebuildRequiresSelection: { type: Boolean, default: false },
     extraActions: { type: Array, default: () => [] },
     defaults: { type: Object, default: () => ({}) },
     searchableFields: { type: Array, default: () => [] },
@@ -35,6 +36,7 @@ export default {
   data() {
     return {
       busy: false,
+      rowOperation: null,
       items: [],
       keyword: '',
       page: 1,
@@ -255,6 +257,7 @@ export default {
         .map(section => section.key);
     },
     async saveForm() {
+      if (!this.validateFormBeforeSubmit()) return;
       this.busy = true;
       try {
         const payload = this.formPayload();
@@ -299,7 +302,7 @@ export default {
           .map((step, index) => ({
             ...step,
             executionOrder: index + 1,
-            parameters: parseJsonObject(step.parametersJson || '{}', {})
+            parameters: databaseStaticParametersToObject(step.staticParameterEntries)
           }));
         payload.sqlTemplate = payload[field.key][0]?.sqlContent || payload.sqlTemplate || '';
       });
@@ -311,6 +314,7 @@ export default {
     },
     async testFormDraft() {
       if (!this.formTestAction) return;
+      if (!this.validateFormBeforeSubmit()) return;
       this.busy = true;
       try {
         const result = await this.formTestAction(this.formPayload());
@@ -348,6 +352,7 @@ export default {
       await this.run(() => this.toggleAction(item.id, item.enabled === false), item.enabled === false ? '已启用' : '已停用');
     },
     async testItem(item) {
+      if (!this.validateFieldsBeforeSubmit(item, false)) return;
       try {
         const { value: raw } = await ElMessageBox.prompt('请输入测试参数 JSON', '测试调用', {
           inputType: 'textarea',
@@ -355,6 +360,8 @@ export default {
           confirmButtonText: '执行',
           cancelButtonText: '取消'
         });
+        if (this.busy || this.rowOperation) return;
+        this.rowOperation = { type: 'test', rowId: item.id };
         const result = await this.testAction(item, parseJsonObject(raw, {}));
         this.$emit('result', {
           title: `${item.title || item.toolName || item.name || '资源'} 测试结果`,
@@ -363,6 +370,10 @@ export default {
       } catch (error) {
         if (error !== 'cancel' && error !== 'close') {
           this.$emit('error', error);
+        }
+      } finally {
+        if (this.rowOperation?.type === 'test' && this.rowOperation?.rowId === item.id) {
+          this.rowOperation = null;
         }
       }
     },
@@ -373,14 +384,30 @@ export default {
       return typeof action.type === 'function' ? action.type(row) : action.type || 'primary';
     },
     extraActionDisabled(action, row) {
+      if (this.busy || (this.rowOperation && !this.isRowOperation('extra', row, action))) return true;
       return typeof action.disabled === 'function' ? action.disabled(row) : !!action.disabled;
     },
     async runExtraAction(action, row) {
       if (!action || typeof action.run !== 'function') return;
-      await this.run(() => action.run(row), action.successMessage || '操作成功');
+      if (this.busy || this.rowOperation) return;
+      this.rowOperation = { type: 'extra', rowId: row.id, actionKey: action.key || '' };
+      try {
+        await action.run(row);
+        this.$emit('notify', { title: action.successMessage || '操作成功' });
+        this.items = await this.listAction() || [];
+        this.$emit('loaded', this.items);
+      } catch (error) {
+        this.$emit('error', error);
+      } finally {
+        this.rowOperation = null;
+      }
     },
     async runRebuild() {
-      await this.run(() => this.rebuildAction(), '索引已重建');
+      if (this.rebuildRequiresSelection && !this.selectedIds.size) return;
+      await this.run(
+        () => this.rebuildAction([...this.selectedIds]),
+        this.rebuildRequiresSelection ? `已重建选中的 ${this.selectedIds.size} 个资产索引` : '索引已重建'
+      );
     },
     async run(action, message) {
       this.busy = true;
@@ -407,6 +434,14 @@ export default {
     clearSelection() {
       this.selectedIds = new Set();
     },
+    isRowOperation(type, row, action = null) {
+      if (!this.rowOperation || this.rowOperation.type !== type || this.rowOperation.rowId !== row?.id) return false;
+      if (type !== 'extra') return true;
+      return this.rowOperation.actionKey === (action?.key || '');
+    },
+    rowActionDisabled(type, row, action = null) {
+      return this.busy || Boolean(this.rowOperation && !this.isRowOperation(type, row, action));
+    },
     fieldOptions(field) {
       return typeof field.options === 'function' ? field.options() : field.options || [];
     },
@@ -414,6 +449,97 @@ export default {
       if (typeof field.visible === 'function') return field.visible(this.form);
       if (typeof field.hidden === 'function') return !field.hidden(this.form);
       return field.visible !== false && field.hidden !== true;
+    },
+    isFieldRequired(field, form = this.form) {
+      return typeof field.required === 'function' ? Boolean(field.required(form)) : field.required === true;
+    },
+    fieldValidationValue(field, form = this.form, useDraft = true) {
+      if (field.type === 'jsonStringList' || field.type === 'templatePicker') {
+        return useDraft ? (this.listDraft[field.key] || []) : parseStringList(form[field.key], field.defaultValue ?? []);
+      }
+      return form[field.key];
+    },
+    isEmptyFieldValue(value) {
+      if (value == null) return true;
+      if (typeof value === 'string') return value.trim() === '';
+      if (Array.isArray(value)) return value.length === 0;
+      return false;
+    },
+    validateFormBeforeSubmit() {
+      return this.validateFieldsBeforeSubmit(this.form, true);
+    },
+    validateFieldsBeforeSubmit(form, useDraft) {
+      const errors = [];
+      const invalidSections = new Set();
+      this.visibleFormFields.forEach(field => {
+        const value = this.fieldValidationValue(field, form, useDraft);
+        if (this.isFieldRequired(field, form) && this.isEmptyFieldValue(value)) {
+          errors.push(`${field.label}不能为空`);
+          invalidSections.add(field.section || 'basic');
+          return;
+        }
+        if (Array.isArray(field.requiredAnyOf)) {
+          const values = (Array.isArray(value) ? value : [])
+            .map(item => String(item || '').trim().toLowerCase())
+            .filter(Boolean);
+          const accepted = field.requiredAnyOf.map(item => String(item).trim().toLowerCase());
+          if (!accepted.some(item => values.includes(item))) {
+            errors.push(field.requiredAnyOfMessage || `${field.label}至少需要包含：${field.requiredAnyOf.join('、')}`);
+            invalidSections.add(field.section || 'basic');
+          }
+        }
+        if (field.type === 'databaseSqlSteps' && Array.isArray(value)) {
+          const codes = new Set();
+          value.forEach((step, index) => {
+            const stepNumber = index + 1;
+            if (this.isEmptyFieldValue(step?.sqlCode)) {
+              errors.push(`第 ${stepNumber} 条 SQL 的节点编码不能为空`);
+            } else if (codes.has(String(step.sqlCode).trim().toUpperCase())) {
+              errors.push(`第 ${stepNumber} 条 SQL 的节点编码重复`);
+            } else {
+              codes.add(String(step.sqlCode).trim().toUpperCase());
+            }
+            if (this.isEmptyFieldValue(step?.sqlName)) {
+              errors.push(`第 ${stepNumber} 条 SQL 的名称不能为空`);
+            }
+            if (this.isEmptyFieldValue(step?.sqlDescription)) {
+              errors.push(`第 ${stepNumber} 条 SQL 的结果集说明不能为空`);
+            }
+            if (this.isEmptyFieldValue(step?.sqlContent)) {
+              errors.push(`第 ${stepNumber} 条 SQL 内容不能为空`);
+            }
+            const staticParameterNames = new Set();
+            (step?.staticParameterEntries || []).forEach((parameter, parameterIndex) => {
+              const name = String(parameter?.name || '').trim();
+              if (!name) {
+                errors.push(`第 ${stepNumber} 条 SQL 的独立参数 ${parameterIndex + 1} 缺少参数名`);
+              } else if (staticParameterNames.has(name)) {
+                errors.push(`第 ${stepNumber} 条 SQL 的独立参数 ${name} 重复`);
+              } else {
+                staticParameterNames.add(name);
+              }
+            });
+            (step?.parameterMappings || []).forEach((mapping, mappingIndex) => {
+              if (this.isEmptyFieldValue(mapping?.parameter)) {
+                errors.push(`第 ${stepNumber} 条 SQL 的参数映射 ${mappingIndex + 1} 缺少参数名`);
+              }
+              if (mapping?.sourceType === 'UPSTREAM_RESULT' && this.isEmptyFieldValue(mapping?.sourceNode)) {
+                errors.push(`第 ${stepNumber} 条 SQL 的上游结果参数 ${mappingIndex + 1} 缺少来源节点`);
+              }
+            });
+            if (errors.length) invalidSections.add(field.section || 'basic');
+          });
+          const workflowError = validateDatabaseSqlWorkflow(value);
+          if (workflowError) {
+            errors.push(workflowError);
+            invalidSections.add(field.section || 'basic');
+          }
+        }
+      });
+      if (!errors.length) return true;
+      this.collapsedFormSections = this.collapsedFormSections.filter(section => !invalidSections.has(section));
+      this.$emit('error', new Error(`请完善必填参数：${errors.join('；')}`));
+      return false;
     },
     fieldColSpan(field) {
       if (field.compact) return 8;
@@ -540,10 +666,16 @@ export default {
       }
     },
     syncDatabaseParamsFromSql(field, notifyUser = false) {
-      const params = extractDatabaseQueryParameters(this.databaseSqlTextForField(field));
       const rows = [...(this.schemaDraft[field.key] || [])];
-      let added = 0;
-      params.forEach(param => {
+      const steps = normalizeDatabaseSqlSteps(this.form[field.sqlStepsKey], this.form[field.sqlKey]);
+      const detectedNames = new Set();
+      let schemaAdded = 0;
+      let mappingAdded = 0;
+      let fixedSkipped = 0;
+      let mappedSkipped = 0;
+      let dynamicConfigured = 0;
+      const ensureSchemaRow = param => {
+        detectedNames.add(param.name);
         const existed = rows.find(row => row.name === param.name);
         if (existed) {
           if (param.dynamic) {
@@ -554,7 +686,7 @@ export default {
           if (param.required && (!existed.defaultSource || existed.defaultSource === 'user_input')) {
             existed.required = true;
           }
-          return;
+          return false;
         }
         rows.push(databaseParamRow({
           name: param.name,
@@ -567,13 +699,69 @@ export default {
             ? `Runtime dynamic parameter: ${param.defaultSource}`
             : `Query parameter: ${param.name}`
         }));
-        added += 1;
+        schemaAdded += 1;
+        return true;
+      };
+      steps.forEach(step => {
+        const staticNames = new Set((step.staticParameterEntries || [])
+          .map(entry => String(entry?.name || '').trim())
+          .filter(Boolean));
+        const mappings = [...(step.parameterMappings || [])];
+        const mappingsByName = new Map(mappings
+          .filter(mapping => mapping?.parameter)
+          .map(mapping => [String(mapping.parameter).trim(), mapping]));
+        extractDatabaseQueryParameters(step.sqlContent).forEach(param => {
+          if (param.dynamic) {
+            ensureSchemaRow(param);
+            dynamicConfigured += 1;
+            return;
+          }
+          if (staticNames.has(param.name)) {
+            fixedSkipped += 1;
+            return;
+          }
+          const mapping = mappingsByName.get(param.name);
+          if (mapping) {
+            if (String(mapping.sourceType || 'USER_INPUT').toUpperCase() === 'USER_INPUT') {
+              ensureSchemaRow(param);
+            } else {
+              mappedSkipped += 1;
+            }
+            return;
+          }
+          mappings.push({
+            parameter: param.name,
+            sourceType: 'USER_INPUT',
+            sourceKey: param.name,
+            sourceNode: '',
+            sourceExpression: '$.rows[0]',
+            defaultValue: '',
+            required: true
+          });
+          mappingsByName.set(param.name, mappings[mappings.length - 1]);
+          mappingAdded += 1;
+          ensureSchemaRow(param);
+        });
+        step.parameterMappings = mappings;
       });
       this.schemaDraft[field.key] = rows;
+      this.form[field.sqlStepsKey] = steps;
+      const staleUserInputs = rows
+        .filter(row => (!row.defaultSource || row.defaultSource === 'user_input') && !detectedNames.has(row.name))
+        .map(row => row.name)
+        .filter(Boolean);
       if (notifyUser) {
+        const details = [
+          schemaAdded > 0 ? `新增 ${schemaAdded} 个集合参数` : '集合参数无新增',
+          mappingAdded > 0 ? `生成 ${mappingAdded} 个节点映射` : '节点映射无新增',
+          fixedSkipped > 0 ? `${fixedSkipped} 项由固定参数提供` : '',
+          mappedSkipped > 0 ? `${mappedSkipped} 项已有非用户映射` : '',
+          dynamicConfigured > 0 ? `${dynamicConfigured} 项为系统动态参数` : '',
+          staleUserInputs.length ? `发现 ${staleUserInputs.length} 个未被当前 SQL 使用的旧参数，请人工确认` : ''
+        ].filter(Boolean);
         this.$emit('notify', {
-          title: '参数已同步',
-          message: added > 0 ? `新增 ${added} 个参数定义。` : '参数定义已是最新。'
+          title: '参数扫描完成',
+          message: `${details.join('；')}。`
         });
       }
     },
@@ -581,6 +769,10 @@ export default {
       const params = extractDatabaseQueryParameters(this.databaseSqlTextForField(field));
       if (!params.length) return '';
       return `参数：${params.map(param => param.dynamic ? `${param.name}:自动` : param.name).join(', ')}`;
+    },
+    databaseParamNodeSummaries(field) {
+      const steps = normalizeDatabaseSqlSteps(this.form[field.sqlStepsKey], this.form[field.sqlKey]);
+      return steps.map(step => databaseSqlStepParameterSummary(step)).filter(summary => summary.total > 0);
     },
     databaseSqlTextForField(field) {
       const steps = normalizeDatabaseSqlSteps(this.form[field.sqlStepsKey], this.form[field.sqlKey]);
@@ -592,9 +784,56 @@ export default {
     databaseSqlSteps(field) {
       return Array.isArray(this.form[field.key]) ? this.form[field.key] : [];
     },
+    databaseSqlWorkflowEnabled(field) {
+      return this.databaseSqlSteps(field).some(step => step.workflowEnabled === true);
+    },
+    setDatabaseSqlWorkflowEnabled(field, enabled) {
+      const steps = normalizeDatabaseSqlSteps(this.form[field.key], this.form.sqlTemplate);
+      this.form[field.key] = steps.map((step, index) => ({
+        ...step,
+        workflowEnabled: enabled === true,
+        dependencies: enabled === true ? step.dependencies : [],
+        executionOrder: index + 1
+      }));
+    },
+    databaseSqlDependencyOptions(field, current) {
+      return this.databaseSqlSteps(field)
+        .filter(step => step !== current && step.enabled !== false && step.sqlCode)
+        .map(step => ({ value: step.sqlCode, label: `${step.sqlName || step.sqlCode}（${step.sqlCode}）` }));
+    },
+    databaseSqlWorkflowLevels(field) {
+      return databaseSqlWorkflowLevels(this.databaseSqlSteps(field));
+    },
+    addDatabaseSqlParameterMapping(entry) {
+      entry.parameterMappings = [...(entry.parameterMappings || []), {
+        parameter: '', sourceType: 'USER_INPUT', sourceKey: '', sourceNode: '',
+        sourceExpression: '$.rows[0]', defaultValue: '', required: false
+      }];
+    },
+    removeDatabaseSqlParameterMapping(entry, index) {
+      entry.parameterMappings = (entry.parameterMappings || []).filter((_, currentIndex) => currentIndex !== index);
+    },
+    addDatabaseSqlStaticParameter(entry) {
+      entry.staticParameterEntries = [...(entry.staticParameterEntries || []), {
+        name: '', type: 'string', value: ''
+      }];
+    },
+    removeDatabaseSqlStaticParameter(entry, index) {
+      entry.staticParameterEntries = (entry.staticParameterEntries || []).filter((_, currentIndex) => currentIndex !== index);
+    },
+    normalizeDatabaseSqlStaticParameterValue(parameter) {
+      parameter.value = coerceDatabaseStaticParameterValue(parameter.value, parameter.type || 'string');
+    },
+    addDatabaseResultUnit(entry) {
+      entry.unitDescriptionEntries = [...(entry.unitDescriptionEntries || []), { field: '', unit: '' }];
+    },
+    removeDatabaseResultUnit(entry, index) {
+      entry.unitDescriptionEntries = (entry.unitDescriptionEntries || []).filter((_, currentIndex) => currentIndex !== index);
+    },
     addDatabaseSqlStep(field, source = {}) {
       const steps = normalizeDatabaseSqlSteps(this.form[field.key], this.form.sqlTemplate);
-      steps.push(databaseSqlStepRow({ executionOrder: steps.length + 1, ...source }, steps.length));
+      steps.push(databaseSqlStepRow({ executionOrder: steps.length + 1, workflowEnabled: true, ...source }, steps.length));
+      if (steps.length > 1) steps.forEach(step => { step.workflowEnabled = true; });
       this.form[field.key] = resequenceDatabaseSqlSteps(steps);
     },
     copyDatabaseSqlStep(field, index) {
@@ -921,19 +1160,104 @@ function databaseSqlStepRow(step = {}, index = 0) {
   const parameters = step.parameters && typeof step.parameters === 'object' && !Array.isArray(step.parameters)
     ? step.parameters
     : parseObjectValue(step.parametersJson, {});
+  const staticParameterEntries = Array.isArray(step.staticParameterEntries)
+    ? step.staticParameterEntries.map(databaseStaticParameterRow)
+    : Object.entries(parameters).map(([name, value]) => databaseStaticParameterRow({ name, value }));
+  const semantic = step.resultSemantic && typeof step.resultSemantic === 'object' ? step.resultSemantic : {};
+  const primaryKeys = step.primaryKeysText !== undefined
+    ? String(step.primaryKeysText || '').split(',').map(value => value.trim()).filter(Boolean)
+    : Array.isArray(semantic.primaryKeys) ? semantic.primaryKeys : [];
+  const unitDescriptionEntries = Array.isArray(step.unitDescriptionEntries)
+    ? step.unitDescriptionEntries
+    : Object.entries(semantic.unitDescriptions || {}).map(([field, unit]) => ({ field, unit }));
+  const unitDescriptions = unitDescriptionEntries.reduce((result, entry) => {
+    const field = String(entry?.field || '').trim();
+    if (field) result[field] = String(entry?.unit || '').trim();
+    return result;
+  }, {});
   return {
     sqlCode: step.sqlCode || `SQL_${index + 1}`,
     sqlName: step.sqlName || `SQL ${index + 1}`,
     sqlDescription: step.sqlDescription || step.description || '',
     sqlContent: step.sqlContent || step.sql || '',
     executionOrder: Number(step.executionOrder || index + 1),
+    workflowEnabled: step.workflowEnabled === true,
+    dependencies: Array.isArray(step.dependencies) ? [...new Set(step.dependencies.filter(Boolean))] : [],
     enabled: step.enabled !== false,
     timeoutSeconds: Number(step.timeoutSeconds || 30),
     failureStrategy: String(step.failureStrategy || 'STOP').toUpperCase() === 'CONTINUE' ? 'CONTINUE' : 'STOP',
+    emptyResultStrategy: ['CONTINUE', 'SKIP_DEPENDENTS', 'STOP'].includes(String(step.emptyResultStrategy || '').toUpperCase())
+      ? String(step.emptyResultStrategy).toUpperCase() : 'CONTINUE',
     maxResultRows: Number(step.maxResultRows || step.maxRows || 50),
-    parameters,
-    parametersJson: prettyJson(parameters, {})
+    parameters: databaseStaticParametersToObject(staticParameterEntries),
+    staticParameterEntries,
+    parameterMappings: Array.isArray(step.parameterMappings) ? step.parameterMappings.map(mapping => ({
+      parameter: mapping.parameter || '',
+      sourceType: String(mapping.sourceType || 'USER_INPUT').toUpperCase(),
+      sourceKey: mapping.sourceKey || '',
+      sourceNode: mapping.sourceNode || '',
+      sourceExpression: mapping.sourceExpression || '$.rows[0]',
+      defaultValue: mapping.defaultValue ?? '',
+      required: mapping.required === true
+    })) : [],
+    resultSemantic: {
+      resultSetName: semantic.resultSetName || String(step.sqlCode || `sql_${index + 1}`).toLowerCase(),
+      businessEntity: semantic.businessEntity || '',
+      primaryKeys,
+      timeField: semantic.timeField || '',
+      dataGranularity: semantic.dataGranularity || '',
+      unitDescriptions,
+      emptyMeaning: semantic.emptyMeaning || '',
+      modelUsage: semantic.modelUsage || ''
+    },
+    primaryKeysText: primaryKeys.join(', '),
+    unitDescriptionEntries,
+    returnToModel: step.returnToModel !== false
   };
+}
+
+function databaseStaticParameterRow(parameter = {}) {
+  const inferredType = databaseStaticParameterType(parameter.value);
+  const type = ['string', 'integer', 'number', 'boolean', 'date'].includes(parameter.type)
+    ? parameter.type
+    : inferredType;
+  return {
+    name: parameter.name || '',
+    type,
+    value: coerceDatabaseStaticParameterValue(parameter.value, type)
+  };
+}
+
+function databaseStaticParameterType(value) {
+  if (typeof value === 'boolean') return 'boolean';
+  if (typeof value === 'number') return Number.isInteger(value) ? 'integer' : 'number';
+  if (typeof value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(value)) return 'date';
+  return 'string';
+}
+
+function coerceDatabaseStaticParameterValue(value, type) {
+  if (type === 'boolean') {
+    if (typeof value === 'boolean') return value;
+    return String(value).toLowerCase() === 'true';
+  }
+  if (type === 'integer') {
+    const number = Number(value);
+    return Number.isFinite(number) ? Math.trunc(number) : 0;
+  }
+  if (type === 'number') {
+    const number = Number(value);
+    return Number.isFinite(number) ? number : 0;
+  }
+  return value == null ? '' : String(value);
+}
+
+function databaseStaticParametersToObject(entries) {
+  return (entries || []).reduce((result, entry) => {
+    const name = String(entry?.name || '').trim();
+    if (!name) return result;
+    result[name] = coerceDatabaseStaticParameterValue(entry.value, entry.type || 'string');
+    return result;
+  }, {});
 }
 
 function resequenceDatabaseSqlSteps(steps) {
@@ -943,6 +1267,51 @@ function resequenceDatabaseSqlSteps(steps) {
     sqlCode: step.sqlCode || `SQL_${index + 1}`,
     sqlName: step.sqlName || `SQL ${index + 1}`
   }));
+}
+
+function databaseSqlWorkflowLevels(steps) {
+  const enabled = (steps || []).filter(step => step?.enabled !== false && step?.sqlCode);
+  const byCode = new Map(enabled.map(step => [step.sqlCode, step]));
+  const remaining = new Set(byCode.keys());
+  const completed = new Set();
+  const levels = [];
+  while (remaining.size) {
+    const ready = enabled.filter(step => remaining.has(step.sqlCode)
+      && (step.dependencies || []).every(code => completed.has(code) || !byCode.has(code)));
+    if (!ready.length) {
+      levels.push(enabled.filter(step => remaining.has(step.sqlCode)));
+      break;
+    }
+    levels.push(ready);
+    ready.forEach(step => {
+      remaining.delete(step.sqlCode);
+      completed.add(step.sqlCode);
+    });
+  }
+  return levels;
+}
+
+function validateDatabaseSqlWorkflow(steps) {
+  const enabled = (steps || []).filter(step => step?.enabled !== false);
+  const codes = new Set(enabled.map(step => String(step.sqlCode || '').trim()));
+  for (const step of enabled) {
+    for (const dependency of step.dependencies || []) {
+      if (dependency === step.sqlCode) return `节点 ${step.sqlCode} 不能依赖自身`;
+      if (!codes.has(dependency)) return `节点 ${step.sqlCode} 依赖的节点 ${dependency} 不存在或未启用`;
+    }
+    for (const mapping of step.parameterMappings || []) {
+      if (mapping.sourceType === 'UPSTREAM_RESULT' && !(step.dependencies || []).includes(mapping.sourceNode)) {
+        return `节点 ${step.sqlCode} 的上游参数来源 ${mapping.sourceNode} 必须同时配置为前置依赖`;
+      }
+    }
+  }
+  const levels = databaseSqlWorkflowLevels(enabled);
+  const planned = levels.reduce((count, level) => count + level.length, 0);
+  if (planned !== enabled.length || (levels.at(-1) || []).some(step =>
+    (step.dependencies || []).some(code => !levels.slice(0, -1).flat().some(item => item.sqlCode === code)))) {
+    return 'SQL 执行流程存在循环依赖，请调整前置依赖';
+  }
+  return '';
 }
 
 const DATABASE_DYNAMIC_PARAMS = new Set([
@@ -984,6 +1353,47 @@ function extractDatabaseQueryParameters(sql) {
     }
   }
   return [...params.values()];
+}
+
+function databaseSqlStepParameterSummary(step) {
+  const summary = {
+    code: step.sqlCode,
+    name: step.sqlName || step.sqlCode,
+    userInput: [],
+    upstream: [],
+    fixed: [],
+    dynamic: [],
+    unconfigured: [],
+    total: 0
+  };
+  const staticNames = new Set((step.staticParameterEntries || [])
+    .map(entry => String(entry?.name || '').trim())
+    .filter(Boolean));
+  const mappings = new Map((step.parameterMappings || [])
+    .filter(mapping => mapping?.parameter)
+    .map(mapping => [String(mapping.parameter).trim(), mapping]));
+  extractDatabaseQueryParameters(step.sqlContent).forEach(param => {
+    summary.total += 1;
+    if (param.dynamic) {
+      summary.dynamic.push(param.name);
+      return;
+    }
+    if (staticNames.has(param.name)) {
+      summary.fixed.push(param.name);
+      return;
+    }
+    const mapping = mappings.get(param.name);
+    if (!mapping) {
+      summary.unconfigured.push(param.name);
+      return;
+    }
+    const sourceType = String(mapping.sourceType || 'USER_INPUT').toUpperCase();
+    if (sourceType === 'UPSTREAM_RESULT') summary.upstream.push(param.name);
+    else if (sourceType === 'STATIC') summary.fixed.push(param.name);
+    else if (sourceType === 'SYSTEM_CONTEXT') summary.dynamic.push(param.name);
+    else summary.userInput.push(param.name);
+  });
+  return summary;
 }
 
 function databaseQueryParamDescriptor(name, dynamic, token = name) {

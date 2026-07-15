@@ -158,7 +158,7 @@ public class MetadataIndexService {
         trimCache(indexCache);
     }
 
-    public MetadataRefreshResult refreshDatasource(SqlDatasourceConfig datasource) {
+    public synchronized MetadataRefreshResult refreshDatasource(SqlDatasourceConfig datasource) {
         long startedAt = System.currentTimeMillis();
         if (datasource == null) {
             MetadataIndex failed = MetadataIndex.failed(null, "generic", "datasource is required");

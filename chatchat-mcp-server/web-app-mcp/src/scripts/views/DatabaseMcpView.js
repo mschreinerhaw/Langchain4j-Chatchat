@@ -76,6 +76,7 @@ export default {
           key: 'description',
           label: '工具描述',
           type: 'textarea',
+          required: true,
           span: 'col-12',
           placeholder: '说明查询用途、适用场景、返回字段含义和数据口径。',
           help: '描述会参与工具检索，建议包含业务对象、指标口径和使用限制。',
@@ -85,10 +86,11 @@ export default {
           key: 'implementationSteps',
           label: '功能实现步骤',
           type: 'textarea',
+          required: true,
           rows: 4,
           span: 'col-12',
           placeholder: '1. 查询客户基础信息。\n2. 查询客户资产汇总。\n3. 汇总多个结果集进行分析。',
-          help: '说明多条 SQL 的执行顺序和模型应如何理解这些结果集。',
+          help: '集合层业务步骤说明会与依赖执行计划、SQL 明细和结果数据一起返回给模型。',
           section: 'basic'
         },
         {
@@ -97,10 +99,10 @@ export default {
           type: 'databaseSqlSteps',
           required: true,
           span: 'col-12',
-          help: '每条 SQL 需要填写结果集描述。执行时按顺序串行执行，第一期不支持 SQL 结果相互引用。',
+          help: '通过前置依赖编排串行、并行和汇聚关系；下游参数可安全引用上游结果。',
           section: 'query',
-          sectionTitle: '查询模板',
-          sectionSubtitle: '维护一个或多个只读 SQL，以及每个结果集的业务含义。'
+          sectionTitle: 'SQL 流程编排',
+          sectionSubtitle: '维护只读 SQL 节点、执行依赖、独立参数映射和结果集业务语义。'
         },
         {
           key: 'queryParameters',

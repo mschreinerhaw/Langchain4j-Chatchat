@@ -2,6 +2,7 @@ package com.chatchat.chat.task;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.chatchat.integration.mcp.service.McpTradingCalendarClient;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.PageRequest;
@@ -10,6 +11,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.List;
@@ -36,6 +38,7 @@ public class AgentScheduledTaskService {
     private final AgentTaskService taskService;
     private final ObjectMapper objectMapper;
     private final AgentTaskProperties properties;
+    private final McpTradingCalendarClient tradingCalendarClient;
 
     @Transactional
     public ScheduledTaskResponse create(ScheduledAgentTaskRequest request) {
@@ -59,6 +62,7 @@ public class AgentScheduledTaskService {
         entity.setPayloadJson(writeJson(payload));
         entity.setQuestion(payload.getQuery());
         entity.setNotifyEnabled(Boolean.TRUE.equals(request.getNotifyEnabled()));
+        entity.setTradingDayOnly(Boolean.TRUE.equals(request.getTradingDayOnly()));
         entity.setStatus(enabled ? "ACTIVE" : "PAUSED");
         entity.setNextFireTime(enabled ? resolveInitialFireTime(request, entity, now) : null);
         entity.setExpiredAt(request.getExpiredAt());
@@ -268,6 +272,17 @@ public class AgentScheduledTaskService {
     private ScheduledTaskRunEntity submitRun(ScheduledTaskEntity entity, Instant now, boolean manualRun) {
         ScheduledTaskRunEntity run = newRun(entity, now, manualRun);
         scheduledTaskRunRepository.save(run);
+        if (Boolean.TRUE.equals(entity.getTradingDayOnly())) {
+            TradingDayGuardResult guard = checkTradingDay(now);
+            if (!guard.success()) {
+                finishTradingDayGuardRun(run, entity, now, manualRun, "TRADING_DAY_CHECK_FAILED", guard.message());
+                return run;
+            }
+            if (!guard.tradingDay()) {
+                finishTradingDayGuardRun(run, entity, now, manualRun, "SKIPPED_NON_TRADING_DAY", null);
+                return run;
+            }
+        }
         try {
             AgentTaskSubmitRequest payload = objectMapper.readValue(entity.getPayloadJson(), AgentTaskSubmitRequest.class);
             AgentTaskResponse response = taskService.submit(payload);
@@ -294,6 +309,45 @@ public class AgentScheduledTaskService {
             }
         }
         return run;
+    }
+
+    private TradingDayGuardResult checkTradingDay(Instant now) {
+        try {
+            LocalDate date = now.atZone(ZoneId.systemDefault()).toLocalDate();
+            McpTradingCalendarClient.TradingDayResult result = tradingCalendarClient.check(date);
+            return new TradingDayGuardResult(true, result.tradingDay(), result.message());
+        } catch (Exception ex) {
+            log.warn("Scheduled Agent trading-day check failed: {}", ex.getMessage());
+            return new TradingDayGuardResult(false, false,
+                "交易日判断失败：" + firstText(ex.getMessage(), "MCP交易日接口返回为空"));
+        }
+    }
+
+    private void finishTradingDayGuardRun(ScheduledTaskRunEntity run, ScheduledTaskEntity entity, Instant now,
+                                          boolean manualRun, String runStatus, String errorMessage) {
+        run.setStatus(runStatus);
+        run.setErrorMessage(truncate(errorMessage, 1000));
+        run.setFinishedAt(now);
+        run.setDurationMs(Math.max(0L, now.toEpochMilli() - run.getFireTime().toEpochMilli()));
+        scheduledTaskRunRepository.save(run);
+
+        entity.setLastFireTime(now);
+        entity.setLastTaskId(null);
+        entity.setLastTaskStatus(runStatus);
+        entity.setLastError(truncate(errorMessage, 1000));
+        if (!manualRun) {
+            if ("ONCE".equals(entity.getTriggerType())) {
+                entity.setStatus("TRADING_DAY_CHECK_FAILED".equals(runStatus) ? "FAILED" : "COMPLETED");
+                entity.setNextFireTime(null);
+            } else if (isExpired(entity, now)) {
+                entity.setStatus("EXPIRED");
+                entity.setNextFireTime(null);
+            } else {
+                entity.setStatus("ACTIVE");
+                entity.setNextFireTime(nextFireTime(entity, now));
+            }
+        }
+        scheduledTaskRepository.save(entity);
     }
 
     private void markObservedSuccess(ScheduledTaskEntity entity, Instant now) {
@@ -543,6 +597,9 @@ public class AgentScheduledTaskService {
             }
         }
         return null;
+    }
+
+    private record TradingDayGuardResult(boolean success, boolean tradingDay, String message) {
     }
 
     private String defaultScheduleName(String agentId, String question) {

@@ -7,12 +7,14 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
+import java.time.LocalDate;
 
 @RestController
 @RequestMapping("/api/v1/dynamic-date-params/trading-calendar")
@@ -82,6 +84,20 @@ public class TradingCalendarConfigController {
         ), "Trading calendar function tested");
     }
 
+    @GetMapping("/check")
+    public ApiResponse<TradingDayCheckResult> check(
+        @RequestParam(value = "date", required = false) LocalDate date
+    ) {
+        LocalDate targetDate = date == null ? LocalDate.now() : date;
+        DynamicDateParamService.TradingDayDecision decision = dynamicDateParamService.checkTradingDay(targetDate);
+        return ApiResponse.success(new TradingDayCheckResult(
+            targetDate,
+            decision.tradingDay(),
+            String.valueOf(decision.mappedTradingDay()),
+            decision.tradingDay() ? "当前日期是交易日" : "当前日期不是交易日"
+        ));
+    }
+
     private TradingCalendarConfigView toView(TradingCalendarConfig config) {
         return new TradingCalendarConfigView(
             config.isEnabled(),
@@ -133,6 +149,14 @@ public class TradingCalendarConfigController {
         String value,
         String datasourceId,
         String sqlTemplate,
+        String message
+    ) {
+    }
+
+    public record TradingDayCheckResult(
+        LocalDate date,
+        boolean tradingDay,
+        String mappedTradingDay,
         String message
     ) {
     }

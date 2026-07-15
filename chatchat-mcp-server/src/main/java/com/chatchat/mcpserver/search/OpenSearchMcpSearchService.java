@@ -890,6 +890,22 @@ public class OpenSearchMcpSearchService {
         return requestRaw(method, path, body == null ? "" : json(body), allowNotFound, "application/json");
     }
 
+    public synchronized void replaceSqlDatasourceAssets(String datasourceId, List<LuceneMcpSearchService.AssetDoc> docs) {
+        if (!enabled() || datasourceId == null || datasourceId.isBlank()) return;
+        String index = openSearchIndexName(assetIndexName("sql_datasource"));
+        ensureIndex(index);
+        request("POST", "/" + index + "/_delete_by_query?conflicts=proceed&refresh=true", Map.of(
+            "query", Map.of("bool", Map.of(
+                "should", List.of(
+                    Map.of("term", Map.of(FIELD_ID, datasourceId)),
+                    Map.of("term", Map.of(FIELD_RESULT_ID, datasourceId))
+                ),
+                "minimum_should_match", 1
+            ))
+        ), true);
+        bulk(index, safeAssetDocs(docs).stream().map(this::assetSource).toList());
+    }
+
     private JsonNode searchRequest(String method, String path, Object body) {
         LuceneSearchProperties.OpenSearch.SearchConcurrency concurrency = searchConcurrencyConfig();
         int retryAttempts = Math.max(0, concurrency.getRetry429Attempts());

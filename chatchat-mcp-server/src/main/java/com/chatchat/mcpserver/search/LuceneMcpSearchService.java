@@ -308,6 +308,33 @@ public class LuceneMcpSearchService {
         }
     }
 
+    public void replaceSqlDatasourceAssets(String datasourceId, List<AssetDoc> docs) {
+        if (!enabled() || datasourceId == null || datasourceId.isBlank()) return;
+        if (openSearchSelected()) {
+            openSearchSearchService.replaceSqlDatasourceAssets(datasourceId, docs);
+            return;
+        }
+        try {
+            Path path = assetIndexPath("sql_datasource");
+            List<Document> documents = safeAssetDocs(docs).stream().map(this::assetDocument).toList();
+            try (FSDirectory directory = FSDirectory.open(path);
+                 IndexWriter writer = new IndexWriter(directory, new IndexWriterConfig(analyzer))) {
+                BooleanQuery deleteQuery = new BooleanQuery.Builder()
+                    .add(new TermQuery(new Term(FIELD_ID, normalizeExact(datasourceId))), BooleanClause.Occur.SHOULD)
+                    .add(new TermQuery(new Term(FIELD_RESULT_ID, normalizeExact(datasourceId))), BooleanClause.Occur.SHOULD)
+                    .setMinimumNumberShouldMatch(1)
+                    .build();
+                writer.deleteDocuments(deleteQuery);
+                for (Document document : documents) {
+                    writer.updateDocument(new Term(FIELD_ID, document.get(FIELD_ID)), document);
+                }
+                writer.commit();
+            }
+        } catch (Exception ex) {
+            log.warn("MCP Lucene SQL datasource asset replacement failed datasourceId={}: {}", datasourceId, ex.getMessage());
+        }
+    }
+
     public List<SearchHit> searchAssets(AssetSearchRequest request) {
         if (!enabled()) {
             return List.of();

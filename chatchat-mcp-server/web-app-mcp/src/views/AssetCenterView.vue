@@ -63,7 +63,8 @@
       :form-test-action="testSql"
       form-test-label="测试连接"
       :extra-actions="sqlExtraActions"
-      :rebuild-action="() => api.rebuildAssetIndex('sql_datasource')"
+      :rebuild-action="api.rebuildSelectedSqlAssetIndexes"
+      rebuild-requires-selection
       rebuild-label="重建数据库索引"
       @notify="$emit('notify', $event)"
       @error="$emit('error', $event)"

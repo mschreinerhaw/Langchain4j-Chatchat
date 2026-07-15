@@ -1,6 +1,8 @@
 package com.chatchat.mcpserver.database;
 
 import java.util.LinkedHashMap;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 public class DatabaseQuerySqlStep {
@@ -10,11 +12,17 @@ public class DatabaseQuerySqlStep {
     private String sqlDescription;
     private String sqlContent;
     private Integer executionOrder;
+    private List<String> dependencies = new ArrayList<>();
+    private Boolean workflowEnabled = false;
     private Boolean enabled = true;
     private Integer timeoutSeconds;
     private String failureStrategy = "STOP";
+    private String emptyResultStrategy = "CONTINUE";
     private Integer maxResultRows;
     private Map<String, Object> parameters = new LinkedHashMap<>();
+    private List<DatabaseQueryParameterMapping> parameterMappings = new ArrayList<>();
+    private DatabaseQueryResultSemantic resultSemantic = new DatabaseQueryResultSemantic();
+    private Boolean returnToModel = true;
 
     public String getSqlCode() {
         return sqlCode;
@@ -56,6 +64,13 @@ public class DatabaseQuerySqlStep {
         this.executionOrder = executionOrder;
     }
 
+    public List<String> getDependencies() { return dependencies; }
+    public void setDependencies(List<String> dependencies) {
+        this.dependencies = dependencies == null ? new ArrayList<>() : new ArrayList<>(dependencies);
+    }
+    public Boolean getWorkflowEnabled() { return workflowEnabled; }
+    public void setWorkflowEnabled(Boolean workflowEnabled) { this.workflowEnabled = workflowEnabled; }
+
     public Boolean getEnabled() {
         return enabled;
     }
@@ -80,6 +95,9 @@ public class DatabaseQuerySqlStep {
         this.failureStrategy = failureStrategy;
     }
 
+    public String getEmptyResultStrategy() { return emptyResultStrategy; }
+    public void setEmptyResultStrategy(String emptyResultStrategy) { this.emptyResultStrategy = emptyResultStrategy; }
+
     public Integer getMaxResultRows() {
         return maxResultRows;
     }
@@ -95,6 +113,19 @@ public class DatabaseQuerySqlStep {
     public void setParameters(Map<String, Object> parameters) {
         this.parameters = parameters == null ? new LinkedHashMap<>() : new LinkedHashMap<>(parameters);
     }
+
+    public List<DatabaseQueryParameterMapping> getParameterMappings() { return parameterMappings; }
+    public void setParameterMappings(List<DatabaseQueryParameterMapping> parameterMappings) {
+        this.parameterMappings = parameterMappings == null ? new ArrayList<>() : new ArrayList<>(parameterMappings);
+    }
+
+    public DatabaseQueryResultSemantic getResultSemantic() { return resultSemantic; }
+    public void setResultSemantic(DatabaseQueryResultSemantic resultSemantic) {
+        this.resultSemantic = resultSemantic == null ? new DatabaseQueryResultSemantic() : resultSemantic;
+    }
+
+    public Boolean getReturnToModel() { return returnToModel; }
+    public void setReturnToModel(Boolean returnToModel) { this.returnToModel = returnToModel; }
 
     public boolean enabled() {
         return enabled == null || enabled;

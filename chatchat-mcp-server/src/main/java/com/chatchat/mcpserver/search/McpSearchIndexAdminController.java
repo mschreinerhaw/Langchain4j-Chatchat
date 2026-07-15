@@ -50,6 +50,16 @@ public class McpSearchIndexAdminController {
         );
     }
 
+    @PostMapping("/assets/sql_datasource/rebuild-selected")
+    public ApiResponse<Map<String, Object>> rebuildSelectedSqlDatasourceIndexes(
+        @RequestBody SelectedAssetIndexRequest request
+    ) {
+        return ApiResponse.success(
+            assetLuceneIndexService.rebuildSqlDatasources(request == null ? List.of() : request.ids()),
+            "Selected SQL datasource asset indexes rebuilt"
+        );
+    }
+
     @PostMapping("/templates/rebuild")
     public ApiResponse<Map<String, Object>> rebuildTemplateIndex() {
         templateLuceneIndexService.refreshAll();
@@ -175,6 +185,9 @@ public class McpSearchIndexAdminController {
             case "api_service", "api_service_assets", "api_assets", "asset_api_service", "assets_api_service" -> "api_service";
             default -> null;
         };
+    }
+
+    public record SelectedAssetIndexRequest(List<String> ids) {
     }
 
     private String assetIndexName(String assetType) {

@@ -48,7 +48,7 @@
         </template>
       </el-table-column>
       <el-table-column prop="datasourceName" label="执行数据源名称" min-width="190" show-overflow-tooltip />
-      <el-table-column prop="commandSummary" label="执行命令短文" min-width="360" show-overflow-tooltip>
+      <el-table-column prop="commandSummary" label="执行命令短文" width="280" show-overflow-tooltip>
         <template #default="{ row }"><code>{{ row.commandSummary || '-' }}</code></template>
       </el-table-column>
       <el-table-column label="结果" width="90">

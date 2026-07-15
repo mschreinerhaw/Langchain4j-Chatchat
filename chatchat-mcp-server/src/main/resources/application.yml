@@ -11,3 +11,6 @@ chatchat:
       default-max-rows: ${CHATCHAT_DATABASE_QUERY_DEFAULT_MAX_ROWS:50}
       # Global hard limit enforced by the JDBC execution layer for every database query.
       max-rows: ${CHATCHAT_DATABASE_QUERY_MAX_ROWS:500}
+      workflow:
+        # Maximum number of dependency-ready SQL nodes executed concurrently.
+        max-parallelism: ${CHATCHAT_DATABASE_QUERY_WORKFLOW_MAX_PARALLELISM:4}

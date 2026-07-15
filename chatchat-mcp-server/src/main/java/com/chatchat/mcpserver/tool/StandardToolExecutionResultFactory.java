@@ -364,6 +364,8 @@ public class StandardToolExecutionResultFactory {
             : mapOf("value", rawData);
         boolean multiSql = resultData.get("resultSets") instanceof List<?>
             || resultData.get("results") instanceof List<?>;
+        boolean workflow = "database_query_workflow".equals(resultData.get("mode"));
+        String multiExecutionMode = workflow ? "DEPENDENCY_GRAPH" : "SEQUENTIAL_MULTI_SQL";
         resultData.putIfAbsent("columnMetadata", databaseQueryColumnMetadata(resultData));
         String statement = firstText(
             stringValue(resultData.get("sql")),
@@ -373,8 +375,8 @@ public class StandardToolExecutionResultFactory {
         String errorMessage = output == null ? "database_query returned no output" : output.getErrorMessage();
         Map<String, Object> analysisContext = databaseQueryAnalysisContext(config);
         Map<String, Object> payload = base(
-            multiSql ? "sql_result_sets" : "sql_query",
-            multiSql ? "database_query_multi_sql_result.v1" : "sql_result.v1",
+            workflow ? "sql_workflow_result_sets" : multiSql ? "sql_result_sets" : "sql_query",
+            workflow ? "database_query_workflow_result.v1" : multiSql ? "database_query_multi_sql_result.v1" : "sql_result.v1",
             "structured",
             success,
             durationMs,
@@ -414,7 +416,7 @@ public class StandardToolExecutionResultFactory {
             ),
             mapOf(
                 "statementHash", sha256(statement),
-                "executionMode", multiSql ? "SEQUENTIAL_MULTI_SQL" : "SINGLE_SQL"
+                "executionMode", multiSql ? multiExecutionMode : "SINGLE_SQL"
             ),
             config == null ? "Database query" : firstText(config.getTitle(), config.getToolName()),
             config == null
@@ -426,7 +428,7 @@ public class StandardToolExecutionResultFactory {
         payload.put("analysisContext", analysisContext);
         payload.put("operation", mapOf(
             "type", "sql.query",
-            "executionMode", multiSql ? "SEQUENTIAL_MULTI_SQL" : "SINGLE_SQL",
+            "executionMode", multiSql ? multiExecutionMode : "SINGLE_SQL",
             "resultSetCount", resultData.get("resultSetCount"),
             "statement", statement,
             "timeoutSeconds", config == null ? null : config.getTimeoutSeconds(),
@@ -476,7 +478,7 @@ public class StandardToolExecutionResultFactory {
             multiSql
                 ? databaseQueryMultiSqlGraphNodes(resultData)
                 : List.of(graphNode("sql_query", "sql.query", success, durationMs)),
-            List.of()
+            workflow ? databaseQueryWorkflowGraphEdges(resultData) : List.of()
         ));
         return payload;
     }
@@ -518,7 +520,9 @@ public class StandardToolExecutionResultFactory {
     }
 
     private List<Map<String, Object>> databaseQueryMultiSqlGraphNodes(Map<String, Object> resultData) {
-        List<Map<String, Object>> resultSets = listOfMaps(firstPresent(resultData.get("resultSets"), resultData.get("results")));
+        List<Map<String, Object>> resultSets = "database_query_workflow".equals(resultData.get("mode"))
+            ? listOfMaps(firstPresent(resultData.get("nodeExecutions"), resultData.get("resultSets")))
+            : listOfMaps(firstPresent(resultData.get("resultSets"), resultData.get("results")));
         return resultSets.stream()
             .map(resultSet -> graphNode(
                 "sql_result_set_" + intValue(resultSet.get("executionOrder"), resultSets.indexOf(resultSet) + 1),
@@ -533,6 +537,36 @@ public class StandardToolExecutionResultFactory {
                 )
             ))
             .toList();
+    }
+
+    private List<Map<String, Object>> databaseQueryWorkflowGraphEdges(Map<String, Object> resultData) {
+        List<Map<String, Object>> resultSets = listOfMaps(firstPresent(resultData.get("nodeExecutions"), resultData.get("resultSets")));
+        List<Map<String, Object>> edges = new java.util.ArrayList<>();
+        for (Map<String, Object> resultSet : resultSets) {
+            String targetCode = firstText(stringValue(resultSet.get("nodeCode")), stringValue(resultSet.get("sqlCode")));
+            Object dependencies = resultSet.get("dependencies");
+            if (targetCode == null || !(dependencies instanceof List<?> list)) continue;
+            for (Object dependency : list) {
+                if (dependency == null) continue;
+                edges.add(mapOf(
+                    "from", databaseQueryGraphNodeId(String.valueOf(dependency), resultSets),
+                    "to", databaseQueryGraphNodeId(targetCode, resultSets),
+                    "type", "depends_on_success"
+                ));
+            }
+        }
+        return edges;
+    }
+
+    private String databaseQueryGraphNodeId(String code, List<Map<String, Object>> resultSets) {
+        for (int index = 0; index < resultSets.size(); index++) {
+            Map<String, Object> resultSet = resultSets.get(index);
+            String current = firstText(stringValue(resultSet.get("nodeCode")), stringValue(resultSet.get("sqlCode")));
+            if (code != null && code.equals(current)) {
+                return "sql_result_set_" + intValue(resultSet.get("executionOrder"), index + 1);
+            }
+        }
+        return "sql_node_" + code;
     }
 
     private Map<String, Object> databaseQueryAnalysisContext(DatabaseQueryConfig config) {

@@ -30,6 +30,7 @@ public class DatabaseQueryCacheService {
 
     private final McpCacheProperties properties;
     private final McpRocksDbStore rocksDbStore;
+    private final RedisCacheStore redisCacheStore;
     private final ObjectMapper objectMapper;
     private final DatabaseQueryCacheConfigService configService;
 
@@ -39,14 +40,14 @@ public class DatabaseQueryCacheService {
         }
         String key = key(config, parameters);
         try {
-            byte[] raw = rocksDbStore.get(key);
+            byte[] raw = useRedis(config) ? redisCacheStore.get(key) : rocksDbStore.get(key);
             if (raw == null) {
                 return Optional.empty();
             }
             DatabaseQueryCacheEntry entry = objectMapper.readValue(raw, DatabaseQueryCacheEntry.class);
             long now = System.currentTimeMillis();
             if (entry.isExpired(now)) {
-                rocksDbStore.delete(key);
+                delete(config, key);
                 return Optional.empty();
             }
             ToolOutput output = entry.result();
@@ -54,6 +55,7 @@ public class DatabaseQueryCacheService {
                 output.setMetadata(new LinkedHashMap<>());
             }
             output.getMetadata().put("cacheHit", true);
+            output.getMetadata().put("cacheStorage", config.getCacheStorage());
             output.getMetadata().put("cacheAgeSeconds", Math.max(0L, (now - entry.createdAt()) / 1000L));
             return Optional.of(output);
         } catch (Exception ex) {
@@ -71,16 +73,22 @@ public class DatabaseQueryCacheService {
             return;
         }
         long now = System.currentTimeMillis();
-        long expiresAt = now + Math.max(1, cacheConfig.getDefaultTtlSeconds()) * 1000L;
+        long expiresAt = now + Math.max(1, config.getCacheTtlSeconds()) * 1000L;
         ToolOutput cached = copyForCache(result);
         cached.getMetadata().put("cacheHit", false);
+        cached.getMetadata().put("cacheStorage", config.getCacheStorage());
         DatabaseQueryCacheEntry entry = new DatabaseQueryCacheEntry(cached, now, expiresAt);
         try {
             byte[] payload = objectMapper.writeValueAsBytes(entry);
             if (payload.length > Math.max(1, cacheConfig.getMaxEntryKb()) * 1024L) {
                 return;
             }
-            rocksDbStore.put(key(config, parameters), payload);
+            String key = key(config, parameters);
+            if (useRedis(config)) {
+                redisCacheStore.put(key, payload, config.getCacheTtlSeconds());
+            } else {
+                rocksDbStore.put(key, payload);
+            }
         } catch (Exception ex) {
             log.warn("Failed to write database query cache for {}: {}", config.getToolName(), ex.getMessage());
         }
@@ -92,27 +100,29 @@ public class DatabaseQueryCacheService {
     }
 
     public int cleanupExpiredEntries() {
-        if (!rocksDbStore.isUsable()) {
-            return 0;
-        }
+        return cleanupExpiredEntries(rocksDbStore.scan(KEY_PREFIX, Math.max(1, properties.getCleanupBatchSize())), false)
+            + cleanupExpiredEntries(safeRedisScan(KEY_PREFIX, Math.max(1, properties.getCleanupBatchSize())), true);
+    }
+
+    private int cleanupExpiredEntries(List<McpRocksDbStore.KeyValue> entries, boolean redis) {
         long now = System.currentTimeMillis();
         int scanned = 0;
         int removed = 0;
         try {
-            for (McpRocksDbStore.KeyValue entry : rocksDbStore.scan(KEY_PREFIX, Math.max(1, properties.getCleanupBatchSize()))) {
+            for (McpRocksDbStore.KeyValue entry : entries) {
                 scanned += 1;
                 try {
                     DatabaseQueryCacheEntry cacheEntry = objectMapper.readValue(entry.value(), DatabaseQueryCacheEntry.class);
                     if (cacheEntry.isExpired(now)) {
-                        rocksDbStore.delete(entry.key());
+                        delete(redis, entry.key());
                         removed += 1;
                     }
                 } catch (Exception ex) {
-                    rocksDbStore.delete(entry.key());
+                    delete(redis, entry.key());
                     removed += 1;
                 }
             }
-        } catch (RocksDBException ex) {
+        } catch (Exception ex) {
             log.warn("Database query cache cleanup failed: {}", ex.getMessage());
         }
         if (removed > 0) {
@@ -122,30 +132,44 @@ public class DatabaseQueryCacheService {
     }
 
     public int evictAll() {
-        if (!rocksDbStore.isUsable()) {
-            return 0;
-        }
+        return evictEntries(rocksDbStore.scan(KEY_PREFIX, 100000), false)
+            + evictEntries(safeRedisScan(KEY_PREFIX, 100000), true);
+    }
+
+    private int evictEntries(List<McpRocksDbStore.KeyValue> entries, boolean redis) {
         int removed = 0;
         try {
-            for (McpRocksDbStore.KeyValue entry : rocksDbStore.scan(KEY_PREFIX, 100000)) {
-                rocksDbStore.delete(entry.key());
+            for (McpRocksDbStore.KeyValue entry : entries) {
+                delete(redis, entry.key());
                 removed += 1;
             }
-        } catch (RocksDBException ex) {
+        } catch (Exception ex) {
             log.warn("Database query cache eviction failed: {}", ex.getMessage());
         }
         return removed;
     }
 
+    public int evictTemplate(DatabaseQueryConfig config) {
+        if (config == null) {
+            return 0;
+        }
+        String prefix = KEY_PREFIX + sanitize(config.getToolName()) + ":";
+        return evictEntries(rocksDbStore.scan(prefix, 100000), false)
+            + evictEntries(safeRedisScan(prefix, 100000), true);
+    }
+
     public CacheStats stats() {
-        if (!rocksDbStore.isUsable()) {
+        if (!rocksDbStore.isUsable() && !redisCacheStore.isUsable()) {
             return new CacheStats(false, 0, 0, 0, 0);
         }
         long now = System.currentTimeMillis();
         int entries = 0;
         int expiredEntries = 0;
         long bytes = 0L;
-        for (McpRocksDbStore.KeyValue entry : rocksDbStore.scan(KEY_PREFIX, 100000)) {
+        List<McpRocksDbStore.KeyValue> allEntries = new ArrayList<>();
+        allEntries.addAll(rocksDbStore.scan(KEY_PREFIX, 100000));
+        allEntries.addAll(safeRedisScan(KEY_PREFIX, 100000));
+        for (McpRocksDbStore.KeyValue entry : allEntries) {
             entries += 1;
             bytes += entry.key().length + entry.value().length;
             try {
@@ -161,12 +185,34 @@ public class DatabaseQueryCacheService {
     }
 
     private boolean isUsable(DatabaseQueryConfig config) {
-        DatabaseQueryCacheConfig cacheConfig = configService.current();
-        return properties.isEnabled()
-            && rocksDbStore.isUsable()
-            && config != null
-            && cacheConfig.isEnabled()
-            && cacheConfig.getDefaultTtlSeconds() > 0;
+        return config != null
+            && config.isEnabled()
+            && config.isCacheEnabled()
+            && config.getCacheTtlSeconds() > 0
+            && (useRedis(config) ? redisCacheStore.isUsable() : rocksDbStore.isUsable());
+    }
+
+    private boolean useRedis(DatabaseQueryConfig config) {
+        return config != null && "REDIS".equalsIgnoreCase(config.getCacheStorage());
+    }
+
+    private void delete(DatabaseQueryConfig config, String key) throws RocksDBException {
+        if (useRedis(config)) redisCacheStore.delete(key);
+        else rocksDbStore.delete(key);
+    }
+
+    private void delete(boolean redis, byte[] key) throws RocksDBException {
+        if (redis) redisCacheStore.delete(key);
+        else rocksDbStore.delete(key);
+    }
+
+    private List<McpRocksDbStore.KeyValue> safeRedisScan(String prefix, int limit) {
+        try {
+            return redisCacheStore.scan(prefix, limit);
+        } catch (Exception ex) {
+            log.warn("Redis database query cache scan failed: {}", ex.getMessage());
+            return List.of();
+        }
     }
 
     private String key(DatabaseQueryConfig config, Map<String, Object> parameters) {
@@ -174,6 +220,9 @@ public class DatabaseQueryCacheService {
             Map<String, Object> identity = new LinkedHashMap<>();
             identity.put("id", config.getId());
             identity.put("toolName", config.getToolName());
+            identity.put("datasourceId", config.getDatasourceId());
+            identity.put("sqlTemplate", config.getSqlTemplate());
+            identity.put("sqlSteps", config.getSqlStepsJson());
             identity.put("updatedAt", config.getUpdatedAt() == null ? null : config.getUpdatedAt().toEpochMilli());
             identity.put("parameters", normalize(parameters == null ? Map.of() : parameters));
             if ("SQL_PARAMS_DATASOURCE_USER".equals(configService.current().getKeyStrategy())) {
@@ -242,6 +291,14 @@ public class DatabaseQueryCacheService {
     @SuppressWarnings("unchecked")
     private long rowCount(Object data) {
         if (data instanceof Map<?, ?> map) {
+            Object resultSets = map.containsKey("resultSets") ? map.get("resultSets") : map.get("results");
+            if (resultSets instanceof List<?> list) {
+                long total = 0L;
+                for (Object item : list) {
+                    total += rowCount(item);
+                }
+                return total;
+            }
             Object rowCount = map.get("rowCount");
             if (rowCount instanceof Number number) {
                 return number.longValue();
@@ -249,14 +306,6 @@ public class DatabaseQueryCacheService {
             Object rows = map.get("rows");
             if (rows instanceof List<?> list) {
                 return list.size();
-            }
-            Object results = map.get("results");
-            if (results instanceof List<?> list) {
-                long total = 0L;
-                for (Object item : list) {
-                    total += rowCount(item);
-                }
-                return total;
             }
             return map.isEmpty() ? 0 : 1;
         }

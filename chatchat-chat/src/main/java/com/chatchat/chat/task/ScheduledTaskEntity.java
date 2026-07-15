@@ -61,6 +61,9 @@ public class ScheduledTaskEntity {
     @Column(name = "notify_enabled", nullable = false)
     private Boolean notifyEnabled = false;
 
+    @Column(name = "trading_day_only", nullable = false)
+    private Boolean tradingDayOnly = false;
+
     @Column(length = 32, nullable = false)
     private String status = "ACTIVE";
 
@@ -119,6 +122,9 @@ public class ScheduledTaskEntity {
         }
         if (notifyEnabled == null) {
             notifyEnabled = false;
+        }
+        if (tradingDayOnly == null) {
+            tradingDayOnly = false;
         }
         if (status == null || status.isBlank()) {
             status = "ACTIVE";

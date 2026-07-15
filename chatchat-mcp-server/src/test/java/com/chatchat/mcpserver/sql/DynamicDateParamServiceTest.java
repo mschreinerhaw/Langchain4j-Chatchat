@@ -8,10 +8,14 @@ import java.sql.DriverManager;
 import java.sql.Statement;
 import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.ZoneId;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class DynamicDateParamServiceTest {
 
@@ -68,6 +72,35 @@ class DynamicDateParamServiceTest {
             .containsEntry("trade_date", "20260707")
             .containsEntry("previous_trade_date", "20260706");
         assertThat(sql).isEqualTo("select * from customer_asset where stat_date = 20260706");
+    }
+
+    @Test
+    void checksTradingDayAndRejectsDatesMissingFromMcpCalendarResult() throws Exception {
+        String jdbcUrl = "jdbc:h2:mem:trading_day_check;DB_CLOSE_DELAY=-1";
+        try (var connection = DriverManager.getConnection(jdbcUrl, "sa", "");
+             Statement statement = connection.createStatement()) {
+            statement.execute("create table trading_calendar (natural_day int primary key, trading_day int not null)");
+            statement.execute("insert into trading_calendar values " +
+                "(20260710, 20260710), (20260711, 20260710), (20260712, 20260710), (20260713, 20260713)");
+        }
+        SqlDatasourceConfig datasource = datasource(jdbcUrl);
+        TradingCalendarConfig config = new TradingCalendarConfig();
+        config.setEnabled(true);
+        config.setDatasourceId(datasource.getId());
+        config.setSqlTemplate("select natural_day, trading_day from trading_calendar order by natural_day");
+        TradingCalendarConfigService configService = mock(TradingCalendarConfigService.class);
+        when(configService.current()).thenReturn(config);
+        when(configService.datasource(config)).thenReturn(datasource);
+        DynamicDateParamService calendarService = new DynamicDateParamService(
+            new DynamicJdbcDriverLoader(new DatabaseToolProperties()), configService,
+            Clock.fixed(Instant.parse("2026-07-11T00:00:00Z"), ZoneId.of("Asia/Shanghai"))
+        );
+
+        assertThat(calendarService.checkTradingDay(LocalDate.of(2026, 7, 10)).tradingDay()).isTrue();
+        assertThat(calendarService.checkTradingDay(LocalDate.of(2026, 7, 11)).tradingDay()).isFalse();
+        assertThatThrownBy(() -> calendarService.checkTradingDay(LocalDate.of(2026, 7, 14)))
+            .isInstanceOf(IllegalStateException.class)
+            .hasMessageContaining("不包含日期");
     }
 
     private SqlDatasourceConfig datasource(String jdbcUrl) {

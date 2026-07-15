@@ -117,6 +117,25 @@ public class DynamicDateParamService {
         };
     }
 
+    /**
+     * Checks one date against the centrally configured trading calendar.
+     * A date outside the returned calendar range is treated as an invalid/empty
+     * decision instead of being guessed as a trading day.
+     */
+    public TradingDayDecision checkTradingDay(LocalDate date) {
+        if (date == null) {
+            throw new IllegalArgumentException("交易日判断日期不能为空");
+        }
+        TradingCalendar calendar = tradingCalendar(tradingCalendarSource(null));
+        int basicDate = Integer.parseInt(formatDate(date));
+        int index = Arrays.binarySearch(calendar.naturalDays(), basicDate);
+        if (index < 0) {
+            throw new IllegalStateException("交易日查询结果不包含日期 " + formatDate(date));
+        }
+        int mappedTradingDay = calendar.tradingDays()[index];
+        return new TradingDayDecision(date, basicDate == mappedTradingDay, mappedTradingDay);
+    }
+
     private Object resolveValue(Object value, SqlDatasourceConfig datasource, LocalDate currentDate) {
         if (value instanceof String text) {
             return resolveText(text, datasource, currentDate);
@@ -331,5 +350,8 @@ public class DynamicDateParamService {
             }
             return currentTradingDay;
         }
+    }
+
+    public record TradingDayDecision(LocalDate date, boolean tradingDay, int mappedTradingDay) {
     }
 }

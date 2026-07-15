@@ -3,7 +3,7 @@
     <header class="panel-heading">
       <div>
         <h2>缓存设置</h2>
-        <p>配置数据库查询缓存策略并查看运行统计。</p>
+        <p>为已维护的 SQL 查询模板单独配置结果缓存并查看运行统计。</p>
       </div>
       <div class="panel-actions">
         <el-button plain :loading="busy" @click="load">
@@ -12,11 +12,13 @@
         </el-button>
         <el-button type="primary" :loading="busy" @click="save">
           <el-icon><Setting /></el-icon>
-          <span>保存策略</span>
+          <span>{{ activeTab === 'storage' ? '保存存储配置' : '保存模板策略' }}</span>
         </el-button>
       </div>
     </header>
 
+    <el-tabs v-model="activeTab" class="workspace-tabs">
+      <el-tab-pane label="模板缓存策略" name="templates">
     <section class="cache-section">
       <div class="cache-section-head">
         <div>
@@ -35,25 +37,60 @@
     <section class="cache-section">
       <div class="cache-section-head">
         <div>
-          <h3>缓存策略</h3>
-          <p>控制数据库查询结果的缓存开关、容量限制和 Key 生成方式。</p>
+          <h3>SQL 模板缓存</h3>
+          <p>缓存以整个查询模板为单位；包含多条 SQL 时，会缓存这组 SQL 的完整结果集合。</p>
+        </div>
+      </div>
+      <el-table :data="templates" border stripe empty-text="暂无已维护的 SQL 查询模板">
+        <el-table-column prop="title" label="模板名称" min-width="180" show-overflow-tooltip />
+        <el-table-column prop="toolName" label="工具名称" min-width="180" show-overflow-tooltip>
+          <template #default="{ row }"><code>{{ row.toolName }}</code></template>
+        </el-table-column>
+        <el-table-column prop="datasourceId" label="数据源" min-width="180" show-overflow-tooltip />
+        <el-table-column prop="sqlCount" label="SQL 数量" width="100" align="center" />
+        <el-table-column label="模板状态" width="100" align="center">
+          <template #default="{ row }">
+            <el-tag :type="row.enabled ? 'success' : 'info'">{{ row.enabled ? '启用' : '停用' }}</el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column label="查询缓存" width="120" align="center">
+          <template #default="{ row }">
+            <el-switch v-model="row.cacheEnabled" :disabled="!row.enabled && !row.cacheEnabled" />
+          </template>
+        </el-table-column>
+        <el-table-column label="存储服务" width="150">
+          <template #default="{ row }">
+            <el-select v-model="row.cacheStorage" :disabled="!row.cacheEnabled || !row.enabled">
+              <el-option label="本地 RocksDB" value="ROCKSDB" />
+              <el-option label="Redis" value="REDIS" :disabled="!redis.enabled" />
+            </el-select>
+          </template>
+        </el-table-column>
+        <el-table-column label="TTL（秒）" width="180">
+          <template #default="{ row }">
+            <el-input-number
+              v-model="row.cacheTtlSeconds"
+              class="w-100"
+              :disabled="!row.cacheEnabled || !row.enabled"
+              :min="1"
+              :max="86400"
+              :step="60"
+              controls-position="right"
+            />
+          </template>
+        </el-table-column>
+      </el-table>
+    </section>
+
+    <section class="cache-section">
+      <div class="cache-section-head">
+        <div>
+          <h3>存储保护策略</h3>
+          <p>这些限制只约束已单独开启缓存的模板，不会为任何模板全局开启缓存。</p>
         </div>
       </div>
       <el-form class="cache-form" label-position="top">
         <el-row :gutter="14">
-          <el-col :xs="24" :md="8">
-            <el-form-item label="启用缓存">
-              <el-select v-model="config.enabled" class="w-100">
-                <el-option label="启用" :value="true" />
-                <el-option label="停用" :value="false" />
-              </el-select>
-            </el-form-item>
-          </el-col>
-          <el-col :xs="24" :md="8">
-            <el-form-item label="默认 TTL（秒）">
-              <el-input-number v-model="config.defaultTtlSeconds" class="w-100" :min="1" :step="1" controls-position="right" />
-            </el-form-item>
-          </el-col>
           <el-col :xs="24" :md="8">
             <el-form-item label="最大缓存行数">
               <el-input-number v-model="config.maxRows" class="w-100" :min="1" :step="100" controls-position="right" />
@@ -117,6 +154,132 @@
         </div>
       </div>
     </section>
+      </el-tab-pane>
+
+      <el-tab-pane label="缓存存储服务设置" name="storage">
+        <section class="cache-section">
+          <div class="cache-section-head">
+            <div>
+              <h3>存储服务状态</h3>
+              <p>RocksDB 是默认本地存储；启用并验证 Redis 后，可在模板缓存策略中逐个选择存储位置。</p>
+            </div>
+          </div>
+          <div class="metric-grid">
+            <div class="metric-card"><span>RocksDB</span><strong>{{ stats.rocksDbAvailable ? '可用' : '不可用' }}</strong></div>
+            <div class="metric-card"><span>Redis 配置</span><strong>{{ redis.enabled ? '已启用' : '未启用' }}</strong></div>
+            <div class="metric-card"><span>Redis 连接</span><strong>{{ redis.available ? '可用' : '未验证' }}</strong></div>
+            <div class="metric-card"><span>Redis 模式</span><strong>{{ redis.mode }}</strong></div>
+          </div>
+        </section>
+
+        <section class="cache-section">
+          <div class="cache-section-head">
+            <div>
+              <h3>Redis 连接配置</h3>
+              <p>支持无认证单机、ACL 用户名密码、Sentinel 哨兵和 Redis Cluster 集群连接。</p>
+            </div>
+            <el-button plain type="primary" :loading="busy" @click="testRedis">测试连接</el-button>
+          </div>
+          <el-form class="cache-form" label-position="top">
+            <el-row :gutter="14">
+              <el-col :xs="24" :md="8">
+                <el-form-item label="启用 Redis 存储" required>
+                  <el-select v-model="redis.enabled" class="w-100">
+                    <el-option label="启用" :value="true" />
+                    <el-option label="停用" :value="false" />
+                  </el-select>
+                </el-form-item>
+              </el-col>
+              <el-col :xs="24" :md="8">
+                <el-form-item label="连接模式" required>
+                  <el-select v-model="redis.mode" class="w-100">
+                    <el-option label="单机－无用户名密码" value="STANDALONE_NO_AUTH" />
+                    <el-option label="单机－用户名密码" value="STANDALONE_AUTH" />
+                    <el-option label="哨兵模式 Sentinel" value="SENTINEL" />
+                    <el-option label="集群模式 Cluster" value="CLUSTER" />
+                  </el-select>
+                </el-form-item>
+              </el-col>
+              <el-col v-if="!redisUsesCluster" :xs="24" :md="8">
+                <el-form-item label="数据库编号" required>
+                  <el-input-number v-model="redis.databaseIndex" class="w-100" :min="0" :max="15" controls-position="right" />
+                </el-form-item>
+              </el-col>
+              <el-col :span="24">
+                <el-form-item :label="redisUsesSentinel || redisUsesCluster ? 'Redis 节点（每行一个）' : 'Redis 节点'" required>
+                  <el-input
+                    v-model="redis.nodesText"
+                    type="textarea"
+                    :rows="redisUsesSentinel || redisUsesCluster ? 4 : 2"
+                    placeholder="127.0.0.1:6379"
+                  />
+                  <div class="field-help">使用 host:port 格式；哨兵或集群模式每行填写一个节点。</div>
+                </el-form-item>
+              </el-col>
+              <el-col v-if="redisUsesSentinel" :xs="24" :md="8">
+                <el-form-item label="Master 名称" required>
+                  <el-input v-model.trim="redis.masterName" placeholder="如 mymaster" />
+                </el-form-item>
+              </el-col>
+              <template v-if="redisUsesSentinel">
+                <el-col :xs="24" :md="8">
+                  <el-form-item label="哨兵用户名">
+                    <el-input v-model.trim="redis.sentinelUsername" placeholder="Sentinel 无认证时留空" />
+                  </el-form-item>
+                </el-col>
+                <el-col :xs="24" :md="8">
+                  <el-form-item label="哨兵密码">
+                    <el-input
+                      v-model="redis.sentinelPassword"
+                      type="password"
+                      show-password
+                      autocomplete="new-password"
+                      :placeholder="redis.sentinelPasswordConfigured ? '已配置，留空表示不修改' : 'Sentinel 无认证时留空'"
+                    />
+                  </el-form-item>
+                </el-col>
+              </template>
+              <template v-if="redisUsesAuthentication">
+                <el-col :xs="24" :md="8">
+                  <el-form-item label="Redis 用户名">
+                    <el-input v-model.trim="redis.username" placeholder="ACL 用户名；仅密码认证时可留空" />
+                  </el-form-item>
+                </el-col>
+                <el-col :xs="24" :md="8">
+                  <el-form-item label="Redis 密码" :required="redis.mode === 'STANDALONE_AUTH' && !redis.passwordConfigured">
+                    <el-input
+                      v-model="redis.password"
+                      type="password"
+                      show-password
+                      autocomplete="new-password"
+                      :placeholder="redis.passwordConfigured ? '已配置，留空表示不修改' : '请输入 Redis 密码'"
+                    />
+                  </el-form-item>
+                </el-col>
+              </template>
+              <el-col :xs="24" :md="8">
+                <el-form-item label="SSL/TLS" required>
+                  <el-select v-model="redis.ssl" class="w-100">
+                    <el-option label="启用" :value="true" />
+                    <el-option label="停用" :value="false" />
+                  </el-select>
+                </el-form-item>
+              </el-col>
+              <el-col :xs="24" :md="8">
+                <el-form-item label="连接超时（毫秒）" required>
+                  <el-input-number v-model="redis.timeoutMillis" class="w-100" :min="500" :max="60000" :step="500" controls-position="right" />
+                </el-form-item>
+              </el-col>
+              <el-col v-if="redisUsesCluster" :xs="24" :md="8">
+                <el-form-item label="最大重定向次数" required>
+                  <el-input-number v-model="redis.maxRedirects" class="w-100" :min="1" :max="20" controls-position="right" />
+                </el-form-item>
+              </el-col>
+            </el-row>
+          </el-form>
+        </section>
+      </el-tab-pane>
+    </el-tabs>
   </section>
 </template>
 

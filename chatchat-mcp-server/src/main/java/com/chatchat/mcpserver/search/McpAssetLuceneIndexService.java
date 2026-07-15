@@ -165,6 +165,42 @@ public class McpAssetLuceneIndexService {
         return summary;
     }
 
+    public synchronized Map<String, Object> rebuildSqlDatasources(List<String> datasourceIds) {
+        List<String> ids = datasourceIds == null ? List.of() : datasourceIds.stream()
+            .filter(id -> id != null && !id.isBlank())
+            .map(String::trim)
+            .distinct()
+            .toList();
+        if (ids.isEmpty()) {
+            throw new IllegalArgumentException("At least one SQL datasource asset must be selected");
+        }
+        int indexed = 0;
+        int tableCount = 0;
+        List<Map<String, Object>> assets = new ArrayList<>();
+        for (String id : ids) {
+            SqlDatasourceConfig datasource = datasourceConfigService.getEnabled(id);
+            List<LuceneMcpSearchService.AssetDoc> docs = sqlAssetDocs(List.of(datasource));
+            luceneSearchService.replaceSqlDatasourceAssets(datasource.getId(), docs);
+            int datasourceTableCount = (int) docs.stream().filter(doc -> "metadata_table".equals(doc.source())).count();
+            indexed += docs.size();
+            tableCount += datasourceTableCount;
+            assets.add(Map.of(
+                "id", datasource.getId(),
+                "name", firstText(datasource.getName(), datasource.getTitle(), datasource.getToolName(), datasource.getId()),
+                "indexed", docs.size(),
+                "tableCount", datasourceTableCount
+            ));
+        }
+        Map<String, Object> summary = new LinkedHashMap<>();
+        summary.put("enabled", true);
+        summary.put("assetType", "sql_datasource");
+        summary.put("selectedCount", ids.size());
+        summary.put("indexed", indexed);
+        summary.put("sqlTableCount", tableCount);
+        summary.put("assets", assets);
+        return summary;
+    }
+
     public synchronized Map<String, Object> upsertHttpEndpoint(HttpEndpointConfig endpoint) {
         if (endpoint == null || !endpoint.isEnabled()) {
             return refresh("http_endpoint");

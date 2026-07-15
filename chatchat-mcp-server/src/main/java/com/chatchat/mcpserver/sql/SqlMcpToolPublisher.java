@@ -271,8 +271,21 @@ public class SqlMcpToolPublisher {
         if (data == null) {
             return "database_query executed successfully";
         }
-        String text = String.valueOf(data);
-        return text.length() <= 2000 ? text : text.substring(0, 2000) + "...";
+        if (data instanceof Map<?, ?> map) {
+            Map<String, Object> summary = new LinkedHashMap<>();
+            summary.put("mode", map.get("mode"));
+            summary.put("schemaVersion", map.get("schemaVersion"));
+            summary.put("tool", map.get("tool"));
+            summary.put("execution", map.get("execution"));
+            summary.put("resultSetCount", map.get("resultSetCount"));
+            summary.put("structuredContent", "Complete workflow steps, result semantics and row data are available in structuredContent.data");
+            try {
+                return com.chatchat.agents.protocol.ModelProtocolJson.compact(summary);
+            } catch (RuntimeException ignored) {
+                return "database_query workflow executed; complete data is available in structuredContent.data";
+            }
+        }
+        return String.valueOf(data);
     }
 
     private String summarizeMetadataSearchResult(Map<String, Object> result) {

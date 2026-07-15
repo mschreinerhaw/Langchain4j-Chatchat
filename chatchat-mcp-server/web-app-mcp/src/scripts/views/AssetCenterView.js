@@ -86,7 +86,7 @@ export default {
         commandTimeoutMs: 30000,
         allowedCommandsJson: '[]',
         routingLabelsJson: '[]',
-        capabilitiesJson: '[]',
+        capabilitiesJson: '["ssh","linux_command_execute"]',
         governanceJson: ''
       },
       sqlDefaults: {
@@ -104,7 +104,7 @@ export default {
         sensitiveTablesJson: '[]',
         sensitiveFieldsJson: '[]',
         routingLabelsJson: '[]',
-        capabilitiesJson: '[]',
+        capabilitiesJson: '["jdbc","sql_query_execute","metadata"]',
         governanceJson: ''
       },
       httpDefaults: {
@@ -118,7 +118,7 @@ export default {
         inputSchemaJson: objectSchemaText,
         bodyTemplate: '',
         routingLabelsJson: '[]',
-        capabilitiesJson: '[]',
+        capabilitiesJson: '["http","http_request"]',
         governanceJson: ''
       },
       commandTemplateDefaults: {
@@ -189,9 +189,9 @@ export default {
         { key: 'hostname', label: 'Host', required: true, placeholder: '如 10.10.1.23 或 server.example.com', help: '填写 MCP server 所在网络可访问的 IP 或域名，不要带 ssh://。' },
         { key: 'port', label: '端口', type: 'number', min: 1, step: 1, placeholder: '22', help: 'SSH 端口，必须是 1-65535 的数字。' },
         { key: 'username', label: '用户名', required: true, placeholder: '如 deploy 或 readonly', help: '建议使用低权限运维账号，避免使用 root。' },
-        { key: 'authType', label: '认证方式', type: 'select', options: authTypeOptions(), placeholder: '选择密码或私钥认证' },
-        { key: 'password', label: '密码', type: 'password', placeholder: '密码认证时填写' },
-        { key: 'privateKey', label: '私钥', type: 'textarea', rows: 5, span: 'col-12', placeholder: '-----BEGIN OPENSSH PRIVATE KEY-----', help: '私钥认证时填写完整 PEM/OpenSSH 私钥内容。' },
+        { key: 'authType', label: '认证方式', type: 'select', required: true, options: authTypeOptions(), placeholder: '选择密码或私钥认证' },
+        { key: 'password', label: '密码', type: 'password', required: form => String(form.authType || '').toUpperCase() === 'PASSWORD', placeholder: '密码认证时填写' },
+        { key: 'privateKey', label: '私钥', type: 'textarea', required: form => String(form.authType || '').toUpperCase() === 'PRIVATE_KEY', rows: 5, span: 'col-12', placeholder: '-----BEGIN OPENSSH PRIVATE KEY-----', help: '私钥认证时填写完整 PEM/OpenSSH 私钥内容。' },
         { key: 'passphrase', label: '私钥口令', placeholder: '私钥有口令时填写' },
         { key: 'hostKeyFingerprint', label: 'Host Key 指纹', placeholder: '如 SHA256:xxxx', help: '可选；填写后会校验主机指纹，提升连接安全性。' },
         { key: 'environment', label: '环境', type: 'select', options: envOptions() },
@@ -201,7 +201,7 @@ export default {
         { key: 'tags', label: '标签', span: 'col-12', placeholder: '输入逗号分隔标签，如 prod,core-api', help: '用于页面搜索、资产分组和人工识别，不参与角色授权。' },
         { key: 'allowedCommandsJson', label: '允许命令模板', type: 'templatePicker', itemKey: 'code', items: () => this.sshCommandTemplates, span: 'col-12', help: '从已维护的 SSH 命令模板中筛选并勾选，保存时自动生成 JSON。' },
         { key: 'routingLabelsJson', label: '路由标签', type: 'jsonStringList', placeholder: '输入标签，如 linux、prod', span: 'col-md-6', help: '用于资产检索和路由匹配。' },
-        { key: 'capabilitiesJson', label: '能力标签', type: 'jsonStringList', placeholder: '输入能力，如 ssh、diagnostic', span: 'col-md-6', help: '描述该资产可提供的能力。' }
+        { key: 'capabilitiesJson', label: '能力标签', type: 'jsonStringList', required: true, requiredAnyOf: ['linux_command_execute', 'ssh', 'linux'], requiredAnyOfMessage: '服务器能力标签必须包含 ssh 或 linux_command_execute', placeholder: '输入能力，如 ssh、diagnostic', span: 'col-md-6', help: '描述该资产可提供的能力。' }
       ].map(field => ({ ...field, ...assetFieldLayout('ssh', field.key) }));
     },
     sqlFields() {
@@ -245,7 +245,7 @@ export default {
         { key: 'sensitiveTablesJson', label: '敏感表', type: 'jsonStringList', placeholder: '输入敏感表名，如 user_secret', span: 'col-md-6', help: '用于标记需要更严格治理的表。' },
         { key: 'sensitiveFieldsJson', label: '敏感字段', type: 'jsonStringList', placeholder: '输入字段名，如 phone、id_card', span: 'col-md-6', help: '用于标记敏感字段，可按 表.字段 或字段名填写。' },
         { key: 'routingLabelsJson', label: '路由标签', type: 'jsonStringList', placeholder: '输入标签，如 mysql、prod', span: 'col-md-6', help: '用于资产检索和路由匹配。' },
-        { key: 'capabilitiesJson', label: '能力标签', type: 'jsonStringList', placeholder: '输入能力，如 sql、metadata', span: 'col-md-6', help: '描述该资产可提供的能力。' }
+        { key: 'capabilitiesJson', label: '能力标签', type: 'jsonStringList', required: true, requiredAnyOf: ['sql_query_execute', 'sql_exec', 'sql', 'jdbc'], requiredAnyOfMessage: '数据库能力标签必须包含 jdbc、sql 或 sql_query_execute', placeholder: '输入能力，如 sql、metadata', span: 'col-md-6', help: '描述该资产可提供的能力。' }
       ].map(field => ({ ...field, ...assetFieldLayout('sql', field.key) }));
     },
     httpFields() {
@@ -255,7 +255,7 @@ export default {
         { key: 'title', label: '显示名称', placeholder: '如 订单中心 API 网关', help: '展示给用户和模型看的名称，可用中文；未填写时通常按资产名称展示。' },
         { key: 'enabled', label: '状态', type: 'select', options: boolOptions() },
         { key: 'description', label: '工具描述', type: 'textarea', span: 'col-12', placeholder: '说明该 API 可查询或执行的业务能力', help: '建议写清楚接口用途、输入参数含义和返回结果范围。' },
-        { key: 'method', label: '方法', type: 'select', options: methodOptions(), placeholder: '选择 HTTP 方法' },
+        { key: 'method', label: '方法', type: 'select', required: true, options: methodOptions(), placeholder: '选择 HTTP 方法' },
         { key: 'urlTemplate', label: 'URL 模板', required: true, span: 'col-12', placeholder: '如 https://api.example.com/orders/{orderId}', help: '填写完整 HTTP/HTTPS 地址；路径变量使用 {参数名}，参数名需和入参 Schema 保持一致。' },
         { key: 'environment', label: '环境', type: 'select', options: envOptions() },
         { key: 'category', label: '分类', type: 'select', options: httpCategoryOptions(), placeholder: '选择接口分类' },
@@ -266,7 +266,7 @@ export default {
         { key: 'inputSchemaJson', label: '入参 Schema', type: 'jsonSchemaString', span: 'col-md-6', help: '参数名必须和 URL 模板、Body 模板里的占位符一致；保存时自动生成 JSON Schema。' },
         { key: 'bodyTemplate', label: 'Body 模板', type: 'textarea', rows: 5, span: 'col-12', placeholder: '{\n  "orderId": "{{orderId}}"\n}', help: 'POST/PUT/PATCH 可填写 JSON 模板；变量使用 {{参数名}}，GET 通常留空。' },
         { key: 'routingLabelsJson', label: '路由标签', type: 'jsonStringList', placeholder: '输入标签，如 gateway、prod', span: 'col-md-6', help: '用于资产检索和路由匹配。' },
-        { key: 'capabilitiesJson', label: '能力标签', type: 'jsonStringList', placeholder: '输入能力，如 http、api', span: 'col-md-6', help: '描述该资产可提供的能力。' }
+        { key: 'capabilitiesJson', label: '能力标签', type: 'jsonStringList', required: true, requiredAnyOf: ['http_request', 'http', 'rest', 'api_call'], requiredAnyOfMessage: 'API 网关能力标签必须包含 http 或 http_request', placeholder: '输入能力，如 http、api', span: 'col-md-6', help: '描述该资产可提供的能力。' }
       ].map(field => ({ ...field, ...assetFieldLayout('http', field.key) }));
     },
     commandTemplateFields() {
@@ -278,9 +278,25 @@ export default {
         { key: 'category', label: '分类', type: 'select', options: commandCategoryOptions() },
         { key: 'runtimeAction', label: '运行策略', type: 'select', options: runtimeActionOptions() },
         { key: 'description', label: '描述', type: 'textarea', span: 'col-12' },
-        { key: 'commandTemplate', label: '命令模板', type: 'textarea', rows: 7, span: 'col-12' },
-        { key: 'parameterSchemaJson', label: '参数 Schema JSON', type: 'textarea', rows: 8, span: 'col-md-6' },
-        { key: 'intentSignalsJson', label: '意图信号 JSON', type: 'textarea', rows: 8, span: 'col-md-6' }
+        { key: 'commandTemplate', label: '命令模板', type: 'textarea', required: true, rows: 7, span: 'col-12' },
+        {
+          key: 'parameterSchemaJson',
+          label: '参数 Schema',
+          type: 'jsonSchemaString',
+          span: 'col-12',
+          emptyText: '暂无命令参数，点击下方按钮新增。',
+          namePlaceholder: '参数名，如 serviceName',
+          descriptionPlaceholder: '参数用途和取值说明',
+          help: '可视化维护参数名称、类型、是否必填和说明，保存时自动生成 JSON Schema。'
+        },
+        {
+          key: 'intentSignalsJson',
+          label: '意图信号',
+          type: 'jsonStringList',
+          span: 'col-12',
+          placeholder: '输入意图词，如服务状态、磁盘空间、日志检查',
+          help: '输入后按回车添加，可逐项删除；保存时自动生成 JSON 数组。'
+        }
       ];
     },
     sqlTemplateFields() {
@@ -293,7 +309,7 @@ export default {
         { key: 'databaseType', label: '数据库类型', type: 'select', options: databaseTypeOptions() },
         { key: 'datasourceId', label: '绑定数据源 ID' },
         { key: 'description', label: '描述', type: 'textarea', span: 'col-12' },
-        { key: 'sqlTemplate', label: 'SQL 模板', type: 'textarea', rows: 8, span: 'col-12' },
+        { key: 'sqlTemplate', label: 'SQL 模板', type: 'textarea', required: true, rows: 8, span: 'col-12' },
         {
           key: 'parameterSchemaJson',
           label: '参数 Schema',

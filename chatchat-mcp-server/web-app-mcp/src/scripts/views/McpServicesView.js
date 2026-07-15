@@ -49,6 +49,7 @@ export default {
           key: 'serviceType',
           label: '服务类型',
           type: 'select',
+          required: true,
           options: ['REMOTE', 'LOCAL', 'GATEWAY'].map(v => ({ value: v, label: v })),
           help: 'REMOTE 表示远端服务，LOCAL 表示本地服务，GATEWAY 表示网关代理服务。',
           section: 'runtime',
@@ -59,6 +60,7 @@ export default {
           key: 'environment',
           label: '环境',
           type: 'select',
+          required: true,
           options: ['DEV', 'TEST', 'PROD'].map(v => ({ value: v, label: v })),
           help: '用于区分开发、测试和生产服务，路由和授权时会参考该环境。',
           section: 'runtime'
@@ -74,6 +76,7 @@ export default {
           key: 'enabled',
           label: '启用状态',
           type: 'select',
+          required: true,
           options: [{ value: true, label: '启用' }, { value: false, label: '停用' }],
           help: '停用后该服务注册信息保留，但不允许作为可用服务访问。',
           section: 'runtime'

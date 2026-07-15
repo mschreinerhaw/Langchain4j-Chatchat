@@ -114,10 +114,11 @@ public class HttpEndpointConfigService {
         config.setEnvironment(normalizeEnvironment(config.getEnvironment()));
         config.setCategory(firstText(config.getCategory(), "api_gateway").toLowerCase(Locale.ROOT));
         config.setRoutingLabelsJson(normalizeJsonArray(mergedProtocolValues(config.getRoutingLabelsJson(), config.getRoutingLabels()), "routingLabels"));
-        config.setCapabilitiesJson(firstText(
-            normalizeJsonArray(mergedProtocolValues(config.getCapabilitiesJson(), config.getCapabilities()), "capabilities"),
-            ModelProtocolJson.compact(List.of("http", "http_request"))
-        ));
+        String capabilitiesJson = normalizeJsonArray(
+            mergedProtocolValues(config.getCapabilitiesJson(), config.getCapabilities()), "capabilities");
+        config.setCapabilitiesJson("[]".equals(capabilitiesJson)
+            ? ModelProtocolJson.compact(List.of("http", "http_request"))
+            : capabilitiesJson);
         config.setTags(mergeTags(config.getTags(), config.getRoutingLabelsJson(), config.getCapabilitiesJson()));
         config.setRuntimeAction("readonly");
         config.setTimeoutMs(Math.max(1000, Math.min(config.getTimeoutMs(), 60000)));

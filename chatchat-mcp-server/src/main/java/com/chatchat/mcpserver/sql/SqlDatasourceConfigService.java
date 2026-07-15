@@ -138,10 +138,11 @@ public class SqlDatasourceConfigService {
         config.setMetadataScopeValue(blankToNull(config.getMetadataScopeValue()));
         config.setMetadataRefreshIntervalMinutes(normalizeMetadataRefreshIntervalMinutes(config.getMetadataRefreshIntervalMinutes()));
         config.setRoutingLabelsJson(normalizeJsonArray(mergedProtocolValues(config.getRoutingLabelsJson(), config.getRoutingLabels()), "routingLabels"));
-        config.setCapabilitiesJson(firstText(
-            normalizeJsonArray(mergedProtocolValues(config.getCapabilitiesJson(), config.getCapabilities()), "capabilities"),
-            ModelProtocolJson.compact(List.of("jdbc", "sql_query_execute"))
-        ));
+        String capabilitiesJson = normalizeJsonArray(
+            mergedProtocolValues(config.getCapabilitiesJson(), config.getCapabilities()), "capabilities");
+        config.setCapabilitiesJson("[]".equals(capabilitiesJson)
+            ? ModelProtocolJson.compact(List.of("jdbc", "sql_query_execute"))
+            : capabilitiesJson);
         config.setDefaultTimeoutSeconds(Math.max(1, Math.min(config.getDefaultTimeoutSeconds(), 60)));
         config.setDefaultMaxRows(Math.max(1, Math.min(config.getDefaultMaxRows(), 5000)));
         config.setSensitiveTablesJson(normalizeJsonArray(config.getSensitiveTablesJson(), "sensitiveTables"));

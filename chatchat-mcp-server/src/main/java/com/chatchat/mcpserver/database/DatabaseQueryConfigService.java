@@ -3,6 +3,9 @@ package com.chatchat.mcpserver.database;
 import com.chatchat.agents.protocol.ModelProtocolJson;
 
 import com.chatchat.agents.tool.ToolRegistry;
+import com.chatchat.tools.workflow.SqlWorkflowEngine;
+import com.chatchat.tools.workflow.SqlWorkflowNode;
+import com.chatchat.tools.workflow.SqlWorkflowParameterMapping;
 import com.chatchat.mcpserver.api.ApiServiceConfigRepository;
 import com.chatchat.mcpserver.search.LuceneMcpSearchService;
 import com.chatchat.mcpserver.sql.SqlDatasourceConfig;
@@ -28,6 +31,8 @@ public class DatabaseQueryConfigService {
 
     private static final Pattern TOOL_NAME_PATTERN = Pattern.compile("^[A-Za-z0-9_-]{1,128}$");
     private static final Set<String> RESERVED_TOOL_NAMES = Set.of("database_query", "database_query_execute");
+    private static final Set<String> PARAMETER_SOURCE_TYPES = Set.of("USER_INPUT", "SYSTEM_CONTEXT", "UPSTREAM_RESULT", "STATIC");
+    private static final SqlWorkflowEngine SQL_WORKFLOW_ENGINE = new SqlWorkflowEngine();
 
     private final DatabaseQueryConfigRepository repository;
     private final ApiServiceConfigRepository apiServiceConfigRepository;
@@ -171,6 +176,7 @@ public class DatabaseQueryConfigService {
         current.setTimeoutSeconds(draft.getTimeoutSeconds());
         current.setCacheEnabled(draft.isCacheEnabled());
         current.setCacheTtlSeconds(draft.getCacheTtlSeconds());
+        current.setCacheStorage(normalizeCacheStorage(draft.getCacheStorage()));
         current.setJdbcUrl(draft.getJdbcUrl());
         current.setDriverClass(draft.getDriverClass());
         current.setUsername(draft.getUsername());
@@ -179,6 +185,23 @@ public class DatabaseQueryConfigService {
         current.setEnabled(draft.isEnabled());
         validate(current, id);
         return repository.save(current);
+    }
+
+    @Transactional
+    public DatabaseQueryConfig updateCachePolicy(String id, boolean cacheEnabled, int cacheTtlSeconds, String cacheStorage) {
+        DatabaseQueryConfig current = getById(id);
+        current.setCacheEnabled(cacheEnabled);
+        current.setCacheTtlSeconds(Math.max(1, Math.min(cacheTtlSeconds, 86400)));
+        current.setCacheStorage(normalizeCacheStorage(cacheStorage));
+        return repository.save(current);
+    }
+
+    private String normalizeCacheStorage(String value) {
+        String normalized = value == null ? "ROCKSDB" : value.trim().toUpperCase(Locale.ROOT);
+        if (!Set.of("ROCKSDB", "REDIS").contains(normalized)) {
+            throw new IllegalArgumentException("cacheStorage must be ROCKSDB or REDIS");
+        }
+        return normalized;
     }
 
     /**
@@ -257,8 +280,8 @@ public class DatabaseQueryConfigService {
         config.setToolName(toolName);
         config.setTitle(blankToNull(config.getTitle()) == null ? toolName : config.getTitle().trim());
         config.setDatasourceId(blankToNull(config.getDatasourceId()));
-        config.setDescription(blankToNull(config.getDescription()));
-        config.setImplementationSteps(blankToNull(config.getImplementationSteps()));
+        config.setDescription(normalizeRequired(config.getDescription(), "description"));
+        config.setImplementationSteps(normalizeRequired(config.getImplementationSteps(), "implementationSteps"));
         config.setBusinessGroup(normalizeBusinessGroup(config.getBusinessGroup()));
         config.setBusinessGroupName(firstText(blankToNull(config.getBusinessGroupName()), config.getBusinessGroup()));
         config.setBusinessGroupDescription(blankToNull(config.getBusinessGroupDescription()));
@@ -282,6 +305,7 @@ public class DatabaseQueryConfigService {
         } else {
             config.setCacheTtlSeconds(Math.min(86400, config.getCacheTtlSeconds()));
         }
+        config.setCacheStorage(normalizeCacheStorage(config.getCacheStorage()));
         if (config.getDatasourceId() == null) {
             throw new IllegalArgumentException("datasourceId is required");
         }
@@ -346,6 +370,12 @@ public class DatabaseQueryConfigService {
             step.setSqlDescription(normalizeRequired(source.getSqlDescription(), "sqlSteps[" + index + "].sqlDescription"));
             step.setSqlContent(normalizeRequired(source.getSqlContent(), "sqlSteps[" + index + "].sqlContent"));
             step.setExecutionOrder(executionOrder);
+            step.setDependencies(source.getDependencies() == null ? List.of() : source.getDependencies().stream()
+                .filter(value -> value != null && !value.isBlank())
+                .map(value -> value.trim().toUpperCase(Locale.ROOT).replaceAll("[^A-Z0-9_\\-]", "_"))
+                .distinct()
+                .toList());
+            step.setWorkflowEnabled(Boolean.TRUE.equals(source.getWorkflowEnabled()));
             step.setEnabled(source.getEnabled() == null || source.getEnabled());
             int timeout = source.getTimeoutSeconds() == null || source.getTimeoutSeconds() <= 0
                 ? config.getTimeoutSeconds()
@@ -356,15 +386,102 @@ public class DatabaseQueryConfigService {
                 throw new IllegalArgumentException("sqlSteps[" + index + "].failureStrategy must be STOP or CONTINUE");
             }
             step.setFailureStrategy(failureStrategy);
+            String emptyResultStrategy = firstText(source.getEmptyResultStrategy(), "CONTINUE").trim().toUpperCase(Locale.ROOT);
+            if (!Set.of("CONTINUE", "SKIP_DEPENDENTS", "STOP").contains(emptyResultStrategy)) {
+                throw new IllegalArgumentException("sqlSteps[" + index + "].emptyResultStrategy must be CONTINUE, SKIP_DEPENDENTS or STOP");
+            }
+            step.setEmptyResultStrategy(emptyResultStrategy);
             int maxRows = source.getMaxResultRows() == null || source.getMaxResultRows() <= 0
                 ? config.getMaxRows()
                 : source.getMaxResultRows();
             step.setMaxResultRows(Math.max(1, Math.min(1000, maxRows)));
-            step.setParameters(source.getParameters());
+            step.setParameters(normalizeStepParameters(source.getParameters(), index));
+            step.setParameterMappings(normalizeParameterMappings(source.getParameterMappings(), index));
+            step.setResultSemantic(source.getResultSemantic());
+            if (step.getResultSemantic().getResultSetName() == null || step.getResultSemantic().getResultSetName().isBlank()) {
+                step.getResultSemantic().setResultSetName(code.toLowerCase(Locale.ROOT));
+            }
+            step.setReturnToModel(source.getReturnToModel() == null || source.getReturnToModel());
             normalized.add(step);
         }
         normalized.sort(Comparator.comparing(DatabaseQuerySqlStep::getExecutionOrder));
+        for (DatabaseQuerySqlStep step : normalized) {
+            for (DatabaseQueryParameterMapping mapping : step.getParameterMappings()) {
+                if ("UPSTREAM_RESULT".equals(mapping.getSourceType())
+                    && !step.getDependencies().contains(mapping.getSourceNode())) {
+                    throw new IllegalArgumentException("sqlSteps node " + step.getSqlCode()
+                        + " upstream parameter source must also be a dependency: " + mapping.getSourceNode());
+                }
+            }
+        }
+        SQL_WORKFLOW_ENGINE.executionLevels(normalized.stream()
+            .filter(DatabaseQuerySqlStep::enabled)
+            .map(this::toWorkflowNode)
+            .toList());
         return normalized;
+    }
+
+    private List<DatabaseQueryParameterMapping> normalizeParameterMappings(List<DatabaseQueryParameterMapping> mappings,
+                                                                            int stepIndex) {
+        if (mappings == null || mappings.isEmpty()) return List.of();
+        List<DatabaseQueryParameterMapping> normalized = new ArrayList<>();
+        Set<String> parameters = new LinkedHashSet<>();
+        for (int index = 0; index < mappings.size(); index++) {
+            DatabaseQueryParameterMapping source = mappings.get(index);
+            if (source == null) continue;
+            String parameter = normalizeRequired(source.getParameter(),
+                "sqlSteps[" + stepIndex + "].parameterMappings[" + index + "].parameter");
+            if (!parameters.add(parameter)) {
+                throw new IllegalArgumentException("sqlSteps[" + stepIndex + "] parameter mapping duplicated: " + parameter);
+            }
+            String sourceType = firstText(source.getSourceType(), "USER_INPUT").toUpperCase(Locale.ROOT);
+            if (!PARAMETER_SOURCE_TYPES.contains(sourceType)) {
+                throw new IllegalArgumentException("sqlSteps[" + stepIndex + "] parameter sourceType is invalid: " + sourceType);
+            }
+            if ("UPSTREAM_RESULT".equals(sourceType) && blankToNull(source.getSourceNode()) == null) {
+                throw new IllegalArgumentException("sqlSteps[" + stepIndex + "] upstream parameter requires sourceNode");
+            }
+            DatabaseQueryParameterMapping mapping = new DatabaseQueryParameterMapping();
+            mapping.setParameter(parameter);
+            mapping.setSourceType(sourceType);
+            mapping.setSourceKey(blankToNull(source.getSourceKey()));
+            mapping.setSourceNode(blankToNull(source.getSourceNode()) == null ? null : source.getSourceNode().trim().toUpperCase(Locale.ROOT));
+            mapping.setSourceExpression(blankToNull(source.getSourceExpression()));
+            mapping.setDefaultValue(source.getDefaultValue());
+            mapping.setRequired(Boolean.TRUE.equals(source.getRequired()));
+            normalized.add(mapping);
+        }
+        return normalized;
+    }
+
+    private Map<String, Object> normalizeStepParameters(Map<String, Object> parameters, int stepIndex) {
+        if (parameters == null || parameters.isEmpty()) return Map.of();
+        Map<String, Object> normalized = new LinkedHashMap<>();
+        parameters.forEach((key, value) -> {
+            String name = blankToNull(key);
+            if (name == null) {
+                throw new IllegalArgumentException("sqlSteps[" + stepIndex + "].parameters contains an empty parameter name");
+            }
+            if (value instanceof Map<?, ?> || value instanceof Iterable<?> || (value != null && value.getClass().isArray())) {
+                throw new IllegalArgumentException("sqlSteps[" + stepIndex + "].parameters." + name
+                    + " must be a text, number or boolean value");
+            }
+            normalized.put(name, value);
+        });
+        return normalized;
+    }
+
+    private SqlWorkflowNode toWorkflowNode(DatabaseQuerySqlStep step) {
+        return new SqlWorkflowNode(
+            step.getSqlCode(), step.getSqlName(), step.getSqlDescription(), step.getSqlContent(),
+            step.getExecutionOrder(), step.getDependencies(),
+            step.getParameterMappings().stream().map(mapping -> new SqlWorkflowParameterMapping(
+                mapping.getParameter(), mapping.getSourceType(), mapping.getSourceKey(), mapping.getSourceNode(),
+                mapping.getSourceExpression(), mapping.getDefaultValue(), Boolean.TRUE.equals(mapping.getRequired())
+            )).toList(),
+            step.getParameters(), step.getFailureStrategy(), step.getEmptyResultStrategy(),
+            step.getTimeoutSeconds(), step.getMaxResultRows()
+        );
     }
 
     private String normalizeSqlTemplate(DatabaseQueryConfig config, List<DatabaseQuerySqlStep> sqlSteps) {

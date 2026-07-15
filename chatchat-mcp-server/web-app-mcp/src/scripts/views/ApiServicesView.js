@@ -64,6 +64,7 @@ export default {
           key: 'gatewayId',
           label: 'API 网关资产',
           type: 'select',
+          required: true,
           span: 'col-12',
           options: this.gatewayOptions,
           placeholder: '选择已维护并测试通过的 API 网关资产',
@@ -121,6 +122,7 @@ export default {
           key: 'enabled',
           label: '启用',
           type: 'select',
+          required: true,
           options: boolOptions(),
           help: '停用后不会作为 MCP 工具发布。',
           section: 'runtime',
@@ -131,6 +133,7 @@ export default {
           key: 'cacheEnabled',
           label: '查询缓存',
           type: 'select',
+          required: true,
           options: boolOptions(),
           help: '适合只读查询接口；会按请求参数缓存结果。',
           section: 'runtime'
@@ -139,6 +142,7 @@ export default {
           key: 'cacheTtlSeconds',
           label: '缓存有效期（秒）',
           type: 'number',
+          required: form => form.cacheEnabled === true,
           min: 1,
           step: 1,
           placeholder: '300',
@@ -148,7 +152,7 @@ export default {
       ];
     },
     gatewayOptions() {
-      const options = [{ value: '', label: '不绑定网关资产' }];
+      const options = [];
       this.gatewayAssets.forEach(asset => {
         options.push({
           value: asset.id,

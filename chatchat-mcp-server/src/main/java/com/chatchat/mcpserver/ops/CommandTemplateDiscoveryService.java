@@ -2,6 +2,7 @@ package com.chatchat.mcpserver.ops;
 
 import com.chatchat.mcpserver.database.DatabaseQueryConfig;
 import com.chatchat.mcpserver.database.DatabaseQueryConfigService;
+import com.chatchat.mcpserver.database.DatabaseQuerySqlStep;
 import com.chatchat.mcpserver.routing.TargetKindRegistry;
 import com.chatchat.mcpserver.search.LuceneMcpSearchService;
 import com.chatchat.mcpserver.sql.SqlDatasourceConfig;
@@ -1120,6 +1121,8 @@ public class CommandTemplateDiscoveryService {
             ),
             "name", firstText(config.getTitle(), toolName),
             "description", databaseQueryTemplateDescription(config),
+            "implementationSteps", firstText(config.getImplementationSteps(), ""),
+            "workflow", databaseQueryWorkflowMetadata(config),
             "businessGroup", businessGroupMetadata(config),
             "rank", rank,
             "relevanceScore", relevance.score(),
@@ -1259,6 +1262,36 @@ public class CommandTemplateDiscoveryService {
             "enabled", config.isEnabled(),
             "createdAt", config.getCreatedAt() == null ? null : config.getCreatedAt().toString(),
             "updatedAt", config.getUpdatedAt() == null ? null : config.getUpdatedAt().toString(),
+            "queryBodyReturned", false
+        );
+    }
+
+    private Map<String, Object> databaseQueryWorkflowMetadata(DatabaseQueryConfig config) {
+        List<DatabaseQuerySqlStep> steps;
+        try {
+            steps = config.getSqlStepsJson() == null || config.getSqlStepsJson().isBlank()
+                ? List.of()
+                : objectMapper.readValue(config.getSqlStepsJson(), new TypeReference<List<DatabaseQuerySqlStep>>() {});
+        } catch (Exception ignored) {
+            steps = List.of();
+        }
+        boolean dependencyGraph = steps.stream().anyMatch(step -> Boolean.TRUE.equals(step.getWorkflowEnabled()));
+        return mapOf(
+            "schemaVersion", "database_query_workflow_definition.v1",
+            "mode", dependencyGraph ? "DEPENDENCY_GRAPH" : "SEQUENTIAL",
+            "implementationSteps", firstText(config.getImplementationSteps(), ""),
+            "nodeCount", steps.size(),
+            "nodes", steps.stream().filter(DatabaseQuerySqlStep::enabled).map(step -> mapOf(
+                "nodeCode", step.getSqlCode(),
+                "nodeName", step.getSqlName(),
+                "sqlDescription", step.getSqlDescription(),
+                "dependencies", step.getDependencies(),
+                "parameterMappings", step.getParameterMappings(),
+                "resultSemantic", step.getResultSemantic(),
+                "failureStrategy", step.getFailureStrategy(),
+                "emptyResultStrategy", step.getEmptyResultStrategy(),
+                "returnToModel", step.getReturnToModel()
+            )).toList(),
             "queryBodyReturned", false
         );
     }

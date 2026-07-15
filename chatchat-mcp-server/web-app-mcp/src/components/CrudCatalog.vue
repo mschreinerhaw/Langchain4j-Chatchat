@@ -10,7 +10,13 @@
           <el-input v-model.trim="keyword" class="search-input" clearable :placeholder="searchPlaceholder">
             <template #prefix><el-icon><Search /></el-icon></template>
           </el-input>
-          <el-button v-if="rebuildLabel" plain :loading="busy" @click="runRebuild">
+          <el-button
+            v-if="rebuildLabel"
+            plain
+            :loading="busy"
+            :disabled="Boolean(rowOperation) || (rebuildRequiresSelection && !selectedIds.size)"
+            @click="runRebuild"
+          >
             <el-icon><Refresh /></el-icon>
             <span>{{ rebuildLabel }}</span>
           </el-button>
@@ -58,23 +64,30 @@
       </el-table-column>
       <el-table-column fixed="right" label="操作" width="230">
         <template #default="{ row }">
-          <el-button link type="primary" @click="openEdit(row)">编辑</el-button>
-          <el-button v-if="testAction" link type="primary" :loading="busy" @click="testItem(row)">测试</el-button>
+          <el-button link type="primary" :disabled="busy || Boolean(rowOperation)" @click="openEdit(row)">编辑</el-button>
+          <el-button
+            v-if="testAction"
+            link
+            type="primary"
+            :loading="isRowOperation('test', row)"
+            :disabled="rowActionDisabled('test', row)"
+            @click="testItem(row)"
+          >测试</el-button>
           <el-button
             v-for="action in extraActions"
             :key="action.key || extraActionLabel(action, row)"
             link
             :type="extraActionType(action, row)"
-            :loading="busy"
+            :loading="isRowOperation('extra', row, action)"
             :disabled="extraActionDisabled(action, row)"
             @click="runExtraAction(action, row)"
           >
             {{ extraActionLabel(action, row) }}
           </el-button>
-          <el-button v-if="toggleAction && row.id" link type="warning" :loading="busy" @click="toggleItem(row)">
+          <el-button v-if="toggleAction && row.id" link type="warning" :disabled="busy || Boolean(rowOperation)" @click="toggleItem(row)">
             {{ row.enabled === false ? '启用' : '停用' }}
           </el-button>
-          <el-button v-if="removeAction && row.id" link type="danger" :loading="busy" @click="removeItem(row)">删除</el-button>
+          <el-button v-if="removeAction && row.id" link type="danger" :disabled="busy || Boolean(rowOperation)" @click="removeItem(row)">删除</el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -115,7 +128,7 @@
             <el-row v-show="!isFormSectionCollapsed(section.key)" class="form-section-grid" :gutter="12">
               <template v-for="field in section.fields" :key="field.key">
                 <el-col :xs="24" :md="fieldColSpan(field)">
-              <el-form-item :label="field.label">
+              <el-form-item :label="field.label" :required="isFieldRequired(field)">
                 <el-select
                   v-if="field.type === 'select'"
                   v-model="form[field.key]"
@@ -126,7 +139,7 @@
                   :default-first-option="field.allowCreate"
                   :reserve-keyword="false"
                   :placeholder="field.placeholder"
-                  :required="field.required"
+                  :required="isFieldRequired(field)"
                 >
                   <el-option v-for="option in fieldOptions(field)" :key="String(option.value)" :label="option.label" :value="option.value" />
                 </el-select>
@@ -136,7 +149,7 @@
                   type="textarea"
                   :rows="field.rows || 3"
                   :placeholder="field.placeholder"
-                  :required="field.required"
+                  :required="isFieldRequired(field)"
                 />
                 <el-input
                   v-else-if="field.type === 'json'"
@@ -234,12 +247,19 @@
                       <p>{{ field.tableSubtitle || '维护模型入参和页面测试值。日期参数可在默认来源中选择。' }}</p>
                     </div>
                     <div class="database-param-actions">
-                      <el-button plain @click="syncDatabaseParamsFromSql(field, true)">同步参数</el-button>
+                      <el-button plain @click="syncDatabaseParamsFromSql(field, true)">扫描并配置参数</el-button>
                       <el-button type="primary" plain @click="addDatabaseParamEntry(field)">新增参数</el-button>
                     </div>
                   </div>
-                  <div v-if="databaseParamSummary(field)" class="database-param-summary">
-                    {{ databaseParamSummary(field) }}
+                  <div v-if="databaseParamNodeSummaries(field).length" class="database-param-summary database-param-node-summary">
+                    <div v-for="summary in databaseParamNodeSummaries(field)" :key="summary.code">
+                      <strong>{{ summary.name }}</strong>
+                      <span v-if="summary.userInput.length">用户输入：{{ summary.userInput.join('、') }}</span>
+                      <span v-if="summary.upstream.length">上游结果：{{ summary.upstream.join('、') }}</span>
+                      <span v-if="summary.fixed.length">固定值：{{ summary.fixed.join('、') }}</span>
+                      <span v-if="summary.dynamic.length">系统动态：{{ summary.dynamic.join('、') }}</span>
+                      <span v-if="summary.unconfigured.length" class="database-param-unconfigured">待配置：{{ summary.unconfigured.join('、') }}</span>
+                    </div>
                   </div>
                   <div class="database-param-table">
                     <div class="database-param-head">
@@ -293,15 +313,33 @@
                     type="info"
                     :closable="false"
                     show-icon
-                    title="SQL 名称用于区分多个结果集；系统内部编码会自动生成，无需手工维护。"
+                    title="通过节点依赖编排执行流程；系统按依赖关系拓扑排序，同一层节点可并行执行。"
                   />
                   <div class="database-param-toolbar">
                     <div>
                       <strong>SQL 明细列表</strong>
-                      <p>按顺序串行执行。每条 SQL 的结果集描述会随执行结果返回给模型。</p>
+                      <p>拖动顺序表达展示顺序，前置依赖决定真实执行顺序。每条 SQL 可独立映射参数和定义结果语义。</p>
                     </div>
                     <div class="database-param-actions">
+                      <span class="database-workflow-switch-label">依赖编排</span>
+                      <el-switch :model-value="databaseSqlWorkflowEnabled(field)" @change="setDatabaseSqlWorkflowEnabled(field, $event)" />
                       <el-button type="primary" plain @click="addDatabaseSqlStep(field)">新增 SQL</el-button>
+                    </div>
+                  </div>
+                  <div v-if="databaseSqlSteps(field).length && databaseSqlWorkflowEnabled(field)" class="database-workflow-board">
+                    <div class="database-workflow-title">执行依赖图</div>
+                    <div class="database-workflow-levels">
+                      <div v-for="(level, levelIndex) in databaseSqlWorkflowLevels(field)" :key="`workflow-level-${levelIndex}`" class="database-workflow-level">
+                        <span class="database-workflow-level-label">层级 {{ levelIndex + 1 }}</span>
+                        <div class="database-workflow-nodes">
+                          <div v-for="node in level" :key="node.sqlCode" class="database-workflow-node">
+                            <strong>{{ node.sqlName }}</strong>
+                            <code>{{ node.sqlCode }}</code>
+                            <small>{{ node.dependencies?.length ? `依赖 ${node.dependencies.join('、')}` : '起始节点' }}</small>
+                          </div>
+                        </div>
+                        <span v-if="levelIndex < databaseSqlWorkflowLevels(field).length - 1" class="database-workflow-arrow">↓</span>
+                      </div>
                     </div>
                   </div>
                   <div
@@ -321,8 +359,20 @@
                     </div>
                     <el-row :gutter="10">
                       <el-col :xs="24" :md="8">
-                        <el-form-item label="SQL 名称">
+                          <el-form-item label="SQL 名称" required>
                           <el-input v-model.trim="entry.sqlName" placeholder="例如 InnoDB 状态" />
+                        </el-form-item>
+                      </el-col>
+                      <el-col :xs="24" :md="8">
+                        <el-form-item label="节点编码" required>
+                          <el-input v-model.trim="entry.sqlCode" placeholder="例如 QUERY_CUSTOMER_BASE" />
+                        </el-form-item>
+                      </el-col>
+                      <el-col :xs="24" :md="8">
+                        <el-form-item label="前置依赖">
+                          <el-select v-model="entry.dependencies" class="w-100" multiple clearable collapse-tags placeholder="无依赖，为起始节点">
+                            <el-option v-for="option in databaseSqlDependencyOptions(field, entry)" :key="option.value" :label="option.label" :value="option.value" />
+                          </el-select>
                         </el-form-item>
                       </el-col>
                       <el-col :xs="12" :md="5">
@@ -343,20 +393,97 @@
                           </el-select>
                         </el-form-item>
                       </el-col>
+                      <el-col :xs="24" :md="6">
+                        <el-form-item label="空结果策略">
+                          <el-select v-model="entry.emptyResultStrategy" class="w-100">
+                            <el-option label="继续执行" value="CONTINUE" />
+                            <el-option label="跳过下游" value="SKIP_DEPENDENTS" />
+                            <el-option label="终止流程" value="STOP" />
+                          </el-select>
+                        </el-form-item>
+                      </el-col>
                       <el-col :xs="24">
-                        <el-form-item label="结果集说明">
+                          <el-form-item label="结果集说明" required>
                           <el-input v-model="entry.sqlDescription" type="textarea" :rows="2" placeholder="说明一行代表什么、包含哪些指标，以及模型应如何使用该结果集。" />
                         </el-form-item>
                       </el-col>
                       <el-col :xs="24">
-                        <el-form-item label="只读 SQL">
+                          <el-form-item label="只读 SQL" required>
                           <el-input v-model="entry.sqlContent" class="codebox" type="textarea" :rows="6" spellcheck="false" placeholder="填写 SELECT、SHOW、DESCRIBE 或 EXPLAIN 查询" />
                         </el-form-item>
                       </el-col>
                       <el-col :xs="24">
-                        <el-form-item label="SQL 独立参数（JSON，可选）">
-                          <el-input v-model="entry.parametersJson" class="codebox" type="textarea" :rows="2" spellcheck="false" placeholder='仅填写该 SQL 占位符需要的固定参数，例如 {"status":"1"}；没有参数时保留 {}' />
-                        </el-form-item>
+                        <div class="database-node-config-block">
+                          <div class="database-node-config-head">
+                            <div><strong>SQL 独立参数</strong><p>配置仅当前 SQL 使用的固定参数，无需填写 JSON。动态值请在下方“节点参数映射”中配置。</p></div>
+                            <el-button plain size="small" @click="addDatabaseSqlStaticParameter(entry)">新增参数</el-button>
+                          </div>
+                          <div v-for="(parameter, parameterIndex) in entry.staticParameterEntries" :key="`${entry.sqlCode}-static-${parameterIndex}`" class="database-static-parameter-row">
+                            <el-input v-model.trim="parameter.name" placeholder="参数名，如 status" />
+                            <el-select v-model="parameter.type" placeholder="参数类型" @change="normalizeDatabaseSqlStaticParameterValue(parameter)">
+                              <el-option label="文本" value="string" />
+                              <el-option label="整数" value="integer" />
+                              <el-option label="小数" value="number" />
+                              <el-option label="布尔值" value="boolean" />
+                              <el-option label="日期文本" value="date" />
+                            </el-select>
+                            <el-switch v-if="parameter.type === 'boolean'" v-model="parameter.value" active-text="是" inactive-text="否" />
+                            <el-input-number v-else-if="parameter.type === 'integer'" v-model="parameter.value" class="w-100" :precision="0" controls-position="right" />
+                            <el-input-number v-else-if="parameter.type === 'number'" v-model="parameter.value" class="w-100" controls-position="right" />
+                            <el-date-picker v-else-if="parameter.type === 'date'" v-model="parameter.value" class="w-100" type="date" value-format="YYYY-MM-DD" placeholder="选择日期" />
+                            <el-input v-else v-model="parameter.value" placeholder="参数值" />
+                            <el-button plain type="danger" size="small" @click="removeDatabaseSqlStaticParameter(entry, parameterIndex)">删除</el-button>
+                          </div>
+                          <div v-if="!entry.staticParameterEntries?.length" class="database-param-empty">暂无固定参数。</div>
+                        </div>
+                      </el-col>
+                      <el-col :xs="24">
+                        <div class="database-node-config-block">
+                          <div class="database-node-config-head">
+                            <div><strong>节点参数映射</strong><p>将当前 SQL 参数绑定到用户输入、系统上下文、固定值或上游节点结果。</p></div>
+                            <el-button plain size="small" @click="addDatabaseSqlParameterMapping(entry)">新增映射</el-button>
+                          </div>
+                          <div v-for="(mapping, mappingIndex) in entry.parameterMappings" :key="`${entry.sqlCode}-mapping-${mappingIndex}`" class="database-node-mapping-row">
+                            <el-input v-model.trim="mapping.parameter" placeholder="参数名" />
+                            <el-select v-model="mapping.sourceType">
+                              <el-option label="用户输入" value="USER_INPUT" />
+                              <el-option label="系统上下文" value="SYSTEM_CONTEXT" />
+                              <el-option label="上游结果" value="UPSTREAM_RESULT" />
+                              <el-option label="固定值" value="STATIC" />
+                            </el-select>
+                            <el-select v-if="mapping.sourceType === 'UPSTREAM_RESULT'" v-model="mapping.sourceNode" placeholder="来源节点">
+                              <el-option v-for="option in databaseSqlDependencyOptions(field, entry)" :key="option.value" :label="option.label" :value="option.value" />
+                            </el-select>
+                            <el-input v-else-if="mapping.sourceType !== 'STATIC'" v-model.trim="mapping.sourceKey" placeholder="来源键，默认同参数名" />
+                            <el-input v-if="mapping.sourceType === 'UPSTREAM_RESULT'" v-model.trim="mapping.sourceExpression" placeholder="$.rows[0].customer_no" />
+                            <el-input v-else v-model="mapping.defaultValue" :placeholder="mapping.sourceType === 'STATIC' ? '固定值' : '默认值'" />
+                            <el-checkbox v-model="mapping.required">必填</el-checkbox>
+                            <el-button plain type="danger" size="small" @click="removeDatabaseSqlParameterMapping(entry, mappingIndex)">删除</el-button>
+                          </div>
+                          <div v-if="!entry.parameterMappings?.length" class="database-param-empty">未配置时沿用集合层用户输入参数。</div>
+                        </div>
+                      </el-col>
+                      <el-col :xs="24">
+                        <div class="database-node-config-block">
+                          <div class="database-node-config-head"><div><strong>结果集语义</strong><p>帮助模型理解数据粒度、关联主键、空结果含义和使用方式。</p></div><el-switch v-model="entry.returnToModel" active-text="返回模型" /></div>
+                          <el-row :gutter="10">
+                            <el-col :xs="24" :md="8"><el-input v-model.trim="entry.resultSemantic.resultSetName" placeholder="结果集名称，如 customer_asset" /></el-col>
+                            <el-col :xs="24" :md="8"><el-input v-model.trim="entry.resultSemantic.businessEntity" placeholder="业务实体，如 客户" /></el-col>
+                            <el-col :xs="24" :md="8"><el-input v-model.trim="entry.resultSemantic.dataGranularity" placeholder="数据粒度，如 客户-日期" /></el-col>
+                            <el-col :xs="24" :md="8"><el-input v-model.trim="entry.primaryKeysText" placeholder="关联主键，逗号分隔" /></el-col>
+                            <el-col :xs="24" :md="8"><el-input v-model.trim="entry.resultSemantic.timeField" placeholder="时间字段" /></el-col>
+                            <el-col :xs="24" :md="8"><el-input v-model.trim="entry.resultSemantic.emptyMeaning" placeholder="空结果代表什么" /></el-col>
+                            <el-col :xs="24"><el-input v-model.trim="entry.resultSemantic.modelUsage" placeholder="模型应如何使用这个结果集" /></el-col>
+                            <el-col :xs="24">
+                              <div class="database-result-units-head"><span>字段单位</span><el-button plain size="small" @click="addDatabaseResultUnit(entry)">新增单位</el-button></div>
+                              <div v-for="(unit, unitIndex) in entry.unitDescriptionEntries" :key="`${entry.sqlCode}-unit-${unitIndex}`" class="database-result-unit-row">
+                                <el-input v-model.trim="unit.field" placeholder="字段名，如 total_asset" />
+                                <el-input v-model.trim="unit.unit" placeholder="单位，如 元、%、万元" />
+                                <el-button plain type="danger" size="small" @click="removeDatabaseResultUnit(entry, unitIndex)">删除</el-button>
+                              </div>
+                            </el-col>
+                          </el-row>
+                        </div>
                       </el-col>
                     </el-row>
                   </div>
@@ -413,7 +540,7 @@
                   v-model="form[field.key]"
                   :type="field.type || 'text'"
                   :placeholder="field.placeholder"
-                  :required="field.required"
+                  :required="isFieldRequired(field)"
                 />
                 <div v-if="field.help" class="form-text">{{ field.help }}</div>
               </el-form-item>

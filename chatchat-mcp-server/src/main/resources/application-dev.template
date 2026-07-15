@@ -528,6 +528,8 @@ chatchat:
         password: ask_before_execute
       default-max-rows: 50
       max-rows: 500
+      workflow:
+        max-parallelism: ${CHATCHAT_DATABASE_QUERY_WORKFLOW_MAX_PARALLELISM:4}
       # Statement timeout for database calls.
       query-timeout-seconds: 15
       # Extra JDBC drivers can be placed here in release packages.

@@ -25,7 +25,7 @@ class CommandTemplateDiscoveryDatabaseQueryTest {
     Path tempDir;
 
     @Test
-    void returnsExecutableMcpToolNameForRegisteredBusinessDatabaseQuery() {
+    void returnsSqlScriptExecutorForRegisteredBusinessDatabaseQueryDag() {
         DatabaseQueryConfigService databaseQueryService = mock(DatabaseQueryConfigService.class);
         DatabaseQueryConfig query = new DatabaseQueryConfig();
         query.setId("query-1");
@@ -37,6 +37,7 @@ class CommandTemplateDiscoveryDatabaseQueryTest {
         query.setBusinessGroupName("Service operations");
         query.setBusinessGroupDescription("Business queries for active service health and lifecycle decisions");
         query.setSqlTemplate("SELECT id, service_name FROM service_registry WHERE status = {{status}}");
+        query.setSqlStepsJson("[{\"sqlCode\":\"services\",\"sqlName\":\"Services\",\"sqlContent\":\"SELECT id FROM service_registry\",\"executionOrder\":1,\"workflowEnabled\":true,\"enabled\":true},{\"sqlCode\":\"health\",\"sqlName\":\"Health\",\"sqlContent\":\"SELECT status FROM service_health\",\"executionOrder\":2,\"dependencies\":[\"services\"],\"workflowEnabled\":true,\"enabled\":true}]");
         query.setInputSchemaJson("{\"type\":\"object\",\"properties\":{\"status\":{\"type\":\"string\"}},\"required\":[\"status\"]}");
         query.setGovernanceJson("{\"intent\":\"service_status\",\"tags\":[\"service\",\"active\",\"business\"]}");
         query.setRoutingLabelsJson("[\"service-health\",\"lifecycle\"]");
@@ -94,7 +95,7 @@ class CommandTemplateDiscoveryDatabaseQueryTest {
         Map<?, ?> configConnection = (Map<?, ?>) templateConfig.get("connection");
         assertThat(result).containsEntry("returnedCount", 1);
         assertThat(first.get("templateId")).isEqualTo("query_active_services");
-        assertThat(first.get("mcpToolName")).isEqualTo("query_active_services");
+        assertThat(first.get("mcpToolName")).isEqualTo("sql_script_execute");
         assertThat(first.get("databaseQueryId")).isEqualTo("query-1");
         assertThat(first.get("intent")).isEqualTo("service_status");
         assertThat(first.get("businessGroup").toString()).contains("service_ops", "Service operations", "active service health");
@@ -104,7 +105,7 @@ class CommandTemplateDiscoveryDatabaseQueryTest {
         assertThat(first.get("owner")).isEqualTo("ops-admin");
         assertThat(first.get("tags").toString()).contains("service", "active", "business");
         assertThat(first.get("executionContext").toString()).contains("ops-mysql", "DEV", "mysql");
-        assertThat(first.get("sqlExecutionBinding").toString()).contains("sql_query_execute", "executionContext");
+        assertThat(first.get("sqlExecutionBinding").toString()).contains("sql_script_execute", "executionContext");
         assertThat(first.get("datasourceAsset").toString()).contains("ops-mysql", "db_query_ops_mysql");
         assertThat(first.get("mcpDecision").toString()).contains("SQL Template Marketplace");
         assertThat(first.get("rankingFeatures").toString()).contains("dbTypeMatch", "luceneScore", "usageScore");
@@ -121,9 +122,9 @@ class CommandTemplateDiscoveryDatabaseQueryTest {
         assertThat(configConnection.containsKey("reloadDrivers")).isFalse();
         assertThat(configConnection.containsKey("password")).isFalse();
         assertThat(execution.get("mode")).isEqualTo("template_execution");
-        assertThat(execution.get("executorTool")).isEqualTo("sql_query_execute");
+        assertThat(execution.get("executorTool")).isEqualTo("sql_script_execute");
         assertThat(execution.get("template")).isEqualTo("query_active_services");
-        assertThat(execution.get("callTool")).isEqualTo("query_active_services");
+        assertThat(execution.get("callTool")).isEqualTo("sql_script_execute");
         assertThat(first.get("parameterSchema").toString()).contains("status");
         assertThat(result.toString())
             .doesNotContain("sqlTemplate", "SELECT id", "service_registry", "WHERE status", "secret",

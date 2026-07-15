@@ -16,6 +16,8 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.BiFunction;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Validates and executes a read-only SQL dependency graph. Business modules provide the
@@ -23,13 +25,38 @@ import java.util.function.BiFunction;
  */
 public class SqlWorkflowEngine {
 
+    private static final Logger log = LoggerFactory.getLogger(SqlWorkflowEngine.class);
+
     public SqlWorkflowExecution execute(List<SqlWorkflowNode> nodes,
                                         Map<String, Object> userInput,
                                         Map<String, Object> systemContext,
                                         int maxParallelism,
                                         BiFunction<SqlWorkflowNode, Map<String, Object>, SqlWorkflowNodeResult> executor) {
+        return execute(UUID.randomUUID().toString(), nodes, userInput, systemContext, maxParallelism, executor);
+    }
+
+    public SqlWorkflowExecution execute(String executionNo,
+                                        List<SqlWorkflowNode> nodes,
+                                        Map<String, Object> userInput,
+                                        Map<String, Object> systemContext,
+                                        int maxParallelism,
+                                        BiFunction<SqlWorkflowNode, Map<String, Object>, SqlWorkflowNodeResult> executor) {
         long startedAt = System.currentTimeMillis();
-        List<List<SqlWorkflowNode>> levels = executionLevels(nodes);
+        String workflowExecutionNo = executionNo == null || executionNo.isBlank()
+            ? UUID.randomUUID().toString() : executionNo.trim();
+        List<List<SqlWorkflowNode>> levels;
+        try {
+            levels = executionLevels(nodes);
+        } catch (RuntimeException ex) {
+            log.warn("SQL workflow planning failed executionNo={} nodeCount={} error={}",
+                workflowExecutionNo, nodes == null ? 0 : nodes.size(), ex.getMessage(), ex);
+            throw ex;
+        }
+        List<List<String>> executionPlan = levels.stream()
+            .map(level -> level.stream().map(SqlWorkflowNode::code).toList()).toList();
+        log.info("SQL workflow started executionNo={} nodeCount={} levelCount={} maxParallelism={} userInputKeys={} systemContextKeys={} executionLevels={}",
+            workflowExecutionNo, nodes.size(), levels.size(), Math.max(1, Math.min(maxParallelism, 16)),
+            keys(userInput), keys(systemContext), executionPlan);
         Map<String, SqlWorkflowExecution.StepExecution> completed = new LinkedHashMap<>();
         List<SqlWorkflowExecution.StepExecution> executions = new ArrayList<>();
         boolean workflowStopped = false;
@@ -39,6 +66,9 @@ public class SqlWorkflowEngine {
             for (int levelIndex = 0; levelIndex < levels.size(); levelIndex++) {
                 List<SqlWorkflowNode> level = levels.get(levelIndex);
                 int currentLevel = levelIndex + 1;
+                long levelStartedAt = System.currentTimeMillis();
+                log.info("SQL workflow level started executionNo={} level={} nodes={}",
+                    workflowExecutionNo, currentLevel, level.stream().map(SqlWorkflowNode::code).toList());
                 List<CompletableFuture<SqlWorkflowExecution.StepExecution>> futures = new ArrayList<>();
                 for (SqlWorkflowNode node : level) {
                     int order = ++executionOrder;
@@ -48,6 +78,8 @@ public class SqlWorkflowEngine {
                         node, order, currentLevel, "SKIPPED", Map.of(), null, skipReason);
                         executions.add(skipped);
                         completed.put(node.code(), skipped);
+                        log.warn("SQL workflow node skipped executionNo={} level={} executionOrder={} nodeCode={} nodeName={} dependencies={} reason={}",
+                            workflowExecutionNo, currentLevel, order, node.code(), node.name(), node.dependencies(), skipReason);
                         continue;
                     }
                     Map<String, Object> parameters;
@@ -59,16 +91,27 @@ public class SqlWorkflowEngine {
                             new SqlWorkflowNodeResult(false, Map.of(), ex.getMessage(), 0L), null);
                         executions.add(failed);
                         completed.put(node.code(), failed);
+                        log.warn("SQL workflow node parameter binding failed executionNo={} level={} executionOrder={} nodeCode={} nodeName={} dependencies={} error={}",
+                            workflowExecutionNo, currentLevel, order, node.code(), node.name(), node.dependencies(), ex.getMessage(), ex);
                         if ("STOP".equals(normalized(node.failureStrategy(), "STOP"))) workflowStopped = true;
                         continue;
                     }
+                    log.info("SQL workflow node scheduled executionNo={} level={} executionOrder={} nodeCode={} nodeName={} dependencies={} resolvedParameterKeys={}",
+                        workflowExecutionNo, currentLevel, order, node.code(), node.name(), node.dependencies(), parameters.keySet());
                     futures.add(CompletableFuture.supplyAsync(() -> {
+                        long nodeStartedAt = System.currentTimeMillis();
+                        log.info("SQL workflow node started executionNo={} level={} executionOrder={} nodeCode={} thread={}",
+                            workflowExecutionNo, currentLevel, order, node.code(), Thread.currentThread().getName());
                         SqlWorkflowNodeResult result;
                         try {
                             result = executor.apply(node, parameters);
                         } catch (RuntimeException ex) {
                             result = new SqlWorkflowNodeResult(false, Map.of(), ex.getMessage(), 0L);
                         }
+                        log.info("SQL workflow node completed executionNo={} level={} executionOrder={} nodeCode={} status={} rowCount={} durationMs={} executorDurationMs={} error={}",
+                            workflowExecutionNo, currentLevel, order, node.code(), result.success() ? "SUCCESS" : "FAILED",
+                            rowCount(result.data()), Math.max(0L, System.currentTimeMillis() - nodeStartedAt),
+                            result.durationMs(), result.errorMessage());
                         return new SqlWorkflowExecution.StepExecution(node, order, currentLevel,
                             result.success() ? "SUCCESS" : "FAILED", parameters, result, null);
                     }, pool));
@@ -79,8 +122,17 @@ public class SqlWorkflowEngine {
                     completed.put(execution.node().code(), execution);
                     if (stopsWorkflow(execution)) {
                         workflowStopped = true;
+                        log.warn("SQL workflow stop policy triggered executionNo={} level={} nodeCode={} failureStrategy={} emptyResultStrategy={} status={} rowCount={}",
+                            workflowExecutionNo, currentLevel, execution.node().code(), execution.node().failureStrategy(),
+                            execution.node().emptyResultStrategy(), execution.status(),
+                            execution.result() == null ? 0 : rowCount(execution.result().data()));
                     }
                 }
+                log.info("SQL workflow level completed executionNo={} level={} durationMs={} statuses={}",
+                    workflowExecutionNo, currentLevel, Math.max(0L, System.currentTimeMillis() - levelStartedAt),
+                    executions.stream().filter(item -> item.executionLevel() == currentLevel)
+                        .collect(java.util.stream.Collectors.toMap(item -> item.node().code(),
+                            SqlWorkflowExecution.StepExecution::status, (first, ignored) -> first, LinkedHashMap::new)));
             }
         } finally {
             pool.shutdownNow();
@@ -88,12 +140,19 @@ public class SqlWorkflowEngine {
         executions.sort(Comparator.comparingInt(SqlWorkflowExecution.StepExecution::executionOrder));
         boolean failed = executions.stream().anyMatch(item -> "FAILED".equals(item.status()));
         boolean partial = failed || executions.stream().anyMatch(item -> "SKIPPED".equals(item.status()));
+        String status = workflowStopped ? "FAILED" : partial ? "PARTIAL_SUCCESS" : "SUCCESS";
+        long durationMs = Math.max(0L, System.currentTimeMillis() - startedAt);
+        log.info("SQL workflow completed executionNo={} status={} nodeCount={} successCount={} failedCount={} skippedCount={} durationMs={}",
+            workflowExecutionNo, status, executions.size(),
+            executions.stream().filter(item -> "SUCCESS".equals(item.status())).count(),
+            executions.stream().filter(item -> "FAILED".equals(item.status())).count(),
+            executions.stream().filter(item -> "SKIPPED".equals(item.status())).count(), durationMs);
         return new SqlWorkflowExecution(
-            UUID.randomUUID().toString(),
-            workflowStopped ? "FAILED" : partial ? "PARTIAL_SUCCESS" : "SUCCESS",
-            levels.stream().map(level -> level.stream().map(SqlWorkflowNode::code).toList()).toList(),
+            workflowExecutionNo,
+            status,
+            executionPlan,
             List.copyOf(executions),
-            Math.max(0L, System.currentTimeMillis() - startedAt)
+            durationMs
         );
     }
 
@@ -243,5 +302,9 @@ public class SqlWorkflowEngine {
 
     private String text(String value) {
         return value == null || value.isBlank() ? null : value.trim();
+    }
+
+    private Set<String> keys(Map<String, Object> values) {
+        return values == null ? Set.of() : new LinkedHashSet<>(values.keySet());
     }
 }

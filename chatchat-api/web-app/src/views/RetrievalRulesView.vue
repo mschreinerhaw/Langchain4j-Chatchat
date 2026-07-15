@@ -307,7 +307,6 @@
         <footer>
           <button type="button" title="取消" @click="closeRuleDialog">取消</button>
           <button type="submit" class="primary" :disabled="rulesLoading" title="保存规则">
-            <Save :size="14" stroke-width="2" />
             <span>{{ currentRuleForm.id ? "更新规则" : "创建规则" }}</span>
           </button>
         </footer>

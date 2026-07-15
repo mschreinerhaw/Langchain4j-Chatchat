@@ -185,6 +185,41 @@ class SqlMcpToolPublisherTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    void sqlScriptGatewayDelegatesBusinessWorkflowTemplateToDatabaseQueryExecutor() throws Exception {
+        DatabaseQueryConfig config = new DatabaseQueryConfig();
+        config.setId("query-dag-1");
+        config.setToolName("query_business_dag");
+        config.setTitle("Business query DAG");
+        when(databaseQueryConfigService.listEnabled()).thenReturn(List.of(config));
+        when(databaseQueryInvokeService.invoke(org.mockito.ArgumentMatchers.eq(config), org.mockito.ArgumentMatchers.anyMap()))
+            .thenReturn(ToolOutput.success(Map.of("execution", Map.of("executionNo", "exec-1"))));
+
+        SqlMcpToolPublisher publisher = new SqlMcpToolPublisher(
+            mcpSyncServer, datasourceConfigService, sqlTemplateService, null, scriptExecuteService,
+            metadataSearchService, databaseQueryConfigService, databaseQueryInvokeService,
+            executionTargetRouter, assetMetadataFactory, governanceFactory, concurrencyManager,
+            new StandardToolExecutionResultFactory(new DatabaseToolProperties()),
+            new ChatChatMcpServerProperties(), new ObjectMapper()
+        );
+
+        Method method = SqlMcpToolPublisher.class.getDeclaredMethod("executeSqlScriptGateway", Map.class);
+        method.setAccessible(true);
+        Object result = method.invoke(publisher, Map.of(
+            "template", "query_business_dag",
+            "parameters", Map.of("tradeDate", "2026-07-15"),
+            "executionContext", Map.of("assetName", "risk-db", "env", "DEV")
+        ));
+
+        ArgumentCaptor<Map<String, Object>> argumentsCaptor = ArgumentCaptor.forClass(Map.class);
+        verify(databaseQueryInvokeService).invoke(org.mockito.ArgumentMatchers.eq(config), argumentsCaptor.capture());
+        verify(executionTargetRouter, never()).routeSqlQuery(org.mockito.ArgumentMatchers.anyMap());
+        verify(scriptExecuteService, never()).execute(org.mockito.ArgumentMatchers.anyMap());
+        assertThat(argumentsCaptor.getValue()).containsEntry("tradeDate", "2026-07-15");
+        assertThat(result).isNotNull();
+    }
+
+    @Test
     void metadataSearchSummarySupportsUnlimitedConfiguredLimits() throws Exception {
         ChatChatMcpServerProperties properties = new ChatChatMcpServerProperties();
         properties.getOutput().setSqlMetadataSearchSummaryMaxChars(-1);

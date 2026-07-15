@@ -631,7 +631,10 @@ public class WebKnowledgeMcpToolRegistrar implements McpServerToolRegistrar {
                 "contentProcessor", "jsoup_readability_v1",
                 "modes", List.of("java", "browser", "auto"),
                 "javaMode", "browser-like HTTP fetch using JSoup",
-                "browserMode", "Playwright Chromium rendering"
+                "browserMode", "Playwright Chromium rendering",
+                "browserFallback", crawlerProperties.isBrowserFallbackToJava()
+                    ? "falls back to Java HTTP when Playwright cache, startup, or navigation is unavailable"
+                    : "disabled; browser failures are returned to the caller"
             ))
             .build();
     }

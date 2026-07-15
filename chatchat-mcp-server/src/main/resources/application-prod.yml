@@ -87,6 +87,7 @@ chatchat:
         browsers-path: ${PLAYWRIGHT_BROWSERS_PATH:playwright-browsers}
         skip-browser-download: ${CHAT_WEB_SEARCH_BROWSER_SKIP_DOWNLOAD:false}
     web-crawler:
+      browser-fallback-to-java: ${CHAT_WEB_CRAWLER_BROWSER_FALLBACK_TO_JAVA:true}
       browser:
         browsers-path: ${PLAYWRIGHT_BROWSERS_PATH:playwright-browsers}
         skip-browser-download: ${PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD:false}

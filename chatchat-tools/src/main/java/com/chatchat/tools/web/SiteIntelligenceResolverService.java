@@ -42,7 +42,9 @@ public class SiteIntelligenceResolverService {
         int timeout = timeoutMs < 0 ? properties.getTimeoutMs() : timeoutMs;
         SiteDiscovery discovery = new SiteDiscovery(normalizedUrl, firstNonBlank(probeQuery, "test"));
         inspectStatic(normalizedUrl, timeout, discovery);
-        if ("browser".equals(resolvedMode) || ("auto".equals(resolvedMode) && browserEnabled())) {
+        discovery.browserRequested = "browser".equals(resolvedMode)
+            || ("auto".equals(resolvedMode) && browserEnabled());
+        if (discovery.browserRequested) {
             inspectBrowser(normalizedUrl, timeout, discovery);
         }
         addHeuristicCandidates(normalizedUrl, discovery);
@@ -493,6 +495,7 @@ public class SiteIntelligenceResolverService {
         private String finalUrl;
         private String title = "";
         private boolean staticInspected;
+        private boolean browserRequested;
         private boolean browserInspected;
         private boolean hasSearchBox;
         private boolean hasSitemap;
@@ -540,8 +543,17 @@ public class SiteIntelligenceResolverService {
             result.put("final_url", finalUrl);
             result.put("title", title);
             result.put("mode", mode);
+            result.put("effective_mode", browserInspected ? "browser" : (staticInspected ? "java" : "unavailable"));
             result.put("static_inspected", staticInspected);
+            result.put("browser_requested", browserRequested);
             result.put("browser_inspected", browserInspected);
+            result.put("browser_fallback_used", browserRequested && !browserInspected && staticInspected);
+            if (browserRequested && !browserInspected) {
+                result.put("browser_fallback_reason", errors.stream()
+                    .filter(error -> error.startsWith("browser_"))
+                    .findFirst()
+                    .orElse("browser_unavailable"));
+            }
             result.put("capabilities", capabilities);
             result.put("discovered_routes", discoveredRoutes);
             result.put("recommended_strategy", recommendedStrategyStatic(this));

@@ -46,6 +46,8 @@ public class WebCrawlerProperties {
 
     private String defaultMode = "browser";
 
+    private boolean browserFallbackToJava = true;
+
     private BrowserProperties browser = new BrowserProperties();
 
     private ProxyPoolProperties proxyPool = new ProxyPoolProperties();

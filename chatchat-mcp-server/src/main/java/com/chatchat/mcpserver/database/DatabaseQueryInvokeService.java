@@ -121,6 +121,7 @@ public class DatabaseQueryInvokeService {
         }
         if (capabilities.stream().noneMatch(value -> value.equals("database_query")
             || value.equals("sql_query_execute")
+            || value.equals("sql_script_execute")
             || value.equals("sql_exec")
             || value.equals("sql")
             || value.equals("jdbc"))) {
@@ -277,7 +278,15 @@ public class DatabaseQueryInvokeService {
         systemContext.put("currentUser", invocationUserId(userInput));
         systemContext.put("datasourceId", baseParameters.get("datasource_id"));
         systemContext.put("datasourceName", baseParameters.get("datasource_name"));
+        String workflowExecutionNo = UUID.randomUUID().toString();
+        log.info("Database query workflow prepared executionNo={} databaseQueryId={} tool={} datasourceId={} datasourceName={} executionMode={} nodeCount={} maxParallelism={} inputParameterKeys={} nodes={}",
+            workflowExecutionNo, config.getId(), config.getToolName(), baseParameters.get("datasource_id"),
+            baseParameters.get("datasource_name"), dependencyWorkflow ? "DEPENDENCY_GRAPH" : "SEQUENTIAL",
+            workflowNodes.size(), workflowMaxParallelism, userInput.keySet(),
+            workflowNodes.stream().map(node -> Map.of(
+                "code", node.code(), "order", node.displayOrder(), "dependencies", node.dependencies())).toList());
         SqlWorkflowExecution execution = workflowEngine.execute(
+            workflowExecutionNo,
             workflowNodes,
             userInput,
             systemContext,
@@ -286,12 +295,22 @@ public class DatabaseQueryInvokeService {
             DatabaseQuerySqlStep stepConfig = stepConfigs.get(node.code());
             long stepStartedAt = System.currentTimeMillis();
             Map<String, Object> stepParameters = parametersForSqlStep(config, baseParameters, stepConfig, resolvedParameters);
-            log.info("MCP execution detail: executionType=SQL_QUERY_STEP, source=database_query, databaseQueryId={}, tool={}, executionOrder={}, sqlCode={}, sqlName={}, maxRows={}, timeoutSeconds={}, sql={}",
-                config.getId(), config.getToolName(), stepConfig.getExecutionOrder(), stepConfig.getSqlCode(),
-                stepConfig.getSqlName(), stepParameters.getOrDefault("max_rows", stepParameters.get("maxRows")),
+            log.info("MCP execution detail: executionType=SQL_QUERY_STEP, source=sql_script_execute, executionNo={}, databaseQueryId={}, tool={}, executionOrder={}, sqlCode={}, sqlName={}, resolvedParameterKeys={}, maxRows={}, timeoutSeconds={}, sql={}",
+                workflowExecutionNo, config.getId(), config.getToolName(), stepConfig.getExecutionOrder(), stepConfig.getSqlCode(),
+                stepConfig.getSqlName(), resolvedParameters.keySet(),
+                stepParameters.getOrDefault("max_rows", stepParameters.get("maxRows")),
                 stepParameters.getOrDefault("timeoutSeconds", stepParameters.get("timeout_seconds")), stepParameters.get("sql"));
             ToolOutput step = invokeSingleStatement(stepParameters);
             long stepDurationMs = Math.max(0L, System.currentTimeMillis() - stepStartedAt);
+            if (step.isSuccess()) {
+                log.info("Database query workflow SQL completed executionNo={} databaseQueryId={} tool={} sqlCode={} sqlName={} status=SUCCESS rowCount={} durationMs={}",
+                    workflowExecutionNo, config.getId(), config.getToolName(), stepConfig.getSqlCode(), stepConfig.getSqlName(),
+                    rowCount(mapValue(step.getData()).get("rows")), stepDurationMs);
+            } else {
+                log.warn("Database query workflow SQL failed executionNo={} databaseQueryId={} tool={} sqlCode={} sqlName={} status=FAILED durationMs={} error={}",
+                    workflowExecutionNo, config.getId(), config.getToolName(), stepConfig.getSqlCode(), stepConfig.getSqlName(),
+                    stepDurationMs, step.getErrorMessage());
+            }
             auditService.recordDatabaseQueryStepCall(
                 config, stepConfig.getSqlCode(), stepConfig.getSqlName(),
                 text(baseParameters, "datasource_name"), String.valueOf(stepParameters.get("sql")),
@@ -307,6 +326,9 @@ public class DatabaseQueryInvokeService {
         int failedCount = (int) execution.steps().stream().filter(item -> "FAILED".equals(item.status())).count();
         int skippedCount = (int) execution.steps().stream().filter(item -> "SKIPPED".equals(item.status())).count();
         long durationMs = execution.durationMs();
+        log.info("Database query workflow result assembled executionNo={} databaseQueryId={} tool={} status={} resultSetCount={} modelResultSetCount={} failedCount={} skippedCount={} durationMs={}",
+            execution.executionNo(), config.getId(), config.getToolName(), execution.status(), resultSets.size(),
+            modelResultSets.size(), failedCount, skippedCount, durationMs);
         Map<String, Object> firstSuccess = firstSuccessResult(modelResultSets);
         Map<String, Object> data = new LinkedHashMap<>();
         data.put("mode", dependencyWorkflow ? "database_query_workflow" : "database_query_multi_sql");

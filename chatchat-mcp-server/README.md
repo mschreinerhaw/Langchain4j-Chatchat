@@ -232,6 +232,8 @@ chatchat:
 
 When `browser.enabled` is true, `web_search` first tries Playwright Chromium rendering (`page.navigate`, `NETWORKIDLE`, `page.content`) and falls back to the original HTTP fetcher if browser rendering is unavailable or fails.
 
+`web_crawler`, `crawl_url`, and browser-assisted site intelligence use the same compatibility policy. If the Playwright browser cache is missing, Chromium cannot start, or browser navigation fails, page retrieval continues through the Java HTTP/JSoup implementation. Set `CHAT_WEB_CRAWLER_BROWSER_FALLBACK_TO_JAVA=false` only when strict browser-only execution is required. Page-result cache read/write failures are treated as cache misses and do not stop retrieval.
+
 Playwright browser binaries can be pre-downloaded into a fixed directory instead of using the OS default cache. The MCP package defaults to `playwright-browsers`; when this directory contains `windows` and `linux` subdirectories, the runtime automatically selects the current OS subdirectory. Override it in `config/env.local` when packages need a different absolute path:
 
 ```properties

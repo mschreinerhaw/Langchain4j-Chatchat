@@ -173,7 +173,8 @@ public class DatabaseQueryAdminController {
             draft.setSqlStepsJson(writeSqlSteps(request.sqlSteps()));
             draft.setMaxRows(request.maxRows() == null ? 50 : request.maxRows());
             draft.setTimeoutSeconds(request.timeoutSeconds() == null ? 30 : request.timeoutSeconds());
-            draft.setCapabilitiesJson(ModelProtocolJson.compact(List.of("database_query", "sql_query_execute", "jdbc")));
+            draft.setCapabilitiesJson(ModelProtocolJson.compact(List.of(
+                "database_query", "sql_query_execute", "sql_script_execute", "jdbc")));
             return ApiResponse.success(invokeService.invoke(draft, request.params()));
         }
         return ApiResponse.success(invokeService.invoke(toParameters(request)));

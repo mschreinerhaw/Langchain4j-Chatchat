@@ -314,6 +314,8 @@ chatchat:
       accept-language: en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7
       # Default crawl_url mode: browser = Playwright Chromium rendering; java = JSoup HTTP with browser-like headers; auto = browser when enabled.
       default-mode: browser
+      # Fall back to the Java HTTP fetcher when Chromium cache/startup/navigation is unavailable.
+      browser-fallback-to-java: ${CHAT_WEB_CRAWLER_BROWSER_FALLBACK_TO_JAVA:true}
       browser:
         enabled: true
         browsers-path: ${PLAYWRIGHT_BROWSERS_PATH:playwright-browsers}

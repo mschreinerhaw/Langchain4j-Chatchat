@@ -120,6 +120,7 @@ chatchat:
         browsers-path: playwright-browsers
         skip-browser-download: false
     web-crawler:
+      browser-fallback-to-java: ${CHAT_WEB_CRAWLER_BROWSER_FALLBACK_TO_JAVA:true}
       browser:
         browsers-path: playwright-browsers
         skip-browser-download: false

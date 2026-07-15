@@ -33,7 +33,7 @@ public class DatabaseQueryMcpToolPublisher {
         managedToolNames.clear();
 
         mcpSyncServer.notifyToolsListChanged();
-        log.info("Database query per-template MCP publishing disabled; use business_query_template_search + sql_query_execute");
+        log.info("Database query per-template MCP publishing disabled; use business_query_template_search and follow its execution binding (sql_script_execute for DAG/multi-SQL templates)");
     }
 
     private void remove(String toolName) {

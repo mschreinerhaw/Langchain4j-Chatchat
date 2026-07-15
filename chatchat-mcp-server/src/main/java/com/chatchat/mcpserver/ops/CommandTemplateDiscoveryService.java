@@ -1090,6 +1090,7 @@ public class CommandTemplateDiscoveryService {
                                                  int rank) {
         List<String> signals = intentSignals(config);
         String toolName = firstText(config.getToolName(), config.getId());
+        String executorTool = databaseQueryExecutorTool(config);
         Map<String, Object> parameterSchema = parameterSchema(config.getInputSchemaJson());
         List<String> requiredParameters = requiredParameters(parameterSchema);
         Map<String, Object> executionContext = databaseQueryExecutionContext(config);
@@ -1109,12 +1110,12 @@ public class CommandTemplateDiscoveryService {
             "id", toolName,
             "templateId", toolName,
             "databaseQueryId", config.getId(),
-            "mcpToolName", toolName,
+            "mcpToolName", executorTool,
             "templateConfig", databaseQueryTemplateConfig(config, datasourceAsset, executionContext, parameterSchema),
             "datasourceAsset", datasourceAsset,
             "executionContext", executionContext,
             "sqlExecutionBinding", mapOf(
-                "toolName", "sql_query_execute",
+                "toolName", executorTool,
                 "templateId", toolName,
                 "executionContext", executionContext,
                 "parametersPath", "parameters"
@@ -1141,7 +1142,7 @@ public class CommandTemplateDiscoveryService {
             "usageCount", config.getUsageCount(),
             "marketplace", mapOf(
                 "registry", "business_database_query",
-                "publishMode", "template_to_mcp_tool",
+                "publishMode", "template_via_execution_gateway",
                 "governance", mapOf(
                     "intent", firstText(config.getTemplateIntent(), "general_query"),
                     "businessGroup", businessGroupMetadata(config),
@@ -1159,18 +1160,29 @@ public class CommandTemplateDiscoveryService {
             ),
             "execution", mapOf(
                 "mode", "template_execution",
-                "executorTool", "sql_query_execute",
+                "executorTool", executorTool,
                 "template", toolName,
-                "callTool", toolName,
+                "callTool", executorTool,
                 "executionContext", executionContext,
                 "argumentSchemaPath", "templates[].parameterSchema"
             ),
             "parameterSchema", parameterSchema,
             "requiredParameters", requiredParameters,
-            "parameterContract", directParameterContract(toolName, parameterSchema),
-            "invocationExample", directInvocationExample(toolName, parameterSchema),
+            "parameterContract", parameterContract(toolName, parameterSchema,
+                executorTool + ".parameters", executorTool),
+            "invocationExample", invocationExample(toolName, parameterSchema, executorTool,
+                "<assetName from datasourceAsset>", "<env>"),
             "enabled", config.isEnabled()
         );
+    }
+
+    private String databaseQueryExecutorTool(DatabaseQueryConfig config) {
+        List<DatabaseQuerySqlStep> steps = databaseQuerySqlSteps(config).stream()
+            .filter(DatabaseQuerySqlStep::enabled)
+            .toList();
+        boolean workflow = steps.size() > 1
+            || steps.stream().anyMatch(step -> Boolean.TRUE.equals(step.getWorkflowEnabled()));
+        return workflow ? "sql_script_execute" : "sql_query_execute";
     }
 
     private Map<String, Object> databaseQueryExecutionContext(DatabaseQueryConfig config) {
@@ -1267,14 +1279,7 @@ public class CommandTemplateDiscoveryService {
     }
 
     private Map<String, Object> databaseQueryWorkflowMetadata(DatabaseQueryConfig config) {
-        List<DatabaseQuerySqlStep> steps;
-        try {
-            steps = config.getSqlStepsJson() == null || config.getSqlStepsJson().isBlank()
-                ? List.of()
-                : objectMapper.readValue(config.getSqlStepsJson(), new TypeReference<List<DatabaseQuerySqlStep>>() {});
-        } catch (Exception ignored) {
-            steps = List.of();
-        }
+        List<DatabaseQuerySqlStep> steps = databaseQuerySqlSteps(config);
         boolean dependencyGraph = steps.stream().anyMatch(step -> Boolean.TRUE.equals(step.getWorkflowEnabled()));
         return mapOf(
             "schemaVersion", "database_query_workflow_definition.v1",
@@ -1294,6 +1299,16 @@ public class CommandTemplateDiscoveryService {
             )).toList(),
             "queryBodyReturned", false
         );
+    }
+
+    private List<DatabaseQuerySqlStep> databaseQuerySqlSteps(DatabaseQueryConfig config) {
+        try {
+            return config.getSqlStepsJson() == null || config.getSqlStepsJson().isBlank()
+                ? List.of()
+                : objectMapper.readValue(config.getSqlStepsJson(), new TypeReference<List<DatabaseQuerySqlStep>>() {});
+        } catch (Exception ignored) {
+            return List.of();
+        }
     }
 
     private NormalizedIntent normalizeIntent(Map<String, Object> filters) {

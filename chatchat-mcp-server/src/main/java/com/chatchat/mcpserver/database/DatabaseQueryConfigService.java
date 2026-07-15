@@ -296,7 +296,7 @@ public class DatabaseQueryConfigService {
         ));
         config.setCapabilitiesJson(firstText(
             normalizeJsonArray(mergedProtocolValues(config.getCapabilitiesJson(), config.getCapabilities()), "capabilities"),
-            ModelProtocolJson.compact(List.of("database_query", "sql_query_execute", "jdbc"))
+            ModelProtocolJson.compact(List.of("database_query", "sql_query_execute", "sql_script_execute", "jdbc"))
         ));
         config.setMaxRows(config.getMaxRows() <= 0 ? 50 : Math.min(500, config.getMaxRows()));
         config.setTimeoutSeconds(config.getTimeoutSeconds() <= 0 ? 30 : Math.min(300, config.getTimeoutSeconds()));

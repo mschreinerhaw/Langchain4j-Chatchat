@@ -113,7 +113,8 @@ public class WebCrawlerService {
         String crawlMode = resolveMode(mode, render);
         WebCrawlerProperties.ProxyConfig proxy = chooseProxy(context);
         String cacheNamespace = "page:" + crawlMode + ":" + proxyId(proxy);
-        WebToolCache.CacheLookup cache = cacheService.get(cacheNamespace, normalizedUrl);
+        CacheReadResult cacheRead = readCache(cacheNamespace, normalizedUrl);
+        WebToolCache.CacheLookup cache = cacheRead.lookup();
         if (cache.hit()) {
             Map<String, Object> cached = new LinkedHashMap<>(cache.data());
             cached.put("cacheHit", true);
@@ -128,6 +129,7 @@ public class WebCrawlerService {
             Set<String> visited = new LinkedHashSet<>();
             String currentUrl = normalizedUrl;
             Map<String, Object> output = null;
+            List<Map<String, Object>> browserFallbacks = new ArrayList<>();
             int maxFollowUrls = Math.max(0, properties.getMaxFollowUrls());
             for (int hop = 0; hop <= maxFollowUrls; hop++) {
                 String comparableUrl = normalizeComparableUrl(currentUrl);
@@ -138,12 +140,25 @@ public class WebCrawlerService {
                 log.info("Web crawler request started url={} mode={} renderRequested={} timeoutMs={} proxy={} hop={}/{}",
                     currentUrl, crawlMode, render, timeout, proxyId(proxy), hop, maxFollowUrls);
                 String effectiveCrawlMode = effectiveCrawlMode(crawlMode, currentUrl);
-                CrawlResponse response = "browser".equals(effectiveCrawlMode)
-                    ? fetchWithBrowser(currentUrl, timeout, proxy)
-                    : fetchWithJava(currentUrl, timeout, proxy);
-                output = buildOutput(normalizedUrl, response, effectiveCrawlMode, render, startedAt, proxy, context);
+                CrawlFetchResult fetchResult = fetchWithCompatibilityFallback(
+                    currentUrl, crawlMode, effectiveCrawlMode, timeout, proxy);
+                CrawlResponse response = fetchResult.response();
+                if (fetchResult.browserFallbackUsed()) {
+                    browserFallbacks.add(Map.of(
+                        "url", currentUrl,
+                        "from", "browser",
+                        "to", "java",
+                        "reason", fetchResult.fallbackReason()
+                    ));
+                }
+                output = buildOutput(normalizedUrl, response, fetchResult.actualMode(), render, startedAt, proxy, context);
                 output.put("requestedCrawlMode", crawlMode);
-                output.put("browserFallbackUsed", !crawlMode.equals(effectiveCrawlMode));
+                output.put("browserFallbackUsed", !browserFallbacks.isEmpty());
+                output.put("browserFallbacks", List.copyOf(browserFallbacks));
+                output.put("cacheReadFallbackUsed", cacheRead.failed());
+                if (cacheRead.failed()) {
+                    output.put("cacheReadError", cacheRead.error());
+                }
                 crawlChain.add(crawlChainItem(hop, currentUrl, response, output));
                 if (!response.htmlResource()) {
                     break;
@@ -167,15 +182,76 @@ public class WebCrawlerService {
             if (!crawlChain.isEmpty()) {
                 output.put("finalRequestedUrl", crawlChain.get(crawlChain.size() - 1).get("requestedUrl"));
             }
-            cacheService.put(cacheNamespace, normalizedUrl, output, properties.getCacheTtlSeconds());
-            log.info("Web crawler request succeeded url={} mode={} engine={} proxy={} durationMs={} contentLength={}",
-                output.get("url"), crawlMode, output.get("renderEngine"), proxyId(proxy), output.get("durationMs"), output.get("contentLength"));
+            writeCache(cacheNamespace, normalizedUrl, output);
+            log.info("Web crawler request succeeded url={} requestedMode={} effectiveMode={} engine={} browserFallbackUsed={} proxy={} durationMs={} contentLength={}",
+                output.get("url"), crawlMode, output.get("crawlMode"), output.get("renderEngine"),
+                output.get("browserFallbackUsed"), proxyId(proxy), output.get("durationMs"), output.get("contentLength"));
             return output;
         } catch (Exception ex) {
             log.warn("Web crawler request failed url={} mode={} proxy={} error={}",
                 normalizedUrl, crawlMode, proxyId(proxy), ex.getMessage());
             throw new IllegalStateException("Failed to crawl URL: " + ex.getMessage(), ex);
         }
+    }
+
+    private CacheReadResult readCache(String namespace, String cacheKey) {
+        try {
+            WebToolCache.CacheLookup lookup = cacheService.get(namespace, cacheKey);
+            return new CacheReadResult(lookup == null ? WebToolCache.CacheLookup.miss() : lookup, false, "");
+        } catch (Exception ex) {
+            log.warn("Web crawler cache lookup failed namespace={} url={}, continuing without cache error={}",
+                namespace, cacheKey, ex.getMessage());
+            return new CacheReadResult(WebToolCache.CacheLookup.miss(), true, safeErrorMessage(ex));
+        }
+    }
+
+    private void writeCache(String namespace, String cacheKey, Map<String, Object> output) {
+        try {
+            cacheService.put(namespace, cacheKey, output, properties.getCacheTtlSeconds());
+        } catch (Exception ex) {
+            output.put("cacheWriteFailed", true);
+            output.put("cacheWriteError", safeErrorMessage(ex));
+            log.warn("Web crawler cache write failed namespace={} url={}, returning uncached result error={}",
+                namespace, cacheKey, ex.getMessage());
+        }
+    }
+
+    private CrawlFetchResult fetchWithCompatibilityFallback(String url,
+                                                             String requestedMode,
+                                                             String effectiveMode,
+                                                             int timeout,
+                                                             WebCrawlerProperties.ProxyConfig proxy) throws IOException {
+        if (!"browser".equals(effectiveMode)) {
+            boolean browserAdjustedToJava = "browser".equals(requestedMode);
+            return new CrawlFetchResult(
+                fetchWithJava(url, timeout, proxy),
+                "java",
+                browserAdjustedToJava,
+                browserAdjustedToJava ? "browser_not_applicable_for_resource" : ""
+            );
+        }
+        try {
+            return new CrawlFetchResult(fetchWithBrowser(url, timeout, proxy), "browser", false, "");
+        } catch (Exception browserError) {
+            if (!properties.isBrowserFallbackToJava()) {
+                throw browserError instanceof RuntimeException runtimeException
+                    ? runtimeException
+                    : new IllegalStateException(browserError.getMessage(), browserError);
+            }
+            log.warn("Web crawler browser fetch unavailable url={} error={}, falling back to Java HTTP fetcher",
+                url, browserError.getMessage());
+            return new CrawlFetchResult(
+                fetchWithJava(url, timeout, proxy),
+                "java",
+                true,
+                safeErrorMessage(browserError)
+            );
+        }
+    }
+
+    private String safeErrorMessage(Exception error) {
+        String message = error == null ? "unknown error" : error.getMessage();
+        return message == null || message.isBlank() ? error.getClass().getSimpleName() : message;
     }
 
     private CrawlResponse fetchWithJava(String normalizedUrl,
@@ -1316,6 +1392,15 @@ public class WebCrawlerService {
                                       String contentType,
                                       boolean truncated,
                                       String error) {
+    }
+
+    private record CacheReadResult(WebToolCache.CacheLookup lookup, boolean failed, String error) {
+    }
+
+    private record CrawlFetchResult(CrawlResponse response,
+                                    String actualMode,
+                                    boolean browserFallbackUsed,
+                                    String fallbackReason) {
     }
 
     private record CrawlResponse(String url,

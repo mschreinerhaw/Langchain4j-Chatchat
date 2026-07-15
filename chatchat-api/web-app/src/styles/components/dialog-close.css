@@ -1,0 +1,42 @@
+.app-dialog-close {
+  width: 30px !important;
+  min-width: 30px !important;
+  height: 30px !important;
+  min-height: 30px !important;
+  flex: 0 0 30px !important;
+  display: inline-grid !important;
+  place-items: center !important;
+  padding: 0 !important;
+  border: 1px solid transparent !important;
+  border-radius: 8px !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  color: #98a2b3 !important;
+  font-size: 20px !important;
+  font-weight: 400 !important;
+  line-height: 1 !important;
+  cursor: pointer;
+  transition: color 0.16s ease, background 0.16s ease, border-color 0.16s ease, transform 0.16s ease !important;
+}
+
+.app-dialog-close:hover:not(:disabled) {
+  border-color: #e4e7ec !important;
+  background: #f7f8fa !important;
+  color: #344054 !important;
+  transform: rotate(4deg);
+}
+
+.app-dialog-close:active:not(:disabled) {
+  background: #eef1f5 !important;
+  transform: scale(0.94);
+}
+
+.app-dialog-close:focus-visible {
+  outline: 3px solid rgba(47, 124, 246, 0.18) !important;
+  outline-offset: 2px;
+}
+
+.app-dialog-close:disabled {
+  cursor: not-allowed !important;
+  opacity: 0.45 !important;
+}

@@ -162,6 +162,33 @@
   -webkit-line-clamp: 2;
 }
 
+.trading-day-tag {
+  display: inline-flex;
+  margin-top: 6px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: #eef4ff;
+  color: #175cd3;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.schedule-status-cell {
+  min-width: 0;
+  display: grid;
+  justify-items: start;
+  gap: 5px;
+}
+
+.schedule-status-cell small {
+  max-width: 160px;
+  overflow: hidden;
+  color: #b42335;
+  font-size: 11px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .schedule-table-row b {
   width: fit-content;
   padding: 3px 7px;
@@ -178,9 +205,16 @@
 
 .schedule-table-row b.cancelled,
 .schedule-table-row b.failed,
-.schedule-table-row b.expired {
+.schedule-table-row b.expired,
+.schedule-table-row b.schedule-error,
+.schedule-table-row b.trading-day-check-failed {
   background: #fff3f4;
   color: #b42335;
+}
+
+.schedule-table-row b.skipped-non-trading-day {
+  background: #fff8e6;
+  color: #8a5b00;
 }
 
 .agent-schedule-view .field {

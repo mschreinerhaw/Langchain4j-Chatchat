@@ -38,6 +38,8 @@
           <option value="RUNNING">RUNNING</option>
           <option value="COMPLETED">COMPLETED</option>
           <option value="FAILED">FAILED</option>
+          <option value="SCHEDULE_ERROR">调度异常</option>
+          <option value="SKIPPED_NON_TRADING_DAY">非交易日已跳过</option>
           <option value="CANCELLED">CANCELLED</option>
           <option value="EXPIRED">EXPIRED</option>
         </select>
@@ -69,11 +71,15 @@
           <div class="schedule-main-cell">
             <strong>{{ schedule.name || schedule.taskId }}</strong>
             <p>{{ schedule.question }}</p>
+            <small v-if="schedule.tradingDayOnly" class="trading-day-tag">仅交易日</small>
           </div>
           <span>{{ scheduleAgentName(schedule) }}</span>
           <span>{{ scheduleTimeLabel(schedule) }}</span>
           <span>{{ formatDateTime(schedule.nextFireTime) }}</span>
-          <b :class="scheduleStatusClass(schedule.status)">{{ schedule.status || "-" }}</b>
+          <div class="schedule-status-cell">
+            <b :class="scheduleStatusClass(scheduleEffectiveStatus(schedule))">{{ scheduleStatusLabel(schedule) }}</b>
+            <small v-if="schedule.lastError" :title="schedule.lastError">{{ schedule.lastError }}</small>
+          </div>
           <div class="schedule-row-actions">
             <button type="button" class="light-button" :disabled="saving" @click="toggleSchedule(schedule)">
               {{ isScheduleActive(schedule) ? "停用" : "启用" }}
@@ -202,6 +208,10 @@
             <label>
               <input v-model="form.notifyEnabled" :disabled="saving" type="checkbox" />
               <span>完成后通知</span>
+            </label>
+            <label title="触发时由MCP交易日接口判断；非交易日自动跳过">
+              <input v-model="form.tradingDayOnly" :disabled="saving" type="checkbox" />
+              <span>仅交易日执行</span>
             </label>
           </div>
         </section>

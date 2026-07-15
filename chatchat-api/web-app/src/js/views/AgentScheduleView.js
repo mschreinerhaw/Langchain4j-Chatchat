@@ -58,7 +58,8 @@ function emptyForm(agentId = "") {
     intervalMinutes: 60,
     cron: "0 0 8 * * ?",
     enabled: true,
-    notifyEnabled: false
+    notifyEnabled: false,
+    tradingDayOnly: false
   };
 }
 
@@ -124,7 +125,7 @@ export default {
       const keyword = this.filters.keyword.trim().toLowerCase();
       const status = this.filters.status.trim().toUpperCase();
       return this.schedules.filter((schedule) => {
-        if (status && String(schedule.status || "").toUpperCase() !== status) {
+        if (status && this.scheduleEffectiveStatus(schedule) !== status) {
           return false;
         }
         if (!keyword) {
@@ -136,6 +137,8 @@ export default {
           schedule.agentId,
           this.scheduleAgentName(schedule),
           schedule.status,
+          schedule.lastTaskStatus,
+          schedule.lastError,
           schedule.cronExpr
         ];
         return fields.some((field) => String(field || "").toLowerCase().includes(keyword));
@@ -253,6 +256,7 @@ export default {
         enabled: this.form.enabled,
         question,
         notifyEnabled: this.form.notifyEnabled,
+        tradingDayOnly: this.form.tradingDayOnly,
         payload
       };
       if (this.form.mode === "once") {
@@ -341,9 +345,16 @@ export default {
       this.saving = true;
       this.error = "";
       try {
-        await rerunAgentSchedule(id, this.tenantId);
-        this.notice = "已提交立即执行";
+        const result = await rerunAgentSchedule(id, this.tenantId);
         await this.loadSchedules();
+        if (result?.status === "TRADING_DAY_CHECK_FAILED") {
+          this.error = result.errorMessage || "交易日判断失败";
+          this.notice = "";
+        } else if (result?.status === "SKIPPED_NON_TRADING_DAY") {
+          this.notice = "当前不是交易日，本次调度已跳过";
+        } else {
+          this.notice = "已提交立即执行";
+        }
       } catch (error) {
         this.error = error.message || "立即执行失败";
       } finally {
@@ -394,6 +405,25 @@ export default {
     },
     scheduleStatusClass(status) {
       return String(status || "").toLowerCase().replace(/_/g, "-");
+    },
+    scheduleEffectiveStatus(schedule) {
+      if (schedule?.lastTaskStatus === "TRADING_DAY_CHECK_FAILED") {
+        return "SCHEDULE_ERROR";
+      }
+      if (schedule?.lastTaskStatus === "SKIPPED_NON_TRADING_DAY") {
+        return "SKIPPED_NON_TRADING_DAY";
+      }
+      return String(schedule?.status || "").toUpperCase();
+    },
+    scheduleStatusLabel(schedule) {
+      const status = this.scheduleEffectiveStatus(schedule);
+      if (status === "SCHEDULE_ERROR") {
+        return "调度异常";
+      }
+      if (status === "SKIPPED_NON_TRADING_DAY") {
+        return "非交易日已跳过";
+      }
+      return status || "-";
     }
   }
 };

@@ -123,6 +123,113 @@ class ToolObservationBuilderEvidenceTest {
     }
 
     @Test
+    void dynamicDatabaseQueryPreservesCompleteSingleCellSqlEvidence() {
+        String status = "BACKGROUND THREAD\n"
+            + "x".repeat(5_000)
+            + "\nTRANSACTIONS\ntransaction details"
+            + "\nFILE I/O\nio details"
+            + "\nBUFFER POOL AND MEMORY\nbuffer details";
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("schemaVersion", "tool_execution_result.v1");
+        result.put("kind", "sql_query");
+        result.put("dataSchema", "sql_result.v1");
+        result.put("success", true);
+        result.put("status", "success");
+        result.put("target", Map.of("name", "248测试数据库", "toolName", "db_query_mysql_248_test_db"));
+        result.put("data", Map.of(
+            "rowCount", 1,
+            "possiblyTruncated", false,
+            "columns", List.of("Type", "Name", "Status"),
+            "rows", List.of(Map.of("Type", "InnoDB", "Name", "", "Status", status))
+        ));
+
+        String observation = builder.buildSuccessObservation(
+            "db_query_mysql_248_test_db",
+            ToolOutput.success(result, "Database query completed successfully"),
+            "unused generic preview"
+        );
+        String synthesisEvidence = builder.buildAuthoritativeExecutionEvidence("db_query_mysql_248_test_db", result);
+
+        assertThat(observation)
+            .contains("rowCount=1, returnedRowCount=1, partial=false")
+            .contains("TRANSACTIONS")
+            .contains("FILE I/O")
+            .contains("BUFFER POOL AND MEMORY")
+            .doesNotContain("unused generic preview");
+        assertThat(synthesisEvidence)
+            .contains("x".repeat(5_000))
+            .contains("BUFFER POOL AND MEMORY")
+            .doesNotContain("[truncated]");
+    }
+
+    @Test
+    void dynamicLinuxToolPreservesReturnedStreamsAndExplicitTruncationFacts() {
+        String stdout = "service head\n" + "x".repeat(5_000) + "\nservice tail";
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("schemaVersion", "tool_execution_result.v1");
+        result.put("kind", "ssh_command");
+        result.put("dataSchema", "ssh_steps.v1");
+        result.put("success", true);
+        result.put("status", "success");
+        result.put("operation", Map.of("type", "ssh.command_steps", "template", "SERVICE_STATUS"));
+        result.put("data", Map.of(
+            "transportSuccess", true,
+            "commandSuccess", true,
+            "exitCode", 0,
+            "stdout", stdout,
+            "stderr", "",
+            "outputLimits", Map.of(
+                "strategy", "HEAD_TAIL_PER_STREAM",
+                "stdoutOriginalLength", stdout.length(),
+                "stdoutReturnedLength", stdout.length(),
+                "stdoutTruncated", false,
+                "stderrOriginalLength", 0,
+                "stderrReturnedLength", 0,
+                "stderrTruncated", false
+            )
+        ));
+
+        String evidence = builder.buildAuthoritativeExecutionEvidence("ops_linux_service_status", result);
+
+        assertThat(evidence)
+            .contains("transportSuccess=true", "commandSuccess=true", "exitCode=0")
+            .contains("stdoutOriginalLength=" + stdout.length())
+            .contains("stdoutTruncated=false")
+            .contains("service head", "x".repeat(5_000), "service tail")
+            .doesNotContain("SERVICE_STATUS");
+    }
+
+    @Test
+    void standardRuntimeContractPreservesUnknownToolDataWithoutPurposeHardcoding() {
+        String body = "response head\n" + "y".repeat(5_000) + "\nresponse tail";
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("schemaVersion", "tool_execution_result.v1");
+        result.put("kind", "future_tool_kind");
+        result.put("dataSchema", "future_result.v1");
+        result.put("payloadType", "structured");
+        result.put("success", true);
+        result.put("status", "success");
+        result.put("target", Map.of("type", "future_target", "name", "target-1"));
+        result.put("sourceMetadata", Map.of("sourceType", "FUTURE_TOOL"));
+        result.put("operation", Map.of("type", "future.execute", "secretInput", "must-not-reach-model"));
+        result.put("data", Map.of("body", body, "complete", true));
+        result.put("_truncated", true);
+        result.put("outputTruncation", Map.of("strategy", "STRUCTURE_AWARE_HEAD_TAIL", "maxOutputChars", 200_000));
+
+        String evidence = builder.buildAuthoritativeExecutionEvidence("future_dynamic_tool", result);
+
+        assertThat(evidence)
+            .contains("schemaVersion=tool_execution_result.v1")
+            .contains("kind=future_tool_kind")
+            .contains("sourceType=FUTURE_TOOL")
+            .contains("response head", "y".repeat(5_000), "response tail")
+            .contains("complete=true")
+            .contains("Transport truncated: true")
+            .contains("STRUCTURE_AWARE_HEAD_TAIL", "maxOutputChars=200000")
+            .doesNotContain("must-not-reach-model");
+    }
+
+    @Test
     void linuxExecutionObservationPreservesLineBreaksAndTailError() {
         Map<String, Object> step = new LinkedHashMap<>();
         step.put("stepIndex", 1);

@@ -2425,6 +2425,102 @@ class InterpretationPlanRuntimeTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    void resolvesMatchingBindingPlaceholderAtNestedInputPath() throws Exception {
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            mock(ToolRuntimeService.class),
+            new InterpretationPlanValidator(),
+            mock(InterpretationPlanRuntime.DagExecutionController.class)
+        );
+        InterpretationPlan.Step sourceStep = new InterpretationPlan.Step(
+            1, "mcp_tool", "database_asset_search", Map.of(), List.of(), null, null);
+        InterpretationPlan.Step targetStep = new InterpretationPlan.Step(
+            2,
+            "mcp_tool",
+            "database_ops_template_search",
+            Map.of("filters", Map.of("assetName", "{{bindings.assetName}}", "env", "DEV")),
+            List.of(1),
+            null,
+            null
+        );
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("database_ops", "Inspect database status", "low"),
+            context(),
+            new InterpretationPlan.Plan(
+                List.of(sourceStep, targetStep),
+                List.of(),
+                List.of(new InterpretationPlan.Binding(
+                    1, "$.assets[0].asset.name", 2, "assetName", "jsonpath", true)),
+                null
+            ),
+            new InterpretationPlan.ExecutionPolicy(
+                2, false, List.of("database_asset_search", "database_ops_template_search"), List.of(), 30000),
+            review()
+        );
+        Map<Integer, InterpretationPlanRuntime.StepExecution> completed = Map.of(
+            1,
+            new InterpretationPlanRuntime.StepExecution(
+                1,
+                "mcp_tool",
+                "database_asset_search",
+                true,
+                Map.of("assets", List.of(Map.of("asset", Map.of("name", "test-database")))),
+                null,
+                null,
+                null,
+                10
+            )
+        );
+        Method method = InterpretationPlanRuntime.class.getDeclaredMethod(
+            "resolvedStepInput",
+            InterpretationPlan.Step.class,
+            InterpretationPlanRuntime.ExecutionRequest.class,
+            Map.class
+        );
+        method.setAccessible(true);
+
+        Map<String, Object> resolved = (Map<String, Object>) method.invoke(
+            runtime,
+            targetStep,
+            new InterpretationPlanRuntime.ExecutionRequest(
+                plan,
+                mock(ToolRegistry.class),
+                List.of("database_ops_template_search"),
+                "tenant-1",
+                "req-nested-binding",
+                "conv-nested-binding",
+                "user-1",
+                Map.of("agentRuntimeEnvironment", "DEV")
+            ),
+            completed
+        );
+
+        assertThat((Map<String, Object>) resolved.get("filters"))
+            .containsEntry("assetName", "test-database")
+            .containsEntry("env", "DEV");
+        assertThat(resolved).containsEntry("assetName", "test-database");
+    }
+
+    @Test
+    void rejectsUnresolvedBindingPlaceholderBeforeToolExecution() throws Exception {
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            mock(ToolRuntimeService.class),
+            new InterpretationPlanValidator(),
+            mock(InterpretationPlanRuntime.DagExecutionController.class)
+        );
+        Method method = InterpretationPlanRuntime.class.getDeclaredMethod(
+            "assertNoUnresolvedBindingPlaceholders", Object.class);
+        method.setAccessible(true);
+
+        assertThatThrownBy(() -> method.invoke(
+            runtime,
+            Map.of("filters", Map.of("assetName", "{{bindings.assetName}}"))))
+            .hasCauseInstanceOf(IllegalStateException.class)
+            .hasRootCauseMessage("BINDING_FAILED: unresolved binding placeholder at $.filters.assetName");
+    }
+
+    @Test
     void resolvesPlanBindingIntoDownstreamToolInput() {
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         when(toolRegistry.hasTool("web_search")).thenReturn(true);

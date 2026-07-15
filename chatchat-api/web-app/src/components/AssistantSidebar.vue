@@ -53,10 +53,6 @@
           <span>最近对话</span>
           <span>{{ historyLoading ? "加载中" : `${filteredConversations.length}/${recentConversations.length}` }}</span>
         </div>
-        <button class="new-conversation-button" type="button" title="新建对话" @click="$emit('new-conversation')">
-          <Plus :size="15" stroke-width="2.2" />
-          <span>新建对话</span>
-        </button>
         <label class="history-search">
           <Search :size="15" stroke-width="2" />
           <input v-model="historyKeyword" type="search" placeholder="搜索历史会话" />

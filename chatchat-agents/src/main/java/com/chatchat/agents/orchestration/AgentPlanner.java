@@ -231,6 +231,7 @@ class AgentPlanner {
         prompt.append("- Never call a template executor with empty parameters when its discovered contract declares required parameters. Repair the plan with a prior discovery step or bind values from user input/tool output.\n");
         prompt.append("- Template execution must include the logical execution context declared by asset discovery, template routing metadata, metadata-location evidence, or an observed invocation example.\n");
         prompt.append("- Do not put JSONPath strings such as $.assets[0].asset.name inside executionContext. Use plan.bindings only when a prior observed step really returns that field.\n");
+        prompt.append("- Do not put binding placeholders such as {{bindings.assetName}}, ${step1.value}, or empty stand-ins anywhere in step input. Set plan.bindings[].input_field to the complete destination path, for example filters.assetName or executionContext.assetName.\n");
         prompt.append("- Never put a raw command/query inside a discovered template's parameter container unless that exact field is declared by its parameter schema.\n");
         prompt.append("- Do not invent template names or bind an asset display name as a database/schema name; use only structured discovery outputs.\n\n");
         prompt.append("Template-governed HTTP/API/SSH execution contract:\n");

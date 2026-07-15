@@ -7,6 +7,7 @@ import com.chatchat.agents.runtime.AgentRunResult;
 import com.chatchat.agents.runtime.AgentRunStatus;
 import com.chatchat.agents.runtime.InMemoryAgentRunStore;
 import com.chatchat.agents.runtime.plan.InterpretationExecutionProtocol;
+import com.chatchat.agents.runtime.plan.InterpretationPlanRuntime;
 import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.common.config.ModelsConfig;
 import com.chatchat.common.interaction.InteractionToolTrace;
@@ -33,6 +34,45 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class AgentOrchestratorTest {
+
+    @Test
+    void finalSynthesisPromptIncludesCompleteDynamicSqlLongCell() {
+        String status = "BACKGROUND THREAD\n"
+            + "x".repeat(5_000)
+            + "\nTRANSACTIONS\ntransaction details"
+            + "\nFILE I/O\nio details"
+            + "\nBUFFER POOL AND MEMORY\nbuffer details";
+        Map<String, Object> output = new LinkedHashMap<>();
+        output.put("schemaVersion", "tool_execution_result.v1");
+        output.put("kind", "sql_query");
+        output.put("dataSchema", "sql_result.v1");
+        output.put("success", true);
+        output.put("status", "success");
+        output.put("operation", Map.of("type", "sql.query", "statement", "SHOW ENGINE INNODB STATUS"));
+        output.put("data", Map.of(
+            "rowCount", 1,
+            "possiblyTruncated", false,
+            "columns", List.of("Type", "Name", "Status"),
+            "rows", List.of(Map.of("Type", "InnoDB", "Name", "", "Status", status))
+        ));
+        InterpretationPlanRuntime.StepExecution step = new InterpretationPlanRuntime.StepExecution(
+            1, "mcp_tool", "db_query_mysql_248_test_db", true, output, null, null, null, 10L
+        );
+        InterpretationPlanRuntime.ExecutionResult result = new InterpretationPlanRuntime.ExecutionResult(
+            "success", true, false, null, null, List.of(step), Map.of(), 10L
+        );
+
+        String prompt = newOrchestrator(mock(ChatModel.class)).buildInterpretationPlanSummaryPrompt(
+            "分析数据库状态", null, result, List.of(), List.of(), null
+        );
+
+        assertThat(prompt)
+            .contains("authoritativeToolResultEvidence")
+            .contains("x".repeat(5_000))
+            .contains("TRANSACTIONS", "FILE I/O", "BUFFER POOL AND MEMORY")
+            .contains("promptPreviewTruncated=false")
+            .doesNotContain("SHOW ENGINE INNODB STATUS");
+    }
 
     @Test
     void interpretationPlanRunsThroughDagRuntimePipeline() {

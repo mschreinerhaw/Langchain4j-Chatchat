@@ -51,6 +51,9 @@ public class InterpretationPlanRuntime {
         "(?iu)\\b(?:in|on|under)\\s+(?:the\\s+)?(DEV|TEST|UAT|PROD)"
             + "(?:\\s+(?:env(?:ironment)?|cluster))?\\b"
     );
+    private static final Pattern BINDING_PLACEHOLDER_PATTERN = Pattern.compile(
+        "\\{\\{\\s*bindings\\.([A-Za-z0-9_.\\-\\[\\]]+)\\s*}}"
+    );
     private static final ObjectMapper RESULT_OBJECT_MAPPER = new ObjectMapper();
     private static final Set<String> DISCOVERY_FILTER_PROTOCOL_FIELDS = Set.of(
         "trace",
@@ -449,6 +452,7 @@ public class InterpretationPlanRuntime {
                     executionToolName = templateInvocation.toolName();
                     resolvedInput = templateInvocation.arguments();
                 }
+                assertNoUnresolvedBindingPlaceholders(resolvedInput);
                 log.info("InterpretationPlan step resolved input: traceId={}, stepId={}, tool={}, input={}",
                     executionTraceId(request),
                     step.id(),
@@ -2830,6 +2834,7 @@ public class InterpretationPlanRuntime {
             || plan.plan().bindings() == null || plan.plan().bindings().isEmpty()) {
             return;
         }
+        Map<String, Object> resolvedBindings = new LinkedHashMap<>();
         for (InterpretationPlan.Binding binding : plan.plan().bindings()) {
             if (binding == null || !step.id().equals(binding.to())) {
                 continue;
@@ -2851,7 +2856,83 @@ public class InterpretationPlanRuntime {
                 continue;
             }
             putInputValue(input, binding.inputField(), value);
+            registerResolvedBinding(resolvedBindings, binding.inputField(), value);
         }
+        resolveBindingPlaceholders(input, resolvedBindings);
+    }
+
+    private void registerResolvedBinding(Map<String, Object> resolvedBindings, String inputField, Object value) {
+        if (resolvedBindings == null || inputField == null || inputField.isBlank()) {
+            return;
+        }
+        String normalized = String.join(".", pathTokens(inputField));
+        if (normalized.isBlank()) {
+            return;
+        }
+        resolvedBindings.put(normalized, value);
+    }
+
+    private void resolveBindingPlaceholders(Map<String, Object> input, Map<String, Object> resolvedBindings) {
+        if (input == null || input.isEmpty() || resolvedBindings == null || resolvedBindings.isEmpty()) {
+            return;
+        }
+        for (Map.Entry<String, Object> entry : new ArrayList<>(input.entrySet())) {
+            entry.setValue(resolveBindingPlaceholderValue(entry.getValue(), resolvedBindings));
+        }
+    }
+
+    private Object resolveBindingPlaceholderValue(Object value, Map<String, Object> resolvedBindings) {
+        if (value instanceof Map<?, ?> map) {
+            Map<String, Object> resolved = new LinkedHashMap<>();
+            map.forEach((key, item) -> resolved.put(String.valueOf(key),
+                resolveBindingPlaceholderValue(item, resolvedBindings)));
+            return resolved;
+        }
+        if (value instanceof List<?> list) {
+            return list.stream()
+                .map(item -> resolveBindingPlaceholderValue(item, resolvedBindings))
+                .toList();
+        }
+        if (!(value instanceof String text)) {
+            return value;
+        }
+        Matcher matcher = BINDING_PLACEHOLDER_PATTERN.matcher(text.trim());
+        if (!matcher.matches()) {
+            return value;
+        }
+        return resolvedBindings.getOrDefault(matcher.group(1), value);
+    }
+
+    private void assertNoUnresolvedBindingPlaceholders(Object value) {
+        String path = unresolvedBindingPlaceholderPath(value, "$");
+        if (path != null) {
+            throw new IllegalStateException("BINDING_FAILED: unresolved binding placeholder at " + path);
+        }
+    }
+
+    private String unresolvedBindingPlaceholderPath(Object value, String path) {
+        if (value instanceof Map<?, ?> map) {
+            for (Map.Entry<?, ?> entry : map.entrySet()) {
+                String unresolved = unresolvedBindingPlaceholderPath(
+                    entry.getValue(), path + "." + String.valueOf(entry.getKey()));
+                if (unresolved != null) {
+                    return unresolved;
+                }
+            }
+            return null;
+        }
+        if (value instanceof List<?> list) {
+            for (int index = 0; index < list.size(); index++) {
+                String unresolved = unresolvedBindingPlaceholderPath(list.get(index), path + "[" + index + "]");
+                if (unresolved != null) {
+                    return unresolved;
+                }
+            }
+            return null;
+        }
+        return value instanceof String text && BINDING_PLACEHOLDER_PATTERN.matcher(text).find()
+            ? path
+            : null;
     }
 
     private Object bindingValue(StepExecution source, InterpretationPlan.Binding binding) {

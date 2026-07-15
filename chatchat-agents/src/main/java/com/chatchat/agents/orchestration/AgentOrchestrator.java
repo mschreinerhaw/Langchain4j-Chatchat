@@ -1560,12 +1560,12 @@ public class AgentOrchestrator {
         return summary;
     }
 
-    private String buildInterpretationPlanSummaryPrompt(String query,
-                                                        String systemPrompt,
-                                                        InterpretationPlanRuntime.ExecutionResult result,
-                                                        List<String> observations,
-                                                        List<AgentObservation> storedObservations,
-                                                        String authoritativeSqlMetadata) {
+    String buildInterpretationPlanSummaryPrompt(String query,
+                                                String systemPrompt,
+                                                InterpretationPlanRuntime.ExecutionResult result,
+                                                List<String> observations,
+                                                List<AgentObservation> storedObservations,
+                                                String authoritativeSqlMetadata) {
         StringBuilder prompt = new StringBuilder();
         if (systemPrompt != null && !systemPrompt.isBlank()) {
             prompt.append("System instruction:\n").append(systemPrompt).append("\n\n");
@@ -1628,9 +1628,22 @@ public class AgentOrchestrator {
                         .append(shortObservationText(stringify(outputFacts), 1800))
                         .append("\n");
                 }
-                prompt.append("  outputPreview: ")
-                    .append(shortObservationText(stringify(redactExecutionStatementText(step.output())), 4000))
-                    .append("\n");
+                String executionEvidence = step.success()
+                    ? toolObservationBuilder.buildAuthoritativeExecutionEvidence(step.toolName(), step.output())
+                    : null;
+                if (executionEvidence != null && !executionEvidence.isBlank()) {
+                    prompt.append("  authoritativeToolResultEvidence (complete runtime-returned data; operation inputs omitted):\n")
+                        .append(executionEvidence)
+                        .append("\n  promptPreviewTruncated=false\n");
+                } else {
+                    String serializedOutput = stringify(redactExecutionStatementText(step.output()));
+                    boolean promptPreviewTruncated = serializedOutput != null && serializedOutput.replaceAll("\\s+", " ").trim().length() > 4000;
+                    prompt.append("  outputPreview: ")
+                        .append(shortObservationText(serializedOutput, 4000))
+                        .append("\n  promptPreviewTruncated=")
+                        .append(promptPreviewTruncated)
+                        .append("\n");
+                }
             }
         }
         prompt.append("\nStored RunStore/RocksDB observations:\n");

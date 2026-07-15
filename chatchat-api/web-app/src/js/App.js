@@ -14,6 +14,7 @@ import RetrievalRulesView from "../views/RetrievalRulesView.vue";
 import EvidenceDebuggerView from "../views/EvidenceDebuggerView.vue";
 import SystemManagementView from "../views/SystemManagementView.vue";
 import TasksView from "../views/TasksView.vue";
+import { Plus } from "@lucide/vue";
 import {
   actAgentTodo,
   addUserFavorite,
@@ -31,6 +32,7 @@ import {
 } from "../services/api";
 import { notifyAgentTaskCancelled, onAgentTaskCancelled } from "./utils/agentTaskEvents";
 import { clearChatRuntimeState, mergeChatRuntimeState } from "./utils/chatRuntimeState";
+import "../styles/app.css";
 
 const USER_ID = "mx_48991534";
 const IDLE_LOGOUT_MS = 30 * 60 * 1000;
@@ -84,6 +86,7 @@ export default {
   components: {
     AssistantLayout,
     LoginView,
+    Plus,
     RightPanel
   },
   data() {

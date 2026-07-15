@@ -20,7 +20,6 @@
       @delete-conversation="$emit('delete-conversation', $event)"
       @favorite-conversation="$emit('favorite-conversation', $event)"
       @navigate="$emit('navigate', $event)"
-      @new-conversation="$emit('new-conversation')"
       @refresh-history="$emit('refresh-history')"
       @select-conversation="$emit('select-conversation', $event)"
       @toggle-sidebar="sidebarCollapsed = !sidebarCollapsed"

@@ -43,6 +43,7 @@ const MESSAGE_FEEDBACK_PAYLOADS = {
 };
 const AGENT_TASK_POLL_TIMEOUT_MS = 5000;
 const AGENT_TASK_EVENT_LIMIT = 80;
+const AGENT_TASK_POLLING_STOPPED_CODE = "AGENT_TASK_POLLING_STOPPED";
 const RESTORE_RUNNING_WINDOW_MS = 10 * 60 * 1000;
 const MAX_VISUALIZATION_BLOCKS = 6;
 const MAX_UPLOAD_SIZE = 5 * 1024 * 1024;
@@ -265,6 +266,16 @@ function shouldFallbackToDirect(error) {
 
 function sleep(ms) {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+function agentTaskPollingStoppedError() {
+  const error = new Error("Agent task polling stopped");
+  error.code = AGENT_TASK_POLLING_STOPPED_CODE;
+  return error;
+}
+
+function isAgentTaskPollingStopped(error) {
+  return error?.code === AGENT_TASK_POLLING_STOPPED_CODE;
 }
 
 function todayString() {
@@ -1724,6 +1735,9 @@ export default {
         this.emitActiveConversationSnapshot(query, "completed", runContext);
         await this.saveHistory(query, "completed", runContext);
       } catch (error) {
+        if (isAgentTaskPollingStopped(error)) {
+          return;
+        }
         const message = error.message || "请求后端失败";
         runContext.status = "failed";
         if (this.isActiveRun(runContext)) {
@@ -1734,7 +1748,7 @@ export default {
         await this.saveHistory(query, "failed", runContext);
       } finally {
         if (!this.pendingMcpConfirmation) {
-          delete this.runningContexts[runContext.historyId];
+          this.removeRunContext(runContext);
         }
         if (this.isActiveRun(runContext)) {
           this.loading = false;
@@ -1902,7 +1916,7 @@ export default {
         runContext.taskId,
         this.effectiveTenantId(),
         refreshSteps,
-        () => this.isActiveRun(runContext)
+        () => this.isRunTracked(runContext)
       );
       await refreshSteps();
       const eventPayload = parseJsonPayload(event?.payload);
@@ -2037,7 +2051,7 @@ export default {
         }
         await sleep(300);
       }
-      throw new Error("Agent task polling stopped");
+      throw agentTaskPollingStoppedError();
     },
     async refreshAgentTaskSteps(taskId, tenantId, runContext, assistantMessage, query = "") {
       if (!taskId || !assistantMessage) {
@@ -2182,6 +2196,19 @@ export default {
     isActiveRun(context) {
       return !!context && this.activeRunId === context.runId && this.historyId === context.historyId;
     },
+    isRunTracked(context) {
+      return !!context?.runId && Object.values(this.runningContexts).some((candidate) => candidate?.runId === context.runId);
+    },
+    removeRunContext(context) {
+      if (!context?.runId) {
+        return;
+      }
+      Object.entries(this.runningContexts).forEach(([historyId, candidate]) => {
+        if (candidate?.runId === context.runId) {
+          delete this.runningContexts[historyId];
+        }
+      });
+    },
     findRunContextForTask(task = {}) {
       const taskId = task?.taskId || "";
       const sessionId = task?.sessionId || task?.conversationId || "";
@@ -2229,7 +2256,6 @@ export default {
         taskId
       });
       const context = this.findRunContextForTask(task);
-      const previousHistoryId = context?.historyId || "";
       const pendingMatches = taskId && (this.pendingMcpTaskId === taskId || this.pendingMcpRequest?.taskId === taskId);
       if (!context && !pendingMatches && !this.taskMatchesVisibleConversation(task)) {
         return;
@@ -2251,10 +2277,7 @@ export default {
       this.emitActiveConversationSnapshot(targetContext.question || task.question || "", "cancelled", targetContext);
       await this.saveHistory(targetContext.question || task.question || "", "cancelled", targetContext);
 
-      if (previousHistoryId) {
-        delete this.runningContexts[previousHistoryId];
-      }
-      delete this.runningContexts[targetContext.historyId];
+      this.removeRunContext(targetContext);
       if (pendingMatches) {
         this.cancelMcpConfirmation();
       }
@@ -2380,7 +2403,7 @@ export default {
         runContext.conversationId = normalizedResponse.conversationId || runContext.conversationId;
         if (normalizedResponse.conversationId && runContext.historyId !== normalizedResponse.conversationId) {
           runContext.historyId = normalizedResponse.conversationId;
-          if (this.runningContexts[previousHistoryId] === runContext) {
+          if (this.runningContexts[previousHistoryId]?.runId === runContext.runId) {
             delete this.runningContexts[previousHistoryId];
             this.runningContexts[runContext.historyId] = runContext;
           }
@@ -3017,7 +3040,7 @@ export default {
           this.conversationStatus = "completed";
           this.messages = [...runContext.messages];
         }
-        delete this.runningContexts[runContext.historyId];
+        this.removeRunContext(runContext);
         await this.saveHistory(query, "completed", runContext);
         return;
       }
@@ -3032,18 +3055,21 @@ export default {
           taskId,
           this.effectiveTenantId(),
           refreshSteps,
-          () => this.isActiveRun(runContext)
+          () => this.isRunTracked(runContext)
         );
         await refreshSteps();
         const finalStatus = await this.applyRestoredAgentTaskEvent(event, runContext, assistantMessage, query);
         await this.saveHistory(query, finalStatus, runContext);
       } catch (error) {
+        if (isAgentTaskPollingStopped(error)) {
+          return;
+        }
         if (this.isActiveRun(runContext)) {
           this.errorMessage = error.message || "恢复运行状态失败";
         }
       } finally {
         if (!this.pendingMcpConfirmation) {
-          delete this.runningContexts[runContext.historyId];
+          this.removeRunContext(runContext);
         }
         if (this.isActiveRun(runContext)) {
           this.loading = false;
@@ -3286,6 +3312,9 @@ export default {
         this.emitActiveConversationSnapshot(query, "completed", runContext);
         await this.saveHistory(query, "completed", runContext);
       } catch (error) {
+        if (isAgentTaskPollingStopped(error)) {
+          return;
+        }
         runContext.status = "failed";
         if (this.pendingMcpConfirmation?.token === confirmingToken) {
           this.startConfirmationTimer();
@@ -3296,7 +3325,7 @@ export default {
         }
       } finally {
         if (!this.pendingMcpConfirmation) {
-          delete this.runningContexts[runContext.historyId];
+          this.removeRunContext(runContext);
         }
         if (this.isActiveRun(runContext)) {
           this.loading = false;
@@ -3343,7 +3372,7 @@ export default {
         this.errorMessage = error.message || "停止任务失败";
       } finally {
         if (runContext) {
-          delete this.runningContexts[runContext.historyId];
+          this.removeRunContext(runContext);
         }
         this.cancelMcpConfirmation();
         this.loading = false;

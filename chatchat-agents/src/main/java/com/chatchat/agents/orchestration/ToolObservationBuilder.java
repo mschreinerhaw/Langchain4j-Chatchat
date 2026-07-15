@@ -64,11 +64,14 @@ class ToolObservationBuilder {
         if (isSqlMetadataSearchToolName(toolName) && !asMap(data).isEmpty()) {
             return buildSqlMetadataSearchObservation(toolName, output, data);
         }
-        if (isSqlExecutionToolName(toolName) && !asMap(data).isEmpty()) {
+        if (isSqlExecutionResult(toolName, data)) {
             return buildSqlExecutionObservation(toolName, output, data);
         }
-        if (isLinuxCommandExecutionToolName(toolName) && !asMap(data).isEmpty()) {
+        if (isLinuxExecutionResult(toolName, data)) {
             return buildLinuxCommandObservation(toolName, output, data);
+        }
+        if (isStandardExecutionResult(data)) {
+            return buildStandardExecutionObservation(toolName, output, data);
         }
 
         StringBuilder observation = new StringBuilder("Tool ")
@@ -250,6 +253,62 @@ class ToolObservationBuilder {
         observation.append("\nSQL completeness rule: rowCount is the tool-reported result size and returnedRowCount is the number of rows available below. ")
             .append("possiblyTruncated=true or complete=false means the rows are partial; never describe them as the full result. ")
             .append("Even when partial, preserve and report the returned rows and metrics exactly.");
+        return observation.toString();
+    }
+
+    /**
+     * Builds complete final-synthesis evidence from the runtime result contract while
+     * omitting operation inputs that may contain SQL, shell commands, or request secrets.
+     * Legacy payloads retain semantic fallbacks for compatibility.
+     */
+    String buildAuthoritativeExecutionEvidence(String toolName, Object data) {
+        if (isStandardExecutionResult(data)) {
+            return buildStandardExecutionObservation(toolName, null, data);
+        }
+        if (isSqlExecutionResult(toolName, data)) {
+            return buildSqlExecutionObservation(toolName, null, data);
+        }
+        if (isLinuxExecutionResult(toolName, data)) {
+            return buildLinuxCommandObservation(toolName, null, data);
+        }
+        return null;
+    }
+
+    private String buildStandardExecutionObservation(String toolName, ToolOutput output, Object data) {
+        Map<String, Object> root = unwrapStructuredRoot(data);
+        StringBuilder observation = successObservationHeader(toolName, output);
+        observation.append("\nStandard execution result (authoritative structured output):")
+            .append(" schemaVersion=").append(firstNonBlank(stringValue(root.get("schemaVersion")), "unknown"))
+            .append(", kind=").append(firstNonBlank(stringValue(root.get("kind")), "unknown"))
+            .append(", dataSchema=").append(firstNonBlank(stringValue(root.get("dataSchema")), "unknown"))
+            .append(", payloadType=").append(firstNonBlank(stringValue(root.get("payloadType")), "unknown"))
+            .append(", success=").append(firstNonBlank(stringValue(root.get("success")), "unknown"))
+            .append(", status=").append(firstNonBlank(stringValue(root.get("status")), "unknown"))
+            .append('.');
+        appendFact(observation, "durationMs", stringValue(root.get("durationMs")));
+        appendFact(observation, "errorMessage", stringValue(root.get("errorMessage")));
+        if (!asMap(root.get("target")).isEmpty()) {
+            observation.append("\nTarget: ").append(root.get("target"));
+        }
+        if (!asMap(root.get("sourceMetadata")).isEmpty()) {
+            observation.append("\nSource metadata: ").append(root.get("sourceMetadata"));
+        }
+        if (!asMap(root.get("limits")).isEmpty()) {
+            observation.append("\nLimits: ").append(root.get("limits"));
+        }
+        if (root.containsKey("_truncated")) {
+            observation.append("\nTransport truncated: ").append(root.get("_truncated"));
+        }
+        if (!asMap(root.get("outputTruncation")).isEmpty()) {
+            observation.append("\nTransport truncation: ").append(root.get("outputTruncation"));
+        }
+        if (root.containsKey("data")) {
+            observation.append("\n---BEGIN RETURNED DATA---\n")
+                .append(root.get("data"))
+                .append("\n---END RETURNED DATA---");
+        }
+        observation.append("\nCompleteness rule: the returned data above is complete relative to this runtime payload only. ")
+            .append("Any explicit completeness or truncation fields inside it remain authoritative.");
         return observation.toString();
     }
 
@@ -954,9 +1013,50 @@ class ToolObservationBuilder {
             || semantic.endsWith("_sql_script_execute");
     }
 
+    private boolean isSqlExecutionResult(String toolName, Object data) {
+        if (asMap(data).isEmpty()) {
+            return false;
+        }
+        if (isSqlExecutionToolName(toolName)) {
+            return true;
+        }
+        Map<String, Object> root = unwrapStructuredRoot(data);
+        String kind = stringValue(root.get("kind"));
+        String dataSchema = stringValue(root.get("dataSchema"));
+        Map<String, Object> operation = asMap(root.get("operation"));
+        String operationType = stringValue(operation.get("type"));
+        return "sql_query".equalsIgnoreCase(kind)
+            || "sql_result_sets".equalsIgnoreCase(kind)
+            || (dataSchema != null && (dataSchema.toLowerCase().startsWith("sql_result")
+                || dataSchema.toLowerCase().startsWith("sql_query")
+                || dataSchema.toLowerCase().startsWith("sql_script")))
+            || (operationType != null && operationType.toLowerCase().startsWith("sql."));
+    }
+
     private boolean isLinuxCommandExecutionToolName(String toolName) {
         String semantic = toolSemanticKey(toolName);
         return "linux_command_execute".equals(semantic) || semantic.endsWith("_linux_command_execute");
+    }
+
+    private boolean isLinuxExecutionResult(String toolName, Object data) {
+        if (asMap(data).isEmpty()) {
+            return false;
+        }
+        if (isLinuxCommandExecutionToolName(toolName)) {
+            return true;
+        }
+        Map<String, Object> root = unwrapStructuredRoot(data);
+        String kind = stringValue(root.get("kind"));
+        String dataSchema = stringValue(root.get("dataSchema"));
+        String operationType = stringValue(asMap(root.get("operation")).get("type"));
+        return "ssh_command".equalsIgnoreCase(kind)
+            || (dataSchema != null && dataSchema.toLowerCase().startsWith("ssh_"))
+            || (operationType != null && operationType.toLowerCase().startsWith("ssh."));
+    }
+
+    private boolean isStandardExecutionResult(Object data) {
+        Map<String, Object> root = unwrapStructuredRoot(data);
+        return "tool_execution_result.v1".equals(stringValue(root.get("schemaVersion")));
     }
 
     private String toolSemanticKey(String toolName) {

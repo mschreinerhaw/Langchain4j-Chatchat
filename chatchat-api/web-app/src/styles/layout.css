@@ -495,24 +495,6 @@
   font-size: 12px;
 }
 
-.recent-block .new-conversation-button {
-  min-height: 34px;
-  grid-template-columns: 20px minmax(0, 1fr);
-  gap: 8px;
-  margin-bottom: 10px;
-  border: 1px solid #d8e4fb;
-  background: #f5f8ff;
-  color: #175cd3;
-  font-size: 13px;
-  font-weight: 800;
-}
-
-.recent-block .new-conversation-button:hover {
-  background: #eaf2ff;
-  border-color: #bcd0f7;
-  color: #164fb3;
-}
-
 .history-search {
   height: 32px;
   display: grid;

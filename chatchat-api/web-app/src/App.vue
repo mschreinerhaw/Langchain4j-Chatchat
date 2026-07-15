@@ -17,7 +17,6 @@
     @navigate="handleNavigate"
     @delete-conversation="deleteConversation"
     @favorite-conversation="favoriteConversation"
-    @new-conversation="handleNewConversation"
     @refresh-history="loadConversationHistory"
     @select-conversation="selectConversation"
     @logout="handleLogout"
@@ -34,6 +33,17 @@
         @open-favorite="handleOpenFavoriteShortcut"
       />
     </KeepAlive>
+
+    <button
+      class="floating-new-conversation"
+      type="button"
+      title="新建对话"
+      aria-label="新建对话"
+      @click="handleNewConversation"
+    >
+      <Plus :size="20" stroke-width="2.2" aria-hidden="true" />
+      <span>新建对话</span>
+    </button>
 
     <template #right-panel="{ collapsed, toggleCollapsed }">
       <RightPanel

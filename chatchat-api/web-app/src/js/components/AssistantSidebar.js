@@ -12,7 +12,6 @@ import {
   MessageSquare,
   PanelLeftClose,
   PanelLeftOpen,
-  Plus,
   Search,
   Settings,
   Star,
@@ -28,7 +27,6 @@ export default {
     MessageCircle,
     PanelLeftClose,
     PanelLeftOpen,
-    Plus,
     Search,
     Star,
     Trash2
@@ -80,7 +78,6 @@ export default {
     "favorite-conversation",
     "logout",
     "navigate",
-    "new-conversation",
     "refresh-history",
     "select-conversation",
     "toggle-sidebar"

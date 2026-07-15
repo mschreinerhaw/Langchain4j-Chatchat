@@ -1312,6 +1312,20 @@ public class CommandTemplateDiscoveryService {
     }
 
     private NormalizedIntent normalizeIntent(Map<String, Object> filters) {
+        List<String> primaryTokens = primaryIntentTokens(filters);
+        if (containsAnyToken(primaryTokens, "metadata", "schema", "column", "field", "\u5143\u6570\u636e", "\u8868\u7ed3\u6784", "\u5b57\u6bb5", "\u5217")) {
+            return new NormalizedIntent("metadata_query", List.of("metadata", "schema", "column"), "ops", 0.92);
+        }
+        if (containsAnyToken(primaryTokens, "status", "instance", "database health", "health check",
+            "\u72b6\u6001", "\u6570\u636e\u5e93\u72b6\u6001", "\u72b6\u6001\u5206\u6790", "\u5065\u5eb7\u68c0\u67e5")) {
+            return new NormalizedIntent("db_status", List.of("status", "health", "instance"), "ops", 0.94);
+        }
+        if (containsAnyToken(primaryTokens, "performance", "slow", "latency", "cpu", "\u5361", "\u5361\u987f", "\u6162", "\u6027\u80fd", "\u6027\u80fd\u5206\u6790", "\u6162\u67e5\u8be2")) {
+            return new NormalizedIntent("performance_issue", List.of("performance", "slow", "health"), "ops", 0.9);
+        }
+        if (containsAnyToken(primaryTokens, "lock", "blocking", "deadlock", "wait", "\u9501", "\u963b\u585e", "\u7b49\u5f85", "\u6b7b\u9501")) {
+            return new NormalizedIntent("lock_check", List.of("lock", "blocking", "deadlock"), "ops", 0.9);
+        }
         List<String> tokens = new ArrayList<>(intentTokens(filters));
         tokens.addAll(bilingualIntentTokens(filters));
         tokens = tokens.stream().distinct().toList();
@@ -1337,6 +1351,22 @@ public class CommandTemplateDiscoveryService {
             return new NormalizedIntent("db_status", List.of("status", "health", "instance"), "ops", 0.9);
         }
         return new NormalizedIntent(firstText(tokens.get(0), "general_query"), tokens.stream().limit(6).toList(), "ops", 0.55);
+    }
+
+    private List<String> primaryIntentTokens(Map<String, Object> filters) {
+        List<String> tokens = new ArrayList<>();
+        if (filters == null || filters.isEmpty()) {
+            return tokens;
+        }
+        for (String key : List.of("intent", "goal", "intentZh", "intentEn")) {
+            Object value = filters.get(key);
+            if (value instanceof List<?> list) {
+                list.forEach(item -> addWords(tokens, item));
+            } else {
+                addWords(tokens, value);
+            }
+        }
+        return tokens.stream().distinct().toList();
     }
 
     private Map<String, Object> filtersWithNormalizedIntent(Map<String, Object> filters, NormalizedIntent intent) {

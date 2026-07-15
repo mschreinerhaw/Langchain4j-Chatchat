@@ -11,7 +11,7 @@ import java.util.regex.Pattern;
 public class SqlSafetyService {
 
     private static final Set<String> ALLOWED_FIRST_TOKENS = Set.of("SELECT", "SHOW", "DESCRIBE", "DESC", "EXPLAIN");
-    private static final Set<String> FORBIDDEN_TOKENS = Set.of(
+    private static final Set<String> EXPLAIN_FORBIDDEN_TOKENS = Set.of(
         "INSERT", "UPDATE", "DELETE", "DROP", "TRUNCATE", "ALTER", "CREATE", "REPLACE", "MERGE",
         "GRANT", "REVOKE", "CALL", "EXEC", "LOAD", "COPY", "EXPORT", "IMPORT", "SET", "USE",
         "LOCK", "UNLOCK", "ANALYZE", "REPAIR", "OPTIMIZE", "VACUUM"
@@ -22,21 +22,23 @@ public class SqlSafetyService {
         String normalized = normalize(sql);
         rejectComments(normalized);
         rejectMultiStatement(normalized);
-        rejectForbiddenTokens(normalized);
-        String firstToken = firstToken(normalized);
+        String code = codeForKeywordScan(normalized);
+        String firstToken = firstToken(code);
         if (!ALLOWED_FIRST_TOKENS.contains(firstToken)) {
-            throw new IllegalArgumentException("Only SELECT, SHOW, DESCRIBE and EXPLAIN SQL are allowed");
+            throw new IllegalArgumentException("SQL contains forbidden keyword: " + firstToken);
         }
+        rejectUnsafeReadOnlyStructure(code, firstToken);
         return normalized;
     }
 
     public String validateAndNormalizeScriptStatement(String sql, int maxRows) {
         String normalized = normalize(sql);
-        rejectForbiddenTokens(codeForKeywordScan(normalized));
-        String firstToken = firstToken(normalized);
+        String code = codeForKeywordScan(normalized);
+        String firstToken = firstToken(code);
         if (!ALLOWED_FIRST_TOKENS.contains(firstToken)) {
-            throw new IllegalArgumentException("Only SELECT, SHOW, DESCRIBE and EXPLAIN SQL are allowed");
+            throw new IllegalArgumentException("SQL contains forbidden keyword: " + firstToken);
         }
+        rejectUnsafeReadOnlyStructure(code, firstToken);
         return normalized;
     }
 
@@ -56,15 +58,51 @@ public class SqlSafetyService {
         }
     }
 
-    private void rejectForbiddenTokens(String sql) {
+    private void rejectUnsafeReadOnlyStructure(String sql, String firstToken) {
         List<String> tokens = TOKEN_PATTERN.matcher(sql).results()
             .map(match -> match.group().toUpperCase(Locale.ROOT))
             .toList();
-        for (String token : tokens) {
-            if (FORBIDDEN_TOKENS.contains(token)) {
-                throw new IllegalArgumentException("SQL contains forbidden keyword: " + token);
+        if ("EXPLAIN".equals(firstToken)) {
+            for (int index = 1; index < tokens.size(); index++) {
+                String token = tokens.get(index);
+                if (EXPLAIN_FORBIDDEN_TOKENS.contains(token)) {
+                    throw new IllegalArgumentException("EXPLAIN contains unsafe executable keyword: " + token);
+                }
+            }
+            return;
+        }
+        if (!"SELECT".equals(firstToken)) {
+            return;
+        }
+        if (tokens.contains("INTO")) {
+            throw new IllegalArgumentException("SELECT INTO is forbidden for read-only execution");
+        }
+        if (containsSequence(tokens, "FOR", "UPDATE")
+            || containsSequence(tokens, "FOR", "NO", "KEY", "UPDATE")
+            || containsSequence(tokens, "FOR", "SHARE")
+            || containsSequence(tokens, "FOR", "KEY", "SHARE")
+            || containsSequence(tokens, "LOCK", "IN", "SHARE", "MODE")) {
+            throw new IllegalArgumentException("SELECT locking clauses are forbidden for read-only execution");
+        }
+    }
+
+    private boolean containsSequence(List<String> tokens, String... sequence) {
+        if (tokens == null || sequence == null || sequence.length == 0 || tokens.size() < sequence.length) {
+            return false;
+        }
+        for (int start = 0; start <= tokens.size() - sequence.length; start++) {
+            boolean matched = true;
+            for (int offset = 0; offset < sequence.length; offset++) {
+                if (!sequence[offset].equals(tokens.get(start + offset))) {
+                    matched = false;
+                    break;
+                }
+            }
+            if (matched) {
+                return true;
             }
         }
+        return false;
     }
 
     private String codeForKeywordScan(String sql) {

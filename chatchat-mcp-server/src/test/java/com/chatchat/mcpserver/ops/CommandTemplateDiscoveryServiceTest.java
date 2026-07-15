@@ -1135,7 +1135,11 @@ class CommandTemplateDiscoveryServiceTest {
             "targetKind", "database",
             "confidence", 0.9,
             "language", "en",
-            "filters", Map.of("assetName", "orders_db", "intent", "database health status"),
+            "filters", Map.of(
+                "assetName", "orders_db",
+                "intent", "database health status",
+                "keywords", List.of("lock", "wait events", "active sessions")
+            ),
             "trace", trace(),
             "limit", 10
         ));

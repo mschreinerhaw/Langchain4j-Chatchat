@@ -25,6 +25,10 @@
           <h3>运行统计</h3>
           <p>查看缓存当前状态、条目数量和存储占用。</p>
         </div>
+        <div class="cache-service-switch">
+          <span>启用缓存服务</span>
+          <el-switch v-model="config.enabled" />
+        </div>
       </div>
       <div class="metric-grid">
         <div class="metric-card"><span>状态</span><strong>{{ status }}</strong></div>
@@ -40,22 +44,26 @@
           <h3>SQL 模板缓存</h3>
           <p>缓存以整个查询模板为单位；包含多条 SQL 时，会缓存这组 SQL 的完整结果集合。</p>
         </div>
+        <el-button type="primary" plain @click="openTemplatePicker">选择缓存模板</el-button>
       </div>
-      <el-table :data="templates" border stripe empty-text="暂无已维护的 SQL 查询模板">
+      <el-table :data="cachedTemplates" border stripe empty-text="尚未选择启用缓存的 SQL 模板">
         <el-table-column prop="title" label="模板名称" min-width="180" show-overflow-tooltip />
         <el-table-column prop="toolName" label="工具名称" min-width="180" show-overflow-tooltip>
           <template #default="{ row }"><code>{{ row.toolName }}</code></template>
         </el-table-column>
         <el-table-column prop="datasourceId" label="数据源" min-width="180" show-overflow-tooltip />
+        <el-table-column label="分类" min-width="130" show-overflow-tooltip>
+          <template #default="{ row }">{{ row.categoryName || row.category || 'default' }}</template>
+        </el-table-column>
         <el-table-column prop="sqlCount" label="SQL 数量" width="100" align="center" />
         <el-table-column label="模板状态" width="100" align="center">
           <template #default="{ row }">
             <el-tag :type="row.enabled ? 'success' : 'info'">{{ row.enabled ? '启用' : '停用' }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="查询缓存" width="120" align="center">
+        <el-table-column label="操作" width="90" align="center">
           <template #default="{ row }">
-            <el-switch v-model="row.cacheEnabled" :disabled="!row.enabled && !row.cacheEnabled" />
+            <el-button link type="danger" @click="row.cacheEnabled = false">移除</el-button>
           </template>
         </el-table-column>
         <el-table-column label="存储服务" width="150">
@@ -280,6 +288,55 @@
         </section>
       </el-tab-pane>
     </el-tabs>
+
+    <el-dialog v-model="templatePickerOpen" title="选择 SQL 模板缓存" width="min(980px, 92vw)" append-to-body>
+      <div class="cache-template-picker-toolbar">
+        <el-select v-model="templatePickerCategory" clearable placeholder="全部分类">
+          <el-option v-for="option in templateCategories" :key="option.value" :label="option.label" :value="option.value" />
+        </el-select>
+        <el-input v-model.trim="templatePickerKeyword" clearable placeholder="搜索模板名称、工具、分类、数据库类型或数据源">
+          <template #prefix><el-icon><Search /></el-icon></template>
+        </el-input>
+        <el-button plain @click="selectVisibleTemplates">选择当前结果</el-button>
+        <el-button plain @click="clearVisibleTemplates">清除当前结果</el-button>
+      </div>
+
+      <el-table :data="templatePickerItems" border stripe max-height="480" empty-text="暂无匹配的 SQL 模板">
+        <el-table-column label="" width="56" align="center">
+          <template #default="{ row }">
+            <el-checkbox
+              :model-value="templatePickerSelected.includes(row.id)"
+              :disabled="!row.enabled && !templatePickerSelected.includes(row.id)"
+              @change="toggleTemplatePicker(row.id)"
+            />
+          </template>
+        </el-table-column>
+        <el-table-column prop="title" label="模板名称" min-width="180" show-overflow-tooltip />
+        <el-table-column prop="toolName" label="工具名称" min-width="180" show-overflow-tooltip>
+          <template #default="{ row }"><code>{{ row.toolName }}</code></template>
+        </el-table-column>
+        <el-table-column label="分类" min-width="130" show-overflow-tooltip>
+          <template #default="{ row }">{{ row.categoryName || row.category || 'default' }}</template>
+        </el-table-column>
+        <el-table-column prop="databaseType" label="数据库类型" width="120" />
+        <el-table-column prop="datasourceId" label="数据源" min-width="150" show-overflow-tooltip />
+        <el-table-column label="状态" width="90" align="center">
+          <template #default="{ row }">
+            <el-tag :type="row.enabled ? 'success' : 'info'">{{ row.enabled ? '启用' : '停用' }}</el-tag>
+          </template>
+        </el-table-column>
+      </el-table>
+
+      <template #footer>
+        <div class="cache-template-picker-footer">
+          <span>已选择 {{ templatePickerSelected.length }} 个模板</span>
+          <div>
+            <el-button @click="templatePickerOpen = false">取消</el-button>
+            <el-button type="primary" @click="confirmTemplatePicker">确定</el-button>
+          </div>
+        </div>
+      </template>
+    </el-dialog>
   </section>
 </template>
 

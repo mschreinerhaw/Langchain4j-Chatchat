@@ -34,6 +34,7 @@ import { notifyAgentTaskCancelled, onAgentTaskCancelled } from "./utils/agentTas
 import { clearChatRuntimeState, mergeChatRuntimeState } from "./utils/chatRuntimeState";
 import floatingDrag from "./directives/floatingDrag";
 import "../styles/app.css";
+import "../styles/components/dialog-close.css";
 
 const USER_ID = "mx_48991534";
 const IDLE_LOGOUT_MS = 30 * 60 * 1000;

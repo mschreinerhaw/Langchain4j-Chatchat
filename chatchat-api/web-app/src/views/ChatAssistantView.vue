@@ -120,7 +120,7 @@
               <p>文档上传</p>
               <h2>上传到文档库</h2>
             </div>
-            <button type="button" class="dialog-close" :disabled="uploadingDocument" @click="closeUploadDialog">×</button>
+            <button type="button" class="app-dialog-close" aria-label="关闭" title="关闭" :disabled="uploadingDocument" @click="closeUploadDialog">×</button>
           </header>
 
           <div class="chat-file-picker">
@@ -207,14 +207,14 @@
         </form>
       </div>
 
-      <div v-if="imageDialogOpen" class="chat-upload-backdrop" @click.self="closeImageDialog">
+      <div v-if="imageDialogOpen" class="chat-upload-backdrop">
         <form class="chat-upload-dialog image-understanding-dialog" @submit.prevent="uploadAndAnalyzeImage">
           <header>
             <div>
               <p>多模态输入</p>
               <h2>上传图片并解析</h2>
             </div>
-            <button type="button" class="dialog-close" :disabled="uploadingImage" @click="closeImageDialog">x</button>
+            <button type="button" class="app-dialog-close" aria-label="关闭" title="关闭" :disabled="uploadingImage" @click="closeImageDialog">×</button>
           </header>
 
           <div class="chat-file-picker">

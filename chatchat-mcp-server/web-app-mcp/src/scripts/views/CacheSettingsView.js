@@ -11,6 +11,7 @@ export default {
       busy: false,
       activeTab: 'templates',
       config: {
+        enabled: false,
         defaultTtlSeconds: 300,
         maxRows: 1000,
         maxEntryKb: 512,
@@ -20,6 +21,10 @@ export default {
       },
       stats: {},
       templates: [],
+      templatePickerOpen: false,
+      templatePickerKeyword: '',
+      templatePickerCategory: '',
+      templatePickerSelected: [],
       redis: {
         enabled: false,
         mode: 'STANDALONE_NO_AUTH',
@@ -45,6 +50,29 @@ export default {
     },
     bytes() {
       return formatBytes(this.stats.bytes || 0);
+    },
+    cachedTemplates() {
+      return this.templates.filter(item => item.cacheEnabled);
+    },
+    templateCategories() {
+      const categories = new Map();
+      this.templates.forEach(item => {
+        const value = String(item.category || 'default').trim() || 'default';
+        const label = String(item.categoryName || value).trim() || value;
+        categories.set(value, label);
+      });
+      return [...categories.entries()]
+        .map(([value, label]) => ({ value, label }))
+        .sort((left, right) => left.label.localeCompare(right.label, 'zh-CN'));
+    },
+    templatePickerItems() {
+      const keyword = this.templatePickerKeyword.trim().toLowerCase();
+      return this.templates.filter(item => {
+        if (this.templatePickerCategory && String(item.category || 'default') !== this.templatePickerCategory) return false;
+        if (!keyword) return true;
+        return [item.title, item.toolName, item.category, item.categoryName, item.databaseType, item.datasourceId]
+          .some(value => String(value || '').toLowerCase().includes(keyword));
+      });
     },
     redisUsesAuthentication() {
       return this.redis.mode !== 'STANDALONE_NO_AUTH';
@@ -103,6 +131,39 @@ export default {
         })));
       }, '模板缓存策略已保存');
       await this.load();
+    },
+    openTemplatePicker() {
+      this.templatePickerKeyword = '';
+      this.templatePickerCategory = '';
+      this.templatePickerSelected = this.templates.filter(item => item.cacheEnabled).map(item => item.id);
+      this.templatePickerOpen = true;
+    },
+    toggleTemplatePicker(id) {
+      const selected = new Set(this.templatePickerSelected);
+      if (selected.has(id)) selected.delete(id);
+      else selected.add(id);
+      this.templatePickerSelected = [...selected];
+    },
+    selectVisibleTemplates() {
+      const selected = new Set(this.templatePickerSelected);
+      this.templatePickerItems.filter(item => item.enabled).forEach(item => selected.add(item.id));
+      this.templatePickerSelected = [...selected];
+    },
+    clearVisibleTemplates() {
+      const visible = new Set(this.templatePickerItems.map(item => item.id));
+      this.templatePickerSelected = this.templatePickerSelected.filter(id => !visible.has(id));
+    },
+    confirmTemplatePicker() {
+      const selected = new Set(this.templatePickerSelected);
+      this.templates.forEach(item => {
+        const wasEnabled = item.cacheEnabled;
+        item.cacheEnabled = item.enabled && selected.has(item.id);
+        if (item.cacheEnabled && !wasEnabled) {
+          item.cacheTtlSeconds = item.cacheTtlSeconds > 0 ? item.cacheTtlSeconds : this.config.defaultTtlSeconds;
+          item.cacheStorage = item.cacheStorage || 'ROCKSDB';
+        }
+      });
+      this.templatePickerOpen = false;
     },
     redisPayload() {
       return {

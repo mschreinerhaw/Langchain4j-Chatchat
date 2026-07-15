@@ -37,7 +37,7 @@ public class DatabaseQueryCacheAdminController {
     @PutMapping("/config")
     public ApiResponse<DatabaseQueryCacheConfigView> save(@RequestBody DatabaseQueryCacheConfigRequest request) {
         DatabaseQueryCacheConfig config = new DatabaseQueryCacheConfig();
-        config.setEnabled(true);
+        config.setEnabled(request.enabled() != null && request.enabled());
         config.setDefaultTtlSeconds(request.defaultTtlSeconds() == null ? 300 : request.defaultTtlSeconds());
         config.setMaxRows(request.maxRows() == null ? 1000 : request.maxRows());
         config.setMaxEntryKb(request.maxEntryKb() == null ? 512 : request.maxEntryKb());
@@ -51,7 +51,7 @@ public class DatabaseQueryCacheAdminController {
     public ApiResponse<DatabaseQueryCacheStatsView> stats() {
         DatabaseQueryCacheService.CacheStats stats = cacheService.stats();
         boolean redisAvailable = redisCacheStore.isConnected();
-        boolean templateCachingEnabled = queryConfigService.listAll().stream()
+        boolean templateCachingEnabled = configService.current().isEnabled() && queryConfigService.listAll().stream()
             .anyMatch(config -> config.isEnabled() && config.isCacheEnabled());
         return ApiResponse.success(new DatabaseQueryCacheStatsView(
             rocksDbStore.isUsable() || redisAvailable,
@@ -163,6 +163,9 @@ public class DatabaseQueryCacheAdminController {
             config.getId(),
             config.getToolName(),
             config.getTitle(),
+            config.getBusinessGroup(),
+            config.getBusinessGroupName(),
+            config.getDatabaseType(),
             config.getDatasourceId(),
             sqlCount(config),
             config.isCacheEnabled(),
@@ -266,6 +269,9 @@ public class DatabaseQueryCacheAdminController {
         String id,
         String toolName,
         String title,
+        String category,
+        String categoryName,
+        String databaseType,
         String datasourceId,
         int sqlCount,
         boolean cacheEnabled,

@@ -51,6 +51,7 @@ export default {
       templatePickerOpen: false,
       templatePickerField: null,
       templatePickerKeyword: '',
+      templatePickerFilterValue: '',
       templatePickerPage: 1,
       templatePickerPageSize: 8,
       templatePickerSelected: [],
@@ -122,6 +123,17 @@ export default {
     templatePickerTitle() {
       return this.templatePickerField?.label || '选择模板';
     },
+    templatePickerSubtitle() {
+      return this.templatePickerField?.pickerSubtitle || '搜索并勾选允许该资产使用的命令模板。';
+    },
+    templatePickerFilterOptions() {
+      const source = this.templatePickerField?.filterOptions;
+      const options = typeof source === 'function' ? source() : source;
+      return Array.isArray(options) ? options : [];
+    },
+    templatePickerFilterLabel() {
+      return this.templatePickerField?.filterLabel || '类型';
+    },
     templatePickerItems() {
       if (!this.templatePickerField) return [];
       const source = this.templatePickerField.items;
@@ -132,6 +144,11 @@ export default {
       const keyword = this.templatePickerKeyword.trim().toLowerCase();
       return this.templatePickerItems.filter(item => {
         if (item.enabled === false && this.templatePickerField?.enabledOnly !== false) return false;
+        const filterKey = this.templatePickerField?.filterKey;
+        if (filterKey && this.templatePickerFilterValue
+          && String(item?.[filterKey] || '').trim().toLowerCase() !== this.templatePickerFilterValue.toLowerCase()) {
+          return false;
+        }
         if (!keyword) return true;
         return [
           this.templatePickerItemKey(item),
@@ -176,6 +193,9 @@ export default {
       if (this.page > value) this.page = value;
     },
     templatePickerKeyword() {
+      this.templatePickerPage = 1;
+    },
+    templatePickerFilterValue() {
       this.templatePickerPage = 1;
     },
     templatePickerPageCount(value) {
@@ -573,6 +593,10 @@ export default {
     openTemplatePicker(field) {
       this.templatePickerField = field;
       this.templatePickerKeyword = '';
+      const defaultFilterKey = field.filterDefaultFromForm;
+      this.templatePickerFilterValue = defaultFilterKey
+        ? String(this.form?.[defaultFilterKey] || '').trim()
+        : String(field.filterDefaultValue || '').trim();
       this.templatePickerPage = 1;
       this.templatePickerSelected = [...(this.listDraft[field.key] || [])];
       this.templatePickerOpen = true;

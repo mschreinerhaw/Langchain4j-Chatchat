@@ -69,7 +69,6 @@
     <div
       v-if="webPagesDialog.open"
       class="web-pages-modal-backdrop"
-      @click.self="closeWebPagesDialog"
     >
       <section
         class="web-pages-modal"
@@ -81,11 +80,12 @@
           <h3 id="web-pages-modal-title">{{ webPagesDialog.title }}</h3>
           <button
             type="button"
-            class="web-pages-modal-close"
+            class="app-dialog-close"
             aria-label="关闭"
+            title="关闭"
             @click="closeWebPagesDialog"
           >
-            x
+            ×
           </button>
         </header>
         <ol class="web-pages-modal-list">

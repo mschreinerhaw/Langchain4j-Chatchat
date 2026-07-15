@@ -187,14 +187,14 @@
       </aside>
     </section>
 
-    <div v-if="ruleDialogOpen" class="keyword-rule-modal-backdrop" @click.self="closeRuleDialog">
+    <div v-if="ruleDialogOpen" class="keyword-rule-modal-backdrop">
       <form class="keyword-rule-modal" @submit.prevent="saveRule(ruleDialogKind)">
         <header>
           <div>
             <p>规则编辑器</p>
             <h2>{{ ruleDialogTitle }}</h2>
           </div>
-          <button type="button" title="关闭" @click="closeRuleDialog">
+          <button type="button" class="app-dialog-close" aria-label="关闭" title="关闭" @click="closeRuleDialog">
             <X :size="18" stroke-width="2" />
           </button>
         </header>

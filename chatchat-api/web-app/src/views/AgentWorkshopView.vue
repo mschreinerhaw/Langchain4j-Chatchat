@@ -239,14 +239,14 @@
       </div>
     </nav>
 
-    <div v-if="dialogOpen" class="agent-dialog-backdrop" @click.self="closeDialog">
+    <div v-if="dialogOpen" class="agent-dialog-backdrop">
       <form class="agent-dialog" @submit.prevent="saveAgent">
         <header>
           <div>
             <p>{{ dialogMode === "create" ? "新增Agent" : "Agent设置" }}</p>
             <h2>{{ dialogMode === "create" ? "创建业务智能体" : form.name || form.id }}</h2>
           </div>
-          <button type="button" class="dialog-close" :disabled="saving" @click="closeDialog">×</button>
+          <button type="button" class="app-dialog-close" aria-label="关闭" title="关闭" :disabled="saving" @click="closeDialog">×</button>
         </header>
 
         <div class="dialog-body">
@@ -563,14 +563,14 @@
       </form>
     </div>
 
-    <div v-if="importDialogOpen" class="agent-dialog-backdrop" @click.self="closeImportDialog">
+    <div v-if="importDialogOpen" class="agent-dialog-backdrop">
       <form class="agent-dialog agent-import-dialog" @submit.prevent="importAgents">
         <header>
           <div>
             <p>批量导入</p>
             <h2>导入 Agent 配置</h2>
           </div>
-          <button type="button" class="dialog-close" :disabled="importing" @click="closeImportDialog">×</button>
+          <button type="button" class="app-dialog-close" aria-label="关闭" title="关闭" :disabled="importing" @click="closeImportDialog">×</button>
         </header>
 
         <div class="dialog-body agent-import-body">
@@ -594,7 +594,6 @@
               v-model="importText"
               rows="9"
               placeholder="支持 agentId/id、agentName/name、model/modelName、tags、businessScenarios、quickQuestions 等字段别名"
-              @blur="importText.trim() && refreshImportPreview()"
             ></textarea>
           </label>
 
@@ -619,7 +618,11 @@
           <section v-if="importResults.length" class="wide-field agent-import-results">
             <strong>导入结果</strong>
             <div>
-              <span v-for="result in importResults" :key="`${result.id}-${result.status}`">
+              <span
+                v-for="result in importResults"
+                :key="`${result.id}-${result.status}`"
+                :class="`is-${result.outcome || 'success'}`"
+              >
                 {{ result.name || result.id }}：{{ result.status }}
               </span>
             </div>
@@ -635,6 +638,32 @@
           </button>
         </footer>
       </form>
+    </div>
+
+    <div v-if="importNotice.open" class="agent-dialog-backdrop agent-import-notice-backdrop">
+      <section class="agent-import-notice" role="dialog" aria-modal="true" aria-labelledby="agent-import-notice-title">
+        <header>
+          <div>
+            <p>批量导入提示</p>
+            <h2 id="agent-import-notice-title">{{ importNotice.title }}</h2>
+          </div>
+          <button type="button" class="app-dialog-close" aria-label="关闭" title="关闭" @click="closeImportNotice">×</button>
+        </header>
+        <div class="agent-import-notice-body" :class="`is-${importNotice.tone}`">
+          <span class="agent-import-notice-icon" aria-hidden="true">
+            {{ importNotice.tone === "success" ? "✓" : importNotice.tone === "warning" ? "!" : "×" }}
+          </span>
+          <div>
+            <strong>{{ importNotice.message }}</strong>
+            <ul v-if="importNotice.details.length">
+              <li v-for="(detail, index) in importNotice.details" :key="`${index}-${detail}`">{{ detail }}</li>
+            </ul>
+          </div>
+        </div>
+        <footer>
+          <button type="button" class="primary-button" @click="closeImportNotice">知道了</button>
+        </footer>
+      </section>
     </div>
   </section>
 </template>

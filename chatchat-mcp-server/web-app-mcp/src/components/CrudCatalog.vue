@@ -327,18 +327,23 @@
                     </div>
                   </div>
                   <div v-if="databaseSqlSteps(field).length && databaseSqlWorkflowEnabled(field)" class="database-workflow-board">
-                    <div class="database-workflow-title">执行依赖图</div>
+                    <div class="database-workflow-title">执行依赖</div>
                     <div class="database-workflow-levels">
                       <div v-for="(level, levelIndex) in databaseSqlWorkflowLevels(field)" :key="`workflow-level-${levelIndex}`" class="database-workflow-level">
-                        <span class="database-workflow-level-label">层级 {{ levelIndex + 1 }}</span>
+                        <span class="database-workflow-level-label">L{{ levelIndex + 1 }}</span>
                         <div class="database-workflow-nodes">
-                          <div v-for="node in level" :key="node.sqlCode" class="database-workflow-node">
-                            <strong>{{ node.sqlName }}</strong>
+                          <div
+                            v-for="node in level"
+                            :key="node.sqlCode"
+                            class="database-workflow-node"
+                            :title="`${node.sqlName || node.sqlCode}${node.dependencies?.length ? `；依赖 ${node.dependencies.join('、')}` : '；起始节点'}`"
+                          >
                             <code>{{ node.sqlCode }}</code>
-                            <small>{{ node.dependencies?.length ? `依赖 ${node.dependencies.join('、')}` : '起始节点' }}</small>
+                            <span>{{ node.sqlName || node.sqlCode }}</span>
+                            <small v-if="node.dependencies?.length">← {{ node.dependencies.join('、') }}</small>
                           </div>
                         </div>
-                        <span v-if="levelIndex < databaseSqlWorkflowLevels(field).length - 1" class="database-workflow-arrow">↓</span>
+                        <span v-if="levelIndex < databaseSqlWorkflowLevels(field).length - 1" class="database-workflow-arrow">→</span>
                       </div>
                     </div>
                   </div>
@@ -636,11 +641,24 @@
     <ModalPanel
       :open="templatePickerOpen"
       :title="templatePickerTitle"
-      subtitle="搜索并勾选允许该资产使用的命令模板。"
+      :subtitle="templatePickerSubtitle"
       wide
       @close="templatePickerOpen = false"
     >
-      <div class="template-picker-toolbar">
+      <div class="template-picker-toolbar" :class="{ 'has-filter': templatePickerFilterOptions.length }">
+        <el-select
+          v-if="templatePickerFilterOptions.length"
+          v-model="templatePickerFilterValue"
+          clearable
+          :placeholder="`全部${templatePickerFilterLabel}`"
+        >
+          <el-option
+            v-for="option in templatePickerFilterOptions"
+            :key="String(option.value)"
+            :label="option.label"
+            :value="String(option.value)"
+          />
+        </el-select>
         <el-input v-model.trim="templatePickerKeyword" clearable placeholder="搜索模板编号、名称、分类或描述">
           <template #prefix><el-icon><Search /></el-icon></template>
         </el-input>
@@ -659,6 +677,9 @@
         </el-table-column>
         <el-table-column label="模板名称" min-width="180">
           <template #default="{ row }">{{ row.title || row.name || '-' }}</template>
+        </el-table-column>
+        <el-table-column v-if="templatePickerFilterOptions.length" :label="templatePickerFilterLabel" min-width="120">
+          <template #default="{ row }">{{ row[templatePickerField.filterKey] || '-' }}</template>
         </el-table-column>
         <el-table-column label="分类" min-width="140">
           <template #default="{ row }">{{ row.category || '-' }}</template>

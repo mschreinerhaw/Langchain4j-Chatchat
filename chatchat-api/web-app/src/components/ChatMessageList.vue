@@ -248,7 +248,6 @@
       v-if="reasoningModal"
       class="reasoning-modal-backdrop"
       role="presentation"
-      @click.self="closeReasoningModal"
     >
       <section class="reasoning-modal" role="dialog" aria-modal="true" aria-label="Reasoning path">
         <header>
@@ -256,7 +255,7 @@
             <span>Reasoning Path</span>
             <h2>{{ reasoningModal.title }}</h2>
           </div>
-          <button type="button" aria-label="关闭" @click="closeReasoningModal">×</button>
+          <button type="button" class="app-dialog-close" aria-label="关闭" title="关闭" @click="closeReasoningModal">×</button>
         </header>
 
         <div class="reasoning-modal-metrics">
@@ -351,7 +350,7 @@
               <Minimize2 v-if="chartAnalysisFullscreen" :size="16" />
               <Maximize2 v-else :size="16" />
             </button>
-            <button type="button" aria-label="关闭" title="关闭" @click="closeChartAnalysisModal">
+            <button type="button" class="app-dialog-close" aria-label="关闭" title="关闭" @click="closeChartAnalysisModal">
               <X :size="18" />
             </button>
           </div>

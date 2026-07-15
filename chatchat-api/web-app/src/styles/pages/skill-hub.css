@@ -2123,6 +2123,104 @@
   font-weight: 800;
 }
 
+.agent-workshop-view .agent-import-results span.is-skipped {
+  background: rgba(245, 158, 11, 0.12);
+  color: #a05b08;
+}
+
+.agent-workshop-view .agent-import-results span.is-failed {
+  background: rgba(239, 79, 95, 0.1);
+  color: #c81932;
+}
+
+.agent-workshop-view .agent-import-notice-backdrop {
+  z-index: 50;
+}
+
+.agent-workshop-view .agent-import-notice {
+  width: min(480px, 100%);
+  overflow: hidden;
+  border-radius: 10px;
+  background: #fff;
+  box-shadow: var(--shadow);
+}
+
+.agent-workshop-view .agent-import-notice header,
+.agent-workshop-view .agent-import-notice footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 16px 18px;
+}
+
+.agent-workshop-view .agent-import-notice header {
+  align-items: flex-start;
+  border-bottom: 1px solid var(--line);
+}
+
+.agent-workshop-view .agent-import-notice header p {
+  margin: 0 0 4px;
+  color: var(--primary);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.agent-workshop-view .agent-import-notice header h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.agent-workshop-view .agent-import-notice footer {
+  justify-content: flex-end;
+  border-top: 1px solid var(--line);
+}
+
+.agent-workshop-view .agent-import-notice-body {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 12px;
+  padding: 20px 18px;
+}
+
+.agent-workshop-view .agent-import-notice-icon {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(32, 178, 107, 0.12);
+  color: #168555;
+  font-size: 17px;
+  font-weight: 900;
+}
+
+.agent-workshop-view .agent-import-notice-body.is-warning .agent-import-notice-icon {
+  background: rgba(245, 158, 11, 0.14);
+  color: #a05b08;
+}
+
+.agent-workshop-view .agent-import-notice-body.is-error .agent-import-notice-icon {
+  background: rgba(239, 79, 95, 0.12);
+  color: #c81932;
+}
+
+.agent-workshop-view .agent-import-notice-body strong {
+  color: var(--text);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.agent-workshop-view .agent-import-notice-body ul {
+  max-height: 180px;
+  margin: 10px 0 0;
+  overflow: auto;
+  padding-left: 18px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.7;
+}
+
 .agent-workshop-view .agent-tool-picker-head {
   display: flex;
   align-items: flex-end;

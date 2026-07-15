@@ -261,6 +261,10 @@
   margin-bottom: 12px;
 }
 
+.template-picker-toolbar.has-filter {
+  grid-template-columns: minmax(150px, 0.35fr) minmax(260px, 1fr) auto auto;
+}
+
 .template-picker-table {
   border-radius: 8px;
   overflow: hidden;
@@ -417,6 +421,92 @@
   display: grid;
   gap: 12px;
   width: 100%;
+}
+
+.database-workflow-board {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 52px;
+  margin: 4px 0;
+  padding: 8px 10px;
+  overflow-x: auto;
+  border: 1px solid #d9e5f7;
+  border-radius: 8px;
+  background: #f7faff;
+}
+
+.database-workflow-switch-label {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+.database-workflow-title {
+  flex: 0 0 auto;
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.database-workflow-levels,
+.database-workflow-level,
+.database-workflow-nodes,
+.database-workflow-node {
+  display: flex;
+  align-items: center;
+}
+
+.database-workflow-levels,
+.database-workflow-level,
+.database-workflow-nodes {
+  gap: 6px;
+}
+
+.database-workflow-levels,
+.database-workflow-level {
+  flex: 0 0 auto;
+}
+
+.database-workflow-level-label {
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.database-workflow-node {
+  max-width: 260px;
+  gap: 6px;
+  padding: 5px 8px;
+  border: 1px solid #b9d1f6;
+  border-radius: 6px;
+  background: #fff;
+  white-space: nowrap;
+}
+
+.database-workflow-node code {
+  color: #3378db;
+  font-size: 11px;
+}
+
+.database-workflow-node span,
+.database-workflow-node small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.database-workflow-node span {
+  max-width: 100px;
+  font-size: 12px;
+}
+
+.database-workflow-node small {
+  max-width: 110px;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.database-workflow-arrow {
+  color: #6f9fe6;
+  font-size: 16px;
 }
 
 .database-sql-step-card {

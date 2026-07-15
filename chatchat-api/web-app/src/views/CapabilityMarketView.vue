@@ -101,14 +101,14 @@
       </div>
     </nav>
 
-    <div v-if="settingsOpen" class="skill-dialog-backdrop" @click.self="closeSettingsDialog">
+    <div v-if="settingsOpen" class="skill-dialog-backdrop">
       <form class="skill-dialog" @submit.prevent="saveSettings">
         <header>
           <div>
             <p>{{ dialogMode === "create" ? "新增能力" : "能力设置" }}</p>
             <h2>{{ dialogMode === "create" ? "创建后端 Skill" : form.label || form.value }}</h2>
           </div>
-          <button type="button" class="dialog-close" :disabled="saving" @click="closeSettingsDialog">×</button>
+          <button type="button" class="app-dialog-close" aria-label="关闭" title="关闭" :disabled="saving" @click="closeSettingsDialog">×</button>
         </header>
 
         <div class="dialog-body">

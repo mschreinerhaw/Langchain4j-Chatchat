@@ -213,14 +213,14 @@
       </section>
     </div>
 
-    <div v-if="categoryDeleteDialogOpen" class="category-dialog-backdrop" @click.self="closeCategoryDeleteDialog">
+    <div v-if="categoryDeleteDialogOpen" class="category-dialog-backdrop">
       <section class="category-dialog delete-confirm-dialog">
         <header>
           <div>
             <p>分类操作</p>
             <h2>删除分类</h2>
           </div>
-          <button type="button" class="viewer-close" :disabled="categoryDeleteSubmitting" @click="closeCategoryDeleteDialog">×</button>
+          <button type="button" class="app-dialog-close" aria-label="关闭" title="关闭" :disabled="categoryDeleteSubmitting" @click="closeCategoryDeleteDialog">×</button>
         </header>
 
         <div class="reindex-confirm-body delete-confirm-body">
@@ -251,14 +251,14 @@
       </section>
     </div>
 
-    <div v-if="documentBatchDeleteDialogOpen" class="category-dialog-backdrop" @click.self="closeDocumentBatchDeleteDialog">
+    <div v-if="documentBatchDeleteDialogOpen" class="category-dialog-backdrop">
       <section class="category-dialog delete-confirm-dialog">
         <header>
           <div>
             <p>文档操作</p>
             <h2>批量删除文档</h2>
           </div>
-          <button type="button" class="viewer-close" :disabled="documentBatchDeleteSubmitting" @click="closeDocumentBatchDeleteDialog">x</button>
+          <button type="button" class="app-dialog-close" aria-label="关闭" title="关闭" :disabled="documentBatchDeleteSubmitting" @click="closeDocumentBatchDeleteDialog">×</button>
         </header>
 
         <div class="reindex-confirm-body delete-confirm-body">
@@ -289,14 +289,14 @@
       </section>
     </div>
 
-    <div v-if="documentDeleteDialogOpen" class="category-dialog-backdrop" @click.self="closeDocumentDeleteDialog">
+    <div v-if="documentDeleteDialogOpen" class="category-dialog-backdrop">
       <section class="category-dialog delete-confirm-dialog">
         <header>
           <div>
             <p>文档操作</p>
             <h2>删除文档</h2>
           </div>
-          <button type="button" class="viewer-close" :disabled="documentDeleteSubmitting" @click="closeDocumentDeleteDialog">×</button>
+          <button type="button" class="app-dialog-close" aria-label="关闭" title="关闭" :disabled="documentDeleteSubmitting" @click="closeDocumentDeleteDialog">×</button>
         </header>
 
         <div class="reindex-confirm-body delete-confirm-body">
@@ -327,14 +327,14 @@
       </section>
     </div>
 
-    <div v-if="categoryReindexDialogOpen" class="category-dialog-backdrop" @click.self="closeCategoryReindexDialog">
+    <div v-if="categoryReindexDialogOpen" class="category-dialog-backdrop">
       <section class="category-dialog reindex-confirm-dialog">
         <header>
           <div>
             <p>索引维护</p>
             <h2>重建分类索引</h2>
           </div>
-          <button type="button" class="viewer-close" :disabled="categoryReindexSubmitting" @click="closeCategoryReindexDialog">×</button>
+          <button type="button" class="app-dialog-close" aria-label="关闭" title="关闭" :disabled="categoryReindexSubmitting" @click="closeCategoryReindexDialog">×</button>
         </header>
 
         <div class="reindex-confirm-body">
@@ -365,14 +365,14 @@
       </section>
     </div>
 
-    <div v-if="documentCategoryDialogOpen" class="category-dialog-backdrop" @click.self="closeDocumentCategoryDialog">
+    <div v-if="documentCategoryDialogOpen" class="category-dialog-backdrop">
       <section class="category-dialog document-category-dialog">
         <header>
           <div>
             <p>文档分类</p>
             <h2>修改文档分类</h2>
           </div>
-          <button type="button" class="viewer-close" @click="closeDocumentCategoryDialog">×</button>
+          <button type="button" class="app-dialog-close" aria-label="关闭" title="关闭" @click="closeDocumentCategoryDialog">×</button>
         </header>
 
         <div class="document-category-current">
@@ -417,14 +417,14 @@
       </section>
     </div>
 
-    <div v-if="categoryDialogOpen" class="category-dialog-backdrop" @click.self="closeCategoryDialog">
+    <div v-if="categoryDialogOpen" class="category-dialog-backdrop">
       <section class="category-dialog">
         <header>
           <div>
             <p>文档分类</p>
             <h2>{{ categoryDialogTitle }}</h2>
           </div>
-          <button type="button" class="viewer-close" @click="closeCategoryDialog">×</button>
+          <button type="button" class="app-dialog-close" aria-label="关闭" title="关闭" @click="closeCategoryDialog">×</button>
         </header>
 
         <label>
@@ -446,14 +446,14 @@
       </section>
     </div>
 
-    <div v-if="viewerOpen" class="document-viewer-backdrop" @click.self="closeDocument">
+    <div v-if="viewerOpen" class="document-viewer-backdrop">
       <section class="document-viewer">
         <header>
           <div>
             <p>{{ documentTypeLabel(viewerType) }} <span v-if="viewerVersionSummary">· {{ viewerVersionSummary }}</span></p>
             <h2>{{ viewerDocument?.title || "文档详情" }}</h2>
           </div>
-          <button type="button" class="viewer-close" @click="closeDocument">×</button>
+          <button type="button" class="app-dialog-close" aria-label="关闭" title="关闭" @click="closeDocument">×</button>
         </header>
 
         <p v-if="viewerLoading" class="library-empty">正在加载文档...</p>

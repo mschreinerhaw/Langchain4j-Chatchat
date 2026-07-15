@@ -169,7 +169,7 @@
       <p v-else>{{ mcpToolTotal ? "没有匹配的工具，请换一个关键词。" : "暂无已注册 MCP 工具，请先同步中心。" }}</p>
     </section>
 
-    <div v-if="activeTool" class="mcp-tool-detail-backdrop" @click.self="closeToolDetail">
+    <div v-if="activeTool" class="mcp-tool-detail-backdrop">
       <aside class="mcp-tool-detail-panel">
         <header>
           <div>
@@ -177,7 +177,7 @@
             <h2>{{ activeTool.displayName || activeTool.localToolName }}</h2>
             <span>{{ activeTool.localToolName }}</span>
           </div>
-          <button type="button" class="mcp-detail-close" title="关闭详情" @click="closeToolDetail">×</button>
+          <button type="button" class="app-dialog-close" aria-label="关闭详情" title="关闭详情" @click="closeToolDetail">×</button>
         </header>
 
         <div class="mcp-tool-detail-body">

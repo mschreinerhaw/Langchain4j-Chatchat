@@ -196,6 +196,13 @@ export default {
       importResults: [],
       importing: false,
       importOverwriteExisting: true,
+      importNotice: {
+        open: false,
+        tone: "success",
+        title: "",
+        message: "",
+        details: []
+      },
       searchQuery: "",
       agentCategoryFilter: "all",
       agentStatusFilter: "all",
@@ -660,6 +667,18 @@ export default {
       this.importResults = [];
       this.importError = "";
     },
+    showImportNotice(tone, title, message, details = []) {
+      this.importNotice = {
+        open: true,
+        tone,
+        title,
+        message,
+        details: Array.isArray(details) ? details.filter(Boolean) : []
+      };
+    },
+    closeImportNotice() {
+      this.importNotice.open = false;
+    },
     openEditDialog(agent) {
       this.dialogMode = "edit";
       this.activeAgent = agent;
@@ -930,6 +949,12 @@ export default {
           const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
           this.importItems = this.normalizeImportRows(XLSX.utils.sheet_to_json(firstSheet, { defval: "" }));
           this.importText = "";
+          if (this.importItems.length) {
+            this.showImportNotice("success", "解析成功", `已从 ${file.name} 解析出 ${this.importItems.length} 个 Agent 配置。`);
+          } else {
+            this.importError = "没有解析到可导入的 Agent。";
+            this.showImportNotice("error", "解析失败", this.importError);
+          }
           return;
         }
         this.importText = await file.text();
@@ -937,27 +962,41 @@ export default {
       } catch (error) {
         this.importItems = [];
         this.importError = error.message || "文件解析失败";
+        this.showImportNotice("error", "解析失败", this.importError);
       }
     },
-    refreshImportPreview() {
+    refreshImportPreview(showNotice = true) {
       this.importError = "";
       this.importResults = [];
       try {
         this.importItems = this.parseImportTextContent(this.importText);
         if (!this.importItems.length) {
           this.importError = "没有解析到可导入的 Agent。";
+          if (showNotice) {
+            this.showImportNotice("error", "解析失败", this.importError);
+          }
+          return false;
         }
+        if (showNotice) {
+          this.showImportNotice("success", "解析成功", `已解析出 ${this.importItems.length} 个 Agent 配置，可以确认导入。`);
+        }
+        return true;
       } catch (error) {
         this.importItems = [];
         this.importError = error.message || "导入内容解析失败";
+        if (showNotice) {
+          this.showImportNotice("error", "解析失败", this.importError);
+        }
+        return false;
       }
     },
     async importAgents() {
       this.importError = "";
       if (!this.importItems.length) {
-        this.refreshImportPreview();
+        this.refreshImportPreview(false);
       }
       if (!this.importItems.length) {
+        this.showImportNotice("error", "导入失败", this.importError || "没有可导入的 Agent 配置，请先检查导入内容。");
         return;
       }
       this.importing = true;
@@ -968,32 +1007,55 @@ export default {
           try {
             const existing = existingById.get(agent.id);
             if (existing?.builtin) {
-              this.importResults.push({ id: agent.id, name: agent.name, status: "跳过内置Agent" });
+              this.importResults.push({ id: agent.id, name: agent.name, status: "跳过内置Agent", outcome: "skipped" });
               continue;
             }
             if (existing && !this.importOverwriteExisting) {
-              this.importResults.push({ id: agent.id, name: agent.name, status: "已存在，已跳过" });
+              this.importResults.push({ id: agent.id, name: agent.name, status: "已存在，已跳过", outcome: "skipped" });
               continue;
             }
             if (existing) {
               await updateWorkshopAgent(agent.id, agent);
-              this.importResults.push({ id: agent.id, name: agent.name, status: "已覆盖" });
+              this.importResults.push({ id: agent.id, name: agent.name, status: "已覆盖", outcome: "success" });
             } else {
               await createWorkshopAgent(agent);
               existingById.set(agent.id, agent);
-              this.importResults.push({ id: agent.id, name: agent.name, status: "已新增" });
+              this.importResults.push({ id: agent.id, name: agent.name, status: "已新增", outcome: "success" });
             }
           } catch (error) {
             this.importResults.push({
               id: agent.id,
               name: agent.name,
-              status: error.message || "导入失败"
+              status: error.message || "导入失败",
+              outcome: "failed"
             });
           }
         }
-        await this.loadWorkshop();
+        const succeeded = this.importResults.filter((result) => result.outcome === "success");
+        const skipped = this.importResults.filter((result) => result.outcome === "skipped");
+        const failed = this.importResults.filter((result) => result.outcome === "failed");
+        const summary = `成功 ${succeeded.length} 个，跳过 ${skipped.length} 个，失败 ${failed.length} 个。`;
+        const details = [...failed, ...skipped]
+          .slice(0, 8)
+          .map((result) => `${result.name || result.id}：${result.status}`);
+        if (failed.length === 0 && succeeded.length > 0) {
+          this.showImportNotice("success", "导入成功", summary, details);
+        } else if (failed.length === 0) {
+          this.showImportNotice("warning", "未导入新配置", summary, details);
+        } else if (succeeded.length > 0 || skipped.length > 0) {
+          this.showImportNotice("warning", "部分导入完成", summary, details);
+        } else {
+          this.showImportNotice("error", "导入失败", summary, details);
+        }
+        try {
+          await this.loadWorkshop();
+        } catch (error) {
+          this.importError = error.message || "Agent 列表刷新失败";
+          this.showImportNotice("warning", "导入已完成，列表刷新失败", `${summary} 请稍后刷新页面查看最新数据。`, [this.importError, ...details]);
+        }
       } catch (error) {
         this.importError = error.message || "批量导入失败";
+        this.showImportNotice("error", "导入失败", this.importError);
       } finally {
         this.importing = false;
       }

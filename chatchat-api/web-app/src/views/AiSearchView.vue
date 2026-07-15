@@ -81,7 +81,7 @@
             <p>资料上传</p>
             <h2>上传文档</h2>
           </div>
-          <button type="button" class="dialog-close" :disabled="uploading" @click="closeUploadDialog">×</button>
+          <button type="button" class="app-dialog-close" aria-label="关闭" title="关闭" :disabled="uploading" @click="closeUploadDialog">×</button>
         </header>
 
         <div class="file-picker">
@@ -159,14 +159,14 @@
       </form>
     </div>
 
-    <div v-if="viewerOpen" class="search-viewer-backdrop" @click.self="closeViewer">
+    <div v-if="viewerOpen" class="search-viewer-backdrop">
       <section class="search-viewer">
         <header>
           <div>
             <p>{{ viewerDocument?.source || viewerResult?.source }} · {{ viewerDocument?.date || viewerResult?.date }}</p>
             <h2>{{ viewerDocument?.title || viewerResult?.title || "文档内容" }}</h2>
           </div>
-          <button type="button" class="dialog-close" @click="closeViewer">×</button>
+          <button type="button" class="app-dialog-close" aria-label="关闭" title="关闭" @click="closeViewer">×</button>
         </header>
 
         <p v-if="viewerLoading" class="search-empty">正在加载文档内容...</p>

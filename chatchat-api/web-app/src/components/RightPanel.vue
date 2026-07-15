@@ -165,7 +165,7 @@
       </template>
     </section>
 
-    <div v-if="selectedTodo" class="todo-detail-backdrop" @click.self="closeTodo">
+    <div v-if="selectedTodo" class="todo-detail-backdrop">
       <section class="todo-detail-panel" role="dialog" aria-modal="true" :aria-label="selectedTodo.title">
         <header>
           <div>
@@ -174,7 +174,7 @@
             </span>
             <h2>{{ selectedTodo.title }}</h2>
           </div>
-          <button type="button" aria-label="关闭" title="关闭" @click="closeTodo">
+          <button type="button" class="app-dialog-close" aria-label="关闭" title="关闭" @click="closeTodo">
             <XCircle :size="18" stroke-width="2" />
           </button>
         </header>

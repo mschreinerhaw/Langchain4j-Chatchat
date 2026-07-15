@@ -91,14 +91,14 @@
       </div>
     </section>
 
-    <div v-if="dialogOpen" class="schedule-dialog-backdrop" @click.self="closeCreateDialog">
+    <div v-if="dialogOpen" class="schedule-dialog-backdrop">
       <form class="schedule-dialog" @submit.prevent="createSchedule">
         <header>
           <div>
             <p>Schedule Form</p>
             <h2>新建Agent调度</h2>
           </div>
-          <button type="button" aria-label="关闭" title="关闭" @click="closeCreateDialog">×</button>
+          <button type="button" class="app-dialog-close" aria-label="关闭" title="关闭" @click="closeCreateDialog">×</button>
         </header>
 
         <section>

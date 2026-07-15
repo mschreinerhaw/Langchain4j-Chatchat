@@ -286,14 +286,14 @@
     </div>
 
     <Teleport to="body">
-      <div v-if="orgModalOpen" class="permission-modal-backdrop" @click.self="closeOrgModal">
+      <div v-if="orgModalOpen" class="permission-modal-backdrop">
         <form class="entity-modal" @submit.prevent="saveOrgForm">
           <div class="modal-head">
             <div>
               <p>组织档案</p>
               <h2>{{ orgForm.id ? "编辑组织" : "新增组织" }}</h2>
             </div>
-            <button type="button" class="icon-button" title="关闭" @click="closeOrgModal">
+            <button type="button" class="app-dialog-close" aria-label="关闭" title="关闭" @click="closeOrgModal">
               <X :size="18" />
             </button>
           </div>
@@ -344,14 +344,14 @@
         </form>
       </div>
 
-      <div v-if="userModalOpen" class="permission-modal-backdrop" @click.self="closeUserModal">
+      <div v-if="userModalOpen" class="permission-modal-backdrop">
         <form class="entity-modal" @submit.prevent="saveUserForm">
           <div class="modal-head">
             <div>
               <p>账户档案</p>
               <h2>{{ userForm.id ? "编辑账户" : "新增账户" }}</h2>
             </div>
-            <button type="button" class="icon-button" title="关闭" @click="closeUserModal">
+            <button type="button" class="app-dialog-close" aria-label="关闭" title="关闭" @click="closeUserModal">
               <X :size="18" />
             </button>
           </div>
@@ -415,14 +415,14 @@
         </form>
       </div>
 
-      <div v-if="adminPasswordModalOpen" class="permission-modal-backdrop" @click.self="closeAdminPasswordModal">
+      <div v-if="adminPasswordModalOpen" class="permission-modal-backdrop">
         <form class="entity-modal" @submit.prevent="saveAdminPasswordForm">
           <div class="modal-head">
             <div>
               <p>安全设置</p>
               <h2>修改 admin 密码</h2>
             </div>
-            <button type="button" class="icon-button" title="关闭" @click="closeAdminPasswordModal">
+            <button type="button" class="app-dialog-close" aria-label="关闭" title="关闭" @click="closeAdminPasswordModal">
               <X :size="18" />
             </button>
           </div>
@@ -452,14 +452,14 @@
         </form>
       </div>
 
-      <div v-if="embedTokenModalOpen" class="permission-modal-backdrop" @click.self="closeEmbedTokenModal">
+      <div v-if="embedTokenModalOpen" class="permission-modal-backdrop">
         <div class="embed-token-modal">
           <div class="modal-head">
             <div>
               <p>admin 嵌入登录</p>
               <h2>URL 授权</h2>
             </div>
-            <button type="button" class="icon-button" title="关闭" @click="closeEmbedTokenModal">
+            <button type="button" class="app-dialog-close" aria-label="关闭" title="关闭" @click="closeEmbedTokenModal">
               <X :size="18" />
             </button>
           </div>
@@ -533,14 +533,14 @@
         </div>
       </div>
 
-      <div v-if="roleModalOpen" class="permission-modal-backdrop" @click.self="closeRoleModal">
+      <div v-if="roleModalOpen" class="permission-modal-backdrop">
         <form class="role-modal" @submit.prevent="saveRoleForm">
           <div class="modal-head">
             <div>
               <p>角色权限配置</p>
               <h2>{{ roleForm.id ? "修改角色" : "新建角色" }}</h2>
             </div>
-            <button type="button" class="icon-button" title="关闭" @click="closeRoleModal">
+            <button type="button" class="app-dialog-close" aria-label="关闭" title="关闭" @click="closeRoleModal">
               <X :size="18" />
             </button>
           </div>
@@ -737,14 +737,14 @@
         </form>
       </div>
 
-      <div v-if="agentPickerOpen" class="permission-modal-backdrop" @click.self="closeAgentPicker">
+      <div v-if="agentPickerOpen" class="permission-modal-backdrop">
         <div class="user-picker-modal agent-picker-modal">
           <div class="modal-head">
             <div>
               <p>Agent绑定</p>
               <h2>搜索并选择可用Agent</h2>
             </div>
-            <button type="button" class="icon-button" title="关闭" @click="closeAgentPicker">
+            <button type="button" class="app-dialog-close" aria-label="关闭" title="关闭" @click="closeAgentPicker">
               <X :size="18" />
             </button>
           </div>
@@ -780,14 +780,14 @@
         </div>
       </div>
 
-      <div v-if="userPickerOpen" class="permission-modal-backdrop" @click.self="closeUserPicker">
+      <div v-if="userPickerOpen" class="permission-modal-backdrop">
         <div class="user-picker-modal">
           <div class="modal-head">
             <div>
               <p>添加用户</p>
               <h2>批量选择已创建用户</h2>
             </div>
-            <button type="button" class="icon-button" title="关闭" @click="closeUserPicker">
+            <button type="button" class="app-dialog-close" aria-label="关闭" title="关闭" @click="closeUserPicker">
               <X :size="18" />
             </button>
           </div>

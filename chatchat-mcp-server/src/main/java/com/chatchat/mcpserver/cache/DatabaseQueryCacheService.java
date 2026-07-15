@@ -35,7 +35,8 @@ public class DatabaseQueryCacheService {
     private final DatabaseQueryCacheConfigService configService;
 
     public Optional<ToolOutput> get(DatabaseQueryConfig config, Map<String, Object> parameters) {
-        if (!isUsable(config)) {
+        DatabaseQueryCacheConfig cacheConfig = configService.current();
+        if (!isUsable(config, cacheConfig)) {
             return Optional.empty();
         }
         String key = key(config, parameters);
@@ -65,10 +66,10 @@ public class DatabaseQueryCacheService {
     }
 
     public void put(DatabaseQueryConfig config, Map<String, Object> parameters, ToolOutput result) {
-        if (!isUsable(config) || result == null) {
+        DatabaseQueryCacheConfig cacheConfig = configService.current();
+        if (!isUsable(config, cacheConfig) || result == null) {
             return;
         }
-        DatabaseQueryCacheConfig cacheConfig = configService.current();
         if (!shouldCache(cacheConfig, result)) {
             return;
         }
@@ -184,8 +185,10 @@ public class DatabaseQueryCacheService {
         return new CacheStats(true, entries, expiredEntries, bytes, now);
     }
 
-    private boolean isUsable(DatabaseQueryConfig config) {
-        return config != null
+    private boolean isUsable(DatabaseQueryConfig config, DatabaseQueryCacheConfig cacheConfig) {
+        return cacheConfig != null
+            && cacheConfig.isEnabled()
+            && config != null
             && config.isEnabled()
             && config.isCacheEnabled()
             && config.getCacheTtlSeconds() > 0

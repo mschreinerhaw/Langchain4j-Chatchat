@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -39,6 +40,30 @@ class SqlMcpToolPublisherTest {
     private final AssetMetadataFactory assetMetadataFactory = mock(AssetMetadataFactory.class);
     private final AgentRuntimeGovernanceFactory governanceFactory = mock(AgentRuntimeGovernanceFactory.class);
     private final McpToolConcurrencyManager concurrencyManager = mock(McpToolConcurrencyManager.class);
+
+    @Test
+    void sqlGatewayRejectsTemplateObjectBeforeLookupOrRouting() throws Exception {
+        SqlMcpToolPublisher publisher = new SqlMcpToolPublisher(
+            mcpSyncServer, datasourceConfigService, sqlTemplateService, null, scriptExecuteService,
+            metadataSearchService, databaseQueryConfigService, databaseQueryInvokeService,
+            executionTargetRouter, assetMetadataFactory, governanceFactory, concurrencyManager,
+            new StandardToolExecutionResultFactory(new DatabaseToolProperties()),
+            new ChatChatMcpServerProperties(), new ObjectMapper()
+        );
+        Method method = SqlMcpToolPublisher.class.getDeclaredMethod("executeSqlGateway", Map.class);
+        method.setAccessible(true);
+
+        assertThatThrownBy(() -> method.invoke(publisher, Map.of(
+            "templateId", Map.of("templateId", "MYSQL_INNODB_STATUS"),
+            "parameters", Map.of(),
+            "executionContext", Map.of("assetName", "db", "env", "DEV")
+        )))
+            .hasRootCauseInstanceOf(IllegalArgumentException.class)
+            .hasRootCauseMessage("TEMPLATE_ARGUMENT_CONTRACT_FAILED: templateId must be a non-empty scalar string; template objects and arrays are not executable ids");
+
+        verify(databaseQueryConfigService, never()).listEnabled();
+        verify(executionTargetRouter, never()).routeSqlQuery(org.mockito.ArgumentMatchers.anyMap());
+    }
 
     @Test
     @SuppressWarnings("unchecked")

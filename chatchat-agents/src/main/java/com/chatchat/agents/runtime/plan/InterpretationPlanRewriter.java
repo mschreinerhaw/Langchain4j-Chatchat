@@ -140,7 +140,7 @@ public class InterpretationPlanRewriter {
         prompt.append("SQL template repair rules:\n");
         if (templateDiscoveryAvailable) {
             prompt.append("- If a failed sql_query_execute step used input.parameters.sql/rawSql/query/statement, remove that raw SQL parameter and replan through the available sql datasource template_query tool.\n");
-            prompt.append("- Bind a returned templates[].templateId into sql_query_execute.templateId and pass only parameters declared by templates[].parameterSchema.\n");
+            prompt.append("- Bind the scalar leaf templates[i].templateId into sql_query_execute.templateId; never bind templates[i] or any template object. Pass execution values only under input.parameters.\n");
         } else {
             prompt.append("- No template discovery tool is available in this rewrite request. Do not add database_ops_template_search/template_query steps. Remove raw SQL fields, then call sql_query_execute only when a concrete templateId and parameter contract already appear in observations or available tool metadata; otherwise produce a final_answer step explaining that template discovery is unavailable.\n");
             prompt.append("- If prior observations already contain structured sql_metadata_search columns/types/comments, preserve that evidence and do not re-add metadata search unless more data is explicitly missing and the tool is available.\n");
@@ -156,6 +156,11 @@ public class InterpretationPlanRewriter {
         }
         prompt.append("- Never bind asset_query assets[].asset.name into parameters.schemaName. Asset name is routing context; schemaName/databaseName must come from sql_metadata_search or a table-location template.\n");
         prompt.append("- Do not invent SQL or template IDs; use an already observed template_query result, or add a new template_query step only when that tool is listed in Available tools.\n\n");
+        prompt.append("Strict template argument contract:\n");
+        prompt.append("- Model output is untrusted. template/templateId must be one scalar string from templates[i].templateId; parameters must be an object of execution values; executionContext must be an object.\n");
+        prompt.append("- Use input.toolCall={toolName,action,parameters,context}. Runtime, not the model, compiles this semantic DSL into concrete MCP executor parameters and may query allowed MCP metadata/resolver tools within its bounded repair policy.\n");
+        prompt.append("- parameterSchema, requiredParameters, parameterContract, invocationExample, selectedTemplate, and an entire templates[i] object are read-only discovery metadata. Never pass any of them as templateId or parameters.\n");
+        prompt.append("- A binding targeting template/templateId must use an output_path ending in the scalar identifier field templateId (or the discovery contract's explicit scalar id field).\n\n");
         prompt.append("HTTP/API/SSH template repair rules:\n");
         prompt.append("- For http_request_execute and linux_command_execute, bind a returned templates[].templateId into input.template and pass only parameters declared by templates[].parameterSchema under input.parameters.\n");
         prompt.append("- For API service tools returned by api_template_query, call the returned toolName/templateId exactly and pass only arguments declared by templates[].parameterSchema/parameterContract.\n");

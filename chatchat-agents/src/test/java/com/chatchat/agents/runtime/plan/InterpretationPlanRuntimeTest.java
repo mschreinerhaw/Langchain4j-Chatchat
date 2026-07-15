@@ -2806,7 +2806,7 @@ class InterpretationPlanRuntimeTest {
     }
 
     @Test
-    void acceptsTemplateIdEdgeContractFromTemplateDiscoveryEnvelope() {
+    void projectsWholeTemplateDiscoveryObjectToScalarTemplateIdBeforeExecution() {
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         when(toolRegistry.hasTool("mcp_chatchat_mcp_server_sql_datasource_template_query")).thenReturn(true);
         when(toolRegistry.hasTool("mcp_chatchat_mcp_server_sql_query_execute")).thenReturn(true);
@@ -2864,7 +2864,9 @@ class InterpretationPlanRuntimeTest {
                     new InterpretationPlan.EdgeContract(1, 2, "templates[0].parameterSchema.required", "object", false)
                 ),
                 List.of(
-                    new InterpretationPlan.Binding(1, "$.templates[0].templateId", 2, "templateId", "jsonpath", true),
+                    // Regression: an unstable model may bind the whole discovery object. Runtime must
+                    // compile it to its scalar id and must never send "{templateId=...}" to MCP.
+                    new InterpretationPlan.Binding(1, "$.templates[0]", 2, "templateId", "jsonpath", true),
                     new InterpretationPlan.Binding(1, "$.templates[0].parameterSchema", 2, "parameters", "jsonpath", false)
                 ),
                 null
@@ -2900,6 +2902,8 @@ class InterpretationPlanRuntimeTest {
         assertThat(result.success()).isTrue();
         assertThat(captor.getAllValues().get(1).getToolInput().getParameters())
             .containsEntry("templateId", "MYSQL_TABLE_METADATA");
+        assertThat(captor.getAllValues().get(1).getToolInput().getParameters())
+            .containsEntry("template", "MYSQL_TABLE_METADATA");
         assertThat(captor.getAllValues().get(1).getToolInput().getParameters().get("parameters"))
             .isEqualTo(Map.of());
     }
@@ -2990,7 +2994,7 @@ class InterpretationPlanRuntimeTest {
         Map<?, ?> sqlInput = captor.getAllValues().get(1).getToolInput().getParameters();
         Map<?, ?> parameters = (Map<?, ?>) sqlInput.get("parameters");
         assertThat(sqlInput.get("templateId")).isEqualTo("MYSQL_TABLE_METADATA");
-        assertThat(parameters.get("table_name")).isEqualTo("user_info_file");
+        assertThat(parameters.containsKey("table_name")).isFalse();
         assertThat(parameters.get("tableName")).isEqualTo("user_info_file");
     }
 
@@ -3076,7 +3080,8 @@ class InterpretationPlanRuntimeTest {
         ));
 
         assertThat(result.success()).isFalse();
-        assertThat(result.errorMessage()).contains("TEMPLATE_REQUIRED_PARAMETER_MISSING");
+        assertThat(result.errorMessage())
+            .contains("INVALID_TOOL_ARGUMENTS", "REQUIRED_PARAMETER_MISSING", "tableName");
         verify(toolRuntimeService, times(1)).execute(any());
     }
 
@@ -3200,6 +3205,86 @@ class InterpretationPlanRuntimeTest {
         assertThat(linuxParameters.get("template")).isEqualTo("CHECK_SYSTEM_OVERVIEW");
         assertThat(executionContext.get("assetName")).isEqualTo("docker_service");
         assertThat(executionContext.get("env")).isEqualTo("DEV");
+    }
+
+    @Test
+    void compilesFixedModelInvocationEnvelopeByResolvingMcpTemplateContract() {
+        String discoveryTool = "mcp_chatchat_mcp_server_database_ops_template_search";
+        String executorTool = "mcp_chatchat_mcp_server_sql_query_execute";
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool(any())).thenReturn(true);
+        when(toolRegistry.getToolMetadata(any())).thenReturn(ToolMetadata.builder().riskLevel("low").build());
+        ToolRuntimeService toolRuntimeService = mock(ToolRuntimeService.class);
+        when(toolRuntimeService.execute(any())).thenAnswer(invocation -> {
+            ToolRuntimeRequest runtimeRequest = invocation.getArgument(0);
+            if (discoveryTool.equals(runtimeRequest.getToolName())) {
+                return new ToolRuntimeExecution(
+                    ToolOutput.success(Map.of("templates", List.of(Map.of(
+                        "templateId", "MYSQL_TABLE_METADATA",
+                        "parameterSchema", Map.of(
+                            "type", "object",
+                            "properties", Map.of("tableName", Map.of("type", "string")),
+                            "required", List.of("tableName")
+                        ),
+                        "sqlExecutionBinding", Map.of(
+                            "toolName", "sql_query_execute",
+                            "executionContext", Map.of("assetName", "248-test-db", "env", "DEV")
+                        )
+                    )))),
+                    ToolMetadata.builder().id(discoveryTool).build(), null, "success", Map.of());
+            }
+            return new ToolRuntimeExecution(
+                ToolOutput.success(Map.of("rows", List.of())),
+                ToolMetadata.builder().id(executorTool).build(), null, "success", Map.of());
+        });
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("data_query", "Query table metadata", "low"),
+            context(),
+            new InterpretationPlan.Plan(
+                List.of(
+                    new InterpretationPlan.Step(1, "mcp_tool", executorTool, Map.of(
+                        "toolCall", Map.of(
+                            "toolName", executorTool,
+                            "action", "MYSQL_TABLE_METADATA",
+                            "parameters", Map.of("table", "user_info_file"),
+                            "context", Map.of(
+                                "purpose", "query table metadata",
+                                "stepId", "step-1",
+                                "dependsOn", List.of(),
+                                "target", Map.of("assetName", "248-test-db", "env", "DEV")
+                            )
+                        )
+                    ), List.of(), null, null),
+                    new InterpretationPlan.Step(2, "final_answer", "", Map.of("answer", "done"), List.of(1), null, null)
+                ),
+                List.of(), List.of(), null
+            ),
+            new InterpretationPlan.ExecutionPolicy(2, false, List.of(executorTool), List.of(), 30000),
+            review()
+        );
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            toolRuntimeService,
+            new InterpretationPlanValidator(),
+            scriptedController(List.of(List.of(1), List.of(2)))
+        );
+
+        InterpretationPlanRuntime.ExecutionResult result = runtime.execute(new InterpretationPlanRuntime.ExecutionRequest(
+            plan, toolRegistry, List.of(discoveryTool, executorTool), "tenant-1", "req-compiled-invocation",
+            "conv-compiled-invocation", "user-1", Map.of()
+        ));
+
+        ArgumentCaptor<ToolRuntimeRequest> captor = ArgumentCaptor.forClass(ToolRuntimeRequest.class);
+        verify(toolRuntimeService, times(2)).execute(captor.capture());
+        assertThat(result.success()).isTrue();
+        assertThat(captor.getAllValues().get(0).getRuntimeMode())
+            .isEqualTo("interpretation_plan_argument_resolution");
+        Map<?, ?> executorInput = captor.getAllValues().get(1).getToolInput().getParameters();
+        assertThat(executorInput.get("templateId")).isEqualTo("MYSQL_TABLE_METADATA");
+        assertThat(executorInput.get("template")).isEqualTo("MYSQL_TABLE_METADATA");
+        assertThat(((Map<?, ?>) executorInput.get("parameters")).get("tableName"))
+            .isEqualTo("user_info_file");
+        assertThat(executorInput.containsKey("toolCall")).isFalse();
     }
 
     @Test

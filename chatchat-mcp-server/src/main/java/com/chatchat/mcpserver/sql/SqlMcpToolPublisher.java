@@ -140,6 +140,7 @@ public class SqlMcpToolPublisher {
     }
 
     private McpSchema.CallToolResult executeSqlScriptGateway(Map<String, Object> arguments) {
+        validateTemplateArgumentContract(arguments);
         DatabaseQueryConfig databaseQuery = businessDatabaseQueryTemplate(arguments);
         if (databaseQuery != null) {
             Map<String, Object> queryArguments = databaseQueryArguments(arguments);
@@ -166,6 +167,7 @@ public class SqlMcpToolPublisher {
     }
 
     private McpSchema.CallToolResult executeSqlGateway(Map<String, Object> arguments) {
+        validateTemplateArgumentContract(arguments);
         DatabaseQueryConfig databaseQuery = businessDatabaseQueryTemplate(arguments);
         if (databaseQuery != null) {
             Map<String, Object> queryArguments = databaseQueryArguments(arguments);
@@ -243,6 +245,52 @@ public class SqlMcpToolPublisher {
             .filter(config -> config != null && equalsIgnoreCase(config.getToolName(), template))
             .findFirst()
             .orElse(null);
+    }
+
+    private void validateTemplateArgumentContract(Map<String, Object> arguments) {
+        if (arguments == null || arguments.isEmpty()) {
+            return;
+        }
+        List<String> aliases = List.of("template", "templateId", "template_id");
+        Set<String> values = new LinkedHashSet<>();
+        for (String alias : aliases) {
+            Object value = arguments.get(alias);
+            if (value == null) {
+                continue;
+            }
+            if (!(value instanceof CharSequence) || String.valueOf(value).isBlank()) {
+                throw new IllegalArgumentException("TEMPLATE_ARGUMENT_CONTRACT_FAILED: " + alias
+                    + " must be a non-empty scalar string; template objects and arrays are not executable ids");
+            }
+            String text = String.valueOf(value).trim();
+            if (text.startsWith("{") || text.startsWith("[")) {
+                throw new IllegalArgumentException("TEMPLATE_ARGUMENT_CONTRACT_FAILED: " + alias
+                    + " must contain only the scalar template id");
+            }
+            values.add(text);
+        }
+        if (values.size() > 1) {
+            throw new IllegalArgumentException("TEMPLATE_ARGUMENT_CONTRACT_FAILED: template aliases must identify "
+                + "the same template: " + values);
+        }
+        Object parameters = arguments.get("parameters");
+        if (parameters != null && !(parameters instanceof Map<?, ?>)) {
+            throw new IllegalArgumentException("TEMPLATE_ARGUMENT_CONTRACT_FAILED: parameters must be an object "
+                + "containing execution values only");
+        }
+        if (parameters instanceof Map<?, ?> map
+            && (map.containsKey("properties") || map.containsKey("$schema"))
+            && map.containsKey("type")) {
+            throw new IllegalArgumentException("TEMPLATE_ARGUMENT_CONTRACT_FAILED: parameterSchema is read-only "
+                + "metadata and cannot be used as execution parameters");
+        }
+        for (String contextKey : List.of("executionContext", "mcpExecutionContext")) {
+            Object context = arguments.get(contextKey);
+            if (context != null && !(context instanceof Map<?, ?>)) {
+                throw new IllegalArgumentException("TEMPLATE_ARGUMENT_CONTRACT_FAILED: " + contextKey
+                    + " must be an object");
+            }
+        }
     }
 
     @SuppressWarnings("unchecked")

@@ -213,6 +213,7 @@ public class InterpretationPlanValidator {
         validateSqlTemplateExecutionContract(plan, step, path, state);
         validateHttpTemplateExecutionContract(step, path, state);
         validateSshTemplateExecutionContract(step, path, state);
+        validateTemplateArgumentShape(plan, step, path, state);
         if (isHighRisk(plan, step, toolRegistry) && !containsTool(allowTools, step.toolName())) {
             state.approval(path + ".tool_name", "High-risk tool requires explicit allow_tool approval: " + step.toolName());
         }
@@ -234,6 +235,7 @@ public class InterpretationPlanValidator {
             }
             Object value = input.get(parameter.getName());
             if (missingRequiredValue(value)
+                && missingRequiredValue(toolCallParameter(input, parameter))
                 && !hasBindingForInput(plan, step.id(), parameter.getName())
                 && !runtimeBindableRequiredInput(plan, step, parameter.getName())) {
                 state.error(
@@ -252,11 +254,15 @@ public class InterpretationPlanValidator {
             return;
         }
         Map<String, Object> input = step.input();
-        boolean templateMode = hasNonBlank(input, "template", "templateId", "template_id");
+        boolean templateMode = hasNonBlank(input, "template", "templateId", "template_id")
+            || invocationValue(input, "templateRef", "template_ref", "templateId", "template") != null;
         if (templateMode && hasNonBlank(input, "sql", "rawSql", "raw_sql", "statement", "query")) {
             state.error(path + ".input", "SQL template execution must use a templateId returned by template_query and template parameters only; do not mix top-level raw SQL with templateId.");
         }
         Object executionContext = firstPresent(input, "executionContext", "mcpExecutionContext");
+        if (executionContext == null) {
+            executionContext = invocationValue(input, "target", "executionContext", "execution_context");
+        }
         if (!hasConcreteExecutionContext(executionContext)
             && !hasBindingForInput(plan, step.id(), "executionContext")
             && !hasBindingForInput(plan, step.id(), "mcpExecutionContext")
@@ -266,6 +272,9 @@ public class InterpretationPlanValidator {
                 "sql_query_execute requires logical executionContext, for example {assetName, env}, from user context, template routing metadata, sql_metadata_search/table-location evidence, or an observed invocationExample; do not rely on template parameters for datasource routing.");
         }
         Object parameters = firstPresent(input, "parameters", "params");
+        if (parameters == null) {
+            parameters = invocationValue(input, "arguments", "parameters", "params");
+        }
         if (!(parameters instanceof Map<?, ?> map)) {
             if (tableMetadataTemplate(input)
                 && !hasBindingForInput(plan, step.id(), "parameters.tableName")
@@ -336,6 +345,40 @@ public class InterpretationPlanValidator {
         }
     }
 
+    private void validateTemplateArgumentShape(InterpretationPlan plan,
+                                               InterpretationPlan.Step step,
+                                               String path,
+                                               ValidationState state) {
+        if (step == null || step.input() == null
+            || (!isSqlQueryExecuteTool(step.toolName())
+            && !isHttpRequestExecuteTool(step.toolName())
+            && !isLinuxCommandExecuteTool(step.toolName()))) {
+            return;
+        }
+        Object template = firstPresent(step.input(), "templateId", "template", "template_id");
+        boolean templateBound = hasBindingForInput(plan, step.id(), "templateId")
+            || hasBindingForInput(plan, step.id(), "template")
+            || hasBindingForInput(plan, step.id(), "template_id");
+        if (template != null && (!(template instanceof CharSequence) || String.valueOf(template).isBlank())
+            && !templateBound) {
+            state.error(path + ".input.templateId",
+                "template/templateId must be one scalar string. Do not pass templates[i], selectedTemplate, or another object as the template id.");
+        }
+        Object parameters = firstPresent(step.input(), "parameters", "params");
+        if (parameters != null && !(parameters instanceof Map<?, ?>)) {
+            state.error(path + ".input.parameters",
+                "parameters must be an object containing execution values only.");
+        } else if (parameters instanceof Map<?, ?> map
+            && (map.containsKey("properties") || map.containsKey("$schema")) && map.containsKey("type")) {
+            state.error(path + ".input.parameters",
+                "parameterSchema is read-only discovery metadata; construct parameter values from it instead of passing the schema to the executor.");
+        }
+        Object context = firstPresent(step.input(), "executionContext", "mcpExecutionContext");
+        if (context != null && !(context instanceof Map<?, ?>)) {
+            state.error(path + ".input.executionContext", "executionContext must be an object.");
+        }
+    }
+
     private boolean hasRawKeys(Map<?, ?> input, Set<String> forbidden) {
         if (input == null || input.isEmpty() || forbidden == null || forbidden.isEmpty()) {
             return false;
@@ -345,6 +388,75 @@ public class InterpretationPlanValidator {
             .anyMatch(forbidden::contains);
     }
 
+    private Object invocationValue(Map<String, Object> input, String... keys) {
+        Object toolCallValue = firstPresent(input, "toolCall", "tool_call");
+        if (toolCallValue instanceof Map<?, ?> toolCall) {
+            for (String key : keys) {
+                if (toolCall.containsKey(key)) {
+                    return toolCall.get(key);
+                }
+                if (Set.of("templateRef", "template_ref", "templateId", "template").contains(key)
+                    && toolCall.containsKey("action")) {
+                    return toolCall.get("action");
+                }
+                if (Set.of("arguments", "parameters", "params").contains(key)
+                    && toolCall.containsKey("parameters")) {
+                    return toolCall.get("parameters");
+                }
+                if (Set.of("target", "executionContext", "execution_context").contains(key)
+                    && toolCall.get("context") instanceof Map<?, ?> context && context.containsKey("target")) {
+                    return context.get("target");
+                }
+            }
+        }
+        Object envelope = firstPresent(input, "invocation", "modelInvocation", "model_invocation");
+        if (!(envelope instanceof Map<?, ?> map)) {
+            return null;
+        }
+        for (String key : keys) {
+            if (map.containsKey(key)) {
+                return map.get(key);
+            }
+        }
+        return null;
+    }
+
+    private Object toolCallParameter(Map<String, Object> input, ToolParameter parameter) {
+        String parameterName = parameter == null ? null : parameter.getName();
+        if (input == null || parameterName == null) {
+            return null;
+        }
+        Object value = firstPresent(input, "toolCall", "tool_call");
+        if (!(value instanceof Map<?, ?> toolCall)) {
+            return null;
+        }
+        if ("action".equalsIgnoreCase(parameterName) && toolCall.containsKey("action")) {
+            return toolCall.get("action");
+        }
+        Object parameters = toolCall.get("parameters");
+        if (!(parameters instanceof Map<?, ?> map)) {
+            return null;
+        }
+        Set<String> expected = new LinkedHashSet<>();
+        expected.add(normalizeField(parameterName));
+        if (parameter.getMetadata() != null) {
+            for (String key : List.of("aliases", "acceptedSources")) {
+                Object aliases = parameter.getMetadata().get(key);
+                if (aliases instanceof Iterable<?> iterable) {
+                    for (Object alias : iterable) {
+                        expected.add(normalizeField(String.valueOf(alias)));
+                    }
+                }
+            }
+        }
+        for (Map.Entry<?, ?> entry : map.entrySet()) {
+            if (expected.contains(normalizeField(String.valueOf(entry.getKey())))) {
+                return entry.getValue();
+            }
+        }
+        return null;
+    }
+
     private boolean isSqlQueryExecuteTool(String toolName) {
         if (toolName == null || toolName.isBlank()) {
             return false;
@@ -352,6 +464,8 @@ public class InterpretationPlanValidator {
         String normalized = toolName.trim().toLowerCase(Locale.ROOT);
         return normalized.endsWith("sql_query_execute")
             || normalized.contains("_sql_query_execute")
+            || normalized.endsWith("sql_script_execute")
+            || normalized.contains("_sql_script_execute")
             || normalized.endsWith("database_execute")
             || normalized.endsWith("sql_execute");
     }
@@ -690,6 +804,17 @@ public class InterpretationPlanValidator {
             InterpretationPlan.Step target = stepsById.get(binding.to());
             InterpretationPlan.Step source = stepsById.get(binding.from());
             if (target != null
+                && (isSqlQueryExecuteTool(target.toolName())
+                || isHttpRequestExecuteTool(target.toolName())
+                || isLinuxCommandExecuteTool(target.toolName()))
+                && (sameField(binding.inputField(), "template")
+                || sameField(binding.inputField(), "templateId")
+                || sameField(binding.inputField(), "template_id"))
+                && !templateIdentifierLeaf(binding.outputPath())) {
+                state.warning(path + ".output_path",
+                    "Template-id bindings should select the scalar templates[i].templateId leaf. Runtime will project a recognized template object, but objects are never sent to MCP executors.");
+            }
+            if (target != null
                 && source != null
                 && isSqlQueryExecuteTool(target.toolName())
                 && isAssetDiscoveryTool(source.toolName())
@@ -716,6 +841,17 @@ public class InterpretationPlanValidator {
 
     private boolean sameField(String value, String expected) {
         return normalizeField(value).equals(normalizeField(expected));
+    }
+
+    private boolean templateIdentifierLeaf(String outputPath) {
+        if (outputPath == null || outputPath.isBlank()) {
+            return false;
+        }
+        String normalized = outputPath.trim().replace("['", ".").replace("']", "")
+            .replace("[\"", ".").replace("\"]", "").toLowerCase(Locale.ROOT);
+        return normalized.endsWith(".templateid") || normalized.endsWith(".template_id")
+            || normalized.endsWith(".id") || normalized.endsWith(".code")
+            || normalized.equals("$.templateid") || normalized.equals("$.id") || normalized.equals("$.code");
     }
 
     private boolean containsNormalized(String value, String token) {
@@ -829,9 +965,10 @@ public class InterpretationPlanValidator {
         }
         String key = parameterName.replace("_", "").replace("-", "").trim().toLowerCase(Locale.ROOT);
         if (!"template".equals(key) && !"templateid".equals(key) && !"templatecode".equals(key)) {
-            return false;
+            return invocationValue(step.input(), "arguments", "parameters", "params", "target", "executionContext") != null;
         }
-        return dependsOnTemplateDiscovery(plan, step);
+        return dependsOnTemplateDiscovery(plan, step)
+            || invocationValue(step.input(), "templateRef", "template_ref", "templateId", "template") != null;
     }
 
     private boolean dependsOnTemplateDiscovery(InterpretationPlan plan, InterpretationPlan.Step step) {
@@ -854,6 +991,8 @@ public class InterpretationPlanValidator {
         String semantic = semanticToolName(toolName);
         return "sql_query_execute".equals(semantic)
             || semantic.endsWith("_sql_query_execute")
+            || "sql_script_execute".equals(semantic)
+            || semantic.endsWith("_sql_script_execute")
             || "database_query_execute".equals(semantic)
             || semantic.endsWith("_database_query_execute")
             || "linux_command_execute".equals(semantic)

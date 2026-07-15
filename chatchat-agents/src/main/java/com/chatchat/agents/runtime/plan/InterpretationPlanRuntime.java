@@ -10,10 +10,12 @@ import com.chatchat.agents.runtime.AgentRunStore;
 import com.chatchat.agents.runtime.ToolRuntimeExecution;
 import com.chatchat.agents.runtime.ToolRuntimeRequest;
 import com.chatchat.agents.runtime.ToolRuntimeService;
+import com.chatchat.agents.runtime.toolcall.ToolArgumentCompiler;
 import com.chatchat.agents.orchestration.McpToolRouter;
 import com.chatchat.common.tool.ToolOutput;
 import com.chatchat.common.tool.ToolInput;
 import com.chatchat.common.tool.ToolMetadata;
+import com.chatchat.common.tool.ToolParameter;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
@@ -55,6 +57,7 @@ public class InterpretationPlanRuntime {
         "\\{\\{\\s*bindings\\.([A-Za-z0-9_.\\-\\[\\]]+)\\s*}}"
     );
     private static final ObjectMapper RESULT_OBJECT_MAPPER = new ObjectMapper();
+    private static final ToolArgumentCompiler TOOL_ARGUMENT_COMPILER = new ToolArgumentCompiler();
     private static final Set<String> DISCOVERY_FILTER_PROTOCOL_FIELDS = Set.of(
         "trace",
         "routingTrace",
@@ -1393,15 +1396,19 @@ public class InterpretationPlanRuntime {
         Map<String, Object> input = new LinkedHashMap<>(step.input() == null ? Map.of() : step.input());
         InterpretationPlan plan = request == null ? null : request.plan();
         applyBindings(step, plan, completed, input);
+        normalizeModelInvocationEnvelope(step, input);
+        compileDirectToolArguments(step, request, input);
         hydrateExecutionContextFromCompletedAssets(step, completed, input);
         normalizeSqlExecutionContext(step, input);
-        normalizeTemplateExecutionAlias(step, completed, input);
-        normalizeTemplateExecutionParameters(step, completed, input);
-        hydrateExecutionContextFromTemplate(step, completed, input);
-        hydrateSqlMetadataParametersFromMetadataSearch(step, completed, input);
-        repairTableScopedSqlTemplate(step, completed, input);
+        Map<Integer, StepExecution> contractContext = resolveTemplateContractFromMcp(step, request, completed, input);
+        normalizeTemplateExecutionAlias(step, contractContext, input);
+        normalizeTemplateExecutionParameters(step, contractContext, input);
+        validateTemplateExecutionArgumentContract(step, input);
+        hydrateExecutionContextFromTemplate(step, contractContext, input);
+        hydrateSqlMetadataParametersFromMetadataSearch(step, contractContext, input);
+        repairTableScopedSqlTemplate(step, contractContext, input);
         enforceAgentRuntimeEnvironment(step, request, input);
-        validateRequiredTemplateParameters(step, completed, input);
+        validateRequiredTemplateParameters(step, contractContext, input);
         validateRequiredExecutionTemplate(step, input);
         normalizeDiscoveryRoutingInput(step, request, completed, input);
         if (!isCrawlerTool(step.toolName())) {
@@ -1413,6 +1420,287 @@ public class InterpretationPlanRuntime {
         }
         input.put("url", selectedUrls.get(0));
         return input;
+    }
+
+    @SuppressWarnings("unchecked")
+    private void normalizeModelInvocationEnvelope(InterpretationPlan.Step step, Map<String, Object> input) {
+        if (step == null || input == null) {
+            return;
+        }
+        Object toolCallValue = firstMapValue(input, "toolCall", "tool_call");
+        if (toolCallValue instanceof Map<?, ?> rawToolCall) {
+            Map<String, Object> toolCall = new LinkedHashMap<>((Map<String, Object>) rawToolCall);
+            String selectedTool = stringValue(firstMapValue(toolCall, "toolName", "tool_name"));
+            if (selectedTool != null && !sameToolName(selectedTool, step.toolName())) {
+                throw new IllegalStateException("TOOL_CALL_CONTRACT_FAILED: toolCall.toolName " + selectedTool
+                    + " does not match the planned workflow tool " + step.toolName());
+            }
+            Object action = firstMapValue(toolCall, "action", "capability", "templateRef", "templateId");
+            if (action != null) {
+                if (isTemplateExecutionTool(step.toolName())) {
+                    input.put("templateId", action);
+                } else {
+                    input.put("action", action);
+                }
+            }
+            Object parameters = firstMapValue(toolCall, "parameters", "arguments");
+            if (parameters instanceof Map<?, ?> map && !isTemplateExecutionTool(step.toolName())) {
+                map.forEach((key, item) -> input.put(String.valueOf(key), item));
+            } else if (parameters != null) {
+                input.put("parameters", parameters);
+            }
+            Object contextValue = toolCall.get("context");
+            if (contextValue instanceof Map<?, ?> context) {
+                Object target = firstMapValue(context, "target", "executionContext", "execution_context");
+                if (target != null) {
+                    input.put("executionContext", target);
+                }
+                Object purpose = firstMapValue(context, "purpose", "reason");
+                if (purpose != null && !String.valueOf(purpose).isBlank()) {
+                    input.put("purpose", String.valueOf(purpose).trim());
+                }
+            }
+            input.remove("toolCall");
+            input.remove("tool_call");
+        }
+        if (!isTemplateExecutionTool(step.toolName())) {
+            return;
+        }
+        Object value = firstMapValue(input, "invocation", "modelInvocation", "model_invocation");
+        if (!(value instanceof Map<?, ?> raw)) {
+            return;
+        }
+        Map<String, Object> invocation = new LinkedHashMap<>((Map<String, Object>) raw);
+        Object templateRef = firstMapValue(invocation, "templateRef", "template_ref", "templateId", "template");
+        if (templateRef != null) {
+            input.put("templateId", templateRef);
+        }
+        Object arguments = firstMapValue(invocation, "arguments", "parameters", "params");
+        if (arguments instanceof Map<?, ?> map) {
+            input.put("parameters", new LinkedHashMap<>((Map<String, Object>) map));
+        } else if (arguments != null) {
+            input.put("parameters", arguments);
+        }
+        Object target = firstMapValue(invocation, "target", "executionContext", "execution_context");
+        if (target != null) {
+            input.put("executionContext", target);
+        }
+        Object intent = firstMapValue(invocation, "intent", "purpose", "goal");
+        if (intent != null && !String.valueOf(intent).isBlank()) {
+            input.putIfAbsent("purpose", String.valueOf(intent).trim());
+        }
+        input.remove("invocation");
+        input.remove("modelInvocation");
+        input.remove("model_invocation");
+    }
+
+    private void compileDirectToolArguments(InterpretationPlan.Step step,
+                                            ExecutionRequest request,
+                                            Map<String, Object> input) {
+        if (step == null || request == null || input == null || isTemplateExecutionTool(step.toolName())
+            || request.toolRegistry() == null) {
+            return;
+        }
+        ToolMetadata metadata = request.toolRegistry().getToolMetadata(step.toolName());
+        if (metadata == null || metadata.getParameters() == null || metadata.getParameters().isEmpty()) {
+            return;
+        }
+        Map<String, Object> properties = new LinkedHashMap<>();
+        List<String> required = new ArrayList<>();
+        for (ToolParameter parameter : metadata.getParameters()) {
+            if (parameter == null || parameter.getName() == null || parameter.getName().isBlank()) {
+                continue;
+            }
+            Map<String, Object> property = new LinkedHashMap<>();
+            property.put("type", parameter.getType() == null ? "string" : parameter.getType());
+            if (parameter.getDefaultValue() != null) {
+                property.put("default", parameter.getDefaultValue());
+            }
+            if (parameter.getEnumValues() != null && parameter.getEnumValues().length > 0) {
+                property.put("enum", List.of(parameter.getEnumValues()));
+            }
+            if (parameter.getMetadata() != null) {
+                copyIfPresent(parameter.getMetadata(), property, "format", "aliases", "acceptedSources");
+            }
+            properties.put(parameter.getName(), property);
+            if (parameter.isRequired()) {
+                required.add(parameter.getName());
+            }
+        }
+        Map<String, Object> semantic = new LinkedHashMap<>(input);
+        semantic.remove("purpose");
+        ToolArgumentCompiler.CompilationResult compilation = TOOL_ARGUMENT_COMPILER.compile(semantic, Map.of(
+            "type", "object",
+            "properties", properties,
+            "required", required,
+            "additionalProperties", false
+        ));
+        if (!compilation.valid()) {
+            throw new IllegalStateException(compilation.structuredError(step.toolName(), stringValue(input.get("action"))));
+        }
+        input.clear();
+        input.putAll(compilation.parameters());
+        if (!compilation.repairs().isEmpty()) {
+            log.info("InterpretationPlan compiled direct tool semantic arguments stepId={} tool={} repairs={} compiledKeys={}",
+                step.id(), step.toolName(), compilation.repairs(), input.keySet());
+        }
+    }
+
+    private void copyIfPresent(Map<String, Object> source, Map<String, Object> target, String... keys) {
+        for (String key : keys) {
+            if (source.containsKey(key)) {
+                target.put(key, source.get(key));
+            }
+        }
+    }
+
+    private Map<Integer, StepExecution> resolveTemplateContractFromMcp(InterpretationPlan.Step step,
+                                                                       ExecutionRequest request,
+                                                                       Map<Integer, StepExecution> completed,
+                                                                       Map<String, Object> input) {
+        if (step == null || request == null || input == null || !isTemplateExecutionTool(step.toolName())) {
+            return completed;
+        }
+        String templateHint = canonicalTemplateId(firstValueAtAnyPath(input,
+            "$.templateId", "$.template", "$.template_id"));
+        if (templateHint != null && !completedTemplateMetadata(completed, templateHint).isEmpty()) {
+            return completed;
+        }
+        if (templateHint == null && uniqueCompletedTemplateForExecutor(step.toolName(), completed) != null) {
+            return completed;
+        }
+        String discoveryTool = templateContractDiscoveryTool(step.toolName(), request.allowedTools());
+        if (discoveryTool == null) {
+            return completed;
+        }
+        Map<String, Object> filters = new LinkedHashMap<>();
+        Object context = firstMapValue(input, "executionContext", "mcpExecutionContext");
+        if (context instanceof Map<?, ?> map) {
+            copyNonBlank(map, filters, "assetName", "asset_name", "env", "environment", "databaseType", "dbType");
+        }
+        String intent = stringValue(firstMapValue(input, "purpose", "intent", "reason"));
+        if (intent != null && !intent.isBlank()) {
+            filters.put("intent", intent);
+        }
+        if (templateHint != null) {
+            filters.put("templateId", templateHint);
+            filters.putIfAbsent("intent", templateHint);
+        }
+        String targetKind = isLinuxCommandExecuteTool(step.toolName()) ? "host"
+            : isHttpRequestExecuteTool(step.toolName()) ? "api" : "database";
+        Map<String, Object> discoveryInput = new LinkedHashMap<>();
+        discoveryInput.put("candidates", List.of(Map.of("targetKind", targetKind, "confidence", 1.0)));
+        discoveryInput.put("finalDecision", targetKind);
+        discoveryInput.put("filters", filters);
+        discoveryInput.put("limit", 10);
+        discoveryInput.put("trace", Map.of(
+            "schemaVersion", "runtime_argument_resolution.v1",
+            "source", "interpretation_plan_runtime",
+            "requestId", request.requestId(),
+            "stepId", step.id()
+        ));
+        log.info("InterpretationPlan resolving template argument contract through MCP: traceId={}, stepId={}, executor={}, discoveryTool={}, templateHint={}, filters={}",
+            executionTraceId(request), step.id(), step.toolName(), discoveryTool, templateHint, summarize(filters));
+        ToolRuntimeExecution resolution = toolRuntimeService.execute(ToolRuntimeRequest.builder()
+            .toolName(discoveryTool)
+            .runtimeMode("interpretation_plan_argument_resolution")
+            .requestId(request.requestId())
+            .conversationId(request.conversationId())
+            .tenantId(request.tenantId())
+            .userId(request.userId())
+            .allowedTools(new ArrayList<>(safeList(request.allowedTools())))
+            .toolInput(ToolInput.builder()
+                .requestId(request.requestId())
+                .conversationId(request.conversationId())
+                .userId(request.userId())
+                .parameters(discoveryInput)
+                .build())
+            .attributes(Map.of(
+                "argumentResolution", true,
+                "executorTool", step.toolName(),
+                "interpretationPlanStepId", step.id()
+            ))
+            .build());
+        if (resolution == null || resolution.output() == null || !resolution.output().isSuccess()) {
+            throw new IllegalStateException("TEMPLATE_CONTRACT_RESOLUTION_FAILED: MCP contract query failed for "
+                + step.toolName() + ": " + (resolution == null || resolution.output() == null
+                ? "no result" : resolution.output().getErrorMessage()));
+        }
+        Map<String, Object> selected = selectResolvedTemplate(resolution.output().getData(), templateHint, step.toolName());
+        if (selected.isEmpty()) {
+            throw new IllegalStateException("TEMPLATE_CONTRACT_RESOLUTION_FAILED: no matching executable template "
+                + "was returned for " + (templateHint == null ? step.toolName() : templateHint));
+        }
+        String resolvedTemplateId = canonicalTemplateId(selected);
+        input.put("templateId", resolvedTemplateId);
+        input.put("template", resolvedTemplateId);
+        Map<Integer, StepExecution> contextWithResolution = new LinkedHashMap<>(completed == null ? Map.of() : completed);
+        contextWithResolution.put(Integer.MIN_VALUE + (step.id() == null ? 0 : step.id()), new StepExecution(
+            Integer.MIN_VALUE + (step.id() == null ? 0 : step.id()),
+            "runtime_contract_resolution",
+            discoveryTool,
+            true,
+            Map.of("templates", List.of(selected)),
+            null,
+            resolution,
+            null,
+            0L
+        ));
+        log.info("InterpretationPlan template argument contract resolved: traceId={}, stepId={}, executor={}, discoveryTool={}, templateId={}",
+            executionTraceId(request), step.id(), step.toolName(), discoveryTool, resolvedTemplateId);
+        return contextWithResolution;
+    }
+
+    private String templateContractDiscoveryTool(String executorTool, List<String> allowedTools) {
+        if (allowedTools == null || allowedTools.isEmpty()) {
+            return null;
+        }
+        for (String tool : allowedTools) {
+            String semantic = toolSemanticKey(tool);
+            boolean matches = isLinuxCommandExecuteTool(executorTool)
+                ? semantic.contains("ssh") && (semantic.endsWith("template_query") || semantic.endsWith("template_search"))
+                : isHttpRequestExecuteTool(executorTool)
+                ? (semantic.contains("http") || semantic.contains("api"))
+                    && (semantic.endsWith("template_query") || semantic.endsWith("template_search"))
+                : (semantic.contains("database") || semantic.contains("sql") || semantic.contains("business_query"))
+                    && (semantic.endsWith("template_query") || semantic.endsWith("template_search"));
+            if (matches && !sameToolName(tool, executorTool)) {
+                return tool;
+            }
+        }
+        return null;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> selectResolvedTemplate(Object output, String templateHint, String executorTool) {
+        Map<String, Object> first = Map.of();
+        for (Object candidate : templateCandidates(output)) {
+            if (!(candidate instanceof Map<?, ?> map)) {
+                continue;
+            }
+            Map<String, Object> template = new LinkedHashMap<>((Map<String, Object>) map);
+            String id = canonicalTemplateId(template);
+            if (id == null) {
+                continue;
+            }
+            if (templateHint != null && templateHint.equalsIgnoreCase(id)) {
+                return template;
+            }
+            if (first.isEmpty() && (templateExecutorMatches(template, executorTool)
+                || firstValueAtAnyPath(template, "$.executionTool", "$.sqlExecutionBinding.toolName") == null)) {
+                first = template;
+            }
+        }
+        return templateHint == null ? first : Map.of();
+    }
+
+    private void copyNonBlank(Map<?, ?> source, Map<String, Object> target, String... keys) {
+        for (String key : keys) {
+            Object value = source.get(key);
+            if (value != null && !String.valueOf(value).isBlank()) {
+                target.put(key, value);
+            }
+        }
     }
 
     @SuppressWarnings("unchecked")
@@ -1929,21 +2217,97 @@ public class InterpretationPlanRuntime {
             "$.executionBinding.templateId",
             "$.execution_binding.templateId",
             "$.sqlExecutionBinding.templateId");
-        if (templateId == null || String.valueOf(templateId).isBlank()) {
+        if (templateId == null) {
             templateId = uniqueCompletedTemplateForExecutor(step.toolName(), completed);
         }
-        if (templateId == null || String.valueOf(templateId).isBlank()) {
+        if (templateId == null) {
             return;
         }
-        String normalizedTemplateId = String.valueOf(templateId).trim();
-        input.putIfAbsent("templateId", normalizedTemplateId);
-        input.putIfAbsent("template", normalizedTemplateId);
+        String normalizedTemplateId = canonicalTemplateId(templateId);
+        if (normalizedTemplateId == null || normalizedTemplateId.isBlank()) {
+            throw new IllegalStateException("TEMPLATE_ARGUMENT_CONTRACT_FAILED: template/templateId must be a "
+                + "non-empty scalar string, not a template object, array, schema, or placeholder");
+        }
+        // These are protocol aliases, not model-owned business values. Always replace them with the
+        // canonical scalar so a discovery object can never be serialized as "{templateId=...}".
+        input.put("templateId", normalizedTemplateId);
+        input.put("template", normalizedTemplateId);
+        input.remove("template_id");
+        input.remove("selectedTemplate");
+        input.remove("selected_template");
+        input.remove("parameterSchema");
+        input.remove("parameter_schema");
+        input.remove("parameterContract");
+        input.remove("invocationExample");
         input.putIfAbsent("runtimeTemplateBinding", Map.of(
             "schemaVersion", "runtime_template_binding.v1",
             "source", "template_alias_or_completed_template_discovery",
             "templateId", normalizedTemplateId,
             "executorTool", step.toolName()
         ));
+    }
+
+    @SuppressWarnings("unchecked")
+    private String canonicalTemplateId(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof Map<?, ?> map) {
+            Object nested = firstValueAtAnyPath(new LinkedHashMap<>((Map<String, Object>) map),
+                "$.templateId", "$.template_id", "$.id", "$.code", "$.template",
+                "$.execution.templateId", "$.execution.template",
+                "$.executionBinding.templateId", "$.sqlExecutionBinding.templateId");
+            return nested == value ? null : canonicalTemplateId(nested);
+        }
+        if (value instanceof Iterable<?> || value.getClass().isArray()) {
+            return null;
+        }
+        if (!(value instanceof CharSequence)) {
+            return null;
+        }
+        String text = String.valueOf(value).trim();
+        if (text.isBlank()) {
+            return null;
+        }
+        if (text.startsWith("{") || text.startsWith("[")) {
+            try {
+                return canonicalTemplateId(RESULT_OBJECT_MAPPER.readValue(text, Object.class));
+            } catch (Exception ignored) {
+                return null;
+            }
+        }
+        return text;
+    }
+
+    private void validateTemplateExecutionArgumentContract(InterpretationPlan.Step step,
+                                                           Map<String, Object> input) {
+        if (step == null || input == null || !isTemplateExecutionTool(step.toolName())) {
+            return;
+        }
+        Object templateId = input.get("templateId");
+        Object template = input.get("template");
+        if (!(templateId instanceof String id) || id.isBlank()
+            || !(template instanceof String alias) || alias.isBlank() || !id.equals(alias)) {
+            throw new IllegalStateException("TEMPLATE_ARGUMENT_CONTRACT_FAILED: templateId and template must be "
+                + "the same non-empty scalar string");
+        }
+        Object parameters = input.get("parameters");
+        if (parameters != null && !(parameters instanceof Map<?, ?>)) {
+            throw new IllegalStateException("TEMPLATE_ARGUMENT_CONTRACT_FAILED: parameters must be an object "
+                + "containing execution values only");
+        }
+        if (parameters instanceof Map<?, ?> map
+            && isJsonSchemaObject(new LinkedHashMap<>((Map<String, Object>) map))) {
+            throw new IllegalStateException("TEMPLATE_ARGUMENT_CONTRACT_FAILED: parameterSchema is read-only "
+                + "metadata and cannot be passed as parameters");
+        }
+        for (String contextKey : List.of("executionContext", "mcpExecutionContext")) {
+            Object context = input.get(contextKey);
+            if (context != null && !(context instanceof Map<?, ?>)) {
+                throw new IllegalStateException("TEMPLATE_ARGUMENT_CONTRACT_FAILED: " + contextKey
+                    + " must be an object");
+            }
+        }
     }
 
     @SuppressWarnings("unchecked")
@@ -2028,6 +2392,20 @@ public class InterpretationPlanRuntime {
             input.put("parameters", parameters);
             log.warn("InterpretationPlan removed parameter schema mistakenly bound as execution values stepId={} tool={} templateId={}",
                 step.id(), step.toolName(), templateId);
+        }
+        Object schemaValue = firstValueAtAnyPath(template, "$.parameterSchema", "$.parameter_schema");
+        if (schemaValue instanceof Map<?, ?> rawSchema) {
+            Map<String, Object> schema = new LinkedHashMap<>((Map<String, Object>) rawSchema);
+            ToolArgumentCompiler.CompilationResult compilation = TOOL_ARGUMENT_COMPILER.compile(parameters, schema);
+            if (!compilation.repairs().isEmpty() || !parameters.keySet().equals(compilation.parameters().keySet())) {
+                log.info("InterpretationPlan compiled semantic arguments against MCP parameter schema stepId={} tool={} templateId={} providedKeys={} compiledKeys={} repairs={}",
+                    step.id(), step.toolName(), templateId, parameters.keySet(), compilation.parameters().keySet(), compilation.repairs());
+            }
+            if (!compilation.valid()) {
+                throw new IllegalStateException(compilation.structuredError(step.toolName(), String.valueOf(templateId)));
+            }
+            parameters = new LinkedHashMap<>(compilation.parameters());
+            input.put("parameters", parameters);
         }
         if (required.isEmpty()) {
             input.put("parameters", parameters);
@@ -2317,7 +2695,10 @@ public class InterpretationPlanRuntime {
         String requiredKey = canonicalParameterKey(requiredName);
         for (Map.Entry<String, Object> entry : parameters.entrySet()) {
             String key = entry.getKey();
-            if (key != null && requiredKey.equals(canonicalParameterKey(key))) {
+            String providedKey = canonicalParameterKey(key);
+            if (key != null && (requiredKey.equals(providedKey)
+                || (requiredKey.endsWith("name")
+                && requiredKey.substring(0, requiredKey.length() - "name".length()).equals(providedKey)))) {
                 return entry.getValue();
             }
         }
@@ -3143,7 +3524,8 @@ public class InterpretationPlanRuntime {
 
     private boolean isSqlQueryExecuteTool(String toolName) {
         String semantic = toolSemanticKey(toolName);
-        return "sql_query_execute".equals(semantic) || semantic.endsWith("_sql_query_execute");
+        return "sql_query_execute".equals(semantic) || semantic.endsWith("_sql_query_execute")
+            || "sql_script_execute".equals(semantic) || semantic.endsWith("_sql_script_execute");
     }
 
     private boolean isLinuxCommandExecuteTool(String toolName) {
@@ -3178,6 +3560,7 @@ public class InterpretationPlanRuntime {
     private boolean isExecutionContextTool(String toolName) {
         String semantic = toolSemanticKey(toolName);
         return semantic.equals("sql_query_execute")
+            || semantic.equals("sql_script_execute")
             || semantic.equals("sql_metadata_search")
             || semantic.equals("database_query")
             || semantic.equals("database_query_execute")

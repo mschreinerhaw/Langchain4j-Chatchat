@@ -87,7 +87,7 @@
           >
         </label>
         <label>
-          <span>服务</span>
+          <span>来源服务</span>
           <select v-model="toolServiceFilter">
             <option v-for="service in toolServiceOptions" :key="service.value" :value="service.value">
               {{ service.label }}（{{ service.count }}）
@@ -95,7 +95,7 @@
           </select>
         </label>
         <label>
-          <span>功能分类</span>
+          <span>能力分类</span>
           <select v-model="toolCategoryFilter">
             <option v-for="category in toolCategoryOptions" :key="category.value" :value="category.value">
               {{ category.label }}（{{ category.count }}）
@@ -134,7 +134,7 @@
                 <p>{{ tool.description }}</p>
                 <dl>
                   <div>
-                    <dt>所属服务</dt>
+                    <dt>来源服务</dt>
                     <dd>{{ tool.serviceName || "-" }}</dd>
                   </div>
                   <div>

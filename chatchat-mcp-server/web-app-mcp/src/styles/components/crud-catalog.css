@@ -4,6 +4,11 @@
   overflow: hidden;
 }
 
+.catalog-filter-select {
+  width: 180px;
+  flex: 0 0 180px;
+}
+
 .entity-form-layout {
   display: grid;
   gap: 10px;
@@ -192,6 +197,17 @@
   background: #fbfcff;
 }
 
+.visual-object-preset-toolbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.visual-object-preset-toolbar .el-select {
+  flex: 1 1 240px;
+}
+
 .visual-object-row,
 .visual-schema-row {
   display: grid;
@@ -255,14 +271,21 @@
 }
 
 .template-picker-toolbar {
-  display: grid;
-  grid-template-columns: minmax(260px, 1fr) auto auto;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
   margin-bottom: 12px;
 }
 
-.template-picker-toolbar.has-filter {
-  grid-template-columns: minmax(150px, 0.35fr) minmax(260px, 1fr) auto auto;
+.template-picker-toolbar > .el-select {
+  min-width: 180px;
+  max-width: 240px;
+}
+
+.template-picker-toolbar > .el-input {
+  flex: 1 1 320px;
+  min-width: 260px;
 }
 
 .template-picker-table {
@@ -623,9 +646,15 @@
 @media (max-width: 900px) {
   .visual-object-row,
   .visual-schema-row,
-  .template-picker-toolbar,
   .metadata-scope-input-row {
     grid-template-columns: 1fr;
+  }
+
+  .template-picker-toolbar > .el-select,
+  .template-picker-toolbar > .el-input,
+  .template-picker-toolbar > .el-button {
+    flex: 1 1 100%;
+    max-width: none;
   }
 
   .database-param-toolbar {

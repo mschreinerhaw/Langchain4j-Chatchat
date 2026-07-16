@@ -124,6 +124,9 @@ chatchat:
       browser:
         browsers-path: playwright-browsers
         skip-browser-download: false
+    livedata:
+      # Runtime values are maintained on the admin page. Database access is bound through a database asset.
+      enabled: true    
 
 logging:
   charset:

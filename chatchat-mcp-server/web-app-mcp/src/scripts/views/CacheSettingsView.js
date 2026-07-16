@@ -1,6 +1,7 @@
 ﻿import { cacheApi } from '../../services/api';
 import { formatBytes } from '../../utils/json';
 
+import { buildTestNotification } from '../../utils/test-result';
 import '../../styles/views/cache-settings.css';
 
 export default {
@@ -15,7 +16,7 @@ export default {
         defaultTtlSeconds: 300,
         maxRows: 1000,
         maxEntryKb: 512,
-        keyStrategy: 'SQL_PARAMS_DATASOURCE',
+        keyStrategy: 'TEMPLATE_ID_PARAMS_DATASOURCE',
         cacheEmptyResults: false,
         cacheErrorResults: false
       },
@@ -25,6 +26,10 @@ export default {
       templatePickerKeyword: '',
       templatePickerCategory: '',
       templatePickerSelected: [],
+      templateSearchResultIds: null,
+      templateSearchBusy: false,
+      templateSearchTimer: null,
+      templateSearchSequence: 0,
       redis: {
         enabled: false,
         mode: 'STANDALONE_NO_AUTH',
@@ -70,9 +75,13 @@ export default {
     },
     templatePickerItems() {
       const keyword = this.templatePickerKeyword.trim().toLowerCase();
+      const remoteIds = Array.isArray(this.templateSearchResultIds)
+        ? new Set(this.templateSearchResultIds)
+        : null;
       return this.templates.filter(item => {
+        if (remoteIds && !remoteIds.has(item.id)) return false;
         if (this.templatePickerCategory && String(item.category || 'default') !== this.templatePickerCategory) return false;
-        if (!keyword) return true;
+        if (!keyword || remoteIds) return true;
         return [item.title, item.toolName, item.category, item.categoryName, item.databaseType, item.datasourceId]
           .some(value => String(value || '').toLowerCase().includes(keyword));
       });
@@ -89,6 +98,17 @@ export default {
   },
   mounted() {
     this.load();
+  },
+  beforeUnmount() {
+    if (this.templateSearchTimer) clearTimeout(this.templateSearchTimer);
+  },
+  watch: {
+    templatePickerKeyword() {
+      this.scheduleTemplateSearch();
+    },
+    templatePickerCategory() {
+      this.scheduleTemplateSearch();
+    }
   },
   methods: {
     async load() {
@@ -138,8 +158,34 @@ export default {
     openTemplatePicker() {
       this.templatePickerKeyword = '';
       this.templatePickerCategory = '';
+      this.templateSearchResultIds = null;
       this.templatePickerSelected = this.templates.filter(item => item.cacheEnabled).map(item => item.id);
       this.templatePickerOpen = true;
+    },
+    scheduleTemplateSearch() {
+      if (this.templateSearchTimer) clearTimeout(this.templateSearchTimer);
+      const sequence = ++this.templateSearchSequence;
+      const keyword = this.templatePickerKeyword.trim();
+      const category = this.templatePickerCategory;
+      if (!keyword && !category) {
+        this.templateSearchResultIds = null;
+        this.templateSearchBusy = false;
+        return;
+      }
+      this.templateSearchTimer = setTimeout(() => this.loadTemplateSearchResults(keyword, category, sequence), 250);
+    },
+    async loadTemplateSearchResults(keyword, category, sequence) {
+      this.templateSearchBusy = true;
+      try {
+        const matches = await cacheApi.listTemplates({ keyword, category });
+        if (sequence === this.templateSearchSequence) {
+          this.templateSearchResultIds = (matches || []).map(item => item.id);
+        }
+      } catch (error) {
+        if (sequence === this.templateSearchSequence) this.$emit('error', error);
+      } finally {
+        if (sequence === this.templateSearchSequence) this.templateSearchBusy = false;
+      }
     },
     toggleTemplatePicker(id) {
       const selected = new Set(this.templatePickerSelected);
@@ -214,7 +260,10 @@ export default {
         this.$emit('error', error);
         return;
       }
-      await this.run(() => cacheApi.testRedisConfig(payload), 'Redis 连接测试成功');
+      await this.runTest(() => cacheApi.testRedisConfig(payload), {
+        successTitle: 'Redis 连接测试成功',
+        failureTitle: 'Redis 连接测试失败'
+      });
     },
     async cleanupExpired() {
       if (!window.confirm('确定清理已过期的数据库查询缓存吗？')) return;
@@ -233,6 +282,19 @@ export default {
         this.$emit('notify', { title });
       } catch (error) {
         this.$emit('error', error);
+      } finally {
+        this.busy = false;
+      }
+    },
+    async runTest(action, notificationOptions) {
+      this.busy = true;
+      try {
+        const result = await action();
+        this.$emit('notify', buildTestNotification(result, notificationOptions));
+        return result;
+      } catch (error) {
+        this.$emit('error', error);
+        return null;
       } finally {
         this.busy = false;
       }

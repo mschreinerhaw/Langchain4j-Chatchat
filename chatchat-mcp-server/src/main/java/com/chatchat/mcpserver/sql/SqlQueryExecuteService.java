@@ -75,33 +75,14 @@ public class SqlQueryExecuteService {
                 text(request, "purpose"), text(request, "sourceTaskId"), startedAt, diagnostics);
             result = attemptSelfHealingIfNeeded(datasource, request, result, timeoutSeconds, maxRows,
                 text(request, "purpose"), text(request, "sourceTaskId"), startedAt);
+        } catch (StackOverflowError ex) {
+            long durationMs = Math.max(0, System.currentTimeMillis() - startedAt);
+            result = failedResult(datasource, request, normalizedSql, timeoutSeconds, maxRows, durationMs, diagnostics, ex);
+            log.error("MCP SQL query execution hit JVM StackOverflowError: datasourceId={}, durationMs={}, sql={}",
+                result.datasourceId(), durationMs, truncateSql(normalizedSql), ex);
         } catch (Exception ex) {
             long durationMs = Math.max(0, System.currentTimeMillis() - startedAt);
-            diagnostics.put("templateParameters", new LinkedHashMap<>(mapValue(request.get("parameters"))));
-            diagnostics.put("executionContext", contextFrom(request));
-            diagnostics.put("tableResolution", request.get("tableResolution"));
-            diagnostics.put("failureStage", normalizedSql == null ? "prepare" : "execute");
-            diagnostics.put("errorType", ex.getClass().getSimpleName());
-            result = new SqlQueryResult(
-                false,
-                datasource == null ? text(request, "datasourceId") : datasource.getId(),
-                datasource == null ? null : datasource.getName(),
-                datasource == null ? null : datasource.getToolName(),
-                datasource == null ? null : datasource.getEnvironment(),
-                text(request, "sql"),
-                normalizedSql,
-                timeoutSeconds,
-                maxRows,
-                List.of(),
-                List.of(),
-                0,
-                false,
-                durationMs,
-                text(request, "purpose"),
-                text(request, "sourceTaskId"),
-                ex.getMessage(),
-                diagnostics
-            );
+            result = failedResult(datasource, request, normalizedSql, timeoutSeconds, maxRows, durationMs, diagnostics, ex);
             log.warn("MCP SQL query execution failed before/while running: datasourceId={}, durationMs={}, error={}, sql={}",
                 result.datasourceId(), durationMs, ex.getMessage(), truncateSql(normalizedSql));
         }
@@ -428,7 +409,9 @@ public class SqlQueryExecuteService {
                 List<String> columns = columns(metaData);
                 Set<String> sensitiveFields = sensitiveFields(datasource);
                 boolean maskAll = matchesSensitiveTable(datasource, sql);
-                List<Map<String, Object>> columnMetadata = columnMetadata(connection, metaData, columns, sensitiveFields, maskAll);
+                boolean resolveColumnComments = shouldResolveColumnComments(datasource, sql);
+                diagnostics.put("columnCommentResolution", resolveColumnComments ? "enabled" : "skipped_for_system_metadata_query");
+                List<Map<String, Object>> columnMetadata = columnMetadata(connection, metaData, columns, sensitiveFields, maskAll, resolveColumnComments);
                 List<Map<String, Object>> rows = new ArrayList<>();
                 while (resultSet.next() && rows.size() < maxRows) {
                     Map<String, Object> row = new LinkedHashMap<>();
@@ -647,6 +630,36 @@ public class SqlQueryExecuteService {
         return dynamicDateParamService.enrichParameters(values, datasource, null);
     }
 
+    private SqlQueryResult failedResult(SqlDatasourceConfig datasource, Map<String, Object> request, String normalizedSql,
+                                        int timeoutSeconds, int maxRows, long durationMs,
+                                        Map<String, Object> diagnostics, Throwable ex) {
+        diagnostics.put("templateParameters", new LinkedHashMap<>(mapValue(request.get("parameters"))));
+        diagnostics.put("executionContext", contextFrom(request));
+        diagnostics.put("tableResolution", request.get("tableResolution"));
+        diagnostics.put("failureStage", normalizedSql == null ? "prepare" : "execute");
+        diagnostics.put("errorType", ex.getClass().getSimpleName());
+        return new SqlQueryResult(
+            false,
+            datasource == null ? text(request, "datasourceId") : datasource.getId(),
+            datasource == null ? null : datasource.getName(),
+            datasource == null ? null : datasource.getToolName(),
+            datasource == null ? null : datasource.getEnvironment(),
+            text(request, "sql"),
+            normalizedSql,
+            timeoutSeconds,
+            maxRows,
+            List.of(),
+            List.of(),
+            0,
+            false,
+            durationMs,
+            text(request, "purpose"),
+            text(request, "sourceTaskId"),
+            ex.getMessage() == null ? ex.getClass().getSimpleName() : ex.getMessage(),
+            diagnostics
+        );
+    }
+
     private String defaultSchemaName(SqlDatasourceConfig datasource, Map<String, Object> request) {
         String explicit = firstText(
             text(request, "schemaName"),
@@ -781,8 +794,14 @@ public class SqlQueryExecuteService {
     List<Map<String, Object>> columnMetadata(Connection connection, ResultSetMetaData metaData,
                                                      List<String> labels, Set<String> sensitiveFields,
                                                      boolean maskAll) throws Exception {
+        return columnMetadata(connection, metaData, labels, sensitiveFields, maskAll, true);
+    }
+
+    List<Map<String, Object>> columnMetadata(Connection connection, ResultSetMetaData metaData,
+                                                     List<String> labels, Set<String> sensitiveFields,
+                                                     boolean maskAll, boolean resolveComments) throws Exception {
         List<Map<String, Object>> columns = new ArrayList<>();
-        DatabaseMetaData databaseMetaData = connection.getMetaData();
+        DatabaseMetaData databaseMetaData = resolveComments ? connection.getMetaData() : null;
         for (int index = 1; index <= metaData.getColumnCount(); index++) {
             String name = metaData.getColumnName(index);
             String label = labels.get(index - 1);
@@ -793,7 +812,7 @@ public class SqlQueryExecuteService {
             Map<String, Object> column = new LinkedHashMap<>();
             column.put("name", firstText(name, label));
             column.put("label", label);
-            column.put("comment", columnComment(databaseMetaData, catalogName, schemaName, tableName, name));
+            column.put("comment", resolveComments ? columnComment(databaseMetaData, catalogName, schemaName, tableName, name) : null);
             column.put("tableName", tableName);
             column.put("schemaName", schemaName);
             column.put("catalogName", catalogName);
@@ -805,6 +824,20 @@ public class SqlQueryExecuteService {
             columns.add(column);
         }
         return columns;
+    }
+
+    private boolean shouldResolveColumnComments(SqlDatasourceConfig datasource, String sql) {
+        String databaseType = resolvedDatabaseType(datasource);
+        String normalizedSql = sql == null ? "" : sql.toLowerCase(Locale.ROOT);
+        if ("sqlserver".equals(databaseType)
+            && (normalizedSql.contains("sys.dm_")
+            || normalizedSql.contains("sys.master_files")
+            || normalizedSql.contains("sys.objects")
+            || normalizedSql.contains("sys.tables")
+            || normalizedSql.contains("sys.columns"))) {
+            return false;
+        }
+        return true;
     }
 
     private String columnComment(DatabaseMetaData databaseMetaData, String catalogName, String schemaName,

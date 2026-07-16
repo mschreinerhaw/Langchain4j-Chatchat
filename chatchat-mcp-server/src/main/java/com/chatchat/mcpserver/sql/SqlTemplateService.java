@@ -530,6 +530,76 @@ public class SqlTemplateService {
                 "mysql", "storage",
                 "SELECT table_schema AS db, SUM(data_length + index_length)/1024/1024 AS size_mb FROM information_schema.tables GROUP BY table_schema",
                 List.of("database size", "storage", "schema size", "space", "storage_check")),
+            maintenanceTemplate("MYSQL_INSTANCE_VARIABLES", "MySQL instance variables",
+                "Read key MySQL instance variables for runtime configuration inspection.",
+                "mysql", "instance",
+                """
+                    SELECT variable_name, variable_value
+                    FROM performance_schema.global_variables
+                    WHERE variable_name IN (
+                        'version',
+                        'version_comment',
+                        'max_connections',
+                        'innodb_buffer_pool_size',
+                        'innodb_flush_log_at_trx_commit',
+                        'sync_binlog',
+                        'slow_query_log',
+                        'long_query_time',
+                        'read_only',
+                        'super_read_only'
+                    )
+                    ORDER BY variable_name
+                    """,
+                List.of("variables", "configuration", "version", "max connections", "buffer pool", "database status")),
+            maintenanceTemplate("MYSQL_CONNECTION_STATUS", "MySQL connection status counters",
+                "Read MySQL connection related status counters for capacity and saturation analysis.",
+                "mysql", "connection",
+                """
+                    SELECT variable_name, variable_value
+                    FROM performance_schema.global_status
+                    WHERE variable_name IN (
+                        'Threads_connected',
+                        'Threads_running',
+                        'Max_used_connections',
+                        'Connections',
+                        'Aborted_connects',
+                        'Connection_errors_max_connections'
+                    )
+                    ORDER BY variable_name
+                    """,
+                List.of("connection status", "threads connected", "threads running", "max used connections", "connection_overflow")),
+            maintenanceTemplate("MYSQL_TOP_TABLES_SIZE", "MySQL largest tables",
+                "Rank MySQL tables by total data and index size.",
+                "mysql", "storage",
+                """
+                    SELECT table_schema,
+                           table_name,
+                           ROUND((data_length + index_length) / 1024 / 1024, 2) AS total_mb,
+                           ROUND(data_length / 1024 / 1024, 2) AS data_mb,
+                           ROUND(index_length / 1024 / 1024, 2) AS index_mb,
+                           table_rows
+                    FROM information_schema.tables
+                    WHERE table_schema NOT IN ('information_schema', 'mysql', 'performance_schema', 'sys')
+                    ORDER BY total_mb DESC
+                    LIMIT 50
+                    """,
+                List.of("largest table", "table size", "storage", "space", "capacity", "storage_check")),
+            maintenanceTemplate("MYSQL_STATEMENT_DIGEST_TOP", "MySQL top statement digests",
+                "Read top MySQL statement digests by total latency from performance_schema.",
+                "mysql", "performance",
+                """
+                    SELECT digest_text,
+                           count_star,
+                           ROUND(sum_timer_wait / 1000000000000, 3) AS total_seconds,
+                           ROUND(avg_timer_wait / 1000000000000, 6) AS avg_seconds,
+                           sum_rows_examined,
+                           sum_rows_sent
+                    FROM performance_schema.events_statements_summary_by_digest
+                    WHERE digest_text IS NOT NULL
+                    ORDER BY sum_timer_wait DESC
+                    LIMIT 20
+                    """,
+                List.of("statement digest", "top sql", "slow query", "latency", "rows examined", "performance_issue")),
 
             maintenanceTemplate("ORACLE_SESSION_OVERVIEW", "Oracle current sessions",
                 "Read Oracle session metadata from v$session.",
@@ -569,6 +639,83 @@ public class SqlTemplateService {
                 "oracle", "storage",
                 "SELECT tablespace_name, SUM(bytes)/1024/1024 AS size_mb FROM dba_data_files GROUP BY tablespace_name",
                 List.of("tablespace", "storage", "space", "database size", "storage_check")),
+            maintenanceTemplate("ORACLE_DATABASE_OVERVIEW", "Oracle database overview",
+                "Read Oracle database and instance overview for health inspection.",
+                "oracle", "instance",
+                """
+                    SELECT d.name AS database_name,
+                           d.open_mode,
+                           d.database_role,
+                           i.instance_name,
+                           i.host_name,
+                           i.version,
+                           i.status,
+                           i.startup_time
+                    FROM v$database d
+                    CROSS JOIN v$instance i
+                    """,
+                List.of("database overview", "instance status", "open mode", "database role", "startup time", "database status")),
+            maintenanceTemplate("ORACLE_ACTIVE_SESSIONS", "Oracle active sessions",
+                "Read Oracle active user sessions with wait and blocking context.",
+                "oracle", "connection",
+                """
+                    SELECT sid,
+                           serial#,
+                           username,
+                           status,
+                           machine,
+                           program,
+                           event,
+                           wait_class,
+                           blocking_session,
+                           seconds_in_wait,
+                           sql_id
+                    FROM v$session
+                    WHERE type = 'USER'
+                      AND status = 'ACTIVE'
+                    ORDER BY seconds_in_wait DESC
+                    """,
+                List.of("active session", "session wait", "blocking session", "connection", "wait event", "connection_overflow")),
+            maintenanceTemplate("ORACLE_TOP_SQL_ELAPSED", "Oracle top SQL by elapsed time",
+                "Read Oracle SQL area statements ordered by elapsed time for performance analysis.",
+                "oracle", "performance",
+                """
+                    SELECT sql_id,
+                           executions,
+                           elapsed_seconds,
+                           cpu_seconds,
+                           buffer_gets,
+                           disk_reads,
+                           rows_processed,
+                           sql_text
+                    FROM (
+                        SELECT sql_id,
+                               executions,
+                               ROUND(elapsed_time / 1000000, 2) AS elapsed_seconds,
+                               ROUND(cpu_time / 1000000, 2) AS cpu_seconds,
+                               buffer_gets,
+                               disk_reads,
+                               rows_processed,
+                               SUBSTR(sql_text, 1, 1000) AS sql_text
+                        FROM v$sqlarea
+                        ORDER BY elapsed_time DESC
+                    )
+                    WHERE ROWNUM <= 20
+                    """,
+                List.of("top sql", "elapsed time", "cpu time", "buffer gets", "disk reads", "slow query", "performance_issue")),
+            maintenanceTemplate("ORACLE_WAIT_CLASS_SUMMARY", "Oracle wait class summary",
+                "Summarize Oracle system wait counters by wait class.",
+                "oracle", "performance",
+                """
+                    SELECT wait_class,
+                           SUM(total_waits) AS total_waits,
+                           ROUND(SUM(time_waited_micro) / 1000000, 2) AS waited_seconds
+                    FROM v$system_event
+                    WHERE wait_class <> 'Idle'
+                    GROUP BY wait_class
+                    ORDER BY waited_seconds DESC
+                    """,
+                List.of("wait class", "system wait", "performance", "latency", "wait event", "performance_issue")),
 
             maintenanceTemplate("POSTGRES_ACTIVITY", "PostgreSQL current activity",
                 "Read PostgreSQL sessions and active queries from pg_stat_activity.",
@@ -595,16 +742,132 @@ public class SqlTemplateService {
                 "postgresql", "performance",
                 "SELECT * FROM pg_stat_activity WHERE state != 'idle' ORDER BY query_start",
                 List.of("long transaction", "slow query", "active query", "performance_issue", "transaction")),
+            maintenanceTemplate("POSTGRES_DATABASE_STATS", "PostgreSQL database statistics",
+                "Read PostgreSQL database statistics counters for health and workload analysis.",
+                "postgresql", "instance",
+                """
+                    SELECT datname,
+                           numbackends,
+                           xact_commit,
+                           xact_rollback,
+                           blks_read,
+                           blks_hit,
+                           tup_returned,
+                           tup_fetched,
+                           tup_inserted,
+                           tup_updated,
+                           tup_deleted,
+                           deadlocks,
+                           temp_files,
+                           temp_bytes
+                    FROM pg_stat_database
+                    WHERE datname IS NOT NULL
+                    ORDER BY numbackends DESC, datname
+                    """,
+                List.of("database stats", "transaction", "cache hit", "deadlock", "temp files", "database status")),
+            maintenanceTemplate("POSTGRES_WAIT_ACTIVITY", "PostgreSQL wait activity",
+                "Read PostgreSQL sessions currently waiting on locks, IO, or other wait events.",
+                "postgresql", "performance",
+                """
+                    SELECT pid,
+                           usename,
+                           datname,
+                           state,
+                           wait_event_type,
+                           wait_event,
+                           now() - state_change AS state_age,
+                           now() - query_start AS query_age,
+                           LEFT(query, 1000) AS query
+                    FROM pg_stat_activity
+                    WHERE wait_event IS NOT NULL
+                    ORDER BY query_age DESC NULLS LAST
+                    """,
+                List.of("wait event", "wait activity", "lock wait", "io wait", "active query", "performance_issue")),
+            maintenanceTemplate("POSTGRES_BLOCKING_CHAINS", "PostgreSQL blocking chains",
+                "Read PostgreSQL blocked and blocking session pairs for lock troubleshooting.",
+                "postgresql", "lock",
+                """
+                    SELECT blocked.pid AS blocked_pid,
+                           blocked.usename AS blocked_user,
+                           blocked.datname AS blocked_database,
+                           blocking.pid AS blocking_pid,
+                           blocking.usename AS blocking_user,
+                           now() - blocked.query_start AS blocked_duration,
+                           LEFT(blocked.query, 1000) AS blocked_query,
+                           LEFT(blocking.query, 1000) AS blocking_query
+                    FROM pg_stat_activity blocked
+                    JOIN pg_stat_activity blocking
+                      ON blocking.pid = ANY(pg_blocking_pids(blocked.pid))
+                    ORDER BY blocked_duration DESC
+                    """,
+                List.of("blocking chain", "blocked session", "blocking session", "lock wait", "lock_check")),
+            maintenanceTemplate("POSTGRES_BGWRITER_STATS", "PostgreSQL bgwriter statistics",
+                "Read PostgreSQL background writer and checkpoint counters.",
+                "postgresql", "performance",
+                """
+                    SELECT checkpoints_timed,
+                           checkpoints_req,
+                           checkpoint_write_time,
+                           checkpoint_sync_time,
+                           buffers_checkpoint,
+                           buffers_clean,
+                           maxwritten_clean,
+                           buffers_backend,
+                           buffers_backend_fsync,
+                           buffers_alloc
+                    FROM pg_stat_bgwriter
+                    """,
+                List.of("bgwriter", "checkpoint", "buffers", "write time", "performance", "database status")),
 
             maintenanceTemplate("SQLSERVER_SESSIONS", "SQL Server current sessions",
                 "Read SQL Server session metadata.",
                 "sqlserver", "connection",
-                "SELECT * FROM sys.dm_exec_sessions",
+                """
+                    SELECT TOP (200)
+                        session_id,
+                        login_time,
+                        host_name,
+                        program_name,
+                        login_name,
+                        status,
+                        cpu_time,
+                        memory_usage,
+                        total_scheduled_time,
+                        total_elapsed_time,
+                        reads,
+                        writes,
+                        logical_reads,
+                        open_transaction_count,
+                        last_request_start_time,
+                        last_request_end_time
+                    FROM sys.dm_exec_sessions
+                    WHERE is_user_process = 1
+                    ORDER BY session_id
+                    """,
                 List.of("session", "connection", "dm_exec_sessions", "connection_overflow")),
             maintenanceTemplate("SQLSERVER_REQUESTS", "SQL Server current requests",
                 "Read SQL Server active requests for blocking and performance analysis.",
                 "sqlserver", "performance",
-                "SELECT * FROM sys.dm_exec_requests",
+                """
+                    SELECT TOP (200)
+                        session_id,
+                        request_id,
+                        start_time,
+                        status,
+                        command,
+                        blocking_session_id,
+                        wait_type,
+                        wait_time,
+                        wait_resource,
+                        cpu_time,
+                        total_elapsed_time,
+                        reads,
+                        writes,
+                        logical_reads,
+                        database_id
+                    FROM sys.dm_exec_requests
+                    ORDER BY total_elapsed_time DESC
+                    """,
                 List.of("request", "blocking", "performance", "dm_exec_requests", "performance_issue")),
             maintenanceTemplate("SQLSERVER_DATABASE_SIZE", "SQL Server database size",
                 "Summarize SQL Server database file size in megabytes.",
@@ -614,13 +877,113 @@ public class SqlTemplateService {
             maintenanceTemplate("SQLSERVER_LOCKS", "SQL Server locks",
                 "Read SQL Server lock metadata.",
                 "sqlserver", "lock",
-                "SELECT * FROM sys.dm_tran_locks",
+                """
+                    SELECT TOP (500)
+                        request_session_id,
+                        resource_type,
+                        resource_database_id,
+                        resource_associated_entity_id,
+                        request_mode,
+                        request_type,
+                        request_status,
+                        request_owner_type
+                    FROM sys.dm_tran_locks
+                    ORDER BY request_session_id, resource_type
+                    """,
                 List.of("lock", "blocking", "dm_tran_locks", "lock_check")),
             maintenanceTemplate("SQLSERVER_IO_STATS", "SQL Server IO virtual file stats",
                 "Read SQL Server virtual file IO statistics.",
                 "sqlserver", "performance",
-                "SELECT * FROM sys.dm_io_virtual_file_stats(NULL, NULL)",
+                """
+                    SELECT TOP (500)
+                        database_id,
+                        file_id,
+                        num_of_reads,
+                        num_of_bytes_read,
+                        io_stall_read_ms,
+                        num_of_writes,
+                        num_of_bytes_written,
+                        io_stall_write_ms,
+                        io_stall,
+                        size_on_disk_bytes
+                    FROM sys.dm_io_virtual_file_stats(NULL, NULL)
+                    ORDER BY io_stall DESC
+                    """,
                 List.of("io", "performance", "file stats", "dm_io_virtual_file_stats", "performance_issue")),
+            maintenanceTemplate("SQLSERVER_INSTANCE_OVERVIEW", "SQL Server instance overview",
+                "Read SQL Server instance version and host level properties.",
+                "sqlserver", "instance",
+                """
+                    SELECT
+                        CAST(SERVERPROPERTY('MachineName') AS nvarchar(256)) AS machine_name,
+                        CAST(SERVERPROPERTY('ServerName') AS nvarchar(256)) AS server_name,
+                        CAST(SERVERPROPERTY('Edition') AS nvarchar(256)) AS edition,
+                        CAST(SERVERPROPERTY('ProductVersion') AS nvarchar(128)) AS product_version,
+                        CAST(SERVERPROPERTY('ProductLevel') AS nvarchar(128)) AS product_level,
+                        CAST(SERVERPROPERTY('EngineEdition') AS int) AS engine_edition,
+                        CAST(SERVERPROPERTY('IsClustered') AS int) AS is_clustered,
+                        CAST(SERVERPROPERTY('IsHadrEnabled') AS int) AS is_hadr_enabled
+                    """,
+                List.of("instance overview", "version", "edition", "hadr", "cluster", "database status")),
+            maintenanceTemplate("SQLSERVER_WAIT_STATS", "SQL Server wait statistics",
+                "Read SQL Server wait statistics excluding common idle waits.",
+                "sqlserver", "performance",
+                """
+                    SELECT TOP (50)
+                        wait_type,
+                        waiting_tasks_count,
+                        wait_time_ms,
+                        signal_wait_time_ms,
+                        wait_time_ms - signal_wait_time_ms AS resource_wait_time_ms
+                    FROM sys.dm_os_wait_stats
+                    WHERE wait_type NOT LIKE 'SLEEP%'
+                      AND wait_type NOT IN (
+                          'BROKER_TASK_STOP',
+                          'BROKER_TO_FLUSH',
+                          'CLR_AUTO_EVENT',
+                          'CLR_MANUAL_EVENT',
+                          'LAZYWRITER_SLEEP',
+                          'LOGMGR_QUEUE',
+                          'REQUEST_FOR_DEADLOCK_SEARCH',
+                          'SQLTRACE_BUFFER_FLUSH',
+                          'XE_TIMER_EVENT',
+                          'XE_DISPATCHER_WAIT',
+                          'WAITFOR'
+                      )
+                    ORDER BY wait_time_ms DESC
+                    """,
+                List.of("wait stats", "wait type", "resource wait", "signal wait", "latency", "performance_issue")),
+            maintenanceTemplate("SQLSERVER_DATABASE_STATS", "SQL Server database runtime statistics",
+                "Read SQL Server database state and recovery metadata.",
+                "sqlserver", "instance",
+                """
+                    SELECT
+                        name AS database_name,
+                        state_desc,
+                        recovery_model_desc,
+                        compatibility_level,
+                        user_access_desc,
+                        is_read_only,
+                        is_auto_close_on,
+                        is_auto_shrink_on,
+                        page_verify_option_desc
+                    FROM sys.databases
+                    ORDER BY name
+                    """,
+                List.of("database status", "recovery model", "compatibility", "read only", "database overview")),
+            maintenanceTemplate("SQLSERVER_MEMORY_OVERVIEW", "SQL Server memory overview",
+                "Read SQL Server host memory counters.",
+                "sqlserver", "performance",
+                """
+                    SELECT
+                        total_physical_memory_kb,
+                        available_physical_memory_kb,
+                        total_page_file_kb,
+                        available_page_file_kb,
+                        system_memory_state_desc
+                    FROM sys.dm_os_sys_memory
+                    """,
+                List.of("memory", "physical memory", "available memory", "resource", "performance_issue")),
 
             maintenanceTemplate("DM_SESSIONS", "Dameng current sessions",
                 "Read Dameng active session metadata.",
@@ -647,6 +1010,45 @@ public class SqlTemplateService {
                 "dm", "storage",
                 "SELECT TABLESPACE_NAME, SUM(BYTES)/1024/1024 AS SIZE_MB FROM DBA_DATA_FILES GROUP BY TABLESPACE_NAME",
                 List.of("dameng", "dm", "tablespace", "storage", "space", "database size", "storage_check")),
+            maintenanceTemplate("DM_ACTIVE_SESSIONS", "Dameng active sessions",
+                "Read Dameng active sessions for runtime connection and wait inspection.",
+                "dm", "connection",
+                """
+                    SELECT *
+                    FROM V$SESSIONS
+                    WHERE STATE IS NOT NULL
+                    ORDER BY SESS_ID
+                    """,
+                List.of("dameng", "dm", "active session", "session", "connection", "wait", "connection_overflow")),
+            maintenanceTemplate("DM_TOP_SQL_HISTORY", "Dameng top SQL history",
+                "Read Dameng SQL history ordered by elapsed time for performance troubleshooting.",
+                "dm", "performance",
+                """
+                    SELECT *
+                    FROM V$SQL_HISTORY
+                    ORDER BY ELAPSED_TIME DESC
+                    """,
+                List.of("dameng", "dm", "top sql", "sql history", "elapsed time", "slow query", "performance_issue")),
+            maintenanceTemplate("DM_LOCK_WAIT_OVERVIEW", "Dameng lock wait overview",
+                "Read Dameng lock view ordered by session for blocking and lock wait analysis.",
+                "dm", "lock",
+                """
+                    SELECT *
+                    FROM V$LOCKS
+                    ORDER BY SESS_ID
+                    """,
+                List.of("dameng", "dm", "lock wait", "blocking", "lock", "lock_check")),
+            maintenanceTemplate("DM_TABLESPACE_USAGE", "Dameng tablespace usage",
+                "Summarize Dameng tablespace data file capacity for storage inspection.",
+                "dm", "storage",
+                """
+                    SELECT TABLESPACE_NAME,
+                           ROUND(SUM(BYTES) / 1024 / 1024, 2) AS TOTAL_MB
+                    FROM DBA_DATA_FILES
+                    GROUP BY TABLESPACE_NAME
+                    ORDER BY TOTAL_MB DESC
+                    """,
+                List.of("dameng", "dm", "tablespace usage", "storage", "capacity", "space", "storage_check")),
 
             maintenanceTemplate("TDSQL_SHOW_PROCESSLIST", "TDSQL current connections",
                 "Show current TDSQL sessions and running statements.",
@@ -673,6 +1075,76 @@ public class SqlTemplateService {
                 "tdsql", "storage",
                 "SELECT table_schema AS db, SUM(data_length + index_length)/1024/1024 AS size_mb FROM information_schema.tables GROUP BY table_schema",
                 List.of("tdsql", "database size", "storage", "schema size", "space", "storage_check")),
+            maintenanceTemplate("TDSQL_INSTANCE_VARIABLES", "TDSQL instance variables",
+                "Read key TDSQL instance variables for runtime configuration inspection.",
+                "tdsql", "instance",
+                """
+                    SELECT variable_name, variable_value
+                    FROM performance_schema.global_variables
+                    WHERE variable_name IN (
+                        'version',
+                        'version_comment',
+                        'max_connections',
+                        'innodb_buffer_pool_size',
+                        'innodb_flush_log_at_trx_commit',
+                        'sync_binlog',
+                        'slow_query_log',
+                        'long_query_time',
+                        'read_only',
+                        'super_read_only'
+                    )
+                    ORDER BY variable_name
+                    """,
+                List.of("tdsql", "variables", "configuration", "version", "max connections", "buffer pool", "database status")),
+            maintenanceTemplate("TDSQL_CONNECTION_STATUS", "TDSQL connection status counters",
+                "Read TDSQL connection related status counters for capacity and saturation analysis.",
+                "tdsql", "connection",
+                """
+                    SELECT variable_name, variable_value
+                    FROM performance_schema.global_status
+                    WHERE variable_name IN (
+                        'Threads_connected',
+                        'Threads_running',
+                        'Max_used_connections',
+                        'Connections',
+                        'Aborted_connects',
+                        'Connection_errors_max_connections'
+                    )
+                    ORDER BY variable_name
+                    """,
+                List.of("tdsql", "connection status", "threads connected", "threads running", "connection_overflow")),
+            maintenanceTemplate("TDSQL_TOP_TABLES_SIZE", "TDSQL largest tables",
+                "Rank TDSQL tables by total data and index size.",
+                "tdsql", "storage",
+                """
+                    SELECT table_schema,
+                           table_name,
+                           ROUND((data_length + index_length) / 1024 / 1024, 2) AS total_mb,
+                           ROUND(data_length / 1024 / 1024, 2) AS data_mb,
+                           ROUND(index_length / 1024 / 1024, 2) AS index_mb,
+                           table_rows
+                    FROM information_schema.tables
+                    WHERE table_schema NOT IN ('information_schema', 'mysql', 'performance_schema', 'sys')
+                    ORDER BY total_mb DESC
+                    LIMIT 50
+                    """,
+                List.of("tdsql", "largest table", "table size", "storage", "capacity", "storage_check")),
+            maintenanceTemplate("TDSQL_STATEMENT_DIGEST_TOP", "TDSQL top statement digests",
+                "Read top TDSQL statement digests by total latency from performance_schema.",
+                "tdsql", "performance",
+                """
+                    SELECT digest_text,
+                           count_star,
+                           ROUND(sum_timer_wait / 1000000000000, 3) AS total_seconds,
+                           ROUND(avg_timer_wait / 1000000000000, 6) AS avg_seconds,
+                           sum_rows_examined,
+                           sum_rows_sent
+                    FROM performance_schema.events_statements_summary_by_digest
+                    WHERE digest_text IS NOT NULL
+                    ORDER BY sum_timer_wait DESC
+                    LIMIT 20
+                    """,
+                List.of("tdsql", "statement digest", "top sql", "slow query", "latency", "performance_issue")),
 
             maintenanceTemplate("TIDB_PROCESSLIST", "TiDB current connections",
                 "Show current TiDB sessions and running statements.",
@@ -699,6 +1171,106 @@ public class SqlTemplateService {
                 "tidb", "storage",
                 "SELECT table_schema AS db, SUM(data_length + index_length)/1024/1024 AS size_mb FROM information_schema.tables GROUP BY table_schema",
                 List.of("tidb", "database size", "storage", "schema size", "space", "storage_check")),
+            maintenanceTemplate("TIDB_NODE_LOAD", "TiDB node load",
+                "Read TiDB cluster node load metrics for CPU, memory and IO pressure inspection.",
+                "tidb", "performance",
+                """
+                    SELECT *
+                    FROM information_schema.CLUSTER_LOAD
+                    ORDER BY INSTANCE, DEVICE_TYPE, DEVICE_NAME
+                    """,
+                List.of("tidb", "cluster load", "cpu", "memory", "io", "node load", "performance_issue")),
+            maintenanceTemplate("TIDB_CLUSTER_HARDWARE", "TiDB cluster hardware",
+                "Read TiDB cluster hardware metadata for capacity and resource inspection.",
+                "tidb", "instance",
+                """
+                    SELECT *
+                    FROM information_schema.CLUSTER_HARDWARE
+                    ORDER BY INSTANCE, DEVICE_TYPE, DEVICE_NAME
+                    """,
+                List.of("tidb", "cluster hardware", "cpu", "memory", "disk", "capacity", "database status")),
+            maintenanceTemplate("TIDB_RECENT_SLOW_QUERIES", "TiDB recent slow queries",
+                "Read recent TiDB slow query records from cluster slow query view.",
+                "tidb", "performance",
+                """
+                    SELECT time,
+                           query_time,
+                           process_time,
+                           wait_time,
+                           backoff_time,
+                           request_count,
+                           total_keys,
+                           process_keys,
+                           db,
+                           digest,
+                           left(query, 500) AS query_text
+                    FROM information_schema.CLUSTER_SLOW_QUERY
+                    ORDER BY time DESC
+                    LIMIT 20
+                    """,
+                List.of("tidb", "slow query", "cluster slow query", "query_time", "latency", "performance_issue")),
+            maintenanceTemplate("TIDB_DATA_LOCK_WAITS", "TiDB data lock waits",
+                "Read TiDB data lock wait metadata for blocking and transaction troubleshooting.",
+                "tidb", "lock",
+                """
+                    SELECT *
+                    FROM information_schema.DATA_LOCK_WAITS
+                    """,
+                List.of("tidb", "data lock waits", "lock wait", "blocking", "transaction", "lock_check")),
+            maintenanceTemplate("TIDB_TABLE_STORAGE_STATS", "TiDB table storage stats",
+                "Read TiDB table storage statistics for large table and region capacity inspection.",
+                "tidb", "storage",
+                """
+                    SELECT table_schema,
+                           table_name,
+                           table_id,
+                           peer_count,
+                           region_count,
+                           empty_region_count,
+                           table_size,
+                           table_keys
+                    FROM information_schema.TABLE_STORAGE_STATS
+                    ORDER BY table_size DESC
+                    """,
+                List.of("tidb", "table storage", "table size", "region count", "storage", "storage_check")),
+            maintenanceTemplate("TIDB_REGION_STATUS", "TiDB region status",
+                "Read TiKV region status for hotspot and region distribution inspection.",
+                "tidb", "storage",
+                """
+                    SELECT *
+                    FROM information_schema.TIKV_REGION_STATUS
+                    ORDER BY WRITTEN_BYTES DESC
+                    LIMIT 50
+                    """,
+                List.of("tidb", "tikv region", "hot region", "written bytes", "read bytes", "storage_check")),
+            maintenanceTemplate("TIDB_ANALYZE_STATUS", "TiDB analyze status",
+                "Read TiDB analyze job status for statistics freshness inspection.",
+                "tidb", "instance",
+                """
+                    SELECT *
+                    FROM information_schema.ANALYZE_STATUS
+                    ORDER BY START_TIME DESC
+                    LIMIT 50
+                    """,
+                List.of("tidb", "analyze status", "statistics", "stats freshness", "health", "database status")),
+            maintenanceTemplate("TIDB_STATEMENTS_ERRORS", "TiDB statement error summary",
+                "Read TiDB statement summary ordered by error count and latency.",
+                "tidb", "performance",
+                """
+                    SELECT digest,
+                           digest_text,
+                           schema_name,
+                           exec_count,
+                           sum_errors,
+                           avg_latency,
+                           max_latency,
+                           avg_processed_keys,
+                           avg_total_keys
+                    FROM information_schema.STATEMENTS_SUMMARY
+                    WHERE sum_errors > 0
+                    ORDER BY sum_errors DESC, avg_latency DESC
+                    """,
+                List.of("tidb", "statement errors", "sql error", "statement summary", "performance_issue")),
 
             maintenanceTemplate("KINGBASE_ACTIVITY", "Kingbase current activity",
                 "Read KingbaseES sessions and active queries from sys_stat_activity.",
@@ -725,6 +1297,163 @@ public class SqlTemplateService {
                 "kingbase", "storage",
                 "SELECT datname, sys_size_pretty(sys_database_size(oid)) AS size FROM sys_database",
                 List.of("kingbase", "kingbasees", "database size", "storage", "space", "storage_check")),
+            maintenanceTemplate("KINGBASE_WAIT_ACTIVITY", "Kingbase wait activity",
+                "Read active KingbaseES sessions with wait event information for runtime diagnosis.",
+                "kingbase", "performance",
+                """
+                    SELECT pid, usename, datname, application_name, client_addr, state,
+                           wait_event_type, wait_event,
+                           now() - query_start AS query_age,
+                           left(query, 500) AS query_text
+                    FROM sys_stat_activity
+                    WHERE state <> 'idle' OR wait_event IS NOT NULL
+                    ORDER BY query_start NULLS LAST
+                    """,
+                List.of("kingbase", "kingbasees", "wait event", "active session", "latency", "performance_issue")),
+            maintenanceTemplate("KINGBASE_BLOCKING_OVERVIEW", "Kingbase blocking overview",
+                "Read KingbaseES blocking and waiting lock relationships without recursive traversal.",
+                "kingbase", "lock",
+                """
+                    SELECT blocked_locks.pid AS blocked_pid,
+                           blocked_activity.usename AS blocked_user,
+                           blocking_locks.pid AS blocking_pid,
+                           blocking_activity.usename AS blocking_user,
+                           blocked_activity.wait_event_type,
+                           blocked_activity.wait_event,
+                           now() - blocked_activity.query_start AS blocked_query_age,
+                           left(blocked_activity.query, 500) AS blocked_query,
+                           left(blocking_activity.query, 500) AS blocking_query
+                    FROM sys_locks blocked_locks
+                    JOIN sys_stat_activity blocked_activity
+                      ON blocked_activity.pid = blocked_locks.pid
+                    JOIN sys_locks blocking_locks
+                      ON blocking_locks.locktype = blocked_locks.locktype
+                     AND blocking_locks.database IS NOT DISTINCT FROM blocked_locks.database
+                     AND blocking_locks.relation IS NOT DISTINCT FROM blocked_locks.relation
+                     AND blocking_locks.page IS NOT DISTINCT FROM blocked_locks.page
+                     AND blocking_locks.tuple IS NOT DISTINCT FROM blocked_locks.tuple
+                     AND blocking_locks.virtualxid IS NOT DISTINCT FROM blocked_locks.virtualxid
+                     AND blocking_locks.transactionid IS NOT DISTINCT FROM blocked_locks.transactionid
+                     AND blocking_locks.classid IS NOT DISTINCT FROM blocked_locks.classid
+                     AND blocking_locks.objid IS NOT DISTINCT FROM blocked_locks.objid
+                     AND blocking_locks.objsubid IS NOT DISTINCT FROM blocked_locks.objsubid
+                     AND blocking_locks.pid <> blocked_locks.pid
+                    JOIN sys_stat_activity blocking_activity
+                      ON blocking_activity.pid = blocking_locks.pid
+                    WHERE NOT blocked_locks.granted
+                      AND blocking_locks.granted
+                    ORDER BY blocked_activity.query_start NULLS LAST
+                    """,
+                List.of("kingbase", "kingbasees", "blocking", "blocked session", "lock wait", "lock_check")),
+            maintenanceTemplate("KINGBASE_LONG_TRANSACTIONS", "Kingbase long transactions",
+                "Read long running KingbaseES transactions and active queries.",
+                "kingbase", "performance",
+                """
+                    SELECT pid, usename, datname, application_name, client_addr, state,
+                           now() - xact_start AS transaction_age,
+                           now() - query_start AS query_age,
+                           left(query, 500) AS query_text
+                    FROM sys_stat_activity
+                    WHERE xact_start IS NOT NULL
+                      AND state <> 'idle'
+                    ORDER BY xact_start
+                    """,
+                List.of("kingbase", "kingbasees", "long transaction", "long query", "active query", "performance_issue")),
+            maintenanceTemplate("KINGBASE_CACHE_HIT_RATIO", "Kingbase cache hit ratio",
+                "Summarize KingbaseES database cache hit ratio and transaction counters.",
+                "kingbase", "performance",
+                """
+                    SELECT datname,
+                           numbackends,
+                           xact_commit,
+                           xact_rollback,
+                           blks_read,
+                           blks_hit,
+                           CASE WHEN blks_hit + blks_read = 0 THEN NULL
+                                ELSE round(blks_hit * 100.0 / (blks_hit + blks_read), 2)
+                           END AS cache_hit_percent,
+                           tup_returned,
+                           tup_fetched,
+                           tup_inserted,
+                           tup_updated,
+                           tup_deleted
+                    FROM sys_stat_database
+                    WHERE datname IS NOT NULL
+                    ORDER BY cache_hit_percent NULLS FIRST, blks_read DESC
+                    """,
+                List.of("kingbase", "kingbasees", "cache hit", "buffer hit", "database stats", "performance_issue")),
+            maintenanceTemplate("KINGBASE_TOP_TABLES_SIZE", "Kingbase largest tables",
+                "Read largest KingbaseES tables with total, table and index size.",
+                "kingbase", "storage",
+                """
+                    SELECT n.nspname AS schema_name,
+                           c.relname AS table_name,
+                           sys_size_pretty(sys_total_relation_size(c.oid)) AS total_size,
+                           sys_size_pretty(sys_relation_size(c.oid)) AS table_size,
+                           sys_size_pretty(sys_total_relation_size(c.oid) - sys_relation_size(c.oid)) AS index_size,
+                           sys_total_relation_size(c.oid) AS total_bytes
+                    FROM sys_class c
+                    JOIN sys_namespace n ON n.oid = c.relnamespace
+                    WHERE c.relkind IN ('r', 'p')
+                      AND n.nspname NOT IN ('sys_catalog', 'information_schema')
+                    ORDER BY sys_total_relation_size(c.oid) DESC
+                    """,
+                List.of("kingbase", "kingbasees", "largest table", "table size", "storage", "capacity", "storage_check")),
+            maintenanceTemplate("KINGBASE_TABLE_ACTIVITY", "Kingbase table activity",
+                "Read KingbaseES table scan, DML and vacuum/analyze activity counters.",
+                "kingbase", "performance",
+                """
+                    SELECT schemaname,
+                           relname,
+                           seq_scan,
+                           seq_tup_read,
+                           idx_scan,
+                           idx_tup_fetch,
+                           n_tup_ins,
+                           n_tup_upd,
+                           n_tup_del,
+                           n_live_tup,
+                           n_dead_tup,
+                           last_vacuum,
+                           last_autovacuum,
+                           last_analyze,
+                           last_autoanalyze
+                    FROM sys_stat_user_tables
+                    ORDER BY n_dead_tup DESC, seq_tup_read DESC
+                    """,
+                List.of("kingbase", "kingbasees", "table activity", "dead tuple", "vacuum", "analyze", "performance_issue")),
+            maintenanceTemplate("KINGBASE_INDEX_USAGE", "Kingbase index usage",
+                "Read KingbaseES index usage counters to identify unused or low-hit indexes.",
+                "kingbase", "performance",
+                """
+                    SELECT schemaname,
+                           relname AS table_name,
+                           indexrelname AS index_name,
+                           idx_scan,
+                           idx_tup_read,
+                           idx_tup_fetch
+                    FROM sys_stat_user_indexes
+                    ORDER BY idx_scan ASC, idx_tup_read DESC
+                    """,
+                List.of("kingbase", "kingbasees", "index usage", "unused index", "idx_scan", "performance_issue")),
+            maintenanceTemplate("KINGBASE_BGWRITER_STATS", "Kingbase bgwriter statistics",
+                "Read KingbaseES checkpoint and background writer counters.",
+                "kingbase", "performance",
+                """
+                    SELECT checkpoints_timed,
+                           checkpoints_req,
+                           checkpoint_write_time,
+                           checkpoint_sync_time,
+                           buffers_checkpoint,
+                           buffers_clean,
+                           maxwritten_clean,
+                           buffers_backend,
+                           buffers_backend_fsync,
+                           buffers_alloc,
+                           stats_reset
+                    FROM sys_stat_bgwriter
+                    """,
+                List.of("kingbase", "kingbasees", "bgwriter", "checkpoint", "buffers", "write time", "performance_issue")),
 
             maintenanceTemplate("OCEANBASE_PROCESSLIST", "OceanBase current connections",
                 "Show current OceanBase sessions and running statements.",
@@ -750,7 +1479,71 @@ public class SqlTemplateService {
                 "Summarize OceanBase database size by schema in megabytes.",
                 "oceanbase", "storage",
                 "SELECT table_schema AS db, SUM(data_length + index_length)/1024/1024 AS size_mb FROM information_schema.tables GROUP BY table_schema",
-                List.of("oceanbase", "database size", "storage", "schema size", "space", "storage_check"))
+                List.of("oceanbase", "database size", "storage", "schema size", "space", "storage_check")),
+            maintenanceTemplate("OCEANBASE_SERVER_OVERVIEW", "OceanBase server overview",
+                "Read OceanBase server metadata for cluster health inspection.",
+                "oceanbase", "instance",
+                """
+                    SELECT SVR_IP,
+                           SQL_PORT,
+                           ZONE,
+                           STATUS,
+                           START_SERVICE_TIME,
+                           BUILD_VERSION
+                    FROM oceanbase.DBA_OB_SERVERS
+                    ORDER BY ZONE, SVR_IP
+                    """,
+                List.of("oceanbase", "server overview", "zone", "server status", "cluster", "database status")),
+            maintenanceTemplate("OCEANBASE_TENANT_OVERVIEW", "OceanBase tenant overview",
+                "Read OceanBase tenant metadata for resource and status inspection.",
+                "oceanbase", "instance",
+                """
+                    SELECT TENANT_ID,
+                           TENANT_NAME,
+                           TENANT_TYPE,
+                           STATUS,
+                           PRIMARY_ZONE,
+                           LOCALITY,
+                           CREATE_TIME
+                    FROM oceanbase.DBA_OB_TENANTS
+                    ORDER BY TENANT_ID
+                    """,
+                List.of("oceanbase", "tenant overview", "tenant status", "resource", "locality", "database status")),
+            maintenanceTemplate("OCEANBASE_TOP_SQL_AUDIT", "OceanBase top SQL audit",
+                "Read OceanBase SQL audit records ordered by elapsed time.",
+                "oceanbase", "performance",
+                """
+                    SELECT SVR_IP,
+                           TENANT_ID,
+                           USER_NAME,
+                           DB_NAME,
+                           QUERY_SQL,
+                           ELAPSED_TIME,
+                           EXECUTE_TIME,
+                           QUEUE_TIME,
+                           RETURN_ROWS,
+                           AFFECTED_ROWS
+                    FROM oceanbase.GV$OB_SQL_AUDIT
+                    ORDER BY ELAPSED_TIME DESC
+                    LIMIT 20
+                    """,
+                List.of("oceanbase", "top sql", "sql audit", "elapsed time", "slow query", "performance_issue")),
+            maintenanceTemplate("OCEANBASE_TOP_TABLES_SIZE", "OceanBase largest tables",
+                "Rank OceanBase tables by total data and index size.",
+                "oceanbase", "storage",
+                """
+                    SELECT table_schema,
+                           table_name,
+                           ROUND((data_length + index_length) / 1024 / 1024, 2) AS total_mb,
+                           ROUND(data_length / 1024 / 1024, 2) AS data_mb,
+                           ROUND(index_length / 1024 / 1024, 2) AS index_mb,
+                           table_rows
+                    FROM information_schema.tables
+                    WHERE table_schema NOT IN ('information_schema', 'mysql', 'performance_schema', 'sys', 'oceanbase')
+                    ORDER BY total_mb DESC
+                    LIMIT 50
+                    """,
+                List.of("oceanbase", "largest table", "table size", "storage", "capacity", "storage_check"))
         );
     }
 

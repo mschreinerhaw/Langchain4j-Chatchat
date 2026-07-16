@@ -156,9 +156,9 @@ class McpTemplateLuceneIndexServiceTest {
             "database_query", "mysql", "fulfillment lifecycle order services", 10
         ));
         assertThat(hits).extracting(LuceneMcpSearchService.SearchHit::id)
-            .contains("ds-1");
-        assertThat(hits.get(0).source()).isEqualTo("database_query_asset_registry");
-        assertThat(hits.get(0).name()).isEqualTo("Order Service MySQL");
+            .contains("db-query-1");
+        assertThat(hits.get(0).source()).isEqualTo("database_query_template_registry");
+        assertThat(hits.get(0).name()).isEqualTo("Order status query");
         assertThat(lucene.searchTemplates(new LuceneMcpSearchService.TemplateSearchRequest(
             "database_query", "mysql", "fulfillment lifecycle order services", 10
         ))).isEmpty();

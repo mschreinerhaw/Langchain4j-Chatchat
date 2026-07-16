@@ -100,7 +100,13 @@ export const cacheApi = {
   getConfig: () => apiFetch(`${API_BASE}/cache/database-query/config`),
   saveConfig: config => apiFetch(`${API_BASE}/cache/database-query/config`, { method: 'PUT', body: JSON.stringify(config) }),
   getStats: () => apiFetch(`${API_BASE}/cache/database-query/stats`),
-  listTemplates: () => apiFetch(`${API_BASE}/cache/database-query/templates`),
+  listTemplates: (filters = {}) => {
+    const params = new URLSearchParams();
+    if (filters.keyword) params.set('keyword', filters.keyword);
+    if (filters.category) params.set('category', filters.category);
+    const query = params.toString();
+    return apiFetch(`${API_BASE}/cache/database-query/templates${query ? `?${query}` : ''}`);
+  },
   saveTemplate: (id, policy) => apiFetch(`${API_BASE}/cache/database-query/templates/${encodeURIComponent(id)}`, { method: 'PUT', body: JSON.stringify(policy) }),
   getRedisConfig: () => apiFetch(`${API_BASE}/cache/database-query/storage/redis`),
   saveRedisConfig: config => apiFetch(`${API_BASE}/cache/database-query/storage/redis`, { method: 'PUT', body: JSON.stringify(config) }),

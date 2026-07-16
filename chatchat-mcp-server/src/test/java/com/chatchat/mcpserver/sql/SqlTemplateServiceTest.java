@@ -58,47 +58,91 @@ class SqlTemplateServiceTest {
                 "MYSQL_INNODB_STATUS",
                 "MYSQL_INNODB_TRX",
                 "MYSQL_DATABASE_SIZE",
+                "MYSQL_INSTANCE_VARIABLES",
+                "MYSQL_CONNECTION_STATUS",
+                "MYSQL_TOP_TABLES_SIZE",
+                "MYSQL_STATEMENT_DIGEST_TOP",
                 "ORACLE_SESSION_OVERVIEW",
                 "ORACLE_INSTANCE_STATUS",
                 "ORACLE_LOCKS",
                 "ORACLE_SYSTEM_EVENTS",
                 "ORACLE_TABLESPACE_USAGE",
                 "ORACLE_TABLESPACE_SIZE",
+                "ORACLE_DATABASE_OVERVIEW",
+                "ORACLE_ACTIVE_SESSIONS",
+                "ORACLE_TOP_SQL_ELAPSED",
+                "ORACLE_WAIT_CLASS_SUMMARY",
                 "POSTGRES_ACTIVITY",
                 "POSTGRES_DATABASE_SIZE",
                 "POSTGRES_TABLE_SIZE_RANKING",
                 "POSTGRES_LOCKS",
                 "POSTGRES_LONG_TRANSACTIONS",
+                "POSTGRES_DATABASE_STATS",
+                "POSTGRES_WAIT_ACTIVITY",
+                "POSTGRES_BLOCKING_CHAINS",
+                "POSTGRES_BGWRITER_STATS",
                 "SQLSERVER_SESSIONS",
                 "SQLSERVER_REQUESTS",
                 "SQLSERVER_DATABASE_SIZE",
                 "SQLSERVER_LOCKS",
                 "SQLSERVER_IO_STATS",
+                "SQLSERVER_INSTANCE_OVERVIEW",
+                "SQLSERVER_WAIT_STATS",
+                "SQLSERVER_DATABASE_STATS",
+                "SQLSERVER_MEMORY_OVERVIEW",
                 "DM_SESSIONS",
                 "DM_INSTANCE_STATUS",
                 "DM_LOCKS",
                 "DM_SQL_HISTORY",
                 "DM_TABLESPACE_SIZE",
+                "DM_ACTIVE_SESSIONS",
+                "DM_TOP_SQL_HISTORY",
+                "DM_LOCK_WAIT_OVERVIEW",
+                "DM_TABLESPACE_USAGE",
                 "TDSQL_SHOW_PROCESSLIST",
                 "TDSQL_SHOW_STATUS",
                 "TDSQL_INNODB_STATUS",
                 "TDSQL_INNODB_TRX",
                 "TDSQL_DATABASE_SIZE",
+                "TDSQL_INSTANCE_VARIABLES",
+                "TDSQL_CONNECTION_STATUS",
+                "TDSQL_TOP_TABLES_SIZE",
+                "TDSQL_STATEMENT_DIGEST_TOP",
                 "TIDB_PROCESSLIST",
                 "TIDB_CLUSTER_INFO",
                 "TIDB_TRANSACTIONS",
                 "TIDB_STATEMENTS_SUMMARY",
                 "TIDB_DATABASE_SIZE",
+                "TIDB_NODE_LOAD",
+                "TIDB_CLUSTER_HARDWARE",
+                "TIDB_RECENT_SLOW_QUERIES",
+                "TIDB_DATA_LOCK_WAITS",
+                "TIDB_TABLE_STORAGE_STATS",
+                "TIDB_REGION_STATUS",
+                "TIDB_ANALYZE_STATUS",
+                "TIDB_STATEMENTS_ERRORS",
                 "KINGBASE_ACTIVITY",
                 "KINGBASE_DATABASE_STATS",
                 "KINGBASE_LOCKS",
                 "KINGBASE_LONG_QUERIES",
                 "KINGBASE_DATABASE_SIZE",
+                "KINGBASE_WAIT_ACTIVITY",
+                "KINGBASE_BLOCKING_OVERVIEW",
+                "KINGBASE_LONG_TRANSACTIONS",
+                "KINGBASE_CACHE_HIT_RATIO",
+                "KINGBASE_TOP_TABLES_SIZE",
+                "KINGBASE_TABLE_ACTIVITY",
+                "KINGBASE_INDEX_USAGE",
+                "KINGBASE_BGWRITER_STATS",
                 "OCEANBASE_PROCESSLIST",
                 "OCEANBASE_SERVERS",
                 "OCEANBASE_TENANTS",
                 "OCEANBASE_SQL_AUDIT",
-                "OCEANBASE_DATABASE_SIZE"
+                "OCEANBASE_DATABASE_SIZE",
+                "OCEANBASE_SERVER_OVERVIEW",
+                "OCEANBASE_TENANT_OVERVIEW",
+                "OCEANBASE_TOP_SQL_AUDIT",
+                "OCEANBASE_TOP_TABLES_SIZE"
             )
             .doesNotContain(
                 "CHECK_TABLE_COUNT",
@@ -112,10 +156,10 @@ class SqlTemplateServiceTest {
                 "POSTGRES_TABLE_METADATA",
                 "SQLSERVER_TABLE_METADATA"
             );
-        assertThat(saved).hasSize(46);
+        assertThat(saved).hasSize(90);
         assertThat(saved)
             .filteredOn(template -> template.getCode().startsWith("MYSQL_"))
-            .hasSize(5)
+            .hasSize(9)
             .allSatisfy(template -> {
                 assertThat(template.getDatabaseType()).isEqualTo("mysql");
                 assertThat(template.getRiskLevel()).isEqualTo("LOW");
@@ -123,7 +167,7 @@ class SqlTemplateServiceTest {
             });
         assertThat(saved)
             .filteredOn(template -> template.getCode().startsWith("ORACLE_"))
-            .hasSize(6)
+            .hasSize(10)
             .allSatisfy(template -> assertThat(template.getDatabaseType()).isEqualTo("oracle"));
         assertThat(saved)
             .filteredOn(template -> "ORACLE_TABLESPACE_USAGE".equals(template.getCode()))
@@ -139,31 +183,35 @@ class SqlTemplateServiceTest {
             });
         assertThat(saved)
             .filteredOn(template -> template.getCode().startsWith("POSTGRES_"))
-            .hasSize(5)
+            .hasSize(9)
             .allSatisfy(template -> assertThat(template.getDatabaseType()).isEqualTo("postgresql"));
         assertThat(saved)
             .filteredOn(template -> template.getCode().startsWith("SQLSERVER_"))
-            .hasSize(5)
+            .hasSize(9)
             .allSatisfy(template -> assertThat(template.getDatabaseType()).isEqualTo("sqlserver"));
         assertThat(saved)
+            .filteredOn(template -> template.getCode().startsWith("SQLSERVER_"))
+            .allSatisfy(template -> assertThat(template.getSqlTemplate().toLowerCase())
+                .doesNotContain("select *"));
+        assertThat(saved)
             .filteredOn(template -> template.getCode().startsWith("DM_"))
-            .hasSize(5)
+            .hasSize(9)
             .allSatisfy(template -> assertThat(template.getDatabaseType()).isEqualTo("dm"));
         assertThat(saved)
             .filteredOn(template -> template.getCode().startsWith("TDSQL_"))
-            .hasSize(5)
+            .hasSize(9)
             .allSatisfy(template -> assertThat(template.getDatabaseType()).isEqualTo("tdsql"));
         assertThat(saved)
             .filteredOn(template -> template.getCode().startsWith("TIDB_"))
-            .hasSize(5)
+            .hasSize(13)
             .allSatisfy(template -> assertThat(template.getDatabaseType()).isEqualTo("tidb"));
         assertThat(saved)
             .filteredOn(template -> template.getCode().startsWith("KINGBASE_"))
-            .hasSize(5)
+            .hasSize(13)
             .allSatisfy(template -> assertThat(template.getDatabaseType()).isEqualTo("kingbase"));
         assertThat(saved)
             .filteredOn(template -> template.getCode().startsWith("OCEANBASE_"))
-            .hasSize(5)
+            .hasSize(9)
             .allSatisfy(template -> assertThat(template.getDatabaseType()).isEqualTo("oceanbase"));
         assertThat(saved).extracting(SqlTemplateConfig::getSqlTemplate)
             .noneSatisfy(sql -> assertThat(sql).containsIgnoringCase("{{table}}"))

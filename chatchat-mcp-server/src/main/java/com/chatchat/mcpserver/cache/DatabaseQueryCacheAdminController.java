@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -65,8 +66,16 @@ public class DatabaseQueryCacheAdminController {
     }
 
     @GetMapping("/templates")
-    public ApiResponse<List<DatabaseQueryCacheTemplateView>> templates() {
-        return ApiResponse.success(queryConfigService.listAll().stream()
+    public ApiResponse<List<DatabaseQueryCacheTemplateView>> templates(
+        @RequestParam(value = "keyword", required = false) String keyword,
+        @RequestParam(value = "category", required = false) String category
+    ) {
+        List<DatabaseQueryConfig> candidates = keyword == null || keyword.isBlank()
+            ? queryConfigService.listAll()
+            : queryConfigService.search(keyword.trim());
+        return ApiResponse.success(candidates.stream()
+            .filter(config -> category == null || category.isBlank()
+                || category.equalsIgnoreCase(config.getBusinessGroup()))
             .map(this::toTemplateView)
             .toList());
     }

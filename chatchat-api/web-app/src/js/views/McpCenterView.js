@@ -55,17 +55,17 @@ export default {
     toolServiceOptions() {
       return this.toolServiceOptionsData.length
         ? this.toolServiceOptionsData
-        : [{ value: "all", label: "全部服务", count: this.mcpToolTotal }];
+        : [{ value: "all", label: "全部来源服务", count: this.mcpToolTotal }];
     },
     toolCategoryOptions() {
       return this.toolCategoryOptionsData.length
         ? this.toolCategoryOptionsData
-        : [{ value: "all", label: "全部分类", count: this.mcpToolTotal }];
+        : [{ value: "all", label: "全部能力分类", count: this.mcpToolTotal }];
     },
     toolGroupOptions() {
       return [
-        { value: "service", label: "按服务" },
-        { value: "category", label: "按分类" },
+        { value: "service", label: "按来源服务" },
+        { value: "category", label: "按能力分类" },
         { value: "tag", label: "按标签" }
       ];
     },
@@ -77,12 +77,12 @@ export default {
     },
     toolGroupModeLabel() {
       if (this.toolGroupMode === "category") {
-        return "分类";
+        return "能力分类";
       }
       if (this.toolGroupMode === "tag") {
         return "标签";
       }
-      return "服务";
+      return "来源服务";
     },
     pagedToolCards() {
       return this.filteredToolCards;
@@ -253,11 +253,11 @@ export default {
     },
     resolveToolGroup(tool) {
       if (this.toolGroupMode === "category") {
-        const category = Array.isArray(tool?.categories) && tool.categories.length ? tool.categories[0] : "未分类";
+        const category = tool?.functionalCategory || "未分类";
         return {
           key: `category:${category}`,
           label: category,
-          subtitle: "分类"
+          subtitle: "能力分类"
         };
       }
       if (this.toolGroupMode === "tag") {
@@ -272,7 +272,7 @@ export default {
       return {
         key: `service:${tool?.serviceId || serviceName}`,
         label: serviceName,
-        subtitle: tool?.serviceId && tool?.serviceName ? tool.serviceId : "服务"
+        subtitle: tool?.serviceId && tool?.serviceName ? tool.serviceId : "来源服务"
       };
     },
     toolSearchText(tool) {
@@ -314,9 +314,10 @@ export default {
       return [
         ["本地工具名", tool?.localToolName || "-"],
         ["远端工具名", tool?.remoteToolName || "-"],
-        ["所属服务", tool?.serviceName || "-"],
+        ["来源服务", tool?.serviceName || "-"],
         ["服务ID", tool?.serviceId || "-"],
         ["输出类型", tool?.outputType || "-"],
+        ["能力分类", tool?.functionalCategory || "未分类"],
         ["超时", tool?.timeoutMillis ? `${tool.timeoutMillis}ms` : "-"],
         ["Agent可用", tool?.agentCompatible ? "是" : "否"],
         ["需要授权", tool?.requiresAuth ? "是" : "否"],

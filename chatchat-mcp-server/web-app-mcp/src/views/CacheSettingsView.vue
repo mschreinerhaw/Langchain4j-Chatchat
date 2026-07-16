@@ -112,8 +112,8 @@
           <el-col :xs="24" :md="8">
             <el-form-item label="缓存 Key 策略">
               <el-select v-model="config.keyStrategy" class="w-100">
-                <el-option label="SQL + 参数 + 数据源" value="SQL_PARAMS_DATASOURCE" />
-                <el-option label="规范 SQL + 参数" value="NORMALIZED_SQL_PARAMS" />
+                <el-option label="模板 ID + 参数 + 数据源" value="TEMPLATE_ID_PARAMS_DATASOURCE" />
+                <el-option label="模板 ID + 参数 + 数据源 + 用户" value="TEMPLATE_ID_PARAMS_DATASOURCE_USER" />
               </el-select>
             </el-form-item>
           </el-col>
@@ -301,7 +301,7 @@
         <el-button plain @click="clearVisibleTemplates">清除当前结果</el-button>
       </div>
 
-      <el-table :data="templatePickerItems" border stripe max-height="480" empty-text="暂无匹配的 SQL 模板">
+      <el-table v-loading="templateSearchBusy" :data="templatePickerItems" border stripe max-height="480" empty-text="暂无匹配的 SQL 模板">
         <el-table-column label="" width="56" align="center">
           <template #default="{ row }">
             <el-checkbox
@@ -312,6 +312,9 @@
           </template>
         </el-table-column>
         <el-table-column prop="title" label="模板名称" min-width="180" show-overflow-tooltip />
+        <el-table-column prop="id" label="Template ID" min-width="180" show-overflow-tooltip>
+          <template #default="{ row }"><code>{{ row.id }}</code></template>
+        </el-table-column>
         <el-table-column prop="toolName" label="工具名称" min-width="180" show-overflow-tooltip>
           <template #default="{ row }"><code>{{ row.toolName }}</code></template>
         </el-table-column>

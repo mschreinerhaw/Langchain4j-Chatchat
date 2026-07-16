@@ -1,6 +1,7 @@
 ﻿import CrudCatalog from '../../components/CrudCatalog.vue';
 import { assetsApi, databaseApi as api } from '../../services/api';
 import { prettyJson } from '../../utils/json';
+import { buildTestNotification } from '../../utils/test-result';
 import '../../styles/views/database-mcp.css';
 
 const inputSchema = { type: 'object', properties: {}, required: [], additionalProperties: false };
@@ -229,14 +230,20 @@ export default {
       this.resetCalendarFunctionTestState();
     },
     async testCalendar() {
-      const result = await this.run(() => api.testTradingCalendar(this.calendar), '交易日历查询通过');
+      const result = await this.runTest(() => api.testTradingCalendar(this.calendar), {
+        successTitle: '交易日历查询通过',
+        failureTitle: '交易日历查询失败'
+      });
       this.calendarQueryTestPassed = !!result?.success;
       if (result) this.$emit('result', { title: '交易日历测试结果', value: result });
     },
     async testCalendarFunction() {
-      const result = await this.run(
+      const result = await this.runTest(
         () => api.testTradingCalendarFunction({ ...this.calendar, functionName: this.calendarFunctionName }),
-        '交易日函数测试完成'
+        {
+          successTitle: '交易日函数测试通过',
+          failureTitle: '交易日函数测试失败'
+        }
       );
       if (result) this.$emit('result', { title: '交易日函数测试结果', value: result });
     },
@@ -268,6 +275,19 @@ export default {
       try {
         const result = await action();
         this.$emit('notify', { title: message });
+        return result;
+      } catch (error) {
+        this.$emit('error', error);
+        return null;
+      } finally {
+        this.busy = false;
+      }
+    },
+    async runTest(action, notificationOptions) {
+      this.busy = true;
+      try {
+        const result = await action();
+        this.$emit('notify', buildTestNotification(result, notificationOptions));
         return result;
       } catch (error) {
         this.$emit('error', error);

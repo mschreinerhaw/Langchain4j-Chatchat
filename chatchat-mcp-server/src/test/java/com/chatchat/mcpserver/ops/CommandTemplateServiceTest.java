@@ -53,7 +53,17 @@ class CommandTemplateServiceTest {
                 "CHECK_JVM_DETAIL",
                 "CHECK_IO_STATUS",
                 "CHECK_PORT_BINDING",
-                "CHECK_SYSTEM_LOAD"
+                "CHECK_SYSTEM_LOAD",
+                "CHECK_MIDDLEWARE_PROCESS_OVERVIEW",
+                "CHECK_REDIS_OVERVIEW",
+                "CHECK_ZOOKEEPER_OVERVIEW",
+                "CHECK_NGINX_OVERVIEW",
+                "CHECK_DOCKER_OVERVIEW",
+                "CHECK_DOCKER_CONTAINERS",
+                "CHECK_CONTAINER_RUNTIME_OVERVIEW",
+                "CHECK_K8S_NODE_OVERVIEW",
+                "CHECK_K8S_WORKLOAD_OVERVIEW",
+                "CHECK_MOUNT_DISK_USAGE"
             );
         assertThat(saved)
             .filteredOn(template -> "CHECK_PROCESS_INFO".equals(template.getCode()))
@@ -131,8 +141,48 @@ class CommandTemplateServiceTest {
                 assertThat(template.getParameterSchemaJson()).contains("serviceName");
                 assertThat(template.getCategory()).isEqualTo("service_diagnostic");
             });
-        assertThat(saved).extracting(CommandTemplateConfig::getCommandTemplate)
-            .noneSatisfy(command -> assertThat(command).containsIgnoringCase("docker"));
+        assertThat(saved)
+            .filteredOn(template -> "CHECK_MIDDLEWARE_PROCESS_OVERVIEW".equals(template.getCode()))
+            .singleElement()
+            .satisfies(template -> {
+                assertThat(template.getCommandTemplate())
+                    .contains("redis")
+                    .contains("zookeeper")
+                    .contains("nginx")
+                    .contains("[j]ava")
+                    .contains("[d]ockerd")
+                    .contains("[k]ubelet");
+                assertThat(template.getCategory()).isEqualTo("middleware_diagnostic");
+            });
+        assertThat(saved)
+            .filteredOn(template -> "CHECK_DOCKER_OVERVIEW".equals(template.getCode()))
+            .singleElement()
+            .satisfies(template -> {
+                assertThat(template.getCommandTemplate())
+                    .contains("docker info")
+                    .contains("docker system df")
+                    .contains("image_count");
+                assertThat(template.getCategory()).isEqualTo("container_diagnostic");
+            });
+        assertThat(saved)
+            .filteredOn(template -> "CHECK_K8S_NODE_OVERVIEW".equals(template.getCode()))
+            .singleElement()
+            .satisfies(template -> {
+                assertThat(template.getCommandTemplate())
+                    .contains("kubectl get nodes")
+                    .contains("kubectl get pods -A");
+                assertThat(template.getCategory()).isEqualTo("k8s_diagnostic");
+            });
+        assertThat(saved)
+            .filteredOn(template -> "CHECK_MOUNT_DISK_USAGE".equals(template.getCode()))
+            .singleElement()
+            .satisfies(template -> {
+                assertThat(template.getCommandTemplate())
+                    .contains("df -hT")
+                    .contains("findmnt")
+                    .contains("mount summary");
+                assertThat(template.getCategory()).isEqualTo("storage_diagnostic");
+            });
     }
 
     @Test
@@ -267,7 +317,7 @@ class CommandTemplateServiceTest {
         assertThat(saved.getDescription()).isEqualTo("Read block devices.");
         assertThat(saved.getCommandTemplate()).isEqualTo("lsblk");
         assertThat(saved.getRiskLevel()).isEqualTo("LOW");
-        assertThat(saved.getCategory()).isEqualTo("host_diagnostic");
+        assertThat(saved.getCategory()).isEqualTo("storage_diagnostic");
         assertThat(saved.isEnabled()).isTrue();
     }
 }

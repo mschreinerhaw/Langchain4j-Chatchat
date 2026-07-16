@@ -3,6 +3,7 @@ package com.chatchat.mcpserver.cache;
 import com.chatchat.agents.protocol.ModelProtocolJson;
 import com.chatchat.common.tool.ToolOutput;
 import com.chatchat.mcpserver.database.DatabaseQueryConfig;
+import com.chatchat.mcpserver.mcp.McpInvocationContext;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -27,6 +28,7 @@ import java.util.TreeMap;
 public class DatabaseQueryCacheService {
 
     private static final String KEY_PREFIX = "db-query-cache:";
+    private static final String KEY_SCHEMA_VERSION = "template-key.v2";
 
     private final McpCacheProperties properties;
     private final McpRocksDbStore rocksDbStore;
@@ -57,6 +59,8 @@ public class DatabaseQueryCacheService {
             }
             output.getMetadata().put("cacheHit", true);
             output.getMetadata().put("cacheStorage", config.getCacheStorage());
+            output.getMetadata().put("cacheTemplateId", config.getId());
+            output.getMetadata().put("cacheKeySchemaVersion", KEY_SCHEMA_VERSION);
             output.getMetadata().put("cacheAgeSeconds", Math.max(0L, (now - entry.createdAt()) / 1000L));
             return Optional.of(output);
         } catch (Exception ex) {
@@ -78,6 +82,8 @@ public class DatabaseQueryCacheService {
         ToolOutput cached = copyForCache(result);
         cached.getMetadata().put("cacheHit", false);
         cached.getMetadata().put("cacheStorage", config.getCacheStorage());
+        cached.getMetadata().put("cacheTemplateId", config.getId());
+        cached.getMetadata().put("cacheKeySchemaVersion", KEY_SCHEMA_VERSION);
         DatabaseQueryCacheEntry entry = new DatabaseQueryCacheEntry(cached, now, expiresAt);
         try {
             byte[] payload = objectMapper.writeValueAsBytes(entry);
@@ -154,9 +160,12 @@ public class DatabaseQueryCacheService {
         if (config == null) {
             return 0;
         }
-        String prefix = KEY_PREFIX + sanitize(config.getToolName()) + ":";
+        String prefix = templatePrefix(config);
+        String legacyPrefix = KEY_PREFIX + sanitize(config.getToolName()) + ":";
         return evictEntries(rocksDbStore.scan(prefix, 100000), false)
-            + evictEntries(safeRedisScan(prefix, 100000), true);
+            + evictEntries(safeRedisScan(prefix, 100000), true)
+            + evictEntries(rocksDbStore.scan(legacyPrefix, 100000), false)
+            + evictEntries(safeRedisScan(legacyPrefix, 100000), true);
     }
 
     public CacheStats stats() {
@@ -191,6 +200,8 @@ public class DatabaseQueryCacheService {
             && config != null
             && config.isEnabled()
             && config.isCacheEnabled()
+            && config.getId() != null
+            && !config.getId().isBlank()
             && config.getCacheTtlSeconds() > 0
             && (useRedis(config) ? redisCacheStore.isUsable() : rocksDbStore.isUsable());
     }
@@ -218,26 +229,42 @@ public class DatabaseQueryCacheService {
         }
     }
 
-    private String key(DatabaseQueryConfig config, Map<String, Object> parameters) {
+    String key(DatabaseQueryConfig config, Map<String, Object> parameters) {
         try {
             Map<String, Object> identity = new LinkedHashMap<>();
-            identity.put("id", config.getId());
-            identity.put("toolName", config.getToolName());
+            identity.put("schemaVersion", KEY_SCHEMA_VERSION);
+            identity.put("templateId", config.getId());
+            identity.put("templateRevision", config.getUpdatedAt() == null ? null : config.getUpdatedAt().toEpochMilli());
             identity.put("datasourceId", config.getDatasourceId());
-            identity.put("sqlTemplate", config.getSqlTemplate());
-            identity.put("sqlSteps", config.getSqlStepsJson());
-            identity.put("updatedAt", config.getUpdatedAt() == null ? null : config.getUpdatedAt().toEpochMilli());
             identity.put("parameters", normalize(parameters == null ? Map.of() : parameters));
-            if ("SQL_PARAMS_DATASOURCE_USER".equals(configService.current().getKeyStrategy())) {
-                identity.put("user", "admin");
+            if ("TEMPLATE_ID_PARAMS_DATASOURCE_USER".equals(configService.current().getKeyStrategy())) {
+                identity.put("user", invocationUser());
             }
             String canonicalJson = ModelProtocolJson.compact(identity);
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             byte[] hash = digest.digest(canonicalJson.getBytes(StandardCharsets.UTF_8));
-            return KEY_PREFIX + sanitize(config.getToolName()) + ":" + HexFormat.of().formatHex(hash);
+            return templatePrefix(config) + HexFormat.of().formatHex(hash);
         } catch (Exception ex) {
             throw new IllegalStateException("Failed to build database query cache key", ex);
         }
+    }
+
+    String templatePrefix(DatabaseQueryConfig config) {
+        return KEY_PREFIX + "v2:template:" + sanitize(config == null ? null : config.getId()) + ":";
+    }
+
+    private String invocationUser() {
+        McpInvocationContext.Context context = McpInvocationContext.current();
+        if (context == null) {
+            return "anonymous";
+        }
+        if (context.userId() != null && !context.userId().isBlank()) {
+            return context.userId().trim();
+        }
+        if (context.username() != null && !context.username().isBlank()) {
+            return context.username().trim();
+        }
+        return "anonymous";
     }
 
     private ToolOutput copyForCache(ToolOutput source) {

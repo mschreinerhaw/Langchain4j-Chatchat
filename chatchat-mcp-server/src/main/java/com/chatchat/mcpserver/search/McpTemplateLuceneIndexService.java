@@ -70,10 +70,11 @@ public class McpTemplateLuceneIndexService {
             refreshTemplateIndex();
             refreshed = true;
         }
-        if (!luceneSearchService.databaseQueryTemplateIndexExists()) {
-            refreshDatabaseQueryTemplateIndex();
-            refreshed = true;
-        }
+        // The database-query index is intentionally rebuilt on startup. It is a
+        // compact per-template identity index and older releases stored
+        // datasource-level aggregate documents under the same index name.
+        refreshDatabaseQueryTemplateIndex();
+        refreshed = true;
         if (!luceneSearchService.apiServiceTemplateIndexExists()) {
             refreshApiServiceTemplateIndex();
             refreshed = true;
@@ -112,9 +113,11 @@ public class McpTemplateLuceneIndexService {
         if (luceneSearchService == null || !luceneSearchService.enabled()) {
             return;
         }
-        List<LuceneMcpSearchService.TemplateDoc> docs = databaseQueryAssetDocs();
+        List<LuceneMcpSearchService.TemplateDoc> docs = safe(databaseQueryConfigService.listAll()).stream()
+            .map(this::databaseQueryTemplateDoc)
+            .toList();
         luceneSearchService.indexDatabaseQueryTemplates(docs);
-        log.info("MCP Lucene database query template index refreshed, indexed {} datasource assets", docs.size());
+        log.info("MCP database query template identity index refreshed, indexed {} templateId documents", docs.size());
     }
 
     public synchronized void refreshApiServiceTemplateIndex() {
@@ -144,10 +147,52 @@ public class McpTemplateLuceneIndexService {
         if (luceneSearchService == null || !luceneSearchService.enabled()) {
             return;
         }
-        List<LuceneMcpSearchService.TemplateDoc> docs = databaseQueryAssetDocsForChangedTemplates(templates);
+        List<LuceneMcpSearchService.TemplateDoc> docs = safe(templates).stream()
+            .filter(template -> template != null)
+            .map(this::databaseQueryTemplateDoc)
+            .toList();
         luceneSearchService.upsertDatabaseQueryTemplates(docs);
-        log.info("MCP Lucene database query template index upserted {} datasource asset docs after {} changed templates",
-            docs.size(), safe(templates).size());
+        log.info("MCP database query template identity index upserted {} templateId documents", docs.size());
+    }
+
+    private LuceneMcpSearchService.TemplateDoc databaseQueryTemplateDoc(DatabaseQueryConfig config) {
+        List<String> signals = new ArrayList<>();
+        addTerms(signals,
+            config.getId(),
+            config.getToolName(),
+            config.getTitle(),
+            config.getDescription(),
+            config.getImplementationSteps(),
+            config.getTemplateIntent(),
+            config.getBusinessGroup(),
+            config.getBusinessGroupName(),
+            config.getBusinessGroupDescription(),
+            config.getDatabaseType(),
+            config.getRiskLevel(),
+            config.getOwner()
+        );
+        signals.addAll(readStringArray(config.getRoutingLabelsJson()));
+        signals.addAll(readStringArray(config.getCapabilitiesJson()));
+        signals.addAll(readStringArray(config.getTagsJson()));
+        signals.addAll(governanceTerms(config.getGovernanceJson()));
+        databaseQueryDatasource(config).ifPresent(datasource -> addTerms(signals,
+            datasource.getId(), datasource.getName(), datasource.getTitle(), datasource.getToolName(),
+            datasource.getDescription(), datasource.getEnvironment(), datasource.getDatabaseType()));
+        return new LuceneMcpSearchService.TemplateDoc(
+            config.getId(),
+            "database_query",
+            firstText(config.getTitle(), config.getToolName()),
+            firstText(config.getDescription(), "") + " "
+                + firstText(config.getImplementationSteps(), "") + " "
+                + firstText(config.getBusinessGroupName(), "") + " "
+                + firstText(config.getBusinessGroupDescription(), ""),
+            firstText(config.getBusinessGroup(), "sql_template_registry"),
+            SqlDatasourceConfigService.normalizeDatabaseTypeToken(config.getDatabaseType()),
+            String.join(" ", distinct(signals)),
+            firstText(config.getRiskLevel(), "read_only"),
+            distinct(signals),
+            "database_query_template_registry"
+        );
     }
 
     public void upsertApiServiceTemplates(List<ApiServiceConfig> templates) {

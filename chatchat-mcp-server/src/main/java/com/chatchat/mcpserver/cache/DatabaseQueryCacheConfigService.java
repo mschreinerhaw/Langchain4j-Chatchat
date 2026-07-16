@@ -36,11 +36,18 @@ public class DatabaseQueryCacheConfigService {
         config.setMaxEntryKb(clamp(config.getMaxEntryKb(), 1, 102400, 512));
         String keyStrategy = config.getKeyStrategy();
         if (keyStrategy == null || keyStrategy.isBlank()) {
-            config.setKeyStrategy("SQL_PARAMS_DATASOURCE");
+            config.setKeyStrategy("TEMPLATE_ID_PARAMS_DATASOURCE");
         } else {
             String normalized = keyStrategy.trim().toUpperCase();
-            if (!normalized.equals("SQL_PARAMS_DATASOURCE") && !normalized.equals("SQL_PARAMS_DATASOURCE_USER")) {
-                normalized = "SQL_PARAMS_DATASOURCE";
+            // Migrate the former SQL-body strategies to stable template identity.
+            if (normalized.equals("SQL_PARAMS_DATASOURCE") || normalized.equals("NORMALIZED_SQL_PARAMS")) {
+                normalized = "TEMPLATE_ID_PARAMS_DATASOURCE";
+            } else if (normalized.equals("SQL_PARAMS_DATASOURCE_USER")) {
+                normalized = "TEMPLATE_ID_PARAMS_DATASOURCE_USER";
+            }
+            if (!normalized.equals("TEMPLATE_ID_PARAMS_DATASOURCE")
+                && !normalized.equals("TEMPLATE_ID_PARAMS_DATASOURCE_USER")) {
+                normalized = "TEMPLATE_ID_PARAMS_DATASOURCE";
             }
             config.setKeyStrategy(normalized);
         }

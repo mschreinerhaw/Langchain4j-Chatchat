@@ -32,7 +32,7 @@ public class DatabaseQueryCacheConfig {
     private int maxEntryKb = 512;
 
     @Column(nullable = false, length = 64)
-    private String keyStrategy = "SQL_PARAMS_DATASOURCE";
+    private String keyStrategy = "TEMPLATE_ID_PARAMS_DATASOURCE";
 
     @Column(nullable = false)
     private boolean cacheEmptyResults = false;

@@ -326,7 +326,7 @@ chatchat:
         #     tags: [tag]
     livedata:
       # Runtime values are maintained on the admin page. Database access is bound through a database asset.
-      enabled: false
+      enabled: true
     calculator:
       # Safe local arithmetic tool.
       risk-level: low

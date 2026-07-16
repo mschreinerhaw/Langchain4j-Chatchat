@@ -1,6 +1,7 @@
 import ModalPanel from '../../components/ModalPanel.vue';
 import { notificationApi as api } from '../../services/api';
 import { parseJsonObject, prettyJson } from '../../utils/json';
+import { buildTestNotification } from '../../utils/test-result';
 import '../../styles/views/notification-channels.css';
 
 const defaultHeaders = { 'Content-Type': 'application/json; charset=UTF-8' };
@@ -344,6 +345,10 @@ export default {
       this.busyAction = 'test';
       try {
         const result = await api.test(this.form.id, payload);
+        this.$emit('notify', buildTestNotification(result, {
+          successTitle: '通知测试发送成功',
+          failureTitle: '通知测试发送失败'
+        }));
         this.$emit('result', {
           title: `${this.form.toolName} 测试结果`,
           value: result

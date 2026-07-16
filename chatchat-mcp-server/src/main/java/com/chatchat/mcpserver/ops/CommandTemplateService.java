@@ -174,13 +174,31 @@ public class CommandTemplateService {
 
     private String categoryFromCode(String code) {
         String value = code == null ? "" : code.toLowerCase(Locale.ROOT);
+        if (value.contains("docker") || value.contains("container") || value.contains("image")) {
+            return "container_diagnostic";
+        }
+        if (value.contains("k8s") || value.contains("kubernetes")) {
+            return "k8s_diagnostic";
+        }
+        if (value.contains("redis") || value.contains("zookeeper") || value.contains("nginx") || value.contains("middleware")) {
+            return "middleware_diagnostic";
+        }
+        if (value.contains("mount") || value.contains("disk") || value.contains("block") || value.contains("storage")) {
+            return "storage_diagnostic";
+        }
+        if (value.contains("java") || value.contains("jvm") || value.contains("process")) {
+            return "process_diagnostic";
+        }
+        if (value.contains("network") || value.contains("socket") || value.contains("port")) {
+            return "network_diagnostic";
+        }
         if (value.contains("log")) {
             return "log_diagnostic";
         }
         if (value.contains("service")) {
             return "service_diagnostic";
         }
-        if (value.contains("disk") || value.contains("memory") || value.contains("cpu") || value.contains("system")) {
+        if (value.contains("memory") || value.contains("cpu") || value.contains("system") || value.contains("load")) {
             return "system_diagnostic";
         }
         return "host_diagnostic";
@@ -331,6 +349,91 @@ public class CommandTemplateService {
                     "echo '=== listening sockets match: {{serviceName}} ==='; if command -v ss >/dev/null 2>&1; then ss -tulnp 2>/dev/null | grep -i {{serviceName}} || true; else netstat -tulnp 2>/dev/null | grep -i {{serviceName}} || true; fi"
                 )),
                 serviceNameSchema),
+            new DefaultTemplate("CHECK_MIDDLEWARE_PROCESS_OVERVIEW", "Middleware process overview",
+                "Read common middleware processes and listening ports including Redis, ZooKeeper, Nginx, Java, Docker and Kubernetes components.",
+                writeJson(List.of(
+                    "echo '=== middleware process candidates ==='; ps -eo pid,ppid,user,stat,pcpu,pmem,etime,args | awk 'NR==1 || /[r]edis|[z]ookeeper|QuorumPeerMain|[n]ginx|[j]ava|[d]ockerd|[c]ontainerd|[k]ubelet|[k]ube-apiserver|[k]ube-controller|[k]ube-scheduler/' | head -300",
+                    "echo '=== middleware listening ports ==='; if command -v ss >/dev/null 2>&1; then ss -tulnp 2>/dev/null | awk 'NR==1 || /redis|zookeeper|nginx|java|docker|containerd|kube|:80|:443|:6379|:2181|:6443|:2379|:2380/' | head -300 || true; else netstat -tulnp 2>/dev/null | awk 'NR==1 || /redis|zookeeper|nginx|java|docker|containerd|kube|:80|:443|:6379|:2181|:6443|:2379|:2380/' | head -300 || true; fi",
+                    "echo '=== systemd middleware units ==='; if command -v systemctl >/dev/null 2>&1; then systemctl list-units --type=service --all --no-pager 2>/dev/null | awk '/redis|zookeeper|nginx|docker|containerd|kubelet|java/ {print}' | head -200 || true; else echo 'systemctl not found'; fi"
+                )),
+                empty),
+            new DefaultTemplate("CHECK_REDIS_OVERVIEW", "Redis overview",
+                "Read Redis process, service, port and basic INFO status when redis-cli is available.",
+                writeJson(List.of(
+                    "echo '=== redis processes ==='; ps -eo pid,ppid,user,stat,pcpu,pmem,etime,args | awk 'NR==1 || /[r]edis-server|[r]edis-sentinel/' | head -100",
+                    "echo '=== redis service ==='; if command -v systemctl >/dev/null 2>&1; then systemctl status redis redis-server redis-sentinel --no-pager -l 2>&1 | head -200 || true; else echo 'systemctl not found'; fi",
+                    "echo '=== redis ports ==='; if command -v ss >/dev/null 2>&1; then ss -tulnp 2>/dev/null | awk 'NR==1 || /:6379|:26379|redis/' || true; else netstat -tulnp 2>/dev/null | awk 'NR==1 || /:6379|:26379|redis/' || true; fi",
+                    "echo '=== redis info summary ==='; if command -v redis-cli >/dev/null 2>&1; then redis-cli --no-auth-warning INFO server clients memory persistence stats replication 2>/dev/null | awk -F: '/^(redis_version|uptime_in_seconds|connected_clients|used_memory_human|mem_fragmentation_ratio|rdb_last_bgsave_status|aof_enabled|total_connections_received|instantaneous_ops_per_sec|role|connected_slaves):/ {print}' || true; else echo 'redis-cli not found'; fi"
+                )),
+                empty),
+            new DefaultTemplate("CHECK_ZOOKEEPER_OVERVIEW", "ZooKeeper overview",
+                "Read ZooKeeper process, service, port and four-letter status when nc is available.",
+                writeJson(List.of(
+                    "echo '=== zookeeper processes ==='; ps -eo pid,ppid,user,stat,pcpu,pmem,etime,args | awk 'NR==1 || /[z]ookeeper|QuorumPeerMain/' | head -100",
+                    "echo '=== zookeeper service ==='; if command -v systemctl >/dev/null 2>&1; then systemctl status zookeeper zookeeper-server --no-pager -l 2>&1 | head -200 || true; else echo 'systemctl not found'; fi",
+                    "echo '=== zookeeper ports ==='; if command -v ss >/dev/null 2>&1; then ss -tulnp 2>/dev/null | awk 'NR==1 || /:2181|:2888|:3888|zookeeper/' || true; else netstat -tulnp 2>/dev/null | awk 'NR==1 || /:2181|:2888|:3888|zookeeper/' || true; fi",
+                    "echo '=== zookeeper ruok/stat ==='; if command -v nc >/dev/null 2>&1; then (printf ruok | nc -w 2 127.0.0.1 2181 2>/dev/null || true); echo; (printf stat | nc -w 2 127.0.0.1 2181 2>/dev/null | head -80 || true); else echo 'nc not found'; fi"
+                )),
+                empty),
+            new DefaultTemplate("CHECK_NGINX_OVERVIEW", "Nginx overview",
+                "Read Nginx process, service, version, config test and listening ports.",
+                writeJson(List.of(
+                    "echo '=== nginx version ==='; if command -v nginx >/dev/null 2>&1; then nginx -v 2>&1 || true; else echo 'nginx not found'; fi",
+                    "echo '=== nginx config test ==='; if command -v nginx >/dev/null 2>&1; then nginx -t 2>&1 || true; else echo 'nginx not found'; fi",
+                    "echo '=== nginx service ==='; if command -v systemctl >/dev/null 2>&1; then systemctl status nginx --no-pager -l 2>&1 | head -200 || true; else echo 'systemctl not found'; fi",
+                    "echo '=== nginx processes ==='; ps -eo pid,ppid,user,stat,pcpu,pmem,etime,args | awk 'NR==1 || /[n]ginx/' | head -100",
+                    "echo '=== nginx ports ==='; if command -v ss >/dev/null 2>&1; then ss -tulnp 2>/dev/null | awk 'NR==1 || /nginx|:80|:443/' || true; else netstat -tulnp 2>/dev/null | awk 'NR==1 || /nginx|:80|:443/' || true; fi"
+                )),
+                empty),
+            new DefaultTemplate("CHECK_DOCKER_OVERVIEW", "Docker overview",
+                "Read Docker daemon, image count, container count and storage usage.",
+                writeJson(List.of(
+                    "echo '=== docker daemon ==='; if command -v systemctl >/dev/null 2>&1; then systemctl status docker --no-pager -l 2>&1 | head -160 || true; else echo 'systemctl not found'; fi",
+                    "echo '=== docker version/info ==='; if command -v docker >/dev/null 2>&1; then docker version 2>&1 || true; docker info 2>&1 | awk -F: '/^( Containers| Running| Paused| Stopped| Images| Storage Driver| Cgroup Driver| Server Version)/ {print}' || true; else echo 'docker not found'; fi",
+                    "echo '=== docker system df ==='; if command -v docker >/dev/null 2>&1; then docker system df 2>&1 || true; else echo 'docker not found'; fi",
+                    "echo '=== docker image count ==='; if command -v docker >/dev/null 2>&1; then docker images -q 2>/dev/null | sort -u | wc -l | awk '{print \"image_count=\"$1}' || true; else echo 'docker not found'; fi"
+                )),
+                empty),
+            new DefaultTemplate("CHECK_DOCKER_CONTAINERS", "Docker containers",
+                "Read Docker container running status and basic resource-oriented metadata.",
+                writeJson(List.of(
+                    "echo '=== docker containers ==='; if command -v docker >/dev/null 2>&1; then docker ps -a 2>&1 | head -200 || true; else echo 'docker not found'; fi",
+                    "echo '=== docker top running containers ==='; if command -v docker >/dev/null 2>&1; then docker ps 2>/dev/null | awk 'NR>1 {print $NF}' | head -20 | while read c; do [ -n \"$c\" ] && echo \"--- $c ---\" && docker top \"$c\" 2>/dev/null | head -20; done || true; else echo 'docker not found'; fi"
+                )),
+                empty),
+            new DefaultTemplate("CHECK_CONTAINER_RUNTIME_OVERVIEW", "Container runtime overview",
+                "Read container runtime services and CLI availability for Docker, containerd, CRI and nerdctl.",
+                writeJson(List.of(
+                    "echo '=== runtime services ==='; if command -v systemctl >/dev/null 2>&1; then systemctl status docker containerd crio kubelet --no-pager -l 2>&1 | head -260 || true; else echo 'systemctl not found'; fi",
+                    "echo '=== runtime commands ==='; for c in docker containerd ctr crictl nerdctl kubectl kubelet; do if command -v \"$c\" >/dev/null 2>&1; then echo \"$c=$(command -v $c)\"; \"$c\" --version 2>&1 | head -3 || true; else echo \"$c=not_found\"; fi; done",
+                    "echo '=== crictl containers ==='; if command -v crictl >/dev/null 2>&1; then crictl ps -a 2>&1 | head -100 || true; else echo 'crictl not found'; fi"
+                )),
+                empty),
+            new DefaultTemplate("CHECK_K8S_NODE_OVERVIEW", "Kubernetes node overview",
+                "Read Kubernetes node and component status when kubectl is available.",
+                writeJson(List.of(
+                    "echo '=== kubectl version ==='; if command -v kubectl >/dev/null 2>&1; then kubectl version --short 2>&1 || kubectl version 2>&1 | head -20 || true; else echo 'kubectl not found'; fi",
+                    "echo '=== nodes ==='; if command -v kubectl >/dev/null 2>&1; then kubectl get nodes -o wide 2>&1 || true; else echo 'kubectl not found'; fi",
+                    "echo '=== component pods ==='; if command -v kubectl >/dev/null 2>&1; then kubectl get pods -A -o wide 2>&1 | awk 'NR==1 || /kube-system|ingress|calico|coredns|etcd|apiserver|controller|scheduler/' | head -200 || true; else echo 'kubectl not found'; fi"
+                )),
+                empty),
+            new DefaultTemplate("CHECK_K8S_WORKLOAD_OVERVIEW", "Kubernetes workload overview",
+                "Read Kubernetes pods, deployments, services and ingress overview when kubectl is available.",
+                writeJson(List.of(
+                    "echo '=== pods not running ==='; if command -v kubectl >/dev/null 2>&1; then kubectl get pods -A -o wide 2>&1 | awk 'NR==1 || $4 != \"Running\" {print}' | head -200 || true; else echo 'kubectl not found'; fi",
+                    "echo '=== deployments ==='; if command -v kubectl >/dev/null 2>&1; then kubectl get deploy -A -o wide 2>&1 | head -200 || true; else echo 'kubectl not found'; fi",
+                    "echo '=== services ==='; if command -v kubectl >/dev/null 2>&1; then kubectl get svc -A -o wide 2>&1 | head -200 || true; else echo 'kubectl not found'; fi",
+                    "echo '=== ingress ==='; if command -v kubectl >/dev/null 2>&1; then kubectl get ingress -A 2>&1 | head -200 || true; else echo 'kubectl not found'; fi"
+                )),
+                empty),
+            new DefaultTemplate("CHECK_MOUNT_DISK_USAGE", "Mounted filesystem usage",
+                "Read mounted filesystems, filesystem type and disk usage for capacity inspection.",
+                writeJson(List.of(
+                    "echo '=== df -hT ==='; df -hT 2>/dev/null | awk 'NR==1 || $1 !~ /(tmpfs|devtmpfs|overlay)/ {print}' || true",
+                    "echo '=== findmnt ==='; if command -v findmnt >/dev/null 2>&1; then findmnt -rno TARGET,SOURCE,FSTYPE,SIZE,USED,AVAIL,USE% 2>/dev/null | head -200 || true; else echo 'findmnt not found'; fi",
+                    "echo '=== mount summary ==='; mount | awk '{print $1,$3,$5}' | head -200"
+                )),
+                empty),
             new DefaultTemplate("TAIL_LOG", "Log tail", "Read log tail.", "tail -n {{lines}} {{path}}", logSchema)
         );
     }

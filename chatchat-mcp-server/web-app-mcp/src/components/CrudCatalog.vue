@@ -7,6 +7,22 @@
           <p v-if="subtitle">{{ subtitle }}</p>
         </div>
         <div class="panel-actions">
+          <el-select
+            v-for="filter in listFilters"
+            :key="filter.key"
+            v-model="listFilterValues[filter.key]"
+            class="catalog-filter-select"
+            clearable
+            filterable
+            :placeholder="filter.placeholder || filter.label"
+          >
+            <el-option
+              v-for="option in listFilterOptions(filter)"
+              :key="option.value"
+              :label="option.label"
+              :value="option.value"
+            />
+          </el-select>
           <el-input v-model.trim="keyword" class="search-input" clearable :placeholder="searchPlaceholder">
             <template #prefix><el-icon><Search /></el-icon></template>
           </el-input>
@@ -497,6 +513,22 @@
                   </div>
                 </div>
                 <div v-else-if="field.type === 'jsonObjectString' || field.type === 'jsonObject'" class="visual-object-editor">
+                  <div v-if="objectPresetOptions(field).length" class="visual-object-preset-toolbar">
+                    <el-select
+                      v-model="objectPresetSelection[field.key]"
+                      clearable
+                      filterable
+                      placeholder="选择常用项"
+                    >
+                      <el-option
+                        v-for="option in objectPresetOptions(field)"
+                        :key="`${field.key}-preset-${option.id || option.key}`"
+                        :label="option.label || option.key"
+                        :value="option.id || option.key"
+                      />
+                    </el-select>
+                    <el-button plain @click="addObjectPreset(field)">添加常用项</el-button>
+                  </div>
                   <el-text v-if="!objectDraft[field.key]?.length" type="info">
                     {{ field.emptyText || '暂无键值，点击下方按钮新增。' }}
                   </el-text>
@@ -663,7 +695,9 @@
           <template #prefix><el-icon><Search /></el-icon></template>
         </el-input>
         <el-button plain @click="selectTemplatePickerVisible">选择当前页</el-button>
+        <el-button plain @click="selectTemplatePickerFiltered">选择全部匹配</el-button>
         <el-button plain @click="clearTemplatePickerVisible">清除当前页</el-button>
+        <el-button plain @click="clearTemplatePickerFiltered">清除全部匹配</el-button>
       </div>
 
       <el-table class="template-picker-table" :data="templatePickerVisibleItems" border stripe empty-text="暂无可选模板">

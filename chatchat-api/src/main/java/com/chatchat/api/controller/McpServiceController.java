@@ -393,23 +393,21 @@ public class McpServiceController {
     }
 
     /**
-     * Builds functional category options from the categories declared by each tool.
-     * No category names are inferred from tool names, so newly synchronized MCP
-     * services become filterable without frontend changes.
+     * Builds service type options from the backend service type declared by each tool.
+     * Tool category and tag values are intentionally not used here; they are often
+     * finer-grained than the service capability type shown in the MCP service page.
      */
     private List<ToolServiceOption> buildToolCategoryOptions(List<ToolCardView> tools) {
         Map<String, ToolServiceOptionBuilder> builders = new LinkedHashMap<>();
         for (ToolCardView tool : tools) {
-            List<String> categories = normalizedToolCategories(tool);
-            for (String category : categories) {
-                String key = normalizeKeyword(category);
-                ToolServiceOptionBuilder builder = builders.computeIfAbsent(key, ignored ->
-                    new ToolServiceOptionBuilder(key, category));
-                builder.count += 1;
-            }
+            String serviceType = toolServiceType(tool);
+            String key = normalizeKeyword(serviceType);
+            ToolServiceOptionBuilder builder = builders.computeIfAbsent(key, ignored ->
+                new ToolServiceOptionBuilder(key, serviceType));
+            builder.count += 1;
         }
         List<ToolServiceOption> options = new ArrayList<>();
-        options.add(new ToolServiceOption("all", "全部分类", tools.size()));
+        options.add(new ToolServiceOption("all", "全部服务类型", tools.size()));
         builders.values().stream()
             .map(builder -> new ToolServiceOption(builder.value, builder.label, builder.count))
             .sorted(Comparator.comparing(ToolServiceOption::label))
@@ -432,25 +430,17 @@ public class McpServiceController {
         String normalizedCategory = normalizeKeyword(category);
         String serviceKey = firstNonBlank(tool.serviceId(), tool.serviceName(), "ungrouped");
         boolean serviceMatched = normalizedService.isEmpty() || serviceKey.equalsIgnoreCase(normalizedService);
-        boolean categoryMatched = normalizedCategory.isEmpty() || normalizedToolCategories(tool).stream()
-            .map(this::normalizeKeyword)
-            .anyMatch(normalizedCategory::equals);
+        boolean categoryMatched = normalizedCategory.isEmpty()
+            || normalizeKeyword(toolServiceType(tool)).equals(normalizedCategory);
         boolean keywordMatched = normalizedKeyword.isEmpty() || toolSearchText(tool).contains(normalizedKeyword);
         return serviceMatched && categoryMatched && keywordMatched;
     }
 
-    private List<String> normalizedToolCategories(ToolCardView tool) {
-        if (tool.categories() == null || tool.categories().isEmpty()) {
-            return List.of("未分类");
+    private String toolServiceType(ToolCardView tool) {
+        if (tool.functionalCategory() != null && !tool.functionalCategory().isBlank()) {
+            return tool.functionalCategory().trim();
         }
-        Map<String, String> categories = new LinkedHashMap<>();
-        for (String category : tool.categories()) {
-            if (category != null && !category.isBlank()) {
-                String label = category.trim();
-                categories.putIfAbsent(normalizeKeyword(label), label);
-            }
-        }
-        return categories.isEmpty() ? List.of("未分类") : List.copyOf(categories.values());
+        return "未分类";
     }
 
     /**
@@ -468,6 +458,7 @@ public class McpServiceController {
         fields.add(tool.serviceName());
         fields.add(tool.remoteToolName());
         fields.add(tool.outputType());
+        fields.add(tool.functionalCategory());
         fields.addAll(tool.categories() == null ? List.of() : tool.categories());
         fields.addAll(tool.tags() == null ? List.of() : tool.tags());
         if (tool.parameters() != null) {
@@ -506,7 +497,7 @@ public class McpServiceController {
      */
     private String toolGroupKey(ToolCardView tool, String groupMode) {
         if ("category".equalsIgnoreCase(groupMode)) {
-            return "category:" + ((tool.categories() == null || tool.categories().isEmpty()) ? "未分类" : tool.categories().get(0));
+            return "category:" + toolServiceType(tool);
         }
         if ("tag".equalsIgnoreCase(groupMode)) {
             return "tag:" + ((tool.tags() == null || tool.tags().isEmpty()) ? "未打标签" : tool.tags().get(0));
@@ -621,6 +612,9 @@ public class McpServiceController {
         );
         List<String> categories = metadata == null ? List.of() : safeList(metadata.getCategories());
         List<String> tags = metadata == null ? List.of() : safeList(metadata.getTags());
+        String functionalCategory = mcpTool == null
+            ? firstNonBlank(metadata == null ? null : metadata.getCategory(), "未分类")
+            : firstNonBlank(mcpTool.backendServiceType(), "未分类");
         List<ToolParameterView> parameters = metadata == null || metadata.getParameters() == null
             ? List.of()
             : metadata.getParameters().stream().map(this::toParameterView).toList();
@@ -643,6 +637,7 @@ public class McpServiceController {
             metadata != null && metadata.isRateLimited(),
             metadata == null ? null : metadata.getTimeoutMillis(),
             parameters.size(),
+            functionalCategory,
             categories,
             tags,
             parameters,
@@ -877,6 +872,7 @@ public class McpServiceController {
         boolean rateLimited,
         Long timeoutMillis,
         int parameterCount,
+        String functionalCategory,
         List<String> categories,
         List<String> tags,
         List<ToolParameterView> parameters,

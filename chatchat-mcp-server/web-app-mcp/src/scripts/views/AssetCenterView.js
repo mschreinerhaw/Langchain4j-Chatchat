@@ -202,7 +202,18 @@ export default {
         { key: 'connectTimeoutMs', label: '连接超时秒', type: 'number', min: 1, step: 1, unitScale: 1000, help: '页面按秒填写，保存和测试时自动换算为毫秒。' },
         { key: 'commandTimeoutMs', label: '命令超时秒', type: 'number', min: 1, step: 1, unitScale: 1000, help: '页面按秒填写，保存和测试时自动换算为毫秒。' },
         { key: 'tags', label: '标签', span: 'col-12', placeholder: '输入逗号分隔标签，如 prod,core-api', help: '用于页面搜索、资产分组和人工识别，不参与角色授权。' },
-        { key: 'allowedCommandsJson', label: '允许命令模板', type: 'templatePicker', itemKey: 'code', items: () => this.sshCommandTemplates, span: 'col-12', help: '从已维护的 SSH 命令模板中筛选并勾选，保存时自动生成 JSON。' },
+        {
+          key: 'allowedCommandsJson',
+          label: '允许命令模板',
+          type: 'templatePicker',
+          itemKey: 'code',
+          items: () => this.sshCommandTemplates,
+          filterKey: 'category',
+          filterLabel: '用途分类',
+          filterOptions: commandCategoryOptions,
+          span: 'col-12',
+          help: '从已维护的 SSH 命令模板中筛选并勾选，保存时自动生成 JSON。'
+        },
         { key: 'routingLabelsJson', label: '路由标签', type: 'jsonStringList', placeholder: '输入标签，如 linux、prod', span: 'col-md-6', help: '用于资产检索和路由匹配。' },
         { key: 'capabilitiesJson', label: '能力标签', type: 'jsonStringList', required: true, requiredAnyOf: ['linux_command_execute', 'ssh', 'linux'], requiredAnyOfMessage: '服务器能力标签必须包含 ssh 或 linux_command_execute', placeholder: '输入能力，如 ssh、diagnostic', span: 'col-md-6', help: '描述该资产可提供的能力。' }
       ].map(field => ({ ...field, ...assetFieldLayout('ssh', field.key) }));
@@ -278,7 +289,14 @@ export default {
         { key: 'runtimeAction', label: '运行策略', type: 'select', options: httpRuntimeActionOptions(), placeholder: '选择执行策略', help: '只读适合查询接口；执行前确认适合可能产生业务影响的接口。' },
         { key: 'timeoutMs', label: '超时毫秒', type: 'number', min: 1, step: 1000, placeholder: '10000', help: '请求超时时间，单位毫秒；10000 表示 10 秒。' },
         { key: 'tags', label: '标签', placeholder: '输入逗号分隔标签，如 gateway,prod', help: '用于页面搜索、资产分组和人工识别，不参与角色授权。' },
-        { key: 'headersJson', label: '请求头', type: 'jsonObjectString', span: 'col-md-6', help: '按键值对维护请求头，例如 Authorization、Content-Type；保存时自动生成 Headers JSON。' },
+        {
+          key: 'headersJson',
+          label: '请求头',
+          type: 'jsonObjectString',
+          span: 'col-md-6',
+          objectPresets: commonHttpHeaderPresets,
+          help: '按键值对维护请求头，可从常用请求头中选择后再修改；保存时自动生成 Headers JSON。'
+        },
         { key: 'inputSchemaJson', label: '入参 Schema', type: 'jsonSchemaString', span: 'col-md-6', help: '参数名必须和 URL 模板、Body 模板里的占位符一致；保存时自动生成 JSON Schema。' },
         { key: 'outputSchemaJson', label: '结果 Schema', type: 'jsonSchemaString', span: 'col-md-6', help: '可视化维护接口返回字段，供需求覆盖评审和模型解释结果使用。' },
         { key: 'capabilitySpecJson', label: '能力说明', type: 'jsonObjectString', span: 'col-md-6', help: '描述业务能力、适用场景和意图别名，不包含真实 URL 或认证信息。' },
@@ -287,6 +305,26 @@ export default {
         { key: 'routingLabelsJson', label: '路由标签', type: 'jsonStringList', placeholder: '输入标签，如 gateway、prod', span: 'col-md-6', help: '用于资产检索和路由匹配。' },
         { key: 'capabilitiesJson', label: '能力标签', type: 'jsonStringList', required: true, requiredAnyOf: ['http_request', 'http', 'rest', 'api_call'], requiredAnyOfMessage: 'API 网关能力标签必须包含 http 或 http_request', placeholder: '输入能力，如 http、api', span: 'col-md-6', help: '描述该资产可提供的能力。' }
       ].map(field => ({ ...field, ...assetFieldLayout('http', field.key) }));
+    },
+    sqlTemplateListFilters() {
+      return [
+        {
+          key: 'category',
+          label: '分类',
+          placeholder: '按分类筛选',
+          options: sqlTemplateCategoryOptions()
+        }
+      ];
+    },
+    commandTemplateListFilters() {
+      return [
+        {
+          key: 'category',
+          label: '用途分类',
+          placeholder: '按用途筛选',
+          options: commandCategoryOptions()
+        }
+      ];
     },
     commandTemplateFields() {
       return [
@@ -616,6 +654,23 @@ function httpRuntimeActionOptions() {
   ];
 }
 
+function commonHttpHeaderPresets() {
+  return [
+    { id: 'accept_json', key: 'Accept', label: 'Accept - 接收 JSON', value: 'application/json' },
+    { id: 'content_type_json', key: 'Content-Type', label: 'Content-Type - JSON', value: 'application/json' },
+    { id: 'content_type_form', key: 'Content-Type', label: 'Content-Type - 表单', value: 'application/x-www-form-urlencoded' },
+    { id: 'authorization_bearer', key: 'Authorization', label: 'Authorization - Bearer Token', value: 'Bearer ${token}' },
+    { id: 'api_key', key: 'X-API-Key', label: 'X-API-Key - API Key', value: '${apiKey}' },
+    { id: 'request_id', key: 'X-Request-Id', label: 'X-Request-Id - 请求 ID', value: '${requestId}' },
+    { id: 'trace_id', key: 'X-Trace-Id', label: 'X-Trace-Id - 链路追踪 ID', value: '${traceId}' },
+    { id: 'user_agent', key: 'User-Agent', label: 'User-Agent', value: 'ChatChat-MCP/1.0' },
+    { id: 'cache_control_no_cache', key: 'Cache-Control', label: 'Cache-Control - 不缓存', value: 'no-cache' },
+    { id: 'accept_language_zh', key: 'Accept-Language', label: 'Accept-Language - 中文', value: 'zh-CN,zh;q=0.9' },
+    { id: 'tenant_id', key: 'X-Tenant-Id', label: 'X-Tenant-Id - 租户 ID', value: '${tenantId}' },
+    { id: 'env', key: 'X-Env', label: 'X-Env - 环境标识', value: '${env}' }
+  ];
+}
+
 function metadataScopeOptions() {
   return [
     { value: 'JDBC_DATABASE', label: 'JDBC 当前数据库' },
@@ -689,22 +744,26 @@ function riskLevelOptions() {
 
 function commandCategoryOptions() {
   return [
-    { value: 'system_diagnostic', label: '系统诊断' },
-    { value: 'log_analysis', label: '日志分析' },
-    { value: 'process', label: '进程管理' },
-    { value: 'network', label: '网络诊断' },
-    { value: 'storage', label: '存储检查' },
-    { value: 'k8s', label: 'K8S' },
+    { value: 'host_diagnostic', label: '服务器基础' },
+    { value: 'system_diagnostic', label: '系统负载' },
+    { value: 'service_diagnostic', label: '服务状态' },
+    { value: 'process_diagnostic', label: '进程/JVM' },
+    { value: 'middleware_diagnostic', label: '中间件' },
+    { value: 'container_diagnostic', label: '容器/Docker' },
+    { value: 'k8s_diagnostic', label: 'Kubernetes' },
+    { value: 'network_diagnostic', label: '网络端口' },
+    { value: 'storage_diagnostic', label: '磁盘挂载' },
+    { value: 'log_diagnostic', label: '日志分析' },
     { value: 'other', label: '其他' }
   ];
 }
 
 function sqlTemplateCategoryOptions() {
   return [
-    { value: 'sql_diagnostic', label: 'SQL 诊断' },
+    { value: 'sql_diagnostic', label: 'SQL 诊断', matches: ['connection', 'instance', 'lock'] },
     { value: 'metadata', label: '元数据' },
     { value: 'performance', label: '性能分析' },
-    { value: 'capacity', label: '容量分析' },
+    { value: 'capacity', label: '容量分析', matches: ['storage', 'capacity'] },
     { value: 'business_check', label: '业务核查' },
     { value: 'other', label: '其他' }
   ];

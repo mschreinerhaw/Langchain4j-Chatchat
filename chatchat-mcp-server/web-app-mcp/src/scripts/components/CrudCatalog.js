@@ -1,6 +1,7 @@
 import { ElMessageBox } from 'element-plus';
 import ModalPanel from '../../components/ModalPanel.vue';
 import { parseJsonObject, prettyJson } from '../../utils/json';
+import { buildTestNotification, isTestFailure } from '../../utils/test-result';
 import '../../styles/components/crud-catalog.css';
 
 export default {
@@ -27,6 +28,7 @@ export default {
     extraActions: { type: Array, default: () => [] },
     defaults: { type: Object, default: () => ({}) },
     searchableFields: { type: Array, default: () => [] },
+    listFilters: { type: Array, default: () => [] },
     pageSize: { type: Number, default: 10 },
     emptyText: { type: String, default: '暂无数据。' },
     searchPlaceholder: { type: String, default: '搜索' },
@@ -39,6 +41,7 @@ export default {
       rowOperation: null,
       items: [],
       keyword: '',
+      listFilterValues: {},
       page: 1,
       selectedIds: new Set(),
       formOpen: false,
@@ -47,6 +50,7 @@ export default {
       listDraft: {},
       listInput: {},
       objectDraft: {},
+      objectPresetSelection: {},
       schemaDraft: {},
       templatePickerOpen: false,
       templatePickerField: null,
@@ -84,9 +88,13 @@ export default {
   computed: {
     filtered() {
       const keyword = this.keyword.toLowerCase();
-      if (!keyword) return this.items;
       const fields = this.searchableFields.length ? this.searchableFields : this.columns.map(column => column.key);
-      return this.items.filter(item => fields.some(field => String(item[field] ?? '').toLowerCase().includes(keyword)));
+      return this.items.filter(item => {
+        const matchesFilters = this.listFilters.every(filter => this.matchesListFilter(item, filter));
+        if (!matchesFilters) return false;
+        if (!keyword) return true;
+        return fields.some(field => String(item[field] ?? '').toLowerCase().includes(keyword));
+      });
     },
     pageCount() {
       return Math.max(1, Math.ceil(this.filtered.length / this.pageSize));
@@ -189,6 +197,12 @@ export default {
     keyword() {
       this.page = 1;
     },
+    listFilterValues: {
+      deep: true,
+      handler() {
+        this.page = 1;
+      }
+    },
     pageCount(value) {
       if (this.page > value) this.page = value;
     },
@@ -206,6 +220,16 @@ export default {
     this.load();
   },
   methods: {
+    matchesListFilter(item, filter) {
+      const value = String(this.listFilterValues[filter.key] || '').trim();
+      if (!value) return true;
+      const itemValue = String(item?.[filter.key] ?? '').trim().toLowerCase();
+      const selected = this.listFilterOptions(filter).find(option => String(option.value) === value);
+      const acceptedValues = [value, ...(Array.isArray(selected?.matches) ? selected.matches : [])]
+        .map(candidate => String(candidate || '').trim().toLowerCase())
+        .filter(Boolean);
+      return acceptedValues.includes(itemValue);
+    },
     async load() {
       this.busy = true;
       try {
@@ -217,6 +241,10 @@ export default {
       } finally {
         this.busy = false;
       }
+    },
+    listFilterOptions(filter) {
+      const source = typeof filter.options === 'function' ? filter.options() : filter.options;
+      return Array.isArray(source) ? source : [];
     },
     openCreate() {
       this.editingId = '';
@@ -246,8 +274,10 @@ export default {
         this.listInput[field.key] = '';
       });
       this.objectDraft = {};
+      this.objectPresetSelection = {};
       this.formFields.filter(field => field.type === 'jsonObjectString' || field.type === 'jsonObject').forEach(field => {
         this.objectDraft[field.key] = objectToRows(parseObjectValue(this.form[field.key], field.defaultValue ?? {}));
+        this.objectPresetSelection[field.key] = '';
       });
       this.schemaDraft = {};
       this.formFields.filter(field => field.type === 'jsonSchemaString' || field.type === 'jsonSchema').forEach(field => {
@@ -339,10 +369,9 @@ export default {
       try {
         const result = await this.formTestAction(this.formPayload());
         this.formTestResult = result;
-        this.updateMetadataScopeOptions(result);
+        if (!isTestFailure(result)) this.updateMetadataScopeOptions(result);
         this.$emit('notify', {
-          title: result?.success === false ? '测试失败' : '测试成功',
-          message: result?.success === false ? (result?.errorMessage || '测试失败。') : '测试完成。'
+          ...buildTestNotification(result)
         });
         if (!this.formPreviewType) {
           this.$emit('result', {
@@ -383,6 +412,7 @@ export default {
         if (this.busy || this.rowOperation) return;
         this.rowOperation = { type: 'test', rowId: item.id };
         const result = await this.testAction(item, parseJsonObject(raw, {}));
+        this.$emit('notify', buildTestNotification(result));
         this.$emit('result', {
           title: `${item.title || item.toolName || item.name || '资源'} 测试结果`,
           value: result
@@ -621,9 +651,21 @@ export default {
       });
       this.templatePickerSelected = [...selected];
     },
+    selectTemplatePickerFiltered() {
+      const selected = new Set(this.templatePickerSelected);
+      this.templatePickerFilteredItems.forEach(item => {
+        const key = this.templatePickerItemKey(item);
+        if (key) selected.add(key);
+      });
+      this.templatePickerSelected = [...selected];
+    },
     clearTemplatePickerVisible() {
       const visible = new Set(this.templatePickerVisibleItems.map(item => this.templatePickerItemKey(item)).filter(Boolean));
       this.templatePickerSelected = this.templatePickerSelected.filter(key => !visible.has(key));
+    },
+    clearTemplatePickerFiltered() {
+      const filtered = new Set(this.templatePickerFilteredItems.map(item => this.templatePickerItemKey(item)).filter(Boolean));
+      this.templatePickerSelected = this.templatePickerSelected.filter(key => !filtered.has(key));
     },
     confirmTemplatePicker() {
       if (this.templatePickerField?.key) {
@@ -925,6 +967,25 @@ export default {
     },
     addObjectEntry(key) {
       this.objectDraft[key] = [...(this.objectDraft[key] || []), { key: '', value: '' }];
+    },
+    objectPresetOptions(field) {
+      const source = field.objectPresets || field.presets;
+      const options = typeof source === 'function' ? source(this.form) : source;
+      return Array.isArray(options) ? options : [];
+    },
+    addObjectPreset(field) {
+      const selectedId = String(this.objectPresetSelection[field.key] || '').trim();
+      if (!selectedId) return;
+      const preset = this.objectPresetOptions(field)
+        .find(option => String(option.id || option.key) === selectedId);
+      if (!preset?.key) return;
+      const rows = [...(this.objectDraft[field.key] || [])];
+      const exists = rows.some(row => String(row.key || '').trim().toLowerCase() === String(preset.key).trim().toLowerCase());
+      if (!exists) {
+        rows.push({ key: preset.key, value: preset.value ?? '' });
+        this.objectDraft[field.key] = rows;
+      }
+      this.objectPresetSelection[field.key] = '';
     },
     removeObjectEntry(key, index) {
       this.objectDraft[key] = (this.objectDraft[key] || []).filter((_, currentIndex) => currentIndex !== index);

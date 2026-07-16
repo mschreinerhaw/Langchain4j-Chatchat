@@ -264,6 +264,17 @@ public class AssetDiscoveryService {
                                                                String assetType,
                                                                Map<String, Object> filters,
                                                                int limit) {
+        // The registry is the source of truth for an explicitly named logical asset. Searching the
+        // shared asset/metadata index first can let a high-volume table document from another
+        // datasource occupy the result window before the named asset document is considered.
+        if (hasExplicitAssetName(filters)) {
+            AssetFallback named = registryFallbackAssets(assets, filters, limit);
+            if (!named.assets().isEmpty()) {
+                log.info("asset_query registry identity match assetType={} filters={} registryCandidates={} returned={} fuzzyFallbackUsed={}",
+                    assetType, compactFilters(filters), assets.size(), named.assets().size(), named.fuzzyUsed());
+                return named.assets();
+            }
+        }
         if (luceneSearchService == null || !luceneSearchService.enabled()) {
             AssetFallback fallback = registryFallbackAssets(assets, filters, limit);
             log.info("asset_query registry search assetType={} filters={} registryCandidates={} returned={} reason=lucene_disabled fuzzyFallbackUsed={}",
@@ -305,6 +316,10 @@ public class AssetDiscoveryService {
         log.info("asset_query lucene empty fallback assetType={} filters={} registryCandidates={} luceneHits=0 fallbackReturned={} fuzzyFallbackUsed={}",
             assetType, compactFilters(filters), assets.size(), fallback.assets().size(), fallback.fuzzyUsed());
         return fallback.assets();
+    }
+
+    private boolean hasExplicitAssetName(Map<String, Object> filters) {
+        return text(firstValue(filters, "assetName", "asset_name", "name")) != null;
     }
 
     private AssetFallback registryFallbackAssets(List<Map<String, Object>> assets, Map<String, Object> filters, int limit) {
@@ -597,7 +612,53 @@ public class AssetDiscoveryService {
                 filters.putIfAbsent(key, arguments.get(key));
             }
         }
+        normalizeFilterAliases(filters);
         return filters;
+    }
+
+    /**
+     * Normalize protocol field spellings before validation and matching. Model/runtime clients may
+     * legally emit camelCase, snake_case, or canonical lowercase names from allowedFilterFields;
+     * all of them must resolve to the same logical field.
+     */
+    private void normalizeFilterAliases(Map<String, Object> filters) {
+        if (filters == null || filters.isEmpty()) {
+            return;
+        }
+        Map<String, Object> normalized = new LinkedHashMap<>();
+        filters.forEach((key, value) -> normalized.putIfAbsent(canonicalFilterKey(key), value));
+        filters.clear();
+        filters.putAll(normalized);
+    }
+
+    private String canonicalFilterKey(String key) {
+        if (key == null || key.isBlank()) {
+            return key;
+        }
+        String canonical = key.trim().toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9]", "");
+        return switch (canonical) {
+            case "assetname" -> "assetName";
+            case "environment" -> "env";
+            case "targettype" -> "targetType";
+            case "databasetype" -> "databaseType";
+            case "dbtype" -> "dbType";
+            case "databaserole" -> "databaseRole";
+            case "retrievalsignals" -> "retrievalSignals";
+            case "queryterms" -> "queryTerms";
+            case "searchterms" -> "searchTerms";
+            case "bilingualintent" -> "bilingualIntent";
+            case "bilingualquery" -> "bilingualQuery";
+            case "intentzh" -> "intentZh";
+            case "intenten" -> "intentEn";
+            case "intentaliases" -> "intentAliases";
+            case "intentcandidates" -> "intentCandidates";
+            case "datasourceid" -> "datasourceId";
+            case "jdbcurl" -> "jdbcUrl";
+            case "connectionstring" -> "connectionString";
+            case "endpointid" -> "endpointId";
+            case "ipaddress" -> "ipAddress";
+            default -> key;
+        };
     }
 
     private boolean matches(Map<String, Object> assetMetadata, Map<String, Object> filters) {
@@ -921,7 +982,7 @@ public class AssetDiscoveryService {
                 addRetrievalValue(terms, value);
             }
         }
-        return terms.isEmpty() ? null : String.join(" ", terms);
+        return terms.isEmpty() ? null : String.join(" ", new LinkedHashSet<>(terms));
     }
 
     private void addRetrievalValue(List<String> terms, Object value) {

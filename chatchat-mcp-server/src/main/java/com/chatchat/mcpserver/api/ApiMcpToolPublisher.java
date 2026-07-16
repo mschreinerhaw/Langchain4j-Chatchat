@@ -17,7 +17,10 @@ import java.util.concurrent.ConcurrentHashMap;
 @RequiredArgsConstructor
 public class ApiMcpToolPublisher {
 
+    public static final String EXECUTE_TOOL_NAME = "api_template_execute";
+
     private final McpSyncServer mcpSyncServer;
+    private final ApiToolSpecFactory toolSpecFactory;
     private final Set<String> managedToolNames = ConcurrentHashMap.newKeySet();
 
     /**
@@ -33,6 +36,11 @@ public class ApiMcpToolPublisher {
      * Performs the refresh operation.
      */
     public synchronized void refresh() {
+        try {
+            mcpSyncServer.removeTool(EXECUTE_TOOL_NAME);
+        } catch (Exception ex) {
+            log.debug("API template gateway tool was not registered: {}", ex.getMessage());
+        }
         managedToolNames.forEach(toolName -> {
             try {
                 mcpSyncServer.removeTool(toolName);
@@ -42,7 +50,8 @@ public class ApiMcpToolPublisher {
         });
         managedToolNames.clear();
 
+        mcpSyncServer.addTool(toolSpecFactory.toGatewayToolSpecification());
         mcpSyncServer.notifyToolsListChanged();
-        log.info("API MCP per-service tool publishing disabled; use api_template_query");
+        log.info("API MCP per-service tool publishing disabled; use api_template_query and {}", EXECUTE_TOOL_NAME);
     }
 }

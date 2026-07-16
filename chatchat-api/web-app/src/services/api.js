@@ -739,6 +739,9 @@ export function fetchMcpToolCards(filters = {}) {
   if (filters.service) {
     params.set("service", filters.service);
   }
+  if (filters.category) {
+    params.set("category", filters.category);
+  }
   if (filters.sourceType) {
     params.set("sourceType", filters.sourceType);
   }

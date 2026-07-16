@@ -1,6 +1,7 @@
 package com.chatchat.agents.runtime.plan;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import com.fasterxml.jackson.annotation.JsonAlias;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
@@ -176,6 +177,7 @@ public record InterpretationPlan(
         @JsonProperty("output_path")
         String outputPath,
         Integer to,
+        @JsonAlias({"input_path", "inputPath"})
         @JsonProperty("input_field")
         String inputField,
         String type,

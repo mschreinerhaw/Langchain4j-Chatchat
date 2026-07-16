@@ -683,6 +683,7 @@ public class AgentOrchestrator {
                 tenantId,
                 tools,
                 decision.executionPlan(),
+                traces,
                 attributesWithWorkflowStep(
                     workflowStateTracker.attributesWithCompletedTools(requestRuntimeAttributes, completedWorkflowTools),
                     step,
@@ -723,6 +724,7 @@ public class AgentOrchestrator {
                 tenantId,
                 tools,
                 Map.of(),
+                traces,
                 workflowStateTracker.attributesWithCompletedTools(requestRuntimeAttributes, completedWorkflowTools)
             );
             traces.add(execution.trace());
@@ -1183,6 +1185,8 @@ public class AgentOrchestrator {
                                                                             String userId,
                                                                             List<String> tools,
                                                                             Map<String, Object> runtimeAttributes) {
+        Map<String, Object> executionAttributes = new LinkedHashMap<>(runtimeAttributes == null ? Map.of() : runtimeAttributes);
+        executionAttributes.put("requireTemplateParameterProtocol", true);
         return new InterpretationPlanRuntime.ExecutionRequest(
             plan,
             toolRegistry,
@@ -1191,7 +1195,7 @@ public class AgentOrchestrator {
             requestId,
             conversationId,
             userId,
-            runtimeAttributes == null ? Map.of() : runtimeAttributes
+            executionAttributes
         );
     }
 
@@ -1338,6 +1342,10 @@ public class AgentOrchestrator {
         if (confidence != null) {
             metadata.put("confidence", confidence);
         }
+        Object parameterProtocols = firstObject(payload, "parameter_protocols", "parameterProtocols");
+        if (parameterProtocols instanceof List<?> protocols) {
+            metadata.put("parameterProtocols", protocols);
+        }
         return new InterpretationPlanRuntime.DagDecision(protocolVersion, action, stepIds, reason, null, metadata);
     }
 
@@ -1367,6 +1375,10 @@ public class AgentOrchestrator {
         prompt.append("- Select the final_answer step only when it is the last remaining executable step and evidence is sufficient.\n");
         prompt.append("- Do not emit final_answer in your JSON. If you need to leave a diagnostic, write review_answer; Java will produce final_answer only from the final plan step.\n");
         prompt.append("- If a required dependency failed, request rewrite_plan or abort instead of forcing a dependent step.\n");
+        prompt.append("- After template discovery, inspect the selected template's parameterSchema/requiredParameters before selecting its execution step.\n");
+        prompt.append("- When the selected template declares parameters, extract only values supported by the current User query and return them in parameter_protocols using template_parameter_protocol_v1. Use the exact declared parameter names and exact discovered template_id.\n");
+        prompt.append("- Every model-extracted argument must be {value, source: user_query, evidence}. Never copy parameterSchema, requiredParameters, defaults, routing fields, or an entire template object into arguments. Runtime applies defaults and compiles the concrete MCP request.\n");
+        prompt.append("- Put parameters that cannot be obtained from the User query in unresolved_parameters. When a required parameter is unresolved and no completed dependency supplies it, request rewrite_plan instead of executing with an invented or empty value.\n");
         prompt.append("- Do not call tools directly; Java will only execute the step ids you choose after safety validation.\n\n");
         prompt.append("User query:\n").append(query == null ? "" : query).append("\n\n");
         prompt.append("decision_count: ").append(request.decisionCount()).append("\n");
@@ -1758,6 +1770,18 @@ public class AgentOrchestrator {
         if (!rejectedRefs.isEmpty()) {
             metadata.put("rejectedEvidenceRefs", rejectedRefs);
         }
+        List<String> selectedTemplateIds = stringList(firstObject(payload, "selected_template_ids", "selectedTemplateIds"));
+        if (!selectedTemplateIds.isEmpty()) {
+            metadata.put("selectedTemplateIds", selectedTemplateIds);
+        }
+        List<String> rejectedTemplateIds = stringList(firstObject(payload, "rejected_template_ids", "rejectedTemplateIds"));
+        if (!rejectedTemplateIds.isEmpty()) {
+            metadata.put("rejectedTemplateIds", rejectedTemplateIds);
+        }
+        String refinedIntent = stringValue(firstObject(payload, "refined_intent", "refinedIntent"));
+        if (refinedIntent != null && !refinedIntent.isBlank()) {
+            metadata.put("refinedIntent", refinedIntent);
+        }
         Object confidence = firstObject(payload, "confidence", "score");
         if (confidence != null) {
             metadata.put("toolResultReviewConfidence", confidence);
@@ -1790,7 +1814,7 @@ public class AgentOrchestrator {
         }
         prompt.append("You are the runtime reviewer for one completed MCP tool call.\n");
         prompt.append("Return strict JSON only with this shape:\n");
-        prompt.append("{\"satisfied\":true|false,\"reason\":\"short reason\",\"review_answer\":\"optional audit note, not user-facing final answer\",\"selected_urls\":[\"https://...\"],\"useful_refs\":[\"doc://...#chunk=0\"],\"rejected_refs\":[\"doc://...#chunk=1\"],\"relevance\":0.0,\"answerability\":0.0,\"supportsQuestionAspect\":[\"process\"],\"missingAspects\":[\"constraints\"],\"usefulness\":\"HIGH|MEDIUM|LOW\",\"shouldExpandQuery\":true|false,\"confidence\":0.0}\n");
+        prompt.append("{\"satisfied\":true|false,\"reason\":\"short reason\",\"review_answer\":\"optional audit note, not user-facing final answer\",\"selected_urls\":[\"https://...\"],\"useful_refs\":[\"doc://...#chunk=0\"],\"rejected_refs\":[\"doc://...#chunk=1\"],\"selected_template_ids\":[\"template-id\"],\"rejected_template_ids\":[\"template-id\"],\"refined_intent\":\"optional refined retrieval intent\",\"relevance\":0.0,\"answerability\":0.0,\"supportsQuestionAspect\":[\"process\"],\"missingAspects\":[\"constraints\"],\"usefulness\":\"HIGH|MEDIUM|LOW\",\"shouldExpandQuery\":true|false,\"confidence\":0.0}\n");
         prompt.append("Rules:\n");
         prompt.append(AgentRuntimeFactGroundingContract.promptSection());
         prompt.append("- Decide whether this tool output is sufficient for the current plan step and user request.\n");
@@ -1804,6 +1828,7 @@ public class AgentOrchestrator {
         prompt.append("- Reject document_search only when it failed, returned no useful results, violated an explicit source constraint, or is unrelated to the request.\n");
         prompt.append("- For document_search, evaluate each returned document/chunk against the current user request. Put useful doc:// refs in useful_refs and unrelated or misleading refs in rejected_refs. Do not infer usefulness from retrieval rank alone.\n");
         prompt.append("- Treat retrieval score as a weak prior only. Your semantic evidence evaluation must state relevance, answerability, supported aspects, missing aspects, usefulness, and whether another query expansion is needed.\n");
+        prompt.append("- For template discovery and API/HTTP requirement analysis, compare title, description, capabilitySpec, outputSchema, dependencySpec and required parameters with the current requirement. Return only ids present in the tool output under selected_template_ids/rejected_template_ids. If candidates do not cover the requirement, set satisfied=false and provide refined_intent.\n");
         prompt.append("- If the user required an official source, reject results that do not satisfy that source constraint.\n");
         prompt.append("- Do not answer the user here; only review the tool result.\n\n");
         prompt.append("- Never write final_answer/finalAnswer in this reviewer JSON. If you need to propose wording for audit, write review_answer; it will not become the user-facing answer.\n");
@@ -2234,6 +2259,11 @@ public class AgentOrchestrator {
                 traces.add(step.toolExecution().trace());
             }
             observations.add(planStepObservation(stage, step));
+            String templateSelectionFeedback = templateSelectionFeedbackObservation(stage, step);
+            if (templateSelectionFeedback != null) {
+                observations.add(templateSelectionFeedback);
+                record.put("templateSelectionFeedbackObservation", true);
+            }
             String evidenceEvaluationObservation = evidenceEvaluationObservation(step);
             if (evidenceEvaluationObservation != null && !evidenceEvaluationObservation.isBlank()) {
                 observations.add(evidenceEvaluationObservation);
@@ -2403,6 +2433,28 @@ public class AgentOrchestrator {
             + firstNonBlank(step.errorMessage(), "unknown error");
     }
 
+    private String templateSelectionFeedbackObservation(String stage,
+                                                        InterpretationPlanRuntime.StepExecution step) {
+        if (step == null || step.metadata() == null || step.metadata().isEmpty()) {
+            return null;
+        }
+        Map<String, Object> feedback = new LinkedHashMap<>();
+        for (String key : List.of("selectedTemplateIds", "rejectedTemplateIds", "refinedIntent")) {
+            Object value = step.metadata().get(key);
+            if (value != null && !String.valueOf(value).isBlank() && !List.of().equals(value)) {
+                feedback.put(key, value);
+            }
+        }
+        if (feedback.isEmpty()) {
+            return null;
+        }
+        feedback.put("schemaVersion", "template_selection_feedback.v1");
+        feedback.put("stage", stage);
+        feedback.put("stepId", step.stepId());
+        feedback.put("toolName", step.toolName());
+        return "InterpretationPlan template selection feedback: " + stringify(feedback);
+    }
+
     private String canonicalEvidenceObservation(InterpretationPlanRuntime.StepExecution step) {
         if (step == null || !step.success() || step.toolExecution() == null || step.toolExecution().output() == null) {
             return null;
@@ -2509,6 +2561,7 @@ public class AgentOrchestrator {
             tenantId,
             tools,
             executionPlan,
+            List.of(),
             runtimeAttributes
         );
     }
@@ -2535,8 +2588,10 @@ public class AgentOrchestrator {
                                               String tenantId,
                                               List<String> allowedTools,
                                               Map<String, Object> plannerExecutionPlan,
+                                              List<InteractionToolTrace> priorTraces,
                                               Map<String, Object> runtimeAttributes) {
-        Map<String, Object> safeArguments = new LinkedHashMap<>(arguments == null ? Map.of() : arguments);
+        Map<String, Object> safeArguments = new LinkedHashMap<>(
+            toolArguments.applyObservedTemplateContract(toolName, arguments, priorTraces));
         Map<String, Object> attributes = new LinkedHashMap<>(runtimeAttributes == null ? Map.of() : runtimeAttributes);
         attributes.put("executionPlan", buildRuntimeExecutionPlan(toolName, safeArguments, plannerExecutionPlan));
         ToolInput toolInput = ToolInput.builder()
@@ -2732,6 +2787,7 @@ public class AgentOrchestrator {
                 tenantId,
                 tools,
                 Map.of(),
+                traces,
                 workflowStateTracker.attributesWithCompletedTools(runtimeAttributes, completedTools)
             );
             traces.add(execution.trace());
@@ -2849,6 +2905,7 @@ public class AgentOrchestrator {
                 tenantId,
                 tools,
                 Map.of(),
+                traces,
                 workflowStateTracker.attributesWithCompletedTools(runtimeAttributes, completedTools)
             );
             traces.add(execution.trace());

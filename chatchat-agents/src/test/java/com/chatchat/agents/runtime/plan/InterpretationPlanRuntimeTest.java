@@ -277,6 +277,44 @@ class InterpretationPlanRuntimeTest {
     }
 
     @Test
+    void rejectsTechnicallySuccessfulEmptyTemplateDiscoveryBeforeDependentExecution() throws Exception {
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            mock(ToolRuntimeService.class),
+            new InterpretationPlanValidator(),
+            mock(InterpretationPlanRuntime.DagExecutionController.class)
+        );
+        Method method = InterpretationPlanRuntime.class.getDeclaredMethod(
+            "localToolResultReview",
+            InterpretationPlan.Step.class,
+            InterpretationPlanRuntime.StepExecution.class
+        );
+        method.setAccessible(true);
+        InterpretationPlan.Step step = new InterpretationPlan.Step(
+            2, "mcp_tool", "mcp_chatchat_mcp_server_database_ops_template_search",
+            Map.of("filters", Map.of("assetName", "248测试数据库", "env", "DEV")),
+            List.of(1), null, null
+        );
+        InterpretationPlanRuntime.StepExecution execution = new InterpretationPlanRuntime.StepExecution(
+            2, "mcp_tool", step.toolName(), true,
+            Map.of("success", true, "returnedCount", 0, "templates", List.of()),
+            null, null, null, 5
+        );
+
+        InterpretationPlanRuntime.StepReview review =
+            (InterpretationPlanRuntime.StepReview) method.invoke(runtime, step, execution);
+
+        assertThat(review).isNotNull();
+        assertThat(review.satisfied()).isFalse();
+        assertThat(review.reason()).contains("NO_MATCHING_TEMPLATE");
+        assertThat(review.metadata())
+            .containsEntry("transportSuccess", true)
+            .containsEntry("operationSuccess", true)
+            .containsEntry("businessSatisfied", false)
+            .containsEntry("resultCode", "NO_MATCHING_TEMPLATE")
+            .containsEntry("templateDiscoveryReturnedCount", 0);
+    }
+
+    @Test
     void skipsModelReviewForNonEmptyTemplateDiscoveryResult() {
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         when(toolRegistry.hasTool("mcp_chatchat_mcp_server_ssh_template_query")).thenReturn(true);
@@ -331,7 +369,9 @@ class InterpretationPlanRuntimeTest {
             null,
             request -> {
                 reviewerCalls.incrementAndGet();
-                return InterpretationPlanRuntime.StepReview.rejected("should not review discovery results", Map.of());
+                return InterpretationPlanRuntime.StepReview.accepted("candidate set semantically matches the request", Map.of(
+                    "selectedTemplateIds", List.of("CHECK_PROCESS")
+                ));
             },
             scriptedController(List.of(List.of(1), List.of(2)))
         );
@@ -348,10 +388,11 @@ class InterpretationPlanRuntimeTest {
         ));
 
         assertThat(result.success()).isTrue();
-        assertThat(reviewerCalls).hasValue(0);
+        assertThat(reviewerCalls).hasValue(1);
         assertThat(result.steps().get(0).metadata())
             .containsEntry("templateDiscoveryReturnedCount", 2)
-            .containsEntry("toolResultReviewSkipped", true);
+            .containsEntry("toolResultReviewSatisfied", true)
+            .doesNotContainKey("toolResultReviewSkipped");
     }
 
     @Test
@@ -1349,7 +1390,10 @@ class InterpretationPlanRuntimeTest {
         when(toolRuntimeService.execute(any())).thenAnswer(invocation -> {
             ToolRuntimeRequest toolRequest = invocation.getArgument(0);
             return new ToolRuntimeExecution(
-                ToolOutput.success(Map.of("results", List.of())),
+                ToolOutput.success(Map.of("results", List.of(Map.of(
+                    "id", "ds-dm",
+                    "associatedTemplates", List.of(Map.of("templateId", "query_test"))
+                )))),
                 ToolMetadata.builder().id(toolRequest.getToolName()).build(),
                 null,
                 "success",
@@ -1415,7 +1459,7 @@ class InterpretationPlanRuntimeTest {
         when(toolRuntimeService.execute(any())).thenAnswer(invocation -> {
             ToolRuntimeRequest toolRequest = invocation.getArgument(0);
             return new ToolRuntimeExecution(
-                ToolOutput.success(Map.of("templates", List.of())),
+                ToolOutput.success(Map.of("templates", List.of(Map.of("templateId", "MYSQL_INNODB_STATUS")))),
                 ToolMetadata.builder().id(toolRequest.getToolName()).build(),
                 null,
                 "success",
@@ -1720,6 +1764,64 @@ class InterpretationPlanRuntimeTest {
         assertThat((List<String>) filters.get("retrievalSignals"))
             .contains("business_line:证券", "证券")
             .noneMatch(value -> value.contains("jdbc:mysql"));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void compilesMcpDiscoveryArgumentsAgainstPublishedInputSchemaInsteadOfQueryPlaceholder() throws Exception {
+        String toolName = "mcp_chatchat_mcp_server_database_asset_search";
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.getToolMetadata(toolName)).thenReturn(ToolMetadata.builder()
+            .id(toolName)
+            // MCP bridges historically exposed this lossy placeholder parameter.
+            .parameters(List.of(com.chatchat.common.tool.ToolParameter.builder()
+                .name("query").type("string").required(false).build()))
+            .metadata(Map.of(
+                "inputSchema", Map.of(
+                    "type", "object",
+                    "properties", Map.of(
+                        "filters", Map.of("type", "object", "additionalProperties", true),
+                        "trace", Map.of("type", "object", "additionalProperties", true),
+                        "filtersSchemaVersion", Map.of("type", "string")
+                    ),
+                    "required", List.of("filters", "trace"),
+                    "additionalProperties", false
+                ),
+                "mcpToolMeta", Map.of(
+                    "routingProtocol", Map.of("allowedFilterFields", List.of("assetname", "env"))
+                )
+            ))
+            .build());
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            mock(ToolRuntimeService.class),
+            new InterpretationPlanValidator(),
+            mock(InterpretationPlanRuntime.DagExecutionController.class)
+        );
+        InterpretationPlan.Step step = new InterpretationPlan.Step(
+            1, "mcp_tool", toolName,
+            Map.of("filters", Map.of("assetName", "risk-oracle", "env", "DEV")),
+            List.of(), null, null
+        );
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0", new InterpretationPlan.Intent("data_query", "analyze risk-oracle", "low"),
+            context(), new InterpretationPlan.Plan(List.of(step)),
+            new InterpretationPlan.ExecutionPolicy(1, false, List.of(toolName), List.of(), 30000), review()
+        );
+        InterpretationPlanRuntime.ExecutionRequest request = new InterpretationPlanRuntime.ExecutionRequest(
+            plan, toolRegistry, List.of(toolName), "tenant-1", "req-real-schema",
+            "conv-real-schema", "user-1", Map.of("agentRuntimeEnvironment", "DEV")
+        );
+        Method method = InterpretationPlanRuntime.class.getDeclaredMethod(
+            "resolvedStepInput", InterpretationPlan.Step.class,
+            InterpretationPlanRuntime.ExecutionRequest.class, Map.class
+        );
+        method.setAccessible(true);
+
+        Map<String, Object> resolved = (Map<String, Object>) method.invoke(runtime, step, request, Map.of());
+        Map<String, Object> filters = (Map<String, Object>) resolved.get("filters");
+
+        assertThat(filters).containsEntry("assetName", "risk-oracle").containsEntry("env", "DEV");
+        assertThat(resolved).doesNotContainKey("query");
     }
 
     @Test
@@ -2521,6 +2623,47 @@ class InterpretationPlanRuntimeTest {
     }
 
     @Test
+    @SuppressWarnings("unchecked")
+    void writesResolvedValueToCompleteNestedBindingPath() throws Exception {
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            mock(ToolRuntimeService.class),
+            new InterpretationPlanValidator(),
+            mock(InterpretationPlanRuntime.DagExecutionController.class)
+        );
+        Method method = InterpretationPlanRuntime.class.getDeclaredMethod(
+            "putInputValue", Map.class, String.class, Object.class);
+        method.setAccessible(true);
+        Map<String, Object> input = new java.util.LinkedHashMap<>();
+        input.put("filters", Map.of("env", "DEV"));
+
+        method.invoke(runtime, input, "$.filters.assetName", "248测试数据库");
+
+        assertThat((Map<String, Object>) input.get("filters"))
+            .containsEntry("assetName", "248测试数据库")
+            .containsEntry("env", "DEV");
+        assertThat(input).doesNotContainKey("assetName");
+    }
+
+    @Test
+    void acceptsInputPathAliasInPlanBindingJson() throws Exception {
+        InterpretationPlan.Binding binding = new com.fasterxml.jackson.databind.ObjectMapper().readValue(
+            """
+                {
+                  "from": 1,
+                  "output_path": "$.assets[0].asset.name",
+                  "to": 2,
+                  "input_path": "$.filters.assetName",
+                  "type": "jsonpath",
+                  "required": true
+                }
+                """,
+            InterpretationPlan.Binding.class
+        );
+
+        assertThat(binding.inputField()).isEqualTo("$.filters.assetName");
+    }
+
+    @Test
     void resolvesPlanBindingIntoDownstreamToolInput() {
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         when(toolRegistry.hasTool("web_search")).thenReturn(true);
@@ -2866,8 +3009,9 @@ class InterpretationPlanRuntimeTest {
                 List.of(
                     // Regression: an unstable model may bind the whole discovery object. Runtime must
                     // compile it to its scalar id and must never send "{templateId=...}" to MCP.
-                    new InterpretationPlan.Binding(1, "$.templates[0]", 2, "templateId", "jsonpath", true),
-                    new InterpretationPlan.Binding(1, "$.templates[0].parameterSchema", 2, "parameters", "jsonpath", false)
+                    // Schema metadata is intentionally not bound to parameters; the validator now
+                    // rejects that planner error before execution.
+                    new InterpretationPlan.Binding(1, "$.templates[0]", 2, "templateId", "jsonpath", true)
                 ),
                 null
             ),
@@ -2999,6 +3143,192 @@ class InterpretationPlanRuntimeTest {
     }
 
     @Test
+    void compilesControllerParameterProtocolAfterTemplateDiscovery() {
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        when(toolRegistry.hasTool(any())).thenReturn(true);
+        when(toolRegistry.getToolMetadata(any())).thenReturn(ToolMetadata.builder().riskLevel("low").build());
+        ToolRuntimeService toolRuntimeService = mock(ToolRuntimeService.class);
+        when(toolRuntimeService.execute(any())).thenAnswer(invocation -> {
+            ToolRuntimeRequest request = invocation.getArgument(0);
+            if (request.getToolName().contains("template_query")) {
+                return new ToolRuntimeExecution(
+                    ToolOutput.success(Map.of("templates", List.of(Map.of(
+                        "templateId", "QUERY_BY_TRADE_DATE",
+                        "parameterSchema", Map.of(
+                            "type", "object",
+                            "properties", Map.of("tradeDate", Map.of("type", "string", "format", "date")),
+                            "required", List.of("tradeDate")
+                        ),
+                        "executionTool", "mcp_chatchat_mcp_server_sql_query_execute"
+                    )))),
+                    ToolMetadata.builder().id(request.getToolName()).build(), null, "success", Map.of());
+            }
+            return new ToolRuntimeExecution(
+                ToolOutput.success(Map.of("parameters", request.getToolInput().getParameters())),
+                ToolMetadata.builder().id(request.getToolName()).build(), null, "success", Map.of());
+        });
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0", new InterpretationPlan.Intent("data_query", "query by trade date", "low"), context(),
+            new InterpretationPlan.Plan(
+                List.of(
+                    new InterpretationPlan.Step(1, "mcp_tool", "mcp_chatchat_mcp_server_sql_datasource_template_query",
+                        Map.of("filters", Map.of("intent", "query by trade date")), List.of(), null, null),
+                    new InterpretationPlan.Step(2, "mcp_tool", "mcp_chatchat_mcp_server_sql_query_execute",
+                        Map.of("executionContext", Map.of("assetName", "trade-db", "env", "DEV")), List.of(1), null, null),
+                    new InterpretationPlan.Step(3, "final_answer", "", Map.of("answer", "done"), List.of(2), null, null)
+                ),
+                List.of(),
+                List.of(new InterpretationPlan.Binding(1, "$.templates[0].templateId", 2, "templateId", "jsonpath", true)),
+                null
+            ),
+            new InterpretationPlan.ExecutionPolicy(3, false, List.of(
+                "mcp_chatchat_mcp_server_sql_datasource_template_query",
+                "mcp_chatchat_mcp_server_sql_query_execute"), List.of(), 30000),
+            review()
+        );
+        AtomicInteger controllerCalls = new AtomicInteger();
+        InterpretationPlanRuntime.DagExecutionController controller = request -> {
+            controllerCalls.incrementAndGet();
+            if (request.remainingStepIds().contains(2)) {
+                Map<String, Object> protocol = Map.of(
+                    "protocol_version", InterpretationExecutionProtocol.TEMPLATE_PARAMETER_PROTOCOL_VERSION,
+                    "step_id", 2,
+                    "template_id", "QUERY_BY_TRADE_DATE",
+                    "arguments", Map.of("trade_date", Map.of(
+                        "value", "20260716",
+                        "source", "user_query",
+                        "evidence", "查询 20260716 交易日数据"
+                    )),
+                    "unresolved_parameters", List.of()
+                );
+                return new InterpretationPlanRuntime.DagDecision(
+                    InterpretationExecutionProtocol.VERSION, "execute_step", List.of(2),
+                    "parameters extracted from user query", null,
+                    Map.of("parameterProtocols", List.of(protocol))
+                );
+            }
+            return InterpretationPlanRuntime.DagDecision.finalAnswer(3, "done", "complete");
+        };
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            toolRuntimeService, new InterpretationPlanValidator(), controller);
+
+        InterpretationPlanRuntime.ExecutionResult result = runtime.execute(new InterpretationPlanRuntime.ExecutionRequest(
+            plan, toolRegistry, List.of(
+                "mcp_chatchat_mcp_server_sql_datasource_template_query",
+                "mcp_chatchat_mcp_server_sql_query_execute"),
+            "tenant-1", "req-parameter-protocol", "conv-parameter-protocol", "user-1",
+            Map.of("requireTemplateParameterProtocol", true)
+        ));
+
+        ArgumentCaptor<ToolRuntimeRequest> captor = ArgumentCaptor.forClass(ToolRuntimeRequest.class);
+        verify(toolRuntimeService, times(2)).execute(captor.capture());
+        Map<?, ?> executorInput = captor.getAllValues().get(1).getToolInput().getParameters();
+        assertThat(result.success()).isTrue();
+        assertThat(controllerCalls.get()).isGreaterThanOrEqualTo(1);
+        assertThat(executorInput.get("templateId")).isEqualTo("QUERY_BY_TRADE_DATE");
+        assertThat(executorInput.get("parameters")).isEqualTo(Map.of("tradeDate", "2026-07-16"));
+        assertThat(executorInput.containsKey("parameterProtocol")).isFalse();
+    }
+
+    @Test
+    void acceptsTheSameModelParameterProtocolForSqlHttpSshAndApiTemplateExecutors() throws Exception {
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            mock(ToolRuntimeService.class), new InterpretationPlanValidator(), scriptedController(List.of()));
+        Method method = InterpretationPlanRuntime.class.getDeclaredMethod(
+            "normalizeModelInvocationEnvelope", InterpretationPlan.Step.class, Map.class);
+        method.setAccessible(true);
+        for (String toolName : List.of(
+            "mcp_chatchat_mcp_server_sql_query_execute",
+            "mcp_chatchat_mcp_server_http_request_execute",
+            "mcp_chatchat_mcp_server_linux_command_execute",
+            "mcp_chatchat_mcp_server_api_template_execute"
+        )) {
+            Map<String, Object> input = new java.util.LinkedHashMap<>();
+            input.put("templateId", "GENERIC_PARAMETERIZED_TEMPLATE");
+            input.put("parameterProtocol", Map.of(
+                "protocol_version", InterpretationExecutionProtocol.TEMPLATE_PARAMETER_PROTOCOL_VERSION,
+                "step_id", 7,
+                "template_id", "GENERIC_PARAMETERIZED_TEMPLATE",
+                "arguments", Map.of("target", Map.of(
+                    "value", "runtime-target",
+                    "source", "user_query",
+                    "evidence", "target runtime-target"
+                )),
+                "unresolved_parameters", List.of()
+            ));
+            InterpretationPlan.Step step = new InterpretationPlan.Step(
+                7, "mcp_tool", toolName, Map.of(), List.of(), null, null);
+
+            method.invoke(runtime, step, input);
+
+            assertThat(input.get("templateId")).isEqualTo("GENERIC_PARAMETERIZED_TEMPLATE");
+            assertThat(input.get("parameters")).isEqualTo(Map.of("target", "runtime-target"));
+            assertThat(input.get("runtimeParameterProtocolApplied")).isEqualTo(true);
+        }
+    }
+
+    @Test
+    void resolvesApiExecutorContractOnlyThroughApiTemplateDiscovery() throws Exception {
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            mock(ToolRuntimeService.class), new InterpretationPlanValidator(), scriptedController(List.of()));
+        Method method = InterpretationPlanRuntime.class.getDeclaredMethod(
+            "templateContractDiscoveryTool", String.class, List.class);
+        method.setAccessible(true);
+
+        Object discoveryTool = method.invoke(runtime,
+            "mcp_chatchat_mcp_server_api_template_execute",
+            List.of(
+                "mcp_chatchat_mcp_server_sql_datasource_template_query",
+                "mcp_chatchat_mcp_server_api_template_query"
+            ));
+
+        assertThat(discoveryTool).isEqualTo("mcp_chatchat_mcp_server_api_template_query");
+    }
+
+    @Test
+    void resolvesHttpExecutorContractOnlyThroughHttpEndpointTemplateDiscovery() throws Exception {
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            mock(ToolRuntimeService.class), new InterpretationPlanValidator(), scriptedController(List.of()));
+        Method method = InterpretationPlanRuntime.class.getDeclaredMethod(
+            "templateContractDiscoveryTool", String.class, List.class);
+        method.setAccessible(true);
+
+        Object discoveryTool = method.invoke(runtime,
+            "mcp_chatchat_mcp_server_http_request_execute",
+            List.of(
+                "mcp_chatchat_mcp_server_api_template_query",
+                "mcp_chatchat_mcp_server_http_endpoint_template_query"
+            ));
+
+        assertThat(discoveryTool).isEqualTo("mcp_chatchat_mcp_server_http_endpoint_template_query");
+    }
+
+    @Test
+    void rejectsModelParameterProtocolThatChangesRuntimeBoundTemplateId() throws Exception {
+        InterpretationPlanRuntime runtime = new InterpretationPlanRuntime(
+            mock(ToolRuntimeService.class), new InterpretationPlanValidator(), scriptedController(List.of()));
+        Method method = InterpretationPlanRuntime.class.getDeclaredMethod(
+            "normalizeModelInvocationEnvelope", InterpretationPlan.Step.class, Map.class);
+        method.setAccessible(true);
+        Map<String, Object> input = new java.util.LinkedHashMap<>();
+        input.put("templateId", "RUNTIME_SELECTED_TEMPLATE");
+        input.put("parameterProtocol", Map.of(
+            "protocol_version", InterpretationExecutionProtocol.TEMPLATE_PARAMETER_PROTOCOL_VERSION,
+            "step_id", 7,
+            "template_id", "MODEL_CHANGED_TEMPLATE",
+            "arguments", Map.of(),
+            "unresolved_parameters", List.of()
+        ));
+        InterpretationPlan.Step step = new InterpretationPlan.Step(
+            7, "mcp_tool", "mcp_chatchat_mcp_server_sql_query_execute", Map.of(), List.of(), null, null);
+
+        assertThatThrownBy(() -> method.invoke(runtime, step, input))
+            .hasRootCauseInstanceOf(IllegalStateException.class)
+            .rootCause()
+            .hasMessageContaining("does not match the Runtime-bound template");
+    }
+
+    @Test
     void failsBeforeMcpExecutionWhenTemplateRequiredParameterIsMissing() {
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         when(toolRegistry.hasTool("mcp_chatchat_mcp_server_sql_datasource_template_query")).thenReturn(true);
@@ -3076,12 +3406,12 @@ class InterpretationPlanRuntimeTest {
             "req-template-required-missing",
             "conv-template-required-missing",
             "user-1",
-            Map.of()
+            Map.of("requireTemplateParameterProtocol", true)
         ));
 
         assertThat(result.success()).isFalse();
         assertThat(result.errorMessage())
-            .contains("INVALID_TOOL_ARGUMENTS", "REQUIRED_PARAMETER_MISSING", "tableName");
+            .contains("TEMPLATE_PARAMETER_PROTOCOL_REQUIRED", "tableName");
         verify(toolRuntimeService, times(1)).execute(any());
     }
 

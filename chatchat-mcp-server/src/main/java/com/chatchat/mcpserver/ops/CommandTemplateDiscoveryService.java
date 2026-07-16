@@ -157,6 +157,10 @@ public class CommandTemplateDiscoveryService {
             arguments,
             filters
         );
+        Set<String> rejectedTemplateIds = excludedTemplateIds(arguments);
+        if (!rejectedTemplateIds.isEmpty()) {
+            filters.put("excludeTemplateIds", rejectedTemplateIds);
+        }
         String assetType = target.definition().assetType();
         filters.putIfAbsent("filtersSchemaVersion", target.filtersSchemaVersion());
         int limit = limit(arguments);
@@ -301,6 +305,8 @@ public class CommandTemplateDiscoveryService {
                                                    int limit) {
         List<HttpEndpointConfig> endpoints = httpEndpointConfigService.listEnabled().stream()
             .filter(endpoint -> matchesHttpEndpoint(endpoint, filters))
+            .filter(endpoint -> !excludedTemplateIds(filters).contains(normalize(
+                firstText(endpoint.getToolName(), firstText(endpoint.getName(), endpoint.getId())))))
             .toList();
         boolean assetScoped = hasAssetScope(filters);
         Map<String, Object> httpRetrievalFilters = assetScoped
@@ -428,9 +434,16 @@ public class CommandTemplateDiscoveryService {
                 "languageSupport", "Models should generate bilingual Chinese and English retrieval terms in bilingualIntent, bilingualQuery, intentZh, or intentEn; the engine expands them into shared bilingual signals before retrieval and ranking.",
                 "selectionHint", "Generate and use bilingual Chinese and English retrieval terms, then choose the returned template whose name, description, intentSignals, relevanceScore, and matchReasons best match the user intent; do not use asset allowed template order as semantic ranking.",
                 "fallback", "If authorized candidates exist but intent ranking returns no match, the engine broadens intent and marks resolutionTrace[].fallbackUsed=true.",
-                "selectionFields", List.of("templateId", "name", "description", "templateConfig", "intentSignals", "parameterSchema", "requiredParameters", "parameterContract", "invocationExample"),
+                "selectionFields", List.of("templateId", "name", "description", "capabilitySpec", "outputSchema", "dependencySpec", "templateConfig", "intentSignals", "parameterSchema", "requiredParameters", "parameterContract", "invocationExample"),
                 "sqlDisclosure", "business_query_template_search returns executable template references and parameter contracts only; it must not return raw SQL text or stored query bodies.",
                 "onEmptyResult", "No existing authorized template matched the request after asset, type and authorization filters. Do not suggest a new template name unless the user asks to administer templates."
+            ),
+            "selectionProtocol", mapOf(
+                "schemaVersion", "template_selection_protocol.v1",
+                "allowedDecisions", List.of("accept", "refine", "reject"),
+                "excludedTemplateIds", excludedTemplateIds(filters),
+                "candidateIsNotAcceptance", true,
+                "repeatIdenticalQueryForbidden", true
             ),
             "templates", templateMetadata
         );
@@ -1072,6 +1085,9 @@ public class CommandTemplateDiscoveryService {
             "riskLevel", httpRiskLevel(endpoint),
             "supportedAssetTypes", List.of(assetType),
             "intentSignals", signals,
+            "capabilitySpec", readObject(endpoint.getCapabilitySpecJson()),
+            "outputSchema", readObject(endpoint.getOutputSchemaJson()),
+            "dependencySpec", readObject(endpoint.getDependencySpecJson()),
             "routingHints", mapOf(
                 "strongSignals", signals.stream().limit(5).toList(),
                 "contextKeys", List.of("assetName", "env", "environment", "cluster", "service", "target", "labels")
@@ -2448,6 +2464,21 @@ public class CommandTemplateDiscoveryService {
             }
         }
         return filters;
+    }
+
+    private Set<String> excludedTemplateIds(Map<String, Object> filters) {
+        Object value = firstValue(filters, "excludeTemplateIds", "excludedTemplateIds");
+        if (!(value instanceof Iterable<?> iterable)) {
+            return Set.of();
+        }
+        Set<String> excluded = new LinkedHashSet<>();
+        for (Object item : iterable) {
+            String normalized = normalize(item == null ? null : String.valueOf(item));
+            if (normalized != null) {
+                excluded.add(normalized);
+            }
+        }
+        return Set.copyOf(excluded);
     }
 
     private void rejectConcreteTargetFields(Map<String, Object> filters) {

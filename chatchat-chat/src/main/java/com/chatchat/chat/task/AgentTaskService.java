@@ -617,7 +617,14 @@ public class AgentTaskService {
             if ("WAIT_CONFIRMATION".equals(status) || "WAITING_CONFIRM".equals(status)) {
                 continue;
             }
-            AgentEvent questionEvent = loadQuestionEvent(task);
+            AgentEvent questionEvent;
+            try {
+                questionEvent = loadQuestionEvent(task);
+                readPayload(questionEvent);
+            } catch (IllegalStateException ex) {
+                failUnrecoverableTask(task, ex);
+                continue;
+            }
             updateLatest(task.getTaskId(), "PENDING", null, null);
             saveStatusEvent(task, "PENDING", Map.of("message", "Task recovered after runtime restart"));
             startWorker(task.getTenantId());
@@ -625,6 +632,24 @@ public class AgentTaskService {
             recovered++;
         }
         return recovered;
+    }
+
+    private void failUnrecoverableTask(AgentTaskLatestEntity task, IllegalStateException cause) {
+        String taskId = task == null ? "unknown" : task.getTaskId();
+        String detail = cause == null || cause.getMessage() == null
+            ? "Question payload is unavailable" : cause.getMessage();
+        String message = "Agent task cannot be recovered after runtime restart: " + detail;
+        log.error("Agent task recovery payload is missing or invalid: taskId={}, tenantId={}, sessionId={}, error={}",
+            taskId,
+            task == null ? null : task.getTenantId(),
+            task == null ? null : task.getSessionId(),
+            detail);
+        updateLatest(taskId, "FAILED", null, message);
+        saveStatusEvent(task, "FAILED", Map.of(
+            "message", message,
+            "errorCode", "TASK_RECOVERY_PAYLOAD_INVALID",
+            "recoveryStage", "load_question_payload"
+        ));
     }
 
     /**

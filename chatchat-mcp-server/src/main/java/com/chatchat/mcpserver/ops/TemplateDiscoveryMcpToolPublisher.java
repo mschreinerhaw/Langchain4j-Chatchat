@@ -307,6 +307,11 @@ public class TemplateDiscoveryMcpToolPublisher {
                 "description", "Required replay trace such as plannerVersion, model, promptVersion, or taskId",
                 "additionalProperties", true
             ),
+            "excludeTemplateIds", Map.of(
+                "type", "array",
+                "description", "Template ids rejected by semantic review; excluded from this bounded retry.",
+                "items", Map.of("type", "string")
+            ),
             "limit", Map.of(
                 "type", "integer",
                 "minimum", 1,
@@ -346,6 +351,11 @@ public class TemplateDiscoveryMcpToolPublisher {
                 "type", "object",
                 "description", "Replay trace such as plannerVersion, model, promptVersion, or taskId.",
                 "additionalProperties", true
+            ),
+            "excludeTemplateIds", Map.of(
+                "type", "array",
+                "description", "Template ids rejected by semantic review; excluded from this bounded retry.",
+                "items", Map.of("type", "string")
             ),
             "limit", Map.of(
                 "type", "integer",

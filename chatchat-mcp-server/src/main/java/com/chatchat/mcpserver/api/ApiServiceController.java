@@ -175,6 +175,9 @@ public class ApiServiceController {
         config.setHeadersJson(writeJson(request.headers()));
         config.setBodyTemplate(request.bodyTemplate());
         config.setInputSchemaJson(writeJson(request.inputSchema()));
+        config.setOutputSchemaJson(writeJson(request.outputSchema()));
+        config.setCapabilitySpecJson(writeJson(request.capabilitySpec()));
+        config.setDependencySpecJson(writeJson(request.dependencySpec()));
         config.setGovernanceJson(writeJson(request.governance()));
         config.setEnabled(request.enabled() == null || request.enabled());
         config.setTimeoutMs(request.timeoutMs() == null ? 20000 : request.timeoutMs());
@@ -204,6 +207,9 @@ public class ApiServiceController {
             readJsonMap(config.getHeadersJson()),
             config.getBodyTemplate(),
             readJsonMap(config.getInputSchemaJson()),
+            readJsonMap(config.getOutputSchemaJson()),
+            readJsonMap(config.getCapabilitySpecJson()),
+            readJsonMap(config.getDependencySpecJson()),
             readJsonMap(config.getGovernanceJson()),
             config.isEnabled(),
             config.getTimeoutMs(),
@@ -261,6 +267,9 @@ public class ApiServiceController {
         Map<String, Object> headers,
         String bodyTemplate,
         Map<String, Object> inputSchema,
+        Map<String, Object> outputSchema,
+        Map<String, Object> capabilitySpec,
+        Map<String, Object> dependencySpec,
         Map<String, Object> governance,
         Boolean enabled,
         Integer timeoutMs,
@@ -286,6 +295,9 @@ public class ApiServiceController {
         Map<String, Object> headers,
         String bodyTemplate,
         Map<String, Object> inputSchema,
+        Map<String, Object> outputSchema,
+        Map<String, Object> capabilitySpec,
+        Map<String, Object> dependencySpec,
         Map<String, Object> governance,
         boolean enabled,
         int timeoutMs,

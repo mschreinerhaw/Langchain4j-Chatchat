@@ -287,7 +287,8 @@ function Start-ManagedApp {
         [string]$PidFile,
         [string]$StdoutLog,
         [string]$StderrLog,
-        [string]$ExtraArgs
+        [string]$ExtraArgs,
+        [string]$LoaderPath
     )
 
     $ExistingProcess = Get-ManagedProcess -PidFile $PidFile
@@ -306,8 +307,14 @@ function Start-ManagedApp {
 
     $Java = Get-JavaCommand
     $JavaOptions = $env:JAVA_OPTS
-    $ArgumentLine = (($JavaOptions, "-jar", "`"$JarPath`"", "--debug=false", "--spring.profiles.active=$EffectiveProfile", "--server.port=$Port", $ExtraArgs) |
-        Where-Object { -not [string]::IsNullOrWhiteSpace($_) }) -join " "
+    if ([string]::IsNullOrWhiteSpace($LoaderPath)) {
+        $ArgumentLine = (($JavaOptions, "-jar", "`"$JarPath`"", "--debug=false", "--spring.profiles.active=$EffectiveProfile", "--server.port=$Port", $ExtraArgs) |
+            Where-Object { -not [string]::IsNullOrWhiteSpace($_) }) -join " "
+    } else {
+        New-Item -ItemType Directory -Force -Path $LoaderPath | Out-Null
+        $ArgumentLine = (($JavaOptions, "-Dloader.path=`"$LoaderPath`"", "-cp", "`"$JarPath`"", "org.springframework.boot.loader.launch.PropertiesLauncher", "--debug=false", "--spring.profiles.active=$EffectiveProfile", "--server.port=$Port", $ExtraArgs) |
+            Where-Object { -not [string]::IsNullOrWhiteSpace($_) }) -join " "
+    }
 
     Write-Host "Starting $Name on port $Port with profiles '$EffectiveProfile' ..."
     $Process = Start-Process `
@@ -386,7 +393,8 @@ switch ($Action) {
         $McpJar = Get-ExecutableJar -ModuleName "chatchat-mcp-server"
         $ApiJar = Get-ExecutableJar -ModuleName "chatchat-api"
 
-        Start-ManagedApp -Name "chatchat-mcp-server" -JarPath $McpJar -Port $McpPort -PidFile $McpPidFile -StdoutLog $McpOutLog -StderrLog $McpErrLog -ExtraArgs $McpArgs
+        $McpPluginPath = if ($env:CHATCHAT_MCP_PLUGIN_PATH) { $env:CHATCHAT_MCP_PLUGIN_PATH } else { Join-Path $ProjectRoot "chatchat-mcp-server/lib/plugins" }
+        Start-ManagedApp -Name "chatchat-mcp-server" -JarPath $McpJar -Port $McpPort -PidFile $McpPidFile -StdoutLog $McpOutLog -StderrLog $McpErrLog -ExtraArgs $McpArgs -LoaderPath $McpPluginPath
         Start-ManagedApp -Name "chatchat-api" -JarPath $ApiJar -Port $ApiPort -PidFile $ApiPidFile -StdoutLog $ApiOutLog -StderrLog $ApiErrLog -ExtraArgs $ApiArgs
 
         Write-Host ""
@@ -409,7 +417,8 @@ switch ($Action) {
         $McpJar = Get-ExecutableJar -ModuleName "chatchat-mcp-server"
         $ApiJar = Get-ExecutableJar -ModuleName "chatchat-api"
 
-        Start-ManagedApp -Name "chatchat-mcp-server" -JarPath $McpJar -Port $McpPort -PidFile $McpPidFile -StdoutLog $McpOutLog -StderrLog $McpErrLog -ExtraArgs $McpArgs
+        $McpPluginPath = if ($env:CHATCHAT_MCP_PLUGIN_PATH) { $env:CHATCHAT_MCP_PLUGIN_PATH } else { Join-Path $ProjectRoot "chatchat-mcp-server/lib/plugins" }
+        Start-ManagedApp -Name "chatchat-mcp-server" -JarPath $McpJar -Port $McpPort -PidFile $McpPidFile -StdoutLog $McpOutLog -StderrLog $McpErrLog -ExtraArgs $McpArgs -LoaderPath $McpPluginPath
         Start-ManagedApp -Name "chatchat-api" -JarPath $ApiJar -Port $ApiPort -PidFile $ApiPidFile -StdoutLog $ApiOutLog -StderrLog $ApiErrLog -ExtraArgs $ApiArgs
 
         Write-Host ""

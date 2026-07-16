@@ -58,6 +58,18 @@ public class HttpEndpointConfig {
 
     @Lob
     @Column(columnDefinition = "longtext")
+    private String outputSchemaJson;
+
+    @Lob
+    @Column(columnDefinition = "longtext")
+    private String capabilitySpecJson;
+
+    @Lob
+    @Column(columnDefinition = "longtext")
+    private String dependencySpecJson;
+
+    @Lob
+    @Column(columnDefinition = "longtext")
     private String governanceJson;
 
     @Column(nullable = false)

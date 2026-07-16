@@ -62,6 +62,7 @@ class SqlTemplateServiceTest {
                 "ORACLE_INSTANCE_STATUS",
                 "ORACLE_LOCKS",
                 "ORACLE_SYSTEM_EVENTS",
+                "ORACLE_TABLESPACE_USAGE",
                 "ORACLE_TABLESPACE_SIZE",
                 "POSTGRES_ACTIVITY",
                 "POSTGRES_DATABASE_SIZE",
@@ -111,7 +112,7 @@ class SqlTemplateServiceTest {
                 "POSTGRES_TABLE_METADATA",
                 "SQLSERVER_TABLE_METADATA"
             );
-        assertThat(saved).hasSize(45);
+        assertThat(saved).hasSize(46);
         assertThat(saved)
             .filteredOn(template -> template.getCode().startsWith("MYSQL_"))
             .hasSize(5)
@@ -122,8 +123,20 @@ class SqlTemplateServiceTest {
             });
         assertThat(saved)
             .filteredOn(template -> template.getCode().startsWith("ORACLE_"))
-            .hasSize(5)
+            .hasSize(6)
             .allSatisfy(template -> assertThat(template.getDatabaseType()).isEqualTo("oracle"));
+        assertThat(saved)
+            .filteredOn(template -> "ORACLE_TABLESPACE_USAGE".equals(template.getCode()))
+            .singleElement()
+            .satisfies(template -> {
+                assertThat(template.getSqlTemplate())
+                    .containsIgnoringCase("dba_data_files")
+                    .containsIgnoringCase("dba_free_space")
+                    .containsIgnoringCase("used_mb")
+                    .containsIgnoringCase("free_mb")
+                    .containsIgnoringCase("used_pct");
+                assertThat(template.getIntentSignalsJson()).contains("tablespace usage", "free space", "utilization");
+            });
         assertThat(saved)
             .filteredOn(template -> template.getCode().startsWith("POSTGRES_"))
             .hasSize(5)

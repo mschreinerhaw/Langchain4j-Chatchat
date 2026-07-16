@@ -201,12 +201,16 @@ public class McpTemplateLuceneIndexService {
         List<String> signals = new ArrayList<>(readStringArray(endpoint.getRoutingLabelsJson()));
         signals.addAll(readStringArray(endpoint.getCapabilitiesJson()));
         addDelimited(signals, endpoint.getTags());
-        addTerms(signals, templateId, endpoint.getName(), endpoint.getTitle(), endpoint.getDescription(), endpoint.getCategory());
+        addTerms(signals, templateId, endpoint.getName(), endpoint.getTitle(), endpoint.getDescription(), endpoint.getCategory(),
+            endpoint.getCapabilitySpecJson(), endpoint.getOutputSchemaJson(), endpoint.getDependencySpecJson());
         return new LuceneMcpSearchService.TemplateDoc(
             templateId,
             "http_endpoint",
             firstText(endpoint.getTitle(), templateId),
-            firstText(endpoint.getDescription(), ""),
+            firstText(endpoint.getDescription(), "") + " "
+                + firstText(endpoint.getCapabilitySpecJson(), "") + " "
+                + firstText(endpoint.getOutputSchemaJson(), "") + " "
+                + firstText(endpoint.getDependencySpecJson(), ""),
             firstText(endpoint.getCategory(), "http_request"),
             "generic",
             String.join(" ", signals),
@@ -219,14 +223,18 @@ public class McpTemplateLuceneIndexService {
     private LuceneMcpSearchService.TemplateDoc apiServiceTemplateDoc(ApiServiceConfig config) {
         List<String> signals = new ArrayList<>(governanceTerms(config.getGovernanceJson()));
         addTerms(signals, config.getToolName(), config.getTitle(), config.getDescription(), config.getBusinessGroup(),
-            config.getBusinessGroupName(), config.getBusinessGroupDescription(), config.getMethod());
+            config.getBusinessGroupName(), config.getBusinessGroupDescription(), config.getMethod(),
+            config.getCapabilitySpecJson(), config.getOutputSchemaJson(), config.getDependencySpecJson());
         return new LuceneMcpSearchService.TemplateDoc(
             config.getToolName(),
             "api_service",
             firstText(config.getTitle(), config.getToolName()),
             firstText(config.getDescription(), "") + " "
                 + firstText(config.getBusinessGroupName(), "") + " "
-                + firstText(config.getBusinessGroupDescription(), ""),
+                + firstText(config.getBusinessGroupDescription(), "") + " "
+                + firstText(config.getCapabilitySpecJson(), "") + " "
+                + firstText(config.getOutputSchemaJson(), "") + " "
+                + firstText(config.getDependencySpecJson(), ""),
             firstText(config.getBusinessGroup(), "api_service"),
             "generic",
             String.join(" ", signals),

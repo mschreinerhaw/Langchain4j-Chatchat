@@ -9,6 +9,8 @@ APP_JAR="$APP_HOME/lib/app/$APP_NAME.jar"
 PID_FILE="$APP_HOME/logs/$APP_NAME.pid"
 STDOUT_LOG="$APP_HOME/logs/$APP_NAME.out"
 CONFIG_DIR="$APP_HOME/config/"
+PLUGINS_DIR="${CHATCHAT_MCP_PLUGIN_PATH:-$APP_HOME/lib/plugins}"
+LAUNCHER_CLASS="org.springframework.boot.loader.launch.PropertiesLauncher"
 
 if [ -n "${JAVA_HOME:-}" ]; then
   JAVA_CMD="$JAVA_HOME/bin/java"
@@ -16,7 +18,7 @@ else
   JAVA_CMD="java"
 fi
 
-mkdir -p "$APP_HOME/logs" "$APP_HOME/lib/drivers"
+mkdir -p "$APP_HOME/logs" "$APP_HOME/lib/drivers" "$PLUGINS_DIR"
 
 . "$APP_HOME/bin/load-env.sh"
 
@@ -50,7 +52,12 @@ if [ ! -f "$APP_JAR" ]; then
   exit 1
 fi
 
-nohup "$JAVA_CMD" ${JAVA_OPTIONS:-} -jar "$APP_JAR" \
+LOADER_PATH="$PLUGINS_DIR"
+if [ -n "${CHATCHAT_MCP_ADDITIONAL_LOADER_PATH:-}" ]; then
+  LOADER_PATH="$LOADER_PATH,$CHATCHAT_MCP_ADDITIONAL_LOADER_PATH"
+fi
+
+nohup "$JAVA_CMD" ${JAVA_OPTIONS:-} "-Dloader.path=$LOADER_PATH" -cp "$APP_JAR" "$LAUNCHER_CLASS" \
   --debug=false \
   --spring.config.additional-location="optional:file:$CONFIG_DIR" \
   ${APP_ARGS:-} ${REMAINING_ARGS:-} >> "$STDOUT_LOG" 2>&1 &

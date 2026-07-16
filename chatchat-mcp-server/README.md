@@ -79,6 +79,7 @@ bin/status.sh
 config/application.yml
 logs/
 lib/app/chatchat-mcp-server.jar
+lib/plugins/
 lib/drivers/
 ```
 
@@ -101,6 +102,15 @@ Start, stop, restart, and check status:
 Runtime logs are written to `logs/`. Override JVM options with `JAVA_OPTS` and extra Spring Boot arguments with `APP_ARGS`.
 
 Put external JDBC driver jars into `lib/drivers/`. The `database_query` tool can then query an external database by passing `jdbc_url`, `username`, `password`, and optionally `driver_class`.
+
+Put optional shared SDKs and dependency jars into `lib/plugins/`. The startup scripts add this
+directory to the MCP application class path, so adding a missing driver dependency no longer
+requires rebuilding the MCP server. Restart the MCP server after changing plugin jars. Keep the
+driver jar itself under `lib/drivers/{databaseType}`; use `lib/plugins/` for dependencies that must
+be visible to the application or shared by multiple drivers.
+
+The default plugin directory can be replaced with `CHATCHAT_MCP_PLUGIN_PATH`, and additional
+comma-separated locations can be supplied with `CHATCHAT_MCP_ADDITIONAL_LOADER_PATH`.
 
 If a jar is added after startup, call `database_query` once with `reload_drivers=true` to rescan `lib/drivers/`.
 

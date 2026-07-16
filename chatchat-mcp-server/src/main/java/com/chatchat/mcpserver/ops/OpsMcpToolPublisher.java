@@ -124,6 +124,7 @@ public class OpsMcpToolPublisher {
             .name("http_request_execute")
             .title("HTTP request execution gateway")
             .description("Execute a configured HTTP endpoint through logical target routing. "
+                + "The template must be an id returned and accepted from http_endpoint_template_query. "
                 + "Do not pass endpointId, URL, host, IP address, or any concrete endpoint identifier.")
             .inputSchema(new McpSchema.JsonSchema("object", Map.of(
                 "executionContext", Map.of(
@@ -138,7 +139,7 @@ public class OpsMcpToolPublisher {
                 ),
                 "sourceTaskId", Map.of("type", "string"),
                 "reason", Map.of("type", "string", "description", "Execution reason for confirmation and audit")
-            ), List.of("executionContext"), true, null, null))
+            ), List.of("template"), true, null, null))
             .meta(httpRequestGatewayMeta())
             .build();
         return McpServerFeatures.SyncToolSpecification.builder()

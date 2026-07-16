@@ -60,6 +60,18 @@ public class ApiServiceConfig {
 
     @Lob
     @Column(columnDefinition = "longtext")
+    private String outputSchemaJson;
+
+    @Lob
+    @Column(columnDefinition = "longtext")
+    private String capabilitySpecJson;
+
+    @Lob
+    @Column(columnDefinition = "longtext")
+    private String dependencySpecJson;
+
+    @Lob
+    @Column(columnDefinition = "longtext")
     private String governanceJson;
 
     @Column(nullable = false)
@@ -293,6 +305,30 @@ public class ApiServiceConfig {
      */
     public void setInputSchemaJson(String inputSchemaJson) {
         this.inputSchemaJson = inputSchemaJson;
+    }
+
+    public String getOutputSchemaJson() {
+        return outputSchemaJson;
+    }
+
+    public void setOutputSchemaJson(String outputSchemaJson) {
+        this.outputSchemaJson = outputSchemaJson;
+    }
+
+    public String getCapabilitySpecJson() {
+        return capabilitySpecJson;
+    }
+
+    public void setCapabilitySpecJson(String capabilitySpecJson) {
+        this.capabilitySpecJson = capabilitySpecJson;
+    }
+
+    public String getDependencySpecJson() {
+        return dependencySpecJson;
+    }
+
+    public void setDependencySpecJson(String dependencySpecJson) {
+        this.dependencySpecJson = dependencySpecJson;
     }
 
     /**

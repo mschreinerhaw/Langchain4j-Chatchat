@@ -85,6 +85,7 @@ public class ApiTemplateDiscoveryMcpToolPublisher {
     Map<String, Object> query(Map<String, Object> arguments) {
         Map<String, Object> filters = filters(arguments);
         int limit = limit(arguments);
+        List<String> excludedTemplateIds = excludedTemplateIds(arguments);
         List<ApiServiceConfig> enabledConfigs = configService.listEnabled();
         List<ApiServiceConfig> scopedConfigs = scopedApiServices(enabledConfigs, filters);
         List<String> assetSignals = apiServiceSignals(scopedConfigs);
@@ -111,6 +112,7 @@ public class ApiTemplateDiscoveryMcpToolPublisher {
         List<ScoredApiTemplate> matched = hits.stream()
             .map(hit -> apiTemplateHit(configsByToolName, hit))
             .filter(item -> item != null)
+            .filter(item -> !excludedTemplateIds.contains(item.config().getToolName()))
             .toList();
         List<Map<String, Object>> templates = matched.stream()
             .limit(limit)
@@ -127,12 +129,20 @@ public class ApiTemplateDiscoveryMcpToolPublisher {
             "limit", limit,
             "returnedCount", templates.size(),
             "possiblyTruncated", matched.size() > limit,
+            "excludedTemplateIds", excludedTemplateIds,
+            "selectionProtocol", mapOf(
+                "schemaVersion", "template_selection_protocol.v1",
+                "allowedDecisions", List.of("accept", "refine", "reject"),
+                "selectedTemplateIdSource", "templates[].templateId",
+                "refineWith", List.of("filters.intent", "filters.goal", "filters.keywords", "excludeTemplateIds"),
+                "mustNotRepeatIdenticalQuery", true
+            ),
             "templateSelectionPolicy", mapOf(
                 "templateIdSource", "templates[].templateId",
                 "mustUseReturnedTemplateId", true,
                 "doNotInventTemplateNames", true,
                 "rawExecutionSpecReturned", false,
-                "selectionFields", List.of("templateId", "toolName", "title", "description", "businessGroup", "parameterSchema", "requiredParameters", "parameterContract", "invocationExample"),
+                "selectionFields", List.of("templateId", "toolName", "title", "description", "businessGroup", "capabilitySpec", "outputSchema", "dependencySpec", "parameterSchema", "requiredParameters", "parameterContract", "invocationExample"),
                 "onEmptyResult", "No existing API template matched the request. Do not invent an API tool name."
             ),
             "queryIr", mapOf(
@@ -187,6 +197,11 @@ public class ApiTemplateDiscoveryMcpToolPublisher {
                 "minimum", 1,
                 "maximum", MAX_LIMIT,
                 "description", "Maximum number of templates returned; capped at 20."
+            ),
+            "excludeTemplateIds", Map.of(
+                "type", "array",
+                "description", "Template ids rejected by a prior semantic review. They are excluded from this refinement query.",
+                "items", Map.of("type", "string")
             )
         ), List.of("filters"), false, null, null);
     }
@@ -467,6 +482,9 @@ public class ApiTemplateDiscoveryMcpToolPublisher {
             "targetKind", "api_service",
             "method", config.getMethod(),
             "parameterSchema", parameterSchema,
+            "outputSchema", jsonObject(config.getOutputSchemaJson()),
+            "capabilitySpec", jsonObject(config.getCapabilitySpecJson()),
+            "dependencySpec", jsonObject(config.getDependencySpecJson()),
             "requiredParameters", requiredParameters,
             "parameterContract", directParameterContract(config.getToolName(), parameterSchema),
             "invocationExample", directInvocationExample(config.getToolName(), parameterSchema),
@@ -474,7 +492,7 @@ public class ApiTemplateDiscoveryMcpToolPublisher {
             "enabled", config.isEnabled(),
             "relevanceScore", score,
             "routing", mapOf(
-                "callTool", config.getToolName(),
+                "callTool", ApiMcpToolPublisher.EXECUTE_TOOL_NAME,
                 "templateId", config.getToolName(),
                 "source", TOOL_NAME + ".templates[].templateId"
             )
@@ -499,14 +517,14 @@ public class ApiTemplateDiscoveryMcpToolPublisher {
         return mapOf(
             "schemaVersion", "template_parameter_contract.v1",
             "templateId", toolName,
-            "executionTool", toolName,
-            "argumentContainer", toolName + ".arguments",
+            "executionTool", ApiMcpToolPublisher.EXECUTE_TOOL_NAME,
+            "argumentContainer", ApiMcpToolPublisher.EXECUTE_TOOL_NAME + ".parameters",
             "required", required,
             "optional", properties.keySet().stream()
                 .filter(key -> !required.contains(key))
                 .toList(),
-            "mustPassUnderParameters", false,
-            "topLevelTemplateParametersAllowed", true,
+            "mustPassUnderParameters", true,
+            "topLevelTemplateParametersAllowed", false,
             "missingRequiredBehavior", "Do not call the API MCP tool until every required argument is present."
         );
     }
@@ -521,9 +539,36 @@ public class ApiTemplateDiscoveryMcpToolPublisher {
             arguments.put(required, exampleValue(required, properties.get(required)));
         }
         return mapOf(
-            "tool", toolName,
-            "arguments", arguments
+            "tool", ApiMcpToolPublisher.EXECUTE_TOOL_NAME,
+            "templateId", toolName,
+            "parameters", arguments
         );
+    }
+
+    private List<String> excludedTemplateIds(Map<String, Object> arguments) {
+        Object value = arguments == null ? null : firstValue(arguments, "excludeTemplateIds", "excludedTemplateIds");
+        if (!(value instanceof Iterable<?> iterable)) {
+            return List.of();
+        }
+        List<String> values = new ArrayList<>();
+        for (Object item : iterable) {
+            String id = text(item);
+            if (!id.isBlank() && !values.contains(id)) {
+                values.add(id);
+            }
+        }
+        return List.copyOf(values);
+    }
+
+    private Map<String, Object> jsonObject(String json) {
+        if (json == null || json.isBlank()) {
+            return Map.of();
+        }
+        try {
+            return objectMapper.readValue(json, new TypeReference<>() {});
+        } catch (Exception ignored) {
+            return Map.of();
+        }
     }
 
     private List<String> requiredParameters(Map<String, Object> parameterSchema) {

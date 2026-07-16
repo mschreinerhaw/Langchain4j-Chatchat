@@ -159,11 +159,13 @@ public class InterpretationPlanRewriter {
         prompt.append("Strict template argument contract:\n");
         prompt.append("- Model output is untrusted. template/templateId must be one scalar string from templates[i].templateId; parameters must be an object of execution values; executionContext must be an object.\n");
         prompt.append("- Use input.toolCall={toolName,action,parameters,context}. Runtime, not the model, compiles this semantic DSL into concrete MCP executor parameters and may query allowed MCP metadata/resolver tools within its bounded repair policy.\n");
+        prompt.append("- For a parameterized template discovered by a prior step, preserve that discovery dependency. The DAG controller will emit template_parameter_protocol_v1 from the current user query after seeing the returned parameterSchema; do not guess undeclared parameter names in the rewritten executor input.\n");
         prompt.append("- parameterSchema, requiredParameters, parameterContract, invocationExample, selectedTemplate, and an entire templates[i] object are read-only discovery metadata. Never pass any of them as templateId or parameters.\n");
         prompt.append("- A binding targeting template/templateId must use an output_path ending in the scalar identifier field templateId (or the discovery contract's explicit scalar id field).\n\n");
         prompt.append("HTTP/API/SSH template repair rules:\n");
         prompt.append("- For http_request_execute and linux_command_execute, bind a returned templates[].templateId into input.template and pass only parameters declared by templates[].parameterSchema under input.parameters.\n");
-        prompt.append("- For API service tools returned by api_template_query, call the returned toolName/templateId exactly and pass only arguments declared by templates[].parameterSchema/parameterContract.\n");
+        prompt.append("- For API templates returned by api_template_query, call api_template_execute with the returned scalar templateId and pass only arguments declared by templates[].parameterSchema/parameterContract under parameters.\n");
+        prompt.append("- When template discovery returned candidates but semantic review rejected them, preserve the rejection reason, add their ids to excludeTemplateIds, refine intent/goal/keywords, and query again. Never repeat an identical template query.\n");
         prompt.append("- Remove raw HTTP fields url/uri/method/headers/body/endpointId and raw SSH fields command/rawCommand/shell/host/hostname/ip/hostId from execution inputs. Replan through template discovery if needed.\n");
         prompt.append("- Never retry HTTP/API/SSH template execution with empty parameters when requiredParameters is non-empty; add/bind the missing parameters first.\n\n");
         prompt.append("InterpretationPlan JSON Schema:\n").append(InterpretationPlanJsonSchema.SCHEMA).append("\n\n");

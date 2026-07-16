@@ -434,6 +434,147 @@ class InterpretationPlanValidatorTest {
     }
 
     @Test
+    void rejectsSchemaToParametersBindingAndNonCanonicalAssetNamePath() {
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        for (String toolName : List.of(
+            "mcp_chatchat_mcp_server_database_asset_search",
+            "mcp_chatchat_mcp_server_database_ops_template_search",
+            "mcp_chatchat_mcp_server_sql_query_execute"
+        )) {
+            when(toolRegistry.hasTool(toolName)).thenReturn(true);
+            when(toolRegistry.getToolMetadata(toolName)).thenReturn(ToolMetadata.builder()
+                .id(toolName).riskLevel("low").build());
+        }
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0",
+            new InterpretationPlan.Intent("data_query", "Analyze Oracle tablespace usage", "low"),
+            context(),
+            new InterpretationPlan.Plan(
+                List.of(
+                    new InterpretationPlan.Step(1, "mcp_tool",
+                        "mcp_chatchat_mcp_server_database_asset_search",
+                        Map.of("filters", Map.of("assetName", "risk-oracle", "env", "DEV")),
+                        List.of(), null, null),
+                    new InterpretationPlan.Step(2, "mcp_tool",
+                        "mcp_chatchat_mcp_server_database_ops_template_search",
+                        Map.of("filters", Map.of("intent", "tablespace usage")),
+                        List.of(1), null, null),
+                    new InterpretationPlan.Step(3, "mcp_tool",
+                        "mcp_chatchat_mcp_server_sql_query_execute",
+                        Map.of(
+                            "templateId", "",
+                            "parameters", Map.of(),
+                            "executionContext", Map.of("assetName", "", "env", "DEV")
+                        ),
+                        List.of(1, 2), null, null),
+                    finalStep(4, List.of(3))
+                ),
+                List.of(),
+                List.of(
+                    new InterpretationPlan.Binding(1, "$.assets[0].assetName", 3,
+                        "executionContext.assetName", "jsonpath", true),
+                    new InterpretationPlan.Binding(2, "$.templates[0].templateId", 3,
+                        "templateId", "jsonpath", true),
+                    new InterpretationPlan.Binding(2, "$.templates[0].parameterSchema", 3,
+                        "parameters", "jsonpath", false)
+                ),
+                new InterpretationPlan.Stability(List.of(1, 2, 3), List.of(), true, List.of())
+            ),
+            new InterpretationPlan.ExecutionPolicy(
+                5, false,
+                List.of(
+                    "mcp_chatchat_mcp_server_database_asset_search",
+                    "mcp_chatchat_mcp_server_database_ops_template_search",
+                    "mcp_chatchat_mcp_server_sql_query_execute"
+                ),
+                List.of(), 30000
+            ),
+            review(false)
+        );
+
+        InterpretationPlanValidator.ValidationResult result = validator.validate(
+            plan,
+            toolRegistry,
+            Set.of(
+                "mcp_chatchat_mcp_server_database_asset_search",
+                "mcp_chatchat_mcp_server_database_ops_template_search",
+                "mcp_chatchat_mcp_server_sql_query_execute"
+            )
+        );
+
+        assertThat(result.valid()).isFalse();
+        assertThat(result.errors()).extracting(InterpretationPlanValidator.ValidationIssue::message)
+            .anyMatch(message -> message.contains("must use the canonical asset discovery path"))
+            .anyMatch(message -> message.contains("read-only discovery metadata"))
+            .anyMatch(message -> message.contains("must have a matching edge_contract"));
+    }
+
+    @Test
+    void acceptsCanonicalAssetNameAndConcreteEmptyParametersContract() {
+        ToolRegistry toolRegistry = mock(ToolRegistry.class);
+        for (String toolName : List.of(
+            "mcp_chatchat_mcp_server_database_asset_search",
+            "mcp_chatchat_mcp_server_database_ops_template_search",
+            "mcp_chatchat_mcp_server_sql_query_execute"
+        )) {
+            when(toolRegistry.hasTool(toolName)).thenReturn(true);
+            when(toolRegistry.getToolMetadata(toolName)).thenReturn(ToolMetadata.builder()
+                .id(toolName).riskLevel("low").build());
+        }
+        InterpretationPlan plan = new InterpretationPlan(
+            "1.0", new InterpretationPlan.Intent("data_query", "Analyze Oracle tablespace usage", "low"),
+            context(),
+            new InterpretationPlan.Plan(
+                List.of(
+                    new InterpretationPlan.Step(1, "mcp_tool",
+                        "mcp_chatchat_mcp_server_database_asset_search",
+                        Map.of("filters", Map.of("assetName", "risk-oracle", "env", "DEV")),
+                        List.of(), null, null),
+                    new InterpretationPlan.Step(2, "mcp_tool",
+                        "mcp_chatchat_mcp_server_database_ops_template_search",
+                        Map.of("filters", Map.of("intent", "tablespace usage")),
+                        List.of(1), null, null),
+                    new InterpretationPlan.Step(3, "mcp_tool",
+                        "mcp_chatchat_mcp_server_sql_query_execute",
+                        Map.of("templateId", "", "parameters", Map.of(),
+                            "executionContext", Map.of("assetName", "", "env", "DEV")),
+                        List.of(1, 2), null, null),
+                    finalStep(4, List.of(3))
+                ),
+                List.of(
+                    new InterpretationPlan.EdgeContract(1, 3, "$.assets[0].asset.name", "string", true),
+                    new InterpretationPlan.EdgeContract(2, 3, "$.templates[0].templateId", "string", true)
+                ),
+                List.of(
+                    new InterpretationPlan.Binding(1, "$.assets[0].asset.name", 3,
+                        "executionContext.assetName", "jsonpath", true),
+                    new InterpretationPlan.Binding(2, "$.templates[0].templateId", 3,
+                        "templateId", "jsonpath", true)
+                ),
+                new InterpretationPlan.Stability(List.of(1, 2, 3), List.of(), true, List.of())
+            ),
+            new InterpretationPlan.ExecutionPolicy(5, false,
+                List.of(
+                    "mcp_chatchat_mcp_server_database_asset_search",
+                    "mcp_chatchat_mcp_server_database_ops_template_search",
+                    "mcp_chatchat_mcp_server_sql_query_execute"
+                ), List.of(), 30000),
+            review(false)
+        );
+
+        InterpretationPlanValidator.ValidationResult result = validator.validate(
+            plan, toolRegistry,
+            Set.of(
+                "mcp_chatchat_mcp_server_database_asset_search",
+                "mcp_chatchat_mcp_server_database_ops_template_search",
+                "mcp_chatchat_mcp_server_sql_query_execute"
+            )
+        );
+
+        assertThat(result.valid()).isTrue();
+    }
+
+    @Test
     void rejectsSqlExecuteWithoutAnyExecutionContextSource() {
         ToolRegistry toolRegistry = mock(ToolRegistry.class);
         when(toolRegistry.hasTool("mcp_chatchat_mcp_server_sql_query_execute")).thenReturn(true);

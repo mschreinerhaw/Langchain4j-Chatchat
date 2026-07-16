@@ -25,8 +25,10 @@ export default {
       toolPageTotal: 1,
       filteredToolGroupCountValue: 0,
       toolServiceOptionsData: [],
+      toolCategoryOptionsData: [],
       toolSearchQuery: "",
       toolServiceFilter: "all",
+      toolCategoryFilter: "all",
       toolGroupMode: "service",
       activeTool: null,
       toolPage: 1,
@@ -54,6 +56,11 @@ export default {
       return this.toolServiceOptionsData.length
         ? this.toolServiceOptionsData
         : [{ value: "all", label: "全部服务", count: this.mcpToolTotal }];
+    },
+    toolCategoryOptions() {
+      return this.toolCategoryOptionsData.length
+        ? this.toolCategoryOptionsData
+        : [{ value: "all", label: "全部分类", count: this.mcpToolTotal }];
     },
     toolGroupOptions() {
       return [
@@ -131,6 +138,10 @@ export default {
       this.toolPage = 1;
       this.loadToolCards();
     },
+    toolCategoryFilter() {
+      this.toolPage = 1;
+      this.loadToolCards();
+    },
     toolGroupMode() {
       this.toolPage = 1;
       this.loadToolCards();
@@ -186,6 +197,7 @@ export default {
       return {
         keyword: this.toolSearchQuery.trim(),
         service: this.toolServiceFilter,
+        category: this.toolCategoryFilter,
         sourceType: "mcp",
         groupMode: this.toolGroupMode,
         page: this.toolPage,
@@ -200,6 +212,7 @@ export default {
         this.toolPageTotal = Math.max(1, Math.ceil(this.toolTotal / this.toolPageSize));
         this.filteredToolGroupCountValue = new Set(this.toolCards.map((tool) => this.resolveToolGroup(tool).key)).size;
         this.toolServiceOptionsData = [];
+        this.toolCategoryOptionsData = [];
         return;
       }
       this.toolCards = Array.isArray(payload?.tools) ? payload.tools : [];
@@ -209,6 +222,7 @@ export default {
       this.toolPageTotal = payload?.totalPages || 1;
       this.filteredToolGroupCountValue = payload?.filteredGroupCount || 0;
       this.toolServiceOptionsData = Array.isArray(payload?.serviceOptions) ? payload.serviceOptions : [];
+      this.toolCategoryOptionsData = Array.isArray(payload?.categoryOptions) ? payload.categoryOptions : [];
       this.mcpToolTotal = this.toolServiceOptionsData.find((option) => option.value === "all")?.count || this.toolTotal;
     },
     serviceBadge(service) {

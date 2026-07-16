@@ -551,6 +551,19 @@ public class SqlTemplateService {
                 "oracle", "performance",
                 "SELECT * FROM v$system_event",
                 List.of("wait event", "performance", "cpu", "system event", "performance_issue")),
+            maintenanceTemplate("ORACLE_TABLESPACE_USAGE", "Oracle tablespace usage",
+                "Summarize Oracle tablespace capacity, used space, free space, and utilization percentage.",
+                "oracle", "storage",
+                "SELECT df.tablespace_name, "
+                    + "ROUND(df.total_bytes / 1024 / 1024, 2) AS total_mb, "
+                    + "ROUND((df.total_bytes - NVL(fs.free_bytes, 0)) / 1024 / 1024, 2) AS used_mb, "
+                    + "ROUND(NVL(fs.free_bytes, 0) / 1024 / 1024, 2) AS free_mb, "
+                    + "ROUND((df.total_bytes - NVL(fs.free_bytes, 0)) * 100 / NULLIF(df.total_bytes, 0), 2) AS used_pct "
+                    + "FROM (SELECT tablespace_name, SUM(bytes) AS total_bytes FROM dba_data_files GROUP BY tablespace_name) df "
+                    + "LEFT JOIN (SELECT tablespace_name, SUM(bytes) AS free_bytes FROM dba_free_space GROUP BY tablespace_name) fs "
+                    + "ON fs.tablespace_name = df.tablespace_name ORDER BY used_pct DESC",
+                List.of("tablespace usage", "tablespace utilization", "used space", "free space", "usage rate",
+                    "utilization", "storage usage", "storage_check")),
             maintenanceTemplate("ORACLE_TABLESPACE_SIZE", "Oracle tablespace size",
                 "Summarize Oracle tablespace size in megabytes.",
                 "oracle", "storage",

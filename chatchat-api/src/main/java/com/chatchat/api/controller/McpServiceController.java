@@ -221,6 +221,7 @@ public class McpServiceController {
      *
      * @param keyword the keyword value
      * @param service the service value
+     * @param category the functional category value
      * @param sourceType the source type value
      * @param groupMode the group mode value
      * @param page the page value
@@ -231,6 +232,7 @@ public class McpServiceController {
     @Operation(summary = "List registered backend and MCP tools as searchable cards")
     public ApiResponse<Map<String, Object>> listToolCards(@RequestParam(value = "keyword", required = false) String keyword,
                                                           @RequestParam(value = "service", required = false) String service,
+                                                          @RequestParam(value = "category", required = false) String category,
                                                           @RequestParam(value = "sourceType", required = false) String sourceType,
                                                           @RequestParam(value = "groupMode", required = false) String groupMode,
                                                           @RequestParam(value = "page", required = false) Integer page,
@@ -240,8 +242,9 @@ public class McpServiceController {
             .filter(tool -> isAll(sourceType) || sourceType.equalsIgnoreCase(tool.sourceType()))
             .toList();
         List<ToolServiceOption> serviceOptions = buildToolServiceOptions(sourceScopedTools);
+        List<ToolServiceOption> categoryOptions = buildToolCategoryOptions(sourceScopedTools);
         List<ToolCardView> filteredTools = sourceScopedTools.stream()
-            .filter(tool -> matchesToolFilters(tool, keyword, service))
+            .filter(tool -> matchesToolFilters(tool, keyword, service, category))
             .toList();
         int normalizedPage = normalizePage(page);
         int normalizedPageSize = normalizePageSize(pageSize, 6, 100);
@@ -257,6 +260,7 @@ public class McpServiceController {
         pageData.put("totalPages", totalPages(filteredTools.size(), normalizedPageSize));
         pageData.put("filteredGroupCount", filteredToolGroupCount(filteredTools, groupMode));
         pageData.put("serviceOptions", serviceOptions);
+        pageData.put("categoryOptions", categoryOptions);
         return ApiResponse.success(pageData);
     }
 
@@ -389,20 +393,64 @@ public class McpServiceController {
     }
 
     /**
+     * Builds functional category options from the categories declared by each tool.
+     * No category names are inferred from tool names, so newly synchronized MCP
+     * services become filterable without frontend changes.
+     */
+    private List<ToolServiceOption> buildToolCategoryOptions(List<ToolCardView> tools) {
+        Map<String, ToolServiceOptionBuilder> builders = new LinkedHashMap<>();
+        for (ToolCardView tool : tools) {
+            List<String> categories = normalizedToolCategories(tool);
+            for (String category : categories) {
+                String key = normalizeKeyword(category);
+                ToolServiceOptionBuilder builder = builders.computeIfAbsent(key, ignored ->
+                    new ToolServiceOptionBuilder(key, category));
+                builder.count += 1;
+            }
+        }
+        List<ToolServiceOption> options = new ArrayList<>();
+        options.add(new ToolServiceOption("all", "全部分类", tools.size()));
+        builders.values().stream()
+            .map(builder -> new ToolServiceOption(builder.value, builder.label, builder.count))
+            .sorted(Comparator.comparing(ToolServiceOption::label))
+            .forEach(options::add);
+        return options;
+    }
+
+    /**
      * Returns whether matches tool filters.
      *
      * @param tool the tool value
      * @param keyword the keyword value
      * @param service the service value
+     * @param category the functional category value
      * @return whether the condition is satisfied
      */
-    private boolean matchesToolFilters(ToolCardView tool, String keyword, String service) {
+    private boolean matchesToolFilters(ToolCardView tool, String keyword, String service, String category) {
         String normalizedKeyword = normalizeKeyword(keyword);
         String normalizedService = normalizeKeyword(service);
+        String normalizedCategory = normalizeKeyword(category);
         String serviceKey = firstNonBlank(tool.serviceId(), tool.serviceName(), "ungrouped");
         boolean serviceMatched = normalizedService.isEmpty() || serviceKey.equalsIgnoreCase(normalizedService);
+        boolean categoryMatched = normalizedCategory.isEmpty() || normalizedToolCategories(tool).stream()
+            .map(this::normalizeKeyword)
+            .anyMatch(normalizedCategory::equals);
         boolean keywordMatched = normalizedKeyword.isEmpty() || toolSearchText(tool).contains(normalizedKeyword);
-        return serviceMatched && keywordMatched;
+        return serviceMatched && categoryMatched && keywordMatched;
+    }
+
+    private List<String> normalizedToolCategories(ToolCardView tool) {
+        if (tool.categories() == null || tool.categories().isEmpty()) {
+            return List.of("未分类");
+        }
+        Map<String, String> categories = new LinkedHashMap<>();
+        for (String category : tool.categories()) {
+            if (category != null && !category.isBlank()) {
+                String label = category.trim();
+                categories.putIfAbsent(normalizeKeyword(label), label);
+            }
+        }
+        return categories.isEmpty() ? List.of("未分类") : List.copyOf(categories.values());
     }
 
     /**

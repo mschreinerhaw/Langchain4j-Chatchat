@@ -1,6 +1,7 @@
 package com.chatchat.agents.orchestration;
 
 import com.chatchat.agents.tool.ToolRegistry;
+import com.chatchat.common.interaction.InteractionToolTrace;
 import com.chatchat.common.tool.ToolMetadata;
 import org.junit.jupiter.api.Test;
 
@@ -367,6 +368,138 @@ class AgentToolArgumentResolverTest {
             .isInstanceOfSatisfying(Map.class, context -> assertThat(context)
                 .containsEntry("assetName", "248测试数据库")
                 .containsEntry("env", "DEV"));
+    }
+
+    @Test
+    @SuppressWarnings("unchecked")
+    void hydratesLegacyAgentExecutorFromObservedTemplateContract() {
+        InteractionToolTrace discovery = InteractionToolTrace.builder()
+            .toolName("mcp_chatchat_mcp_server_database_ops_template_search")
+            .success(true)
+            .output("""
+                {
+                  "queryIr": {
+                    "asset": {
+                      "selected": {
+                        "name": "风控oracle服务器",
+                        "environment": "DEV"
+                      }
+                    }
+                  },
+                  "templates": [
+                    {
+                      "templateId": "ORACLE_INSTANCE_STATUS",
+                      "parameterContract": {
+                        "executionTool": "sql_query_execute"
+                      },
+                      "parameterSchema": {
+                        "type": "object",
+                        "properties": {},
+                        "required": []
+                      }
+                    }
+                  ]
+                }
+                """)
+            .build();
+
+        Map<String, Object> result = resolver.applyObservedTemplateContract(
+            "mcp_chatchat_mcp_server_sql_query_execute",
+            Map.of("executionContext", Map.of("service", "oracle"), "purpose", "分析数据库状态"),
+            List.of(discovery)
+        );
+
+        assertThat(result)
+            .containsEntry("template", "ORACLE_INSTANCE_STATUS")
+            .containsEntry("parameters", Map.of());
+        assertThat((Map<String, Object>) result.get("executionContext"))
+            .containsEntry("service", "oracle")
+            .containsEntry("assetName", "风控oracle服务器")
+            .containsEntry("env", "DEV");
+    }
+
+    @Test
+    void doesNotUseDiscoveryTemplateDeclaredForAnotherExecutor() {
+        InteractionToolTrace discovery = InteractionToolTrace.builder()
+            .success(true)
+            .output("""
+                {"templates":[{"templateId":"CHECK_HOST","parameterContract":{"executionTool":"linux_command_execute"}}]}
+                """)
+            .build();
+
+        Map<String, Object> result = resolver.applyObservedTemplateContract(
+            "mcp_chatchat_mcp_server_sql_query_execute",
+            Map.of("purpose", "分析数据库状态"),
+            List.of(discovery)
+        );
+
+        assertThat(result).doesNotContainKeys("template", "templateId");
+    }
+
+    @Test
+    void compilesApiGatewayTemplateIntoTemplateIdField() {
+        InteractionToolTrace discovery = InteractionToolTrace.builder()
+            .success(true)
+            .toolName("mcp_chatchat_mcp_server_api_template_query")
+            .output("""
+                {
+                  "templates":[{
+                    "templateId":"customer_profile_query",
+                    "parameterContract":{"executionTool":"api_template_execute"},
+                    "parameterSchema":{
+                      "type":"object",
+                      "properties":{"customerId":{"type":"string"}},
+                      "required":["customerId"]
+                    }
+                  }]
+                }
+                """)
+            .build();
+
+        Map<String, Object> result = resolver.applyObservedTemplateContract(
+            "mcp_chatchat_mcp_server_api_template_execute",
+            Map.of("parameters", Map.of("customerId", "C-1001")),
+            List.of(discovery)
+        );
+
+        assertThat(result)
+            .containsEntry("templateId", "customer_profile_query")
+            .containsEntry("parameters", Map.of("customerId", "C-1001"))
+            .doesNotContainKey("template");
+    }
+
+    @Test
+    void rejectsObservedTemplateWhenRequiredBusinessParameterIsMissing() {
+        InteractionToolTrace discovery = InteractionToolTrace.builder()
+            .success(true)
+            .output("""
+                {
+                  "templates":[{
+                    "templateId":"TABLE_DETAIL",
+                    "parameterContract":{"executionTool":"sql_query_execute"},
+                    "parameterSchema":{
+                      "type":"object",
+                      "properties":{"tableName":{"type":"string"}},
+                      "required":["tableName"]
+                    }
+                  }]
+                }
+                """)
+            .build();
+
+        Map<String, Object> result = resolver.applyObservedTemplateContract(
+            "mcp_chatchat_mcp_server_sql_query_execute",
+            Map.of("parameters", Map.of()),
+            List.of(discovery)
+        );
+
+        assertThat(result)
+            .containsEntry("template", "TABLE_DETAIL")
+            .containsEntry("__runtimeParamBindingStatus", "DENIED")
+            .containsEntry("__runtimeParamBindingCode", "INVALID_TOOL_ARGUMENTS");
+        assertThat(result.get("__runtimeParamBindingError").toString())
+            .contains("REQUIRED_PARAMETER_MISSING")
+            .contains("tableName");
     }
 
     @Test

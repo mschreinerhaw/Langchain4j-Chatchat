@@ -537,10 +537,13 @@ public class McpAuthorizationService {
         return switch (semantic) {
             case "api_asset_query" -> new ToolScope("api_service", "asset", "query");
             case "api_template_query" -> new ToolScope("api_service", "template", "query");
+            case "api_template_execute" -> new ToolScope("api_service", "template", "execute");
+            case "api_requirement_analyze" -> new ToolScope("api_service", "requirement", "query");
             case "document_search" -> new ToolScope("document", "document", "search");
             case "database_query" -> new ToolScope("database_query", "execute", "query");
             case "linux_command_execute" -> new ToolScope("ssh_host", "execute", "command");
             case "http_request_execute" -> new ToolScope("http_endpoint", "execute", "request");
+            case "http_requirement_analyze" -> new ToolScope("http_endpoint", "requirement", "query");
             case "sql_query_execute" -> new ToolScope("sql_datasource", "execute", "query");
             case "sql_script_execute" -> new ToolScope("sql_datasource", "execute", "script");
             case "sql_metadata_search" -> new ToolScope("sql_datasource", "metadata", "search");

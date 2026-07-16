@@ -69,6 +69,9 @@ public class HttpEndpointConfigService {
         config.setHeadersJson(normalizeJsonObject(request.getHeadersJson(), "headers"));
         config.setBodyTemplate(blankToNull(request.getBodyTemplate()));
         config.setInputSchemaJson(normalizeJsonObject(request.getInputSchemaJson(), "inputSchema"));
+        config.setOutputSchemaJson(normalizeJsonObject(request.getOutputSchemaJson(), "outputSchema"));
+        config.setCapabilitySpecJson(normalizeJsonObject(request.getCapabilitySpecJson(), "capabilitySpec"));
+        config.setDependencySpecJson(normalizeJsonObject(request.getDependencySpecJson(), "dependencySpec"));
         config.setGovernanceJson(normalizeJsonObject(request.getGovernanceJson(), "governance"));
         config.setEnabled(request.isEnabled());
         config.setEnvironment(firstText(request.getEnvironment(), config.getEnvironment()));
@@ -110,6 +113,9 @@ public class HttpEndpointConfigService {
         config.setUrlTemplate(requireHttpUrl(config.getUrlTemplate()));
         config.setHeadersJson(normalizeJsonObject(config.getHeadersJson(), "headers"));
         config.setInputSchemaJson(normalizeJsonObject(config.getInputSchemaJson(), "inputSchema"));
+        config.setOutputSchemaJson(normalizeJsonObject(config.getOutputSchemaJson(), "outputSchema"));
+        config.setCapabilitySpecJson(normalizeJsonObject(config.getCapabilitySpecJson(), "capabilitySpec"));
+        config.setDependencySpecJson(normalizeJsonObject(config.getDependencySpecJson(), "dependencySpec"));
         config.setGovernanceJson(normalizeJsonObject(config.getGovernanceJson(), "governance"));
         config.setEnvironment(normalizeEnvironment(config.getEnvironment()));
         config.setCategory(firstText(config.getCategory(), "api_gateway").toLowerCase(Locale.ROOT));

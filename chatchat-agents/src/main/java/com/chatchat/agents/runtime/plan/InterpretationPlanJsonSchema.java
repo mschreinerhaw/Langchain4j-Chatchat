@@ -123,13 +123,18 @@ public final class InterpretationPlanJsonSchema {
                   "description": "Executable data-flow bindings from an upstream step output into a downstream step input.",
                   "items": {
                     "type": "object",
-                    "required": ["from", "output_path", "to", "input_field", "type"],
+                    "required": ["from", "output_path", "to", "type"],
+                    "anyOf": [
+                      {"required": ["input_field"]},
+                      {"required": ["input_path"]}
+                    ],
                     "additionalProperties": false,
                     "properties": {
                       "from": {"type": "integer"},
-                      "output_path": {"type": "string", "description": "source output path, e.g. $.results[0].url"},
+                      "output_path": {"type": "string", "description": "Canonical source output path. Asset names use $.assets[0].asset.name. Template ids use $.templates[0].templateId. Never bind parameterSchema or other schema metadata into execution parameters."},
                       "to": {"type": "integer"},
-                      "input_field": {"type": "string", "description": "target input field, e.g. url"},
+                      "input_field": {"type": "string", "description": "Complete target input path, e.g. filters.assetName or $.executionContext.assetName. Executor parameters contain concrete values only."},
+                      "input_path": {"type": "string", "description": "alias of input_field; complete JSONPath destination, e.g. $.filters.assetName"},
                       "type": {"type": "string", "enum": ["jsonpath", "jq"]},
                       "required": {"type": "boolean"}
                     }

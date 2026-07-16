@@ -95,6 +95,14 @@
           </select>
         </label>
         <label>
+          <span>功能分类</span>
+          <select v-model="toolCategoryFilter">
+            <option v-for="category in toolCategoryOptions" :key="category.value" :value="category.value">
+              {{ category.label }}（{{ category.count }}）
+            </option>
+          </select>
+        </label>
+        <label>
           <span>分组</span>
           <select v-model="toolGroupMode">
             <option v-for="option in toolGroupOptions" :key="option.value" :value="option.value">

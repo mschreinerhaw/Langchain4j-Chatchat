@@ -23,9 +23,54 @@ import java.util.Map;
 public class ApiToolSpecFactory {
 
     private final ApiInvokeService invokeService;
+    private final ApiServiceConfigService configService;
     private final ObjectMapper objectMapper;
     private final AgentRuntimeGovernanceFactory governanceFactory;
     private final McpToolConcurrencyManager concurrencyManager;
+
+    public McpServerFeatures.SyncToolSpecification toGatewayToolSpecification() {
+        McpSchema.Tool tool = McpSchema.Tool.builder()
+            .name(ApiMcpToolPublisher.EXECUTE_TOOL_NAME)
+            .title("API template execution gateway")
+            .description("Execute one enabled API template selected from api_template_query. "
+                + "templateId must be copied from templates[].templateId and all business arguments must be under parameters. "
+                + "Raw URL, HTTP method, headers and body are forbidden.")
+            .inputSchema(new McpSchema.JsonSchema("object", Map.of(
+                "templateId", Map.of("type", "string", "description", "Existing templateId returned by api_template_query"),
+                "parameters", Map.of("type", "object", "additionalProperties", true,
+                    "description", "Values declared by the selected template parameterSchema"),
+                "purpose", Map.of("type", "string"),
+                "sourceTaskId", Map.of("type", "string")
+            ), List.of("templateId", "parameters"), false, null, null))
+            .meta(Map.of(
+                "schemaVersion", "api_template_execute.v1",
+                "runtime_action", "execute",
+                "runtimeAction", "execute",
+                "templateGoverned", true,
+                "templateDiscoveryTool", ApiTemplateDiscoveryMcpToolPublisher.TOOL_NAME
+            ))
+            .build();
+        return McpServerFeatures.SyncToolSpecification.builder()
+            .tool(tool)
+            .callHandler((exchange, request) -> concurrencyManager.execute(
+                ApiMcpToolPublisher.EXECUTE_TOOL_NAME,
+                "http",
+                request.arguments(),
+                () -> {
+                    Object rawTemplateId = request.arguments() == null ? null : request.arguments().get("templateId");
+                    String templateId = rawTemplateId == null ? null : String.valueOf(rawTemplateId).trim();
+                    if (templateId == null || templateId.isBlank()) {
+                        throw new IllegalArgumentException("templateId is required and must come from api_template_query");
+                    }
+                    ApiServiceConfig config = configService.findByToolName(templateId)
+                        .filter(ApiServiceConfig::isEnabled)
+                        .orElseThrow(() -> new IllegalArgumentException("API template not found or disabled: " + templateId));
+                    log.info("MCP API template execution received templateId={} argKeys={}",
+                        templateId, argumentKeys(request.arguments()));
+                    return toCallToolResult(config, invokeService.invoke(config, request.arguments()));
+                }))
+            .build();
+    }
 
     /**
      * Converts the value to tool specification.

@@ -101,6 +101,11 @@ if ($null -eq $ReleaseCheck) {
     throw "Release zip does not contain lib/app/chatchat-mcp-server.jar."
 }
 
+$PluginDirectoryCheck = & jar tf $ReleaseZipPath | Select-String "lib/plugins/README.md"
+if ($null -eq $PluginDirectoryCheck) {
+    throw "Release zip does not contain the lib/plugins extension directory."
+}
+
 Remove-Item -LiteralPath $VerifyDir -Recurse -Force
 
 Write-Host ""
@@ -108,3 +113,4 @@ Write-Host "MCP server package created successfully."
 Write-Host "Executable jar: $JarPath"
 Write-Host "Release zip: $ReleaseZipPath"
 Write-Host "Verified: packaged chatchat-common contains ToolLogSummarizer.class"
+Write-Host "Verified: release package contains lib/plugins"

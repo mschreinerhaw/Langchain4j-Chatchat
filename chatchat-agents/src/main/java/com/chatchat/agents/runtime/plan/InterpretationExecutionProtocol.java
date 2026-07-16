@@ -11,6 +11,7 @@ public final class InterpretationExecutionProtocol {
     public static final String VERSION = "interpretation_execution_protocol_v1";
     public static final String DECISION_OBSERVATION_SOURCE = "interpretation_plan_controller";
     public static final String GUARD_OBSERVATION_SOURCE = "interpretation_plan_guard";
+    public static final String TEMPLATE_PARAMETER_PROTOCOL_VERSION = "template_parameter_protocol_v1";
     public static final Set<String> ACTIONS = Set.of(
         "execute_step",
         "execute_parallel_steps",
@@ -25,6 +26,21 @@ public final class InterpretationExecutionProtocol {
           "action": "execute_step | execute_parallel_steps | final_answer | rewrite_plan | abort",
           "step_ids": [1],
           "reason": "Why this decision is correct for the current DAG state.",
+          "parameter_protocols": [
+            {
+              "protocol_version": "template_parameter_protocol_v1",
+              "step_id": 3,
+              "template_id": "exact template id from template discovery",
+              "arguments": {
+                "declaredParameterName": {
+                  "value": "semantic value extracted from the current user query",
+                  "source": "user_query",
+                  "evidence": "short supporting text from the current user query"
+                }
+              },
+              "unresolved_parameters": []
+            }
+          ],
           "review_answer": "Optional controller diagnostic. Do not write final_answer here; final_answer is produced only by the final_answer plan step.",
           "confidence": 0.0
         }

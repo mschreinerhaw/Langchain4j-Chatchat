@@ -507,7 +507,7 @@ public class McpToolConcurrencyManager {
             || name.startsWith("sql_") || name.startsWith("db_query_")) {
             return "sql";
         }
-        if (name.equals("http_request") || name.equals("http_request_execute")
+        if (name.equals("http_request") || name.equals("http_request_execute") || name.equals("api_template_execute")
             || name.startsWith("http_") || name.startsWith("livedata_")) {
             return "http";
         }

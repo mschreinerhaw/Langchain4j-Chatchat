@@ -1254,7 +1254,35 @@ class CommandTemplateDiscoveryServiceTest {
         assertThat(first.get("requiredParameters")).isEqualTo(List.of("orderId"));
         assertThat(first.get("parameterContract").toString()).contains("http_request_execute.parameters", "orderId");
         assertThat(first.get("invocationExample").toString()).contains("http_request_execute", "orderId");
+        assertThat(first.get("capabilitySpec").toString()).contains("order_status");
+        assertThat(first.get("outputSchema").toString()).contains("status");
+        assertThat(first.get("dependencySpec").toString()).contains("orderId");
+        assertThat(result.get("selectionProtocol").toString()).contains("accept", "refine", "reject");
         assertThat(result.toString()).doesNotContain("urlTemplate", "https://orders.internal", "bodyTemplate");
+    }
+
+    @Test
+    void excludesHttpTemplatesRejectedBySemanticReview() {
+        HttpEndpointConfigService httpService = mock(HttpEndpointConfigService.class);
+        CommandTemplateDiscoveryService service = service(
+            mock(CommandTemplateService.class),
+            mock(SshHostConfigService.class),
+            mock(SqlTemplateService.class),
+            mock(SqlDatasourceConfigService.class),
+            httpService
+        );
+        when(httpService.listEnabled()).thenReturn(List.of(httpEndpoint("http_order_status", "DEV")));
+
+        Map<String, Object> result = service.query(Map.of(
+            "targetKind", "http",
+            "confidence", 1.0,
+            "filters", Map.of("intent", "order status"),
+            "excludeTemplateIds", List.of("HTTP_ORDER_STATUS"),
+            "trace", trace()
+        ));
+
+        assertThat(result).containsEntry("returnedCount", 0);
+        assertThat(result.get("selectionProtocol").toString()).contains("http_order_status");
     }
 
     @Test
@@ -1480,6 +1508,9 @@ class CommandTemplateDiscoveryServiceTest {
         endpoint.setMethod("GET");
         endpoint.setUrlTemplate("https://orders.internal/status/{{orderId}}");
         endpoint.setInputSchemaJson("{\"type\":\"object\",\"properties\":{\"orderId\":{\"type\":\"string\"}},\"required\":[\"orderId\"]}");
+        endpoint.setOutputSchemaJson("{\"type\":\"object\",\"properties\":{\"status\":{\"type\":\"string\"}}}");
+        endpoint.setCapabilitySpecJson("{\"capabilities\":[\"order_status\"]}");
+        endpoint.setDependencySpecJson("{\"inputs\":[\"orderId\"]}");
         endpoint.setEnvironment(env);
         endpoint.setCategory("business_api");
         endpoint.setTags("order,status");

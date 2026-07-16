@@ -10,12 +10,21 @@ $AppName = "chatchat-mcp-server"
 $AppJar = Join-Path $AppHome "lib/app/$AppName.jar"
 $LogsDir = Join-Path $AppHome "logs"
 $DriversDir = Join-Path $AppHome "lib/drivers"
+$PluginsDir = if ($env:CHATCHAT_MCP_PLUGIN_PATH) {
+    if ([System.IO.Path]::IsPathRooted($env:CHATCHAT_MCP_PLUGIN_PATH)) {
+        [System.IO.Path]::GetFullPath($env:CHATCHAT_MCP_PLUGIN_PATH)
+    } else {
+        [System.IO.Path]::GetFullPath((Join-Path $AppHome $env:CHATCHAT_MCP_PLUGIN_PATH))
+    }
+} else {
+    Join-Path $AppHome "lib/plugins"
+}
 $PidFile = Join-Path $LogsDir "$AppName.pid"
 $StdoutLog = Join-Path $LogsDir "$AppName.out"
 $StderrLog = Join-Path $LogsDir "$AppName.err"
 $ConfigDir = Join-Path $AppHome "config"
 
-New-Item -ItemType Directory -Force -Path $LogsDir, $DriversDir | Out-Null
+New-Item -ItemType Directory -Force -Path $LogsDir, $DriversDir, $PluginsDir | Out-Null
 
 . (Join-Path $PSScriptRoot "load-env.ps1")
 
@@ -47,10 +56,18 @@ if (-not (Test-Path $AppJar)) {
 }
 
 $Java = if ($env:JAVA_HOME) { Join-Path $env:JAVA_HOME "bin/java.exe" } else { "java" }
+$LoaderPathItems = @($PluginsDir)
+if ($env:CHATCHAT_MCP_ADDITIONAL_LOADER_PATH) {
+    $LoaderPathItems += $env:CHATCHAT_MCP_ADDITIONAL_LOADER_PATH
+}
+$LoaderPath = ($LoaderPathItems | Where-Object { -not [string]::IsNullOrWhiteSpace($_) }) -join ","
+$LauncherClass = "org.springframework.boot.loader.launch.PropertiesLauncher"
 $ArgumentList = @(
     $JavaOptions
-    "-jar"
+    "-Dloader.path=`"$LoaderPath`""
+    "-cp"
     "`"$AppJar`""
+    $LauncherClass
     "--debug=false"
     "--spring.config.additional-location=optional:file:$ConfigDir/"
     $env:APP_ARGS

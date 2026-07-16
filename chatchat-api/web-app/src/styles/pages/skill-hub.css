@@ -2879,7 +2879,7 @@
 
 .mcp-center-view .mcp-tool-filters {
   display: grid;
-  grid-template-columns: minmax(320px, 1fr) minmax(170px, 220px) minmax(140px, 180px);
+  grid-template-columns: minmax(280px, 1fr) repeat(2, minmax(150px, 200px)) minmax(130px, 170px);
   align-items: end;
   gap: 12px;
   border: 1px solid #e3e9f3;

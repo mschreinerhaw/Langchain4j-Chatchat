@@ -62,6 +62,9 @@ class ApiTemplateDiscoveryMcpToolPublisherTest {
         config.setHeadersJson("{\"Authorization\":\"secret\"}");
         config.setBodyTemplate("{\"raw\":\"body\"}");
         config.setInputSchemaJson("{\"type\":\"object\",\"properties\":{\"orderId\":{\"type\":\"string\"}},\"required\":[\"orderId\"]}");
+        config.setOutputSchemaJson("{\"type\":\"object\",\"properties\":{\"status\":{\"type\":\"string\"}}}");
+        config.setCapabilitySpecJson("{\"capabilities\":[\"order_status\"]}");
+        config.setDependencySpecJson("{\"dependsOn\":[]}");
         config.setEnabled(true);
 
         ApiServiceConfigService configService = mock(ApiServiceConfigService.class);
@@ -89,8 +92,12 @@ class ApiTemplateDiscoveryMcpToolPublisherTest {
         Map<?, ?> first = (Map<?, ?>) ((List<?>) result.get("templates")).get(0);
         assertThat(first.get("businessGroup").toString()).contains("order_services", "Order services", "fulfillment");
         assertThat(first.get("requiredParameters")).isEqualTo(List.of("orderId"));
-        assertThat(first.get("parameterContract").toString()).contains("order_status_api.arguments", "orderId");
-        assertThat(first.get("invocationExample").toString()).contains("order_status_api", "orderId");
+        assertThat(first.get("parameterContract").toString()).contains("api_template_execute.parameters", "orderId");
+        assertThat(first.get("invocationExample").toString()).contains("api_template_execute", "order_status_api", "orderId");
+        assertThat(first.get("outputSchema").toString()).contains("status");
+        assertThat(first.get("capabilitySpec").toString()).contains("order_status");
+        assertThat(first.get("dependencySpec").toString()).contains("dependsOn");
+        assertThat(first.get("routing").toString()).contains("api_template_execute");
     }
 
     @Test

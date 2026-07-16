@@ -27,6 +27,9 @@ export default {
         cacheEnabled: false,
         cacheTtlSeconds: 300,
         inputSchema: objectSchema,
+        outputSchema: objectSchema,
+        capabilitySpec: {},
+        dependencySpec: {},
         governance: {}
       },
       searchableFields: ['toolName', 'title', 'description', 'businessGroup', 'businessGroupName', 'urlTemplate'],
@@ -102,6 +105,42 @@ export default {
           section: 'group',
           sectionTitle: '业务分类',
           sectionSubtitle: '配置业务域信息，帮助检索和角色授权分类。'
+        },
+        {
+          key: 'outputSchema',
+          label: '返回字段',
+          type: 'jsonSchema',
+          defaultValue: objectSchema,
+          span: 'col-12',
+          namePlaceholder: '如 customerId、riskLevel',
+          descriptionPlaceholder: '说明返回字段的业务含义和单位',
+          emptyText: '暂无返回字段。需求覆盖分析需要返回字段时点击“新增参数”。',
+          help: '用于判断 API 是否能提供需求需要的数据，不会作为请求参数发送。',
+          section: 'capability',
+          sectionTitle: '能力与结果',
+          sectionSubtitle: '以可视化方式描述 API 能做什么、返回什么以及依赖哪些前置能力。'
+        },
+        {
+          key: 'capabilitySpec',
+          label: '能力说明',
+          type: 'jsonObject',
+          span: 'col-12',
+          keyPlaceholder: '如 businessObject、operation、intentAliases',
+          valuePlaceholder: '如 客户、查询画像、客户信息/客户画像',
+          emptyText: '暂无能力标签，点击“新增键值”配置。',
+          help: '建议维护业务对象、操作、适用场景和意图别名；这些内容参与 API 能力检索。',
+          section: 'capability'
+        },
+        {
+          key: 'dependencySpec',
+          label: '依赖说明',
+          type: 'jsonObject',
+          span: 'col-12',
+          keyPlaceholder: '如 dependsOn、preconditions、parameterSources',
+          valuePlaceholder: '如 customer_profile_api 或 需先取得 customerId',
+          emptyText: '无前置依赖时可以留空。',
+          help: '描述前置 API、调用条件和参数来源，用于生成多 API 执行 DAG。',
+          section: 'capability'
         },
         {
           key: 'businessGroupName',

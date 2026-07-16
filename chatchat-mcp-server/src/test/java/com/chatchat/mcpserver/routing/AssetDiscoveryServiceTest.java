@@ -309,7 +309,7 @@ class AssetDiscoveryServiceTest {
         assertThatThrownBy(() -> service.query(Map.of(
             "filters", Map.of(
                 "env", "prod",
-                "ip", "10.0.0.1"
+                "jdbc_url", "jdbc:mysql://10.0.0.1/test"
             )
         )))
             .isInstanceOf(IllegalArgumentException.class)
@@ -435,6 +435,86 @@ class AssetDiscoveryServiceTest {
         Map<?, ?> routingHints = (Map<?, ?>) metadata.get("routingHints");
         Map<?, ?> selection = (Map<?, ?>) routingHints.get("assetSelection");
         assertThat(selection.get("normalizedScore")).isEqualTo(1.0D);
+    }
+
+    @Test
+    void resolvesExplicitAssetNameFromRegistryBeforeSharedMetadataIndex() {
+        SshHostConfigService hostService = mock(SshHostConfigService.class);
+        SqlDatasourceConfigService datasourceService = mock(SqlDatasourceConfigService.class);
+        HttpEndpointConfigService httpService = mock(HttpEndpointConfigService.class);
+        LuceneMcpSearchService searchService = mock(LuceneMcpSearchService.class);
+        SqlDatasourceConfig mysql = datasource("mysql-1", "248-test-database", "DEV", "[\"mysql\"]");
+        SqlDatasourceConfig oracle = datasource("oracle-1", "risk-oracle-server", "DEV", "[\"oracle\"]");
+        when(hostService.listEnabled()).thenReturn(List.of());
+        when(datasourceService.listEnabled()).thenReturn(List.of(mysql, oracle));
+        when(httpService.listEnabled()).thenReturn(List.of());
+        when(searchService.enabled()).thenReturn(true);
+        AssetDiscoveryService service = new AssetDiscoveryService(
+            hostService, datasourceService, httpService,
+            new AssetMetadataFactory(new ObjectMapper()), searchService, new TargetKindRegistry()
+        );
+
+        Map<String, Object> result = service.query(Map.of(
+            "targetKind", "database",
+            "confidence", 0.95,
+            "filters", Map.of("assetname", "risk-oracle-server", "environment", "DEV", "database_type", "oracle"),
+            "trace", trace(),
+            "limit", 3
+        ));
+
+        assertThat(result).containsEntry("returnedCount", 1);
+        assertThat((Map<String, Object>) result.get("filters"))
+            .containsEntry("assetName", "risk-oracle-server")
+            .containsEntry("env", "DEV")
+            .containsEntry("databaseType", "oracle");
+        Map<?, ?> metadata = (Map<?, ?>) ((List<?>) result.get("assets")).get(0);
+        assertThat(((Map<?, ?>) metadata.get("asset")).get("name")).isEqualTo("risk-oracle-server");
+        org.mockito.Mockito.verify(searchService, org.mockito.Mockito.never())
+            .searchAssets(org.mockito.ArgumentMatchers.any());
+    }
+
+    @Test
+    void normalizesFilterAliasesAndDeduplicatesEquivalentRetrievalSignals() {
+        SshHostConfigService hostService = mock(SshHostConfigService.class);
+        SqlDatasourceConfigService datasourceService = mock(SqlDatasourceConfigService.class);
+        HttpEndpointConfigService httpService = mock(HttpEndpointConfigService.class);
+        LuceneMcpSearchService searchService = mock(LuceneMcpSearchService.class);
+        SqlDatasourceConfig oracle = datasource("oracle-1", "risk-oracle-server", "DEV", "[\"oracle\"]");
+        when(hostService.listEnabled()).thenReturn(List.of());
+        when(datasourceService.listEnabled()).thenReturn(List.of(oracle));
+        when(httpService.listEnabled()).thenReturn(List.of());
+        when(searchService.enabled()).thenReturn(true);
+        when(searchService.searchAssets(org.mockito.ArgumentMatchers.any())).thenReturn(List.of(
+            new LuceneMcpSearchService.SearchHit(
+                "oracle-1", "asset", 1.0F, List.of("asset_registry"), "oracle-1",
+                "asset_registry", "oracle-1", null, null, null, null, null
+            )
+        ));
+        AssetDiscoveryService service = new AssetDiscoveryService(
+            hostService, datasourceService, httpService,
+            new AssetMetadataFactory(new ObjectMapper()), searchService, new TargetKindRegistry()
+        );
+
+        Map<String, Object> result = service.query(Map.of(
+            "targetKind", "database",
+            "confidence", 0.95,
+            "filters", Map.of(
+                "environment", "DEV",
+                "database_type", "oracle",
+                "intent", "tablespace usage",
+                "goal", "tablespace usage",
+                "queryterms", List.of("tablespace usage")
+            ),
+            "trace", trace(),
+            "limit", 3
+        ));
+
+        assertThat(result).containsEntry("returnedCount", 1);
+        org.mockito.Mockito.verify(searchService).searchAssets(org.mockito.ArgumentMatchers.argThat(request ->
+            "tablespace usage".equals(request.queryText())
+                && "oracle".equals(request.dbType())
+                && "DEV".equals(request.env())
+        ));
     }
 
     @Test

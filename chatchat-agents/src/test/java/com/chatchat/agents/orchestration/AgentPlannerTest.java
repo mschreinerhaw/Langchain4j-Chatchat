@@ -134,7 +134,12 @@ class AgentPlannerTest {
             .contains("tool=mcp_chatchat_mcp_server_template_query")
             .contains("step asset_discovery")
             .contains("dependsOn=[asset_discovery]")
-            .contains("confirmation=required_for_write");
+            .contains("confirmation=required_for_write")
+            .contains("NEVER create a binding from templates[i].parameterSchema")
+            .contains("keep input.parameters={}")
+            .contains("DAG controller emits template_parameter_protocol_v1")
+            .contains("MUST use exactly $.assets[0].asset.name")
+            .contains("never use $.assets[0].assetName");
     }
 
     @Test

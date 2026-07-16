@@ -4,6 +4,7 @@ The release package keeps runtime files under `lib`:
 
 ```text
 lib/app/chatchat-mcp-server.jar
+lib/plugins/
 lib/drivers/
 lib/drivers/dm/
 lib/drivers/kingbase/
@@ -11,6 +12,22 @@ lib/drivers/oceanbase/
 lib/drivers/tdsql/
 lib/drivers/tidb/
 lib/drivers/inceptor/
+```
+
+Put optional shared dependency jars in `lib/plugins/`. Jars in this directory are added to the
+MCP application class path by Spring Boot `PropertiesLauncher` at startup. This is appropriate
+for reusable SDKs and dependency jars needed by an external JDBC driver. Restart the MCP server
+after adding, replacing, or removing a plugin jar; rebuilding the application is not required.
+
+Keep actual JDBC driver jars in `lib/drivers/{databaseType}` so driver isolation and
+`reload_drivers=true` continue to work. A dependency intentionally shared by multiple drivers may
+be placed in `lib/plugins/`.
+
+Override or extend the plugin path when needed:
+
+```text
+CHATCHAT_MCP_PLUGIN_PATH=./lib/plugins
+CHATCHAT_MCP_ADDITIONAL_LOADER_PATH=/opt/chatchat/shared-libs
 ```
 
 Put external JDBC driver jars in `lib/drivers/{databaseType}` before starting the MCP server.

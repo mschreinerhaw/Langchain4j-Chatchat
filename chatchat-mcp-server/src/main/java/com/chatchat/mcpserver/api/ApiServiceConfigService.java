@@ -140,6 +140,9 @@ public class ApiServiceConfigService {
         current.setHeadersJson(draft.getHeadersJson());
         current.setBodyTemplate(draft.getBodyTemplate());
         current.setInputSchemaJson(draft.getInputSchemaJson());
+        current.setOutputSchemaJson(draft.getOutputSchemaJson());
+        current.setCapabilitySpecJson(draft.getCapabilitySpecJson());
+        current.setDependencySpecJson(draft.getDependencySpecJson());
         current.setGovernanceJson(draft.getGovernanceJson());
         current.setEnabled(draft.isEnabled());
         current.setTimeoutMs(draft.getTimeoutMs());

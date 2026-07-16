@@ -803,6 +803,27 @@ public class InterpretationPlanValidator {
             }
             InterpretationPlan.Step target = stepsById.get(binding.to());
             InterpretationPlan.Step source = stepsById.get(binding.from());
+            if ((binding.required() == null || binding.required())
+                && lockedEdges(plan)
+                && !hasMatchingEdgeContract(plan, binding)) {
+                state.error(path,
+                    "Required binding on a locked-edge plan must have a matching edge_contract with the same from, to, and canonical source field.");
+            }
+            if (target != null
+                && templateExecutionTool(target.toolName())
+                && targetsExecutionParameters(binding.inputField())
+                && schemaMetadataOutputPath(binding.outputPath())) {
+                state.error(path,
+                    "Template parameterSchema/requiredParameters/parameterContract/invocationExample are read-only discovery metadata and must not be bound to executor parameters. Bind concrete parameter values only, or keep parameters={} when the selected template declares no required parameters.");
+            }
+            if (target != null
+                && source != null
+                && isAssetDiscoveryTool(source.toolName())
+                && targetsAssetName(binding.inputField())
+                && !canonicalAssetNameOutputPath(binding.outputPath())) {
+                state.error(path + ".output_path",
+                    "Asset-name bindings must use the canonical asset discovery path $.assets[0].asset.name.");
+            }
             if (target != null
                 && (isSqlQueryExecuteTool(target.toolName())
                 || isHttpRequestExecuteTool(target.toolName())
@@ -836,7 +857,54 @@ public class InterpretationPlanValidator {
             return false;
         }
         String normalized = toolName.trim().toLowerCase(Locale.ROOT);
-        return normalized.endsWith("_asset_query") || "asset_query".equals(normalized);
+        return normalized.endsWith("_asset_query")
+            || normalized.endsWith("_asset_search")
+            || "asset_query".equals(normalized)
+            || "asset_search".equals(normalized);
+    }
+
+    private boolean targetsExecutionParameters(String inputField) {
+        String normalized = normalizeField(inputField);
+        return "parameters".equals(normalized) || "params".equals(normalized);
+    }
+
+    private boolean lockedEdges(InterpretationPlan plan) {
+        return plan != null && plan.plan() != null && plan.plan().stability() != null
+            && Boolean.TRUE.equals(plan.plan().stability().lockedEdges());
+    }
+
+    private boolean hasMatchingEdgeContract(InterpretationPlan plan, InterpretationPlan.Binding binding) {
+        if (plan == null || plan.plan() == null || plan.plan().edgeContracts() == null || binding == null) {
+            return false;
+        }
+        String bindingField = normalizeField(binding.outputPath());
+        return plan.plan().edgeContracts().stream()
+            .filter(java.util.Objects::nonNull)
+            .anyMatch(contract -> java.util.Objects.equals(contract.from(), binding.from())
+                && java.util.Objects.equals(contract.to(), binding.to())
+                && normalizeField(contract.field()).equals(bindingField));
+    }
+
+    private boolean targetsAssetName(String inputField) {
+        String normalized = normalizeField(inputField);
+        return normalized.endsWith("assetname");
+    }
+
+    private boolean schemaMetadataOutputPath(String outputPath) {
+        String normalized = normalizeField(outputPath);
+        return normalized.contains("parameterschema")
+            || normalized.contains("requiredparameters")
+            || normalized.contains("parametercontract")
+            || normalized.contains("invocationexample");
+    }
+
+    private boolean canonicalAssetNameOutputPath(String outputPath) {
+        if (outputPath == null || outputPath.isBlank()) {
+            return false;
+        }
+        String normalized = outputPath.trim().replace("['", ".").replace("']", "")
+            .replace("[\"", ".").replace("\"]", "").toLowerCase(Locale.ROOT);
+        return normalized.endsWith("assets[0].asset.name");
     }
 
     private boolean sameField(String value, String expected) {
@@ -998,7 +1066,9 @@ public class InterpretationPlanValidator {
             || "linux_command_execute".equals(semantic)
             || semantic.endsWith("_linux_command_execute")
             || "http_request_execute".equals(semantic)
-            || semantic.endsWith("_http_request_execute");
+            || semantic.endsWith("_http_request_execute")
+            || "api_template_execute".equals(semantic)
+            || semantic.endsWith("_api_template_execute");
     }
 
     private String semanticToolName(String toolName) {

@@ -222,6 +222,7 @@ public class InterpretationPlanRuntime {
                 executablePlan,
                 remaining,
                 stepsById,
+                completed,
                 completedStepIds,
                 currentDecisionCount,
                 executionTraceId
@@ -303,7 +304,10 @@ public class InterpretationPlanRuntime {
                     elapsed(startedAt)
                 );
             }
-            List<InterpretationPlan.Step> selected = decisionValidation.steps();
+            List<InterpretationPlan.Step> selected = applyDecisionParameterProtocols(
+                decisionValidation.steps(),
+                decision
+            );
             List<StepExecution> waveResults = executeWave(selected, executableRequest, completed);
             for (StepExecution execution : waveResults) {
                 executions.add(execution);
@@ -374,6 +378,7 @@ public class InterpretationPlanRuntime {
     private DagDecision deterministicReadyToolDecision(InterpretationPlan plan,
                                                        Set<Integer> remaining,
                                                        Map<Integer, InterpretationPlan.Step> stepsById,
+                                                       Map<Integer, StepExecution> completed,
                                                        Set<Integer> completedStepIds,
                                                        int decisionCount,
                                                        String executionTraceId) {
@@ -386,6 +391,7 @@ public class InterpretationPlanRuntime {
             .map(stepsById::get)
             .filter(step -> step != null && step.mcpToolAction())
             .filter(step -> completedStepIds != null && completedStepIds.containsAll(safeIntegerList(step.dependsOn())))
+            .filter(step -> !requiresModelTemplateParameterProtocol(step, completed))
             .map(InterpretationPlan.Step::id)
             .toList();
         if (readyToolStepIds.isEmpty()) {
@@ -818,6 +824,78 @@ public class InterpretationPlanRuntime {
         );
     }
 
+    private boolean requiresModelTemplateParameterProtocol(InterpretationPlan.Step step,
+                                                            Map<Integer, StepExecution> completed) {
+        if (step == null || !isTemplateExecutionTool(step.toolName()) || completed == null || completed.isEmpty()) {
+            return false;
+        }
+        String templateId = canonicalTemplateId(firstValueAtAnyPath(step.input(),
+            "$.templateId", "$.template", "$.template_id"));
+        if (templateId == null) {
+            templateId = uniqueCompletedTemplateForExecutor(step.toolName(), completed);
+        }
+        if (templateId == null) {
+            templateId = uniqueCompletedTemplateId(completed);
+        }
+        if (templateId == null) {
+            return false;
+        }
+        return !requiredTemplateParameters(completedTemplateMetadata(completed, templateId)).isEmpty();
+    }
+
+    @SuppressWarnings("unchecked")
+    private String uniqueCompletedTemplateId(Map<Integer, StepExecution> completed) {
+        Set<String> templateIds = new LinkedHashSet<>();
+        for (StepExecution execution : completed.values()) {
+            if (execution == null || !execution.success() || !isTemplateDiscoveryTool(execution.toolName())) {
+                continue;
+            }
+            for (Object item : templateCandidates(execution.output())) {
+                if (!(item instanceof Map<?, ?> raw)) {
+                    continue;
+                }
+                String templateId = canonicalTemplateId(new LinkedHashMap<>((Map<String, Object>) raw));
+                if (templateId != null) {
+                    templateIds.add(templateId);
+                }
+            }
+        }
+        return templateIds.size() == 1 ? templateIds.iterator().next() : null;
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<InterpretationPlan.Step> applyDecisionParameterProtocols(List<InterpretationPlan.Step> selected,
+                                                                          DagDecision decision) {
+        if (selected == null || selected.isEmpty() || decision == null || decision.metadata() == null) {
+            return selected == null ? List.of() : selected;
+        }
+        Object value = decision.metadata().get("parameterProtocols");
+        if (!(value instanceof Iterable<?> protocols)) {
+            return selected;
+        }
+        Map<Integer, Map<String, Object>> byStep = new LinkedHashMap<>();
+        for (Object item : protocols) {
+            if (!(item instanceof Map<?, ?> raw)) {
+                continue;
+            }
+            Map<String, Object> protocol = new LinkedHashMap<>((Map<String, Object>) raw);
+            Integer stepId = integerValue(firstMapValue(protocol, "step_id", "stepId"));
+            if (stepId != null) {
+                byStep.put(stepId, protocol);
+            }
+        }
+        return selected.stream().map(step -> {
+            Map<String, Object> protocol = step == null ? null : byStep.get(step.id());
+            if (protocol == null) {
+                return step;
+            }
+            Map<String, Object> input = new LinkedHashMap<>(step.input() == null ? Map.of() : step.input());
+            input.put("parameterProtocol", protocol);
+            return new InterpretationPlan.Step(step.id(), step.actionType(), step.toolName(), input,
+                step.dependsOn(), step.outputContract(), step.validation());
+        }).toList();
+    }
+
     private boolean shouldSkipModelReviewAfterLocalFactCheck(Map<String, Object> metadata) {
         if (metadata == null || metadata.isEmpty()) {
             return false;
@@ -826,7 +904,11 @@ public class InterpretationPlanRuntime {
             return false;
         }
         String evidenceType = stringValue(metadata.get("localFactCheckEvidenceType"));
-        return "template_discovery".equals(evidenceType);
+        if (!"template_discovery".equals(evidenceType)) {
+            return false;
+        }
+        Integer returnedCount = integerValue(metadata.get("templateDiscoveryReturnedCount"));
+        return returnedCount != null && returnedCount == 1;
     }
 
     private boolean shouldPreservePartialToolResult(StepExecution execution) {
@@ -934,7 +1016,20 @@ public class InterpretationPlanRuntime {
         if (isTemplateDiscoveryTool(execution.toolName())) {
             int returnedCount = discoveredAssetCount(execution.output(), "templates");
             if (returnedCount <= 0) {
-                return null;
+                return StepReview.rejected(
+                    "NO_MATCHING_TEMPLATE: template discovery completed without an executable template; dependent execution must not continue.",
+                    mapOf(
+                        "localFactCheckHasEvidence", true,
+                        "localFactCheckEvidenceType", "template_discovery",
+                        "localFactCheckReason", "typed template discovery returned no template metadata",
+                        "transportSuccess", true,
+                        "operationSuccess", true,
+                        "businessSatisfied", false,
+                        "resultCode", "NO_MATCHING_TEMPLATE",
+                        "templateDiscoveryReturnedCount", 0,
+                        "templateDiscoveryStepId", step == null ? null : step.id()
+                    )
+                );
             }
             return StepReview.accepted(
                 "Template discovery returned " + returnedCount + " candidate template(s); continue to dependent execution step.",
@@ -1178,6 +1273,12 @@ public class InterpretationPlanRuntime {
                 return selected;
             }
         }
+        if ("templates".equals(listKey)) {
+            int nestedTemplates = associatedTemplateCount(map, depth + 1);
+            if (nestedTemplates > 0) {
+                return nestedTemplates;
+            }
+        }
         Integer returnedCount = integerValue(firstMapValue(map, "returnedCount", "returned_count", "count"));
         if (returnedCount != null) {
             return Math.max(0, returnedCount);
@@ -1206,6 +1307,37 @@ public class InterpretationPlanRuntime {
                 if (nestedCount > 0) {
                     return nestedCount;
                 }
+            }
+        }
+        return 0;
+    }
+
+    private int associatedTemplateCount(Object value, int depth) {
+        if (value == null || depth > 6) {
+            return 0;
+        }
+        Object normalized = normalizeToolProtocolPayload(value);
+        if (normalized != value) {
+            return associatedTemplateCount(normalized, depth + 1);
+        }
+        if (value instanceof List<?> list) {
+            return list.stream()
+                .mapToInt(item -> associatedTemplateCount(item, depth + 1))
+                .sum();
+        }
+        if (!(value instanceof Map<?, ?> map)) {
+            return 0;
+        }
+        for (String key : List.of("associatedTemplates", "associated_templates", "sqlTemplates", "sql_templates")) {
+            int count = discoveryValueCount(firstMapValue(map, key), "templates");
+            if (count > 0) {
+                return count;
+            }
+        }
+        for (String key : List.of("results", "items", "hits", "candidates", "data", "result", "payload")) {
+            int count = associatedTemplateCount(firstMapValue(map, key), depth + 1);
+            if (count > 0) {
+                return count;
             }
         }
         return 0;
@@ -1402,15 +1534,17 @@ public class InterpretationPlanRuntime {
         normalizeSqlExecutionContext(step, input);
         Map<Integer, StepExecution> contractContext = resolveTemplateContractFromMcp(step, request, completed, input);
         normalizeTemplateExecutionAlias(step, contractContext, input);
+        validateTemplateParameterProtocolPresence(step, request, contractContext, input);
         normalizeTemplateExecutionParameters(step, contractContext, input);
         validateTemplateExecutionArgumentContract(step, input);
         hydrateExecutionContextFromTemplate(step, contractContext, input);
         hydrateSqlMetadataParametersFromMetadataSearch(step, contractContext, input);
         repairTableScopedSqlTemplate(step, contractContext, input);
         enforceAgentRuntimeEnvironment(step, request, input);
-        validateRequiredTemplateParameters(step, contractContext, input);
+        validateRequiredTemplateParameters(step, request, contractContext, input);
         validateRequiredExecutionTemplate(step, input);
         normalizeDiscoveryRoutingInput(step, request, completed, input);
+        input.remove("runtimeParameterProtocolApplied");
         if (!isCrawlerTool(step.toolName())) {
             return input;
         }
@@ -1427,6 +1561,7 @@ public class InterpretationPlanRuntime {
         if (step == null || input == null) {
             return;
         }
+        applyModelTemplateParameterProtocol(step, input);
         Object toolCallValue = firstMapValue(input, "toolCall", "tool_call");
         if (toolCallValue instanceof Map<?, ?> rawToolCall) {
             Map<String, Object> toolCall = new LinkedHashMap<>((Map<String, Object>) rawToolCall);
@@ -1494,6 +1629,74 @@ public class InterpretationPlanRuntime {
         input.remove("model_invocation");
     }
 
+    @SuppressWarnings("unchecked")
+    private void applyModelTemplateParameterProtocol(InterpretationPlan.Step step, Map<String, Object> input) {
+        Object value = firstMapValue(input, "parameterProtocol", "parameter_protocol");
+        if (value == null) {
+            return;
+        }
+        input.remove("parameterProtocol");
+        input.remove("parameter_protocol");
+        if (!isTemplateExecutionTool(step.toolName()) || !(value instanceof Map<?, ?> raw)) {
+            throw new IllegalStateException("TEMPLATE_PARAMETER_PROTOCOL_INVALID: parameter protocol must be an "
+                + "object attached to a template execution step");
+        }
+        Map<String, Object> protocol = new LinkedHashMap<>((Map<String, Object>) raw);
+        String version = stringValue(firstMapValue(protocol, "protocol_version", "protocolVersion"));
+        if (!InterpretationExecutionProtocol.TEMPLATE_PARAMETER_PROTOCOL_VERSION.equals(version)) {
+            throw new IllegalStateException("TEMPLATE_PARAMETER_PROTOCOL_INVALID: unsupported protocol version " + version);
+        }
+        Integer protocolStepId = integerValue(firstMapValue(protocol, "step_id", "stepId"));
+        if (protocolStepId == null || !protocolStepId.equals(step.id())) {
+            throw new IllegalStateException("TEMPLATE_PARAMETER_PROTOCOL_INVALID: protocol step_id must match "
+                + "the selected execution step " + step.id());
+        }
+        String templateId = canonicalTemplateId(firstMapValue(protocol, "template_id", "templateId"));
+        if (templateId == null) {
+            throw new IllegalStateException("TEMPLATE_PARAMETER_PROTOCOL_INVALID: template_id must be a scalar string");
+        }
+        String runtimeTemplateId = canonicalTemplateId(firstValueAtAnyPath(input,
+            "$.templateId", "$.template", "$.template_id"));
+        if (runtimeTemplateId != null && !runtimeTemplateId.equals(templateId)) {
+            throw new IllegalStateException("TEMPLATE_PARAMETER_PROTOCOL_INVALID: protocol template_id " + templateId
+                + " does not match the Runtime-bound template " + runtimeTemplateId);
+        }
+        Object unresolvedValue = firstMapValue(protocol, "unresolved_parameters", "unresolvedParameters");
+        List<String> unresolved = stringValues(unresolvedValue);
+        if (!unresolved.isEmpty()) {
+            throw new IllegalStateException("TEMPLATE_PARAMETER_PROTOCOL_INCOMPLETE: unresolved parameters "
+                + unresolved + "; rewrite the plan or request the missing values instead of executing");
+        }
+        Object argumentsValue = firstMapValue(protocol, "arguments", "parameters");
+        if (!(argumentsValue instanceof Map<?, ?> rawArguments)) {
+            throw new IllegalStateException("TEMPLATE_PARAMETER_PROTOCOL_INVALID: arguments must be an object");
+        }
+        Map<String, Object> parameters = input.get("parameters") instanceof Map<?, ?> existing
+            ? new LinkedHashMap<>((Map<String, Object>) existing)
+            : new LinkedHashMap<>();
+        for (Map.Entry<?, ?> entry : rawArguments.entrySet()) {
+            String parameterName = String.valueOf(entry.getKey());
+            if (!(entry.getValue() instanceof Map<?, ?> rawArgument)) {
+                throw new IllegalStateException("TEMPLATE_PARAMETER_PROTOCOL_INVALID: argument " + parameterName
+                    + " must contain value, source and evidence");
+            }
+            Map<String, Object> argument = new LinkedHashMap<>((Map<String, Object>) rawArgument);
+            String source = stringValue(argument.get("source"));
+            String evidence = stringValue(argument.get("evidence"));
+            Object argumentValue = argument.get("value");
+            if (!"user_query".equals(source) || evidence == null || argumentValue == null
+                || (argumentValue instanceof String text && text.isBlank())) {
+                throw new IllegalStateException("TEMPLATE_PARAMETER_PROTOCOL_INVALID: argument " + parameterName
+                    + " must have a non-empty value, source=user_query and evidence");
+            }
+            parameters.put(parameterName, argumentValue);
+        }
+        input.put("parameters", parameters);
+        input.put("runtimeParameterProtocolApplied", true);
+        log.info("InterpretationPlan accepted model template parameter protocol stepId={} tool={} templateId={} parameterKeys={}",
+            step.id(), step.toolName(), templateId, parameters.keySet());
+    }
+
     private void compileDirectToolArguments(InterpretationPlan.Step step,
                                             ExecutionRequest request,
                                             Map<String, Object> input) {
@@ -1502,12 +1705,52 @@ public class InterpretationPlanRuntime {
             return;
         }
         ToolMetadata metadata = request.toolRegistry().getToolMetadata(step.toolName());
-        if (metadata == null || metadata.getParameters() == null || metadata.getParameters().isEmpty()) {
+        if (metadata == null) {
             return;
+        }
+        Map<String, Object> schema = publishedInputSchema(metadata);
+        if (schema.isEmpty()) {
+            schema = inputSchemaFromParameters(metadata.getParameters());
+        }
+        if (schema.isEmpty()) {
+            return;
+        }
+        // Discovery trace and schema version are runtime-owned protocol fields. Seed them before
+        // validating the published MCP schema so required protocol fields are not incorrectly
+        // reported as missing merely because the model is intentionally not responsible for them.
+        if (isRoutingDiscoveryTool(step.toolName())) {
+            input.putIfAbsent("filtersSchemaVersion", "target_filters.v1");
+            input.putIfAbsent("trace", routingTraceForStep(step, request));
+        }
+        Map<String, Object> semantic = new LinkedHashMap<>(input);
+        semantic.remove("purpose");
+        ToolArgumentCompiler.CompilationResult compilation = TOOL_ARGUMENT_COMPILER.compile(semantic, schema);
+        if (!compilation.valid()) {
+            throw new IllegalStateException(compilation.structuredError(step.toolName(), stringValue(input.get("action"))));
+        }
+        input.clear();
+        input.putAll(compilation.parameters());
+        if (!compilation.repairs().isEmpty()) {
+            log.info("InterpretationPlan compiled direct tool semantic arguments stepId={} tool={} repairs={} compiledKeys={}",
+                step.id(), step.toolName(), compilation.repairs(), input.keySet());
+        }
+    }
+
+    private Map<String, Object> publishedInputSchema(ToolMetadata metadata) {
+        if (metadata == null || metadata.getMetadata() == null) {
+            return Map.of();
+        }
+        Map<String, Object> schema = asStringMap(metadata.getMetadata().get("inputSchema"));
+        return schema.get("properties") instanceof Map<?, ?> ? schema : Map.of();
+    }
+
+    private Map<String, Object> inputSchemaFromParameters(List<ToolParameter> parameters) {
+        if (parameters == null || parameters.isEmpty()) {
+            return Map.of();
         }
         Map<String, Object> properties = new LinkedHashMap<>();
         List<String> required = new ArrayList<>();
-        for (ToolParameter parameter : metadata.getParameters()) {
+        for (ToolParameter parameter : parameters) {
             if (parameter == null || parameter.getName() == null || parameter.getName().isBlank()) {
                 continue;
             }
@@ -1527,23 +1770,15 @@ public class InterpretationPlanRuntime {
                 required.add(parameter.getName());
             }
         }
-        Map<String, Object> semantic = new LinkedHashMap<>(input);
-        semantic.remove("purpose");
-        ToolArgumentCompiler.CompilationResult compilation = TOOL_ARGUMENT_COMPILER.compile(semantic, Map.of(
+        if (properties.isEmpty()) {
+            return Map.of();
+        }
+        return Map.of(
             "type", "object",
             "properties", properties,
             "required", required,
             "additionalProperties", false
-        ));
-        if (!compilation.valid()) {
-            throw new IllegalStateException(compilation.structuredError(step.toolName(), stringValue(input.get("action"))));
-        }
-        input.clear();
-        input.putAll(compilation.parameters());
-        if (!compilation.repairs().isEmpty()) {
-            log.info("InterpretationPlan compiled direct tool semantic arguments stepId={} tool={} repairs={} compiledKeys={}",
-                step.id(), step.toolName(), compilation.repairs(), input.keySet());
-        }
+        );
     }
 
     private void copyIfPresent(Map<String, Object> source, Map<String, Object> target, String... keys) {
@@ -1587,7 +1822,8 @@ public class InterpretationPlanRuntime {
             filters.putIfAbsent("intent", templateHint);
         }
         String targetKind = isLinuxCommandExecuteTool(step.toolName()) ? "host"
-            : isHttpRequestExecuteTool(step.toolName()) ? "api" : "database";
+            : isHttpRequestExecuteTool(step.toolName()) || isApiTemplateExecuteTool(step.toolName())
+                ? "api" : "database";
         Map<String, Object> discoveryInput = new LinkedHashMap<>();
         discoveryInput.put("candidates", List.of(Map.of("targetKind", targetKind, "confidence", 1.0)));
         discoveryInput.put("finalDecision", targetKind);
@@ -1659,8 +1895,11 @@ public class InterpretationPlanRuntime {
             String semantic = toolSemanticKey(tool);
             boolean matches = isLinuxCommandExecuteTool(executorTool)
                 ? semantic.contains("ssh") && (semantic.endsWith("template_query") || semantic.endsWith("template_search"))
+                : isApiTemplateExecuteTool(executorTool)
+                ? semantic.contains("api")
+                    && (semantic.endsWith("template_query") || semantic.endsWith("template_search"))
                 : isHttpRequestExecuteTool(executorTool)
-                ? (semantic.contains("http") || semantic.contains("api"))
+                ? semantic.contains("http_endpoint")
                     && (semantic.endsWith("template_query") || semantic.endsWith("template_search"))
                 : (semantic.contains("database") || semantic.contains("sql") || semantic.contains("business_query"))
                     && (semantic.endsWith("template_query") || semantic.endsWith("template_search"));
@@ -2561,6 +2800,7 @@ public class InterpretationPlanRuntime {
     }
 
     private void validateRequiredTemplateParameters(InterpretationPlan.Step step,
+                                                    ExecutionRequest request,
                                                     Map<Integer, StepExecution> completed,
                                                     Map<String, Object> input) {
         if (step == null || input == null || completed == null || completed.isEmpty()
@@ -2597,6 +2837,33 @@ public class InterpretationPlanRuntime {
             + missing.stream().map(name -> "parameters." + name).collect(Collectors.joining(", "))
             + ". Use the selected template's parameterSchema/parameterContract; do not call "
             + step.toolName() + " with empty or incomplete parameters.");
+    }
+
+    private boolean requiresTemplateParameterProtocol(ExecutionRequest request) {
+        return request != null && request.attributes() != null
+            && Boolean.TRUE.equals(request.attributes().get("requireTemplateParameterProtocol"));
+    }
+
+    private void validateTemplateParameterProtocolPresence(InterpretationPlan.Step step,
+                                                            ExecutionRequest request,
+                                                            Map<Integer, StepExecution> completed,
+                                                            Map<String, Object> input) {
+        if (!requiresTemplateParameterProtocol(request) || step == null || input == null
+            || !isTemplateExecutionTool(step.toolName())) {
+            return;
+        }
+        String templateId = canonicalTemplateId(firstValueAtAnyPath(input,
+            "$.templateId", "$.template", "$.template_id"));
+        if (templateId == null) {
+            return;
+        }
+        List<String> required = requiredTemplateParameters(completedTemplateMetadata(completed, templateId));
+        if (!required.isEmpty() && !Boolean.TRUE.equals(input.get("runtimeParameterProtocolApplied"))) {
+            throw new IllegalStateException("TEMPLATE_PARAMETER_PROTOCOL_REQUIRED: template " + templateId
+                + " declares required parameters " + required
+                + "; the DAG controller must analyze the current user query and emit "
+                + InterpretationExecutionProtocol.TEMPLATE_PARAMETER_PROTOCOL_VERSION + " before execution");
+        }
     }
 
     private void validateRequiredExecutionTemplate(InterpretationPlan.Step step, Map<String, Object> input) {
@@ -2829,7 +3096,7 @@ public class InterpretationPlanRuntime {
         sanitizeDiscoveryFilters(step, request, input);
         sanitizeDiscoveryEnvironment(step, request, completed, input);
         filters = firstMapValue(input, "filters", "executionContext", "mcpExecutionContext");
-        if (filters instanceof Map<?, ?> filterMap && !hasAssetConstraint(filterMap)) {
+        if (filters instanceof Map<?, ?> filterMap && !hasTargetIdentityConstraint(filterMap)) {
             String searchText = discoverySearchText(request);
             if (searchText != null && !searchText.isBlank() && !hasRetrievalSignal(filterMap)) {
                 @SuppressWarnings("unchecked")
@@ -3164,12 +3431,12 @@ public class InterpretationPlanRuntime {
         return trace;
     }
 
-    private boolean hasAssetConstraint(Map<?, ?> filters) {
+    private boolean hasTargetIdentityConstraint(Map<?, ?> filters) {
         if (filters == null || filters.isEmpty()) {
             return false;
         }
-        for (String key : List.of("assetName", "asset_name", "name", "env", "environment", "cluster", "service",
-            "target", "database", "databaseType", "dbType", "dialect", "databaseRole", "database_role", "labels")) {
+        for (String key : List.of("assetName", "asset_name", "name", "cluster", "namespace", "service",
+            "target", "database", "labels")) {
             Object value = filters.get(key);
             if (value != null && !String.valueOf(value).isBlank()) {
                 return true;
@@ -3538,14 +3805,20 @@ public class InterpretationPlanRuntime {
         return "http_request_execute".equals(semantic) || semantic.endsWith("_http_request_execute");
     }
 
+    private boolean isApiTemplateExecuteTool(String toolName) {
+        String semantic = toolSemanticKey(toolName);
+        return "api_template_execute".equals(semantic) || semantic.endsWith("_api_template_execute");
+    }
+
     private boolean isTemplateExecutionTool(String toolName) {
         return isSqlQueryExecuteTool(toolName)
             || isLinuxCommandExecuteTool(toolName)
-            || isHttpRequestExecuteTool(toolName);
+            || isHttpRequestExecuteTool(toolName)
+            || isApiTemplateExecuteTool(toolName);
     }
 
     private boolean requiresTemplateId(String toolName) {
-        return isLinuxCommandExecuteTool(toolName) || isHttpRequestExecuteTool(toolName);
+        return isLinuxCommandExecuteTool(toolName) || isHttpRequestExecuteTool(toolName) || isApiTemplateExecuteTool(toolName);
     }
 
     private boolean isSqlMetadataSearchTool(String toolName) {
@@ -3566,7 +3839,8 @@ public class InterpretationPlanRuntime {
             || semantic.equals("database_query_execute")
             || semantic.equals("database_execute")
             || semantic.equals("linux_command_execute")
-            || semantic.equals("http_request_execute");
+            || semantic.equals("http_request_execute")
+            || semantic.equals("api_template_execute");
     }
 
     private boolean isCrawlerTool(String toolName) {

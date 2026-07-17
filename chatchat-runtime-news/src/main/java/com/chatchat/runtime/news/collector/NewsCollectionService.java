@@ -49,6 +49,11 @@ public class NewsCollectionService {
                 executionId, source.id(), source.code(), result.discoveredCount(), result.acceptedCount(),
                 result.duplicateCount(), result.rejectedCount(), result.failedCount(),
                 System.currentTimeMillis() - startedAt, result.errorMessage());
+            if (result.failedCount() > 0 && result.errorMessage() != null
+                && result.errorMessage().contains("Dynamic page detected")) {
+                log.warn("news_collect_diagnostic executionId={} sourceId={} sourceCode={} classification=DYNAMIC_PAGE action=USE_OFFICIAL_API_OR_DEDICATED_COLLECTOR detail={}",
+                    executionId, source.id(), source.code(), result.errorMessage());
+            }
             return result;
         } catch (RuntimeException ex) {
             log.error("news_collect_failed executionId={} sourceId={} durationMs={} error={}",

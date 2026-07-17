@@ -43,7 +43,8 @@ class WebMagicNewsCollectorTest {
         };
         NewsRuntimeProperties properties = new NewsRuntimeProperties();
         properties.setMaxItemsPerRun(10);
-        WebMagicNewsCollector collector = new WebMagicNewsCollector(sink, properties, new PublishTimeParser());
+        WebMagicNewsCollector collector = new WebMagicNewsCollector(sink, properties, new PublishTimeParser(),
+            new DynamicPageDetector());
         NewsSource source = new NewsSource(1L, "local", "Local", NewsSourceType.WEB_LIST,
             "http://localhost:" + port + "/list", "localhost",
             Map.of("linkSelector", ".news-list a", "titleSelector", ".title", "contentSelector", ".body",
@@ -53,6 +54,27 @@ class WebMagicNewsCollectorTest {
 
         assertThat(result.failedCount()).isZero();
         assertThat(urls).containsExactly("http://localhost:" + port + "/news/1");
+    }
+
+    @Test
+    void reportsDynamicShellInsteadOfSilentZeroDiscovery() throws Exception {
+        server = HttpServer.create(new InetSocketAddress("localhost", 0), 0);
+        serve("/list", "<div id='app'>{{item.announcementTitle}}</div><script src='/webpack/app.js'></script>");
+        server.start();
+        int port = server.getAddress().getPort();
+        NewsRuntimeProperties properties = new NewsRuntimeProperties();
+        WebMagicNewsCollector collector = new WebMagicNewsCollector(item -> NewsAcceptance.ACCEPTED,
+            properties, new PublishTimeParser(), new DynamicPageDetector());
+        NewsSource source = new NewsSource(1L, "dynamic", "Dynamic", NewsSourceType.WEB_LIST,
+            "http://localhost:" + port + "/list", "localhost",
+            Map.of("linkSelector", ".news-list a", "titleSelector", ".title", "contentSelector", ".body"),
+            Map.of("sleepMillis", 0), true);
+
+        var result = collector.collect(source, new NewsCollectContext("test", Instant.now()));
+
+        assertThat(result.discoveredCount()).isZero();
+        assertThat(result.failedCount()).isOne();
+        assertThat(result.errorMessage()).contains("Dynamic page detected", "unrendered-template-expression");
     }
 
     private void serve(String path, String body) {

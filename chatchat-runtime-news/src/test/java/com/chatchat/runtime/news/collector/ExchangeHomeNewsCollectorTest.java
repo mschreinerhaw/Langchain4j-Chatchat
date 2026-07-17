@@ -78,6 +78,26 @@ class ExchangeHomeNewsCollectorTest {
         });
     }
 
+    @Test
+    void classifiesDynamicExchangeHomepageWhenHeadlineSelectorMatchesNothing() throws Exception {
+        server = HttpServer.create(new InetSocketAddress("localhost", 0), 0);
+        serve("/home", "text/html; charset=UTF-8",
+            "<div id='app'><div v-for='item in headlines'>{{item.title}}</div></div><script>webpackChunk=[]</script>");
+        server.start();
+        String base = "http://localhost:" + server.getAddress().getPort();
+        ExchangeHomeNewsCollector collector = new ExchangeHomeNewsCollector(
+            item -> NewsAcceptance.ACCEPTED, new ObjectMapper());
+        NewsSource source = new NewsSource(2L, "exchange_dynamic", "动态交易所首页", NewsSourceType.NEWS_HOME,
+            base + "/home", "localhost", Map.of(), Map.of("provider", "TEST",
+                "headlineSelector", ".news a", "headlineLimit", 10, "timeoutMillis", 5000), true);
+
+        var result = collector.collect(source, new NewsCollectContext("test", Instant.now()));
+
+        assertThat(result.discoveredCount()).isZero();
+        assertThat(result.failedCount()).isOne();
+        assertThat(result.errorMessage()).contains("Dynamic page detected", "vue-template-markers");
+    }
+
     private void serve(String path, String contentType, String body) {
         server.createContext(path, exchange -> {
             byte[] data = body.getBytes(StandardCharsets.UTF_8);

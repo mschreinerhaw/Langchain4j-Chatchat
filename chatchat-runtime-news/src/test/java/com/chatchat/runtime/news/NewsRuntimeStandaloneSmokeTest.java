@@ -5,6 +5,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.client.TestRestTemplate;
 import org.springframework.http.HttpStatus;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -15,6 +18,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 })
 class NewsRuntimeStandaloneSmokeTest {
     @Autowired TestRestTemplate rest;
+    @Autowired ObjectMapper objectMapper;
 
     @Test
     void protectsInternalApiAndAcceptsConfiguredInternalAccount() {
@@ -24,5 +28,24 @@ class NewsRuntimeStandaloneSmokeTest {
             .getForEntity("/internal/v1/news/health", String.class);
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody()).contains("chatchat-runtime-news", "UP");
+    }
+
+    @Test
+    void bindsExplicitSourcePathVariableWithoutCompilerParameterMetadata() throws Exception {
+        var client = rest.withBasicAuth("chatchat_mcp_internal", "test-secret");
+        var created = client.postForEntity("/internal/v1/news/sources", Map.of(
+            "sourceCode", "path-variable-smoke",
+            "sourceName", "Path Variable Smoke",
+            "sourceType", "WEB_SINGLE_PAGE",
+            "entryUrl", "https://example.com/news",
+            "enabled", false,
+            "configuration", Map.of()
+        ), String.class);
+        assertThat(created.getStatusCode()).isEqualTo(HttpStatus.OK);
+        long sourceId = objectMapper.readTree(created.getBody()).path("data").path("id").asLong();
+
+        var rule = client.getForEntity("/internal/v1/news/sources/" + sourceId + "/rule", String.class);
+        assertThat(rule.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(rule.getBody()).contains("\"sourceId\":" + sourceId);
     }
 }

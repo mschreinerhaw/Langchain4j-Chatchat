@@ -36,24 +36,24 @@ public class NewsRuntimeInternalController {
         return ApiResponse.success(sources.create(NEWS_CAPABILITY_ID, request));
     }
     @PutMapping("/sources/{id}") public ApiResponse<NewsSourceAdminService.NewsSourceView> update(
-        @PathVariable Long id, @RequestBody NewsSourceAdminService.NewsSourceUpsert request) {
+        @PathVariable("id") Long id, @RequestBody NewsSourceAdminService.NewsSourceUpsert request) {
         return ApiResponse.success(sources.update(NEWS_CAPABILITY_ID, id, request));
     }
-    @DeleteMapping("/sources/{id}") public ApiResponse<Void> delete(@PathVariable Long id) {
+    @DeleteMapping("/sources/{id}") public ApiResponse<Void> delete(@PathVariable("id") Long id) {
         sources.delete(NEWS_CAPABILITY_ID, id); return ApiResponse.success(null);
     }
-    @GetMapping("/sources/{id}/rule") public ApiResponse<NewsSourceAdminService.NewsRuleView> rule(@PathVariable Long id) {
+    @GetMapping("/sources/{id}/rule") public ApiResponse<NewsSourceAdminService.NewsRuleView> rule(@PathVariable("id") Long id) {
         return ApiResponse.success(sources.getRule(NEWS_CAPABILITY_ID, id));
     }
     @PutMapping("/sources/{id}/rule") public ApiResponse<NewsSourceAdminService.NewsRuleView> saveRule(
-        @PathVariable Long id, @RequestBody NewsSourceAdminService.NewsRuleUpsert request) {
+        @PathVariable("id") Long id, @RequestBody NewsSourceAdminService.NewsRuleUpsert request) {
         return ApiResponse.success(sources.saveRule(NEWS_CAPABILITY_ID, id, request));
     }
-    @PostMapping("/sources/{id}/collect") public ApiResponse<?> collect(@PathVariable Long id) {
+    @PostMapping("/sources/{id}/collect") public ApiResponse<?> collect(@PathVariable("id") Long id) {
         return ApiResponse.success(collection.collect(id, "mcp-admin-" + UUID.randomUUID()), "采集完成");
     }
     @PostMapping("/tools/{toolName}") public ApiResponse<ToolOutput> invoke(
-        @PathVariable String toolName, @RequestBody ToolInput input) {
+        @PathVariable("toolName") String toolName, @RequestBody ToolInput input) {
         return ApiResponse.success(tools.findExecutor(toolName)
             .orElseThrow(() -> new IllegalArgumentException("Unknown news tool: " + toolName)).execute(input));
     }

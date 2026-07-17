@@ -33,6 +33,7 @@ chatchat:
         endpoint: https://192.168.195.221:9200
         username: admin
         password: apexSoft12345
+        insecure-ssl: true
         index-name: runtime-news
         retention-days: 7
         zone-id: Asia/Shanghai

@@ -6,6 +6,7 @@ import com.chatchat.common.tool.ToolOutput;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.net.URI;
@@ -24,6 +25,7 @@ public class NewsRuntimeClient {
     private final String baseUrl;
     private final Duration timeout;
 
+    @Autowired
     public NewsRuntimeClient(ObjectMapper mapper, InternalCredentialProperties credentials,
                              @Value("${chatchat.mcp.news-runtime.base-url:http://localhost:8091}") String baseUrl,
                              @Value("${chatchat.mcp.news-runtime.timeout-millis:30000}") long timeoutMillis) {

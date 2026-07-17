@@ -16,7 +16,8 @@ param(
 
     [string]$ApiArgs = "",
     [string]$McpArgs = "",
-    [string]$NewsArgs = ""
+    [string]$NewsArgs = "",
+    [string]$NewsInternalSecret = "chatchat_internal_default_secret"
 )
 
 $ErrorActionPreference = "Stop"
@@ -286,6 +287,17 @@ function Show-LogTail {
     }
 }
 
+function Get-NewsExtraArgs {
+    $Arguments = @()
+    if (-not [string]::IsNullOrWhiteSpace($NewsInternalSecret)) {
+        $Arguments += "--chatchat.internal-credential.secret=`"$NewsInternalSecret`""
+    }
+    if (-not [string]::IsNullOrWhiteSpace($NewsArgs)) {
+        $Arguments += $NewsArgs
+    }
+    return ($Arguments -join " ")
+}
+
 function Start-ManagedApp {
     param(
         [string]$Name,
@@ -340,6 +352,7 @@ function Start-ManagedApp {
     for ($Second = 1; $Second -le $StartupTimeoutSeconds; $Second++) {
         if (-not (Get-Process -Id $Process.Id -ErrorAction SilentlyContinue)) {
             Remove-Item -LiteralPath $PidFile -Force -ErrorAction SilentlyContinue
+            Show-LogTail -Path $StdoutLog
             Show-LogTail -Path $StderrLog
             throw "$Name exited before port $Port became available."
         }
@@ -354,6 +367,7 @@ function Start-ManagedApp {
         Start-Sleep -Seconds 1
     }
 
+    Show-LogTail -Path $StdoutLog
     Show-LogTail -Path $StderrLog
     throw "$Name did not open port $Port within $StartupTimeoutSeconds seconds."
 }
@@ -407,7 +421,7 @@ switch ($Action) {
         $NewsJar = Get-ExecutableJar -ModuleName "chatchat-runtime-news"
 
         $McpPluginPath = if ($env:CHATCHAT_MCP_PLUGIN_PATH) { $env:CHATCHAT_MCP_PLUGIN_PATH } else { Join-Path $ProjectRoot "chatchat-mcp-server/lib/plugins" }
-        Start-ManagedApp -Name "chatchat-runtime-news" -JarPath $NewsJar -Port $NewsPort -PidFile $NewsPidFile -StdoutLog $NewsOutLog -StderrLog $NewsErrLog -ExtraArgs $NewsArgs -WorkingDirectory (Join-Path $ProjectRoot "chatchat-runtime-news") -SpringProfile $NewsProfile
+        Start-ManagedApp -Name "chatchat-runtime-news" -JarPath $NewsJar -Port $NewsPort -PidFile $NewsPidFile -StdoutLog $NewsOutLog -StderrLog $NewsErrLog -ExtraArgs (Get-NewsExtraArgs) -WorkingDirectory (Join-Path $ProjectRoot "chatchat-runtime-news") -SpringProfile $NewsProfile
         Start-ManagedApp -Name "chatchat-mcp-server" -JarPath $McpJar -Port $McpPort -PidFile $McpPidFile -StdoutLog $McpOutLog -StderrLog $McpErrLog -ExtraArgs $McpArgs -LoaderPath $McpPluginPath
         Start-ManagedApp -Name "chatchat-api" -JarPath $ApiJar -Port $ApiPort -PidFile $ApiPidFile -StdoutLog $ApiOutLog -StderrLog $ApiErrLog -ExtraArgs $ApiArgs
 
@@ -435,7 +449,7 @@ switch ($Action) {
         $NewsJar = Get-ExecutableJar -ModuleName "chatchat-runtime-news"
 
         $McpPluginPath = if ($env:CHATCHAT_MCP_PLUGIN_PATH) { $env:CHATCHAT_MCP_PLUGIN_PATH } else { Join-Path $ProjectRoot "chatchat-mcp-server/lib/plugins" }
-        Start-ManagedApp -Name "chatchat-runtime-news" -JarPath $NewsJar -Port $NewsPort -PidFile $NewsPidFile -StdoutLog $NewsOutLog -StderrLog $NewsErrLog -ExtraArgs $NewsArgs -WorkingDirectory (Join-Path $ProjectRoot "chatchat-runtime-news") -SpringProfile $NewsProfile
+        Start-ManagedApp -Name "chatchat-runtime-news" -JarPath $NewsJar -Port $NewsPort -PidFile $NewsPidFile -StdoutLog $NewsOutLog -StderrLog $NewsErrLog -ExtraArgs (Get-NewsExtraArgs) -WorkingDirectory (Join-Path $ProjectRoot "chatchat-runtime-news") -SpringProfile $NewsProfile
         Start-ManagedApp -Name "chatchat-mcp-server" -JarPath $McpJar -Port $McpPort -PidFile $McpPidFile -StdoutLog $McpOutLog -StderrLog $McpErrLog -ExtraArgs $McpArgs -LoaderPath $McpPluginPath
         Start-ManagedApp -Name "chatchat-api" -JarPath $ApiJar -Port $ApiPort -PidFile $ApiPidFile -StdoutLog $ApiOutLog -StderrLog $ApiErrLog -ExtraArgs $ApiArgs
 

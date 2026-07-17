@@ -7,9 +7,29 @@
 
     <el-alert title="已内置上交所/深交所首页快照及东方财富、财联社、交易所公告、巨潮资讯等七套模板，默认关闭。站点页面改版后请及时校验配置。" type="info" :closable="false" show-icon />
 
-    <el-table v-loading="loading" :data="sources" border stripe class="news-table" empty-text="暂无资讯源">
+    <section class="news-list-toolbar">
+      <el-input
+        v-model="filters.keyword"
+        clearable
+        placeholder="搜索名称、编码、地址或域名"
+        @input="resetPage"
+      >
+        <template #prefix><el-icon><Search /></el-icon></template>
+      </el-input>
+      <el-select v-model="filters.sourceType" clearable placeholder="全部类型" @change="resetPage">
+        <el-option v-for="option in sourceTypeOptions" :key="option.value" :label="option.label" :value="option.value" />
+      </el-select>
+      <el-select v-model="filters.enabled" clearable placeholder="全部状态" @change="resetPage">
+        <el-option label="已启用" :value="true" />
+        <el-option label="已停用" :value="false" />
+      </el-select>
+      <el-button @click="resetFilters">重置</el-button>
+      <span class="news-list-count">共 {{ filteredSources.length }} 条</span>
+    </section>
+
+    <el-table v-loading="loading" :data="pagedSources" border stripe class="news-table" empty-text="暂无匹配的资讯源">
       <el-table-column prop="sourceName" label="资讯源" min-width="170"><template #default="{ row }"><strong>{{ row.sourceName }}</strong><small>{{ row.sourceCode }}</small></template></el-table-column>
-      <el-table-column prop="sourceType" label="类型" width="120" />
+      <el-table-column label="类型" width="140"><template #default="{ row }">{{ sourceTypeLabel(row.sourceType) }}</template></el-table-column>
       <el-table-column prop="entryUrl" label="入口地址" min-width="300" show-overflow-tooltip />
       <el-table-column label="调度计划" width="190">
         <template #default="{ row }">
@@ -26,6 +46,18 @@
         <el-button link type="danger" :disabled="row.collectedRecords > 0" @click="remove(row)">删除</el-button>
       </template></el-table-column>
     </el-table>
+
+    <div class="news-pagination">
+      <el-pagination
+        v-model:current-page="page"
+        v-model:page-size="pageSize"
+        :page-sizes="pageSizes"
+        :total="filteredSources.length"
+        layout="total, sizes, prev, pager, next, jumper"
+        background
+        @size-change="resetPage"
+      />
+    </div>
 
     <el-dialog v-model="dialogOpen" :title="form.id ? '编辑资讯源' : '新增资讯源'" width="900px" destroy-on-close>
       <el-form label-position="top" class="news-form">
@@ -108,10 +140,26 @@
         <el-divider v-if="['WEB_LIST','WEB_SINGLE_PAGE'].includes(form.sourceType)" content-position="left">网页抽取规则</el-divider>
         <div v-if="['WEB_LIST','WEB_SINGLE_PAGE'].includes(form.sourceType)" class="news-form-grid">
           <el-form-item v-if="form.sourceType === 'WEB_LIST'" class="wide" label="详情链接选择器"><el-input v-model.trim="form.rule.linkSelector" /></el-form-item>
-          <el-form-item label="标题选择器"><el-input v-model.trim="form.rule.titleSelector" /></el-form-item>
-          <el-form-item label="发布时间选择器"><el-input v-model.trim="form.rule.publishTimeSelector" /></el-form-item>
-          <el-form-item label="作者/来源选择器"><el-input v-model.trim="form.rule.authorSelector" /></el-form-item>
-          <el-form-item class="wide" label="正文选择器"><el-input v-model.trim="form.rule.contentSelector" /></el-form-item>
+          <el-form-item label="标题选择器">
+            <el-select v-model="form.rule.titleSelector" filterable allow-create default-first-option clearable placeholder="选择常用项或输入 CSS Selector">
+              <el-option v-for="option in selectorPresets.title" :key="option.value" :label="option.label" :value="option.value" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="发布时间选择器">
+            <el-select v-model="form.rule.publishTimeSelector" filterable allow-create default-first-option clearable placeholder="选择常用项或输入 CSS Selector">
+              <el-option v-for="option in selectorPresets.publishTime" :key="option.value" :label="option.label" :value="option.value" />
+            </el-select>
+          </el-form-item>
+          <el-form-item label="作者/来源选择器">
+            <el-select v-model="form.rule.authorSelector" filterable allow-create default-first-option clearable placeholder="选择常用项或输入 CSS Selector">
+              <el-option v-for="option in selectorPresets.author" :key="option.value" :label="option.label" :value="option.value" />
+            </el-select>
+          </el-form-item>
+          <el-form-item class="wide" label="正文选择器">
+            <el-select v-model="form.rule.contentSelector" filterable allow-create default-first-option clearable placeholder="选择常用项或输入 CSS Selector">
+              <el-option v-for="option in selectorPresets.content" :key="option.value" :label="option.label" :value="option.value" />
+            </el-select>
+          </el-form-item>
           <el-form-item class="wide" label="详情页 URL 正则（可选模板或自定义）">
             <el-select
               v-model="form.rule.urlPattern"
@@ -131,7 +179,11 @@
               </el-option>
             </el-select>
           </el-form-item>
-          <el-form-item class="wide" label="附件链接选择器（可留空自动识别 PDF/Word/Excel/CSV）"><el-input v-model.trim="form.configuration.attachmentSelector" placeholder="例如：.attachment-list a" /></el-form-item>
+          <el-form-item class="wide" label="附件链接选择器（可留空自动识别 PDF/Word/Excel/CSV）">
+            <el-select v-model="form.configuration.attachmentSelector" filterable allow-create default-first-option clearable placeholder="选择常用项、输入 CSS Selector，或留空自动识别">
+              <el-option v-for="option in selectorPresets.attachment" :key="option.value" :label="option.label" :value="option.value" />
+            </el-select>
+          </el-form-item>
           <el-form-item class="wide" label="附件额外允许域名"><el-input v-model.trim="form.configuration.attachmentAllowedDomains" placeholder="多个域名用逗号分隔；默认允许资讯源域名及其子域名" /></el-form-item>
         </div>
       </el-form>

@@ -454,6 +454,10 @@ run-chat-api-mcp.bat -NewsProfile h2
 run-chat-api-mcp.bat -NewsProfile mysql -NewsPort 8091
 ```
 
+本地一键脚本默认向 News Runtime 传入与 API/MCP 开发配置一致的内部密钥
+`chatchat_internal_default_secret`。如已修改开发内部账户，可使用 `-NewsInternalSecret "新密钥"` 保持三端一致；
+生产发布仍应在外置 `application.yml` 中配置密文账户，不使用这个本地默认值。
+
 三个服务的日志都在 `logs/local-dev/`，PID 在 `run/local-dev/`。`status` 和 `.bat` 包装器可直接查看三项服务状态。
 
 ## git自动提交

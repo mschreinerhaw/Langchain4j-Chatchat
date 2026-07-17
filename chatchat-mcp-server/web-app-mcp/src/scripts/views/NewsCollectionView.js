@@ -21,6 +21,60 @@ const weekdayOptions = [
 const weekdayNumberMap = { '1': 'MON', '2': 'TUE', '3': 'WED', '4': 'THU', '5': 'FRI', '6': 'SAT', '0': 'SUN', '7': 'SUN' };
 const monthDayOptions = [...Array.from({ length: 28 }, (_, index) => ({ label: String(index + 1), value: String(index + 1) })), { label: '末', value: 'L' }];
 const emptyScheduleEditor = () => ({ mode: 'interval', intervalCron: '0 */10 * * * *', time: '09:00', weekdays: ['MON'], monthDays: ['1'] });
+const sourceTypeOptions = [
+  { label: '交易所首页', value: 'EXCHANGE_HOME' },
+  { label: '资讯首页', value: 'NEWS_HOME' },
+  { label: '财联社电报', value: 'CLS_TELEGRAPH' },
+  { label: '网页列表', value: 'WEB_LIST' },
+  { label: '固定网页', value: 'WEB_SINGLE_PAGE' },
+  { label: 'RSS/Atom', value: 'RSS' },
+  { label: 'JSON API', value: 'API' }
+];
+const selectorPresets = {
+  title: [
+    { label: '文章标题（h1）', value: 'h1' },
+    { label: '常用标题类（.title）', value: '.title' },
+    { label: '文章标题类（.article-title）', value: '.article-title' },
+    { label: '新闻标题类（.news-title）', value: '.news-title' },
+    { label: '详情标题类（.detail-title）', value: '.detail-title' },
+    { label: '结构化标题（[itemprop="headline"]）', value: '[itemprop="headline"]' }
+  ],
+  publishTime: [
+    { label: 'HTML time 标签', value: 'time' },
+    { label: '常用时间类（.time）', value: '.time' },
+    { label: '发布时间类（.publish-time）', value: '.publish-time' },
+    { label: '发布日期类（.publish-date）', value: '.publish-date' },
+    { label: '文章时间类（.article-time）', value: '.article-time' },
+    { label: '详情时间类（.detail-time）', value: '.detail-time' },
+    { label: '结构化发布时间（[itemprop="datePublished"]）', value: '[itemprop="datePublished"]' }
+  ],
+  author: [
+    { label: 'HTML address 标签', value: 'address' },
+    { label: '常用作者类（.author）', value: '.author' },
+    { label: '来源类（.source）', value: '.source' },
+    { label: '文章来源类（.article-source）', value: '.article-source' },
+    { label: '发布者类（.publisher）', value: '.publisher' },
+    { label: '结构化作者（[itemprop="author"]）', value: '[itemprop="author"]' }
+  ],
+  content: [
+    { label: 'HTML article 标签', value: 'article' },
+    { label: '常用正文类（.content）', value: '.content' },
+    { label: '文章正文类（.article-content）', value: '.article-content' },
+    { label: '新闻正文类（.news-content）', value: '.news-content' },
+    { label: '详情正文类（.detail-content）', value: '.detail-content' },
+    { label: '正文容器（#content）', value: '#content' },
+    { label: '文章容器（#article-content）', value: '#article-content' }
+  ],
+  attachment: [
+    { label: '自动识别常见附件（推荐）', value: 'a[href$=".pdf"], a[href$=".doc"], a[href$=".docx"], a[href$=".xls"], a[href$=".xlsx"], a[href$=".csv"]' },
+    { label: 'PDF 文件', value: 'a[href$=".pdf"]' },
+    { label: 'Word 文件', value: 'a[href$=".doc"], a[href$=".docx"]' },
+    { label: 'Excel/CSV 文件', value: 'a[href$=".xls"], a[href$=".xlsx"], a[href$=".csv"]' },
+    { label: '附件区域链接（.attachment）', value: '.attachment a' },
+    { label: '附件列表链接（.attachment-list）', value: '.attachment-list a' },
+    { label: '下载区域链接（.download）', value: '.download a' }
+  ]
+};
 
 function cronTime(hour, minute) {
   return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`;
@@ -56,15 +110,47 @@ export default {
   emits: ['notify', 'error', 'result'],
   data: () => ({
     sources: [], presets: [], patternPresets: [], loading: false, saving: false, collectingId: null, dialogOpen: false,
-    form: emptyForm(), scheduleEditor: emptyScheduleEditor(), intervalOptions, weekdayOptions, monthDayOptions
+    filters: { keyword: '', sourceType: '', enabled: '' }, page: 1, pageSize: 10, pageSizes: [10, 20, 50, 100],
+    form: emptyForm(), scheduleEditor: emptyScheduleEditor(), intervalOptions, weekdayOptions, monthDayOptions, sourceTypeOptions, selectorPresets
   }),
+  computed: {
+    filteredSources() {
+      const keyword = String(this.filters.keyword || '').trim().toLowerCase();
+      return this.sources.filter((source) => {
+        const searchable = [source.sourceName, source.sourceCode, source.entryUrl, source.allowedDomain, source.sourceType]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase();
+        const keywordMatches = !keyword || searchable.includes(keyword);
+        const typeMatches = !this.filters.sourceType || source.sourceType === this.filters.sourceType;
+        const statusMatches = this.filters.enabled === '' || source.enabled === this.filters.enabled;
+        return keywordMatches && typeMatches && statusMatches;
+      });
+    },
+    pagedSources() {
+      const start = (this.page - 1) * this.pageSize;
+      return this.filteredSources.slice(start, start + this.pageSize);
+    }
+  },
   mounted() { this.load(); },
   methods: {
     async load() {
       this.loading = true;
       try { [this.sources, this.presets, this.patternPresets] = await Promise.all([newsApi.listSources(), newsApi.listPresets(), newsApi.listPatternPresets()]); }
       catch (error) { this.$emit('error', error); }
-      finally { this.loading = false; }
+      finally {
+        const lastPage = Math.max(1, Math.ceil(this.filteredSources.length / this.pageSize));
+        if (this.page > lastPage) this.page = lastPage;
+        this.loading = false;
+      }
+    },
+    resetPage() { this.page = 1; },
+    resetFilters() {
+      this.filters = { keyword: '', sourceType: '', enabled: '' };
+      this.page = 1;
+    },
+    sourceTypeLabel(type) {
+      return this.sourceTypeOptions.find((option) => option.value === type)?.label || type || '-';
     },
     createSource() {
       this.form = emptyForm();

@@ -8,6 +8,7 @@ import NotificationChannelsView from '../views/NotificationChannelsView.vue';
 import AuditLogsView from '../views/AuditLogsView.vue';
 import CommandAuditLogsView from '../views/CommandAuditLogsView.vue';
 import SettingsView from '../views/SettingsView.vue';
+import NewsCollectionView from '../views/NewsCollectionView.vue';
 import ModalPanel from '../components/ModalPanel.vue';
 import JsonBlock from '../components/JsonBlock.vue';
 import { ElNotification } from 'element-plus';
@@ -35,6 +36,7 @@ export default {
       navItems: [
         { key: 'apiServices', label: 'API 服务', icon: 'Connection', component: ApiServicesView },
         { key: 'mcpServices', label: 'MCP 服务', icon: 'Cpu', component: McpServicesView },
+        { key: 'newsCollection', label: '资讯采集', icon: 'Tickets', component: NewsCollectionView },
         { key: 'assetCenter', label: '资产中心', icon: 'FolderOpened', component: AssetCenterView },
         { key: 'databaseMcp', label: '数据库查询', icon: 'Coin', component: DatabaseMcpView },
         { key: 'cacheSettings', label: '缓存设置', icon: 'DataLine', component: CacheSettingsView },

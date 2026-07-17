@@ -597,7 +597,11 @@ public class McpServiceController {
     private ToolCardView toToolCard(String localToolName, McpToolRegistryBridge.RegisteredMcpTool mcpTool) {
         ToolMetadata metadata = toolRegistry.getToolMetadata(localToolName);
         ToolRegistry.Tool simpleTool = toolRegistry.getTool(localToolName);
-        String sourceType = mcpTool == null ? "backend" : "mcp";
+        Map<String, Object> metadataMap = metadata == null || metadata.getMetadata() == null
+            ? Map.of()
+            : metadata.getMetadata();
+        boolean internalMcpCapability = Boolean.TRUE.equals(metadataMap.get("mcpCapability"));
+        String sourceType = mcpTool == null && !internalMcpCapability ? "backend" : "mcp";
         String displayName = firstNonBlank(
             metadata == null ? null : metadata.getTitle(),
             mcpTool == null ? null : mcpTool.remoteToolName(),
@@ -618,9 +622,6 @@ public class McpServiceController {
         List<ToolParameterView> parameters = metadata == null || metadata.getParameters() == null
             ? List.of()
             : metadata.getParameters().stream().map(this::toParameterView).toList();
-        Map<String, Object> metadataMap = metadata == null || metadata.getMetadata() == null
-            ? Map.of()
-            : metadata.getMetadata();
         Object inputSchema = metadataMap.get("inputSchema");
         return new ToolCardView(
             localToolName,
@@ -628,8 +629,8 @@ public class McpServiceController {
             description,
             sourceType,
             sourceTypeLabel(sourceType),
-            mcpTool == null ? null : mcpTool.serviceId(),
-            mcpTool == null ? null : mcpTool.serviceName(),
+            mcpTool == null ? stringValue(metadataMap.get("mcpCapabilityCode")) : mcpTool.serviceId(),
+            mcpTool == null ? stringValue(metadataMap.get("mcpCapabilityName")) : mcpTool.serviceName(),
             mcpTool == null ? null : mcpTool.remoteToolName(),
             metadata == null ? null : metadata.getOutputType(),
             metadata != null && metadata.isAgentCompatible(),
@@ -706,6 +707,10 @@ public class McpServiceController {
      */
     private String sourceTypeLabel(String sourceType) {
         return "mcp".equals(sourceType) ? "MCP工具" : "后端工具";
+    }
+
+    private String stringValue(Object value) {
+        return value == null ? null : String.valueOf(value);
     }
 
     /**

@@ -6,6 +6,7 @@ import org.springframework.core.Ordered;
 import org.springframework.core.env.ConfigurableEnvironment;
 import org.springframework.core.env.EnumerablePropertySource;
 import org.springframework.core.env.MutablePropertySources;
+import org.springframework.core.env.MapPropertySource;
 import org.springframework.core.env.PropertySource;
 
 import java.nio.file.Files;
@@ -26,7 +27,9 @@ public class EncryptedPropertyEnvironmentPostProcessor implements EnvironmentPos
         MutablePropertySources sources = environment.getPropertySources();
         List<String> names = new ArrayList<>();
         for (PropertySource<?> source : sources) {
-            if (!(source instanceof DecryptingPropertySource) && !isSpringConfigurationPropertySource(source)) {
+            if (!(source instanceof DecryptingPropertySource) && !isSpringConfigurationPropertySource(source)
+                && !"server.ports".equals(source.getName())) {
+                if (source.getClass() == MapPropertySource.class) continue;
                 names.add(source.getName());
             }
         }

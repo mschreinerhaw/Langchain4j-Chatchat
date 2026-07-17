@@ -1,4 +1,4 @@
-spring:
+﻿spring:
   application:
     name: chatchat-mcp-server
   datasource:
@@ -31,6 +31,17 @@ chatchat:
     crypto-key:
     crypto-key-file:
   mcp:
+    news-runtime:
+      base-url: ${CHATCHAT_NEWS_RUNTIME_URL:http://localhost:8091}
+      timeout-millis: ${CHATCHAT_NEWS_RUNTIME_TIMEOUT_MILLIS:30000}
+    capabilities:
+      news:
+        enabled: ${CHATCHAT_NEWS_CAPABILITY_ENABLED:true}
+        tools:
+          web_search: { enabled: true, agent-callable: true, timeout: 30s }
+          news_search: { enabled: true, agent-callable: true, timeout: 30s }
+          news_latest: { enabled: true, agent-callable: true, timeout: 20s }
+          news_source_status: { enabled: true, agent-callable: false, timeout: 10s }
     admin:
       username: admin
       password: admin123
@@ -107,19 +118,6 @@ chatchat:
         encrypted-password:
         password: chatchat_internal_default_secret
         bearer-token:
-    web-search:
-      enabled: true
-      provider: bing_html
-      endpoint: https://cn.bing.com/search
-      timeout-ms: 0
-      browser:
-        browsers-path: playwright-browsers
-        skip-browser-download: false
-    web-crawler:
-      browser:
-        browsers-path: playwright-browsers
-        skip-browser-download: false
-
 logging:
   file:
     name: ./logs/chatchat-mcp-server.log

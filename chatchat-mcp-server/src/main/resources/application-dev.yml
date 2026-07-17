@@ -1,4 +1,4 @@
-spring:
+﻿spring:
   application:
     name: chatchat-mcp-server
   datasource:
@@ -35,6 +35,17 @@ chatchat:
     crypto-key:
     crypto-key-file:
   mcp:
+    news-runtime:
+      base-url: ${CHATCHAT_NEWS_RUNTIME_URL:http://localhost:8091}
+      timeout-millis: 30000
+    capabilities:
+      news:
+        enabled: true
+        tools:
+          web_search: { enabled: true, agent-callable: true, timeout: 30s }
+          news_search: { enabled: true, agent-callable: true, timeout: 30s }
+          news_latest: { enabled: true, agent-callable: true, timeout: 20s }
+          news_source_status: { enabled: true, agent-callable: false, timeout: 10s }
     admin:
       username: admin
       password: admin123
@@ -85,7 +96,7 @@ chatchat:
             queue-timeout-ms: 500
         embedding:
           request-timeout-ms: 300000
-          enabled: false
+          enabled: true
           endpoint: https://llm-7upawl16up8649rh.cn-beijing.maas.aliyuncs.com/compatible-mode/v1/embeddings
           api-key: sk-720436c855ac470bb955388d0e8c9b89
           model: text-embedding-v4
@@ -111,19 +122,6 @@ chatchat:
         encrypted-password:
         password: chatchat_internal_default_secret
         bearer-token:
-    web-search:
-      enabled: true
-      provider: bing_html
-      endpoint: https://cn.bing.com/search
-      timeout-ms: 0
-      browser:
-        browsers-path: playwright-browsers
-        skip-browser-download: false
-    web-crawler:
-      browser-fallback-to-java: ${CHAT_WEB_CRAWLER_BROWSER_FALLBACK_TO_JAVA:true}
-      browser:
-        browsers-path: playwright-browsers
-        skip-browser-download: false
     livedata:
       # Runtime values are maintained on the admin page. Database access is bound through a database asset.
       enabled: true    

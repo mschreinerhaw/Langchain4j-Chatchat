@@ -43,7 +43,6 @@ import java.util.regex.Pattern;
  *
  * Registers enterprise-grade implementations of common tools:
  * - Calculator: Safe mathematical expression evaluation
- * - Web Search: Internet search capability
  * - File System: Secure file operations
  */
 @Slf4j
@@ -73,7 +72,6 @@ public class BuiltInToolsBootstrap {
     );
 
     private final ToolRegistry toolRegistry;
-    private final WebSearchToolProperties webSearchProperties;
     private final DatabaseToolProperties databaseToolProperties;
     private final DynamicJdbcDriverLoader dynamicJdbcDriverLoader;
     private final Environment environment;
@@ -86,7 +84,6 @@ public class BuiltInToolsBootstrap {
         log.info("Initializing built-in tools...");
 
         registerCalculatorTool();
-        registerWebSearchTool();
         registerDocumentSearchTool();
         registerDatabaseQueryTool();
         registerFileSystemTool();
@@ -153,159 +150,6 @@ public class BuiltInToolsBootstrap {
         CalculatorTool calculatorTool = new CalculatorTool();
         toolRegistry.registerTool("calculator", metadata, calculatorTool);
         log.info("Calculator tool registered");
-    }
-
-    /**
-     * Register web search tool with metadata
-     */
-    private void registerWebSearchTool() {
-        String confirmationAction = environment.getProperty(
-            "chatchat.tools.web-search.confirmation.default",
-            "auto_execute"
-        );
-        ToolMetadata metadata = ToolMetadata.builder()
-            .id("web_search")
-            .title("Web Search")
-            .description("Search the internet for current information, news, and web resources. " +
-                "Use this when you need up-to-date information not in your knowledge base.")
-            .version("1.0.0")
-            .author("ChatChat System")
-            .categories(Arrays.asList("search", "internet"))
-            .category("public_web_search")
-            .riskLevel(environment.getProperty("chatchat.tools.web-search.risk-level", "low"))
-            .operationType(environment.getProperty("chatchat.tools.web-search.operation-type", "read"))
-            .runtimeLevel(environment.getProperty("chatchat.tools.web-search.runtime-level", "readonly"))
-            .userVisible(true)
-            .confirmation(Map.of(
-                "default", confirmationAction,
-                "allow_user_override", true
-            ))
-            .permissions(Map.of("roles", List.of()))
-            .inputPolicy(Map.of(
-                "must_show_parameters", true,
-                "allow_auto_fill", true,
-                "sensitive_params", List.of("query"),
-                "parameter_rules", Map.of(
-                    "query", Map.of("action", environment.getProperty(
-                        "chatchat.tools.web-search.parameter-policy.query",
-                        confirmationAction
-                    )),
-                    "num_results", Map.of("action", "auto_execute")
-                )
-            ))
-            .outputPolicy(Map.of(
-                "mask_fields", List.of(),
-                "max_rows_without_confirm", webSearchProperties.getMaxResults()
-            ))
-            .outputType("json")
-            .returnDirect(false)
-            .timeoutMillis(webSearchTimeoutMillis())
-            .isRateLimited(true)
-            .maxCallsPerMinute(10)
-            .agentCompatible(true)
-            .parameters(Arrays.asList(
-                ToolParameter.builder()
-                    .name("query")
-                    .type("string")
-                    .description("Search query (e.g., 'latest AI news', 'weather in New York')")
-                    .required(true)
-                    .minLength(1)
-                    .maxLength(500)
-                    .build(),
-                ToolParameter.builder()
-                    .name("num_results")
-                    .type("number")
-                    .description("Number of search results to return (default: 10)")
-                    .required(false)
-                    .defaultValue(10)
-                    .minimum(1)
-                    .maximum(100)
-                    .build(),
-                ToolParameter.builder()
-                    .name("tenantId")
-                    .type("string")
-                    .description("Optional tenant identifier used for request isolation")
-                    .required(false)
-                    .maxLength(128)
-                    .build(),
-                ToolParameter.builder()
-                    .name("userId")
-                    .type("string")
-                    .description("Optional user identifier used for audit and request isolation")
-                    .required(false)
-                    .maxLength(128)
-                    .build(),
-                ToolParameter.builder()
-                    .name("roles")
-                    .type("array")
-                    .description("Optional runtime user roles used by web governance policy.")
-                    .required(false)
-                    .metadata(Map.of("items", Map.of("type", "string")))
-                    .build(),
-                ToolParameter.builder()
-                    .name("allowedDomains")
-                    .type("array")
-                    .description("Optional request-scoped allow-list. When set, web_search only returns or fetches URLs under these domains.")
-                    .required(false)
-                    .metadata(Map.of("items", Map.of("type", "string")))
-                    .build(),
-                ToolParameter.builder()
-                    .name("blockedDomains")
-                    .type("array")
-                    .description("Optional request-scoped block-list. Matching result URLs are removed and matching fetches are denied.")
-                    .required(false)
-                    .metadata(Map.of("items", Map.of("type", "string")))
-                    .build(),
-                ToolParameter.builder()
-                    .name("sourceTaskId")
-                    .type("string")
-                    .description("Optional task identifier used for request isolation")
-                    .required(false)
-                    .maxLength(128)
-                    .build(),
-                ToolParameter.builder()
-                    .name("agentId")
-                    .type("string")
-                    .description("Optional agent identifier used for audit and rate control")
-                    .required(false)
-                    .maxLength(128)
-                    .build(),
-                ToolParameter.builder()
-                    .name("referer")
-                    .type("string")
-                    .description("Optional browser Referer header override")
-                    .required(false)
-                    .maxLength(500)
-                    .build()
-            ))
-            .tags(Arrays.asList("search", "internet", "external"))
-            .build();
-
-        WebSearchTool webSearchTool = new WebSearchTool(webSearchProperties, objectMapper);
-        toolRegistry.registerTool("web_search", metadata, webSearchTool);
-        log.info("Web Search tool registered");
-    }
-
-    /**
-     * Performs the web search timeout millis operation.
-     *
-     * @return the operation result
-     */
-    private long webSearchTimeoutMillis() {
-        long configuredTimeoutMs = webSearchProperties.getTimeoutMs();
-        if (configuredTimeoutMs <= 0) {
-            return 0L;
-        }
-        long perRequestTimeout = Math.max(1000L, configuredTimeoutMs);
-        int searchAttempts = webSearchProperties.isFallbackEnabled() ? 3 : 1;
-        int pageFetches = webSearchProperties.isFetchPages()
-            ? Math.max(0, webSearchProperties.getMaxPagesToFetch())
-            : 0;
-        int siteSearchFetches = webSearchProperties.getSiteSearch().isEnabled()
-            ? Math.max(0, webSearchProperties.getSiteSearch().getMaxPagesToInspect())
-                + Math.max(0, webSearchProperties.getSiteSearch().getMaxSecondaryPages())
-            : 0;
-        return Math.max(30000L, perRequestTimeout * (searchAttempts + pageFetches + siteSearchFetches + 1));
     }
 
     /**

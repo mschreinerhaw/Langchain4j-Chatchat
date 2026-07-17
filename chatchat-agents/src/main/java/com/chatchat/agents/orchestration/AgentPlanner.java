@@ -301,7 +301,7 @@ class AgentPlanner {
                 .append(" to fetch cleaned full page content from the selected URL before analysis.\n");
             prompt.append("4. The final_answer step MUST depend on the crawler/content step, not only on web discovery.\n");
             prompt.append("5. If an official website or exchange site is required, keep that source constraint in the web discovery query/input.\n\n");
-            prompt.append("Discovery tools include web_search, web_page_analyze, site_intelligence_resolver, finance_site_search, and generic_web_site_search when available.\n\n");
+            prompt.append("web_search queries standardized, pre-collected news from chatchat-runtime-news; it does not browse the public web on demand.\n\n");
             prompt.append("Crawler input contract:\n");
             prompt.append("- Never use ").append(crawlerTool).append(" as a search tool. It cannot accept a free-text query.\n");
             prompt.append("- ").append(crawlerTool).append(" may only be called with an HTTP/HTTPS url selected from prior web discovery results, for example {\"url\":\"https://example.com/page\"}.\n");
@@ -338,12 +338,12 @@ class AgentPlanner {
         if (requireDocumentWebVerification) {
             prompt.append("Document-web verification workflow:\n");
             prompt.append("1. Call ").append(documentSearchTool).append(" first to retrieve internal knowledge evidence.\n");
-            prompt.append("2. Then call ").append(verificationWebSearchTool).append(" to validate and supplement with public/web evidence.\n");
+            prompt.append("2. Then call ").append(verificationWebSearchTool).append(" to validate and supplement with collected news evidence.\n");
             prompt.append("3. Do not return a final answer until both ").append(documentSearchTool).append(" and ")
                 .append(verificationWebSearchTool)
                 .append(" have been observed.\n");
-            prompt.append("4. In the final answer, separate internal document evidence from web verification evidence.\n");
-            prompt.append("5. If the two sources conflict, explicitly state the conflict and prefer internal documents for internal/business facts unless web evidence is newer and the answer calls for current public facts.\n\n");
+            prompt.append("4. In the final answer, separate internal document evidence from collected news evidence.\n");
+            prompt.append("5. If the two sources conflict, explicitly state the conflict and compare their publication times and source provenance.\n\n");
         }
         if (!observations.isEmpty()) {
             prompt.append("Observations so far:\n");

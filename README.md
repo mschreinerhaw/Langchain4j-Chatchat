@@ -420,6 +420,7 @@ mvn -pl chatchat-mcp-server -am spring-boot:run
 | ChatChat 主应用 | `8080` | `http://localhost:8080` |
 | MCP Server | `8090` | `http://localhost:8090/admin` |
 | MCP Endpoint | `8090` | `http://localhost:8090/mcp` |
+| News Runtime | `8091` | MCP Server 内部调用 |
 
 ## 测试脚本
 
@@ -434,10 +435,11 @@ mvn -pl chatchat-mcp-server -am spring-boot:run
 .\run-chat-api-mcp.bat
 ```
 
-会先停止脚本托管的旧进程，然后构建 `chatchat-api,chatchat-mcp-server`，再按顺序启动：
+会先停止脚本托管的旧进程，然后构建 `chatchat-api,chatchat-mcp-server,chatchat-runtime-news`，再按顺序启动：
 
-1. MCP Server: `http://localhost:8090/admin`
-2. Chat API: `http://localhost:8080`
+1. News Runtime: `http://localhost:8091`（仅供内部通信）
+2. MCP Server: `http://localhost:8090/admin`
+3. Chat API: `http://localhost:8080`
 
 常用命令：
 
@@ -448,9 +450,11 @@ mvn -pl chatchat-mcp-server -am spring-boot:run
 .\run-chat-api-mcp.bat -Clean
 .\run-chat-api-mcp.bat -WithTests
 run-chat-api-mcp.bat -Action restart
+run-chat-api-mcp.bat -NewsProfile h2
+run-chat-api-mcp.bat -NewsProfile mysql -NewsPort 8091
 ```
 
-日志在 `logs/local-dev/`，PID 在 `run/local-dev/`。我已验证 `status` 和 `.bat` 包装器能正常运行；没有跑完整构建/启动，避免直接拉起服务占端口。
+三个服务的日志都在 `logs/local-dev/`，PID 在 `run/local-dev/`。`status` 和 `.bat` 包装器可直接查看三项服务状态。
 
 ## git自动提交
 

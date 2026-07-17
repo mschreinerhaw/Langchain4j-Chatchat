@@ -2,7 +2,7 @@
   <section class="feature-view skill-hub-view mcp-center-view">
     <header class="mcp-header">
       <div>
-        <p>MCP服务</p>
+        <p>MCP能力管理</p>
       </div>
     </header>
 
@@ -28,6 +28,13 @@
     <p v-if="error" class="mcp-error">{{ error }}</p>
     <p v-else-if="syncMessage" class="mcp-message">{{ syncMessage }}</p>
     <p v-else-if="loading && services.length === 0" class="mcp-empty">正在加载 MCP 配置...</p>
+
+    <div class="mcp-tools-head mcp-external-services-head">
+      <div>
+        <h2>外部 MCP 服务</h2>
+        <span>管理 Streamable HTTP、SSE 和 stdio 等外部 MCP Server。</span>
+      </div>
+    </div>
 
     <div v-if="services.length" class="feature-grid compact">
       <article v-for="service in services" :key="service.id" class="feature-card mcp-service-card">

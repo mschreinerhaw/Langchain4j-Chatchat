@@ -18,8 +18,8 @@
         <spring-boot.version>3.5.3</spring-boot.version>
         <langchain4j.version>1.14.1</langchain4j.version>
         <opensearch.client.version>2.12.0</opensearch.client.version>
+        <webmagic.version>1.0.3</webmagic.version>
         <rocksdb.version>10.10.1.1</rocksdb.version>
-        <playwright.version>1.53.0</playwright.version>
         <lombok.version>1.18.32</lombok.version>
         <chatchat.main-class>com.chatchat.api.ChatChatApplication</chatchat.main-class>
     </properties>
@@ -28,6 +28,8 @@
         <module>chatchat-common</module>
         <module>chatchat-agents</module>
         <module>chatchat-tools</module>
+        <module>chatchat-runtime-mcp</module>
+        <module>chatchat-runtime-news</module>
         <module>chatchat-knowledge-base</module>
         <module>chatchat-chat</module>
         <module>chatchat-enterprise</module>
@@ -70,6 +72,16 @@
             <dependency>
                 <groupId>com.chatchat</groupId>
                 <artifactId>chatchat-tools</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.chatchat</groupId>
+                <artifactId>chatchat-runtime-mcp</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>com.chatchat</groupId>
+                <artifactId>chatchat-runtime-news</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <dependency>

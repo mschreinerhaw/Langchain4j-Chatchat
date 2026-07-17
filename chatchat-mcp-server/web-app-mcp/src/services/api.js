@@ -49,6 +49,17 @@ export const mcpServicesApi = {
   regenerateToken: id => apiFetch(`${API_BASE}/mcp-services/${encodeURIComponent(id)}/token`, { method: 'POST' })
 };
 
+export const newsApi = {
+  listSources: () => apiFetch(`${API_BASE}/news/sources`),
+  listPresets: () => apiFetch(`${API_BASE}/news/presets`),
+  listPatternPresets: () => apiFetch(`${API_BASE}/news/pattern-presets`),
+  getRule: id => apiFetch(`${API_BASE}/news/sources/${encodeURIComponent(id)}/rule`),
+  saveSource: source => saveEntity(`${API_BASE}/news/sources`, source),
+  saveRule: (id, rule) => apiFetch(`${API_BASE}/news/sources/${encodeURIComponent(id)}/rule`, { method: 'PUT', body: JSON.stringify(rule || {}) }),
+  removeSource: id => apiFetch(`${API_BASE}/news/sources/${encodeURIComponent(id)}`, { method: 'DELETE' }),
+  collect: id => apiFetch(`${API_BASE}/news/sources/${encodeURIComponent(id)}/collect`, { method: 'POST' })
+};
+
 export const assetsApi = {
   listSsh: () => apiFetch(`${API_BASE}/ops/ssh-hosts`),
   saveSsh: asset => saveEntity(`${API_BASE}/ops/ssh-hosts`, asset),

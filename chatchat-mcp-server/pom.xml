@@ -37,7 +37,10 @@
             <groupId>com.chatchat</groupId>
             <artifactId>chatchat-tools</artifactId>
         </dependency>
-
+        <dependency>
+            <groupId>com.chatchat</groupId>
+            <artifactId>chatchat-runtime-mcp</artifactId>
+        </dependency>
         <dependency>
             <groupId>dev.langchain4j</groupId>
             <artifactId>langchain4j-core</artifactId>
@@ -89,16 +92,6 @@
             <groupId>org.rocksdb</groupId>
             <artifactId>rocksdbjni</artifactId>
             <version>${rocksdb.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.jsoup</groupId>
-            <artifactId>jsoup</artifactId>
-            <version>1.16.2</version>
-        </dependency>
-        <dependency>
-            <groupId>com.microsoft.playwright</groupId>
-            <artifactId>playwright</artifactId>
-            <version>${playwright.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.sshd</groupId>

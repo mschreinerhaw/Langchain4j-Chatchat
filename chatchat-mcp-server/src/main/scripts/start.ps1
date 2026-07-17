@@ -34,7 +34,8 @@ for ($Index = 0; $Index -lt $StartArgs.Count; $Index++) {
     $ForwardArgs.Add($Arg)
 }
 
-$JavaOptions = $env:JAVA_OPTS
+$DefaultJavaOptions = "-Xms1g -Xmx2g -XX:+UseG1GC -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=./logs -XX:+ExitOnOutOfMemoryError -Dfile.encoding=UTF-8"
+$JavaOptions = if ([string]::IsNullOrWhiteSpace($env:JAVA_OPTS)) { $DefaultJavaOptions } else { $env:JAVA_OPTS }
 if ($env:CHATCHAT_OPENSEARCH_INSECURE_SSL -match '^(?i:true|1|yes)$' -and
     $JavaOptions -notmatch 'jdk\.internal\.httpclient\.disableHostnameVerification') {
     $JavaOptions = (($JavaOptions, "-Djdk.internal.httpclient.disableHostnameVerification=true") |

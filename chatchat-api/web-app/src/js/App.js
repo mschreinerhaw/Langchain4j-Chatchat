@@ -142,7 +142,7 @@ export default {
           id: "platform",
           label: "平台管理",
           items: [
-            { id: "mcp", label: "MCP服务", icon: "mcp" },
+            { id: "mcp", label: "MCP能力", icon: "mcp" },
             { id: "agents", label: "Agent管理", icon: "agent" },
             { id: "schedules", label: "Agent调度", icon: "schedule" },
             { id: "rules", label: "关键词规则", icon: "search" },

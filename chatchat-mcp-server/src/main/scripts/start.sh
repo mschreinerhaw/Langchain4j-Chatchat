@@ -28,7 +28,8 @@ while [ "$#" -gt 0 ]; do
   shift
 done
 
-JAVA_OPTIONS="${JAVA_OPTS:-}"
+DEFAULT_JAVA_OPTS="-Xms1g -Xmx2g -XX:+UseG1GC -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=./logs -XX:+ExitOnOutOfMemoryError -Dfile.encoding=UTF-8"
+JAVA_OPTIONS="${JAVA_OPTS:-$DEFAULT_JAVA_OPTS}"
 case "${CHATCHAT_OPENSEARCH_INSECURE_SSL:-false}" in
   true|TRUE|True|1|yes|YES|Yes)
     case " $JAVA_OPTIONS " in

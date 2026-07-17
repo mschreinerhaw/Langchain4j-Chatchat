@@ -46,6 +46,17 @@ chatchat:
     crypto-key: ${CHATCHAT_INTERNAL_CRYPTO_KEY:}
     crypto-key-file: ${CHATCHAT_INTERNAL_CRYPTO_KEY_FILE:}
   mcp:
+    news-runtime:
+      base-url: ${CHATCHAT_NEWS_RUNTIME_URL:http://localhost:8091}
+      timeout-millis: ${CHATCHAT_NEWS_RUNTIME_TIMEOUT_MILLIS:30000}
+    capabilities:
+      news:
+        enabled: ${CHATCHAT_NEWS_CAPABILITY_ENABLED:true}
+        tools:
+          web_search: { enabled: true, agent-callable: true, timeout: 30s }
+          news_search: { enabled: true, agent-callable: true, timeout: 30s }
+          news_latest: { enabled: true, agent-callable: true, timeout: 20s }
+          news_source_status: { enabled: true, agent-callable: false, timeout: 10s }
     admin:
       username: admin
       password: admin123
@@ -219,111 +230,7 @@ chatchat:
             queue-timeout-seconds: 0
             timeout-seconds: 0
             runtime-level: http
-          finance_site_search:
-            max-concurrency: 2
-            queue-size: 32
-            queue-timeout-seconds: 0
-            timeout-seconds: 0
-            runtime-level: http
-          generic_web_site_search:
-            max-concurrency: 2
-            queue-size: 32
-            queue-timeout-seconds: 0
-            timeout-seconds: 0
-            runtime-level: http
-          web_page_analyze:
-            max-concurrency: 2
-            queue-size: 32
-            queue-timeout-seconds: 0
-            timeout-seconds: 0
-            runtime-level: http
-          site_intelligence_resolver:
-            max-concurrency: 2
-            queue-size: 32
-            queue-timeout-seconds: 0
-            timeout-seconds: 0
-            runtime-level: http
-          retrieve_financial_evidence:
-            max-concurrency: 2
-            queue-size: 32
-            queue-timeout-seconds: 0
-            timeout-seconds: 0
-            runtime-level: http
-          web_crawler:
-            max-concurrency: 2
-            queue-size: 32
-            queue-timeout-seconds: 0
-            timeout-seconds: 0
-            runtime-level: http
-          crawl_url:
-            max-concurrency: 2
-            queue-size: 32
-            queue-timeout-seconds: 0
-            timeout-seconds: 0
-            runtime-level: http
-          search_and_extract:
-            max-concurrency: 2
-            queue-size: 32
-            queue-timeout-seconds: 0
-            timeout-seconds: 0
-            runtime-level: http
   tools:
-    web-crawler:
-      # Enables page crawling for search_and_extract evidence enrichment.
-      enabled: true
-      # User-Agent sent when fetching target pages.
-      user-agent: ChatChat-MCP-Crawler/1.0
-      # Per-page HTTP timeout.
-      # 0 means wait for web search/page fetch completion without a local request timeout.
-      timeout-ms: 0
-      # Maximum response bytes read before aborting a page fetch.
-      max-body-bytes: 1048576
-      # Maximum raw HTML characters retained for processing.
-      max-html-chars: 200000
-      # Maximum readable text characters retained after cleaning.
-      max-text-chars: 120000
-      # Evidence chunk size and overlap for downstream ranking.
-      chunk-chars: 1200
-      chunk-overlap-chars: 120
-      max-chunks: 20
-      # Follow wrapper pages whose content/requestedUrl points to another URL.
-      max-follow-urls: 5
-      # Cache crawled pages for seven days.
-      cache-ttl-seconds: 604800
-      # Include raw HTML in cached page records for debugging and reprocessing.
-      include-html: true
-      accept-language: en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7
-      # Default crawl_url mode: browser = Playwright Chromium rendering; java = JSoup HTTP with browser-like headers; auto = browser when enabled.
-      default-mode: browser
-      browser:
-        enabled: true
-        browsers-path: ${PLAYWRIGHT_BROWSERS_PATH:playwright-browsers}
-        skip-browser-download: ${PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD:false}
-        navigation-timeout-ms: 0
-        accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8
-        accept-language: en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7
-        referer:
-      proxy-pool:
-        # Shared crawler proxy pool. Supports HTTP and SOCKS/SOCKS5; username/password are optional.
-        enabled: false
-        default-pool: default
-        proxies: []
-        # Example:
-        # proxies:
-        #   - id: proxy-a
-        #     pool: default
-        #     type: HTTP
-        #     host: 127.0.0.1
-        #     port: 7890
-        #     username:
-        #     password:
-        #   - id: proxy-b
-        #     pool: search
-        #     type: SOCKS5
-        #     host: 127.0.0.1
-        #     port: 1080
-        #     tenant-ids: [tenant-a]
-        #     tags: [tag]
     livedata:
       # Runtime values are maintained on the admin page. Database access is bound through a database asset.
       enabled: true
@@ -357,143 +264,6 @@ chatchat:
       risk-level: medium
       confirmation:
         default: ask_before_execute
-    web-search:
-      enabled: true
-      risk-level: low
-      operation-type: read
-      confirmation:
-        default: auto_execute
-      parameter-policy:
-        query: auto_execute
-      provider: bing_html
-      endpoint: https://cn.bing.com/search
-      user-agent: ChatChat-MCP-Server/1.0
-      # 0 means wait for web_search completion without a local request timeout.
-      timeout-ms: 0
-      max-results: 10
-      fetch-pages: true
-      max-pages-to-fetch: 3
-      page-excerpt-chars: 2500
-      page-max-bytes: 1048576
-      fallback-enabled: true
-      default-mode: browser
-      browser-fallback-to-java: true
-      site-search:
-        enabled: true
-        default-mode: java
-        browser-fallback-to-java: true
-        max-pages-to-inspect: 3
-        max-secondary-pages: 3
-        max-links-per-page: 5
-      finance-sites:
-        - id: sse
-          name: Shanghai Stock Exchange
-          domain: www.sse.com.cn
-          homepage-url: https://www.sse.com.cn/
-          search-url-template: https://www.sse.com.cn/home/search/index.shtml?webswd={keyword}
-          query-param: webswd
-          default-mode: java
-          information-types:
-            - SSE listed company announcements
-            - Periodic reports
-            - Ad hoc announcements
-            - Regulatory disclosures
-            - Security code and company name lookup
-          description: Suitable for searching Shanghai-listed company announcements, annual/interim/quarterly reports, ad hoc announcements, regulatory disclosures, security codes, and company names.
-        - id: szse
-          name: Shenzhen Stock Exchange
-          domain: www.szse.cn
-          homepage-url: https://www.szse.cn/
-          search-url-template: https://www.szse.cn/application/search/index.html?keyword={keyword}
-          query-param: keyword
-          default-mode: browser
-          information-types:
-            - SZSE listed company announcements
-            - Periodic reports
-            - Ad hoc announcements
-            - Regulatory disclosures
-            - Security code and company name lookup
-          description: Suitable for searching Shenzhen Main Board and ChiNext company announcements, periodic reports, ad hoc announcements, regulatory disclosures, security codes, and company names.
-        - id: cninfo
-          name: CNINFO
-          domain: www.cninfo.com.cn
-          homepage-url: https://www.cninfo.com.cn/
-          search-url-template: https://www.cninfo.com.cn/new/fulltextSearch?notautosubmit=&keyWord={keyword}
-          query-param: keyWord
-          default-mode: browser
-          information-types:
-            - CNINFO full-text search
-            - Listed company announcements
-            - Periodic reports
-            - Ad hoc announcements
-            - Regulatory disclosures
-            - Security code and company name lookup
-          description: Suitable for cross-market searches of listed company announcements, annual/interim/quarterly reports, ad hoc announcements, regulatory disclosures, security codes, and company names.
-      browser:
-        enabled: true
-        browsers-path: ${PLAYWRIGHT_BROWSERS_PATH:playwright-browsers}
-        skip-browser-download: ${CHAT_WEB_SEARCH_BROWSER_SKIP_DOWNLOAD:false}
-        persistent-enabled: true
-        # 0 disables Playwright navigation timeout.
-        navigation-timeout-ms: 0
-        accept-language: zh-CN,zh;q=0.9,en-US;q=0.8,en;q=0.7
-        referer: https://cn.bing.com/
-        tls-fingerprint-profile: jdk-default
-      proxy-pool:
-        # Used by web_search, finance_site_search, and generic_web_site_search in both Java and browser modes.
-        # Supports HTTP and SOCKS/SOCKS5; username/password are optional.
-        enabled: false
-        default-pool: default
-        proxies: []
-        # Example:
-        # proxies:
-        #   - id: proxy-a
-        #     pool: default
-        #     type: HTTP
-        #     host: 127.0.0.1
-        #     port: 7890
-        #     username:
-        #     password:
-        #   - id: proxy-b
-        #     pool: search
-        #     type: SOCKS5
-        #     host: 127.0.0.1
-        #     port: 1080
-        #     tenant-ids: [tenant-a]
-        #     tags: [tag]
-      retry:
-        max-attempts: 3
-        backoff-ms: 500
-        retry-status-codes: [403, 408, 429, 500, 502, 503, 504]
-        retry-body-keywords:
-          - captcha
-          - verify you are human
-          - too many requests
-      rate-limit:
-        enabled: true
-        max-concurrency: 5
-        qps: 1.0
-        daily-limit: 1000
-      cookie:
-        enabled: true
-        persist: false
-        store-path: ./data/web-search-cookies.json
-        isolation: proxy_task
-      allow-list:
-        enabled: false
-        domains:
-          - bing.com
-          - duckduckgo.com
-          - google.com
-          - news.google.com
-          - finance.yahoo.com
-          - reuters.com
-          - bloomberg.com
-          - localhost
-          - 127.0.0.1
-      audit:
-        enabled: true
-        include-in-result: true
     database-query:
       # Read-only SQL query tool for configured external databases.
       enabled: true

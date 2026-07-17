@@ -7,12 +7,16 @@ param(
     [switch]$Clean,
 
     [string]$Profile = "dev",
+    [ValidateSet("h2", "mysql")]
+    [string]$NewsProfile = "h2",
     [int]$ApiPort = 8080,
     [int]$McpPort = 8090,
+    [int]$NewsPort = 8091,
     [int]$StartupTimeoutSeconds = 120,
 
     [string]$ApiArgs = "",
-    [string]$McpArgs = ""
+    [string]$McpArgs = "",
+    [string]$NewsArgs = ""
 )
 
 $ErrorActionPreference = "Stop"
@@ -23,10 +27,13 @@ $RunRoot = Join-Path $ProjectRoot "run\local-dev"
 $LogRoot = Join-Path $ProjectRoot "logs\local-dev"
 $ApiPidFile = Join-Path $RunRoot "chatchat-api.pid"
 $McpPidFile = Join-Path $RunRoot "chatchat-mcp-server.pid"
+$NewsPidFile = Join-Path $RunRoot "chatchat-runtime-news.pid"
 $ApiOutLog = Join-Path $LogRoot "chatchat-api.out.log"
 $ApiErrLog = Join-Path $LogRoot "chatchat-api.err.log"
 $McpOutLog = Join-Path $LogRoot "chatchat-mcp-server.out.log"
 $McpErrLog = Join-Path $LogRoot "chatchat-mcp-server.err.log"
+$NewsOutLog = Join-Path $LogRoot "chatchat-runtime-news.out.log"
+$NewsErrLog = Join-Path $LogRoot "chatchat-runtime-news.err.log"
 $EffectiveProfile = $null
 
 function Assert-ProjectRoot {
@@ -185,7 +192,7 @@ function Stop-ManagedApp {
 function Invoke-Build {
     $MavenArgs = @(
         "-pl"
-        "chatchat-api,chatchat-mcp-server"
+        "chatchat-api,chatchat-mcp-server,chatchat-runtime-news"
         "-am"
     )
 
@@ -288,7 +295,9 @@ function Start-ManagedApp {
         [string]$StdoutLog,
         [string]$StderrLog,
         [string]$ExtraArgs,
-        [string]$LoaderPath
+        [string]$LoaderPath,
+        [string]$WorkingDirectory = $ProjectRoot,
+        [string]$SpringProfile = $EffectiveProfile
     )
 
     $ExistingProcess = Get-ManagedProcess -PidFile $PidFile
@@ -308,19 +317,19 @@ function Start-ManagedApp {
     $Java = Get-JavaCommand
     $JavaOptions = $env:JAVA_OPTS
     if ([string]::IsNullOrWhiteSpace($LoaderPath)) {
-        $ArgumentLine = (($JavaOptions, "-jar", "`"$JarPath`"", "--debug=false", "--spring.profiles.active=$EffectiveProfile", "--server.port=$Port", $ExtraArgs) |
+        $ArgumentLine = (($JavaOptions, "-jar", "`"$JarPath`"", "--debug=false", "--spring.profiles.active=$SpringProfile", "--server.port=$Port", $ExtraArgs) |
             Where-Object { -not [string]::IsNullOrWhiteSpace($_) }) -join " "
     } else {
         New-Item -ItemType Directory -Force -Path $LoaderPath | Out-Null
-        $ArgumentLine = (($JavaOptions, "-Dloader.path=`"$LoaderPath`"", "-cp", "`"$JarPath`"", "org.springframework.boot.loader.launch.PropertiesLauncher", "--debug=false", "--spring.profiles.active=$EffectiveProfile", "--server.port=$Port", $ExtraArgs) |
+        $ArgumentLine = (($JavaOptions, "-Dloader.path=`"$LoaderPath`"", "-cp", "`"$JarPath`"", "org.springframework.boot.loader.launch.PropertiesLauncher", "--debug=false", "--spring.profiles.active=$SpringProfile", "--server.port=$Port", $ExtraArgs) |
             Where-Object { -not [string]::IsNullOrWhiteSpace($_) }) -join " "
     }
 
-    Write-Host "Starting $Name on port $Port with profiles '$EffectiveProfile' ..."
+    Write-Host "Starting $Name on port $Port with profiles '$SpringProfile' ..."
     $Process = Start-Process `
         -FilePath $Java `
         -ArgumentList $ArgumentLine `
-        -WorkingDirectory $ProjectRoot `
+        -WorkingDirectory $WorkingDirectory `
         -RedirectStandardOutput $StdoutLog `
         -RedirectStandardError $StderrLog `
         -WindowStyle Hidden `
@@ -373,6 +382,7 @@ $EffectiveProfile = Get-EffectiveProfile
 
 switch ($Action) {
     "status" {
+        Write-ManagedStatus -Name "chatchat-runtime-news" -PidFile $NewsPidFile -Port $NewsPort
         Write-ManagedStatus -Name "chatchat-mcp-server" -PidFile $McpPidFile -Port $McpPort
         Write-ManagedStatus -Name "chatchat-api" -PidFile $ApiPidFile -Port $ApiPort
         break
@@ -380,11 +390,13 @@ switch ($Action) {
     "stop" {
         Stop-ManagedApp -Name "chatchat-api" -PidFile $ApiPidFile
         Stop-ManagedApp -Name "chatchat-mcp-server" -PidFile $McpPidFile
+        Stop-ManagedApp -Name "chatchat-runtime-news" -PidFile $NewsPidFile
         break
     }
     "restart" {
         Stop-ManagedApp -Name "chatchat-api" -PidFile $ApiPidFile
         Stop-ManagedApp -Name "chatchat-mcp-server" -PidFile $McpPidFile
+        Stop-ManagedApp -Name "chatchat-runtime-news" -PidFile $NewsPidFile
 
         if (-not $SkipBuild) {
             Invoke-Build
@@ -392,14 +404,18 @@ switch ($Action) {
 
         $McpJar = Get-ExecutableJar -ModuleName "chatchat-mcp-server"
         $ApiJar = Get-ExecutableJar -ModuleName "chatchat-api"
+        $NewsJar = Get-ExecutableJar -ModuleName "chatchat-runtime-news"
 
         $McpPluginPath = if ($env:CHATCHAT_MCP_PLUGIN_PATH) { $env:CHATCHAT_MCP_PLUGIN_PATH } else { Join-Path $ProjectRoot "chatchat-mcp-server/lib/plugins" }
+        Start-ManagedApp -Name "chatchat-runtime-news" -JarPath $NewsJar -Port $NewsPort -PidFile $NewsPidFile -StdoutLog $NewsOutLog -StderrLog $NewsErrLog -ExtraArgs $NewsArgs -WorkingDirectory (Join-Path $ProjectRoot "chatchat-runtime-news") -SpringProfile $NewsProfile
         Start-ManagedApp -Name "chatchat-mcp-server" -JarPath $McpJar -Port $McpPort -PidFile $McpPidFile -StdoutLog $McpOutLog -StderrLog $McpErrLog -ExtraArgs $McpArgs -LoaderPath $McpPluginPath
         Start-ManagedApp -Name "chatchat-api" -JarPath $ApiJar -Port $ApiPort -PidFile $ApiPidFile -StdoutLog $ApiOutLog -StderrLog $ApiErrLog -ExtraArgs $ApiArgs
 
         Write-Host ""
         Write-Host "Ready:"
         Write-Host "  Profiles: $EffectiveProfile"
+        Write-Host "  News database profile: $NewsProfile"
+        Write-Host "  News Runtime: http://localhost:$NewsPort"
         Write-Host "  API: http://localhost:$ApiPort"
         Write-Host "  MCP admin: http://localhost:$McpPort/admin"
         Write-Host "  MCP endpoint: http://localhost:$McpPort/mcp"
@@ -407,7 +423,7 @@ switch ($Action) {
     }
     "start" {
         if (-not $SkipBuild) {
-            if ((Get-ManagedProcess -PidFile $ApiPidFile) -or (Get-ManagedProcess -PidFile $McpPidFile)) {
+            if ((Get-ManagedProcess -PidFile $ApiPidFile) -or (Get-ManagedProcess -PidFile $McpPidFile) -or (Get-ManagedProcess -PidFile $NewsPidFile)) {
                 throw "Managed services are already running. Use -Action restart, or use -Action start -SkipBuild."
             }
 
@@ -416,14 +432,18 @@ switch ($Action) {
 
         $McpJar = Get-ExecutableJar -ModuleName "chatchat-mcp-server"
         $ApiJar = Get-ExecutableJar -ModuleName "chatchat-api"
+        $NewsJar = Get-ExecutableJar -ModuleName "chatchat-runtime-news"
 
         $McpPluginPath = if ($env:CHATCHAT_MCP_PLUGIN_PATH) { $env:CHATCHAT_MCP_PLUGIN_PATH } else { Join-Path $ProjectRoot "chatchat-mcp-server/lib/plugins" }
+        Start-ManagedApp -Name "chatchat-runtime-news" -JarPath $NewsJar -Port $NewsPort -PidFile $NewsPidFile -StdoutLog $NewsOutLog -StderrLog $NewsErrLog -ExtraArgs $NewsArgs -WorkingDirectory (Join-Path $ProjectRoot "chatchat-runtime-news") -SpringProfile $NewsProfile
         Start-ManagedApp -Name "chatchat-mcp-server" -JarPath $McpJar -Port $McpPort -PidFile $McpPidFile -StdoutLog $McpOutLog -StderrLog $McpErrLog -ExtraArgs $McpArgs -LoaderPath $McpPluginPath
         Start-ManagedApp -Name "chatchat-api" -JarPath $ApiJar -Port $ApiPort -PidFile $ApiPidFile -StdoutLog $ApiOutLog -StderrLog $ApiErrLog -ExtraArgs $ApiArgs
 
         Write-Host ""
         Write-Host "Ready:"
         Write-Host "  Profiles: $EffectiveProfile"
+        Write-Host "  News database profile: $NewsProfile"
+        Write-Host "  News Runtime: http://localhost:$NewsPort"
         Write-Host "  API: http://localhost:$ApiPort"
         Write-Host "  MCP admin: http://localhost:$McpPort/admin"
         Write-Host "  MCP endpoint: http://localhost:$McpPort/mcp"

@@ -4,6 +4,7 @@ import com.chatchat.agents.tool.ToolRegistry;
 import com.chatchat.mcpserver.tool.ToolRegistryMcpAdapter;
 import com.chatchat.tools.mcp.McpServerToolRegistrar;
 import com.chatchat.tools.builtin.BuiltInToolsBootstrap;
+import com.chatchat.runtime.mcp.registry.McpToolRegistry;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.modelcontextprotocol.json.McpJsonMapper;
 import io.modelcontextprotocol.json.jackson2.JacksonMcpJsonMapper;
@@ -84,6 +85,7 @@ public class McpServerConfiguration {
     public McpSyncServer mcpSyncServer(
         HttpServletStreamableServerTransportProvider transportProvider,
         BuiltInToolsBootstrap builtInToolsBootstrap,
+        McpToolRegistry builtInMcpToolRegistry,
         ToolRegistry toolRegistry,
         ToolRegistryMcpAdapter toolRegistryMcpAdapter,
         ChatChatMcpServerProperties properties,

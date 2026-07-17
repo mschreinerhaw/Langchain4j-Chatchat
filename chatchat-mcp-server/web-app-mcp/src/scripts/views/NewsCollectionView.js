@@ -25,6 +25,7 @@ const sourceTypeOptions = [
   { label: '交易所首页', value: 'EXCHANGE_HOME' },
   { label: '资讯首页', value: 'NEWS_HOME' },
   { label: '财联社电报', value: 'CLS_TELEGRAPH' },
+  { label: '巨潮公告', value: 'CNINFO_ANNOUNCEMENTS' },
   { label: '网页列表', value: 'WEB_LIST' },
   { label: '固定网页', value: 'WEB_SINGLE_PAGE' },
   { label: 'RSS/Atom', value: 'RSS' },
@@ -110,6 +111,7 @@ export default {
   emits: ['notify', 'error', 'result'],
   data: () => ({
     sources: [], presets: [], patternPresets: [], loading: false, saving: false, collectingId: null, dialogOpen: false,
+    logDialogOpen: false, logsLoading: false, logs: [], logSourceId: '', logPage: 1, logPageSize: 20, logTotal: 0,
     filters: { keyword: '', sourceType: '', enabled: '' }, page: 1, pageSize: 10, pageSizes: [10, 20, 50, 100],
     form: emptyForm(), scheduleEditor: emptyScheduleEditor(), intervalOptions, weekdayOptions, monthDayOptions, sourceTypeOptions, selectorPresets
   }),
@@ -143,6 +145,42 @@ export default {
         if (this.page > lastPage) this.page = lastPage;
         this.loading = false;
       }
+    },
+    async refreshSources() {
+      await this.load();
+      this.$emit('notify', { title: '资讯采集数据已刷新' });
+    },
+    async openLogs() {
+      this.logDialogOpen = true;
+      this.logPage = 1;
+      await this.loadLogs();
+    },
+    async reloadLogs() {
+      this.logPage = 1;
+      await this.loadLogs();
+    },
+    async loadLogs() {
+      this.logsLoading = true;
+      try {
+        const result = await newsApi.listRecords({ sourceId: this.logSourceId, page: this.logPage - 1, size: this.logPageSize });
+        this.logs = Array.isArray(result?.items) ? result.items : [];
+        this.logTotal = Number(result?.total || 0);
+      } catch (error) { this.$emit('error', error); }
+      finally { this.logsLoading = false; }
+    },
+    formatTime(value) {
+      if (!value) return '-';
+      const date = new Date(value);
+      return Number.isNaN(date.getTime()) ? value : date.toLocaleString('zh-CN', { hour12: false });
+    },
+    recordStatusLabel(status) {
+      return ({ NEW: '新增', QUEUED: '排队中', INDEXED: '已索引', DUPLICATE: '重复', FAILED: '失败' })[status] || status || '-';
+    },
+    recordStatusType(status) {
+      return ({ INDEXED: 'success', FAILED: 'danger', DUPLICATE: 'info', QUEUED: 'warning', NEW: 'primary' })[status] || 'info';
+    },
+    analysisStatusLabel(status) {
+      return ({ PENDING: '待分析', PROCESSING: '分析中', COMPLETED: '已完成', FAILED: '失败' })[status] || status || '-';
     },
     resetPage() { this.page = 1; },
     resetFilters() {

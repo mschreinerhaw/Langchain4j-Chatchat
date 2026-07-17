@@ -14,7 +14,7 @@
 1. Install Java 17 or later and configure `JAVA_HOME` when Java is not on `PATH`.
 2. Choose `h2` or `mysql`. H2 is the default; for MySQL, initialize it with `config/sql/mysql/chatchat-runtime-news.sql`.
 3. Edit `config/application-h2.yml` or `config/application-mysql.yml`, then edit `config/application.yml` for OpenSearch, internal account and optional Embedding settings.
-4. Configure the same internal account on MCP and News Runtime. News Runtime refuses to start with an empty internal secret.
+4. News Runtime and MCP initially use the same bootstrap internal account so the release can start directly. Before exposing a production service, replace the bootstrap secret on both services with the same `ENC(...)` ciphertext and external key file. News Runtime refuses to start with an empty internal secret.
 5. Start with `bin/start.sh` on Linux or `bin/start.bat` on Windows.
 
 `config/application.yml` deliberately contains concrete values rather than environment-variable placeholders. `config/env.properties`

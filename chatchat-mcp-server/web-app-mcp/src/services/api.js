@@ -57,7 +57,15 @@ export const newsApi = {
   saveSource: source => saveEntity(`${API_BASE}/news/sources`, source),
   saveRule: (id, rule) => apiFetch(`${API_BASE}/news/sources/${encodeURIComponent(id)}/rule`, { method: 'PUT', body: JSON.stringify(rule || {}) }),
   removeSource: id => apiFetch(`${API_BASE}/news/sources/${encodeURIComponent(id)}`, { method: 'DELETE' }),
-  collect: id => apiFetch(`${API_BASE}/news/sources/${encodeURIComponent(id)}/collect`, { method: 'POST' })
+  collect: id => apiFetch(`${API_BASE}/news/sources/${encodeURIComponent(id)}/collect`, { method: 'POST' }),
+  listRecords: params => {
+    const query = new URLSearchParams();
+    Object.entries(params || {}).forEach(([key, value]) => {
+      if (value !== undefined && value !== null && String(value) !== '') query.set(key, value);
+    });
+    return apiFetch(`${API_BASE}/news/records?${query}`);
+  },
+  searchIndex: request => apiFetch(`${API_BASE}/news/search`, { method: 'POST', body: JSON.stringify(request || {}) })
 };
 
 export const assetsApi = {

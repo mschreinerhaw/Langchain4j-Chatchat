@@ -2,7 +2,11 @@
   <section class="news-admin-view">
     <el-card shadow="never" class="news-hero">
       <div><h2>资讯采集后台</h2><p>配置资讯网站、采集周期、限速与精确抽取规则。这里只管理采集，Agent 仅能调用已发布的查询工具。</p></div>
-      <el-button type="primary" @click="createSource">新增资讯源</el-button>
+      <div class="news-hero-actions">
+        <el-button :loading="loading" @click="refreshSources"><el-icon><Refresh /></el-icon>刷新</el-button>
+        <el-button @click="openLogs">采集日志</el-button>
+        <el-button type="primary" @click="createSource">新增资讯源</el-button>
+      </div>
     </el-card>
 
     <el-alert title="已内置上交所/深交所首页快照及东方财富、财联社、交易所公告、巨潮资讯等七套模板，默认关闭。站点页面改版后请及时校验配置。" type="info" :closable="false" show-icon />
@@ -64,7 +68,7 @@
         <div class="news-form-grid">
           <el-form-item label="来源编码"><el-input v-model.trim="form.sourceCode" /></el-form-item>
           <el-form-item label="来源名称"><el-input v-model.trim="form.sourceName" /></el-form-item>
-          <el-form-item label="来源类型"><el-select v-model="form.sourceType"><el-option label="交易所首页（内置）" value="EXCHANGE_HOME" disabled /><el-option label="资讯首页（内置）" value="NEWS_HOME" disabled /><el-option label="财联社电报（内置）" value="CLS_TELEGRAPH" disabled /><el-option label="网页列表" value="WEB_LIST" /><el-option label="固定网页" value="WEB_SINGLE_PAGE" /><el-option label="RSS/Atom" value="RSS" /><el-option label="JSON API" value="API" /></el-select></el-form-item>
+          <el-form-item label="来源类型"><el-select v-model="form.sourceType"><el-option label="交易所首页（内置）" value="EXCHANGE_HOME" disabled /><el-option label="资讯首页（内置）" value="NEWS_HOME" disabled /><el-option label="财联社电报（内置）" value="CLS_TELEGRAPH" disabled /><el-option label="巨潮公告（内置）" value="CNINFO_ANNOUNCEMENTS" disabled /><el-option label="网页列表" value="WEB_LIST" /><el-option label="固定网页" value="WEB_SINGLE_PAGE" /><el-option label="RSS/Atom" value="RSS" /><el-option label="JSON API" value="API" /></el-select></el-form-item>
           <el-form-item class="wide" label="入口地址"><el-input v-model.trim="form.entryUrl" /></el-form-item>
           <el-form-item label="允许域名"><el-input v-model.trim="form.allowedDomain" /></el-form-item>
           <el-form-item label="启用"><el-switch v-model="form.enabled" /></el-form-item>
@@ -188,6 +192,36 @@
         </div>
       </el-form>
       <template #footer><el-button @click="dialogOpen = false">取消</el-button><el-button type="primary" :loading="saving" @click="save">保存</el-button></template>
+    </el-dialog>
+
+    <el-dialog v-model="logDialogOpen" title="采集日志" width="1100px" destroy-on-close>
+      <div class="news-log-toolbar">
+        <el-select v-model="logSourceId" clearable placeholder="全部资讯源" @change="reloadLogs">
+          <el-option v-for="source in sources" :key="source.id" :label="source.sourceName" :value="source.id" />
+        </el-select>
+        <el-button :loading="logsLoading" @click="loadLogs"><el-icon><Refresh /></el-icon>刷新日志</el-button>
+      </div>
+      <el-table v-loading="logsLoading" :data="logs" border stripe empty-text="暂无采集日志" max-height="520">
+        <el-table-column prop="sourceName" label="资讯源" min-width="150" />
+        <el-table-column prop="sourceUrl" label="来源地址" min-width="280" show-overflow-tooltip />
+        <el-table-column label="采集状态" width="110"><template #default="{ row }"><el-tag :type="recordStatusType(row.collectStatus)">{{ recordStatusLabel(row.collectStatus) }}</el-tag></template></el-table-column>
+        <el-table-column label="分析状态" width="110"><template #default="{ row }">{{ analysisStatusLabel(row.analysisStatus) }}</template></el-table-column>
+        <el-table-column label="采集时间" width="180"><template #default="{ row }">{{ formatTime(row.collectedAt) }}</template></el-table-column>
+        <el-table-column prop="errorMessage" label="错误信息" min-width="220" show-overflow-tooltip />
+      </el-table>
+      <div class="news-pagination news-log-pagination">
+        <el-pagination
+          v-model:current-page="logPage"
+          v-model:page-size="logPageSize"
+          :page-sizes="[10, 20, 50, 100]"
+          :total="logTotal"
+          layout="total, sizes, prev, pager, next, jumper"
+          background
+          @current-change="loadLogs"
+          @size-change="reloadLogs"
+        />
+      </div>
+      <template #footer><el-button @click="logDialogOpen = false">关闭</el-button></template>
     </el-dialog>
   </section>
 </template>

@@ -31,16 +31,24 @@ public class ExchangeHomeNewsCollector implements NewsCollector {
     private final NewsItemSink sink;
     private final ObjectMapper objectMapper;
     private final HttpClient client;
+    private final DynamicPageDetector dynamicPageDetector;
 
     @Autowired
     public ExchangeHomeNewsCollector(NewsItemSink sink, ObjectMapper objectMapper) {
-        this(sink, objectMapper, HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NORMAL).build());
+        this(sink, objectMapper, HttpClient.newBuilder().followRedirects(HttpClient.Redirect.NORMAL).build(),
+            new DynamicPageDetector());
     }
 
     ExchangeHomeNewsCollector(NewsItemSink sink, ObjectMapper objectMapper, HttpClient client) {
+        this(sink, objectMapper, client, new DynamicPageDetector());
+    }
+
+    ExchangeHomeNewsCollector(NewsItemSink sink, ObjectMapper objectMapper, HttpClient client,
+                              DynamicPageDetector dynamicPageDetector) {
         this.sink = sink;
         this.objectMapper = objectMapper;
         this.client = client;
+        this.dynamicPageDetector = dynamicPageDetector;
     }
 
     @Override
@@ -88,7 +96,9 @@ public class ExchangeHomeNewsCollector implements NewsCollector {
             String url = element.absUrl("href");
             if (!title.isBlank() && !url.isBlank()) headlines.putIfAbsent(url, title);
         }
-        if (headlines.isEmpty()) throw new IllegalStateException("no configured homepage headlines were found");
+        if (headlines.isEmpty()) {
+            throw new IllegalStateException(dynamicPageDetector.selectorFailure(html, selector));
+        }
         StringBuilder content = new StringBuilder("资讯首页当前要闻：\n");
         int index = 1;
         for (var item : headlines.entrySet()) {

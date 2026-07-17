@@ -84,7 +84,7 @@ public class LivedataSessionService {
      * @return the operation result
      */
     private IllegalStateException loginConfigMissing() {
-        return new IllegalStateException("LiveData login is required. Configure chatchat.mcp.livedata.login-id and login-pwd.");
+        return new IllegalStateException("LiveData login is required. Configure chatchat.tools.livedata.login-id and login-pwd.");
     }
 
     /**
@@ -175,7 +175,7 @@ public class LivedataSessionService {
         LivedataAutoRegistrationProperties properties = settingsProvider.current();
         String baseUrl = properties.getServiceBaseUrl();
         if (!hasText(baseUrl)) {
-            throw new IllegalStateException("chatchat.mcp.livedata.service-base-url is required");
+            throw new IllegalStateException("chatchat.tools.livedata.service-base-url is required");
         }
         String path = hasText(properties.getLoginPath()) ? properties.getLoginPath().trim() : "/login";
         if (!path.startsWith("/")) {

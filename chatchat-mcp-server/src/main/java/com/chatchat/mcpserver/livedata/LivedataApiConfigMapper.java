@@ -449,7 +449,7 @@ public class LivedataApiConfigMapper {
      */
     private String trimTrailingSlash(String value) {
         if (value == null || value.isBlank()) {
-            throw new IllegalArgumentException("chatchat.mcp.livedata.service-base-url is required");
+            throw new IllegalArgumentException("chatchat.tools.livedata.service-base-url is required");
         }
         return value.trim().replaceAll("/+$", "");
     }

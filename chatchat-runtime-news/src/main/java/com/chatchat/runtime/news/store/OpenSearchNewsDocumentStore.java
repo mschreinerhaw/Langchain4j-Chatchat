@@ -20,6 +20,8 @@ import org.opensearch.client.ResponseException;
 import org.opensearch.client.RestClient;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Component;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
@@ -35,6 +37,7 @@ import java.security.GeneralSecurityException;
 @Component
 @ConditionalOnProperty(prefix = "chatchat.runtime.news.open-search", name = "enabled", havingValue = "true")
 public class OpenSearchNewsDocumentStore implements NewsDocumentStore {
+    private static final Logger log = LoggerFactory.getLogger(OpenSearchNewsDocumentStore.class);
 
     private final NewsRuntimeProperties.OpenSearch properties;
     private final NewsIndexNamingStrategy indexNaming;
@@ -103,6 +106,30 @@ public class OpenSearchNewsDocumentStore implements NewsDocumentStore {
         if (response.path("errors").asBoolean(false)) {
             throw new IllegalStateException("OpenSearch Bulk returned item failures: " + bulkErrors(response));
         }
+        log.info("news_opensearch_bulk_written indices={} documents={} tookMs={} vectorizationEnabled={}",
+            byIndex.entrySet().stream().collect(java.util.stream.Collectors.toMap(Map.Entry::getKey, entry -> entry.getValue().size())),
+            documents.size(), response.path("took").asLong(-1), embeddingClient.enabled());
+    }
+
+    /** Ensures that the physical index for the current calendar day exists even before the first Bulk flush. */
+    public String ensureDailyIndex() throws Exception {
+        String index = indexNaming.writeIndex(java.time.Instant.now());
+        if (embeddingClient.enabled()) {
+            if (!ensureVectorIndex(index)) {
+                throw new IllegalStateException("Failed to create vector-ready daily news index " + index);
+            }
+        } else {
+            Request create = new Request("PUT", "/" + index);
+            create.setJsonEntity("{}");
+            try {
+                client.performRequest(create);
+            } catch (ResponseException ex) {
+                if (ex.getResponse() == null || ex.getResponse().getStatusLine().getStatusCode() != 400) throw ex;
+            }
+        }
+        log.info("news_opensearch_daily_index_ready index={} endpoint={} retentionDays={} vectorizationEnabled={}",
+            index, properties.getEndpoint(), properties.getRetentionDays(), embeddingClient.enabled());
+        return index;
     }
 
     @Override
@@ -248,6 +275,8 @@ public class OpenSearchNewsDocumentStore implements NewsDocumentStore {
             checkedVectorIndices.add(index);
             return true;
         } catch (Exception ex) {
+            log.warn("news_opensearch_vector_index_prepare_failed index={} endpoint={} error={}",
+                index, properties.getEndpoint(), ex.getMessage());
             return false;
         }
     }

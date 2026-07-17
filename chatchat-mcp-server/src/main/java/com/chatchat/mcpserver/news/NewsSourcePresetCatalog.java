@@ -30,9 +30,7 @@ public class NewsSourcePresetCatalog {
                 "https?://[^/]*szse\\.cn/.*", "0 */15 * * * *"),
             newsHome("cninfo_home", "巨潮资讯首页", "https://www.cninfo.com.cn/new/index", "CNINFO",
                 "a[href*='/new/disclosure/detail']", 10, "0 */5 * * * *"),
-            web("cninfo_announcements", "巨潮资讯公告", "https://www.cninfo.com.cn/new/commonUrl/pageOfSearch?url=disclosure/list/search", "cninfo.com.cn",
-                "a[href*='/new/disclosure/detail'], a[href*='static.cninfo.com.cn']", "h1, .title", ".detail-content, .article-content, body", ".date, .time", ".source",
-                "https?://([^/]*\\.)?cninfo\\.com\\.cn/.*", "0 */10 * * * *")
+            cninfoAnnouncements()
         );
     }
 
@@ -51,6 +49,17 @@ public class NewsSourcePresetCatalog {
                 "CLS_TELEGRAPH", "https://www.cls.cn/telegraph", "cls.cn", "0 */2 * * * *", false,
                 Map.of("apiUrl", "https://www.cls.cn/api/cache", "itemLimit", 30, "sleepMillis", 1000,
                     "timeoutMillis", 20000, "zoneId", "Asia/Shanghai", "language", "zh-CN")), null);
+    }
+
+    private Preset cninfoAnnouncements() {
+        return new Preset("cninfo_announcements", "巨潮资讯公告",
+            "通过巨潮资讯公告页使用的结构化接口采集公告，并异步解析公告 PDF 原文。",
+            new SourceUpsert("cninfo_announcements", "巨潮资讯公告", "CNINFO_ANNOUNCEMENTS",
+                "https://www.cninfo.com.cn/new/commonUrl/pageOfSearch?url=disclosure/list/search",
+                "cninfo.com.cn", "0 */10 * * * *", false,
+                Map.of("apiUrl", "https://www.cninfo.com.cn/new/hisAnnouncement/query",
+                    "staticBaseUrl", "https://static.cninfo.com.cn/", "column", "szse", "itemLimit", 50,
+                    "sleepMillis", 1000, "timeoutMillis", 20000, "zoneId", "Asia/Shanghai", "language", "zh-CN")), null);
     }
 
     private Preset exchangeHome(String code, String name, String url, String provider, String headlineSelector,

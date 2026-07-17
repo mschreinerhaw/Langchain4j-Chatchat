@@ -239,7 +239,15 @@
         </el-row>
       </el-form>
 
-      <el-table v-if="searchRows.length" class="settings-table" :data="searchRows" border stripe>
+      <el-table v-if="searchRows.length && search.indexType === 'news'" class="settings-table" :data="searchRows" border stripe>
+        <el-table-column prop="title" label="标题" min-width="240" />
+        <el-table-column prop="sourceName" label="来源" min-width="140" />
+        <el-table-column prop="url" label="证据地址" min-width="280" show-overflow-tooltip />
+        <el-table-column prop="publishedAt" label="发布时间" width="190" />
+        <el-table-column prop="documentKind" label="文档类型" width="130" />
+        <el-table-column prop="summary" label="摘要" min-width="260" show-overflow-tooltip />
+      </el-table>
+      <el-table v-else-if="searchRows.length" class="settings-table" :data="searchRows" border stripe>
         <el-table-column prop="kind" label="类型" width="100" />
         <el-table-column prop="name" label="名称" min-width="180" />
         <el-table-column prop="assetType" label="资产类型" min-width="140" />

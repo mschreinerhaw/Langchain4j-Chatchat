@@ -12,7 +12,7 @@ chatchat:
     enabled: true
     username: chatchat_mcp_internal
     encrypted-secret: ""
-    secret: ""
+    secret: chatchat_internal_default_secret
     crypto-key: ""
     crypto-key-file: ""
   runtime:

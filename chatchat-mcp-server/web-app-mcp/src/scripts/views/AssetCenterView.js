@@ -1,6 +1,6 @@
 import CrudCatalog from '../../components/CrudCatalog.vue';
 import ModalPanel from '../../components/ModalPanel.vue';
-import { assetsApi as api } from '../../services/api';
+import { assetsApi as api, newsApi } from '../../services/api';
 import { prettyJson } from '../../utils/json';
 
 const objectSchemaText = JSON.stringify({
@@ -57,7 +57,8 @@ export default {
         { value: 'templates', label: '模板索引' },
         { value: 'database_query', label: '业务查询索引' },
         { value: 'api_service', label: 'API 服务索引' },
-        { value: 'document_search', label: '文档索引' }
+        { value: 'document_search', label: '文档索引' },
+        { value: 'news', label: '新闻资讯索引（OpenSearch）' }
       ],
       assetIndexRebuildOptions: [
         { value: '', label: '全部资产索引' },
@@ -463,7 +464,9 @@ export default {
       this.searchBusy = true;
       try {
         const request = this.searchRequest();
-        const result = await api.searchIndex(request);
+        const result = request.indexType === 'news'
+          ? await this.runNewsIndexSearch(request)
+          : await api.searchIndex(request);
         this.searchRows = Array.isArray(result?.results) ? result.results : [];
         this.searchResult = prettyJson(result, {});
       } catch (error) {
@@ -471,6 +474,25 @@ export default {
       } finally {
         this.searchBusy = false;
       }
+    },
+    async runNewsIndexSearch(request) {
+      const output = await newsApi.searchIndex({ query: request.query, size: request.limit });
+      if (!output?.success) throw new Error(output?.errorMessage || '新闻索引检索失败');
+      const data = output?.data || {};
+      const items = Array.isArray(data.items) ? data.items : [];
+      return {
+        indexType: 'news',
+        physicalIndex: 'runtime-news-YYYY.MM.DD',
+        count: Number(data.count || items.length),
+        reference_urls: data.reference_urls || [],
+        results: items.map(item => ({
+          ...item,
+          kind: item.documentKind || 'news_article',
+          name: item.title,
+          description: item.summary || item.content,
+          publishedAt: item.publishTime
+        }))
+      };
     },
     searchRequest() {
       const labels = String(this.search.labels || '')

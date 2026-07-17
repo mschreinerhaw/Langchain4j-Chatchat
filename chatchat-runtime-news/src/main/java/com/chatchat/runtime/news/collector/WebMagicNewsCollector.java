@@ -22,6 +22,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
 
 /** Precise news-page extraction. This class deliberately has no generic link-recursion mode. */
@@ -35,12 +36,14 @@ public class WebMagicNewsCollector implements NewsCollector {
     private final NewsItemSink sink;
     private final NewsRuntimeProperties properties;
     private final PublishTimeParser publishTimeParser;
+    private final DynamicPageDetector dynamicPageDetector;
 
     public WebMagicNewsCollector(NewsItemSink sink, NewsRuntimeProperties properties,
-                                 PublishTimeParser publishTimeParser) {
+                                 PublishTimeParser publishTimeParser, DynamicPageDetector dynamicPageDetector) {
         this.sink = sink;
         this.properties = properties;
         this.publishTimeParser = publishTimeParser;
+        this.dynamicPageDetector = dynamicPageDetector;
     }
 
     @Override
@@ -174,6 +177,9 @@ public class WebMagicNewsCollector implements NewsCollector {
                 detail.putExtra(PAGE_TYPE, DETAIL);
                 page.addTargetRequest(detail);
             }
+            if (directAttachments.isEmpty() && accepted.isEmpty()) {
+                counters.fail(dynamicPageDetector.selectorFailure(page.getRawText(), linkSelector));
+            }
         }
 
         private boolean isAllowedDetailUrl(String value) {
@@ -218,6 +224,7 @@ public class WebMagicNewsCollector implements NewsCollector {
         final AtomicInteger accepted = new AtomicInteger();
         final AtomicInteger duplicate = new AtomicInteger();
         final AtomicInteger rejected = new AtomicInteger();
+        final AtomicReference<String> error = new AtomicReference<>();
 
         void add(NewsAcceptance acceptance) {
             if (acceptance == NewsAcceptance.ACCEPTED) accepted.incrementAndGet();
@@ -225,9 +232,14 @@ public class WebMagicNewsCollector implements NewsCollector {
             else rejected.incrementAndGet();
         }
 
+        void fail(String message) {
+            error.compareAndSet(null, message);
+        }
+
         NewsCollectResult result(NewsCollectContext context, NewsSource source, String error) {
+            String effectiveError = error == null ? this.error.get() : error;
             return new NewsCollectResult(context.executionId(), source.id(), discovered.get(), accepted.get(),
-                duplicate.get(), rejected.get(), error == null ? 0 : 1, error);
+                duplicate.get(), rejected.get(), effectiveError == null ? 0 : 1, effectiveError);
         }
     }
 }

@@ -53,6 +53,7 @@ chatchat-runtime-news:8091
 | `EXCHANGE_HOME` | 上交所、深交所首页要闻与行情快照 |
 | `NEWS_HOME` | 巨潮资讯等首页关键内容 |
 | `CLS_TELEGRAPH` | 财联社电报快讯 |
+| `CNINFO_ANNOUNCEMENTS` | 巨潮资讯结构化公告与 PDF 原文采集 |
 | `WEB_LIST` | 列表页发现详情页后采集 |
 | `WEB_SINGLE_PAGE` | 固定资讯页面采集 |
 

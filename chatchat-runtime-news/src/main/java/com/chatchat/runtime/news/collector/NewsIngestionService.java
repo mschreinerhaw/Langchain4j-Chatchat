@@ -9,11 +9,14 @@ import com.chatchat.runtime.news.source.NewsCollectRecordEntity;
 import com.chatchat.runtime.news.source.NewsCollectRecordRepository;
 import com.chatchat.runtime.news.store.NewsBulkIndexer;
 import org.springframework.stereotype.Service;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.Instant;
 
 @Service
 public class NewsIngestionService implements NewsItemSink {
+    private static final Logger log = LoggerFactory.getLogger(NewsIngestionService.class);
     private final NewsNormalizer normalizer;
     private final NewsCollectRecordRepository repository;
     private final NewsBulkIndexer bulkIndexer;
@@ -37,6 +40,8 @@ public class NewsIngestionService implements NewsItemSink {
                 && record.getCollectStatus() != NewsCollectStatus.FAILED) {
                 record.setCollectedAt(Instant.now());
                 repository.save(record);
+                log.debug("news_item_duplicate sourceId={} documentId={} url={}",
+                    document.sourceId(), document.documentId(), document.sourceUrl());
                 return NewsAcceptance.DUPLICATE;
             }
             if (record == null) record = new NewsCollectRecordEntity();
@@ -55,11 +60,18 @@ public class NewsIngestionService implements NewsItemSink {
                 record.setCollectStatus(NewsCollectStatus.FAILED);
                 record.setErrorMessage("Bounded OpenSearch Bulk queue is full");
                 repository.save(record);
+                log.warn("news_item_rejected reason=bulk_queue_full sourceId={} documentId={} url={}",
+                    document.sourceId(), document.documentId(), document.sourceUrl());
                 return NewsAcceptance.REJECTED;
             }
+            log.info("news_item_queued sourceId={} sourceName={} documentId={} url={} bulkQueueDepth={}",
+                document.sourceId(), document.sourceName(), document.documentId(), document.sourceUrl(), bulkIndexer.queued());
             attachmentIngestionService.submit(document);
             return NewsAcceptance.ACCEPTED;
         } catch (IllegalArgumentException ex) {
+            log.warn("news_item_rejected reason=normalization sourceId={} url={} error={}",
+                rawItem == null || rawItem.source() == null ? null : rawItem.source().id(),
+                rawItem == null ? null : rawItem.sourceUrl(), ex.getMessage());
             return NewsAcceptance.REJECTED;
         }
     }

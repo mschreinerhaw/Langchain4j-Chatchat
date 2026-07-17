@@ -1,9 +1,11 @@
 package com.chatchat.mcpserver.news;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import java.util.HashMap;
@@ -15,13 +17,24 @@ public class NewsSourcePresetSeeder {
     private static final String LEGACY_SZSE_ENTRY_URL = "https://www.szse.cn/disclosure/listed/bulletin/index.html";
     private final NewsRuntimeClient runtime;
     private final NewsSourcePresetCatalog catalog;
+    private volatile boolean initialSynchronizationCompleted;
 
     public NewsSourcePresetSeeder(NewsRuntimeClient runtime, NewsSourcePresetCatalog catalog) {
         this.runtime = runtime; this.catalog = catalog;
     }
 
-    @PostConstruct
-    public void seedMissingPresets() {
+    @EventListener(ApplicationReadyEvent.class)
+    public void synchronizeWhenMcpIsReady() {
+        seedMissingPresets();
+    }
+
+    @Scheduled(initialDelayString = "${chatchat.mcp.news-runtime.preset-retry-initial-delay-millis:10000}",
+        fixedDelayString = "${chatchat.mcp.news-runtime.preset-retry-delay-millis:60000}")
+    public void retryInitialSynchronization() {
+        if (!initialSynchronizationCompleted) seedMissingPresets();
+    }
+
+    public synchronized boolean seedMissingPresets() {
         try {
             Map<String, JsonNode> existing = new HashMap<>();
             runtime.get("/sources").forEach(source -> existing.put(source.path("sourceCode").asText(), source));
@@ -34,23 +47,28 @@ public class NewsSourcePresetSeeder {
                     migrate(current, preset);
                 }
             }
+            initialSynchronizationCompleted = true;
+            return true;
         } catch (Exception ex) {
             // MCP must still start when the independently deployed News Runtime is temporarily unavailable.
             log.warn("News Runtime unavailable; preset synchronization deferred: {}", ex.getMessage());
+            return false;
         }
     }
 
     private void migrate(JsonNode current, NewsSourcePresetCatalog.Preset preset) {
         boolean legacyCls = "cls_telegraph".equals(preset.code()) && "WEB_LIST".equals(current.path("sourceType").asText());
+        boolean legacyCninfo = "cninfo_announcements".equals(preset.code())
+            && "WEB_LIST".equals(current.path("sourceType").asText());
         boolean legacySzse = "szse_announcements".equals(preset.code())
             && LEGACY_SZSE_ENTRY_URL.equals(current.path("entryUrl").asText());
-        if (!legacyCls && !legacySzse) return;
+        if (!legacyCls && !legacyCninfo && !legacySzse) return;
         NewsSourcePresetCatalog.SourceUpsert source = preset.source();
         var request = new NewsSourcePresetCatalog.SourceUpsert(source.sourceCode(), source.sourceName(),
-            legacyCls ? source.sourceType() : current.path("sourceType").asText(),
+            legacyCls || legacyCninfo ? source.sourceType() : current.path("sourceType").asText(),
             legacySzse ? source.entryUrl() : current.path("entryUrl").asText(), source.allowedDomain(),
             source.scheduleCron(), current.path("enabled").asBoolean(false),
-            legacyCls ? source.configuration() : jsonMap(current.path("configuration")));
+            legacyCls || legacyCninfo ? source.configuration() : jsonMap(current.path("configuration")));
         runtime.put("/sources/" + current.path("id").asLong(), request);
     }
 

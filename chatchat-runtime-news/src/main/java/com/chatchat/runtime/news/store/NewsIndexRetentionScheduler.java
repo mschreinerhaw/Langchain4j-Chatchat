@@ -29,6 +29,7 @@ public class NewsIndexRetentionScheduler {
         zone = "${chatchat.runtime.news.open-search.zone-id:Asia/Shanghai}")
     public void cleanup() {
         try {
+            store.ensureDailyIndex();
             List<String> deleted = store.deleteExpiredIndices();
             if (!deleted.isEmpty()) log.info("Deleted expired news indices: {}", deleted);
         } catch (Exception ex) {

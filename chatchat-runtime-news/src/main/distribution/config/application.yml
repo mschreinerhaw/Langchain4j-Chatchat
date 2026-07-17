@@ -21,12 +21,13 @@ logging:
 
 chatchat:
   # MCP 与 News Runtime 必须配置完全相同的内部账户。
-  # 生产环境请填写 ENC(...) 密文和外部密钥文件；密钥为空时服务拒绝启动。
+  # 下方明文仅用于首次启动，并与 MCP 发布包的默认值一致。
+  # 正式生产环境请尽快改成 ENC(...) 密文和外部密钥文件，并在 MCP 端同步修改。
   internal-credential:
     enabled: true
     username: chatchat_mcp_internal
     encrypted-secret: ""
-    secret: ""
+    secret: chatchat_internal_default_secret
     crypto-key: ""
     crypto-key-file: ""
   runtime:

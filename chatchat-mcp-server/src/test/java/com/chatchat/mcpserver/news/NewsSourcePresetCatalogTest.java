@@ -23,6 +23,12 @@ class NewsSourcePresetCatalogTest {
                 assertThat(preset.source().sourceType()).isEqualTo("CLS_TELEGRAPH");
                 assertThat(preset.rule()).isNull();
             });
+        assertThat(presets).filteredOn(preset -> "cninfo_announcements".equals(preset.code())).singleElement()
+            .satisfies(preset -> {
+                assertThat(preset.source().sourceType()).isEqualTo("CNINFO_ANNOUNCEMENTS");
+                assertThat(preset.source().configuration()).containsKeys("apiUrl", "staticBaseUrl", "itemLimit");
+                assertThat(preset.rule()).isNull();
+            });
         assertThat(presets).allSatisfy(preset -> {
             assertThat(preset.source().enabled()).isFalse();
             assertThat(preset.source().scheduleCron()).isNotBlank();

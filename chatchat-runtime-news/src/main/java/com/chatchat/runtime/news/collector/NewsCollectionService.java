@@ -5,6 +5,8 @@ import com.chatchat.runtime.news.model.NewsCollectResult;
 import com.chatchat.runtime.news.model.NewsSource;
 import com.chatchat.runtime.news.source.NewsSourceService;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.time.Instant;
@@ -16,6 +18,7 @@ import java.util.concurrent.Executor;
 /** Internal/scheduler entry point. It is intentionally not exposed as an Agent tool. */
 @Service
 public class NewsCollectionService {
+    private static final Logger log = LoggerFactory.getLogger(NewsCollectionService.class);
     private final NewsSourceService sourceService;
     private final List<NewsCollector> collectors;
     private final Executor executor;
@@ -33,11 +36,24 @@ public class NewsCollectionService {
     }
 
     public NewsCollectResult collect(Long sourceId, String executionId) {
-        NewsSource source = sourceService.requireEnabled(sourceId);
-        NewsCollector collector = collectors.stream().filter(item -> item.supports(source.sourceType()))
-            .findFirst().orElseThrow(() -> new IllegalStateException("No collector for " + source.sourceType()));
-        NewsCollectResult result = collector.collect(source, new NewsCollectContext(executionId, Instant.now()));
-        if (result.failedCount() == 0) sourceService.markCollected(sourceId, null);
-        return result;
+        long startedAt = System.currentTimeMillis();
+        try {
+            NewsSource source = sourceService.requireEnabled(sourceId);
+            NewsCollector collector = collectors.stream().filter(item -> item.supports(source.sourceType()))
+                .findFirst().orElseThrow(() -> new IllegalStateException("No collector for " + source.sourceType()));
+            log.info("news_collect_started executionId={} sourceId={} sourceCode={} sourceType={} entryUrl={} collector={}",
+                executionId, source.id(), source.code(), source.sourceType(), source.entryUrl(), collector.getClass().getSimpleName());
+            NewsCollectResult result = collector.collect(source, new NewsCollectContext(executionId, Instant.now()));
+            if (result.failedCount() == 0) sourceService.markCollected(sourceId, null);
+            log.info("news_collect_completed executionId={} sourceId={} sourceCode={} discovered={} accepted={} duplicates={} rejected={} failed={} durationMs={} error={}",
+                executionId, source.id(), source.code(), result.discoveredCount(), result.acceptedCount(),
+                result.duplicateCount(), result.rejectedCount(), result.failedCount(),
+                System.currentTimeMillis() - startedAt, result.errorMessage());
+            return result;
+        } catch (RuntimeException ex) {
+            log.error("news_collect_failed executionId={} sourceId={} durationMs={} error={}",
+                executionId, sourceId, System.currentTimeMillis() - startedAt, ex.getMessage(), ex);
+            throw ex;
+        }
     }
 }

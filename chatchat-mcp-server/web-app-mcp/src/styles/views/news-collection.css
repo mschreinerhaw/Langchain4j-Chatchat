@@ -2,10 +2,14 @@
 .news-hero .el-card__body { display: flex; align-items: center; justify-content: space-between; gap: 24px; }
 .news-hero h2 { margin: 0 0 8px; }
 .news-hero p { margin: 0; color: var(--el-text-color-secondary); }
+.news-hero-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
 .news-list-toolbar { display: grid; grid-template-columns: minmax(260px, 1fr) 180px 150px auto auto; align-items: center; gap: 12px; }
 .news-list-count { justify-self: end; color: var(--el-text-color-secondary); white-space: nowrap; }
 .news-table small { display: block; margin-top: 4px; color: var(--el-text-color-secondary); }
 .news-pagination { display: flex; justify-content: flex-end; overflow-x: auto; }
+.news-log-toolbar { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+.news-log-toolbar .el-select { width: 260px; }
+.news-log-pagination { margin-top: 16px; }
 .news-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 18px; }
 .news-form-grid .wide { grid-column: 1 / -1; }
 .news-form-grid .el-select { width: 100%; }

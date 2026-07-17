@@ -6,7 +6,7 @@ import org.springframework.stereotype.Component;
 
 @Data
 @Component
-@ConfigurationProperties(prefix = "chatchat.mcp.livedata")
+@ConfigurationProperties(prefix = "chatchat.tools.livedata")
 public class LivedataAutoRegistrationProperties {
 
     private boolean enabled = false;

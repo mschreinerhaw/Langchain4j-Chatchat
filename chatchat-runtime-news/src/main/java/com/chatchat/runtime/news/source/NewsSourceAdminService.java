@@ -4,6 +4,7 @@ import com.chatchat.runtime.news.model.NewsSourceType;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.data.domain.PageRequest;
 
 import java.net.URI;
 import java.time.Instant;
@@ -29,6 +30,22 @@ public class NewsSourceAdminService {
 
     public List<NewsSourceView> list(Long capabilityId) {
         return sourceRepository.findByCapabilityIdOrderByUpdatedAtDesc(capabilityId).stream().map(this::view).toList();
+    }
+
+    public NewsRecordPage records(Long sourceId, int page, int size) {
+        int safePage = Math.max(0, page);
+        int safeSize = Math.max(1, Math.min(size, 100));
+        var result = sourceId == null
+            ? recordRepository.findAllByOrderByIdDesc(PageRequest.of(safePage, safeSize))
+            : recordRepository.findBySourceIdOrderByIdDesc(sourceId, PageRequest.of(safePage, safeSize));
+        Map<Long, String> sourceNames = sourceRepository.findAllById(
+                result.getContent().stream().map(NewsCollectRecordEntity::getSourceId).distinct().toList())
+            .stream().collect(java.util.stream.Collectors.toMap(NewsSourceEntity::getId, NewsSourceEntity::getSourceName));
+        List<NewsRecordView> items = result.getContent().stream().map(record -> new NewsRecordView(
+            record.getId(), record.getSourceId(), sourceNames.getOrDefault(record.getSourceId(), "未知资讯源"),
+            record.getSourceUrl(), record.getCollectStatus(), record.getAnalysisStatus(), record.getDocumentId(),
+            record.getPublishTime(), record.getCollectedAt(), record.getErrorMessage())).toList();
+        return new NewsRecordPage(items, result.getTotalElements(), safePage, safeSize, result.getTotalPages());
     }
 
     @Transactional
@@ -177,4 +194,11 @@ public class NewsSourceAdminService {
 
     public record NewsRuleView(Long id, Long sourceId, String listSelector, String linkSelector, String titleSelector,
                                String contentSelector, String authorSelector, String publishTimeSelector, String urlPattern) { }
+
+    public record NewsRecordView(Long id, Long sourceId, String sourceName, String sourceUrl,
+                                 com.chatchat.runtime.news.model.NewsCollectStatus collectStatus,
+                                 com.chatchat.runtime.news.model.NewsAnalysisStatus analysisStatus,
+                                 String documentId, Instant publishTime, Instant collectedAt, String errorMessage) { }
+
+    public record NewsRecordPage(List<NewsRecordView> items, long total, int page, int size, int totalPages) { }
 }

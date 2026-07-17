@@ -28,6 +28,11 @@ class NewsRuntimeStandaloneSmokeTest {
             .getForEntity("/internal/v1/news/health", String.class);
         assertThat(response.getStatusCode()).isEqualTo(HttpStatus.OK);
         assertThat(response.getBody()).contains("chatchat-runtime-news", "UP");
+
+        var records = rest.withBasicAuth("chatchat_mcp_internal", "test-secret")
+            .getForEntity("/internal/v1/news/records?page=0&size=20", String.class);
+        assertThat(records.getStatusCode()).isEqualTo(HttpStatus.OK);
+        assertThat(records.getBody()).contains("\"items\":[]", "\"total\":0");
     }
 
     @Test

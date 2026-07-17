@@ -76,18 +76,30 @@ public class NewsBulkIndexer {
 
     private void indexWithRetry(List<NewsDocument> batch) {
         Exception last = null;
+        String sourceIds = batch.stream().map(NewsDocument::sourceId).distinct().map(String::valueOf)
+            .collect(java.util.stream.Collectors.joining(","));
         for (int attempt = 0; attempt <= properties.getMaxRetries(); attempt++) {
             try {
+                long startedAt = System.currentTimeMillis();
+                log.info("news_bulk_started documents={} sourceIds={} attempt={} queueRemaining={}",
+                    batch.size(), sourceIds, attempt + 1, queue.size());
                 store.bulkIndex(batch);
                 stateService.indexed(batch);
+                log.info("news_bulk_completed documents={} sourceIds={} attempt={} durationMs={} queueRemaining={}",
+                    batch.size(), sourceIds, attempt + 1, System.currentTimeMillis() - startedAt, queue.size());
                 return;
             } catch (Exception ex) {
                 last = ex;
-                if (attempt < properties.getMaxRetries()) backoff(attempt);
+                if (attempt < properties.getMaxRetries()) {
+                    log.warn("news_bulk_retry documents={} sourceIds={} attempt={} error={}",
+                        batch.size(), sourceIds, attempt + 1, ex.getMessage());
+                    backoff(attempt);
+                }
             }
         }
         stateService.failed(batch, last == null ? null : last.getMessage());
-        log.error("News Bulk indexing failed after retries for {} documents", batch.size(), last);
+        log.error("news_bulk_failed documents={} sourceIds={} attempts={} queueRemaining={}",
+            batch.size(), sourceIds, properties.getMaxRetries() + 1, queue.size(), last);
     }
 
     private void backoff(int attempt) {

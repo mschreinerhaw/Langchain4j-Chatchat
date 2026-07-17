@@ -90,7 +90,9 @@ public class NewsAttachmentIngestionService {
     }
 
     private void process(NewsDocument parent, String url, Set<String> allowedDomains) {
+        long startedAt = System.currentTimeMillis();
         try {
+            log.info("news_attachment_started parentDocumentId={} sourceId={} url={}", parent.documentId(), parent.sourceId(), url);
             HttpRequest request = HttpRequest.newBuilder(URI.create(url))
                 .timeout(Duration.ofMillis(Math.max(1, properties.getRequestTimeoutMillis())))
                 .header("User-Agent", "ChatChat-NewsAttachment/1.0")
@@ -109,16 +111,21 @@ public class NewsAttachmentIngestionService {
             String fileName = fileName(response);
             String text = extract(bytes, fileName);
             List<String> chunks = chunks(text);
+            int queuedChunks = 0;
             for (int index = 0; index < chunks.size(); index++) {
                 NewsDocument document = chunkDocument(parent, response.uri().toString(), fileName, chunks.get(index), index, chunks.size());
                 if (!bulkIndexer.submit(document)) {
                     log.warn("News Bulk queue is full while indexing attachment parent={} url={}", parent.documentId(), url);
                     break;
                 }
+                queuedChunks++;
             }
+            log.info("news_attachment_completed parentDocumentId={} sourceId={} fileName={} bytes={} extractedChars={} chunks={} queuedChunks={} durationMs={}",
+                parent.documentId(), parent.sourceId(), fileName, bytes.length, text.length(), chunks.size(), queuedChunks,
+                System.currentTimeMillis() - startedAt);
         } catch (Exception ex) {
-            log.warn("Failed to process news attachment parent={} url={} error={}",
-                parent.documentId(), url, ex.getMessage());
+            log.warn("news_attachment_failed parentDocumentId={} sourceId={} url={} durationMs={} error={}",
+                parent.documentId(), parent.sourceId(), url, System.currentTimeMillis() - startedAt, ex.getMessage());
         }
     }
 

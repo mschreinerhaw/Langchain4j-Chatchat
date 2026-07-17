@@ -52,6 +52,12 @@ public class NewsRuntimeInternalController {
     @PostMapping("/sources/{id}/collect") public ApiResponse<?> collect(@PathVariable("id") Long id) {
         return ApiResponse.success(collection.collect(id, "mcp-admin-" + UUID.randomUUID()), "采集完成");
     }
+    @GetMapping("/records") public ApiResponse<NewsSourceAdminService.NewsRecordPage> records(
+        @RequestParam(value = "sourceId", required = false) Long sourceId,
+        @RequestParam(value = "page", defaultValue = "0") int page,
+        @RequestParam(value = "size", defaultValue = "20") int size) {
+        return ApiResponse.success(sources.records(sourceId, page, size));
+    }
     @PostMapping("/tools/{toolName}") public ApiResponse<ToolOutput> invoke(
         @PathVariable("toolName") String toolName, @RequestBody ToolInput input) {
         return ApiResponse.success(tools.findExecutor(toolName)
